@@ -52,7 +52,7 @@ export default function JobCancellationModal({
         }
       }
 
-      const { data } = await api.put(`/api/jobs/${job.id}/cancel`, {
+      const { data } = await api.post(`/jobs/${job.id}/cancel`, {
         reason: reason || null
       });
 

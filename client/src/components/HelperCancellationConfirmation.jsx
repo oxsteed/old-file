@@ -123,7 +123,7 @@ export default function HelperCancellationConfirmation({
     if (!acknowledged) return;
     setLoading(true);
     try {
-      const { data } = await api.put(`/api/jobs/${job.id}/cancel`, {
+      const { data } = await api.post(`/jobs/${job.id}/cancel`, {
         reason: null
       });
       toast.success(t('helperCancelConfirm.cancelled', 'Job cancelled. This has been logged on your profile.'));

@@ -98,7 +98,7 @@ export default function JobCancellationConfirmation({
     if (!acknowledged) return;
     setLoading(true);
     try {
-      const { data } = await api.put(`/api/jobs/${job.id}/cancel`, {
+      const { data } = await api.post(`/jobs/${job.id}/cancel`, {
         reason: null
       });
       const feeMsg = activeFee > 0

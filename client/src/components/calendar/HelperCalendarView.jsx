@@ -916,19 +916,39 @@ function BookingRequestsView({ onBookingConfirmed, t }) {
       </div>
       <div className="booking-requests-list">
         {bookingRequests.map((booking) => {
-          const startDate = new Date(booking.start_time);
-          const endDate = new Date(booking.end_time);
-          
+          // transformBooking() returns camelCase fields
+          const requestedDate = booking.requestedDate;
+          const startTime = booking.requestedStartTime;
+          const endTime = booking.requestedEndTime;
+
+          // Build Date objects for display — fall back gracefully
+          const startDate = requestedDate
+            ? new Date(`${requestedDate}T${startTime || '00:00'}`)
+            : null;
+          const endDate = requestedDate && endTime
+            ? new Date(`${requestedDate}T${endTime}`)
+            : null;
+
+          const customerInitial = (booking.customerName || booking.customer_name || '?').charAt(0).toUpperCase();
+          const customerDisplayName = booking.customerName || booking.customer_name || t('calendar.unknownCustomer', { defaultValue: 'Unknown Customer' });
+          const createdAt = booking.createdAt || booking.created_at;
+          const serviceName = booking.serviceName || booking.service_name || booking.serviceType;
+          const description = booking.description || booking.notes;
+
           return (
             <div key={booking.id} className="booking-request-card">
               <div className="booking-request-header">
                 <div className="customer-info">
-                  <div className="avatar">{booking.customer_name?.charAt(0) || '?'}</div>
+                  {booking.customerAvatar ? (
+                    <img src={booking.customerAvatar} alt="" className="avatar avatar-img" />
+                  ) : (
+                    <div className="avatar">{customerInitial}</div>
+                  )}
                   <div>
-                    <h4>{booking.customer_name || 'Unknown Customer'}</h4>
+                    <h4>{customerDisplayName}</h4>
                     <p className="request-time">
                       {t('calendar.requestedOn', { defaultValue: 'Requested on' })}{' '}
-                      {new Date(booking.created_at).toLocaleDateString()}
+                      {createdAt ? new Date(createdAt).toLocaleDateString() : '—'}
                     </p>
                   </div>
                 </div>
@@ -936,37 +956,38 @@ function BookingRequestsView({ onBookingConfirmed, t }) {
                   {t('calendar.statusPending', { defaultValue: 'Pending' })}
                 </div>
               </div>
-              
+
               <div className="booking-details">
                 <div className="detail-row">
                   <span className="detail-label">📅 {t('calendar.dateTime', { defaultValue: 'Date & Time' })}:</span>
                   <span className="detail-value">
-                    {startDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                    {startDate
+                      ? startDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+                      : requestedDate || '—'}
                     <br />
-                    {startDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-                    {' – '}
-                    {endDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                    {startTime || ''}
+                    {endTime ? ` – ${endTime}` : ''}
                   </span>
                 </div>
-                
-                {booking.service_description && (
+
+                {serviceName && (
                   <div className="detail-row">
                     <span className="detail-label">📋 {t('calendar.service', { defaultValue: 'Service' })}:</span>
-                    <span className="detail-value">{booking.service_description}</span>
+                    <span className="detail-value">{serviceName}</span>
                   </div>
                 )}
-                
-                {booking.notes && (
+
+                {description && (
                   <div className="detail-row">
                     <span className="detail-label">💬 {t('calendar.notes', { defaultValue: 'Notes' })}:</span>
-                    <span className="detail-value">{booking.notes}</span>
+                    <span className="detail-value">{description}</span>
                   </div>
                 )}
-                
-                {booking.price && (
+
+                {booking.serviceLocation && (
                   <div className="detail-row">
-                    <span className="detail-label">💰 {t('calendar.price', { defaultValue: 'Price' })}:</span>
-                    <span className="detail-value">${booking.price}</span>
+                    <span className="detail-label">📍 {t('calendar.location', { defaultValue: 'Location' })}:</span>
+                    <span className="detail-value">{booking.serviceLocation}</span>
                   </div>
                 )}
               </div>

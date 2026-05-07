@@ -63,6 +63,7 @@ export default function MyBidsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [withdrawing, setWithdrawing] = useState(null); // bid id currently being withdrawn
 
   const fetchBids = useCallback(async () => {
     setLoading(true);
@@ -80,6 +81,21 @@ export default function MyBidsPage() {
   }, []);
 
   useEffect(() => { fetchBids(); }, [fetchBids]);
+
+  const handleWithdraw = useCallback(async (bidId) => {
+    if (!window.confirm(t('myBids.withdrawConfirm', { defaultValue: 'Are you sure you want to withdraw this bid?' }))) return;
+    setWithdrawing(bidId);
+    try {
+      await api.post(`/bids/${bidId}/withdraw`);
+      setBids(prev => prev.map(b => b.id === bidId ? { ...b, status: 'withdrawn' } : b));
+    } catch (err) {
+      console.error('MyBidsPage: failed to withdraw bid', err);
+      const msg = err.response?.data?.message || err.response?.data?.error || t('myBids.withdrawError', { defaultValue: 'Failed to withdraw bid.' });
+      alert(msg);
+    } finally {
+      setWithdrawing(null);
+    }
+  }, [t]);
 
   const displayed = filter === 'all'
     ? bids
@@ -281,9 +297,15 @@ export default function MyBidsPage() {
                         </Link>
                       )}
                       {isPending && jobStillOpen && (
-                        <span className="text-[10px] text-yellow-500/70 text-center px-1">
-                          {t('myBids.awaitingResponse', { defaultValue: 'Awaiting response' })}
-                        </span>
+                        <button
+                          onClick={() => handleWithdraw(bid.id)}
+                          disabled={withdrawing === bid.id}
+                          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-900/40 hover:bg-red-800/60 text-red-400 hover:text-red-300 border border-red-800/40 hover:border-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed text-center"
+                        >
+                          {withdrawing === bid.id
+                            ? t('myBids.withdrawing', { defaultValue: 'Withdrawing…' })
+                            : t('myBids.withdraw', { defaultValue: 'Withdraw' })}
+                        </button>
                       )}
                     </div>
                   </div>

@@ -248,20 +248,31 @@ exports.getIncomingBookingRequests = async (req, res) => {
     const helperId = req.user.id;
     const { status } = req.query;
 
-    let query = 'SELECT * FROM booking_requests WHERE helper_id = $1';
+    // JOIN users to get customer display name for the helper's inbox view
+    let query = `
+      SELECT br.*,
+             u.first_name || ' ' || u.last_name AS customer_name,
+             u.profile_photo_url AS customer_avatar
+      FROM booking_requests br
+      JOIN users u ON u.id = br.customer_id
+      WHERE br.helper_id = $1`;
     const params = [helperId];
 
     if (status) {
-      query += ` AND status = $${params.length + 1}`;
+      query += ` AND br.status = $${params.length + 1}`;
       params.push(status);
     }
 
-    query += ' ORDER BY created_at DESC';
+    query += ' ORDER BY br.created_at DESC';
 
     const result = await pool.query(query, params);
     const rows = [];
     for (const row of result.rows) {
-      rows.push(transformBooking(await expireIfStale(row)));
+      const transformed = transformBooking(await expireIfStale(row));
+      // Attach customer identity fields (not part of transformBooking)
+      transformed.customerName = row.customer_name || null;
+      transformed.customerAvatar = row.customer_avatar || null;
+      rows.push(transformed);
     }
 
     res.json({

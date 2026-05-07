@@ -352,7 +352,7 @@ exports.updateJob = async (req, res, next) => {
         is_urgent = COALESCE($9, is_urgent),
         scheduled_start_at = COALESCE($10, scheduled_start_at),
         updated_at = now()
-      WHERE id = $11 AND client_id = $12 AND status IN ('draft','published')
+      WHERE id = $11 AND client_id = $12 AND status IN ('draft','published','matched')
       RETURNING *
     `, [
       title, description, finalCategoryName,
@@ -372,106 +372,6 @@ exports.updateJob = async (req, res, next) => {
   }
 };
 
-// Cancel a job (soft)
-exports.cancelJob = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    // Step 1: Verify job exists and belongs to requester (outside transaction)
-    const { rows: jobRows } = await pool.query(
-      `SELECT id, client_id, status FROM jobs WHERE id = $1 AND client_id = $2`,
-      [id, req.user.id]
-    );
-
-    if (!jobRows[0]) {
-      throw new AppError('Job not found or you are not authorized', 404, 'job_not_found');
-    }
-
-    const job = jobRows[0];
-
-    // Step 2: Verify job is in a cancellable state
-    if (!['draft', 'published', 'matched', 'negotiating'].includes(job.status)) {
-      throw new AppError(
-        `Job cannot be cancelled in '${job.status}' state. Only draft, published, matched, and negotiating jobs can be cancelled.`,
-        400,
-        'invalid_job_state'
-      );
-    }
-
-    // Step 3: Check for pending/authorized payments (escrow holds)
-    const { rows: paymentRows } = await pool.query(`
-      SELECT id FROM payments
-      WHERE job_id = $1 AND status IN ('authorized', 'captured')
-      AND escrow_status IN ('authorized', 'held', 'disputed')
-    `, [id]);
-
-    if (paymentRows.length > 0) {
-      throw new AppError(
-        'Cannot cancel job with pending payments. Cancel or refund the payments before cancelling the job.',
-        409,
-        'pending_payments'
-      );
-    }
-
-    // Step 4: Atomically cancel job and reject all active bids (transactional)
-    const result = await withJobTransaction(pool, async (client) => {
-      // Cancel the job with status check to prevent race conditions
-      const { rows: updateRows } = await client.query(`
-        UPDATE jobs
-        SET status = 'cancelled', deleted_at = now(), updated_at = now()
-        WHERE id = $1
-        AND status IN ('draft','published','matched','negotiating')
-        RETURNING *
-      `, [id]);
-
-      if (!updateRows.length) {
-        throw new AppError('Job state changed during cancellation', 409, 'state_conflict');
-      }
-
-      // Reject all pending/accepted bids
-      const { rows: bidRows } = await client.query(`
-        UPDATE bids
-        SET status = 'rejected', updated_at = now()
-        WHERE job_id = $1 AND status IN ('pending', 'accepted')
-        RETURNING id, helper_id
-      `, [id]);
-
-      // Keep the calendar appointment in sync: → cancelled
-      await client.query(
-        `UPDATE appointments
-            SET status      = 'cancelled',
-                cancelled_by = 'customer',
-                cancelled_at = now(),
-                updated_at  = now()
-          WHERE job_id = $1
-            AND status NOT IN ('completed', 'cancelled')`,
-        [id]
-      );
-
-      return { job: updateRows[0], rejectedBids: bidRows };
-    }, 'cancel_job');
-
-    // Step 5: Log the cancellation and rejected bids (outside transaction)
-    if (result.rejectedBids.length > 0) {
-      logger.info('Job cancelled with bid rejections', {
-        jobId: id,
-        userId: req.user.id,
-        rejectedBidCount: result.rejectedBids.length,
-        rejectedHelperIds: result.rejectedBids.map(b => b.helper_id)
-      });
-    } else {
-      logger.info('Job cancelled', { jobId: id, userId: req.user.id });
-    }
-
-    res.json({
-      message: 'Job cancelled',
-      job: result.job,
-      rejected_bids: result.rejectedBids.length
-    });
-  } catch (err) {
-    next(err);
-  }
-};
 
 // Assign a helper to a job by accepting a specific bid
 exports.assignHelper = async (req, res, next) => {
@@ -958,18 +858,17 @@ exports.getMyJobs = async (req, res, next) => {
 };
 
 /**
- * Cancel a job (by customer or helper)
- * PUT /api/jobs/:jobId/cancel
+ * Cancel a job (by customer or helper) — unified handler for all cancellable states.
+ * POST /api/jobs/:id/cancel
  *
- * Handles:
- * - Job cancellation with fee calculation
- * - Calendar time freeing
- * - Reputation update
- * - Notification sending
+ * Pre-acceptance (draft/published/matched/negotiating):
+ *   - Customer only; no fee; rejects all bids; frees calendar.
+ * Post-acceptance (accepted/in_progress):
+ *   - Customer or helper; calculates timing-based cancellation fee for OxSteed jobs.
  */
 exports.cancelJob = async (req, res, next) => {
   try {
-    const { jobId } = req.params;
+    const { id: jobId } = req.params;   // route is /:id
     const { reason } = req.body;
     const userId = req.user.id;
 
@@ -997,7 +896,52 @@ exports.cancelJob = async (req, res, next) => {
           throw new AppError('Not authorized to cancel this job', 403);
         }
 
-        // 3. Check job status - can only cancel if accepted or in_progress
+        // 3a. Pre-acceptance cancellation — no fee, customer only
+        if (['draft', 'published', 'matched', 'negotiating'].includes(job.status)) {
+          if (!isCustomer) {
+            throw new AppError('Only the customer can cancel a job before a helper is assigned', 403);
+          }
+
+          // Block if there are live escrow holds
+          const { rows: payRows } = await client.query(`
+            SELECT id FROM payments
+            WHERE job_id = $1 AND status IN ('authorized','captured')
+              AND escrow_status IN ('authorized','held','disputed')
+          `, [jobId]);
+          if (payRows.length > 0) {
+            throw new AppError(
+              'Cannot cancel job with pending payments. Refund the payment first.',
+              409, 'pending_payments'
+            );
+          }
+
+          const { rows: updated } = await client.query(`
+            UPDATE jobs SET status = 'cancelled', deleted_at = now(), updated_at = now()
+            WHERE id = $1 AND status IN ('draft','published','matched','negotiating')
+            RETURNING *
+          `, [jobId]);
+          if (!updated.length) throw new AppError('Job state changed during cancellation', 409, 'state_conflict');
+
+          const { rows: rejectedBids } = await client.query(`
+            UPDATE bids SET status = 'rejected', updated_at = now()
+            WHERE job_id = $1 AND status IN ('pending','accepted')
+            RETURNING id, helper_id
+          `, [jobId]);
+
+          await client.query(`
+            UPDATE appointments
+               SET status = 'cancelled', cancelled_by = 'customer',
+                   cancelled_at = now(), updated_at = now()
+             WHERE job_id = $1 AND status NOT IN ('completed','cancelled')
+          `, [jobId]);
+
+          logger.info('Job cancelled (pre-acceptance)', {
+            jobId, userId, status: job.status, rejectedBids: rejectedBids.length
+          });
+          return { type: 'pre_acceptance', job: updated[0], rejectedBids };
+        }
+
+        // 3b. Post-acceptance states only beyond this point
         if (!['accepted', 'in_progress'].includes(job.status)) {
           throw new AppError('Job cannot be cancelled in current state', 409);
         }
@@ -1173,7 +1117,22 @@ exports.cancelJob = async (req, res, next) => {
       },
       'cancel_job'
     ).then((result) => {
-      // Send socket notification to both parties
+      // Pre-acceptance: simple success response, no fee/socket machinery needed
+      if (result.type === 'pre_acceptance') {
+        return res.json({
+          success: true,
+          data: {
+            job_id: result.job.id,
+            cancelled_at: new Date(),
+            cancelled_by: 'customer',
+            fee_charged_cents: 0,
+            rejected_bids: result.rejectedBids.length,
+          },
+          message: 'Job cancelled',
+        });
+      }
+
+      // Post-acceptance: send socket notification to both parties
       try {
         const { broadcastToUser } = require('../services/socketService');
         broadcastToUser(result.customer_id, 'job:cancelled', {
@@ -1239,7 +1198,7 @@ exports.cancelJob = async (req, res, next) => {
     if (err instanceof AppError) {
       return next(err);
     }
-    logger.error('Error cancelling job', { jobId: req.params?.jobId, userId: req.user?.id, error: err.message });
+    logger.error('Error cancelling job', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
     next(new AppError('Failed to cancel job', 500));
   }
 };
