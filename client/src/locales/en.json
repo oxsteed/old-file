@@ -2794,6 +2794,19 @@
     "noBidFound": "No accepted bid found",
     "paymentInitiated": "Payment initiated. Funds held in escrow until job completion."
   },
+  "myJobs": {
+    "subtitle": "Jobs you have posted",
+    "bids": "{{count}} bid(s)",
+    "noBids": "No bids yet",
+    "reviewBids": "Review Bids",
+    "assignedTo": "Assigned to",
+    "loadError": "Failed to load jobs.",
+    "noJobsInStatus": "No {{status}} jobs.",
+    "bookingRequests": "Booking Requests",
+    "noBookingRequests": "No booking requests yet",
+    "requestedOn": "Requested on",
+    "expiresIn": "Expires in {{days}} days"
+  },
   "helpersDir": {
     "title": "Find a Local Helper",
     "subtitle": "Browse verified local helpers in your area",

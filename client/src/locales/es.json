@@ -2794,6 +2794,19 @@
     "noBidFound": "No hay oferta aceptada",
     "paymentInitiated": "Pago iniciado. Los fondos se retienen en depósito en garantía hasta que se complete el trabajo."
   },
+  "myJobs": {
+    "subtitle": "Trabajos que has publicado",
+    "bids": "{{count}} oferta(s)",
+    "noBids": "Sin ofertas aún",
+    "reviewBids": "Revisar Ofertas",
+    "assignedTo": "Asignado a",
+    "loadError": "No se pudieron cargar los trabajos.",
+    "noJobsInStatus": "Sin trabajos {{status}}.",
+    "bookingRequests": "Solicitudes de Reserva",
+    "noBookingRequests": "Sin solicitudes de reserva aún",
+    "requestedOn": "Solicitado en",
+    "expiresIn": "Expira en {{days}} días"
+  },
   "helpersDir": {
     "title": "Encuentra un ayudante local",
     "subtitle": "Explora ayudantes locales verificados en tu área",

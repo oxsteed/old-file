@@ -59,22 +59,32 @@ export default function MyJobsPage() {
   const navigate = useNavigate();
 
   const [jobs, setJobs] = useState([]);
+  const [bookingRequests, setBookingRequests] = useState([]);
   const [bidCounts, setBidCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [activeTab, setActiveTab] = useState('jobs'); // 'jobs' or 'bookings'
 
   const fetchJobs = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
-      const res = await api.get('/jobs/me/list');
-      const data = Array.isArray(res.data) ? res.data : (res.data?.jobs || []);
-      setJobs(data);
+      const [jobsRes, bookingsRes] = await Promise.all([
+        api.get('/jobs/me/list'),
+        api.get('/bookings/')
+      ]);
+
+      const jobsData = Array.isArray(jobsRes.data) ? jobsRes.data : (jobsRes.data?.jobs || []);
+      setJobs(jobsData);
+
+      // Booking requests from { success: true, data: [...] }
+      const bookingsData = Array.isArray(bookingsRes.data?.data) ? bookingsRes.data.data : [];
+      setBookingRequests(bookingsData);
 
       // Fetch bid counts for all open jobs in parallel (best effort)
       // 'matched' = has bids but still accepting more — treat as open
-      const openIds = data
+      const openIds = jobsData
         .filter(j => OPEN_STATUSES.includes(j.status) || j.status === 'in_progress')
         .map(j => j.id);
 
@@ -120,12 +130,14 @@ export default function MyJobsPage() {
       <Navbar />
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8">
 
-        {/* Header */}
+        {/* Header with Tabs */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-white">{t('dashboard.myJobs')}</h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              {t('myJobs.subtitle', { defaultValue: 'Jobs you have posted' })}
+              {activeTab === 'jobs'
+                ? t('myJobs.subtitle', { defaultValue: 'Jobs you have posted' })
+                : t('myJobs.bookingRequests', { defaultValue: 'Your booking requests' })}
             </p>
           </div>
           <Link
@@ -139,29 +151,55 @@ export default function MyJobsPage() {
           </Link>
         </div>
 
-        {/* Status filter tabs */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
-          {STATUS_FILTERS.map(s => (
-            <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                filter === s
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
-              }`}
-            >
-              {s === 'all'
-                ? `${t('dashboard.jobs.all', { defaultValue: 'All' })} (${counts.all})`
-                : s === 'open'
-                  ? `${t('dashboard.jobs.open')} (${counts.open})`
-                  : s === 'published'
-                    ? null  // merged into "open" tab
-                    : `${t(`dashboard.jobs.${s === 'in_progress' ? 'inProgress' : s}`, { defaultValue: s })} (${counts[s] || 0})`
-              }
-            </button>
-          )).filter(Boolean)}
+        {/* Tab Navigation */}
+        <div className="flex gap-2 mb-6 border-b border-gray-700/40">
+          <button
+            onClick={() => setActiveTab('jobs')}
+            className={`px-4 py-3 text-sm font-semibold transition border-b-2 ${
+              activeTab === 'jobs'
+                ? 'text-white border-orange-500'
+                : 'text-gray-400 border-transparent hover:text-gray-300'
+            }`}
+          >
+            {t('dashboard.myJobs')} ({jobs.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('bookings')}
+            className={`px-4 py-3 text-sm font-semibold transition border-b-2 ${
+              activeTab === 'bookings'
+                ? 'text-white border-orange-500'
+                : 'text-gray-400 border-transparent hover:text-gray-300'
+            }`}
+          >
+            {t('myJobs.bookingRequests', { defaultValue: 'Booking Requests' })} ({bookingRequests.length})
+          </button>
         </div>
+
+        {/* Status filter tabs - only show for jobs tab */}
+        {activeTab === 'jobs' && (
+          <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+            {STATUS_FILTERS.map(s => (
+              <button
+                key={s}
+                onClick={() => setFilter(s)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                  filter === s
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
+                }`}
+              >
+                {s === 'all'
+                  ? `${t('dashboard.jobs.all', { defaultValue: 'All' })} (${counts.all})`
+                  : s === 'open'
+                    ? `${t('dashboard.jobs.open')} (${counts.open})`
+                    : s === 'published'
+                      ? null  // merged into "open" tab
+                      : `${t(`dashboard.jobs.${s === 'in_progress' ? 'inProgress' : s}`, { defaultValue: s })} (${counts[s] || 0})`
+                }
+              </button>
+            )).filter(Boolean)}
+          </div>
+        )}
 
         {/* Error */}
         {error && (
@@ -186,30 +224,45 @@ export default function MyJobsPage() {
         )}
 
         {/* Empty state */}
-        {!loading && !error && displayed.length === 0 && (
-          <div className="bg-gray-900/50 border border-gray-700/40 rounded-2xl p-12 text-center">
-            <svg className="w-12 h-12 text-gray-700 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <rect x="2" y="7" width="20" height="14" rx="2" strokeWidth={1.5}/>
-              <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" strokeWidth={1.5}/>
-            </svg>
-            <p className="text-gray-400 text-sm mb-4">
-              {filter === 'all'
-                ? t('dashboard.jobs.noJobs')
-                : t('myJobs.noJobsInStatus', { status: filter, defaultValue: `No ${filter} jobs.` })}
-            </p>
-            {filter === 'all' && (
-              <Link
-                to="/post-job"
-                className="inline-flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition"
-              >
-                {t('dashboard.jobs.postFirst')}
-              </Link>
+        {!loading && !error && (
+          <>
+            {activeTab === 'jobs' && displayed.length === 0 && (
+              <div className="bg-gray-900/50 border border-gray-700/40 rounded-2xl p-12 text-center">
+                <svg className="w-12 h-12 text-gray-700 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <rect x="2" y="7" width="20" height="14" rx="2" strokeWidth={1.5}/>
+                  <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" strokeWidth={1.5}/>
+                </svg>
+                <p className="text-gray-400 text-sm mb-4">
+                  {filter === 'all'
+                    ? t('dashboard.jobs.noJobs')
+                    : t('myJobs.noJobsInStatus', { status: filter, defaultValue: `No ${filter} jobs.` })}
+                </p>
+                {filter === 'all' && (
+                  <Link
+                    to="/post-job"
+                    className="inline-flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition"
+                  >
+                    {t('dashboard.jobs.postFirst')}
+                  </Link>
+                )}
+              </div>
             )}
-          </div>
+
+            {activeTab === 'bookings' && bookingRequests.length === 0 && (
+              <div className="bg-gray-900/50 border border-gray-700/40 rounded-2xl p-12 text-center">
+                <svg className="w-12 h-12 text-gray-700 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                </svg>
+                <p className="text-gray-400 text-sm">
+                  {t('myJobs.noBookingRequests', { defaultValue: 'No booking requests yet' })}
+                </p>
+              </div>
+            )}
+          </>
         )}
 
         {/* Job list */}
-        {!loading && displayed.length > 0 && (
+        {!loading && activeTab === 'jobs' && displayed.length > 0 && (
           <div className="space-y-3">
             {displayed.map(job => {
               const isOpen = isOpenStatus(job.status);
@@ -282,6 +335,94 @@ export default function MyJobsPage() {
                       </p>
                     </div>
                   )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Booking Requests List */}
+        {!loading && activeTab === 'bookings' && bookingRequests.length > 0 && (
+          <div className="space-y-3">
+            {bookingRequests.map(booking => {
+              const statusColor = booking.status === 'pending'
+                ? 'bg-yellow-500/15 text-yellow-400'
+                : booking.status === 'accepted'
+                  ? 'bg-emerald-500/15 text-emerald-400'
+                  : booking.status === 'completed'
+                    ? 'bg-blue-500/15 text-blue-400'
+                    : booking.status === 'declined' || booking.status === 'cancelled'
+                      ? 'bg-red-500/15 text-red-400'
+                      : booking.status === 'expired'
+                        ? 'bg-gray-500/15 text-gray-400'
+                        : 'bg-gray-700/15 text-gray-400';
+
+              const startDate = new Date(booking.start_time || booking.requested_date);
+              const endDate = new Date(booking.end_time || booking.requested_end_time);
+              const createdDate = new Date(booking.created_at);
+
+              return (
+                <div
+                  key={booking.id}
+                  className="bg-gray-900/50 border border-gray-700/40 rounded-2xl p-5 hover:border-gray-600 transition"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${statusColor}`}>
+                          {t(`calendar.status${booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}`,
+                            { defaultValue: booking.status })}
+                        </span>
+                      </div>
+                      <h2 className="text-white font-semibold text-base truncate">
+                        {booking.service_name || t('calendar.service', { defaultValue: 'Service Request' })}
+                      </h2>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {t('myJobs.requestedOn', { defaultValue: 'Requested on' })} {createdDate.toLocaleDateString()}
+                      </p>
+
+                      {/* Booking Details */}
+                      <div className="mt-3 space-y-1.5">
+                        <p className="text-xs text-gray-400">
+                          📅 {startDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                          {' '}
+                          {startDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                          {' – '}
+                          {endDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        {booking.service_location && (
+                          <p className="text-xs text-gray-400">
+                            📍 {booking.service_location}
+                          </p>
+                        )}
+                        {booking.price && (
+                          <p className="text-xs text-emerald-400 font-medium">
+                            💰 ${booking.price}
+                          </p>
+                        )}
+                      </div>
+
+                      {booking.description && (
+                        <p className="text-xs text-gray-400 mt-2 line-clamp-2">
+                          {booking.description}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Expiry indicator */}
+                    {booking.status === 'pending' && booking.expires_at && (
+                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                        <span className="text-xs text-gray-500">
+                          {new Date(booking.expires_at) > new Date()
+                            ? t('calendar.expiresIn', {
+                                defaultValue: 'Expires in',
+                                days: Math.ceil((new Date(booking.expires_at) - new Date()) / (1000 * 60 * 60 * 24))
+                              })
+                            : t('calendar.expired', { defaultValue: 'Expired' })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}

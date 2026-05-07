@@ -2879,6 +2879,19 @@
     "noBidFound": "Poko gen ofè aksepte",
     "paymentInitiated": "Peyman inisye. Fon yo kenbe an deposit jiskaske travay konplete."
   },
+  "myJobs": {
+    "subtitle": "Travay ou pibliye yo",
+    "bids": "{{count}} ofè",
+    "noBids": "Poko gen ofè",
+    "reviewBids": "Revize Ofè",
+    "assignedTo": "Asiyen a",
+    "loadError": "Pwobyèm chajman travay yo.",
+    "noJobsInStatus": "Poko gen travay {{status}}.",
+    "bookingRequests": "Demann Rezalvason",
+    "noBookingRequests": "Poko gen demann rezalvason",
+    "requestedOn": "Demann sou",
+    "expiresIn": "Ekspire nan {{days}} jou"
+  },
   "helpersDir": {
     "title": "Jwenn yon Pwofesyonèl Lokal",
     "subtitle": "Eksplore pwofesyonèl lokal verifye nan zòn ou",

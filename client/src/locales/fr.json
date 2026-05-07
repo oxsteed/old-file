@@ -2794,6 +2794,19 @@
     "noBidFound": "Aucune offre acceptée trouvée",
     "paymentInitiated": "Paiement initié. Les fonds sont retenus en séquestre jusqu'à la fin du travail."
   },
+  "myJobs": {
+    "subtitle": "Missions que vous avez publiées",
+    "bids": "{{count}} offre(s)",
+    "noBids": "Aucune offre pour le moment",
+    "reviewBids": "Examiner les offres",
+    "assignedTo": "Assigné à",
+    "loadError": "Impossible de charger les missions.",
+    "noJobsInStatus": "Aucune mission {{status}}.",
+    "bookingRequests": "Demandes de Réservation",
+    "noBookingRequests": "Aucune demande de réservation pour le moment",
+    "requestedOn": "Demandé le",
+    "expiresIn": "Expire dans {{days}} jours"
+  },
   "helpersDir": {
     "title": "Trouvez un prestataire local",
     "subtitle": "Parcourez les prestataires locaux vérifiés dans votre région",
