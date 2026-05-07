@@ -258,6 +258,16 @@ export default function ShoppingCartPage() {
                 <span>${totals.totalFormatted}</span>
               </div>
 
+              {items.length > 0 && (
+                <button
+                  onClick={() => navigate(`/checkout/${cartId}`)}
+                  className="scp-action-btn scp-action-checkout"
+                  style={{ width: '100%', marginBottom: '0.75rem', background: '#ea580c', color: '#fff', fontWeight: 600 }}
+                >
+                  {t('marketplace.proceedToCheckout', { defaultValue: 'Proceed to Checkout' })}
+                </button>
+              )}
+
               <div className="scp-actions">
                 <button
                   onClick={handleShareCart}

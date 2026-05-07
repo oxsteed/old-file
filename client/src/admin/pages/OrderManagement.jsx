@@ -31,7 +31,7 @@ export default function OrderManagement() {
       params.append('sortBy', filters.sortBy);
       params.append('sortOrder', filters.sortOrder);
 
-      const res = await axios.get(`/api/admin/orders?${params.toString()}`);
+      const res = await axios.get(`/admin/orders?${params.toString()}`);
       return res.data;
     },
     staleTime: 30000,
@@ -41,7 +41,7 @@ export default function OrderManagement() {
   const { data: stats } = useQuery({
     queryKey: ['adminOrderStats'],
     queryFn: async () => {
-      const res = await axios.get('/api/admin/orders/stats');
+      const res = await axios.get('/admin/orders/stats');
       return res.data.data;
     },
     staleTime: 60000,

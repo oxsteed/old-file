@@ -88,7 +88,7 @@ export default function HelperCancellationConfirmation({
 
     if (job?.client_id) {
       fetches.push(
-        api.get(`/api/cancellation-stats/customer/${job.client_id}`)
+        api.get(`/cancellation-stats/customer/${job.client_id}`)
           .then(r => setCustomerStats(r.data?.data || null))
           .catch(() => setCustomerStats(null))
       );
@@ -96,7 +96,7 @@ export default function HelperCancellationConfirmation({
 
     if (helperId) {
       fetches.push(
-        api.get(`/api/cancellation-stats/helper/${helperId}`)
+        api.get(`/cancellation-stats/helper/${helperId}`)
           .then(r => setHelperStats(r.data?.data || null))
           .catch(() => setHelperStats(null))
       );

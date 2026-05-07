@@ -38,7 +38,7 @@ export default function SupportEscalationPage() {
   useEffect(() => {
     const checkAvailability = async () => {
       try {
-        const response = await api.get('/api/support-routing/status');
+        const response = await api.get('/support-routing/status');
         setAgentsOnline(response.data.agents || 0);
 
         // If agents available, show live chat
@@ -144,7 +144,7 @@ export default function SupportEscalationPage() {
 
     setTicketSubmitting(true);
     try {
-      const response = await api.post('/api/support-routing/conversations', {
+      const response = await api.post('/support-routing/conversations', {
         customerId: localStorage.getItem('userId'),
         visitorEmail,
         visitorName,

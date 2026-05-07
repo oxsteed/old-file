@@ -49,7 +49,7 @@ const UserReputationCard = ({ userId, showFeeHistory = false, className = '' }) 
   useEffect(() => {
     if (!showFeeHistory || !userId || feeHistory !== null) return;
     setFeeHistoryLoading(true);
-    api.get(`/api/reputation/${userId}/fee-history`)
+    api.get(`/reputation/${userId}/fee-history`)
       .then(r => setFeeHistory(r.data?.data || null))
       .catch(() => setFeeHistory({ error: true }))
       .finally(() => setFeeHistoryLoading(false));

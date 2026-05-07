@@ -134,7 +134,7 @@ export default function CustomerSupportWidget() {
   const loadTickets = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await api.get('/api/support/conversations');
+      const response = await api.get('/support/conversations');
       setTickets(response.data.conversations || []);
     } catch (err) {
       console.error('Failed to load tickets:', err);
@@ -145,7 +145,7 @@ export default function CustomerSupportWidget() {
   // Load ticket messages
   const loadTicketMessages = useCallback(async (ticketId) => {
     try {
-      const response = await api.get(`/api/support/conversations/${ticketId}`);
+      const response = await api.get(`/support/conversations/${ticketId}`);
       setMessages(response.data.messages || []);
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -162,7 +162,7 @@ export default function CustomerSupportWidget() {
 
     setLoading(true);
     try {
-      const response = await api.post('/api/support/conversations', {
+      const response = await api.post('/support/conversations', {
         customerId: localStorage.getItem('userId'),
         visitorEmail: formData.visitorEmail,
         visitorName: formData.visitorName,

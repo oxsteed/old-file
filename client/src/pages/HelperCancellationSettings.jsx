@@ -24,7 +24,7 @@ export default function HelperCancellationSettings() {
 
   const loadPolicies = async () => {
     try {
-      const { data } = await api.get('/api/helper-settings/policies');
+      const { data } = await api.get('/helper-settings/policies');
       setPolicies(data.data);
       setOxsteadEnabled(data.data.oxsteed_enabled ?? true);
       setCustomEnabled(data.data.custom_enabled ?? false);
@@ -50,7 +50,7 @@ export default function HelperCancellationSettings() {
 
     setSaving(true);
     try {
-      await api.put('/api/helper-settings/policies', {
+      await api.put('/helper-settings/policies', {
         oxsteed_enabled: oxsteadEnabled,
         custom_enabled: customEnabled,
         custom_policy: customEnabled ? customPolicy : {}

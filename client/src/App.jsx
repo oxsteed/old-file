@@ -43,6 +43,7 @@ import ResetPasswordPage from './pages/ResetPassword';
 import TwoFactorSetup from './pages/Settings/TwoFactorSetup';
 import NotificationSettings from './pages/Settings/Notifications';
 import SettingsPage from './pages/SettingsPage';
+import HelperCancellationSettings from './pages/HelperCancellationSettings';
 import PublicProfile from './pages/PublicProfile';
 import BookHelperPage from './pages/BookHelperPage';
 import TemplatePicker from './pages/TemplatePicker';
@@ -76,6 +77,9 @@ import AIPreviewPage from './pages/AIPreviewPage';
 import ProductMarketplacePage from './pages/ProductMarketplacePage';
 import ShoppingCartPage from './pages/ShoppingCartPage';
 import SharedCartPage from './pages/SharedCartPage';
+import CheckoutPage from './pages/CheckoutPage';
+import OrderHistoryPage from './pages/OrderHistoryPage';
+import OrderDetailsPage from './pages/OrderDetailsPage';
 import SupportEscalationPage from './pages/SupportEscalationPage';
 import SupportAgentPortalPage from './pages/SupportAgentPortalPage';
 import MyJobsPage from './pages/MyJobsPage';
@@ -160,6 +164,9 @@ export default function App() {
                     <Route path="/products"                element={<Guarded><ProductMarketplacePage /></Guarded>} />
                     <Route path="/cart/:cartId"           element={<Guarded><ProtectedRoute><ShoppingCartPage /></ProtectedRoute></Guarded>} />
                     <Route path="/shared-cart/:shareToken" element={<Guarded><SharedCartPage /></Guarded>} />
+                    <Route path="/checkout/:cartId"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><CheckoutPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/orders"                  element={<Guarded><ProtectedRoute><OrderHistoryPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/orders/:id"             element={<Guarded><ProtectedRoute><RouteErrorBoundary><OrderDetailsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* ── Support & Help ───────────────────────────────────── */}
                     <Route path="/support/escalation"     element={<Guarded><SupportEscalationPage /></Guarded>} />
@@ -200,6 +207,7 @@ export default function App() {
                     <Route path="/settings"       element={<Guarded><ProtectedRoute><SettingsPage /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/2fa"   element={<Guarded><ProtectedRoute><TwoFactorSetup /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/notifications" element={<Guarded><ProtectedRoute><NotificationSettings /></ProtectedRoute></Guarded>} />
+                    <Route path="/settings/payment-policies" element={<Guarded><ProtectedRoute><HelperCancellationSettings /></ProtectedRoute></Guarded>} />
 
                     {/* Disputes: wrapped in RouteErrorBoundary to isolate crashes */}
                     <Route path="/disputes"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><DisputeCenter /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

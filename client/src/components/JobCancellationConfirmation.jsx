@@ -74,7 +74,7 @@ export default function JobCancellationConfirmation({
   useEffect(() => {
     if (!job?.id) return;
     setSlotLoading(true);
-    api.get(`/api/jobs/${job.id}/appointment`)
+    api.get(`/jobs/${job.id}/appointment`)
       .then(res => setBlockedSlot(res.data?.data || null))
       .catch(() => setBlockedSlot(null))
       .finally(() => setSlotLoading(false));

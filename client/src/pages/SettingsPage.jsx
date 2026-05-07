@@ -932,6 +932,21 @@ export default function SettingsPage() {
                 </div>
               );
             })}
+            {/* Helper-only: payment & cancellation policies */}
+            {isHelper && (
+              <>
+                <div className="sp-tab-divider" />
+                <Link
+                  to="/settings/payment-policies"
+                  className="sp-tab"
+                >
+                  <svg className="sp-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M7 15h2m4 0h2"/>
+                  </svg>
+                  <span>{t('settings.tabPaymentPolicies', { defaultValue: 'Payment Policies' })}</span>
+                </Link>
+              </>
+            )}
           </nav>
 
           {/* Content */}

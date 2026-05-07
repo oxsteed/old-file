@@ -20,7 +20,7 @@ export default function ConsultantScheduleSelector({ consultantId, sessionId, on
     const loadAvailableDates = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`/api/scheduling/consultants/${consultantId}/next-available`, {
+        const response = await axios.get(`/scheduling/consultants/${consultantId}/next-available`, {
           params: { daysAhead: 30, durationMinutes }
         });
         setAvailableDates(response.data);
@@ -77,7 +77,7 @@ export default function ConsultantScheduleSelector({ consultantId, sessionId, on
     try {
       setLoading(true);
 
-      const response = await axios.post(`/api/scheduling/sessions/${sessionId}/book-slot`, {
+      const response = await axios.post(`/scheduling/sessions/${sessionId}/book-slot`, {
         consultantId,
         date: selectedDate,
         startTime: selectedSlot,

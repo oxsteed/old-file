@@ -121,7 +121,7 @@ export default function HybridSupportWidget() {
   // Check agent availability
   const checkAgentAvailability = useCallback(async () => {
     try {
-      const response = await api.get('/api/support-routing/status');
+      const response = await api.get('/support-routing/status');
       setAgentsOnline(response.data.agents || 0);
     } catch (err) {
       console.error('Failed to check agent availability:', err);
@@ -182,7 +182,7 @@ export default function HybridSupportWidget() {
         .map(m => `${m.role === 'user' ? 'Customer' : 'AI'}: ${m.content}`)
         .join('\n');
 
-      const response = await api.post('/api/support-routing/conversations', {
+      const response = await api.post('/support-routing/conversations', {
         customerId: localStorage.getItem('userId'),
         visitorEmail,
         visitorName,
@@ -250,7 +250,7 @@ export default function HybridSupportWidget() {
     }
 
     try {
-      const response = await api.post('/api/support-routing/conversations', {
+      const response = await api.post('/support-routing/conversations', {
         customerId: localStorage.getItem('userId'),
         visitorEmail,
         visitorName,
