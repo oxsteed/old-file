@@ -147,7 +147,9 @@
     "submitting": "Submitting…",
     "update": "Update",
     "view": "View",
-    "characters": "characters"
+    "characters": "characters",
+    "keepCancel": "Keep it",
+    "canceling": "Cancelling…"
   },
   "jobs": {
     "title": "Job Details",
@@ -2805,7 +2807,25 @@
     "bookingRequests": "Booking Requests",
     "noBookingRequests": "No booking requests yet",
     "requestedOn": "Requested on",
-    "expiresIn": "Expires in {{days}} days"
+    "expiresIn": "Expires in {{days}} days",
+    "calendar": "Calendar",
+    "postedJob": "Posted Job",
+    "directBooking": "Direct Booking",
+    "dateTime": "Date & Time",
+    "price": "Price",
+    "helper": "Helper",
+    "status": "Status",
+    "cancel": "Cancel",
+    "cancelJobTitle": "Cancel Job?",
+    "cancelJobDesc": "This will remove your job posting. Helpers won't be able to bid anymore.",
+    "cancelBookingTitle": "Cancel Booking Request?",
+    "cancelBookingDesc": "This will cancel your booking request with the helper.",
+    "cancelReasonLabel": "Reason (optional)",
+    "cancelReasonPlaceholder": "Tell us why you're cancelling…",
+    "confirmCancel": "Yes, cancel",
+    "jobCancelled": "Job cancelled successfully",
+    "bookingCancelled": "Booking request cancelled",
+    "cancelError": "Failed to cancel. Please try again."
   },
   "helpersDir": {
     "title": "Find a Local Helper",
@@ -6612,6 +6632,10 @@
     "next": "Next",
     "sidebarLabel": "Calendar sidebar",
     "legendTitle": "Legend",
+    "legendJob": "Posted Job",
+    "legendBooking": "Direct Booking",
+    "legendEventType": "Event Type",
+    "legendStatus": "Status",
     "dayShort": {
       "sunday": "Sun",
       "monday": "Mon",

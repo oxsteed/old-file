@@ -2,19 +2,18 @@
   width: 100%;
 }
 
-/* ── Nav header (prev / today / next) ─────────────────────────────────────── */
-/* Replaces the old per-view duplicate navigation inside MonthView. */
+/* ── Header ── */
 
-.ccv-nav-header {
+.ccv-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1.25rem;
-  padding: 0 0.25rem;
+  margin-bottom: 1.5rem;
+  padding: 0 0.5rem;
   gap: 0.75rem;
 }
 
-.ccv-nav-center {
+.ccv-header-center {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -23,7 +22,7 @@
   min-width: 0;
 }
 
-.ccv-nav-label {
+.ccv-date {
   font-size: 1.25rem;
   margin: 0;
   color: var(--app-text);
@@ -49,7 +48,7 @@
 
 .ccv-nav-btn:hover {
   background: var(--app-bg);
-  border-color: var(--primary-color);
+  border-color: #f97316;
 }
 
 .ccv-nav-placeholder {
@@ -71,235 +70,189 @@
 
 .ccv-today-btn:hover {
   background: var(--card-bg);
-  border-color: var(--primary-color);
+  border-color: #f97316;
   color: var(--app-text);
 }
 
-/* ── Thin loading bar (replaces full-page block) ────────────────────────────── */
+/* ── Loading bar ── */
 
 .ccv-loading-bar {
   text-align: center;
-  padding: 0.5rem;
+  padding: 0.75rem;
   font-size: 0.85rem;
   color: var(--muted-text);
   margin-bottom: 0.75rem;
-}
-
-/* ── Action row (request button + status filters) ─────────────────────────── */
-
-.ccv-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.ccv-create-btn {
-  padding: 0.75rem 1.5rem;
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 1rem;
-}
-
-.ccv-create-btn:hover {
-  opacity: 0.9;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.ccv-filters {
-  display: flex;
+  justify-content: center;
   gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.ccv-filter-btn {
-  padding: 0.5rem 1rem;
-  background: var(--card-bg);
-  border: 2px solid var(--border-color);
-  color: var(--app-text);
+  background: rgba(249, 115, 22, 0.05);
+  border: 1px solid var(--border-color);
   border-radius: 0.375rem;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  animation: fadeIn 0.2s ease-out;
 }
 
-.ccv-filter-btn:hover {
-  border-color: var(--primary-color);
-}
-
-.ccv-filter-btn.active {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
-}
-
-/* ── Agenda View ─────────────────────────────────────────────────────────────── */
-
-.ccv-agenda-view {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-.ccv-section {
-  border: 1px solid var(--border-color);
-  border-radius: 0.5rem;
-  overflow: hidden;
-  background: var(--card-bg);
-}
-
-.ccv-section-title {
-  margin: 0;
-  padding: 1rem;
-  background: var(--app-bg);
-  border-bottom: 1px solid var(--border-color);
-  font-size: 1.25rem;
-  color: var(--app-text);
-}
-
-/* Improved empty state (matches HelperCalendarView agenda empty pattern) */
-.ccv-empty-state {
-  padding: 3rem 2rem;
-  text-align: center;
-  color: var(--muted-text);
-}
-
-.ccv-empty-icon {
-  font-size: 2.5rem;
-  margin-bottom: 0.75rem;
-  opacity: 0.5;
-  line-height: 1;
-}
-
-.ccv-empty-title {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--app-text);
-  margin: 0 0 0.375rem;
-}
-
-.ccv-empty-sub {
-  font-size: 0.9rem;
-  margin: 0;
-}
-
-.ccv-appointment-list {
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-/* ── Appointment Card ─────────────────────────────────────────────────────────── */
-
-.ccv-appt-card {
-  padding: 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: 0.5rem;
-  background: var(--card-bg);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.ccv-appt-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-color: var(--primary-color);
-}
-
-.ccv-appt-card.past {
-  opacity: 0.7;
-}
-
-.ccv-appt-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.ccv-appt-time {
-  font-weight: 700;
-  color: var(--app-text);
+.ccv-loading-spinner {
+  display: inline-block;
+  animation: spin 1s linear infinite;
   font-size: 1rem;
 }
 
-.ccv-appt-status {
-  padding: 0.25rem 0.75rem;
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ── Month View ── */
+
+.ccv-month-view {
+  width: 100%;
+}
+
+.ccv-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.ccv-month-day-name {
+  text-align: center;
   font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--muted-text);
+  padding: 0.75rem 0;
   text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.ccv-status-requested {
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-.ccv-status-confirmed {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.ccv-status-completed {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.ccv-status-cancelled {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.ccv-appt-details {
+.ccv-month-day {
+  aspect-ratio: 1;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  background: var(--card-bg);
+  cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.25rem;
+  transition: all 0.2s ease;
+  min-height: 80px;
 }
 
-.ccv-appt-helper {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.ccv-month-day.active:hover {
+  border-color: #f97316;
+  background: color-mix(in srgb, #f97316 5%, var(--card-bg));
+}
+
+.ccv-month-day.empty {
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+}
+
+.ccv-month-day.ccv-month-today {
+  border-color: #f97316;
+  background: color-mix(in srgb, #f97316 10%, var(--card-bg));
+}
+
+.ccv-month-day.ccv-month-selected {
+  border-color: #f97316;
+  background: color-mix(in srgb, #f97316 15%, var(--card-bg));
+}
+
+.ccv-month-day-number {
   font-weight: 600;
+  font-size: 0.95rem;
   color: var(--app-text);
 }
 
-.ccv-appt-helper img {
+.ccv-month-day-number.ccv-today-circle {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  object-fit: cover;
+  background: #f97316;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.ccv-appt-service {
-  color: var(--app-text);
-  font-size: 0.95rem;
+.ccv-month-day-events {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  overflow: hidden;
 }
 
-.ccv-appt-location {
+.ccv-month-event {
+  font-size: 0.7rem;
+  padding: 0.25rem 0.375rem;
+  border-radius: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.ccv-month-event.ccv-event-job {
+  background: color-mix(in srgb, #3b82f6 20%, transparent);
+  color: #93c5fd;
+}
+
+.ccv-month-event.ccv-event-booking {
+  background: color-mix(in srgb, #8b5cf6 20%, transparent);
+  color: #d8b4fe;
+}
+
+.ccv-month-event.ccv-status-open,
+.ccv-month-event.ccv-status-published,
+.ccv-month-event.ccv-status-matched {
+  border-left: 2px solid #10b981;
+}
+
+.ccv-month-event.ccv-status-pending,
+.ccv-month-event.ccv-status-accepted {
+  border-left: 2px solid #f97316;
+}
+
+.ccv-month-event.ccv-status-in_progress {
+  border-left: 2px solid #f59e0b;
+}
+
+.ccv-month-event.ccv-status-completed {
+  border-left: 2px solid #6b7280;
+}
+
+.ccv-month-event.ccv-status-cancelled {
+  border-left: 2px solid #ef4444;
+  opacity: 0.6;
+}
+
+.ccv-month-more {
+  font-size: 0.65rem;
   color: var(--muted-text);
-  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.25rem 0.375rem;
 }
 
-.ccv-appt-duration {
-  color: var(--muted-text);
-  font-size: 0.85rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--border-color);
-}
-
-/* ── Week View ──────────────────────────────────────────────────────────────── */
+/* ── Week View ── */
 
 .ccv-week-view {
   border: 1px solid var(--border-color);
@@ -310,104 +263,171 @@
 
 .ccv-week-header {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 1px;
-  background: var(--border-color);
-  padding: 1px;
+  grid-template-columns: 60px repeat(7, 1fr);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--app-bg);
+  sticky top: 0;
+  z-index: 10;
+}
+
+.ccv-time-label {
+  border-right: 1px solid var(--border-color);
 }
 
 .ccv-day-header {
-  background: var(--app-bg);
-  padding: 0.75rem;
+  padding: 0.75rem 0.5rem;
   text-align: center;
-  transition: background 0.15s ease;
+  border-right: 1px solid var(--border-color);
 }
 
-/* FIX #6: today column highlight */
 .ccv-day-header.ccv-today {
-  background: color-mix(in srgb, var(--primary-color, #f59e0b) 8%, var(--app-bg));
+  background: color-mix(in srgb, #f97316 10%, var(--app-bg));
 }
 
 .ccv-day-name {
-  font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   color: var(--muted-text);
   text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
 }
 
 .ccv-day-date {
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 1rem;
+  font-weight: 600;
   color: var(--app-text);
   margin-top: 0.25rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
 }
 
-/* FIX #6: filled circle for today's date — shared by week and month views */
-.ccv-today-circle {
-  background: var(--primary-color, #f59e0b);
-  color: #fff !important;
+.ccv-day-date.ccv-today-circle {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
+  background: #f97316;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0.25rem auto 0;
+}
+
+.ccv-week-body {
+  max-height: 660px;
+  overflow-y: auto;
+  position: relative;
 }
 
 .ccv-week-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 1px;
-  background: var(--border-color);
-  padding: 1px;
+  grid-template-columns: 60px repeat(7, 1fr);
+}
+
+.ccv-times {
+  border-right: 1px solid var(--border-color);
+  background: var(--app-bg);
+  position: sticky;
+  left: 0;
+  z-index: 5;
+}
+
+.ccv-time-slot {
+  height: 60px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted-text);
+  border-bottom: 1px solid var(--border-color);
+  text-align: center;
+  line-height: 1.2;
 }
 
 .ccv-day-column {
-  background: var(--card-bg);
-  padding: 1rem;
-  min-height: 150px;
+  position: relative;
+  border-right: 1px solid var(--border-color);
 }
 
-.ccv-empty-day {
-  text-align: center;
-  color: var(--muted-text);
-  padding: 2rem 0;
-  font-size: 0.85rem;
+.ccv-day-column.ccv-day-today {
+  background: color-mix(in srgb, #f97316 3%, var(--card-bg));
 }
 
-.ccv-appointment-card {
-  padding: 0.75rem;
-  background: var(--primary-color);
-  color: white;
-  border-radius: 0.375rem;
+.ccv-slot {
+  height: 60px;
+  border-bottom: 1px solid var(--border-color);
+  padding: 2px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.ccv-event {
+  padding: 2px 3px;
+  border-radius: 2px;
+  font-size: 0.65rem;
+  font-weight: 500;
   cursor: pointer;
-  margin-bottom: 0.5rem;
-  transition: all 0.2s ease;
-  font-size: 0.85rem;
+  transition: all 0.15s ease;
+  border-left: 2px solid;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
-.ccv-appointment-card:hover {
-  opacity: 0.9;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+.ccv-event.ccv-event-job {
+  background: color-mix(in srgb, #3b82f6 25%, transparent);
+  color: #93c5fd;
+  border-left-color: #3b82f6;
 }
 
-.ccv-apt-time {
-  font-weight: 700;
+.ccv-event.ccv-event-booking {
+  background: color-mix(in srgb, #8b5cf6 25%, transparent);
+  color: #d8b4fe;
+  border-left-color: #8b5cf6;
 }
 
-.ccv-apt-helper {
-  font-size: 0.8rem;
-  opacity: 0.95;
+.ccv-event:hover {
+  background: color-mix(in srgb, currentColor 35%, transparent);
 }
 
-.ccv-apt-service {
-  font-size: 0.8rem;
-  opacity: 0.9;
-  margin-top: 0.25rem;
+.ccv-event-time {
+  font-size: 0.6rem;
+  opacity: 0.85;
 }
 
-/* ── Day View ───────────────────────────────────────────────────────────────── */
+.ccv-event-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+.ccv-event-price {
+  font-size: 0.6rem;
+  color: #86efac;
+  font-weight: 600;
+}
+
+.ccv-now-indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #ef4444;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.ccv-now-dot {
+  position: absolute;
+  left: -5px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+}
+
+/* ── Day View ── */
 
 .ccv-day-view {
   border: 1px solid var(--border-color);
@@ -420,170 +440,200 @@
   padding: 1rem;
   background: var(--app-bg);
   border-bottom: 1px solid var(--border-color);
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 1.125rem;
+  font-weight: 600;
   color: var(--app-text);
 }
 
-.ccv-day-list {
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+.ccv-day-body {
+  max-height: 660px;
+  overflow-y: auto;
+  position: relative;
 }
 
-/* ── Month View ─────────────────────────────────────────────────────────────── */
-/* FIX #2: .ccv-month-header (the old duplicate prev/next row) is gone.
-   Navigation now lives exclusively in .ccv-nav-header above. */
+.ccv-day-grid {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+}
 
-.ccv-month-view {
+.ccv-day-events {
+  position: relative;
+}
+
+.ccv-day-events.ccv-day-today {
+  background: color-mix(in srgb, #f97316 3%, var(--card-bg));
+}
+
+/* ── Agenda View ── */
+
+.ccv-agenda-view {
+  padding: 1rem 0;
+}
+
+.ccv-agenda-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.ccv-agenda-empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.6;
+}
+
+.ccv-agenda-empty-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--app-text);
+  margin: 0 0 0.5rem 0;
+}
+
+.ccv-agenda-empty-sub {
+  color: var(--muted-text);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.ccv-agenda-group {
+  margin-bottom: 2rem;
+}
+
+.ccv-agenda-date-header {
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--app-text);
+  background: color-mix(in srgb, var(--border-color) 40%, transparent);
+  margin-bottom: 0.5rem;
+  border-radius: 0.375rem;
+}
+
+.ccv-agenda-date-header.ccv-agenda-today {
+  background: color-mix(in srgb, #f97316 15%, var(--card-bg));
+  color: #fbbf24;
+}
+
+.ccv-agenda-event {
+  padding: 1rem;
+  margin-bottom: 0.5rem;
   border: 1px solid var(--border-color);
   border-radius: 0.5rem;
-  overflow: hidden;
   background: var(--card-bg);
-}
-
-.ccv-month-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 1px;
-  background: var(--border-color);
-  padding: 1px;
-}
-
-.ccv-month-day-name {
-  padding: 0.75rem;
-  background: var(--app-bg);
-  text-align: center;
-  font-weight: 600;
-  font-size: 0.85rem;
-  color: var(--muted-text);
-  text-transform: uppercase;
-}
-
-.ccv-month-day {
-  padding: 0.5rem;
-  background: var(--card-bg);
-  min-height: 90px;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
+  border-left: 3px solid;
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.ccv-month-day.empty {
-  background: var(--app-bg);
-  cursor: default;
-}
-
-.ccv-month-day:hover:not(.empty) {
-  background: var(--app-bg);
-}
-
-/* FIX #6: today and selected day highlighting */
-.ccv-month-day.ccv-month-today {
-  background: color-mix(in srgb, var(--primary-color, #f59e0b) 6%, var(--card-bg));
-}
-
-.ccv-month-day.ccv-month-selected {
-  background: color-mix(in srgb, var(--primary-color, #f59e0b) 10%, var(--card-bg));
-}
-
-.ccv-month-day-number {
-  font-weight: 700;
-  color: var(--app-text);
-  font-size: 0.95rem;
-  width: 1.75rem;
-  height: 1.75rem;
-  display: inline-flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  flex-shrink: 0;
+  text-align: left;
 }
 
-.ccv-month-day-events {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  overflow-y: auto;
-  flex: 1;
+.ccv-agenda-event:hover {
+  border-color: #f97316;
+  background: color-mix(in srgb, #f97316 10%, var(--card-bg));
 }
 
-.ccv-month-event {
-  padding: 0.15rem 0.4rem;
-  border-radius: 0.25rem;
-  font-size: 0.7rem;
+.ccv-agenda-event.ccv-event-job {
+  border-left-color: #3b82f6;
+}
+
+.ccv-agenda-event.ccv-event-booking {
+  border-left-color: #8b5cf6;
+}
+
+.ccv-agenda-event-time {
   font-weight: 600;
-  color: white;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--app-text);
+  min-width: 90px;
+  font-size: 0.9rem;
 }
 
-.ccv-month-event.ccv-apt-requested {
-  background: #3b82f6;
+.ccv-agenda-event-details {
+  flex: 1;
+  padding-left: 1rem;
+  min-width: 0;
 }
 
-.ccv-month-event.ccv-apt-confirmed {
-  background: #10b981;
+.ccv-agenda-event-title {
+  font-weight: 600;
+  color: var(--app-text);
+  margin: 0 0 0.25rem 0;
+  font-size: 0.95rem;
 }
 
-.ccv-month-event.ccv-apt-completed {
-  background: #6b7280;
+.ccv-agenda-event-meta {
+  color: var(--muted-text);
+  font-size: 0.85rem;
+  margin: 0;
 }
 
-.ccv-month-event.ccv-apt-in_progress {
-  background: #f59e0b;
-}
+/* ── Responsive ── */
 
-/* ── Responsive ─────────────────────────────────────────────────────────────── */
-
-@media (max-width: 768px) {
-  .ccv-nav-label {
-    font-size: 1rem;
-  }
-
-  .ccv-nav-btn {
-    padding: 0.4rem 0.6rem;
-    font-size: 0.8rem;
-  }
-
-  .ccv-nav-placeholder {
-    width: 60px;
-  }
-
-  .ccv-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .ccv-create-btn {
-    width: 100%;
-  }
-
-  .ccv-filters {
-    width: 100%;
-    overflow-x: auto;
-  }
-
-  .ccv-filter-btn {
-    flex-shrink: 0;
+@media (max-width: 900px) {
+  .ccv-month-grid {
+    gap: 0.25rem;
   }
 
   .ccv-month-day {
-    min-height: 70px;
-    padding: 0.35rem;
+    min-height: 60px;
+    padding: 0.375rem;
   }
 
-  .ccv-month-day-number {
-    font-size: 0.85rem;
-    width: 1.5rem;
-    height: 1.5rem;
+  .ccv-month-event {
+    font-size: 0.65rem;
   }
 
-  .ccv-appt-card {
-    margin-bottom: 0.5rem;
+  .ccv-week-body {
+    max-height: 480px;
+  }
+
+  .ccv-day-body {
+    max-height: 480px;
+  }
+}
+
+@media (max-width: 640px) {
+  .ccv-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .ccv-nav-btn {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .ccv-month-grid {
+    gap: 0.2rem;
+  }
+
+  .ccv-month-day {
+    min-height: 50px;
+    font-size: 0.8rem;
+  }
+
+  .ccv-week-header {
+    grid-template-columns: 50px repeat(7, 1fr);
+  }
+
+  .ccv-week-grid {
+    grid-template-columns: 50px repeat(7, 1fr);
+  }
+
+  .ccv-times {
+    width: 50px;
+  }
+
+  .ccv-time-slot {
+    height: 50px;
+    font-size: 0.7rem;
+  }
+
+  .ccv-slot {
+    height: 50px;
+  }
+
+  .ccv-date {
+    font-size: 1rem;
   }
 }

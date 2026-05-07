@@ -1,12 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import { toast } from 'sonner';
-import AppointmentDetailModal from './AppointmentDetailModal';
-import CreateAppointmentModal from './CreateAppointmentModal';
-import { calendarAppointmentStatusKey } from '../../utils/calendarI18n';
 import '../../styles/CustomerCalendarView.css';
 
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const DAYS_OF_WEEK = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 function isSameDay(a, b) {
@@ -20,13 +18,8 @@ function isSameDay(a, b) {
 function getDateRange(date, mode) {
   const d = new Date(date);
   let start, end;
-  if (mode === 'agenda') {
-    start = new Date(d);
-    start.setHours(0, 0, 0, 0);
-    end = new Date(start);
-    end.setDate(end.getDate() + 30);
-    end.setHours(23, 59, 59, 999);
-  } else if (mode === 'day') {
+
+  if (mode === 'day') {
     start = new Date(d);
     start.setHours(0, 0, 0, 0);
     end = new Date(d);
@@ -37,56 +30,143 @@ function getDateRange(date, mode) {
     start.setDate(d.getDate() - dayOfWeek);
     start.setHours(0, 0, 0, 0);
     end = new Date(start);
-    end.setDate(start.getDate() + 6); // 7 days total (0–6)
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+  } else if (mode === 'agenda') {
+    start = new Date();
+    start.setHours(0, 0, 0, 0);
+    end = new Date(start);
+    end.setDate(end.getDate() + 30);
     end.setHours(23, 59, 59, 999);
   } else {
     // month
     start = new Date(d.getFullYear(), d.getMonth(), 1);
     end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
   }
+
   return { start, end };
 }
 
-export default function CustomerCalendarView({ viewMode, selectedDate, onDateChange }) {
-  const { t } = useTranslation();
-  const [appointments, setAppointments] = useState([]);
-  // FIX #1: was useState(true) which blocked the entire render until the API
-  // returned. Now starts false so the calendar grid appears immediately;
-  // a thin loading bar signals in-flight data.
-  const [loading, setLoading] = useState(false);
-  const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [filterStatus, setFilterStatus] = useState('all');
+// Convert jobs and bookings to calendar events
+function buildCalendarEvents(jobs, bookings) {
+  const events = [];
 
-  const loadAppointments = useCallback(async () => {
+  // Add jobs as events
+  jobs.forEach(job => {
+    if (job.scheduled_date || job.scheduled_start_at) {
+      const startDate = job.scheduled_start_at
+        ? new Date(job.scheduled_start_at)
+        : new Date(job.scheduled_date + 'T09:00:00');
+
+      const endDate = job.scheduled_end_at
+        ? new Date(job.scheduled_end_at)
+        : new Date(startDate.getTime() + 2 * 60 * 60 * 1000); // 2 hour default
+
+      events.push({
+        id: `job-${job.id}`,
+        job_id: job.id,
+        type: 'job',
+        title: job.title,
+        scheduled_start_time: startDate.toISOString(),
+        scheduled_end_time: endDate.toISOString(),
+        status: job.status,
+        price: job.budget_max || job.budget_min,
+        helper_name: job.preferred_helper_name || 'Pending',
+        category: job.category_name,
+      });
+    }
+  });
+
+  // Add bookings as events
+  bookings.forEach(booking => {
+    if (booking.scheduled_date || booking.start_time) {
+      const startDate = booking.start_time
+        ? new Date(booking.start_time)
+        : new Date(booking.scheduled_date + 'T09:00:00');
+
+      const endDate = booking.end_time
+        ? new Date(booking.end_time)
+        : new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
+
+      events.push({
+        id: `booking-${booking.id}`,
+        booking_id: booking.id,
+        type: 'booking',
+        title: booking.service_name || 'Service Request',
+        scheduled_start_time: startDate.toISOString(),
+        scheduled_end_time: endDate.toISOString(),
+        status: booking.status,
+        price: booking.price,
+        helper_name: booking.helper_name || 'Pending',
+        category: 'Booking',
+      });
+    }
+  });
+
+  return events;
+}
+
+export default function CustomerCalendarView({
+  viewMode = 'month',
+  selectedDate,
+  onDateChange,
+  onEventClick,
+}) {
+  const { t } = useTranslation();
+  const [jobs, setJobs] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [showLoadingBar, setShowLoadingBar] = useState(false);
+
+  const loadCalendarData = useCallback(async () => {
     setLoading(true);
+    const loadingTimer = setTimeout(() => setShowLoadingBar(true), 300);
+
     try {
       const dateRange = getDateRange(selectedDate, viewMode);
-      const res = await api.get('/calendar/appointments', {
-        params: {
-          role: 'customer',
-          from_date: dateRange.start.toISOString(),
-          to_date: dateRange.end.toISOString(),
-          status: filterStatus === 'all' ? undefined : filterStatus,
-          limit: 100,
-        },
-      });
-      setAppointments(
-        Array.isArray(res.data?.appointments) ? res.data.appointments : []
-      );
-    } catch {
+
+      const [jobsResult, bookingsResult] = await Promise.allSettled([
+        api.get('/jobs/me/list'),
+        api.get('/bookings'),
+      ]);
+
+      const jobsData = jobsResult.status === 'fulfilled'
+        ? (Array.isArray(jobsResult.value.data) ? jobsResult.value.data : jobsResult.value.data?.jobs || [])
+        : [];
+
+      const bookingsData = bookingsResult.status === 'fulfilled'
+        ? (Array.isArray(bookingsResult.value.data?.data) ? bookingsResult.value.data.data : [])
+        : [];
+
+      // Filter for scheduled events only (must have date and status that indicates scheduled)
+      const scheduledJobs = jobsData.filter(j => j.scheduled_date || j.scheduled_start_at);
+      const scheduledBookings = bookingsData.filter(b => (b.scheduled_date || b.start_time) && b.status !== 'declined' && b.status !== 'expired');
+
+      setJobs(scheduledJobs);
+      setBookings(scheduledBookings);
+      setEvents(buildCalendarEvents(scheduledJobs, scheduledBookings));
+
+      if (jobsResult.status === 'rejected' && bookingsResult.status === 'rejected') {
+        toast.error(t('calendar.errorLoading'));
+      }
+    } catch (err) {
+      console.error('CustomerCalendarView: failed to load events', err);
       toast.error(t('calendar.errorLoading'));
-      setAppointments([]);
+      setJobs([]);
+      setBookings([]);
+      setEvents([]);
     } finally {
+      clearTimeout(loadingTimer);
       setLoading(false);
+      setShowLoadingBar(false);
     }
-  }, [selectedDate, viewMode, filterStatus, t]);
+  }, [selectedDate, viewMode, t]);
 
   useEffect(() => {
-    loadAppointments();
-  }, [loadAppointments]);
+    loadCalendarData();
+  }, [loadCalendarData]);
 
-  // FIX #5: unified navigation — mirrors the one in HelperCalendarView.
   const navigate = (direction) => {
     const d = new Date(selectedDate);
     if (viewMode === 'day') {
@@ -95,8 +175,11 @@ export default function CustomerCalendarView({ viewMode, selectedDate, onDateCha
       d.setDate(d.getDate() + direction * 7);
     } else if (viewMode === 'month') {
       d.setMonth(d.getMonth() + direction);
+      const intended = d.getMonth();
+      if (d.getMonth() !== ((new Date(selectedDate).getMonth() + direction + 12) % 12)) {
+        d.setDate(0);
+      }
     } else {
-      // agenda: page by 30 days
       d.setDate(d.getDate() + direction * 30);
     }
     onDateChange(d);
@@ -128,31 +211,11 @@ export default function CustomerCalendarView({ viewMode, selectedDate, onDateCha
     return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
   };
 
-  // Agenda view is always "next 30 days" — no prev/next needed.
   const showNav = viewMode !== 'agenda';
-
-  const upcomingAppointments = appointments.filter((apt) => {
-    if (!apt?.scheduled_start_time) return false;
-    try {
-      const aptDate = new Date(apt.scheduled_start_time);
-      return !isNaN(aptDate) && aptDate >= new Date();
-    } catch { return false; }
-  });
-
-  const pastAppointments = appointments.filter((apt) => {
-    if (!apt?.scheduled_start_time) return false;
-    try {
-      const aptDate = new Date(apt.scheduled_start_time);
-      return !isNaN(aptDate) && aptDate < new Date();
-    } catch { return false; }
-  });
 
   return (
     <div className="ccv-container">
-
-      {/* FIX #2 + #5: single unified nav header — replaces the duplicate internal
-          MonthView nav and adds the missing Today button for all customer views. */}
-      <div className="ccv-nav-header">
+      <div className="ccv-header">
         {showNav ? (
           <button className="ccv-nav-btn" onClick={() => navigate(-1)}>
             ← {t('calendar.previous')}
@@ -161,8 +224,8 @@ export default function CustomerCalendarView({ viewMode, selectedDate, onDateCha
           <div className="ccv-nav-placeholder" />
         )}
 
-        <div className="ccv-nav-center">
-          <h2 className="ccv-nav-label">{getHeaderLabel()}</h2>
+        <div className="ccv-header-center">
+          <h2 className="ccv-date">{getHeaderLabel()}</h2>
           <button
             className="ccv-today-btn"
             onClick={() => onDateChange(new Date())}
@@ -180,262 +243,52 @@ export default function CustomerCalendarView({ viewMode, selectedDate, onDateCha
         )}
       </div>
 
-      {/* Thin inline loading bar — never blocks view rendering. */}
-      {loading && (
+      {showLoadingBar && (
         <div className="ccv-loading-bar" role="status" aria-live="polite">
+          <span className="ccv-loading-spinner" aria-hidden="true">⟳</span>
           {t('common.loading')}
         </div>
-      )}
-
-      <div className="ccv-actions">
-        <button className="ccv-create-btn" onClick={() => setShowCreateModal(true)}>
-          + {t('calendar.requestAppointment')}
-        </button>
-        <div className="ccv-filters">
-          {['all', 'requested', 'confirmed', 'completed'].map((status) => (
-            <button
-              key={status}
-              className={`ccv-filter-btn ${filterStatus === status ? 'active' : ''}`}
-              onClick={() => setFilterStatus(status)}
-            >
-              {status === 'all'
-                ? t('calendar.filterAll')
-                : t(calendarAppointmentStatusKey(status))}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {viewMode === 'agenda' && (
-        <AgendaView
-          upcomingAppointments={upcomingAppointments}
-          pastAppointments={pastAppointments}
-          onSelectAppointment={setSelectedAppointment}
-        />
       )}
 
       {viewMode === 'month' && (
         <MonthView
           selectedDate={selectedDate}
-          appointments={appointments}
+          events={events}
           onDateChange={onDateChange}
+          onEventClick={onEventClick}
         />
       )}
 
       {viewMode === 'week' && (
         <WeekView
           selectedDate={selectedDate}
-          appointments={appointments}
-          onDateChange={onDateChange}
-          onSelectAppointment={setSelectedAppointment}
+          events={events}
+          onEventClick={onEventClick}
         />
       )}
 
       {viewMode === 'day' && (
         <DayView
           selectedDate={selectedDate}
-          appointments={appointments}
-          onSelectAppointment={setSelectedAppointment}
+          events={events}
+          onEventClick={onEventClick}
         />
       )}
 
-      {selectedAppointment && (
-        <AppointmentDetailModal
-          appointment={selectedAppointment}
-          onClose={() => setSelectedAppointment(null)}
-          onUpdate={loadAppointments}
-          isCustomer={true}
+      {viewMode === 'agenda' && (
+        <AgendaView
+          events={events}
+          onEventClick={onEventClick}
+          t={t}
         />
-      )}
-
-      {showCreateModal && (
-        <CreateAppointmentModal
-          onClose={() => setShowCreateModal(false)}
-          onCreated={() => {
-            setShowCreateModal(false);
-            loadAppointments();
-            toast.success(t('calendar.appointmentRequested'));
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-// ─── Agenda View ──────────────────────────────────────────────────────────────
-// FIX #3: improved empty state with sub-copy so users understand what will appear.
-
-function AgendaView({ upcomingAppointments, pastAppointments, onSelectAppointment }) {
-  const { t } = useTranslation();
-
-  return (
-    <div className="ccv-agenda-view">
-      <div className="ccv-section">
-        <h2 className="ccv-section-title">{t('calendar.upcomingAppointments')}</h2>
-        {upcomingAppointments.length === 0 ? (
-          <div className="ccv-empty-state">
-            <div className="ccv-empty-icon" aria-hidden="true">📅</div>
-            <p className="ccv-empty-title">{t('calendar.noUpcomingAppointments')}</p>
-            <p className="ccv-empty-sub">
-              {t('calendar.agendaEmptySub', {
-                defaultValue: 'Jobs you accept will appear here.',
-              })}
-            </p>
-          </div>
-        ) : (
-          <div className="ccv-appointment-list">
-            {upcomingAppointments.map((apt) => (
-              <AppointmentCard
-                key={apt.id}
-                appointment={apt}
-                onSelect={onSelectAppointment}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {pastAppointments.length > 0 && (
-        <div className="ccv-section">
-          <h2 className="ccv-section-title">{t('calendar.pastAppointments')}</h2>
-          <div className="ccv-appointment-list">
-            {pastAppointments.map((apt) => (
-              <AppointmentCard
-                key={apt.id}
-                appointment={apt}
-                onSelect={onSelectAppointment}
-                isPast
-              />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Week View ────────────────────────────────────────────────────────────────
-// FIX #6: today's date now highlighted with a circle, matching HelperCalendarView.
-
-function WeekView({ selectedDate, appointments, onDateChange, onSelectAppointment }) {
-  const { t } = useTranslation();
-  const today = new Date();
-
-  const dayOfWeek = selectedDate.getDay();
-  const weekStart = new Date(selectedDate);
-  weekStart.setDate(selectedDate.getDate() - dayOfWeek);
-  weekStart.setHours(0, 0, 0, 0);
-
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(weekStart);
-    d.setDate(d.getDate() + i);
-    return d;
-  });
-
-  return (
-    <div className="ccv-week-view">
-      <div className="ccv-week-header">
-        {days.map((day) => {
-          const isToday = isSameDay(day, today);
-          return (
-            <div
-              key={day.toISOString()}
-              className={`ccv-day-header ${isToday ? 'ccv-today' : ''}`}
-              onClick={() => onDateChange(day)}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="ccv-day-name">
-                {t(`calendar.dayShort.${DAYS_OF_WEEK[day.getDay()]}`)}
-              </div>
-              <div className={`ccv-day-date ${isToday ? 'ccv-today-circle' : ''}`}>
-                {day.getDate()}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="ccv-week-grid">
-        {days.map((day) => {
-          const dayAppts = appointments.filter((apt) => {
-            if (!apt?.scheduled_start_time) return false;
-            const aptDate = new Date(apt.scheduled_start_time);
-            return !isNaN(aptDate) && isSameDay(aptDate, day);
-          });
-
-          return (
-            <div key={day.toISOString()} className="ccv-day-column">
-              {dayAppts.length === 0 ? (
-                <div className="ccv-empty-day">{t('calendar.noAppointments')}</div>
-              ) : (
-                dayAppts.map((apt) => (
-                  <div
-                    key={apt.id}
-                    className={`ccv-appointment-card ccv-apt-${apt.status}`}
-                    onClick={() => onSelectAppointment(apt)}
-                  >
-                    <div className="ccv-apt-time">
-                      {new Date(apt.scheduled_start_time).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </div>
-                    <div className="ccv-apt-helper">{apt.helper_name}</div>
-                    <div className="ccv-apt-service">{apt.service_description}</div>
-                  </div>
-                ))
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─── Day View ─────────────────────────────────────────────────────────────────
-
-function DayView({ selectedDate, appointments, onSelectAppointment }) {
-  const { t } = useTranslation();
-
-  const dayAppointments = appointments.filter((apt) => {
-    if (!apt?.scheduled_start_time) return false;
-    const aptDate = new Date(apt.scheduled_start_time);
-    return !isNaN(aptDate) && isSameDay(aptDate, selectedDate);
-  });
-
-  return (
-    <div className="ccv-day-view">
-      <div className="ccv-day-title">
-        {selectedDate.toLocaleDateString(undefined, {
-          weekday: 'long',
-          month: 'long',
-          day: 'numeric',
-        })}
-      </div>
-      {dayAppointments.length === 0 ? (
-        <div className="ccv-empty-state">
-          <p>{t('calendar.noAppointmentsDay')}</p>
-        </div>
-      ) : (
-        <div className="ccv-day-list">
-          {dayAppointments.map((apt) => (
-            <AppointmentCard key={apt.id} appointment={apt} onSelect={onSelectAppointment} />
-          ))}
-        </div>
       )}
     </div>
   );
 }
 
 // ─── Month View ───────────────────────────────────────────────────────────────
-// FIX #2: removed internal useState(month/year) and the duplicate ← Prev/Next → buttons.
-// The view now derives month/year purely from selectedDate; navigation lives in the
-// shared nav header above, driven by onDateChange from the parent.
-//
-// FIX #6: today's date gets a highlighted circle, selected date gets a tint.
 
-function MonthView({ selectedDate, appointments, onDateChange }) {
+function MonthView({ selectedDate, events, onDateChange, onEventClick }) {
   const { t } = useTranslation();
   const today = new Date();
 
@@ -445,8 +298,12 @@ function MonthView({ selectedDate, appointments, onDateChange }) {
   const firstDay = new Date(year, month, 1).getDay();
 
   const days = [];
-  for (let i = 0; i < firstDay; i++) days.push(null);
-  for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
+  for (let i = 0; i < firstDay; i++) {
+    days.push(null);
+  }
+  for (let i = 1; i <= daysInMonth; i++) {
+    days.push(new Date(year, month, i));
+  }
 
   return (
     <div className="ccv-month-view">
@@ -459,6 +316,17 @@ function MonthView({ selectedDate, appointments, onDateChange }) {
         {days.map((day, idx) => {
           const isToday = day && isSameDay(day, today);
           const isSelected = day && isSameDay(day, selectedDate);
+          const dayEvents = day
+            ? events.filter((evt) => {
+                try {
+                  const evtDate = new Date(evt.scheduled_start_time);
+                  return isSameDay(evtDate, day);
+                } catch {
+                  return false;
+                }
+              })
+            : [];
+
           return (
             <div
               key={idx}
@@ -478,21 +346,22 @@ function MonthView({ selectedDate, appointments, onDateChange }) {
                     {day.getDate()}
                   </div>
                   <div className="ccv-month-day-events">
-                    {appointments
-                      .filter((apt) => {
-                        if (!apt?.scheduled_start_time) return false;
-                        const aptDate = new Date(apt.scheduled_start_time);
-                        return !isNaN(aptDate) && isSameDay(aptDate, day);
-                      })
-                      .slice(0, 2)
-                      .map((apt) => (
-                        <div
-                          key={apt.id}
-                          className={`ccv-month-event ccv-apt-${apt.status || 'pending'}`}
-                        >
-                          {(apt.helper_name || 'Unknown').split(' ')[0]}
-                        </div>
-                      ))}
+                    {dayEvents.slice(0, 3).map((evt) => (
+                      <div
+                        key={evt.id}
+                        className={`ccv-month-event ccv-event-${evt.type} ccv-status-${evt.status}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEventClick?.(evt);
+                        }}
+                        title={evt.title}
+                      >
+                        {evt.title.split(' ')[0]}
+                      </div>
+                    ))}
+                    {dayEvents.length > 3 && (
+                      <div className="ccv-month-more">+{dayEvents.length - 3}</div>
+                    )}
                   </div>
                 </>
               )}
@@ -504,46 +373,360 @@ function MonthView({ selectedDate, appointments, onDateChange }) {
   );
 }
 
-// ─── Appointment Card ─────────────────────────────────────────────────────────
+// ─── Week View ────────────────────────────────────────────────────────────────
 
-function AppointmentCard({ appointment, onSelect, isPast }) {
+function WeekView({ selectedDate, events, onEventClick }) {
   const { t } = useTranslation();
-  const startTime = new Date(appointment.scheduled_start_time);
-  const endTime = appointment.scheduled_end_time
-    ? new Date(appointment.scheduled_end_time)
-    : null;
+  const today = new Date();
+  const scrollRef = useRef(null);
+
+  const [nowMinutes, setNowMinutes] = useState(() => {
+    const n = new Date();
+    return n.getHours() * 60 + n.getMinutes();
+  });
+
+  useEffect(() => {
+    const tick = () => {
+      const n = new Date();
+      setNowMinutes(n.getHours() * 60 + n.getMinutes());
+    };
+    const id = setInterval(tick, 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = Math.max(0, nowMinutes - 60);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const dayOfWeek = selectedDate.getDay();
+  const weekStart = new Date(selectedDate);
+  weekStart.setDate(selectedDate.getDate() - dayOfWeek);
+  weekStart.setHours(0, 0, 0, 0);
+
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
 
   return (
-    <div
-      className={`ccv-appt-card ccv-apt-${appointment.status} ${isPast ? 'past' : ''}`}
-      onClick={() => onSelect(appointment)}
-    >
-      <div className="ccv-appt-header">
-        <div className="ccv-appt-time">
-          {startTime.toLocaleDateString()}{' '}
-          {startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </div>
-        <div className={`ccv-appt-status ccv-status-${appointment.status}`}>
-          {t(calendarAppointmentStatusKey(appointment.status))}
+    <div className="ccv-week-view">
+      <div className="ccv-week-header">
+        <div className="ccv-time-label" />
+        {days.map((day) => (
+          <div
+            key={day.toISOString()}
+            className={`ccv-day-header ${isSameDay(day, today) ? 'ccv-today' : ''}`}
+          >
+            <div className="ccv-day-name">
+              {t(`calendar.dayShort.${DAYS_OF_WEEK[day.getDay()]}`)}
+            </div>
+            <div className={`ccv-day-date ${isSameDay(day, today) ? 'ccv-today-circle' : ''}`}>
+              {day.getDate()}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="ccv-week-body" ref={scrollRef}>
+        <div className="ccv-week-grid">
+          <div className="ccv-times">
+            {HOURS.map((hour) => (
+              <div key={hour} className="ccv-time-slot">
+                {hour === 0 ? '' : `${String(hour).padStart(2, '0')}:00`}
+              </div>
+            ))}
+          </div>
+
+          {days.map((day) => {
+            const isToday = isSameDay(day, today);
+            return (
+              <div
+                key={day.toISOString()}
+                className={`ccv-day-column${isToday ? ' ccv-day-today' : ''}`}
+              >
+                {isToday && (
+                  <div
+                    className="ccv-now-indicator"
+                    style={{ top: `${nowMinutes}px` }}
+                    aria-hidden="true"
+                  >
+                    <div className="ccv-now-dot" />
+                  </div>
+                )}
+
+                {HOURS.map((hour) => {
+                  const slotStart = new Date(day);
+                  slotStart.setHours(hour, 0, 0, 0);
+                  const slotEnd = new Date(slotStart);
+                  slotEnd.setHours(hour + 1, 0, 0, 0);
+
+                  const slotEvents = events.filter((evt) => {
+                    try {
+                      const evtStart = new Date(evt.scheduled_start_time);
+                      const evtEnd = new Date(evt.scheduled_end_time);
+                      return evtStart < slotEnd && evtEnd > slotStart;
+                    } catch {
+                      return false;
+                    }
+                  });
+
+                  return (
+                    <div key={`${day.toISOString()}-${hour}`} className="ccv-slot">
+                      {slotEvents.map((evt) => {
+                        try {
+                          const evtStart = new Date(evt.scheduled_start_time);
+                          const timeStr = evtStart.toLocaleTimeString(undefined, {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          });
+                          return (
+                            <div
+                              key={evt.id}
+                              className={`ccv-event ccv-event-${evt.type} ccv-status-${evt.status}`}
+                              onClick={() => onEventClick?.(evt)}
+                              title={evt.title}
+                            >
+                              <span className="ccv-event-time">{timeStr}</span>
+                              <span className="ccv-event-title">{evt.title}</span>
+                              {evt.price && <span className="ccv-event-price">${evt.price}</span>}
+                            </div>
+                          );
+                        } catch {
+                          return null;
+                        }
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
       </div>
-      <div className="ccv-appt-details">
-        <div className="ccv-appt-helper">
-          {appointment.helper_avatar && (
-            <img src={appointment.helper_avatar} alt="" />
-          )}
-          <span>{appointment.helper_name}</span>
-        </div>
-        <div className="ccv-appt-service">{appointment.service_description}</div>
-        {appointment.location_address && (
-          <div className="ccv-appt-location">📍 {appointment.location_address}</div>
-        )}
-      </div>
-      {endTime && (
-        <div className="ccv-appt-duration">
-          {Math.round((endTime - startTime) / (1000 * 60))} {t('calendar.minutes')}
-        </div>
-      )}
     </div>
   );
 }
+
+// ─── Day View ─────────────────────────────────────────────────────────────────
+
+function DayView({ selectedDate, events, onEventClick }) {
+  const scrollRef = useRef(null);
+  const today = new Date();
+  const isToday = isSameDay(selectedDate, today);
+
+  const [nowMinutes, setNowMinutes] = useState(() => {
+    const n = new Date();
+    return n.getHours() * 60 + n.getMinutes();
+  });
+
+  useEffect(() => {
+    const tick = () => {
+      const n = new Date();
+      setNowMinutes(n.getHours() * 60 + n.getMinutes());
+    };
+    const id = setInterval(tick, 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (scrollRef.current && isToday) {
+      scrollRef.current.scrollTop = Math.max(0, nowMinutes - 60);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="ccv-day-view">
+      <div className="ccv-day-title">
+        {selectedDate.toLocaleDateString(undefined, {
+          weekday: 'long',
+          month: 'long',
+          day: 'numeric',
+        })}
+      </div>
+      <div className="ccv-day-body" ref={scrollRef}>
+        <div className="ccv-day-grid">
+          <div className="ccv-times">
+            {HOURS.map((hour) => (
+              <div key={hour} className="ccv-time-slot">
+                {hour === 0 ? '' : `${String(hour).padStart(2, '0')}:00`}
+              </div>
+            ))}
+          </div>
+          <div className={`ccv-day-events${isToday ? ' ccv-day-today' : ''}`}>
+            {isToday && (
+              <div
+                className="ccv-now-indicator"
+                style={{ top: `${nowMinutes}px` }}
+                aria-hidden="true"
+              >
+                <div className="ccv-now-dot" />
+              </div>
+            )}
+            {HOURS.map((hour) => {
+              const slotStart = new Date(selectedDate);
+              slotStart.setHours(hour, 0, 0, 0);
+              const slotEnd = new Date(slotStart);
+              slotEnd.setHours(hour + 1, 0, 0, 0);
+
+              const hourEvents = events.filter((evt) => {
+                try {
+                  const evtStart = new Date(evt.scheduled_start_time);
+                  const evtEnd = new Date(evt.scheduled_end_time);
+                  return evtStart < slotEnd && evtEnd > slotStart;
+                } catch {
+                  return false;
+                }
+              });
+
+              return (
+                <div key={`slot-${hour}`} className="ccv-slot">
+                  {hourEvents.map((evt) => {
+                    try {
+                      const evtStart = new Date(evt.scheduled_start_time);
+                      const timeStr = evtStart.toLocaleTimeString(undefined, {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      });
+                      return (
+                        <div
+                          key={evt.id}
+                          className={`ccv-event ccv-event-${evt.type} ccv-status-${evt.status}`}
+                          onClick={() => onEventClick?.(evt)}
+                          title={evt.title}
+                        >
+                          <span className="ccv-event-time">{timeStr}</span>
+                          <span className="ccv-event-title">{evt.title}</span>
+                          {evt.price && <span className="ccv-event-price">${evt.price}</span>}
+                        </div>
+                      );
+                    } catch {
+                      return null;
+                    }
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Agenda View ──────────────────────────────────────────────────────────────
+
+function AgendaView({ events, onEventClick, t }) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const sorted = [...events]
+    .filter((evt) => {
+      try {
+        const d = new Date(evt.scheduled_start_time);
+        return !isNaN(d) && d >= today;
+      } catch {
+        return false;
+      }
+    })
+    .sort((a, b) => new Date(a.scheduled_start_time) - new Date(b.scheduled_start_time));
+
+  if (sorted.length === 0) {
+    return (
+      <div className="ccv-agenda-empty">
+        <div className="ccv-agenda-empty-icon" aria-hidden="true">📅</div>
+        <p className="ccv-agenda-empty-title">
+          {t('calendar.noUpcomingAppointments', { defaultValue: 'No upcoming appointments' })}
+        </p>
+        <p className="ccv-agenda-empty-sub">
+          {t('calendar.agendaEmptySub', { defaultValue: 'Your confirmed appointments will appear here.' })}
+        </p>
+      </div>
+    );
+  }
+
+  const groups = [];
+  let currentKey = null;
+  for (const evt of sorted) {
+    try {
+      const d = new Date(evt.scheduled_start_time);
+      const key = d.toDateString();
+      if (key !== currentKey) {
+        groups.push({ key, date: d, items: [] });
+        currentKey = key;
+      }
+      groups[groups.length - 1].items.push(evt);
+    } catch {
+      // skip invalid dates
+    }
+  }
+
+  const STATUS_COLORS = {
+    open: '#10b981',
+    published: '#10b981',
+    matched: '#10b981',
+    pending: '#eab308',
+    accepted: '#f97316',
+    in_progress: '#f59e0b',
+    completed: '#6b7280',
+    cancelled: '#9ca3af',
+  };
+
+  return (
+    <div className="ccv-agenda-view">
+      {groups.map(({ key, date, items }) => {
+        const isToday = isSameDay(date, new Date());
+        return (
+          <div key={key} className="ccv-agenda-group">
+            <div className={`ccv-agenda-date-header ${isToday ? 'ccv-agenda-today' : ''}`}>
+              {isToday
+                ? t('calendar.today', { defaultValue: 'Today' })
+                : date.toLocaleDateString(undefined, {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+            </div>
+            {items.map((evt) => {
+              try {
+                const start = new Date(evt.scheduled_start_time);
+                const end = evt.scheduled_end_time ? new Date(evt.scheduled_end_time) : null;
+                const color = STATUS_COLORS[evt.status] || '#6b7280';
+                return (
+                  <button
+                    key={evt.id}
+                    className={`ccv-agenda-event ccv-event-${evt.type}`}
+                    onClick={() => onEventClick?.(evt)}
+                    style={{ borderLeftColor: color }}
+                  >
+                    <div className="ccv-agenda-event-time">
+                      {start.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                      {end && (
+                        <>
+                          {' – '}
+                          {end.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                        </>
+                      )}
+                    </div>
+                    <div className="ccv-agenda-event-details">
+                      <p className="ccv-agenda-event-title">{evt.title}</p>
+                      <p className="ccv-agenda-event-meta">
+                        {evt.helper_name}{evt.price && ` · $${evt.price}`}
+                      </p>
+                    </div>
+                  </button>
+                );
+              } catch {
+                return null;
+              }
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export default CustomerCalendarView;

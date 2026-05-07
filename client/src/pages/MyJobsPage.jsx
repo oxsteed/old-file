@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import api from '../api/axios';
+import { cancelBookingRequest } from '../api/bookings';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PageMeta from '../components/PageMeta';
+import CustomerCalendarView from '../components/calendar/CustomerCalendarView';
 
 // 'matched' = has at least one bid but is still open for more bids; displayed as "Open"
 const OPEN_STATUSES = ['open', 'published', 'matched'];
@@ -64,7 +67,15 @@ export default function MyJobsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [filter, setFilter] = useState('all');
-  const [activeTab, setActiveTab] = useState('jobs'); // 'jobs' or 'bookings'
+  const [activeTab, setActiveTab] = useState('jobs'); // 'jobs', 'bookings', or 'calendar'
+  const [calendarViewMode, setCalendarViewMode] = useState('month');
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState(new Date());
+  const [selectedEvent, setSelectedEvent] = useState(null);
+
+  // Cancellation modal state
+  const [cancelModal, setCancelModal] = useState({ type: null, id: null, isOpen: false }); // type: 'job' or 'booking'
+  const [cancelReason, setCancelReason] = useState('');
+  const [canceling, setCanceling] = useState(false);
 
   const fetchJobs = useCallback(async () => {
     setLoading(true);
@@ -110,6 +121,40 @@ export default function MyJobsPage() {
   }, []);
 
   useEffect(() => { fetchJobs(); }, [fetchJobs]);
+
+  const handleCancelJob = useCallback(async () => {
+    if (!cancelModal.id || cancelModal.type !== 'job') return;
+    setCanceling(true);
+    try {
+      await api.post(`/jobs/${cancelModal.id}/cancel`, { reason: cancelReason });
+      toast.success(t('myJobs.jobCancelled', { defaultValue: 'Job cancelled successfully' }));
+      setCancelModal({ type: null, id: null, isOpen: false });
+      setCancelReason('');
+      fetchJobs();
+    } catch (err) {
+      const message = err.response?.data?.error || t('myJobs.cancelError', { defaultValue: 'Failed to cancel job' });
+      toast.error(message);
+    } finally {
+      setCanceling(false);
+    }
+  }, [cancelModal, cancelReason, fetchJobs, t]);
+
+  const handleCancelBooking = useCallback(async () => {
+    if (!cancelModal.id || cancelModal.type !== 'booking') return;
+    setCanceling(true);
+    try {
+      await cancelBookingRequest(cancelModal.id);
+      toast.success(t('myJobs.bookingCancelled', { defaultValue: 'Booking request cancelled' }));
+      setCancelModal({ type: null, id: null, isOpen: false });
+      setCancelReason('');
+      fetchJobs();
+    } catch (err) {
+      const message = err.response?.data?.error || t('myJobs.cancelError', { defaultValue: 'Failed to cancel booking' });
+      toast.error(message);
+    } finally {
+      setCanceling(false);
+    }
+  }, [cancelModal, fetchJobs, t]);
 
   const isOpenStatus = (status) => OPEN_STATUSES.includes(status);
 
@@ -172,6 +217,16 @@ export default function MyJobsPage() {
             }`}
           >
             {t('myJobs.bookingRequests', { defaultValue: 'Booking Requests' })} ({bookingRequests.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('calendar')}
+            className={`px-4 py-3 text-sm font-semibold transition border-b-2 ${
+              activeTab === 'calendar'
+                ? 'text-white border-orange-500'
+                : 'text-gray-400 border-transparent hover:text-gray-300'
+            }`}
+          >
+            {t('myJobs.calendar', { defaultValue: 'Calendar' })}
           </button>
         </div>
 
@@ -320,6 +375,14 @@ export default function MyJobsPage() {
                           {t('myJobs.reviewBids', { defaultValue: 'Review Bids' })}
                         </Link>
                       )}
+                      {(isOpen || job.status === 'in_progress') && (
+                        <button
+                          onClick={() => setCancelModal({ type: 'job', id: job.id, isOpen: true })}
+                          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition text-center"
+                        >
+                          {t('myJobs.cancel', { defaultValue: 'Cancel' })}
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -338,6 +401,184 @@ export default function MyJobsPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Calendar Tab */}
+        {activeTab === 'calendar' && (
+          <div>
+            {/* View Mode Controls */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setCalendarViewMode('month')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                  calendarViewMode === 'month'
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
+                }`}
+              >
+                {t('calendar.month', { defaultValue: 'Month' })}
+              </button>
+              <button
+                onClick={() => setCalendarViewMode('week')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                  calendarViewMode === 'week'
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
+                }`}
+              >
+                {t('calendar.week', { defaultValue: 'Week' })}
+              </button>
+              <button
+                onClick={() => setCalendarViewMode('day')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                  calendarViewMode === 'day'
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
+                }`}
+              >
+                {t('calendar.day', { defaultValue: 'Day' })}
+              </button>
+              <button
+                onClick={() => setCalendarViewMode('agenda')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                  calendarViewMode === 'agenda'
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
+                }`}
+              >
+                {t('calendar.agenda', { defaultValue: 'Agenda' })}
+              </button>
+            </div>
+
+            {/* Legend */}
+            <div className="mb-4 p-3 bg-gray-900/40 border border-gray-700/40 rounded-xl">
+              <p className="text-xs font-semibold text-gray-300 mb-2">{t('calendar.legend', { defaultValue: 'Legend' })}:</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500" />
+                  <span className="text-gray-400">{t('myJobs.postedJob', { defaultValue: 'Posted Job' })}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-purple-500" />
+                  <span className="text-gray-400">{t('myJobs.directBooking', { defaultValue: 'Direct Booking' })}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-green-400 font-bold">■</span>
+                  <span className="text-gray-400">{t('calendar.statusOpen', { defaultValue: 'Open' })}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-orange-400 font-bold">■</span>
+                  <span className="text-gray-400">{t('calendar.statusAccepted', { defaultValue: 'Accepted' })}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Calendar Component */}
+            <div className="bg-gray-900/50 border border-gray-700/40 rounded-2xl p-5">
+              <CustomerCalendarView
+                viewMode={calendarViewMode}
+                selectedDate={calendarSelectedDate}
+                onDateChange={setCalendarSelectedDate}
+                onEventClick={setSelectedEvent}
+              />
+            </div>
+
+            {/* Event Details Modal */}
+            {selectedEvent && (
+              <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                <div className="bg-gray-900 border border-gray-700 rounded-2xl max-w-md w-full p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
+                          selectedEvent.type === 'job'
+                            ? 'bg-blue-500/15 text-blue-400'
+                            : 'bg-purple-500/15 text-purple-400'
+                        }`}>
+                          {selectedEvent.type === 'job'
+                            ? t('myJobs.postedJob', { defaultValue: 'Posted Job' })
+                            : t('myJobs.directBooking', { defaultValue: 'Direct Booking' })}
+                        </span>
+                      </div>
+                      <h3 className="text-white font-semibold text-lg">{selectedEvent.title}</h3>
+                    </div>
+                    <button
+                      onClick={() => setSelectedEvent(null)}
+                      className="text-gray-400 hover:text-white transition"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div className="space-y-3 mb-5">
+                    <div className="text-sm">
+                      <p className="text-gray-500 text-xs mb-1">{t('myJobs.status', { defaultValue: 'Status' })}</p>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
+                        selectedEvent.status === 'open' || selectedEvent.status === 'published' || selectedEvent.status === 'matched'
+                          ? 'bg-emerald-500/15 text-emerald-400'
+                          : selectedEvent.status === 'in_progress'
+                            ? 'bg-blue-500/15 text-blue-400'
+                            : selectedEvent.status === 'completed'
+                              ? 'bg-gray-500/15 text-gray-400'
+                              : 'bg-red-500/15 text-red-400'
+                      }`}>
+                        {selectedEvent.status.charAt(0).toUpperCase() + selectedEvent.status.slice(1).replace(/_/g, ' ')}
+                      </span>
+                    </div>
+
+                    <div className="text-sm">
+                      <p className="text-gray-500 text-xs mb-1">{t('myJobs.dateTime', { defaultValue: 'Date & Time' })}</p>
+                      <p className="text-gray-300">
+                        {new Date(selectedEvent.scheduled_start_time).toLocaleDateString(undefined, {
+                          weekday: 'long',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
+                      </p>
+                      <p className="text-gray-400 text-sm">
+                        {new Date(selectedEvent.scheduled_start_time).toLocaleTimeString(undefined, {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                        {' – '}
+                        {new Date(selectedEvent.scheduled_end_time).toLocaleTimeString(undefined, {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
+
+                    {selectedEvent.price && (
+                      <div className="text-sm">
+                        <p className="text-gray-500 text-xs mb-1">{t('myJobs.price', { defaultValue: 'Price' })}</p>
+                        <p className="text-emerald-400 font-semibold">${selectedEvent.price}</p>
+                      </div>
+                    )}
+
+                    <div className="text-sm">
+                      <p className="text-gray-500 text-xs mb-1">{t('myJobs.helper', { defaultValue: 'Helper' })}</p>
+                      <p className="text-gray-300">{selectedEvent.helper_name}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Link
+                      to={selectedEvent.type === 'job' ? `/jobs/${selectedEvent.job_id}` : `/bookings/${selectedEvent.booking_id}`}
+                      className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition text-center"
+                    >
+                      {t('common.view', { defaultValue: 'View' })}
+                    </Link>
+                    <button
+                      onClick={() => setSelectedEvent(null)}
+                      className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-xl transition"
+                    >
+                      {t('common.close', { defaultValue: 'Close' })}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -409,9 +650,9 @@ export default function MyJobsPage() {
                       )}
                     </div>
 
-                    {/* Expiry indicator */}
-                    {booking.status === 'pending' && booking.expires_at && (
-                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                    {/* Actions */}
+                    <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                      {booking.status === 'pending' && booking.expires_at && (
                         <span className="text-xs text-gray-500">
                           {new Date(booking.expires_at) > new Date()
                             ? t('calendar.expiresIn', {
@@ -420,12 +661,84 @@ export default function MyJobsPage() {
                               })
                             : t('calendar.expired', { defaultValue: 'Expired' })}
                         </span>
+                      )}
+                      <div className="flex gap-2">
+                        <Link
+                          to={`/bookings/${booking.id}`}
+                          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition"
+                        >
+                          {t('common.view', { defaultValue: 'View' })}
+                        </Link>
+                        {(booking.status === 'pending' || booking.status === 'accepted') && (
+                          <button
+                            onClick={() => setCancelModal({ type: 'booking', id: booking.id, isOpen: true })}
+                            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition"
+                          >
+                            {t('myJobs.cancel', { defaultValue: 'Cancel' })}
+                          </button>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Cancellation Modal */}
+        {cancelModal.isOpen && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-900 border border-gray-700 rounded-2xl max-w-md w-full p-6">
+              <h3 className="text-lg font-semibold text-white mb-4">
+                {cancelModal.type === 'job'
+                  ? t('myJobs.cancelJobTitle', { defaultValue: 'Cancel Job?' })
+                  : t('myJobs.cancelBookingTitle', { defaultValue: 'Cancel Booking Request?' })}
+              </h3>
+
+              <p className="text-sm text-gray-400 mb-4">
+                {cancelModal.type === 'job'
+                  ? t('myJobs.cancelJobDesc', { defaultValue: 'This will remove your job posting. Helpers won\'t be able to bid anymore.' })
+                  : t('myJobs.cancelBookingDesc', { defaultValue: 'This will cancel your booking request with the helper.' })}
+              </p>
+
+              {cancelModal.type === 'job' && (
+                <div className="mb-4">
+                  <label className="block text-xs font-semibold text-gray-300 mb-2">
+                    {t('myJobs.cancelReasonLabel', { defaultValue: 'Reason (optional)' })}
+                  </label>
+                  <textarea
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    placeholder={t('myJobs.cancelReasonPlaceholder', { defaultValue: 'Tell us why you\'re cancelling...' })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 resize-none"
+                    rows="3"
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setCancelModal({ type: null, id: null, isOpen: false });
+                    setCancelReason('');
+                  }}
+                  disabled={canceling}
+                  className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 font-semibold rounded-lg transition"
+                >
+                  {t('common.keepCancel', { defaultValue: 'Keep it' })}
+                </button>
+                <button
+                  onClick={cancelModal.type === 'job' ? handleCancelJob : handleCancelBooking}
+                  disabled={canceling}
+                  className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-semibold rounded-lg transition"
+                >
+                  {canceling
+                    ? t('common.canceling', { defaultValue: 'Cancelling...' })
+                    : t('myJobs.confirmCancel', { defaultValue: 'Yes, cancel' })}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </main>

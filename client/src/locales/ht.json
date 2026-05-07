@@ -147,7 +147,9 @@
     "submitting": "Voye…",
     "update": "Mete ajou",
     "view": "Gade",
-    "characters": "karaktè"
+    "characters": "karaktè",
+    "keepCancel": "Kenbe li",
+    "canceling": "Anile…"
   },
   "trial": {
     "active": "Esè aktif",
@@ -2890,7 +2892,25 @@
     "bookingRequests": "Demann Rezalvason",
     "noBookingRequests": "Poko gen demann rezalvason",
     "requestedOn": "Demann sou",
-    "expiresIn": "Ekspire nan {{days}} jou"
+    "expiresIn": "Ekspire nan {{days}} jou",
+    "calendar": "Almanak",
+    "postedJob": "Travay Pibliye",
+    "directBooking": "Rezalvason Dirèk",
+    "dateTime": "Dat ak Oras",
+    "price": "Pri",
+    "helper": "Pwofesyonèl",
+    "status": "Estati",
+    "cancel": "Anile",
+    "cancelJobTitle": "Anile Travay?",
+    "cancelJobDesc": "Sa a va efase anonsman travay ou. Pwofesyonèl yo pa pral kapab soumèt ofè ankò.",
+    "cancelBookingTitle": "Anile Demann Rezalvason?",
+    "cancelBookingDesc": "Sa a va anile demann rezalvason ou ak pwofesyonèl la.",
+    "cancelReasonLabel": "Rezon (opsyonal)",
+    "cancelReasonPlaceholder": "Di nou poukisa ou se anile…",
+    "confirmCancel": "Wi, anile",
+    "jobCancelled": "Travay anile avèk siksè",
+    "bookingCancelled": "Demann rezalvason anile",
+    "cancelError": "Pwobyèm anilasyon. Tanpri eseye ankò."
   },
   "helpersDir": {
     "title": "Jwenn yon Pwofesyonèl Lokal",
@@ -6678,6 +6698,10 @@
     "filterAll": "Tout",
     "sidebarLabel": "Kolon ki sou kote kalandriye a",
     "legendTitle": "Lejann",
+    "legendJob": "Travay Pibliye",
+    "legendBooking": "Rezèvasyon Direkta",
+    "legendEventType": "Kalite Evènman",
+    "legendStatus": "Estati",
     "blockAvailable": "Disponib",
     "blockBusy": "Okipe",
     "blockTime": "Bloke lè",

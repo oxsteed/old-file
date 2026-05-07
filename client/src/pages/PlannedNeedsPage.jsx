@@ -150,6 +150,7 @@ export default function PlannedNeedsPage() {
     user?.preferred_currency || (user?.country ? getDefaultCurrency(user.country) : null) || 'USD';
 
   const [needs, setNeeds] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [projection, setProjection] = useState(null);
   const [savedHelpers, setSavedHelpers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -177,8 +178,23 @@ export default function PlannedNeedsPage() {
 
   const loadNeeds = useCallback(async () => {
     try {
-      const { data } = await api.get('/planned-needs');
-      setNeeds(data.planned_needs || []);
+      const [needsRes, bookingsRes] = await Promise.all([
+        api.get('/planned-needs'),
+        api.get('/bookings'),
+      ]);
+
+      setNeeds(needsRes.data.planned_needs || []);
+
+      // Filter bookings for scheduled ones with pricing
+      const scheduledBookings = Array.isArray(bookingsRes.data?.data)
+        ? bookingsRes.data.data.filter(b =>
+            (b.scheduled_date || b.start_time) &&
+            b.status !== 'declined' &&
+            b.status !== 'expired' &&
+            b.price
+          )
+        : [];
+      setBookings(scheduledBookings);
     } catch (e) {
       console.error(e);
     } finally {
@@ -239,8 +255,26 @@ export default function PlannedNeedsPage() {
     loadProjection(window_);
   }, [window_, loadProjection]);
 
-  const activeNeeds = useMemo(() => needs.filter((n) => ACTIVE_STATUSES.includes(n.status)), [needs]);
-  const inactiveNeeds = useMemo(() => needs.filter((n) => INACTIVE_STATUSES.includes(n.status)), [needs]);
+  // Combine needs with bookings (bookings are always "active")
+  const combinedNeeds = useMemo(() => {
+    const converted = bookings.map((b) => ({
+      id: `booking-${b.id}`,
+      type: 'booking',
+      title: b.service_name || 'Service Request',
+      due_date: b.scheduled_date || b.start_time,
+      estimated_cost: b.price || 0,
+      reserved_amount: b.price || 0, // For bookings, if scheduled and priced, it's already committed
+      status: b.status === 'accepted' ? 'funding' : 'planned',
+      helper_name: b.helper_name,
+      days_until_due: b.scheduled_date
+        ? Math.ceil((new Date(b.scheduled_date) - new Date()) / (1000 * 60 * 60 * 24))
+        : null,
+    }));
+    return [...needs, ...converted];
+  }, [needs, bookings]);
+
+  const activeNeeds = useMemo(() => combinedNeeds.filter((n) => ACTIVE_STATUSES.includes(n.status)), [combinedNeeds]);
+  const inactiveNeeds = useMemo(() => combinedNeeds.filter((n) => INACTIVE_STATUSES.includes(n.status)), [combinedNeeds]);
 
   const activatingSoon = useMemo(
     () => activeNeeds.filter((n) => n.status === 'activating_soon'),

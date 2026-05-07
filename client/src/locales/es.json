@@ -147,7 +147,9 @@
     "submitting": "Enviando…",
     "update": "Actualizar",
     "view": "Ver",
-    "characters": "caracteres"
+    "characters": "caracteres",
+    "keepCancel": "Mantenerlo",
+    "canceling": "Cancelando…"
   },
   "jobs": {
     "title": "Detalles del Trabajo",
@@ -2805,7 +2807,25 @@
     "bookingRequests": "Solicitudes de Reserva",
     "noBookingRequests": "Sin solicitudes de reserva aún",
     "requestedOn": "Solicitado en",
-    "expiresIn": "Expira en {{days}} días"
+    "expiresIn": "Expira en {{days}} días",
+    "calendar": "Calendario",
+    "postedJob": "Trabajo Publicado",
+    "directBooking": "Reserva Directa",
+    "dateTime": "Fecha y Hora",
+    "price": "Precio",
+    "helper": "Ayudante",
+    "status": "Estado",
+    "cancel": "Cancelar",
+    "cancelJobTitle": "¿Cancelar Trabajo?",
+    "cancelJobDesc": "Esto eliminará tu publicación de trabajo. Los ayudantes no podrán ofertar más.",
+    "cancelBookingTitle": "¿Cancelar Solicitud de Reserva?",
+    "cancelBookingDesc": "Esto cancelará tu solicitud de reserva con el ayudante.",
+    "cancelReasonLabel": "Razón (opcional)",
+    "cancelReasonPlaceholder": "Cuéntanos por qué estás cancelando…",
+    "confirmCancel": "Sí, cancelar",
+    "jobCancelled": "Trabajo cancelado exitosamente",
+    "bookingCancelled": "Solicitud de reserva cancelada",
+    "cancelError": "No se pudo cancelar. Por favor intenta de nuevo."
   },
   "helpersDir": {
     "title": "Encuentra un ayudante local",
@@ -6678,6 +6698,10 @@
     "filterAll": "Todas",
     "sidebarLabel": "Barra lateral del calendario",
     "legendTitle": "Leyenda",
+    "legendJob": "Trabajo Publicado",
+    "legendBooking": "Reserva Directa",
+    "legendEventType": "Tipo de Evento",
+    "legendStatus": "Estado",
     "blockAvailable": "Disponible",
     "blockBusy": "Ocupado",
     "blockTime": "Bloquear horario",

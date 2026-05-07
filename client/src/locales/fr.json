@@ -147,7 +147,9 @@
     "submitting": "Envoi…",
     "update": "Mettre à jour",
     "view": "Voir",
-    "characters": "caractères"
+    "characters": "caractères",
+    "keepCancel": "Garder",
+    "canceling": "Annulation…"
   },
   "jobs": {
     "title": "Détails de la mission",
@@ -2805,7 +2807,25 @@
     "bookingRequests": "Demandes de Réservation",
     "noBookingRequests": "Aucune demande de réservation pour le moment",
     "requestedOn": "Demandé le",
-    "expiresIn": "Expire dans {{days}} jours"
+    "expiresIn": "Expire dans {{days}} jours",
+    "calendar": "Calendrier",
+    "postedJob": "Mission Publiée",
+    "directBooking": "Réservation Directe",
+    "dateTime": "Date et Heure",
+    "price": "Prix",
+    "helper": "Prestataire",
+    "status": "Statut",
+    "cancel": "Annuler",
+    "cancelJobTitle": "Annuler la Mission?",
+    "cancelJobDesc": "Cela supprimera votre annonce de mission. Les prestataires ne pourront plus faire d'offres.",
+    "cancelBookingTitle": "Annuler la Demande de Réservation?",
+    "cancelBookingDesc": "Cela annulera votre demande de réservation auprès du prestataire.",
+    "cancelReasonLabel": "Raison (optionnel)",
+    "cancelReasonPlaceholder": "Dites-nous pourquoi vous annulez…",
+    "confirmCancel": "Oui, annuler",
+    "jobCancelled": "Mission annulée avec succès",
+    "bookingCancelled": "Demande de réservation annulée",
+    "cancelError": "Impossible d'annuler. Veuillez réessayer."
   },
   "helpersDir": {
     "title": "Trouvez un prestataire local",
@@ -6678,6 +6698,10 @@
     "filterAll": "Tous",
     "sidebarLabel": "Barre latérale du calendrier",
     "legendTitle": "Légende",
+    "legendJob": "Travail Publié",
+    "legendBooking": "Réservation Directe",
+    "legendEventType": "Type d'Événement",
+    "legendStatus": "Statut",
     "blockAvailable": "Disponible",
     "blockBusy": "Occupé",
     "blockTime": "Bloquer un créneau",
