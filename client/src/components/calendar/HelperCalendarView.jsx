@@ -835,7 +835,8 @@ function BookingRequestsView({ onBookingConfirmed, t }) {
     setLoading(true);
     try {
       const response = await api.get('/bookings/incoming');
-      setBookingRequests(response.data?.bookings || []);
+      // Backend returns { success: true, data: [...] }, not { bookings: [...] }
+      setBookingRequests(Array.isArray(response.data?.data) ? response.data.data : []);
     } catch (err) {
       console.error('Error loading booking requests:', err);
       toast.error(t('calendar.errorLoadingBookings', { defaultValue: 'Failed to load booking requests' }));
@@ -867,7 +868,7 @@ function BookingRequestsView({ onBookingConfirmed, t }) {
 
   const handleConfirmBooking = async (bookingId) => {
     try {
-      await api.post(`/bookings/${bookingId}/confirm`);
+      await api.post(`/bookings/${bookingId}/accept`);
       toast.success(t('calendar.bookingConfirmed', { defaultValue: 'Booking confirmed! It has been added to your calendar.' }));
       loadBookingRequests();
       onBookingConfirmed();
