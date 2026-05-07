@@ -728,5 +728,3 @@ function AgendaView({ events, onEventClick, t }) {
     </div>
   );
 }
-
-export default CustomerCalendarView;
