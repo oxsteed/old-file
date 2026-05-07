@@ -834,7 +834,7 @@ function BookingRequestsView({ onBookingConfirmed, t }) {
   const loadBookingRequests = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await api.get('/bookings/direct-requests');
+      const response = await api.get('/bookings/incoming');
       setBookingRequests(response.data?.bookings || []);
     } catch (err) {
       console.error('Error loading booking requests:', err);
