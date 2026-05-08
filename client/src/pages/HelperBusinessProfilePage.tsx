@@ -196,7 +196,7 @@ const HelperBusinessProfilePage: React.FC = () => {
   // ── Render states ──────────────────────────────────────────────────────────
   if (loadState === 'loading' || loadState === 'idle') {
     return (
-      <div className="min-h-screen bg-gray-950 text-white">
+      <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-white">
         <Navbar />
         <ProfileSkeleton />
       </div>
@@ -205,7 +205,7 @@ const HelperBusinessProfilePage: React.FC = () => {
 
   if (loadState === 'error' || !data) {
     return (
-      <div className="min-h-screen bg-gray-950 text-white">
+      <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-white">
         <Navbar />
         <main className="py-16">
           <ProfileError
@@ -226,7 +226,7 @@ const HelperBusinessProfilePage: React.FC = () => {
   // ── Template override: non-default templates replace the page interior ─────
   if (activeTemplate && activeTemplate !== 'default') {
     return (
-      <div className="min-h-screen bg-gray-950 text-white">
+      <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-white">
         <PageMeta
           title={helper.businessName || helper.ownerName}
           description={buildPublicProfileDescription({
@@ -255,7 +255,7 @@ const HelperBusinessProfilePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-white">
       <PageMeta
         title={helper.businessName || helper.ownerName}
         description={buildPublicProfileDescription({
@@ -305,12 +305,12 @@ const HelperBusinessProfilePage: React.FC = () => {
             {helper.bio && (
               <section
                 aria-labelledby="bio-heading"
-                className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5"
+                className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-6 py-5"
               >
                 <h2 id="bio-heading" className="text-base font-semibold text-white mb-2">
                   {t('businessProfile.about', { name: helper.businessName })}
                 </h2>
-                <p className="text-gray-300 text-sm leading-relaxed">{helper.bio}</p>
+                <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">{helper.bio}</p>
               </section>
             )}
 
@@ -427,13 +427,13 @@ const HelperBusinessProfilePage: React.FC = () => {
         behind the iPhone home indicator.
       */}
       <div
-        className="lg:hidden fixed bottom-0 inset-x-0 z-30 px-4 pt-3 bg-gray-900/95 backdrop-blur border-t border-gray-800 flex items-center gap-3"
+        className="lg:hidden fixed bottom-0 inset-x-0 z-30 px-4 pt-3 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-t border-gray-200 dark:border-gray-800 flex items-center gap-3"
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         aria-label={t('businessProfile.quickActionsAria')}
       >
         <button
           onClick={handleOpenChat}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-700 text-gray-200 font-medium text-sm flex-1 hover:bg-gray-800 transition-colors active:bg-gray-700"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-medium text-sm flex-1 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors active:bg-gray-200 dark:active:bg-gray-700"
           aria-label={t('businessProfile.openChatAria')}
         >
           <MessageCircle className="w-4 h-4" aria-hidden="true" />
