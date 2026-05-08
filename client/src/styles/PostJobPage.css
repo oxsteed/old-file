@@ -44,6 +44,31 @@
   min-height:  100dvh;
 }
 
+/* ── Light Mode Token Overrides ─────────────────────────── */
+html:not(.dark) .pjw-root {
+  --pjw-bg:              #f8fafc;
+  --pjw-surface:         #ffffff;
+  --pjw-surface-2:       #f1f5f9;
+  --pjw-surface-offset:  #e2e8f0;
+  --pjw-surface-dynamic: #e8edf5;
+  --pjw-divider:         rgba(100, 116, 139, 0.25);
+  --pjw-border:          #cbd5e1;
+  --pjw-text:            #0f172a;
+  --pjw-text-muted:      #475569;
+  --pjw-text-faint:      #64748b;
+  --pjw-text-inverse:    #ffffff;
+  --pjw-shadow-sm:       0 1px 2px rgba(0,0,0,.04);
+  --pjw-shadow-md:       0 4px 12px rgba(0,0,0,.06);
+  --pjw-shadow-lg:       0 12px 32px rgba(0,0,0,.08);
+}
+html:not(.dark) .pjw-nav {
+  background: rgba(248, 250, 252, 0.92);
+  border-bottom-color: #e2e8f0;
+}
+html:not(.dark) .pjw-overlay {
+  background: rgba(248, 250, 252, 0.92);
+}
+
 /* ── Nav ────────────────────────────────────────────────── */
 .pjw-nav {
   position: sticky; top: 0; z-index: 100;

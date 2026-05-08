@@ -367,6 +367,53 @@
   font-size: 0.85rem;
 }
 
+/* ── Light Mode Overrides ────────────────────────────── */
+html:not(.dark) .helper-dashboard {
+  background: var(--color-bg, #f8fafc);
+  color: var(--color-text, #0f172a);
+}
+html:not(.dark) .helper-dashboard h1 { color: #111827; }
+html:not(.dark) .helper-dashboard .subtitle { color: #64748b; }
+html:not(.dark) .dashboard-loading { color: #6b7280; }
+
+html:not(.dark) .onboarding-resume-card {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.06), rgba(241, 245, 249, 0.95));
+  border-color: rgba(249, 115, 22, 0.25);
+}
+html:not(.dark) .onboarding-resume-title { color: #111827; }
+html:not(.dark) .onboarding-resume-subtitle { color: #6b7280; }
+html:not(.dark) .onboarding-bar-track { background: #e5e7eb; }
+html:not(.dark) .onboarding-step-label { color: #374151; }
+html:not(.dark) .onboarding-step-icon.pending {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #9ca3af;
+}
+
+html:not(.dark) .dashboard-card {
+  background: #ffffff;
+  border-color: #e5e7eb;
+  backdrop-filter: none;
+}
+html:not(.dark) .dashboard-card h3 { color: #111827; }
+html:not(.dark) .locked-badge {
+  color: #6b7280;
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+
+html:not(.dark) .btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+html:not(.dark) .btn-secondary:hover { background: #e5e7eb; }
+
+html:not(.dark) .status-badge {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+html:not(.dark) .muted { color: #64748b; }
+
 /* ── Responsive ──────────────────────────────────────── */
 @media (max-width: 640px) {
   .helper-dashboard {

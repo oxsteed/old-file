@@ -699,3 +699,21 @@
   flex-shrink: 0;
 }
 
+/* ── Light Mode Overrides ────────────────────────────── */
+html:not(.dark) .bh-role-manager {
+  background: #ede9fe;
+  color: #4338ca;
+}
+html:not(.dark) .bh-role-representative {
+  background: #dcfce7;
+  color: #166534;
+}
+html:not(.dark) .bh-status-active {
+  background: #dcfce7;
+  color: #166534;
+}
+html:not(.dark) .bh-status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+

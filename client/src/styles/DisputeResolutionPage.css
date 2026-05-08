@@ -15,7 +15,7 @@
   --error: #ef4444;
 }
 
-html.light {
+html:not(.dark) {
   --primary: #ea580c;
   --primary-dark: #b84906;
   --primary-light: #fed7aa;

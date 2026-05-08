@@ -1,91 +1,66 @@
 // Legal Documents Routes
-// Public access to legal documents + admin endpoints for management
+// Acceptance recording + history for user-facing legal flows
 
 const express = require('express');
 const router = express.Router();
-const { authenticate, requireRole } = require('../middleware/auth');
-const { rateLimiter } = require('../middleware/rateLimiter');
+const { authenticate } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/adminAuth');
+const { generalLimiter, strictLimiter } = require('../middleware/rateLimiter');
 const legalController = require('../controllers/legalDocumentsController');
 
-// ────────────────────────────────────────────────────────────
-// PUBLIC ROUTES
-// ────────────────────────────────────────────────────────────
+// ── User-facing routes ────────────────────────────────────────────────────────
 
-/**
- * GET /api/legal/documents/:category
- * Fetch published legal document
- * Optional: ?language=en (defaults to 'en')
- */
-router.get('/documents/:category', rateLimiter, legalController.getLegalDocument);
+// GET  /api/legal/:documentType/history
+// e.g. GET /api/legal/account_termination/history
+router.get('/:documentType/history',
+  authenticate,
+  generalLimiter,
+  legalController.getAcceptanceHistory
+);
 
-/**
- * GET /api/legal/documents/:id/history
- * Fetch version history
- */
-router.get('/documents/:id/history', rateLimiter, legalController.getDocumentHistory);
+// POST /api/legal/:documentType/accept
+// e.g. POST /api/legal/account_termination/accept
+router.post('/:documentType/accept',
+  authenticate,
+  strictLimiter,
+  legalController.recordAcceptance
+);
 
-/**
- * GET /api/legal/documents/:id/version/:versionNumber
- * Fetch specific version
- */
-router.get('/documents/:id/version/:versionNumber', rateLimiter, legalController.getDocumentVersion);
+// GET  /api/legal/my-acceptances  — all accepted docs for current user
+router.get('/my-acceptances',
+  authenticate,
+  generalLimiter,
+  legalController.getUserAcceptances
+);
 
-/**
- * POST /api/legal/documents/:id/accept
- * User accepts a document with electronic signature
- */
-router.post('/documents/:id/accept', authenticate, rateLimiter, legalController.acceptDocument);
+// ── Admin routes ──────────────────────────────────────────────────────────────
 
-/**
- * GET /api/legal/my-acceptances
- * Fetch user's acceptance history
- */
-router.get('/my-acceptances', authenticate, rateLimiter, legalController.getUserAcceptances);
+// GET  /api/legal/admin/acceptances
+router.get('/admin/acceptances',
+  authenticate,
+  requireAdmin,
+  legalController.listAllAcceptances
+);
 
-// ────────────────────────────────────────────────────────────
-// ADMIN ROUTES
-// ────────────────────────────────────────────────────────────
+// GET  /api/legal/admin/compliance
+router.get('/admin/compliance',
+  authenticate,
+  requireAdmin,
+  legalController.getComplianceMetrics
+);
 
-/**
- * GET /api/legal/admin/documents
- * List all legal documents with optional status filter
- * Query: ?status=draft|pending_review|scheduled|live|archived
- */
-router.get('/admin/documents', authenticate, requireRole('admin', 'super_admin'), legalController.listLegalDocuments);
+// GET  /api/legal/admin/audit-log
+router.get('/admin/audit-log',
+  authenticate,
+  requireAdmin,
+  legalController.getAuditLog
+);
 
-/**
- * POST /api/legal/admin/documents
- * Create new legal document
- * Body: { category, title, description, content }
- */
-router.post('/admin/documents', authenticate, requireRole('admin', 'super_admin'), legalController.createLegalDocument);
-
-/**
- * PUT /api/legal/admin/documents/:id
- * Update document (saves as draft)
- * Body: { title, description, content, changeSummary }
- */
-router.put('/admin/documents/:id', authenticate, requireRole('admin', 'super_admin'), legalController.updateLegalDocument);
-
-/**
- * POST /api/legal/admin/documents/:id/request-approval
- * Submit document for legal review
- * Body: { changeSummary, changedSections }
- */
-router.post('/admin/documents/:id/request-approval', authenticate, requireRole('admin', 'super_admin'), legalController.requestApproval);
-
-/**
- * POST /api/legal/admin/documents/:id/approve
- * Approve document for publication
- * Body: { scheduledPublishDate?, reviewComments }
- */
-router.post('/admin/documents/:id/approve', authenticate, requireRole('admin', 'super_admin'), legalController.approveDocument);
-
-/**
- * POST /api/legal/admin/documents/:id/publish
- * Publish document immediately
- * Body: { notifyUsers? }
- */
-router.post('/admin/documents/:id/publish', authenticate, requireRole('admin', 'super_admin'), legalController.publishDocument);
+// DELETE /api/legal/admin/acceptances/:id
+router.delete('/admin/acceptances/:id',
+  authenticate,
+  requireAdmin,
+  legalController.revokeAcceptance
+);
 
 module.exports = router;

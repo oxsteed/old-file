@@ -593,4 +593,10 @@ router.post('/availability/overrides',
 router.delete('/availability/overrides/:id',
   helperOnly, generalLimiter, helperAvailabilityCtrl.deleteOverride);
 
+// ── QR Code (public — no auth required) ──────────────────────────────────────
+// GET /api/helper-profile/:helperId/qr-code?size=small&format=dataurl
+router.get('/:helperId/qr-code', helperProfileImageController.generateQRCode);
+// GET /api/helper-profile/:helperId/qr-code/multi-size
+router.get('/:helperId/qr-code/multi-size', helperProfileImageController.generateMultiSizeQRCode);
+
 module.exports = router;
