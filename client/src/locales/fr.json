@@ -149,7 +149,18 @@
     "view": "Voir",
     "characters": "caractères",
     "keepCancel": "Garder",
-    "canceling": "Annulation…"
+    "canceling": "Annulation…",
+    "goBack": "Go Back",
+    "approve": "Approve",
+    "failedToLoad": "Failed to load. Please try again.",
+    "failedToUpdate": "Failed to update. Please try again.",
+    "backToCart": "Back to Cart",
+    "each": "each",
+    "action": "Action",
+    "errorCreating": "Failed to create. Please try again.",
+    "done": "Done",
+    "failedToCancel": "Failed to cancel. Please try again.",
+    "fillRequiredFields": "Please fill in all required fields."
   },
   "jobs": {
     "title": "Détails de la mission",
@@ -182,7 +193,8 @@
     "apply": "Postuler",
     "timeline": "Calendrier",
     "about": "À propos",
-    "description": "Description"
+    "description": "Description",
+    "urgent": "Urgent"
   },
   "auth": {
     "email": "Adresse e-mail",
@@ -1639,7 +1651,9 @@
     "edit": "Modifier le message",
     "editFailed": "Erreur lors de la modification du message",
     "edited": "(modifié)",
-    "messageNotFound": "Message non trouvé"
+    "messageNotFound": "Message non trouvé",
+    "failed": "Message failed to send.",
+    "retry": "Retry"
   },
   "dashboard": {
     "welcome": "Bon retour, {{name}} !",
@@ -1711,7 +1725,10 @@
       "activeGoals": "{{count}} objectifs actifs",
       "thisWeek": "Cette semaine",
       "totalPending": "Total en attente",
-      "recurring": "Récurrent"
+      "recurring": "Récurrent",
+      "dueThisWeek": "Due This Week",
+      "overdueTasks": "Overdue Tasks",
+      "unreadMessages": "Unread Messages"
     },
     "onboarding": {
       "title": "Complétez votre profil pour commencer à recevoir des jobs",
@@ -2794,7 +2811,11 @@
     "jobLabel": "Mission : {{title}}",
     "responseFromOwner": "Réponse du propriétaire",
     "noBidFound": "Aucune offre acceptée trouvée",
-    "paymentInitiated": "Paiement initié. Les fonds sont retenus en séquestre jusqu'à la fin du travail."
+    "paymentInitiated": "Paiement initié. Les fonds sont retenus en séquestre jusqu'à la fin du travail.",
+    "acceptBid": "Accept Bid",
+    "helperAssigned": "Helper Assigned",
+    "helperAvailability": "Helper Availability",
+    "reviewCount": "{{count}} review"
   },
   "myJobs": {
     "subtitle": "Missions que vous avez publiées",
@@ -2949,7 +2970,10 @@
     "loadMoreHelpersAria": "Charger plus de prestataires ({{count}} restants)",
     "messageHelperAria": "Message à {{name}}",
     "viewProfileAria": "Voir le profil de {{name}}",
-    "priceStartingAt": "À partir de {{amount}}"
+    "priceStartingAt": "À partir de {{amount}}",
+    "jobsCount": "{{count}} job completed",
+    "licenseCount": "{{count}} license",
+    "helperCount": "{{count}} helper found"
   },
   "jobsDir": {
     "metaTitle": "Parcourir les missions ouvertes",
@@ -3288,7 +3312,9 @@
     "budgetFrom": "À partir de {{amount}}",
     "budgetUpTo": "Jusqu'à {{amount}}",
     "budgetExact": "{{amount}}",
-    "budgetBetween": "{{min}} – {{max}}"
+    "budgetBetween": "{{min}} – {{max}}",
+    "bidCount": "{{count}} bid",
+    "jobCount": "{{count}} job found"
   },
   "support": {
     "helpTitle": "Comment pouvons-nous vous aider ?",
@@ -3810,7 +3836,8 @@
     "loadingPolicies": "Chargement des politiques…",
     "loadingServices": "Chargement des services…",
     "tabSkillsLabel": "Compétences",
-    "tabAILabel": "AI knowledge"
+    "tabAILabel": "AI knowledge",
+    "editProfile": "Edit Profile"
   },
   "plans": {
     "free": "Gratuit",
@@ -4367,7 +4394,8 @@
       "nextPhoto": "Photo suivante",
       "viewPhoto": "Voir la photo : {{alt}}",
       "galleryAria": "Galerie de photos de travaux",
-      "lightboxAria": "Visionneuse de photos"
+      "lightboxAria": "Visionneuse de photos",
+      "photoCount": "{{count}} photo"
     },
     "hours": {
       "title": "Horaires d'ouverture",
@@ -4773,7 +4801,8 @@
       "linkCopied": "Lien copié",
       "copyFailed": "Impossible de copier le lien",
       "defaultMessage": "Découvrez {{name}} sur OxSteed : {{url}}"
-    }
+    },
+    "contactBusiness": "Contact Business"
   },
   "leads": {
     "title": "Demandes de Services",
@@ -5713,7 +5742,9 @@
           "desc": "Caméras, thermiques, capteurs"
         }
       }
-    }
+    },
+    "searchAria": "Search tool rentals",
+    "clearSearch": "Clear search"
   },
   "liveHelpers": {
     "sectionTitle": "Aide en direct près de vous",
@@ -6734,7 +6765,31 @@
     "downloadIcal": "Télécharger .ics",
     "addToGoogle": "Ajouter à Google Agenda",
     "reschedule": "Reprogrammer",
-    "jobCancelled": "Mission annulée. Votre temps est maintenant libre."
+    "jobCancelled": "Mission annulée. Votre temps est maintenant libre.",
+    "bookingRequests": "Booking Requests",
+    "bookingRequestsView": "Booking Requests",
+    "expired": "Expired",
+    "expiresIn": "Expires in {{days}}d",
+    "legend": "Legend",
+    "statusAccepted": "Accepted",
+    "statusOpen": "Open",
+    "bookingConfirmed": "Booking confirmed! It has been added to your calendar.",
+    "bookingDeclined": "Booking request declined.",
+    "confirm": "Confirm",
+    "confirmBooking": "Confirm and add to calendar",
+    "dateTime": "Date & Time",
+    "decline": "Decline",
+    "declineBooking": "Decline booking request",
+    "errorConfirmingBooking": "Failed to confirm booking",
+    "errorDecliningBooking": "Failed to decline booking",
+    "errorLoadingBookings": "Failed to load booking requests",
+    "noBookingRequests": "No booking requests",
+    "noBookingRequestsSub": "Direct booking requests from customers will appear here.",
+    "pendingBookingRequests": "Pending Booking Requests",
+    "requestedOn": "Requested on",
+    "requestsWaiting": "{{count}} request(s) waiting",
+    "statusPending": "Pending",
+    "unknownCustomer": "Unknown Customer"
   },
   "verifyEmail": {
     "title": "Vérifiez votre e-mail",
@@ -6866,7 +6921,22 @@
     "trustedByXHelpers_plural": "Approuvé par {{count}} professionnels",
     "openFilters": "Ouvrir les Filtres",
     "closeFilters": "Fermer les Filtres",
-    "filtersSidebar": "Barre Latérale des Filtres"
+    "filtersSidebar": "Barre Latérale des Filtres",
+    "browseByCategory": "Browse by Category",
+    "browseProducts": "Browse Products",
+    "category": "Category",
+    "discounted": "Discounted",
+    "filters": "Filters",
+    "inStock": "In Stock",
+    "loginRequired": "Please sign in to add items to a cart.",
+    "onSale": "On Sale",
+    "quickFilters": "Quick Filters",
+    "showResults": "Show Results",
+    "tryDifferentFilters": "Try adjusting your filters.",
+    "sharedCart": "Shared Cart",
+    "outOfStock": "Out of Stock",
+    "onlyXLeft": "Only {{count}} left",
+    "save": "Save"
   },
   "templatePicker": {
     "pageTitle": "Choisissez votre modele de profil",
@@ -6918,7 +6988,12 @@
     "activateAriaLabel": "Activer le modele {{name}}",
     "unlockAriaLabel": "Debloquer le modele {{name}}",
     "trial": "Essai",
-    "trialExpires": "Essai gratuit se termine le {{date}}"
+    "trialExpires": "Essai gratuit se termine le {{date}}",
+    "freeTrialOneYear": "1-Year Free Trial",
+    "pricingLabel": "Pricing",
+    "startFreeTrial": "Start Free Trial",
+    "startTrial": "Start Trial",
+    "startTrialAriaLabel": "Start free trial for {{name}}"
   },
   "aiKnowledge": {
     "heading": "AI assistant knowledge",
@@ -7405,5 +7480,95 @@
     "nextStepOne": "Coordonnez les détails par message si besoin.",
     "nextStepTwo": "Votre calendrier affiche le rendez-vous une fois confirmé.",
     "nextStepThree": "Si les plans changent, annulez depuis votre réservation ou le calendrier."
+  },
+  "checkout": {
+    "title": "Checkout",
+    "description": "Complete your purchase",
+    "email": "Email",
+    "orderSummary": "Order Summary",
+    "paymentMethod": "Payment Method",
+    "subtotal": "Subtotal",
+    "tax": "Tax",
+    "total": "Total",
+    "completeOrder": "Complete Order"
+  },
+  "myBids": {
+    "title": "My Bids",
+    "subtitle": "Track the status of all your bids",
+    "totalBids": "Total Bids",
+    "noBids": "You haven't placed any bids yet.",
+    "findJobsToBid": "Find Jobs to Bid On",
+    "noBidsInStatus": "No bids in this status.",
+    "loadError": "Failed to load your bids.",
+    "bidPlaced": "Bid placed",
+    "estimated": "Estimated",
+    "noAmount": "No amount",
+    "untitledJob": "Untitled Job",
+    "jobOpen": "Job Open",
+    "jobAwarded": "Job Awarded",
+    "jobInProgress": "In Progress",
+    "jobCompleted": "Completed",
+    "jobCancelled": "Cancelled",
+    "statusPending": "Pending",
+    "statusAccepted": "Accepted",
+    "statusRejected": "Rejected",
+    "statusWithdrawn": "Withdrawn"
+  },
+  "orders": {
+    "title": "Order History",
+    "yourOrders": "Your Orders",
+    "noOrders": "You have no orders yet.",
+    "continueShopping": "Continue Shopping",
+    "totalOrders": "Total Orders",
+    "completedOrders": "Completed Orders",
+    "pendingOrders": "Pending Orders",
+    "totalSpent": "Total Spent",
+    "orderId": "Order ID",
+    "date": "Date",
+    "status": "Status",
+    "items": "Items",
+    "total": "Total",
+    "description": "Description",
+    "order": "Order",
+    "orderSummary": "Order Summary",
+    "backToOrders": "Back to Orders",
+    "notFound": "Order not found.",
+    "placedOn": "Placed on",
+    "payment": "Payment",
+    "paymentMethod": "Payment Method",
+    "transactionId": "Transaction ID",
+    "shippingAddress": "Shipping Address",
+    "shipping": "Shipping",
+    "subtotal": "Subtotal",
+    "tax": "Tax",
+    "discount": "Discount",
+    "quantity": "Qty",
+    "cancelOrder": "Cancel Order",
+    "confirmCancel": "Are you sure you want to cancel this order?"
+  },
+  "cancellationSettings": {
+    "pageTitle": "Payment & Cancellation Policies",
+    "oxsteadPayment": "OxSteed Platform Payment",
+    "oxsteadDescription": "Customers pay via OxSteed with standard cancellation protection",
+    "customPayment": "Custom Off-Platform Payment",
+    "customDescription": "Negotiate directly with customers (payment outside OxSteed)",
+    "enableAtLeastOne": "Enable at least one payment method",
+    "policiesSaved": "Policies updated",
+    "cancellationPolicy": "Cancellation Policy",
+    "threeDaysPlus": "3+ days before",
+    "zeroPercent": "Customer pays 0% cancellation fee",
+    "twentyFourTo72Hours": "24h-3 days before",
+    "fiftyPercent": "Customer pays 50% of fee cap (max $100)",
+    "lessThan24Hours": "<24h before",
+    "fullPercent": "Customer pays 100% of fee cap (max $100)",
+    "helperProtected": "You are protected from last-minute cancellations",
+    "depositRequired": "Deposit Required (%)",
+    "minimumNoticeHours": "Minimum Notice Hours",
+    "yourTerms": "Your Terms (shown to customers)",
+    "termsPlaceholder": "E.g., \"50% upfront, 50% on completion. 100% refund if cancelled >48h before.\"",
+    "enableOxsteed": "Enable OxSteed payments",
+    "enableCustom": "Enable custom off-platform payments",
+    "noteTitle": "Note",
+    "noteBody": "You must enable at least one payment method. Customers will see your enabled options when reviewing your bid."
   }
 }

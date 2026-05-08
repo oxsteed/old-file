@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-05
+**Last updated:** 2026-05-07
 
 ## Instructions for Every Session
 
@@ -34,7 +34,14 @@
   - Payment & Stripe (6/6): createPaymentIntent, capturePayment, stripeWebhook, calculateAndCreatePayout, processPayout, cancelOrder
   - Chat & Messaging (5/5): sendMessage, getMessages, submitSupportRequest, getMyTicket, replyToMyTicket
 
-- **Phase 3: Remaining Controllers & Frontend** ⏳ IN PROGRESS (1/65 controllers)
+- **i18n Audit & Fix (2026-05-07):** ✅ COMPLETE
+- **en.json** was truncated at `jobAutoExpiry.note`; repaired — added complete `jobAutoExpiry` (3 keys) and `booking` (59 keys) namespaces. All 4 locale files now valid JSON with 114 top-level keys (~23,144 leaf keys).
+- **Missing namespaces added** to all 4 locales: `checkout` (9 keys), `myBids` (20 keys), `orders` (28 keys), `cancellationSettings` (22 keys).
+- **Missing keys added** to existing namespaces (all 4 locales): `common` (goBack, approve, failedToLoad, failedToUpdate, backToCart, each, action, errorCreating, done, failedToCancel, fillRequiredFields), `businessHub.editProfile`, `businessProfile.contactBusiness`, `calendar` (bookingRequests, bookingRequestsView, expired, expiresIn, legend, statusAccepted, statusOpen, confirm, decline, confirmBooking, declineBooking, bookingConfirmed, bookingDeclined, errorConfirmingBooking, errorDecliningBooking, errorLoadingBookings, noBookingRequests, noBookingRequestsSub, pendingBookingRequests, requestedOn, requestsWaiting, statusPending, unknownCustomer), `dashboard.summary` (dueThisWeek, overdueTasks, unreadMessages), `jobDetail` (acceptBid, helperAssigned, helperAvailability), `jobs.urgent`, `marketplace` (browseByCategory, browseProducts, category, discounted, filters, inStock, loginRequired, onSale, quickFilters, showResults, tryDifferentFilters, sharedCart), `templatePicker` (freeTrialOneYear, pricingLabel, startFreeTrial, startTrial, startTrialAriaLabel), `messages` (failed, retry), `helpersDir` (jobsCount, licenseCount, helperCount plurals), `jobsDir` (bidCount, jobCount plurals), `toolRentalsDir` (searchAria, clearSearch), `jobDetail.reviewCount`, `marketplace` (outOfStock, onlyXLeft, save), `helperProfile.gallery.photoCount` (plural keys).
+- **Route fixes**: `/profile/tool-rentals` → `<Navigate to="/dashboard?tab=skills" replace />` added to App.jsx; duplicate `/invoices` and `/consultant/availability` routes removed.
+- **Audits confirmed clean**: all 79 server route files have their controller files; all controller exports used by routes exist; all relative imports in key components resolve; server JS syntax clean (`node --check`); no double `/api/` prefix bugs; security headers (CSP) correct with nominatim, Cloudflare, scriptSrcElem.
+
+**Phase 3: Remaining Controllers & Frontend** ⏳ IN PROGRESS (1/65 controllers)
   - Controllers updated: bidController.js
   - Controllers remaining: 64+
   - Frontend pages: 50+ to update

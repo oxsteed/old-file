@@ -149,7 +149,18 @@
     "view": "View",
     "characters": "characters",
     "keepCancel": "Keep it",
-    "canceling": "Cancelling…"
+    "canceling": "Cancelling…",
+    "goBack": "Go Back",
+    "approve": "Approve",
+    "failedToLoad": "Failed to load. Please try again.",
+    "failedToUpdate": "Failed to update. Please try again.",
+    "backToCart": "Back to Cart",
+    "each": "each",
+    "action": "Action",
+    "errorCreating": "Failed to create. Please try again.",
+    "done": "Done",
+    "failedToCancel": "Failed to cancel. Please try again.",
+    "fillRequiredFields": "Please fill in all required fields."
   },
   "jobs": {
     "title": "Job Details",
@@ -182,7 +193,8 @@
     "apply": "Apply",
     "timeline": "Timeline",
     "about": "About",
-    "description": "Description"
+    "description": "Description",
+    "urgent": "Urgent"
   },
   "auth": {
     "email": "Email address",
@@ -1639,7 +1651,9 @@
     "edit": "Edit message",
     "editFailed": "Failed to edit message",
     "edited": "(edited)",
-    "messageNotFound": "Message not found"
+    "messageNotFound": "Message not found",
+    "failed": "Message failed to send.",
+    "retry": "Retry"
   },
   "dashboard": {
     "welcome": "Welcome back, {{name}}!",
@@ -1711,7 +1725,10 @@
       "activeGoals": "{{count}} active goals",
       "thisWeek": "This Week",
       "totalPending": "Total Pending",
-      "recurring": "Recurring"
+      "recurring": "Recurring",
+      "dueThisWeek": "Due This Week",
+      "overdueTasks": "Overdue Tasks",
+      "unreadMessages": "Unread Messages"
     },
     "onboarding": {
       "title": "Complete Your Profile to Start Getting Jobs",
@@ -2794,7 +2811,11 @@
     "jobLabel": "Job: {{title}}",
     "responseFromOwner": "Response from owner",
     "noBidFound": "No accepted bid found",
-    "paymentInitiated": "Payment initiated. Funds held in escrow until job completion."
+    "paymentInitiated": "Payment initiated. Funds held in escrow until job completion.",
+    "acceptBid": "Accept Bid",
+    "helperAssigned": "Helper Assigned",
+    "helperAvailability": "Helper Availability",
+    "reviewCount": "{{count}} review"
   },
   "myJobs": {
     "subtitle": "Jobs you have posted",
@@ -2949,7 +2970,10 @@
     "loadMoreHelpersAria": "Load more helpers ({{count}} remaining)",
     "messageHelperAria": "Message {{name}}",
     "viewProfileAria": "View {{name}} profile",
-    "priceStartingAt": "From {{amount}}"
+    "priceStartingAt": "From {{amount}}",
+    "jobsCount": "{{count}} job completed",
+    "licenseCount": "{{count}} license",
+    "helperCount": "{{count}} helper found"
   },
   "jobsDir": {
     "metaTitle": "Browse Open Jobs",
@@ -3288,7 +3312,9 @@
     "budgetFrom": "From {{amount}}",
     "budgetUpTo": "Up to {{amount}}",
     "budgetExact": "{{amount}}",
-    "budgetBetween": "{{min}} – {{max}}"
+    "budgetBetween": "{{min}} – {{max}}",
+    "bidCount": "{{count}} bid",
+    "jobCount": "{{count}} job found"
   },
   "support": {
     "helpTitle": "How can we help?",
@@ -3810,7 +3836,8 @@
     "loadingPolicies": "Loading policies…",
     "loadingServices": "Loading services…",
     "tabSkillsLabel": "Skills",
-    "tabAILabel": "AI knowledge"
+    "tabAILabel": "AI knowledge",
+    "editProfile": "Edit Profile"
   },
   "plans": {
     "free": "Free",
@@ -4367,7 +4394,8 @@
       "nextPhoto": "Next photo",
       "viewPhoto": "View photo: {{alt}}",
       "galleryAria": "Work photo gallery",
-      "lightboxAria": "Photo lightbox"
+      "lightboxAria": "Photo lightbox",
+      "photoCount": "{{count}} photo"
     },
     "hours": {
       "title": "Business Hours",
@@ -4773,7 +4801,8 @@
       "linkCopied": "Link copied",
       "copyFailed": "Could not copy link",
       "defaultMessage": "Check out {{name}} on OxSteed: {{url}}"
-    }
+    },
+    "contactBusiness": "Contact Business"
   },
   "leads": {
     "title": "Service Requests",
@@ -5713,7 +5742,9 @@
           "desc": "Cameras, thermal, sensors"
         }
       }
-    }
+    },
+    "searchAria": "Search tool rentals",
+    "clearSearch": "Clear search"
   },
   "liveHelpers": {
     "sectionTitle": "Live helpers near you",
@@ -6734,29 +6765,53 @@
     "downloadIcal": "Download .ics",
     "addToGoogle": "Add to Google Calendar",
     "reschedule": "Reschedule",
-    "jobCancelled": "Job cancelled. Your time is now free."
+    "jobCancelled": "Job cancelled. Your time is now free.",
+    "bookingRequests": "Booking Requests",
+    "bookingRequestsView": "Booking Requests",
+    "expired": "Expired",
+    "expiresIn": "Expires in {{days}}d",
+    "legend": "Legend",
+    "statusAccepted": "Accepted",
+    "statusOpen": "Open",
+    "bookingConfirmed": "Booking confirmed! It has been added to your calendar.",
+    "bookingDeclined": "Booking request declined.",
+    "confirm": "Confirm",
+    "confirmBooking": "Confirm and add to calendar",
+    "dateTime": "Date & Time",
+    "decline": "Decline",
+    "declineBooking": "Decline booking request",
+    "errorConfirmingBooking": "Failed to confirm booking",
+    "errorDecliningBooking": "Failed to decline booking",
+    "errorLoadingBookings": "Failed to load booking requests",
+    "noBookingRequests": "No booking requests",
+    "noBookingRequestsSub": "Direct booking requests from customers will appear here.",
+    "pendingBookingRequests": "Pending Booking Requests",
+    "requestedOn": "Requested on",
+    "requestsWaiting": "{{count}} request(s) waiting",
+    "statusPending": "Pending",
+    "unknownCustomer": "Unknown Customer"
   },
   "booking": {
-    "pageTitle": "Book a helper",
+    "pageTitle": "Book a Helper",
     "pageDescription": "Request a time directly or post a job for everyone",
-    "pageHeading": "Book this helper",
-    "pageIntro": "Pick a date and time. The helper must confirm within the window you choose. If it does not work out, you can post the job publicly with details carried over.",
+    "pageHeading": "Book this professional",
+    "pageIntro": "Pick a date and time. The professional must confirm within your chosen window. If it doesn't work out, you can post the job for everyone with the details you already entered.",
     "backToProfile": "Back to profile",
-    "invalidHelper": "Missing helper.",
+    "invalidHelper": "Helper is missing.",
     "backToDirectory": "Browse helpers",
-    "orPostPublic": "Prefer open bids?",
-    "postJobInstead": "Post a job for all helpers",
-    "bookNow": "Book",
+    "orPostPublic": "Prefer to get quotes?",
+    "postJobInstead": "Post a job for everyone",
+    "bookNow": "Book now",
     "confirmBooking": "Confirm request",
     "requestStatus": "Request status",
     "selectService": "What do you need?",
     "serviceName": "Service name",
     "serviceLocation": "Service location",
     "description": "Notes",
-    "descriptionPlaceholder": "Anything the helper should know…",
-    "selectDateTime": "Pick a date",
-    "availableSlots": "Available times",
-    "noAvailableSlots": "No open hourly slots this day. Try another date or post a public job.",
+    "descriptionPlaceholder": "Anything the professional should know...",
+    "selectDateTime": "Choose a date",
+    "availableSlots": "Available slots",
+    "noAvailableSlots": "No free slots on this day. Try another date or post an open job.",
     "confirmationTitle": "Review your request",
     "date": "Date",
     "time": "Time",
@@ -6764,37 +6819,37 @@
     "service": "Service",
     "additionalNotes": "Notes",
     "importantToKnow": "Good to know",
-    "infoWaitingForResponse": "The helper has up to {{hours}} hours to confirm before this request expires.",
-    "infoHelperCanDecline": "They may decline if the time does not work.",
-    "infoCanConvertToJob": "If this does not work out, you can post the job publicly and reuse most of what you entered.",
-    "confirmationWindowLabel": "Confirmation deadline",
-    "confirmationWindowHint": "How long the helper has to respond before the request expires.",
+    "infoWaitingForResponse": "The professional has up to {{hours}} hours to confirm before the request expires.",
+    "infoHelperCanDecline": "They can decline if the time doesn't work.",
+    "infoCanConvertToJob": "If it doesn't work out, you can post the job for everyone and reuse almost everything you wrote.",
+    "confirmationWindowLabel": "Confirmation window",
+    "confirmationWindowHint": "How long the professional has to respond before the request expires.",
     "confirmationWindowShort": "Confirm within",
     "hoursCount": "{{count}} h",
-    "agreementRequired": "Please acknowledge before sending.",
-    "agreeToTerms": "I understand this is a request, not a guaranteed booking until the helper confirms.",
+    "agreementRequired": "Please confirm before sending.",
+    "agreeToTerms": "I understand this is a request, not a guaranteed booking until the professional confirms.",
     "expiresIn": "Expires in",
     "statusPending": "Awaiting confirmation",
-    "statusPendingDesc": "We notified the helper. You will see updates here.",
+    "statusPendingDesc": "We notified the professional. You'll see updates here.",
     "statusAccepted": "Confirmed",
-    "statusAcceptedDesc": "The helper accepted your requested time.",
+    "statusAcceptedDesc": "The professional accepted your time slot.",
     "statusDeclined": "Declined",
-    "statusDeclinedDesc": "This helper could not take the request.",
+    "statusDeclinedDesc": "This professional couldn't take the request.",
     "statusExpired": "Expired",
     "statusExpiredDesc": "No response before the deadline.",
     "statusCancelled": "Cancelled",
     "statusCancelledDesc": "You cancelled this request.",
     "statusAcceptedCancelled": "Released",
-    "statusAcceptedCancelledDesc": "This booking was cancelled or the scheduled time has passed. You can post publicly for bids.",
+    "statusAcceptedCancelledDesc": "The booking was cancelled or the scheduled time has passed. You can post it for quotes.",
     "additionalDetails": "More details",
-    "contactHelper": "Message helper",
+    "contactHelper": "Message",
     "refreshStatus": "Refresh",
     "viewCalendar": "Open calendar",
-    "postAsJob": "Post job publicly",
+    "postAsJob": "Post job for everyone",
     "nextSteps": "Next steps",
-    "nextStepsTitle": "What happens next",
-    "nextStepOne": "Coordinate details in messages if needed.",
-    "nextStepTwo": "Your calendar shows this appointment when it is confirmed.",
+    "nextStepsTitle": "What's next",
+    "nextStepOne": "Coordinate details by message if needed.",
+    "nextStepTwo": "Your calendar will show the appointment once confirmed.",
     "nextStepThree": "If plans change, cancel from your booking or calendar."
   },
   "verifyEmail": {
@@ -6927,7 +6982,22 @@
     "trustedByXHelpers_plural": "Trusted by {{count}} helpers",
     "openFilters": "Open Filters",
     "closeFilters": "Close Filters",
-    "filtersSidebar": "Filters Sidebar"
+    "filtersSidebar": "Filters Sidebar",
+    "browseByCategory": "Browse by Category",
+    "browseProducts": "Browse Products",
+    "category": "Category",
+    "discounted": "Discounted",
+    "filters": "Filters",
+    "inStock": "In Stock",
+    "loginRequired": "Please sign in to add items to a cart.",
+    "onSale": "On Sale",
+    "quickFilters": "Quick Filters",
+    "showResults": "Show Results",
+    "tryDifferentFilters": "Try adjusting your filters.",
+    "sharedCart": "Shared Cart",
+    "outOfStock": "Out of Stock",
+    "onlyXLeft": "Only {{count}} left",
+    "save": "Save"
   },
   "templatePicker": {
     "pageTitle": "Choose Your Profile Template",
@@ -6979,7 +7049,12 @@
     "activateAriaLabel": "Activate {{name}} template",
     "unlockAriaLabel": "Unlock {{name}} template",
     "trial": "Trial",
-    "trialExpires": "Free trial ends {{date}}"
+    "trialExpires": "Free trial ends {{date}}",
+    "freeTrialOneYear": "1-Year Free Trial",
+    "pricingLabel": "Pricing",
+    "startFreeTrial": "Start Free Trial",
+    "startTrial": "Start Trial",
+    "startTrialAriaLabel": "Start free trial for {{name}}"
   },
   "aiKnowledge": {
     "heading": "AI assistant knowledge",
@@ -7429,6 +7504,71 @@
   "jobAutoExpiry": {
     "title": "Job Auto-Expiry Warning",
     "message": "This job will automatically cancel in {{days}} day(s) if it hasn't started. Please begin work soon.",
-    "note": "This ensures customers aren't left with jobs stuck indefinitely."
+    "note": "This ensures customers aren't left with stalled jobs."
+  },
+  "checkout": {
+    "title": "Checkout",
+    "description": "Complete your purchase",
+    "email": "Email",
+    "orderSummary": "Order Summary",
+    "paymentMethod": "Payment Method",
+    "subtotal": "Subtotal",
+    "tax": "Tax",
+    "total": "Total",
+    "completeOrder": "Complete Order"
+  },
+  "myBids": {
+    "title": "My Bids",
+    "subtitle": "Track the status of all your bids",
+    "totalBids": "Total Bids",
+    "noBids": "You haven't placed any bids yet.",
+    "findJobsToBid": "Find Jobs to Bid On",
+    "noBidsInStatus": "No bids in this status.",
+    "loadError": "Failed to load your bids.",
+    "bidPlaced": "Bid placed",
+    "estimated": "Estimated",
+    "noAmount": "No amount",
+    "untitledJob": "Untitled Job",
+    "jobOpen": "Job Open",
+    "jobAwarded": "Job Awarded",
+    "jobInProgress": "In Progress",
+    "jobCompleted": "Completed",
+    "jobCancelled": "Cancelled",
+    "statusPending": "Pending",
+    "statusAccepted": "Accepted",
+    "statusRejected": "Rejected",
+    "statusWithdrawn": "Withdrawn"
+  },
+  "orders": {
+    "title": "Order History",
+    "yourOrders": "Your Orders",
+    "noOrders": "You have no orders yet.",
+    "continueShopping": "Continue Shopping",
+    "totalOrders": "Total Orders",
+    "completedOrders": "Completed Orders",
+    "pendingOrders": "Pending Orders",
+    "totalSpent": "Total Spent",
+    "orderId": "Order ID",
+    "date": "Date",
+    "status": "Status",
+    "items": "Items",
+    "total": "Total",
+    "description": "Description",
+    "order": "Order",
+    "orderSummary": "Order Summary",
+    "backToOrders": "Back to Orders",
+    "notFound": "Order not found.",
+    "placedOn": "Placed on",
+    "payment": "Payment",
+    "paymentMethod": "Payment Method",
+    "transactionId": "Transaction ID",
+    "shippingAddress": "Shipping Address",
+    "shipping": "Shipping",
+    "subtotal": "Subtotal",
+    "tax": "Tax",
+    "discount": "Discount",
+    "quantity": "Qty",
+    "cancelOrder": "Cancel Order",
+    "confirmCancel": "Are you sure you want to cancel this order?"
   }
 }

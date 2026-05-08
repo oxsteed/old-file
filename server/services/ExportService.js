@@ -1,4 +1,4 @@
-const pool = require('../utils/db');
+const pool = require('../db');
 const logger = require('../utils/logger');
 const { Parser } = require('json2csv');
 

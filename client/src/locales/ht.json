@@ -149,7 +149,18 @@
     "view": "Gade",
     "characters": "karaktè",
     "keepCancel": "Kenbe li",
-    "canceling": "Anile…"
+    "canceling": "Anile…",
+    "goBack": "Go Back",
+    "approve": "Approve",
+    "failedToLoad": "Failed to load. Please try again.",
+    "failedToUpdate": "Failed to update. Please try again.",
+    "backToCart": "Back to Cart",
+    "each": "each",
+    "action": "Action",
+    "errorCreating": "Failed to create. Please try again.",
+    "done": "Done",
+    "failedToCancel": "Failed to cancel. Please try again.",
+    "fillRequiredFields": "Please fill in all required fields."
   },
   "trial": {
     "active": "Esè aktif",
@@ -267,7 +278,8 @@
     "apply": "Poste",
     "timeline": "Deline",
     "about": "Sou",
-    "description": "Deskripsyon"
+    "description": "Deskripsyon",
+    "urgent": "Urgent"
   },
   "auth": {
     "email": "Adrès imèl",
@@ -1724,7 +1736,9 @@
     "edit": "Modifye mesaj",
     "editFailed": "Erè modifye mesaj",
     "edited": "(modifye)",
-    "messageNotFound": "Mesaj pa jwenn"
+    "messageNotFound": "Mesaj pa jwenn",
+    "failed": "Message failed to send.",
+    "retry": "Retry"
   },
   "dashboard": {
     "welcome": "Byenvini tounen, {{name}}!",
@@ -1796,7 +1810,10 @@
       "activeGoals": "{{count}} objektif aktif",
       "thisWeek": "Semèn sa a",
       "totalPending": "Total an atant",
-      "recurring": "Repetitif"
+      "recurring": "Repetitif",
+      "dueThisWeek": "Due This Week",
+      "overdueTasks": "Overdue Tasks",
+      "unreadMessages": "Unread Messages"
     },
     "onboarding": {
       "title": "Ranpli pwofil ou pou kòmanse jwenn travay",
@@ -2879,7 +2896,11 @@
     "jobLabel": "Travay: {{title}}",
     "responseFromOwner": "Repons bò kote mèt la",
     "noBidFound": "Poko gen ofè aksepte",
-    "paymentInitiated": "Peyman inisye. Fon yo kenbe an deposit jiskaske travay konplete."
+    "paymentInitiated": "Peyman inisye. Fon yo kenbe an deposit jiskaske travay konplete.",
+    "acceptBid": "Accept Bid",
+    "helperAssigned": "Helper Assigned",
+    "helperAvailability": "Helper Availability",
+    "reviewCount": "{{count}} review"
   },
   "myJobs": {
     "subtitle": "Travay ou pibliye yo",
@@ -3034,7 +3055,10 @@
     "loadMoreHelpersAria": "Chaje plis aidè ({{count}} ki rete)",
     "messageHelperAria": "Mesaj bay {{name}}",
     "viewProfileAria": "Gade pwofil {{name}}",
-    "priceStartingAt": "Depi {{amount}}"
+    "priceStartingAt": "Depi {{amount}}",
+    "jobsCount": "{{count}} job completed",
+    "licenseCount": "{{count}} license",
+    "helperCount": "{{count}} helper found"
   },
   "jobsDir": {
     "metaTitle": "Gade travay ki disponib",
@@ -3373,7 +3397,9 @@
     "budgetFrom": "Depi {{amount}}",
     "budgetUpTo": "Jiska {{amount}}",
     "budgetExact": "{{amount}}",
-    "budgetBetween": "{{min}} – {{max}}"
+    "budgetBetween": "{{min}} – {{max}}",
+    "bidCount": "{{count}} bid",
+    "jobCount": "{{count}} job found"
   },
   "support": {
     "helpTitle": "Kijan nou ka ede ou?",
@@ -3895,7 +3921,8 @@
     "loadingPolicies": "Chajman politiki…",
     "loadingServices": "Chajman sèvis…",
     "tabSkillsLabel": "Konpetans",
-    "tabAILabel": "AI knowledge"
+    "tabAILabel": "AI knowledge",
+    "editProfile": "Edit Profile"
   },
   "plans": {
     "free": "Gratis",
@@ -4367,7 +4394,8 @@
       "nextPhoto": "Pwochen foto",
       "viewPhoto": "Wè foto: {{alt}}",
       "galleryAria": "Galerì foto travay",
-      "lightboxAria": "Vizè foto"
+      "lightboxAria": "Vizè foto",
+      "photoCount": "{{count}} photo"
     },
     "hours": {
       "title": "Orè Biznis",
@@ -4773,7 +4801,8 @@
       "linkCopied": "Lyen kopye",
       "copyFailed": "Pa t kapab kopye lyen an",
       "defaultMessage": "Gade {{name}} sou OxSteed: {{url}}"
-    }
+    },
+    "contactBusiness": "Contact Business"
   },
   "leads": {
     "title": "Demann Sèvis",
@@ -5713,7 +5742,9 @@
           "desc": "Kamera, tèmik, sansè"
         }
       }
-    }
+    },
+    "searchAria": "Search tool rentals",
+    "clearSearch": "Clear search"
   },
   "liveHelpers": {
     "sectionTitle": "Èd vivan prè de ou",
@@ -6734,7 +6765,31 @@
     "downloadIcal": "Telechaje .ics",
     "addToGoogle": "Ajoute nan Google Kalandriye",
     "reschedule": "Repwograme",
-    "jobCancelled": "Travay anile. Tan ou a lib kounye a."
+    "jobCancelled": "Travay anile. Tan ou a lib kounye a.",
+    "bookingRequests": "Booking Requests",
+    "bookingRequestsView": "Booking Requests",
+    "expired": "Expired",
+    "expiresIn": "Expires in {{days}}d",
+    "legend": "Legend",
+    "statusAccepted": "Accepted",
+    "statusOpen": "Open",
+    "bookingConfirmed": "Booking confirmed! It has been added to your calendar.",
+    "bookingDeclined": "Booking request declined.",
+    "confirm": "Confirm",
+    "confirmBooking": "Confirm and add to calendar",
+    "dateTime": "Date & Time",
+    "decline": "Decline",
+    "declineBooking": "Decline booking request",
+    "errorConfirmingBooking": "Failed to confirm booking",
+    "errorDecliningBooking": "Failed to decline booking",
+    "errorLoadingBookings": "Failed to load booking requests",
+    "noBookingRequests": "No booking requests",
+    "noBookingRequestsSub": "Direct booking requests from customers will appear here.",
+    "pendingBookingRequests": "Pending Booking Requests",
+    "requestedOn": "Requested on",
+    "requestsWaiting": "{{count}} request(s) waiting",
+    "statusPending": "Pending",
+    "unknownCustomer": "Unknown Customer"
   },
   "verifyEmail": {
     "title": "Verifye imèl ou",
@@ -6866,7 +6921,22 @@
     "trustedByXHelpers_plural": "Konfiante pa {{count}} pwofesyonel",
     "openFilters": "Ouvri Filtr",
     "closeFilters": "Fèmen Filtr",
-    "filtersSidebar": "Bab Lateral Filtr"
+    "filtersSidebar": "Bab Lateral Filtr",
+    "browseByCategory": "Browse by Category",
+    "browseProducts": "Browse Products",
+    "category": "Category",
+    "discounted": "Discounted",
+    "filters": "Filters",
+    "inStock": "In Stock",
+    "loginRequired": "Please sign in to add items to a cart.",
+    "onSale": "On Sale",
+    "quickFilters": "Quick Filters",
+    "showResults": "Show Results",
+    "tryDifferentFilters": "Try adjusting your filters.",
+    "sharedCart": "Shared Cart",
+    "outOfStock": "Out of Stock",
+    "onlyXLeft": "Only {{count}} left",
+    "save": "Save"
   },
   "templatePicker": {
     "pageTitle": "Chwazi Modèl Pwofil Ou",
@@ -6918,7 +6988,12 @@
     "activateAriaLabel": "Aktive modèl {{name}}",
     "unlockAriaLabel": "Debloke modèl {{name}}",
     "trial": "Eseye",
-    "trialExpires": "Eseye gratis fini {{date}}"
+    "trialExpires": "Eseye gratis fini {{date}}",
+    "freeTrialOneYear": "1-Year Free Trial",
+    "pricingLabel": "Pricing",
+    "startFreeTrial": "Start Free Trial",
+    "startTrial": "Start Trial",
+    "startTrialAriaLabel": "Start free trial for {{name}}"
   },
   "aiKnowledge": {
     "heading": "AI assistant knowledge",
@@ -7405,5 +7480,95 @@
     "nextStepOne": "Koòdone detay nan mesaj si sa nesesè.",
     "nextStepTwo": "Kalandriye ou montre randevou a lè li konfime.",
     "nextStepThree": "Si plan chanje, anile nan rezèvasyon ou oswa kalandriye a."
+  },
+  "checkout": {
+    "title": "Checkout",
+    "description": "Complete your purchase",
+    "email": "Email",
+    "orderSummary": "Order Summary",
+    "paymentMethod": "Payment Method",
+    "subtotal": "Subtotal",
+    "tax": "Tax",
+    "total": "Total",
+    "completeOrder": "Complete Order"
+  },
+  "myBids": {
+    "title": "My Bids",
+    "subtitle": "Track the status of all your bids",
+    "totalBids": "Total Bids",
+    "noBids": "You haven't placed any bids yet.",
+    "findJobsToBid": "Find Jobs to Bid On",
+    "noBidsInStatus": "No bids in this status.",
+    "loadError": "Failed to load your bids.",
+    "bidPlaced": "Bid placed",
+    "estimated": "Estimated",
+    "noAmount": "No amount",
+    "untitledJob": "Untitled Job",
+    "jobOpen": "Job Open",
+    "jobAwarded": "Job Awarded",
+    "jobInProgress": "In Progress",
+    "jobCompleted": "Completed",
+    "jobCancelled": "Cancelled",
+    "statusPending": "Pending",
+    "statusAccepted": "Accepted",
+    "statusRejected": "Rejected",
+    "statusWithdrawn": "Withdrawn"
+  },
+  "orders": {
+    "title": "Order History",
+    "yourOrders": "Your Orders",
+    "noOrders": "You have no orders yet.",
+    "continueShopping": "Continue Shopping",
+    "totalOrders": "Total Orders",
+    "completedOrders": "Completed Orders",
+    "pendingOrders": "Pending Orders",
+    "totalSpent": "Total Spent",
+    "orderId": "Order ID",
+    "date": "Date",
+    "status": "Status",
+    "items": "Items",
+    "total": "Total",
+    "description": "Description",
+    "order": "Order",
+    "orderSummary": "Order Summary",
+    "backToOrders": "Back to Orders",
+    "notFound": "Order not found.",
+    "placedOn": "Placed on",
+    "payment": "Payment",
+    "paymentMethod": "Payment Method",
+    "transactionId": "Transaction ID",
+    "shippingAddress": "Shipping Address",
+    "shipping": "Shipping",
+    "subtotal": "Subtotal",
+    "tax": "Tax",
+    "discount": "Discount",
+    "quantity": "Qty",
+    "cancelOrder": "Cancel Order",
+    "confirmCancel": "Are you sure you want to cancel this order?"
+  },
+  "cancellationSettings": {
+    "pageTitle": "Payment & Cancellation Policies",
+    "oxsteadPayment": "OxSteed Platform Payment",
+    "oxsteadDescription": "Customers pay via OxSteed with standard cancellation protection",
+    "customPayment": "Custom Off-Platform Payment",
+    "customDescription": "Negotiate directly with customers (payment outside OxSteed)",
+    "enableAtLeastOne": "Enable at least one payment method",
+    "policiesSaved": "Policies updated",
+    "cancellationPolicy": "Cancellation Policy",
+    "threeDaysPlus": "3+ days before",
+    "zeroPercent": "Customer pays 0% cancellation fee",
+    "twentyFourTo72Hours": "24h-3 days before",
+    "fiftyPercent": "Customer pays 50% of fee cap (max $100)",
+    "lessThan24Hours": "<24h before",
+    "fullPercent": "Customer pays 100% of fee cap (max $100)",
+    "helperProtected": "You are protected from last-minute cancellations",
+    "depositRequired": "Deposit Required (%)",
+    "minimumNoticeHours": "Minimum Notice Hours",
+    "yourTerms": "Your Terms (shown to customers)",
+    "termsPlaceholder": "E.g., \"50% upfront, 50% on completion. 100% refund if cancelled >48h before.\"",
+    "enableOxsteed": "Enable OxSteed payments",
+    "enableCustom": "Enable custom off-platform payments",
+    "noteTitle": "Note",
+    "noteBody": "You must enable at least one payment method. Customers will see your enabled options when reviewing your bid."
   }
 }
