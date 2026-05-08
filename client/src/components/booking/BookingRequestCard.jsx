@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+function formatTime(hhmm) {
+  if (!hhmm) return hhmm;
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date(2000, 0, 1, h, m || 0);
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
 import { Link } from 'react-router-dom';
 import {
   Clock, CheckCircle, XCircle, AlertCircle, RefreshCw,
@@ -29,27 +36,10 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
   const [expanded, setExpanded] = useState(false);
   const [live, setLive] = useState(booking);
 
+  // Sync when parent passes a fresh booking (BookingFlow owns the poll cycle)
   useEffect(() => {
     setLive(booking);
   }, [booking]);
-
-  useEffect(() => {
-    if (live.status !== 'pending') return;
-
-    const pollInterval = setInterval(() => {
-      api
-        .get(`/bookings/${live.id}`)
-        .then((res) => {
-          const data = res.data?.data;
-          if (data && data.status !== live.status) {
-            setLive(data);
-          }
-        })
-        .catch(() => {});
-    }, 8000);
-
-    return () => clearInterval(pollInterval);
-  }, [live.id, live.status]);
 
   useEffect(() => {
     if (live.status !== 'pending') return;
@@ -160,7 +150,7 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
           <div className="detail-row">
             <span className="detail-label">{t('booking.time')}:</span>
             <span className="detail-value">
-              {live.requestedStartTime} - {live.requestedEndTime}
+              {formatTime(live.requestedStartTime)} – {formatTime(live.requestedEndTime)}
             </span>
           </div>
           <div className="detail-row">

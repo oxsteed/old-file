@@ -105,6 +105,9 @@ exports.sendNotification = async ({
       // Account integrity / admin actions — user should receive email by default
       'account_restored', 'account_suspended', 'account_restricted',
       'account_deletion_scheduled', 'admin_warning',
+      // Direct booking notifications
+      'booking_request_new', 'booking_accepted', 'booking_declined',
+      'booking_cancelled', 'booking_auto_released',
     ];
     // Transactional: always attempt email when we have an address (cannot opt out of
     // security-relevant account notices via marketing-style toggles).
@@ -193,6 +196,11 @@ async function sendEmailNotification({ to, firstName, type, title, body, action_
       account_restricted:     'Contact Support',
       account_deletion_scheduled: 'Contact Support',
       admin_warning:          'Contact Support',
+      booking_request_new:    'View Booking Request',
+      booking_accepted:       'View Calendar',
+      booking_declined:       'Post as Job',
+      booking_cancelled:      'View Bookings',
+      booking_auto_released:  'Post as Job',
     }[type] || 'View Dashboard';
 
     const html = buildEmailTemplate({

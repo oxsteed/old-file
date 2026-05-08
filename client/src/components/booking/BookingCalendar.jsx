@@ -1,8 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, i18n as i18next } from 'react-i18next';
 import { Clock } from 'lucide-react';
 import { getAvailableSlots } from '../../api/bookings';
 import './BookingCalendar.css';
+
+/**
+ * Format "HH:MM" → "9:00 AM" using the active i18n locale.
+ */
+function formatTime(hhmm) {
+  if (!hhmm) return hhmm;
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date(2000, 0, 1, h, m || 0);
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
 
 /**
  * BookingCalendar Component
@@ -11,7 +21,8 @@ import './BookingCalendar.css';
  * Fetches available slots from the helper's business hours and existing appointments
  */
 export default function BookingCalendar({ helperId, helperName, onSelectSlot, initialServiceName = '' }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language || 'en';
 
   const [selectedDate, setSelectedDate] = useState(null);
   const [availableSlots, setAvailableSlots] = useState([]);
@@ -22,7 +33,6 @@ export default function BookingCalendar({ helperId, helperName, onSelectSlot, in
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
 
   useEffect(() => {
     if (initialServiceName) {
@@ -31,20 +41,17 @@ export default function BookingCalendar({ helperId, helperName, onSelectSlot, in
   }, [initialServiceName]);
 
   // Get next 30 days for calendar
-  const getDaysInMonth = (date) => {
-    const days = [];
+  const days = React.useMemo(() => {
+    const result = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     for (let i = 0; i < 30; i++) {
       const day = new Date(today);
       day.setDate(day.getDate() + i);
-      days.push(day);
+      result.push(day);
     }
-    return days;
-  };
-
-  const days = getDaysInMonth(currentMonth);
+    return result;
+  }, []);
 
   // Fetch available slots when date is selected
   useEffect(() => {
@@ -84,7 +91,7 @@ export default function BookingCalendar({ helperId, helperName, onSelectSlot, in
   };
 
   const formatDate = (date) => {
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString(locale, {
       weekday: 'short',
       month: 'short',
       day: 'numeric'
@@ -150,7 +157,7 @@ export default function BookingCalendar({ helperId, helperName, onSelectSlot, in
               aria-pressed={selectedDate?.toDateString() === day.toDateString()}
             >
               <div className="booking-date-day">
-                {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                {day.toLocaleDateString(locale, { weekday: 'short' })}
               </div>
               <div className="booking-date-num">
                 {day.getDate()}
@@ -185,7 +192,7 @@ export default function BookingCalendar({ helperId, helperName, onSelectSlot, in
                   disabled={!slot.available}
                 >
                   <Clock size={16} />
-                  <span>{slot.startTime} - {slot.endTime}</span>
+                  <span>{formatTime(slot.startTime)} – {formatTime(slot.endTime)}</span>
                 </button>
               ))}
             </div>

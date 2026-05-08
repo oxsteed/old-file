@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+function formatTime(hhmm) {
+  if (!hhmm) return hhmm;
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date(2000, 0, 1, h, m || 0);
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
 import { Calendar, Clock, MapPin, FileText, AlertCircle } from 'lucide-react';
 import './BookingConfirmation.css';
 
@@ -15,7 +22,8 @@ export default function BookingConfirmation({
   onBack,
   loading
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language || 'en';
   const [agreed, setAgreed] = useState(false);
   const [confirmationHours, setConfirmationHours] = useState(24);
 
@@ -32,7 +40,7 @@ export default function BookingConfirmation({
   };
 
   const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
+    return new Date(`${dateStr}T12:00:00`).toLocaleDateString(locale, {
       weekday: 'long',
       month: 'long',
       day: 'numeric'
@@ -61,7 +69,7 @@ export default function BookingConfirmation({
             <div>
               <span className="summary-label">{t('booking.time')}</span>
               <span className="summary-value">
-                {bookingData.requestedStartTime} - {bookingData.requestedEndTime}
+                {formatTime(bookingData.requestedStartTime)} – {formatTime(bookingData.requestedEndTime)}
               </span>
             </div>
           </div>

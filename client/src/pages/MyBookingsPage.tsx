@@ -1,14 +1,42 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import { useAuth } from '../hooks/useAuth';
 import { toolRentalsApi } from '../api/toolRentals';
-import { Calendar, MapPin, User, DollarSign, AlertCircle, Loader, FileText, Flag } from 'lucide-react';
+import api from '../api/axios';
+import { cancelBookingRequest, fetchBookingPrefillForJob } from '../api/bookings';
+import { Calendar, MapPin, User, DollarSign, AlertCircle, Loader, FileText, Flag, Clock, CheckCircle, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import InvoiceModal from '../components/InvoiceModal';
 import UserReportModal from '../components/UserReportModal';
 import './MyBookingsPage.css';
+
+function formatTime(hhmm: string | null | undefined): string {
+  if (!hhmm) return '';
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date(2000, 0, 1, h, m || 0);
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+interface HelperBooking {
+  id: string;
+  helperId: string;
+  serviceName: string;
+  requestedDate: string;
+  requestedStartTime: string;
+  requestedEndTime: string;
+  serviceLocation: string;
+  description?: string;
+  status: 'pending' | 'accepted' | 'declined' | 'expired' | 'cancelled' | 'accepted_cancelled';
+  expiresAt: string;
+  confirmationHours: number;
+  acceptedAt?: string | null;
+  declinedAt?: string | null;
+  helperResponseReason?: string | null;
+  createdAt: string;
+}
 
 interface Booking {
   id: number;
@@ -27,11 +55,13 @@ interface Booking {
 }
 
 const MyBookingsPage = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language || 'en';
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'my-rentals' | 'my-tools'>('my-rentals');
+  const [activeTab, setActiveTab] = useState<'my-rentals' | 'my-tools' | 'helper-bookings'>('helper-bookings');
   const [myBookings, setMyBookings] = useState<Booking[]>([]);
   const [ownerBookings, setOwnerBookings] = useState<Booking[]>([]);
+  const [helperBookings, setHelperBookings] = useState<HelperBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
@@ -44,24 +74,26 @@ const MyBookingsPage = () => {
     loadBookings();
   }, []);
 
-  const loadBookings = async () => {
+  const loadBookings = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [myRentals, toolBookings] = await Promise.all([
+      const [myRentals, toolBookings, hbResponse] = await Promise.all([
         toolRentalsApi.getMyBookings().catch(() => []),
         toolRentalsApi.getBookingsByOwner().catch(() => []),
+        api.get('/bookings').catch(() => ({ data: { data: [] } })),
       ]);
 
       setMyBookings(myRentals);
       setOwnerBookings(toolBookings);
+      setHelperBookings(Array.isArray(hbResponse.data?.data) ? hbResponse.data.data : []);
     } catch (err) {
       setError(t('toolRentals.loadingError') || 'Failed to load bookings');
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
   const handleStatusUpdate = async (bookingId: number, newStatus: string) => {
     try {
@@ -70,6 +102,40 @@ const MyBookingsPage = () => {
       loadBookings();
     } catch (err) {
       toast.error(t('toolRentals.statusUpdateFailed') || 'Failed to update status');
+    }
+  };
+
+  const handleCancelHelperBooking = async (bookingId: string) => {
+    if (!window.confirm(t('booking.confirmCancel') || 'Cancel this booking request?')) return;
+    try {
+      await cancelBookingRequest(bookingId);
+      toast.success(t('booking.cancelSuccess') || 'Booking cancelled');
+      loadBookings();
+    } catch (err) {
+      toast.error(t('booking.cancelFailed') || 'Failed to cancel booking');
+    }
+  };
+
+  const handleConvertHelperBookingToJob = async (bookingId: string) => {
+    try {
+      const payload = await fetchBookingPrefillForJob(bookingId);
+      const raw = payload?.prefill ?? payload;
+      if (raw) {
+        const parts: string[] = [];
+        if (raw.serviceName) parts.push(raw.serviceName);
+        if (raw.requestedDate && raw.requestedStartTime && raw.requestedEndTime) {
+          parts.push(`${t('booking.prefillPreferredTime')}: ${raw.requestedDate} ${raw.requestedStartTime}–${raw.requestedEndTime}`);
+        }
+        if (raw.locationInput) parts.push(`${t('booking.prefillLocation')}: ${raw.locationInput}`);
+        if (raw.description) { parts.push(''); parts.push(raw.description); }
+        window.location.href = `/post-job`;
+        // navigate with state isn't available here without useNavigate; use location.state via sessionStorage
+        sessionStorage.setItem('bookingPrefill', JSON.stringify({ ...raw, description: parts.join('\n') }));
+      } else {
+        window.location.href = `/post-job?fromBooking=${encodeURIComponent(bookingId)}`;
+      }
+    } catch {
+      window.location.href = `/post-job?fromBooking=${encodeURIComponent(bookingId)}`;
     }
   };
 
@@ -200,8 +266,85 @@ const MyBookingsPage = () => {
     </div>
   );
 
+  const helperBookingStatusConfig: Record<string, { icon: React.ElementType; colorClass: string; label: string }> = {
+    pending:            { icon: Clock,        colorClass: 'hb-status-pending',   label: t('booking.statusPending') },
+    accepted:           { icon: CheckCircle,  colorClass: 'hb-status-accepted',  label: t('booking.statusAccepted') },
+    declined:           { icon: XCircle,      colorClass: 'hb-status-declined',  label: t('booking.statusDeclined') },
+    expired:            { icon: AlertCircle,  colorClass: 'hb-status-expired',   label: t('booking.statusExpired') },
+    cancelled:          { icon: XCircle,      colorClass: 'hb-status-cancelled', label: t('booking.statusCancelled') },
+    accepted_cancelled: { icon: XCircle,      colorClass: 'hb-status-declined',  label: t('booking.statusAcceptedCancelled') },
+  };
+
+  const renderHelperBookingCard = (b: HelperBooking) => {
+    const cfg = helperBookingStatusConfig[b.status] ?? helperBookingStatusConfig.pending;
+    const StatusIcon = cfg.icon;
+    const canCancel = b.status === 'pending' || b.status === 'accepted';
+    const canConvert = b.status === 'declined' || b.status === 'expired' || b.status === 'cancelled' || b.status === 'accepted_cancelled';
+    const formattedDate = new Date(`${b.requestedDate}T12:00:00`).toLocaleDateString(locale, {
+      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+    });
+
+    return (
+      <div key={b.id} className="booking-card hb-card">
+        <div className={`hb-card-status-bar ${cfg.colorClass}`}>
+          <StatusIcon size={16} />
+          <span className="hb-status-label">{cfg.label}</span>
+        </div>
+        <div className="booking-card-header">
+          <div className="booking-card-info">
+            <h3 className="booking-card-title">{b.serviceName}</h3>
+            <span className="hb-meta">{formattedDate} · {formatTime(b.requestedStartTime)} – {formatTime(b.requestedEndTime)}</span>
+          </div>
+        </div>
+        {b.serviceLocation && (
+          <div className="booking-card-details">
+            <div className="booking-card-date">
+              <MapPin size={14} />
+              <span>{b.serviceLocation}</span>
+            </div>
+          </div>
+        )}
+        {b.helperResponseReason && (
+          <p className="hb-reason">{b.helperResponseReason}</p>
+        )}
+        <div className="booking-card-actions">
+          {b.status === 'pending' && (
+            <Link
+              to={`/messages?helperId=${encodeURIComponent(b.helperId)}`}
+              className="booking-action-btn booking-action-invoice"
+            >
+              {t('booking.contactHelper')}
+            </Link>
+          )}
+          {b.status === 'accepted' && (
+            <Link to="/calendar" className="booking-action-btn booking-action-approve">
+              {t('booking.viewCalendar')}
+            </Link>
+          )}
+          {canConvert && (
+            <button
+              onClick={() => handleConvertHelperBookingToJob(b.id)}
+              className="booking-action-btn booking-action-approve"
+            >
+              {t('booking.postAsJob')}
+            </button>
+          )}
+          {canCancel && (
+            <button
+              onClick={() => handleCancelHelperBooking(b.id)}
+              className="booking-action-btn booking-action-cancel"
+            >
+              {t('common.cancel')}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const myRentalsCount = myBookings.length;
   const myToolsCount = ownerBookings.length;
+  const helperBookingsCount = helperBookings.length;
 
   return (
     <PageShell>
@@ -220,6 +363,12 @@ const MyBookingsPage = () => {
 
         {/* Tabs */}
         <div className="my-bookings-tabs">
+          <button
+            onClick={() => setActiveTab('helper-bookings')}
+            className={`my-bookings-tab ${activeTab === 'helper-bookings' ? 'active' : ''}`}
+          >
+            {t('booking.tabTitle') || 'Service Bookings'} ({helperBookingsCount})
+          </button>
           <button
             onClick={() => setActiveTab('my-rentals')}
             className={`my-bookings-tab ${activeTab === 'my-rentals' ? 'active' : ''}`}
@@ -247,6 +396,19 @@ const MyBookingsPage = () => {
             <div className="my-bookings-loading">
               <Loader className="animate-spin w-8 h-8" />
               <p>{t('common.loading')}</p>
+            </div>
+          ) : activeTab === 'helper-bookings' ? (
+            <div className="my-bookings-list">
+              {helperBookings.length > 0 ? (
+                helperBookings.map((b) => renderHelperBookingCard(b))
+              ) : (
+                <div className="my-bookings-empty">
+                  <p>{t('booking.noBookingsYet') || 'No service booking requests yet'}</p>
+                  <Link to="/helpers" className="booking-action-btn booking-action-approve" style={{ display: 'inline-block', marginTop: '0.75rem' }}>
+                    {t('booking.backToDirectory')}
+                  </Link>
+                </div>
+              )}
             </div>
           ) : activeTab === 'my-rentals' ? (
             <div className="my-bookings-list">

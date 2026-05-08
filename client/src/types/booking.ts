@@ -2,7 +2,7 @@
  * Booking Request Types
  */
 
-export type BookingStatus = 'pending' | 'accepted' | 'declined' | 'expired' | 'cancelled';
+export type BookingStatus = 'pending' | 'accepted' | 'declined' | 'expired' | 'cancelled' | 'accepted_cancelled';
 
 export interface BookingRequest {
   id: string;
@@ -16,6 +16,7 @@ export interface BookingRequest {
   description?: string;
   status: BookingStatus;
   expiresAt: string; // ISO timestamp
+  confirmationHours: number;
   acceptedAt?: string | null;
   declinedAt?: string | null;
   helperResponseReason?: string | null;
@@ -49,6 +50,7 @@ export interface CreateBookingRequest {
   requestedEndTime: string; // HH:MM
   serviceLocation: string;
   description?: string;
+  confirmationHours?: number; // 1–168, defaults to 24
 }
 
 export interface BookingFlowData {

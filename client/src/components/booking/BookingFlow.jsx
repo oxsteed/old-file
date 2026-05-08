@@ -81,7 +81,7 @@ export default function BookingFlow({ helperId, helperName, onClose, onBookingCr
     const tick = async () => {
       try {
         const { data } = await api.get(`/bookings/${id}`);
-        if (data?.success && data.data && data.data.status !== bookingRequest.status) {
+        if (data?.success && data.data) {
           setBookingRequest(data.data);
         }
       } catch {
@@ -112,8 +112,27 @@ export default function BookingFlow({ helperId, helperName, onClose, onBookingCr
     if (!bookingRequest?.id) return;
     try {
       const prefillPayload = await fetchBookingPrefillForJob(bookingRequest.id);
-      const prefill = prefillPayload?.prefill;
-      if (prefill) {
+      const raw = prefillPayload?.prefill ?? prefillPayload;
+      if (raw) {
+        // Build the description client-side so i18n labels are in the user's language
+        const parts = [];
+        if (raw.serviceName) parts.push(raw.serviceName);
+        if (raw.requestedDate && raw.requestedStartTime && raw.requestedEndTime) {
+          parts.push(
+            `${t('booking.prefillPreferredTime')}: ${raw.requestedDate} ${raw.requestedStartTime}–${raw.requestedEndTime}`
+          );
+        }
+        if (raw.locationInput) {
+          parts.push(`${t('booking.prefillLocation')}: ${raw.locationInput}`);
+        }
+        if (raw.description) {
+          parts.push('');
+          parts.push(raw.description);
+        }
+        const prefill = {
+          ...raw,
+          description: parts.join('\n'),
+        };
         navigate('/post-job', { state: { bookingPrefill: prefill } });
       } else {
         navigate(`/post-job?fromBooking=${encodeURIComponent(bookingRequest.id)}`);
@@ -122,7 +141,7 @@ export default function BookingFlow({ helperId, helperName, onClose, onBookingCr
       navigate(`/post-job?fromBooking=${encodeURIComponent(bookingRequest.id)}`);
     }
     onClose?.();
-  }, [bookingRequest?.id, navigate, onClose]);
+  }, [bookingRequest?.id, navigate, onClose, t]);
 
   return (
     <div className="booking-flow">

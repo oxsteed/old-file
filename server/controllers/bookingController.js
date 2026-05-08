@@ -2,6 +2,8 @@ const pool = require('../db');
 const { sendValidationError, sendError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
+const { sendNotification } = require('../services/notificationService');
+const { broadcastToUser } = require('../services/socketService');
 
 const DEFAULT_CONFIRMATION_HOURS = 24;
 const MIN_CONFIRMATION_HOURS = 1;
@@ -30,30 +32,20 @@ async function expireIfStale(bookingRow) {
 }
 
 /**
- * Build job wizard prefill from a booking row (client posts via normal POST /api/jobs).
+ * Build job wizard prefill from a booking row.
+ * Returns structured fields — the client assembles any locale-specific description text.
  */
 function buildJobPrefillPayload(booking) {
-  const lines = [];
-  if (booking.service_name) lines.push(booking.service_name);
-  const when = `${booking.requested_date} ${booking.requested_start_time}–${booking.requested_end_time}`;
-  lines.push(`Preferred time: ${when}`);
-  if (booking.service_location) lines.push(`Location: ${booking.service_location}`);
-  const descParts = [lines.join('\n')];
-  if (booking.description) {
-    descParts.push('');
-    descParts.push(String(booking.description));
-  }
-  let description = descParts.join('\n');
-  if (description.trim().length < 50) {
-    description = `${description}\n\nAdd any extra details below so helpers understand the full scope of the work.`;
-  }
-  const titleBase = String(booking.service_name || 'Service request').slice(0, 80);
-  const title = titleBase.length >= 10 ? titleBase : `${titleBase} — follow-up job`;
-
   return {
-    title,
-    description,
+    // The client uses serviceName as the job title (truncated if needed)
+    title: String(booking.service_name || '').slice(0, 80) || null,
+    // Pass structured fields so the client can build the description in the right language
+    serviceName: booking.service_name || null,
+    requestedDate: booking.requested_date || null,
+    requestedStartTime: booking.requested_start_time || null,
+    requestedEndTime: booking.requested_end_time || null,
     locationInput: booking.service_location || '',
+    description: booking.description || '',
     notes: '',
     preferredHelperId: booking.helper_id,
     preferredHelperName: null,
@@ -631,10 +623,19 @@ exports.getHelperAvailableSlots = async (req, res) => {
     );
 
     let effectiveBlocks = dayBlocks;
+    // Collect partial-day blocked ranges to subtract from slots later
+    const overrideBlockedRanges = [];
+
     for (const ov of overrides.rows) {
-      if (ov.is_blocked && ov.start_time == null && ov.end_time == null) {
+      if (!ov.is_blocked) continue;
+      if (ov.start_time == null && ov.end_time == null) {
+        // Full-day block — clear everything
         effectiveBlocks = [];
         break;
+      }
+      // Partial-day block — record the window so sliceWindowToHourSlots can exclude it
+      if (ov.start_time != null && ov.end_time != null) {
+        overrideBlockedRanges.push({ start: ov.start_time, end: ov.end_time });
       }
     }
 
@@ -653,9 +654,12 @@ exports.getHelperAvailableSlots = async (req, res) => {
       end: timeFromTimestamptz(apt.scheduled_end_time),
     }));
 
+    // Merge partial-day override blocks into the busy list
+    const allBusy = [...appointments, ...overrideBlockedRanges];
+
     const slots = [];
     for (const block of effectiveBlocks) {
-      slots.push(...sliceWindowToHourSlots(block.start, block.end, appointments));
+      slots.push(...sliceWindowToHourSlots(block.start, block.end, allBusy));
     }
 
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -695,7 +699,7 @@ function timeToMinutes(t) {
 function minutesToTime(mins) {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 function sliceWindowToHourSlots(windowStart, windowEnd, busyRanges) {
@@ -760,43 +764,106 @@ async function logBookingAudit(bookingId, action, actorId, actorType, oldStatus,
 
 async function notifyHelperOfBooking(helperId, booking) {
   try {
-    logger.info('Booking notification sent to helper', { helperId, bookingId: booking.id });
+    // Real-time: makes the BookingRequestsView in HelperCalendarView refresh immediately
+    broadcastToUser(helperId, 'booking:new', { bookingId: booking.id });
+
+    await sendNotification({
+      userId: helperId,
+      type: 'booking_request_new',
+      title: 'New Booking Request',
+      body: `${booking.service_name} — ${booking.requested_date} ${booking.requested_start_time}–${booking.requested_end_time}`,
+      data: { bookingId: booking.id },
+      action_url: '/calendar?tab=bookingRequests',
+    });
   } catch (err) {
-    logger.warn('Failed to notify helper', { error: err.message });
+    logger.warn('Failed to notify helper of booking', { error: err.message });
   }
 }
 
 async function notifyCustomerOfBookingResponse(customerId, booking, response) {
   try {
-    logger.info('Booking response notification sent to customer', {
-      customerId,
+    broadcastToUser(customerId, 'booking:updated', {
       bookingId: booking.id,
-      response,
+      status: booking.status,
     });
+
+    const isAccepted = response === 'accepted';
+    const isDeclined = response === 'declined';
+    const isAcceptedCancelled = response === 'accepted_cancelled';
+
+    let type, title, body, action_url;
+
+    if (isAccepted) {
+      type = 'booking_accepted';
+      title = 'Booking Request Accepted';
+      body = `Your request for ${booking.service_name} on ${booking.requested_date} has been accepted.`;
+      action_url = '/calendar';
+    } else if (isDeclined) {
+      type = 'booking_declined';
+      title = 'Booking Request Declined';
+      body = `Your request for ${booking.service_name} on ${booking.requested_date} was declined.${booking.helper_response_reason ? ` Reason: ${booking.helper_response_reason}` : ''}`;
+      action_url = '/my-bookings';
+    } else if (isAcceptedCancelled) {
+      type = 'booking_cancelled';
+      title = 'Booking Cancelled';
+      body = `Your confirmed booking for ${booking.service_name} on ${booking.requested_date} has been cancelled.`;
+      action_url = '/my-bookings';
+    } else {
+      return;
+    }
+
+    await sendNotification({ userId: customerId, type, title, body, data: { bookingId: booking.id }, action_url });
   } catch (err) {
-    logger.warn('Failed to notify customer', { error: err.message });
+    logger.warn('Failed to notify customer of booking response', { error: err.message });
   }
 }
 
 async function notifyHelperOfBookingCancellation(helperId, booking) {
   try {
-    logger.info('Booking cancellation notification sent to helper', { helperId, bookingId: booking.id });
+    broadcastToUser(helperId, 'booking:updated', {
+      bookingId: booking.id,
+      status: booking.status,
+    });
+
+    await sendNotification({
+      userId: helperId,
+      type: 'booking_cancelled',
+      title: 'Booking Request Cancelled',
+      body: `A booking request for ${booking.service_name} on ${booking.requested_date} was cancelled by the customer.`,
+      data: { bookingId: booking.id },
+      action_url: '/calendar?tab=bookingRequests',
+    });
   } catch (err) {
-    logger.warn('Failed to notify helper of cancellation', { error: err.message });
+    logger.warn('Failed to notify helper of booking cancellation', { error: err.message });
   }
 }
 
-/** Pending bookings past expires_at → expired */
+/** Pending bookings past expires_at → expired. Notifies customer via socket. */
 exports.expirePendingBookingRequests = async () => {
   try {
     const r = await pool.query(
       `UPDATE booking_requests
        SET status = 'expired', updated_at = CURRENT_TIMESTAMP
        WHERE status = 'pending' AND expires_at < NOW()
-       RETURNING id`
+       RETURNING id, customer_id, service_name, requested_date`
     );
     if (r.rowCount > 0) {
       logger.info('Expired pending booking requests', { count: r.rowCount });
+      for (const row of r.rows) {
+        broadcastToUser(row.customer_id, 'booking:updated', {
+          bookingId: row.id,
+          status: 'expired',
+        });
+        // Fire-and-forget — don't block the cron if one notification fails
+        sendNotification({
+          userId: row.customer_id,
+          type: 'booking_declined',
+          title: 'Booking Request Expired',
+          body: `Your booking request for ${row.service_name} on ${row.requested_date} expired without a response.`,
+          data: { bookingId: row.id },
+          action_url: '/my-bookings',
+        }).catch((err) => logger.warn('Failed expiry notification', { error: err.message }));
+      }
     }
     return r.rowCount || 0;
   } catch (err) {
@@ -807,6 +874,7 @@ exports.expirePendingBookingRequests = async () => {
 
 /**
  * After scheduled end (date + end time in server TZ), release accepted bookings so customer can post publicly.
+ * Notifies both parties.
  */
 exports.releaseStaleAcceptedBookings = async () => {
   try {
@@ -820,10 +888,32 @@ exports.releaseStaleAcceptedBookings = async () => {
            updated_at = CURRENT_TIMESTAMP
        WHERE status = 'accepted'
          AND (requested_date::timestamp + requested_end_time::interval) < NOW()
-       RETURNING id`
+       RETURNING id, customer_id, helper_id, service_name, requested_date`
     );
     if (r.rowCount > 0) {
       logger.info('Released accepted bookings past scheduled end', { count: r.rowCount });
+      for (const row of r.rows) {
+        broadcastToUser(row.customer_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
+        broadcastToUser(row.helper_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
+
+        sendNotification({
+          userId: row.customer_id,
+          type: 'booking_auto_released',
+          title: 'Booking Completed',
+          body: `Your booking for ${row.service_name} on ${row.requested_date} has been marked complete. You can now post this as a job if you need follow-up work.`,
+          data: { bookingId: row.id },
+          action_url: '/my-bookings',
+        }).catch((err) => logger.warn('Failed auto-release customer notification', { error: err.message }));
+
+        sendNotification({
+          userId: row.helper_id,
+          type: 'booking_auto_released',
+          title: 'Booking Auto-Closed',
+          body: `The booking for ${row.service_name} on ${row.requested_date} has been automatically closed after the scheduled end time.`,
+          data: { bookingId: row.id },
+          action_url: '/calendar',
+        }).catch((err) => logger.warn('Failed auto-release helper notification', { error: err.message }));
+      }
     }
     return r.rowCount || 0;
   } catch (err) {

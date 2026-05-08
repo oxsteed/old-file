@@ -325,6 +325,48 @@
   border-color: #d97706;
 }
 
+/* Helper booking request cards */
+.hb-card {
+  border-top: 3px solid var(--border-color);
+}
+
+.hb-card-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hb-status-label {
+  font-weight: 600;
+}
+
+.hb-status-pending   { color: #d97706; }
+.hb-status-accepted  { color: #16a34a; }
+.hb-status-declined  { color: #dc2626; }
+.hb-status-expired   { color: #9ca3af; }
+.hb-status-cancelled { color: #9ca3af; }
+
+.hb-meta {
+  font-size: 12px;
+  color: var(--muted-text);
+  display: block;
+  margin-top: 2px;
+}
+
+.hb-reason {
+  font-size: 12px;
+  color: var(--muted-text);
+  font-style: italic;
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  background: var(--card-bg);
+  border-left: 3px solid var(--border-color);
+  border-radius: 4px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .my-bookings-container {
