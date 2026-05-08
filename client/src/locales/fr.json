@@ -3052,7 +3052,22 @@
       "budget_high": "Budget : du plus haut au plus bas",
       "budget_low": "Budget : du plus bas au plus haut",
       "most_bids": "Plus d'offres",
-      "fewest_bids": "Moins d'offres"
+      "fewest_bids": "Moins d'offres",
+      "nearest": "Les plus proches d'abord"
+    },
+    "nearMeBtn": "Utiliser ma position",
+    "nearMeLocating": "Localisation en cours...",
+    "nearMeGranted": "À {{miles}} mi de vous",
+    "nearMeTag": "À {{miles}} mi",
+    "clearLocation": "Effacer la position",
+    "radiusLabel": "Rayon de recherche",
+    "locationDenied": "Accès à la position refusé. Entrez une ville ci-dessous.",
+    "radius": {
+      "5": "5 mi",
+      "10": "10 mi",
+      "25": "25 mi",
+      "50": "50 mi",
+      "100": "100 mi"
     },
     "noJobsTitle": "Aucune mission trouvée",
     "noResultsQuery": "Aucun résultat pour « {{query}} ».",

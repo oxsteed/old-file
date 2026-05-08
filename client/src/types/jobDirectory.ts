@@ -19,7 +19,8 @@ export type JobSortOption =
   | 'budget_high'
   | 'budget_low'
   | 'most_bids'
-  | 'fewest_bids';
+  | 'fewest_bids'
+  | 'nearest';
 
 export const JOB_SORT_OPTIONS: JobSortOption[] = [
   'newest',
@@ -28,9 +29,12 @@ export const JOB_SORT_OPTIONS: JobSortOption[] = [
   'budget_low',
   'most_bids',
   'fewest_bids',
+  'nearest',
 ];
 
-// Sort values supported by the existing /api/jobs backend.
+// Sort values supported by /api/jobs backend.
+// 'nearest' requires lat/lng — JobListPage omits it from the selector when
+// no location is active (so helpers never see it without coords).
 export const SERVER_SORT: Record<JobSortOption, string> = {
   newest:       'newest',
   urgent:       'urgent',
@@ -40,6 +44,7 @@ export const SERVER_SORT: Record<JobSortOption, string> = {
   // and let the client sort what it has after fetching.
   most_bids:    'newest',
   fewest_bids:  'newest',
+  nearest:      'nearest',
 };
 
 // ─── Posted-within (date filter) ──────────────────────────────────────────────
@@ -84,6 +89,14 @@ export interface JobFilters {
   urgentOnly: boolean;
   hasBids: boolean;
   noBidsYet: boolean;
+  /**
+   * Geolocation-based radius search. When userLat + userLng are set the backend
+   * uses PostGIS ST_DWithin() instead of (or in addition to) city/state text match.
+   * radiusMiles defaults to 25 and is capped server-side at 100.
+   */
+  userLat: number | null;
+  userLng: number | null;
+  radiusMiles: number;
 }
 
 export const DEFAULT_JOB_FILTERS: JobFilters = {
@@ -98,6 +111,9 @@ export const DEFAULT_JOB_FILTERS: JobFilters = {
   urgentOnly: false,
   hasBids: false,
   noBidsYet: false,
+  userLat: null,
+  userLng: null,
+  radiusMiles: 25,
 };
 
 /** Count how many filter groups are currently active (for the badge display). */
@@ -106,8 +122,12 @@ export function countActiveJobFilters(f: JobFilters): number {
   if (f.query)            n++;
   if (f.category)         n++;
   if (f.skills.length)    n++;
-  if (f.city)             n++;
-  if (f.state)            n++;
+  // Radius search counts as the location filter; plain city/state still count individually.
+  if (f.userLat !== null) n++;
+  else {
+    if (f.city)  n++;
+    if (f.state) n++;
+  }
   if (f.budgetRange)      n++;
   if (f.postedWithin && f.postedWithin !== 'any') n++;
   if (f.urgentOnly)       n++;

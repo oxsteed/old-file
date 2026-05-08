@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   ChevronDown,
   ChevronUp,
@@ -9,6 +9,9 @@ import {
   RotateCcw,
   Layers,
   Users,
+  Navigation,
+  Loader2,
+  XCircle,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { JobFilters, PostedWithin } from '../../types/jobDirectory';
@@ -19,6 +22,9 @@ import {
   countActiveJobFilters,
 } from '../../types/jobDirectory';
 import { translateJobCategory } from '../../utils/jobsTaxonomy';
+
+// ── Radius options (miles) ────────────────────────────────────────────────────
+const RADIUS_OPTIONS = [5, 10, 25, 50, 100] as const;
 
 interface FilterPanelProps {
   filters: JobFilters;
@@ -87,6 +93,163 @@ const RadioRow: React.FC<{
     </span>
   </label>
 );
+
+// ── Location section (with geolocation "Use my location" button) ─────────────
+type GeoStatus = 'idle' | 'locating' | 'granted' | 'denied';
+
+const LocationSection: React.FC<{
+  filters: JobFilters;
+  onChange: (updated: Partial<JobFilters>) => void;
+}> = ({ filters, onChange }) => {
+  const { t } = useTranslation();
+  const [geoStatus, setGeoStatus] = useState<GeoStatus>(
+    filters.userLat !== null ? 'granted' : 'idle',
+  );
+
+  const handleUseMyLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setGeoStatus('denied');
+      return;
+    }
+    setGeoStatus('locating');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGeoStatus('granted');
+        onChange({
+          userLat: pos.coords.latitude,
+          userLng: pos.coords.longitude,
+          // Clear text-based fields so we don't double-filter
+          city: '',
+          state: '',
+        });
+      },
+      () => {
+        setGeoStatus('denied');
+      },
+      { timeout: 10000 },
+    );
+  }, [onChange]);
+
+  const handleClearLocation = useCallback(() => {
+    setGeoStatus('idle');
+    onChange({ userLat: null, userLng: null });
+  }, [onChange]);
+
+  const locationActive = geoStatus === 'granted' && filters.userLat !== null;
+
+  return (
+    <FilterSection
+      title={t('jobsDir.location')}
+      icon={MapPin}
+      badge={locationActive ? 1 : (filters.city || filters.state ? 1 : 0)}
+    >
+      <div className="space-y-3">
+
+        {/* ── Use my location button / status ── */}
+        {!locationActive ? (
+          <button
+            type="button"
+            onClick={handleUseMyLocation}
+            disabled={geoStatus === 'locating'}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-brand-600 bg-brand-500/10 text-brand-400 hover:bg-brand-500/20 transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-wait"
+          >
+            {geoStatus === 'locating' ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                {t('jobsDir.nearMeLocating')}
+              </>
+            ) : (
+              <>
+                <Navigation className="w-4 h-4" aria-hidden="true" />
+                {t('jobsDir.nearMeBtn')}
+              </>
+            )}
+          </button>
+        ) : (
+          /* Active geolocation indicator + clear button */
+          <div className="flex items-center justify-between bg-brand-500/10 border border-brand-700/60 rounded-xl px-3 py-2">
+            <span className="text-xs text-brand-300 flex items-center gap-1.5">
+              <Navigation className="w-3.5 h-3.5" aria-hidden="true" />
+              {t('jobsDir.nearMeGranted', { miles: filters.radiusMiles })}
+            </span>
+            <button
+              type="button"
+              onClick={handleClearLocation}
+              className="text-gray-500 hover:text-gray-300 transition-colors"
+              aria-label={t('jobsDir.clearLocation')}
+            >
+              <XCircle className="w-4 h-4" aria-hidden="true" />
+            </button>
+          </div>
+        )}
+
+        {/* ── Radius pills — only shown when location is active ── */}
+        {locationActive && (
+          <div>
+            <p className="text-xs text-gray-500 mb-2">{t('jobsDir.radiusLabel')}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {RADIUS_OPTIONS.map((mi) => (
+                <button
+                  key={mi}
+                  type="button"
+                  onClick={() => onChange({ radiusMiles: mi })}
+                  aria-pressed={filters.radiusMiles === mi}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+                    filters.radiusMiles === mi
+                      ? 'bg-brand-500 text-white'
+                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700'
+                  }`}
+                >
+                  {t(`jobsDir.radius.${mi}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Denied message ── */}
+        {geoStatus === 'denied' && (
+          <p className="text-xs text-amber-400 flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
+            {t('jobsDir.locationDenied')}
+          </p>
+        )}
+
+        {/* ── Fallback city / state text inputs ── */}
+        {!locationActive && (
+          <>
+            <div>
+              <label htmlFor="city-filter" className="text-xs text-gray-500 mb-1.5 block">
+                {t('jobsDir.cityLabel')}
+              </label>
+              <input
+                id="city-filter"
+                type="text"
+                value={filters.city}
+                onChange={(e) => onChange({ city: e.target.value })}
+                placeholder={t('jobsDir.cityPlaceholder')}
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="state-filter" className="text-xs text-gray-500 mb-1.5 block">
+                {t('jobsDir.stateLabel')}
+              </label>
+              <input
+                id="state-filter"
+                type="text"
+                value={filters.state}
+                onChange={(e) => onChange({ state: e.target.value })}
+                placeholder={t('jobsDir.statePlaceholder')}
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
+          </>
+        )}
+      </div>
+    </FilterSection>
+  );
+};
 
 // ── Main FilterPanel ──────────────────────────────────────────────────────────
 const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset }) => {
@@ -196,36 +359,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
         </div>
 
         {/* ── Location ──────────────────────────────────────── */}
-        <FilterSection title={t('jobsDir.location')} icon={MapPin}>
-          <div className="space-y-3">
-            <div>
-              <label htmlFor="city-filter" className="text-xs text-gray-500 mb-1.5 block">
-                {t('jobsDir.cityLabel')}
-              </label>
-              <input
-                id="city-filter"
-                type="text"
-                value={filters.city}
-                onChange={(e) => onChange({ city: e.target.value })}
-                placeholder={t('jobsDir.cityPlaceholder')}
-                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
-              />
-            </div>
-            <div>
-              <label htmlFor="state-filter" className="text-xs text-gray-500 mb-1.5 block">
-                {t('jobsDir.stateLabel')}
-              </label>
-              <input
-                id="state-filter"
-                type="text"
-                value={filters.state}
-                onChange={(e) => onChange({ state: e.target.value })}
-                placeholder={t('jobsDir.statePlaceholder')}
-                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
-              />
-            </div>
-          </div>
-        </FilterSection>
+        <LocationSection filters={filters} onChange={onChange} />
 
         {/* ── Category ──────────────────────────────────────── */}
         <FilterSection

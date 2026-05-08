@@ -3052,7 +3052,22 @@
       "budget_high": "Budget: High to Low",
       "budget_low": "Budget: Low to High",
       "most_bids": "Most bids",
-      "fewest_bids": "Fewest bids"
+      "fewest_bids": "Fewest bids",
+      "nearest": "Nearest first"
+    },
+    "nearMeBtn": "Use my location",
+    "nearMeLocating": "Getting location...",
+    "nearMeGranted": "Within {{miles}} mi of you",
+    "nearMeTag": "Within {{miles}} mi",
+    "clearLocation": "Clear location",
+    "radiusLabel": "Search radius",
+    "locationDenied": "Location access denied. Enter a city below instead.",
+    "radius": {
+      "5": "5 mi",
+      "10": "10 mi",
+      "25": "25 mi",
+      "50": "50 mi",
+      "100": "100 mi"
     },
     "noJobsTitle": "No jobs found",
     "noResultsQuery": "No results for \"{{query}}\".",

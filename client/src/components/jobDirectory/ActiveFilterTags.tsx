@@ -70,19 +70,28 @@ const ActiveFilterTags: React.FC<ActiveFilterTagsProps> = ({ filters, onChange }
       onRemove: () => onChange({ skills: filters.skills.filter((s) => s !== sk) }),
     }),
   );
-  if (filters.city) {
+  // Geolocation radius tag takes precedence over plain city/state tags.
+  if (filters.userLat !== null && filters.userLng !== null) {
     tags.push({
-      key: 'city',
-      label: filters.city,
-      onRemove: () => onChange({ city: '' }),
+      key: 'radius',
+      label: t('jobsDir.nearMeTag', { miles: filters.radiusMiles }),
+      onRemove: () => onChange({ userLat: null, userLng: null }),
     });
-  }
-  if (filters.state) {
-    tags.push({
-      key: 'state',
-      label: filters.state,
-      onRemove: () => onChange({ state: '' }),
-    });
+  } else {
+    if (filters.city) {
+      tags.push({
+        key: 'city',
+        label: filters.city,
+        onRemove: () => onChange({ city: '' }),
+      });
+    }
+    if (filters.state) {
+      tags.push({
+        key: 'state',
+        label: filters.state,
+        onRemove: () => onChange({ state: '' }),
+      });
+    }
   }
   if (filters.budgetRange) {
     const [min, max] = filters.budgetRange;

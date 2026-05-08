@@ -8,10 +8,17 @@ interface SortControlsProps {
   value: JobSortOption;
   onChange: (v: JobSortOption) => void;
   resultCount: number;
+  /** When true the "Nearest" option is shown. Pass true only when lat/lng are available. */
+  hasGeoFilter?: boolean;
 }
 
-const SortControls: React.FC<SortControlsProps> = ({ value, onChange, resultCount }) => {
+const SortControls: React.FC<SortControlsProps> = ({ value, onChange, resultCount, hasGeoFilter = false }) => {
   const { t } = useTranslation();
+
+  // Only include 'nearest' when the caller has an active geolocation filter.
+  const visibleOptions = JOB_SORT_OPTIONS.filter(
+    (opt) => opt !== 'nearest' || hasGeoFilter,
+  );
 
   return (
     <div className="flex items-center justify-between gap-3">
@@ -27,7 +34,7 @@ const SortControls: React.FC<SortControlsProps> = ({ value, onChange, resultCoun
           className="appearance-none bg-gray-800 border border-gray-700 text-white text-sm rounded-xl pl-3 pr-8 py-2 focus:outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
           aria-label={t('jobsDir.sortByAria')}
         >
-          {JOB_SORT_OPTIONS.map((opt) => (
+          {visibleOptions.map((opt) => (
             <option key={opt} value={opt}>
               {t(`jobsDir.sort.${opt}`)}
             </option>

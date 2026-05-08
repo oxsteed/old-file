@@ -347,16 +347,29 @@ export default function JobListPage() {
     // existing backend doesn't need a new column. Skill names match against
     // title/description/category_name (ILIKE).
     const qParts = [f.query, ...f.skills].filter(Boolean);
+
+    // When geolocation is active, pass lat/lng/radius to the backend so it can
+    // use PostGIS ST_DWithin(). City/state text filters are still forwarded but
+    // the radius condition takes precedence for spatial matching.
+    const hasGeo = f.userLat !== null && f.userLng !== null;
+
     const params = {
       q: qParts.join(' '),
       category: f.category || '',
-      city: f.city || '',
-      state: f.state || '',
+      // Only pass city/state text when there is no geolocation active, to avoid
+      // confusing double-filtering (radius already scopes the geography).
+      city: hasGeo ? '' : (f.city || ''),
+      state: hasGeo ? '' : (f.state || ''),
       country: f.country || '',
       sort: SERVER_SORT[s] || 'newest',
       page: p,
       limit: PAGE_SIZE,
     };
+    if (hasGeo) {
+      params.lat    = f.userLat;
+      params.lng    = f.userLng;
+      params.radius = f.radiusMiles || 25;
+    }
     if (f.budgetRange) {
       params.min_budget = f.budgetRange[0];
       params.max_budget = f.budgetRange[1];
@@ -408,7 +421,7 @@ export default function JobListPage() {
   }, []);
 
   const resetFilters = useCallback(() => {
-    setFilters({ ...DEFAULT_JOB_FILTERS, country: defaultCountry });
+    setFilters({ ...DEFAULT_JOB_FILTERS, country: defaultCountry, userLat: null, userLng: null, radiusMiles: 25 });
     setSelectedTileId(null);
   }, [defaultCountry]);
 
@@ -561,6 +574,7 @@ export default function JobListPage() {
             value={sort}
             onChange={setSort}
             resultCount={pagination.total || filteredJobs.length}
+            hasGeoFilter={filters.userLat !== null}
           />
         </div>
       </div>
@@ -594,6 +608,7 @@ export default function JobListPage() {
                 value={sort}
                 onChange={setSort}
                 resultCount={pagination.total || filteredJobs.length}
+                hasGeoFilter={filters.userLat !== null}
               />
               <ActiveFilterTags filters={filters} onChange={updateFilters} />
             </div>

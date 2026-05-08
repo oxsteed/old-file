@@ -206,7 +206,20 @@ exports.getJobs = async (req, res) => {
     const {
       category, city, state, status, q,
       min_budget, max_budget, sort,
+      lat, lng, radius,
     } = req.query;
+
+    // ── Geolocation / radius filtering ──────────────────────────────────────────
+    // When the client sends lat + lng we perform a PostGIS radius search using
+    // the stored location_point geography column. radius is in miles (default 25,
+    // capped at 100). Text-based city/state filters are still applied on top when
+    // provided alongside coordinates.
+    const userLat    = lat  ? parseFloat(lat)  : null;
+    const userLng    = lng  ? parseFloat(lng)  : null;
+    const radiusMi   = Math.min(100, Math.max(1, parseFloat(radius) || 25));
+    const radiusM    = radiusMi * 1609.344; // convert miles → metres for ST_DWithin
+    const hasGeoFilter = userLat !== null && userLng !== null
+      && !Number.isNaN(userLat) && !Number.isNaN(userLng);
 
     const page  = Math.max(1, parseInt(req.query.page)  || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
@@ -214,6 +227,16 @@ exports.getJobs = async (req, res) => {
     let conditions = [`u.is_active = true`, `j.deleted_at IS NULL`];
     let params = [];
     let paramIdx = 1;
+
+    // Radius condition — only matches jobs that have been geocoded (location_point
+    // IS NOT NULL). Jobs without coordinates fall through to city/state text match.
+    if (hasGeoFilter) {
+      conditions.push(
+        `(j.location_point IS NOT NULL AND ST_DWithin(j.location_point, ST_SetSRID(ST_MakePoint($${paramIdx}::float, $${paramIdx + 1}::float), 4326)::geography, $${paramIdx + 2}::float))`
+      );
+      params.push(userLng, userLat, radiusM);
+      paramIdx += 3;
+    }
 
     if (q) {
       conditions.push(`(j.title ILIKE $${paramIdx} OR j.description ILIKE $${paramIdx} OR j.category_name ILIKE $${paramIdx})`);
@@ -255,14 +278,42 @@ exports.getJobs = async (req, res) => {
       ? `WHERE ${conditions.join(' AND ')}`
       : '';
 
-    const VALID_SORTS = ['', 'budget_high', 'budget_low', 'urgent', 'newest'];
+    const VALID_SORTS = ['', 'budget_high', 'budget_low', 'urgent', 'newest', 'nearest'];
     if (sort && !VALID_SORTS.includes(sort)) {
       return res.status(400).json({ error: `Invalid sort value. Allowed: ${VALID_SORTS.filter(Boolean).join(', ')}` });
     }
     let orderBy = 'j.created_at DESC';
     if (sort === 'budget_high') orderBy = 'j.budget_max DESC NULLS LAST';
-    if (sort === 'budget_low') orderBy = 'j.budget_min ASC NULLS LAST';
-    if (sort === 'urgent') orderBy = 'j.is_urgent DESC, j.created_at DESC';
+    if (sort === 'budget_low')  orderBy = 'j.budget_min ASC NULLS LAST';
+    if (sort === 'urgent')      orderBy = 'j.is_urgent DESC, j.created_at DESC';
+    // 'nearest' requires geo params; fall back to newest if coords missing
+    if (sort === 'nearest' && hasGeoFilter) orderBy = 'distance_miles ASC NULLS LAST, j.created_at DESC';
+    if (sort === 'nearest' && !hasGeoFilter) orderBy = 'j.created_at DESC';
+
+    // Build the distance expression — only computed when we have coords so we
+    // don't divide by zero or waste cycles on every normal request.
+    const distanceSelect = hasGeoFilter
+      ? `, ROUND((ST_Distance(j.location_point, ST_SetSRID(ST_MakePoint($${paramIdx}::float, $${paramIdx + 1}::float), 4326)::geography) / 1609.344)::numeric, 1) AS distance_miles`
+      : `, NULL::numeric AS distance_miles`;
+
+    // When geolocation is active, push two extra params (userLng, userLat) for the
+    // ST_Distance() call in the SELECT. These are appended AFTER the WHERE params so
+    // the count query can reuse `params` unchanged (no distance column there).
+    //
+    // Param layout (hasGeoFilter = true):
+    //   $1 … $(paramIdx-1)  ← WHERE clause params
+    //   $paramIdx           ← userLng  (distance SELECT)
+    //   $(paramIdx+1)       ← userLat  (distance SELECT)
+    //   $(paramIdx+2)       ← limit
+    //   $(paramIdx+3)       ← offset
+    //
+    // Param layout (hasGeoFilter = false):
+    //   $1 … $(paramIdx-1)  ← WHERE clause params
+    //   $paramIdx           ← limit
+    //   $(paramIdx+1)       ← offset
+    const selectParams = hasGeoFilter ? [...params, userLng, userLat] : params;
+    // "next available index after distance SELECT params" — used for LIMIT/OFFSET
+    const limitParamIdx = hasGeoFilter ? paramIdx + 2 : paramIdx;
 
     const { rows } = await pool.query(`
       SELECT
@@ -271,15 +322,16 @@ exports.getJobs = async (req, res) => {
         j.location_city, j.location_state, j.location_approx_lat, j.location_approx_lng,
         j.created_at, j.expires_at, j.bid_count,
         u.first_name || ' ' || u.last_name AS client_name
+        ${distanceSelect}
       FROM jobs j
       JOIN users u ON j.client_id = u.id
       ${whereClause}
       ORDER BY ${orderBy}
-      LIMIT $${paramIdx++} OFFSET $${paramIdx++}
-    `, [...params, limit, offset]);
+      LIMIT $${limitParamIdx} OFFSET $${limitParamIdx + 1}
+    `, [...selectParams, limit, offset]);
 
     const { rows: countRows } = await pool.query(`
-            SELECT COUNT(*) FROM jobs j JOIN users u ON j.client_id = u.id ${whereClause}
+      SELECT COUNT(*) FROM jobs j JOIN users u ON j.client_id = u.id ${whereClause}
     `, params);
 
     res.json({
