@@ -93,6 +93,14 @@ const ActiveFilterTags: React.FC<ActiveFilterTagsProps> = ({ filters, onChange }
       });
     }
   }
+  // Country tag is independent of geolocation (can filter by country + radius simultaneously)
+  if (filters.country) {
+    tags.push({
+      key: 'country',
+      label: filters.country,
+      onRemove: () => onChange({ country: '' }),
+    });
+  }
   if (filters.budgetRange) {
     const [min, max] = filters.budgetRange;
     const label = max >= 999999

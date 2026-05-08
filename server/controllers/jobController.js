@@ -21,7 +21,7 @@ exports.createJob = async (req, res, next) => {
       category_id, category_name, category,
       budget_type, budget_min, budget_max,
       urgency, site_access, job_type_label, notes,
-      location_address, location_city, location_state, location_zip,
+      location_address, location_city, location_state, location_zip, location_country,
       location_lat, location_lng,
       requirements, media_urls,
       // Legacy fields kept for backward compat
@@ -56,7 +56,8 @@ exports.createJob = async (req, res, next) => {
     const errs = {};
     if (!title || title.trim().length < 10)       errs.title       = 'Title must be at least 10 characters';
     if (!description || description.trim().length < 50) errs.description = 'Description must be at least 50 characters';
-    if (!location_city)                            errs.location    = 'Location is required';
+    if (!location_city)                            errs.location    = 'City is required';
+    if (!location_country)                         errs.location_country = 'Country is required';
     if (Object.keys(errs).length) {
       throw new AppError('Validation failed', 400, 'validation_failed', errs);
     }
@@ -132,7 +133,7 @@ exports.createJob = async (req, res, next) => {
           budget_type, budget_min, budget_max,
           urgency, is_urgent,
           site_access, job_type_label, notes,
-          location_address, location_city, location_state, location_zip,
+          location_address, location_city, location_state, location_zip, location_country,
           location_lat, location_lng,
           location_point,
           location_approx_lat, location_approx_lng,
@@ -145,10 +146,11 @@ exports.createJob = async (req, res, next) => {
        )
        VALUES (
           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-          $11,$12,$13,$14,$15,$16,$17,$18,$19,
-          ${hasGeo ? `ST_SetSRID(ST_MakePoint($19::float,$18::float),4326)::geography` : 'NULL'},
-          $20,$21,$22,$23,$24,
-          $25,$26,$27,$28,$29,$30,$31,
+          $11,$12,$13,$14,$15,$16,$17,$18,
+          $19,$20,
+          ${hasGeo ? `ST_SetSRID(ST_MakePoint($20::float,$19::float),4326)::geography` : 'NULL'},
+          $21,$22,$23,$24,$25,
+          $26,$27,$28,$29,$30,$31,$32,
           'published', now() + interval '30 days'
        )
        RETURNING *`,
@@ -158,7 +160,7 @@ exports.createJob = async (req, res, next) => {
         resolvedBudgetType, resolvedBudgetMin, resolvedBudgetMax,
         urgency || 'flexible', isUrgent,
         site_access || 'easy', job_type_label || job_type || 'one_time', notes || null,
-        location_address || null, location_city, location_state || null, location_zip || null,
+        location_address || null, location_city, location_state || null, location_zip || null, location_country || null,
         location_lat  || null, location_lng || null,
         approx.lat, approx.lng,
         reqJson, mediaArr,
@@ -204,7 +206,7 @@ exports.createJob = async (req, res, next) => {
 exports.getJobs = async (req, res) => {
   try {
     const {
-      category, city, state, status, q,
+      category, city, state, country, status, q,
       min_budget, max_budget, sort,
       lat, lng, radius,
     } = req.query;
@@ -253,8 +255,12 @@ exports.getJobs = async (req, res) => {
       params.push(`%${city}%`);
     }
     if (state) {
-      conditions.push(`j.location_state = $${paramIdx++}`);
-      params.push(state);
+      conditions.push(`j.location_state ILIKE $${paramIdx++}`);
+      params.push(`%${state}%`);
+    }
+    if (country) {
+      conditions.push(`j.location_country ILIKE $${paramIdx++}`);
+      params.push(`%${country}%`);
     }
     if (status && ['published','matched','cancelled','completed','in_progress','draft','pending'].includes(status)) {
       conditions.push(`j.status = $${paramIdx++}`);
@@ -319,7 +325,8 @@ exports.getJobs = async (req, res) => {
       SELECT
         j.id, j.title, j.description, j.category_name, j.status,
         j.budget_type, j.budget_min, j.budget_max, j.is_urgent,
-        j.location_city, j.location_state, j.location_approx_lat, j.location_approx_lng,
+        j.location_city, j.location_state, j.location_zip, j.location_country,
+        j.location_approx_lat, j.location_approx_lng,
         j.created_at, j.expires_at, j.bid_count,
         u.first_name || ' ' || u.last_name AS client_name
         ${distanceSelect}

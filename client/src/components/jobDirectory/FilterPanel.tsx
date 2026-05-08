@@ -141,7 +141,7 @@ const LocationSection: React.FC<{
     <FilterSection
       title={t('jobsDir.location')}
       icon={MapPin}
-      badge={locationActive ? 1 : (filters.city || filters.state ? 1 : 0)}
+      badge={locationActive ? 1 : (filters.city || filters.state || filters.country ? 1 : 0)}
     >
       <div className="space-y-3">
 
@@ -215,7 +215,7 @@ const LocationSection: React.FC<{
           </p>
         )}
 
-        {/* ── Fallback city / state text inputs ── */}
+        {/* ── Fallback city / state / country text inputs ── */}
         {!locationActive && (
           <>
             <div>
@@ -241,6 +241,19 @@ const LocationSection: React.FC<{
                 value={filters.state}
                 onChange={(e) => onChange({ state: e.target.value })}
                 placeholder={t('jobsDir.statePlaceholder')}
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="country-filter" className="text-xs text-gray-500 mb-1.5 block">
+                {t('jobsDir.countryLabel')}
+              </label>
+              <input
+                id="country-filter"
+                type="text"
+                value={filters.country ?? ''}
+                onChange={(e) => onChange({ country: e.target.value })}
+                placeholder={t('jobsDir.countryPlaceholder')}
                 className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
             </div>

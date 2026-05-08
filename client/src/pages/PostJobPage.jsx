@@ -574,8 +574,11 @@ function LiveCaptureModal({ mode, onCapture, onClose }) {
 const INIT = {
   step: 1,
   title: '', categoryId: '', categoryName: '', description: '',
-  locationInput: '', locationCity: '', locationState: '', locationZip: '',
+  // Structured location — each field maps directly to a DB column
+  locationCity: '', locationState: '', locationZip: '', locationCountry: '',
   locationLat: null, locationLng: null,
+  // locationInput kept for backward compat with saved drafts (migrated on load)
+  locationInput: '',
   siteAccess: 'easy', jobType: 'one_time',
   mediaFiles: [], mediaPreviews: [], mediaTab: 'photos',
   requirements: {
@@ -827,7 +830,8 @@ export default function PostJobPage() {
         .finally(() => set({ draftSaving: false }));
     }, 2000);
     return () => clearTimeout(draftTimer.current);
-  }, [form.title, form.categoryId, form.description, form.locationInput,
+  }, [form.title, form.categoryId, form.description,
+      form.locationCity, form.locationState, form.locationZip, form.locationCountry,
       form.requirements, form.budgetType, form.budgetAmount, form.budgetAmountHourly,
       form.urgency, form.notes, form.step]);
 
@@ -876,22 +880,29 @@ export default function PostJobPage() {
     }));
   }
 
-  // ── Location geocode (on blur) ────────────────────────────────────────────
+  // ── Location geocode (on blur of any location field) ─────────────────────
+  // Builds a geocode query from the explicit city/state/zip/country fields and
+  // fills in lat/lng if the Google Maps API resolves it. The user-typed values
+  // for city, state, zip, country are always preserved — geocoding only adds
+  // the hidden coordinates used for radius search on the /jobs page.
   async function handleLocationBlur() {
-    const q = form.locationInput.trim();
-    if (!q) return;
+    const city    = form.locationCity.trim();
+    const state   = form.locationState.trim();
+    const zip     = form.locationZip.trim();
+    const country = form.locationCountry.trim();
+    // Need at minimum a city to geocode
+    if (!city) return;
+    const parts = [city, state, zip, country].filter(Boolean);
+    const q = parts.join(', ');
     set({ geocoding: true });
     try {
       const { data } = await api.get(`/geo/suggest?q=${encodeURIComponent(q)}`);
       if (data && data.length > 0) {
         const hit = data[0];
+        // Only update lat/lng from geocoder — never overwrite what the user typed
         set({
-          locationCity:  hit.city  || '',
-          locationState: hit.state || '',
-          locationZip:   hit.zip   || '',
-          locationLat:   hit.lat   || null,
-          locationLng:   hit.lng   || null,
-          locationInput: hit.display || q,
+          locationLat: hit.lat || null,
+          locationLng: hit.lng || null,
         });
       }
     } catch (_) {}
@@ -939,7 +950,8 @@ export default function PostJobPage() {
       if (!form.title.trim() || form.title.trim().length < 10)    errs.title       = t('postJob.titleValidation');
       if (!form.categoryId)                                        errs.categoryId  = t('postJob.categoryValidation');
       if (!form.description.trim() || form.description.trim().length < 50) errs.description = t('postJob.descriptionValidation');
-      if (!form.locationInput.trim())                              errs.location    = t('postJob.locationValidation');
+      if (!form.locationCity.trim())                               errs.locationCity    = t('postJob.cityValidation');
+      if (!form.locationCountry.trim())                            errs.locationCountry = t('postJob.countryValidation');
     }
     return errs;
   }
@@ -969,9 +981,10 @@ export default function PostJobPage() {
       // category_id is a DB integer FK - frontend uses string slugs, so only send category_name
       fd.append('category_name', form.categoryName || form.categoryId);
       fd.append('description',   form.description.trim());
-      fd.append('location_city', form.locationCity || form.locationInput.split(',')[0]?.trim() || '');
-      fd.append('location_state',form.locationState);
-      fd.append('location_zip',  form.locationZip);
+      fd.append('location_city',    form.locationCity.trim());
+      fd.append('location_state',   form.locationState.trim());
+      fd.append('location_zip',     form.locationZip.trim());
+      fd.append('location_country', form.locationCountry.trim());
       if (form.locationLat) fd.append('location_lat', form.locationLat);
       if (form.locationLng) fd.append('location_lng', form.locationLng);
       fd.append('site_access',   form.siteAccess);
@@ -1031,7 +1044,7 @@ export default function PostJobPage() {
   }
 
   // ── Sidebar summary ───────────────────────────────────────────────────────
-  const isReady = !!(form.title.trim().length >= 10 && form.categoryId && form.locationInput.trim());
+  const isReady = !!(form.title.trim().length >= 10 && form.categoryId && form.locationCity.trim() && form.locationCountry.trim());
   const activeReqs = activeRequirements(form.requirements);
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -1153,23 +1166,78 @@ export default function PostJobPage() {
                   {errors.description && <div className="pjw-field-error">{errors.description}</div>}
                 </div>
 
-                {/* Location + Site Access */}
-                <div className="pjw-field-row">
-                  <div className="pjw-field" style={{ marginBottom: 0 }}>
-                    <label htmlFor="pjw-location">Location <span className="req">*</span></label>
-                    <div className="pjw-location-wrap">
+                {/* Location — structured 4-field layout */}
+                <div className="pjw-field">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    {t('postJob.locationSection')}
+                    {form.geocoding && <span className="pjw-geocoding-spinner" style={{ position: 'static', transform: 'none', marginLeft: '0.25rem' }} aria-label={t('postJob.locating')} />}
+                  </label>
+
+                  {/* Row 1: City + State/Region */}
+                  <div className="pjw-field-row" style={{ marginBottom: '0.75rem' }}>
+                    <div>
+                      <label htmlFor="pjw-city" className="pjw-sublabel">
+                        {t('postJob.cityLabel')} <span className="req">*</span>
+                      </label>
                       <input
-                        id="pjw-location" type="text"
-                        className={`pjw-input${errors.location?' has-error':''}`}
-                        placeholder={t('postJob.locationExample')}
-                        value={form.locationInput}
-                        onChange={e => set({ locationInput: e.target.value })}
+                        id="pjw-city" type="text"
+                        className={`pjw-input${errors.locationCity ? ' has-error' : ''}`}
+                        placeholder={t('postJob.cityPlaceholder')}
+                        value={form.locationCity}
+                        onChange={e => set({ locationCity: e.target.value })}
                         onBlur={handleLocationBlur}
                       />
-                      {form.geocoding && <div className="pjw-geocoding-spinner" aria-label="Locating…" />}
+                      {errors.locationCity && <div className="pjw-field-error">{errors.locationCity}</div>}
                     </div>
-                    {errors.location && <div className="pjw-field-error">{errors.location}</div>}
+                    <div>
+                      <label htmlFor="pjw-state" className="pjw-sublabel">
+                        {t('postJob.stateLabel')}
+                      </label>
+                      <input
+                        id="pjw-state" type="text"
+                        className="pjw-input"
+                        placeholder={t('postJob.statePlaceholder')}
+                        value={form.locationState}
+                        onChange={e => set({ locationState: e.target.value })}
+                        onBlur={handleLocationBlur}
+                      />
+                    </div>
                   </div>
+
+                  {/* Row 2: ZIP + Country */}
+                  <div className="pjw-field-row" style={{ marginBottom: 0 }}>
+                    <div>
+                      <label htmlFor="pjw-zip" className="pjw-sublabel">
+                        {t('postJob.zipLabel')}
+                      </label>
+                      <input
+                        id="pjw-zip" type="text"
+                        className="pjw-input"
+                        placeholder={t('postJob.zipPlaceholder')}
+                        value={form.locationZip}
+                        onChange={e => set({ locationZip: e.target.value })}
+                        onBlur={handleLocationBlur}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="pjw-country" className="pjw-sublabel">
+                        {t('postJob.countryLabel')} <span className="req">*</span>
+                      </label>
+                      <input
+                        id="pjw-country" type="text"
+                        className={`pjw-input${errors.locationCountry ? ' has-error' : ''}`}
+                        placeholder={t('postJob.countryPlaceholder')}
+                        value={form.locationCountry}
+                        onChange={e => set({ locationCountry: e.target.value })}
+                        onBlur={handleLocationBlur}
+                      />
+                      {errors.locationCountry && <div className="pjw-field-error">{errors.locationCountry}</div>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Site Access */}
+                <div className="pjw-field-row">
                   <div className="pjw-field" style={{ marginBottom: 0 }}>
                     <label htmlFor="pjw-access">{t('postJob.siteAccess')}</label>
                     <select id="pjw-access" className="pjw-select" value={form.siteAccess} onChange={e => set({ siteAccess: e.target.value })}>
@@ -1622,7 +1690,11 @@ export default function PostJobPage() {
                 </div>
                 <div className="pjw-review-row">
                   <span className="pjw-review-label">{t('postJob.location')}</span>
-                  <span className={`pjw-review-value${!form.locationInput?' is-empty':''}`}>{form.locationInput || t('postJob.notSet')}</span>
+                  <span className={`pjw-review-value${!form.locationCity ? ' is-empty' : ''}`}>
+                    {form.locationCity
+                      ? [form.locationCity, form.locationState, form.locationZip, form.locationCountry].filter(Boolean).join(', ')
+                      : t('postJob.notSet')}
+                  </span>
                   <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
                 </div>
                 <div className="pjw-review-row">

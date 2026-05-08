@@ -153,6 +153,8 @@ html:not(.dark) .pjw-overlay {
 .pjw-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 @media (max-width: 480px) { .pjw-field-row { grid-template-columns: 1fr; } }
 .pjw-field-error { font-size: .75rem; color: var(--pjw-red); margin-top: .25rem; }
+/* Sub-label used inside a multi-field group (City / State / ZIP / Country) */
+.pjw-sublabel { display: block; font-size: .75rem; font-weight: 500; color: var(--pjw-text-muted); margin-bottom: .375rem; }
 .pjw-location-wrap { position: relative; }
 .pjw-geocoding-spinner { position: absolute; right: .75rem; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; border: 2px solid var(--pjw-border); border-top-color: var(--pjw-primary); border-radius: 50%; animation: pjw-spin .6s linear infinite; }
 @keyframes pjw-spin { to { transform: translateY(-50%) rotate(360deg); } }

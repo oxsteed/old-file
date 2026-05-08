@@ -128,6 +128,8 @@ export function countActiveJobFilters(f: JobFilters): number {
     if (f.city)  n++;
     if (f.state) n++;
   }
+  // Country is always counted independently (can combine with geo-radius or city/state)
+  if (f.country) n++;
   if (f.budgetRange)      n++;
   if (f.postedWithin && f.postedWithin !== 'any') n++;
   if (f.urgentOnly)       n++;

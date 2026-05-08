@@ -92,9 +92,9 @@ exports.suggest = async (req, res) => {
 
     const { data } = await axios.get(GEOCODE_BASE, {
       params: {
-        address:    q,
-        components: 'country:US',
-        key:        GOOGLE_MAPS_KEY,
+        address: q,
+        key:     GOOGLE_MAPS_KEY,
+        // No country restriction — supports international job postings
       },
       timeout: 5000,
     });
@@ -117,10 +117,11 @@ exports.suggest = async (req, res) => {
         city:      get('locality') || get('sublocality') || get('neighborhood'),
         state:     getShort('administrative_area_level_1'),
         zip:       get('postal_code'),
+        country:   get('country'),
         lat:       r.geometry?.location?.lat ?? null,
         lng:       r.geometry?.location?.lng ?? null,
       };
-    }).filter(r => r.city && r.state);
+    }).filter(r => r.city);
 
     cacheSet(cacheKey, results);
     return res.json(results);
@@ -132,17 +133,33 @@ exports.suggest = async (req, res) => {
 };
 
 /**
- * Offline fallback: parse "City, ST" or "City, ST 45501"
+ * Offline fallback: parse common formats:
+ *   "City, ST"              (US)
+ *   "City, ST 45501"        (US with ZIP)
+ *   "City, ST, Country"     (international)
+ *   "City, ST 45501, Country"
  */
 function parseFallback(q) {
-  const str    = q.trim();
-  const match  = str.match(/^([^,]+),\s*([A-Za-z]{2})(?:\s+(\d{5}))?/);
+  const str   = q.trim();
+  // Try to extract an optional trailing country after the last comma+space
+  const parts = str.split(',').map(s => s.trim());
+  const last  = parts[parts.length - 1];
+
+  // Detect if last segment looks like a country (more than 2 chars, no digits)
+  const hasCountry = parts.length >= 3 && !/\d/.test(last) && last.length > 2;
+  const country    = hasCountry ? last : '';
+
+  // Work with the non-country portion
+  const core  = hasCountry ? parts.slice(0, -1).join(', ') : str;
+  const match = core.match(/^([^,]+),\s*([A-Za-z]{2,})(?:\s+([A-Z0-9\s-]{3,10}))?/i);
   if (!match) return [];
+
   return [{
     display: str,
     city:    match[1].trim(),
     state:   match[2].toUpperCase(),
-    zip:     match[3] || '',
+    zip:     match[3]?.trim() || '',
+    country,
     lat:     null,
     lng:     null,
   }];

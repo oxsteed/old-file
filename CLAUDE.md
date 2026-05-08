@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-07
+**Last updated:** 2026-05-08
 
 ## Instructions for Every Session
 
@@ -20,6 +20,18 @@
 - 112 backend controllers
 - 165 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
+
+**Location & Job Browsing (2026-05-08):** ✅ COMPLETE
+- **Migration 180** (`server/migrations/180_jobs_location_country.sql`): Adds `location_country VARCHAR(100)` to `jobs` table with index.
+- **`server/controllers/jobController.js`** `getJobs()`: Added PostGIS radius filter (`ST_DWithin`) when `lat`/`lng`/`radius` params present; `distance_miles` in SELECT; `nearest` sort option; country filter (ILIKE); state filter changed to ILIKE. `createJob()`: Accepts `location_city`, `location_state`, `location_zip`, `location_country` fields in FormData; stores all 4 + geocodes lat/lng from them.
+- **`server/controllers/geoController.js`** `suggest()`: Removed US-only restriction (`components: 'country:US'` removed); returns `country` field; international results allowed.
+- **`client/src/types/jobDirectory.ts`**: Added `userLat`, `userLng`, `radiusMiles` to `JobFilters`; added `'nearest'` to `JobSortOption`; `countActiveJobFilters` counts radius, country, city, state independently.
+- **`client/src/components/jobDirectory/FilterPanel.tsx`**: Location section rebuilt with "Use my location" geolocation button, radius pill selectors (5/10/25/50/100 mi), country text input for manual filtering.
+- **`client/src/components/jobDirectory/ActiveFilterTags.tsx`**: Shows "Within X mi" radius tag (clears geo coords); city/state tags; country tag (independent, always shown when set).
+- **`client/src/components/jobDirectory/SortControls.tsx`**: "Nearest first" sort option only shown when geolocation is active.
+- **`client/src/pages/JobListPage.jsx`**: `buildServerParams` passes `lat`/`lng`/`radius`/`country`; suppresses city/state when geo active; `resetFilters` resets geo coords.
+- **`client/src/pages/PostJobPage.jsx`**: Replaced single location text input with 4 structured fields (City*, State/Region, ZIP, Country*); geocoding on blur; validation on city + country; all 4 fields sent in FormData; review step renders joined display.
+- **i18n**: Added to all 4 locales — `jobsDir.{nearMeBtn, nearMeLocating, nearMeGranted, nearMeTag, clearLocation, radiusLabel, locationDenied, radius.5/10/25/50/100, countryLabel, countryPlaceholder, sort.nearest}`; `postJob.{locationSection, cityLabel, cityPlaceholder, stateLabel, statePlaceholder, zipLabel, zipPlaceholder, countryLabel, countryPlaceholder, cityValidation, countryValidation}`.
 
 **Error Handling Implementation (2026-04-30):**
 - **Phase 1: Core Utilities** ✅ COMPLETE
