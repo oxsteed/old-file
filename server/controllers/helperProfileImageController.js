@@ -221,14 +221,20 @@ exports.uploadCoverImage = async (req, res) => {
     });
 
     // Upload to S3 — pass args in the correct order: (buffer, folder, originalName, contentType)
+    let imageUrl = null;
     const key = await uploadFile(file.buffer, 'helper-covers', file.originalname, file.mimetype);
 
-    if (!key) {
-      return sendError(res, 500, 'Failed to upload image to storage');
+    if (key) {
+      // S3 upload succeeded
+      imageUrl = getPublicUrl(key);
+      logger.info('Image uploaded to S3', { helperId, key });
+    } else {
+      // AWS not configured — fallback to base64 data URL
+      logger.warn('S3 upload failed, falling back to base64 storage', { helperId });
+      const base64 = file.buffer.toString('base64');
+      imageUrl = `data:${file.mimetype};base64,${base64}`;
+      logger.info('Image stored as base64 data URL', { helperId, size: file.size });
     }
-
-    // Convert the S3 key to a public URL
-    const imageUrl = getPublicUrl(key);
 
     // Delete old cover image if it exists
     const existingResult = await pool.query(
