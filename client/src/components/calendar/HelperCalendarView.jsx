@@ -912,14 +912,14 @@ function BookingRequestsView({ onBookingConfirmed, t }) {
     <div className="booking-requests-container">
       <div className="booking-requests-header">
         <h2>{t('calendar.pendingBookingRequests', { defaultValue: 'Pending Booking Requests' })}</h2>
-        <p className="booking-count">{bookingRequests.length} {t('calendar.requestsWaiting', { defaultValue: 'request(s) waiting' })}</p>
+        <p className="booking-count">{t('calendar.requestsWaiting', { count: bookingRequests.length, defaultValue: '{{count}} request(s) waiting' })}</p>
       </div>
       <div className="booking-requests-list">
         {bookingRequests.map((booking) => {
           // transformBooking() returns camelCase fields
-          const requestedDate = booking.requestedDate;
-          const startTime = booking.requestedStartTime;
-          const endTime = booking.requestedEndTime;
+          const _rawDate = booking.requestedDate || booking.requested_date;           const requestedDate = _rawDate ? _rawDate.split('T')[0] : null;
+          const startTime = booking.requestedStartTime || booking.requested_start_time || booking.start_time;
+          const endTime = booking.requestedEndTime || booking.requested_end_time || booking.end_time;
 
           // Build Date objects for display — fall back gracefully
           const startDate = requestedDate
