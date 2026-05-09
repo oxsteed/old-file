@@ -104,6 +104,7 @@ const helperCancellationPoliciesRoutes = require('./routes/helperCancellationPol
 const marketplaceProductsRoutes = require('./routes/marketplaceProducts');
 const shoppingCartsRoutes = require('./routes/shoppingCarts');
 const sharedCartsRoutes = require('./routes/sharedCarts');
+const mobileRoutes = require('./routes/mobile');
 // roleToggleRoutes removed - use POST /api/auth/switch-role instead (authController.switchRole)
 // The old /api/role-toggle endpoint had no session invalidation, no helper_profiles row
 // creation, and no fresh JWT issuance, causing inconsistent auth state.
@@ -385,6 +386,24 @@ app.get('/api/health/pool', (req, res) => {
   res.json(poolMonitor.getMetrics());
 });
 
+// ── MOBILE APP ASSOCIATION ───────────────────────────────────
+// Universal Links require this JSON to be served without a file extension.
+// Set APPLE_TEAM_ID in production to the Team ID from Apple Developer.
+app.get(['/.well-known/apple-app-site-association', '/apple-app-site-association'], (req, res) => {
+  const appleTeamId = process.env.APPLE_TEAM_ID || 'ZBRGSDRRU7';
+  res.type('application/json').send({
+    applinks: {
+      apps: [],
+      details: [
+        {
+          appID: `${appleTeamId}.com.oxsteed.app`,
+          paths: ['*'],
+        },
+      ],
+    },
+  });
+});
+
 
 // ── API ROUTES ───────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
@@ -482,6 +501,7 @@ app.use('/api/marketplace/products', marketplaceProductsRoutes);
 app.use('/api/carts', shoppingCartsRoutes);
 app.use('/api/carts', cartCheckoutRoutes);
 app.use('/api/shared-carts', sharedCartsRoutes);
+app.use('/api/mobile', mobileRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/admin/orders', adminOrdersRoutes);
 app.use('/api/admin/products', adminProductsRoutes);

@@ -5,6 +5,7 @@ const { sendEmail }     = require('../utils/email');  // Resend - single email s
 const { Expo }          = require('expo-server-sdk');
 const escapeHtml        = require('../utils/escapeHtml');
 const webPushService    = require('./webPushService');
+const mobilePushService = require('./mobilePushService');
 
 const expo = new Expo({ accessToken: process.env.EXPO_ACCESS_TOKEN });
 
@@ -90,6 +91,30 @@ exports.sendNotification = async ({
         }
       } catch (err) {
         logger.warn('[Notification] Web push fan-out failed', {
+          userId, type, error: err.message
+        });
+      }
+    }
+
+    // ── 3c. Native Mobile Push (APNs / FCM) ───────────────────
+    if (pushEnabled && mobilePushService.isConfigured()) {
+      try {
+        const result = await mobilePushService.sendToUser(userId, {
+          notifId,
+          type,
+          title,
+          body,
+          data,
+          action_url,
+        });
+        if (result.sent > 0 && notifId) {
+          await db.query(
+            `UPDATE notifications SET is_push_sent = true WHERE id = $1`,
+            [notifId]
+          );
+        }
+      } catch (err) {
+        logger.warn('[Notification] Mobile push fan-out failed', {
           userId, type, error: err.message
         });
       }

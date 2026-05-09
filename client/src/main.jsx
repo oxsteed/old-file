@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import App from './App';
 import './index.css';
+import { initMobileBridge } from './utils/mobileBridge';
 
 function sentryRootFallback({ error, resetError }) {
   return (
@@ -49,3 +50,5 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
+
+initMobileBridge();
