@@ -11,18 +11,37 @@ exports.createBid = async (req, res, next) => {
     // Input validation
     const fields = {};
     if (!job_id) fields.job_id = 'Job ID is required';
-    if (amount !== undefined && (isNaN(Number(amount)) || Number(amount) <= 0)) {
+    // Amount is required to place a bid - "let's discuss" is not a valid quote.
+    if (amount === undefined || amount === null || amount === '') {
+      fields.amount = 'Amount is required';
+    } else if (isNaN(Number(amount)) || Number(amount) <= 0) {
       fields.amount = 'Amount must be a positive number';
+    } else if (Number(amount) > 10_000_000) {
+      // Sanity cap - prevents fat-finger / overflow
+      fields.amount = 'Amount is too large';
     }
-    if (message !== undefined && typeof message === 'string' && message.trim().length === 0) {
-      fields.message = 'Message cannot be empty';
+    if (message !== undefined && typeof message === 'string') {
+      if (message.trim().length === 0) {
+        fields.message = 'Message cannot be empty';
+      } else if (message.length > 2000) {
+        fields.message = 'Message must be 2000 characters or fewer';
+      }
+    }
+    if (estimated_hours !== undefined && estimated_hours !== null && estimated_hours !== '') {
+      const eh = Number(estimated_hours);
+      if (isNaN(eh) || eh <= 0 || eh > 480) {
+        fields.estimated_hours = 'Estimated hours must be between 0 and 480';
+      }
     }
     if (Object.keys(fields).length > 0) {
       throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
-    const job = await pool.query('SELECT * FROM jobs WHERE id = $1', [job_id]);
-    if (!job.rows[0]) {
+    const job = await pool.query(
+      'SELECT id, client_id, status, deleted_at FROM jobs WHERE id = $1',
+      [job_id]
+    );
+    if (!job.rows[0] || job.rows[0].deleted_at) {
       throw new AppError('Job not found', 404, 'job_not_found');
     }
     if (job.rows[0].client_id === req.user.id) {
@@ -34,15 +53,14 @@ exports.createBid = async (req, res, next) => {
 
     // Create bid (duplicate check inside transaction to prevent race condition)
     const result = await withTransaction(pool, async (client) => {
-      // Check for existing bid inside the transaction to avoid race window
+      // FOR UPDATE locks any matching row so two concurrent createBid() calls
+      // from the same helper cannot both insert.
       const existing = await client.query(
         'SELECT id FROM bids WHERE job_id = $1 AND helper_id = $2 FOR UPDATE',
         [job_id, req.user.id]
       );
       if (existing.rows.length > 0) {
-        const err = new Error('You already placed a bid on this job');
-        err.status = 409;
-        throw err;
+        throw new AppError('You already placed a bid on this job', 409, 'bid_already_exists');
       }
 
       const bidResult = await client.query(
@@ -50,21 +68,14 @@ exports.createBid = async (req, res, next) => {
         [job_id, req.user.id, amount, message !== undefined ? message.trim() : message, estimated_hours]
       );
 
-      // NOTE: Job status intentionally NOT changed here.
-      // A job remains 'published' (visible on the job board) until the customer
-      // explicitly accepts a bid via assignHelper(). Multiple helpers should be
-      // able to discover and bid on the same job concurrently.
-
+      // Job status intentionally NOT changed here - jobs remain 'published'
+      // until the customer accepts a bid via assignHelper().
       return bidResult.rows[0];
     });
 
     res.status(201).json(result);
   } catch (err) {
-    if (err.message === 'You already placed a bid on this job') {
-      next(new AppError(err.message, 409, 'bid_already_exists'));
-    } else {
-      next(err);
-    }
+    next(err);
   }
 };
 
@@ -113,16 +124,53 @@ exports.getJobBids = async (req, res, next) => {
   }
 };
 
-// Get my bids (as helper)
+// Get my bids (as helper) - paginated
 exports.getMyBids = async (req, res, next) => {
   try {
     const { status } = req.query;
-    let query = `SELECT b.*, j.title as job_title, j.category_name as job_category, j.status as job_status, j.location_city, j.location_state
-      FROM bids b JOIN jobs j ON b.job_id = j.id WHERE b.helper_id = $1`;
+    const VALID_BID_STATUSES = ['pending', 'accepted', 'rejected', 'withdrawn'];
+    if (status && !VALID_BID_STATUSES.includes(status)) {
+      throw new AppError('Invalid bid status', 400, 'validation_failed', {
+        status: `status must be one of ${VALID_BID_STATUSES.join(', ')}`,
+      });
+    }
+
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit, 10)  || 50));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+
     const params = [req.user.id];
-    if (status) { query += ' AND b.status = $2'; params.push(status); }
-    query += ' ORDER BY b.created_at DESC';
-    const result = await pool.query(query, params);
+    let where = 'WHERE b.helper_id = $1 AND j.deleted_at IS NULL';
+    if (status) {
+      params.push(status);
+      where += ` AND b.status = $${params.length}`;
+    }
+
+    params.push(limit, offset);
+    const limitIdx  = params.length - 1;
+    const offsetIdx = params.length;
+
+    const result = await pool.query(
+      `SELECT b.*, j.title as job_title, j.category_name as job_category,
+              j.status as job_status, j.location_city, j.location_state
+         FROM bids b
+         JOIN jobs j ON b.job_id = j.id
+         ${where}
+         ORDER BY b.created_at DESC
+         LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+      params
+    );
+
+    // Compatibility: legacy clients call /bids/me and expect a bare array.
+    // We keep the array as the response body but expose total via headers.
+    const countParams = status ? [req.user.id, status] : [req.user.id];
+    const countWhere = status
+      ? 'WHERE b.helper_id = $1 AND j.deleted_at IS NULL AND b.status = $2'
+      : 'WHERE b.helper_id = $1 AND j.deleted_at IS NULL';
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(*) FROM bids b JOIN jobs j ON b.job_id = j.id ${countWhere}`,
+      countParams
+    );
+    res.set('X-Total-Count', String(countRows[0].count));
     res.json(result.rows);
   } catch (err) {
     next(err);
@@ -136,7 +184,6 @@ exports.updateBid = async (req, res, next) => {
     const bidId = req.params.id;
     const userId = req.user.id;
 
-    // Pre-check: bid must exist and belong to requester (outside transaction)
     const { rows: bidRows } = await pool.query(
       'SELECT id, helper_id, status FROM bids WHERE id = $1',
       [bidId]
@@ -156,7 +203,6 @@ exports.updateBid = async (req, res, next) => {
       throw new AppError(`Bid cannot be updated in '${bid.status}' state. Only pending bids can be updated.`, 400, 'invalid_bid_state');
     }
 
-    // Atomic: update bid with status safeguard to prevent race conditions
     const result = await withTransaction(pool, async (client) => {
       const { rows } = await client.query(
         `UPDATE bids
@@ -171,7 +217,7 @@ exports.updateBid = async (req, res, next) => {
       );
 
       if (!rows.length) {
-        throw new Error('Bid state changed during update - status is no longer pending');
+        throw new AppError('Bid state changed during update - status is no longer pending', 409, 'state_conflict');
       }
 
       return rows[0];
@@ -199,7 +245,6 @@ exports.withdrawBid = async (req, res, next) => {
     const bidId = req.params.id;
     const userId = req.user.id;
 
-    // Pre-check: bid must exist and belong to requester (outside transaction)
     const { rows: bidRows } = await pool.query(
       'SELECT id, job_id, helper_id, status FROM bids WHERE id = $1',
       [bidId]
@@ -219,7 +264,6 @@ exports.withdrawBid = async (req, res, next) => {
       throw new AppError(`Bid cannot be withdrawn in '${bid.status}' state. Only pending bids can be withdrawn.`, 400, 'invalid_bid_state');
     }
 
-    // Atomic: withdraw bid with status safeguard to prevent race conditions
     const result = await withTransaction(pool, async (client) => {
       const { rows } = await client.query(
         `UPDATE bids
@@ -230,18 +274,13 @@ exports.withdrawBid = async (req, res, next) => {
       );
 
       if (!rows.length) {
-        throw new Error('Bid state changed during withdrawal - status is no longer pending');
+        throw new AppError('Bid state changed during withdrawal - status is no longer pending', 409, 'state_conflict');
       }
 
       return rows[0];
     }, 'withdraw_bid');
 
-    logger.info('Bid withdrawn', {
-      bidId,
-      userId,
-      jobId: bid.job_id
-    });
-
+    logger.info('Bid withdrawn', { bidId, userId, jobId: bid.job_id });
     res.json(result);
   } catch (err) {
     next(err);

@@ -23,7 +23,7 @@ function isAsyncPaymentCapture() {
  */
 
 // Create Connect account for helper (onboarding)
-exports.createConnectAccount = async (req, res) => {
+exports.createConnectAccount = async (req, res, next) => {
   try {
     const existing = await pool.query('SELECT * FROM connect_accounts WHERE user_id = $1', [req.user.id]);
     if (existing.rows[0]) {
@@ -60,12 +60,12 @@ exports.createConnectAccount = async (req, res) => {
     res.json({ url: link.url, account_id: account.id });
   } catch (err) {
     logger.error('Create connect account error', { userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to create payment account' });
+    next(new AppError('Failed to create payment account', 502, 'connect_account_create_failed'));
   }
 };
 
 // Get Connect account status
-exports.getConnectStatus = async (req, res) => {
+exports.getConnectStatus = async (req, res, next) => {
   try {
     const result = await pool.query(
       'SELECT charges_enabled, payouts_enabled, onboarding_complete FROM connect_accounts WHERE user_id = $1',
@@ -75,7 +75,7 @@ exports.getConnectStatus = async (req, res) => {
     res.json({ connected: true, ...result.rows[0] });
   } catch (err) {
     logger.error('Get connect status error', { userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to get account status' });
+    next(new AppError('Failed to get account status', 500, 'connect_status_failed'));
   }
 };
 
@@ -118,18 +118,43 @@ exports.createPaymentIntent = async (req, res, next) => {
     const jobValueCents = Math.round(job.rows[0].job_value * 100);
     const fees = calculateTier3Fees(jobValueCents);
 
-    // Check for existing payment to prevent duplicates (idempotency)
+    // Check for existing payment to prevent duplicates (idempotency).
+    // We must return the actual `client_secret` from Stripe — not the PaymentIntent
+    // ID — because the frontend uses it to confirm the card on the client.
     const existingPayment = await pool.query(
-      'SELECT id, stripe_payment_intent_id FROM payments WHERE job_id = $1 AND status IN ($2, $3)',
+      'SELECT id, stripe_payment_intent_id, stripe_account_id FROM payments WHERE job_id = $1 AND status IN ($2, $3)',
       [job_id, 'authorized', 'pending']
     );
     if (existingPayment.rows[0]) {
-      // Return existing payment intent instead of creating a duplicate
-      return res.json({
-        client_secret: existingPayment.rows[0].stripe_payment_intent_id,
-        payment_intent_id: existingPayment.rows[0].stripe_payment_intent_id,
-        message: 'Existing payment intent returned'
-      });
+      try {
+        const existingPi = await stripe.paymentIntents.retrieve(
+          existingPayment.rows[0].stripe_payment_intent_id,
+          { stripeAccount: existingPayment.rows[0].stripe_account_id }
+        );
+        // Only reuse PIs that are still in a confirmable state. Anything past
+        // `requires_capture` (or terminal) means the customer already paid;
+        // returning that secret would let them re-pay an authorized intent.
+        const reusableStatuses = ['requires_payment_method', 'requires_confirmation', 'requires_action'];
+        if (reusableStatuses.includes(existingPi.status)) {
+          return res.json({
+            client_secret: existingPi.client_secret,
+            payment_intent_id: existingPi.id,
+            message: 'Existing payment intent returned',
+          });
+        }
+        // PI is already authorized/captured/cancelled — surface state to client
+        return res.status(409).json({
+          error: `Payment already ${existingPi.status}. Refresh the page to see current state.`,
+          code: 'payment_already_exists',
+          payment_intent_id: existingPi.id,
+          status: existingPi.status,
+        });
+      } catch (retrieveErr) {
+        logger.warn('Failed to retrieve existing PaymentIntent during idempotency check; creating a new one', {
+          jobId: job_id, paymentIntentId: existingPayment.rows[0].stripe_payment_intent_id, error: retrieveErr.message,
+        });
+        // Fall through and create a new PI — orphan rows can be cleaned up by a job
+      }
     }
 
     // Direct charge on helper's connected account
@@ -345,46 +370,60 @@ exports.refundPayment = async (req, res, next) => {
 
     res.json({ message: 'Refund processed', refund_id: refundId });
   } catch (err) {
+    // If we already created an AppError above, propagate it as-is so the
+    // status/code reach the client. Only wrap unexpected errors.
+    if (err instanceof AppError) return next(err);
     logger.error('Refund payment error', { paymentId: req.body?.payment_id, adminId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to process refund' });
+    next(new AppError('Failed to process refund', 500, 'refund_failed'));
   }
 };
 
 // Get payment for a job - only payer or payee may view
-exports.getJobPayment = async (req, res) => {
+exports.getJobPayment = async (req, res, next) => {
   try {
     const result = await pool.query('SELECT * FROM payments WHERE job_id = $1 ORDER BY created_at DESC LIMIT 1', [req.params.job_id]);
     if (!result.rows[0]) return res.json(null);
     const p = result.rows[0];
     if (p.payer_id !== req.user.id && p.payee_id !== req.user.id && !['admin', 'super_admin'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Not authorized' });
+      throw new AppError('Not authorized', 403, 'forbidden');
     }
     res.json(p);
   } catch (err) {
+    if (err instanceof AppError) return next(err);
     logger.error('Get job payment error', { jobId: req.params?.job_id, userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to fetch payment' });
+    next(new AppError('Failed to fetch payment', 500, 'fetch_payment_failed'));
   }
 };
 
-// Get my payments
-exports.getMyPayments = async (req, res) => {
+// Get my payments (paginated)
+exports.getMyPayments = async (req, res, next) => {
   try {
     const { role = 'payer' } = req.query;
-    let result;
-    if (role === 'payee') {
-      result = await pool.query(
-        `SELECT p.*, j.title as job_title FROM payments p JOIN jobs j ON p.job_id = j.id WHERE p.payee_id = $1 ORDER BY p.created_at DESC`,
-        [req.user.id]
-      );
-    } else {
-      result = await pool.query(
-        `SELECT p.*, j.title as job_title FROM payments p JOIN jobs j ON p.job_id = j.id WHERE p.payer_id = $1 ORDER BY p.created_at DESC`,
-        [req.user.id]
-      );
-    }
-    res.json(result.rows);
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit, 10)  || 20));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const filterCol = role === 'payee' ? 'payee_id' : 'payer_id';
+    const result = await pool.query(
+      `SELECT p.*, j.title as job_title
+         FROM payments p
+         JOIN jobs j ON p.job_id = j.id
+        WHERE p.${filterCol} = $1
+        ORDER BY p.created_at DESC
+        LIMIT $2 OFFSET $3`,
+      [req.user.id, limit, offset]
+    );
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(*) FROM payments WHERE ${filterCol} = $1`,
+      [req.user.id]
+    );
+    res.json({
+      payments: result.rows,
+      total: parseInt(countRows[0].count, 10),
+      limit,
+      offset,
+    });
   } catch (err) {
     logger.error('Get my payments error', { userId: req.user?.id, role: req.query?.role, error: err.message });
-    res.status(500).json({ error: 'Failed to fetch payments' });
+    next(new AppError('Failed to fetch payments', 500, 'fetch_payments_failed'));
   }
 };
+

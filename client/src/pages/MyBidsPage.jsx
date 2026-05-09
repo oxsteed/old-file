@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -88,10 +89,11 @@ export default function MyBidsPage() {
     try {
       await api.post(`/bids/${bidId}/withdraw`);
       setBids(prev => prev.map(b => b.id === bidId ? { ...b, status: 'withdrawn' } : b));
+      toast.success(t('myBids.withdrawSuccess', { defaultValue: 'Bid withdrawn.' }));
     } catch (err) {
       console.error('MyBidsPage: failed to withdraw bid', err);
       const msg = err.response?.data?.message || err.response?.data?.error || t('myBids.withdrawError', { defaultValue: 'Failed to withdraw bid.' });
-      alert(msg);
+      toast.error(typeof msg === 'string' ? msg : t('myBids.withdrawError', { defaultValue: 'Failed to withdraw bid.' }));
     } finally {
       setWithdrawing(null);
     }
@@ -319,3 +321,19 @@ export default function MyBidsPage() {
     </div>
   );
 }
+
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </main>
+      <Footer />
+    </div>
+  );
+}
+

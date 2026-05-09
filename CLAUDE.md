@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-08
+**Last updated:** 2026-05-09
 
 ## Instructions for Every Session
 
@@ -20,6 +20,25 @@
 - 112 backend controllers
 - 165 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
+
+**Jobs / Bids / Payments hardening (2026-05-09):** ✅ COMPLETE
+- **`server/controllers/paymentController.js`**:
+  - `createPaymentIntent` idempotency fix: previous code returned `stripe_payment_intent_id` in the `client_secret` field on duplicate-cart retries, which made the frontend's `stripe.confirmCardPayment` fail silently. Now retrieves the existing PaymentIntent from Stripe, validates it's still in a confirmable state (`requires_payment_method` / `requires_confirmation` / `requires_action`), and returns the actual `client_secret`. Already-authorized PIs surface `409 payment_already_exists` instead of leaking a reusable secret. Stale rows fall through to a fresh PI.
+  - `createConnectAccount` / `getConnectStatus` / `getJobPayment` / `getMyPayments` / `refundPayment` outer-catch: switched from `res.status(500).json(...)` to `next(new AppError(...))` so global errorHandler can format consistent JSON shape and translate via i18n.
+  - `getMyPayments` now paginated (`limit`, `offset` query params, max 100) and returns `{ payments, total, limit, offset }` instead of a bare array.
+- **`server/controllers/bidController.js`**:
+  - `createBid`: amount is now required (was optional); rejects amounts > 10M; caps `message` at 2000 chars; validates `estimated_hours` between 0 and 480; rejects job-not-found when `deleted_at` set. Duplicate-bid detection throws `AppError` directly inside the transaction (no fragile string-match wrap on the way out).
+  - `getMyBids`: paginated (`limit`, `offset`, capped 100); validates `?status=` against `['pending','accepted','rejected','withdrawn']`; filters out bids on soft-deleted jobs (`j.deleted_at IS NULL`); sets `X-Total-Count` header for pagination metadata while keeping the array body (legacy clients).
+  - `updateBid` / `withdrawBid`: state-conflict races now throw `AppError` (was plain `Error`) so client gets `409 state_conflict` not `500`.
+- **`server/controllers/jobController.js`**:
+  - `getJob`: SELECT now includes `location_country`, `recurrence`, `updated_at`, `started_at`, `completed_at`, `cancelled_at`, `cancellation_reason`, `escrow_status`, `preferred_helper_id`, `preferred_helper_name`. Frontend can render state-aware UI (cancellation reasons, in-progress timers, completion timestamps) without a second roundtrip.
+  - `getJobs`: removed bogus `'pending'` from the status whitelist (jobs never enter that state — silent empty-result bug). Now validates against `['draft','published','matched','negotiating','accepted','in_progress','completed','cancelled','closed']`. Catch handler routes via `next(new AppError(...))` instead of a raw 500.
+  - `getMyJobs`: paginated (`limit`, `offset` capped 100); accepts `?status=` (validated) and `?include_deleted=1` (off by default — soft-deleted cancelled-pre-acceptance jobs no longer leak into customer dashboards); SELECT now exposes `location_country`, `bid_count`, `started_at`, `completed_at`, `cancelled_at`, `cancellation_reason`.
+  - `closeJob`: rewritten to throw `AppError` instead of returning bare `res.status(...).json(...)`. Errors now have `code` (`dispute_open`, `pending_payments`, `state_conflict`, `job_not_found`).
+  - `assignHelper` appointment timezone fix: previous code did `new Date(\`${date}T${time}:00\`)` which interprets in **server local time** — UTC in prod, host-local in dev — silently shifting appointments by hours when servers moved between regions. Now prefers `jobs.scheduled_time` (already TIMESTAMPTZ) directly; falls back to `${date}T09:00:00.000Z` for legacy date-only rows; final fallback uses `setUTCDate`/`setUTCHours` instead of locale `setHours`. Extracted ETA-to-minutes helper (`etaToMinutes`, clamped 15…480) so all three branches use the same logic.
+- **`client/src/pages/MyBidsPage.jsx`**: `alert()` on withdraw failure replaced with `react-hot-toast` (matching the rest of the app); added success toast on withdraw. Defensive: stringifies non-string error payloads before passing to `toast.error`.
+- **i18n**: added `myBids.{viewJob,withdraw,withdrawing,withdrawConfirm,withdrawSuccess,withdrawError}` to `en/es/fr/ht.json`. ES/FR/HT have proper translations (not English placeholders).
+- **Verification**: `node --check` passes on all modified server files (`jobController.js`, `bidController.js`, `paymentController.js`) and the routes that import them. Jest cannot run in the agent sandbox (no `node_modules`), so the regression suite at `server/__tests__/{job,bid,payment}.test.js` should be re-run locally before deploy.
 
 **Location & Job Browsing (2026-05-08):** ✅ COMPLETE
 - **Migration 180** (`server/migrations/180_jobs_location_country.sql`): Adds `location_country VARCHAR(100)` to `jobs` table with index.

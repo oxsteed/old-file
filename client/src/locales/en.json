@@ -7572,7 +7572,13 @@
     "statusPending": "Pending",
     "statusAccepted": "Accepted",
     "statusRejected": "Rejected",
-    "statusWithdrawn": "Withdrawn"
+    "statusWithdrawn": "Withdrawn",
+    "viewJob": "View Job",
+    "withdraw": "Withdraw",
+    "withdrawing": "Withdrawing…",
+    "withdrawConfirm": "Are you sure you want to withdraw this bid?",
+    "withdrawSuccess": "Bid withdrawn.",
+    "withdrawError": "Failed to withdraw bid."
   },
   "orders": {
     "title": "Order History",

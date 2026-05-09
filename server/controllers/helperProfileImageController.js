@@ -203,16 +203,18 @@ exports.uploadCoverImage = async (req, res) => {
       });
     }
 
-    // Validate file size (max 5MB for cover image)
-    const maxSize = 5 * 1024 * 1024;
-    if (file.size > maxSize) {
+    // Validate file size
+    // - Max 5MB for S3 upload
+    // - Max 2MB for base64 fallback (to avoid timeout issues)
+    const max5MB = 5 * 1024 * 1024;
+    const max2MB = 2 * 1024 * 1024;
+
+    if (file.size > max5MB) {
       return sendValidationError(res, {
         image: 'Image must be smaller than 5MB'
       });
     }
 
-    // Recommended dimensions: 1200x400 or similar aspect ratio
-    // This is just a guideline; we accept any size and let frontend resize
     logger.info('Uploading cover image', {
       helperId,
       fileName: file.originalname,
@@ -228,12 +230,15 @@ exports.uploadCoverImage = async (req, res) => {
       // S3 upload succeeded
       imageUrl = getPublicUrl(key);
       logger.info('Image uploaded to S3', { helperId, key });
-    } else {
-      // AWS not configured — fallback to base64 data URL
-      logger.warn('S3 upload failed, falling back to base64 storage', { helperId });
+    } else if (file.size <= max2MB) {
+      // AWS not configured and file is small enough — fallback to base64 data URL
+      logger.warn('S3 upload failed, falling back to base64 storage', { helperId, size: file.size });
       const base64 = file.buffer.toString('base64');
       imageUrl = `data:${file.mimetype};base64,${base64}`;
       logger.info('Image stored as base64 data URL', { helperId, size: file.size });
+    } else {
+      // File too large for base64 and S3 not available
+      return sendError(res, 400, 'File is too large. Configure AWS S3 to upload images larger than 2MB.');
     }
 
     // Delete old cover image if it exists

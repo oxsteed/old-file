@@ -226,7 +226,7 @@ exports.createJob = async (req, res, next) => {
 };
 
 // Get all jobs with filters
-exports.getJobs = async (req, res) => {
+exports.getJobs = async (req, res, next) => {
   try {
     const {
       category, city, state, country, status, q,
@@ -285,7 +285,10 @@ exports.getJobs = async (req, res) => {
       conditions.push(`j.location_country ILIKE $${paramIdx++}`);
       params.push(`%${country}%`);
     }
-    if (status && ['published','matched','cancelled','completed','in_progress','draft','pending'].includes(status)) {
+    // Valid job statuses (must match values written by jobController state transitions).
+    // 'pending' is NOT a real status — removed to prevent silent empty-result filters.
+    const VALID_JOB_STATUSES = ['draft', 'published', 'matched', 'negotiating', 'accepted', 'in_progress', 'completed', 'cancelled', 'closed'];
+    if (status && VALID_JOB_STATUSES.includes(status)) {
       conditions.push(`j.status = $${paramIdx++}`);
       params.push(status);
     } else {
@@ -372,7 +375,7 @@ exports.getJobs = async (req, res) => {
     });
   } catch (err) {
     logger.error('Get jobs error', { error: err.message });
-    res.status(500).json({ error: 'Failed to fetch jobs' });
+    next(new AppError('Failed to fetch jobs', 500, 'fetch_jobs_failed'));
   }
 };
 
@@ -386,10 +389,14 @@ exports.getJob = async (req, res, next) => {
         j.id, j.client_id, j.title, j.description, j.category_name, j.category_id,
         j.budget_type, j.budget_min, j.budget_max, j.urgency, j.is_urgent, j.status,
         j.job_type, j.job_type_label,
-        j.location_address, j.location_city, j.location_state, j.location_zip,
+        j.location_address, j.location_city, j.location_state, j.location_zip, j.location_country,
         j.location_approx_lat, j.location_approx_lng,
-        j.scheduled_date, j.scheduled_time,         j.requirements, j.media_urls, j.bid_count, j.assigned_helper_id,
-        j.created_at, j.expires_at,
+        j.scheduled_date, j.scheduled_time, j.recurrence,
+        j.requirements, j.media_urls, j.bid_count, j.assigned_helper_id,
+        j.preferred_helper_id, j.preferred_helper_name,
+        j.created_at, j.updated_at, j.expires_at,
+        j.started_at, j.completed_at, j.cancelled_at, j.cancellation_reason,
+        j.escrow_status,
         u.first_name || ' ' || u.last_name AS client_name,
         h.first_name || ' ' || h.last_name AS helper_name
       FROM jobs j
@@ -635,30 +642,41 @@ exports.assignHelper = async (req, res, next) => {
 
         let apptStart, apptEnd;
 
+        // Helper to clamp ETA → minutes (15…480) for appointment duration
+        const etaToMinutes = (h) => {
+          const n = parseFloat(h) || 1;
+          return Math.min(480, Math.max(15, Math.round(n * 60)));
+        };
+
         if (customerStart) {
           // Customer picked an exact slot via BidAcceptanceModal — use it directly.
           apptStart = customerStart;
           apptEnd   = customerEnd || new Date(customerStart.getTime() + 60 * 60_000);
+        } else if (jobRow.scheduled_time) {
+          // Preferred: jobs.scheduled_time is a TIMESTAMPTZ stored at UTC by
+          // createJob() — pg returns it as a Date in absolute time, so we can
+          // use it directly without timezone math.
+          apptStart = jobRow.scheduled_time instanceof Date
+            ? jobRow.scheduled_time
+            : new Date(jobRow.scheduled_time);
+          apptEnd = new Date(apptStart.getTime() + etaToMinutes(acceptedBid.eta_hours) * 60_000);
         } else if (jobRow.scheduled_date) {
+          // Legacy: date-only column. Anchor to 09:00 UTC instead of server-local
+          // time (which differs between dev and prod containers).
           const datePart =
             jobRow.scheduled_date instanceof Date
               ? jobRow.scheduled_date.toISOString().split('T')[0]
               : String(jobRow.scheduled_date).split('T')[0];
-          const timePart = jobRow.scheduled_time
-            ? String(jobRow.scheduled_time).substring(0, 5)  // HH:mm
-            : '09:00';
-          apptStart = new Date(`${datePart}T${timePart}:00`);
-          const etaHours0 = parseFloat(acceptedBid.eta_hours) || 1;
-          apptEnd = new Date(apptStart.getTime() + Math.min(480, Math.max(15, Math.round(etaHours0 * 60))) * 60_000);
+          apptStart = new Date(`${datePart}T09:00:00.000Z`);
+          apptEnd = new Date(apptStart.getTime() + etaToMinutes(acceptedBid.eta_hours) * 60_000);
         } else {
+          // No schedule on the job — default to a week from now at 09:00 UTC.
           apptStart = new Date();
-          apptStart.setDate(apptStart.getDate() + 7);
-          apptStart.setHours(9, 0, 0, 0);
-          const etaHours0 = parseFloat(acceptedBid.eta_hours) || 1;
-          apptEnd = new Date(apptStart.getTime() + Math.min(480, Math.max(15, Math.round(etaHours0 * 60))) * 60_000);
+          apptStart.setUTCDate(apptStart.getUTCDate() + 7);
+          apptStart.setUTCHours(9, 0, 0, 0);
+          apptEnd = new Date(apptStart.getTime() + etaToMinutes(acceptedBid.eta_hours) * 60_000);
         }
 
-        const etaHours = parseFloat(acceptedBid.eta_hours) || 1;
         const durationMinutes = Math.round((apptEnd - apptStart) / 60_000);
 
         const locationAddress =
@@ -852,7 +870,7 @@ exports.completeJob = async (req, res, next) => {
 };
 
 // Close a job (after completion, enables reviews)
-exports.closeJob = async (req, res) => {
+exports.closeJob = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -864,7 +882,7 @@ exports.closeJob = async (req, res) => {
     `, [id, req.user.id]);
 
     if (jobRows.length === 0) {
-      return res.status(404).json({ error: 'Job not found or cannot be closed' });
+      throw new AppError('Job not found or cannot be closed', 404, 'job_not_found');
     }
 
     // Check for open/in_progress disputes
@@ -874,9 +892,10 @@ exports.closeJob = async (req, res) => {
     `, [id]);
 
     if (disputeRows.length > 0) {
-      return res.status(409).json({
-        error: 'Cannot close job while a payment dispute is open. Resolve the dispute first.',
-      });
+      throw new AppError(
+        'Cannot close job while a payment dispute is open. Resolve the dispute first.',
+        409, 'dispute_open'
+      );
     }
 
     // Check payment status for tier-3 jobs (must be captured/released)
@@ -886,9 +905,10 @@ exports.closeJob = async (req, res) => {
     `, [id]);
 
     if (paymentRows.length > 0) {
-      return res.status(409).json({
-        error: 'Cannot close job with pending payments. Please ensure all payments are processed.',
-      });
+      throw new AppError(
+        'Cannot close job with pending payments. Please ensure all payments are processed.',
+        409, 'pending_payments'
+      );
     }
 
     // Wrap state change in a transaction for atomicity
@@ -899,21 +919,45 @@ exports.closeJob = async (req, res) => {
         RETURNING *
       `, [id]);
       if (!rows.length) {
-        throw new Error('Job state changed during closing - job is no longer completed');
+        throw new AppError('Job state changed during closing - job is no longer completed', 409, 'state_conflict');
       }
       return rows[0];
     }, 'close_job');
 
     res.json({ message: 'Job closed', job: result });
   } catch (err) {
+    if (err instanceof AppError) return next(err);
     logger.error('Close job error', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to close job' });
+    next(new AppError('Failed to close job', 500, 'close_job_failed'));
   }
 };
 
-// Get jobs posted by current user
+// Get jobs posted by current user (paginated, filterable by status)
 exports.getMyJobs = async (req, res, next) => {
   try {
+    const { status, include_deleted } = req.query;
+    const VALID_JOB_STATUSES = ['draft', 'published', 'matched', 'negotiating', 'accepted', 'in_progress', 'completed', 'cancelled', 'closed'];
+    if (status && !VALID_JOB_STATUSES.includes(status)) {
+      throw new AppError('Invalid job status', 400, 'validation_failed', {
+        status: `status must be one of ${VALID_JOB_STATUSES.join(', ')}`,
+      });
+    }
+
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit, 10)  || 50));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+
+    const params = [req.user.id];
+    // By default exclude soft-deleted (cancelled-pre-acceptance) jobs from the
+    // dashboard list so customers don't see ghost rows. Pass ?include_deleted=1
+    // for archive views.
+    let where = 'WHERE client_id = $1';
+    if (!include_deleted) where += ' AND deleted_at IS NULL';
+    if (status) {
+      params.push(status);
+      where += ` AND status = $${params.length}`;
+    }
+    params.push(limit, offset);
+
     const { rows } = await pool.query(`
       SELECT
         id, client_id, title, description,
@@ -921,17 +965,19 @@ exports.getMyJobs = async (req, res, next) => {
         budget_type, budget_min, budget_max,
         urgency, is_urgent, status,
         site_access, job_type_label, notes,
-        location_address, location_city, location_state, location_zip,
+        location_address, location_city, location_state, location_zip, location_country,
         location_approx_lat, location_approx_lng,
-        requirements, media_urls,
+        requirements, media_urls, bid_count,
         assigned_helper_id, preferred_helper_id, preferred_helper_name,
         scheduled_date, scheduled_time, recurrence,
         private_notes,
+        started_at, completed_at, cancelled_at, cancellation_reason,
         expires_at, created_at, updated_at
       FROM jobs
-      WHERE client_id = $1
+      ${where}
       ORDER BY created_at DESC
-    `, [req.user.id]);
+      LIMIT $${params.length - 1} OFFSET $${params.length}
+    `, params);
 
     res.json(rows);
   } catch (err) {
@@ -1283,4 +1329,101 @@ exports.cancelJob = async (req, res, next) => {
     logger.error('Error cancelling job', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
     next(new AppError('Failed to cancel job', 500));
   }
+};
+
+id: auditLogId,
+          fee_record_id: feeRecordId
+        };
+      },
+      'cancel_job'
+    ).then((result) => {
+      // Pre-acceptance: simple success response, no fee/socket machinery needed
+      if (result.type === 'pre_acceptance') {
+        return res.json({
+          success: true,
+          data: {
+            job_id: result.job.id,
+            cancelled_at: new Date(),
+            cancelled_by: 'customer',
+            fee_charged_cents: 0,
+            rejected_bids: result.rejectedBids.length,
+          },
+          message: 'Job cancelled',
+        });
+      }
+
+      // Post-acceptance: send socket notification to both parties
+      try {
+        const { broadcastToUser } = require('../services/socketService');
+        broadcastToUser(result.customer_id, 'job:cancelled', {
+          id: result.job_id,
+          status: 'cancelled',
+          cancelled_by: result.cancelled_by,
+          fee_charged_cents: result.fee_charged_cents
+        });
+        broadcastToUser(result.helper_id, 'job:cancelled', {
+          id: result.job_id,
+          status: 'cancelled',
+          cancelled_by: result.cancelled_by,
+          fee_to_helper_cents: result.fee_to_helper_cents
+        });
+      } catch (socketErr) {
+        logger.warn('Failed to send job cancellation socket notification', { jobId, error: socketErr.message });
+      }
+
+      // Fire-and-forget: collect cancellation fee via Stripe (if applicable)
+      if (result.fee_record_id && result.fee_charged_cents > 0) {
+        try {
+          const { collectCancellationFee } = require('../services/cancellationFeeService');
+          collectCancellationFee({
+            feeRecordId:  result.fee_record_id,
+            customerId:   result.customer_id,
+            helperId:     result.helper_id,
+            feeTotalCents: result.fee_charged_cents,
+            feeToHelper:  result.fee_to_helper_cents,
+          }).catch((err) => logger.error('Stripe cancellation fee collection failed', { feeRecordId: result.fee_record_id, error: err.message }));
+        } catch (_) { /* module load safety */ }
+      }
+
+      // Fire-and-forget: update reputation score after cancellation
+      try {
+        const { recalculateUserReputation } = require('./reputationController');
+        if (result.customer_id) recalculateUserReputation(result.customer_id).catch(() => {});
+        if (result.helper_id)   recalculateUserReputation(result.helper_id).catch(() => {});
+      } catch (_) { /* non-fatal */ }
+
+      logger.info('Job cancellation recorded', {
+        jobId,
+        cancelledBy: result.cancelled_by,
+        feeCharged: result.fee_charged_cents,
+        auditLogId: result.audit_log_id,
+        feeRecordId: result.fee_record_id
+      });
+
+      res.json({
+        success: true,
+        data: {
+          job_id: result.job_id,
+          cancelled_at: result.cancelled_at,
+          cancelled_by: result.cancelled_by,
+          fee_charged_cents: result.fee_charged_cents,
+          fee_to_helper_cents: result.fee_to_helper_cents,
+          fee_to_platform_cents: result.fee_to_platform_cents,
+          payment_method: result.payment_method
+        },
+        message: 'Job cancelled successfully'
+      });
+    });
+  } catch (err) {
+    if (err instanceof AppError) {
+      return next(err);
+    }
+    logger.error('Error cancelling job', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
+    next(new AppError('Failed to cancel job', 500));
+  }
+};
+id, error: err.message });
+    next(new AppError("Failed to cancel job", 500));
+  }
+};
 };
