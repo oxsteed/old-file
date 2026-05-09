@@ -20,7 +20,7 @@ async function expireIfStale(bookingRow) {
   const r = await pool.query(
     `UPDATE booking_requests
      SET status = 'expired', updated_at = CURRENT_TIMESTAMP
-     WHERE id = $1 AND status IN ('pending', 'expired')
+     WHERE id = $1 AND status = 'pending'
      RETURNING *`,
     [bookingRow.id]
   );
