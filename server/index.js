@@ -370,7 +370,18 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// Root health endpoint (for Docker healthcheck)
+// Apple App Site Association – Universal Links
+app.get('/.well-known/apple-app-site-association', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.json({
+    applinks: {
+      apps: [],
+      details: [{ appID: 'ZBRGSDRRU7.com.oxsteed.app', paths: ['*'] }]
+    },
+    webcredentials: { apps: ['ZBRGSDRRU7.com.oxsteed.app'] }
+  });
+});
+
 app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
