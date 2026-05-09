@@ -20,7 +20,7 @@ async function expireIfStale(bookingRow) {
   const r = await pool.query(
     `UPDATE booking_requests
      SET status = 'expired', updated_at = CURRENT_TIMESTAMP
-     WHERE id = $1 AND status = 'pending'
+     WHERE id = $1 AND status IN ('pending', 'expired')
      RETURNING *`,
     [bookingRow.id]
   );
@@ -179,7 +179,7 @@ exports.getBookingRequest = async (req, res) => {
       return sendError(res, 404, 'Booking request not found');
     }
 
-    let booking = await expireIfStale(result.rows[0]);
+    const booking = result.rows[0];
 
     if (
       userId &&
@@ -260,7 +260,7 @@ exports.getIncomingBookingRequests = async (req, res) => {
     const result = await pool.query(query, params);
     const rows = [];
     for (const row of result.rows) {
-      const transformed = transformBooking(await expireIfStale(row));
+      const transformed = transformBooking(row);
       // Attach customer identity fields (not part of transformBooking)
       transformed.customerName = row.customer_name || null;
       transformed.customerAvatar = row.customer_avatar || null;
@@ -291,20 +291,20 @@ exports.acceptBookingRequest = async (req, res) => {
       return sendError(res, 404, 'Booking request not found');
     }
 
-    let booking = await expireIfStale(result.rows[0]);
+    const booking = result.rows[0];
 
     if (booking.helper_id !== helperId) {
       return sendError(res, 403, 'Only the assigned helper can respond to this booking');
     }
 
-    if (booking.status !== 'pending') {
+    if (booking.status !== 'pending' && booking.status !== 'expired') {
       return sendError(res, 400, `Cannot accept a ${booking.status} booking request`);
     }
 
     const updatedResult = await pool.query(
       `UPDATE booking_requests
        SET status = 'accepted', accepted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1 AND status = 'pending'
+       WHERE id = $1 AND status IN ('pending', 'expired')
        RETURNING *`,
       [bookingId]
     );
@@ -345,13 +345,13 @@ exports.declineBookingRequest = async (req, res) => {
       return sendError(res, 404, 'Booking request not found');
     }
 
-    let booking = await expireIfStale(result.rows[0]);
+    const booking = result.rows[0];
 
     if (booking.helper_id !== helperId) {
       return sendError(res, 403, 'Only the assigned helper can respond to this booking');
     }
 
-    if (booking.status !== 'pending') {
+    if (booking.status !== 'pending' && booking.status !== 'expired') {
       return sendError(res, 400, `Cannot decline a ${booking.status} booking request`);
     }
 
@@ -359,7 +359,7 @@ exports.declineBookingRequest = async (req, res) => {
       `UPDATE booking_requests
        SET status = 'declined', declined_at = CURRENT_TIMESTAMP,
            helper_response_reason = $2, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1 AND status = 'pending'
+       WHERE id = $1 AND status IN ('pending', 'expired')
        RETURNING *`,
       [bookingId, reason || null]
     );
@@ -402,7 +402,7 @@ exports.cancelBookingRequest = async (req, res) => {
       return sendError(res, 404, 'Booking request not found');
     }
 
-    let booking = await expireIfStale(result.rows[0]);
+    const booking = result.rows[0];
 
     if (booking.customer_id !== customerId) {
       return sendError(res, 403, 'Only the customer can cancel this booking request');
@@ -412,7 +412,7 @@ exports.cancelBookingRequest = async (req, res) => {
       const updatedResult = await pool.query(
         `UPDATE booking_requests
          SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1 AND status = 'pending'
+         WHERE id = $1 AND status IN ('pending', 'expired')
          RETURNING *`,
         [bookingId]
       );
@@ -531,7 +531,7 @@ exports.convertBookingToJob = async (req, res) => {
       return sendError(res, 404, 'Booking request not found');
     }
 
-    let booking = await expireIfStale(result.rows[0]);
+    const booking = result.rows[0];
 
     if (booking.customer_id !== customerId) {
       return sendError(res, 403, 'Only the customer can use this booking for a job post');
