@@ -38,6 +38,97 @@ exports.getHelperProfileQRCodePng = async (req, res) => {
 };
 
 /**
+ * Generate helper profile QR code in various formats
+ * GET /api/helper-profile/:helperId/qr-code?size=small&format=dataurl|png|svg
+ */
+exports.generateQRCode = async (req, res) => {
+  try {
+    const { helperId } = req.params;
+    const { size = 'medium', format = 'dataurl' } = req.query;
+
+    // Validate size parameter
+    const sizeMap = {
+      small: 100,
+      medium: 200,
+      large: 300,
+      xlarge: 400,
+    };
+    const width = sizeMap[size] || 200;
+
+    logger.info('Generating QR code', { helperId, size, width, format });
+
+    const profileUrl = buildHelperProfileURL(helperId);
+
+    // For now, return PNG format (most common)
+    if (format === 'png' || format === 'dataurl') {
+      const pngBuffer = await generateHelperProfileQRCode(profileUrl, width);
+      if (!pngBuffer) {
+        return sendError(res, 500, 'Failed to generate QR code');
+      }
+
+      if (format === 'dataurl') {
+        // Return as base64 data URL for embedding in HTML/JSON
+        const dataUrl = `data:image/png;base64,${pngBuffer.toString('base64')}`;
+        return res.json({ success: true, qr_code: dataUrl, size, width, format: 'dataurl' });
+      } else {
+        // Return as PNG image
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        return res.send(pngBuffer);
+      }
+    }
+
+    // SVG format (optional - would require svg library)
+    return sendError(res, 400, 'SVG format not yet supported');
+  } catch (err) {
+    logger.error('Error generating QR code', { error: err.message, stack: err.stack });
+    sendError(res, 500, 'Failed to generate QR code');
+  }
+};
+
+/**
+ * Generate helper profile QR code in multiple sizes
+ * GET /api/helper-profile/:helperId/qr-code/multi-size
+ */
+exports.generateMultiSizeQRCode = async (req, res) => {
+  try {
+    const { helperId } = req.params;
+
+    logger.info('Generating multi-size QR codes', { helperId });
+
+    const profileUrl = buildHelperProfileURL(helperId);
+
+    const sizes = {
+      small: 100,
+      medium: 200,
+      large: 300,
+      xlarge: 400,
+    };
+
+    const qrCodes = {};
+    for (const [label, width] of Object.entries(sizes)) {
+      const pngBuffer = await generateHelperProfileQRCode(profileUrl, width);
+      if (pngBuffer) {
+        qrCodes[label] = `data:image/png;base64,${pngBuffer.toString('base64')}`;
+      }
+    }
+
+    if (Object.keys(qrCodes).length === 0) {
+      return sendError(res, 500, 'Failed to generate QR codes');
+    }
+
+    return res.json({
+      success: true,
+      qr_codes: qrCodes,
+      profile_url: profileUrl,
+    });
+  } catch (err) {
+    logger.error('Error generating multi-size QR codes', { error: err.message, stack: err.stack });
+    sendError(res, 500, 'Failed to generate QR codes');
+  }
+};
+
+/**
  * Delete helper profile cover image
  * DELETE /api/helper-profile/cover-image
  */
