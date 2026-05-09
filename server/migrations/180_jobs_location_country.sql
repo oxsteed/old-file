@@ -7,4 +7,4 @@ ALTER TABLE jobs
 -- Index for country-based filtering on the browse page
 CREATE INDEX IF NOT EXISTS idx_jobs_location_country
   ON jobs (location_country)
-  WHERE deleted_at IS NULL;
+  WHERE location_country IS NOT NULL;
