@@ -321,19 +321,3 @@ export default function MyBidsPage() {
     </div>
   );
 }
-
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </main>
-      <Footer />
-    </div>
-  );
-}
-
