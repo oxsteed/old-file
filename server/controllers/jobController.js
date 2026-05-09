@@ -198,6 +198,20 @@ exports.createJob = async (req, res, next) => {
       notify_count: matchResult.notified || 0,
     });
   } catch (err) {
+    // Log full error details for debugging job creation failures
+    logger.error('[createJob] Error inserting job', {
+      userId: req.user?.id,
+      error: err.message,
+      code: err.code,
+      detail: err.detail,
+      hint: err.hint,
+      stack: err.stack,
+      formData: {
+        title: req.body?.title?.substring(0, 50),
+        category: req.body?.category_name,
+        location: req.body?.location_city,
+      }
+    });
     next(err);
   }
 };
