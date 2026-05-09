@@ -238,7 +238,7 @@ exports.getMyBookingRequests = async (req, res) => {
 exports.getIncomingBookingRequests = async (req, res) => {
   try {
     const helperId = req.user.id;
-    const { status } = req.query;
+    const { status = 'pending' } = req.query;
 
     // JOIN users to get customer display name for the helper's inbox view
     let query = `
