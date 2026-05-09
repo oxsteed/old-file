@@ -38,6 +38,60 @@ exports.getHelperProfileQRCodePng = async (req, res) => {
 };
 
 /**
+ * Delete helper profile cover image
+ * DELETE /api/helper-profile/cover-image
+ */
+exports.deleteCoverImage = async (req, res) => {
+  try {
+    const helperId = req.user.id;
+
+    logger.info('Deleting cover image', { helperId });
+
+    // Update helper profile (clear cover image URL)
+    const result = await pool.query(
+      `UPDATE helper_profiles
+      SET cover_image_url = NULL,
+          cover_photo_url = NULL,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = $1
+      RETURNING user_id`,
+      [helperId]
+    );
+
+    if (result.rows.length === 0) {
+      return sendError(res, 404, 'Helper profile not found');
+    }
+
+    // Keep primary business profile in sync
+    pool.query(
+      `UPDATE businesses
+       SET cover_photo_url = NULL,
+           cover_image_url = NULL,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = $1 AND is_primary = TRUE AND is_active = TRUE`,
+      [helperId],
+    ).catch((e) => logger.warn('Cover delete sync to primary business failed', { err: e.message, helperId }));
+
+    pool.query(
+      `SELECT id FROM businesses WHERE user_id = $1 AND is_primary = TRUE AND is_active = TRUE LIMIT 1`,
+      [helperId],
+    )
+    .then((r) => invalidateHelperContext(helperId, r.rows[0]?.id))
+    .catch(() => invalidateHelperContext(helperId));
+
+    logger.info('Cover image deleted successfully', { helperId });
+
+    res.json({
+      success: true,
+      data: { message: 'Cover image deleted successfully' }
+    });
+  } catch (err) {
+    logger.error('Error deleting cover image', { error: err.message, stack: err.stack });
+    sendError(res, 500, 'Failed to delete cover image');
+  }
+};
+
+/**
  * Upload helper profile cover image
  * PUT /api/helper-profile/cover-image
  */
