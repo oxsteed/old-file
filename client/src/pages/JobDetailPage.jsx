@@ -733,6 +733,19 @@ export default function JobDetailPage() {
                   </div>
                 </div>
               )}
+                      {(job.scheduled_date || job.scheduled_time) && (
+          <div className="jdp-detail-row">
+            <span className="jdp-detail-icon">📅</span>
+            <div>
+              <div className="jdp-detail-label">Scheduled</div>
+              <div className="jdp-detail-val">
+                {job.scheduled_date && new Date(job.scheduled_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                {job.scheduled_date && job.scheduled_time && ' at '}
+                {job.scheduled_time && String(job.scheduled_time).substring(0, 5)}
+              </div>
+            </div>
+          </div>
+        )}
               <div className="jdp-detail-row">
                 <span className="jdp-detail-icon">📅</span>
                 <div>
