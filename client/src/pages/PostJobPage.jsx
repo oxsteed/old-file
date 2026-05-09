@@ -994,6 +994,9 @@ export default function PostJobPage() {
       if (form.budgetType === 'hourly') { fd.append('budget_min', form.budgetAmountHourly); }
       fd.append('urgency',       form.urgency);
       fd.append('notes',         form.notes);
+      if (form.scheduledDate) fd.append('scheduled_date', form.scheduledDate);
+      if (form.scheduledTime) fd.append('scheduled_time', form.scheduledTime);
+      if (form.recurrence && form.recurrence !== 'none') fd.append('recurrence', form.recurrence);
       fd.append('requirements',  JSON.stringify(
         Object.entries(form.requirements)
           .filter(([,v]) => v.enabled)
