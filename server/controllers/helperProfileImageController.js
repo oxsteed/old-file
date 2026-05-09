@@ -9,6 +9,35 @@ const {
 } = require('../utils/qrCodeGenerator');
 
 /**
+ * Get helper profile QR code PNG
+ * GET /api/helpers/:id/profile-qr.png
+ */
+exports.getHelperProfileQRCodePng = async (req, res) => {
+  try {
+    const helperId = req.params.id;
+    const width = Math.min(Math.max(parseInt(req.query.w) || 200, 64), 512); // Clamp between 64-512
+
+    logger.info('Generating profile QR code', { helperId, width });
+
+    const profileUrl = buildHelperProfileURL(helperId);
+    const pngBuffer = await generateHelperProfileQRCode(profileUrl, width);
+
+    if (!pngBuffer) {
+      return sendError(res, 500, 'Failed to generate QR code');
+    }
+
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+    res.send(pngBuffer);
+
+    logger.debug('QR code sent', { helperId, width });
+  } catch (err) {
+    logger.error('Error generating QR code', { error: err.message, stack: err.stack });
+    sendError(res, 500, 'Failed to generate QR code');
+  }
+};
+
+/**
  * Upload helper profile cover image
  * PUT /api/helper-profile/cover-image
  */
