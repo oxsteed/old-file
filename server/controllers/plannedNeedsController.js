@@ -1,11 +1,18 @@
 const db     = require('../db');
 const logger = require('../utils/logger');
+const { AppError } = require('../middleware/errorHandler');
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
 const VALID_CATEGORIES = ['car_care', 'personal_care', 'other'];
 const VALID_STATUSES   = ['planned', 'funding', 'activating_soon', 'published', 'cancelled', 'completed', 'regenerated'];
 const VALID_RECURRENCE = ['none', 'fixed', 'floating'];
+
+// Length caps applied at controller-edge to free-text fields. The DB columns
+// are TEXT/VARCHAR(...) — these limits also defend against bloat / ReDoS.
+const MAX_TITLE_LEN = 200;
+const MAX_DESCRIPTION_LEN = 4000;
+const MAX_NOTES_LEN = 4000;
 
 const WINDOW_DAYS = {
   '1w':  7,
@@ -45,7 +52,7 @@ function categoryToJobName(category) {
 // LIST
 // ═══════════════════════════════════════════════════════════════════════════
 
-exports.listPlannedNeeds = async (req, res) => {
+exports.listPlannedNeeds = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { status, category, limit = 100, offset = 0 } = req.query;
@@ -125,7 +132,7 @@ exports.listPlannedNeeds = async (req, res) => {
     res.json({ planned_needs: needs });
   } catch (err) {
     logger.error('listPlannedNeeds error', { userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to fetch planned needs.' });
+    next(new AppError('Failed to fetch planned needs.', 500, 'fetch_planned_needs_failed'));
   }
 };
 
@@ -133,7 +140,7 @@ exports.listPlannedNeeds = async (req, res) => {
 // CREATE
 // ═══════════════════════════════════════════════════════════════════════════
 
-exports.createPlannedNeed = async (req, res) => {
+exports.createPlannedNeed = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const {
@@ -151,23 +158,26 @@ exports.createPlannedNeed = async (req, res) => {
       home_id,
     } = req.body;
 
-    if (!title)    return res.status(400).json({ error: 'Title is required.' });
-    if (!due_date) return res.status(400).json({ error: 'Due date is required.' });
-    if (!VALID_CATEGORIES.includes(category)) {
-      return res.status(400).json({ error: 'Invalid category.' });
+    const fields = {};
+    if (!title || !String(title).trim()) fields.title = 'Title is required.';
+    else if (String(title).length > MAX_TITLE_LEN) fields.title = `Title must be ${MAX_TITLE_LEN} characters or fewer.`;
+    if (!due_date) fields.due_date = 'Due date is required.';
+    if (!VALID_CATEGORIES.includes(category)) fields.category = 'Invalid category.';
+    if (!VALID_RECURRENCE.includes(recurrence_type)) fields.recurrence_type = 'Invalid recurrence_type.';
+    if (recurrence_type !== 'none' && !recurrence_interval_days) fields.recurrence_interval_days = 'Required when recurrence is enabled.';
+    if (description && String(description).length > MAX_DESCRIPTION_LEN) fields.description = `Description must be ${MAX_DESCRIPTION_LEN} characters or fewer.`;
+    if (notes && String(notes).length > MAX_NOTES_LEN) fields.notes = `Notes must be ${MAX_NOTES_LEN} characters or fewer.`;
+    if (estimated_cost !== undefined && estimated_cost !== null && estimated_cost !== '') {
+      const ec = Number(estimated_cost);
+      if (!Number.isFinite(ec) || ec < 0 || ec > 10_000_000) fields.estimated_cost = 'Estimated cost must be a non-negative number ≤ 10M.';
     }
-    if (!VALID_RECURRENCE.includes(recurrence_type)) {
-      return res.status(400).json({ error: 'Invalid recurrence_type.' });
-    }
-    if (recurrence_type !== 'none' && !recurrence_interval_days) {
-      return res.status(400).json({ error: 'recurrence_interval_days is required when recurrence is enabled.' });
-    }
+    if (Object.keys(fields).length) throw new AppError('Validation failed', 400, 'validation_failed', fields);
 
     const dueDate = new Date(due_date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    if (dueDate < today) {
-      return res.status(400).json({ error: 'Due date must be in the future.' });
+    if (Number.isNaN(dueDate.getTime()) || dueDate < today) {
+      throw new AppError('Due date must be a valid date in the future.', 400, 'validation_failed', { due_date: 'Must be in the future' });
     }
 
     const status = deriveInitialStatus(estimated_cost, due_date, parseInt(lead_time_days));
@@ -180,7 +190,7 @@ exports.createPlannedNeed = async (req, res) => {
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
       RETURNING *
     `, [
-      userId, title, description || null, category, status, due_date,
+      userId, String(title).trim(), description || null, category, status, due_date,
       estimated_cost || null, parseInt(lead_time_days), recurrence_type,
       recurrence_interval_days || null,
       preferred_helper_id || null, notes || null,
@@ -190,8 +200,9 @@ exports.createPlannedNeed = async (req, res) => {
 
     res.status(201).json(rows[0]);
   } catch (err) {
+    if (err instanceof AppError) return next(err);
     logger.error('createPlannedNeed error', { userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to create planned need.' });
+    next(new AppError('Failed to create planned need.', 500, 'create_planned_need_failed'));
   }
 };
 
@@ -199,7 +210,7 @@ exports.createPlannedNeed = async (req, res) => {
 // UPDATE
 // ═══════════════════════════════════════════════════════════════════════════
 
-exports.updatePlannedNeed = async (req, res) => {
+exports.updatePlannedNeed = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { id } = req.params;
@@ -224,22 +235,31 @@ exports.updatePlannedNeed = async (req, res) => {
       'SELECT * FROM planned_needs WHERE id = $1 AND user_id = $2',
       [id, userId]
     );
-    if (!existing.length) return res.status(404).json({ error: 'Planned need not found.' });
+    if (!existing.length) throw new AppError('Planned need not found.', 404, 'not_found');
 
     const need = existing[0];
     if (['published', 'completed', 'cancelled'].includes(need.status)) {
-      return res.status(400).json({ error: `Cannot edit a ${need.status} planned need.` });
+      throw new AppError(`Cannot edit a ${need.status} planned need.`, 400, 'invalid_state');
     }
     if (category && !VALID_CATEGORIES.includes(category)) {
-      return res.status(400).json({ error: 'Invalid category.' });
+      throw new AppError('Invalid category.', 400, 'validation_failed', { category: 'Invalid' });
     }
     if (recurrence_type && !VALID_RECURRENCE.includes(recurrence_type)) {
-      return res.status(400).json({ error: 'Invalid recurrence_type.' });
+      throw new AppError('Invalid recurrence_type.', 400, 'validation_failed', { recurrence_type: 'Invalid' });
+    }
+    if (title !== undefined && String(title).length > MAX_TITLE_LEN) {
+      throw new AppError(`Title must be ${MAX_TITLE_LEN} characters or fewer.`, 400, 'validation_failed', { title: 'Too long' });
+    }
+    if (description !== undefined && description !== null && String(description).length > MAX_DESCRIPTION_LEN) {
+      throw new AppError(`Description must be ${MAX_DESCRIPTION_LEN} characters or fewer.`, 400, 'validation_failed', { description: 'Too long' });
+    }
+    if (notes !== undefined && notes !== null && String(notes).length > MAX_NOTES_LEN) {
+      throw new AppError(`Notes must be ${MAX_NOTES_LEN} characters or fewer.`, 400, 'validation_failed', { notes: 'Too long' });
     }
     const effectiveRecurrence = recurrence_type || need.recurrence_type;
     const effectiveInterval   = recurrence_interval_days !== undefined ? recurrence_interval_days : need.recurrence_interval_days;
     if (effectiveRecurrence !== 'none' && !effectiveInterval) {
-      return res.status(400).json({ error: 'recurrence_interval_days is required when recurrence is enabled.' });
+      throw new AppError('recurrence_interval_days is required when recurrence is enabled.', 400, 'validation_failed', { recurrence_interval_days: 'Required' });
     }
 
     // Re-derive status if cost or lead_time changed
@@ -287,8 +307,9 @@ exports.updatePlannedNeed = async (req, res) => {
 
     res.json(rows[0]);
   } catch (err) {
+    if (err instanceof AppError) return next(err);
     logger.error('updatePlannedNeed error', { needId: req.params?.id, userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to update planned need.' });
+    next(new AppError('Failed to update planned need.', 500, 'update_planned_need_failed'));
   }
 };
 
@@ -296,7 +317,7 @@ exports.updatePlannedNeed = async (req, res) => {
 // CANCEL
 // ═══════════════════════════════════════════════════════════════════════════
 
-exports.cancelPlannedNeed = async (req, res) => {
+exports.cancelPlannedNeed = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { id } = req.params;
@@ -305,12 +326,12 @@ exports.cancelPlannedNeed = async (req, res) => {
       'SELECT * FROM planned_needs WHERE id = $1 AND user_id = $2',
       [id, userId]
     );
-    if (!existing.length) return res.status(404).json({ error: 'Planned need not found.' });
+    if (!existing.length) throw new AppError('Planned need not found.', 404, 'not_found');
     if (existing[0].status === 'cancelled') {
-      return res.status(400).json({ error: 'Already cancelled.' });
+      throw new AppError('Already cancelled.', 400, 'invalid_state');
     }
     if (existing[0].status === 'completed') {
-      return res.status(400).json({ error: 'Cannot cancel a completed need.' });
+      throw new AppError('Cannot cancel a completed need.', 400, 'invalid_state');
     }
 
     const { rows } = await db.query(`
@@ -322,8 +343,9 @@ exports.cancelPlannedNeed = async (req, res) => {
 
     res.json(rows[0]);
   } catch (err) {
+    if (err instanceof AppError) return next(err);
     logger.error('cancelPlannedNeed error', { needId: req.params?.id, userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to cancel planned need.' });
+    next(new AppError('Failed to cancel planned need.', 500, 'cancel_planned_need_failed'));
   }
 };
 
@@ -331,7 +353,7 @@ exports.cancelPlannedNeed = async (req, res) => {
 // COMPLETE
 // ═══════════════════════════════════════════════════════════════════════════
 
-exports.completePlannedNeed = async (req, res) => {
+exports.completePlannedNeed = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { id } = req.params;
@@ -341,11 +363,11 @@ exports.completePlannedNeed = async (req, res) => {
       'SELECT * FROM planned_needs WHERE id = $1 AND user_id = $2',
       [id, userId]
     );
-    if (!existing.length) return res.status(404).json({ error: 'Planned need not found.' });
+    if (!existing.length) throw new AppError('Planned need not found.', 404, 'not_found');
 
     const need = existing[0];
     if (['cancelled', 'completed'].includes(need.status)) {
-      return res.status(400).json({ error: `Cannot complete a ${need.status} need.` });
+      throw new AppError(`Cannot complete a ${need.status} need.`, 400, 'invalid_state');
     }
 
     // Determine final status (regenerated if recurring, else completed)
@@ -400,8 +422,9 @@ exports.completePlannedNeed = async (req, res) => {
 
     res.json({ completed, next_need: nextNeed });
   } catch (err) {
+    if (err instanceof AppError) return next(err);
     logger.error('completePlannedNeed error', { needId: req.params?.id, userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to complete planned need.' });
+    next(new AppError('Failed to complete planned need.', 500, 'complete_planned_need_failed'));
   }
 };
 
@@ -409,7 +432,7 @@ exports.completePlannedNeed = async (req, res) => {
 // DELETE (hard delete - only allowed for planned/funding)
 // ═══════════════════════════════════════════════════════════════════════════
 
-exports.deletePlannedNeed = async (req, res) => {
+exports.deletePlannedNeed = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { id } = req.params;
@@ -418,19 +441,20 @@ exports.deletePlannedNeed = async (req, res) => {
       'SELECT status FROM planned_needs WHERE id = $1 AND user_id = $2',
       [id, userId]
     );
-    if (!existing.length) return res.status(404).json({ error: 'Planned need not found.' });
+    if (!existing.length) throw new AppError('Planned need not found.', 404, 'not_found');
 
     if (!['planned', 'funding'].includes(existing[0].status)) {
-      return res.status(400).json({ error: 'Only planned or funding needs can be deleted. Use cancel instead.' });
+      throw new AppError('Only planned or funding needs can be deleted. Use cancel instead.', 400, 'invalid_state');
     }
 
     // Delete with RETURNING to verify deletion
     const delResult = await db.query('DELETE FROM planned_needs WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
-    if (!delResult.rows.length) return res.status(500).json({ error: 'Delete failed unexpectedly' });
+    if (!delResult.rows.length) throw new AppError('Delete failed unexpectedly', 500, 'delete_failed');
     res.json({ message: 'Planned need deleted.' });
   } catch (err) {
+    if (err instanceof AppError) return next(err);
     logger.error('deletePlannedNeed error', { needId: req.params?.id, userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to delete planned need.' });
+    next(new AppError('Failed to delete planned need.', 500, 'delete_planned_need_failed'));
   }
 };
 

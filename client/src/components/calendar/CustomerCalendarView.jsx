@@ -126,9 +126,22 @@ export default function CustomerCalendarView({
     try {
       const dateRange = getDateRange(selectedDate, viewMode);
 
-      const [jobsResult, bookingsResult] = await Promise.allSettled([
-        api.get('/jobs/me/list'),
+      // /jobs/me/list is now paginated (default 50). Pass the max so the
+      // calendar doesn't silently miss jobs for active customers.
+      // /calendar/appointments is fetched as customer so confirmed appointments
+      // booked directly by a helper (or auto-created when a bid is accepted)
+      // also show up on the customer's calendar.
+      const [jobsResult, bookingsResult, apptsResult] = await Promise.allSettled([
+        api.get('/jobs/me/list', { params: { limit: 100 } }),
         api.get('/bookings'),
+        api.get('/calendar/appointments', {
+          params: {
+            role: 'customer',
+            from_date: dateRange.start.toISOString(),
+            to_date:   dateRange.end.toISOString(),
+            limit: 100,
+          },
+        }),
       ]);
 
       const jobsData = jobsResult.status === 'fulfilled'
@@ -139,15 +152,32 @@ export default function CustomerCalendarView({
         ? (Array.isArray(bookingsResult.value.data?.data) ? bookingsResult.value.data.data : [])
         : [];
 
+      const appointmentsData = apptsResult.status === 'fulfilled'
+        ? (Array.isArray(apptsResult.value.data?.appointments) ? apptsResult.value.data.appointments : [])
+        : [];
+
       // Filter for scheduled events only (must have date and status that indicates scheduled)
       const scheduledJobs = jobsData.filter(j => j.scheduled_date || j.scheduled_start_at);
       const scheduledBookings = bookingsData.filter(b => (b.scheduled_date || b.start_time) && b.status !== 'declined' && b.status !== 'expired');
+      // Hide cancelled / completed appointments to keep the customer view aligned with the helper view.
+      const visibleAppointments = appointmentsData.filter(a => !['cancelled'].includes(a.status));
 
       setJobs(scheduledJobs);
       setBookings(scheduledBookings);
-      setEvents(buildCalendarEvents(scheduledJobs, scheduledBookings));
+      // buildCalendarEvents is unchanged; it uses jobs + bookings. Appointments
+      // are merged into events via a shape adapter below.
+      const apptEvents = visibleAppointments.map(a => ({
+        id: `appt-${a.id}`,
+        title: a.service_description || a.job_title || t('calendar.appointment', { defaultValue: 'Appointment' }),
+        start: a.scheduled_start_time,
+        end: a.scheduled_end_time,
+        status: a.status,
+        type: 'appointment',
+        appointment: a,
+      }));
+      setEvents([...buildCalendarEvents(scheduledJobs, scheduledBookings), ...apptEvents]);
 
-      if (jobsResult.status === 'rejected' && bookingsResult.status === 'rejected') {
+      if (jobsResult.status === 'rejected' && bookingsResult.status === 'rejected' && apptsResult.status === 'rejected') {
         toast.error(t('calendar.errorLoading'));
       }
     } catch (err) {

@@ -6676,6 +6676,7 @@
   "calendar": {
     "pageTitle": "Calendario",
     "pageDescription": "Gestiona citas, disponibilidad y agendas",
+    "appointment": "Cita",
     "title": "Calendario",
     "subtitleHelper": "Gestiona tu disponibilidad y próximas citas",
     "subtitleCustomer": "Consulta tus citas y administra tu agenda",

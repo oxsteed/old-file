@@ -6676,6 +6676,7 @@
   "calendar": {
     "pageTitle": "Calendar",
     "pageDescription": "Manage appointments, availability, and schedules",
+    "appointment": "Appointment",
     "title": "Calendar",
     "subtitleHelper": "Manage your availability and upcoming appointments",
     "subtitleCustomer": "View your appointments and manage your schedule",

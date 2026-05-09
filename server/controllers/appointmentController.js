@@ -681,6 +681,43 @@ exports.respondToReschedule = async (req, res) => {
           [reschedReq.proposed_start, reschedReq.proposed_end, id]
         );
         updatedAppt = upd.rows[0];
+
+        // Cancel pending reminder rows that point to the OLD scheduled time.
+        // Without this, the cron would still fire reminder_24h / reminder_2h
+        // for the previous slot (and may even fire them immediately if the
+        // OLD send-at moved into the past after the reschedule).
+        await client.query(
+          `UPDATE calendar_notifications
+              SET status = 'cancelled'
+            WHERE appointment_id = $1
+              AND status = 'pending'
+              AND notification_type IN ('reminder_24h','reminder_2h','reminder_same_day')`,
+          [id]
+        );
+
+        // Re-issue reminders anchored to the NEW scheduled_start_time, only
+        // for offsets that are still in the future.
+        const apptStart = new Date(updatedAppt.scheduled_start_time);
+        const reminders = [
+          ['reminder_24h',      updatedAppt.customer_id],
+          ['reminder_24h',      updatedAppt.helper_id],
+          ['reminder_same_day', updatedAppt.customer_id],
+          ['reminder_same_day', updatedAppt.helper_id],
+          ['reminder_2h',       updatedAppt.customer_id],
+          ['reminder_2h',       updatedAppt.helper_id],
+        ];
+        for (const [type, uid] of reminders) {
+          const offsetMin = REMINDER_OFFSETS_MINUTES[type];
+          const sendAt = new Date(apptStart.getTime() + offsetMin * 60_000);
+          if (sendAt > new Date()) {
+            await client.query(
+              `INSERT INTO calendar_notifications
+                 (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
+               VALUES ($1, $2, $3, 'in_app', $4, 'pending')`,
+              [uid, id, type, sendAt]
+            );
+          }
+        }
       }
 
       // Notify the requester of the response
@@ -778,9 +815,17 @@ exports.getIcal = async (req, res) => {
     const uid    = `oxsteed-appt-${appt.id}@oxsteed.com`;
 
     function icsDate(d) {
-      return d.toISOString().replace(/[-:]/g, '').replace('.000', '');
+      return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    }
+    function icsEscape(text) {
+      return String(text || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/;/g,  '\\;')
+        .replace(/,/g,  '\\,')
+        .replace(/\r\n|\r|\n/g, '\\n');
     }
 
+    const description = `OxSteed appointment. Customer: ${appt.customer_name || ''}. Helper: ${appt.helper_name || ''}.`;
     const ics = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
@@ -791,9 +836,9 @@ exports.getIcal = async (req, res) => {
       `UID:${uid}`,
       `DTSTART:${icsDate(start)}`,
       `DTEND:${icsDate(end)}`,
-      `SUMMARY:${title.replace(/[,;\\]/g, '\\$&')}`,
-      loc ? `LOCATION:${loc.replace(/[,;\\]/g, '\\$&')}` : '',
-      `DESCRIPTION:OxSteed appointment. Customer: ${appt.customer_name || ''}. Helper: ${appt.helper_name || ''}.`,
+      `SUMMARY:${icsEscape(title)}`,
+      loc ? `LOCATION:${icsEscape(loc)}` : '',
+      `DESCRIPTION:${icsEscape(description)}`,
       `STATUS:${appt.status === 'confirmed' ? 'CONFIRMED' : 'TENTATIVE'}`,
       `DTSTAMP:${icsDate(new Date())}`,
       'END:VEVENT',
@@ -808,3 +853,4 @@ exports.getIcal = async (req, res) => {
     return sendError(res, 500, 'Failed to generate calendar file', 'INTERNAL_ERROR');
   }
 };
+

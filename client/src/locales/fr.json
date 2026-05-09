@@ -6676,6 +6676,7 @@
   "calendar": {
     "pageTitle": "Calendrier",
     "pageDescription": "Gérez vos rendez-vous, votre disponibilité et vos plannings",
+    "appointment": "Rendez-vous",
     "title": "Calendrier",
     "subtitleHelper": "Gérez votre disponibilité et vos rendez-vous à venir",
     "subtitleCustomer": "Consultez vos rendez-vous et gérez votre agenda",
