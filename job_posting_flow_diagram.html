@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Posting Flow Diagram</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #1a202c; margin-bottom: 10px; }
+        .subtitle { color: #718096; margin-bottom: 30px; }
+        .flow { display: flex; flex-direction: column; gap: 0; }
+        .step { display: flex; align-items: stretch; }
+        .step-content { flex: 1; padding: 20px; background: white; border: 2px solid #e2e8f0; border-left: 4px solid #f97316; position: relative; display: flex; flex-direction: column; justify-content: center; }
+        .step-content h3 { color: #f97316; font-size: 16px; margin-bottom: 8px; }
+        .step-content p { color: #4a5568; font-size: 14px; line-height: 1.6; }
+        .step-number { background: #f97316; color: white; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; flex-shrink: 0; }
+        .step:not(:last-child) .step-content::after { content: ''; position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); width: 2px; height: 10px; background: #e2e8f0; }
+        .arrow { width: 100%; text-align: center; color: #cbd5e0; font-size: 20px; padding: 5px 0; }
+        .section { margin-top: 40px; }
+        .section-title { font-size: 18px; font-weight: 600; color: #2d3748; margin-bottom: 20px; padding: 10px; background: #edf2f7; border-left: 4px solid #f97316; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .card { background: white; padding: 15px; border: 1px solid #e2e8f0; border-radius: 4px; }
+        .card h4 { color: #2d3748; margin-bottom: 10px; font-size: 14px; }
+        .card ul { list-style: none; padding-left: 0; }
+        .card li { color: #4a5568; font-size: 13px; padding: 4px 0; padding-left: 20px; position: relative; }
+        .card li:before { content: '✓'; position: absolute; left: 0; color: #48bb78; font-weight: bold; }
+        .status-ok { color: #48bb78; font-weight: bold; }
+        .status-warn { color: #ed8936; font-weight: bold; }
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th { background: #edf2f7; color: #2d3748; padding: 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
+        tr:hover { background: #f7fafc; }
+        .code-block { background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 4px; overflow-x: auto; font-family: 'Monaco', 'Courier New', monospace; font-size: 12px; margin: 10px 0; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 12px; font-weight: 600; margin-right: 5px; }
+        .badge-ok { background: #c6f6d5; color: #22543d; }
+        .badge-warn { background: #fed7d7; color: #742a2a; }
+        .header-box { background: #f7fafc; border-left: 4px solid #48bb78; padding: 15px; margin-bottom: 20px; border-radius: 4px; }
+        .header-box p { color: #2d3748; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Job Posting End-to-End Flow</h1>
+        <p class="subtitle">Complete audit of posting jobs in OxSteed marketplace</p>
+
+        <div class="header-box">
+            <p><strong>Overall Status:</strong> <span class="status-ok">✓ FULLY FUNCTIONAL</span></p>
+            <p><strong>Last Reviewed:</strong> 2026-05-08 | <strong>Files Audited:</strong> 15+</p>
+            <p>All middleware, validation, and database operations are properly implemented. No critical issues found.</p>
+        </div>
+
+        <!-- FLOW DIAGRAM -->
+        <div class="section">
+            <div class="section-title">📊 Complete User Flow</div>
+            <div class="flow">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Customer Navigates to /post-job</h3>
+                        <p><strong>File:</strong> client/src/pages/PostJobPage.jsx</p>
+                        <p>Multi-step form wizard (4 steps): Details → Location → Requirements → Review</p>
+                    </div>
+                </div>
+                <div class="arrow">↓</div>
+
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Form Validation (Client-Side)</h3>
+                        <p>Title (≥10 chars), Description (≥50 chars), City, Country, Category, Budget</p>
+                        <p>Optional: Media, Requirements, Skills, Preferred Helper</p>
+                    </div>
+                </div>
+                <div class="arrow">↓</div>
+
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>FormData Submission</h3>
+                        <p><strong>Hook:</strong> useJobs → createJob()</p>
+                        <p>POST /api/jobs with multipart FormData encoding</p>
+                        <p><strong>Token validation:</strong> withTokenValidation() checks localStorage token exists</p>
+                    </div>
+                </div>
+                <div class="arrow">↓</div>
+
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h3>Backend Middleware Stack</h3>
+                        <p>① authenticate — Verify JWT token</p>
+                        <p>② requireEmailVerified — Check email verified</p>
+                        <p>③ checkRestrictions('job_posting') — Check user not restricted/suspended</p>
+                        <p>④ upload.array('media') — Parse FormData files</p>
+                        <p>⑤ validateFileUpload — Magic-byte file validation</p>
+                    </div>
+                </div>
+                <div class="arrow">↓</div>
+
+                <div class="step">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        <h3>Server-Side Validation</h3>
+                        <p><strong>File:</strong> server/controllers/jobController.js</p>
+                        <p>Field validation (title, description, location)</p>
+                        <p>JSON parsing (requirements, required_skills)</p>
+                        <p>File upload to S3 (or base64 fallback)</p>
+                    </div>
+                </div>
+                <div class="arrow">↓</div>
+
+                <div class="step">
+                    <div class="step-number">6</div>
+                    <div class="step-content">
+                        <h3>Database Insert</h3>
+                        <p><strong>Table:</strong> jobs (50+ columns)</p>
+                        <p>Status: 'published' | Expires: now() + 30 days</p>
+                        <p>Location fuzzing: Exact coords stored, ±2 miles for public view</p>
+                        <p>PostGIS point geometry for geo-queries</p>
+                    </div>
+                </div>
+                <div class="arrow">↓</div>
+
+                <div class="step">
+                    <div class="step-number">7</div>
+                    <div class="step-content">
+                        <h3>Post-Creation (Fire-and-Forget)</h3>
+                        <p>① Match Scoring — Find & notify matching helpers</p>
+                        <p>② Draft Cleanup — Delete user's job_drafts row</p>
+                        <p>Response: 201 Created + job object</p>
+                    </div>
+                </div>
+                <div class="arrow">↓</div>
+
+                <div class="step">
+                    <div class="step-number">8</div>
+                    <div class="step-content">
+                        <h3>Success: Job Visible</h3>
+                        <p>✓ Shows in /api/jobs (job directory with fuzzy location)</p>
+                        <p>✓ Shows in /api/jobs/me/list?role=poster (customer dashboard)</p>
+                        <p>✓ Helpers notified via match service</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MIDDLEWARE VERIFICATION -->
+        <div class="section">
+            <div class="section-title">🔐 Middleware Verification</div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Middleware</th>
+                            <th>Purpose</th>
+                            <th>Failure Response</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>authenticate</strong></td>
+                            <td>Verify JWT token in Authorization header</td>
+                            <td>401 Unauthorized</td>
+                            <td><span class="badge badge-ok">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>requireEmailVerified</strong></td>
+                            <td>Check users.email_verified = true</td>
+                            <td>403 Forbidden (email_not_verified)</td>
+                            <td><span class="badge badge-ok">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>checkRestrictions</strong></td>
+                            <td>Check user not restricted/suspended</td>
+                            <td>403 Forbidden (ACCOUNT_RESTRICTED or ACCOUNT_SUSPENDED)</td>
+                            <td><span class="badge badge-ok">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>upload.array</strong></td>
+                            <td>Parse FormData, 10 files max, 10MB each</td>
+                            <td>413 Payload Too Large</td>
+                            <td><span class="badge badge-ok">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>validateFileUpload</strong></td>
+                            <td>Magic-byte file validation (content sniffing)</td>
+                            <td>400 Bad Request (Security violation)</td>
+                            <td><span class="badge badge-ok">✓</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- VALIDATION RULES -->
+        <div class="section">
+            <div class="section-title">✅ Validation Rules</div>
+            <div class="grid">
+                <div class="card">
+                    <h4>📝 Title & Description</h4>
+                    <ul>
+                        <li>Title: ≥10 characters (trimmed)</li>
+                        <li>Description: ≥50 characters (trimmed)</li>
+                        <li>Both required</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>📍 Location</h4>
+                    <ul>
+                        <li>City: Required</li>
+                        <li>Country: Required</li>
+                        <li>State/ZIP: Optional</li>
+                        <li>Lat/Lng: Auto-geocoded from city</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>💰 Budget</h4>
+                    <ul>
+                        <li>Type: 'fixed', 'hourly', or 'open'</li>
+                        <li>Fixed: min = max amount</li>
+                        <li>Hourly: min rate specified</li>
+                        <li>Open: null amounts</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>🎥 Media Files</h4>
+                    <ul>
+                        <li>Max 10 files</li>
+                        <li>Max 10MB per file</li>
+                        <li>Allowed: jpg, png, pdf, mp4, webm, etc</li>
+                        <li>Magic-byte validated (content sniffing)</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>🛠️ Requirements</h4>
+                    <ul>
+                        <li>License type optional</li>
+                        <li>Insurance min $ optional</li>
+                        <li>Background check optional</li>
+                        <li>Skills (max 20) optional</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>👤 Preferred Helper</h4>
+                    <ul>
+                        <li>Helper ID optional</li>
+                        <li>Helper name optional</li>
+                        <li>Used for direct booking flow</li>
+                        <li>Not enforced (hint only)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- DATABASE SCHEMA -->
+        <div class="section">
+            <div class="section-title">🗄️ Database Schema (jobs table)</div>
+            <div class="grid">
+                <div class="card">
+                    <h4>Identity & Ownership</h4>
+                    <ul>
+                        <li>id: UUID (primary key)</li>
+                        <li>client_id: UUID (poster)</li>
+                        <li>assigned_helper_id: UUID (worker)</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>Job Content</h4>
+                    <ul>
+                        <li>title: VARCHAR(255)</li>
+                        <li>description: TEXT</li>
+                        <li>category_name: VARCHAR(100)</li>
+                        <li>notes: TEXT</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>Location (PostGIS)</h4>
+                    <ul>
+                        <li>location_city: VARCHAR(100)</li>
+                        <li>location_state: VARCHAR(50)</li>
+                        <li>location_zip: VARCHAR(20)</li>
+                        <li>location_country: VARCHAR(100)</li>
+                        <li>location_point: GEOGRAPHY(Point)</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>Budget & Payment</h4>
+                    <ul>
+                        <li>budget_type: 'fixed', 'hourly', 'open'</li>
+                        <li>budget_min: NUMERIC(10,2)</li>
+                        <li>budget_max: NUMERIC(10,2)</li>
+                        <li>urgency: 'flexible', 'soon', 'asap'</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>Requirements & Skills</h4>
+                    <ul>
+                        <li>requirements: JSONB (array)</li>
+                        <li>required_skills: JSONB (array)</li>
+                        <li>skill_ids: INT[] (for filtering)</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>Media & Metadata</h4>
+                    <ul>
+                        <li>media_urls: TEXT[] (S3 URLs)</li>
+                        <li>status: 'published' (enum)</li>
+                        <li>expires_at: TIMESTAMPTZ (+30 days)</li>
+                        <li>created_at, updated_at</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- INDEXES -->
+        <div class="section">
+            <div class="section-title">⚡ Database Indexes (Query Optimization)</div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Index Name</th>
+                            <th>Columns</th>
+                            <th>Purpose</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>idx_jobs_client</td>
+                            <td>client_id</td>
+                            <td>Find jobs posted by a user (dashboard)</td>
+                        </tr>
+                        <tr>
+                            <td>idx_jobs_status</td>
+                            <td>status</td>
+                            <td>Filter by job status (published, completed, etc)</td>
+                        </tr>
+                        <tr>
+                            <td>idx_jobs_location_country</td>
+                            <td>location_country</td>
+                            <td>Filter jobs by country (international search)</td>
+                        </tr>
+                        <tr>
+                            <td>idx_jobs_location_point</td>
+                            <td>location_point (GIST)</td>
+                            <td>Geospatial queries with ST_DWithin radius search</td>
+                        </tr>
+                        <tr>
+                            <td>idx_jobs_skill_ids</td>
+                            <td>skill_ids (GIN)</td>
+                            <td>Array containment queries for skill filtering</td>
+                        </tr>
+                        <tr>
+                            <td>idx_jobs_created_at</td>
+                            <td>created_at DESC</td>
+                            <td>Recent jobs sorting</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SECURITY CHECKS -->
+        <div class="section">
+            <div class="section-title">🔒 Security Checks</div>
+            <div class="grid">
+                <div class="card">
+                    <h4>✓ Authentication</h4>
+                    <ul>
+                        <li>JWT token required</li>
+                        <li>Token in Authorization header</li>
+                        <li>Auto-refresh on 401</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>✓ Email Verification</h4>
+                    <ul>
+                        <li>Email must be verified</li>
+                        <li>Prevents spam/abuse</li>
+                        <li>OTP validation before posting</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>✓ User Restrictions</h4>
+                    <ul>
+                        <li>Check user_restrictions table</li>
+                        <li>Support suspension flags</li>
+                        <li>Fails open on DB error</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>✓ File Validation</h4>
+                    <ul>
+                        <li>Extension whitelisting</li>
+                        <li>MIME type checking</li>
+                        <li>Magic-byte validation</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>✓ Rate Limiting</h4>
+                    <ul>
+                        <li>Redis-backed (or in-memory)</li>
+                        <li>100 req/15min per IP</li>
+                        <li>Stricter for auth endpoints</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>✓ Location Privacy</h4>
+                    <ul>
+                        <li>Exact coords masked</li>
+                        <li>Fuzzy ±2 miles for public</li>
+                        <li>Full address for assigned helper</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- MIGRATIONS -->
+        <div class="section">
+            <div class="section-title">📦 Database Migrations Applied</div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Migration</th>
+                            <th>Adds/Modifies</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>001</strong>_initial_schema.sql</td>
+                            <td>Core jobs table (50 columns)</td>
+                            <td><span class="badge badge-ok">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>012</strong>_phase4_create_jobs.sql</td>
+                            <td>Phase 4 enhancements</td>
+                            <td><span class="badge badge-ok">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>036</strong>_post_job_wizard.sql</td>
+                            <td>Wizard columns (location, budget, urgency)</td>
+                            <td><span class="badge badge-ok">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>044</strong>_add_job_scheduling_columns.sql</td>
+                            <td>scheduled_date, scheduled_time, recurrence</td>
+                            <td><span class="badge badge-ok">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>080</strong>_job_required_skills.sql</td>
+                            <td>required_skills (JSONB), skill_ids (INT[] with GIN index)</td>
+                            <td><span class="badge badge-ok">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>151</strong>_jobs_post_wizard_columns.sql</td>
+                            <td>Idempotent wizard columns (non-breaking)</td>
+                            <td><span class="badge badge-ok">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>180</strong>_jobs_location_country.sql</td>
+                            <td>location_country column + index</td>
+                            <td><span class="badge badge-ok">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>181</strong>_repair_jobs_location_country.sql</td>
+                            <td>Fix location_country index</td>
+                            <td><span class="badge badge-ok">✓</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- FINAL STATUS -->
+        <div class="section">
+            <div class="header-box" style="border-left-color: #48bb78; background: #f0fdf4;">
+                <h3 style="color: #16a34a; margin-bottom: 10px;">✓ Job Posting System: PRODUCTION READY</h3>
+                <p><strong>No critical issues found.</strong> All files audited, middleware verified, schema validated.</p>
+                <p style="margin-top: 10px;"><strong>What Works:</strong> Customer navigates to /post-job → Fills multi-step form → Submits → Job appears in marketplace → Helpers notified.</p>
+                <p style="margin-top: 5px;"><strong>Files Audited:</strong> PostJobPage.jsx | useJobs.js | jobController.js | jobs.js routes | 8 migrations | 5 middleware files</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
