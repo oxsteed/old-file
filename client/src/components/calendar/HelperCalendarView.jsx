@@ -4,6 +4,7 @@ import api from '../../api/axios';
 import { toast } from 'sonner';
 import AppointmentDetailModal from './AppointmentDetailModal';
 import AvailabilityBlockModal from './AvailabilityBlockModal';
+import BookingRequestsPanel from './BookingRequestsPanel';
 import { useSocket } from '../../hooks/useSocket';
 import { calendarAppointmentStatusKey } from '../../utils/calendarI18n';
 import '../../styles/HelperCalendarView.css';
@@ -261,6 +262,14 @@ export default function HelperCalendarView({
           <span className="hcv-loading-spinner" aria-hidden="true">⟳</span>
           {t('common.loading')}
         </div>
+      )}
+
+      {/* Show booking requests panel above calendar (when not in booking-requests view) */}
+      {viewMode !== 'booking-requests' && (
+        <BookingRequestsPanel
+          compact={true}
+          onBookingConfirmed={loadCalendarData}
+        />
       )}
 
       {viewMode === 'week' && (
