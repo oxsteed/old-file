@@ -386,9 +386,9 @@ exports.getJob = async (req, res, next) => {
         j.id, j.client_id, j.title, j.description, j.category_name, j.category_id,
         j.budget_type, j.budget_min, j.budget_max, j.urgency, j.is_urgent, j.status,
         j.job_type, j.job_type_label,
-        j.location_city, j.location_state, j.location_zip,
+        j.location_address, j.location_city, j.location_state, j.location_zip,
         j.location_approx_lat, j.location_approx_lng,
-        j.requirements, j.media_urls, j.bid_count, j.assigned_helper_id,
+        j.scheduled_date, j.scheduled_time,         j.requirements, j.media_urls, j.bid_count, j.assigned_helper_id,
         j.created_at, j.expires_at,
         u.first_name || ' ' || u.last_name AS client_name,
         h.first_name || ' ' || h.last_name AS helper_name
