@@ -126,6 +126,15 @@ exports.createJob = async (req, res, next) => {
     // ── Build location_point expression ─────────────────────────────────────────────────────────────
     const hasGeo = location_lat && location_lng;
 
+    // ── Combine scheduled_date + scheduled_time into a TIMESTAMPTZ ────────────────────────────────────
+    // Form sends scheduled_date as "2026-05-15" and scheduled_time as "10:51"
+    // Database expects scheduled_time as TIMESTAMPTZ, so combine them
+    let scheduledTimestamp = null;
+    if (scheduled_date && scheduled_time) {
+      // scheduled_time is in HH:MM format; combine with date into ISO-like string
+      scheduledTimestamp = `${scheduled_date}T${scheduled_time}:00+00:00`;
+    }
+
     const { rows } = await pool.query(
       `INSERT INTO jobs (
           client_id, title, description,
@@ -165,7 +174,7 @@ exports.createJob = async (req, res, next) => {
         approx.lat, approx.lng,
         reqJson, mediaArr,
         skillsJson, skillIds,
-        scheduled_date || null, scheduled_time || null, recurrence || 'none',
+        scheduled_date || null, scheduledTimestamp || null, recurrence || 'none',
         preferred_helper_id || null, preferred_helper_name || null,
         private_notes || null,
       ]
