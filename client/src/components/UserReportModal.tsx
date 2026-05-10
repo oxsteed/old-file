@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../api/axios';
 import './UserReportModal.css';
 
 interface UserReportModalProps {
-  reportedUserId: number;
+  reportedUserId: number | string;
   bookingId?: number;
   isOpen: boolean;
   onClose: () => void;
@@ -42,18 +43,12 @@ const UserReportModal: React.FC<UserReportModalProps> = ({
 
     setLoading(true);
     try {
-      const response = await fetch('/api/tool-rentals/reports', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reportedUserId,
-          bookingId,
-          reportType,
-          description: description.trim()
-        })
+      await api.post('/tool-rentals/reports', {
+        reportedUserId,
+        bookingId,
+        reportType,
+        description: description.trim()
       });
-
-      if (!response.ok) throw new Error('Failed to submit');
 
       toast.success(t('toolRentals.reportSubmitted') || 'Report submitted. Our team will review it within 48 hours.');
       onReportSubmitted?.();

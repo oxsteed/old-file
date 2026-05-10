@@ -100,15 +100,6 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
     try {
       await toolRentalsApi.createBooking(tool.id, startDate, endDate, totalPrice);
 
-      // Track booking event
-      await toolRentalsApi.trackEvent(tool.id, 'book', {
-        startDate,
-        endDate,
-        days,
-        totalPrice,
-        timestamp: new Date().toISOString(),
-      });
-
       toast.success(t('toolRentals.bookingConfirmed') || 'Booking confirmed!');
       onClose();
     } catch (err: any) {

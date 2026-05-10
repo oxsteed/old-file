@@ -442,14 +442,42 @@ export default function HelperDashboard() {
     setToolForm({ name:tool.name, category:tool.category||'', description:tool.description||'', daily_rate:tool.daily_rate||'', hourly_rate:tool.hourly_rate||'', deposit_amount:tool.deposit_amount||'', condition:tool.condition||'good', brand:tool.brand||'', model:tool.model||'', is_available:tool.is_available, requires_deposit:tool.requires_deposit, delivery_available:tool.delivery_available, pickup_only:tool.pickup_only, location_city:tool.location_city||'', location_state:tool.location_state||'' });
     setShowToolModal(true);
   };
+  const buildToolPayload = () => {
+    const dailyRate = Number(toolForm.daily_rate);
+    const hourlyRate = toolForm.hourly_rate === '' ? null : Number(toolForm.hourly_rate);
+    const depositAmount = toolForm.deposit_amount === '' ? null : Number(toolForm.deposit_amount);
+
+    if (!toolForm.name.trim()) throw new Error(t('dashboard.skillsTools.toolNameRequired', { defaultValue: 'Tool name is required' }));
+    if (!toolForm.category.trim()) throw new Error(t('dashboard.skillsTools.toolCategoryRequired', { defaultValue: 'Tool category is required' }));
+    if (!toolForm.location_city.trim()) throw new Error(t('dashboard.skillsTools.toolCityRequired', { defaultValue: 'City is required so renters know where pickup happens' }));
+    if (!Number.isFinite(dailyRate) || dailyRate <= 0) throw new Error(t('dashboard.skillsTools.dailyRateRequired', { defaultValue: 'Daily rate must be greater than 0' }));
+    if (toolForm.hourly_rate !== '' && (!Number.isFinite(hourlyRate) || hourlyRate <= 0)) throw new Error(t('dashboard.skillsTools.hourlyRateInvalid', { defaultValue: 'Hourly rate must be greater than 0' }));
+    if (toolForm.deposit_amount !== '' && (!Number.isFinite(depositAmount) || depositAmount < 0)) throw new Error(t('dashboard.skillsTools.depositInvalid', { defaultValue: 'Deposit cannot be negative' }));
+    if (toolForm.requires_deposit && !(depositAmount > 0)) throw new Error(t('dashboard.skillsTools.depositRequired', { defaultValue: 'Enter a deposit amount or turn off required deposit' }));
+
+    return {
+      ...toolForm,
+      name: toolForm.name.trim(),
+      category: toolForm.category.trim(),
+      description: toolForm.description.trim(),
+      brand: toolForm.brand.trim(),
+      model: toolForm.model.trim(),
+      location_city: toolForm.location_city.trim(),
+      location_state: toolForm.location_state.trim(),
+      daily_rate: dailyRate,
+      hourly_rate: hourlyRate,
+      deposit_amount: depositAmount,
+    };
+  };
   const handleSaveTool = async (e) => {
     e.preventDefault();
     try {
+      const payload = buildToolPayload();
       if (editingTool) {
-        await api.put(`/tool-rentals/${editingTool.id}`, toolForm);
+        await api.put(`/tool-rentals/${editingTool.id}`, payload);
         toast.success(t('helperDashboard.tools.updated'));
       } else {
-        await api.post('/tool-rentals', toolForm);
+        await api.post('/tool-rentals', payload);
         toast.success(t('helperDashboard.tools.listed'));
       }
       setShowToolModal(false);
@@ -2288,10 +2316,11 @@ export default function HelperDashboard() {
       {/* Add / Edit Tool Modal - upgraded with richer fields */}
       <Modal open={showToolModal} onClose={()=>{setShowToolModal(false);setEditingTool(null);setToolCatLookup([]);}} title={editingTool ? t('dashboard.skillsTools.modalEditTool') : t('dashboard.skillsTools.modalAddTool')}>
         <form onSubmit={handleSaveTool} className="space-y-4">
-          <Input label={t('dashboard.skillsTools.toolNameLabel')} required placeholder={t('dashboard.skillsTools.toolNamePlaceholder')} value={toolForm.name} onChange={e=>setToolForm(p=>({...p,name:e.target.value}))}/>
+          <Input label={t('dashboard.skillsTools.toolNameLabel')} required maxLength={200} placeholder={t('dashboard.skillsTools.toolNamePlaceholder')} value={toolForm.name} onChange={e=>setToolForm(p=>({...p,name:e.target.value}))}/>
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.categoryLabel')}</label>
             <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
+              required maxLength={100}
               placeholder={t('dashboard.skillsTools.toolCatPlaceholder')} value={toolForm.category}
               onChange={e=>{setToolForm(p=>({...p,category:e.target.value}));searchToolCatLookup(e.target.value);}}
               onBlur={()=>setTimeout(()=>setToolCatLookup([]),150)}/>
@@ -2302,24 +2331,24 @@ export default function HelperDashboard() {
             )}
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label={t('dashboard.skillsTools.dailyRateLabel')} type="number" step="0.01" min="0" placeholder="0.00" value={toolForm.daily_rate} onChange={e=>setToolForm(p=>({...p,daily_rate:e.target.value}))}/>
-            <Input label={t('dashboard.skillsTools.hourlyRateToolOptLabel')} type="number" step="0.01" min="0" placeholder="0.00" value={toolForm.hourly_rate} onChange={e=>setToolForm(p=>({...p,hourly_rate:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.dailyRateLabel')} type="number" step="0.01" min="0.01" required placeholder="0.00" value={toolForm.daily_rate} onChange={e=>setToolForm(p=>({...p,daily_rate:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.hourlyRateToolOptLabel')} type="number" step="0.01" min="0.01" placeholder="0.00" value={toolForm.hourly_rate} onChange={e=>setToolForm(p=>({...p,hourly_rate:e.target.value}))}/>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label={t('dashboard.skillsTools.brandOptLabel')} placeholder={t('dashboard.skillsTools.brandPlaceholder')} value={toolForm.brand} onChange={e=>setToolForm(p=>({...p,brand:e.target.value}))}/>
-            <Input label={t('dashboard.skillsTools.modelOptLabel')} placeholder={t('dashboard.skillsTools.modelPlaceholder')} value={toolForm.model} onChange={e=>setToolForm(p=>({...p,model:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.brandOptLabel')} maxLength={100} placeholder={t('dashboard.skillsTools.brandPlaceholder')} value={toolForm.brand} onChange={e=>setToolForm(p=>({...p,brand:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.modelOptLabel')} maxLength={100} placeholder={t('dashboard.skillsTools.modelPlaceholder')} value={toolForm.model} onChange={e=>setToolForm(p=>({...p,model:e.target.value}))}/>
           </div>
           <Select label={t('dashboard.skillsTools.conditionLabel')} value={toolForm.condition} onChange={e=>setToolForm(p=>({...p,condition:e.target.value}))}>
             <option value="excellent">{t('dashboard.skillsTools.conditionExcellent')}</option><option value="good">{t('dashboard.skillsTools.conditionGood')}</option><option value="fair">{t('dashboard.skillsTools.conditionFair')}</option>
           </Select>
-          <Input label={t('dashboard.skillsTools.depositAmtOptLabel')} type="number" step="0.01" min="0" placeholder="0.00" value={toolForm.deposit_amount} onChange={e=>setToolForm(p=>({...p,deposit_amount:e.target.value}))}/>
+          <Input label={t('dashboard.skillsTools.depositAmtOptLabel')} type="number" step="0.01" min="0" required={toolForm.requires_deposit} placeholder="0.00" value={toolForm.deposit_amount} onChange={e=>setToolForm(p=>({...p,deposit_amount:e.target.value}))}/>
           <div className="grid grid-cols-2 gap-3">
-            <Input label={t('dashboard.skillsTools.cityOptLabel')} placeholder={t('dashboard.skillsTools.cityPlaceholder')} value={toolForm.location_city} onChange={e=>setToolForm(p=>({...p,location_city:e.target.value}))}/>
-            <Input label={t('dashboard.skillsTools.stateOptLabel')} placeholder={t('dashboard.skillsTools.statePlaceholder')} value={toolForm.location_state} onChange={e=>setToolForm(p=>({...p,location_state:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.cityOptLabel')} required maxLength={100} placeholder={t('dashboard.skillsTools.cityPlaceholder')} value={toolForm.location_city} onChange={e=>setToolForm(p=>({...p,location_city:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.stateOptLabel')} maxLength={50} placeholder={t('dashboard.skillsTools.statePlaceholder')} value={toolForm.location_state} onChange={e=>setToolForm(p=>({...p,location_state:e.target.value}))}/>
           </div>
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.descriptionOptLabel')}</label>
-            <textarea rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder={t('dashboard.skillsTools.toolDescPlaceholderShort')} value={toolForm.description} onChange={e=>setToolForm(p=>({...p,description:e.target.value}))}/>
+            <textarea rows={2} maxLength={4000} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder={t('dashboard.skillsTools.toolDescPlaceholderShort')} value={toolForm.description} onChange={e=>setToolForm(p=>({...p,description:e.target.value}))}/>
           </div>
           <div className="space-y-3">
             {[

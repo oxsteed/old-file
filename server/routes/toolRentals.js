@@ -96,6 +96,104 @@ const SEED_TOOL_CATEGORIES = [
   'Safety Equipment','Cleaning Equipment','Diagnostic Equipment',
 ];
 
+const VALID_CONDITIONS = ['excellent', 'good', 'fair', 'poor'];
+const MAX_TOOL_NAME_LEN = 200;
+const MAX_TOOL_CATEGORY_LEN = 100;
+const MAX_TOOL_DESCRIPTION_LEN = 4000;
+const MAX_TOOL_SHORT_LEN = 100;
+const MAX_TOOL_STATE_LEN = 50;
+const MAX_RENTAL_AMOUNT = 100000;
+
+function parseMoney(value, field, errors, { required = false, positive = false } = {}) {
+  if (value === undefined || value === null || value === '') {
+    if (required) errors[field] = `${field} is required`;
+    return null;
+  }
+  const num = Number(value);
+  if (!Number.isFinite(num)) {
+    errors[field] = `${field} must be a number`;
+    return null;
+  }
+  if (positive ? num <= 0 : num < 0) {
+    errors[field] = positive ? `${field} must be greater than 0` : `${field} cannot be negative`;
+    return null;
+  }
+  if (num > MAX_RENTAL_AMOUNT) {
+    errors[field] = `${field} is too high`;
+    return null;
+  }
+  return Number(num.toFixed(2));
+}
+
+function cleanText(value, maxLen, field, errors, { required = false } = {}) {
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (!text) {
+    if (required) errors[field] = `${field} is required`;
+    return null;
+  }
+  if (text.length > maxLen) {
+    errors[field] = `${field} is too long`;
+    return null;
+  }
+  return text;
+}
+
+function normalizeToolPayload(body, { partial = false } = {}) {
+  const errors = {};
+  const payload = {};
+
+  if (!partial || body.name !== undefined) {
+    payload.name = cleanText(body.name, MAX_TOOL_NAME_LEN, 'name', errors, { required: !partial });
+  }
+  if (!partial || body.category !== undefined) {
+    payload.category = cleanText(body.category, MAX_TOOL_CATEGORY_LEN, 'category', errors, { required: !partial });
+  }
+  if (!partial || body.description !== undefined) {
+    payload.description = cleanText(body.description, MAX_TOOL_DESCRIPTION_LEN, 'description', errors);
+  }
+  if (!partial || body.brand !== undefined) {
+    payload.brand = cleanText(body.brand, MAX_TOOL_SHORT_LEN, 'brand', errors);
+  }
+  if (!partial || body.model !== undefined) {
+    payload.model = cleanText(body.model, MAX_TOOL_SHORT_LEN, 'model', errors);
+  }
+  if (!partial || body.location_city !== undefined) {
+    payload.location_city = cleanText(body.location_city, MAX_TOOL_SHORT_LEN, 'location_city', errors, { required: !partial });
+  }
+  if (!partial || body.location_state !== undefined) {
+    payload.location_state = cleanText(body.location_state, MAX_TOOL_STATE_LEN, 'location_state', errors);
+  }
+
+  if (!partial || body.daily_rate !== undefined) {
+    payload.daily_rate = parseMoney(body.daily_rate, 'daily_rate', errors, { required: !partial || body.daily_rate !== undefined, positive: true });
+  }
+  if (!partial || body.hourly_rate !== undefined) {
+    payload.hourly_rate = parseMoney(body.hourly_rate, 'hourly_rate', errors, { positive: true });
+  }
+  if (!partial || body.deposit_amount !== undefined) {
+    payload.deposit_amount = parseMoney(body.deposit_amount, 'deposit_amount', errors);
+  }
+
+  if (!partial || body.condition !== undefined) {
+    payload.condition = body.condition || null;
+    if (payload.condition && !VALID_CONDITIONS.includes(payload.condition)) {
+      errors.condition = 'Invalid condition value';
+    }
+  }
+
+  for (const field of ['is_available', 'requires_deposit', 'delivery_available', 'pickup_only']) {
+    if (!partial || body[field] !== undefined) {
+      payload[field] = body[field] === undefined ? undefined : Boolean(body[field]);
+    }
+  }
+
+  if (payload.requires_deposit && !(payload.deposit_amount > 0)) {
+    errors.deposit_amount = 'deposit_amount is required when a deposit is required';
+  }
+
+  return { payload, errors };
+}
+
 // GET /api/tool-rentals/categories?q=pow&limit=20
 // Public - returns merged list of seeded + DB categories for autocomplete
 router.get('/categories', async (req, res) => {
@@ -210,22 +308,9 @@ router.get('/me', authenticate, async (req, res) => {
 // POST /api/tool-rentals
 router.post('/', authenticate, async (req, res) => {
   try {
-    const {
-      name, category, description,
-      daily_rate, hourly_rate, deposit_amount,
-      condition, brand, model,
-      is_available = true, requires_deposit = false,
-      delivery_available = false, pickup_only = true,
-      location_city, location_state,
-    } = req.body;
-
-    if (!name?.trim()) {
-      return res.status(400).json({ error: 'Tool name is required' });
-    }
-
-    const VALID_CONDITIONS = ['excellent', 'good', 'fair', 'poor'];
-    if (condition && !VALID_CONDITIONS.includes(condition)) {
-      return res.status(400).json({ error: 'Invalid condition value' });
+    const { payload, errors } = normalizeToolPayload(req.body);
+    if (Object.keys(errors).length) {
+      return res.status(400).json({ error: 'Validation failed', code: 'validation_failed', fields: errors });
     }
 
     const result = await pool.query(
@@ -243,21 +328,21 @@ router.post('/', authenticate, async (req, res) => {
                  location_city, location_state, created_at, updated_at`,
       [
         req.user.id,
-        name.trim(),
-        category?.trim() || null,
-        description?.trim() || null,
-        daily_rate  ? parseFloat(daily_rate)  : null,
-        hourly_rate ? parseFloat(hourly_rate) : null,
-        deposit_amount ? parseFloat(deposit_amount) : null,
-        condition || null,
-        brand?.trim() || null,
-        model?.trim() || null,
-        is_available,
-        requires_deposit,
-        delivery_available,
-        pickup_only,
-        location_city?.trim() || null,
-        location_state?.trim() || null,
+        payload.name,
+        payload.category,
+        payload.description,
+        payload.daily_rate,
+        payload.hourly_rate,
+        payload.deposit_amount,
+        payload.condition,
+        payload.brand,
+        payload.model,
+        payload.is_available ?? true,
+        payload.requires_deposit ?? false,
+        payload.delivery_available ?? false,
+        payload.pickup_only ?? true,
+        payload.location_city,
+        payload.location_state,
       ]
     );
 
@@ -282,18 +367,9 @@ router.put('/:id', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Tool not found' });
     }
 
-    const {
-      name, category, description,
-      daily_rate, hourly_rate, deposit_amount,
-      condition, brand, model,
-      is_available, requires_deposit,
-      delivery_available, pickup_only,
-      location_city, location_state,
-    } = req.body;
-
-    const VALID_CONDITIONS = ['excellent', 'good', 'fair', 'poor'];
-    if (condition && !VALID_CONDITIONS.includes(condition)) {
-      return res.status(400).json({ error: 'Invalid condition value' });
+    const { payload, errors } = normalizeToolPayload(req.body, { partial: true });
+    if (Object.keys(errors).length) {
+      return res.status(400).json({ error: 'Validation failed', code: 'validation_failed', fields: errors });
     }
 
     const result = await pool.query(
@@ -321,21 +397,21 @@ router.put('/:id', authenticate, async (req, res) => {
                  requires_deposit, delivery_available, pickup_only,
                  location_city, location_state, created_at, updated_at`,
       [
-        name?.trim() || null,
-        category?.trim() || null,
-        description?.trim() || null,
-        daily_rate  !== undefined ? (daily_rate  ? parseFloat(daily_rate)  : null) : undefined,
-        hourly_rate !== undefined ? (hourly_rate ? parseFloat(hourly_rate) : null) : undefined,
-        deposit_amount !== undefined ? (deposit_amount ? parseFloat(deposit_amount) : null) : undefined,
-        condition || null,
-        brand?.trim() || null,
-        model?.trim() || null,
-        is_available       !== undefined ? is_available       : null,
-        requires_deposit   !== undefined ? requires_deposit   : null,
-        delivery_available !== undefined ? delivery_available : null,
-        pickup_only        !== undefined ? pickup_only        : null,
-        location_city?.trim()  || null,
-        location_state?.trim() || null,
+        payload.name ?? null,
+        payload.category ?? null,
+        payload.description ?? null,
+        payload.daily_rate,
+        payload.hourly_rate,
+        payload.deposit_amount,
+        payload.condition ?? null,
+        payload.brand ?? null,
+        payload.model ?? null,
+        payload.is_available       !== undefined ? payload.is_available       : null,
+        payload.requires_deposit   !== undefined ? payload.requires_deposit   : null,
+        payload.delivery_available !== undefined ? payload.delivery_available : null,
+        payload.pickup_only        !== undefined ? payload.pickup_only        : null,
+        payload.location_city ?? null,
+        payload.location_state ?? null,
         id,
         req.user.id,
       ]

@@ -5,6 +5,9 @@ const trackEvent = async (req, res) => {
   try {
     const { toolId, eventType, metadata } = req.body;
     const userId = req.user?.id || null;
+    if (!toolId || !eventType) {
+      return res.status(400).json({ error: 'toolId and eventType are required' });
+    }
 
     await db.query(
       `INSERT INTO tool_rentals_analytics (user_id, tool_id, event_type, metadata)
@@ -25,7 +28,7 @@ const getAnalytics = async (req, res) => {
     const result = await db.query(
       `SELECT event_type, COUNT(*) as count
        FROM tool_rentals_analytics
-       WHERE tool_id = $1
+       WHERE tool_id = $1 AND event_type <> 'book'
        GROUP BY event_type`,
       [toolId]
     );
@@ -42,6 +45,7 @@ const getTopTools = async (req, res) => {
       `SELECT tool_id, COUNT(*) as event_count
        FROM tool_rentals_analytics
        WHERE created_at > NOW() - INTERVAL '30 days'
+         AND event_type <> 'book'
        GROUP BY tool_id
        ORDER BY event_count DESC
        LIMIT 10`
@@ -84,6 +88,7 @@ const getOwnerDashboard = async (req, res) => {
       `SELECT event_type, COUNT(*) as count
        FROM tool_rentals_analytics
        WHERE tool_id = ANY($1)
+         AND event_type <> 'book'
        GROUP BY event_type`,
       [toolIds]
     );
@@ -98,7 +103,7 @@ const getOwnerDashboard = async (req, res) => {
       `SELECT
          COUNT(*) as total,
          SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-         SUM(CASE WHEN status = 'confirmed' OR status = 'completed' THEN total_price ELSE 0 END) as revenue
+         SUM(CASE WHEN status IN ('invoice_sent', 'payment_confirmed', 'completed') THEN total_price ELSE 0 END) as revenue
        FROM tool_rentals_bookings
        WHERE tool_id = ANY($1)`,
       [toolIds]
@@ -113,7 +118,7 @@ const getOwnerDashboard = async (req, res) => {
          SUM(total_price) as revenue,
          COUNT(*) as bookings
        FROM tool_rentals_bookings
-       WHERE tool_id = ANY($1) AND (status = 'confirmed' OR status = 'completed')
+       WHERE tool_id = ANY($1) AND status IN ('invoice_sent', 'payment_confirmed', 'completed')
        GROUP BY DATE_TRUNC('month', created_at)
        ORDER BY month DESC
        LIMIT 12`,
@@ -122,22 +127,44 @@ const getOwnerDashboard = async (req, res) => {
 
     // Get per-tool metrics
     const toolMetricsResult = await db.query(
-      `SELECT
-         tr.id,
-         tr.name,
-         COUNT(DISTINCT CASE WHEN ta.event_type = 'view' THEN ta.id END) as views,
-         COUNT(DISTINCT CASE WHEN ta.event_type = 'favorite' THEN ta.id END) as favorites,
-         COUNT(DISTINCT CASE WHEN ta.event_type = 'book' THEN ta.id END) as inquiries,
-         COUNT(CASE WHEN trb.status = 'completed' THEN 1 END) as completed_bookings,
-         COALESCE(SUM(CASE WHEN trb.status = 'confirmed' OR trb.status = 'completed' THEN trb.total_price ELSE 0 END), 0) as total_revenue,
-         COALESCE(AVG(rev.rating), 0) as avg_rating
-       FROM tool_rentals tr
-       LEFT JOIN tool_rentals_analytics ta ON tr.id = ta.tool_id
-       LEFT JOIN tool_rentals_bookings trb ON tr.id = trb.tool_id
-       LEFT JOIN tool_reviews rev ON tr.id = rev.tool_id
-       WHERE tr.id = ANY($1)
-       GROUP BY tr.id, tr.name
-       ORDER BY total_revenue DESC`,
+      `WITH analytics AS (
+         SELECT tool_id,
+                COUNT(*) FILTER (WHERE event_type = 'view') AS views,
+                COUNT(*) FILTER (WHERE event_type = 'favorite') AS favorites
+           FROM tool_rentals_analytics
+          WHERE tool_id = ANY($1)
+            AND event_type <> 'book'
+          GROUP BY tool_id
+       ),
+       bookings AS (
+         SELECT tool_id,
+                COUNT(*) AS inquiries,
+                COUNT(*) FILTER (WHERE status = 'completed') AS completed_bookings,
+                COALESCE(SUM(total_price) FILTER (WHERE status IN ('invoice_sent', 'payment_confirmed', 'completed')), 0) AS total_revenue
+           FROM tool_rentals_bookings
+          WHERE tool_id = ANY($1)
+          GROUP BY tool_id
+       ),
+       reviews AS (
+         SELECT tool_id, COALESCE(AVG(rating), 0) AS avg_rating
+           FROM tool_reviews
+          WHERE tool_id = ANY($1)
+          GROUP BY tool_id
+       )
+       SELECT tr.id,
+              tr.name,
+              COALESCE(a.views, 0) AS views,
+              COALESCE(a.favorites, 0) AS favorites,
+              COALESCE(b.inquiries, 0) AS inquiries,
+              COALESCE(b.completed_bookings, 0) AS completed_bookings,
+              COALESCE(b.total_revenue, 0) AS total_revenue,
+              COALESCE(r.avg_rating, 0) AS avg_rating
+         FROM tool_rentals tr
+         LEFT JOIN analytics a ON tr.id = a.tool_id
+         LEFT JOIN bookings b ON tr.id = b.tool_id
+         LEFT JOIN reviews r ON tr.id = r.tool_id
+        WHERE tr.id = ANY($1)
+        ORDER BY total_revenue DESC`,
       [toolIds]
     );
 

@@ -41,12 +41,12 @@ interface HelperBooking {
 interface Booking {
   id: number;
   tool_id: number;
-  customer_id: number;
-  owner_id: number;
+  customer_id: number | string;
+  owner_id: number | string;
   start_date: string;
   end_date: string;
   total_price: number;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  status: 'pending' | 'invoice_sent' | 'payment_confirmed' | 'cancelled' | 'completed';
   created_at: string;
   name?: string;
   daily_rate?: number;
@@ -69,7 +69,7 @@ const MyBookingsPage = () => {
   const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reportBookingId, setReportBookingId] = useState<number | null>(null);
-  const [reportOwnerId, setReportOwnerId] = useState<number | null>(null);
+  const [reportOwnerId, setReportOwnerId] = useState<number | string | null>(null);
 
   useEffect(() => {
     loadBookings();
@@ -142,6 +142,8 @@ const MyBookingsPage = () => {
     const statusMap: Record<string, string> = {
       pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100',
       confirmed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
+      invoice_sent: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100',
+      payment_confirmed: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100',
       cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
       completed: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
     };
@@ -152,6 +154,8 @@ const MyBookingsPage = () => {
     const statusMap: Record<string, string> = {
       pending: t('toolRentals.pending') || 'Pending',
       confirmed: t('toolRentals.confirmed') || 'Confirmed',
+      invoice_sent: t('toolRentals.invoiceSent') || 'Invoice sent',
+      payment_confirmed: t('toolRentals.paymentConfirmed') || 'Payment confirmed',
       cancelled: t('toolRentals.cancelled') || 'Cancelled',
       completed: t('toolRentals.completed') || 'Completed',
     };
@@ -212,10 +216,14 @@ const MyBookingsPage = () => {
       {isOwner && booking.status === 'pending' && (
         <div className="booking-card-actions">
           <button
-            onClick={() => handleStatusUpdate(booking.id, 'confirmed')}
-            className="booking-action-btn booking-action-approve"
+            onClick={() => {
+              setInvoiceBookingId(booking.id);
+              setInvoiceModalOpen(true);
+            }}
+            className="booking-action-btn booking-action-invoice"
           >
-            {t('toolRentals.approve') || 'Approve'}
+            <FileText className="w-4 h-4" />
+            {t('toolRentals.sendInvoice') || 'Send Invoice'}
           </button>
           <button
             onClick={() => handleStatusUpdate(booking.id, 'cancelled')}
@@ -226,22 +234,18 @@ const MyBookingsPage = () => {
         </div>
       )}
 
-      {isOwner && booking.status === 'confirmed' && (
+      {isOwner && booking.status === 'payment_confirmed' && (
         <div className="booking-card-actions">
           <button
-            onClick={() => {
-              setInvoiceBookingId(booking.id);
-              setInvoiceModalOpen(true);
-            }}
-            className="booking-action-btn booking-action-invoice"
+            onClick={() => handleStatusUpdate(booking.id, 'completed')}
+            className="booking-action-btn booking-action-approve"
           >
-            <FileText className="w-4 h-4" />
-            {t('toolRentals.sendInvoice') || 'Send Invoice'}
+            {t('toolRentals.markCompleted') || 'Mark completed'}
           </button>
         </div>
       )}
 
-      {!isOwner && booking.status !== 'cancelled' && booking.status !== 'completed' && (
+      {!isOwner && ['pending', 'invoice_sent'].includes(booking.status) && (
         <div className="booking-card-actions">
           <button
             onClick={() => handleStatusUpdate(booking.id, 'cancelled')}
@@ -249,6 +253,11 @@ const MyBookingsPage = () => {
           >
             {t('toolRentals.cancelBooking') || 'Cancel Booking'}
           </button>
+        </div>
+      )}
+
+      {!isOwner && booking.status !== 'cancelled' && booking.status !== 'completed' && (
+        <div className="booking-card-actions">
           <button
             onClick={() => {
               setReportBookingId(booking.id);

@@ -204,7 +204,7 @@ export default function NotificationCenter() {
           {notifs.length > 0 && (
             <div className="px-4 py-3 border-t border-gray-100 text-center">
               <Link
-                to="/notifications"
+                to="/settings/notifications"
                 onClick={() => setOpen(false)}
                 className="text-sm text-orange-500 hover:text-orange-600
                            font-medium transition"

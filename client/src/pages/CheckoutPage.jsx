@@ -70,7 +70,7 @@ function CheckoutPageContent() {
           <h1 className="text-lg font-semibold text-red-900 mb-2">{t('common.error')}</h1>
           <p className="text-red-700 mb-4">{error}</p>
           <button
-            onClick={() => navigate('/cart')}
+            onClick={() => navigate(cartId ? `/cart/${cartId}` : '/products')}
             className="w-full bg-primary text-white py-2 rounded-lg hover:bg-primary-dark"
           >
             {t('common.backToCart')}

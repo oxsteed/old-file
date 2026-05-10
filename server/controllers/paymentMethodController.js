@@ -125,12 +125,12 @@ const setPaymentMethod = async (req, res, next) => {
 
     // Upsert payment method with encrypted identifier
     const result = await db.query(
-      `INSERT INTO owner_payment_methods (owner_id, payment_type, payment_identifier_encrypted)
-       VALUES ($1, $2, $3)
+      `INSERT INTO owner_payment_methods (owner_id, payment_type, payment_identifier, payment_identifier_encrypted)
+       VALUES ($1, $2, $3, $4)
        ON CONFLICT (owner_id) DO UPDATE
-       SET payment_type = $2, payment_identifier_encrypted = $3, updated_at = NOW()
+       SET payment_type = $2, payment_identifier = $3, payment_identifier_encrypted = $4, is_active = TRUE, updated_at = NOW()
        RETURNING id, payment_type`,
-      [ownerId, paymentType, encryptedIdentifier]
+      [ownerId, paymentType, maskPaymentIdentifier(paymentType, paymentIdentifier), encryptedIdentifier]
     );
 
     const savedMethod = result.rows[0];

@@ -485,7 +485,7 @@ export default function BackgroundCheckPage() {
                   {t(pk('contactSupport.intro'))}
                 </p>
                 <a
-                  href="/support"
+                  href="/support/escalation"
                   className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition"
                 >
                   {t(pk('contactSupport.btn'))}

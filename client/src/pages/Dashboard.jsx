@@ -1,5 +1,5 @@
 import { useAuth } from '../hooks/useAuth';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import toast from 'react-hot-toast';
@@ -38,6 +38,7 @@ const IcoHeart     = (p) => <Ico {...p}><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0
 const IcoCar       = (p) => <Ico {...p}><rect x="1" y="11" width="22" height="9" rx="2"/><path d="M3 11l2.5-7h13L21 11"/><circle cx="7" cy="20" r="2"/><circle cx="17" cy="20" r="2"/></Ico>;
 const IcoCalendar  = (p) => <Ico {...p}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Ico>;
 const IcoWrench    = (p) => <Ico {...p}><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></Ico>;
+const DASHBOARD_TABS = new Set(['pulse', 'money', 'home', 'goals', 'personalcare', 'carcare', 'skills']);
 
 // ── Shared UI ─────────────────────────────────────────────────────────────
 const Tag = ({ text, color = 'orange' }) => {
@@ -114,6 +115,7 @@ export default function Dashboard() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const life = useLifeDashboard();
 
   const [myJobs, setMyJobs] = useState([]);
@@ -121,9 +123,31 @@ export default function Dashboard() {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [tab, setTab] = useState('pulse');
+  const [tab, setTab] = useState(() => {
+    const urlTab = searchParams.get('tab');
+    return DASHBOARD_TABS.has(urlTab) ? urlTab : 'pulse';
+  });
   const [showPulseSettings, setShowPulseSettings] = useState(false);
   const [showSources, setShowSources] = useState(false);
+
+  const selectTab = useCallback((nextTab, extraParams = {}) => {
+    if (!DASHBOARD_TABS.has(nextTab)) return;
+    setTab(nextTab);
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', nextTab);
+    Object.entries(extraParams).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') next.delete(key);
+      else next.set(key, String(value));
+    });
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const urlTab = searchParams.get('tab');
+    if (DASHBOARD_TABS.has(urlTab) && urlTab !== tab) {
+      setTab(urlTab);
+    }
+  }, [searchParams, tab]);
 
   // Modal state
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -657,6 +681,22 @@ export default function Dashboard() {
   const isFreeTier = !user?.tier || user?.tier === 'free';
   const s = life.summary;
 
+  const openMoneyTransaction = useCallback((type = 'expense') => {
+    setExpenseForm(p => ({ ...p, type }));
+    selectTab('money');
+    setShowExpenseModal(true);
+  }, [selectTab]);
+
+  const openHomeTask = useCallback(() => {
+    selectTab('home');
+    setShowHomeTaskModal(true);
+  }, [selectTab]);
+
+  const openGoal = useCallback(() => {
+    selectTab('goals');
+    setShowGoalModal(true);
+  }, [selectTab]);
+
   // ── Form handlers ─────────────────────────────────────────────────
   const handleAddExpense = async (e) => {
     e.preventDefault();
@@ -768,7 +808,7 @@ export default function Dashboard() {
             ].map(tabDef => (
               <button
                 key={tabDef.id}
-                onClick={() => setTab(tabDef.id)}
+                onClick={() => selectTab(tabDef.id)}
                 className={`flex items-center gap-2 px-5 py-3 rounded-t-xl text-xs font-bold uppercase tracking-wider transition-all flex-shrink-0 ${
                   tab === tabDef.id
                     ? 'bg-gray-800/80 text-orange-500 border-b-2 border-orange-500'
@@ -793,17 +833,19 @@ export default function Dashboard() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <Card className="flex flex-col justify-between">
-              <div>
-                <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">{t('dashboard.summary.netThisMonth')}</p>
-                <p className={`text-2xl font-black tracking-tight ${life.summary?.net_this_month >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  ${life.summary?.net_this_month?.toLocaleString() || '0'}
+            <button type="button" onClick={() => selectTab('money')} className="text-left group">
+              <Card className="flex flex-col justify-between h-full group-hover:border-orange-500/50 transition-colors">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">{t('dashboard.summary.netThisMonth')}</p>
+                  <p className={`text-2xl font-black tracking-tight ${life.summary?.net_this_month >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    ${life.summary?.net_this_month?.toLocaleString() || '0'}
+                  </p>
+                </div>
+                <p className="text-[10px] text-gray-600 font-medium mt-2 group-hover:text-orange-400 transition-colors">
+                  {t('dashboard.summary.inOut', { in: life.summary?.total_in?.toLocaleString() || '0', out: life.summary?.total_out?.toLocaleString() || '0' })}
                 </p>
-              </div>
-              <p className="text-[10px] text-gray-600 font-medium mt-2">
-                {t('dashboard.summary.inOut', { in: life.summary?.total_in?.toLocaleString() || '0', out: life.summary?.total_out?.toLocaleString() || '0' })}
-              </p>
-            </Card>
+              </Card>
+            </button>
 
             <Link to="/messages" className="group">
               <Card className="flex flex-col justify-between h-full group-hover:border-orange-500/50 transition-colors">
@@ -821,31 +863,35 @@ export default function Dashboard() {
               </Card>
             </Link>
 
-            <Card className="flex flex-col justify-between">
-              <div>
-                <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">{t('dashboard.summary.thisWeek')}</p>
-                <p className="text-2xl font-black text-white tracking-tight">
-                  {life.summary?.overdue_tasks || 0}
+            <button type="button" onClick={openHomeTask} className="text-left group">
+              <Card className="flex flex-col justify-between h-full group-hover:border-orange-500/50 transition-colors">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">{t('dashboard.summary.thisWeek')}</p>
+                  <p className="text-2xl font-black text-white tracking-tight">
+                    {life.summary?.overdue_tasks || 0}
+                  </p>
+                </div>
+                <p className="text-[10px] text-gray-600 font-medium mt-2 group-hover:text-orange-400 transition-colors">
+                  {life.summary?.overdue_tasks > 0 
+                    ? t('dashboard.summary.overdueTasks', { count: life.summary.overdue_tasks })
+                    : t('dashboard.summary.allOnTrack')}
                 </p>
-              </div>
-              <p className="text-[10px] text-gray-600 font-medium mt-2">
-                {life.summary?.overdue_tasks > 0 
-                  ? t('dashboard.summary.overdueTasks', { count: life.summary.overdue_tasks })
-                  : t('dashboard.summary.allOnTrack')}
-              </p>
-            </Card>
+              </Card>
+            </button>
 
-            <Card className="flex flex-col justify-between">
-              <div>
-                <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">{t('dashboard.summary.goalsProgress')}</p>
-                <p className="text-2xl font-black text-white tracking-tight">
-                  {life.summary?.active_goals || 0}
+            <button type="button" onClick={openGoal} className="text-left group">
+              <Card className="flex flex-col justify-between h-full group-hover:border-orange-500/50 transition-colors">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">{t('dashboard.summary.goalsProgress')}</p>
+                  <p className="text-2xl font-black text-white tracking-tight">
+                    {life.summary?.active_goals || 0}
+                  </p>
+                </div>
+                <p className="text-[10px] text-gray-600 font-medium mt-2 group-hover:text-orange-400 transition-colors">
+                  {t('dashboard.summary.activeGoals', { count: life.summary?.active_goals || 0 })}
                 </p>
-              </div>
-              <p className="text-[10px] text-gray-600 font-medium mt-2">
-                {t('dashboard.summary.activeGoals', { count: life.summary?.active_goals || 0 })}
-              </p>
-            </Card>
+              </Card>
+            </button>
           </div>
 
           {/* Life Pulse Score - powered by the unified engine (30-day horizon) */}
@@ -873,9 +919,9 @@ export default function Dashboard() {
                       {t('dashboard.pulse.noDataSub')}
                     </p>
                     <div className="flex gap-2 mt-1">
-                      <Link to="/dashboard" onClick={() => {}} className="text-xs text-orange-400 hover:text-orange-300 underline underline-offset-2">
+                      <button type="button" onClick={() => openMoneyTransaction('expense')} className="text-xs text-orange-400 hover:text-orange-300 underline underline-offset-2">
                         {t('dashboard.pulse.logTransaction')}
-                      </Link>
+                      </button>
                     </div>
                   </div>
                 </div>

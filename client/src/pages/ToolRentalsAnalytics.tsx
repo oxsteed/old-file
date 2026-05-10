@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Eye, Heart, BarChart3, DollarSign, Star } from 'lucide-react';
 import PageMeta from '../components/PageMeta';
-import { toolRentalsApi } from '../api/toolRentals';
+import api from '../api/axios';
 import toast from 'react-hot-toast';
 import './ToolRentalsAnalytics.css';
 
@@ -48,9 +48,7 @@ const ToolRentalsAnalytics: React.FC = () => {
   const loadDashboard = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/tool-rentals/analytics/dashboard');
-      if (!response.ok) throw new Error('Failed to load analytics');
-      const analyticsData = await response.json();
+      const { data: analyticsData } = await api.get('/tool-rentals/analytics/dashboard');
       setData(analyticsData);
     } catch (err) {
       toast.error(t('toolRentals.analyticsLoadError') || 'Failed to load analytics');

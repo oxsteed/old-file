@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, Save, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../api/axios';
 import './PaymentMethodSettings.css';
 
 interface PaymentMethod {
@@ -25,13 +26,11 @@ const PaymentMethodSettings: React.FC = () => {
 
   const loadPaymentMethod = async () => {
     try {
-      const response = await fetch('/api/tool-rentals/payment-method');
-      if (!response.ok) throw new Error('Failed to load');
-      const data = await response.json();
+      const { data } = await api.get('/tool-rentals/payment-method');
       if (data) {
         setMethod(data);
         setPaymentType(data.payment_type);
-        setIdentifier(data.payment_identifier);
+        setIdentifier(data.payment_identifier || '');
       }
     } catch (err) {
       toast.error(t('toolRentals.loadingError') || 'Failed to load payment method');
@@ -48,17 +47,10 @@ const PaymentMethodSettings: React.FC = () => {
 
     setSaving(true);
     try {
-      const response = await fetch('/api/tool-rentals/payment-method', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          paymentType,
-          paymentIdentifier: identifier.trim()
-        })
+      const { data } = await api.post('/tool-rentals/payment-method', {
+        paymentType,
+        paymentIdentifier: identifier.trim()
       });
-
-      if (!response.ok) throw new Error('Failed to save');
-      const data = await response.json();
       setMethod(data);
       toast.success(t('toolRentals.paymentMethodSaved') || 'Payment method saved');
     } catch (err) {
@@ -74,8 +66,7 @@ const PaymentMethodSettings: React.FC = () => {
 
     setSaving(true);
     try {
-      const response = await fetch('/api/tool-rentals/payment-method', { method: 'DELETE' });
-      if (!response.ok) throw new Error('Failed to delete');
+      await api.delete('/tool-rentals/payment-method');
       setMethod(null);
       setIdentifier('');
       toast.success(t('toolRentals.paymentMethodDeleted') || 'Payment method deleted');

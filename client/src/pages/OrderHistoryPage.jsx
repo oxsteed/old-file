@@ -126,7 +126,7 @@ function OrderHistoryPageContent() {
               <div className="p-12 text-center">
                 <p className="text-gray-600 mb-4">{t('orders.noOrders')}</p>
                 <button
-                  onClick={() => navigate('/marketplace')}
+                  onClick={() => navigate('/products')}
                   className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark"
                 >
                   {t('orders.continueShopping')}

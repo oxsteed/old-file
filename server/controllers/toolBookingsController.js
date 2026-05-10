@@ -6,38 +6,56 @@ const bookingEmailService = require('../services/bookingEmailService');
 const createBooking = async (req, res, next) => {
   const client = await db.connect();
   try {
-    const { toolId, startDate, endDate, totalPrice } = req.body;
+    const { toolId, startDate, endDate } = req.body;
     const userId = req.user.id;
 
     const fields = {};
     if (!toolId) fields.toolId = 'toolId is required';
     if (!startDate) fields.startDate = 'startDate is required';
     if (!endDate) fields.endDate = 'endDate is required';
-    if (!totalPrice) fields.totalPrice = 'totalPrice is required';
     if (Object.keys(fields).length) throw new AppError('Validation failed', 400, 'validation_failed', fields);
 
-    // Validate dates
-    if (new Date(startDate) >= new Date(endDate)) {
+    const start = new Date(`${startDate}T00:00:00Z`);
+    const end = new Date(`${endDate}T00:00:00Z`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new AppError('Invalid date', 400, 'validation_failed', { startDate: 'Invalid date', endDate: 'Invalid date' });
+    }
+
+    if (start >= end) {
       throw new AppError('End date must be after start date', 400, 'validation_failed', { endDate: 'Must be after startDate' });
     }
 
     // Get tool and owner info
     const toolResult = await client.query(
-      'SELECT owner_id FROM tool_rentals WHERE id = $1',
+      'SELECT user_id AS owner_id, daily_rate, is_available FROM tool_rentals WHERE id = $1',
       [toolId]
     );
     if (toolResult.rows.length === 0) {
       throw new AppError('Tool not found', 404, 'not_found');
     }
-    const ownerId = toolResult.rows[0].owner_id;
+    const listedTool = toolResult.rows[0];
+    const ownerId = listedTool.owner_id;
+    if (ownerId === userId) {
+      throw new AppError('You cannot book your own tool', 409, 'state_conflict');
+    }
+    if (!listedTool.is_available) {
+      throw new AppError('Tool is not available', 409, 'state_conflict');
+    }
+    const dailyRate = parseFloat(listedTool.daily_rate);
+    if (!Number.isFinite(dailyRate) || dailyRate <= 0) {
+      throw new AppError('Tool cannot be booked online because pricing is not configured', 409, 'pricing_unavailable');
+    }
+
+    const rentalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const totalPrice = Number((rentalDays * dailyRate).toFixed(2));
 
     // Check for calendar conflicts (overlapping confirmed/pending bookings)
     const conflictResult = await client.query(
       `SELECT COUNT(*) as conflict_count FROM tool_rentals_bookings
        WHERE tool_id = $1
-         AND status IN ('pending', 'confirmed')
-         AND start_date < $3
-         AND end_date > $2`,
+         AND status IN ('pending', 'invoice_sent', 'payment_confirmed')
+         AND start_date <= $3
+         AND end_date >= $2`,
       [toolId, startDate, endDate]
     );
 
@@ -142,8 +160,21 @@ const updateBookingStatus = async (req, res, next) => {
     }
 
     const booking = bookingQuery.rows[0];
-    if (booking.owner_id !== userId) {
+    const isOwner = booking.owner_id === userId;
+    const isCustomer = booking.customer_id === userId;
+    if (!isOwner && !isCustomer) {
       throw new AppError('Unauthorized', 403, 'forbidden');
+    }
+
+    const validStatuses = ['cancelled', 'completed'];
+    if (!validStatuses.includes(status)) {
+      throw new AppError('Invalid status transition', 400, 'validation_failed', { status: 'Must be cancelled or completed' });
+    }
+    if (status === 'cancelled' && !['pending', 'invoice_sent'].includes(booking.status)) {
+      throw new AppError('Booking can no longer be cancelled', 409, 'state_conflict');
+    }
+    if (status === 'completed' && (!isOwner || booking.status !== 'payment_confirmed')) {
+      throw new AppError('Booking cannot be completed in its current state', 409, 'state_conflict');
     }
 
     const result = await db.query(
@@ -183,7 +214,7 @@ const checkAvailability = async (req, res, next) => {
     const result = await db.query(
       `SELECT start_date, end_date, status
        FROM tool_rentals_bookings
-       WHERE tool_id = $1 AND status IN ('pending', 'confirmed')
+       WHERE tool_id = $1 AND status IN ('pending', 'invoice_sent', 'payment_confirmed')
        ORDER BY start_date ASC`,
       [toolId]
     );

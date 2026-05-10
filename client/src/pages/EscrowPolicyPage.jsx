@@ -496,7 +496,7 @@ export default function EscrowPolicyPage() {
                   {t(pk('contactSupport.intro'))}
                 </p>
                 <a
-                  href="/support"
+                  href="/support/escalation"
                   className="inline-block px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition"
                 >
                   {t(pk('contactSupport.btn'))}

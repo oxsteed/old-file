@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../api/axios';
 import './TermsAcceptanceModal.css';
 
 interface TermsAcceptanceModalProps {
@@ -39,16 +40,10 @@ const TermsAcceptanceModal: React.FC<TermsAcceptanceModalProps> = ({
 
     setLoading(true);
     try {
-      const response = await fetch('/api/tool-rentals/terms/accept', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bookingId,
-          userRole,
-        }),
+      await api.post('/tool-rentals/terms/accept', {
+        bookingId,
+        userRole,
       });
-
-      if (!response.ok) throw new Error('Failed to accept terms');
 
       toast.success(t('toolRentals.termsAccepted') || 'Terms accepted');
       onAccepted?.();

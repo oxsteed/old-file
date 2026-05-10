@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Mail, SendIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../api/axios';
 import './InvoiceModal.css';
 
 interface InvoiceModalProps {
@@ -48,21 +49,19 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
     const idempotencyKey = generateUUID();
 
     try {
-      const response = await fetch('/api/tool-rentals/invoices', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Idempotency-Key': idempotencyKey
-        },
-        body: JSON.stringify({
+      await api.post(
+        '/tool-rentals/invoices',
+        {
           bookingId,
           deliveryMethod,
           recipientEmail: recipientEmail.trim() || undefined
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to send');
-      const data = await response.json();
+        },
+        {
+          headers: {
+            'Idempotency-Key': idempotencyKey
+          },
+        }
+      );
 
       toast.success(t('toolRentals.invoiceSent') || 'Invoice sent successfully');
       onInvoiceSent?.();

@@ -145,7 +145,7 @@ export default function DisputeResolutionPage() {
   };
 
   const handleReportDispute = () => {
-    navigate('/support?ticketType=dispute_refund');
+    navigate('/support/escalation?ticketType=dispute_refund');
   };
 
   const canAccept = scrollProgress >= 95 && formData.agreed;
