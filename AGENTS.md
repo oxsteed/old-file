@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-09
+**Last updated:** 2026-05-10
 
 ## Instructions for Every Session
 
@@ -20,6 +20,30 @@
 - 112 backend controllers
 - 165 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
+
+**Deployment dependency fix (2026-05-10):** ✅ COMPLETE
+- **`server/package.json`**: Removed stale direct OpenTelemetry dependencies pinned to invalid/nonexistent package versions such as `@opentelemetry/sdk-trace-node@0.48.0`; no app code imports them directly, and Sentry still brings its compatible OpenTelemetry transitive dependencies from `server/package-lock.json`.
+- **`Dockerfile`**: Server dependency install now uses `npm ci` instead of `npm install`, matching the client stage and making Coolify/production builds use the committed lockfile deterministically.
+- **Verification**: `npm ci --package-lock-only` passes in `server/`; `npm run build` passes in `client/` when run with normal filesystem access; `node --check server/index.js` passes. A full local `docker build` could not run here because Docker is not installed/on PATH; rerun deployment on Coolify to verify the remote image build.
+
+**OpenTelemetry tracing upgrade (2026-05-10):** ✅ COMPLETE
+- **`server/instrument.js`**: Sentry's OpenTelemetry-backed tracing is now configurable with `SENTRY_TRACES_SAMPLE_RATE`, optional `SENTRY_PROFILES_SAMPLE_RATE`, `SENTRY_RELEASE` / `COMMIT_SHA`, and `SENTRY_ENABLED=false`; default PII remains disabled unless `SENTRY_SEND_DEFAULT_PII=true`.
+- **`server/middleware/otelRequestContext.js` + `server/index.js`**: Added OpenTelemetry request-span enrichment after correlation IDs are assigned. Active spans now receive `oxsteed.request_id`, method/path, matched route, response status, authenticated user id, and user role; 5xx responses mark the active span as errored.
+- **`server/package.json` / `server/package-lock.json`**: Added valid direct dependency `@opentelemetry/api@1.9.1` for intentional span access while leaving Sentry as the tracing SDK/exporter, avoiding competing global providers.
+- **Verification**: `npm ci` passes in `server/`; `node --check` passes for `server/instrument.js`, `server/middleware/otelRequestContext.js`, and `server/index.js`; smoke `require('./instrument')` + middleware import passes.
+
+**Marketplace security hardening sprint (2026-05-10):** ✅ COMPLETE
+- **Dependency security**: `npm audit fix --package-lock-only --omit=dev` upgraded transitive `fast-xml-builder` from `1.1.5` to `1.2.0`; `npm audit --omit=dev` now reports **0 vulnerabilities**.
+- **`server/middleware/auth.js`**: `authenticate` now rejects refresh JWTs as API bearer tokens (previously only MFA tokens were rejected). `optionalAuth` now ignores MFA/refresh tokens and checks access-token revocation before attaching `req.user`.
+- **Upload hardening**: Magic-byte validation (`server/middleware/validateFileUpload.js`) is now wired into chat attachments, dispute evidence, business photo uploads, helper cover image upload, and business/helper profile image routes, closing routes that only checked extension/browser MIME.
+- **Tests**: Added `server/__tests__/authMiddlewareSecurity.test.js` covering refresh-token rejection, MFA-token rejection, and revoked-token behavior for optional auth.
+- **Verification**: `npm test -- --runTestsByPath __tests__/authMiddlewareSecurity.test.js` passes; `npm ci` passes in `server/`; `npm audit --omit=dev` reports 0 vulnerabilities; `node --check` passes on modified middleware/routes/server entry files.
+
+**Admin auth + webhook replay hardening (2026-05-10):** ✅ COMPLETE
+- **`server/middleware/adminAuth.js`**: Admin/super-admin middleware now rejects MFA tokens and refresh tokens, checks token revocation before DB lookup, selects `totp_enabled`, and enforces admin 2FA inside the actual admin auth boundary. `server/routes/admin.js` no longer wires the old pre-auth 2FA middleware that could not see `req.user`.
+- **`server/migrations/207_webhook_event_receipts.sql` + `server/controllers/webhookController.js`**: Added durable Stripe webhook event receipt tracking. Successfully processed `event.id`s are ignored on replay; in-flight duplicates are skipped unless stale for 15+ minutes; failed events are marked `failed` so Stripe retries can reprocess. Stripe signature and processing failures now call `next(new AppError(...))` instead of throwing from an async Express handler.
+- **Tests**: Added `server/__tests__/adminAuthSecurity.test.js`; extended `server/__tests__/webhook.test.js` with replay protection coverage.
+- **Verification**: `npm test -- --runTestsByPath __tests__/adminAuthSecurity.test.js __tests__/authMiddlewareSecurity.test.js __tests__/webhook.test.js` passes (17 tests); `npm audit --omit=dev` reports 0 vulnerabilities; `node --check` passes for modified admin/webhook files and tests.
 
 **Mobile app shell + native push foundation (2026-05-09):** ✅ IOS BUILD SUBMITTED WITH REAL ICON
 - **`mobile/`**: Added Capacitor 7 shell for iOS/Android App Store packaging. Defaults to `https://oxsteed.com` via `OXSTEED_APP_URL`, app id `com.oxsteed.app`, native splash/status bar/keyboard config, offline fallback, external-link handling, deep-link handling for `oxsteed://...` and `oxsteed.com` links. Generated native iOS project under `mobile/ios/`. Docs: `mobile/README.md` and `docs/mobile/app-store-release-checklist.md`.

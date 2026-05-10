@@ -3,6 +3,7 @@ const express = require('express');
 const router  = express.Router();
 const { authenticate } = require('../middleware/auth');
 const upload  = require('../middleware/upload');
+const validateFileUpload = require('../middleware/validateFileUpload');
 
 const {
   listBusinesses, addBusiness, updateBusiness, setPrimary, deleteBusiness,
@@ -67,6 +68,7 @@ router.put('/:id',         authenticate, updateBusiness);
 router.put('/:id/primary', authenticate, setPrimary);
 router.put('/:id/photos',  authenticate,
   upload.fields([{ name: 'logo', maxCount: 1 }, { name: 'cover', maxCount: 1 }]),
+  validateFileUpload,
   uploadBusinessPhotos);
 router.delete('/:id',      authenticate, deleteBusiness);
 

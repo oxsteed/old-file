@@ -51,6 +51,23 @@ describe('Stripe webhook signature', () => {
   });
 });
 
+describe('Stripe webhook replay protection', () => {
+  test('ignores already processed event ids without running side effects', async () => {
+    const event = {
+      id: 'evt_duplicate',
+      type: 'payment_intent.succeeded',
+      data: { object: { id: 'pi_test', metadata: { job_id: '10' } } },
+    };
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    const res = await sendEvent(buildApp(), event);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ received: true, duplicate: true });
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+});
+
 // ── checkout.session.completed ────────────────────────────────────────────────
 describe('checkout.session.completed', () => {
   test('creates subscription and updates user tier', async () => {

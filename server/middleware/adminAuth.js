@@ -1,6 +1,42 @@
 const { verifyToken } = require('../services/authService');
+const crypto          = require('crypto');
 const db              = require('../db');
 const logger          = require('../utils/logger');
+const tokenRevocationService = require('../services/tokenRevocationService');
+
+function rejectWrongTokenType(decoded, res) {
+  if (decoded?.isMfaToken) {
+    res.status(401).json({ error: 'MFA token cannot be used for admin access.' });
+    return true;
+  }
+  if (decoded?.type === 'refresh') {
+    res.status(401).json({ error: 'Refresh token cannot be used for admin access.' });
+    return true;
+  }
+  return false;
+}
+
+async function rejectRevokedToken(token, decoded, res) {
+  const tokenId = crypto.createHash('sha256').update(token).digest('hex');
+  const isRevoked = await tokenRevocationService.isRevoked(tokenId, decoded.id, decoded.iat);
+  if (isRevoked) {
+    res.status(401).json({ error: 'Token has been revoked.' });
+    return true;
+  }
+  return false;
+}
+
+function rejectAdminWithout2FA(user, res) {
+  if (['admin', 'super_admin'].includes(user.role) && !user.totp_enabled) {
+    res.status(403).json({
+      error: 'Two-factor authentication is required for admin accounts.',
+      code: 'admin_2fa_required',
+      redirect: '/admin/2fa-setup',
+    });
+    return true;
+  }
+  return false;
+}
 
 // ── Core admin authentication ─────────────────────────────────────────────────
 
@@ -10,9 +46,11 @@ exports.requireAdmin = async (req, res, next) => {
     if (!token) return res.status(401).json({ error: 'Unauthorized.' });
 
     const decoded = verifyToken(token);
+    if (rejectWrongTokenType(decoded, res)) return;
+    if (await rejectRevokedToken(token, decoded, res)) return;
 
     const { rows } = await db.query(
-      `SELECT id, role, is_active, first_name, last_name, email
+      `SELECT id, role, is_active, first_name, last_name, email, COALESCE(totp_enabled, FALSE) AS totp_enabled
        FROM users WHERE id = $1`,
       [decoded.id]
     );
@@ -26,6 +64,7 @@ exports.requireAdmin = async (req, res, next) => {
     if (!['admin', 'super_admin'].includes(user.role)) {
       return res.status(403).json({ error: 'Admin access required.' });
     }
+    if (rejectAdminWithout2FA(user, res)) return;
 
     req.user    = user;
     req.isSuper = user.role === 'super_admin';
@@ -41,9 +80,11 @@ exports.requireSuperAdmin = async (req, res, next) => {
     if (!token) return res.status(401).json({ error: 'Unauthorized.' });
 
     const decoded = verifyToken(token);
+    if (rejectWrongTokenType(decoded, res)) return;
+    if (await rejectRevokedToken(token, decoded, res)) return;
 
     const { rows } = await db.query(
-      `SELECT id, role, is_active, first_name, last_name, email
+      `SELECT id, role, is_active, first_name, last_name, email, COALESCE(totp_enabled, FALSE) AS totp_enabled
        FROM users WHERE id = $1`,
       [decoded.id]
     );
@@ -51,6 +92,7 @@ exports.requireSuperAdmin = async (req, res, next) => {
     if (!rows.length || rows[0].role !== 'super_admin' || !rows[0].is_active) {
       return res.status(403).json({ error: 'Super Admin access required.' });
     }
+    if (rejectAdminWithout2FA(rows[0], res)) return;
 
     req.user    = rows[0];
     req.isSuper = true;

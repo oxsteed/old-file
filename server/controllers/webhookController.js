@@ -9,10 +9,55 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
 const { recalculateBadges } = require('./verificationController');
 
+async function beginWebhookEvent(provider, event) {
+  if (!event?.id) return { shouldProcess: true };
+
+  const { rows } = await db.query(
+    `INSERT INTO webhook_event_receipts (provider, event_id, event_type, status)
+     VALUES ($1, $2, $3, 'processing')
+     ON CONFLICT (provider, event_id) DO UPDATE SET
+       attempts = webhook_event_receipts.attempts + 1,
+       event_type = EXCLUDED.event_type,
+       status = 'processing',
+       last_seen_at = NOW(),
+       last_error = NULL
+     WHERE webhook_event_receipts.status = 'failed'
+        OR (
+          webhook_event_receipts.status = 'processing'
+          AND webhook_event_receipts.last_seen_at < NOW() - INTERVAL '15 minutes'
+        )
+     RETURNING id`,
+    [provider, event.id, event.type]
+  );
+
+  return { shouldProcess: rows.length > 0, receiptId: rows[0]?.id };
+}
+
+async function markWebhookEventProcessed(receiptId) {
+  if (!receiptId) return;
+  await db.query(
+    `UPDATE webhook_event_receipts
+     SET status = 'processed', processed_at = NOW(), last_seen_at = NOW(), last_error = NULL
+     WHERE id = $1`,
+    [receiptId]
+  );
+}
+
+async function markWebhookEventFailed(receiptId, err) {
+  if (!receiptId) return;
+  await db.query(
+    `UPDATE webhook_event_receipts
+     SET status = 'failed', last_seen_at = NOW(), last_error = LEFT($2, 1000)
+     WHERE id = $1`,
+    [receiptId, err?.message || 'Webhook processing failed']
+  );
+}
+
 // Stripe webhook handler for subscription events
 exports.stripeWebhook = async (req, res, next) => {
   const sig = req.headers['stripe-signature'];
   let event;
+  let receiptId;
 
   try {
     event = stripe.webhooks.constructEvent(
@@ -22,10 +67,17 @@ exports.stripeWebhook = async (req, res, next) => {
     );
   } catch (err) {
     logger.error('Webhook signature verification failed', { error: err.message });
-    throw new AppError('Invalid signature', 400, 'invalid_webhook_signature');
+    return next(new AppError('Invalid signature', 400, 'invalid_webhook_signature'));
   }
 
   try {
+    const receipt = await beginWebhookEvent('stripe', event);
+    receiptId = receipt.receiptId;
+    if (!receipt.shouldProcess) {
+      logger.info('Duplicate Stripe webhook ignored', { eventId: event.id, eventType: event.type });
+      return res.json({ received: true, duplicate: true });
+    }
+
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
@@ -274,10 +326,12 @@ exports.stripeWebhook = async (req, res, next) => {
       default:
         logger.info(`Unhandled Stripe event: ${event.type}`);
     }
+    await markWebhookEventProcessed(receiptId);
     res.json({ received: true });
   } catch (err) {
+    await markWebhookEventFailed(receiptId, err);
     logger.error('Stripe webhook handler error', { error: err.message });
-    throw new AppError('Webhook processing failed', 500, 'webhook_processing_error');
+    return next(new AppError('Webhook processing failed', 500, 'webhook_processing_error'));
   }
 };
 

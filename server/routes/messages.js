@@ -3,6 +3,7 @@ const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { conversationMessageLimiter, userChatLimiter } = require('../middleware/rateLimiter');
 const upload = require('../middleware/upload');
+const validateFileUpload = require('../middleware/validateFileUpload');
 const {
   getConversations,
   getGuestInquiries,
@@ -79,6 +80,6 @@ router.post('/conversations/:conversationId/restore', restoreConversation);
 
 // POST /api/messages/conversations/:conversationId/attachments - Upload a file/image attachment
 // Accepts a single file under the field name "file" (max 10 MB, images + docs)
-router.post('/conversations/:conversationId/attachments', upload.single('file'), uploadAttachment);
+router.post('/conversations/:conversationId/attachments', upload.single('file'), validateFileUpload, uploadAttachment);
 
 module.exports = router;

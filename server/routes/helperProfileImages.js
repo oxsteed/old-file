@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const { requireAuth } = require('../middleware/auth');
+const validateFileUpload = require('../middleware/validateFileUpload');
 const profileImageController = require('../controllers/helperProfileImageController');
 
 const router = express.Router();
@@ -29,7 +30,7 @@ const upload = multer({
  * PUT /api/helper-profile/cover-image
  * Upload or update helper profile cover image
  */
-router.put('/cover-image', requireAuth, upload.single('image'), profileImageController.uploadCoverImage);
+router.put('/cover-image', requireAuth, upload.single('image'), validateFileUpload, profileImageController.uploadCoverImage);
 
 /**
  * DELETE /api/helper-profile/cover-image

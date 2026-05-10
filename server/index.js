@@ -28,6 +28,7 @@ const { reloadFeeConfig } = require('./services/feeService');
 // ── MIDDLEWARE ────────────────────────────────────────────────
 const securityHeaders = require('./middleware/securityHeaders');
 const correlationId = require('./middleware/correlationId');
+const { otelRequestContext } = require('./middleware/otelRequestContext');
 const { attachCsrfToken, validateCsrfToken } = require('./middleware/csrf');
 const sanitizeInputs = require('./middleware/sanitize');
 const { generalLimiter, authenticatedLimiter, authLimiter, strictLimiter } = require('./middleware/rateLimiter');
@@ -323,6 +324,7 @@ app.use(logger.requestMiddleware());
 // ── CORRELATION ID ───────────────────────────────────────────
 // Assign a unique ID to each request for tracing and audit logging
 app.use(correlationId);
+app.use(otelRequestContext);
 
 // ── METRICS TRACKING ──────────────────────────────────────────
 // Enterprise-grade metrics for monitoring and alerting

@@ -65,6 +65,9 @@ async function authenticate(req, res, next) {
     if (decoded.isMfaToken) {
       return res.status(401).json({ error: 'MFA token cannot be used for API access' });
     }
+    if (decoded.type === 'refresh') {
+      return res.status(401).json({ error: 'Refresh token cannot be used for API access' });
+    }
 
     // Impersonation tokens: skip standard revocation check (they are short-lived
     // and tracked separately in user_impersonation_log). Flag the request so
@@ -215,6 +218,14 @@ const optionalAuth = async (req, res, next) => {
   try {
     const token = header.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+    if (decoded.isMfaToken || decoded.type === 'refresh') return next();
+
+    if (!decoded.impersonation) {
+      const tokenId = crypto.createHash('sha256').update(token).digest('hex');
+      const isRevoked = await tokenRevocationService.isRevoked(tokenId, decoded.id, decoded.iat);
+      if (isRevoked) return next();
+    }
+
     const { rows } = await pool.query(
       `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active
          FROM users u WHERE u.id = $1`,

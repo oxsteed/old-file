@@ -8,6 +8,7 @@ const pool       = require('../db');
 const { authenticate } = require('../middleware/auth');
 const requireRole      = require('../middleware/requireRole');
 const { generalLimiter } = require('../middleware/rateLimiter');
+const validateFileUpload = require('../middleware/validateFileUpload');
 const logger     = require('../utils/logger');
 const { invalidateHelperContext } = require('../services/helperContext');
 const helperProfileImageController = require('../controllers/helperProfileImageController');
@@ -570,7 +571,7 @@ router.delete('/gallery/:id', helperOnly, async (req, res) => {
 });
 
 // ── Cover image (multipart upload to storage; keeps cover_image_url + cover_photo_url in sync)
-router.put('/cover-image', helperOnly, coverUpload.single('image'), helperProfileImageController.uploadCoverImage);
+router.put('/cover-image', helperOnly, coverUpload.single('image'), validateFileUpload, helperProfileImageController.uploadCoverImage);
 router.delete('/cover-image', helperOnly, helperProfileImageController.deleteCoverImage);
 
 // ─────────────────────────────────────────────────────────────────────────────
