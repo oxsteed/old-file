@@ -1,5 +1,5 @@
 const pool = require('../db');
-const AppError = require('../utils/AppError');
+const AppError = require('../utils/appError');
 
 const VALID_PROVIDERS = new Set(['apns', 'fcm']);
 const VALID_PLATFORMS = new Set(['ios', 'android', 'web']);

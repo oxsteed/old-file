@@ -1,6 +1,13 @@
 -- COMPLIANCE_AUDIT_LOG: Enterprise audit trail for SOC 2, ISO 27001, GDPR compliance
 -- Tracks all sensitive operations with immutable records
 
+-- Create authenticated_user role if it doesn't exist
+DO $$ BEGIN
+  CREATE ROLE authenticated_user;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
+
 CREATE TABLE IF NOT EXISTS compliance_audit_log (
   id BIGSERIAL PRIMARY KEY,
   action VARCHAR(100) NOT NULL,           -- 'payment_capture', 'user_deletion', 'privilege_escalation', etc.
