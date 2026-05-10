@@ -1,20 +1,13 @@
 -- VULN #11 FIX: Race condition in user registration
 -- Use database-level uniqueness instead of application-level checks
 
--- Ensure email uniqueness is enforced at database level
--- This prevents both concurrent registrations with same email
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints
-    WHERE constraint_name = 'uq_users_email_lower' AND table_name = 'users'
-  ) THEN
-    ALTER TABLE users ADD CONSTRAINT uq_users_email_lower UNIQUE (LOWER(email));
-  END IF;
-END $$;
+-- Ensure case-insensitive email uniqueness is enforced at database level
+-- Note: PostgreSQL does not support ADD CONSTRAINT UNIQUE with expression columns.
+-- A unique index on LOWER(email) provides the same uniqueness guarantee.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email_lower ON users(LOWER(email));
 
--- Add index for fast email lookups during registration
-CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users(LOWER(email));
+-- Add non-unique index for fast email lookups during registration (covered by unique index above)
+-- CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users(LOWER(email));
 
 -- Create a function to safely register a user (atomic operation)
 CREATE OR REPLACE FUNCTION register_user(
