@@ -2,13 +2,13 @@
 // Requires admin role for access
 
 const express = require('express');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/adminAuth');
 const monitoringController = require('../controllers/monitoringController');
 
 const router = express.Router();
 
 // All monitoring endpoints require admin authentication
-router.use(requireAuth, requireAdmin);
+router.use(requireAdmin);
 
 // System health overview
 router.get('/health', monitoringController.getSystemHealth);

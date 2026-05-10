@@ -48,6 +48,10 @@
 **Deployment healthcheck startup window (2026-05-10):** ✅ COMPLETE
 - **`Dockerfile`**: Healthcheck `start-period` increased from 5s to 90s and retries from 3 to 5. Coolify marked the new container unhealthy before startup migrations completed; the longer grace period lets `npm start` finish `node migrate.js` before `/health` is expected to pass.
 
+**Monitoring route boot crash fix (2026-05-10):** ✅ COMPLETE
+- **`server/routes/monitoring.js`**: Fixed import mismatch that crashed startup with `Router.use() requires a middleware function but got undefined`. Monitoring now uses hardened `requireAdmin` from `server/middleware/adminAuth.js` instead of nonexistent `requireAdmin` from `server/middleware/auth.js`.
+- **Verification**: `node --check server/routes/monitoring.js`; env-backed `require('./routes/monitoring')` smoke import passes; `node --check server/index.js` passes.
+
 **Mobile app shell + native push foundation (2026-05-09):** ✅ IOS BUILD SUBMITTED WITH REAL ICON
 - **`mobile/`**: Added Capacitor 7 shell for iOS/Android App Store packaging. Defaults to `https://oxsteed.com` via `OXSTEED_APP_URL`, app id `com.oxsteed.app`, native splash/status bar/keyboard config, offline fallback, external-link handling, deep-link handling for `oxsteed://...` and `oxsteed.com` links. Generated native iOS project under `mobile/ios/`. Docs: `mobile/README.md` and `docs/mobile/app-store-release-checklist.md`.
 - **iOS native project**: `AppDelegate.swift` forwards APNs registration success/failure to Capacitor PushNotifications. `Info.plist` registers `oxsteed://`. `App.entitlements` includes push + associated domains for `applinks:oxsteed.com` and `applinks:www.oxsteed.com`. Xcode Team selected: `ZBRGSDRRU7` (`emile jean philippe`).
