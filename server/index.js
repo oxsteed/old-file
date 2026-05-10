@@ -212,6 +212,12 @@ io.on('connection', (socket) => {
   socket.on('conversation:join', async (conversationId) => {
     if (!conversationId) return;
     try {
+      // ATTACK #7 FIX: Equalize timing to prevent information leakage
+      // Use a constant-time operation to prevent attackers from distinguishing
+      // between "conversation doesn't exist" vs "access denied"
+      const start = Date.now();
+      const MIN_QUERY_TIME = 50; // Minimum query time in ms
+
       const { rows } = await pool.query(
         `SELECT id FROM conversations c
          WHERE c.id = $1 AND (
@@ -224,6 +230,13 @@ io.on('connection', (socket) => {
          )`,
         [conversationId, userId]
       );
+
+      // Pad response time to prevent timing attacks
+      const elapsed = Date.now() - start;
+      if (elapsed < MIN_QUERY_TIME) {
+        await new Promise(resolve => setTimeout(resolve, MIN_QUERY_TIME - elapsed));
+      }
+
       if (rows.length) {
         socket.join(`conv_${conversationId}`);
         logger.debug('Socket joined conversation room', { userId, conversationId });
@@ -299,12 +312,22 @@ io.on('connection', (socket) => {
 // Wire socket service so notificationService can broadcast
 socketService.init(io);
 
+// ── INCIDENT ALERTING ─────────────────────────────────────
+// Enterprise incident detection and alerting
+const incidentAlertService = require('./services/incidentAlertService');
+logger.info('Incident alert service initialized');
+
 // ── REQUEST LOGGING ──────────────────────────────────────────
 app.use(logger.requestMiddleware());
 
 // ── CORRELATION ID ───────────────────────────────────────────
 // Assign a unique ID to each request for tracing and audit logging
 app.use(correlationId);
+
+// ── METRICS TRACKING ──────────────────────────────────────────
+// Enterprise-grade metrics for monitoring and alerting
+const { metricsMiddleware } = require('./middleware/metricsMiddleware');
+app.use('/api/', metricsMiddleware);
 
 // ── SECURITY ─────────────────────────────────────────────────
 app.use(securityHeaders);
@@ -347,6 +370,12 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // ── INPUT SANITIZATION ───────────────────────────────────────
 app.use(sanitizeInputs);
+
+// ── RESPONSE SANITIZATION ────────────────────────────────────
+// Remove sensitive data from error responses, prevent information disclosure
+const { responseSanitizer, addAdditionalSecurityHeaders } = require('./middleware/responseSanitizer');
+app.use(responseSanitizer);
+app.use(addAdditionalSecurityHeaders);
 
 // ── CSRF PROTECTION ──────────────────────────────────────────
 // ── FIX #9: CSRF TOKEN PROTECTION ───────────────────────────
@@ -508,6 +537,7 @@ const discountCodesRoutes = require('./routes/discountCodes');
 const emailPreferencesRoutes = require('./routes/emailPreferences');
 const smsNotificationsRoutes = require('./routes/smsNotifications');
 const templateRoutes = require('./routes/templates');
+const monitoringRoutes = require('./routes/monitoring');
 
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/bookings', bookingsRoutes);
@@ -536,6 +566,9 @@ app.use('/api/notifications/sms', smsNotificationsRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/chat', chatRoutes);
 app.get('/api/users/:id/profile', getPublicProfile);
+
+// Enterprise monitoring - admin only
+app.use('/api/monitoring', monitoringRoutes);
 
 // Sitemap + robots - works in all environments, no auth required
 app.use('/robots.txt', robotsRoutes);

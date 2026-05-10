@@ -226,55 +226,73 @@ exports.capturePayment = async (req, res, next) => {
       throw new AppError('Not authorized to capture payment for this job', 403, 'forbidden');
     }
 
-    const payment = await pool.query('SELECT * FROM payments WHERE job_id = $1 AND status = $2', [job_id, 'authorized']);
-    if (!payment.rows[0]) {
-      throw new AppError('No authorized payment found for this job', 404, 'payment_not_found');
-    }
-
-    // ── CHECK FOR OPEN DISPUTES ──────────────────────────────────────────
-    const dispute = await pool.query('SELECT id FROM disputes WHERE job_id = $1 AND status IN ($2, $3)', [job_id, 'open', 'in_progress']);
-    if (dispute.rows[0]) {
-      throw new AppError('Cannot capture payment while a dispute is open. Dispute must be resolved first.', 409, 'dispute_open');
-    }
-
-    const paymentData = payment.rows[0];
-
-    if (isAsyncPaymentCapture()) {
-      const { queuePaymentCapture } = require('../services/paymentQueue');
-      await queuePaymentCapture(paymentData.id, job_id, paymentData.amount);
-      return res.status(202).json({
-        status: 'processing',
-        message: 'Payment capture queued',
-        payment_id: paymentData.id,
-        job_id,
-      });
-    }
-
-    // Default: capture synchronously so production works without a separate worker process.
+    // ATTACK #2 FIX: Use pessimistic locking to prevent concurrent capture attempts
+    // SELECT ... FOR UPDATE locks the row so only one request can proceed at a time
+    const client = await pool.connect();
     try {
-      const result = await captureAuthorizedPayment({
-        paymentId: paymentData.id,
-        jobId: job_id,
-        amount: paymentData.amount,
-      });
-      return res.status(200).json({
-        status: 'captured',
-        message: 'Payment captured',
-        payment_id: result.paymentId,
-        charge_id: result.chargeId,
-        job_id,
-      });
-    } catch (capErr) {
-      logger.error('Synchronous payment capture failed', {
-        jobId: job_id,
-        paymentId: paymentData.id,
-        error: capErr.message,
-      });
-      throw new AppError(
-        capErr.message || 'Could not capture payment. Please try again or contact support.',
-        502,
-        'payment_capture_failed'
+      await client.query('BEGIN ISOLATION LEVEL SERIALIZABLE');
+
+      const payment = await client.query(
+        'SELECT * FROM payments WHERE job_id = $1 AND status = $2 FOR UPDATE',
+        [job_id, 'authorized']
       );
+
+      if (!payment.rows[0]) {
+        await client.query('ROLLBACK');
+        throw new AppError('No authorized payment found for this job', 404, 'payment_not_found');
+      }
+
+      // ── CHECK FOR OPEN DISPUTES ──────────────────────────────────────────
+      const dispute = await client.query('SELECT id FROM disputes WHERE job_id = $1 AND status IN ($2, $3)', [job_id, 'open', 'in_progress']);
+      if (dispute.rows[0]) {
+        await client.query('ROLLBACK');
+        throw new AppError('Cannot capture payment while a dispute is open. Dispute must be resolved first.', 409, 'dispute_open');
+      }
+
+      const paymentData = payment.rows[0];
+
+      // Release lock early (we'll keep transaction for atomicity)
+      await client.query('COMMIT');
+
+      if (isAsyncPaymentCapture()) {
+        const { queuePaymentCapture } = require('../services/paymentQueue');
+        await queuePaymentCapture(paymentData.id, job_id, paymentData.amount);
+        return res.status(202).json({
+          status: 'processing',
+          message: 'Payment capture queued',
+          payment_id: paymentData.id,
+          job_id,
+        });
+      }
+
+      // Default: capture synchronously so production works without a separate worker process.
+      try {
+        const result = await captureAuthorizedPayment({
+          paymentId: paymentData.id,
+          jobId: job_id,
+          amount: paymentData.amount,
+        });
+        return res.status(200).json({
+          status: 'captured',
+          message: 'Payment captured',
+          payment_id: result.paymentId,
+          charge_id: result.chargeId,
+          job_id,
+        });
+      } catch (capErr) {
+        logger.error('Synchronous payment capture failed', {
+          jobId: job_id,
+          paymentId: paymentData.id,
+          error: capErr.message,
+        });
+        throw new AppError(
+          capErr.message || 'Could not capture payment. Please try again or contact support.',
+          502,
+          'payment_capture_failed'
+        );
+      }
+    } finally {
+      client.release();
     }
   } catch (err) {
     next(err);

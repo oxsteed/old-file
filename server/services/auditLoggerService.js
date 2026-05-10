@@ -31,15 +31,30 @@ async function logSecurityEvent(action, options = {}) {
       status = 'success'
     } = options;
 
+    // ATTACK #4 FIX: Ensure safe JSON construction
+    // Never use template literals or string concatenation to build JSON
+    // Always use JSON.stringify with a clean object
+    let sanitizedDetails = null;
+    if (details && typeof details === 'object') {
+      try {
+        // JSON.stringify is safe - converts object to string without interpretation
+        sanitizedDetails = JSON.stringify(details);
+      } catch (e) {
+        // If JSON.stringify fails, log the error and skip details
+        logger.warn('Failed to serialize audit details', { error: e.message });
+        sanitizedDetails = null;
+      }
+    }
+
     await pool.query(
       `INSERT INTO security_audit_log (user_id, action, resource_type, resource_id, details, ip_address, user_agent, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)`,
       [
         userId,
         action,
         resourceType,
         resourceId,
-        details ? JSON.stringify(details) : null,
+        sanitizedDetails,
         ipAddress,
         userAgent,
         status
