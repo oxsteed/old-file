@@ -10,7 +10,7 @@ const {
   listHelperInvoices, createHelperInvoice, updateHelperInvoice,
   markHelperInvoicePaid, deleteHelperInvoice, sendHelperInvoice,
 } = require('../controllers/businessInvoiceController');
-const { generalLimiter } = require('../middleware/rateLimiter');
+const { generalLimiter, directoryLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/adminAuth');
 
@@ -32,7 +32,8 @@ router.post('/invoices/:invoiceId/send',       authenticate, sendHelperInvoice);
 router.delete('/invoices/:invoiceId',          authenticate, deleteHelperInvoice);
 
 // ── Public directory endpoints ───────────────────────────────────────────────
-router.get('/',              generalLimiter, listHelpers);
+// SECURITY: Use directoryLimiter (stricter) to prevent bulk enumeration
+router.get('/',              directoryLimiter, listHelpers);
 router.get('/skills',        generalLimiter, searchSkills);
 router.get('/licenses',      generalLimiter, searchLicenses);
 router.get('/:id/status',    generalLimiter, getHelperStatus);

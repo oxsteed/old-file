@@ -349,8 +349,18 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(sanitizeInputs);
 
 // ── CSRF PROTECTION ──────────────────────────────────────────
+// ── FIX #9: CSRF TOKEN PROTECTION ───────────────────────────
 // Attach CSRF token to all responses (for authenticated users)
 // Validate CSRF token on all state-changing requests (POST/PUT/DELETE)
+// This prevents Cross-Site Request Forgery attacks where external sites
+// trick authenticated users into making unintended API calls.
+//
+// Tokens are:
+// - Generated once per session and reused
+// - Validated via constant-time comparison (timing-attack resistant)
+// - Cached in-memory with 24-hour expiry
+// - Sent as X-CSRF-Token header (cannot be forged via form submissions)
+//
 app.use(attachCsrfToken);
 app.use(validateCsrfToken);
 

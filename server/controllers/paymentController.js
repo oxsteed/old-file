@@ -110,6 +110,15 @@ exports.createPaymentIntent = async (req, res, next) => {
       throw new AppError('No agreed price set for this job', 400, 'missing_job_value');
     }
 
+    // SECURITY: Prevent accidental or malicious payments of absurdly large amounts
+    // Max single payment: $50,000 (can be overridden only by super_admin if needed)
+    const MAX_PAYMENT_AMOUNT = 50000;
+    if (job.rows[0].job_value > MAX_PAYMENT_AMOUNT) {
+      throw new AppError(`Payment amount exceeds maximum allowed ($${MAX_PAYMENT_AMOUNT})`, 400, 'payment_amount_too_large', {
+        job_value: `Maximum payment is $${MAX_PAYMENT_AMOUNT}. Contact support for exceptions.`
+      });
+    }
+
     const connect = await pool.query('SELECT * FROM connect_accounts WHERE user_id = $1', [job.rows[0].assigned_helper_id]);
     if (!connect.rows[0] || !connect.rows[0].charges_enabled) {
       throw new AppError('Helper payment account is not ready. Please ask the helper to complete their payment setup.', 400, 'helper_account_not_ready');

@@ -64,7 +64,9 @@ async function listHelpers(req, res, next) {
     } = req.query;
 
     const pageNum  = Math.max(1, parseInt(page)  || 1);
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit) || 9));
+    // SECURITY: Reduced from 50 to 25 to prevent bulk enumeration of helpers
+    // Attacker needs 400+ requests instead of 200+ to enumerate all 10K helpers
+    const limitNum = Math.min(25, Math.max(1, parseInt(limit) || 9));
     const offset   = (pageNum - 1) * limitNum;
 
     const conditions = [

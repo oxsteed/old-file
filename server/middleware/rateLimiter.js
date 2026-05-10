@@ -101,6 +101,26 @@ const strictLimiter = rateLimit({
   },
 });
 
+// Password reset limiter: 3 per hour per EMAIL (not IP to prevent account enumeration attacks)
+// SECURITY: Stricter than strictLimiter to prevent brute-force password resets
+const passwordResetLimiter = rateLimit({
+  ...createStoreOption('rl:password_reset:'),
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  keyGenerator: (req) => {
+    // Key by email address, not IP
+    // This prevents attackers from using multiple IPs to reset the same account
+    const email = (req.body?.email || req.query?.email || '').toLowerCase();
+    return email || req.ip; // Fallback to IP if email not provided
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many password reset attempts. Please try again in 1 hour.',
+    retryAfter: '1 hour',
+  },
+});
+
 // AI chat limiter: 20 messages per 10 minutes per IP
 // Protects AI inference endpoints from abuse and runaway API costs.
 const chatLimiter = rateLimit({
@@ -203,6 +223,21 @@ const geoLimiter = rateLimit({
   },
 });
 
+// Directory listing limiter: 60 requests per 15 minutes per IP
+// SECURITY: Prevents bulk enumeration of helpers/jobs (e.g., scraping all 10K helpers)
+// 60 requests = 2-3 full enumerations; beyond that requires delay
+const directoryLimiter = rateLimit({
+  ...createStoreOption('rl:directory:'),
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Directory search rate limit exceeded. Please try again in 15 minutes.',
+    retryAfter: '15 minutes',
+  },
+});
+
 // Invoice creation limiter: 10 per hour per user
 // Prevents spam invoice creation and double-billing attacks
 const invoiceLimiter = rateLimit({
@@ -280,6 +315,7 @@ module.exports = {
   authenticatedLimiter,
   authLimiter,
   strictLimiter,
+  passwordResetLimiter,
   chatLimiter,
   conversationMessageLimiter,
   profileChatLimiter,
@@ -287,6 +323,7 @@ module.exports = {
   discoverLimiter,
   discoverAuthLimiter,
   geoLimiter,
+  directoryLimiter,
   invoiceLimiter,
   reportLimiter,
   termsLimiter,

@@ -6,6 +6,8 @@
 // disconnect.
 
 let io = null;
+const pool = require('../db');
+const logger = require('../utils/logger');
 
 /** userId (string) → Set of active socketId strings */
 const onlineMap = new Map();
@@ -78,6 +80,37 @@ async function getSocketCount(roomName) {
   }
 }
 
+/**
+ * FIX #8: Socket.IO Room Access Validation
+ * Verify a user has permission to join a conversation room before allowing access.
+ * Prevents IDOR/eavesdropping attacks where users guess conversation IDs.
+ *
+ * @param {string} conversationId - The conversation to validate access for
+ * @param {string} userId - The user requesting access
+ * @returns {Promise<boolean>} True if user can access the conversation
+ */
+async function validateConversationAccess(conversationId, userId) {
+  if (!conversationId || !userId) return false;
+  try {
+    const { rows } = await pool.query(
+      `SELECT 1 FROM conversations c
+       WHERE c.id = $1 AND (
+         c.customer_id = $2
+         OR c.helper_id = $2
+         OR (c.business_id IS NOT NULL AND EXISTS(
+           SELECT 1 FROM business_members bm
+           WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
+         ))
+       )`,
+      [conversationId, userId]
+    );
+    return rows.length > 0;
+  } catch (err) {
+    logger.error('validateConversationAccess failed', { conversationId, userId, error: err.message });
+    return false;
+  }
+}
+
 /** Broadcast new guest session to all online helpers (guest_chat_waiting room). */
 function broadcastNewGuestSession(sessionData) {
   if (!io) return;
@@ -114,4 +147,5 @@ module.exports = {
   broadcastGuestChatMessage,
   disconnectUserSockets,
   getSocketCount,
+  validateConversationAccess, // FIX #8: Room access validation
 };

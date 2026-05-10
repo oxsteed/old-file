@@ -1,7 +1,12 @@
 const router          = require('express').Router();
 const { requireAdmin, requireSuperAdmin, requirePermission } = require('../middleware/adminAuth');
+const { requireAdmin2FA } = require('../middleware/adminAuth2FA'); // FIX #12: Enforce 2FA for admins
 const { loadAssignedRegions, requireRegionAccessForUser } = require('../middleware/regionAuth');
 const superCtrl       = require('../controllers/superAdminController');
+
+// FIX #12: Apply 2FA enforcement to all admin routes
+// All admin/super_admin accounts must have TOTP 2FA enabled to prevent privilege escalation
+router.use(requireAdmin2FA);
 const superUserCtrl   = require('../controllers/superAdminUserController');
 const regionCtrl      = require('../controllers/adminRegionController');
 const auditCtrl       = require('../controllers/auditController');

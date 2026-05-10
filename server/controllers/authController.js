@@ -20,6 +20,8 @@ const logger = require('../utils/logger');
 const tokenRevocationService = require('../services/tokenRevocationService');
 const { AppError } = require('../middleware/errorHandler');
 const { grantFreeTrialToUser } = require('./templateController');
+const { checkAndAlertNewLogin } = require('../services/loginAlertService');
+const { logSecurityEvent, extractRequestDetails } = require('../services/auditLoggerService');
 const SALT_ROUNDS = 12;
 const TERMS_IP_HASH_MAX_LEN = 45;
 
@@ -292,6 +294,12 @@ async function login(req, res, next) {
       ).catch(() => {}); // table may not exist yet on older deploys
     } catch (_) {}
 
+    // FIX #6: Send alert if login is from new/unfamiliar IP (fire-and-forget, don't block response)
+    const alertIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+      || req.socket?.remoteAddress || req.ip || null;
+    const alertUa = req.headers['user-agent'] || null;
+    checkAndAlertNewLogin(user.id, alertIp, alertUa).catch(() => {});
+
     res.json({
       success: true,
       message: 'Login successful',
@@ -396,6 +404,9 @@ async function loginWith2FA(req, res) {
         [user.id, loginIp, loginUa]
       ).catch(() => {});
     } catch (_) {}
+
+    // FIX #6: Send alert if login is from new/unfamiliar IP (fire-and-forget)
+    checkAndAlertNewLogin(user.id, req.ip, req.headers['user-agent']).catch(() => {});
 
     const { rows: fullRows } = await pool.query(
       `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
@@ -1000,6 +1011,18 @@ async function resetPassword(req, res) {
       return res.status(400).json({ error: 'Reset link is invalid or expired.' });
     }
 
+    // FIX #10 & #11: Audit log password reset
+    const { ipAddress, userAgent } = extractRequestDetails(req);
+    logSecurityEvent('password_reset', {
+      userId: rows[0].id,
+      resourceType: 'user_account',
+      resourceId: rows[0].id,
+      details: { method: 'token' },
+      ipAddress,
+      userAgent,
+      status: 'success'
+    }).catch(() => {});
+
     return res.json({ message: 'Password reset successful.' });
   } catch (err) {
     logger.error('Reset password error', { err });
@@ -1059,10 +1082,180 @@ async function changePassword(req, res) {
     if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
     const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, req.user.id]);
+
+    // FIX #10 & #11: Audit log password change
+    const { ipAddress, userAgent } = extractRequestDetails(req);
+    logSecurityEvent('password_changed', {
+      userId: req.user.id,
+      resourceType: 'user_account',
+      resourceId: req.user.id,
+      details: { method: 'authenticated_change' },
+      ipAddress,
+      userAgent,
+      status: 'success'
+    }).catch(() => {});
+
     res.json({ message: 'Password changed successfully' });
   } catch (err) {
     logger.error('Change password error', { err });
     res.status(500).json({ error: 'Failed to change password' });
+  }
+}
+
+// SECURITY: Change email with dual verification (old + new email confirm required)
+async function changeEmail(req, res, next) {
+  try {
+    const { newEmail, password } = req.body;
+
+    // Validate input
+    const errs = validate({ newEmail, password }, {
+      newEmail: [rules.required, rules.email, rules.maxLen(254)],
+      password: [rules.required],
+    });
+    if (errs) {
+      return next(new AppError('Validation failed', 400, 'validation_failed', errs));
+    }
+
+    const newEmailLower = newEmail.toLowerCase();
+
+    // Verify password
+    const { rows: userRows } = await pool.query(
+      'SELECT id, email, password_hash FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    if (!userRows[0]) {
+      return next(new AppError('User not found', 404, 'user_not_found'));
+    }
+
+    const passwordValid = await bcrypt.compare(password, userRows[0].password_hash);
+    if (!passwordValid) {
+      return next(new AppError('Incorrect password', 401, 'invalid_password'));
+    }
+
+    const oldEmail = userRows[0].email;
+
+    // Check email not already in use
+    const { rows: existingEmail } = await pool.query(
+      'SELECT id FROM users WHERE email = $1 AND id != $2',
+      [newEmailLower, req.user.id]
+    );
+    if (existingEmail.length > 0) {
+      return next(new AppError('Email already in use', 409, 'email_taken', {
+        newEmail: 'This email is already registered'
+      }));
+    }
+
+    // Generate verification tokens for both old and new email
+    const oldEmailToken = crypto.randomBytes(32).toString('hex');
+    const newEmailToken = crypto.randomBytes(32).toString('hex');
+    const oldTokenHash = crypto.createHash('sha256').update(oldEmailToken).digest('hex');
+    const newTokenHash = crypto.createHash('sha256').update(newEmailToken).digest('hex');
+
+    // Store pending email change (not applied yet)
+    await pool.query(
+      `UPDATE users
+       SET pending_email = $1,
+           email_change_old_token = $2,
+           email_change_new_token = $3,
+           email_change_requested_at = NOW()
+       WHERE id = $4`,
+      [newEmailLower, oldTokenHash, newTokenHash, req.user.id]
+    );
+
+    // Send verification email to OLD email (prevent hijacking)
+    try {
+      await sendPasswordResetEmail(oldEmail, {
+        type: 'email_change_confirmation',
+        token: oldEmailToken,
+        newEmail: newEmailLower,
+        actionUrl: `${process.env.CLIENT_URL}/confirm-email-change?token=${oldEmailToken}&type=old`
+      });
+    } catch (emailErr) {
+      logger.warn('Failed to send email change confirmation to old email', { userId: req.user.id, error: emailErr.message });
+    }
+
+    // Send verification email to NEW email
+    try {
+      await sendPasswordResetEmail(newEmailLower, {
+        type: 'email_change_confirmation',
+        token: newEmailToken,
+        oldEmail: oldEmail,
+        actionUrl: `${process.env.CLIENT_URL}/confirm-email-change?token=${newEmailToken}&type=new`
+      });
+    } catch (emailErr) {
+      logger.warn('Failed to send email change confirmation to new email', { userId: req.user.id, error: emailErr.message });
+    }
+
+    res.json({
+      message: 'Verification emails sent to both addresses. Confirm email change in both to proceed.',
+      pendingEmail: newEmailLower,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Confirm email change (verify both old and new email tokens)
+async function confirmEmailChange(req, res, next) {
+  try {
+    const { oldToken, newToken } = req.body;
+
+    if (!oldToken || !newToken) {
+      return next(new AppError('Both tokens required', 400, 'validation_failed', {
+        tokens: 'Must confirm from both old and new email'
+      }));
+    }
+
+    const oldTokenHash = crypto.createHash('sha256').update(oldToken).digest('hex');
+    const newTokenHash = crypto.createHash('sha256').update(newToken).digest('hex');
+
+    // Verify both tokens match and are not expired (valid for 24 hours)
+    const { rows } = await pool.query(
+      `SELECT id, email, pending_email, email_change_requested_at
+       FROM users
+       WHERE id = $1
+         AND email_change_old_token = $2
+         AND email_change_new_token = $3
+         AND email_change_requested_at > NOW() - interval '24 hours'`,
+      [req.user.id, oldTokenHash, newTokenHash]
+    );
+
+    if (!rows[0]) {
+      return next(new AppError('Invalid or expired confirmation tokens', 401, 'invalid_tokens'));
+    }
+
+    const user = rows[0];
+    const oldEmail = user.email;
+    const newEmail = user.pending_email;
+
+    // Apply email change atomically
+    await pool.query(
+      `UPDATE users
+       SET email = $1,
+           email_verified = TRUE,
+           pending_email = NULL,
+           email_change_old_token = NULL,
+           email_change_new_token = NULL,
+           email_change_requested_at = NULL,
+           updated_at = NOW()
+       WHERE id = $2`,
+      [newEmail, req.user.id]
+    );
+
+    // Log security event
+    logger.info('Email changed', {
+      userId: req.user.id,
+      oldEmail: oldEmail,
+      newEmail: newEmail,
+      ipAddress: req.ip
+    });
+
+    res.json({
+      message: 'Email changed successfully',
+      email: newEmail
+    });
+  } catch (err) {
+    next(err);
   }
 }
 
@@ -1209,7 +1402,7 @@ module.exports = {
   checkEmail, checkZip, addToWaitlist,
   startRegistration, acceptTerms, verifyRegistrationOTP, resendRegistrationOTP,
   forgotPassword, resetPassword,
-  getMe, updateProfile, changePassword, getPublicProfile, resendVerification,
+  getMe, updateProfile, changePassword, changeEmail, confirmEmailChange, getPublicProfile, resendVerification,
   switchRole,
   formatAuthUser
 };

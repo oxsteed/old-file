@@ -4,7 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
-const { authLimiter, strictLimiter } = require('../middleware/rateLimiter');
+const { authLimiter, strictLimiter, passwordResetLimiter } = require('../middleware/rateLimiter');
 const {
   register,
   login,
@@ -27,6 +27,8 @@ const {
   getMe,
   updateProfile,
   changePassword,
+  changeEmail,
+  confirmEmailChange,
   resendVerification,
   switchRole,
 } = require('../controllers/authController');
@@ -37,8 +39,8 @@ router.post('/login', authLimiter, login);
 router.post('/login/2fa', authLimiter, loginWith2FA);
 router.post('/otp/request', authLimiter, requestOTP);
 router.post('/otp/verify', authLimiter, verifyOTP);
-router.post('/forgot-password', strictLimiter, forgotPassword);
-router.post('/reset-password', strictLimiter, resetPassword);
+router.post('/forgot-password', passwordResetLimiter, forgotPassword);
+router.post('/reset-password', passwordResetLimiter, resetPassword);
 router.post('/refresh', authLimiter, refreshToken);
 router.post('/logout', logout);
 
@@ -55,6 +57,8 @@ router.post('/register/resend-otp', authLimiter, resendRegistrationOTP);
 router.get('/me', authenticate, getMe);
 router.put('/profile', authenticate, updateProfile);
 router.put('/change-password', authenticate, changePassword);
+router.post('/change-email', authenticate, changeEmail);
+router.post('/confirm-email-change', authenticate, confirmEmailChange);
 router.post('/resend-verification', authenticate, resendVerification);
 
 // Role switching (customer ↔ helper)

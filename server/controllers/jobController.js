@@ -452,7 +452,9 @@ exports.updateJob = async (req, res, next) => {
     ]);
 
     if (rows.length === 0) {
-      throw new AppError('Job not found or cannot be edited', 404, 'job_not_found');
+      // SECURITY: Generic error message prevents enumeration
+      // Attackers cannot determine if job exists or if they lack permission
+      throw new AppError('Not found or access denied', 404, 'forbidden');
     }
 
     res.json(rows[0]);

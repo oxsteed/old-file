@@ -36,6 +36,45 @@ const LEVEL_COLOR = { 10: C.gray, 20: C.cyan, 30: C.yellow, 40: C.red };
 const MIN_LEVEL = LEVELS[process.env.LOG_LEVEL] ?? (IS_PROD ? LEVELS.info : LEVELS.debug);
 
 /**
+ * FIX #7: Sanitize sensitive data from logs to prevent credential leakage.
+ * Redacts passwords, tokens, API keys, and other secrets.
+ */
+function sanitizeMeta(obj) {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj !== 'object') return obj;
+  if (obj instanceof Date) return obj;
+
+  const sensitiveKeys = [
+    'password', 'password_hash', 'passwordHash',
+    'token', 'tokens', 'accessToken', 'refreshToken', 'mfaToken',
+    'secret', 'api_key', 'apiKey', 'stripe_secret', 'stripeSecret',
+    'authorization', 'auth', 'credential', 'credentials',
+    'jwt', 'session', 'cookie', 'cookies',
+    'otp', 'otp_code', 'totp_secret', 'backup_codes',
+    'didit_token', 'checkr_token', 'twilio_token',
+    'aws_secret', 'redis_url', 'database_url'
+  ];
+
+  // Deep clone and redact
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeMeta(item));
+  }
+
+  const sanitized = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const keyLower = key.toLowerCase();
+    if (sensitiveKeys.some(sensitive => keyLower.includes(sensitive))) {
+      sanitized[key] = '[REDACTED]';
+    } else if (typeof value === 'object' && value !== null && !(value instanceof Date)) {
+      sanitized[key] = sanitizeMeta(value);
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
+/**
  * Serialize an error to a plain object so it appears in JSON output.
  */
 function serializeError(err) {
@@ -65,7 +104,8 @@ function log(level, message, meta) {
       if (meta instanceof Error) {
         entry.err = serializeError(meta);
       } else if (meta && typeof meta === 'object') {
-        Object.assign(entry, meta);
+        // FIX #7: Sanitize meta to prevent credential leakage
+        Object.assign(entry, sanitizeMeta(meta));
       } else {
         entry.meta = meta;
       }
