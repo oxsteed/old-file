@@ -59,6 +59,13 @@
 - **Deploy warning cleanup**: `client/src/components/booking/BookingCalendar.jsx` removed an invalid `react-i18next` named import that produced the production build warning seen in Coolify logs.
 - **Verification**: `node --check` passes on modified server refund/notification files; focused security Jest suite passes (`webhook`, `adminAuthSecurity`, `authMiddlewareSecurity`, 17 tests); `npm audit --omit=dev` reports 0 vulnerabilities; `client` production build passes, with only the existing large chunk warning remaining.
 
+**Feature reliability pass 1 - hiring/business basics (2026-05-10):** ✅ COMPLETE
+- **Bidding flow**: `client/src/pages/JobDetailPage.jsx` now sends bid ETA as `estimated_hours`, matching the create-bid API contract; `server/controllers/bidController.js` also accepts legacy `eta_hours` so older clients do not silently drop ETA.
+- **Booking → job-post flow**: `client/src/pages/PostJobPage.jsx` now converts booking prefill `serviceLocation` into structured city/state/country fields and shows the structured location in the wizard summary. `client/src/pages/MyBookingsPage.tsx` now passes booking prefill through React Router state instead of writing unused `sessionStorage`.
+- **Booking links**: `client/src/pages/MyJobsPage.jsx` no longer links booking cards/calendar events to missing `/bookings/:id` routes; those actions route to the existing `/my-bookings` surface.
+- **Public profile / invoice links**: Admin business “View Public Profile” now opens `/business/:id` instead of the nonexistent `/businesses/:id`. Helper invoices now open `/invoice/p/:token`, and `PublicInvoiceView` now fetches from the registered public invoice API path.
+- **Verification**: `node --check server/controllers/bidController.js` passes; `client` production build passes after fixes, with only the existing large chunk warning remaining.
+
 **Mobile app shell + native push foundation (2026-05-09):** ✅ IOS BUILD SUBMITTED WITH REAL ICON
 - **`mobile/`**: Added Capacitor 7 shell for iOS/Android App Store packaging. Defaults to `https://oxsteed.com` via `OXSTEED_APP_URL`, app id `com.oxsteed.app`, native splash/status bar/keyboard config, offline fallback, external-link handling, deep-link handling for `oxsteed://...` and `oxsteed.com` links. Generated native iOS project under `mobile/ios/`. Docs: `mobile/README.md` and `docs/mobile/app-store-release-checklist.md`.
 - **iOS native project**: `AppDelegate.swift` forwards APNs registration success/failure to Capacitor PushNotifications. `Info.plist` registers `oxsteed://`. `App.entitlements` includes push + associated domains for `applinks:oxsteed.com` and `applinks:www.oxsteed.com`. Xcode Team selected: `ZBRGSDRRU7` (`emile jean philippe`).

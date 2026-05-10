@@ -619,6 +619,25 @@ function formatBudgetDisplay(form, currency = 'USD') {
   return `${formatMoney(form.budgetAmount, { currency, minimumFractionDigits: 0, maximumFractionDigits: 0 })} fixed`;
 }
 
+function getLocationDisplay(form) {
+  return [form.locationCity, form.locationState, form.locationZip, form.locationCountry]
+    .filter(Boolean)
+    .join(', ');
+}
+
+function parsePrefillLocation(locationInput, fallbackCountry = '') {
+  const raw = String(locationInput || '').trim();
+  if (!raw) return {};
+
+  const parts = raw.split(',').map((part) => part.trim()).filter(Boolean);
+  const patch = { locationInput: raw };
+  if (parts.length >= 1) patch.locationCity = parts[0];
+  if (parts.length >= 2) patch.locationState = parts[1];
+  if (parts.length >= 3) patch.locationCountry = parts[parts.length - 1];
+  if (!patch.locationCountry && fallbackCountry) patch.locationCountry = fallbackCountry;
+  return patch;
+}
+
 function activeRequirements(reqs) {
   return Object.entries(reqs).filter(([, v]) => v.enabled).map(([k]) => k);
 }
@@ -768,12 +787,16 @@ export default function PostJobPage() {
     if (bookingPrefillApplied.current) return;
     const statePrefill = location.state?.bookingPrefill;
     if (statePrefill && typeof statePrefill === 'object') {
+      const locationPatch = parsePrefillLocation(
+        statePrefill.locationInput,
+        statePrefill.locationCountry || user?.country || ''
+      );
       bookingPrefillApplied.current = true;
       setForm((f) => ({
         ...f,
         title: statePrefill.title || f.title,
         description: statePrefill.description || f.description,
-        locationInput: statePrefill.locationInput || f.locationInput,
+        ...locationPatch,
         notes: statePrefill.notes ?? f.notes,
         preferredHelperId: statePrefill.preferredHelperId || f.preferredHelperId,
         preferredHelperName: statePrefill.preferredHelperName || f.preferredHelperName,
@@ -789,12 +812,16 @@ export default function PostJobPage() {
         const res = await fetchBookingPrefillForJob(fromBookingId);
         const prefill = res?.prefill;
         if (!prefill || cancelled) return;
+        const locationPatch = parsePrefillLocation(
+          prefill.locationInput,
+          prefill.locationCountry || user?.country || ''
+        );
         bookingPrefillApplied.current = true;
         setForm((f) => ({
           ...f,
           title: prefill.title || f.title,
           description: prefill.description || f.description,
-          locationInput: prefill.locationInput || f.locationInput,
+          ...locationPatch,
           notes: prefill.notes ?? f.notes,
           preferredHelperId: prefill.preferredHelperId || f.preferredHelperId,
           preferredHelperName: prefill.preferredHelperName || f.preferredHelperName,
@@ -806,7 +833,7 @@ export default function PostJobPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [fromBookingId, location.state, navigate]);
+  }, [fromBookingId, location.state, navigate, user?.country]);
 
   // ── Load draft on mount ───────────────────────────────────────────────────
   useEffect(() => {
@@ -1047,6 +1074,7 @@ export default function PostJobPage() {
   }
 
   // ── Sidebar summary ───────────────────────────────────────────────────────
+  const locationDisplay = getLocationDisplay(form);
   const isReady = !!(form.title.trim().length >= 10 && form.categoryId && form.locationCity.trim() && form.locationCountry.trim());
   const activeReqs = activeRequirements(form.requirements);
 
@@ -1889,7 +1917,7 @@ export default function PostJobPage() {
                 </div>
                 <div className="pjw-sum-row">
                   <span className="pjw-sum-label">{t('postJob.location')}</span>
-                  <span className={`pjw-sum-value${!form.locationInput?' is-empty':''}`}>{form.locationInput || t('postJob.notSet')}</span>
+                  <span className={`pjw-sum-value${!locationDisplay ? ' is-empty' : ''}`}>{locationDisplay || t('postJob.notSet')}</span>
                 </div>
                 <div className="pjw-sum-row">
                   <span className="pjw-sum-label">{t('postJob.budgetType')}</span>

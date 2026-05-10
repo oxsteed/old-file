@@ -564,7 +564,7 @@ export default function MyJobsPage() {
 
                   <div className="flex gap-2">
                     <Link
-                      to={selectedEvent.type === 'job' ? `/jobs/${selectedEvent.job_id}` : `/bookings/${selectedEvent.booking_id}`}
+                      to={selectedEvent.type === 'job' ? `/jobs/${selectedEvent.job_id}` : '/my-bookings'}
                       className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition text-center"
                     >
                       {t('common.view', { defaultValue: 'View' })}
@@ -664,7 +664,7 @@ export default function MyJobsPage() {
                       )}
                       <div className="flex gap-2">
                         <Link
-                          to={`/bookings/${booking.id}`}
+                          to="/my-bookings"
                           className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition"
                         >
                           {t('common.view', { defaultValue: 'View' })}

@@ -166,7 +166,12 @@ export default function JobDetailPage() {
     setBidLoading(true);
     setBidError(null);
     try {
-      await createBid({ job_id: id, ...bidForm, amount: parseFloat(bidForm.amount), eta_hours: parseInt(bidForm.eta_hours) });
+      await createBid({
+        job_id: id,
+        amount: parseFloat(bidForm.amount),
+        message: bidForm.message,
+        estimated_hours: parseInt(bidForm.eta_hours, 10),
+      });
       setBidForm({ amount: '', message: '', eta_hours: '' });
       loadBids();
       fetchJob(id);

@@ -6,7 +6,8 @@ const { AppError } = require('../middleware/errorHandler');
 // Create a bid on a job
 exports.createBid = async (req, res, next) => {
   try {
-    const { job_id, amount, message, estimated_hours } = req.body;
+    const { job_id, amount, message, eta_hours } = req.body;
+    const estimated_hours = req.body.estimated_hours ?? eta_hours;
 
     // Input validation
     const fields = {};

@@ -321,7 +321,7 @@ export default function HelperDashboard() {
         toast.success(t('helperDashboard.invoices.sentToClient'));
       } else {
         const token = res.data?.public_token;
-        const url = `${window.location.origin}/invoices/${token}`;
+        const url = `${window.location.origin}/invoice/p/${token}`;
         toast.success(t('helperDashboard.invoices.sentWithLink', { url }));
       }
       fetchMyInvoices();
@@ -1955,7 +1955,7 @@ export default function HelperDashboard() {
                               {inv.status === 'draft' && (
                                 <button onClick={() => openEditInvoice(inv)} className="text-xs text-gray-500 hover:text-white transition px-2 py-1 rounded hover:bg-gray-800">{t('common.edit')}</button>
                               )}
-                              <button onClick={() => window.open(`/invoices/${inv.public_token}`, '_blank', 'noopener,noreferrer')} className="text-xs text-blue-500 hover:text-blue-400 transition px-2 py-1 rounded hover:bg-blue-500/10">{t('common.view')}</button>
+                              <button onClick={() => window.open(`/invoice/p/${inv.public_token}`, '_blank', 'noopener,noreferrer')} className="text-xs text-blue-500 hover:text-blue-400 transition px-2 py-1 rounded hover:bg-blue-500/10">{t('common.view')}</button>
                               <button onClick={() => handleDeleteInvoice(inv.id)} className="text-xs text-red-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-500/10">{t('helperDashboard.delete')}</button>
                             </div>
                           </div>

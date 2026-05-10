@@ -21,7 +21,7 @@ function PublicInvoiceView() {
   const loadInvoice = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/invoices/public/${token}`);
+      const response = await api.get(`/businesses/invoices/public/${token}`);
       const { invoice, business } = response.data;
       setInvoice(invoice);
       setBusiness(business);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import { useAuth } from '../hooks/useAuth';
@@ -57,6 +57,7 @@ interface Booking {
 const MyBookingsPage = () => {
   const { t, i18n } = useTranslation();
   const locale = i18n.language || 'en';
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'my-rentals' | 'my-tools' | 'helper-bookings'>('helper-bookings');
   const [myBookings, setMyBookings] = useState<Booking[]>([]);
@@ -128,14 +129,12 @@ const MyBookingsPage = () => {
         }
         if (raw.locationInput) parts.push(`${t('booking.prefillLocation')}: ${raw.locationInput}`);
         if (raw.description) { parts.push(''); parts.push(raw.description); }
-        window.location.href = `/post-job`;
-        // navigate with state isn't available here without useNavigate; use location.state via sessionStorage
-        sessionStorage.setItem('bookingPrefill', JSON.stringify({ ...raw, description: parts.join('\n') }));
+        navigate('/post-job', { state: { bookingPrefill: { ...raw, description: parts.join('\n') } } });
       } else {
-        window.location.href = `/post-job?fromBooking=${encodeURIComponent(bookingId)}`;
+        navigate(`/post-job?fromBooking=${encodeURIComponent(bookingId)}`);
       }
     } catch {
-      window.location.href = `/post-job?fromBooking=${encodeURIComponent(bookingId)}`;
+      navigate(`/post-job?fromBooking=${encodeURIComponent(bookingId)}`);
     }
   };
 

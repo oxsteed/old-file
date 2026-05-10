@@ -147,7 +147,7 @@ export default function BusinessDetail() {
         {/* Quick Actions */}
         <div className="flex gap-2">
           <button
-            onClick={() => window.open(`/businesses/${business.id}`, '_blank', 'noopener,noreferrer')}
+            onClick={() => window.open(`/business/${business.id}`, '_blank', 'noopener,noreferrer')}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm font-medium"
           >
             <ExternalLink size={14} /> View Public Profile
