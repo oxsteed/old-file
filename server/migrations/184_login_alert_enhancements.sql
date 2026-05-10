@@ -1,6 +1,5 @@
 -- FIX #6: Login alert enhancements
 -- Ensure user_login_history table exists with proper indexes for efficient alert checks
-
 CREATE TABLE IF NOT EXISTS user_login_history (
   id BIGSERIAL PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -9,6 +8,9 @@ CREATE TABLE IF NOT EXISTS user_login_history (
   success BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Idempotently add created_at in case the table already existed without it
+ALTER TABLE user_login_history ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();
 
 -- Index for efficient "get recent logins for user" queries (used by login alert check)
 CREATE INDEX IF NOT EXISTS idx_user_login_history_user_created
