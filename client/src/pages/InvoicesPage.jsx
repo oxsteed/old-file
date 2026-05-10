@@ -1,9 +1,66 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import {
+  ArrowRight,
+  Briefcase,
+  CalendarClock,
+  CheckCircle2,
+  CreditCard,
+  Eye,
+  FileText,
+  Mail,
+  PackageSearch,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+  Wrench,
+  X,
+} from 'lucide-react';
+import PageMeta from '../components/PageMeta';
+import PageShell from '../components/PageShell';
 import { useAuth } from '../hooks/useAuth';
 import invoicesApi from '../api/invoices';
-import { Download, Mail, Eye } from 'lucide-react';
+import './InvoicesPage.css';
+
+function centsToMoney(cents) {
+  const value = Number(cents || 0) / 100;
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: 'USD',
+  }).format(value);
+}
+
+function formatDate(value) {
+  if (!value) return 'Not set';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not set';
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function statusLabel(status = 'draft') {
+  return String(status).replace(/_/g, ' ').replace(/^\w/, (char) => char.toUpperCase());
+}
+
+function invoiceDate(invoice) {
+  return invoice.issued_at || invoice.issue_date || invoice.created_at;
+}
+
+function invoiceDueDate(invoice) {
+  return invoice.due_at || invoice.due_date;
+}
+
+function invoiceAmount(invoice) {
+  if (invoice.amount_cents !== undefined) return Number(invoice.amount_cents || 0);
+  if (invoice.total_cents !== undefined) return Number(invoice.total_cents || 0);
+  if (invoice.total !== undefined) return Math.round(Number(invoice.total || 0) * 100);
+  return 0;
+}
 
 export default function InvoicesPage() {
   const { t } = useTranslation();
@@ -43,279 +100,268 @@ export default function InvoicesPage() {
     }
   };
 
-  const pageStyle = {
-    padding: '2rem',
-    background: 'var(--color-bg)',
-    minHeight: '100vh',
-  };
+  const stats = useMemo(() => {
+    const total = invoices.reduce((sum, invoice) => sum + invoiceAmount(invoice), 0);
+    const paid = invoices
+      .filter((invoice) => invoice.status === 'paid')
+      .reduce((sum, invoice) => sum + invoiceAmount(invoice), 0);
+    const outstanding = invoices
+      .filter((invoice) => ['issued', 'sent', 'overdue', 'draft'].includes(invoice.status))
+      .reduce((sum, invoice) => sum + invoiceAmount(invoice), 0);
+    const overdueCount = invoices.filter((invoice) => invoice.status === 'overdue').length;
+    return { total, paid, outstanding, overdueCount };
+  }, [invoices]);
 
-  const titleStyle = {
-    fontSize: '2rem',
-    fontWeight: 'bold',
-    marginBottom: '2rem',
-    color: 'var(--color-text)',
-  };
-
-  const tableContainerStyle = {
-    background: 'var(--color-surface)',
-    borderRadius: '8px',
-    overflow: 'hidden',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-  };
-
-  const tableHeaderStyle = {
-    background: 'var(--color-bg)',
-    padding: '1rem',
-    borderBottom: '1px solid var(--color-border)',
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-    gap: '1rem',
-    fontWeight: '600',
-    color: 'var(--color-text)',
-  };
-
-  const tableRowStyle = {
-    padding: '1rem',
-    borderBottom: '1px solid var(--color-border)',
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-    gap: '1rem',
-    alignItems: 'center',
-    color: 'var(--color-text)',
-  };
-
-  const statusBadgeStyle = (status) => {
-    const colors = {
-      draft: '#f59e0b',
-      issued: '#3b82f6',
-      paid: '#10b981',
-      overdue: '#ef4444',
-      cancelled: '#6b7280',
-    };
-
-    return {
-      display: 'inline-block',
-      padding: '0.35rem 0.75rem',
-      borderRadius: '6px',
-      background: colors[status] || colors.draft,
-      color: 'white',
-      fontWeight: '600',
-      fontSize: '0.85rem',
-    };
-  };
-
-  const buttonStyle = {
-    padding: '0.5rem 0.75rem',
-    background: 'var(--color-primary)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.85rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-  };
-
-  const emptyStateStyle = {
-    textAlign: 'center',
-    padding: '3rem 1rem',
-    color: 'var(--color-text-muted)',
-  };
-
-  if (loading) {
-    return <div style={pageStyle}>{t('common.loading') || 'Loading...'}</div>;
-  }
+  const isHelper = ['helper', 'helper_pro', 'broker', 'business'].includes(user?.role);
 
   return (
-    <div style={pageStyle}>
-      <h1 style={titleStyle}>{t('invoices.title') || 'My Invoices'}</h1>
-
-      {invoices.length > 0 ? (
-        <div style={tableContainerStyle}>
-          <div style={tableHeaderStyle}>
-            <div>{t('invoices.number') || 'Invoice #'}</div>
-            <div>{t('invoices.date') || 'Date'}</div>
-            <div>{t('invoices.amount') || 'Amount'}</div>
-            <div>{t('invoices.status') || 'Status'}</div>
-            <div>{t('invoices.dueDate') || 'Due Date'}</div>
-            <div>{t('invoices.actions') || 'Actions'}</div>
+    <PageShell>
+      <PageMeta
+        title="My Invoices - OxSteed"
+        description="Track OxSteed invoices, payment status, consulting receipts, service invoices, tool rental invoices, and business financial records."
+      />
+      <div className="invoices-page">
+        <header className="invoices-hero">
+          <div>
+            <p className="invoices-kicker">Financial records</p>
+            <h1>{t('invoices.title') || 'My Invoices'}</h1>
+            <p>
+              Keep your OxSteed paper trail in one place: consulting receipts, helper invoices,
+              tool rental invoices, paid work, outstanding balances, and payment follow-up.
+            </p>
           </div>
-
-          {invoices.map((invoice) => (
-            <div key={invoice.id} style={tableRowStyle}>
-              <div style={{ fontWeight: '600' }}>{invoice.invoice_number}</div>
-              <div>{new Date(invoice.issued_at).toLocaleDateString()}</div>
-              <div>${(invoice.amount_cents / 100).toFixed(2)}</div>
-              <div style={statusBadgeStyle(invoice.status)}>
-                {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
-              </div>
-              <div>{new Date(invoice.due_at).toLocaleDateString()}</div>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <button
-                  style={buttonStyle}
-                  onClick={() => setSelectedInvoice(invoice)}
-                  title={t('invoices.view') || 'View'}
-                >
-                  <Eye size={16} />
-                </button>
-                <button
-                  style={buttonStyle}
-                  onClick={() => handleResendEmail(invoice.id)}
-                  disabled={resendingEmail === invoice.id}
-                  title={t('invoices.resendEmail') || 'Resend Email'}
-                >
-                  <Mail size={16} />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div style={emptyStateStyle}>
-          <p>{t('invoices.noInvoices') || 'No invoices yet'}</p>
-          <p style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>
-            {t('invoices.emptyMessage') || 'Your invoices will appear here after purchasing consulting sessions.'}
-          </p>
-        </div>
-      )}
-
-      {/* Invoice Detail Modal */}
-      {selectedInvoice && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }}
-          onClick={() => setSelectedInvoice(null)}
-        >
-          <div
-            style={{
-              background: 'var(--color-surface)',
-              borderRadius: '12px',
-              padding: '2rem',
-              maxWidth: '600px',
-              width: '90%',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--color-text)' }}>
-                {selectedInvoice.invoice_number}
-              </h2>
-              <button
-                onClick={() => setSelectedInvoice(null)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '1.5rem',
-                  color: 'var(--color-text-muted)',
-                }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <div style={{ display: 'grid', gap: '1rem', marginBottom: '1.5rem' }}>
-              <div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                  {t('invoices.status') || 'Status'}
-                </div>
-                <div style={statusBadgeStyle(selectedInvoice.status)}>
-                  {selectedInvoice.status.charAt(0).toUpperCase() + selectedInvoice.status.slice(1)}
-                </div>
-              </div>
-
-              <div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                  {t('invoices.amount') || 'Amount'}
-                </div>
-                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--color-primary)' }}>
-                  ${(selectedInvoice.amount_cents / 100).toFixed(2)}
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                    {t('invoices.issuedDate') || 'Issued'}
-                  </div>
-                  <div>{new Date(selectedInvoice.issued_at).toLocaleDateString()}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                    {t('invoices.dueDate') || 'Due Date'}
-                  </div>
-                  <div>{new Date(selectedInvoice.due_at).toLocaleDateString()}</div>
-                </div>
-              </div>
-
-              {selectedInvoice.paid_at && (
-                <div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                    {t('invoices.paidDate') || 'Paid'}
-                  </div>
-                  <div>{new Date(selectedInvoice.paid_at).toLocaleDateString()}</div>
-                </div>
-              )}
-
-              <div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                  {t('invoices.customerName') || 'Customer'}
-                </div>
-                <div>{selectedInvoice.customer_name}</div>
-              </div>
-
-              <div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                  {t('invoices.consultant') || 'Consultant'}
-                </div>
-                <div>{selectedInvoice.consultant_name}</div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
-              <button
-                onClick={() => handleResendEmail(selectedInvoice.id)}
-                disabled={resendingEmail === selectedInvoice.id}
-                style={{
-                  ...buttonStyle,
-                  flex: 1,
-                }}
-              >
-                <Mail size={16} />
-                {resendingEmail === selectedInvoice.id ? t('common.sending') || 'Sending...' : t('invoices.resendEmail') || 'Resend Email'}
-              </button>
-              <button
-                onClick={() => setSelectedInvoice(null)}
-                style={{
-                  padding: '0.5rem 1.5rem',
-                  background: 'var(--color-bg)',
-                  color: 'var(--color-text)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                }}
-              >
-                {t('common.close') || 'Close'}
-              </button>
-            </div>
+          <div className="invoices-hero-actions">
+            <Link to="/dashboard?tab=money" className="invoices-btn invoices-btn-primary">
+              <CreditCard size={16} />
+              Money dashboard
+            </Link>
+            <button type="button" className="invoices-btn" onClick={loadInvoices} disabled={loading}>
+              <RefreshCw size={16} />
+              Refresh
+            </button>
           </div>
+        </header>
+
+        <section className="invoices-stats" aria-label="Invoice summary">
+          <SummaryCard label="Total invoice value" value={centsToMoney(stats.total)} icon={FileText} />
+          <SummaryCard label="Paid" value={centsToMoney(stats.paid)} icon={CheckCircle2} tone="success" />
+          <SummaryCard label="Outstanding" value={centsToMoney(stats.outstanding)} icon={CalendarClock} tone="warn" />
+          <SummaryCard label="Overdue" value={String(stats.overdueCount)} icon={ShieldCheck} tone={stats.overdueCount > 0 ? 'danger' : 'neutral'} />
+        </section>
+
+        {loading ? (
+          <div className="invoices-loading">
+            <div className="invoices-loading-icon">
+              <FileText size={24} />
+            </div>
+            <p>{t('common.loading') || 'Loading...'}</p>
+          </div>
+        ) : invoices.length > 0 ? (
+          <section className="invoices-panel" aria-label="Invoice list">
+            <div className="invoices-panel-header">
+              <div>
+                <h2>Invoice activity</h2>
+                <p>Review payment status, resend emails, and inspect the details behind each charge.</p>
+              </div>
+              <span>{invoices.length} record{invoices.length === 1 ? '' : 's'}</span>
+            </div>
+
+            <div className="invoices-table">
+              <div className="invoices-table-head">
+                <span>Invoice</span>
+                <span>Date</span>
+                <span>Amount</span>
+                <span>Status</span>
+                <span>Due</span>
+                <span>Actions</span>
+              </div>
+              {invoices.map((invoice) => (
+                <article key={invoice.id} className="invoices-row">
+                  <div>
+                    <strong>{invoice.invoice_number || `Invoice ${invoice.id}`}</strong>
+                    <small>{invoice.customer_name || invoice.client_name || 'OxSteed customer'}</small>
+                  </div>
+                  <span>{formatDate(invoiceDate(invoice))}</span>
+                  <span className="invoices-amount">{centsToMoney(invoiceAmount(invoice))}</span>
+                  <span className={`invoices-status invoices-status-${invoice.status || 'draft'}`}>
+                    {statusLabel(invoice.status)}
+                  </span>
+                  <span>{formatDate(invoiceDueDate(invoice))}</span>
+                  <div className="invoices-row-actions">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedInvoice(invoice)}
+                      title={t('invoices.view') || 'View'}
+                      aria-label={`View ${invoice.invoice_number || 'invoice'}`}
+                    >
+                      <Eye size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleResendEmail(invoice.id)}
+                      disabled={resendingEmail === invoice.id}
+                      title={t('invoices.resendEmail') || 'Resend Email'}
+                      aria-label={`Resend ${invoice.invoice_number || 'invoice'}`}
+                    >
+                      <Mail size={16} />
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : (
+          <EmptyInvoices isHelper={isHelper} />
+        )}
+
+        <section className="invoices-guide" aria-label="How invoices connect">
+          <div>
+            <h2>How invoices fit into OxSteed</h2>
+            <p>
+              Invoices are not just receipts. They connect work, tools, consulting, payments,
+              records, and follow-up so customers and businesses can see what happened and what still needs attention.
+            </p>
+          </div>
+          <div className="invoices-guide-grid">
+            <GuideItem icon={Briefcase} title="Service work" text="Jobs and helper work can create a record of what was requested, billed, paid, or still outstanding." />
+            <GuideItem icon={Wrench} title="Tool rentals" text="Tool owners can send rental invoices, track payment, and keep rental history connected to bookings." />
+            <GuideItem icon={Sparkles} title="Consulting" text="Business-launch and consulting sessions can produce invoices that stay attached to your account history." />
+            <GuideItem icon={PackageSearch} title="Business records" text="Paid and pending invoices feed the bigger money picture: income, taxes, cash flow, and planning." />
+          </div>
+        </section>
+
+        {selectedInvoice && (
+          <InvoiceDetailModal
+            invoice={selectedInvoice}
+            resending={resendingEmail === selectedInvoice.id}
+            onClose={() => setSelectedInvoice(null)}
+            onResend={() => handleResendEmail(selectedInvoice.id)}
+          />
+        )}
+      </div>
+    </PageShell>
+  );
+}
+
+function SummaryCard({ label, value, icon: Icon, tone = 'neutral' }) {
+  return (
+    <div className={`invoices-summary-card tone-${tone}`}>
+      <div className="invoices-summary-icon">
+        <Icon size={18} />
+      </div>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function EmptyInvoices({ isHelper }) {
+  return (
+    <section className="invoices-empty">
+      <div className="invoices-empty-main">
+        <div className="invoices-empty-icon">
+          <FileText size={34} />
         </div>
-      )}
+        <p className="invoices-empty-kicker">No invoices yet</p>
+        <h2>Your invoice hub is ready before the first bill arrives.</h2>
+        <p>
+          Once you purchase consulting, receive a service invoice, rent a tool, sell work,
+          or send a client invoice, the record will appear here with payment status and follow-up actions.
+        </p>
+        <div className="invoices-empty-actions">
+          {isHelper ? (
+            <Link to="/dashboard?tab=invoices" className="invoices-btn invoices-btn-primary">
+              Create an invoice
+              <ArrowRight size={16} />
+            </Link>
+          ) : (
+            <Link to="/consulting-intake" className="invoices-btn invoices-btn-primary">
+              Explore consulting
+              <ArrowRight size={16} />
+            </Link>
+          )}
+          <Link to="/tool-rentals" className="invoices-btn">
+            Browse tool rentals
+          </Link>
+          <Link to="/features#payments" className="invoices-btn">
+            Learn how payments connect
+          </Link>
+        </div>
+      </div>
+
+      <div className="invoices-empty-side">
+        <h3>What will show here?</h3>
+        <ul>
+          <li>Paid, pending, overdue, and cancelled invoice records.</li>
+          <li>Consulting, service, rental, and business invoices.</li>
+          <li>Due dates, payment state, customer or consultant details.</li>
+          <li>Email resend actions and detail review for follow-up.</li>
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+function GuideItem({ icon: Icon, title, text }) {
+  return (
+    <div className="invoices-guide-item">
+      <Icon size={18} />
+      <h3>{title}</h3>
+      <p>{text}</p>
+    </div>
+  );
+}
+
+function InvoiceDetailModal({ invoice, resending, onClose, onResend }) {
+  return (
+    <div className="invoices-modal-overlay" onClick={onClose}>
+      <div className="invoices-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="invoices-modal-header">
+          <div>
+            <p>Invoice details</p>
+            <h2>{invoice.invoice_number || `Invoice ${invoice.id}`}</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close invoice details">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="invoices-modal-total">
+          <span>Amount</span>
+          <strong>{centsToMoney(invoiceAmount(invoice))}</strong>
+          <em className={`invoices-status invoices-status-${invoice.status || 'draft'}`}>
+            {statusLabel(invoice.status)}
+          </em>
+        </div>
+
+        <div className="invoices-modal-grid">
+          <Detail label="Issued" value={formatDate(invoiceDate(invoice))} />
+          <Detail label="Due date" value={formatDate(invoiceDueDate(invoice))} />
+          {invoice.paid_at && <Detail label="Paid" value={formatDate(invoice.paid_at)} />}
+          <Detail label="Customer" value={invoice.customer_name || invoice.client_name || 'Not listed'} />
+          <Detail label="Consultant" value={invoice.consultant_name || 'Not listed'} />
+          <Detail label="Status" value={statusLabel(invoice.status)} />
+        </div>
+
+        <div className="invoices-modal-footer">
+          <button type="button" className="invoices-btn invoices-btn-primary" onClick={onResend} disabled={resending}>
+            <Mail size={16} />
+            {resending ? 'Sending...' : 'Resend email'}
+          </button>
+          <button type="button" className="invoices-btn" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Detail({ label, value }) {
+  return (
+    <div className="invoices-detail">
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }

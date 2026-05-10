@@ -95,6 +95,11 @@
 - **Navigation**: `/features` registered in `client/src/App.jsx`; linked from the navbar Resources menu, mobile menu, and footer Company column.
 - **Verification**: `client` production build passes after adding the page, with only the existing large chunk warning remaining.
 
+**Invoices page quality pass (2026-05-10):** ✅ COMPLETE
+- **`client/src/pages/InvoicesPage.jsx` + `.css`**: Rebuilt `/invoices` from a sparse inline-style table/empty message into a PageShell-based financial records page with hero, summary KPI cards, guided empty state, invoice activity table, responsive mobile layout, and upgraded detail modal.
+- **Useful empty state**: Empty page now explains what will appear there (consulting, service, tool rental, business invoices), why invoices matter, and gives next actions to consulting, tool rentals, payment guide, or helper invoice creation depending on role.
+- **Verification**: `client` production build passes after redesign, with only the existing large chunk warning remaining.
+
 **Mobile app shell + native push foundation (2026-05-09):** ✅ IOS BUILD SUBMITTED WITH REAL ICON
 - **`mobile/`**: Added Capacitor 7 shell for iOS/Android App Store packaging. Defaults to `https://oxsteed.com` via `OXSTEED_APP_URL`, app id `com.oxsteed.app`, native splash/status bar/keyboard config, offline fallback, external-link handling, deep-link handling for `oxsteed://...` and `oxsteed.com` links. Generated native iOS project under `mobile/ios/`. Docs: `mobile/README.md` and `docs/mobile/app-store-release-checklist.md`.
 - **iOS native project**: `AppDelegate.swift` forwards APNs registration success/failure to Capacitor PushNotifications. `Info.plist` registers `oxsteed://`. `App.entitlements` includes push + associated domains for `applinks:oxsteed.com` and `applinks:www.oxsteed.com`. Xcode Team selected: `ZBRGSDRRU7` (`emile jean philippe`).
