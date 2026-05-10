@@ -300,6 +300,8 @@ async function processRefund(req, res) {
         payment_intent: transaction.payment_intent_id,
         amount: refundCents,
         reason: reason.substring(0, 50) // Stripe limit: 50 chars
+      }, {
+        idempotencyKey: `marketplace-order-refund-${orderId}-${refundCents}`
       });
 
       // Update order and transaction

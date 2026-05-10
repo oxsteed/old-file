@@ -268,6 +268,8 @@ exports.refundPayment = async (req, res) => {
     await stripe.refunds.create({
       payment_intent: payment.stripe_payment_intent_id,
       reason: reason || 'requested_by_customer',
+    }, {
+      idempotencyKey: `consulting-payment-refund-${payment.id}`,
     });
 
     // Conditional UPDATE: only refund if still 'completed' (prevents concurrent refund races).

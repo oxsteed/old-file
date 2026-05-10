@@ -1199,7 +1199,29 @@ exports.issueManualRefund = async (req, res) => {
     const { jobId } = req.params;
     const { reason, amount_cents } = req.body;
     if (!reason) return res.status(400).json({ error: 'Refund reason required.' });
-    const refund = await issueRefund(jobId, reason, amount_cents || null);
+
+    const refundAmountCents = amount_cents == null ? null : Number(amount_cents);
+    if (refundAmountCents != null && (!Number.isInteger(refundAmountCents) || refundAmountCents <= 0)) {
+      return res.status(400).json({ error: 'Refund amount must be a positive integer number of cents.' });
+    }
+
+    const { rows } = await db.query(
+      `SELECT id, stripe_payment_intent_id
+       FROM payments
+       WHERE job_id = $1
+         AND stripe_payment_intent_id IS NOT NULL
+         AND status IN ('authorized', 'captured', 'released')
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [jobId]
+    );
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Refundable payment not found for this job.' });
+    }
+
+    const payment = rows[0];
+    const idempotencyKey = `admin-job-refund-${jobId}-${payment.id}-${refundAmountCents || 'full'}`;
+    const refund = await issueRefund(payment.stripe_payment_intent_id, refundAmountCents, idempotencyKey);
     res.json({ message: `Refund issued successfully.`, refundId: refund.id });
   } catch (err) { logger.error('issueManualRefund error', { err }); res.status(500).json({ error: 'Refund failed.' }); }
 };

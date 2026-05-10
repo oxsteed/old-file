@@ -322,7 +322,7 @@ export default function UserDetail() {
     try {
       const { data: res } = await adminApi.post(`/admin/users/${userId}/impersonate`);
       const url = `${window.location.origin}/impersonate?token=${encodeURIComponent(res.impersonationToken)}`;
-      window.open(url, '_blank', 'noopener');
+      window.open(url, '_blank', 'noopener,noreferrer');
     } catch (err) {
       flash('error', parseApiError(err, 'Failed to create impersonation session.'));
     } finally { setImpersonating(false); }

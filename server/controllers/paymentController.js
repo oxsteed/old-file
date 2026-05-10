@@ -346,9 +346,13 @@ exports.refundPayment = async (req, res, next) => {
 
     let refundId;
     try {
+      const refundAmountCents = Math.round(refundAmount * 100);
       const refund = await stripe.refunds.create(
         refundParams,
-        { stripeAccount: paymentData.stripe_account_id }
+        {
+          stripeAccount: paymentData.stripe_account_id,
+          idempotencyKey: `payment-refund-${paymentData.id}-${refundAmountCents}`
+        }
       );
       refundId = refund.id;
     } catch (stripeErr) {

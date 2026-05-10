@@ -7,11 +7,12 @@ const { calculatePlatformFee } = require('./feeService');
  * Issue a refund for a payment intent.
  * Supports full or partial refund.
  */
-exports.issueRefund = async (paymentIntentId, amount = null) => {
+exports.issueRefund = async (paymentIntentId, amount = null, idempotencyKey = null) => {
   try {
     const refundData = { payment_intent: paymentIntentId };
     if (amount) refundData.amount = amount;
-    const refund = await stripe.refunds.create(refundData);
+    const options = idempotencyKey ? { idempotencyKey } : undefined;
+    const refund = await stripe.refunds.create(refundData, options);
     logger.info('Refund issued', { refundId: refund.id, paymentIntentId });
     return refund;
   } catch (err) {

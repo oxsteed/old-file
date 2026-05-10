@@ -9,6 +9,12 @@ const mobilePushService = require('./mobilePushService');
 
 const expo = new Expo({ accessToken: process.env.EXPO_ACCESS_TOKEN });
 
+function redactPushToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  if (token.length <= 12) return '[redacted]';
+  return `${token.slice(0, 6)}...${token.slice(-4)}`;
+}
+
 // ─── MASTER SEND FUNCTION ─────────────────────────────────────
 exports.sendNotification = async ({
   userId,
@@ -190,7 +196,7 @@ async function sendPushNotification(token, title, body, data, notifId) {
     }
     for (const ticket of tickets) {
       if (ticket.status === 'error') {
-        logger.error('Push notification error', { token, error: ticket.message });
+        logger.error('Push notification error', { token: redactPushToken(token), error: ticket.message });
         if (ticket.details?.error === 'DeviceNotRegistered') {
           await db.query(
             `UPDATE helper_profiles SET push_token = NULL WHERE push_token = $1`,
@@ -200,7 +206,7 @@ async function sendPushNotification(token, title, body, data, notifId) {
       }
     }
   } catch (err) {
-    logger.error('Send push notification failed', { token, error: err.message });
+    logger.error('Send push notification failed', { token: redactPushToken(token), error: err.message });
   }
 }
 

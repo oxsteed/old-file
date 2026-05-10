@@ -49,7 +49,7 @@ export default function AdminLegalDocumentsPage() {
   };
 
   const handlePreview = (id) => {
-    window.open(`/terms?preview=${id}`, '_blank');
+    window.open(`/terms?preview=${id}`, '_blank', 'noopener,noreferrer');
   };
 
   const getStatusBadge = (status) => {

@@ -85,6 +85,19 @@ function helperDisplayName(need) {
   return `${need.preferred_helper_first_name} ${(need.preferred_helper_last_name || '').charAt(0)}.`.trim();
 }
 
+function renderStrongInterpolation(t, key, value) {
+  const marker = '__OXSTEED_STRONG_VALUE__';
+  const rendered = t(key, { name: marker });
+  const [before, ...afterParts] = rendered.split(marker);
+  return (
+    <>
+      {before}
+      <strong>{value}</strong>
+      {afterParts.join(marker)}
+    </>
+  );
+}
+
 function useCountUp(target, durationMs = 800) {
   const [v, setV] = useState(0);
   const raf = useRef(null);
@@ -1334,7 +1347,7 @@ export default function PlannedNeedsPage() {
           <div className="pn-modal-overlay" onClick={(e) => e.target === e.currentTarget && closeModal()}>
             <div className="pn-modal">
               <h2>{t('plannedNeeds.cancelNeedTitle')}</h2>
-              <p dangerouslySetInnerHTML={{ __html: t('plannedNeeds.cancelNeedConfirm', { name: `<strong>${selected.title}</strong>` }) }} />
+              <p>{renderStrongInterpolation(t, 'plannedNeeds.cancelNeedConfirm', selected.title)}</p>
               {error && <p style={{ color: '#f87171', fontSize: '0.85rem' }}>{error}</p>}
               <div className="pn-modal-actions">
                 <button type="button" className="btn-ghost" onClick={closeModal}>

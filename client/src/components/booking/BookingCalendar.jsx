@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useTranslation, i18n as i18next } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import { Clock } from 'lucide-react';
 import { getAvailableSlots } from '../../api/bookings';
 import './BookingCalendar.css';

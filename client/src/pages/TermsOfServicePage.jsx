@@ -9,6 +9,110 @@ import api from '../api/axios';
 import logger from '../utils/logger';
 import './TermsOfServicePage.css';
 
+const ALLOWED_LEGAL_TAGS = new Set([
+  'a',
+  'b',
+  'blockquote',
+  'br',
+  'code',
+  'em',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'i',
+  'li',
+  'mark',
+  'ol',
+  'p',
+  'pre',
+  'strong',
+  'table',
+  'tbody',
+  'td',
+  'th',
+  'thead',
+  'tr',
+  'u',
+  'ul',
+]);
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function isSafeLegalHref(href) {
+  if (!href) return false;
+  return /^(https?:|mailto:|tel:|\/|#)/i.test(href.trim());
+}
+
+function sanitizeLegalHtml(html, query = '') {
+  if (typeof window === 'undefined' || typeof DOMParser === 'undefined') return '';
+
+  const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+  const output = document.createElement('div');
+
+  const cleanNode = (node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return document.createTextNode(node.textContent || '');
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return document.createDocumentFragment();
+    }
+
+    const tagName = node.tagName.toLowerCase();
+    if (!ALLOWED_LEGAL_TAGS.has(tagName)) {
+      const fragment = document.createDocumentFragment();
+      node.childNodes.forEach((child) => fragment.appendChild(cleanNode(child)));
+      return fragment;
+    }
+
+    const element = document.createElement(tagName);
+    if (tagName === 'a') {
+      const href = node.getAttribute('href');
+      if (isSafeLegalHref(href)) {
+        element.setAttribute('href', href.trim());
+      }
+      element.setAttribute('rel', 'noopener noreferrer');
+    }
+    node.childNodes.forEach((child) => element.appendChild(cleanNode(child)));
+    return element;
+  };
+
+  doc.body.childNodes.forEach((node) => output.appendChild(cleanNode(node)));
+
+  if (query && query.length >= 2) {
+    const regex = new RegExp(escapeRegExp(query), 'gi');
+    const highlightTextNodes = (node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.textContent || '';
+        if (!regex.test(text)) return;
+        regex.lastIndex = 0;
+        const fragment = document.createDocumentFragment();
+        let lastIndex = 0;
+        let match;
+        while ((match = regex.exec(text)) !== null) {
+          const offset = match.index;
+          fragment.appendChild(document.createTextNode(text.slice(lastIndex, offset)));
+          const mark = document.createElement('mark');
+          mark.textContent = match[0];
+          fragment.appendChild(mark);
+          lastIndex = offset + match[0].length;
+        }
+        fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+        node.parentNode.replaceChild(fragment, node);
+        return;
+      }
+      Array.from(node.childNodes).forEach(highlightTextNodes);
+    };
+    highlightTextNodes(output);
+  }
+
+  return output.innerHTML;
+}
+
 export default function TermsOfServicePage() {
   const { t, i18n } = useTranslation();
   const [document, setDocument] = useState(null);
@@ -56,13 +160,6 @@ export default function TermsOfServicePage() {
   // ──────────────────────────────────────────────────────────
   // SEARCH & FILTERING
   // ──────────────────────────────────────────────────────────
-
-  const highlightMatch = (text, query) => {
-    if (!query || query.length < 2) return text;
-
-    const regex = new RegExp(`(${query})`, 'gi');
-    return text.replace(regex, '<mark>$1</mark>');
-  };
 
   const filteredSections = searchQuery.length > 1
     ? sections.filter(s =>
@@ -270,7 +367,7 @@ export default function TermsOfServicePage() {
                   <div
                     className="terms-section-content"
                     dangerouslySetInnerHTML={{
-                      __html: highlightMatch(section.content, searchQuery)
+                      __html: sanitizeLegalHtml(section.content, searchQuery)
                     }}
                   />
 
