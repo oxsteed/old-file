@@ -12,7 +12,7 @@ FROM node:20-alpine
 LABEL maintainer="OxSteed Team"
 
 # Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+RUN apk add --no-cache dumb-init curl
 
 WORKDIR /app
 
