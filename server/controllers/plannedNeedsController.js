@@ -851,30 +851,59 @@ exports.broadcastNow = async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 // TASK 6: UPDATE RESERVED AMOUNT (add to sinking fund)
 // ═══════════════════════════════════════════════════════════════════════════
-exports.addToFund = async (req, res) => {
+exports.addToFund = async (req, res, next) => {
+  let client;
   try {
+    client = await db.connect();
     const userId = req.user.id;
     const { id } = req.params;
     const { amount } = req.body;
+    const parsedAmount = Number(amount);
 
-    if (!amount || parseFloat(amount) <= 0) {
-      return res.status(400).json({ error: 'Amount must be positive.' });
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0 || parsedAmount > 10_000_000) {
+      throw new AppError('Amount must be a positive number no greater than 10M.', 400, 'validation_failed', {
+        amount: 'Amount must be positive and no greater than 10M.',
+      });
     }
 
-    const { rows } = await db.query(`
+    await client.query('BEGIN');
+
+    const { rows: existing } = await client.query(`
+      SELECT id, status
+      FROM planned_needs
+      WHERE id = $1 AND user_id = $2
+      FOR UPDATE
+    `, [id, userId]);
+
+    if (!existing.length) {
+      throw new AppError('Planned need not found.', 404, 'not_found');
+    }
+
+    if (!['planned', 'funding', 'activating_soon'].includes(existing[0].status)) {
+      throw new AppError('Only active planned needs can be funded.', 400, 'invalid_state');
+    }
+
+    const { rows } = await client.query(`
       UPDATE planned_needs
-      SET reserved_amount = reserved_amount + $3,
+      SET reserved_amount = CASE
+            WHEN COALESCE(estimated_cost, 0) > 0
+              THEN LEAST(COALESCE(estimated_cost, 0), COALESCE(reserved_amount, 0) + $3)
+            ELSE COALESCE(reserved_amount, 0) + $3
+          END,
           updated_at = NOW()
       WHERE id = $1 AND user_id = $2
-        AND status NOT IN ('cancelled', 'completed')
       RETURNING *
-    `, [id, userId, parseFloat(amount)]);
+    `, [id, userId, parsedAmount]);
 
-    if (!rows.length) return res.status(404).json({ error: 'Not found or not editable.' });
+    await client.query('COMMIT');
     res.json(rows[0]);
   } catch (err) {
-    logger.error('addToFund error', { message: err.message });
-    res.status(500).json({ error: 'Failed to update fund.' });
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    if (err instanceof AppError) return next(err);
+    logger.error('addToFund error', { userId: req.user?.id, needId: req.params?.id, error: err.message });
+    next(new AppError('Failed to update fund.', 500, 'fund_planned_need_failed'));
+  } finally {
+    if (client) client.release();
   }
 };
 

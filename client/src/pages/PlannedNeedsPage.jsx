@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -158,6 +158,7 @@ const EXAMPLE_CARDS = [
 
 export default function PlannedNeedsPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const currency =
     user?.preferred_currency || (user?.country ? getDefaultCurrency(user.country) : null) || 'USD';
@@ -543,6 +544,26 @@ export default function PlannedNeedsPage() {
     }
   }
 
+  function postNeedAsJob(need) {
+    const notes = [
+      need.description,
+      need.notes ? `${t('plannedNeeds.notesLabel')}: ${need.notes}` : '',
+    ].filter(Boolean).join('\n\n');
+
+    navigate('/post-job', {
+      state: {
+        bookingPrefill: {
+          title: need.title,
+          description: notes,
+          locationInput: need.home_name || '',
+          requestedDate: need.due_date || '',
+          preferredHelperId: need.preferred_helper_id || '',
+          preferredHelperName: helperDisplayName(need) || '',
+        },
+      },
+    });
+  }
+
   function applyQuickChip(item) {
     const due = new Date();
     due.setDate(due.getDate() + (item.recurrence_days || 90));
@@ -847,7 +868,7 @@ export default function PlannedNeedsPage() {
                   )}
                   {projection.no_data && (
                     <p className="pn-inline-cta">
-                      <Link to="/dashboard">{t('plannedNeeds.ctaIncome')}</Link>
+                      <Link to="/dashboard?tab=money">{t('plannedNeeds.ctaIncome')}</Link>
                     </p>
                   )}
                 </div>
@@ -859,7 +880,11 @@ export default function PlannedNeedsPage() {
                       {trendArrow(trend.projected_expenses_pct)} {trend.projected_expenses_pct != null ? `${trend.projected_expenses_pct > 0 ? '+' : ''}${trend.projected_expenses_pct}%` : ''}
                     </span>
                   )}
-                  {projection.no_data && <p className="pn-inline-cta">{t('plannedNeeds.ctaExpense')}</p>}
+                  {projection.no_data && (
+                    <p className="pn-inline-cta">
+                      <Link to="/dashboard?tab=money">{t('plannedNeeds.ctaExpense')}</Link>
+                    </p>
+                  )}
                 </div>
                 <div className="pn-proj-stat pn-proj-stat-glow">
                   <div className="label">{t('plannedNeeds.sinkingFunds')}</div>
@@ -1080,6 +1105,7 @@ export default function PlannedNeedsPage() {
                     onDelete={() => handleDelete(need)}
                     onUpdate={loadNeeds}
                     onFund={() => setFundNeed(need)}
+                    onPostJob={() => postNeedAsJob(need)}
                   />
                 ))}
               </div>
@@ -1524,7 +1550,7 @@ function PlannedNeedsCalendar({ month, setMonth, needs, currency, t }) {
   );
 }
 
-function NeedCard({ need, currency = 'USD', onEdit, onCancel, onComplete, onUpdate, onPause, onDelete, onFund }) {
+function NeedCard({ need, currency = 'USD', onEdit, onCancel, onComplete, onUpdate, onPause, onDelete, onFund, onPostJob }) {
   const { t } = useTranslation();
   const cost = parseFloat(need?.estimated_cost ?? 0);
   const reserved = parseFloat(need?.reserved_amount ?? 0);
@@ -1551,6 +1577,12 @@ function NeedCard({ need, currency = 'USD', onEdit, onCancel, onComplete, onUpda
     if (need.status === 'funding' || (cost > 0 && fundPct < 100)) return { key: 'saving', className: 'st-funding' };
     return { key: 'planned', className: 'st-planned' };
   })();
+  const readyForJob =
+    isActive &&
+    !paused &&
+    !need.published_job_id &&
+    need.type !== 'booking' &&
+    (uiStatus.key === 'ready' || uiStatus.key === 'overdue' || daysLeft <= Number(need.lead_time_days || 0));
 
   const PREF_HELPER_LABELS = {
     pending: t('plannedNeeds.prefStatusPending'),
@@ -1612,6 +1644,12 @@ function NeedCard({ need, currency = 'USD', onEdit, onCancel, onComplete, onUpda
           )
         )}
 
+        {need.published_job_id && (
+          <Link to={`/jobs/${need.published_job_id}`} className="pn-find-helper">
+            {t('plannedNeeds.viewPostedJob', { defaultValue: 'View posted job' })}
+          </Link>
+        )}
+
         {isActive && need.preferred_helper_id && need.status === 'published' && <PlannedNeedHoldStatus need={need} onUpdate={onUpdate} />}
 
         {cost > 0 && isActive && (
@@ -1650,7 +1688,7 @@ function NeedCard({ need, currency = 'USD', onEdit, onCancel, onComplete, onUpda
         )}
       </div>
 
-      {isActive && (onEdit || onComplete || onCancel || onDelete || onFund || onPause) && (
+      {isActive && (onEdit || onComplete || onCancel || onDelete || onFund || onPause || (readyForJob && onPostJob)) && (
         <div className="pn-card-actions pn-card-actions-v2">
           {onEdit && (
             <button type="button" className="pn-card-action-btn" onClick={onEdit} title={t('plannedNeeds.editBtn')}>
@@ -1660,6 +1698,11 @@ function NeedCard({ need, currency = 'USD', onEdit, onCancel, onComplete, onUpda
           {onFund && (
             <button type="button" className="pn-card-action-btn" onClick={onFund} title={t('plannedNeeds.topUp')}>
               +
+            </button>
+          )}
+          {readyForJob && onPostJob && (
+            <button type="button" className="pn-card-action-btn primary" onClick={onPostJob}>
+              {t('plannedNeeds.postJobNow', { defaultValue: 'Post job' })}
             </button>
           )}
           {onComplete && (

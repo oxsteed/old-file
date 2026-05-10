@@ -87,6 +87,7 @@ import MyBidsPage from './pages/MyBidsPage';
 import EnforcementPolicyPage from './pages/EnforcementPolicyPage';
 import HelperProfileEditPage from './pages/HelperProfileEditPage';
 import BusinessProfileEditPage from './pages/BusinessProfileEditPage';
+import FeatureGuidePage from './pages/FeatureGuidePage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -146,6 +147,7 @@ export default function App() {
                     <Route path="/forgot-password"         element={<Guarded><ForgotPasswordPage /></Guarded>} />
                     <Route path="/reset-password/:token"   element={<Guarded><ResetPasswordPage /></Guarded>} />
                     <Route path="/how-it-works"            element={<Guarded><HowItWorksPage /></Guarded>} />
+                    <Route path="/features"                element={<Guarded><FeatureGuidePage /></Guarded>} />
                     <Route path="/about"                   element={<Guarded><AboutPage /></Guarded>} />
                     <Route path="/jobs"                    element={<Guarded><JobListPage /></Guarded>} />
                     <Route path="/jobs/:id"                element={<Guarded><JobDetailPage /></Guarded>} />

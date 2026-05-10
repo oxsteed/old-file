@@ -106,6 +106,7 @@ export default function Footer() {
                 Company
               </span>
               <FooterLink to="/how-it-works">{t('footer.howItWorks')}</FooterLink>
+              <FooterLink to="/features">Feature Guide</FooterLink>
               <FooterLink to="/about">{t('footer.about')}</FooterLink>
               <FooterLink to="/helpers">{t('footer.findHelpers')}</FooterLink>
               <FooterLink to="/products">{t('footer.browseProducts')}</FooterLink>

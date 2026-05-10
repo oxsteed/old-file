@@ -83,6 +83,18 @@
 - **Passive cards made actionable**: Pulse “Log a transaction” opens the Money transaction modal directly; Net This Month opens Money; This Week opens the home task flow; Goals Progress opens goal creation. This moves the customer dashboard toward an action-oriented life command center instead of a static metrics page.
 - **Verification**: `client` production build passes after dashboard wiring changes, with only the existing large chunk warning remaining.
 
+**Planned Needs command-center pass (2026-05-10):** ✅ COMPLETE
+- **Money connection**: `client/src/pages/PlannedNeedsPage.jsx` no-data projection CTAs now deep-link to `/dashboard?tab=money` so users can add income/expense data from the exact place where projections are empty.
+- **Need → job connection**: Ready/overdue planned needs now expose a **Post job** action that opens `/post-job` with the need title, description/private notes, due date, linked home location, and preferred helper prefilled through React Router state. Published needs show **View posted job**.
+- **Sinking fund safety**: `server/controllers/plannedNeedsController.js` `addToFund` now uses a row lock + transaction, validates amount shape/range, limits funding to active needs, caps reserved amount at estimated cost when one exists, and returns AppError-shaped failures.
+- **i18n**: Added `plannedNeeds.postJobNow` and `plannedNeeds.viewPostedJob` to en/es/fr/ht.
+- **Verification**: `node --check` passes for `plannedNeedsController.js` and `routes/plannedNeeds.js`; `client` production build passes, with only the existing large chunk warning remaining.
+
+**Feature Guide page (2026-05-10):** ✅ COMPLETE
+- **`client/src/pages/FeatureGuidePage.jsx` + `.css`**: Added public `/features` page using the PageShell layout and a terms-style searchable sidebar/content design. Covers major OxSteed feature areas with real-life use cases, connection points, and next-action links: dashboard/life pulse, jobs, helpers, direct booking, messages, calendar, planned needs, money, home/car/personal care, goals, tool rentals, products/orders, payments/invoices/escrow, trust/disputes, helper/business profiles, Business Hub, QR, consulting, support, and settings/security/mobile.
+- **Navigation**: `/features` registered in `client/src/App.jsx`; linked from the navbar Resources menu, mobile menu, and footer Company column.
+- **Verification**: `client` production build passes after adding the page, with only the existing large chunk warning remaining.
+
 **Mobile app shell + native push foundation (2026-05-09):** ✅ IOS BUILD SUBMITTED WITH REAL ICON
 - **`mobile/`**: Added Capacitor 7 shell for iOS/Android App Store packaging. Defaults to `https://oxsteed.com` via `OXSTEED_APP_URL`, app id `com.oxsteed.app`, native splash/status bar/keyboard config, offline fallback, external-link handling, deep-link handling for `oxsteed://...` and `oxsteed.com` links. Generated native iOS project under `mobile/ios/`. Docs: `mobile/README.md` and `docs/mobile/app-store-release-checklist.md`.
 - **iOS native project**: `AppDelegate.swift` forwards APNs registration success/failure to Capacitor PushNotifications. `Info.plist` registers `oxsteed://`. `App.entitlements` includes push + associated domains for `applinks:oxsteed.com` and `applinks:www.oxsteed.com`. Xcode Team selected: `ZBRGSDRRU7` (`emile jean philippe`).

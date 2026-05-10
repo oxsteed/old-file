@@ -4055,6 +4055,8 @@
     "descriptionPlaceholder": "Optional - appears in the auto-posted job.",
     "notesLabel": "Notes (private)",
     "notesPlaceholder": "Reminders just for you.",
+    "postJobNow": "Post job",
+    "viewPostedJob": "View posted job",
     "saving": "Saving…",
     "addNeedBtn": "Add Need",
     "saveChangesBtn": "Save Changes",

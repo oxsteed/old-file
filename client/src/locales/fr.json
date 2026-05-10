@@ -4055,6 +4055,8 @@
     "descriptionPlaceholder": "Optionnel - apparaît dans la mission publiée automatiquement.",
     "notesLabel": "Notes (privées)",
     "notesPlaceholder": "Rappels rien que pour vous.",
+    "postJobNow": "Publier la mission",
+    "viewPostedJob": "Voir la mission publiée",
     "saving": "Enregistrement…",
     "addNeedBtn": "Ajouter le Besoin",
     "saveChangesBtn": "Enregistrer les Modifications",

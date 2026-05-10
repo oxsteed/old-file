@@ -4055,6 +4055,8 @@
     "descriptionPlaceholder": "Opcional - aparece en el trabajo publicado automáticamente.",
     "notesLabel": "Notas (privadas)",
     "notesPlaceholder": "Recordatorios solo para ti.",
+    "postJobNow": "Publicar trabajo",
+    "viewPostedJob": "Ver trabajo publicado",
     "saving": "Guardando…",
     "addNeedBtn": "Añadir Necesidad",
     "saveChangesBtn": "Guardar Cambios",
