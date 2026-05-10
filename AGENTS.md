@@ -45,6 +45,9 @@
 - **Tests**: Added `server/__tests__/adminAuthSecurity.test.js`; extended `server/__tests__/webhook.test.js` with replay protection coverage.
 - **Verification**: `npm test -- --runTestsByPath __tests__/adminAuthSecurity.test.js __tests__/authMiddlewareSecurity.test.js __tests__/webhook.test.js` passes (17 tests); `npm audit --omit=dev` reports 0 vulnerabilities; `node --check` passes for modified admin/webhook files and tests.
 
+**Deployment healthcheck startup window (2026-05-10):** ✅ COMPLETE
+- **`Dockerfile`**: Healthcheck `start-period` increased from 5s to 90s and retries from 3 to 5. Coolify marked the new container unhealthy before startup migrations completed; the longer grace period lets `npm start` finish `node migrate.js` before `/health` is expected to pass.
+
 **Mobile app shell + native push foundation (2026-05-09):** ✅ IOS BUILD SUBMITTED WITH REAL ICON
 - **`mobile/`**: Added Capacitor 7 shell for iOS/Android App Store packaging. Defaults to `https://oxsteed.com` via `OXSTEED_APP_URL`, app id `com.oxsteed.app`, native splash/status bar/keyboard config, offline fallback, external-link handling, deep-link handling for `oxsteed://...` and `oxsteed.com` links. Generated native iOS project under `mobile/ios/`. Docs: `mobile/README.md` and `docs/mobile/app-store-release-checklist.md`.
 - **iOS native project**: `AppDelegate.swift` forwards APNs registration success/failure to Capacitor PushNotifications. `Info.plist` registers `oxsteed://`. `App.entitlements` includes push + associated domains for `applinks:oxsteed.com` and `applinks:www.oxsteed.com`. Xcode Team selected: `ZBRGSDRRU7` (`emile jean philippe`).
