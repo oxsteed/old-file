@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { X, MessageCircle, Building2, LogIn, Trash2, Check, XCircle } from 'lucide-react';
+import { X, MessageCircle, Building2, LogIn, Trash2, Check, XCircle, Search, Maximize2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -39,6 +39,8 @@ interface ChatPanelProps {
   onDestinationChange?: (destination: ChatDestination) => void;
   /** Ref to the message input textarea for external focus/scroll */
   messageInputRef?: React.RefObject<HTMLTextAreaElement>;
+  roomy?: boolean;
+  onExpand?: () => void;
 }
 
 /** Check if the most recent handoff event is unacknowledged */
@@ -126,6 +128,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   destination: externalDestination,
   onDestinationChange,
   messageInputRef,
+  roomy = false,
+  onExpand,
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -160,6 +164,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   // Inline-edit state for ChatPanel messages
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingText,      setEditingText]      = useState('');
+  const [searchOpen,       setSearchOpen]       = useState(false);
 
   // ── Live status polling ───────────────────────────────────────────────────
   useEffect(() => {
@@ -691,7 +696,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
   return (
     <div
-      className={`flex flex-col bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden h-full ${className}`}
+      className={`flex flex-col bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden h-full ${roomy ? 'shadow-2xl shadow-black/40' : ''} ${className}`}
       aria-label={t('helperProfile.chat.chatPanel')}
       role="region"
     >
@@ -705,6 +710,31 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <StatusBadge status={currentStatus} />
+            <button
+              onClick={() => {
+                setSearchOpen((v) => {
+                  if (v) clearSearch();
+                  return !v;
+                });
+              }}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+              aria-label={t('helperProfile.chat.searchPlaceholder')}
+              title={t('helperProfile.chat.searchPlaceholder')}
+              type="button"
+            >
+              <Search className="w-4 h-4" aria-hidden="true" />
+            </button>
+            {onExpand && !roomy && (
+              <button
+                onClick={onExpand}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                aria-label={t('helperProfile.chat.expandChat', { defaultValue: 'Expand chat' })}
+                title={t('helperProfile.chat.expandChat', { defaultValue: 'Expand chat' })}
+                type="button"
+              >
+                <Maximize2 className="w-4 h-4" aria-hidden="true" />
+              </button>
+            )}
             <button
               onClick={() => {
                 if (window.confirm(t('messages.clearChatConfirm') || 'Clear this conversation?')) {
@@ -743,7 +773,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           onChange={handleDestinationChange}
         />
 
-        {/* Search bar */}
+        {searchOpen && (
         <div className="flex gap-2 items-center">
           <input
             type="text"
@@ -773,6 +803,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             </button>
           )}
         </div>
+        )}
       </div>
 
       {/* ── Context banner (when OxSteed selected) ─────────── */}
@@ -826,13 +857,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             </>
           ) : (
             <div
-              className="rounded-xl border border-emerald-800/60 bg-emerald-950/30 px-3 py-2.5 flex items-start gap-2"
+              className="rounded-xl border border-emerald-800/60 bg-emerald-950/30 px-3 py-2 flex items-center gap-2"
               role="status"
             >
               <span className="text-emerald-400 text-lg leading-none" aria-hidden="true">✓</span>
-              <div>
-                <p className="text-sm font-medium text-emerald-200">{t('messages.guestContactSavedTitle')}</p>
-                <p className="text-xs text-emerald-200/80 mt-0.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-emerald-200">{t('messages.guestContactSavedTitle')}</p>
+                <p className="text-[11px] text-emerald-200/80 mt-0.5 truncate">
                   {t('messages.guestContactSavedBody', { name: guestName.trim(), email: guestEmail.trim() })}
                 </p>
                 <button
@@ -934,7 +965,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       <MessageComposer
         status={composerStatus}
         onSend={handleSend}
-        compact={!!(isGuest && session.destination === 'helper')}
+        compact={!!(isGuest && session.destination === 'helper') && !roomy}
+        roomy={roomy}
         hint={
           isGuest && session.destination === 'helper' && guestContactSaved ? (
             <span className="text-emerald-400/90">{t('messages.guestComposerHint')}</span>

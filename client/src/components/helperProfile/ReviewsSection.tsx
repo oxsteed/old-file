@@ -153,6 +153,7 @@ const ReviewsSection: React.FC<ReviewsSectionProps> = ({
   const { t } = useTranslation();
   const [showAll, setShowAll] = useState(false);
   const displayed = showAll ? reviews : reviews.slice(0, INITIAL_DISPLAY);
+  const hasReviews = totalCount > 0 && reviews.length > 0;
 
   return (
     <SectionCard
@@ -160,7 +161,23 @@ const ReviewsSection: React.FC<ReviewsSectionProps> = ({
       title={t('helperProfile.reviews.title')}
       subtitle={t('helperProfile.reviews.verifiedReviews', { count: totalCount })}
     >
-      {/* Summary row */}
+      {!hasReviews ? (
+        <div className="mb-6 p-5 bg-gray-800/40 rounded-xl border border-gray-700/50 flex items-start gap-4">
+          <div className="w-11 h-11 rounded-full bg-gray-900 border border-gray-700 flex items-center justify-center flex-shrink-0">
+            <MessageSquare className="w-5 h-5 text-brand-400" aria-hidden="true" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-white">
+              {t('helperProfile.reviews.noVerifiedYet', { defaultValue: 'No verified reviews yet' })}
+            </p>
+            <p className="text-sm text-gray-400 leading-relaxed mt-1">
+              {t('helperProfile.reviews.noVerifiedYetSub', {
+                defaultValue: 'Reviews appear after completed OxSteed jobs, so new helpers start without a rating until customers have real work to evaluate.',
+              })}
+            </p>
+          </div>
+        </div>
+      ) : (
       <div className="flex flex-col sm:flex-row gap-6 mb-6 p-4 bg-gray-800/40 rounded-xl border border-gray-700/50">
         <div className="flex flex-col items-center justify-center sm:border-r border-gray-700 sm:pr-6 sm:min-w-[96px]">
           <p className="text-5xl font-bold text-white">{overallRating.toFixed(1)}</p>
@@ -171,15 +188,16 @@ const ReviewsSection: React.FC<ReviewsSectionProps> = ({
           <RatingDistribution reviews={reviews} />
         </div>
       </div>
+      )}
 
       {/* Review cards */}
-      <div className="space-y-4">
+      {hasReviews && <div className="space-y-4">
         {displayed.map((review) => (
           <ReviewCard key={review.id} review={review} />
         ))}
-      </div>
+      </div>}
 
-      {reviews.length > INITIAL_DISPLAY && (
+      {hasReviews && reviews.length > INITIAL_DISPLAY && (
         <button
           onClick={() => setShowAll((p) => !p)}
           className="mt-4 w-full py-2.5 rounded-xl border border-gray-700 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors flex items-center justify-center gap-2"

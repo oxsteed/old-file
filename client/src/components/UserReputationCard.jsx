@@ -92,6 +92,7 @@ const UserReputationCard = ({ userId, showFeeHistory = false, className = '' }) 
   const completionRate = reputation.totalJobs > 0
     ? Math.round((reputation.completedJobs / reputation.totalJobs) * 100)
     : 0;
+  const hasEnoughHistory = reputation.totalJobs > 0 || reputation.completedJobs > 0;
 
   const hasFees = feeHistory && !feeHistory.error && feeHistory.totalFeesPaidCents > 0;
 
@@ -110,6 +111,7 @@ const UserReputationCard = ({ userId, showFeeHistory = false, className = '' }) 
       </div>
 
       {/* ── Score + completion ── */}
+      {hasEnoughHistory ? (
       <div className="rep-score-section">
         <div className="rep-score-circle">
           <div className="rep-score-value">{reputation.reliabilityScore}</div>
@@ -126,6 +128,20 @@ const UserReputationCard = ({ userId, showFeeHistory = false, className = '' }) 
           </p>
         </div>
       </div>
+      ) : (
+        <div className="rep-new-helper">
+          <div className="rep-new-helper-badge">{t('reputation.newHelperBadge', 'New helper')}</div>
+          <div>
+            <p className="rep-new-helper-title">{t('reputation.notEnoughHistoryTitle', 'Not enough job history yet')}</p>
+            <p className="rep-new-helper-copy">
+              {t(
+                'reputation.notEnoughHistoryCopy',
+                'Reliability score appears after completed OxSteed jobs. For now, review verification badges, services, availability, and how clearly the helper communicates.'
+              )}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Stats grid ── */}
       {reputation.totalJobs > 0 && (

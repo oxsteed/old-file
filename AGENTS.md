@@ -37,6 +37,12 @@
 - **`server/controllers/appointmentController.js` + `client/src/components/calendar/AppointmentDetailModal.jsx`**: AI guest appointments now display the real guest name/email/phone to helpers, skip placeholder-user notifications, email the actual guest on confirmation/cancellation, and avoid reminder rows for the internal placeholder account.
 - **Verification:** `node --check` passes for touched server controllers; locale JSON parse passes for en/es/fr/ht; `npm run build` passes in `client/`. Existing large chunk warning remains.
 
+**Public helper profile trust/chat polish (2026-05-11):** IN PROGRESS
+- **`client/src/components/UserReputationCard.jsx` + `client/src/styles/UserReputationCard.css`**: Helpers with no completed OxSteed job history now show a "New helper / not enough job history yet" explanation instead of a misleading numeric reliability score.
+- **`client/src/components/helperProfile/ReviewsSection.tsx`**: Empty reviews now explain that verified reviews appear after completed OxSteed jobs.
+- **`client/src/components/helperProfile/chat/ChatPanel.tsx`, `MessageComposer.tsx`, `HelperBusinessProfilePage.tsx`**: Public profile chat now has a collapsed search control, a slimmer saved-contact row, a larger roomy composer mode, and a desktop expanded chat modal from the sidebar. QR placement unchanged.
+- **Verification:** Pending. The Windows shell became unresponsive after a timed-out `npm run build`; rerun `npm run build` in `client/` before deployment.
+
 **Deployment dependency fix (2026-05-10):** ✅ COMPLETE
 - **`server/package.json`**: Removed stale direct OpenTelemetry dependencies pinned to invalid/nonexistent package versions such as `@opentelemetry/sdk-trace-node@0.48.0`; no app code imports them directly, and Sentry still brings its compatible OpenTelemetry transitive dependencies from `server/package-lock.json`.
 - **`Dockerfile`**: Server dependency install now uses `npm ci` instead of `npm install`, matching the client stage and making Coolify/production builds use the committed lockfile deterministically.

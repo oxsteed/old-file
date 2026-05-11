@@ -19,7 +19,7 @@ import PageMeta from '../components/PageMeta';
 import ProfileJsonLd from '../components/ProfileJsonLd';
 import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDescription';
 import ProfileShareControls from '../components/helperProfile/ProfileShareControls';
-import { MessageCircle, Flag } from 'lucide-react';
+import { MessageCircle, Flag, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import UserReputationCard from '../components/UserReputationCard';
 import ReportModal from '../components/ReportModal';
@@ -70,6 +70,7 @@ const HelperBusinessProfilePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTemplate, setActiveTemplate] = useState<string>('default');
   const [chatOpen, setChatOpen] = useState(false);
+  const [desktopChatExpanded, setDesktopChatExpanded] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [guestSignInModalOpen, setGuestSignInModalOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024); // lg breakpoint
@@ -412,6 +413,7 @@ const HelperBusinessProfilePage: React.FC = () => {
                   destination={chatDestination}
                   onDestinationChange={setChatDestination}
                   messageInputRef={messageInputRef}
+                  onExpand={() => setDesktopChatExpanded(true)}
                 />
               </div>
             </div>
@@ -463,6 +465,39 @@ const HelperBusinessProfilePage: React.FC = () => {
             className="h-full"
           />
         </MobileChatDrawer>
+      )}
+
+      {!isMobile && desktopChatExpanded && (
+        <div
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center px-6 py-8"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('helperProfile.chat.expandChat', { defaultValue: 'Expanded chat' })}
+        >
+          <div className="w-full max-w-5xl h-[min(86vh,880px)] relative">
+            <button
+              type="button"
+              onClick={() => setDesktopChatExpanded(false)}
+              className="absolute -top-4 -right-4 z-10 w-10 h-10 rounded-full bg-gray-900 border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800 flex items-center justify-center shadow-xl"
+              aria-label={t('messages.closeChat')}
+            >
+              <X className="w-5 h-5" aria-hidden="true" />
+            </button>
+            <ChatPanel
+              session={chatSession}
+              helperName={helper.businessName}
+              helperId={helper.id}
+              isGuest={isGuestVisitor}
+              allowLiveChat={helper.allowLiveChat}
+              variant="modal"
+              onClose={() => setDesktopChatExpanded(false)}
+              className="h-full"
+              destination={chatDestination}
+              onDestinationChange={setChatDestination}
+              roomy
+            />
+          </div>
+        </div>
       )}
 
       {guestSignInModalOpen && (

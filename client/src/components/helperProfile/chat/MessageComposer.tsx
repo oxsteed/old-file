@@ -18,6 +18,7 @@ interface MessageComposerProps {
   placeholder?: string;
   /** Hide attachment/emoji row for a lighter composer (e.g. guest profile chat) */
   compact?: boolean;
+  roomy?: boolean;
   /** Extra hint above the textarea (e.g. guest flow: contact saved) */
   hint?: React.ReactNode;
   disabled?: boolean;
@@ -34,6 +35,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   onSend,
   placeholder,
   compact = false,
+  roomy = false,
   hint,
   disabled: disabledProp = false,
   conversationId,
@@ -53,7 +55,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+    el.style.height = `${Math.min(el.scrollHeight, roomy ? 220 : 120)}px`;
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -117,7 +119,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
 
   return (
     <div
-      className={`px-3 py-3 bg-gray-900 border-t border-gray-800 ${
+      className={`${roomy ? 'px-4 py-4' : 'px-3 py-3'} bg-gray-900 border-t border-gray-800 ${
         isDisabled ? 'opacity-60' : ''
       }`}
       aria-label={t('helperProfile.chat.messageComposer', { defaultValue: 'Message composer' })}
@@ -206,11 +208,11 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           onFocus={handleFocus}
           placeholder={placeholder ?? defaultPlaceholder}
           disabled={isDisabled}
-          rows={1}
+          rows={roomy ? 3 : 1}
           className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-500 resize-none focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 transition-colors disabled:cursor-not-allowed leading-relaxed"
           aria-label={t('messages.messageInput')}
           aria-multiline="true"
-          style={{ minHeight: '40px', maxHeight: '120px', fontSize: '16px' }}
+          style={{ minHeight: roomy ? '86px' : '40px', maxHeight: roomy ? '220px' : '120px', fontSize: '16px' }}
         />
         <button
           onClick={submit}
