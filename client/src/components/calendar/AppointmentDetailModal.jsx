@@ -127,6 +127,22 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
                 )}
               </div>
             </div>
+            {!isCustomer && appointment.customer_email && (
+              <div className="adm-detail">
+                <label>{t('common.email', { defaultValue: 'Email' })}</label>
+                <div className="adm-value">
+                  <a href={`mailto:${appointment.customer_email}`}>{appointment.customer_email}</a>
+                </div>
+              </div>
+            )}
+            {!isCustomer && appointment.guest_phone && (
+              <div className="adm-detail">
+                <label>{t('common.phone', { defaultValue: 'Phone' })}</label>
+                <div className="adm-value">
+                  <a href={`tel:${appointment.guest_phone}`}>{appointment.guest_phone}</a>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="adm-section">

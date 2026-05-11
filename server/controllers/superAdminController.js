@@ -10,9 +10,18 @@ const { withTransaction } = require('../utils/transaction');
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const AI_BOOKING_PLACEHOLDER_USER_ID = '00000000-0000-4000-8000-000000000001';
+const INTERNAL_EMAIL_SUFFIX = '@oxsteed.internal';
 
 function isUuidParam(id) {
   return typeof id === 'string' && UUID_RE.test(id.trim());
+}
+
+function isInternalSystemUser(user = {}) {
+  return (
+    String(user.id || '').toLowerCase() === AI_BOOKING_PLACEHOLDER_USER_ID ||
+    String(user.email || '').toLowerCase().endsWith(INTERNAL_EMAIL_SUFFIX)
+  );
 }
 
 /**
@@ -461,8 +470,12 @@ exports.getUsers = async (req, res) => {
     const params = [];
     let paramIdx = 1;
 
-    // Base exclusion: Never return administrative accounts via the standard user list.
-    const baseConditions = [`u.role NOT IN ('admin','super_admin')`];
+    // Base exclusion: Never return administrative or internal system accounts via the standard user list.
+    const baseConditions = [
+      `u.role NOT IN ('admin','super_admin')`,
+      `u.id::text <> '${AI_BOOKING_PLACEHOLDER_USER_ID}'`,
+      `LOWER(u.email) NOT LIKE '%${INTERNAL_EMAIL_SUFFIX}'`,
+    ];
 
     if (search) {
       baseConditions.push(`(u.first_name ILIKE $${paramIdx} OR u.last_name ILIKE $${paramIdx} OR u.email ILIKE $${paramIdx} OR u.phone ILIKE $${paramIdx})`);
@@ -546,12 +559,12 @@ exports.getUsers = async (req, res) => {
     // Summary stats (always across all non-admin users, ignoring current filters)
     const { rows: summaryRows } = await db.query(`
       SELECT
-        COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin'))                             AS total,
-        COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin') AND is_active = true)        AS active,
-        COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin') AND is_active = false)       AS suspended,
+        COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin') AND id::text <> '${AI_BOOKING_PLACEHOLDER_USER_ID}' AND LOWER(email) NOT LIKE '%${INTERNAL_EMAIL_SUFFIX}')                             AS total,
+        COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin') AND id::text <> '${AI_BOOKING_PLACEHOLDER_USER_ID}' AND LOWER(email) NOT LIKE '%${INTERNAL_EMAIL_SUFFIX}' AND is_active = true)        AS active,
+        COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin') AND id::text <> '${AI_BOOKING_PLACEHOLDER_USER_ID}' AND LOWER(email) NOT LIKE '%${INTERNAL_EMAIL_SUFFIX}' AND is_active = false)       AS suspended,
         COUNT(*) FILTER (WHERE role IN ('helper','helper_pro'))                                 AS helpers,
-        COUNT(*) FILTER (WHERE role = 'customer')                                               AS customers,
-        COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin') AND created_at >= now() - interval '7 days') AS new_this_week
+        COUNT(*) FILTER (WHERE role = 'customer' AND id::text <> '${AI_BOOKING_PLACEHOLDER_USER_ID}' AND LOWER(email) NOT LIKE '%${INTERNAL_EMAIL_SUFFIX}')                                               AS customers,
+        COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin') AND id::text <> '${AI_BOOKING_PLACEHOLDER_USER_ID}' AND LOWER(email) NOT LIKE '%${INTERNAL_EMAIL_SUFFIX}' AND created_at >= now() - interval '7 days') AS new_this_week
       FROM users
     `);
 
@@ -572,6 +585,10 @@ exports.getUsers = async (req, res) => {
 exports.getUserDetail = async (req, res) => {
   try {
     const { userId } = req.params;
+    if (String(userId || '').toLowerCase() === AI_BOOKING_PLACEHOLDER_USER_ID) {
+      return res.status(404).json({ error: 'System account is hidden from user management.' });
+    }
+
     const hasHP   = await tableExists('helper_profiles');
     const hasSubs = await tableExists('subscriptions');
     const hasPlanTable = hasSubs && await tableExists('plans');
@@ -633,6 +650,9 @@ exports.getUserDetail = async (req, res) => {
     if (!userRows.length) return res.status(404).json({ error: 'User not found.' });
 
     const raw = userRows[0];
+    if (isInternalSystemUser(raw)) {
+      return res.status(404).json({ error: 'System account is hidden from user management.' });
+    }
     // Normalize field names to match what the admin UI expects.
     // connect_accounts is authoritative for Stripe Connect fields; fall back to
     // helper_profiles for deployments that haven't migrated to connect_accounts.

@@ -289,7 +289,12 @@ exports.getAppointments = async (req, res) => {
     // JOIN jobs so frontend can display job title in badge / "View Job" link
     const rowsResult = await pool.query(
       `SELECT a.*,
-              c.first_name AS customer_name,  c.profile_photo_url AS customer_avatar,
+              CASE
+                WHEN a.source = 'ai_chat' THEN COALESCE(NULLIF(a.guest_name, ''), 'Guest visitor')
+                ELSE TRIM(CONCAT_WS(' ', c.first_name, c.last_name))
+              END AS customer_name,
+              CASE WHEN a.source = 'ai_chat' THEN a.guest_email ELSE c.email END AS customer_email,
+              CASE WHEN a.source = 'ai_chat' THEN NULL ELSE c.profile_photo_url END AS customer_avatar,
               h.first_name AS helper_name,    h.profile_photo_url AS helper_avatar,
               j.title AS job_title
          FROM appointments a
@@ -327,7 +332,12 @@ exports.getAppointment = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT a.*,
-              c.first_name AS customer_name, c.profile_photo_url AS customer_avatar,
+              CASE
+                WHEN a.source = 'ai_chat' THEN COALESCE(NULLIF(a.guest_name, ''), 'Guest visitor')
+                ELSE TRIM(CONCAT_WS(' ', c.first_name, c.last_name))
+              END AS customer_name,
+              CASE WHEN a.source = 'ai_chat' THEN a.guest_email ELSE c.email END AS customer_email,
+              CASE WHEN a.source = 'ai_chat' THEN NULL ELSE c.profile_photo_url END AS customer_avatar,
               h.first_name AS helper_name,   h.profile_photo_url AS helper_avatar
          FROM appointments a
          LEFT JOIN users c ON c.id = a.customer_id
@@ -385,22 +395,24 @@ exports.confirmAppointment = async (req, res) => {
         [helperId, id, JSON.stringify({ confirmed_at: new Date().toISOString() })]
       );
 
-      // In-app notification to customer
-      await client.query(
-        `INSERT INTO calendar_notifications
-           (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
-         VALUES ($1, $2, 'appointment_confirmed', 'in_app', now(), 'pending')`,
-        [appt.customer_id, id]
-      );
+      const isAiGuestAppointment = appt.source === 'ai_chat';
+      if (!isAiGuestAppointment) {
+        await client.query(
+          `INSERT INTO calendar_notifications
+             (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
+           VALUES ($1, $2, 'appointment_confirmed', 'in_app', now(), 'pending')`,
+          [appt.customer_id, id]
+        );
+      }
 
       // Reminder notifications for both parties (only those still in the future)
       const apptStart = new Date(appt.scheduled_start_time);
       const reminders = [
-        ['reminder_24h', appt.customer_id],
+        ...(isAiGuestAppointment ? [] : [['reminder_24h', appt.customer_id]]),
         ['reminder_24h', appt.helper_id],
-        ['reminder_same_day', appt.customer_id],
+        ...(isAiGuestAppointment ? [] : [['reminder_same_day', appt.customer_id]]),
         ['reminder_same_day', appt.helper_id],
-        ['reminder_2h', appt.customer_id],
+        ...(isAiGuestAppointment ? [] : [['reminder_2h', appt.customer_id]]),
         ['reminder_2h', appt.helper_id],
       ];
       for (const [type, uid] of reminders) {
@@ -419,17 +431,20 @@ exports.confirmAppointment = async (req, res) => {
       return upd.rows[0];
     }, 'appointment_confirm');
 
-    // Best-effort customer email + websocket
+    // Best-effort customer / guest email + websocket
     pool.query('SELECT email, first_name FROM users WHERE id = $1', [updated.customer_id])
       .then(r => {
         const customer = r.rows[0];
-        if (!customer?.email) return;
+        const recipientEmail = updated.source === 'ai_chat' ? updated.guest_email : customer?.email;
+        if (!recipientEmail) return;
         const html = renderAppointmentEmail('appointment_confirmed', {
-          recipientName: displayName(customer),
+          recipientName: updated.source === 'ai_chat'
+            ? (updated.guest_name || 'there')
+            : displayName(customer),
           when: new Date(updated.scheduled_start_time),
         });
         return emailService.send({
-          to: customer.email,
+          to: recipientEmail,
           subject: 'Your appointment has been confirmed',
           html,
         });
@@ -511,17 +526,29 @@ exports.cancelAppointment = async (req, res) => {
         [userId, id, JSON.stringify({ cancelled_by: cancelledBy, reason: cancellation_reason })]
       );
 
-      // In-app notification to the *other* party
       const otherUserId = appt.customer_id === userId ? appt.helper_id : appt.customer_id;
-      await client.query(
-        `INSERT INTO calendar_notifications
-           (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
-         VALUES ($1, $2, 'appointment_cancelled', 'in_app', now(), 'pending')`,
-        [otherUserId, id]
-      );
+      if (!(appt.source === 'ai_chat' && otherUserId === appt.customer_id)) {
+        await client.query(
+          `INSERT INTO calendar_notifications
+             (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
+           VALUES ($1, $2, 'appointment_cancelled', 'in_app', now(), 'pending')`,
+          [otherUserId, id]
+        );
+      }
 
       return { appointment: upd.rows[0], otherUserId };
     }, 'appointment_cancel');
+
+    if (result.appointment.source === 'ai_chat' && result.appointment.guest_email) {
+      emailService.send({
+        to: result.appointment.guest_email,
+        subject: 'Your appointment request was cancelled',
+        html: renderAppointmentEmail('appointment_cancelled', {
+          recipientName: result.appointment.guest_name || 'there',
+          when: new Date(result.appointment.scheduled_start_time),
+        }),
+      }).catch(err => logger.warn('AI guest cancellation email failed', { error: err?.message }));
+    }
 
     try {
       broadcastToUser(result.otherUserId, 'appointment:cancelled', {

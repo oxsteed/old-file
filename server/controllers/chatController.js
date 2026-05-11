@@ -452,10 +452,12 @@ function extractBookingAction(reply) {
 /**
  * Insert AI-sourced appointment request (guest). Idempotent on (helper_id, ai_thread_id).
  */
-async function createAiBookingFromAction(action, helperId, threadId, realCustomerId) {
-  const guestName = String(action.guest_name || '').trim().slice(0, 200);
-  const guestEmail = String(action.guest_email || '').trim().toLowerCase().slice(0, 254);
-  const guestPhone = action.guest_phone != null ? String(action.guest_phone).trim().slice(0, 40) : null;
+async function createAiBookingFromAction(action, helperId, threadId, realCustomerId, fallbackContact = {}) {
+  const guestName = String(action.guest_name || fallbackContact.name || '').trim().slice(0, 200);
+  const guestEmail = String(action.guest_email || fallbackContact.email || '').trim().toLowerCase().slice(0, 254);
+  const guestPhone = action.guest_phone != null
+    ? String(action.guest_phone).trim().slice(0, 40)
+    : (fallbackContact.phone ? String(fallbackContact.phone).trim().slice(0, 40) : null);
   const serviceDescription = String(action.service_description || 'Booking request from profile AI').trim().slice(0, 2000);
   const start = new Date(action.scheduled_start_time);
   const end = new Date(action.scheduled_end_time);
@@ -577,6 +579,9 @@ exports.profileChatMessage = async (req, res, next) => {
       destination = 'helper',
       threadId: incomingThreadId,
       language,
+      guestName,
+      guestEmail,
+      guestPhone,
     } = req.body;
 
     if (!Array.isArray(msgHistory) || msgHistory.length === 0) {
@@ -602,6 +607,11 @@ exports.profileChatMessage = async (req, res, next) => {
     if (!resolvedHelperId) throw new AppError('helperId or businessId is required', 400, 'validation_failed', { helperId: 'helperId or businessId is required' });
 
     const userId = req.user?.id;
+    const guestContact = {
+      name: String(guestName || '').trim().slice(0, 200),
+      email: String(guestEmail || '').trim().toLowerCase().slice(0, 254),
+      phone: guestPhone != null ? String(guestPhone).trim().slice(0, 40) : '',
+    };
 
     // Check helper availability (is_available_now) AND Socket.IO connection status
     const { rows: [helperProfile] } = await pool.query(
@@ -740,6 +750,9 @@ exports.profileChatMessage = async (req, res, next) => {
     }
 
     if (!systemPrompt) throw new AppError('Helper not found', 404, 'not_found');
+    if (!userId && destination === 'helper' && guestContact.email) {
+      systemPrompt += `\n\n## Visitor contact already collected\nName: ${guestContact.name || 'Not provided'}\nEmail: ${guestContact.email}\nPhone: ${guestContact.phone || 'Not provided'}\nUse this contact information if the visitor asks to create a booking request.`;
+    }
     systemPrompt += getLanguageInstruction(language);
 
     // Retrieve stored history from Redis; fall back to client-supplied messages
@@ -788,9 +801,20 @@ exports.profileChatMessage = async (req, res, next) => {
     let appointmentCreated = null;
     let bookingError = null;
     if (action && action.type === 'booking_request' && destination !== 'oxsteed') {
-      const r = await createAiBookingFromAction(action, resolvedHelperId, threadId, userId || null);
-      if (r.ok) appointmentCreated = r.appointment;
-      else bookingError = r.reason || 'failed';
+      const r = await createAiBookingFromAction(action, resolvedHelperId, threadId, userId || null, guestContact);
+      if (r.ok) {
+        appointmentCreated = r.appointment;
+        if (!/booking request|appointment request|sent|submitted/i.test(replyUserFacing)) {
+          replyUserFacing = `${replyUserFacing}\n\nI've sent this as an appointment request. The provider still needs to review and confirm it.`;
+        }
+      } else {
+        bookingError = r.reason || 'failed';
+        if (bookingError === 'conflict') {
+          replyUserFacing = `${replyUserFacing}\n\nI could not send that appointment request because the provider already has something during that time. Please choose another time.`;
+        } else {
+          replyUserFacing = `${replyUserFacing}\n\nI could not send the appointment request yet. Please confirm the date, time, name, and email, then try again.`;
+        }
+      }
     }
 
     // Persist the new exchange to thread memory (user message + AI reply)

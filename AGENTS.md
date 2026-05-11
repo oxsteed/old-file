@@ -26,6 +26,17 @@
 - **`client/src/admin/pages/Login.jsx`**: Admin login now stores the backend `mfaToken` and sends it to `/auth/login/2fa` (the previous UI sent `userId`, which the backend no longer accepts). Successful 2FA persists the session through the shared auth helper, updates `AuthContext`, and navigates to `/admin/dashboard` without a hard reload.
 - **Verification:** `npm run build` passes in `client/`. Existing large chunk warning remains.
 
+**Internal AI booking placeholder visibility (2026-05-11):** COMPLETE
+- **`server/migrations/166_ai_profile_expansion.sql`** intentionally creates disabled user `00000000-0000-4000-8000-000000000001` / `ai-booking-placeholder@oxsteed.internal` so AI profile chat can create guest appointment requests while satisfying `appointments.customer_id NOT NULL`.
+- **`server/controllers/superAdminController.js`** now hides this placeholder and any `@oxsteed.internal` system user from standard admin user list/detail endpoints so it is not treated like a real customer account.
+- **Verification:** `node --check server/controllers/superAdminController.js` passes.
+
+**Profile AI booking end-to-end hardening (2026-05-11):** COMPLETE
+- **`client/src/components/helperProfile/chat/ChatPanel.tsx` + locales**: Logged-out visitors with saved name/email now stay in the helper AI flow instead of being diverted to a one-way guest-message receipt. The chat shows localized success/conflict/failure timeline events when AI booking requests are created.
+- **`server/controllers/chatController.js`**: Profile AI receives collected guest contact details, can use them as fallback booking contact info, and returns clearer user-facing replies when an appointment request is created or blocked by a scheduling conflict.
+- **`server/controllers/appointmentController.js` + `client/src/components/calendar/AppointmentDetailModal.jsx`**: AI guest appointments now display the real guest name/email/phone to helpers, skip placeholder-user notifications, email the actual guest on confirmation/cancellation, and avoid reminder rows for the internal placeholder account.
+- **Verification:** `node --check` passes for touched server controllers; locale JSON parse passes for en/es/fr/ht; `npm run build` passes in `client/`. Existing large chunk warning remains.
+
 **Deployment dependency fix (2026-05-10):** ✅ COMPLETE
 - **`server/package.json`**: Removed stale direct OpenTelemetry dependencies pinned to invalid/nonexistent package versions such as `@opentelemetry/sdk-trace-node@0.48.0`; no app code imports them directly, and Sentry still brings its compatible OpenTelemetry transitive dependencies from `server/package-lock.json`.
 - **`Dockerfile`**: Server dependency install now uses `npm ci` instead of `npm install`, matching the client stage and making Coolify/production builds use the committed lockfile deterministically.

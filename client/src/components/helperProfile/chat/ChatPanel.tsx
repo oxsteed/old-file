@@ -367,55 +367,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         toast.error(t('messages.guestSaveContactFirst'));
         return;
       }
-      setSending(true);
-      const userMsg: ChatMessage = {
-        id:         `msg-${Date.now()}`,
-        itemType:   'message',
-        authorType: 'user',
-        content:    text,
-        timestamp:  new Date().toISOString(),
-      };
-      setSession(prev => ({
-        ...prev,
-        timeline: [...prev.timeline, userMsg],
-      }));
-      try {
-        const res = await api.post('/chat/sessions/guest', {
-          helperId,
-          ...(businessId ? { businessId } : {}),
-          guestName: name,
-          guestEmail: email,
-          message: text,
-        });
-
-        // Save guest token for future visits
-        if (res.data?.token) {
-          localStorage.setItem(guestTokenKey, res.data.token);
-        }
-
-        const ack: TimelineEvent = {
-          id:        `evt-${Date.now()}-guest`,
-          itemType:  'system',
-          eventType: 'guest_delivered',
-          content:   t('messages.guestDeliveredDetail'),
-          timestamp: new Date().toISOString(),
-        };
-        setSession(prev => ({
-          ...prev,
-          timeline: [...prev.timeline, ack],
-        }));
-        toast.success(t('messages.guestDeliveredToast'));
-      } catch (err: any) {
-        const msg = err?.response?.data?.error || t('messages.aiError');
-        toast.error(msg);
-        setSession(prev => ({
-          ...prev,
-          timeline: prev.timeline.filter((i) => i.id !== userMsg.id),
-        }));
-      } finally {
-        setSending(false);
-      }
-      return;
     }
 
     const msgContent = attachment
@@ -442,6 +393,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         helperId,
         ...(businessId ? { businessId } : {}),
         destination: session.destination,
+        ...(isGuest && session.destination === 'helper' ? {
+          guestName: guestName.trim(),
+          guestEmail: guestEmail.trim(),
+        } : {}),
         // threadId links this request to server-side Redis history (null = new session)
         ...(threadId ? { threadId } : {}),
         language: localStorage.getItem('oxs:language') || 'en',
@@ -484,6 +439,27 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           timestamp:  new Date().toISOString(),
         };
         const events: TimelineItem[] = [];
+        if (data.appointmentCreated) {
+          events.push({
+            id:        `evt-${Date.now()}-appointment`,
+            itemType:  'booking_event',
+            eventType: 'booking_requested',
+            content:   t('messages.aiBookingRequested', { defaultValue: 'Appointment request sent to the provider' }),
+            timestamp: new Date().toISOString(),
+            metadata:  { appointmentId: data.appointmentCreated.id },
+          });
+          toast.success(t('messages.aiBookingRequestedToast', { defaultValue: 'Appointment request sent' }));
+        } else if (data.bookingError) {
+          events.push({
+            id:        `evt-${Date.now()}-appointment-error`,
+            itemType:  'system',
+            eventType: 'booking_request_failed',
+            content:   data.bookingError === 'conflict'
+              ? t('messages.aiBookingConflict', { defaultValue: 'That time is no longer available. Try another time.' })
+              : t('messages.aiBookingFailed', { defaultValue: 'The appointment request could not be sent yet.' }),
+            timestamp: new Date().toISOString(),
+          });
+        }
         if (data.helperOnline && !user && session.destination === 'helper') {
           const note: TimelineEvent = {
             id:        `evt-${Date.now()}-note`,
