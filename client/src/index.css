@@ -542,20 +542,46 @@ html:not(.dark),
    In light mode we remap those to light equivalents.
    ═══════════════════════════════════════════════════════════════ */
 html:not(.dark) .bg-gray-950 { background-color: #f8fafc !important; }
+html:not(.dark) .bg-gray-950\/95 { background-color: rgba(248,250,252,0.95) !important; }
+html:not(.dark) .bg-gray-950\/90 { background-color: rgba(248,250,252,0.9) !important; }
 html:not(.dark) .bg-gray-900 { background-color: #ffffff !important; }
+html:not(.dark) .bg-gray-900\/95 { background-color: rgba(255,255,255,0.96) !important; }
+html:not(.dark) .bg-gray-900\/90 { background-color: rgba(255,255,255,0.94) !important; }
 html:not(.dark) .bg-gray-900\/60 { background-color: rgba(255,255,255,0.85) !important; }
 html:not(.dark) .bg-gray-900\/80 { background-color: rgba(255,255,255,0.95) !important; }
 html:not(.dark) .bg-gray-800 { background-color: #f1f5f9 !important; }
+html:not(.dark) .bg-gray-800\/95 { background-color: rgba(241,245,249,0.96) !important; }
+html:not(.dark) .bg-gray-800\/90 { background-color: rgba(241,245,249,0.94) !important; }
+html:not(.dark) .bg-gray-800\/80 { background-color: rgba(241,245,249,0.9) !important; }
+html:not(.dark) .bg-gray-800\/60 { background-color: rgba(241,245,249,0.82) !important; }
+html:not(.dark) .bg-gray-800\/50 { background-color: rgba(241,245,249,0.76) !important; }
+html:not(.dark) .bg-gray-800\/40 { background-color: rgba(248,250,252,0.92) !important; }
+html:not(.dark) .bg-gray-800\/30 { background-color: rgba(248,250,252,0.96) !important; }
+html:not(.dark) .bg-gray-800\/20 { background-color: rgba(248,250,252,0.98) !important; }
+html:not(.dark) .bg-gray-800\/10 { background-color: rgba(248,250,252,0.99) !important; }
 html:not(.dark) .bg-gray-700\/40 { background-color: rgba(226,232,240,0.6) !important; }
+html:not(.dark) .bg-gray-700\/30 { background-color: rgba(241,245,249,0.86) !important; }
+html:not(.dark) .bg-gray-700\/20 { background-color: rgba(248,250,252,0.94) !important; }
+html:not(.dark) .bg-gray-700\/10 { background-color: rgba(248,250,252,0.98) !important; }
+html:not(.dark) .bg-gray-700\/80 { background-color: rgba(226,232,240,0.9) !important; }
+html:not(.dark) .bg-gray-700\/60 { background-color: rgba(226,232,240,0.78) !important; }
+html:not(.dark) .bg-gray-700\/50 { background-color: rgba(226,232,240,0.7) !important; }
+html:not(.dark) .border-gray-800\/80 { border-color: rgba(226,232,240,0.9) !important; }
+html:not(.dark) .border-gray-800\/60 { border-color: rgba(226,232,240,0.8) !important; }
+html:not(.dark) .border-gray-800\/50 { border-color: rgba(226,232,240,0.72) !important; }
+html:not(.dark) .border-gray-800\/40 { border-color: rgba(226,232,240,0.62) !important; }
 html:not(.dark) .border-gray-700\/40 { border-color: rgba(203,213,225,0.7) !important; }
 html:not(.dark) .border-gray-700\/50 { border-color: rgba(203,213,225,0.8) !important; }
+html:not(.dark) .border-gray-700\/60 { border-color: rgba(203,213,225,0.86) !important; }
+html:not(.dark) .border-gray-700\/80 { border-color: rgba(203,213,225,0.95) !important; }
 html:not(.dark) .border-gray-700 { border-color: #cbd5e1 !important; }
 html:not(.dark) .text-white { color: #0f172a !important; }
-html:not(.dark) .text-gray-300 { color: #334155 !important; }
-html:not(.dark) .text-gray-400 { color: #64748b !important; }
-html:not(.dark) .text-gray-500 { color: #94a3b8 !important; }
+html:not(.dark) .text-gray-300 { color: #1f2937 !important; }
+html:not(.dark) .text-gray-400 { color: #334155 !important; }
+html:not(.dark) .text-gray-500 { color: #475569 !important; }
 html:not(.dark) .placeholder-gray-600::placeholder { color: #94a3b8 !important; }
-html:not(.dark) .bg-gray-800\/40 { background-color: rgba(241,245,249,0.7) !important; }
+html:not(.dark) .bg-gray-700  { background-color: #e2e8f0 !important; }
+html:not(.dark) .bg-gray-600  { background-color: #cbd5e1 !important; }
 
 html:not(.dark) .bg-gray-950\/80 { background-color: rgba(255,255,255,0.9) !important; }
 html:not(.dark) .bg-gray-950\/60 { background-color: rgba(255,255,255,0.8) !important; }
@@ -568,8 +594,8 @@ html:not(.dark) .border-gray-900 { border-color: #f1f5f9 !important; }
 html:not(.dark) .divide-gray-800 > * + * { border-color: #e2e8f0 !important; }
 html:not(.dark) .divide-gray-700 > * + * { border-color: #e2e8f0 !important; }
 
-html:not(.dark) .text-gray-600 { color: #475569 !important; }
-html:not(.dark) .text-gray-200 { color: #334155 !important; }
+html:not(.dark) .text-gray-600 { color: #334155 !important; }
+html:not(.dark) .text-gray-200 { color: #1f2937 !important; }
 html:not(.dark) .text-gray-100 { color: #0f172a !important; }
 
 html:not(.dark) .from-gray-950 { --tw-gradient-from: #f8fafc !important; }
@@ -580,9 +606,203 @@ html:not(.dark) .to-gray-950  { --tw-gradient-to: #f1f5f9 !important; }
 html:not(.dark) .hover\:bg-gray-800:hover { background-color: #f1f5f9 !important; }
 html:not(.dark) .hover\:bg-gray-700:hover { background-color: #e2e8f0 !important; }
 html:not(.dark) .hover\:bg-gray-700\/30:hover { background-color: rgba(226,232,240,0.6) !important; }
+html:not(.dark) .hover\:bg-gray-800\/60:hover { background-color: rgba(241,245,249,0.9) !important; }
+html:not(.dark) .hover\:bg-gray-800\/40:hover { background-color: rgba(241,245,249,0.84) !important; }
+html:not(.dark) .hover\:bg-gray-800\/30:hover { background-color: rgba(241,245,249,0.78) !important; }
+
+/* Dashboard readability: dark-first dashboard rows use translucent gray
+   utilities that become muddy on white unless remapped to near-white fills. */
+html:not(.dark) :where(
+  .dashboard-tabs,
+  .dashboard-tabs + *,
+  .dashboard-tabs ~ *
+) :where(.bg-gray-800\/30, .bg-gray-800\/40, .bg-gray-900\/50, .bg-gray-900\/60) {
+  background-color: #ffffff !important;
+}
+
+html:not(.dark) :where(
+  .dashboard-tabs,
+  .dashboard-tabs + *,
+  .dashboard-tabs ~ *
+) :where(.text-gray-300, .text-gray-400, .text-gray-500, .text-gray-600) {
+  color: #334155 !important;
+}
 
 html:not(.dark) .bg-gradient-to-r.from-gray-900\/80 {
   background: linear-gradient(to right, rgba(255,255,255,0.9), rgba(255,255,255,0.6)) !important;
+}
+
+/* Light-mode pass for newer page-specific CSS surfaces.
+   These pages were designed on the dark system first; this maps their shared
+   card/table/empty-state vocabulary back to semantic light surfaces. */
+html:not(.dark) :where(
+  .invoices-page,
+  .messages-page,
+  .orders-page,
+  .feature-guide-page,
+  .analytics-page-shell,
+  .verify-identity-page,
+  .piv-page
+) {
+  background:
+    linear-gradient(135deg, rgba(249, 115, 22, 0.08), rgba(37, 99, 235, 0.045) 42%, transparent 70%),
+    var(--color-bg) !important;
+  color: var(--color-text) !important;
+}
+
+html:not(.dark) :where(
+  .invoices-hero h1,
+  .invoices-summary-card strong,
+  .invoices-panel-header h2,
+  .invoices-guide h2,
+  .invoices-empty h2,
+  .messages-hero h1,
+  .messages-empty h2,
+  .messages-hero-stats span,
+  .messages-guide-item h3,
+  .orders-hero h1,
+  .orders-summary-card strong,
+  .orders-panel-header h2,
+  .orders-empty h2,
+  .orders-guide h2,
+  .feature-guide-hero h1,
+  .feature-guide-path-card h2,
+  .feature-guide-overview h2,
+  .feature-guide-real-life h2,
+  .feature-guide-library-heading h2,
+  .feature-guide-section h2,
+  .feature-guide-section h3,
+  .analytics-header-v2 h1,
+  .analytics-hero h1,
+  .analytics-empty-v2 h2,
+  .analytics-empty-side h3,
+  .verify-identity-copy h1,
+  .verify-identity-benefits strong,
+  .piv-state-card h1,
+  .piv-business-block h1,
+  .piv-panel h2,
+  .piv-amount-card strong
+) {
+  color: var(--color-text) !important;
+}
+
+html:not(.dark) :where(
+  .invoices-hero p:last-child,
+  .invoices-panel-header p,
+  .invoices-guide p,
+  .invoices-empty p,
+  .messages-hero p:last-child,
+  .messages-empty p,
+  .messages-guide-item p,
+  .orders-hero p:last-child,
+  .orders-panel-header p,
+  .orders-empty p,
+  .orders-guide-item p,
+  .feature-guide-hero p,
+  .feature-guide-overview p,
+  .feature-guide-real-life p,
+  .feature-guide-summary,
+  .feature-guide-section li,
+  .analytics-header-v2 p:last-child,
+  .analytics-hero p,
+  .analytics-empty-v2 p,
+  .analytics-empty-side ul,
+  .verify-identity-copy > p,
+  .verify-identity-benefits span,
+  .piv-state-card p,
+  .piv-panel p,
+  .piv-back-link
+) {
+  color: var(--color-text-muted) !important;
+}
+
+html:not(.dark) :where(
+  .invoices-summary-card,
+  .invoices-loading,
+  .invoices-panel,
+  .invoices-empty,
+  .invoices-guide,
+  .invoices-modal,
+  .messages-hero-stats div,
+  .messages-toolbar,
+  .messages-panel,
+  .messages-empty,
+  .messages-loading,
+  .messages-guide,
+  .orders-summary-card,
+  .orders-panel,
+  .orders-guide,
+  .feature-guide-path-card,
+  .feature-guide-overview,
+  .feature-guide-real-life,
+  .feature-guide-section,
+  .feature-guide-search,
+  .feature-guide-toc,
+  .analytics-empty-v2,
+  .analytics-empty-side,
+  .verify-identity-benefits div,
+  .verify-identity-card,
+  .verify-identity-nav-badge,
+  .piv-state-card,
+  .piv-business-block,
+  .piv-amount-card,
+  .piv-panel
+) {
+  background: rgba(255,255,255,0.92) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+html:not(.dark) :where(
+  .invoices-btn,
+  .orders-btn,
+  .analytics-btn-secondary,
+  .messages-business-select,
+  .orders-filters button,
+  .feature-guide-search input,
+  .feature-guide-category-row a,
+  .feature-guide-actions a
+) {
+  background: var(--color-surface-2) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+html:not(.dark) :where(
+  .invoices-btn-primary,
+  .orders-btn-primary,
+  .my-bookings-hero-btn.primary,
+  .dispute-btn.primary
+) {
+  background: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: #ffffff !important;
+}
+
+html:not(.dark) :where(
+  .messages-search,
+  .messages-business-select,
+  .orders-filters button,
+  .invoices-table-head,
+  .invoices-row,
+  .orders-row,
+  .analytics-empty-side,
+  .piv-meta-grid div,
+  .piv-line-items,
+  .piv-note
+) {
+  background: rgba(241,245,249,0.78) !important;
+  border-color: var(--color-border) !important;
+}
+
+html:not(.dark) :where(
+  .messages-search input,
+  .feature-guide-search input,
+  .invoices-modal input,
+  .invoices-modal select,
+  .invoices-modal textarea
+) {
+  color: var(--color-text) !important;
 }
 
 /* Slate overrides (admin pages) */
@@ -612,8 +832,8 @@ html:not(.dark) .text-yellow-400 { color: #a16207 !important; }
 html:not(.dark) .text-red-400    { color: #b91c1c !important; }
 html:not(.dark) .text-purple-400 { color: #7e22ce !important; }
 html:not(.dark) .text-orange-400 { color: #c2410c !important; }
-html:not(.dark) .text-gray-400   { color: #475569 !important; }
-html:not(.dark) .text-gray-500   { color: #64748b !important; }
+html:not(.dark) .text-gray-400   { color: #334155 !important; }
+html:not(.dark) .text-gray-500   { color: #475569 !important; }
 
 html:not(.dark) .focus\:border-orange-500:focus { border-color: #ea580c !important; }
 

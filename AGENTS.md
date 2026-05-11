@@ -144,6 +144,12 @@
 - **Remaining heavier pages**: Legal/static-policy pages and admin legal management pages still contain significant document/admin copy that should be moved in a dedicated pass to avoid accidental legal wording drift.
 - **Verification**: Locale parity script reports 0 missing/extra keys for es/fr/ht compared with en; `client` production build passes with only the existing large chunk warning remaining.
 
+**Light-mode compatibility pass for 20+ pages (2026-05-11):** ✅ COMPLETE
+- **`client/src/index.css`**: Expanded the existing light-mode Tailwind compatibility layer to cover more dark-first utility variants (`bg-gray-*/*`, `border-gray-*/*`, hover states, overlays) used across registration, support, tool rentals, reviews, settings, dashboard, and modal surfaces.
+- **Custom redesigned pages**: Added semantic light-mode overrides for the shared dark-first page patterns used by `/invoices`, `/messages`, `/helper/messages`, `/orders`, `/features`, `/how-it-works`, `/tool-rentals/analytics`, `/verify-identity`, public invoice view, bookings/disputes/business leads adjacent surfaces, and related card/table/empty states.
+- **Dashboard readability follow-up**: Light-mode muted text now maps darker (`text-gray-300/400/500/600`), and translucent dashboard row/card fills (`bg-gray-800/10..40`, `bg-gray-700/10..30`) remap to near-white surfaces instead of muddy gray blocks.
+- **Verification**: `client` production build passes with only the existing large chunk warning remaining. Local browser smoke check was attempted against Vite on port 5173, but the dev server did not respond reliably in the agent environment, so this pass is code/build verified rather than visually verified.
+
 **Mobile app shell + native push foundation (2026-05-09):** ✅ IOS BUILD SUBMITTED WITH REAL ICON
 - **`mobile/`**: Added Capacitor 7 shell for iOS/Android App Store packaging. Defaults to `https://oxsteed.com` via `OXSTEED_APP_URL`, app id `com.oxsteed.app`, native splash/status bar/keyboard config, offline fallback, external-link handling, deep-link handling for `oxsteed://...` and `oxsteed.com` links. Generated native iOS project under `mobile/ios/`. Docs: `mobile/README.md` and `docs/mobile/app-store-release-checklist.md`.
 - **iOS native project**: `AppDelegate.swift` forwards APNs registration success/failure to Capacitor PushNotifications. `Info.plist` registers `oxsteed://`. `App.entitlements` includes push + associated domains for `applinks:oxsteed.com` and `applinks:www.oxsteed.com`. Xcode Team selected: `ZBRGSDRRU7` (`emile jean philippe`).
