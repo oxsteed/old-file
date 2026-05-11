@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import api, { persistSessionPayload, clearStoredSession } from '../../api/auth';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 15 * 60 * 1000;
 
 export default function AdminLogin() {
-  const { login } = useAuth();
+  const { login, setUser } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -16,7 +17,7 @@ export default function AdminLogin() {
   const [lockedUntil, setLockedUntil] = useState(null);
   const [requires2FA, setRequires2FA] = useState(false);
   const [twoFACode, setTwoFACode] = useState('');
-  const [userId, setUserId] = useState(null);
+  const [mfaToken, setMfaToken] = useState(null);
 
   const isLocked = lockedUntil && Date.now() < lockedUntil;
 
@@ -41,7 +42,7 @@ export default function AdminLogin() {
 
       if (data.requiresTwoFactor) {
         setRequires2FA(true);
-        setUserId(data.userId);
+        setMfaToken(data.mfaToken);
         setLoading(false);
         return;
       }
@@ -49,9 +50,7 @@ export default function AdminLogin() {
       const user = data.user;
       if (!['admin', 'super_admin'].includes(user.role)) {
         setError('Access denied. Admin privileges required.');
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
+        clearStoredSession();
         setLoading(false);
         return;
       }
@@ -77,16 +76,15 @@ export default function AdminLogin() {
     e.preventDefault();
     setError('');
 
-    if (!twoFACode) {
-      setError('Please enter your 2FA code.');
+    if (!twoFACode || !mfaToken) {
+      setError(!mfaToken ? 'Your 2FA session expired. Please sign in again.' : 'Please enter your 2FA code.');
       return;
     }
 
     setLoading(true);
     try {
-      const api = (await import('../../api/auth')).default;
       const { data } = await api.post('/auth/login/2fa', {
-        userId,
+        mfaToken,
         token: twoFACode,
         isBackupCode: twoFACode.length > 6
       });
@@ -97,10 +95,10 @@ export default function AdminLogin() {
         return;
       }
 
-      localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      window.location.href = '/admin/dashboard';
+      persistSessionPayload(data);
+      setUser(data.user);
+      setAttempts(0);
+      navigate('/admin/dashboard', { replace: true });
     } catch (err) {
       setError(err.response?.data?.error || 'Invalid 2FA code.');
     } finally {
@@ -191,7 +189,7 @@ export default function AdminLogin() {
               </button>
               <button
                 type="button"
-                onClick={() => { setRequires2FA(false); setTwoFACode(''); setError(''); }}
+                onClick={() => { setRequires2FA(false); setTwoFACode(''); setMfaToken(null); setError(''); }}
                 className="w-full text-gray-400 hover:text-white text-sm py-2 transition"
               >
                 Back to login

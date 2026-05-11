@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { authAPI } from '../api/auth';
+import { authAPI, clearStoredSession } from '../api/auth';
 import api from '../api/axios';
 
 export const AuthContext = createContext(null);
@@ -82,6 +82,12 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (credentials) => {
     const { data } = await authAPI.login(credentials);
+
+    if (data?.requiresTwoFactor) {
+      clearStoredSession();
+      clearAuthState();
+      return data;
+    }
 
     try {
       const fullUser = await fetchMe();

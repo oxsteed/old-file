@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-10
+**Last updated:** 2026-05-11
 
 ## Instructions for Every Session
 
@@ -20,6 +20,11 @@
 - 112 backend controllers
 - 165 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
+
+**Admin login / 2FA handoff fix (2026-05-11):** COMPLETE
+- **`client/src/context/AuthContext.jsx`**: Login now returns the backend `requiresTwoFactor` challenge without prematurely calling `/auth/me`; this prevents the auth context from clearing the session before an admin has entered their 2FA code.
+- **`client/src/admin/pages/Login.jsx`**: Admin login now stores the backend `mfaToken` and sends it to `/auth/login/2fa` (the previous UI sent `userId`, which the backend no longer accepts). Successful 2FA persists the session through the shared auth helper, updates `AuthContext`, and navigates to `/admin/dashboard` without a hard reload.
+- **Verification:** `npm run build` passes in `client/`. Existing large chunk warning remains.
 
 **Deployment dependency fix (2026-05-10):** ✅ COMPLETE
 - **`server/package.json`**: Removed stale direct OpenTelemetry dependencies pinned to invalid/nonexistent package versions such as `@opentelemetry/sdk-trace-node@0.48.0`; no app code imports them directly, and Sentry still brings its compatible OpenTelemetry transitive dependencies from `server/package-lock.json`.
