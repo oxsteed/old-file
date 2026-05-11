@@ -13,6 +13,11 @@ interface ToolDetailModalProps {
     condition: string;
     location_city: string;
     daily_rate: number;
+    deposit_amount?: number;
+    requires_deposit?: boolean;
+    replacement_value?: number;
+    owner_rules?: string;
+    owner_custom_terms?: string;
     weekly_rate?: number;
     monthly_rate?: number;
     image_url?: string;

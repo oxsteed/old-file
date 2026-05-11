@@ -213,6 +213,94 @@
   font-size: 18px;
 }
 
+.booking-peer-agreement {
+  border: 1px solid rgba(249, 115, 22, 0.28);
+  background: rgba(249, 115, 22, 0.08);
+  border-radius: 12px;
+  padding: 12px;
+  margin: 14px 0;
+  color: var(--app-text);
+}
+
+.booking-peer-agreement-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--brand-orange, #f97316);
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.booking-peer-agreement ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted-text);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.booking-peer-tool-snapshot {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.32);
+  color: var(--muted-text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.booking-peer-tool-snapshot p {
+  margin: 0 0 5px;
+}
+
+.booking-peer-tool-snapshot p:last-child {
+  margin-bottom: 0;
+}
+
+.booking-owner-terms {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.46);
+  color: var(--app-text);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.booking-owner-terms-label {
+  margin: 0 0 6px;
+  color: var(--app-text);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+}
+
+.booking-owner-terms small {
+  display: block;
+  color: var(--muted-text);
+  margin-top: 8px;
+}
+
+.booking-peer-checkbox {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 10px;
+  color: var(--app-text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.booking-peer-checkbox input {
+  margin-top: 2px;
+  accent-color: var(--brand-orange, #f97316);
+}
+
 /* Submit Button */
 .booking-submit-btn {
   width: 100%;

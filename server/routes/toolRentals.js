@@ -7,6 +7,7 @@
 // GET    /api/tool-rentals/browse     → public browse (no auth)
 
 const express = require('express');
+const crypto = require('crypto');
 const router  = express.Router();
 const { authenticate } = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -31,7 +32,10 @@ const TOOL_FIELDS_BASE = `
   t.daily_rate, t.hourly_rate, t.deposit_amount,
   t.condition, t.brand, t.model, t.is_available,
   t.requires_deposit, t.delivery_available, t.pickup_only,
-  t.location_city, t.location_state, t.created_at, t.updated_at
+  t.location_city, t.location_state,
+  t.owner_rules, t.owner_custom_terms, t.owner_custom_terms_hash,
+  t.replacement_value, t.owner_attested_at, t.owner_attestation_version,
+  t.created_at, t.updated_at
 `;
 
 // Resolved lazily on first request — checks which optional columns exist so the
@@ -116,6 +120,7 @@ const SEED_TOOL_CATEGORIES = [
   'Safety Equipment','Cleaning Equipment','Diagnostic Equipment',
 ];
 
+const TOOL_RENTAL_ATTESTATION_VERSION = 'peer-rental-v1';
 const VALID_CONDITIONS = ['excellent', 'good', 'fair', 'poor'];
 const MAX_TOOL_NAME_LEN = 200;
 const MAX_TOOL_CATEGORY_LEN = 100;
@@ -167,6 +172,11 @@ function parseBoolean(value) {
     if (['false', '0', 'no', 'off', ''].includes(normalized)) return false;
   }
   return Boolean(value);
+}
+
+function hashCustomTerms(value) {
+  const text = String(value || '').trim();
+  return text ? crypto.createHash('sha256').update(text).digest('hex') : null;
 }
 
 async function resolveToolImageUrl(req) {
@@ -236,6 +246,16 @@ function normalizeToolPayload(body, { partial = false } = {}) {
   if (!partial || body.deposit_amount !== undefined) {
     payload.deposit_amount = parseMoney(body.deposit_amount, 'deposit_amount', errors);
   }
+  if (!partial || body.replacement_value !== undefined) {
+    payload.replacement_value = parseMoney(body.replacement_value, 'replacement_value', errors);
+  }
+  if (!partial || body.owner_rules !== undefined) {
+    payload.owner_rules = cleanText(body.owner_rules, MAX_DESCRIPTION_LEN, 'owner_rules', errors);
+  }
+  if (!partial || body.owner_custom_terms !== undefined) {
+    payload.owner_custom_terms = cleanText(body.owner_custom_terms, MAX_DESCRIPTION_LEN, 'owner_custom_terms', errors);
+    payload.owner_custom_terms_hash = hashCustomTerms(payload.owner_custom_terms);
+  }
 
   if (!partial || body.condition !== undefined) {
     payload.condition = body.condition || null;
@@ -252,6 +272,10 @@ function normalizeToolPayload(body, { partial = false } = {}) {
 
   if (payload.requires_deposit && !(payload.deposit_amount > 0)) {
     errors.deposit_amount = 'deposit_amount is required when a deposit is required';
+  }
+  payload.owner_attestation_accepted = parseBoolean(body.owner_attestation_accepted);
+  if (!payload.owner_attestation_accepted) {
+    errors.owner_attestation_accepted = 'Confirm the peer rental acknowledgement before listing this tool';
   }
 
   return { payload, errors };
@@ -384,7 +408,9 @@ router.post('/', authenticate, upload.single('image'), validateFileUpload, async
       'daily_rate', 'hourly_rate', 'deposit_amount',
       'condition', 'brand', 'model',
       'is_available', 'requires_deposit', 'delivery_available', 'pickup_only',
-      'location_city', 'location_state',
+      'location_city', 'location_state', 'owner_rules', 'owner_custom_terms',
+      'owner_custom_terms_hash', 'replacement_value',
+      'owner_attested_at', 'owner_attestation_version',
     ];
     const insertValues = [
       req.user.id,
@@ -403,6 +429,12 @@ router.post('/', authenticate, upload.single('image'), validateFileUpload, async
       payload.pickup_only ?? true,
       payload.location_city,
       payload.location_state,
+      payload.owner_rules,
+      payload.owner_custom_terms,
+      payload.owner_custom_terms_hash,
+      payload.replacement_value,
+      new Date(),
+      TOOL_RENTAL_ATTESTATION_VERSION,
     ];
     if (hasImageGallery && imageUrl) {
       insertColumns.push('image_gallery');
@@ -418,7 +450,10 @@ router.post('/', authenticate, upload.single('image'), validateFileUpload, async
                  daily_rate, hourly_rate, deposit_amount,
                  condition, brand, model, is_available,
                  requires_deposit, delivery_available, pickup_only,
-                 location_city, location_state, created_at, updated_at`,
+                 location_city, location_state, owner_rules, owner_custom_terms,
+                 owner_custom_terms_hash, replacement_value,
+                 owner_attested_at, owner_attestation_version,
+                 created_at, updated_at`,
       insertValues
     );
 
@@ -452,12 +487,12 @@ router.put('/:id', authenticate, upload.single('image'), validateFileUpload, asy
     const removeImage = hasImageGallery ? parseBoolean(req.body.remove_image) : false;
     const imageSetSql = hasImageGallery
       ? `image_gallery = CASE
-           WHEN $16::boolean THEN '{}'::text[]
-           WHEN $17::text IS NOT NULL THEN ARRAY[$17::text]
+           WHEN $21::boolean THEN '{}'::text[]
+           WHEN $22::text IS NOT NULL THEN ARRAY[$22::text]
            ELSE image_gallery
          END,`
       : '';
-    const whereOffset = hasImageGallery ? 19 : 17;
+    const whereOffset = hasImageGallery ? 24 : 22;
 
     const result = await pool.query(
       `UPDATE tool_rentals SET
@@ -476,6 +511,12 @@ router.put('/:id', authenticate, upload.single('image'), validateFileUpload, asy
          pickup_only        = COALESCE($13, pickup_only),
          location_city      = COALESCE($14, location_city),
          location_state     = COALESCE($15, location_state),
+         owner_rules        = COALESCE($16, owner_rules),
+         owner_custom_terms = COALESCE($17, owner_custom_terms),
+         owner_custom_terms_hash = $18,
+         replacement_value  = $19,
+         owner_attested_at  = CASE WHEN $20::boolean THEN NOW() ELSE owner_attested_at END,
+         owner_attestation_version = CASE WHEN $20::boolean THEN '${TOOL_RENTAL_ATTESTATION_VERSION}' ELSE owner_attestation_version END,
          ${imageSetSql}
          updated_at         = NOW()
        WHERE id = $${whereOffset - 1} AND user_id = $${whereOffset}
@@ -483,7 +524,10 @@ router.put('/:id', authenticate, upload.single('image'), validateFileUpload, asy
                  daily_rate, hourly_rate, deposit_amount,
                  condition, brand, model, is_available,
                  requires_deposit, delivery_available, pickup_only,
-                 location_city, location_state, created_at, updated_at`,
+                 location_city, location_state, owner_rules, owner_custom_terms,
+                 owner_custom_terms_hash, replacement_value,
+                 owner_attested_at, owner_attestation_version,
+                 created_at, updated_at`,
       [
         payload.name ?? null,
         payload.category ?? null,
@@ -500,6 +544,11 @@ router.put('/:id', authenticate, upload.single('image'), validateFileUpload, asy
         payload.pickup_only        !== undefined ? payload.pickup_only        : null,
         payload.location_city ?? null,
         payload.location_state ?? null,
+        payload.owner_rules ?? null,
+        payload.owner_custom_terms ?? null,
+        payload.owner_custom_terms_hash,
+        payload.replacement_value,
+        !!payload.owner_attestation_accepted,
         ...(hasImageGallery ? [removeImage, imageUrl] : []),
         id,
         req.user.id,

@@ -345,7 +345,7 @@ export default function HelperDashboard() {
   const [catLookup, setCatLookup] = useState([]);
   const [toolCatLookup, setToolCatLookup] = useState([]);
   const emptySkill = { skill_name:'', category:'', hourly_rate:'', years_exp:'', description:'', is_available:true };
-  const emptyTool  = { name:'', category:'', description:'', daily_rate:'', hourly_rate:'', deposit_amount:'', condition:'good', brand:'', model:'', image_url:'', is_available:true, requires_deposit:false, delivery_available:false, pickup_only:true, location_city:'', location_state:'' };
+  const emptyTool  = { name:'', category:'', description:'', daily_rate:'', hourly_rate:'', deposit_amount:'', replacement_value:'', owner_rules:'', owner_custom_terms:'', owner_attestation_accepted:false, condition:'good', brand:'', model:'', image_url:'', is_available:true, requires_deposit:false, delivery_available:false, pickup_only:true, location_city:'', location_state:'' };
   const [skillForm, setSkillForm] = useState(emptySkill);
   const [toolForm, setToolForm]   = useState(emptyTool);
   const [toolImageFile, setToolImageFile] = useState(null);
@@ -443,7 +443,7 @@ export default function HelperDashboard() {
   };
   const openEditTool = (tool) => {
     setEditingTool(tool);
-    setToolForm({ name:tool.name, category:tool.category||'', description:tool.description||'', daily_rate:tool.daily_rate||'', hourly_rate:tool.hourly_rate||'', deposit_amount:tool.deposit_amount||'', condition:tool.condition||'good', brand:tool.brand||'', model:tool.model||'', image_url:tool.image_url||'', is_available:tool.is_available, requires_deposit:tool.requires_deposit, delivery_available:tool.delivery_available, pickup_only:tool.pickup_only, location_city:tool.location_city||'', location_state:tool.location_state||'' });
+    setToolForm({ name:tool.name, category:tool.category||'', description:tool.description||'', daily_rate:tool.daily_rate||'', hourly_rate:tool.hourly_rate||'', deposit_amount:tool.deposit_amount||'', replacement_value:tool.replacement_value||'', owner_rules:tool.owner_rules||'', owner_custom_terms:tool.owner_custom_terms||'', owner_attestation_accepted:false, condition:tool.condition||'good', brand:tool.brand||'', model:tool.model||'', image_url:tool.image_url||'', is_available:tool.is_available, requires_deposit:tool.requires_deposit, delivery_available:tool.delivery_available, pickup_only:tool.pickup_only, location_city:tool.location_city||'', location_state:tool.location_state||'' });
     setToolImageFile(null);
     setToolImagePreview(tool.image_url||'');
     setShowToolModal(true);
@@ -452,6 +452,7 @@ export default function HelperDashboard() {
     const dailyRate = Number(toolForm.daily_rate);
     const hourlyRate = toolForm.hourly_rate === '' ? null : Number(toolForm.hourly_rate);
     const depositAmount = toolForm.deposit_amount === '' ? null : Number(toolForm.deposit_amount);
+    const replacementValue = toolForm.replacement_value === '' ? null : Number(toolForm.replacement_value);
 
     if (!toolForm.name.trim()) throw new Error(t('dashboard.skillsTools.toolNameRequired', { defaultValue: 'Tool name is required' }));
     if (!toolForm.category.trim()) throw new Error(t('dashboard.skillsTools.toolCategoryRequired', { defaultValue: 'Tool category is required' }));
@@ -459,7 +460,9 @@ export default function HelperDashboard() {
     if (!Number.isFinite(dailyRate) || dailyRate <= 0) throw new Error(t('dashboard.skillsTools.dailyRateRequired', { defaultValue: 'Daily rate must be greater than 0' }));
     if (toolForm.hourly_rate !== '' && (!Number.isFinite(hourlyRate) || hourlyRate <= 0)) throw new Error(t('dashboard.skillsTools.hourlyRateInvalid', { defaultValue: 'Hourly rate must be greater than 0' }));
     if (toolForm.deposit_amount !== '' && (!Number.isFinite(depositAmount) || depositAmount < 0)) throw new Error(t('dashboard.skillsTools.depositInvalid', { defaultValue: 'Deposit cannot be negative' }));
+    if (toolForm.replacement_value !== '' && (!Number.isFinite(replacementValue) || replacementValue < 0)) throw new Error(t('dashboard.skillsTools.replacementInvalid', { defaultValue: 'Replacement value cannot be negative' }));
     if (toolForm.requires_deposit && !(depositAmount > 0)) throw new Error(t('dashboard.skillsTools.depositRequired', { defaultValue: 'Enter a deposit amount or turn off required deposit' }));
+    if (!toolForm.owner_attestation_accepted) throw new Error(t('dashboard.skillsTools.ownerAttestationRequired', { defaultValue: 'Confirm the peer rental acknowledgement before listing this tool' }));
 
     return {
       ...toolForm,
@@ -470,9 +473,13 @@ export default function HelperDashboard() {
       model: toolForm.model.trim(),
       location_city: toolForm.location_city.trim(),
       location_state: toolForm.location_state.trim(),
+      owner_rules: toolForm.owner_rules.trim(),
+      owner_custom_terms: toolForm.owner_custom_terms.trim(),
       daily_rate: dailyRate,
       hourly_rate: hourlyRate,
       deposit_amount: depositAmount,
+      replacement_value: replacementValue,
+      owner_attestation_accepted: toolForm.owner_attestation_accepted,
     };
   };
   const buildToolFormData = (payload) => {
@@ -2411,7 +2418,10 @@ export default function HelperDashboard() {
           <Select label={t('dashboard.skillsTools.conditionLabel')} value={toolForm.condition} onChange={e=>setToolForm(p=>({...p,condition:e.target.value}))}>
             <option value="excellent">{t('dashboard.skillsTools.conditionExcellent')}</option><option value="good">{t('dashboard.skillsTools.conditionGood')}</option><option value="fair">{t('dashboard.skillsTools.conditionFair')}</option>
           </Select>
-          <Input label={t('dashboard.skillsTools.depositAmtOptLabel')} type="number" step="0.01" min="0" required={toolForm.requires_deposit} placeholder="0.00" value={toolForm.deposit_amount} onChange={e=>setToolForm(p=>({...p,deposit_amount:e.target.value}))}/>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label={t('dashboard.skillsTools.depositAmtOptLabel')} type="number" step="0.01" min="0" required={toolForm.requires_deposit} placeholder="0.00" value={toolForm.deposit_amount} onChange={e=>setToolForm(p=>({...p,deposit_amount:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.replacementValueLabel', { defaultValue: 'Replacement value' })} type="number" step="0.01" min="0" placeholder="0.00" value={toolForm.replacement_value} onChange={e=>setToolForm(p=>({...p,replacement_value:e.target.value}))}/>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Input label={t('dashboard.skillsTools.cityOptLabel')} required maxLength={100} placeholder={t('dashboard.skillsTools.cityPlaceholder')} value={toolForm.location_city} onChange={e=>setToolForm(p=>({...p,location_city:e.target.value}))}/>
             <Input label={t('dashboard.skillsTools.stateOptLabel')} maxLength={50} placeholder={t('dashboard.skillsTools.statePlaceholder')} value={toolForm.location_state} onChange={e=>setToolForm(p=>({...p,location_state:e.target.value}))}/>
@@ -2419,6 +2429,15 @@ export default function HelperDashboard() {
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.descriptionOptLabel')}</label>
             <textarea rows={2} maxLength={4000} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder={t('dashboard.skillsTools.toolDescPlaceholderShort')} value={toolForm.description} onChange={e=>setToolForm(p=>({...p,description:e.target.value}))}/>
+          </div>
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.ownerRulesLabel', { defaultValue: 'Owner rules / handling notes' })}</label>
+            <textarea rows={3} maxLength={4000} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder={t('dashboard.skillsTools.ownerRulesPlaceholder', { defaultValue: 'Example: return clean, use only with wood, do not use in rain, include batteries/charger.' })} value={toolForm.owner_rules} onChange={e=>setToolForm(p=>({...p,owner_rules:e.target.value}))}/>
+          </div>
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.ownerCustomTermsLabel', { defaultValue: 'Owner-provided rental terms' })}</label>
+            <textarea rows={4} maxLength={4000} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder={t('dashboard.skillsTools.ownerCustomTermsPlaceholder', { defaultValue: 'Optional. Add the agreement terms you want renters to accept, such as late return expectations, cleaning rules, missing accessory responsibility, or replacement expectations.' })} value={toolForm.owner_custom_terms} onChange={e=>setToolForm(p=>({...p,owner_custom_terms:e.target.value}))}/>
+            <p className="mt-1 text-[11px] text-gray-500">{t('dashboard.skillsTools.ownerCustomTermsHint', { defaultValue: 'Renters will see these as owner-provided terms. OxSteed does not draft, review, validate, or guarantee them.' })}</p>
           </div>
           <div className="space-y-3">
             {[
@@ -2436,6 +2455,19 @@ export default function HelperDashboard() {
               </div>
             ))}
           </div>
+          <label className="flex items-start gap-3 p-3 rounded-xl border border-orange-500/30 bg-orange-500/10 text-sm text-gray-200">
+            <input
+              type="checkbox"
+              className="mt-1 accent-orange-500"
+              checked={toolForm.owner_attestation_accepted}
+              onChange={e=>setToolForm(p=>({...p,owner_attestation_accepted:e.target.checked}))}
+            />
+            <span>
+              {t('dashboard.skillsTools.ownerAttestationText', {
+                defaultValue: 'I understand this is a neighbor-to-neighbor rental. I am responsible for accurately describing the tool, setting rules/deposit expectations, and handling condition, damage, return, and payment issues with the renter. OxSteed only helps document the listing, booking, messages, reports, and agreement records.',
+              })}
+            </span>
+          </label>
           <Btn className="w-full py-3" type="submit">{editingTool?t('dashboard.skillsTools.updateToolBtn'):t('dashboard.skillsTools.listTool')}</Btn>
         </form>
       </Modal>

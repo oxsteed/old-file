@@ -80,8 +80,14 @@ export const toolRentalsApi = {
   },
 
   // BOOKINGS
-  createBooking: async (toolId, startDate, endDate, totalPrice) => {
-    const response = await api.post(`/tool-rentals/bookings`, { toolId, startDate, endDate, totalPrice });
+  createBooking: async (toolId, startDate, endDate, totalPrice, renterAgreementAccepted = false) => {
+    const response = await api.post(`/tool-rentals/bookings`, {
+      toolId,
+      startDate,
+      endDate,
+      totalPrice,
+      renterAgreementAccepted,
+    });
     return response.data;
   },
 

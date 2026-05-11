@@ -260,6 +260,9 @@ export interface ToolCardData {
   weekly_rate?: number | null;
   monthly_rate?: number | null;
   deposit_amount?: number | null;
+  replacement_value?: number | null;
+  owner_rules?: string | null;
+  owner_custom_terms?: string | null;
   condition: ToolCondition | string;
   brand?: string | null;
   model?: string | null;

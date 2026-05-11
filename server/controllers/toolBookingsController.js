@@ -3,16 +3,55 @@ const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const bookingEmailService = require('../services/bookingEmailService');
 
+const TOOL_RENTAL_AGREEMENT_VERSION = 'peer-rental-v1';
+
+function buildAgreementSnapshot(tool, { startDate, endDate, rentalDays, totalPrice }) {
+  return {
+    version: TOOL_RENTAL_AGREEMENT_VERSION,
+    oxsteedRole: 'OxSteed provides tools for neighbors to document and coordinate rentals. OxSteed is not the tool owner, renter, inspector, insurer, or guarantor.',
+    renterAcknowledgement: [
+      'The renter is responsible for inspecting the tool before use and deciding whether it is appropriate for their task.',
+      'The renter assumes the risk of ordinary tool use and property damage or injury caused by their use of the tool.',
+      'The renter may be responsible for damage beyond normal wear, loss, theft, late return, missing parts, or failure to return the tool clean and working.',
+      'The renter understands OxSteed has limited control over neighbor-owned tools and can receive reports about bad actors.',
+    ],
+    tool: {
+      id: tool.id,
+      name: tool.name,
+      category: tool.category,
+      brand: tool.brand,
+      model: tool.model,
+      condition: tool.condition,
+      ownerRules: tool.owner_rules || null,
+      ownerCustomTerms: tool.owner_custom_terms || null,
+      ownerCustomTermsHash: tool.owner_custom_terms_hash || null,
+      replacementValue: tool.replacement_value != null ? Number(tool.replacement_value) : null,
+      requiresDeposit: !!tool.requires_deposit,
+      depositAmount: tool.deposit_amount != null ? Number(tool.deposit_amount) : null,
+    },
+    rental: {
+      startDate,
+      endDate,
+      rentalDays,
+      dailyRate: Number(tool.daily_rate),
+      totalPrice,
+    },
+  };
+}
+
 const createBooking = async (req, res, next) => {
   const client = await db.connect();
   try {
-    const { toolId, startDate, endDate } = req.body;
+    const { toolId, startDate, endDate, renterAgreementAccepted } = req.body;
     const userId = req.user.id;
 
     const fields = {};
     if (!toolId) fields.toolId = 'toolId is required';
     if (!startDate) fields.startDate = 'startDate is required';
     if (!endDate) fields.endDate = 'endDate is required';
+    if (!renterAgreementAccepted) {
+      fields.renterAgreementAccepted = 'You must accept the peer rental agreement before booking';
+    }
     if (Object.keys(fields).length) throw new AppError('Validation failed', 400, 'validation_failed', fields);
 
     const start = new Date(`${startDate}T00:00:00Z`);
@@ -27,7 +66,12 @@ const createBooking = async (req, res, next) => {
 
     // Get tool and owner info
     const toolResult = await client.query(
-      'SELECT user_id AS owner_id, daily_rate, is_available FROM tool_rentals WHERE id = $1',
+      `SELECT id, user_id AS owner_id, name, category, brand, model, condition,
+              daily_rate, deposit_amount, requires_deposit, owner_rules,
+              owner_custom_terms, owner_custom_terms_hash, replacement_value,
+              is_available
+         FROM tool_rentals
+        WHERE id = $1`,
       [toolId]
     );
     if (toolResult.rows.length === 0) {
@@ -48,6 +92,12 @@ const createBooking = async (req, res, next) => {
 
     const rentalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     const totalPrice = Number((rentalDays * dailyRate).toFixed(2));
+    const agreementSnapshot = buildAgreementSnapshot(listedTool, {
+      startDate,
+      endDate,
+      rentalDays,
+      totalPrice,
+    });
 
     // Check for calendar conflicts (overlapping confirmed/pending bookings)
     const conflictResult = await client.query(
@@ -67,10 +117,12 @@ const createBooking = async (req, res, next) => {
     await client.query('BEGIN');
 
     const booking = await client.query(
-      `INSERT INTO tool_rentals_bookings (tool_id, customer_id, owner_id, start_date, end_date, total_price)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO tool_rentals_bookings
+         (tool_id, customer_id, owner_id, start_date, end_date, total_price,
+          agreement_snapshot, renter_acknowledged_at, renter_agreement_version)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
        RETURNING *`,
-      [toolId, userId, ownerId, startDate, endDate, totalPrice]
+      [toolId, userId, ownerId, startDate, endDate, totalPrice, agreementSnapshot, TOOL_RENTAL_AGREEMENT_VERSION]
     );
 
     // Log analytics
