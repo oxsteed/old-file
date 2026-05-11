@@ -21,6 +21,12 @@
 - 165 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
 
+**Provider Growth Center (2026-05-11):** COMPLETE
+- **`client/src/pages/PromotePage.jsx` + `client/src/styles/PromotePage.css`**: Added authenticated `/promote` Growth Center for helpers/business providers. It generates profile/booking links, QR display, copyable social/SMS/email/flyer text, a profile readiness checklist, and weekly promotion playbook. Print Studio added with selectable full-page flyer, QR handout, and 10-up business card sheet templates; browser print can print directly or save as PDF.
+- **Dashboard entry points:** `HelperDashboard.jsx` now surfaces a Growth Center CTA; `BusinessHubPage.jsx` includes a Growth Center header action.
+- **Routing:** `client/src/App.jsx` registers `/promote`; `server/index.js` mounts existing `businessProfileImages` routes at `/api/business-profile` so business QR images work.
+- **Verification:** `node --check server/index.js` passes; `npm run build` passes in `client/`. Existing large chunk warning remains.
+
 **Discover helper privacy fix (2026-05-11):** COMPLETE
 - **`server/controllers/discoverController.js`**: Popular helper rows and related helper suggestions now use `resolvePublicDisplayName()` instead of hand-built `first_name + last_name`, so helpers who choose first-name-only or business-name display are respected across `/discover`.
 - Helper search name matching now uses the same public display preference expression, so first-name-only helpers are not matched by hidden last names while still matching skills/profile text. The same privacy rule was extended to the helper directory query, public tool rental owner names, tool reviews, saved helpers, and planned-needs preferred helper display.

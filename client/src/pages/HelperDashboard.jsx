@@ -1171,6 +1171,19 @@ export default function HelperDashboard() {
             </Btn>
           </div>
 
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-8 bg-orange-500/10 border border-orange-500/25 rounded-2xl p-5">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold mb-1">Growth Center</p>
+              <h2 className="text-base font-bold text-white mb-1">Promote your services with ready-made links, QR codes, and local posts.</h2>
+              <p className="text-sm text-gray-400 max-w-2xl">
+                Turn your profile, services, availability, and booking link into shareable posts, texts, emails, and flyers.
+              </p>
+            </div>
+            <Link to="/promote" className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-orange-500 text-gray-950 text-sm font-bold hover:bg-orange-400 transition">
+              Open Growth Center
+            </Link>
+          </div>
+
           {/* Tabs */}
           {tabs.length>1&&(
             <div className="grid grid-cols-4 sm:flex gap-1 my-6 bg-gray-900/80 rounded-xl p-1 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">

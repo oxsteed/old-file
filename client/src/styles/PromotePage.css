@@ -1,0 +1,713 @@
+.promote-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+  color: var(--app-text);
+}
+
+.promote-hero,
+.promote-panel,
+.promote-copy-block,
+.promote-playbook,
+.promote-next,
+.promote-empty {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+}
+
+.promote-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.promote-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #f97316;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.65rem;
+}
+
+.promote-hero h1 {
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 1.03;
+  letter-spacing: 0;
+  margin: 0;
+  max-width: 770px;
+}
+
+.promote-hero p,
+.promote-next p {
+  color: var(--muted-text);
+  font-size: 1rem;
+  line-height: 1.65;
+  max-width: 720px;
+  margin: 0.8rem 0 0;
+}
+
+.promote-hero-actions,
+.promote-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.promote-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 42px;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.promote-btn:hover {
+  transform: translateY(-1px);
+}
+
+.promote-btn.primary {
+  background: #f97316;
+  border-color: #f97316;
+  color: #111827;
+}
+
+.promote-btn.secondary {
+  background: transparent;
+  color: var(--app-text);
+}
+
+.promote-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.9fr) minmax(280px, 1fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.promote-panel {
+  padding: 1.25rem;
+}
+
+.promote-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+}
+
+.promote-panel-title h2,
+.promote-playbook h2,
+.promote-next h2,
+.promote-empty h2 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.promote-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+  padding: 0.35rem;
+  background: color-mix(in srgb, var(--app-bg) 82%, transparent);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  margin-bottom: 1rem;
+}
+
+.promote-segmented button {
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted-text);
+  min-height: 38px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.promote-segmented button.active {
+  background: #f97316;
+  color: #111827;
+}
+
+.promote-segmented button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.promote-field {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+}
+
+.promote-field span {
+  color: var(--muted-text);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.promote-field input,
+.promote-field select {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--app-bg);
+  color: var(--app-text);
+  padding: 0 0.8rem;
+  font-weight: 650;
+}
+
+.promote-qr-card img {
+  width: 180px;
+  height: 180px;
+  object-fit: contain;
+  display: block;
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.55rem;
+  margin-bottom: 1rem;
+}
+
+.promote-link-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px;
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.65rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 0.85rem;
+}
+
+.promote-link-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted-text);
+  font-size: 0.82rem;
+}
+
+.promote-link-row button,
+.promote-copy-head button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--app-text);
+  border-radius: 7px;
+  min-height: 34px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.promote-score {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.8rem;
+}
+
+.promote-score strong {
+  color: #f97316;
+  font-size: 2.1rem;
+}
+
+.promote-score span {
+  color: var(--muted-text);
+  font-weight: 750;
+}
+
+.promote-ready ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.promote-ready-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  color: var(--muted-text);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.promote-ready-row.done {
+  color: var(--app-text);
+}
+
+.promote-ready-row.done svg {
+  color: #10b981;
+}
+
+.promote-ready-row:not(.done) svg {
+  color: #94a3b8;
+}
+
+.promote-copy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.promote-copy-block {
+  padding: 1rem;
+}
+
+.promote-copy-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.7rem;
+}
+
+.promote-copy-head > div {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 850;
+}
+
+.promote-copy-head button {
+  padding: 0 0.75rem;
+  font-size: 0.78rem;
+}
+
+.promote-copy-block textarea {
+  width: 100%;
+  min-height: 130px;
+  resize: vertical;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--app-bg);
+  color: var(--app-text);
+  padding: 0.8rem;
+  line-height: 1.55;
+}
+
+.promote-playbook,
+.promote-next,
+.promote-print-studio {
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.promote-print-studio {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+}
+
+.promote-print-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.promote-print-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.promote-print-header p {
+  color: var(--muted-text);
+  line-height: 1.6;
+  max-width: 760px;
+  margin: 0.4rem 0 0;
+}
+
+.promote-print-layouts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.promote-print-layouts button {
+  text-align: left;
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--app-bg) 72%, transparent);
+  color: var(--app-text);
+  border-radius: 10px;
+  padding: 0.9rem;
+  cursor: pointer;
+}
+
+.promote-print-layouts button.active {
+  border-color: #f97316;
+  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.35);
+}
+
+.promote-print-layouts strong,
+.promote-print-layouts span {
+  display: block;
+}
+
+.promote-print-layouts span {
+  color: var(--muted-text);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  margin-top: 0.25rem;
+}
+
+.promote-print-preview {
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--app-bg) 82%, transparent);
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+}
+
+.print-sheet {
+  color: #111827;
+  background: #ffffff;
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.24);
+}
+
+.print-flyer-sheet {
+  width: min(100%, 680px);
+  aspect-ratio: 8.5 / 11;
+  padding: 30px;
+}
+
+.print-qrCard-sheet {
+  width: min(100%, 520px);
+  aspect-ratio: 5 / 7;
+  padding: 24px;
+}
+
+.print-business-card-sheet {
+  width: min(100%, 760px);
+  aspect-ratio: 8.5 / 11;
+  padding: 28px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 12px;
+}
+
+.print-template,
+.print-business-card {
+  border: 2px solid #111827;
+  background: linear-gradient(135deg, #fff7ed 0%, #ffffff 44%, #f8fafc 100%);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+}
+
+.print-template {
+  padding: 32px;
+}
+
+.print-flyer .print-brand {
+  font-size: 1rem;
+}
+
+.print-brand {
+  font-weight: 900;
+  color: #f97316;
+  letter-spacing: 0.02em;
+}
+
+.print-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: center;
+}
+
+.print-main h2 {
+  color: #111827;
+  font-size: clamp(2.2rem, 5vw, 4.6rem);
+  line-height: 0.98;
+  letter-spacing: 0;
+  margin: 0.2rem 0 0.7rem;
+}
+
+.print-qrCard .print-main h2 {
+  font-size: clamp(1.9rem, 5vw, 3.25rem);
+}
+
+.print-main p {
+  color: #334155;
+  font-size: 1.2rem;
+  line-height: 1.45;
+  margin: 0 0 0.75rem;
+}
+
+.print-main strong {
+  display: inline-flex;
+  background: #111827;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 0.55rem 0.85rem;
+  font-size: 1rem;
+}
+
+.print-main img {
+  width: 190px;
+  height: 190px;
+  object-fit: contain;
+  border: 3px solid #111827;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.print-kicker {
+  color: #f97316;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+
+.print-url {
+  color: #111827;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+  border-top: 2px solid #111827;
+  padding-top: 1rem;
+}
+
+.print-footer {
+  color: #475569;
+  font-size: 0.92rem;
+  margin-top: 0.7rem;
+}
+
+.print-business-card {
+  min-height: 0;
+  padding: 14px;
+  border-width: 1px;
+}
+
+.print-business-card .print-brand {
+  font-size: 0.78rem;
+}
+
+.print-business-card .print-main {
+  grid-template-columns: minmax(0, 1fr) 82px;
+  gap: 10px;
+}
+
+.print-business-card .print-main h2 {
+  font-size: 1.25rem;
+  line-height: 1.05;
+  margin-bottom: 0.35rem;
+}
+
+.print-business-card .print-main p,
+.print-business-card .print-footer {
+  font-size: 0.62rem;
+}
+
+.print-business-card .print-main strong {
+  font-size: 0.58rem;
+  padding: 0.28rem 0.45rem;
+}
+
+.print-business-card .print-main img {
+  width: 78px;
+  height: 78px;
+  border-width: 1px;
+  border-radius: 6px;
+  padding: 3px;
+}
+
+.print-business-card .print-url {
+  font-size: 0.55rem;
+  padding-top: 0.35rem;
+  border-top-width: 1px;
+}
+
+.promote-playbook-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+
+.promote-playbook-item {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.9rem;
+  background: color-mix(in srgb, var(--app-bg) 72%, transparent);
+}
+
+.promote-playbook-item strong {
+  color: #f97316;
+}
+
+.promote-playbook-item p {
+  color: var(--muted-text);
+  line-height: 1.5;
+  margin: 0.35rem 0 0;
+}
+
+.promote-next {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.promote-next-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.promote-next-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  color: var(--app-text);
+  text-decoration: none;
+  font-weight: 750;
+}
+
+.promote-empty {
+  min-height: 360px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 2rem;
+}
+
+.promote-empty p,
+.promote-skeleton {
+  color: var(--muted-text);
+}
+
+@media (max-width: 980px) {
+  .promote-hero,
+  .promote-next {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .promote-grid,
+  .promote-copy-grid,
+  .promote-playbook-grid,
+  .promote-print-layouts {
+    grid-template-columns: 1fr;
+  }
+
+  .promote-print-header {
+    flex-direction: column;
+  }
+
+  .print-main {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .promote-btn.primary,
+  .promote-segmented button.active {
+    color: #111827;
+  }
+}
+
+@media print {
+  @page {
+    size: letter;
+    margin: 0.35in;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    background: #ffffff !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .promote-print-preview,
+  .promote-print-preview * {
+    visibility: visible !important;
+  }
+
+  .promote-print-preview {
+    position: absolute;
+    inset: 0;
+    display: block;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+  }
+
+  .print-sheet {
+    width: 100% !important;
+    height: calc(11in - 0.7in) !important;
+    box-shadow: none !important;
+    aspect-ratio: auto !important;
+  }
+
+  .print-flyer-sheet,
+  .print-qrCard-sheet {
+    display: flex;
+  }
+
+  .print-template {
+    width: 100%;
+  }
+
+  .print-business-card-sheet {
+    display: grid !important;
+    grid-template-columns: repeat(2, 3.5in) !important;
+    grid-template-rows: repeat(5, 2in) !important;
+    gap: 0.08in !important;
+    justify-content: center;
+    align-content: center;
+    padding: 0 !important;
+  }
+
+  .print-business-card {
+    width: 3.5in;
+    height: 2in;
+    break-inside: avoid;
+  }
+}

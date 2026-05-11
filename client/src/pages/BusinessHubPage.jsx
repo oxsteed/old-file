@@ -868,6 +868,9 @@ function BusinessHubInner() {
             <p>{t('businessHub.headerDesc')}</p>
           </div>
           <div className="bh-header-actions">
+            <Link className="bh-btn" to="/promote">
+              Growth Center
+            </Link>
             <button className="bh-btn primary" onClick={() => { setForm(DEFAULT_BIZ_FORM); setFormErr(''); setModal('add-biz'); }}>
               + {t('businessHub.addBusiness')}
             </button>

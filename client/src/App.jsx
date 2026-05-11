@@ -87,6 +87,7 @@ import EnforcementPolicyPage from './pages/EnforcementPolicyPage';
 import HelperProfileEditPage from './pages/HelperProfileEditPage';
 import BusinessProfileEditPage from './pages/BusinessProfileEditPage';
 import FeatureGuidePage from './pages/FeatureGuidePage';
+import PromotePage from './pages/PromotePage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -202,6 +203,7 @@ export default function App() {
                     <Route path="/helper-dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><SmartDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/upgrade"        element={<Guarded><ProtectedRoute><UpgradePage /></ProtectedRoute></Guarded>} />
                     <Route path="/templates"      element={<Guarded><ProtectedRoute><TemplatePicker /></ProtectedRoute></Guarded>} />
+                    <Route path="/promote"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><PromotePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/dashboard/ai-preview" element={<Guarded><ProtectedRoute><RouteErrorBoundary><AIPreviewPage profileType="helper" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/business/:id/ai-preview" element={<Guarded><ProtectedRoute><RouteErrorBoundary><AIPreviewPage profileType="business" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
