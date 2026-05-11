@@ -1,115 +1,254 @@
-import { useEffect, useState }  from 'react';
-import { Link }                 from 'react-router-dom';
-import { useTranslation }       from 'react-i18next';
-import { AlertTriangle }        from 'lucide-react';
-import api                      from '../../api/axios';
-import Navbar                   from '../../components/Navbar';
-import Footer                   from '../../components/Footer';
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import {
+  AlertTriangle,
+  ArrowRight,
+  Briefcase,
+  CheckCircle2,
+  Clock3,
+  FileText,
+  MessageSquare,
+  ShieldCheck,
+} from 'lucide-react';
+import api from '../../api/axios';
+import PageShell from '../../components/PageShell';
+import PageMeta from '../../components/PageMeta';
+import './DisputeCenter.css';
+
+const STATUS_META = {
+  open: { label: 'Open', className: 'is-open' },
+  under_review: { label: 'Under review', className: 'is-review' },
+  resolved: { label: 'Resolved', className: 'is-resolved' },
+  closed: { label: 'Closed', className: 'is-closed' },
+};
+
+function formatDate(value) {
+  if (!value) return 'Date unavailable';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Date unavailable';
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function formatReason(reason) {
+  return String(reason || 'General issue').replace(/_/g, ' ');
+}
+
+function resolutionLabel(resolution, t) {
+  const map = {
+    full_refund: 'Full refund issued',
+    partial_refund: 'Partial refund issued',
+    release_to_helper: 'Payment released to helper',
+    dismissed: 'Dismissed',
+  };
+  return resolution
+    ? `${t('disputes.detail.resolutionTitle', { defaultValue: 'Resolution' })}: ${map[resolution] || formatReason(resolution)}`
+    : '';
+}
 
 export default function DisputeCenter() {
   const { t } = useTranslation();
   const [disputes, setDisputes] = useState([]);
-  const [loading,  setLoading]  = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetch = async () => {
+    let mounted = true;
+
+    async function fetchDisputes() {
       try {
+        setLoading(true);
+        setError('');
         const { data } = await api.get('/disputes/my');
-        setDisputes(data.disputes);
+        if (mounted) setDisputes(Array.isArray(data.disputes) ? data.disputes : []);
       } catch (err) {
         console.error(err);
+        if (mounted) setError(t('common.errorLoading', { defaultValue: 'Failed to load disputes' }));
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
+    }
+
+    fetchDisputes();
+    return () => {
+      mounted = false;
     };
-    fetch();
-  }, []);
+  }, [t]);
 
-  const STATUS_COLORS = {
-    open:         'bg-yellow-100 text-yellow-700',
-    under_review: 'bg-blue-100   text-blue-700',
-    resolved:     'bg-green-100  text-green-700',
-    closed:       'bg-gray-100   text-gray-500'
-  };
-
-  const RESOLUTION_LABELS = {
-    full_refund:       t('disputes.detail.resolutionTitle') + ': ' + '✓ Full refund issued',
-    partial_refund:    '◑ Partial refund issued',
-    release_to_helper: '→ Payment released to helper',
-    dismissed:         '✕ Dismissed'
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-950 flex flex-col">
-        <Navbar />
-        <div className="flex-1 flex items-center justify-center text-gray-400">
-          {t('disputes.center.loading')}
-        </div>
-        <Footer />
-      </div>
-    );
-  }
+  const stats = useMemo(() => {
+    const open = disputes.filter((d) => d.status === 'open').length;
+    const review = disputes.filter((d) => d.status === 'under_review').length;
+    const resolved = disputes.filter((d) => ['resolved', 'closed'].includes(d.status)).length;
+    return { open, review, resolved, total: disputes.length };
+  }, [disputes]);
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
-      <Navbar />
-      <main className="flex-1">
-      <div className="max-w-3xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-6">
-        <AlertTriangle size={22} className="text-orange-500" />
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('disputes.center.title')}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {t('disputes.center.subtitle')}
-          </p>
-        </div>
-      </div>
+    <PageShell>
+      <PageMeta
+        title={t('disputes.center.title', { defaultValue: 'Disputes' })}
+        description="Track OxSteed disputes, evidence, support messages, and resolution outcomes."
+        noIndex
+      />
 
-      {disputes.length === 0 ? (
-        <div className="text-center py-16 bg-gray-50 rounded-2xl border border-gray-200">
-          <AlertTriangle size={36} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-500 font-medium">{t('disputes.center.noDisputes')}</p>
-          <p className="text-gray-400 text-sm mt-1">
-            {t('disputes.center.noDisputesSub')}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {disputes.map(dispute => (
-            <Link
-              key={dispute.id}
-              to={`/disputes/${dispute.id}`}
-              className="block bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md transition"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 truncate">{dispute.job_title}</p>
-                  <p className="text-sm text-gray-500 mt-0.5 capitalize">
-                    {dispute.reason?.replace(/_/g, ' ')}
-                  </p>
-                </div>
-                <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold capitalize flex-shrink-0 ${
-                  STATUS_COLORS[dispute.status] || 'bg-gray-100 text-gray-500'
-                }`}>
-                  {dispute.status?.replace('_', ' ')}
-                </span>
-              </div>
-              {dispute.resolution && (
-                <p className="mt-2 text-xs text-green-600 font-medium">
-                  {RESOLUTION_LABELS[dispute.resolution] || dispute.resolution}
-                </p>
-              )}
-              <p className="text-xs text-gray-400 mt-2">
-                {new Date(dispute.created_at).toLocaleDateString()}
-              </p>
-            </Link>
-          ))}
-        </div>
-      )}
-      </div>
+      <main className="dispute-center-page">
+        <section className="dispute-hero" aria-labelledby="dispute-title">
+          <div>
+            <p className="dispute-eyebrow">
+              <ShieldCheck size={16} aria-hidden="true" />
+              Trust and resolution center
+            </p>
+            <h1 id="dispute-title">{t('disputes.center.title')}</h1>
+            <p>
+              {t('disputes.center.subtitle')} Keep evidence, support messages, job context, and
+              resolution updates in one place so a difficult situation stays organized.
+            </p>
+            <div className="dispute-hero-actions">
+              <Link to="/messages" className="dispute-btn primary">
+                <MessageSquare size={17} aria-hidden="true" />
+                Open messages
+              </Link>
+              <Link to="/support/escalation" className="dispute-btn secondary">
+                Contact support
+              </Link>
+            </div>
+          </div>
+
+          <div className="dispute-stats" aria-label="Dispute summary">
+            <div>
+              <span>{stats.open}</span>
+              <p>Open</p>
+            </div>
+            <div>
+              <span>{stats.review}</span>
+              <p>In review</p>
+            </div>
+            <div>
+              <span>{stats.resolved}</span>
+              <p>Resolved</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="dispute-guide" aria-label="How disputes work">
+          <GuideCard
+            icon={FileText}
+            title="Preserve evidence"
+            text="Add photos, documents, timelines, and short notes while details are fresh."
+          />
+          <GuideCard
+            icon={MessageSquare}
+            title="Keep discussion focused"
+            text="Use the dispute thread for clarifications so support can follow the record."
+          />
+          <GuideCard
+            icon={CheckCircle2}
+            title="Track the outcome"
+            text="Resolution status, refunds, and release decisions stay attached to the job."
+          />
+        </section>
+
+        {error && (
+          <div className="dispute-error" role="alert">
+            <AlertTriangle size={18} aria-hidden="true" />
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="dispute-loading">
+            <div className="dispute-loader" aria-hidden="true" />
+            <p>{t('disputes.center.loading')}</p>
+          </div>
+        ) : disputes.length === 0 ? (
+          <EmptyDisputes />
+        ) : (
+          <section className="dispute-list" aria-label="Your disputes">
+            {disputes.map((dispute) => {
+              const statusMeta = STATUS_META[dispute.status] || STATUS_META.closed;
+              return (
+                <Link
+                  key={dispute.id}
+                  to={`/disputes/${dispute.id}`}
+                  className="dispute-row"
+                >
+                  <div className="dispute-row-icon">
+                    <Briefcase size={20} aria-hidden="true" />
+                  </div>
+                  <div className="dispute-row-main">
+                    <div className="dispute-row-top">
+                      <h2>{dispute.job_title || 'Untitled job'}</h2>
+                      <span className={`dispute-status ${statusMeta.className}`}>
+                        {statusMeta.label}
+                      </span>
+                    </div>
+                    <p className="dispute-row-reason">{formatReason(dispute.reason)}</p>
+                    {dispute.resolution && (
+                      <p className="dispute-row-resolution">
+                        {resolutionLabel(dispute.resolution, t)}
+                      </p>
+                    )}
+                    <div className="dispute-row-meta">
+                      <span>
+                        <Clock3 size={14} aria-hidden="true" />
+                        Opened {formatDate(dispute.created_at)}
+                      </span>
+                      <span>#{String(dispute.id).split('-')[0]}</span>
+                    </div>
+                  </div>
+                  <ArrowRight className="dispute-row-arrow" size={20} aria-hidden="true" />
+                </Link>
+              );
+            })}
+          </section>
+        )}
       </main>
-      <Footer />
-    </div>
+    </PageShell>
+  );
+}
+
+function GuideCard({ icon: Icon, title, text }) {
+  return (
+    <article className="dispute-guide-card">
+      <Icon size={22} aria-hidden="true" />
+      <h2>{title}</h2>
+      <p>{text}</p>
+    </article>
+  );
+}
+
+function EmptyDisputes() {
+  return (
+    <section className="dispute-empty">
+      <div className="dispute-empty-main">
+        <div className="dispute-empty-icon">
+          <ShieldCheck size={34} aria-hidden="true" />
+        </div>
+        <p className="dispute-empty-kicker">No disputes open</p>
+        <p>
+          This is good. If a job, payment, tool rental, or booking ever needs formal review, it
+          will appear here with the evidence timeline and support conversation.
+        </p>
+        <div className="dispute-empty-actions">
+          <Link to="/jobs" className="dispute-btn primary">
+            Browse jobs
+          </Link>
+          <Link to="/features" className="dispute-btn secondary">
+            Learn how OxSteed works
+          </Link>
+        </div>
+      </div>
+      <div className="dispute-empty-side">
+        <strong>Before opening a dispute</strong>
+        <ul>
+          <li>Try to clarify scope in messages.</li>
+          <li>Save photos, receipts, and time details.</li>
+          <li>Use support escalation for urgent safety or payment issues.</li>
+        </ul>
+      </div>
+    </section>
   );
 }

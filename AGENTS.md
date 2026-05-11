@@ -116,6 +116,11 @@
 - **`client/src/pages/MyBookingsPage.tsx` + `.css`**: Upgraded `/my-bookings` with a command-center hero, active/pending summary cards, helper/tool CTAs, and guided empty states for service bookings, tools rented, and tools listed for rent.
 - **Verification**: `client` production build passes after these page upgrades, with only the existing large chunk warning remaining.
 
+**Dispute-style page quality pass (2026-05-10):** ✅ COMPLETE
+- **`client/src/pages/disputes/DisputeCenter.jsx` + `.css`**: Rebuilt `/disputes` from mixed light cards on a dark shell into a PageShell-based trust/resolution center with summary counts, evidence/message guidance, status-aware rows, support/message CTAs, polished loading/error states, and a useful no-disputes state.
+- **`client/src/pages/BusinessLeadsPage.jsx` + `.css`**: Rebuilt business leads from a narrow list/blank empty state into a lead command center with workflow guidance, active/value summary cards, status tabs, stronger lead cards, useful empty guidance, and a cleaner quote modal.
+- **Verification**: `client` production build passes after these page upgrades, with only the existing large chunk warning remaining.
+
 **Mobile app shell + native push foundation (2026-05-09):** ✅ IOS BUILD SUBMITTED WITH REAL ICON
 - **`mobile/`**: Added Capacitor 7 shell for iOS/Android App Store packaging. Defaults to `https://oxsteed.com` via `OXSTEED_APP_URL`, app id `com.oxsteed.app`, native splash/status bar/keyboard config, offline fallback, external-link handling, deep-link handling for `oxsteed://...` and `oxsteed.com` links. Generated native iOS project under `mobile/ios/`. Docs: `mobile/README.md` and `docs/mobile/app-store-release-checklist.md`.
 - **iOS native project**: `AppDelegate.swift` forwards APNs registration success/failure to Capacitor PushNotifications. `Info.plist` registers `oxsteed://`. `App.entitlements` includes push + associated domains for `applinks:oxsteed.com` and `applinks:www.oxsteed.com`. Xcode Team selected: `ZBRGSDRRU7` (`emile jean philippe`).

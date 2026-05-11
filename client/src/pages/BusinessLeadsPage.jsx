@@ -1,10 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import {
+  Briefcase,
+  CheckCircle2,
+  DollarSign,
+  FileText,
+  MessageSquare,
+  Send,
+  X,
+} from 'lucide-react';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import { getBusinessLeads, submitQuote, rejectLead, completeLead } from '../api/leads';
+import './BusinessLeadsPage.css';
 
 export default function BusinessLeadsPage() {
   const { businessId } = useParams();
@@ -15,6 +25,13 @@ export default function BusinessLeadsPage() {
   const [selectedLead, setSelectedLead] = useState(null);
   const [quoteForm, setQuoteForm] = useState({ amount: '', description: '', timeline: '' });
   const [submittingQuote, setSubmittingQuote] = useState(false);
+
+  const tabs = [
+    { value: 'pending', label: t('leads.pending') },
+    { value: 'quoted', label: t('leads.quoted') },
+    { value: 'accepted', label: t('leads.accepted') },
+    { value: 'completed', label: t('leads.completed') },
+  ];
 
   const loadLeads = useCallback(async () => {
     setLoading(true);
@@ -31,6 +48,15 @@ export default function BusinessLeadsPage() {
   useEffect(() => {
     loadLeads();
   }, [loadLeads]);
+
+  const summary = useMemo(() => {
+    const active = leads.filter((lead) => ['pending', 'quoted', 'accepted'].includes(lead.status)).length;
+    const possibleValue = leads.reduce(
+      (sum, lead) => sum + Number(lead.quote_amount || lead.budget_max || lead.budget_min || 0),
+      0
+    );
+    return { active, possibleValue };
+  }, [leads]);
 
   const handleSubmitQuote = async (e) => {
     e.preventDefault();
@@ -78,86 +104,105 @@ export default function BusinessLeadsPage() {
     }
   };
 
-  const tabs = [
-    { value: 'pending', label: t('leads.pending') },
-    { value: 'quoted', label: t('leads.quoted') },
-    { value: 'accepted', label: t('leads.accepted') },
-    { value: 'completed', label: t('leads.completed') },
-  ];
+  const selectedLabel = tabs.find((tab) => tab.value === selectedTab)?.label || selectedTab;
 
   return (
     <PageShell>
-      <PageMeta title={t('leads.businessLeads')} description={t('leads.businessLeads')} />
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-white mb-8">{t('leads.businessLeads')}</h1>
+      <PageMeta title={t('leads.businessLeads')} description={t('leads.businessLeads')} noIndex />
 
-        {/* Tabs */}
-        <div className="flex gap-4 mb-8 border-b border-gray-800">
-          {tabs.map(tab => (
+      <main className="business-leads-page">
+        <section className="business-leads-hero" aria-labelledby="business-leads-title">
+          <div>
+            <p className="business-leads-eyebrow">
+              <Briefcase size={16} aria-hidden="true" />
+              Lead command center
+            </p>
+            <h1 id="business-leads-title">{t('leads.businessLeads')}</h1>
+            <p>
+              Turn customer requests into clear quotes, accepted work, and completed records. Each
+              lead is a chance to respond quickly, set expectations, and keep the relationship
+              moving without losing context.
+            </p>
+          </div>
+          <div className="business-leads-summary">
+            <div>
+              <span>{summary.active}</span>
+              <p>Active leads</p>
+            </div>
+            <div>
+              <span>{leads.length}</span>
+              <p>{selectedTab}</p>
+            </div>
+            <div>
+              <span>${summary.possibleValue.toLocaleString()}</span>
+              <p>Possible value</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="business-leads-guide" aria-label="Lead workflow">
+          <GuideCard icon={MessageSquare} title="Read the request" text="Understand the need, location, budget, and customer context before quoting." />
+          <GuideCard icon={DollarSign} title="Send a quote" text="A useful quote explains price, scope, and timeline so the customer can decide confidently." />
+          <GuideCard icon={CheckCircle2} title="Close the loop" text="Accepted leads become real work history when you complete and follow up." />
+        </section>
+
+        <div className="business-leads-tabs">
+          {tabs.map((tab) => (
             <button
               key={tab.value}
               onClick={() => {
                 setSelectedTab(tab.value);
                 setSelectedLead(null);
               }}
-              className={`px-4 py-3 font-medium border-b-2 transition-colors ${
-                selectedTab === tab.value
-                  ? 'border-brand-500 text-white'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
+              className={`business-leads-tab ${selectedTab === tab.value ? 'active' : ''}`}
             >
               {tab.label}
             </button>
           ))}
         </div>
 
-        {/* Leads List */}
         {loading ? (
-          <p className="text-gray-400">{t('common.loading')}</p>
+          <div className="business-leads-loading">
+            <div className="business-leads-loader" aria-hidden="true" />
+            <p>{t('common.loading')}</p>
+          </div>
         ) : leads.length === 0 ? (
-          <p className="text-gray-400 text-center py-12">{t('leads.noRequests')}</p>
+          <EmptyLeads selectedTab={selectedTab} label={selectedLabel} />
         ) : (
-          <div className="space-y-4">
-            {leads.map(lead => (
-              <div
-                key={lead.id}
-                className="bg-gray-900 border border-gray-800 rounded-lg p-4 hover:border-gray-700 transition-colors"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-white mb-2">
-                      {t('leads.leadNumber', { number: lead.lead_number })}
-                    </h3>
-                    <p className="text-sm text-gray-400 mb-2">
+          <section className="business-leads-list" aria-label={`${selectedLabel} leads`}>
+            {leads.map((lead) => (
+              <article key={lead.id} className="business-lead-card">
+                <div className="business-lead-card-top">
+                  <div className="business-lead-card-main">
+                    <h2>{t('leads.leadNumber', { number: lead.lead_number })}</h2>
+                    <p className="business-lead-customer">
                       {t('leads.fromCustomer', { name: lead.first_name })}
                     </p>
-                    <p className="text-gray-300 text-sm mb-3">{lead.description}</p>
+                    <p className="business-lead-description">{lead.description}</p>
                     {lead.budget_min && lead.budget_max && (
-                      <p className="text-sm text-gray-400">
+                      <p className="business-lead-budget">
                         Budget: ${lead.budget_min} - ${lead.budget_max}
                       </p>
                     )}
                   </div>
-                  <div className="ml-4 text-right">
-                    <span className="inline-block px-3 py-1 bg-blue-900/20 text-blue-400 rounded-full text-xs font-medium">
-                      {lead.status}
-                    </span>
-                  </div>
+                  <span className={`business-lead-status is-${lead.status}`}>
+                    {lead.status}
+                  </span>
                 </div>
 
-                {/* Actions */}
-                <div className="flex gap-2 mt-4 pt-4 border-t border-gray-800">
+                <div className="business-lead-actions">
                   {selectedTab === 'pending' && (
                     <>
                       <button
                         onClick={() => setSelectedLead(lead)}
-                        className="flex-1 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-medium transition-colors"
+                        className="business-lead-action primary"
                       >
+                        <Send size={15} aria-hidden="true" />
                         {t('leads.submitQuote')}
                       </button>
                       <button
                         onClick={() => handleRejectLead(lead.id)}
-                        className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-medium transition-colors"
+                        className="business-lead-action secondary"
                       >
                         {t('leads.rejectRequest')}
                       </button>
@@ -166,86 +211,84 @@ export default function BusinessLeadsPage() {
                   {selectedTab === 'accepted' && (
                     <button
                       onClick={() => handleCompleteLead(lead.id)}
-                      className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                      className="business-lead-action success"
                     >
+                      <CheckCircle2 size={15} aria-hidden="true" />
                       {t('leads.markComplete')}
                     </button>
                   )}
                 </div>
-              </div>
+              </article>
             ))}
-          </div>
+          </section>
         )}
 
-        {/* Quote Form Modal */}
         {selectedLead && (
-          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl max-w-md w-full">
-              <div className="px-6 py-4 border-b border-gray-800 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-white">{t('leads.submitQuote')}</h3>
+          <div className="business-leads-modal-overlay">
+            <div className="business-leads-modal">
+              <div className="business-leads-modal-header">
+                <div>
+                  <p>Quote request</p>
+                  <h3>{t('leads.submitQuote')}</h3>
+                </div>
                 <button
                   onClick={() => setSelectedLead(null)}
-                  className="text-gray-400 hover:text-white text-2xl"
+                  className="business-leads-modal-close"
+                  aria-label="Close"
                 >
-                  ×
+                  <X size={20} aria-hidden="true" />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmitQuote} className="p-6 space-y-4">
+              <form onSubmit={handleSubmitQuote} className="business-leads-quote-form">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    {t('leads.quoteAmount')}
-                  </label>
+                  <label>{t('leads.quoteAmount')}</label>
                   <input
                     type="number"
                     value={quoteForm.amount}
-                    onChange={e => setQuoteForm(f => ({ ...f, amount: e.target.value }))}
+                    onChange={(e) => setQuoteForm((f) => ({ ...f, amount: e.target.value }))}
                     placeholder="0.00"
                     min="0"
                     step="0.01"
                     required
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white"
+                    className="business-leads-input"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    {t('leads.quoteDescription')}
-                  </label>
+                  <label>{t('leads.quoteDescription')}</label>
                   <textarea
                     value={quoteForm.description}
-                    onChange={e => setQuoteForm(f => ({ ...f, description: e.target.value }))}
+                    onChange={(e) => setQuoteForm((f) => ({ ...f, description: e.target.value }))}
                     placeholder={t('leads.placeholderQuoteDescription')}
                     rows={3}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white"
+                    className="business-leads-input"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    {t('leads.timeline')}
-                  </label>
+                  <label>{t('leads.timeline')}</label>
                   <input
                     type="text"
                     value={quoteForm.timeline}
-                    onChange={e => setQuoteForm(f => ({ ...f, timeline: e.target.value }))}
+                    onChange={(e) => setQuoteForm((f) => ({ ...f, timeline: e.target.value }))}
                     placeholder={t('leads.placeholderTimeline')}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white"
+                    className="business-leads-input"
                   />
                 </div>
 
-                <div className="flex gap-3 pt-4">
+                <div className="business-leads-modal-actions">
                   <button
                     type="button"
                     onClick={() => setSelectedLead(null)}
-                    className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg"
+                    className="business-lead-action secondary"
                   >
                     {t('common.cancel')}
                   </button>
                   <button
                     type="submit"
                     disabled={submittingQuote}
-                    className="flex-1 px-4 py-2 bg-brand-500 hover:bg-brand-600 disabled:bg-gray-700 text-white rounded-lg"
+                    className="business-lead-action primary"
                   >
                     {submittingQuote ? t('leads.sending') : t('leads.submitQuote')}
                   </button>
@@ -254,7 +297,42 @@ export default function BusinessLeadsPage() {
             </div>
           </div>
         )}
-      </div>
+      </main>
     </PageShell>
+  );
+}
+
+function GuideCard({ icon: Icon, title, text }) {
+  return (
+    <article className="business-leads-guide-card">
+      <Icon size={22} aria-hidden="true" />
+      <h2>{title}</h2>
+      <p>{text}</p>
+    </article>
+  );
+}
+
+function EmptyLeads({ selectedTab, label }) {
+  return (
+    <section className="business-leads-empty">
+      <div className="business-leads-empty-main">
+        <div className="business-leads-empty-icon">
+          {selectedTab === 'completed' ? <CheckCircle2 size={32} aria-hidden="true" /> : <FileText size={32} aria-hidden="true" />}
+        </div>
+        <p className="business-leads-empty-kicker">No {String(label || selectedTab).toLowerCase()} leads</p>
+        <p>
+          Leads from your business profile and service requests will appear here. Use this page to
+          respond with price, scope, and timeline before the customer loses momentum.
+        </p>
+      </div>
+      <div className="business-leads-empty-side">
+        <strong>Make future leads easier to win</strong>
+        <ul>
+          <li>Keep services and pricing clear on your profile.</li>
+          <li>Add photos and policies so customers know what to expect.</li>
+          <li>Respond quickly with a complete quote and realistic timeline.</li>
+        </ul>
+      </div>
+    </section>
   );
 }
