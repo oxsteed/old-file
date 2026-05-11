@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CalendarCheck, MessageCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import type { HelperProfile } from '../../types/helperProfile';
+import type { HelperProfile, Service } from '../../types/helperProfile';
 import StarRating from './ui/StarRating';
 import TrustSignals from './TrustSignals';
 
@@ -11,6 +11,29 @@ interface CTASectionProps {
   onMessageHelper: () => void;
   onOpenChat?: () => void;
   hasServices?: boolean;
+  services?: Service[];
+}
+
+function formatPrice(t: (key: string, options?: any) => string, service?: Service): string {
+  if (!service || !Number.isFinite(service.price) || service.price <= 0) {
+    return t('helperProfile.cta.contactForPricing', { defaultValue: 'Quote' });
+  }
+  const amount = `$${service.price.toFixed(0)}`;
+  if (service.priceUnit === 'flat') return amount;
+  if (service.priceUnit === 'starting_at') {
+    return t('helperProfile.cta.startingAtPrice', { amount, defaultValue: `From ${amount}` });
+  }
+  if (service.priceUnit === 'quote') {
+    return t('helperProfile.cta.contactForPricing', { defaultValue: 'Quote' });
+  }
+  return amount;
+}
+
+function formatPriceUnit(t: (key: string, options?: any) => string, service?: Service): string {
+  if (!service || !Number.isFinite(service.price) || service.price <= 0 || service.priceUnit === 'quote') return '';
+  if (service.priceUnit === 'flat') return t('helperProfile.cta.flatRate', { defaultValue: 'flat' });
+  if (service.priceUnit === 'starting_at') return '';
+  return t('helperProfile.cta.perHour');
 }
 
 const CTASection: React.FC<CTASectionProps> = ({
@@ -19,9 +42,14 @@ const CTASection: React.FC<CTASectionProps> = ({
   onMessageHelper,
   onOpenChat,
   hasServices = true,
+  services = [],
 }) => {
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
+  const pricedServices = services.filter((service) => Number.isFinite(service.price) && service.price > 0 && service.priceUnit !== 'quote');
+  const startingService = pricedServices.sort((a, b) => a.price - b.price)[0] || services[0];
+  const priceLabel = formatPrice(t, startingService);
+  const priceUnitLabel = formatPriceUnit(t, startingService);
 
   return (
     <aside
@@ -36,8 +64,8 @@ const CTASection: React.FC<CTASectionProps> = ({
         aria-label={isExpanded ? t('helperProfile.cta.hideDetails') : t('helperProfile.cta.showDetails')}
       >
         <div className="flex items-baseline gap-1 text-left">
-          <span className="text-2xl font-bold text-white">$45</span>
-          <span className="text-gray-400 text-sm">{t('helperProfile.cta.perHour')}</span>
+          <span className="text-2xl font-bold text-white">{priceLabel}</span>
+          {priceUnitLabel && <span className="text-gray-400 text-sm">{priceUnitLabel}</span>}
         </div>
         {isExpanded ? (
           <ChevronUp className="w-5 h-5 text-gray-400 flex-shrink-0" aria-hidden="true" />
@@ -54,9 +82,12 @@ const CTASection: React.FC<CTASectionProps> = ({
               {t('helperProfile.cta.startingFrom')}
             </p>
             <div className="flex items-baseline gap-1">
-              <span className="text-3xl font-bold text-white">$45</span>
-              <span className="text-gray-400 text-sm">{t('helperProfile.cta.perHour')}</span>
+              <span className="text-3xl font-bold text-white">{priceLabel}</span>
+              {priceUnitLabel && <span className="text-gray-400 text-sm">{priceUnitLabel}</span>}
             </div>
+            {startingService?.name && (
+              <p className="mt-1 text-xs text-gray-500">{startingService.name}</p>
+            )}
           </div>
           {helper.reviewCount > 0 ? (
             <div className="flex items-center gap-2">

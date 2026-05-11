@@ -9,6 +9,7 @@ import {
   Clock,
   CheckCircle2,
   MessageCircle,
+  Heart,
 } from 'lucide-react';
 import type { HelperProfile, Badge } from '../../types/helperProfile';
 import StarRating from './ui/StarRating';
@@ -21,6 +22,9 @@ interface BusinessHeaderProps {
   onBookNow: () => void;
   /** Broad job post (optional second CTA) */
   onPostJobPublic?: () => void;
+  onToggleSaved?: () => void;
+  isSaved?: boolean;
+  savingHelper?: boolean;
   onOpenChat: () => void;
   /** Public canonical URL for Copy link / Share (omit to hide share row) */
   shareUrl?: string;
@@ -57,6 +61,9 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
   helper,
   onBookNow,
   onPostJobPublic,
+  onToggleSaved,
+  isSaved = false,
+  savingHelper = false,
   onOpenChat,
   shareUrl,
   shareTitle,
@@ -149,9 +156,15 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
               {/* Meta - 2-column grid on mobile, single row on sm+ */}
               <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1.5 text-sm text-gray-500 dark:text-gray-400 justify-center sm:justify-start">
                 <span className="flex items-center justify-center sm:justify-start gap-1 col-span-2 sm:col-auto">
-                  <StarRating rating={helper.rating} size="sm" />
-                  <span className="font-semibold text-gray-900 dark:text-white ml-1">{helper.rating.toFixed(1)}</span>
-                  <span className="text-gray-400 dark:text-gray-500">{t('helperProfile.header.reviewsCount', { count: helper.reviewCount })}</span>
+                  {helper.reviewCount > 0 ? (
+                    <>
+                      <StarRating rating={helper.rating} size="sm" />
+                      <span className="font-semibold text-gray-900 dark:text-white ml-1">{helper.rating.toFixed(1)}</span>
+                      <span className="text-gray-400 dark:text-gray-500">{t('helperProfile.header.reviewsCount', { count: helper.reviewCount })}</span>
+                    </>
+                  ) : (
+                    <span className="text-gray-500 dark:text-gray-400">{t('helperProfile.header.noReviewsYet', { defaultValue: 'No reviews yet' })}</span>
+                  )}
                 </span>
                 <span className="flex items-center justify-center sm:justify-start gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 flex-shrink-0" />
@@ -195,6 +208,24 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 >
                   {t('helperProfile.header.postJobPublic')}
+                </button>
+              )}
+              {onToggleSaved && (
+                <button
+                  type="button"
+                  onClick={onToggleSaved}
+                  disabled={savingHelper}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                    isSaved
+                      ? 'border-brand-500/40 bg-brand-500/10 text-brand-700 dark:text-brand-300'
+                      : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                  aria-pressed={isSaved}
+                >
+                  <Heart className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
+                  {isSaved
+                    ? t('helperProfile.header.savedHelper', { defaultValue: 'Saved' })
+                    : t('helperProfile.header.saveHelper', { defaultValue: 'Save' })}
                 </button>
               )}
             </div>
@@ -280,6 +311,24 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               >
                 {t('helperProfile.header.postJobPublic')}
+              </button>
+            )}
+            {onToggleSaved && (
+              <button
+                type="button"
+                onClick={onToggleSaved}
+                disabled={savingHelper}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                  isSaved
+                    ? 'border-brand-500/40 bg-brand-500/10 text-brand-700 dark:text-brand-300'
+                    : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+                aria-pressed={isSaved}
+              >
+                <Heart className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
+                {isSaved
+                  ? t('helperProfile.header.savedHelper', { defaultValue: 'Saved helper' })
+                  : t('helperProfile.header.saveHelper', { defaultValue: 'Save helper' })}
               </button>
             )}
           </div>

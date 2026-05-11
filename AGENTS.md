@@ -54,6 +54,12 @@
 - **`client/src/pages/HelperDashboard.jsx`**: Add/edit tool modal now includes a tool photo picker with preview, remove support, multipart save, and thumbnails on the helper's own tools list.
 - **Verification:** `node --check server/routes/toolRentals.js` passes; `npm run build` passes in `client/`. Existing large chunk warning remains.
 
+**Booksy parity profile trust pass (2026-05-11):** COMPLETE
+- **`client/src/components/helperProfile/CTASection.tsx` + `client/src/pages/HelperBusinessProfilePage.tsx`**: Public profile booking CTA now shows the real lowest priced service (or quote/contact-for-pricing) instead of hardcoded `$45/hr`.
+- **`client/src/components/helperProfile/BusinessHeader.tsx`**: Public profile header now shows "No reviews yet" for new helpers instead of a misleading `0.0` rating, and includes a Save/Saved helper action.
+- **`client/src/pages/HelperBusinessProfilePage.tsx`**: Save helper action now uses the existing `/api/life/saved-helpers` API, redirects guests to login, prevents saving your own profile, and syncs saved state on load.
+- **Verification:** `npm run build` passes in `client/`. Existing large chunk warning remains.
+
 **Deployment dependency fix (2026-05-10):** ✅ COMPLETE
 - **`server/package.json`**: Removed stale direct OpenTelemetry dependencies pinned to invalid/nonexistent package versions such as `@opentelemetry/sdk-trace-node@0.48.0`; no app code imports them directly, and Sentry still brings its compatible OpenTelemetry transitive dependencies from `server/package-lock.json`.
 - **`Dockerfile`**: Server dependency install now uses `npm ci` instead of `npm install`, matching the client stage and making Coolify/production builds use the committed lockfile deterministically.

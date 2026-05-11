@@ -21,6 +21,8 @@ import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDes
 import ProfileShareControls from '../components/helperProfile/ProfileShareControls';
 import { MessageCircle, Flag, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import api from '../api/axios';
+import toast from 'react-hot-toast';
 import UserReputationCard from '../components/UserReputationCard';
 import ReportModal from '../components/ReportModal';
 
@@ -71,6 +73,8 @@ const HelperBusinessProfilePage: React.FC = () => {
   const [activeTemplate, setActiveTemplate] = useState<string>('default');
   const [chatOpen, setChatOpen] = useState(false);
   const [desktopChatExpanded, setDesktopChatExpanded] = useState(false);
+  const [savedHelperId, setSavedHelperId] = useState<number | null>(null);
+  const [savingHelper, setSavingHelper] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [guestSignInModalOpen, setGuestSignInModalOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024); // lg breakpoint
@@ -116,6 +120,25 @@ const HelperBusinessProfilePage: React.FC = () => {
     loadProfile();
   }, [loadProfile]);
 
+  useEffect(() => {
+    if (!user || !id) {
+      setSavedHelperId(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: saved } = await api.get('/life/saved-helpers');
+        if (cancelled) return;
+        const match = (saved.saved_helpers || []).find((item: any) => String(item.helper_id) === String(id));
+        setSavedHelperId(match?.id ?? null);
+      } catch {
+        if (!cancelled) setSavedHelperId(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [id, user]);
+
   // Service selection - placeholder for routing to booking flow
   const handleSelectService = useCallback(
     (service: Service) => {
@@ -139,6 +162,36 @@ const HelperBusinessProfilePage: React.FC = () => {
     });
     navigate(`/post-job?${params.toString()}`);
   }, [id, data, navigate]);
+
+  const handleToggleSavedHelper = useCallback(async () => {
+    if (!id) return;
+    if (!user) {
+      navigate('/login', { state: { from: `/helpers/${id}` } });
+      return;
+    }
+    if (String(user.id) === String(id)) {
+      toast.error(t('helperProfile.header.cannotSaveSelf', { defaultValue: 'You cannot save your own profile' }));
+      return;
+    }
+    setSavingHelper(true);
+    try {
+      if (savedHelperId) {
+        await api.delete(`/life/saved-helpers/${savedHelperId}`);
+        setSavedHelperId(null);
+        toast.success(t('helperProfile.header.removedSavedHelper', { defaultValue: 'Removed from saved helpers' }));
+      } else {
+        const { data: saved } = await api.post('/life/saved-helpers', {
+          helper_id: id,
+        });
+        setSavedHelperId(saved.id);
+        toast.success(t('helperProfile.header.addedSavedHelper', { defaultValue: 'Saved helper' }));
+      }
+    } catch {
+      toast.error(t('helperProfile.header.saveHelperFailed', { defaultValue: 'Could not update saved helper' }));
+    } finally {
+      setSavingHelper(false);
+    }
+  }, [data, id, navigate, savedHelperId, t, user]);
 
   const handleMessageHelper = useCallback(() => {
     // Switch to helper destination and open chat
@@ -286,6 +339,9 @@ const HelperBusinessProfilePage: React.FC = () => {
         helper={helper}
         onBookNow={handleBookNow}
         onPostJobPublic={handlePostJobPublic}
+        onToggleSaved={handleToggleSavedHelper}
+        isSaved={!!savedHelperId}
+        savingHelper={savingHelper}
         onOpenChat={handleMessageHelper}
         shareUrl={`${getPublicSiteUrl()}/helpers/${id}`}
         shareTitle={helper.businessName || helper.ownerName}
@@ -318,6 +374,7 @@ const HelperBusinessProfilePage: React.FC = () => {
             {/* CTA Section - moved from right sidebar */}
             <CTASection
               helper={helper}
+              services={services}
               onBookNow={handleBookNow}
               onMessageHelper={handleMessageHelper}
               onOpenChat={handleOpenChat}
