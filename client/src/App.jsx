@@ -36,7 +36,6 @@ import EscrowPolicyPage from './pages/EscrowPolicyPage';
 import AccountTerminationPage from './pages/AccountTerminationPage';
 import DisputeResolutionPage from './pages/DisputeResolutionPage';
 import IndependentContractorPage from './pages/IndependentContractorPage';
-import HowItWorksPage from './pages/HowItWorks';
 import AboutPage from './pages/about';
 import ForgotPasswordPage from './pages/ForgotPassword';
 import ResetPasswordPage from './pages/ResetPassword';
@@ -146,7 +145,7 @@ export default function App() {
                     <Route path="/register/helper"         element={<Guarded><HelperRegister /></Guarded>} />
                     <Route path="/forgot-password"         element={<Guarded><ForgotPasswordPage /></Guarded>} />
                     <Route path="/reset-password/:token"   element={<Guarded><ResetPasswordPage /></Guarded>} />
-                    <Route path="/how-it-works"            element={<Guarded><HowItWorksPage /></Guarded>} />
+                    <Route path="/how-it-works"            element={<Guarded><FeatureGuidePage /></Guarded>} />
                     <Route path="/features"                element={<Guarded><FeatureGuidePage /></Guarded>} />
                     <Route path="/about"                   element={<Guarded><AboutPage /></Guarded>} />
                     <Route path="/jobs"                    element={<Guarded><JobListPage /></Guarded>} />

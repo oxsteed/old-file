@@ -121,6 +121,11 @@
 - **`client/src/pages/BusinessLeadsPage.jsx` + `.css`**: Rebuilt business leads from a narrow list/blank empty state into a lead command center with workflow guidance, active/value summary cards, status tabs, stronger lead cards, useful empty guidance, and a cleaner quote modal.
 - **Verification**: `client` production build passes after these page upgrades, with only the existing large chunk warning remaining.
 
+**How OxSteed Works consolidation (2026-05-10):** ✅ COMPLETE
+- **`client/src/pages/FeatureGuidePage.jsx` + `.css`**: Combined the old feature guide concept with the user-facing how-it-works education flow under one page name: **How OxSteed Works**. Added customer/helper/business/tool-owner paths, real-life examples, hero CTAs, and kept the searchable feature library with anchors.
+- **Routes/navigation**: `/how-it-works` and `/features` both render the unified page for compatibility; navbar and footer now present a single **How OxSteed Works** learning destination.
+- **Verification**: `client` production build passes after the consolidation, with only the existing large chunk warning remaining.
+
 **Mobile app shell + native push foundation (2026-05-09):** ✅ IOS BUILD SUBMITTED WITH REAL ICON
 - **`mobile/`**: Added Capacitor 7 shell for iOS/Android App Store packaging. Defaults to `https://oxsteed.com` via `OXSTEED_APP_URL`, app id `com.oxsteed.app`, native splash/status bar/keyboard config, offline fallback, external-link handling, deep-link handling for `oxsteed://...` and `oxsteed.com` links. Generated native iOS project under `mobile/ios/`. Docs: `mobile/README.md` and `docs/mobile/app-store-release-checklist.md`.
 - **iOS native project**: `AppDelegate.swift` forwards APNs registration success/failure to Capacitor PushNotifications. `Info.plist` registers `oxsteed://`. `App.entitlements` includes push + associated domains for `applinks:oxsteed.com` and `applinks:www.oxsteed.com`. Xcode Team selected: `ZBRGSDRRU7` (`emile jean philippe`).

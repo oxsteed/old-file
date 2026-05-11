@@ -105,8 +105,7 @@ export default function Footer() {
               <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Company
               </span>
-              <FooterLink to="/how-it-works">{t('footer.howItWorks')}</FooterLink>
-              <FooterLink to="/features">Feature Guide</FooterLink>
+              <FooterLink to="/how-it-works">How OxSteed Works</FooterLink>
               <FooterLink to="/about">{t('footer.about')}</FooterLink>
               <FooterLink to="/helpers">{t('footer.findHelpers')}</FooterLink>
               <FooterLink to="/products">{t('footer.browseProducts')}</FooterLink>

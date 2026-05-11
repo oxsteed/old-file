@@ -29,6 +29,49 @@ import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import './FeatureGuidePage.css';
 
+const USER_PATHS = [
+  {
+    label: 'For customers',
+    title: 'Get help without losing the thread',
+    steps: [
+      'Describe a job, planned need, booking, or tool rental.',
+      'Compare helpers, quotes, messages, schedule, and trust signals.',
+      'Pay, review, remember, and plan the next need from your dashboard.',
+    ],
+    cta: { label: 'Post a job', to: '/post-job' },
+  },
+  {
+    label: 'For helpers',
+    title: 'Turn skills into local work',
+    steps: [
+      'Build a profile with services, photos, templates, QR, and availability.',
+      'Find jobs, receive direct bookings, message customers, and submit bids.',
+      'Use payments, invoices, reputation, and calendar to become repeatable.',
+    ],
+    cta: { label: 'Browse jobs', to: '/jobs' },
+  },
+  {
+    label: 'For businesses',
+    title: 'Operate from one connected workspace',
+    steps: [
+      'Manage services, leads, products, invoices, policies, and customer requests.',
+      'Use Business Hub, analytics, templates, consulting, and support to grow.',
+      'Keep trust records, disputes, messages, payments, and follow-up attached.',
+    ],
+    cta: { label: 'Open Business Hub', to: '/business-hub' },
+  },
+  {
+    label: 'For tool owners',
+    title: 'Earn from useful equipment',
+    steps: [
+      'List tools with photos, rates, deposits, terms, pickup, and delivery details.',
+      'Receive bookings, send invoices, track status, and manage reports.',
+      'Use analytics to understand rentals, revenue, and listing quality.',
+    ],
+    cta: { label: 'Browse tools', to: '/tool-rentals' },
+  },
+];
+
 const FEATURE_SECTIONS = [
   {
     id: 'command-center',
@@ -487,18 +530,23 @@ export default function FeatureGuidePage() {
   return (
     <PageShell>
       <PageMeta
-        title="OxSteed Feature Guide - Learn How Everything Connects"
-        description="A searchable guide to OxSteed features, real-life use cases, and how the customer dashboard, jobs, helpers, tools, payments, planning, and business features connect."
+        title="How OxSteed Works - Features, Workflows, and Real-Life Use Cases"
+        description="Learn how OxSteed works for customers, helpers, businesses, and tool owners. Explore jobs, bookings, tools, payments, planned needs, messages, disputes, dashboards, and business growth features."
       />
       <div className="feature-guide-page">
         <header className="feature-guide-hero">
           <div className="feature-guide-hero-inner">
-            <p className="feature-guide-kicker">OxSteed Feature Guide</p>
-            <h1>Learn what every OxSteed feature can do in real life.</h1>
+            <p className="feature-guide-kicker">How OxSteed Works</p>
+            <h1>One connected system for getting help, doing work, renting tools, and running a local business.</h1>
             <p>
-              OxSteed is built as a connected life and local-business command center. This guide explains each major feature,
-              why it exists, how a new user can use it, and how the pieces work together.
+              OxSteed is part marketplace, part life command center, and part business operating system.
+              This page combines the simple how-it-works path with a detailed feature guide so new users can understand what to do next.
             </p>
+            <div className="feature-guide-hero-actions">
+              <Link to="/post-job">Post a job</Link>
+              <Link to="/helpers">Find helpers</Link>
+              <Link to="#feature-library">Explore all features</Link>
+            </div>
           </div>
         </header>
 
@@ -532,6 +580,21 @@ export default function FeatureGuidePage() {
           </aside>
 
           <main className="feature-guide-content">
+            <section className="feature-guide-paths" aria-label="How OxSteed works by user type">
+              {USER_PATHS.map((path) => (
+                <article key={path.label} className="feature-guide-path-card">
+                  <p>{path.label}</p>
+                  <h2>{path.title}</h2>
+                  <ol>
+                    {path.steps.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
+                  <Link to={path.cta.to}>{path.cta.label}</Link>
+                </article>
+              ))}
+            </section>
+
             <section className="feature-guide-overview" aria-label="How OxSteed connects">
               <div>
                 <h2>The simple mental model</h2>
@@ -549,6 +612,21 @@ export default function FeatureGuidePage() {
               </div>
             </section>
 
+            <section className="feature-guide-real-life" aria-label="Real life examples">
+              <div>
+                <h2>Real-life examples</h2>
+                <p>OxSteed should feel practical from the first visit. These are the kinds of journeys the platform is built to support.</p>
+              </div>
+              <div className="feature-guide-examples">
+                <span>I need a reliable helper for a home repair.</span>
+                <span>I want to earn money with my skills.</span>
+                <span>I need a tool for one weekend.</span>
+                <span>I want to grow a service business.</span>
+                <span>I need to plan future expenses before they become emergencies.</span>
+                <span>I need a record if something goes wrong.</span>
+              </div>
+            </section>
+
             <div className="feature-guide-category-row" aria-label="Feature categories">
               {categories.map((category) => (
                 <a key={category} href={`#${FEATURE_SECTIONS.find((s) => s.category === category)?.id}`}>
@@ -557,9 +635,14 @@ export default function FeatureGuidePage() {
               ))}
             </div>
 
+            <div id="feature-library" className="feature-guide-library-heading">
+              <p>Feature Library</p>
+              <h2>Every major OxSteed feature and how it connects</h2>
+            </div>
+
             {normalizedQuery && (
               <p className="feature-guide-results">
-                Showing {visibleSections.length} of {FEATURE_SECTIONS.length} feature sections for “{query}”.
+                Showing {visibleSections.length} of {FEATURE_SECTIONS.length} feature sections for "{query}".
               </p>
             )}
 
@@ -626,3 +709,4 @@ export default function FeatureGuidePage() {
     </PageShell>
   );
 }
+

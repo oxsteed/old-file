@@ -231,11 +231,11 @@ export default function Navbar() {
                     >
                       <Link
                         role="menuitem"
-                        to="/features"
+                        to="/how-it-works"
                         className="ox-nav-resource-option"
                         onClick={() => setResourcesMenuOpen(false)}
                       >
-                        <span className="ox-nav-resource-option-title">Feature Guide</span>
+                        <span className="ox-nav-resource-option-title">How OxSteed Works</span>
                       </Link>
                       <Link
                         role="menuitem"
@@ -404,7 +404,7 @@ export default function Navbar() {
                   <MobileNavLink to="/support/agent" onClick={() => setMobileOpen(false)}>{t('nav.supportWorkspace')}</MobileNavLink>
                 )}
                 <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('nav.browseJobs')}</MobileNavLink>
-                <MobileNavLink to="/features" onClick={() => setMobileOpen(false)}>Feature Guide</MobileNavLink>
+                <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>How OxSteed Works</MobileNavLink>
                 <MobileNavLink to="/tool-rentals" onClick={() => setMobileOpen(false)}>{t('toolRentals.browsePage')}</MobileNavLink>
                 <MobileNavLink to="/post-job" onClick={() => setMobileOpen(false)}>{t('nav.postJob')}</MobileNavLink>
                 <MobileNavLink to={isHelper ? '/helper/messages' : '/messages'} onClick={() => setMobileOpen(false)}>
@@ -449,7 +449,6 @@ export default function Navbar() {
                 <MobileNavLink to="/login" onClick={() => setMobileOpen(false)}>{t('nav.signIn')}</MobileNavLink>
                 <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('nav.browseJobs')}</MobileNavLink>
                 <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howItWorks')}</MobileNavLink>
-                <MobileNavLink to="/features" onClick={() => setMobileOpen(false)}>Feature Guide</MobileNavLink>
                 <div
                   style={{
                     marginTop: 'var(--space-2)',
