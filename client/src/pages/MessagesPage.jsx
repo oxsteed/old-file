@@ -1,26 +1,34 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import {
+  Briefcase,
+  CalendarDays,
+  MessageSquare,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  UserCheck,
+} from 'lucide-react';
 import api from '../api/axios';
 import { useSocket } from '../hooks/useSocket';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import { formatInboxTime } from '../utils/inboxTimeFormat';
+import './MessagesPage.css';
 
 export default function MessagesPage() {
   const { t } = useTranslation();
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
   const { socket } = useSocket();
 
-  // If caller passes ?helperId=&businessId= (e.g. from BusinessProfilePage),
-  // auto-create or find the matching conversation and redirect to it.
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const helperId   = params.get('helperId');
+    const helperId = params.get('helperId');
     const businessId = params.get('businessId');
     if (!helperId) return;
 
@@ -29,16 +37,14 @@ export default function MessagesPage() {
       ...(businessId ? { businessId } : {}),
     }).then(res => {
       navigate(`/messages/${res.data.id}`, { replace: true });
-    }).catch(() => {
-      // If creating fails, just show the inbox
-    });
+    }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchConversations = useCallback(async () => {
     try {
       const res = await api.get('/messages/conversations');
-      setConversations(res.data);
+      setConversations(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Failed to load conversations:', err);
     } finally {
@@ -50,7 +56,6 @@ export default function MessagesPage() {
     fetchConversations();
   }, [fetchConversations]);
 
-  // Real-time inbox updates: refresh conversation list when a new message arrives
   useEffect(() => {
     if (!socket) return;
     const handler = () => fetchConversations();
@@ -58,84 +63,162 @@ export default function MessagesPage() {
     return () => socket.off('message:new', handler);
   }, [socket, fetchConversations]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
-        <Navbar />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-        </div>
-        <Footer />
-      </div>
-    );
-  }
+  const unreadCount = useMemo(
+    () => conversations.reduce((sum, conv) => sum + (parseInt(conv.unread_count, 10) || 0), 0),
+    [conversations]
+  );
+
+  const filteredConversations = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return conversations;
+    return conversations.filter((conv) => [
+      conv.other_user_name,
+      conv.helper_business_name,
+      conv.job_title,
+      conv.last_message,
+    ].filter(Boolean).join(' ').toLowerCase().includes(q));
+  }, [conversations, query]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-950 dark:bg-gray-950">
+    <PageShell>
       <PageMeta title={t('messages.title')} description={t('messages.metaDesc')} noIndex={true} />
-      <Navbar />
-      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{t('messages.title')}</h1>
+      <div className="messages-page">
+        <header className="messages-hero">
+          <div>
+            <p className="messages-kicker">Work conversations</p>
+            <h1>{t('messages.title')}</h1>
+            <p>
+              Keep every helper question, job conversation, booking detail, and follow-up in one accountable place.
+              Messages are where scope, timing, photos, access notes, and decisions stay connected to the work.
+            </p>
+          </div>
+          <div className="messages-hero-stats">
+            <div>
+              <span>{conversations.length}</span>
+              <small>Conversations</small>
+            </div>
+            <div>
+              <span>{unreadCount}</span>
+              <small>Unread</small>
+            </div>
+          </div>
+        </header>
 
-        {conversations.length === 0 ? (
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow p-10 text-center">
-            <svg className="mx-auto h-12 w-12 text-gray-300 dark:text-gray-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{t('messages.empty')}</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{t('messages.emptyDesc')}</p>
+        <section className="messages-toolbar" aria-label="Message tools">
+          <label className="messages-search">
+            <Search size={18} aria-hidden />
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search people, jobs, or messages..."
+            />
+          </label>
+          <div className="messages-actions">
+            <Link to="/helpers">Find helpers</Link>
+            <Link to="/post-job">Post a job</Link>
+          </div>
+        </section>
+
+        {loading ? (
+          <div className="messages-loading">
+            <div className="messages-spinner" />
+            <p>{t('common.loading') || 'Loading...'}</p>
+          </div>
+        ) : conversations.length === 0 ? (
+          <EmptyMessages />
+        ) : filteredConversations.length === 0 ? (
+          <div className="messages-empty compact">
+            <MessageSquare size={30} />
+            <h2>No conversations match that search.</h2>
+            <p>Try a helper name, business name, job title, or a phrase from the last message.</p>
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow divide-y divide-gray-100 dark:divide-gray-700/60 overflow-hidden">
-            {conversations.map((conv) => {
-              const unread = parseInt(conv.unread_count) > 0;
+          <section className="messages-panel" aria-label="Conversation list">
+            {filteredConversations.map((conv) => {
+              const unread = parseInt(conv.unread_count, 10) > 0;
               return (
                 <button
                   key={conv.id}
                   onClick={() => navigate(`/messages/${conv.id}`)}
-                  className="w-full text-left px-4 py-4 flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition"
+                  className={`messages-row${unread ? ' unread' : ''}`}
                 >
-                  {/* Avatar */}
-                  <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center flex-shrink-0 text-sm font-bold text-blue-700 dark:text-blue-300">
+                  <div className="messages-avatar">
                     {(conv.other_user_name || '?').charAt(0).toUpperCase()}
                   </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <div className="min-w-0 flex-1 mr-2">
-                        <p className={`text-sm truncate ${unread ? 'font-semibold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
-                          {conv.other_user_name || t('common.helper')}
-                        </p>
-                        {conv.helper_business_name && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate leading-tight">
-                            {conv.helper_business_name}
-                          </p>
-                        )}
-                      </div>
-                      <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
-                        {formatInboxTime(conv.last_message_at)}
-                      </span>
+                  <div className="messages-row-main">
+                    <div className="messages-row-top">
+                      <strong>{conv.other_user_name || t('common.helper')}</strong>
+                      <span>{formatInboxTime(conv.last_message_at)}</span>
                     </div>
-                    {conv.job_title && (
-                      <p className="text-xs text-blue-600 dark:text-blue-400 mb-0.5 truncate">{t('messages.re')}: {conv.job_title}</p>
+                    {conv.helper_business_name && (
+                      <p className="messages-business">{conv.helper_business_name}</p>
                     )}
-                    <p className={`text-sm truncate ${unread ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>
-                      {conv.last_message || t('messages.noMessages')}
-                    </p>
+                    {conv.job_title && (
+                      <p className="messages-job">{t('messages.re')}: {conv.job_title}</p>
+                    )}
+                    <p className="messages-preview">{conv.last_message || t('messages.noMessages')}</p>
                   </div>
-
-                  {unread && (
-                    <span className="flex-shrink-0 min-w-[20px] h-5 px-1.5 bg-blue-600 text-white text-[11px] font-bold rounded-full flex items-center justify-center">
-                      {conv.unread_count}
-                    </span>
-                  )}
+                  {unread && <span className="messages-unread">{conv.unread_count}</span>}
                 </button>
               );
             })}
-          </div>
+          </section>
         )}
-      </main>
-      <Footer />
+
+        <section className="messages-guide" aria-label="How messages connect">
+          <GuideItem icon={Briefcase} title="Jobs and bids" text="Clarify scope before accepting work and keep decisions attached to the job." />
+          <GuideItem icon={CalendarDays} title="Bookings" text="Confirm timing, address details, access notes, and what should happen before arrival." />
+          <GuideItem icon={ShieldCheck} title="Trust records" text="If a dispute or support issue happens later, conversation history helps explain what happened." />
+          <GuideItem icon={Sparkles} title="Repeat relationships" text="Good conversations become saved helpers, repeat bookings, and planned future needs." />
+        </section>
+      </div>
+    </PageShell>
+  );
+}
+
+function EmptyMessages() {
+  return (
+    <section className="messages-empty">
+      <div className="messages-empty-main">
+        <div className="messages-empty-icon">
+          <MessageSquare size={34} />
+        </div>
+        <p className="messages-kicker">No messages yet</p>
+        <h2>Your inbox is ready when the work starts.</h2>
+        <p>
+          Messages appear when you contact a helper, receive a bid, book someone directly,
+          ask a question about a service, or need follow-up on active work.
+        </p>
+        <div className="messages-empty-actions">
+          <Link to="/helpers">Find a helper</Link>
+          <Link to="/post-job">Post a job</Link>
+          <Link to="/planned-needs">Plan future work</Link>
+        </div>
+      </div>
+      <div className="messages-empty-side">
+        <h3>What messages help with</h3>
+        <ul>
+          <li>Share photos, timing, access instructions, and job details.</li>
+          <li>Keep helper and customer expectations in one place.</li>
+          <li>Preserve context for payments, cancellations, and disputes.</li>
+          <li>Build repeat relationships with helpers you trust.</li>
+        </ul>
+        <Link to="/features#messages" className="messages-learn-link">
+          Learn how messages connect
+          <UserCheck size={15} />
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+function GuideItem({ icon: Icon, title, text }) {
+  return (
+    <div className="messages-guide-item">
+      <Icon size={18} />
+      <h3>{title}</h3>
+      <p>{text}</p>
     </div>
   );
 }

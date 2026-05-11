@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { toolRentalsApi } from '../api/toolRentals';
 import api from '../api/axios';
 import { cancelBookingRequest, fetchBookingPrefillForJob } from '../api/bookings';
-import { Calendar, MapPin, User, DollarSign, AlertCircle, Loader, FileText, Flag, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, MapPin, User, DollarSign, AlertCircle, Loader, FileText, Flag, Clock, CheckCircle, XCircle, Briefcase, Wrench } from 'lucide-react';
 import toast from 'react-hot-toast';
 import InvoiceModal from '../components/InvoiceModal';
 import UserReportModal from '../components/UserReportModal';
@@ -353,6 +353,42 @@ const MyBookingsPage = () => {
   const myRentalsCount = myBookings.length;
   const myToolsCount = ownerBookings.length;
   const helperBookingsCount = helperBookings.length;
+  const activeCount = [...myBookings, ...ownerBookings].filter((booking) => !['cancelled', 'completed'].includes(booking.status)).length
+    + helperBookings.filter((booking) => !['declined', 'expired', 'cancelled', 'accepted_cancelled'].includes(booking.status)).length;
+  const pendingCount = myBookings.filter((booking) => booking.status === 'pending' || booking.status === 'invoice_sent').length
+    + ownerBookings.filter((booking) => booking.status === 'pending').length
+    + helperBookings.filter((booking) => booking.status === 'pending').length;
+
+  const renderEmptyState = (
+    title: string,
+    body: string,
+    primaryLabel: string,
+    primaryHref: string,
+    secondaryLabel?: string,
+    secondaryHref?: string
+  ) => (
+    <div className="my-bookings-empty-v2">
+      <div className="my-bookings-empty-icon">
+        <Calendar size={30} aria-hidden="true" />
+      </div>
+      <p className="my-bookings-empty-kicker">{title}</p>
+      <p className="my-bookings-empty-copy">{body}</p>
+      <div className="my-bookings-empty-actions">
+        <Link to={primaryHref} className="booking-action-btn booking-action-approve">
+          {primaryLabel}
+        </Link>
+        {secondaryHref && secondaryLabel && (
+          <Link to={secondaryHref} className="booking-action-btn booking-action-invoice">
+            {secondaryLabel}
+          </Link>
+        )}
+      </div>
+      <div className="my-bookings-empty-guide">
+        <strong>How this connects</strong>
+        <span>Service bookings become calendar events, tool rentals can create invoices, and both keep your work history in one place.</span>
+      </div>
+    </div>
+  );
 
   return (
     <PageShell>
@@ -362,11 +398,39 @@ const MyBookingsPage = () => {
       />
 
       <div className="my-bookings-container">
-        <div className="my-bookings-header">
-          <h1 className="my-bookings-title">{t('toolRentals.myBookings')}</h1>
-          <p className="my-bookings-subtitle">
-            {t('toolRentals.manageBookings') || 'View and manage your tool rentals'}
-          </p>
+        <div className="my-bookings-hero">
+          <div className="my-bookings-header">
+            <p className="my-bookings-eyebrow">Bookings command center</p>
+            <h1 className="my-bookings-title">{t('toolRentals.myBookings')}</h1>
+            <p className="my-bookings-subtitle">
+              Track direct helper bookings, tools you rented, and tools customers booked from you.
+              This is where scheduled work turns into calendar plans, invoices, payments, and follow-up.
+            </p>
+            <div className="my-bookings-hero-actions">
+              <Link to="/helpers" className="my-bookings-hero-btn primary">
+                <Briefcase size={17} aria-hidden="true" />
+                Book a helper
+              </Link>
+              <Link to="/tool-rentals" className="my-bookings-hero-btn secondary">
+                <Wrench size={17} aria-hidden="true" />
+                Browse tools
+              </Link>
+            </div>
+          </div>
+          <div className="my-bookings-summary">
+            <div>
+              <span>{activeCount}</span>
+              <p>Active items</p>
+            </div>
+            <div>
+              <span>{pendingCount}</span>
+              <p>Need attention</p>
+            </div>
+            <div>
+              <span>{myToolsCount}</span>
+              <p>Tool requests</p>
+            </div>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -410,12 +474,14 @@ const MyBookingsPage = () => {
               {helperBookings.length > 0 ? (
                 helperBookings.map((b) => renderHelperBookingCard(b))
               ) : (
-                <div className="my-bookings-empty">
-                  <p>{t('booking.noBookingsYet') || 'No service booking requests yet'}</p>
-                  <Link to="/helpers" className="booking-action-btn booking-action-approve" style={{ display: 'inline-block', marginTop: '0.75rem' }}>
-                    {t('booking.backToDirectory')}
-                  </Link>
-                </div>
+                renderEmptyState(
+                  t('booking.noBookingsYet') || 'No service booking requests yet',
+                  'Use direct booking when you already know the helper you want. If the helper declines or the time expires, OxSteed can help you post it as a public job.',
+                  t('booking.backToDirectory') || 'Browse helpers',
+                  '/helpers',
+                  'Post a public job',
+                  '/post-job'
+                )
               )}
             </div>
           ) : activeTab === 'my-rentals' ? (
@@ -423,9 +489,14 @@ const MyBookingsPage = () => {
               {myBookings.length > 0 ? (
                 myBookings.map((booking) => renderBookingCard(booking, false))
               ) : (
-                <div className="my-bookings-empty">
-                  <p>{t('toolRentals.noBookings') || 'You have no bookings yet'}</p>
-                </div>
+                renderEmptyState(
+                  t('toolRentals.noBookings') || 'You have no bookings yet',
+                  'Rent tools when buying one does not make sense. Keep pickup dates, deposits, invoices, and rental history organized with the rest of your life command center.',
+                  'Browse tools',
+                  '/tool-rentals',
+                  'View planned needs',
+                  '/planned-needs'
+                )
               )}
             </div>
           ) : (
@@ -433,9 +504,14 @@ const MyBookingsPage = () => {
               {ownerBookings.length > 0 ? (
                 ownerBookings.map((booking) => renderBookingCard(booking, true))
               ) : (
-                <div className="my-bookings-empty">
-                  <p>{t('toolRentals.noPendingBookings') || 'No one has booked your tools yet'}</p>
-                </div>
+                renderEmptyState(
+                  t('toolRentals.noPendingBookings') || 'No one has booked your tools yet',
+                  'List tools you already own so local customers can rent them. Once a request arrives, you can send an invoice and manage the rental status here.',
+                  'List a tool',
+                  '/dashboard?tab=skills',
+                  'Open analytics',
+                  '/tool-rentals/analytics'
+                )
               )}
             </div>
           )}

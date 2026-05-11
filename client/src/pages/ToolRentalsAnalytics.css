@@ -4,6 +4,22 @@
   padding: 2rem;
 }
 
+.analytics-page-shell {
+  min-height: 100vh;
+  max-width: none;
+  padding: 32px clamp(16px, 4vw, 56px) 72px;
+  background:
+    linear-gradient(135deg, rgba(249, 115, 22, 0.08), rgba(37, 99, 235, 0.04) 42%, transparent 70%),
+    #080c14;
+  color: #d6deeb;
+}
+
+.analytics-page-shell > * {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .analytics-header {
   display: flex;
   justify-content: space-between;
@@ -13,6 +29,49 @@
   border-bottom: 1px solid var(--border-color, #e5e7eb);
 }
 
+.analytics-header-v2 {
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.analytics-header-v2 h1,
+.analytics-hero h1,
+.analytics-empty-v2 h2 {
+  margin: 0;
+  color: #fff;
+}
+
+.analytics-header-v2 h1,
+.analytics-hero h1 {
+  font-size: clamp(2.1rem, 4vw, 3.15rem);
+  line-height: 1.08;
+}
+
+.analytics-header-v2 p:last-child,
+.analytics-hero p,
+.analytics-empty-v2 p {
+  max-width: 760px;
+  color: #9da8bb;
+  line-height: 1.7;
+}
+
+.analytics-kicker {
+  margin: 0 0 10px;
+  color: #fb923c;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.analytics-header-actions,
+.analytics-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 .analytics-header h1 {
   margin: 0;
   font-size: 1.875rem;
@@ -20,6 +79,9 @@
 }
 
 .analytics-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 0.5rem 1rem;
   background-color: var(--app-bg, #ffffff);
   border: 1px solid var(--border-color, #e5e7eb);
@@ -34,6 +96,26 @@
   background-color: var(--card-bg, #f9fafb);
 }
 
+.analytics-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 0.5rem;
+  color: #dbe5f3;
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.analytics-btn-secondary:hover {
+  border-color: rgba(249, 115, 22, 0.52);
+  color: #fff;
+}
+
 /* Empty State */
 .analytics-empty {
   text-align: center;
@@ -41,6 +123,76 @@
   background-color: var(--card-bg, #f9fafb);
   border-radius: 0.5rem;
   border: 1px dashed var(--border-color, #e5e7eb);
+}
+
+.analytics-hero {
+  margin-bottom: 22px;
+}
+
+.analytics-empty-v2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.45fr);
+  gap: 28px;
+  padding: 30px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.analytics-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  margin-bottom: 14px;
+  border: 1px solid rgba(249, 115, 22, 0.26);
+  border-radius: 8px;
+  background: rgba(249, 115, 22, 0.1);
+  color: #fb923c;
+}
+
+.analytics-empty-v2 h2 {
+  max-width: 660px;
+  font-size: clamp(1.6rem, 3vw, 2.35rem);
+  line-height: 1.16;
+}
+
+.analytics-empty-v2 p {
+  margin-bottom: 22px;
+}
+
+.analytics-empty-side {
+  padding: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.24);
+}
+
+.analytics-empty-side h3 {
+  margin: 0 0 12px;
+  color: #fff;
+}
+
+.analytics-empty-side ul {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #a5b0c2;
+  line-height: 1.58;
+}
+
+.analytics-empty-side li {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+}
+
+.analytics-empty-side svg {
+  margin-top: 3px;
+  color: #fb923c;
+  flex: 0 0 auto;
 }
 
 .analytics-empty h2 {
@@ -54,6 +206,10 @@
 }
 
 .analytics-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
   padding: 0.75rem 1.5rem;
   background-color: #3b82f6;
   color: white;
@@ -62,6 +218,7 @@
   cursor: pointer;
   font-weight: 500;
   transition: all 0.2s;
+  text-decoration: none;
 }
 
 .analytics-btn-primary:hover {
@@ -352,6 +509,15 @@ html.dark .analytics-table-wrapper {
     flex-direction: column;
     gap: 1rem;
     align-items: flex-start;
+  }
+
+  .analytics-header-actions {
+    justify-content: flex-start;
+  }
+
+  .analytics-empty-v2 {
+    grid-template-columns: 1fr;
+    padding: 18px;
   }
 
   .analytics-metrics-grid {

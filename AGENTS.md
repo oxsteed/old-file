@@ -100,6 +100,22 @@
 - **Useful empty state**: Empty page now explains what will appear there (consulting, service, tool rental, business invoices), why invoices matter, and gives next actions to consulting, tool rentals, payment guide, or helper invoice creation depending on role.
 - **Verification**: `client` production build passes after redesign, with only the existing large chunk warning remaining.
 
+**Messages/inbox quality pass (2026-05-10):** ✅ COMPLETE
+- **`client/src/pages/MessagesPage.jsx` + `MessagesPage.css`**: Rebuilt customer `/messages` into a PageShell-based work-conversation hub with hero, stats, search, useful empty state, next-action links, improved conversation rows, and a guide explaining how messages connect jobs, bookings, trust records, and repeat relationships.
+- **`client/src/pages/HelperInboxPage.jsx`**: Rebuilt helper `/helper/messages` with the same visual system, business filter, refresh action, search, lead-focused empty state, guest inquiry badges, and guidance for turning profile leads/job context into customers.
+- **Verification**: `client` production build passes after inbox redesigns, with only the existing large chunk warning remaining.
+
+**Orders + tool analytics quality pass (2026-05-10):** ✅ COMPLETE
+- **`client/src/pages/OrderHistoryPage.jsx` + `.css`**: Rebuilt `/orders` from a generic light ecommerce table into a PageShell-based dark purchase-history hub with hero, summary cards, status filters, responsive order rows, useful empty state, and guide content explaining how product orders, shared carts, fulfillment, and records connect.
+- **`client/src/pages/ToolRentalsAnalytics.tsx` + `.css`**: Upgraded `/tool-rentals/analytics` with PageShell, business-focused hero/header, listing-management CTAs, and a richer empty state that teaches tool owners how photos, daily pricing, deposits/terms, invoices, bookings, and revenue analytics fit together.
+- **Verification**: `client` production build passes after both page upgrades, with only the existing large chunk warning remaining.
+
+**Trust + bookings page quality pass (2026-05-10):** ✅ COMPLETE
+- **`client/src/pages/PublicInvoiceView.jsx` + `client/src/styles/PublicInvoiceView.css`**: Rebuilt public invoice links into a trust-forward payment surface with secure invoice hero, balance/status card, resilient line-item parsing, polished loading/error states, clear totals/notes, payment CTA, and side guidance for what happens next.
+- **`client/src/pages/VerifyIdentityPage.tsx` + `.css`**: Upgraded identity verification into a two-column trust page that explains how verification protects customers, helpers, payments, invoices, and marketplace approvals while preserving the existing Didit flow.
+- **`client/src/pages/MyBookingsPage.tsx` + `.css`**: Upgraded `/my-bookings` with a command-center hero, active/pending summary cards, helper/tool CTAs, and guided empty states for service bookings, tools rented, and tools listed for rent.
+- **Verification**: `client` production build passes after these page upgrades, with only the existing large chunk warning remaining.
+
 **Mobile app shell + native push foundation (2026-05-09):** ✅ IOS BUILD SUBMITTED WITH REAL ICON
 - **`mobile/`**: Added Capacitor 7 shell for iOS/Android App Store packaging. Defaults to `https://oxsteed.com` via `OXSTEED_APP_URL`, app id `com.oxsteed.app`, native splash/status bar/keyboard config, offline fallback, external-link handling, deep-link handling for `oxsteed://...` and `oxsteed.com` links. Generated native iOS project under `mobile/ios/`. Docs: `mobile/README.md` and `docs/mobile/app-store-release-checklist.md`.
 - **iOS native project**: `AppDelegate.swift` forwards APNs registration success/failure to Capacitor PushNotifications. `Info.plist` registers `oxsteed://`. `App.entitlements` includes push + associated domains for `applinks:oxsteed.com` and `applinks:www.oxsteed.com`. Xcode Team selected: `ZBRGSDRRU7` (`emile jean philippe`).
