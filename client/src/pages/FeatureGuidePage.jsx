@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Briefcase,
   CalendarDays,
@@ -29,48 +30,50 @@ import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import './FeatureGuidePage.css';
 
-const USER_PATHS = [
+function getUserPaths(t) {
+  return [
   {
-    label: 'For customers',
-    title: 'Get help without losing the thread',
+    label: t('howOxsteedWorks.paths.customers.label'),
+    title: t('howOxsteedWorks.paths.customers.title'),
     steps: [
-      'Describe a job, planned need, booking, or tool rental.',
-      'Compare helpers, quotes, messages, schedule, and trust signals.',
-      'Pay, review, remember, and plan the next need from your dashboard.',
+      t('howOxsteedWorks.paths.customers.steps.0'),
+      t('howOxsteedWorks.paths.customers.steps.1'),
+      t('howOxsteedWorks.paths.customers.steps.2'),
     ],
-    cta: { label: 'Post a job', to: '/post-job' },
+    cta: { label: t('howOxsteedWorks.paths.customers.cta'), to: '/post-job' },
   },
   {
-    label: 'For helpers',
-    title: 'Turn skills into local work',
+    label: t('howOxsteedWorks.paths.helpers.label'),
+    title: t('howOxsteedWorks.paths.helpers.title'),
     steps: [
-      'Build a profile with services, photos, templates, QR, and availability.',
-      'Find jobs, receive direct bookings, message customers, and submit bids.',
-      'Use payments, invoices, reputation, and calendar to become repeatable.',
+      t('howOxsteedWorks.paths.helpers.steps.0'),
+      t('howOxsteedWorks.paths.helpers.steps.1'),
+      t('howOxsteedWorks.paths.helpers.steps.2'),
     ],
-    cta: { label: 'Browse jobs', to: '/jobs' },
+    cta: { label: t('howOxsteedWorks.paths.helpers.cta'), to: '/jobs' },
   },
   {
-    label: 'For businesses',
-    title: 'Operate from one connected workspace',
+    label: t('howOxsteedWorks.paths.businesses.label'),
+    title: t('howOxsteedWorks.paths.businesses.title'),
     steps: [
-      'Manage services, leads, products, invoices, policies, and customer requests.',
-      'Use Business Hub, analytics, templates, consulting, and support to grow.',
-      'Keep trust records, disputes, messages, payments, and follow-up attached.',
+      t('howOxsteedWorks.paths.businesses.steps.0'),
+      t('howOxsteedWorks.paths.businesses.steps.1'),
+      t('howOxsteedWorks.paths.businesses.steps.2'),
     ],
-    cta: { label: 'Open Business Hub', to: '/business-hub' },
+    cta: { label: t('howOxsteedWorks.paths.businesses.cta'), to: '/business-hub' },
   },
   {
-    label: 'For tool owners',
-    title: 'Earn from useful equipment',
+    label: t('howOxsteedWorks.paths.toolOwners.label'),
+    title: t('howOxsteedWorks.paths.toolOwners.title'),
     steps: [
-      'List tools with photos, rates, deposits, terms, pickup, and delivery details.',
-      'Receive bookings, send invoices, track status, and manage reports.',
-      'Use analytics to understand rentals, revenue, and listing quality.',
+      t('howOxsteedWorks.paths.toolOwners.steps.0'),
+      t('howOxsteedWorks.paths.toolOwners.steps.1'),
+      t('howOxsteedWorks.paths.toolOwners.steps.2'),
     ],
-    cta: { label: 'Browse tools', to: '/tool-rentals' },
+    cta: { label: t('howOxsteedWorks.paths.toolOwners.cta'), to: '/tool-rentals' },
   },
-];
+  ];
+}
 
 const FEATURE_SECTIONS = [
   {
@@ -512,60 +515,92 @@ function sectionText(section) {
   ].join(' '));
 }
 
+function translatedArray(t, key, fallback) {
+  const value = t(key, { returnObjects: true, defaultValue: fallback });
+  return Array.isArray(value) ? value : fallback;
+}
+
+function getTranslatedFeatureSections(t) {
+  return FEATURE_SECTIONS.map((section) => ({
+    ...section,
+    category: t(`howOxsteedWorks.features.${section.id}.category`, { defaultValue: section.category }),
+    title: t(`howOxsteedWorks.features.${section.id}.title`, { defaultValue: section.title }),
+    summary: t(`howOxsteedWorks.features.${section.id}.summary`, { defaultValue: section.summary }),
+    realLife: translatedArray(
+      t,
+      `howOxsteedWorks.features.${section.id}.realLife`,
+      section.realLife
+    ),
+    connectedTo: translatedArray(
+      t,
+      `howOxsteedWorks.features.${section.id}.connectedTo`,
+      section.connectedTo
+    ),
+    actions: section.actions.map((action, index) => ({
+      ...action,
+      label: t(`howOxsteedWorks.features.${section.id}.actions.${index}`, {
+        defaultValue: action.label,
+      }),
+    })),
+  }));
+}
+
 export default function FeatureGuidePage() {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [activeId, setActiveId] = useState(FEATURE_SECTIONS[0].id);
   const normalizedQuery = normalize(query).trim();
+  const userPaths = useMemo(() => getUserPaths(t), [t]);
+  const featureSections = useMemo(() => getTranslatedFeatureSections(t), [t]);
 
   const visibleSections = useMemo(() => {
-    if (!normalizedQuery) return FEATURE_SECTIONS;
-    return FEATURE_SECTIONS.filter((section) => sectionText(section).includes(normalizedQuery));
-  }, [normalizedQuery]);
+    if (!normalizedQuery) return featureSections;
+    return featureSections.filter((section) => sectionText(section).includes(normalizedQuery));
+  }, [featureSections, normalizedQuery]);
 
   const categories = useMemo(
-    () => Array.from(new Set(FEATURE_SECTIONS.map((section) => section.category))),
-    []
+    () => Array.from(new Set(featureSections.map((section) => section.category))),
+    [featureSections]
   );
 
   return (
     <PageShell>
       <PageMeta
-        title="How OxSteed Works - Features, Workflows, and Real-Life Use Cases"
-        description="Learn how OxSteed works for customers, helpers, businesses, and tool owners. Explore jobs, bookings, tools, payments, planned needs, messages, disputes, dashboards, and business growth features."
+        title={t('howOxsteedWorks.metaTitle')}
+        description={t('howOxsteedWorks.metaDescription')}
       />
       <div className="feature-guide-page">
         <header className="feature-guide-hero">
           <div className="feature-guide-hero-inner">
-            <p className="feature-guide-kicker">How OxSteed Works</p>
-            <h1>One connected system for getting help, doing work, renting tools, and running a local business.</h1>
+            <p className="feature-guide-kicker">{t('howOxsteedWorks.kicker')}</p>
+            <h1>{t('howOxsteedWorks.title')}</h1>
             <p>
-              OxSteed is part marketplace, part life command center, and part business operating system.
-              This page combines the simple how-it-works path with a detailed feature guide so new users can understand what to do next.
+              {t('howOxsteedWorks.subtitle')}
             </p>
             <div className="feature-guide-hero-actions">
-              <Link to="/post-job">Post a job</Link>
-              <Link to="/helpers">Find helpers</Link>
-              <Link to="#feature-library">Explore all features</Link>
+              <Link to="/post-job">{t('howOxsteedWorks.heroActions.postJob')}</Link>
+              <Link to="/helpers">{t('howOxsteedWorks.heroActions.findHelpers')}</Link>
+              <Link to="#feature-library">{t('howOxsteedWorks.heroActions.exploreFeatures')}</Link>
             </div>
           </div>
         </header>
 
         <div className="feature-guide-layout">
-          <aside className="feature-guide-sidebar" aria-label="Feature guide navigation">
+          <aside className="feature-guide-sidebar" aria-label={t('howOxsteedWorks.sidebarAria')}>
             <div className="feature-guide-search">
               <Search size={18} aria-hidden />
               <input
                 type="search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search features, use cases, or workflows..."
-                aria-label="Search OxSteed features"
+                placeholder={t('howOxsteedWorks.searchPlaceholder')}
+                aria-label={t('howOxsteedWorks.searchAria')}
               />
             </div>
 
             <div className="feature-guide-toc">
-              <p>Contents</p>
-              {FEATURE_SECTIONS.map((section) => (
+              <p>{t('howOxsteedWorks.contents')}</p>
+              {featureSections.map((section) => (
                 <a
                   key={section.id}
                   href={`#${section.id}`}
@@ -580,8 +615,8 @@ export default function FeatureGuidePage() {
           </aside>
 
           <main className="feature-guide-content">
-            <section className="feature-guide-paths" aria-label="How OxSteed works by user type">
-              {USER_PATHS.map((path) => (
+            <section className="feature-guide-paths" aria-label={t('howOxsteedWorks.pathsAria')}>
+              {userPaths.map((path) => (
                 <article key={path.label} className="feature-guide-path-card">
                   <p>{path.label}</p>
                   <h2>{path.title}</h2>
@@ -595,61 +630,55 @@ export default function FeatureGuidePage() {
               ))}
             </section>
 
-            <section className="feature-guide-overview" aria-label="How OxSteed connects">
+            <section className="feature-guide-overview" aria-label={t('howOxsteedWorks.mentalModel.aria')}>
               <div>
-                <h2>The simple mental model</h2>
+                <h2>{t('howOxsteedWorks.mentalModel.title')}</h2>
                 <p>
-                  OxSteed connects four things users usually manage separately: needs, people, money, and time.
-                  A need can become a job. A job can create messages, appointments, payments, reviews, and reminders.
-                  A completed service can become a recurring planned need. A helper can become a saved preferred helper.
-                  The dashboard pulls those signals back into one view so the user knows what to do next.
+                  {t('howOxsteedWorks.mentalModel.body')}
                 </p>
               </div>
-              <div className="feature-guide-flow" aria-label="Connected workflow">
-                {['Need', 'Plan', 'Hire', 'Schedule', 'Pay', 'Remember'].map((item) => (
+              <div className="feature-guide-flow" aria-label={t('howOxsteedWorks.mentalModel.flowAria')}>
+                {t('howOxsteedWorks.mentalModel.flow', { returnObjects: true }).map((item) => (
                   <span key={item}>{item}</span>
                 ))}
               </div>
             </section>
 
-            <section className="feature-guide-real-life" aria-label="Real life examples">
+            <section className="feature-guide-real-life" aria-label={t('howOxsteedWorks.examples.aria')}>
               <div>
-                <h2>Real-life examples</h2>
-                <p>OxSteed should feel practical from the first visit. These are the kinds of journeys the platform is built to support.</p>
+                <h2>{t('howOxsteedWorks.examples.title')}</h2>
+                <p>{t('howOxsteedWorks.examples.body')}</p>
               </div>
               <div className="feature-guide-examples">
-                <span>I need a reliable helper for a home repair.</span>
-                <span>I want to earn money with my skills.</span>
-                <span>I need a tool for one weekend.</span>
-                <span>I want to grow a service business.</span>
-                <span>I need to plan future expenses before they become emergencies.</span>
-                <span>I need a record if something goes wrong.</span>
+                {t('howOxsteedWorks.examples.items', { returnObjects: true }).map((item) => (
+                  <span key={item}>{item}</span>
+                ))}
               </div>
             </section>
 
-            <div className="feature-guide-category-row" aria-label="Feature categories">
+            <div className="feature-guide-category-row" aria-label={t('howOxsteedWorks.categoriesAria')}>
               {categories.map((category) => (
-                <a key={category} href={`#${FEATURE_SECTIONS.find((s) => s.category === category)?.id}`}>
+                <a key={category} href={`#${featureSections.find((s) => s.category === category)?.id}`}>
                   {category}
                 </a>
               ))}
             </div>
 
             <div id="feature-library" className="feature-guide-library-heading">
-              <p>Feature Library</p>
-              <h2>Every major OxSteed feature and how it connects</h2>
+              <p>{t('howOxsteedWorks.library.kicker')}</p>
+              <h2>{t('howOxsteedWorks.library.title')}</h2>
             </div>
 
             {normalizedQuery && (
               <p className="feature-guide-results">
-                Showing {visibleSections.length} of {FEATURE_SECTIONS.length} feature sections for "{query}".
+                {t('howOxsteedWorks.searchResults', { shown: visibleSections.length, total: featureSections.length, query })}
               </p>
             )}
 
             {visibleSections.length === 0 ? (
               <div className="feature-guide-empty">
-                <h2>No matching features found.</h2>
-                <p>Try searching for jobs, tools, payments, planned needs, calendar, helper, business, or support.</p>
+                <h2>{t('howOxsteedWorks.empty.title')}</h2>
+                <p>{t('howOxsteedWorks.empty.body')}</p>
               </div>
             ) : (
               visibleSections.map((section) => {
@@ -675,7 +704,7 @@ export default function FeatureGuidePage() {
 
                     <div className="feature-guide-detail-grid">
                       <div>
-                        <h3>Real-life use cases</h3>
+                        <h3>{t('howOxsteedWorks.detail.realLifeTitle')}</h3>
                         <ul>
                           {section.realLife.map((item) => (
                             <li key={item}>{item}</li>
@@ -683,13 +712,13 @@ export default function FeatureGuidePage() {
                         </ul>
                       </div>
                       <div>
-                        <h3>How it connects</h3>
+                        <h3>{t('howOxsteedWorks.detail.connectsTitle')}</h3>
                         <div className="feature-guide-tags">
                           {section.connectedTo.map((item) => (
                             <span key={item}>{item}</span>
                           ))}
                         </div>
-                        <h3 className="feature-guide-actions-title">Useful next actions</h3>
+                        <h3 className="feature-guide-actions-title">{t('howOxsteedWorks.detail.actionsTitle')}</h3>
                         <div className="feature-guide-actions">
                           {section.actions.map((action) => (
                             <Link key={`${section.id}-${action.to}-${action.label}`} to={action.to}>

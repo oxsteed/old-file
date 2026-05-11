@@ -177,7 +177,7 @@ export default function AIPreviewPage({ profileType = 'helper' }) {
   if (profileType === 'business' && !businessId) {
     return (
       <PageShell>
-        <p className="text-gray-400 p-8">Invalid business.</p>
+        <p className="text-gray-400 p-8">{t('aiPreview.invalidBusiness')}</p>
       </PageShell>
     );
   }

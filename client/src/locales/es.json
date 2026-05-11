@@ -23,7 +23,8 @@
     "resources": "Recursos",
     "businessLaunchStatus": "Mi Lanzamiento Empresarial",
     "supportWorkspace": "Espacio de soporte",
-    "cancellationPolicies": "Políticas de Pago y Cancelación"
+    "cancellationPolicies": "Políticas de Pago y Cancelación",
+    "howOxsteedWorks": "C?mo funciona OxSteed"
   },
   "supportAgentPortal": {
     "title": "Espacio de soporte",
@@ -360,7 +361,13 @@
     "agreeToTerms": "Acepto los términos",
     "haveAccount": "¿Ya tienes cuenta?",
     "country": "País",
-    "errorCountry": "País inválido"
+    "errorCountry": "País inválido",
+    "customerHeroTitle": "Encuentra ayuda local confiable",
+    "customerHeroSubtitle": "Publica un trabajo, compara ofertas y contrata con confianza.",
+    "customerHeroTrial": "Gratis por 90 d?as ? No se requiere tarjeta",
+    "customerTrialBadge": "Prueba Pro de 90 d?as incluida: todas las funciones desbloqueadas, sin tarjeta",
+    "helperHeroTitle": "Empieza a ganar en tu vecindario",
+    "helperHeroSubtitle": "Define tus propias tarifas. Haz que tus vecinos te encuentren."
   },
   "didit": {
     "title": "Verifica tu identidad",
@@ -443,7 +450,8 @@
     "escrowPolicy": "Política de Custodia",
     "accountTermination": "Cancelación de Cuenta",
     "disputeResolution": "Resolución de Disputas",
-    "independentContractor": "Contratista Independiente"
+    "independentContractor": "Contratista Independiente",
+    "howOxsteedWorks": "C?mo funciona OxSteed"
   },
   "accountTermination": {
     "pageTitle": "Política de Cancelación de Cuenta",
@@ -1011,11 +1019,11 @@
     "ownership": {
       "intro": "Es importante entender quién es propietario de los fondos durante el depósito en garantía.",
       "item1": "Los Fondos Pertenecen al Pagador",
-      "item1_desc": "Hasta que se complete el trabajo y se liberen los fondos, el dinero pertenece al cliente (la persona que realizó el pago). El ayudante no tiene derecho a los fondos hasta que se complete el trabajo.",
+      "item1Desc": "Hasta que se complete el trabajo y se liberen los fondos, el dinero pertenece al cliente (la persona que realizó el pago). El ayudante no tiene derecho a los fondos hasta que se complete el trabajo.",
       "item2": "OxSteed No Es Propietario de los Fondos",
-      "item2_desc": "OxSteed no es propietario, no controla ni tiene acceso a los fondos en depósito en garantía. Solo facilitamos el proceso pero permanecemos como un tercero neutral.",
+      "item2Desc": "OxSteed no es propietario, no controla ni tiene acceso a los fondos en depósito en garantía. Solo facilitamos el proceso pero permanecemos como un tercero neutral.",
       "item3": "Stripe Retiene los Fondos de Forma Segura",
-      "item3_desc": "Stripe retiene los fondos en una cuenta segura y segregada. Los fondos no pueden ser accedidos por OxSteed, el ayudante ni nadie más hasta que se cumplan las condiciones apropiadas.",
+      "item3Desc": "Stripe retiene los fondos en una cuenta segura y segregada. Los fondos no pueden ser accedidos por OxSteed, el ayudante ni nadie más hasta que se cumplan las condiciones apropiadas.",
       "disclaimerTitle": "AVISO IMPORTANTE",
       "disclaimerDesc": "Los fondos en depósito en garantía NO están asegurados por el FDIC ni ninguna agencia gubernamental. Sin embargo, Stripe mantiene los más altos estándares de seguridad para prevenir pérdida o robo."
     },
@@ -1646,14 +1654,19 @@
     "attachNeedsConversation": "Adjuntar a conversación",
     "attachUploadFailed": "Error en la carga",
     "confirmDelete": "¿Eliminar este mensaje?",
-    "copy": "Copiar mensaje",
+    "copy": "Copiar",
     "delete": "Eliminar mensaje",
     "edit": "Editar mensaje",
     "editFailed": "Error al editar mensaje",
     "edited": "(editado)",
     "messageNotFound": "Mensaje no encontrado",
     "failed": "Message failed to send.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "deleteConfirm": "?Eliminar este mensaje?",
+    "copied": "?Copiado!",
+    "copyMessage": "Copiar mensaje",
+    "editMessage": "Editar mensaje",
+    "deleteMessage": "Eliminar mensaje"
   },
   "dashboard": {
     "welcome": "¡Bienvenido de nuevo, {{name}}!",
@@ -4544,7 +4557,56 @@
       "noDisputes": "Sin disputas abiertas",
       "subtitle": "Ver y administrar tus disputas activas",
       "loading": "Cargando...",
-      "noDisputesSub": "Las disputas se pueden abrir en trabajos completados dentro del período de revisión."
+      "noDisputesSub": "Las disputas se pueden abrir en trabajos completados dentro del período de revisión.",
+      "metaDescription": "Da seguimiento a disputas de OxSteed, evidencias, mensajes de soporte y resultados de resoluci?n.",
+      "eyebrow": "Centro de confianza y resoluci?n",
+      "heroExtra": "Mant?n evidencias, mensajes de soporte, contexto del trabajo y actualizaciones de resoluci?n en un solo lugar para que una situaci?n dif?cil siga organizada.",
+      "openMessages": "Abrir mensajes",
+      "contactSupport": "Contactar soporte",
+      "dateUnavailable": "Fecha no disponible",
+      "generalIssue": "Problema general",
+      "untitledJob": "Trabajo sin t?tulo",
+      "openedOn": "Abierto el {{date}}",
+      "stats": {
+        "open": "Abiertas",
+        "inReview": "En revisi?n",
+        "resolved": "Resueltas"
+      },
+      "aria": {
+        "summary": "Resumen de disputas",
+        "guide": "C?mo funcionan las disputas",
+        "list": "Tus disputas"
+      },
+      "status": {
+        "open": "Abierta",
+        "underReview": "En revisi?n",
+        "resolved": "Resuelta",
+        "closed": "Cerrada"
+      },
+      "resolution": {
+        "full_refund": "Reembolso completo emitido",
+        "partial_refund": "Reembolso parcial emitido",
+        "release_to_helper": "Pago liberado al ayudante",
+        "dismissed": "Desestimada"
+      },
+      "guide": {
+        "preserveTitle": "Conserva la evidencia",
+        "preserveText": "Agrega fotos, documentos, cronolog?as y notas breves mientras los detalles est?n frescos.",
+        "focusTitle": "Mant?n la conversaci?n enfocada",
+        "focusText": "Usa el hilo de disputa para aclaraciones, as? soporte puede seguir el historial.",
+        "outcomeTitle": "Sigue el resultado",
+        "outcomeText": "El estado de resoluci?n, los reembolsos y las decisiones de liberaci?n quedan vinculados al trabajo."
+      },
+      "empty": {
+        "title": "No hay disputas abiertas",
+        "body": "Eso es bueno. Si un trabajo, pago, alquiler de herramienta o reserva necesita revisi?n formal, aparecer? aqu? con la l?nea de tiempo de evidencia y la conversaci?n de soporte.",
+        "browseJobs": "Explorar trabajos",
+        "learnHow": "Aprender c?mo funciona OxSteed",
+        "beforeTitle": "Antes de abrir una disputa",
+        "bullet1": "Intenta aclarar el alcance en los mensajes.",
+        "bullet2": "Guarda fotos, recibos y detalles de tiempo.",
+        "bullet3": "Usa la escalaci?n de soporte para problemas urgentes de seguridad o pago."
+      }
     },
     "detail": {
       "notFound": "Disputa no encontrada",
@@ -4882,7 +4944,31 @@
     "noQuotes": "Sin presupuestos enviados aún",
     "viewDetails": "Ver Detalles",
     "markComplete": "Marcar Completada",
-    "rejectRequest": "Rechazar Solicitud"
+    "rejectRequest": "Rechazar Solicitud",
+    "commandCenter": "Centro de gesti?n de leads",
+    "heroBody": "Convierte solicitudes de clientes en cotizaciones claras, trabajo aceptado y registros completados. Cada lead es una oportunidad para responder r?pido, fijar expectativas y mantener la relaci?n avanzando sin perder contexto.",
+    "activeLeads": "Leads activos",
+    "possibleValue": "Valor posible",
+    "workflowAria": "Flujo de leads",
+    "listAria": "Leads: {{status}}",
+    "budgetRange": "Presupuesto: ${{min}} - ${{max}}",
+    "quoteRequest": "Solicitud de cotizaci?n",
+    "guide": {
+      "readTitle": "Lee la solicitud",
+      "readText": "Comprende la necesidad, ubicaci?n, presupuesto y contexto del cliente antes de cotizar.",
+      "quoteTitle": "Env?a una cotizaci?n",
+      "quoteText": "Una cotizaci?n ?til explica precio, alcance y tiempo para que el cliente decida con confianza.",
+      "closeTitle": "Cierra el ciclo",
+      "closeText": "Los leads aceptados se convierten en historial real de trabajo cuando completas y das seguimiento."
+    },
+    "empty": {
+      "title": "No hay leads en {{status}}",
+      "body": "Los leads de tu perfil de negocio y solicitudes de servicio aparecer?n aqu?. Usa esta p?gina para responder con precio, alcance y tiempo antes de que el cliente pierda impulso.",
+      "sideTitle": "Haz que los pr?ximos leads sean m?s f?ciles de ganar",
+      "bullet1": "Mant?n claros tus servicios y precios en el perfil.",
+      "bullet2": "Agrega fotos y pol?ticas para que los clientes sepan qu? esperar.",
+      "bullet3": "Responde r?pido con una cotizaci?n completa y una fecha realista."
+    }
   },
   "quickAddTemplates": {
     "quickAdd": "Agregar rápido:"
@@ -7070,7 +7156,8 @@
     "sandboxSend": "Send",
     "sandboxClear": "Clear",
     "promptTruncated": "First 3000 characters of the system prompt. Live replies may vary slightly.",
-    "sandboxDisclaimer": "This is a test chat using the same AI as your public profile. It is not visible to customers."
+    "sandboxDisclaimer": "This is a test chat using the same AI as your public profile. It is not visible to customers.",
+    "invalidBusiness": "Negocio no v?lido."
   },
   "bidAccept": {
     "title": "Elige una hora con {{name}}",
@@ -7614,5 +7701,140 @@
     "enableCustom": "Enable custom off-platform payments",
     "noteTitle": "Note",
     "noteBody": "You must enable at least one payment method. Customers will see your enabled options when reviewing your bid."
+  },
+  "howOxsteedWorks": {
+    "metaTitle": "C?mo funciona OxSteed - Funciones, flujos y casos reales",
+    "metaDescription": "Aprende c?mo funciona OxSteed para clientes, ayudantes, negocios y due?os de herramientas. Explora trabajos, reservas, herramientas, pagos, necesidades planificadas, mensajes, disputas, paneles y funciones para crecer.",
+    "kicker": "C?mo funciona OxSteed",
+    "title": "Un sistema conectado para conseguir ayuda, trabajar, alquilar herramientas y dirigir un negocio local.",
+    "subtitle": "OxSteed es mercado local, centro de organizaci?n de vida y sistema operativo para negocios. Esta p?gina combina una explicaci?n simple con una gu?a detallada para que los nuevos usuarios sepan qu? hacer despu?s.",
+    "heroActions": {
+      "postJob": "Publicar un trabajo",
+      "findHelpers": "Encontrar ayudantes",
+      "exploreFeatures": "Explorar funciones"
+    },
+    "paths": {
+      "customers": {
+        "label": "Para clientes",
+        "title": "Consigue ayuda sin perder el hilo",
+        "steps": [
+          "Describe un trabajo, una necesidad planificada, una reserva o un alquiler de herramienta.",
+          "Compara ayudantes, cotizaciones, mensajes, horarios y se?ales de confianza.",
+          "Paga, deja rese?as, guarda el historial y planifica la pr?xima necesidad desde tu panel."
+        ],
+        "cta": "Publicar un trabajo"
+      },
+      "helpers": {
+        "label": "Para ayudantes",
+        "title": "Convierte tus habilidades en trabajo local",
+        "steps": [
+          "Crea un perfil con servicios, fotos, plantillas, QR y disponibilidad.",
+          "Encuentra trabajos, recibe reservas directas, escribe a clientes y env?a ofertas.",
+          "Usa pagos, facturas, reputaci?n y calendario para trabajar de forma repetible."
+        ],
+        "cta": "Ver trabajos"
+      },
+      "businesses": {
+        "label": "Para negocios",
+        "title": "Opera desde un espacio conectado",
+        "steps": [
+          "Gestiona servicios, clientes potenciales, productos, facturas, pol?ticas y solicitudes.",
+          "Usa Business Hub, anal?ticas, plantillas, consultor?a y soporte para crecer.",
+          "Mant?n registros de confianza, disputas, mensajes, pagos y seguimiento en un solo lugar."
+        ],
+        "cta": "Abrir Business Hub"
+      },
+      "toolOwners": {
+        "label": "Para due?os de herramientas",
+        "title": "Gana con equipos ?tiles",
+        "steps": [
+          "Publica herramientas con fotos, tarifas, dep?sitos, t?rminos, recogida y entrega.",
+          "Recibe reservas, env?a facturas, controla estados y gestiona reportes.",
+          "Usa anal?ticas para entender alquileres, ingresos y calidad de anuncios."
+        ],
+        "cta": "Ver herramientas"
+      }
+    },
+    "mentalModel": {
+      "title": "El modelo simple",
+      "body": "OxSteed conecta cuatro cosas que las personas suelen manejar por separado: necesidades, personas, dinero y tiempo. Una necesidad puede convertirse en trabajo. Un trabajo puede crear mensajes, citas, pagos, rese?as y recordatorios. Un servicio terminado puede convertirse en una necesidad recurrente. Un ayudante puede convertirse en favorito. El panel re?ne esas se?ales para que el usuario sepa qu? hacer despu?s.",
+      "flow": [
+        "Necesidad",
+        "Plan",
+        "Contratar",
+        "Agendar",
+        "Pagar",
+        "Recordar"
+      ],
+      "aria": "C?mo se conecta OxSteed",
+      "flowAria": "Flujo conectado"
+    },
+    "examples": {
+      "title": "Ejemplos reales",
+      "body": "OxSteed debe sentirse pr?ctico desde la primera visita. Estos son los tipos de recorridos que la plataforma apoya.",
+      "items": [
+        "Necesito un ayudante confiable para reparar mi casa.",
+        "Quiero ganar dinero con mis habilidades.",
+        "Necesito una herramienta por un fin de semana.",
+        "Quiero hacer crecer un negocio de servicios.",
+        "Necesito planificar gastos futuros antes de que sean emergencias.",
+        "Necesito un registro si algo sale mal."
+      ],
+      "aria": "Ejemplos de la vida real"
+    },
+    "library": {
+      "kicker": "Biblioteca de funciones",
+      "title": "Cada funci?n principal de OxSteed y c?mo se conecta"
+    },
+    "searchResults": "Mostrando {{shown}} de {{total}} secciones para \"{{query}}\".",
+    "sidebarAria": "Navegaci?n de la gu?a de funciones",
+    "searchPlaceholder": "Busca funciones, casos de uso o flujos...",
+    "searchAria": "Buscar funciones de OxSteed",
+    "contents": "Contenido",
+    "pathsAria": "C?mo funciona OxSteed por tipo de usuario",
+    "categoriesAria": "Categor?as de funciones",
+    "empty": {
+      "title": "No se encontraron funciones coincidentes.",
+      "body": "Prueba buscar trabajos, herramientas, pagos, necesidades planificadas, calendario, ayudante, negocio o soporte."
+    },
+    "detail": {
+      "realLifeTitle": "Casos de uso reales",
+      "connectsTitle": "C?mo se conecta",
+      "actionsTitle": "Pr?ximas acciones ?tiles"
+    }
+  },
+  "businessPublicProfile": {
+    "loading": "Cargando perfil del negocio...",
+    "notFound": "Negocio no encontrado",
+    "reviewCount": "{{count}} rese?a",
+    "reviewCount_plural": "{{count}} rese?as",
+    "teamMembers": "{{count}} miembro del equipo",
+    "teamMembers_plural": "{{count}} miembros del equipo",
+    "servicesOffered": "Servicios ofrecidos",
+    "recentWork": "Trabajo reciente",
+    "customerReviews": "Rese?as de clientes",
+    "businessHours": "Horario del negocio",
+    "closed": "Cerrado",
+    "stats": "Estad?sticas",
+    "jobsCompleted": "Trabajos completados",
+    "yearsInBusiness": "A?os en el negocio"
+  },
+  "businessProfileEdit": {
+    "loadError": "No se pudo cargar el negocio",
+    "tabs": {
+      "basic": "Informaci?n b?sica",
+      "team": "Miembros del equipo",
+      "services": "Servicios",
+      "billing": "Facturaci?n"
+    },
+    "businessName": "Nombre del negocio",
+    "businessNamePlaceholder": "Nombre de tu negocio",
+    "description": "Descripci?n",
+    "descriptionPlaceholder": "Describe tu negocio",
+    "category": "Categor?a",
+    "categoryPlaceholder": "Categor?a del negocio",
+    "teamComingSoon": "El formulario de miembros del equipo ir? aqu?",
+    "servicesComingSoon": "El formulario de servicios ir? aqu?",
+    "billingComingSoon": "La configuraci?n de facturaci?n ir? aqu?"
   }
 }

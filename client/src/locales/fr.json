@@ -23,7 +23,8 @@
     "resources": "Ressources",
     "businessLaunchStatus": "Mon Lancement Commercial",
     "supportWorkspace": "Espace d’assistance",
-    "cancellationPolicies": "Politiques de Paiement et d’Annulation"
+    "cancellationPolicies": "Politiques de Paiement et d’Annulation",
+    "howOxsteedWorks": "Comment fonctionne OxSteed"
   },
   "supportAgentPortal": {
     "title": "Espace d’assistance",
@@ -360,7 +361,13 @@
     "agreeToTerms": "J'accepte les conditions",
     "haveAccount": "Vous avez déjà un compte?",
     "country": "Pays",
-    "errorCountry": "Pays invalide"
+    "errorCountry": "Pays invalide",
+    "customerHeroTitle": "Trouvez une aide locale fiable",
+    "customerHeroSubtitle": "Publiez un travail, comparez les offres et embauchez en confiance.",
+    "customerHeroTrial": "Gratuit pendant 90 jours ? Aucune carte requise",
+    "customerTrialBadge": "Essai Pro de 90 jours inclus - toutes les fonctionnalit?s d?bloqu?es, sans carte",
+    "helperHeroTitle": "Commencez ? gagner dans votre quartier",
+    "helperHeroSubtitle": "Fixez vos propres tarifs. Faites-vous trouver par vos voisins."
   },
   "didit": {
     "title": "Vérifiez votre identité",
@@ -443,7 +450,8 @@
     "escrowPolicy": "Politique de Séquestre",
     "accountTermination": "Résiliation de Compte",
     "disputeResolution": "Résolution des Litiges",
-    "independentContractor": "Travailleur Indépendant"
+    "independentContractor": "Travailleur Indépendant",
+    "howOxsteedWorks": "Comment fonctionne OxSteed"
   },
   "accountTermination": {
     "pageTitle": "Politique de Résiliation de Compte",
@@ -1011,11 +1019,11 @@
     "ownership": {
       "intro": "Il est important de comprendre qui est propriétaire des fonds en séquestre.",
       "item1": "Les fonds appartiennent au payeur",
-      "item1_desc": "Jusqu'à ce que le travail soit complété et les fonds libérés, l'argent appartient au client.",
+      "item1Desc": "Jusqu'à ce que le travail soit complété et les fonds libérés, l'argent appartient au client.",
       "item2": "OxSteed n'est pas propriétaire des fonds",
-      "item2_desc": "OxSteed n'est pas propriétaire des fonds en séquestre, ne les contrôle pas et n'y a pas accès.",
+      "item2Desc": "OxSteed n'est pas propriétaire des fonds en séquestre, ne les contrôle pas et n'y a pas accès.",
       "item3": "Stripe retient les fonds en toute sécurité",
-      "item3_desc": "Stripe retient les fonds dans un compte sécurisé et séparé.",
+      "item3Desc": "Stripe retient les fonds dans un compte sécurisé et séparé.",
       "disclaimerTitle": "AVIS IMPORTANT",
       "disclaimerDesc": "Les fonds en séquestre ne sont PAS assurés par la FDIC. Cependant, Stripe maintient les normes de sécurité les plus élevées."
     },
@@ -1646,14 +1654,19 @@
     "attachNeedsConversation": "Joindre à la conversation",
     "attachUploadFailed": "Erreur d'envoi",
     "confirmDelete": "Supprimer ce message?",
-    "copy": "Copier le message",
+    "copy": "Copier",
     "delete": "Supprimer le message",
     "edit": "Modifier le message",
     "editFailed": "Erreur lors de la modification du message",
     "edited": "(modifié)",
     "messageNotFound": "Message non trouvé",
     "failed": "Message failed to send.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "deleteConfirm": "Supprimer ce message ?",
+    "copied": "Copi? !",
+    "copyMessage": "Copier le message",
+    "editMessage": "Modifier le message",
+    "deleteMessage": "Supprimer le message"
   },
   "dashboard": {
     "welcome": "Bon retour, {{name}} !",
@@ -4544,7 +4557,56 @@
       "noDisputes": "Aucun litige en cours",
       "subtitle": "Afficher et gérer vos litiges actifs",
       "loading": "Chargement...",
-      "noDisputesSub": "Les litiges peuvent être ouverts sur les emplois terminés dans la période de révision."
+      "noDisputesSub": "Les litiges peuvent être ouverts sur les emplois terminés dans la période de révision.",
+      "metaDescription": "Suivez les litiges OxSteed, les preuves, les messages de support et les d?cisions de r?solution.",
+      "eyebrow": "Centre de confiance et de r?solution",
+      "heroExtra": "Gardez les preuves, messages de support, contexte du travail et mises ? jour de r?solution au m?me endroit afin qu?une situation difficile reste organis?e.",
+      "openMessages": "Ouvrir les messages",
+      "contactSupport": "Contacter le support",
+      "dateUnavailable": "Date indisponible",
+      "generalIssue": "Probl?me g?n?ral",
+      "untitledJob": "Travail sans titre",
+      "openedOn": "Ouvert le {{date}}",
+      "stats": {
+        "open": "Ouverts",
+        "inReview": "En revue",
+        "resolved": "R?solus"
+      },
+      "aria": {
+        "summary": "R?sum? des litiges",
+        "guide": "Fonctionnement des litiges",
+        "list": "Vos litiges"
+      },
+      "status": {
+        "open": "Ouvert",
+        "underReview": "En revue",
+        "resolved": "R?solu",
+        "closed": "Ferm?"
+      },
+      "resolution": {
+        "full_refund": "Remboursement complet ?mis",
+        "partial_refund": "Remboursement partiel ?mis",
+        "release_to_helper": "Paiement vers? ? l?aide",
+        "dismissed": "Rejet?"
+      },
+      "guide": {
+        "preserveTitle": "Conserver les preuves",
+        "preserveText": "Ajoutez photos, documents, chronologies et notes courtes pendant que les d?tails sont frais.",
+        "focusTitle": "Garder l??change cibl?",
+        "focusText": "Utilisez le fil du litige pour les clarifications afin que le support puisse suivre le dossier.",
+        "outcomeTitle": "Suivre le r?sultat",
+        "outcomeText": "Le statut de r?solution, les remboursements et les d?cisions de versement restent li?s au travail."
+      },
+      "empty": {
+        "title": "Aucun litige ouvert",
+        "body": "C?est une bonne chose. Si un travail, paiement, outil lou? ou rendez-vous doit ?tre examin? officiellement, il appara?tra ici avec la chronologie des preuves et la conversation de support.",
+        "browseJobs": "Parcourir les travaux",
+        "learnHow": "D?couvrir le fonctionnement d?OxSteed",
+        "beforeTitle": "Avant d?ouvrir un litige",
+        "bullet1": "Essayez de clarifier le p?rim?tre dans les messages.",
+        "bullet2": "Conservez les photos, re?us et d?tails horaires.",
+        "bullet3": "Utilisez l?escalade support pour les urgences de s?curit? ou de paiement."
+      }
     },
     "detail": {
       "notFound": "Litige introuvable",
@@ -4882,7 +4944,31 @@
     "noQuotes": "Pas de devis soumis encore",
     "viewDetails": "Voir les Détails",
     "markComplete": "Marquer comme Complétée",
-    "rejectRequest": "Rejeter la Demande"
+    "rejectRequest": "Rejeter la Demande",
+    "commandCenter": "Centre de gestion des prospects",
+    "heroBody": "Transformez les demandes clients en devis clairs, travaux accept?s et dossiers termin?s. Chaque prospect est une occasion de r?pondre vite, de poser les attentes et de garder la relation en mouvement sans perdre le contexte.",
+    "activeLeads": "Prospects actifs",
+    "possibleValue": "Valeur possible",
+    "workflowAria": "Flux des prospects",
+    "listAria": "Prospects {{status}}",
+    "budgetRange": "Budget : ${{min}} - ${{max}}",
+    "quoteRequest": "Demande de devis",
+    "guide": {
+      "readTitle": "Lire la demande",
+      "readText": "Comprenez le besoin, le lieu, le budget et le contexte client avant de proposer un devis.",
+      "quoteTitle": "Envoyer un devis",
+      "quoteText": "Un devis utile explique le prix, le p?rim?tre et le d?lai pour que le client d?cide avec confiance.",
+      "closeTitle": "Boucler la boucle",
+      "closeText": "Les prospects accept?s deviennent un vrai historique de travail lorsque vous terminez et faites le suivi."
+    },
+    "empty": {
+      "title": "Aucun prospect {{status}}",
+      "body": "Les prospects issus de votre profil professionnel et des demandes de service appara?tront ici. Utilisez cette page pour r?pondre avec prix, p?rim?tre et d?lai avant que le client perde son ?lan.",
+      "sideTitle": "Rendre les prochains prospects plus faciles ? gagner",
+      "bullet1": "Gardez vos services et tarifs clairs sur votre profil.",
+      "bullet2": "Ajoutez photos et politiques pour que les clients sachent ? quoi s?attendre.",
+      "bullet3": "R?pondez vite avec un devis complet et un d?lai r?aliste."
+    }
   },
   "quickAddTemplates": {
     "quickAdd": "Ajout rapide :"
@@ -7070,7 +7156,8 @@
     "sandboxSend": "Send",
     "sandboxClear": "Clear",
     "promptTruncated": "First 3000 characters of the system prompt. Live replies may vary slightly.",
-    "sandboxDisclaimer": "This is a test chat using the same AI as your public profile. It is not visible to customers."
+    "sandboxDisclaimer": "This is a test chat using the same AI as your public profile. It is not visible to customers.",
+    "invalidBusiness": "Entreprise non valide."
   },
   "bidAccept": {
     "title": "Choisir un créneau avec {{name}}",
@@ -7614,5 +7701,140 @@
     "enableCustom": "Enable custom off-platform payments",
     "noteTitle": "Note",
     "noteBody": "You must enable at least one payment method. Customers will see your enabled options when reviewing your bid."
+  },
+  "howOxsteedWorks": {
+    "metaTitle": "Comment fonctionne OxSteed - Fonctionnalit?s, parcours et cas r?els",
+    "metaDescription": "D?couvrez comment OxSteed fonctionne pour les clients, les prestataires, les entreprises et les propri?taires d?outils. Explorez les missions, r?servations, outils, paiements, besoins planifi?s, messages, litiges, tableaux de bord et fonctions de croissance.",
+    "kicker": "Comment fonctionne OxSteed",
+    "title": "Un syst?me connect? pour obtenir de l?aide, travailler, louer des outils et g?rer une entreprise locale.",
+    "subtitle": "OxSteed est ? la fois une place de march?, un centre de pilotage personnel et un syst?me d?exploitation pour les entreprises. Cette page combine le parcours simple et un guide d?taill? pour aider les nouveaux utilisateurs ? savoir quoi faire ensuite.",
+    "heroActions": {
+      "postJob": "Publier une mission",
+      "findHelpers": "Trouver des prestataires",
+      "exploreFeatures": "Explorer les fonctionnalit?s"
+    },
+    "paths": {
+      "customers": {
+        "label": "Pour les clients",
+        "title": "Obtenez de l?aide sans perdre le fil",
+        "steps": [
+          "D?crivez une mission, un besoin planifi?, une r?servation ou une location d?outil.",
+          "Comparez prestataires, devis, messages, planning et signaux de confiance.",
+          "Payez, laissez un avis, gardez l?historique et planifiez le prochain besoin depuis votre tableau de bord."
+        ],
+        "cta": "Publier une mission"
+      },
+      "helpers": {
+        "label": "Pour les prestataires",
+        "title": "Transformez vos comp?tences en travail local",
+        "steps": [
+          "Cr?ez un profil avec services, photos, mod?les, QR et disponibilit?s.",
+          "Trouvez des missions, recevez des r?servations directes, ?changez avec les clients et envoyez des offres.",
+          "Utilisez paiements, factures, r?putation et calendrier pour rendre votre activit? r?p?table."
+        ],
+        "cta": "Voir les missions"
+      },
+      "businesses": {
+        "label": "Pour les entreprises",
+        "title": "G?rez tout depuis un espace connect?",
+        "steps": [
+          "G?rez services, prospects, produits, factures, politiques et demandes clients.",
+          "Utilisez Business Hub, analyses, mod?les, conseil et support pour grandir.",
+          "Gardez les dossiers de confiance, litiges, messages, paiements et suivis au m?me endroit."
+        ],
+        "cta": "Ouvrir Business Hub"
+      },
+      "toolOwners": {
+        "label": "Pour les propri?taires d?outils",
+        "title": "Rentabilisez votre ?quipement",
+        "steps": [
+          "Publiez des outils avec photos, tarifs, d?p?ts, conditions, retrait et livraison.",
+          "Recevez des r?servations, envoyez des factures, suivez les statuts et g?rez les signalements.",
+          "Utilisez les analyses pour comprendre locations, revenus et qualit? des annonces."
+        ],
+        "cta": "Voir les outils"
+      }
+    },
+    "mentalModel": {
+      "title": "Le mod?le simple",
+      "body": "OxSteed relie quatre ?l?ments que les utilisateurs g?rent souvent s?par?ment : les besoins, les personnes, l?argent et le temps. Un besoin peut devenir une mission. Une mission peut g?n?rer messages, rendez-vous, paiements, avis et rappels. Un service termin? peut devenir un besoin planifi? r?current. Un prestataire peut devenir favori. Le tableau de bord rassemble ces signaux pour indiquer la prochaine action.",
+      "flow": [
+        "Besoin",
+        "Planifier",
+        "Engager",
+        "Programmer",
+        "Payer",
+        "Se souvenir"
+      ],
+      "aria": "Comment OxSteed se connecte",
+      "flowAria": "Flux connect?"
+    },
+    "examples": {
+      "title": "Exemples r?els",
+      "body": "OxSteed doit sembler utile d?s la premi?re visite. Voici les parcours que la plateforme est con?ue pour soutenir.",
+      "items": [
+        "J?ai besoin d?un prestataire fiable pour une r?paration ? domicile.",
+        "Je veux gagner de l?argent avec mes comp?tences.",
+        "J?ai besoin d?un outil pour un week-end.",
+        "Je veux d?velopper une entreprise de services.",
+        "Je dois planifier des d?penses futures avant qu?elles deviennent urgentes.",
+        "J?ai besoin d?un dossier si quelque chose se passe mal."
+      ],
+      "aria": "Exemples concrets"
+    },
+    "library": {
+      "kicker": "Biblioth?que des fonctionnalit?s",
+      "title": "Toutes les grandes fonctionnalit?s OxSteed et leurs connexions"
+    },
+    "searchResults": "{{shown}} section(s) affich?e(s) sur {{total}} pour \"{{query}}\".",
+    "sidebarAria": "Navigation du guide des fonctionnalit?s",
+    "searchPlaceholder": "Rechercher des fonctionnalit?s, cas d?usage ou flux...",
+    "searchAria": "Rechercher les fonctionnalit?s OxSteed",
+    "contents": "Contenu",
+    "pathsAria": "Fonctionnement d?OxSteed par type d?utilisateur",
+    "categoriesAria": "Cat?gories de fonctionnalit?s",
+    "empty": {
+      "title": "Aucune fonctionnalit? correspondante trouv?e.",
+      "body": "Essayez de rechercher travaux, outils, paiements, besoins planifi?s, calendrier, aide, entreprise ou support."
+    },
+    "detail": {
+      "realLifeTitle": "Cas d?utilisation concrets",
+      "connectsTitle": "Comment cela se connecte",
+      "actionsTitle": "Prochaines actions utiles"
+    }
+  },
+  "businessPublicProfile": {
+    "loading": "Chargement du profil de l?entreprise...",
+    "notFound": "Entreprise introuvable",
+    "reviewCount": "{{count}} avis",
+    "reviewCount_plural": "{{count}} avis",
+    "teamMembers": "{{count}} membre de l??quipe",
+    "teamMembers_plural": "{{count}} membres de l??quipe",
+    "servicesOffered": "Services propos?s",
+    "recentWork": "Travaux r?cents",
+    "customerReviews": "Avis clients",
+    "businessHours": "Horaires de l?entreprise",
+    "closed": "Ferm?",
+    "stats": "Statistiques",
+    "jobsCompleted": "Travaux termin?s",
+    "yearsInBusiness": "Ann?es d?activit?"
+  },
+  "businessProfileEdit": {
+    "loadError": "Impossible de charger l?entreprise",
+    "tabs": {
+      "basic": "Infos de base",
+      "team": "Membres de l??quipe",
+      "services": "Services",
+      "billing": "Facturation"
+    },
+    "businessName": "Nom de l?entreprise",
+    "businessNamePlaceholder": "Nom de votre entreprise",
+    "description": "Description",
+    "descriptionPlaceholder": "D?crivez votre entreprise",
+    "category": "Cat?gorie",
+    "categoryPlaceholder": "Cat?gorie de l?entreprise",
+    "teamComingSoon": "Le formulaire des membres de l??quipe sera ici",
+    "servicesComingSoon": "Le formulaire des services sera ici",
+    "billingComingSoon": "Les param?tres de facturation seront ici"
   }
 }

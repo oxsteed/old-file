@@ -17,16 +17,16 @@ import PageMeta from '../../components/PageMeta';
 import './DisputeCenter.css';
 
 const STATUS_META = {
-  open: { label: 'Open', className: 'is-open' },
-  under_review: { label: 'Under review', className: 'is-review' },
-  resolved: { label: 'Resolved', className: 'is-resolved' },
-  closed: { label: 'Closed', className: 'is-closed' },
+  open: { key: 'open', className: 'is-open' },
+  under_review: { key: 'underReview', className: 'is-review' },
+  resolved: { key: 'resolved', className: 'is-resolved' },
+  closed: { key: 'closed', className: 'is-closed' },
 };
 
-function formatDate(value) {
-  if (!value) return 'Date unavailable';
+function formatDate(value, t) {
+  if (!value) return t('disputes.center.dateUnavailable');
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Date unavailable';
+  if (Number.isNaN(date.getTime())) return t('disputes.center.dateUnavailable');
   return date.toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
@@ -34,19 +34,16 @@ function formatDate(value) {
   });
 }
 
-function formatReason(reason) {
-  return String(reason || 'General issue').replace(/_/g, ' ');
+function formatReason(reason, t) {
+  return String(reason || t('disputes.center.generalIssue')).replace(/_/g, ' ');
 }
 
 function resolutionLabel(resolution, t) {
-  const map = {
-    full_refund: 'Full refund issued',
-    partial_refund: 'Partial refund issued',
-    release_to_helper: 'Payment released to helper',
-    dismissed: 'Dismissed',
-  };
   return resolution
-    ? `${t('disputes.detail.resolutionTitle', { defaultValue: 'Resolution' })}: ${map[resolution] || formatReason(resolution)}`
+    ? `${t('disputes.detail.resolutionTitle', { defaultValue: 'Resolution' })}: ${t(
+        `disputes.center.resolution.${resolution}`,
+        { defaultValue: formatReason(resolution, t) }
+      )}`
     : '';
 }
 
@@ -90,7 +87,7 @@ export default function DisputeCenter() {
     <PageShell>
       <PageMeta
         title={t('disputes.center.title', { defaultValue: 'Disputes' })}
-        description="Track OxSteed disputes, evidence, support messages, and resolution outcomes."
+        description={t('disputes.center.metaDescription')}
         noIndex
       />
 
@@ -99,55 +96,54 @@ export default function DisputeCenter() {
           <div>
             <p className="dispute-eyebrow">
               <ShieldCheck size={16} aria-hidden="true" />
-              Trust and resolution center
+              {t('disputes.center.eyebrow')}
             </p>
             <h1 id="dispute-title">{t('disputes.center.title')}</h1>
             <p>
-              {t('disputes.center.subtitle')} Keep evidence, support messages, job context, and
-              resolution updates in one place so a difficult situation stays organized.
+              {t('disputes.center.subtitle')} {t('disputes.center.heroExtra')}
             </p>
             <div className="dispute-hero-actions">
               <Link to="/messages" className="dispute-btn primary">
                 <MessageSquare size={17} aria-hidden="true" />
-                Open messages
+                {t('disputes.center.openMessages')}
               </Link>
               <Link to="/support/escalation" className="dispute-btn secondary">
-                Contact support
+                {t('disputes.center.contactSupport')}
               </Link>
             </div>
           </div>
 
-          <div className="dispute-stats" aria-label="Dispute summary">
+          <div className="dispute-stats" aria-label={t('disputes.center.aria.summary')}>
             <div>
               <span>{stats.open}</span>
-              <p>Open</p>
+              <p>{t('disputes.center.stats.open')}</p>
             </div>
             <div>
               <span>{stats.review}</span>
-              <p>In review</p>
+              <p>{t('disputes.center.stats.inReview')}</p>
             </div>
             <div>
               <span>{stats.resolved}</span>
-              <p>Resolved</p>
+              <p>{t('disputes.center.stats.resolved')}</p>
             </div>
           </div>
         </section>
 
-        <section className="dispute-guide" aria-label="How disputes work">
+        <section className="dispute-guide" aria-label={t('disputes.center.aria.guide')}>
           <GuideCard
             icon={FileText}
-            title="Preserve evidence"
-            text="Add photos, documents, timelines, and short notes while details are fresh."
+            title={t('disputes.center.guide.preserveTitle')}
+            text={t('disputes.center.guide.preserveText')}
           />
           <GuideCard
             icon={MessageSquare}
-            title="Keep discussion focused"
-            text="Use the dispute thread for clarifications so support can follow the record."
+            title={t('disputes.center.guide.focusTitle')}
+            text={t('disputes.center.guide.focusText')}
           />
           <GuideCard
             icon={CheckCircle2}
-            title="Track the outcome"
-            text="Resolution status, refunds, and release decisions stay attached to the job."
+            title={t('disputes.center.guide.outcomeTitle')}
+            text={t('disputes.center.guide.outcomeText')}
           />
         </section>
 
@@ -164,9 +160,9 @@ export default function DisputeCenter() {
             <p>{t('disputes.center.loading')}</p>
           </div>
         ) : disputes.length === 0 ? (
-          <EmptyDisputes />
+          <EmptyDisputes t={t} />
         ) : (
-          <section className="dispute-list" aria-label="Your disputes">
+          <section className="dispute-list" aria-label={t('disputes.center.aria.list')}>
             {disputes.map((dispute) => {
               const statusMeta = STATUS_META[dispute.status] || STATUS_META.closed;
               return (
@@ -180,12 +176,12 @@ export default function DisputeCenter() {
                   </div>
                   <div className="dispute-row-main">
                     <div className="dispute-row-top">
-                      <h2>{dispute.job_title || 'Untitled job'}</h2>
+                      <h2>{dispute.job_title || t('disputes.center.untitledJob')}</h2>
                       <span className={`dispute-status ${statusMeta.className}`}>
-                        {statusMeta.label}
+                        {t(`disputes.center.status.${statusMeta.key}`)}
                       </span>
                     </div>
-                    <p className="dispute-row-reason">{formatReason(dispute.reason)}</p>
+                    <p className="dispute-row-reason">{formatReason(dispute.reason, t)}</p>
                     {dispute.resolution && (
                       <p className="dispute-row-resolution">
                         {resolutionLabel(dispute.resolution, t)}
@@ -194,7 +190,9 @@ export default function DisputeCenter() {
                     <div className="dispute-row-meta">
                       <span>
                         <Clock3 size={14} aria-hidden="true" />
-                        Opened {formatDate(dispute.created_at)}
+                        {t('disputes.center.openedOn', {
+                          date: formatDate(dispute.created_at, t),
+                        })}
                       </span>
                       <span>#{String(dispute.id).split('-')[0]}</span>
                     </div>
@@ -220,33 +218,30 @@ function GuideCard({ icon: Icon, title, text }) {
   );
 }
 
-function EmptyDisputes() {
+function EmptyDisputes({ t }) {
   return (
     <section className="dispute-empty">
       <div className="dispute-empty-main">
         <div className="dispute-empty-icon">
           <ShieldCheck size={34} aria-hidden="true" />
         </div>
-        <p className="dispute-empty-kicker">No disputes open</p>
-        <p>
-          This is good. If a job, payment, tool rental, or booking ever needs formal review, it
-          will appear here with the evidence timeline and support conversation.
-        </p>
+        <p className="dispute-empty-kicker">{t('disputes.center.empty.title')}</p>
+        <p>{t('disputes.center.empty.body')}</p>
         <div className="dispute-empty-actions">
           <Link to="/jobs" className="dispute-btn primary">
-            Browse jobs
+            {t('disputes.center.empty.browseJobs')}
           </Link>
           <Link to="/features" className="dispute-btn secondary">
-            Learn how OxSteed works
+            {t('disputes.center.empty.learnHow')}
           </Link>
         </div>
       </div>
       <div className="dispute-empty-side">
-        <strong>Before opening a dispute</strong>
+        <strong>{t('disputes.center.empty.beforeTitle')}</strong>
         <ul>
-          <li>Try to clarify scope in messages.</li>
-          <li>Save photos, receipts, and time details.</li>
-          <li>Use support escalation for urgent safety or payment issues.</li>
+          <li>{t('disputes.center.empty.bullet1')}</li>
+          <li>{t('disputes.center.empty.bullet2')}</li>
+          <li>{t('disputes.center.empty.bullet3')}</li>
         </ul>
       </div>
     </section>

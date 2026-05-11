@@ -44,9 +44,9 @@ export default function HelperRegister() {
         <div className="w-full max-w-[480px] flex flex-col gap-8">
 
           <section className="text-center">
-            <h1 className="text-3xl font-bold text-white mb-2">Start Earning in Your Neighborhood</h1>
-            <p className="text-orange-400 font-semibold text-lg">Set your own rates. Get found by neighbors.</p>
-            <p className="text-gray-400 text-sm mt-2">Free for 90 days · No credit card required</p>
+            <h1 className="text-3xl font-bold text-white mb-2">{t('register.helperHeroTitle')}</h1>
+            <p className="text-orange-400 font-semibold text-lg">{t('register.helperHeroSubtitle')}</p>
+            <p className="text-gray-400 text-sm mt-2">{t('register.customerHeroTrial')}</p>
           </section>
 
           <div className="bg-gray-900 border border-gray-800 rounded-xl shadow-lg shadow-black/30 overflow-hidden">
@@ -78,7 +78,7 @@ export default function HelperRegister() {
 
             <div className="text-center px-6 pb-5 text-xs text-gray-400">
               {t('auth.welcomeBack')}?{' '}
-              <Link to="/login" className="text-orange-500 font-medium hover:underline">Sign in</Link>
+              <Link to="/login" className="text-orange-500 font-medium hover:underline">{t('nav.signIn')}</Link>
             </div>
           </div>
 
@@ -86,7 +86,7 @@ export default function HelperRegister() {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-900/20 border border-violet-700/40">
               <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
               <span className="text-xs text-violet-300 font-medium">
-                90-day Pro trial included - all features unlocked, no card needed
+                {t('register.customerTrialBadge')}
               </span>
             </div>
           </div>

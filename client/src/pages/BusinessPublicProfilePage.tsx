@@ -28,7 +28,7 @@ export default function BusinessPublicProfilePage() {
         const data = await response.json();
         setBusiness(data.data);
       } else {
-        setError('Business not found');
+        setError(t('businessPublicProfile.notFound'));
       }
     } catch (err) {
       setError(err.message);
@@ -37,9 +37,9 @@ export default function BusinessPublicProfilePage() {
     }
   };
 
-  if (loading) return <div className="page-loading">Loading business profile...</div>;
+  if (loading) return <div className="page-loading">{t('businessPublicProfile.loading')}</div>;
   if (error) return <div className="page-error">{error}</div>;
-  if (!business) return <div className="page-error">Business not found</div>;
+  if (!business) return <div className="page-error">{t('businessPublicProfile.notFound')}</div>;
 
   return (
     <div className="business-public-profile">
@@ -65,7 +65,7 @@ export default function BusinessPublicProfilePage() {
                 <h1>{business.name}</h1>
                 <div className="business-rating">
                   <Star size={18} fill="gold" color="gold" />
-                  <span>{business.rating} ({business.reviewCount} reviews)</span>
+                  <span>{business.rating} ({t('businessPublicProfile.reviewCount', { count: business.reviewCount })})</span>
                 </div>
               </div>
             </div>
@@ -95,7 +95,7 @@ export default function BusinessPublicProfilePage() {
               {business.teamSize && (
                 <div className="contact-item">
                   <Users size={18} />
-                  <span>{business.teamSize} team members</span>
+                  <span>{t('businessPublicProfile.teamMembers', { count: business.teamSize })}</span>
                 </div>
               )}
             </div>
@@ -108,7 +108,7 @@ export default function BusinessPublicProfilePage() {
 
           {/* Services */}
           <div className="profile-card">
-            <h2>Services Offered</h2>
+            <h2>{t('businessPublicProfile.servicesOffered')}</h2>
             <div className="services-grid">
               {business.services && business.services.map(service => (
                 <div key={service.id} className="service-card">
@@ -122,7 +122,7 @@ export default function BusinessPublicProfilePage() {
 
           {/* Portfolio/Projects */}
           <div className="profile-card">
-            <h2>Recent Work</h2>
+            <h2>{t('businessPublicProfile.recentWork')}</h2>
             <div className="projects-grid">
               {business.projects && business.projects.map(project => (
                 <div key={project.id} className="project-item">
@@ -135,7 +135,7 @@ export default function BusinessPublicProfilePage() {
 
           {/* Reviews */}
           <div className="profile-card">
-            <h2>Customer Reviews</h2>
+            <h2>{t('businessPublicProfile.customerReviews')}</h2>
             {business.reviews && business.reviews.map(review => (
               <div key={review.id} className="review-item">
                 <div className="review-header">
@@ -162,13 +162,13 @@ export default function BusinessPublicProfilePage() {
 
           {/* Hours Card */}
           <div className="sidebar-card">
-            <h3>Business Hours</h3>
+            <h3>{t('businessPublicProfile.businessHours')}</h3>
             <div className="hours-list">
               {business.hours && Object.entries(business.hours).map(([day, hours]) => (
                 <div key={day} className="hour-item">
                   <span className="day">{day}</span>
                   <span className="time">
-                    {hours.closed ? 'Closed' : `${hours.open} - ${hours.close}`}
+                    {hours.closed ? t('businessPublicProfile.closed') : `${hours.open} - ${hours.close}`}
                   </span>
                 </div>
               ))}
@@ -177,15 +177,15 @@ export default function BusinessPublicProfilePage() {
 
           {/* Stats Card */}
           <div className="sidebar-card">
-            <h3>Stats</h3>
+            <h3>{t('businessPublicProfile.stats')}</h3>
             <div className="stats-grid">
               <div className="stat">
                 <span className="stat-value">{business.jobsCompleted}</span>
-                <span className="stat-label">Jobs Completed</span>
+                <span className="stat-label">{t('businessPublicProfile.jobsCompleted')}</span>
               </div>
               <div className="stat">
                 <span className="stat-value">{business.yearsInBusiness}</span>
-                <span className="stat-label">Years in Business</span>
+                <span className="stat-label">{t('businessPublicProfile.yearsInBusiness')}</span>
               </div>
             </div>
           </div>

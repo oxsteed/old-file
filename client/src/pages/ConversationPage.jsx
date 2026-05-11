@@ -28,7 +28,7 @@ const MessageActions = ({ message, user, onDelete, onEdit }) => {
   };
 
   const handleDelete = () => {
-    if (window.confirm('Delete this message?')) {
+    if (window.confirm(t('messages.deleteConfirm'))) {
       onDelete?.(message.id);
     }
   };
@@ -38,8 +38,8 @@ const MessageActions = ({ message, user, onDelete, onEdit }) => {
       <button
         onClick={handleCopy}
         className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition"
-        title={copied ? 'Copied!' : 'Copy message'}
-        aria-label="Copy"
+        title={copied ? t('messages.copied') : t('messages.copyMessage')}
+        aria-label={t('messages.copy')}
       >
         📋
       </button>
@@ -48,16 +48,16 @@ const MessageActions = ({ message, user, onDelete, onEdit }) => {
           <button
             onClick={() => onEdit?.(message.id)}
             className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition"
-            title="Edit message"
-            aria-label="Edit"
+            title={t('messages.editMessage')}
+            aria-label={t('common.edit')}
           >
             ✏️
           </button>
           <button
             onClick={handleDelete}
             className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition"
-            title="Delete message"
-            aria-label="Delete"
+            title={t('messages.deleteMessage')}
+            aria-label={t('common.delete')}
           >
             🗑️
           </button>
@@ -213,13 +213,13 @@ export default function ConversationPage() {
                         onClick={() => handleSaveEdit(msg.id)}
                         className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
                       >
-                        Save
+                        {t('common.save')}
                       </button>
                       <button
                         onClick={() => setEditingId(null)}
                         className="px-3 py-1 text-xs bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded hover:bg-gray-400 dark:hover:bg-gray-500"
                       >
-                        Cancel
+                        {t('common.cancel')}
                       </button>
                     </div>
                   </div>
@@ -283,8 +283,8 @@ export default function ConversationPage() {
                             navigator.clipboard.writeText(msg.content);
                           }}
                           className="p-0.5 rounded text-gray-400 hover:text-gray-600 transition"
-                          title="Copy message"
-                          aria-label="Copy message"
+                          title={t('messages.copyMessage')}
+                          aria-label={t('messages.copyMessage')}
                         >
                           📋
                         </button>
@@ -293,16 +293,16 @@ export default function ConversationPage() {
                             <button
                               onClick={() => handleEditMessage(msg.id)}
                               className="p-0.5 rounded text-gray-400 hover:text-gray-600 transition"
-                              title="Edit message"
-                              aria-label="Edit message"
+                              title={t('messages.editMessage')}
+                              aria-label={t('messages.editMessage')}
                             >
                               ✏️
                             </button>
                             <button
                               onClick={() => handleDeleteMessage(msg.id)}
                               className="p-0.5 rounded text-gray-400 hover:text-red-600 transition"
-                              title="Delete message"
-                              aria-label="Delete message"
+                              title={t('messages.deleteMessage')}
+                              aria-label={t('messages.deleteMessage')}
                             >
                               🗑️
                             </button>

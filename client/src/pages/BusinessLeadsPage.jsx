@@ -115,35 +115,43 @@ export default function BusinessLeadsPage() {
           <div>
             <p className="business-leads-eyebrow">
               <Briefcase size={16} aria-hidden="true" />
-              Lead command center
+              {t('leads.commandCenter')}
             </p>
             <h1 id="business-leads-title">{t('leads.businessLeads')}</h1>
-            <p>
-              Turn customer requests into clear quotes, accepted work, and completed records. Each
-              lead is a chance to respond quickly, set expectations, and keep the relationship
-              moving without losing context.
-            </p>
+            <p>{t('leads.heroBody')}</p>
           </div>
           <div className="business-leads-summary">
             <div>
               <span>{summary.active}</span>
-              <p>Active leads</p>
+              <p>{t('leads.activeLeads')}</p>
             </div>
             <div>
               <span>{leads.length}</span>
-              <p>{selectedTab}</p>
+              <p>{selectedLabel}</p>
             </div>
             <div>
               <span>${summary.possibleValue.toLocaleString()}</span>
-              <p>Possible value</p>
+              <p>{t('leads.possibleValue')}</p>
             </div>
           </div>
         </section>
 
-        <section className="business-leads-guide" aria-label="Lead workflow">
-          <GuideCard icon={MessageSquare} title="Read the request" text="Understand the need, location, budget, and customer context before quoting." />
-          <GuideCard icon={DollarSign} title="Send a quote" text="A useful quote explains price, scope, and timeline so the customer can decide confidently." />
-          <GuideCard icon={CheckCircle2} title="Close the loop" text="Accepted leads become real work history when you complete and follow up." />
+        <section className="business-leads-guide" aria-label={t('leads.workflowAria')}>
+          <GuideCard
+            icon={MessageSquare}
+            title={t('leads.guide.readTitle')}
+            text={t('leads.guide.readText')}
+          />
+          <GuideCard
+            icon={DollarSign}
+            title={t('leads.guide.quoteTitle')}
+            text={t('leads.guide.quoteText')}
+          />
+          <GuideCard
+            icon={CheckCircle2}
+            title={t('leads.guide.closeTitle')}
+            text={t('leads.guide.closeText')}
+          />
         </section>
 
         <div className="business-leads-tabs">
@@ -167,9 +175,9 @@ export default function BusinessLeadsPage() {
             <p>{t('common.loading')}</p>
           </div>
         ) : leads.length === 0 ? (
-          <EmptyLeads selectedTab={selectedTab} label={selectedLabel} />
+          <EmptyLeads selectedTab={selectedTab} label={selectedLabel} t={t} />
         ) : (
-          <section className="business-leads-list" aria-label={`${selectedLabel} leads`}>
+          <section className="business-leads-list" aria-label={t('leads.listAria', { status: selectedLabel })}>
             {leads.map((lead) => (
               <article key={lead.id} className="business-lead-card">
                 <div className="business-lead-card-top">
@@ -181,7 +189,10 @@ export default function BusinessLeadsPage() {
                     <p className="business-lead-description">{lead.description}</p>
                     {lead.budget_min && lead.budget_max && (
                       <p className="business-lead-budget">
-                        Budget: ${lead.budget_min} - ${lead.budget_max}
+                        {t('leads.budgetRange', {
+                          min: lead.budget_min,
+                          max: lead.budget_max,
+                        })}
                       </p>
                     )}
                   </div>
@@ -228,13 +239,13 @@ export default function BusinessLeadsPage() {
             <div className="business-leads-modal">
               <div className="business-leads-modal-header">
                 <div>
-                  <p>Quote request</p>
+                  <p>{t('leads.quoteRequest')}</p>
                   <h3>{t('leads.submitQuote')}</h3>
                 </div>
                 <button
                   onClick={() => setSelectedLead(null)}
                   className="business-leads-modal-close"
-                  aria-label="Close"
+                  aria-label={t('common.close')}
                 >
                   <X size={20} aria-hidden="true" />
                 </button>
@@ -312,25 +323,24 @@ function GuideCard({ icon: Icon, title, text }) {
   );
 }
 
-function EmptyLeads({ selectedTab, label }) {
+function EmptyLeads({ selectedTab, label, t }) {
   return (
     <section className="business-leads-empty">
       <div className="business-leads-empty-main">
         <div className="business-leads-empty-icon">
           {selectedTab === 'completed' ? <CheckCircle2 size={32} aria-hidden="true" /> : <FileText size={32} aria-hidden="true" />}
         </div>
-        <p className="business-leads-empty-kicker">No {String(label || selectedTab).toLowerCase()} leads</p>
-        <p>
-          Leads from your business profile and service requests will appear here. Use this page to
-          respond with price, scope, and timeline before the customer loses momentum.
+        <p className="business-leads-empty-kicker">
+          {t('leads.empty.title', { status: label || selectedTab })}
         </p>
+        <p>{t('leads.empty.body')}</p>
       </div>
       <div className="business-leads-empty-side">
-        <strong>Make future leads easier to win</strong>
+        <strong>{t('leads.empty.sideTitle')}</strong>
         <ul>
-          <li>Keep services and pricing clear on your profile.</li>
-          <li>Add photos and policies so customers know what to expect.</li>
-          <li>Respond quickly with a complete quote and realistic timeline.</li>
+          <li>{t('leads.empty.bullet1')}</li>
+          <li>{t('leads.empty.bullet2')}</li>
+          <li>{t('leads.empty.bullet3')}</li>
         </ul>
       </div>
     </section>

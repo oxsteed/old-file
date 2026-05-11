@@ -27,7 +27,7 @@ export default function BusinessProfileEditPage() {
         const data = await response.json();
         setBusiness(data.data);
       } else {
-        setError('Failed to load business');
+        setError(t('businessProfileEdit.loadError'));
       }
     } catch (err) {
       setError(err.message);
@@ -36,7 +36,7 @@ export default function BusinessProfileEditPage() {
     }
   };
 
-  if (loading) return <div className="page-loading">Loading...</div>;
+  if (loading) return <div className="page-loading">{t('common.loading')}</div>;
   if (error) return <div className="page-error">{error}</div>;
 
   return (
@@ -65,39 +65,39 @@ export default function BusinessProfileEditPage() {
         {/* Rest of business editing sections */}
         <Tabs defaultValue="basic" className="business-tabs">
           <TabsList>
-            <TabsTrigger value="basic">Basic Info</TabsTrigger>
-            <TabsTrigger value="team">Team Members</TabsTrigger>
-            <TabsTrigger value="services">Services</TabsTrigger>
-            <TabsTrigger value="billing">Billing</TabsTrigger>
+            <TabsTrigger value="basic">{t('businessProfileEdit.tabs.basic')}</TabsTrigger>
+            <TabsTrigger value="team">{t('businessProfileEdit.tabs.team')}</TabsTrigger>
+            <TabsTrigger value="services">{t('businessProfileEdit.tabs.services')}</TabsTrigger>
+            <TabsTrigger value="billing">{t('businessProfileEdit.tabs.billing')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic">
             {/* Basic business info form */}
             <div className="tab-content">
               <div className="form-group">
-                <label>Business Name</label>
+                <label>{t('businessProfileEdit.businessName')}</label>
                 <input
                   type="text"
                   defaultValue={business?.businessName}
-                  placeholder="Your business name"
+                  placeholder={t('businessProfileEdit.businessNamePlaceholder')}
                   className="form-input"
                 />
               </div>
               <div className="form-group">
-                <label>Description</label>
+                <label>{t('businessProfileEdit.description')}</label>
                 <textarea
                   defaultValue={business?.description}
-                  placeholder="Describe your business"
+                  placeholder={t('businessProfileEdit.descriptionPlaceholder')}
                   className="form-textarea"
                   rows={5}
                 />
               </div>
               <div className="form-group">
-                <label>Category</label>
+                <label>{t('businessProfileEdit.category')}</label>
                 <input
                   type="text"
                   defaultValue={business?.category}
-                  placeholder="Business category"
+                  placeholder={t('businessProfileEdit.categoryPlaceholder')}
                   className="form-input"
                 />
               </div>
@@ -107,21 +107,21 @@ export default function BusinessProfileEditPage() {
           <TabsContent value="team">
             {/* Team members management */}
             <div className="tab-content">
-              <p>Team members form goes here</p>
+              <p>{t('businessProfileEdit.teamComingSoon')}</p>
             </div>
           </TabsContent>
 
           <TabsContent value="services">
             {/* Services listing */}
             <div className="tab-content">
-              <p>Services form goes here</p>
+              <p>{t('businessProfileEdit.servicesComingSoon')}</p>
             </div>
           </TabsContent>
 
           <TabsContent value="billing">
             {/* Billing settings */}
             <div className="tab-content">
-              <p>Billing form goes here</p>
+              <p>{t('businessProfileEdit.billingComingSoon')}</p>
             </div>
           </TabsContent>
         </Tabs>

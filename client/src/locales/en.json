@@ -23,7 +23,8 @@
     "resources": "Resources",
     "businessLaunchStatus": "My Business Launch",
     "supportWorkspace": "Support workspace",
-    "cancellationPolicies": "Payment & Cancellation Policies"
+    "cancellationPolicies": "Payment & Cancellation Policies",
+    "howOxsteedWorks": "How OxSteed Works"
   },
   "supportAgentPortal": {
     "title": "Support workspace",
@@ -360,7 +361,13 @@
     "agreeToTerms": "I agree to the terms",
     "haveAccount": "Already have an account?",
     "country": "Country",
-    "errorCountry": "Invalid country"
+    "errorCountry": "Invalid country",
+    "customerHeroTitle": "Find Trusted Local Help",
+    "customerHeroSubtitle": "Post a job, compare bids, and hire with confidence.",
+    "customerHeroTrial": "Free for 90 days ? No credit card required",
+    "customerTrialBadge": "90-day Pro trial included - all features unlocked, no card needed",
+    "helperHeroTitle": "Start Earning in Your Neighborhood",
+    "helperHeroSubtitle": "Set your own rates. Get found by neighbors."
   },
   "didit": {
     "title": "Verify your identity",
@@ -443,7 +450,8 @@
     "escrowPolicy": "Escrow Policy",
     "accountTermination": "Account Termination",
     "disputeResolution": "Dispute Resolution",
-    "independentContractor": "Independent Contractor"
+    "independentContractor": "Independent Contractor",
+    "howOxsteedWorks": "How OxSteed Works"
   },
   "accountTermination": {
     "pageTitle": "Account Termination Policy",
@@ -1646,14 +1654,19 @@
     "attachNeedsConversation": "Attach to conversation",
     "attachUploadFailed": "Upload failed",
     "confirmDelete": "Delete this message?",
-    "copy": "Copy message",
+    "copy": "Copy",
     "delete": "Delete message",
     "edit": "Edit message",
     "editFailed": "Failed to edit message",
     "edited": "(edited)",
     "messageNotFound": "Message not found",
     "failed": "Message failed to send.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "deleteConfirm": "Delete this message?",
+    "copied": "Copied!",
+    "copyMessage": "Copy message",
+    "editMessage": "Edit message",
+    "deleteMessage": "Delete message"
   },
   "dashboard": {
     "welcome": "Welcome back, {{name}}!",
@@ -4544,7 +4557,56 @@
       "subtitle": "View and manage your active disputes",
       "loading": "Loading...",
       "noDisputes": "No disputes found.",
-      "noDisputesSub": "Disputes can be opened on completed jobs within the review period."
+      "noDisputesSub": "Disputes can be opened on completed jobs within the review period.",
+      "metaDescription": "Track OxSteed disputes, evidence, support messages, and resolution outcomes.",
+      "eyebrow": "Trust and resolution center",
+      "heroExtra": "Keep evidence, support messages, job context, and resolution updates in one place so a difficult situation stays organized.",
+      "openMessages": "Open messages",
+      "contactSupport": "Contact support",
+      "dateUnavailable": "Date unavailable",
+      "generalIssue": "General issue",
+      "untitledJob": "Untitled job",
+      "openedOn": "Opened {{date}}",
+      "stats": {
+        "open": "Open",
+        "inReview": "In review",
+        "resolved": "Resolved"
+      },
+      "aria": {
+        "summary": "Dispute summary",
+        "guide": "How disputes work",
+        "list": "Your disputes"
+      },
+      "status": {
+        "open": "Open",
+        "underReview": "Under review",
+        "resolved": "Resolved",
+        "closed": "Closed"
+      },
+      "resolution": {
+        "full_refund": "Full refund issued",
+        "partial_refund": "Partial refund issued",
+        "release_to_helper": "Payment released to helper",
+        "dismissed": "Dismissed"
+      },
+      "guide": {
+        "preserveTitle": "Preserve evidence",
+        "preserveText": "Add photos, documents, timelines, and short notes while details are fresh.",
+        "focusTitle": "Keep discussion focused",
+        "focusText": "Use the dispute thread for clarifications so support can follow the record.",
+        "outcomeTitle": "Track the outcome",
+        "outcomeText": "Resolution status, refunds, and release decisions stay attached to the job."
+      },
+      "empty": {
+        "title": "No disputes open",
+        "body": "This is good. If a job, payment, tool rental, or booking ever needs formal review, it will appear here with the evidence timeline and support conversation.",
+        "browseJobs": "Browse jobs",
+        "learnHow": "Learn how OxSteed works",
+        "beforeTitle": "Before opening a dispute",
+        "bullet1": "Try to clarify scope in messages.",
+        "bullet2": "Save photos, receipts, and time details.",
+        "bullet3": "Use support escalation for urgent safety or payment issues."
+      }
     },
     "detail": {
       "loading": "Loading dispute...",
@@ -4882,7 +4944,31 @@
     "noQuotes": "No quotes submitted yet",
     "viewDetails": "View Details",
     "markComplete": "Mark Complete",
-    "rejectRequest": "Reject Request"
+    "rejectRequest": "Reject Request",
+    "commandCenter": "Lead command center",
+    "heroBody": "Turn customer requests into clear quotes, accepted work, and completed records. Each lead is a chance to respond quickly, set expectations, and keep the relationship moving without losing context.",
+    "activeLeads": "Active leads",
+    "possibleValue": "Possible value",
+    "workflowAria": "Lead workflow",
+    "listAria": "{{status}} leads",
+    "budgetRange": "Budget: ${{min}} - ${{max}}",
+    "quoteRequest": "Quote request",
+    "guide": {
+      "readTitle": "Read the request",
+      "readText": "Understand the need, location, budget, and customer context before quoting.",
+      "quoteTitle": "Send a quote",
+      "quoteText": "A useful quote explains price, scope, and timeline so the customer can decide confidently.",
+      "closeTitle": "Close the loop",
+      "closeText": "Accepted leads become real work history when you complete and follow up."
+    },
+    "empty": {
+      "title": "No {{status}} leads",
+      "body": "Leads from your business profile and service requests will appear here. Use this page to respond with price, scope, and timeline before the customer loses momentum.",
+      "sideTitle": "Make future leads easier to win",
+      "bullet1": "Keep services and pricing clear on your profile.",
+      "bullet2": "Add photos and policies so customers know what to expect.",
+      "bullet3": "Respond quickly with a complete quote and realistic timeline."
+    }
   },
   "quickAddTemplates": {
     "quickAdd": "Quick Add:"
@@ -7138,7 +7224,8 @@
     "sandboxSend": "Send",
     "sandboxClear": "Clear",
     "promptTruncated": "First 3000 characters of the system prompt. Live replies may vary slightly.",
-    "sandboxDisclaimer": "This is a test chat using the same AI as your public profile. It is not visible to customers."
+    "sandboxDisclaimer": "This is a test chat using the same AI as your public profile. It is not visible to customers.",
+    "invalidBusiness": "Invalid business."
   },
   "bidAccept": {
     "title": "Pick a time with {{name}}",
@@ -7614,5 +7701,140 @@
     "quantity": "Qty",
     "cancelOrder": "Cancel Order",
     "confirmCancel": "Are you sure you want to cancel this order?"
+  },
+  "howOxsteedWorks": {
+    "metaTitle": "How OxSteed Works - Features, Workflows, and Real-Life Use Cases",
+    "metaDescription": "Learn how OxSteed works for customers, helpers, businesses, and tool owners. Explore jobs, bookings, tools, payments, planned needs, messages, disputes, dashboards, and business growth features.",
+    "kicker": "How OxSteed Works",
+    "title": "One connected system for getting help, doing work, renting tools, and running a local business.",
+    "subtitle": "OxSteed is part marketplace, part life command center, and part business operating system. This page combines the simple how-it-works path with a detailed feature guide so new users can understand what to do next.",
+    "heroActions": {
+      "postJob": "Post a job",
+      "findHelpers": "Find helpers",
+      "exploreFeatures": "Explore all features"
+    },
+    "paths": {
+      "customers": {
+        "label": "For customers",
+        "title": "Get help without losing the thread",
+        "steps": [
+          "Describe a job, planned need, booking, or tool rental.",
+          "Compare helpers, quotes, messages, schedule, and trust signals.",
+          "Pay, review, remember, and plan the next need from your dashboard."
+        ],
+        "cta": "Post a job"
+      },
+      "helpers": {
+        "label": "For helpers",
+        "title": "Turn skills into local work",
+        "steps": [
+          "Build a profile with services, photos, templates, QR, and availability.",
+          "Find jobs, receive direct bookings, message customers, and submit bids.",
+          "Use payments, invoices, reputation, and calendar to become repeatable."
+        ],
+        "cta": "Browse jobs"
+      },
+      "businesses": {
+        "label": "For businesses",
+        "title": "Operate from one connected workspace",
+        "steps": [
+          "Manage services, leads, products, invoices, policies, and customer requests.",
+          "Use Business Hub, analytics, templates, consulting, and support to grow.",
+          "Keep trust records, disputes, messages, payments, and follow-up attached."
+        ],
+        "cta": "Open Business Hub"
+      },
+      "toolOwners": {
+        "label": "For tool owners",
+        "title": "Earn from useful equipment",
+        "steps": [
+          "List tools with photos, rates, deposits, terms, pickup, and delivery details.",
+          "Receive bookings, send invoices, track status, and manage reports.",
+          "Use analytics to understand rentals, revenue, and listing quality."
+        ],
+        "cta": "Browse tools"
+      }
+    },
+    "mentalModel": {
+      "title": "The simple mental model",
+      "body": "OxSteed connects four things users usually manage separately: needs, people, money, and time. A need can become a job. A job can create messages, appointments, payments, reviews, and reminders. A completed service can become a recurring planned need. A helper can become a saved preferred helper. The dashboard pulls those signals back into one view so the user knows what to do next.",
+      "flow": [
+        "Need",
+        "Plan",
+        "Hire",
+        "Schedule",
+        "Pay",
+        "Remember"
+      ],
+      "aria": "How OxSteed connects",
+      "flowAria": "Connected workflow"
+    },
+    "examples": {
+      "title": "Real-life examples",
+      "body": "OxSteed should feel practical from the first visit. These are the kinds of journeys the platform is built to support.",
+      "items": [
+        "I need a reliable helper for a home repair.",
+        "I want to earn money with my skills.",
+        "I need a tool for one weekend.",
+        "I want to grow a service business.",
+        "I need to plan future expenses before they become emergencies.",
+        "I need a record if something goes wrong."
+      ],
+      "aria": "Real life examples"
+    },
+    "library": {
+      "kicker": "Feature Library",
+      "title": "Every major OxSteed feature and how it connects"
+    },
+    "searchResults": "Showing {{shown}} of {{total}} feature sections for \"{{query}}\".",
+    "sidebarAria": "Feature guide navigation",
+    "searchPlaceholder": "Search features, use cases, or workflows...",
+    "searchAria": "Search OxSteed features",
+    "contents": "Contents",
+    "pathsAria": "How OxSteed works by user type",
+    "categoriesAria": "Feature categories",
+    "empty": {
+      "title": "No matching features found.",
+      "body": "Try searching for jobs, tools, payments, planned needs, calendar, helper, business, or support."
+    },
+    "detail": {
+      "realLifeTitle": "Real-life use cases",
+      "connectsTitle": "How it connects",
+      "actionsTitle": "Useful next actions"
+    }
+  },
+  "businessPublicProfile": {
+    "loading": "Loading business profile...",
+    "notFound": "Business not found",
+    "reviewCount": "{{count}} review",
+    "reviewCount_plural": "{{count}} reviews",
+    "teamMembers": "{{count}} team member",
+    "teamMembers_plural": "{{count}} team members",
+    "servicesOffered": "Services Offered",
+    "recentWork": "Recent Work",
+    "customerReviews": "Customer Reviews",
+    "businessHours": "Business Hours",
+    "closed": "Closed",
+    "stats": "Stats",
+    "jobsCompleted": "Jobs Completed",
+    "yearsInBusiness": "Years in Business"
+  },
+  "businessProfileEdit": {
+    "loadError": "Failed to load business",
+    "tabs": {
+      "basic": "Basic Info",
+      "team": "Team Members",
+      "services": "Services",
+      "billing": "Billing"
+    },
+    "businessName": "Business Name",
+    "businessNamePlaceholder": "Your business name",
+    "description": "Description",
+    "descriptionPlaceholder": "Describe your business",
+    "category": "Category",
+    "categoryPlaceholder": "Business category",
+    "teamComingSoon": "Team members form goes here",
+    "servicesComingSoon": "Services form goes here",
+    "billingComingSoon": "Billing form goes here"
   }
 }

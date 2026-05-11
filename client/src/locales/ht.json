@@ -23,7 +23,8 @@
     "resources": "Resous",
     "businessLaunchStatus": "Lansman Biznis Mwen",
     "supportWorkspace": "Espa sipo",
-    "cancellationPolicies": "Polisi Peman ak Anile"
+    "cancellationPolicies": "Polisi Peman ak Anile",
+    "howOxsteedWorks": "Kijan OxSteed mache"
   },
   "supportAgentPortal": {
     "title": "Espa sipo",
@@ -445,7 +446,13 @@
     "agreeToTerms": "Dakò avèk kondisyon",
     "haveAccount": "Ou deja gen kont?",
     "country": "Peyi",
-    "errorCountry": "Peyi envalid"
+    "errorCountry": "Peyi envalid",
+    "customerHeroTitle": "Jwenn ?d lokal ou ka f? konfyans",
+    "customerHeroSubtitle": "Poste yon travay, konpare ?f, epi anboche ak konfyans.",
+    "customerHeroTrial": "Gratis pou 90 jou ? Pa bezwen kat kredi",
+    "customerTrialBadge": "Es? Pro 90 jou ladan - tout fonksyon ouv?, pa bezwen kat",
+    "helperHeroTitle": "K?manse touche nan katye ou",
+    "helperHeroSubtitle": "Mete pri pa ou. F? vwazen yo jwenn ou."
   },
   "didit": {
     "title": "Verifye idantite ou",
@@ -528,7 +535,8 @@
     "escrowPolicy": "Règleman Depo",
     "accountTermination": "Fèmti Kont",
     "disputeResolution": "Rezolisyon Diferan",
-    "independentContractor": "Kontraktè Endepandan"
+    "independentContractor": "Kontraktè Endepandan",
+    "howOxsteedWorks": "Kijan OxSteed mache"
   },
   "accountTermination": {
     "pageTitle": "Règleman Fèmti Kont",
@@ -1039,7 +1047,7 @@
     "initiate": {
       "intro": "Si ou gen diferan avèk OxSteed, vwala kouman kòmanse abitraj:",
       "step1": "Voye avi",
-      "step1_desc": "Voye OxSteed avi eske detaye.",
+      "step1Desc": "Voye OxSteed avi eske detaye.",
       "step2": "Atann repons",
       "step2Desc": "OxSteed pral reponn nan 30 jou.",
       "step3": "Depoze demann",
@@ -1096,11 +1104,11 @@
     "ownership": {
       "intro": "Enpòtan konprann ki pwopriyete fon.",
       "item1": "Fon pou peye a",
-      "item1_desc": "Jiska travay konplete, lajan pou kliyè a.",
+      "item1Desc": "Jiska travay konplete, lajan pou kliyè a.",
       "item2": "OxSteed pa pwopriyete fon",
-      "item2_desc": "OxSteed pa pwopriyete, pa kontwole fon sekèstè.",
+      "item2Desc": "OxSteed pa pwopriyete, pa kontwole fon sekèstè.",
       "item3": "Stripe retni fon sekirite",
-      "item3_desc": "Stripe retni fon nan kont sekirize ak separe.",
+      "item3Desc": "Stripe retni fon nan kont sekirize ak separe.",
       "disclaimerTitle": "AVI ENPÒTAN",
       "disclaimerDesc": "Fon sekèstè PA asire pa FDIC. Sepandan, Stripe kenbe estanda sekirite."
     },
@@ -1731,14 +1739,19 @@
     "attachNeedsConversation": "Atache nan konvèsasyon",
     "attachUploadFailed": "Echèk envoy",
     "confirmDelete": "Efase mesaj sa?",
-    "copy": "Kopye mesaj",
+    "copy": "Kopye",
     "delete": "Efase mesaj",
     "edit": "Modifye mesaj",
     "editFailed": "Erè modifye mesaj",
     "edited": "(modifye)",
     "messageNotFound": "Mesaj pa jwenn",
     "failed": "Message failed to send.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "deleteConfirm": "Efase mesaj sa a?",
+    "copied": "Kopye!",
+    "copyMessage": "Kopye mesaj",
+    "editMessage": "Modifye mesaj",
+    "deleteMessage": "Efase mesaj"
   },
   "dashboard": {
     "welcome": "Byenvini tounen, {{name}}!",
@@ -4544,7 +4557,56 @@
       "noDisputes": "Pa gen dispute ouvè",
       "subtitle": "Wè ak jere dispute aktif ou yo",
       "loading": "Ap chaje...",
-      "noDisputesSub": "Dispute yo ka ouvè sou travay konplete yo nan peryòd revizyon an."
+      "noDisputesSub": "Dispute yo ka ouvè sou travay konplete yo nan peryòd revizyon an.",
+      "metaDescription": "Swiv difikilte OxSteed yo, pr?v yo, mesaj sip? yo, ak rezilta rezolisyon yo.",
+      "eyebrow": "Sant konfyans ak rezolisyon",
+      "heroExtra": "Kenbe pr?v, mesaj sip?, kont?ks travay la, ak mizajou rezolisyon yo yon s?l kote pou yon sitiyasyon difisil rete ?ganize.",
+      "openMessages": "Louvri mesaj yo",
+      "contactSupport": "Kontakte sip?",
+      "dateUnavailable": "Dat pa disponib",
+      "generalIssue": "Pwobl?m jeneral",
+      "untitledJob": "Travay san tit",
+      "openedOn": "Louvri {{date}}",
+      "stats": {
+        "open": "Louvri",
+        "inReview": "An revizyon",
+        "resolved": "Rezoud"
+      },
+      "aria": {
+        "summary": "Rezime difikilte yo",
+        "guide": "Kijan difikilte yo mache",
+        "list": "Difikilte ou yo"
+      },
+      "status": {
+        "open": "Louvri",
+        "underReview": "An revizyon",
+        "resolved": "Rezoud",
+        "closed": "F?men"
+      },
+      "resolution": {
+        "full_refund": "Ranbousman konpl? f?t",
+        "partial_refund": "Ranbousman pasy?l f?t",
+        "release_to_helper": "Peman lage bay ?d la",
+        "dismissed": "Rejte"
+      },
+      "guide": {
+        "preserveTitle": "Kenbe pr?v yo",
+        "preserveText": "Ajoute foto, dokiman, del?, ak ti n?t pandan detay yo toujou fre.",
+        "focusTitle": "Kenbe diskisyon an kl?",
+        "focusText": "S?vi ak fil difikilte a pou klarifikasyon pou sip? ka swiv dosye a.",
+        "outcomeTitle": "Swiv rezilta a",
+        "outcomeText": "Estati rezolisyon, ranbousman, ak desizyon lage peman rete kole ak travay la."
+      },
+      "empty": {
+        "title": "Pa gen difikilte ouv?",
+        "body": "Se yon bon bagay. Si yon travay, peman, lokasyon zouti, oswa randevou bezwen yon revizyon f?m?l, li ap par?t isit la ak del? pr?v la ak konv?sasyon sip? a.",
+        "browseJobs": "Gade travay yo",
+        "learnHow": "Aprann kijan OxSteed mache",
+        "beforeTitle": "Anvan ou louvri yon difikilte",
+        "bullet1": "Eseye klarifye dimansyon an nan mesaj yo.",
+        "bullet2": "Sove foto, resi, ak detay l?.",
+        "bullet3": "S?vi ak eskalasyon sip? pou pwobl?m sekirite oswa peman ki ijan."
+      }
     },
     "detail": {
       "notFound": "Dispute pa jwenn",
@@ -4882,7 +4944,31 @@
     "noQuotes": "Poko soumèt devis",
     "viewDetails": "Gade Detay",
     "markComplete": "Make Konplè",
-    "rejectRequest": "Refize Demann"
+    "rejectRequest": "Refize Demann",
+    "commandCenter": "Sant jesyon leads",
+    "heroBody": "F? demann kliyan yo tounen devis kl?, travay aksepte, ak dosye fini. Chak lead se yon chans pou reponn vit, mete atant yo kl?, epi kenbe relasyon an ap avanse san p?di kont?ks.",
+    "activeLeads": "Leads aktif",
+    "possibleValue": "Val? posib",
+    "workflowAria": "Kouman leads yo mache",
+    "listAria": "Leads {{status}}",
+    "budgetRange": "Bidj?: ${{min}} - ${{max}}",
+    "quoteRequest": "Demann devis",
+    "guide": {
+      "readTitle": "Li demann nan",
+      "readText": "Konprann bezwen an, kote a, bidj? a, ak kont?ks kliyan an anvan ou bay devis.",
+      "quoteTitle": "Voye yon devis",
+      "quoteText": "Yon bon devis esplike pri, dimansyon, ak del? pou kliyan an ka deside ak konfyans.",
+      "closeTitle": "F? swivi a",
+      "closeText": "Leads ki aksepte yo vin istwa travay rey?l l? ou fini travay la epi f? swivi."
+    },
+    "empty": {
+      "title": "Pa gen leads {{status}}",
+      "body": "Leads ki soti nan pwofil biznis ou ak demann s?vis yo ap par?t isit la. S?vi ak paj sa a pou reponn ak pri, dimansyon, ak del? anvan kliyan an p?di elan.",
+      "sideTitle": "F? pwochen leads yo pi fasil pou genyen",
+      "bullet1": "Kenbe s?vis ak pri yo kl? sou pwofil ou.",
+      "bullet2": "Ajoute foto ak r?gleman pou kliyan yo konnen sa pou yo atann.",
+      "bullet3": "Reponn vit ak yon devis konpl? ak yon del? reyalis."
+    }
   },
   "quickAddTemplates": {
     "quickAdd": "Ajoute vit:"
@@ -7070,7 +7156,8 @@
     "sandboxSend": "Send",
     "sandboxClear": "Clear",
     "promptTruncated": "First 3000 characters of the system prompt. Live replies may vary slightly.",
-    "sandboxDisclaimer": "This is a test chat using the same AI as your public profile. It is not visible to customers."
+    "sandboxDisclaimer": "This is a test chat using the same AI as your public profile. It is not visible to customers.",
+    "invalidBusiness": "Biznis pa valab."
   },
   "bidAccept": {
     "title": "Chwazi yon lè avèk {{name}}",
@@ -7614,5 +7701,140 @@
     "enableCustom": "Enable custom off-platform payments",
     "noteTitle": "Note",
     "noteBody": "You must enable at least one payment method. Customers will see your enabled options when reviewing your bid."
+  },
+  "howOxsteedWorks": {
+    "metaTitle": "Kijan OxSteed mache - Fonksyon, etap travay, ak egzanp rey?l",
+    "metaDescription": "Aprann kijan OxSteed mache pou kliyan, moun k ap bay s?vis, biznis, ak moun ki lwe zouti. Gade travay, rez?vasyon, zouti, peman, bezwen planifye, mesaj, diskisyon, tablo kontw?l, ak zouti pou grandi biznis.",
+    "kicker": "Kijan OxSteed mache",
+    "title": "Yon sist?m ki konekte pou jwenn ?d, f? travay, lwe zouti, epi dirije yon biznis lokal.",
+    "subtitle": "OxSteed se yon mache lokal, yon sant kontw?l pou lavi, epi yon sist?m pou jere biznis. Paj sa a mete etap senp yo ansanm ak yon gid detaye pou nouvo itilizat? yo konnen pwochen aksyon yo.",
+    "heroActions": {
+      "postJob": "Pibliye yon travay",
+      "findHelpers": "Jwenn moun pou ede",
+      "exploreFeatures": "Eksplore fonksyon yo"
+    },
+    "paths": {
+      "customers": {
+        "label": "Pou kliyan",
+        "title": "Jwenn ?d san p?di kont?ks la",
+        "steps": [
+          "Dekri yon travay, yon bezwen planifye, yon rez?vasyon, oswa yon zouti pou lwe.",
+          "Konpare moun k ap ede yo, pri, mesaj, or?, ak siy konfyans.",
+          "Peye, bay revizyon, kenbe dosye a, epi planifye pwochen bezwen an nan tablo kontw?l ou."
+        ],
+        "cta": "Pibliye yon travay"
+      },
+      "helpers": {
+        "label": "Pou moun k ap bay s?vis",
+        "title": "F? konpetans ou tounen travay lokal",
+        "steps": [
+          "Bati yon pwofil ak s?vis, foto, mod?l, QR, ak disponiblite.",
+          "Jwenn travay, resevwa rez?vasyon dir?k, ekri kliyan, epi voye ?f.",
+          "S?vi ak peman, fakti, repitasyon, ak kalandriye pou travay la vin regilye."
+        ],
+        "cta": "Gade travay yo"
+      },
+      "businesses": {
+        "label": "Pou biznis",
+        "title": "Jere travay la nan yon s?l espas konekte",
+        "steps": [
+          "Jere s?vis, kliyan potansy?l, pwodwi, fakti, r?gleman, ak demann kliyan.",
+          "S?vi ak Business Hub, analiz, mod?l, konsiltasyon, ak sip? pou grandi.",
+          "Kenbe dosye konfyans, diskisyon, mesaj, peman, ak swivi ansanm."
+        ],
+        "cta": "Louvri Business Hub"
+      },
+      "toolOwners": {
+        "label": "Pou moun ki gen zouti",
+        "title": "F? lajan ak ekipman itil",
+        "steps": [
+          "Mete zouti sou lis ak foto, pri, depo, kondisyon, ranmasaj, ak livrezon.",
+          "Resevwa rez?vasyon, voye fakti, swiv estati, epi jere rap?.",
+          "S?vi ak analiz pou konprann lokasyon, revni, ak kalite lis yo."
+        ],
+        "cta": "Gade zouti yo"
+      }
+    },
+    "mentalModel": {
+      "title": "Mod?l senp la",
+      "body": "OxSteed konekte kat bagay moun souvan jere apa: bezwen, moun, lajan, ak tan. Yon bezwen ka vin yon travay. Yon travay ka kreye mesaj, randevou, peman, revizyon, ak rap?l. Yon s?vis ki fini ka vin yon bezwen planifye ki repete. Yon moun k ap ede ka vin yon moun ou prefere. Tablo kontw?l la rasanble siy sa yo pou itilizat? a konnen sa pou l f? apre.",
+      "flow": [
+        "Bezwen",
+        "Planifye",
+        "Anplwaye",
+        "Mete or?",
+        "Peye",
+        "Sonje"
+      ],
+      "aria": "Kijan OxSteed konekte",
+      "flowAria": "Koule travay ki konekte"
+    },
+    "examples": {
+      "title": "Egzanp nan lavi rey?l",
+      "body": "OxSteed dwe santi li itil depi premye vizit la. Men kalite chemen platf?m nan f?t pou sip?te.",
+      "items": [
+        "Mwen bezwen yon moun serye pou repare kay mwen.",
+        "Mwen vle f? lajan ak konpetans mwen.",
+        "Mwen bezwen yon zouti pou yon wikenn.",
+        "Mwen vle grandi yon biznis s?vis.",
+        "Mwen bezwen planifye depans lavni anvan yo vin ijans.",
+        "Mwen bezwen yon dosye si gen yon pwobl?m."
+      ],
+      "aria": "Egzanp nan lavi rey?l"
+    },
+    "library": {
+      "kicker": "Bibliyot?k fonksyon",
+      "title": "Tout gwo fonksyon OxSteed yo ak kijan yo konekte"
+    },
+    "searchResults": "Ap montre {{shown}} sou {{total}} seksyon pou \"{{query}}\".",
+    "sidebarAria": "Navigasyon gid fonksyon yo",
+    "searchPlaceholder": "Ch?che fonksyon, ka itilizasyon, oswa koule travay...",
+    "searchAria": "Ch?che fonksyon OxSteed yo",
+    "contents": "Kontni",
+    "pathsAria": "Kijan OxSteed mache selon kalite itilizat?",
+    "categoriesAria": "Kategori fonksyon yo",
+    "empty": {
+      "title": "Pa gen fonksyon ki matche.",
+      "body": "Eseye ch?che travay, zouti, peman, bezwen planifye, kalandriye, ?d, biznis, oswa sip?."
+    },
+    "detail": {
+      "realLifeTitle": "Ka itilizasyon nan lavi rey?l",
+      "connectsTitle": "Kijan li konekte",
+      "actionsTitle": "Pwochen aksyon ki itil"
+    }
+  },
+  "businessPublicProfile": {
+    "loading": "Ap chaje pwofil biznis la...",
+    "notFound": "Biznis pa jwenn",
+    "reviewCount": "{{count}} revizyon",
+    "reviewCount_plural": "{{count}} revizyon",
+    "teamMembers": "{{count}} manm ekip",
+    "teamMembers_plural": "{{count}} manm ekip",
+    "servicesOffered": "S?vis yo ofri",
+    "recentWork": "Travay resan",
+    "customerReviews": "Revizyon kliyan",
+    "businessHours": "Or? biznis",
+    "closed": "F?men",
+    "stats": "Estatistik",
+    "jobsCompleted": "Travay fini",
+    "yearsInBusiness": "Ane nan biznis"
+  },
+  "businessProfileEdit": {
+    "loadError": "Pa t ka chaje biznis la",
+    "tabs": {
+      "basic": "Enf?masyon debaz",
+      "team": "Manm ekip",
+      "services": "S?vis",
+      "billing": "Fakti"
+    },
+    "businessName": "Non biznis",
+    "businessNamePlaceholder": "Non biznis ou",
+    "description": "Deskripsyon",
+    "descriptionPlaceholder": "Dekri biznis ou",
+    "category": "Kategori",
+    "categoryPlaceholder": "Kategori biznis",
+    "teamComingSoon": "F?m manm ekip la ap vini isit la",
+    "servicesComingSoon": "F?m s?vis yo ap vini isit la",
+    "billingComingSoon": "Param?t fakti yo ap vini isit la"
   }
 }

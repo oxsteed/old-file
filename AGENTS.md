@@ -126,6 +126,24 @@
 - **Routes/navigation**: `/how-it-works` and `/features` both render the unified page for compatibility; navbar and footer now present a single **How OxSteed Works** learning destination.
 - **Verification**: `client` production build passes after the consolidation, with only the existing large chunk warning remaining.
 
+**Four-language i18n start (2026-05-10):** ✅ COMPLETE
+- **Unified education page**: `client/src/pages/FeatureGuidePage.jsx` now uses `react-i18next` for the How OxSteed Works page shell: metadata, hero, CTAs, user paths, mental model, real-life examples, library heading, and search result summary.
+- **Global navigation labels**: Navbar and footer now use locale keys for **How OxSteed Works** instead of hardcoded English.
+- **Locales**: Added `howOxsteedWorks.*`, `nav.howOxsteedWorks`, and `footer.howOxsteedWorks` to en/es/fr/ht. Also repaired existing key-name mismatches in es/fr/ht (`escrowPolicy.ownership.*Desc`, `arbitration.initiate.step1Desc`) so all four locale files have matching key sets.
+- **Verification**: Locale parity script reports 0 missing/extra keys for es/fr/ht compared with en; `client` production build passes with only the existing large chunk warning remaining.
+
+**Four-language i18n continuation (2026-05-10):** ✅ COMPLETE
+- **Disputes + business leads**: `client/src/pages/disputes/DisputeCenter.jsx` and `client/src/pages/BusinessLeadsPage.jsx` now use locale keys for hero copy, guidance cards, status/summary labels, empty states, modal labels, CTAs, ARIA labels, and dispute resolution/status text.
+- **How OxSteed Works library controls**: `client/src/pages/FeatureGuidePage.jsx` now routes feature-library navigation, search, category labels, empty state, detail headings, and translated feature-section lookups through i18n with English fallbacks while deeper feature content is prepared for full key-by-key localization.
+- **Locales**: Added matching `disputes.center.*`, `leads.*`, and additional `howOxsteedWorks.*` keys to en/es/fr/ht.
+- **Verification**: Locale parity script reports 0 missing/extra keys for es/fr/ht compared with en; `client` production build passes with only the existing large chunk warning remaining.
+
+**Four-language i18n 20-page audit batch (2026-05-10):** ✅ COMPLETE
+- **20-page audit**: Checked `about`, `accessibility`, `do-not-sell`, `cookiepolicy`, customer/helper registration, public/edit business profile, consulting feedback, conversation/helper conversation, AI preview, checkout, business launch status, account termination, dispute resolution, enforcement policy, and admin legal approval/audit/documents pages for hardcoded visible copy.
+- **Pages converted in this batch**: `CustomerRegister.tsx`, `HelperRegister.tsx`, `BusinessPublicProfilePage.tsx`, `BusinessProfileEditPage.tsx`, `ConversationPage.jsx`, and `AIPreviewPage.jsx` now use locale keys for remaining visible labels, status text, placeholders/titles/ARIA labels, and empty/error strings found by the audit.
+- **Remaining heavier pages**: Legal/static-policy pages and admin legal management pages still contain significant document/admin copy that should be moved in a dedicated pass to avoid accidental legal wording drift.
+- **Verification**: Locale parity script reports 0 missing/extra keys for es/fr/ht compared with en; `client` production build passes with only the existing large chunk warning remaining.
+
 **Mobile app shell + native push foundation (2026-05-09):** ✅ IOS BUILD SUBMITTED WITH REAL ICON
 - **`mobile/`**: Added Capacitor 7 shell for iOS/Android App Store packaging. Defaults to `https://oxsteed.com` via `OXSTEED_APP_URL`, app id `com.oxsteed.app`, native splash/status bar/keyboard config, offline fallback, external-link handling, deep-link handling for `oxsteed://...` and `oxsteed.com` links. Generated native iOS project under `mobile/ios/`. Docs: `mobile/README.md` and `docs/mobile/app-store-release-checklist.md`.
 - **iOS native project**: `AppDelegate.swift` forwards APNs registration success/failure to Capacitor PushNotifications. `Info.plist` registers `oxsteed://`. `App.entitlements` includes push + associated domains for `applinks:oxsteed.com` and `applinks:www.oxsteed.com`. Xcode Team selected: `ZBRGSDRRU7` (`emile jean philippe`).

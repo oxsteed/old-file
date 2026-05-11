@@ -235,7 +235,7 @@ export default function Navbar() {
                         className="ox-nav-resource-option"
                         onClick={() => setResourcesMenuOpen(false)}
                       >
-                        <span className="ox-nav-resource-option-title">How OxSteed Works</span>
+                        <span className="ox-nav-resource-option-title">{t('nav.howOxsteedWorks')}</span>
                       </Link>
                       <Link
                         role="menuitem"
@@ -404,7 +404,7 @@ export default function Navbar() {
                   <MobileNavLink to="/support/agent" onClick={() => setMobileOpen(false)}>{t('nav.supportWorkspace')}</MobileNavLink>
                 )}
                 <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('nav.browseJobs')}</MobileNavLink>
-                <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>How OxSteed Works</MobileNavLink>
+                <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howOxsteedWorks')}</MobileNavLink>
                 <MobileNavLink to="/tool-rentals" onClick={() => setMobileOpen(false)}>{t('toolRentals.browsePage')}</MobileNavLink>
                 <MobileNavLink to="/post-job" onClick={() => setMobileOpen(false)}>{t('nav.postJob')}</MobileNavLink>
                 <MobileNavLink to={isHelper ? '/helper/messages' : '/messages'} onClick={() => setMobileOpen(false)}>
