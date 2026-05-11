@@ -1,18 +1,32 @@
 const db = require('../db');
 const logger = require('../utils/logger');
+const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 
 const getToolReviews = async (req, res) => {
   try {
     const { toolId } = req.params;
     const result = await db.query(
-      `SELECT tr.*, u.first_name, u.last_name, u.profile_photo_url
+      `SELECT tr.*, u.first_name, u.last_name, u.display_name_preference,
+              pb.business_name AS primary_business_name,
+              u.profile_photo_url
        FROM tool_reviews tr
        JOIN users u ON tr.user_id = u.id
+       LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
        WHERE tr.tool_id = $1
        ORDER BY tr.created_at DESC`,
       [toolId]
     );
-    res.json(result.rows);
+    res.json(result.rows.map((row) => {
+      const displayName = resolvePublicDisplayName(row);
+      return {
+        ...row,
+        reviewer_name: displayName,
+        first_name: displayName,
+        last_name: null,
+        display_name_preference: undefined,
+        primary_business_name: undefined,
+      };
+    }));
   } catch (err) {
     logger.error('getToolReviews error', { err });
     res.status(500).json({ error: 'Failed to load reviews' });

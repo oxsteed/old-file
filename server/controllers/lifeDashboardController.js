@@ -1,5 +1,6 @@
 const db     = require('../db');
 const logger = require('../utils/logger');
+const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // EXPENSES
@@ -396,17 +397,31 @@ exports.getSavedHelpers = async (req, res) => {
     const { rows } = await db.query(`
       SELECT
         sh.id, sh.helper_id, sh.note, sh.created_at,
-        u.first_name, LEFT(u.last_name, 1) || '.' AS last_name,
+        u.first_name, u.last_name, u.display_name_preference,
+        pb.business_name AS primary_business_name,
         hp.avg_rating, hp.completed_jobs_count AS completed_jobs,
         hp.bio_short
       FROM saved_helpers sh
       JOIN users u ON u.id = sh.helper_id
       LEFT JOIN helper_profiles hp ON hp.user_id = sh.helper_id
+      LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
       WHERE sh.user_id = $1
       ORDER BY sh.created_at DESC
     `, [userId]);
 
-    res.json({ saved_helpers: rows });
+    res.json({
+      saved_helpers: rows.map((row) => {
+        const displayName = resolvePublicDisplayName(row);
+        return {
+          ...row,
+          display_name: displayName,
+          first_name: displayName,
+          last_name: null,
+          display_name_preference: undefined,
+          primary_business_name: undefined,
+        };
+      }),
+    });
   } catch (err) {
     logger.error('getSavedHelpers error', { message: err.message });
     res.status(500).json({ error: 'Failed to fetch saved helpers.' });

@@ -190,17 +190,19 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
               hp.avg_rating, hp.total_reviews,
               hp.is_identity_verified, hp.is_background_checked, hp.is_available_now,
               hp.updated_at AS freshness_ts,
+              (
+                CASE
+                  WHEN u.display_name_preference = 'full_name' THEN LOWER(TRIM(u.first_name || ' ' || u.last_name))
+                  WHEN u.display_name_preference = 'business_name'
+                    AND pb.business_name IS NOT NULL AND TRIM(pb.business_name) <> ''
+                    THEN LOWER(TRIM(pb.business_name))
+                  ELSE LOWER(TRIM(u.first_name))
+                END
+              ) LIKE ANY($1::text[]) AS matched_name,
               EXISTS (
                 SELECT 1 FROM helper_skills hs
                 WHERE hs.user_id = u.id AND LOWER(hs.skill_name) LIKE ANY($1::text[])
               ) AS matched_skill,
-              (
-                LOWER(TRIM(u.first_name || ' ' || u.last_name)) LIKE ANY($1::text[])
-                OR (
-                  LOWER(TRIM(COALESCE(pb.business_name, ''))) LIKE ANY($1::text[])
-                  AND pb.business_name IS NOT NULL AND TRIM(pb.business_name) <> ''
-                )
-              ) AS matched_name,
               (
                 LOWER(COALESCE(hp.bio_short, '')) LIKE ANY($1::text[]) OR
                 LOWER(COALESCE(hp.profile_headline, '')) LIKE ANY($1::text[])
@@ -212,11 +214,15 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
          AND u.email_verified = TRUE AND u.onboarding_completed = TRUE
          AND COALESCE(hp.is_listed, TRUE) = TRUE
          AND (
-           LOWER(TRIM(u.first_name || ' ' || u.last_name)) LIKE ANY($1::text[])
-           OR (
-             LOWER(TRIM(COALESCE(pb.business_name, ''))) LIKE ANY($1::text[])
-             AND pb.business_name IS NOT NULL AND TRIM(pb.business_name) <> ''
-           )
+           (
+             CASE
+               WHEN u.display_name_preference = 'full_name' THEN LOWER(TRIM(u.first_name || ' ' || u.last_name))
+               WHEN u.display_name_preference = 'business_name'
+                 AND pb.business_name IS NOT NULL AND TRIM(pb.business_name) <> ''
+                 THEN LOWER(TRIM(pb.business_name))
+               ELSE LOWER(TRIM(u.first_name))
+             END
+           ) LIKE ANY($1::text[])
            OR LOWER(COALESCE(hp.bio_short, '')) LIKE ANY($1::text[])
            OR LOWER(COALESCE(hp.profile_headline, '')) LIKE ANY($1::text[])
            OR EXISTS (
@@ -483,21 +489,23 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
     for (const tr of toolRows.slice(0, 3)) {
       try {
         const { rows: rel } = await pool.query(
-          `SELECT u.id, TRIM(u.first_name || ' ' || u.last_name) AS title
+          `SELECT u.id, u.first_name, u.last_name, u.display_name_preference,
+                  pb.business_name AS primary_business_name
            FROM users u
            JOIN helper_profiles hp ON hp.user_id = u.id
            JOIN helper_skills hs ON hs.user_id = u.id
+           LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
            WHERE u.deleted_at IS NULL AND u.role IN ('helper', 'helper_pro', 'broker')
              AND u.email_verified AND u.onboarding_completed
              AND COALESCE(hp.is_listed, TRUE) = TRUE
              AND LOWER(hs.skill_name) LIKE ANY($1::text[])
-           GROUP BY u.id, u.first_name, u.last_name
+           GROUP BY u.id, u.first_name, u.last_name, u.display_name_preference, pb.business_name
            LIMIT 4`,
           [patterns],
         );
         tr.related = rel.map((x) => ({
           type: 'helper',
-          title: x.title,
+          title: resolvePublicDisplayName(x),
           url: `/helpers/${x.id}`,
         }));
       } catch {
@@ -594,12 +602,14 @@ exports.discoverPopular = async (req, res) => {
       : '';
     const hp = hasGeo ? [latN, lngN, radius] : [];
     const { rows: helpers } = await pool.query(
-      `SELECT u.id, TRIM(u.first_name || ' ' || u.last_name) AS title,
+      `SELECT u.id, u.first_name, u.last_name, u.display_name_preference,
+              pb.business_name AS primary_business_name,
               COALESCE(hp.profile_headline, '') AS subtitle,
               hp.service_lat::float8 AS lat, hp.service_lng::float8 AS lng,
               hp.avg_rating, hp.total_reviews, hp.is_identity_verified, hp.is_background_checked
        FROM users u
        JOIN helper_profiles hp ON hp.user_id = u.id
+       LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
        WHERE u.deleted_at IS NULL AND u.role IN ('helper', 'helper_pro', 'broker')
          AND u.email_verified AND u.onboarding_completed
          AND COALESCE(hp.is_listed, TRUE) = TRUE
@@ -613,7 +623,7 @@ exports.discoverPopular = async (req, res) => {
       out.push({
         type: 'helper',
         id: String(h.id),
-        title: h.title,
+        title: resolvePublicDisplayName(h),
         subtitle: (h.subtitle || '').slice(0, 120),
         url: `/helpers/${h.id}`,
         distanceMiles: d,

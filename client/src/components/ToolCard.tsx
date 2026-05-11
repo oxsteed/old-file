@@ -16,6 +16,7 @@ interface ToolCardProps {
     monthly_rate?: number;
     image_url?: string;
     is_available: boolean;
+    owner_name?: string;
     first_name?: string;
     last_name?: string;
     avatar_url?: string;
@@ -52,7 +53,13 @@ const ToolCard: React.FC<ToolCardProps> = ({ tool, onViewDetails, onViewProfile 
     return conditionMap[condition] || '';
   };
 
-  const ownerName = tool.first_name && tool.last_name ? `${tool.first_name} ${tool.last_name}` : 'Unknown';
+  const ownerName = tool.owner_name || tool.first_name || 'Unknown';
+  const ownerInitials = ownerName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('');
 
   return (
     <div className="tool-card">
@@ -131,7 +138,7 @@ const ToolCard: React.FC<ToolCardProps> = ({ tool, onViewDetails, onViewProfile 
             <img src={tool.avatar_url} alt={ownerName} className="tool-card-owner-avatar" />
           ) : (
             <div className="tool-card-owner-avatar-placeholder">
-              {tool.first_name?.[0]}{tool.last_name?.[0]}
+              {ownerInitials}
             </div>
           )}
           <div className="tool-card-owner-info">

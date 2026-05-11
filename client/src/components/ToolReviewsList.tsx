@@ -9,6 +9,7 @@ interface Review {
   id: number;
   rating: number;
   review_text?: string;
+  reviewer_name?: string;
   first_name?: string;
   last_name?: string;
   avatar_url?: string;
@@ -77,18 +78,26 @@ const ToolReviewsList: React.FC<ToolReviewsListProps> = ({ toolId, avgRating = 0
         <p>{t('common.loading')}</p>
       ) : reviews.length > 0 ? (
         <div className="tool-reviews-items">
-          {reviews.map((review) => (
+          {reviews.map((review) => {
+            const reviewerName = review.reviewer_name || review.first_name || 'Anonymous';
+            const reviewerInitials = reviewerName
+              .split(/\s+/)
+              .filter(Boolean)
+              .slice(0, 2)
+              .map((part) => part[0])
+              .join('');
+            return (
             <div key={review.id} className="tool-review-item">
               <div className="tool-review-header">
                 <div className="tool-review-rater">
                   {review.avatar_url ? (
-                    <img src={review.avatar_url} alt={review.first_name} className="tool-review-avatar" />
+                    <img src={review.avatar_url} alt={reviewerName} className="tool-review-avatar" />
                   ) : (
                     <div className="tool-review-avatar-placeholder">
-                      {review.first_name?.[0]}{review.last_name?.[0]}
+                      {reviewerInitials}
                     </div>
                   )}
-                  <span className="tool-review-name">{review.first_name || 'Anonymous'} {review.last_name || ''}</span>
+                  <span className="tool-review-name">{reviewerName}</span>
                 </div>
                 <div className="tool-review-rating-stars">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -102,7 +111,8 @@ const ToolReviewsList: React.FC<ToolReviewsListProps> = ({ toolId, avgRating = 0
               {review.review_text && <p className="tool-review-text">{review.review_text}</p>}
               <small className="tool-review-date">{new Date(review.created_at).toLocaleDateString()}</small>
             </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <p className="text-muted">{t('toolRentals.noResults')}</p>

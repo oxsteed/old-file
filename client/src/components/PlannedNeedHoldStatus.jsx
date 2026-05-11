@@ -64,7 +64,7 @@ export default function PlannedNeedHoldStatus({ need, onUpdate }) {
         }}>
           <span>
             {t('preferredHelper.holdWaiting', {
-              name: need.preferred_helper_first_name || 'helper',
+              name: need.preferred_helper_display_name || need.preferred_helper_first_name || 'helper',
               hours: Math.round(hoursLeft),
             })}
           </span>

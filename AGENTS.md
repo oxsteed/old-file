@@ -21,6 +21,12 @@
 - 165 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
 
+**Discover helper privacy fix (2026-05-11):** COMPLETE
+- **`server/controllers/discoverController.js`**: Popular helper rows and related helper suggestions now use `resolvePublicDisplayName()` instead of hand-built `first_name + last_name`, so helpers who choose first-name-only or business-name display are respected across `/discover`.
+- Helper search name matching now uses the same public display preference expression, so first-name-only helpers are not matched by hidden last names while still matching skills/profile text. The same privacy rule was extended to the helper directory query, public tool rental owner names, tool reviews, saved helpers, and planned-needs preferred helper display.
+- **Files:** `server/controllers/helpersController.js`, `server/routes/toolRentals.js`, `server/controllers/toolReviewsController.js`, `server/controllers/lifeDashboardController.js`, `server/controllers/plannedNeedsController.js`, `client/src/components/toolDirectory/ToolDirectoryCard.tsx`, `client/src/components/ToolCard.tsx`, `client/src/components/ToolDetailModal.tsx`, `client/src/components/ToolReviewsList.tsx`, `client/src/pages/Dashboard.jsx`, `client/src/pages/HelperDashboard.jsx`, `client/src/pages/PlannedNeedsPage.jsx`, `client/src/components/PlannedNeedHoldStatus.jsx`, `client/src/types/toolDirectory.ts`.
+- **Verification:** `node --check` passes for touched server files; `npm run build` passes in `client/`. Existing large chunk warning remains.
+
 **Admin login / 2FA handoff fix (2026-05-11):** COMPLETE
 - **`client/src/context/AuthContext.jsx`**: Login now returns the backend `requiresTwoFactor` challenge without prematurely calling `/auth/me`; this prevents the auth context from clearing the session before an admin has entered their 2FA code.
 - **`client/src/admin/pages/Login.jsx`**: Admin login now stores the backend `mfaToken` and sends it to `/auth/login/2fa` (the previous UI sent `userId`, which the backend no longer accepts). Successful 2FA persists the session through the shared auth helper, updates `AuthContext`, and navigates to `/admin/dashboard` without a hard reload.

@@ -14,6 +14,7 @@ const validateFileUpload = require('../middleware/validateFileUpload');
 const { invoiceLimiter, reportLimiter, termsLimiter } = require('../middleware/rateLimiter');
 const pool    = require('../db');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
+const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 const toolFavoritesController = require('../controllers/toolFavoritesController');
 const toolReviewsController = require('../controllers/toolReviewsController');
 const toolBookingsController = require('../controllers/toolBookingsController');
@@ -82,10 +83,24 @@ async function getToolFields() {
 }
 
 function buildUserFields(hasAvatarUrl, hasResponseTime) {
-  const parts = ['u.first_name', 'u.last_name'];
+  const parts = ['u.first_name', 'u.last_name', 'u.display_name_preference', 'pb.business_name AS primary_business_name'];
   parts.push(hasAvatarUrl ? 'u.avatar_url' : 'NULL AS avatar_url');
   parts.push(hasResponseTime ? 'COALESCE(u.avg_response_time_hours, 24) AS avg_response_time_hours' : '24 AS avg_response_time_hours');
   return parts.join(',\n              ');
+}
+
+function attachPublicOwnerNames(rows) {
+  return rows.map((row) => {
+    const ownerName = resolvePublicDisplayName(row);
+    return {
+      ...row,
+      owner_name: ownerName,
+      first_name: ownerName,
+      last_name: null,
+      display_name_preference: undefined,
+      primary_business_name: undefined,
+    };
+  });
 }
 
 // Seeded common tool categories (also merged with DB distinct values)
@@ -299,12 +314,13 @@ router.get('/browse', async (req, res) => {
               COALESCE(t.avg_rating, 0) AS owner_rating
          FROM tool_rentals t
          JOIN users u ON u.id = t.user_id
+         LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
         ${where}
         ORDER BY ${orderBy}
         LIMIT $${idx} OFFSET $${idx + 1}`,
       params
     );
-    res.json({ tools: result.rows });
+    res.json({ tools: attachPublicOwnerNames(result.rows) });
   } catch (err) {
     require('../utils/logger').error('[toolRentals] browse error:', err.message);
     res.status(500).json({ error: 'Failed to fetch tools' });
@@ -324,11 +340,12 @@ router.get('/public/:id', async (req, res) => {
               COALESCE(t.avg_rating, 0) AS owner_rating
          FROM tool_rentals t
          JOIN users u ON u.id = t.user_id
+         LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
         WHERE t.id = $1 AND t.is_available = TRUE AND u.is_active = TRUE`,
       [id],
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Tool not found' });
-    return res.json({ tool: result.rows[0] });
+    return res.json({ tool: attachPublicOwnerNames(result.rows)[0] });
   } catch (err) {
     require('../utils/logger').error('[toolRentals] public get error:', err.message);
     return res.status(500).json({ error: 'Failed to fetch tool' });

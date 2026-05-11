@@ -81,6 +81,7 @@ function daysLabel(days, t) {
   return t('plannedNeeds.daysYears', { count: (d / 365).toFixed(1) });
 }
 function helperDisplayName(need) {
+  if (need.preferred_helper_display_name) return need.preferred_helper_display_name;
   if (!need.preferred_helper_first_name) return null;
   return `${need.preferred_helper_first_name} ${(need.preferred_helper_last_name || '').charAt(0)}.`.trim();
 }
@@ -1323,7 +1324,7 @@ export default function PlannedNeedsPage() {
                       <option value="">{t('plannedNeeds.noPreference')}</option>
                       {savedHelpers.map((h) => (
                         <option key={h.helper_id} value={h.helper_id}>
-                          {h.first_name} {h.last_name}
+                          {h.display_name || h.first_name}
                           {h.avg_rating ? ` · ★ ${parseFloat(h.avg_rating).toFixed(1)}` : ''}
                           {h.completed_jobs ? ` · ${h.completed_jobs} jobs` : ''}
                         </option>

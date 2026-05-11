@@ -53,7 +53,7 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
 }) => {
   const { t } = useTranslation();
   const ownerName =
-    tool.first_name && tool.last_name ? `${tool.first_name} ${tool.last_name}` : t('toolRentalsDir.unknownOwner');
+    tool.owner_name || tool.first_name || t('toolRentalsDir.unknownOwner');
   const isExactMatch = !!(highlightCategory && tool.category === highlightCategory);
   const cond = normalizeCondition(tool.condition);
   const condLabel = cond ? t(`toolRentalsDir.condition.${cond}`) : tool.condition;

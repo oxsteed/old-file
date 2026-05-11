@@ -18,6 +18,7 @@ interface ToolDetailModalProps {
     image_url?: string;
     description?: string;
     is_available: boolean;
+    owner_name?: string;
     first_name?: string;
     last_name?: string;
     avatar_url?: string;
@@ -43,7 +44,13 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
 
   if (!isOpen) return null;
 
-  const ownerName = tool.first_name && tool.last_name ? `${tool.first_name} ${tool.last_name}` : 'Unknown';
+  const ownerName = tool.owner_name || tool.first_name || 'Unknown';
+  const ownerInitials = ownerName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('');
 
   const getConditionColor = (condition: string) => {
     const conditionMap: Record<string, string> = {
@@ -162,7 +169,7 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
                     <img src={tool.avatar_url} alt={ownerName} className="tool-modal-owner-avatar" />
                   ) : (
                     <div className="tool-modal-owner-avatar-placeholder">
-                      {tool.first_name?.[0]}{tool.last_name?.[0]}
+                      {ownerInitials}
                     </div>
                   )}
                   <div className="tool-modal-owner-text">

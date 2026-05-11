@@ -270,6 +270,7 @@ export interface ToolCardData {
   location_city?: string | null;
   location_state?: string | null;
   image_url?: string | null;
+  owner_name?: string | null;
   first_name?: string | null;
   last_name?: string | null;
   avatar_url?: string | null;

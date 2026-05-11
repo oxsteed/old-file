@@ -1,6 +1,7 @@
 const db     = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
+const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -108,10 +109,13 @@ exports.listPlannedNeeds = async (req, res, next) => {
         END AS sinking_fund_per_day,
         ph.first_name AS preferred_helper_first_name,
         ph.last_name  AS preferred_helper_last_name,
+        ph.display_name_preference AS preferred_helper_display_name_preference,
+        pb.business_name AS preferred_helper_primary_business_name,
         COALESCE(uv.nickname, uv.make_name || ' ' || uv.model_name) AS vehicle_name,
         COALESCE(uh.nickname, uh.address) AS home_name
       FROM planned_needs pn
       LEFT JOIN users ph ON ph.id = pn.preferred_helper_id
+      LEFT JOIN businesses pb ON pb.user_id = ph.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
       LEFT JOIN user_vehicles uv ON uv.id = pn.vehicle_id
       LEFT JOIN user_homes uh ON uh.id = pn.home_id
       WHERE ${conditions.join(' AND ')}
@@ -129,7 +133,22 @@ exports.listPlannedNeeds = async (req, res, next) => {
       LIMIT $${params.length - 1} OFFSET $${params.length}
     `, params);
 
-    res.json({ planned_needs: needs });
+    res.json({
+      planned_needs: needs.map((need) => ({
+        ...need,
+        preferred_helper_display_name: need.preferred_helper_id
+          ? resolvePublicDisplayName({
+              display_name_preference: need.preferred_helper_display_name_preference,
+              first_name: need.preferred_helper_first_name,
+              last_name: need.preferred_helper_last_name,
+              primary_business_name: need.preferred_helper_primary_business_name,
+            })
+          : null,
+        preferred_helper_last_name: null,
+        preferred_helper_display_name_preference: undefined,
+        preferred_helper_primary_business_name: undefined,
+      })),
+    });
   } catch (err) {
     logger.error('listPlannedNeeds error', { userId: req.user?.id, error: err.message });
     next(new AppError('Failed to fetch planned needs.', 500, 'fetch_planned_needs_failed'));

@@ -83,7 +83,15 @@ async function listHelpers(req, res, next) {
     if (query) {
       params.push(`%${query.toLowerCase()}%`);
       conditions.push(`(
-        LOWER(u.first_name || ' ' || u.last_name) LIKE $${pIdx}
+        (
+          CASE
+            WHEN u.display_name_preference = 'full_name' THEN LOWER(TRIM(u.first_name || ' ' || u.last_name))
+            WHEN u.display_name_preference = 'business_name'
+              AND pb.business_name IS NOT NULL AND TRIM(pb.business_name) <> ''
+              THEN LOWER(TRIM(pb.business_name))
+            ELSE LOWER(TRIM(u.first_name))
+          END
+        ) LIKE $${pIdx}
         OR LOWER(COALESCE(hp.bio_short, '')) LIKE $${pIdx}
         OR LOWER(COALESCE(hp.profile_headline, '')) LIKE $${pIdx}
       )`);
@@ -208,6 +216,7 @@ async function listHelpers(req, res, next) {
     const { rows: [{ count }] } = await pool.query(
       `SELECT COUNT(DISTINCT u.id) FROM users u
        LEFT JOIN helper_profiles hp ON hp.user_id = u.id
+       LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
        ${categoryJoinClause}
        ${skillJoinClause}
        WHERE ${whereClause}`,

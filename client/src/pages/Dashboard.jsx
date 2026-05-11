@@ -1511,7 +1511,7 @@ export default function Dashboard() {
                     <div key={h.id} className="flex items-center gap-3 p-3 bg-gray-800/30 rounded-xl group">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500/30 to-purple-500/30 flex items-center justify-center font-bold text-sm flex-shrink-0">{(h.first_name||'?')[0]}</div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white">{h.first_name} {h.last_name}</p>
+                        <p className="text-sm font-medium text-white">{h.display_name || h.first_name}</p>
                         <p className="text-xs text-gray-500 truncate">{h.categories || t('dashboard.home.savedHelperFallback')} · {h.avg_rating?`${h.avg_rating}★`:t('dashboard.home.newHelper')} · {h.completed_jobs||0} {t('dashboard.home.jobsLabel')}</p>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
