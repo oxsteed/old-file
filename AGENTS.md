@@ -37,11 +37,22 @@
 - **`server/controllers/appointmentController.js` + `client/src/components/calendar/AppointmentDetailModal.jsx`**: AI guest appointments now display the real guest name/email/phone to helpers, skip placeholder-user notifications, email the actual guest on confirmation/cancellation, and avoid reminder rows for the internal placeholder account.
 - **Verification:** `node --check` passes for touched server controllers; locale JSON parse passes for en/es/fr/ht; `npm run build` passes in `client/`. Existing large chunk warning remains.
 
-**Public helper profile trust/chat polish (2026-05-11):** IN PROGRESS
+**Public helper profile trust/chat polish (2026-05-11):** COMPLETE
 - **`client/src/components/UserReputationCard.jsx` + `client/src/styles/UserReputationCard.css`**: Helpers with no completed OxSteed job history now show a "New helper / not enough job history yet" explanation instead of a misleading numeric reliability score.
 - **`client/src/components/helperProfile/ReviewsSection.tsx`**: Empty reviews now explain that verified reviews appear after completed OxSteed jobs.
 - **`client/src/components/helperProfile/chat/ChatPanel.tsx`, `MessageComposer.tsx`, `HelperBusinessProfilePage.tsx`**: Public profile chat now has a collapsed search control, a slimmer saved-contact row, a larger roomy composer mode, and a desktop expanded chat modal from the sidebar. QR placement unchanged.
-- **Verification:** Pending. The Windows shell became unresponsive after a timed-out `npm run build`; rerun `npm run build` in `client/` before deployment.
+- **Verification:** `npm run build` passes in `client/`. Existing large chunk warning remains.
+
+**Tool rental detail route fix (2026-05-11):** COMPLETE
+- **`client/src/App.jsx` + `client/src/pages/ToolRentalsBrowse.jsx`**: Public tool rental detail links now support `/tool-rentals/:toolId` in addition to the older `/tool-rentals?openTool=:id` deep link. Closing a route-backed detail modal returns users to `/tool-rentals`.
+- **`client/src/pages/HelperDashboard.jsx`**: Helper-owned available tool cards now include a direct **View** action so helpers can verify the customer-facing listing immediately after creating it.
+- **`client/src/pages/ToolRentalsBrowse.jsx`**: Fixed the tool detail modal's owner profile link from stale `/helper/:id` to the real `/helpers/:id` route.
+- **Verification:** `npm run build` passes in `client/`; `node --check server/routes/toolRentals.js` passes. Existing large chunk warning remains.
+
+**Tool rental photo upload (2026-05-11):** COMPLETE
+- **`server/routes/toolRentals.js`**: Tool create/update now accept multipart `image` uploads, validate file content through existing magic-byte middleware, store public images in `tool_rentals.image_gallery[1]`, and preserve JSON clients. Multipart boolean parsing now handles `"false"` correctly.
+- **`client/src/pages/HelperDashboard.jsx`**: Add/edit tool modal now includes a tool photo picker with preview, remove support, multipart save, and thumbnails on the helper's own tools list.
+- **Verification:** `node --check server/routes/toolRentals.js` passes; `npm run build` passes in `client/`. Existing large chunk warning remains.
 
 **Deployment dependency fix (2026-05-10):** ✅ COMPLETE
 - **`server/package.json`**: Removed stale direct OpenTelemetry dependencies pinned to invalid/nonexistent package versions such as `@opentelemetry/sdk-trace-node@0.48.0`; no app code imports them directly, and Sentry still brings its compatible OpenTelemetry transitive dependencies from `server/package-lock.json`.

@@ -160,6 +160,7 @@ export default function App() {
                     <Route path="/book/:id"               element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookHelperPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/business/:id"            element={<Guarded><BusinessProfilePage /></Guarded>} />
                     <Route path="/tool-rentals"            element={<Guarded><ToolRentalsBrowse /></Guarded>} />
+                    <Route path="/tool-rentals/:toolId"    element={<Guarded><ToolRentalsBrowse /></Guarded>} />
                     <Route path="/my-bookings"             element={<Guarded><ProtectedRoute><MyBookingsPage /></ProtectedRoute></Guarded>} />
                     <Route path="/tool-rentals/analytics"  element={<Guarded><ProtectedRoute><ToolRentalsAnalytics /></ProtectedRoute></Guarded>} />
                     <Route path="/invoice/p/:token"        element={<Guarded><PublicInvoiceView /></Guarded>} />

@@ -9,8 +9,11 @@
 const express = require('express');
 const router  = express.Router();
 const { authenticate } = require('../middleware/auth');
+const upload = require('../middleware/upload');
+const validateFileUpload = require('../middleware/validateFileUpload');
 const { invoiceLimiter, reportLimiter, termsLimiter } = require('../middleware/rateLimiter');
 const pool    = require('../db');
+const { uploadFile, getPublicUrl } = require('../utils/storage');
 const toolFavoritesController = require('../controllers/toolFavoritesController');
 const toolReviewsController = require('../controllers/toolReviewsController');
 const toolBookingsController = require('../controllers/toolBookingsController');
@@ -65,12 +68,14 @@ async function getToolFields() {
       toolFields: `${TOOL_FIELDS_BASE},\n  ${toolExtras}`,
       hasAvatarUrl: uc.has('avatar_url'),
       hasResponseTime: uc.has('avg_response_time_hours'),
+      hasImageGallery: tr.has('image_gallery'),
     };
   } catch {
     _resolvedFields = {
       toolFields: `${TOOL_FIELDS_BASE},\n  0 AS avg_rating, 0 AS review_count, NULL AS image_url`,
       hasAvatarUrl: false,
       hasResponseTime: false,
+      hasImageGallery: false,
     };
   }
   return _resolvedFields;
@@ -138,6 +143,49 @@ function cleanText(value, maxLen, field, errors, { required = false } = {}) {
   return text;
 }
 
+function parseBoolean(value) {
+  if (value === undefined) return undefined;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'off', ''].includes(normalized)) return false;
+  }
+  return Boolean(value);
+}
+
+async function resolveToolImageUrl(req) {
+  const file = req.file;
+  if (file) {
+    if (!file.mimetype || !file.mimetype.startsWith('image/')) {
+      const err = new Error('Tool photo must be an image');
+      err.status = 400;
+      throw err;
+    }
+
+    const key = await uploadFile(file.buffer, 'tool-rentals', file.originalname, file.mimetype);
+    if (key) return getPublicUrl(key);
+
+    if (file.size > 2 * 1024 * 1024) {
+      const err = new Error('Tool photo is too large. Configure file storage or upload an image under 2MB.');
+      err.status = 400;
+      throw err;
+    }
+    return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+  }
+
+  const imageUrl = cleanText(req.body.image_url, 2048, 'image_url', {});
+  if (!imageUrl) return null;
+  try {
+    new URL(imageUrl);
+  } catch {
+    const err = new Error('Tool photo URL is invalid');
+    err.status = 400;
+    throw err;
+  }
+  return imageUrl;
+}
+
 function normalizeToolPayload(body, { partial = false } = {}) {
   const errors = {};
   const payload = {};
@@ -183,7 +231,7 @@ function normalizeToolPayload(body, { partial = false } = {}) {
 
   for (const field of ['is_available', 'requires_deposit', 'delivery_available', 'pickup_only']) {
     if (!partial || body[field] !== undefined) {
-      payload[field] = body[field] === undefined ? undefined : Boolean(body[field]);
+      payload[field] = parseBoolean(body[field]);
     }
   }
 
@@ -306,55 +354,66 @@ router.get('/me', authenticate, async (req, res) => {
 });
 
 // POST /api/tool-rentals
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, upload.single('image'), validateFileUpload, async (req, res) => {
   try {
     const { payload, errors } = normalizeToolPayload(req.body);
     if (Object.keys(errors).length) {
       return res.status(400).json({ error: 'Validation failed', code: 'validation_failed', fields: errors });
     }
+    const { hasImageGallery } = await getToolFields();
+    const imageUrl = hasImageGallery ? await resolveToolImageUrl(req) : null;
+    const insertColumns = [
+      'user_id', 'name', 'category', 'description',
+      'daily_rate', 'hourly_rate', 'deposit_amount',
+      'condition', 'brand', 'model',
+      'is_available', 'requires_deposit', 'delivery_available', 'pickup_only',
+      'location_city', 'location_state',
+    ];
+    const insertValues = [
+      req.user.id,
+      payload.name,
+      payload.category,
+      payload.description,
+      payload.daily_rate,
+      payload.hourly_rate,
+      payload.deposit_amount,
+      payload.condition,
+      payload.brand,
+      payload.model,
+      payload.is_available ?? true,
+      payload.requires_deposit ?? false,
+      payload.delivery_available ?? false,
+      payload.pickup_only ?? true,
+      payload.location_city,
+      payload.location_state,
+    ];
+    if (hasImageGallery && imageUrl) {
+      insertColumns.push('image_gallery');
+      insertValues.push([imageUrl]);
+    }
+    const placeholders = insertValues.map((_, index) => `$${index + 1}`).join(',');
 
     const result = await pool.query(
       `INSERT INTO tool_rentals
-         (user_id, name, category, description,
-          daily_rate, hourly_rate, deposit_amount,
-          condition, brand, model,
-          is_available, requires_deposit, delivery_available, pickup_only,
-          location_city, location_state)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+         (${insertColumns.join(', ')})
+       VALUES (${placeholders})
        RETURNING id, user_id, name, category, description,
                  daily_rate, hourly_rate, deposit_amount,
                  condition, brand, model, is_available,
                  requires_deposit, delivery_available, pickup_only,
                  location_city, location_state, created_at, updated_at`,
-      [
-        req.user.id,
-        payload.name,
-        payload.category,
-        payload.description,
-        payload.daily_rate,
-        payload.hourly_rate,
-        payload.deposit_amount,
-        payload.condition,
-        payload.brand,
-        payload.model,
-        payload.is_available ?? true,
-        payload.requires_deposit ?? false,
-        payload.delivery_available ?? false,
-        payload.pickup_only ?? true,
-        payload.location_city,
-        payload.location_state,
-      ]
+      insertValues
     );
 
     res.status(201).json({ tool: result.rows[0] });
   } catch (err) {
     require('../utils/logger').error('[toolRentals] create error:', err.message);
-    res.status(500).json({ error: 'Failed to create tool listing' });
+    res.status(err.status || 500).json({ error: err.status ? err.message : 'Failed to create tool listing' });
   }
 });
 
 // PUT /api/tool-rentals/:id
-router.put('/:id', authenticate, async (req, res) => {
+router.put('/:id', authenticate, upload.single('image'), validateFileUpload, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -371,6 +430,17 @@ router.put('/:id', authenticate, async (req, res) => {
     if (Object.keys(errors).length) {
       return res.status(400).json({ error: 'Validation failed', code: 'validation_failed', fields: errors });
     }
+    const { hasImageGallery } = await getToolFields();
+    const imageUrl = hasImageGallery ? await resolveToolImageUrl(req) : null;
+    const removeImage = hasImageGallery ? parseBoolean(req.body.remove_image) : false;
+    const imageSetSql = hasImageGallery
+      ? `image_gallery = CASE
+           WHEN $16::boolean THEN '{}'::text[]
+           WHEN $17::text IS NOT NULL THEN ARRAY[$17::text]
+           ELSE image_gallery
+         END,`
+      : '';
+    const whereOffset = hasImageGallery ? 19 : 17;
 
     const result = await pool.query(
       `UPDATE tool_rentals SET
@@ -389,8 +459,9 @@ router.put('/:id', authenticate, async (req, res) => {
          pickup_only        = COALESCE($13, pickup_only),
          location_city      = COALESCE($14, location_city),
          location_state     = COALESCE($15, location_state),
+         ${imageSetSql}
          updated_at         = NOW()
-       WHERE id = $16 AND user_id = $17
+       WHERE id = $${whereOffset - 1} AND user_id = $${whereOffset}
        RETURNING id, user_id, name, category, description,
                  daily_rate, hourly_rate, deposit_amount,
                  condition, brand, model, is_available,
@@ -412,6 +483,7 @@ router.put('/:id', authenticate, async (req, res) => {
         payload.pickup_only        !== undefined ? payload.pickup_only        : null,
         payload.location_city ?? null,
         payload.location_state ?? null,
+        ...(hasImageGallery ? [removeImage, imageUrl] : []),
         id,
         req.user.id,
       ]
@@ -420,7 +492,7 @@ router.put('/:id', authenticate, async (req, res) => {
     res.json({ tool: result.rows[0] });
   } catch (err) {
     require('../utils/logger').error('[toolRentals] update error:', err.message);
-    res.status(500).json({ error: 'Failed to update tool listing' });
+    res.status(err.status || 500).json({ error: err.status ? err.message : 'Failed to update tool listing' });
   }
 });
 

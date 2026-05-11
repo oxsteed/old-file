@@ -19,7 +19,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, X, ChevronDown, Sparkles, Wrench } from 'lucide-react';
 import Navbar from '../components/Navbar';
@@ -369,6 +369,7 @@ function applyClientSort(tools, sort, boostedCategory) {
 const ToolRentalsBrowse = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const { toolId: routeToolId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [{ filters: _initFilters, tileId: _initTileId }] = useState(getInitialState);
@@ -427,9 +428,9 @@ const ToolRentalsBrowse = () => {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [filters, sort, load]);
 
-  // Deep link from Discover: /tool-rentals?openTool=123
+  // Deep links: /tool-rentals/:id and /tool-rentals?openTool=123
   useEffect(() => {
-    const raw = searchParams.get('openTool');
+    const raw = routeToolId || searchParams.get('openTool');
     if (!raw) return;
     const id = parseInt(raw, 10);
     if (!Number.isInteger(id) || id < 1) return;
@@ -440,15 +441,17 @@ const ToolRentalsBrowse = () => {
         if (cancelled || !tool) return;
         setSelectedTool(tool);
         setIsModalOpen(true);
-        const next = new URLSearchParams(searchParams);
-        next.delete('openTool');
-        setSearchParams(next, { replace: true });
+        if (!routeToolId) {
+          const next = new URLSearchParams(searchParams);
+          next.delete('openTool');
+          setSearchParams(next, { replace: true });
+        }
       } catch {
         /* listing may have been removed */
       }
     })();
     return () => { cancelled = true; };
-  }, [searchParams, setSearchParams]);
+  }, [routeToolId, searchParams, setSearchParams]);
 
   const updateFilters = useCallback((partial) => {
     setFilters((prev) => ({ ...prev, ...partial }));
@@ -521,7 +524,10 @@ const ToolRentalsBrowse = () => {
   const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
     setSelectedTool(null);
-  }, []);
+    if (routeToolId) {
+      navigate('/tool-rentals', { replace: true });
+    }
+  }, [navigate, routeToolId]);
 
   const handleMessageOwner = useCallback((userId) => {
     handleCloseModal();
@@ -530,7 +536,7 @@ const ToolRentalsBrowse = () => {
 
   const handleViewProfile = useCallback((userId) => {
     handleCloseModal();
-    navigate(`/helper/${userId}`);
+    navigate(`/helpers/${userId}`);
   }, [handleCloseModal, navigate]);
 
   return (

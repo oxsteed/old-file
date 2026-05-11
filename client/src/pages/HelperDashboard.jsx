@@ -345,9 +345,11 @@ export default function HelperDashboard() {
   const [catLookup, setCatLookup] = useState([]);
   const [toolCatLookup, setToolCatLookup] = useState([]);
   const emptySkill = { skill_name:'', category:'', hourly_rate:'', years_exp:'', description:'', is_available:true };
-  const emptyTool  = { name:'', category:'', description:'', daily_rate:'', hourly_rate:'', deposit_amount:'', condition:'good', brand:'', model:'', is_available:true, requires_deposit:false, delivery_available:false, pickup_only:true, location_city:'', location_state:'' };
+  const emptyTool  = { name:'', category:'', description:'', daily_rate:'', hourly_rate:'', deposit_amount:'', condition:'good', brand:'', model:'', image_url:'', is_available:true, requires_deposit:false, delivery_available:false, pickup_only:true, location_city:'', location_state:'' };
   const [skillForm, setSkillForm] = useState(emptySkill);
   const [toolForm, setToolForm]   = useState(emptyTool);
+  const [toolImageFile, setToolImageFile] = useState(null);
+  const [toolImagePreview, setToolImagePreview] = useState('');
 
   const fetchMySkills = useCallback(async () => {
     setSkillsLoading(true);
@@ -435,11 +437,15 @@ export default function HelperDashboard() {
     setEditingTool(null);
     setToolCatLookup([]);
     setToolForm(emptyTool);
+    setToolImageFile(null);
+    setToolImagePreview('');
     setShowToolModal(true);
   };
   const openEditTool = (tool) => {
     setEditingTool(tool);
-    setToolForm({ name:tool.name, category:tool.category||'', description:tool.description||'', daily_rate:tool.daily_rate||'', hourly_rate:tool.hourly_rate||'', deposit_amount:tool.deposit_amount||'', condition:tool.condition||'good', brand:tool.brand||'', model:tool.model||'', is_available:tool.is_available, requires_deposit:tool.requires_deposit, delivery_available:tool.delivery_available, pickup_only:tool.pickup_only, location_city:tool.location_city||'', location_state:tool.location_state||'' });
+    setToolForm({ name:tool.name, category:tool.category||'', description:tool.description||'', daily_rate:tool.daily_rate||'', hourly_rate:tool.hourly_rate||'', deposit_amount:tool.deposit_amount||'', condition:tool.condition||'good', brand:tool.brand||'', model:tool.model||'', image_url:tool.image_url||'', is_available:tool.is_available, requires_deposit:tool.requires_deposit, delivery_available:tool.delivery_available, pickup_only:tool.pickup_only, location_city:tool.location_city||'', location_state:tool.location_state||'' });
+    setToolImageFile(null);
+    setToolImagePreview(tool.image_url||'');
     setShowToolModal(true);
   };
   const buildToolPayload = () => {
@@ -469,20 +475,52 @@ export default function HelperDashboard() {
       deposit_amount: depositAmount,
     };
   };
+  const buildToolFormData = (payload) => {
+    const formData = new FormData();
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) formData.append(key, String(value));
+    });
+    if (toolImageFile) {
+      formData.append('image', toolImageFile);
+    } else if (payload.image_url) {
+      formData.append('image_url', payload.image_url);
+    }
+    if (editingTool?.image_url && !toolImagePreview && !toolImageFile) {
+      formData.append('remove_image', 'true');
+    }
+    return formData;
+  };
+  const handleToolImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error(t('dashboard.skillsTools.toolImageInvalid', { defaultValue: 'Choose a JPG, PNG, GIF, or WebP image.' }));
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error(t('dashboard.skillsTools.toolImageTooLarge', { defaultValue: 'Tool photo must be 10MB or smaller.' }));
+      return;
+    }
+    setToolImageFile(file);
+    setToolImagePreview(URL.createObjectURL(file));
+  };
   const handleSaveTool = async (e) => {
     e.preventDefault();
     try {
       const payload = buildToolPayload();
+      const formData = buildToolFormData(payload);
       if (editingTool) {
-        await api.put(`/tool-rentals/${editingTool.id}`, payload);
+        await api.put(`/tool-rentals/${editingTool.id}`, formData);
         toast.success(t('helperDashboard.tools.updated'));
       } else {
-        await api.post('/tool-rentals', payload);
+        await api.post('/tool-rentals', formData);
         toast.success(t('helperDashboard.tools.listed'));
       }
       setShowToolModal(false);
       setEditingTool(null);
       setToolForm(emptyTool);
+      setToolImageFile(null);
+      setToolImagePreview('');
       fetchMyTools();
     } catch (err) { toast.error(err.response?.data?.error || t('helperDashboard.tools.saveFailed')); }
   };
@@ -1866,6 +1904,7 @@ export default function HelperDashboard() {
               :<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{myTools.map(tool=>(
                 <div key={tool.id} className="p-4 border border-gray-800 rounded-xl">
                   <div className="flex items-start justify-between gap-2">
+                    {tool.image_url&&<img src={tool.image_url} alt="" className="w-16 h-16 rounded-lg object-cover border border-gray-800 flex-shrink-0"/>}
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-sm text-white truncate">{tool.name}</p>
                       <p className="text-xs text-gray-500 mt-0.5">{tool.category}{tool.brand?` · ${tool.brand}`:''}{tool.model?` ${tool.model}`:''}</p>
@@ -1884,6 +1923,7 @@ export default function HelperDashboard() {
                     <div className="flex flex-col gap-1 flex-shrink-0">
                       <Tag text={tool.is_available?t('dashboard.skillsTools.available'):t('dashboard.skillsTools.unavailable')} color={tool.is_available?'green':'gray'}/>
                       <div className="flex gap-1 justify-end mt-1">
+                        {tool.is_available&&<button onClick={()=>navigate(`/tool-rentals/${tool.id}`)} className="text-xs text-orange-400 hover:text-orange-300 transition px-2 py-1 rounded hover:bg-orange-500/10">{t('common.view')}</button>}
                         <button onClick={()=>openEditTool(tool)} className="text-xs text-gray-500 hover:text-white transition px-2 py-1 rounded hover:bg-gray-800">{t('common.edit')}</button>
                         <button onClick={()=>handleDeleteTool(tool.id)} className="text-xs text-red-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-500/10">{t('helperDashboard.delete')}</button>
                       </div>
@@ -2314,9 +2354,39 @@ export default function HelperDashboard() {
       </Modal>
 
       {/* Add / Edit Tool Modal - upgraded with richer fields */}
-      <Modal open={showToolModal} onClose={()=>{setShowToolModal(false);setEditingTool(null);setToolCatLookup([]);}} title={editingTool ? t('dashboard.skillsTools.modalEditTool') : t('dashboard.skillsTools.modalAddTool')}>
+      <Modal open={showToolModal} onClose={()=>{setShowToolModal(false);setEditingTool(null);setToolCatLookup([]);setToolImageFile(null);setToolImagePreview('');}} title={editingTool ? t('dashboard.skillsTools.modalEditTool') : t('dashboard.skillsTools.modalAddTool')}>
         <form onSubmit={handleSaveTool} className="space-y-4">
           <Input label={t('dashboard.skillsTools.toolNameLabel')} required maxLength={200} placeholder={t('dashboard.skillsTools.toolNamePlaceholder')} value={toolForm.name} onChange={e=>setToolForm(p=>({...p,name:e.target.value}))}/>
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">
+              {t('dashboard.skillsTools.toolPhotoLabel', { defaultValue: 'Tool photo' })}
+            </label>
+            <div className="flex gap-3 items-stretch">
+              <div className="w-28 h-24 rounded-xl border border-gray-700 bg-gray-800 overflow-hidden flex items-center justify-center flex-shrink-0">
+                {toolImagePreview ? (
+                  <img src={toolImagePreview} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-[10px] text-gray-500 text-center px-3">{t('dashboard.skillsTools.toolPhotoEmpty', { defaultValue: 'No photo yet' })}</span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  onChange={handleToolImageChange}
+                  className="block w-full text-xs text-gray-400 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-500 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-orange-600"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  {t('dashboard.skillsTools.toolPhotoHint', { defaultValue: 'Add a clear photo so renters can inspect the tool before booking.' })}
+                </p>
+                {toolImagePreview&&(
+                  <button type="button" onClick={()=>{setToolImageFile(null);setToolImagePreview('');setToolForm(p=>({...p,image_url:''}));}} className="text-xs text-red-400 hover:text-red-300 mt-2">
+                    {t('common.remove', { defaultValue: 'Remove' })}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.categoryLabel')}</label>
             <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
