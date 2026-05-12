@@ -182,7 +182,7 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
                     {tool.owner_rating !== undefined && (
                       <div className="tool-modal-owner-rating">
                         <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                        <span>{tool.owner_rating.toFixed(1)}</span>
+                        <span>{Number(tool.owner_rating).toFixed(1)}</span>
                       </div>
                     )}
                   </div>
