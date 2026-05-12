@@ -88,6 +88,7 @@ import HelperProfileEditPage from './pages/HelperProfileEditPage';
 import BusinessProfileEditPage from './pages/BusinessProfileEditPage';
 import FeatureGuidePage from './pages/FeatureGuidePage';
 import PromotePage from './pages/PromotePage';
+import MaintenanceRequestPage from './pages/MaintenanceRequestPage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -160,6 +161,7 @@ export default function App() {
                     <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
                     <Route path="/book/:id"               element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookHelperPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/business/:id"            element={<Guarded><BusinessProfilePage /></Guarded>} />
+                    <Route path="/business/:businessId/maintenance-request" element={<Guarded><ProtectedRoute><RouteErrorBoundary><MaintenanceRequestPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/tool-rentals"            element={<Guarded><ToolRentalsBrowse /></Guarded>} />
                     <Route path="/tool-rentals/:toolId"    element={<Guarded><ToolRentalsBrowse /></Guarded>} />
                     <Route path="/my-bookings"             element={<Guarded><ProtectedRoute><MyBookingsPage /></ProtectedRoute></Guarded>} />

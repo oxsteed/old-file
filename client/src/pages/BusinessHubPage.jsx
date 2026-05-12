@@ -29,6 +29,11 @@ import {
   listBusinessHours, updateBusinessHours,
   listBusinessSkills,
 } from '../api/businesses';
+import {
+  convertMaintenanceRequestToJob,
+  listBusinessMaintenanceRequests,
+  updateMaintenanceRequest,
+} from '../api/maintenanceRequests';
 import { formatMoney } from '../lib/format';
 import { getDefaultCurrency } from '../lib/countries';
 import '../styles/BusinessHubPage.css';
@@ -114,6 +119,8 @@ function BusinessHubInner() {
   const [taxLoading, setTaxLoading] = useState(false);
   const [goals, setGoals]           = useState([]);
   const [goalsLoading, setGoalsLoading] = useState(false);
+  const [maintenanceData, setMaintenanceData] = useState({ requests: [], stats: null });
+  const [maintenanceLoading, setMaintenanceLoading] = useState(false);
 
   // team tab
   const [members, setMembers]             = useState([]);
@@ -178,6 +185,7 @@ function BusinessHubInner() {
         setInvoiceData(null);
         setTaxData(null);
         setGoals([]);
+        setMaintenanceData({ requests: [], stats: null });
         setMembers([]);
         setVortexTokens([]);
       } else {
@@ -250,6 +258,18 @@ function BusinessHubInner() {
     catch { toast.error(t('businessHub.toastLoadGoalsFail')); }
     finally { setGoalsLoading(false); }
   }, [bizId, t]);
+
+  const loadMaintenance = useCallback(async () => {
+    if (!bizId) return;
+    setMaintenanceLoading(true);
+    try {
+      setMaintenanceData(await listBusinessMaintenanceRequests(bizId));
+    } catch {
+      toast.error('Could not load maintenance requests');
+    } finally {
+      setMaintenanceLoading(false);
+    }
+  }, [bizId]);
 
   const loadTeam = useCallback(async () => {
     if (!bizId) return;
@@ -433,15 +453,16 @@ function BusinessHubInner() {
       loadGoals();
       loadOverview();
     }
+    else if (tab === 'maintenance') loadMaintenance();
     else if (tab === 'team') loadTeam();
-  }, [loadingBiz, businesses, bizId, tab, loadProfile, loadServices, loadGallery, loadPolicies, loadFAQs, loadHours, loadSkills, loadOverview, loadInvoices, loadTax, loadGoals, loadTeam]);
+  }, [loadingBiz, businesses, bizId, tab, loadProfile, loadServices, loadGallery, loadPolicies, loadFAQs, loadHours, loadSkills, loadOverview, loadInvoices, loadTax, loadGoals, loadMaintenance, loadTeam]);
 
   // ── switcher ──────────────────────────────────────────────────────────────
   function handleSwitchBiz(id) {
     setBizId(id);
     localStorage.setItem(LS_KEY, id);
     setAnalyticsLoading(true);
-    setAnalytics(null); setAnalyticsError(false); setInvoiceData(null); setTaxData(null); setGoals([]);
+    setAnalytics(null); setAnalyticsError(false); setInvoiceData(null); setTaxData(null); setGoals([]); setMaintenanceData({ requests: [], stats: null });
     setMembersLoading(true);
     setMembers([]);
   }
@@ -812,13 +833,36 @@ function BusinessHubInner() {
   }
 
   // ── current biz object + caller's role ───────────────────────────────────
+  async function handleUpdateMaintenanceRequest(requestId, payload) {
+    try {
+      await updateMaintenanceRequest(requestId, payload);
+      toast.success('Maintenance request updated');
+      await loadMaintenance();
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'Could not update maintenance request');
+    }
+  }
+
+  async function handleConvertMaintenanceRequest(requestId) {
+    try {
+      const { job } = await convertMaintenanceRequestToJob(requestId);
+      toast.success('Maintenance request converted to a job');
+      await loadMaintenance();
+      if (job?.id && window.confirm('Open the new job now?')) {
+        window.open(`/jobs/${job.id}`, '_blank', 'noopener,noreferrer');
+      }
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'Could not convert request to job');
+    }
+  }
+
   const currentBiz  = businesses.find(b => String(b.id) === String(bizId));
   const currentRole = currentBiz?._role || 'owner';
   const canEditBizProfile = currentRole === 'owner' || currentRole === 'manager';
   const canViewFinanceHub = currentRole !== 'representative';
   const financeTabIds = ['overview', 'invoices', 'tax', 'goals'];
   const contentTabIds = ['services', 'gallery', 'policies', 'faqs', 'hours', 'skills', 'ai'];
-  const visibleTabs = ['profile', ...contentTabIds, ...financeTabIds, 'team'].filter((tb) => {
+  const visibleTabs = ['profile', ...contentTabIds, 'maintenance', ...financeTabIds, 'team'].filter((tb) => {
     if (tb === 'profile' && !canEditBizProfile) return false;
     if (contentTabIds.includes(tb) && !canEditBizProfile) return false;
     if (financeTabIds.includes(tb) && !canViewFinanceHub) return false;
@@ -851,6 +895,7 @@ function BusinessHubInner() {
     if (tb === 'invoices') return t('businessHub.tabInvoicesLabel');
     if (tb === 'tax') return t('businessHub.tabTaxLabel');
     if (tb === 'goals') return t('businessHub.tabGoalsLabel');
+    if (tb === 'maintenance') return 'Maintenance';
     if (tb === 'ai') return t('businessHub.tabAILabel');
     return tb;
   };
@@ -1036,6 +1081,18 @@ function BusinessHubInner() {
 
             {tab === 'ai' && canEditBizProfile && bizId && (
               <AIKnowledgeTab profileType="business" profileId={bizId} />
+            )}
+
+            {tab === 'maintenance' && (
+              maintenanceLoading ? <p className="bh-loading">Loading maintenance requests...</p> :
+              <MaintenanceRequestsTab
+                businessId={bizId}
+                data={maintenanceData}
+                currency={currency}
+                onRefresh={loadMaintenance}
+                onUpdate={handleUpdateMaintenanceRequest}
+                onConvert={handleConvertMaintenanceRequest}
+              />
             )}
 
             {/* ── Overview tab ────────────────────────────────────── */}
@@ -2150,6 +2207,139 @@ function GoalsTab({ goals, analytics, onNew, onEdit, onDelete, currency }) {
 }
 
 // ── Team tab ──────────────────────────────────────────────────────────────────
+function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdate, onConvert }) {
+  const requests = data?.requests || [];
+  const stats = data?.stats || {};
+  const [drafts, setDrafts] = useState({});
+
+  function getDraft(request) {
+    return drafts[request.id] || {
+      status: request.status,
+      scheduled_start_at: request.scheduled_start_at ? String(request.scheduled_start_at).slice(0, 16) : '',
+      assigned_helper_id: request.assigned_helper_id || '',
+      tenant_visible_notes: request.tenant_visible_notes || '',
+      actual_cost: request.actual_cost || '',
+      vendor_name: request.vendor_name || '',
+    };
+  }
+
+  function patchDraft(id, patch) {
+    setDrafts((current) => ({ ...current, [id]: { ...(current[id] || {}), ...patch } }));
+  }
+
+  return (
+    <div>
+      <div className="bh-kpi-grid">
+        <KPI label="Open requests" value={stats.open_count || 0} cls="warn" sub="Reported, scheduled, assigned, or in progress" />
+        <KPI label="Completed" value={stats.completed_count || 0} cls="positive" sub="Closed maintenance records" />
+        <KPI label="Tracked cost" value={fmt$(stats.actual_cost_total || 0, currency)} sub="Actual repair costs logged" />
+      </div>
+
+      <div className="bh-card">
+        <div className="bh-card-header">
+          <div>
+            <h2>Property Maintenance Requests</h2>
+            <p>Tenant issues from the public profile land here before they become scheduled work, assigned helper jobs, invoices, or year-end records.</p>
+          </div>
+          <div className="bh-header-actions">
+            <Link className="bh-btn" to={`/business/${businessId}/maintenance-request`} target="_blank" rel="noopener noreferrer">
+              Open tenant form
+            </Link>
+            <button className="bh-btn" onClick={onRefresh}>Refresh</button>
+          </div>
+        </div>
+
+        {requests.length === 0 ? (
+          <div className="bh-empty">
+            <p style={{ fontWeight: 700 }}>No maintenance requests yet.</p>
+            <p>When tenants report issues from the property profile, you can accept, schedule, assign, convert to a job, and track repair cost here.</p>
+          </div>
+        ) : (
+          <div className="bh-maint-list">
+            {requests.map((request) => {
+              const draft = getDraft(request);
+              return (
+                <article className="bh-maint-card" key={request.id}>
+                  <div className="bh-maint-main">
+                    <div>
+                      <span className={`bh-status-badge bh-status-${request.status}`}>{request.status.replaceAll('_', ' ')}</span>
+                      <h3>{request.title}</h3>
+                      <p>{request.description}</p>
+                    </div>
+                    <div className="bh-maint-meta">
+                      <span>{request.issue_category}</span>
+                      <span>{request.urgency}</span>
+                      <span>{fmtDate(request.created_at)}</span>
+                      {request.unit_label && <span>Unit {request.unit_label}</span>}
+                      {request.job_id && <Link to={`/jobs/${request.job_id}`}>Job created</Link>}
+                    </div>
+                  </div>
+
+                  {(request.photo_urls || []).length > 0 && (
+                    <div className="bh-maint-photos">
+                      {request.photo_urls.slice(0, 5).map((url) => (
+                        <a key={url} href={url} target="_blank" rel="noopener noreferrer">
+                          <img src={url} alt="" loading="lazy" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="bh-maint-details">
+                    {request.property_label && <p><strong>Property:</strong> {request.property_label}</p>}
+                    {request.preferred_times && <p><strong>Preferred times:</strong> {request.preferred_times}</p>}
+                    {request.access_notes && <p><strong>Access:</strong> {request.access_notes}</p>}
+                    {request.permission_to_enter && <p><strong>Permission:</strong> Tenant granted permission to enter with scheduling.</p>}
+                  </div>
+
+                  <div className="bh-maint-controls">
+                    <label>
+                      Status
+                      <select value={draft.status} onChange={(e) => patchDraft(request.id, { status: e.target.value })}>
+                        {['reported', 'accepted', 'scheduled', 'assigned', 'in_progress', 'completed', 'rejected', 'cancelled'].map((status) => (
+                          <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Schedule
+                      <input type="datetime-local" value={draft.scheduled_start_at || ''} onChange={(e) => patchDraft(request.id, { scheduled_start_at: e.target.value })} />
+                    </label>
+                    <label>
+                      Helper ID
+                      <input value={draft.assigned_helper_id || ''} onChange={(e) => patchDraft(request.id, { assigned_helper_id: e.target.value })} placeholder="Optional OxSteed helper ID" />
+                    </label>
+                    <label>
+                      Vendor / handyman
+                      <input value={draft.vendor_name || ''} onChange={(e) => patchDraft(request.id, { vendor_name: e.target.value })} placeholder="Optional" />
+                    </label>
+                    <label>
+                      Actual cost
+                      <input type="number" min="0" step="0.01" value={draft.actual_cost || ''} onChange={(e) => patchDraft(request.id, { actual_cost: e.target.value })} placeholder="0.00" />
+                    </label>
+                    <label className="wide">
+                      Tenant-visible update
+                      <textarea value={draft.tenant_visible_notes || ''} onChange={(e) => patchDraft(request.id, { tenant_visible_notes: e.target.value })} rows={2} placeholder="Example: We can send someone Friday morning." />
+                    </label>
+                  </div>
+
+                  <div className="bh-maint-actions">
+                    <button className="bh-btn primary" onClick={() => onUpdate(request.id, draft)}>Save update</button>
+                    <button className="bh-btn" onClick={() => onConvert(request.id)} disabled={!!request.job_id}>
+                      {request.job_id ? 'Already converted' : 'Convert to job'}
+                    </button>
+                    <Link className="bh-btn" to="/helpers">Find helper</Link>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function TeamTab({
   members, invitations, managedBiz,
   vortexTokens, tokenForm, onTokenFormChange, onGenerateToken, generatingToken, onRevokeToken,

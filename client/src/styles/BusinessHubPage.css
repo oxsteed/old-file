@@ -717,3 +717,123 @@ html:not(.dark) .bh-status-pending {
   color: #92400e;
 }
 
+.bh-maint-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.bh-maint-card {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--app-bg);
+  padding: 1rem;
+}
+
+.bh-maint-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 1rem;
+}
+
+.bh-maint-main h3 {
+  margin: 0.45rem 0 0.35rem;
+  font-size: 1.05rem;
+}
+
+.bh-maint-main p,
+.bh-maint-details p {
+  margin: 0;
+  color: var(--muted-text);
+  line-height: 1.55;
+}
+
+.bh-maint-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: var(--muted-text);
+  font-size: 0.8rem;
+}
+
+.bh-maint-meta a {
+  color: #f97316;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.bh-maint-photos {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.bh-maint-photos img {
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+}
+
+.bh-maint-details {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.bh-maint-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.bh-maint-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: var(--muted-text);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bh-maint-controls label.wide {
+  grid-column: 1 / -1;
+}
+
+.bh-maint-controls input,
+.bh-maint-controls select,
+.bh-maint-controls textarea {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--app-text);
+  font: inherit;
+  padding: 0.6rem 0.7rem;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+
+.bh-maint-controls textarea {
+  resize: vertical;
+}
+
+.bh-maint-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+@media (max-width: 820px) {
+  .bh-maint-main,
+  .bh-maint-controls {
+    grid-template-columns: 1fr;
+  }
+}

@@ -340,13 +340,7 @@ export default function BusinessProfilePage() {
     if (!profileData) return;
     const behavior = getTemplateBehavior(activeTemplate);
     if (behavior.primaryIntent === 'maintenance_request') {
-      const params = new URLSearchParams({
-        businessId: String(profileData.bizId || id),
-        businessName: profileData.helper.businessName || '',
-        helperId: profileData.helper.id,
-        mode: 'maintenance_request',
-      });
-      navigate(`/post-job?${params.toString()}`);
+      navigate(`/business/${profileData.bizId || id}/maintenance-request`);
       return;
     }
     if (behavior.primaryIntent === 'tool_rental') {

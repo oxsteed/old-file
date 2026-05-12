@@ -16,10 +16,18 @@
 **OxSteed** is a full-stack local trades marketplace built with React 18 + Node.js + PostgreSQL.
 
 **Codebase metrics:**
-- 259+ React components / pages (includes `AIKnowledgeTab`, `AIPreviewPage` for profile AI)
-- 112 backend controllers
-- 165 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
+- 358 React JSX/TSX files (includes `AIKnowledgeTab`, `AIPreviewPage` for profile AI)
+- 131 backend controllers
+- 222 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
+
+**Property maintenance request mode (2026-05-11):** COMPLETE
+- **Migration 211** (`server/migrations/211_property_maintenance_requests.sql`): Adds `property_maintenance_requests` and `property_maintenance_request_events` for landlord/property-manager workflows: tenant issue intake, status timeline, scheduling, helper assignment, photos, tenant-visible updates, cost logging, and job conversion linkage.
+- **API:** `server/controllers/maintenanceRequestController.js` + `server/routes/maintenanceRequests.js`, mounted at `/api/maintenance-requests`. Public business metadata is readable, authenticated tenants can submit requests with up to 5 photos, business team members can list/update requests, and authorized business users can convert a request into a published job.
+- **Tenant UI:** `client/src/pages/MaintenanceRequestPage.jsx` + `client/src/styles/MaintenanceRequestPage.css`, route `/business/:businessId/maintenance-request`. Captures category, title, description, urgency, property/unit, preferred times, access notes, permission-to-enter, phone, and photos.
+- **Business Hub:** `BusinessHubPage.jsx` adds a Maintenance tab with open/completed/cost KPIs, request cards, photos, schedule/status/helper/vendor/cost fields, tenant-visible updates, "Find helper", and "Convert to job".
+- **Template behavior:** `BusinessProfilePage.jsx` routes property-manager CTA to the dedicated maintenance request page instead of generic post-job. `docs/template-business-modes-roadmap.md` reviews all templates and lists the mode-specific workflows still needed.
+- **Verification:** `node --check server/controllers/maintenanceRequestController.js server/routes/maintenanceRequests.js server/index.js` passes; `npm run build` passes in `client/`. Existing large chunk warning remains.
 
 **Provider Growth Center (2026-05-11):** COMPLETE
 - **`client/src/pages/PromotePage.jsx` + `client/src/styles/PromotePage.css`**: Added authenticated `/promote` Growth Center for helpers/business providers. It generates profile/booking links, QR display, copyable social/SMS/email/flyer text, a profile readiness checklist, and weekly promotion playbook. Print Studio added with selectable full-page flyer, QR handout, and 10-up business card sheet templates; browser print can print directly or save as PDF.
@@ -35,7 +43,7 @@
 
 **Template business modes foundation (2026-05-11):** COMPLETE
 - **`client/src/components/profileTemplates/templateBehavior.js` + `TemplateBehaviorPanel.jsx/.css`**: Added behavior metadata for service, appointment, portfolio, tool-rental, and property-manager modes. The panel explains the real workflow, setup checklist, connected OxSteed features, and mode-specific actions.
-- **Public helper/business profiles:** `HelperBusinessProfilePage.tsx` and `BusinessProfilePage.jsx` now read active template behavior and change primary/secondary CTAs. Property manager profiles route the primary action into a maintenance-request flavored post-job flow; tool-rental profiles route toward tool rentals.
+- **Public helper/business profiles:** `HelperBusinessProfilePage.tsx` and `BusinessProfilePage.jsx` now read active template behavior and change primary/secondary CTAs. Property manager business profiles route the primary action into the dedicated maintenance request flow; tool-rental profiles route toward tool rentals.
 - **`client/src/pages/PostJobPage.jsx`**: `?mode=maintenance_request` now preloads a maintenance request title/category/description/notes, preserves the preferred provider, skips unrelated saved drafts, and shows a tenant-facing banner about photos, access notes, urgency, and repair windows.
 - **`client/src/components/helperProfile/CTASection.tsx`**: CTA labels can now be template-specific, and selected modes can allow a primary action even when no service menu exists yet.
 - **Migration 210** (`server/migrations/210_property_manager_template.sql`): Adds the `property_manager` template seed so landlords/property managers can present tenant issue intake, scheduling, assignment, and cost-record workflows.

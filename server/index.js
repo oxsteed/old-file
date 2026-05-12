@@ -95,6 +95,7 @@ const consultingAnalyticsRoutes = require('./routes/consultingAnalytics');
 const consultingActionItemsRoutes = require('./routes/consultingActionItems');
 const calendarRoutes = require('./routes/calendar');
 const bookingsRoutes = require('./routes/bookings');
+const maintenanceRequestsRoutes = require('./routes/maintenanceRequests');
 const cancellationStatsRoutes = require('./routes/cancellationStats');
 const reputationRoutes = require('./routes/reputation');
 const enforcementPolicyRoutes = require('./routes/enforcementPolicy');
@@ -545,6 +546,7 @@ const monitoringRoutes = require('./routes/monitoring');
 
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/bookings', bookingsRoutes);
+app.use('/api/maintenance-requests', maintenanceRequestsRoutes);
 app.use('/api/cancellation-stats', cancellationStatsRoutes);
 app.use('/api/reputation', reputationRoutes);
 app.use('/api/enforcement-policy', enforcementPolicyRoutes);

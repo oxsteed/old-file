@@ -1,0 +1,265 @@
+.mrq-page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+  color: var(--app-text);
+}
+
+.mrq-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 1rem;
+  align-items: stretch;
+  margin-bottom: 1.5rem;
+}
+
+.mrq-hero h1 {
+  margin: 0.35rem 0 0.5rem;
+  font-size: clamp(2rem, 4vw, 3.6rem);
+  line-height: 1;
+}
+
+.mrq-hero p,
+.mrq-muted {
+  margin: 0;
+  color: var(--muted-text);
+  line-height: 1.6;
+}
+
+.mrq-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  color: #f97316;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mrq-hero-card,
+.mrq-panel,
+.mrq-success {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.mrq-hero-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.25rem;
+}
+
+.mrq-hero-card svg,
+.mrq-success svg {
+  color: #22c55e;
+}
+
+.mrq-hero-card span {
+  color: var(--muted-text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.mrq-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.mrq-panel {
+  padding: 1.25rem;
+}
+
+.mrq-panel-wide {
+  grid-column: 1 / -1;
+}
+
+.mrq-panel h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+}
+
+.mrq-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.mrq-field label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--muted-text);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.mrq-field input,
+.mrq-field select,
+.mrq-field textarea {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--app-bg);
+  color: var(--app-text);
+  padding: 0.75rem 0.85rem;
+  font: inherit;
+}
+
+.mrq-field textarea {
+  resize: vertical;
+}
+
+.mrq-two {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+  gap: 1rem;
+}
+
+.mrq-segments {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.mrq-segments button,
+.mrq-btn {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--app-text);
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+}
+
+.mrq-segments button {
+  padding: 0.65rem 0.4rem;
+}
+
+.mrq-segments button.active {
+  border-color: #f97316;
+  background: rgba(249, 115, 22, 0.12);
+  color: #f97316;
+}
+
+.mrq-check {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin: 0 0 1rem;
+  color: var(--muted-text);
+  line-height: 1.5;
+}
+
+.mrq-check input {
+  margin-top: 0.25rem;
+}
+
+.mrq-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 90px;
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+  color: var(--muted-text);
+  cursor: pointer;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.mrq-upload input {
+  display: none;
+}
+
+.mrq-note {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.22);
+  color: var(--muted-text);
+  margin-bottom: 0.8rem;
+}
+
+.mrq-note.warning {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.24);
+}
+
+.mrq-note p {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.mrq-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+}
+
+.mrq-btn.primary {
+  border-color: #f97316;
+  background: #f97316;
+  color: white;
+}
+
+.mrq-btn.submit {
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
+.mrq-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.mrq-success {
+  max-width: 680px;
+  margin: 3rem auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.mrq-success h1 {
+  margin: 0.5rem 0;
+}
+
+.mrq-success p {
+  color: var(--muted-text);
+  line-height: 1.6;
+}
+
+.mrq-success-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1.25rem;
+}
+
+@media (max-width: 800px) {
+  .mrq-hero,
+  .mrq-grid,
+  .mrq-two {
+    grid-template-columns: 1fr;
+  }
+
+  .mrq-segments {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
