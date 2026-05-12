@@ -230,7 +230,7 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
             {/* Reviews Section */}
             <ToolReviewsList
               toolId={tool.id}
-              avgRating={tool.avg_rating ?? 0}
+              avgRating={Number(tool.avg_rating) || 0}
               reviewCount={tool.review_count ?? 0}
             />
           </div>
