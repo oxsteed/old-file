@@ -53,15 +53,9 @@ import '../components/profileTemplates/TemplateBehaviorPanel.css';
 
 function buildBadges(business, t) {
   const badges = [];
-  if (business.is_background_checked)
-    badges.push({ id: 'bg',   label: t('helpersDir.badgeBackgroundChecked'), icon: 'shield-check', variant: 'verified'  });
-  if (business.is_identity_verified)
-    badges.push({ id: 'id',   label: t('helpersDir.badgeIdVerified'),        icon: 'shield-check', variant: 'verified'  });
-  if (business.is_licensed)
-    badges.push({ id: 'lic',  label: t('helpersDir.badgeLicensed'),          icon: 'award',        variant: 'trusted'   });
-  if (business.is_insured)
-    badges.push({ id: 'ins',  label: t('helpersDir.badgeInsured'),           icon: 'shield-check', variant: 'trusted'   });
-  return badges;
+    if (business.is_business_verified)
+      badges.push({ id: 'biz', label: t('businessProfile.badgeBusinessVerified', 'Business Verified'), icon: 'shield-check', color: 'blue' });
+    return badges;
 }
 
 /**
@@ -83,7 +77,7 @@ function mapToHelperProfileData(profile, t) {
     reviewCount:   parseInt(business.total_reviews, 10) || 0,
     jobsCompleted: parseInt(business.completed_jobs_count, 10) || 0,
     memberSince:   business.member_since,
-    verified:      !!business.is_identity_verified,
+        verified:      !!business.is_business_verified,
     responseTime:  '',
     responseRate:  0,
     badges:        buildBadges(business, t),
