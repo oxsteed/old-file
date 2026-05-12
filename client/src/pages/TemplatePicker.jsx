@@ -31,17 +31,24 @@ const IcoRefresh  = p => <Ico {...p}><polyline points="23 4 23 10 17 10"/><polyl
 const CATEGORY_META = {
   general:  { label: 'All',              color: 'bg-gray-700/50 text-gray-300' },
   home:     { label: 'Home & Property',  color: 'bg-amber-500/20 text-amber-400' },
+  property: { label: 'Property Management', color: 'bg-orange-500/20 text-orange-400' },
   creative: { label: 'Creative & Media', color: 'bg-purple-500/20 text-purple-400' },
   health:   { label: 'Health & Wellness',color: 'bg-emerald-500/20 text-emerald-400' },
   care:     { label: 'Care & Education', color: 'bg-pink-500/20 text-pink-400' },
   events:   { label: 'Events & Food',    color: 'bg-orange-500/20 text-orange-400' },
   beauty:   { label: 'Beauty & Style',   color: 'bg-rose-500/20 text-rose-400' },
   tech:     { label: 'Tech & Business',  color: 'bg-blue-500/20 text-blue-400' },
+  trades:   { label: 'Skilled Trades',   color: 'bg-yellow-500/20 text-yellow-400' },
+  food:     { label: 'Food & Hospitality', color: 'bg-amber-500/20 text-amber-400' },
+  professional: { label: 'Professional Services', color: 'bg-slate-500/20 text-slate-300' },
+  education: { label: 'Education',       color: 'bg-indigo-500/20 text-indigo-400' },
+  automotive: { label: 'Automotive',     color: 'bg-red-500/20 text-red-400' },
 };
 
 // Template thumbnail – a mini color-coded preview card
 const TEMPLATE_ACCENT = {
   default:              'from-gray-700 to-gray-800',
+  property_manager:     'from-orange-700 to-slate-950',
   trades_pro:           'from-blue-800 to-slate-900',
   handyman:             'from-amber-600 to-orange-700',
   home_garden:          'from-green-700 to-emerald-900',
@@ -71,6 +78,17 @@ const TEMPLATE_ACCENT = {
   web_app_dev:          'from-indigo-900 to-blue-700',
   consulting_coaching:  'from-blue-900 to-yellow-800',
   legal_admin:          'from-gray-900 to-yellow-900',
+  electrician:          'from-yellow-700 to-zinc-950',
+  photographer:         'from-slate-950 to-fuchsia-800',
+  massage_therapist:    'from-teal-200 to-emerald-500',
+  auto_mechanic:        'from-red-900 to-zinc-900',
+  dog_walker:           'from-lime-500 to-emerald-800',
+  private_chef:         'from-stone-900 to-amber-700',
+  hair_stylist:         'from-rose-700 to-pink-500',
+  accountant:           'from-slate-900 to-blue-800',
+  math_tutor:           'from-indigo-700 to-cyan-700',
+  party_entertainer:    'from-fuchsia-800 to-orange-600',
+  car_dealership:       'from-red-800 to-zinc-900',
 };
 
 // ── Sample data for live preview (no auth needed) ──────────────────────────

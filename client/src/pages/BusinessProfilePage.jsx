@@ -45,7 +45,9 @@ import ChatPanel from '../components/helperProfile/chat/ChatPanel';
 import { AvailabilityBlock, PricingBlock, SlotsBlock } from '../components/helperProfile/DynamicBlocks';
 
 import { getBusinessPublicProfile } from '../api/businesses';
-import { ProfileTemplateRenderer } from '../components/profileTemplates/index';
+import { ProfileTemplateRenderer, getTemplateBehavior } from '../components/profileTemplates/index';
+import TemplateBehaviorPanel from '../components/profileTemplates/TemplateBehaviorPanel';
+import '../components/profileTemplates/TemplateBehaviorPanel.css';
 
 // ── Data mapping helpers ──────────────────────────────────────────────────────
 
@@ -334,6 +336,26 @@ export default function BusinessProfilePage() {
     navigate(`/book/${profileData.helper.id}?${params.toString()}`);
   }, [profileData, navigate]);
 
+  const handleTemplatePrimaryAction = useCallback(() => {
+    if (!profileData) return;
+    const behavior = getTemplateBehavior(activeTemplate);
+    if (behavior.primaryIntent === 'maintenance_request') {
+      const params = new URLSearchParams({
+        businessId: String(profileData.bizId || id),
+        businessName: profileData.helper.businessName || '',
+        helperId: profileData.helper.id,
+        mode: 'maintenance_request',
+      });
+      navigate(`/post-job?${params.toString()}`);
+      return;
+    }
+    if (behavior.primaryIntent === 'tool_rental') {
+      navigate('/tool-rentals');
+      return;
+    }
+    handleBookNow();
+  }, [activeTemplate, handleBookNow, id, navigate, profileData]);
+
   const handlePostJobPublic = useCallback(() => {
     if (!profileData) return;
     const params = new URLSearchParams({
@@ -414,6 +436,7 @@ export default function BusinessProfilePage() {
   } = profileData;
 
   const isGuestVisitor = !user;
+  const templateBehavior = getTemplateBehavior(activeTemplate);
 
   // ── Template override: non-default templates replace the page interior ─────
   if (activeTemplate && activeTemplate !== 'default') {
@@ -442,6 +465,14 @@ export default function BusinessProfilePage() {
           />
         </div>
         <ProfileTemplateRenderer slug={activeTemplate} profileData={profileData} />
+        <div className="px-4 sm:px-6 lg:px-8">
+          <TemplateBehaviorPanel
+            compact
+            behavior={templateBehavior}
+            onPrimaryAction={handleTemplatePrimaryAction}
+            onSecondaryAction={handleOpenChat}
+          />
+        </div>
         <Footer />
       </div>
     );
@@ -513,6 +544,12 @@ export default function BusinessProfilePage() {
             {/* Contact links (phone / website) */}
             <ContactLinksSection phone={phone} website={website} />
 
+            <TemplateBehaviorPanel
+              behavior={templateBehavior}
+              onPrimaryAction={handleTemplatePrimaryAction}
+              onSecondaryAction={handleOpenChat}
+            />
+
             {/* Services & Pricing (empty state built into component) */}
             <ServicesSection
               services={services}
@@ -563,9 +600,13 @@ export default function BusinessProfilePage() {
               <UserReputationCard userId={helper.id} />
               <CTASection
                 helper={helper}
-                onBookNow={handleBookNow}
+                onBookNow={handleTemplatePrimaryAction}
+                onMessageHelper={handleOpenChat}
                 onOpenChat={handleOpenChat}
                 hasServices={services.length > 0}
+                primaryLabel={templateBehavior.primaryCta}
+                secondaryLabel={templateBehavior.secondaryCta}
+                allowPrimaryWithoutServices={templateBehavior.allowPrimaryWithoutServices}
               />
               {user && (
                 <button

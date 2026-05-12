@@ -56,7 +56,7 @@ exports.getActiveTemplate = async (req, res, next) => {
     let row;
     if (type === 'business') {
       const { rows } = await pool.query(
-        `SELECT active_template FROM businesses WHERE owner_id = $1 AND is_active = TRUE LIMIT 1`,
+        `SELECT active_template FROM businesses WHERE user_id = $1 AND is_active = TRUE LIMIT 1`,
         [req.user.id]
       );
       row = rows[0];
@@ -114,7 +114,7 @@ exports.activateTemplate = async (req, res, next) => {
     if (type === 'business') {
       await pool.query(
         `UPDATE businesses SET active_template = $1, updated_at = NOW()
-         WHERE owner_id = $2 AND is_active = TRUE`,
+         WHERE user_id = $2 AND is_active = TRUE`,
         [slug, req.user.id]
       );
     } else {
@@ -305,7 +305,7 @@ exports.adminRevokeAccess = async (req, res, next) => {
     // Revert user's active template to default if it was using this slug
     await pool.query(
       `UPDATE businesses SET active_template = 'default', updated_at = NOW()
-       WHERE owner_id = $1 AND active_template = $2`,
+       WHERE user_id = $1 AND active_template = $2`,
       [access.user_id, access.template_slug]
     );
     await pool.query(

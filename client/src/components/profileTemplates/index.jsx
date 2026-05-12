@@ -1,5 +1,5 @@
 // client/src/components/profileTemplates/index.js
-// Registry of all 30 profile templates
+// Registry of all 42 profile templates
 
 import {
   DefaultTemplate,
@@ -59,15 +59,17 @@ import {
   PartyEntertainerTemplate,
   CarDealershipTemplate,
 } from './templates/Batch1Templates.jsx';
+export { getTemplateBehavior, getTemplateMode, TEMPLATE_BEHAVIORS } from './templateBehavior.js';
 
 // ── Template registry ─────────────────────────────────────────────────────────
 // Maps slug → { component, meta }
-// 40 templates: 30 original (redesigned) + 10 Batch 1 new industries
+// 42 templates: 30 original + 11 Batch 1 industries + 1 business-mode template
 
 export const TEMPLATE_REGISTRY = {
   // Free
   default:              { component: DefaultTemplate,            name: 'Default',              category: 'general',  is_free: true  },
   // Home & Property
+  property_manager:     { component: TradesProTemplate,          name: 'Property Manager',     category: 'property', is_free: false },
   trades_pro:           { component: TradesProTemplate,          name: 'Trades Pro',           category: 'home',     is_free: false },
   handyman:             { component: HandymanTemplate,           name: 'Handyman',             category: 'home',     is_free: false },
   home_garden:          { component: HomeGardenTemplate,         name: 'Home & Garden',        category: 'home',     is_free: false },

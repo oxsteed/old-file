@@ -58,7 +58,9 @@ import { AvailabilityBlock, PricingBlock, SlotsBlock } from '../components/helpe
 import type { HelperProfileData, LoadingState, Service } from '../types/helperProfile';
 import { fetchHelperProfile } from '../api/helpers';
 // Template system
-import { ProfileTemplateRenderer } from '../components/profileTemplates/index';
+import { ProfileTemplateRenderer, getTemplateBehavior } from '../components/profileTemplates/index';
+import TemplateBehaviorPanel from '../components/profileTemplates/TemplateBehaviorPanel';
+import '../components/profileTemplates/TemplateBehaviorPanel.css';
 
 // ── Main page component ───────────────────────────────────────────────────────
 const HelperBusinessProfilePage: React.FC = () => {
@@ -162,6 +164,24 @@ const HelperBusinessProfilePage: React.FC = () => {
     });
     navigate(`/post-job?${params.toString()}`);
   }, [id, data, navigate]);
+
+  const handleTemplatePrimaryAction = useCallback(() => {
+    const behavior = getTemplateBehavior(activeTemplate);
+    if (behavior.primaryIntent === 'maintenance_request') {
+      const params = new URLSearchParams({
+        helperId: id!,
+        helperName: data?.helper.businessName || '',
+        mode: 'maintenance_request',
+      });
+      navigate(`/post-job?${params.toString()}`);
+      return;
+    }
+    if (behavior.primaryIntent === 'tool_rental') {
+      navigate('/tool-rentals');
+      return;
+    }
+    handleBookNow();
+  }, [activeTemplate, data, handleBookNow, id, navigate]);
 
   const handleToggleSavedHelper = useCallback(async () => {
     if (!id) return;
@@ -276,6 +296,7 @@ const HelperBusinessProfilePage: React.FC = () => {
     data;
 
   const isGuestVisitor = !user;
+  const templateBehavior = getTemplateBehavior(activeTemplate);
 
   // ── Template override: non-default templates replace the page interior ─────
   if (activeTemplate && activeTemplate !== 'default') {
@@ -303,6 +324,14 @@ const HelperBusinessProfilePage: React.FC = () => {
           />
         </div>
         <ProfileTemplateRenderer slug={activeTemplate} profileData={data} />
+        <div className="px-4 sm:px-6 lg:px-8">
+          <TemplateBehaviorPanel
+            compact
+            behavior={templateBehavior}
+            onPrimaryAction={handleTemplatePrimaryAction}
+            onSecondaryAction={handleMessageHelper}
+          />
+        </div>
         <Footer />
       </div>
     );
@@ -375,10 +404,19 @@ const HelperBusinessProfilePage: React.FC = () => {
             <CTASection
               helper={helper}
               services={services}
-              onBookNow={handleBookNow}
+              onBookNow={handleTemplatePrimaryAction}
               onMessageHelper={handleMessageHelper}
               onOpenChat={handleOpenChat}
               hasServices={services.length > 0}
+              primaryLabel={templateBehavior.primaryCta}
+              secondaryLabel={templateBehavior.secondaryCta}
+              allowPrimaryWithoutServices={templateBehavior.allowPrimaryWithoutServices}
+            />
+
+            <TemplateBehaviorPanel
+              behavior={templateBehavior}
+              onPrimaryAction={handleTemplatePrimaryAction}
+              onSecondaryAction={handleMessageHelper}
             />
 
             {visibility?.services && (

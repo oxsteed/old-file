@@ -763,6 +763,9 @@ export default function PostJobPage() {
   const directHelperId   = searchParams.get('helperId')   || '';
   const directHelperName = searchParams.get('helperName') || '';
   const fromBookingId    = searchParams.get('fromBooking') || '';
+  const flowMode         = searchParams.get('mode') || '';
+  const businessName     = searchParams.get('businessName') || '';
+  const isMaintenanceRequestMode = flowMode === 'maintenance_request';
 
   const bookingPrefillApplied = useRef(false);
   const [form, setForm]     = useState(INIT);
@@ -835,15 +838,39 @@ export default function PostJobPage() {
     return () => { cancelled = true; };
   }, [fromBookingId, location.state, navigate, user?.country]);
 
+  useEffect(() => {
+    if (!isMaintenanceRequestMode || bookingPrefillApplied.current || fromBookingId || location.state?.bookingPrefill) return;
+    bookingPrefillApplied.current = true;
+    setForm((f) => ({
+      ...f,
+      title: f.title || 'Maintenance request',
+      categoryId: f.categoryId || 'plumbing-general',
+      categoryName: f.categoryName || 'Plumbing - General',
+      description: f.description || 'Describe the issue, when it started, what you have already tried, and whether there are leaks, safety concerns, or access notes.',
+      notes: f.notes || 'Tenant maintenance request. Include permission-to-enter notes, pet/access details, and preferred repair windows.',
+      preferredHelperId: directHelperId || f.preferredHelperId,
+      preferredHelperName: directHelperName || businessName || f.preferredHelperName,
+      urgency: f.urgency || 'this_week',
+      step: 1,
+    }));
+  }, [
+    businessName,
+    directHelperId,
+    directHelperName,
+    fromBookingId,
+    isMaintenanceRequestMode,
+    location.state,
+  ]);
+
   // ── Load draft on mount ───────────────────────────────────────────────────
   useEffect(() => {
-    if (fromBookingId || location.state?.bookingPrefill) return;
+    if (fromBookingId || flowMode || location.state?.bookingPrefill) return;
     api.get('/jobs/draft').then(({ data }) => {
       if (!data) return;
       const p = data.payload || {};
       setForm(f => ({ ...f, ...p, step: 1, draftId: data.id }));
     }).catch(() => {});
-  }, []);
+  }, [flowMode, fromBookingId, location.state]);
 
   // ── Auto-save draft (debounced 2 s) ──────────────────────────────────────
   useEffect(() => {
@@ -1120,6 +1147,11 @@ export default function PostJobPage() {
           {fromBookingId && (
             <div style={{ marginTop:'12px', padding:'12px 16px', background:'rgba(59,130,246,0.08)', border:'1px solid rgba(59,130,246,0.25)', borderRadius:'12px', fontSize:'13px', color:'#93c5fd' }}>
               {t('postJob.prefillFromBooking', 'We pulled details from your booking request. Review everything below before posting publicly.')}
+            </div>
+          )}
+          {isMaintenanceRequestMode && (
+            <div style={{ marginTop:'12px', padding:'12px 16px', background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.25)', borderRadius:'12px', fontSize:'13px', color:'#6ee7b7' }}>
+              Maintenance request mode is on. Add photos, access notes, urgency, and preferred repair windows so the property manager can accept, schedule, or assign the work.
             </div>
           )}
         </header>

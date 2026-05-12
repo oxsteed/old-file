@@ -27,6 +27,20 @@
 - **Routing:** `client/src/App.jsx` registers `/promote`; `server/index.js` mounts existing `businessProfileImages` routes at `/api/business-profile` so business QR images work.
 - **Verification:** `node --check server/index.js` passes; `npm run build` passes in `client/`. Existing large chunk warning remains.
 
+**Profile template system pass (2026-05-11):** COMPLETE
+- **`server/controllers/templateController.js`**: Business template activation/revocation now uses `businesses.user_id`, matching the actual schema; stale `owner_id` references were preventing business templates from reliably applying.
+- **`client/src/pages/TemplatePicker.jsx` + `client/src/components/profileTemplates/index.jsx`**: Template picker now labels/colors newer categories (`trades`, `food`, `professional`, `education`, `automotive`) and registry comments reflect 42 templates.
+- **Migration 209** (`server/migrations/209_template_pricing_normalization.sql`): Normalizes newer template pricing to the current $0.99/month, no-lifetime model.
+- **Verification:** `node --check server/controllers/templateController.js` passes; `npm run build` passes in `client/`. Existing large chunk warning remains.
+
+**Template business modes foundation (2026-05-11):** COMPLETE
+- **`client/src/components/profileTemplates/templateBehavior.js` + `TemplateBehaviorPanel.jsx/.css`**: Added behavior metadata for service, appointment, portfolio, tool-rental, and property-manager modes. The panel explains the real workflow, setup checklist, connected OxSteed features, and mode-specific actions.
+- **Public helper/business profiles:** `HelperBusinessProfilePage.tsx` and `BusinessProfilePage.jsx` now read active template behavior and change primary/secondary CTAs. Property manager profiles route the primary action into a maintenance-request flavored post-job flow; tool-rental profiles route toward tool rentals.
+- **`client/src/pages/PostJobPage.jsx`**: `?mode=maintenance_request` now preloads a maintenance request title/category/description/notes, preserves the preferred provider, skips unrelated saved drafts, and shows a tenant-facing banner about photos, access notes, urgency, and repair windows.
+- **`client/src/components/helperProfile/CTASection.tsx`**: CTA labels can now be template-specific, and selected modes can allow a primary action even when no service menu exists yet.
+- **Migration 210** (`server/migrations/210_property_manager_template.sql`): Adds the `property_manager` template seed so landlords/property managers can present tenant issue intake, scheduling, assignment, and cost-record workflows.
+- **Verification:** `node --check server/controllers/templateController.js` passes; `npm run build` passes in `client/`. Existing large chunk warning remains.
+
 **Discover helper privacy fix (2026-05-11):** COMPLETE
 - **`server/controllers/discoverController.js`**: Popular helper rows and related helper suggestions now use `resolvePublicDisplayName()` instead of hand-built `first_name + last_name`, so helpers who choose first-name-only or business-name display are respected across `/discover`.
 - Helper search name matching now uses the same public display preference expression, so first-name-only helpers are not matched by hidden last names while still matching skills/profile text. The same privacy rule was extended to the helper directory query, public tool rental owner names, tool reviews, saved helpers, and planned-needs preferred helper display.
