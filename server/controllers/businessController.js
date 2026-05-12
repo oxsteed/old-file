@@ -207,27 +207,25 @@ async function updateBusiness(req, res, next) {
     // Update profile_headline / service_radius_miles on the OWNER's helper_profiles
     // row (keyed by ownerId, not the requester - a manager editing profile must not
     // overwrite their own helper_profiles row).
-    const helperCols   = [];
-    const helperVals   = [];
-    if (profile_headline !== undefined) {
-      helperVals.push(profile_headline || null);
-      helperCols.push(`profile_headline = $${helperVals.length}`);
-    }
-    if (service_radius_miles !== undefined) {
-      helperVals.push(service_radius_miles != null ? parseFloat(service_radius_miles) : null);
-      helperCols.push(`service_radius_miles = $${helperVals.length}`);
-    }
-    if (helperCols.length > 0) {
-      helperVals.push(ownerId);
-      const colNames = helperCols.map(c => c.split(' = ')[0]).join(', ');
-      const colPlaceholders = helperVals.slice(0, -1).map((_, i) => `$${i + 1}`).join(', ');
-      await pool.query(
-        `INSERT INTO helper_profiles (user_id, ${colNames})
-         VALUES ($${helperVals.length}, ${colPlaceholders})
-         ON CONFLICT (user_id) DO UPDATE SET ${helperCols.join(', ')}, updated_at = NOW()`,
-        helperVals
-      );
-    }
+// profile_headline and service_radius_miles are stored on businesses, not helper_profiles.
+        const bizCols = [];
+        const bizVals = [];
+        if (profile_headline !== undefined) {
+          bizVals.push(profile_headline || null);
+          bizCols.push(`profile_headline = $${bizVals.length}`);
+        }
+        if (service_radius_miles !== undefined) {
+          bizVals.push(service_radius_miles != null ? parseFloat(service_radius_miles) : null);
+          bizCols.push(`service_radius_miles = $${bizVals.length}`);
+        }
+        if (bizCols.length > 0) {
+          bizVals.push(id);
+          await pool.query(
+            `UPDATE businesses SET ${bizCols.join(', ')}, updated_at = NOW() WHERE id = $${bizVals.length}`,
+            bizVals
+          );
+          invalidateHelperContext(ownerId, Number(id)).catch(() => {});
+        }
 
     return res.json({ business: biz });
   } catch (err) {
@@ -711,14 +709,13 @@ async function getBusinessPublicProfile(req, res) {
          u.last_name    AS owner_last_name,
          u.display_name_preference,
          pb_prim.business_name AS primary_business_name,
-         hp.profile_headline,
+         COALESCE(b.profile_headline, hp.profile_headline) AS profile_headline,
          hp.profile_photo_url,
          hp.bio_short,
          hp.service_city, hp.service_state, hp.service_radius_miles,
          hp.service_lat, hp.service_lng,
          hp.avg_rating, hp.total_reviews, hp.completed_jobs_count,
-         hp.is_identity_verified, hp.is_background_checked,
-         hp.is_insured, hp.is_licensed,
+            b.is_business_verified,
          COALESCE(hp.allow_guest_contact, TRUE) AS owner_allow_guest_contact,
          COALESCE(b.active_template, 'default') AS active_template
        FROM businesses b
@@ -807,11 +804,8 @@ async function getBusinessPublicProfile(req, res) {
         service_lng: biz.service_lng != null ? parseFloat(biz.service_lng) : null,
         is_primary:     biz.is_primary,
         member_since:   biz.created_at,
-        // Badge flags from owner's helper profile
-        is_identity_verified:    biz.is_identity_verified,
-        is_background_checked:   biz.is_background_checked,
-        is_insured:              biz.is_insured,
-        is_licensed:             biz.is_licensed,
+        // Business verification badge
+          is_business_verified:    biz.is_business_verified,
         avg_rating:              biz.avg_rating,
         total_reviews:           biz.total_reviews,
         completed_jobs_count:    biz.completed_jobs_count,
@@ -823,9 +817,9 @@ async function getBusinessPublicProfile(req, res) {
           last_name: biz.owner_last_name,
           primary_business_name: biz.primary_business_name,
         }),
-        owner_photo:     biz.profile_photo_url,
+        owner_photo:      biz.logo_url || biz.profile_photo_url,
         profile_headline: biz.profile_headline,
-        bio_short:       biz.bio_short,
+        bio_short:        biz.description || biz.bio_short,
         /** Same gate as `/helpers/:id` guest chat - owner's helper_profiles.allow_guest_contact */
         allow_guest_contact: biz.owner_allow_guest_contact !== false,
         /** Active profile template slug */
@@ -868,7 +862,7 @@ async function getBusinessProfileForEditor(req, res) {
          b.address_country,
          b.logo_url,
          b.cover_photo_url,
-         hp.profile_headline,
+         COALESCE(b.profile_headline, hp.profile_headline) AS profile_headline,
          hp.service_radius_miles,
          hp.bio_short,
          b.ai_knowledge
