@@ -250,10 +250,10 @@ function normalizeToolPayload(body, { partial = false } = {}) {
     payload.replacement_value = parseMoney(body.replacement_value, 'replacement_value', errors);
   }
   if (!partial || body.owner_rules !== undefined) {
-    payload.owner_rules = cleanText(body.owner_rules, MAX_DESCRIPTION_LEN, 'owner_rules', errors);
+    payload.owner_rules = cleanText(body.owner_rules, MAX_TOOL_DESCRIPTION_LEN, 'owner_rules', errors);
   }
   if (!partial || body.owner_custom_terms !== undefined) {
-    payload.owner_custom_terms = cleanText(body.owner_custom_terms, MAX_DESCRIPTION_LEN, 'owner_custom_terms', errors);
+    payload.owner_custom_terms = cleanText(body.owner_custom_terms, MAX_TOOL_DESCRIPTION_LEN, 'owner_custom_terms', errors);
     payload.owner_custom_terms_hash = hashCustomTerms(payload.owner_custom_terms);
   }
 
