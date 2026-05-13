@@ -464,7 +464,7 @@ export default function TemplatePicker() {
   const handleActivate = async (slug) => {
     setActivating(slug);
     try {
-      await api.post('/templates/activate', { template_slug: slug, profile_type: profileType });
+      await api.post('/templates/activate', { slug: slug, type: profileType });
       setActiveSlug(slug);
       setPreviewSlug(null);
       toast.success(t('templatePicker.activatedSuccess', { name: TEMPLATE_REGISTRY[slug]?.name || slug }));
