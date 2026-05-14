@@ -837,3 +837,263 @@ html:not(.dark) .bh-status-pending {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Business Hub v2 - Today snapshot, Quick Actions, Cash-flow health, Calendar
+ * ------------------------------------------------------------------------- */
+
+.bh-today-strip {
+  background: linear-gradient(135deg, color-mix(in srgb, #f97316 10%, var(--card-bg)) 0%, var(--card-bg) 60%);
+  border: 1px solid color-mix(in srgb, #f97316 35%, var(--border-color));
+  border-radius: 14px;
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.bh-today-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+
+.bh-today-kicker {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #f97316;
+}
+
+.bh-today-head h2 {
+  margin: 0.2rem 0 0;
+  font-size: 1.4rem;
+  line-height: 1.15;
+}
+
+.bh-today-next {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid color-mix(in srgb, #f97316 45%, var(--border-color));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--app-bg) 75%, transparent);
+}
+
+.bh-today-next span {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted-text);
+  font-weight: 800;
+}
+
+.bh-today-next strong {
+  font-size: 0.9rem;
+  color: var(--app-text);
+  margin-top: 0.15rem;
+}
+
+.bh-today-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.bh-today-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.bh-today-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, #f97316 60%, var(--border-color));
+}
+
+.bh-today-card-num {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: var(--app-text);
+  line-height: 1;
+}
+
+.bh-today-card-label {
+  font-size: 0.8rem;
+  color: var(--muted-text);
+  font-weight: 700;
+}
+
+.bh-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.bh-quick-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  padding: 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--app-text);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.bh-quick-btn:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, #f97316 60%, var(--border-color));
+}
+
+.bh-quick-emoji {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.bh-quick-btn strong {
+  font-size: 0.92rem;
+  font-weight: 800;
+  margin-top: 0.2rem;
+}
+
+.bh-quick-btn span:last-child {
+  font-size: 0.78rem;
+  color: var(--muted-text);
+  line-height: 1.45;
+}
+
+.bh-health-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.bh-health-card {
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--card-bg);
+  padding: 1rem 1.1rem;
+}
+
+.bh-health-kicker {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted-text);
+}
+
+.bh-health-head h3 {
+  margin: 0.2rem 0 0.8rem;
+  font-size: 1.05rem;
+}
+
+.bh-health-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.bh-health-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin: 0;
+}
+
+.bh-health-stat strong {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: var(--app-text);
+}
+
+.bh-health-stat.warn strong {
+  color: #d97706;
+}
+
+.bh-health-stat.ok strong {
+  color: #10b981;
+}
+
+.bh-health-stat span {
+  font-size: 0.78rem;
+  color: var(--muted-text);
+  font-weight: 650;
+}
+
+.bh-receivables-bar {
+  height: 10px;
+  border-radius: 99px;
+  background: color-mix(in srgb, #10b981 30%, var(--app-bg));
+  overflow: hidden;
+  margin-bottom: 0.35rem;
+}
+
+.bh-receivables-overdue {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #ef4444);
+  transition: width 0.4s ease;
+}
+
+.bh-link-btn {
+  align-self: flex-start;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: #f97316;
+  font-weight: 800;
+  font-size: 0.88rem;
+  cursor: pointer;
+  margin-top: 0.4rem;
+}
+
+.bh-link-btn:hover { text-decoration: underline; }
+
+.bh-calendar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.bh-calendar-header h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.3rem;
+}
+
+.bh-calendar-header p {
+  margin: 0;
+  color: var(--muted-text);
+  line-height: 1.55;
+  font-size: 0.92rem;
+  max-width: 760px;
+}
+
+@media (max-width: 980px) {
+  .bh-today-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bh-quick-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bh-health-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .bh-today-cards { grid-template-columns: 1fr 1fr; }
+  .bh-quick-actions { grid-template-columns: 1fr; }
+}

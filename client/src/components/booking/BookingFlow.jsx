@@ -14,7 +14,7 @@ import './BookingFlow.css';
  * Direct booking: calendar → confirm → track status.
  * Fallback: Post Job wizard with pre-filled fields from a finished booking.
  */
-export default function BookingFlow({ helperId, helperName, onClose, onBookingCreated }) {
+export default function BookingFlow({ helperId, helperName, businessId, businessName, onClose, onBookingCreated }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -37,7 +37,11 @@ export default function BookingFlow({ helperId, helperName, onClose, onBookingCr
 
   const handleConfirmBooking = async (formData) => {
     if (!isLoggedIn) {
-      navigate('/login', { state: { from: `/book/${helperId}${helperName ? `?helperName=${encodeURIComponent(helperName)}` : ''}` } });
+      // Preserve whichever flow the customer started in (helper or business)
+      const returnPath = businessId
+        ? `/book/business/${businessId}${businessName ? `?businessName=${encodeURIComponent(businessName)}` : ''}`
+        : `/book/${helperId}${helperName ? `?helperName=${encodeURIComponent(helperName)}` : ''}`;
+      navigate('/login', { state: { from: returnPath } });
       return;
     }
 
@@ -46,7 +50,8 @@ export default function BookingFlow({ helperId, helperName, onClose, onBookingCr
 
     try {
       const bookingRow = await createBookingRequest({
-        helperId,
+        helperId: helperId || undefined,
+        businessId: businessId || undefined,
         serviceName: formData.serviceName,
         requestedDate: formData.requestedDate,
         requestedStartTime: formData.requestedStartTime,

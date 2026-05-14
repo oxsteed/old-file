@@ -43,6 +43,11 @@ const {
   searchSkillsForBusiness,
 } = require('../controllers/businessSkillsController');
 
+const {
+  listBusinessCalendar, getBusinessCalendarSummary,
+  createBusinessEvent, updateBusinessEvent, deleteBusinessEvent,
+} = require('../controllers/businessCalendarController');
+
 // ── Public invoice by token (no auth required) ────────────────────────────────
 router.get('/invoices/public/:token', getPublicInvoice);
 
@@ -94,6 +99,13 @@ router.get('/:id/goals',                        authenticate, listGoals);
 router.post('/:id/goals',                       authenticate, createGoal);
 router.put('/:id/goals/:goalId',                authenticate, updateGoal);
 router.delete('/:id/goals/:goalId',             authenticate, deleteGoal);
+
+// ── Per-business calendar (appointments + internal events) ────────────────────
+router.get('/:id/calendar',                     authenticate, listBusinessCalendar);
+router.get('/:id/calendar/summary',             authenticate, getBusinessCalendarSummary);
+router.post('/:id/calendar/events',             authenticate, createBusinessEvent);
+router.put('/:id/calendar/events/:eventId',     authenticate, updateBusinessEvent);
+router.delete('/:id/calendar/events/:eventId',  authenticate, deleteBusinessEvent);
 
 // ── Business team members ─────────────────────────────────────────────────────
 router.get('/:id/members',                      authenticate, listMembers);

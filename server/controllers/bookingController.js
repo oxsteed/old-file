@@ -61,7 +61,8 @@ exports.createBookingRequest = async (req, res) => {
   try {
     const customerId = req.user.id;
     const {
-      helperId,
+      helperId: helperIdInput,
+      businessId,
       serviceName,
       requestedDate,
       requestedStartTime,
@@ -71,8 +72,29 @@ exports.createBookingRequest = async (req, res) => {
       confirmationHours,
     } = req.body;
 
+    // A booking now targets either a specific helper, a business (which routes
+    // to its owner as the default acceptor), or both. Per migration 214, the
+    // business_id column on booking_requests preserves the link to the business
+    // even when the request is dispatched to the owner helper for confirmation.
+    let helperId = helperIdInput;
+    let business = null;
+    if (businessId) {
+      const bizRes = await pool.query(
+        `SELECT id, user_id, business_name, is_active, is_listed
+           FROM businesses
+          WHERE id = $1`,
+        [businessId]
+      );
+      business = bizRes.rows[0];
+      if (!business) return sendError(res, 404, 'Business not found', 'BUSINESS_NOT_FOUND');
+      if (!business.is_active || business.is_listed === false) {
+        return sendError(res, 400, 'Business is not accepting bookings', 'BUSINESS_INACTIVE');
+      }
+      if (!helperId) helperId = business.user_id;
+    }
+
     const errors = {};
-    if (!helperId) errors.helperId = 'Helper ID is required';
+    if (!helperId && !businessId) errors.helperId = 'Helper ID or Business ID is required';
     if (!serviceName || !String(serviceName).trim()) errors.serviceName = 'Service name is required';
     if (!requestedDate) errors.requestedDate = 'Date is required';
     if (!requestedStartTime) errors.requestedStartTime = 'Start time is required';
@@ -123,15 +145,16 @@ exports.createBookingRequest = async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO booking_requests (
-        id, customer_id, helper_id, service_name, requested_date,
+        id, customer_id, helper_id, business_id, service_name, requested_date,
         requested_start_time, requested_end_time, service_location,
         description, expires_at, confirmation_hours
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
       [
         bookingId,
         customerId,
         helperId,
+        businessId || null,
         String(serviceName).trim(),
         requestedDate,
         requestedStartTime,

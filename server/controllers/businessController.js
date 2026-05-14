@@ -697,25 +697,28 @@ async function getBusinessPublicProfile(req, res) {
     const bizId = req.params.id;
 
     // Core business record + owner info
+    // Per migration 214, businesses are FULLY independent from the owner's helper_profile:
+    //   * Service area, ratings, headline, photos, and visibility are read from `businesses` columns.
+    //   * The owner is referenced only for chat initiation (owner_name / owner_id).
+    //   * The helper_profile join is retained ONLY to support the legacy
+    //     allow_guest_contact and active_template fallbacks during the migration window.
     const bizRes = await pool.query(
       `SELECT
          b.id, b.business_name, b.business_type, b.description,
-         b.website, b.phone, b.logo_url,
-         COALESCE(b.cover_photo_url, hp.cover_photo_url) AS cover_photo_url,
+         b.website, b.phone, b.logo_url, b.cover_photo_url,
          b.address_city, b.address_state, b.address_country,
-         b.is_primary, b.is_active, b.created_at,
+         b.is_primary, b.is_active, b.is_listed, b.created_at,
          u.id           AS owner_id,
          u.first_name   AS owner_first_name,
          u.last_name    AS owner_last_name,
          u.display_name_preference,
          pb_prim.business_name AS primary_business_name,
-         COALESCE(b.profile_headline, hp.profile_headline) AS profile_headline,
-         hp.profile_photo_url,
-         hp.bio_short,
-         hp.service_city, hp.service_state, hp.service_radius_miles,
-         hp.service_lat, hp.service_lng,
-         hp.avg_rating, hp.total_reviews, hp.completed_jobs_count,
-            b.is_business_verified,
+         b.profile_headline,
+         b.service_city, b.service_state, b.service_radius_miles,
+         b.service_lat, b.service_lng,
+         b.avg_rating, b.total_reviews, b.completed_jobs_count,
+         b.is_business_verified,
+         b.stripe_charges_enabled, b.stripe_account_status,
          COALESCE(hp.allow_guest_contact, TRUE) AS owner_allow_guest_contact,
          COALESCE(b.active_template, 'default') AS active_template
        FROM businesses b
@@ -724,12 +727,10 @@ async function getBusinessPublicProfile(req, res) {
        LEFT JOIN businesses pb_prim ON pb_prim.user_id = u.id AND pb_prim.is_primary = TRUE AND pb_prim.is_active = TRUE
        WHERE b.id        = $1
          AND b.is_active = TRUE
+         AND b.is_listed = TRUE
          AND u.deleted_at IS NULL
          AND u.is_active = TRUE
-         AND u.role IN ('helper', 'helper_pro', 'broker')
-         AND u.email_verified = TRUE
-         AND u.onboarding_completed = TRUE
-         AND (hp.user_id IS NULL OR COALESCE(hp.is_listed, TRUE) = TRUE)`,
+         AND u.email_verified = TRUE`,
       [bizId]
     );
 
@@ -748,15 +749,20 @@ async function getBusinessPublicProfile(req, res) {
          ORDER BY sort_order, id`,
         [bizId]
       ),
+      // Business reviews are now sourced from the business_reviews table keyed
+      // on business_id - not the owner's personal review pool. See migration 214.
       pool.query(
-        `SELECT r.id, r.rating, r.comment, r.created_at, r.response, r.response_at,
-                u.first_name, u.last_name
-         FROM reviews r
-         JOIN users u ON u.id = r.reviewer_id
-         WHERE r.reviewee_id = $1 AND r.is_public = TRUE
-         ORDER BY r.created_at DESC
+        `SELECT br.id, br.rating, br.testimonial AS comment, br.created_at,
+                br.response, br.updated_at AS response_at,
+                u.first_name, u.last_name,
+                helper.first_name AS helper_first_name, helper.last_name AS helper_last_name
+         FROM business_reviews br
+         JOIN users u ON u.id = br.customer_id
+         LEFT JOIN users helper ON helper.id = br.helper_id
+         WHERE br.business_id = $1
+         ORDER BY br.created_at DESC
          LIMIT 20`,
-        [ownerId]
+        [bizId]
       ),
       pool.query(
         `SELECT id, url, caption, alt FROM business_gallery WHERE business_id = $1 ORDER BY sort_order, id`,
@@ -817,9 +823,14 @@ async function getBusinessPublicProfile(req, res) {
           last_name: biz.owner_last_name,
           primary_business_name: biz.primary_business_name,
         }),
-        owner_photo:      biz.logo_url || biz.profile_photo_url,
+        // Business avatar shown to customers is the business's own logo; we
+        // intentionally no longer fall back to the owner's helper profile photo.
+        owner_photo:      biz.logo_url,
         profile_headline: biz.profile_headline,
-        bio_short:        biz.description || biz.bio_short,
+        bio_short:        biz.description,
+        // Payment readiness signal so the booking page can decide whether to
+        // collect payment up-front or fall back to invoicing.
+        accepts_payments: !!biz.stripe_charges_enabled,
         /** Same gate as `/helpers/:id` guest chat - owner's helper_profiles.allow_guest_contact */
         allow_guest_contact: biz.owner_allow_guest_contact !== false,
         /** Active profile template slug */

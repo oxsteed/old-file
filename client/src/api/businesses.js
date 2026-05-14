@@ -57,6 +57,18 @@ export const declineInvitation   = (id)           => api.post(`/businesses/invit
 // ── Businesses I manage as a representative / manager ─────────────────────────
 export const listManagedBusinesses = ()           => api.get('/businesses/managed').then(r => r.data?.businesses || []);
 
+// ── Per-business calendar (events + linked appointments) ─────────────────────
+export const getBusinessCalendar        = (id, params = {}) =>
+  api.get(`/businesses/${id}/calendar`, { params }).then(r => r.data?.data || r.data || {});
+export const getBusinessCalendarSummary = (id) =>
+  api.get(`/businesses/${id}/calendar/summary`).then(r => r.data?.data || r.data || {});
+export const createBusinessEvent        = (id, payload) =>
+  api.post(`/businesses/${id}/calendar/events`, payload).then(r => r.data?.data?.event || r.data?.event);
+export const updateBusinessEvent        = (id, eventId, payload) =>
+  api.put(`/businesses/${id}/calendar/events/${eventId}`, payload).then(r => r.data?.data?.event || r.data?.event);
+export const deleteBusinessEvent        = (id, eventId) =>
+  api.delete(`/businesses/${id}/calendar/events/${eventId}`).then(r => r.data);
+
 // ── Vortex tokens ─────────────────────────────────────────────────────────────
 export const listVortexTokens    = (bizId)               => api.get(`/businesses/${bizId}/vortex-tokens`).then(r => r.data?.tokens || []);
 export const generateVortexToken = (bizId, payload)      => api.post(`/businesses/${bizId}/vortex-tokens`, payload).then(r => r.data?.token);

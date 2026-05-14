@@ -353,28 +353,30 @@ async function listHelpers(req, res, next) {
     if (pageNum === 1) {
       const bizConditions = [
         'b.is_active = TRUE',
+        // Visibility is controlled by the business's own flag - independent of
+        // the owner's helper_profile.is_listed. See migration 214.
+        'COALESCE(b.is_listed, TRUE) = TRUE',
         "b.business_name IS NOT NULL",
         "b.business_name != ''",
         'u.deleted_at IS NULL',
         'u.is_active = TRUE',
         'u.email_verified = TRUE',
-        'u.onboarding_completed = TRUE',
-        "u.role IN ('helper', 'helper_pro', 'broker')",
-        '(hp.user_id IS NULL OR COALESCE(hp.is_listed, TRUE) = TRUE)',
       ];
       const bizParams = [];
       let bIdx = 1;
 
-      // Location filter: use the owner's helper_profile lat/lng
+      // Location filter: use the business's own service coords (per migration
+      // 214). The COALESCE keeps backwards compatibility while businesses
+      // without their own coords are being backfilled.
       if (!isNaN(userLat) && !isNaN(userLng)) {
         bizParams.push(userLat, userLng, radiusMiles);
         bizConditions.push(`(
-          hp.service_lat IS NULL OR hp.service_lng IS NULL OR
+          COALESCE(b.service_lat, hp.service_lat) IS NULL OR COALESCE(b.service_lng, hp.service_lng) IS NULL OR
           3958.8 * acos(
             GREATEST(-1.0, LEAST(1.0,
-              sin(radians($${bIdx}::float8))   * sin(radians(hp.service_lat::float8)) +
-              cos(radians($${bIdx}::float8))   * cos(radians(hp.service_lat::float8)) *
-              cos(radians(hp.service_lng::float8 - $${bIdx + 1}::float8))
+              sin(radians($${bIdx}::float8))   * sin(radians(COALESCE(b.service_lat, hp.service_lat)::float8)) +
+              cos(radians($${bIdx}::float8))   * cos(radians(COALESCE(b.service_lat, hp.service_lat)::float8)) *
+              cos(radians(COALESCE(b.service_lng, hp.service_lng)::float8 - $${bIdx + 1}::float8))
             ))
           ) <= $${bIdx + 2}
         )`);
@@ -393,13 +395,20 @@ async function listHelpers(req, res, next) {
       }
 
       const bizWhere = bizConditions.join(' AND ');
+      // Discovery cards for businesses are now fully independent of the owner's
+      // helper_profile. We read tagline, location, rating, reviews, and the
+      // verification badge from the businesses row itself (per migration 214).
       const { rows: bizRows } = await pool.query(
         `SELECT
-           b.id, b.business_name, hp.profile_headline AS tagline, b.description AS about,
-           b.logo_url AS profile_photo_url,
-           NULL AS city, NULL AS state,
-           0 AS avg_rating, 0 AS total_reviews,
-           FALSE AS is_verified,
+           b.id, b.business_name,
+           b.profile_headline AS tagline,
+           b.description       AS about,
+           b.logo_url          AS profile_photo_url,
+           COALESCE(b.address_city,  b.service_city)  AS city,
+           COALESCE(b.address_state, b.service_state) AS state,
+           COALESCE(b.avg_rating, 0)    AS avg_rating,
+           COALESCE(b.total_reviews, 0) AS total_reviews,
+           COALESCE(b.is_business_verified, FALSE) AS is_verified,
            u.id AS owner_id, u.first_name AS owner_first, u.last_name AS owner_last,
            u.display_name_preference,
            pb_owner.business_name AS primary_business_name
@@ -408,7 +417,7 @@ async function listHelpers(req, res, next) {
          LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
          LEFT JOIN businesses pb_owner ON pb_owner.user_id = u.id AND pb_owner.is_primary = TRUE AND pb_owner.is_active = TRUE
          WHERE ${bizWhere}
-                 ORDER BY hp.avg_rating DESC NULLS LAST, hp.total_reviews DESC NULLS LAST
+         ORDER BY b.avg_rating DESC NULLS LAST, b.total_reviews DESC NULLS LAST, b.created_at DESC
          LIMIT 20`,
         bizParams
       );

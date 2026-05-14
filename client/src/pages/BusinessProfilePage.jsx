@@ -324,11 +324,15 @@ export default function BusinessProfilePage() {
 
   const handleBookNow = useCallback(() => {
     if (!profileData) return;
+    // Route through the business booking endpoint so the booking_requests row
+    // is tagged with business_id (per migration 214). The server still resolves
+    // the owner helper as the default acceptor.
+    const bizId = profileData.bizId || id;
     const params = new URLSearchParams({
-      helperName: profileData.helper.businessName,
+      businessName: profileData.helper.businessName,
     });
-    navigate(`/book/${profileData.helper.id}?${params.toString()}`);
-  }, [profileData, navigate]);
+    navigate(`/book/business/${bizId}?${params.toString()}`);
+  }, [profileData, navigate, id]);
 
   const handleTemplatePrimaryAction = useCallback(() => {
     if (!profileData) return;
@@ -346,12 +350,13 @@ export default function BusinessProfilePage() {
 
   const handlePostJobPublic = useCallback(() => {
     if (!profileData) return;
+    const bizId = profileData.bizId || id;
     const params = new URLSearchParams({
-      helperId: profileData.helper.id,
-      helperName: profileData.helper.businessName,
+      businessId: bizId,
+      businessName: profileData.helper.businessName,
     });
     navigate(`/post-job?${params.toString()}`);
-  }, [profileData, navigate]);
+  }, [profileData, navigate, id]);
 
   const handleOpenChat = useCallback(() => {
     // On desktop, scroll to chat panel in sidebar. On mobile, open drawer.
@@ -380,15 +385,16 @@ export default function BusinessProfilePage() {
   const handleSelectService = useCallback(
     (service) => {
       if (!profileData) return;
+      const bizId = profileData.bizId || id;
       const params = new URLSearchParams({
-        helperName: profileData.helper.businessName,
+        businessName: profileData.helper.businessName,
       });
       if (service.name?.trim()) {
         params.set('serviceHint', service.name.trim());
       }
-      navigate(`/book/${profileData.helper.id}?${params.toString()}`);
+      navigate(`/book/business/${bizId}?${params.toString()}`);
     },
-    [profileData, navigate]
+    [profileData, navigate, id]
   );
 
   // ── Loading / error shells ─────────────────────────────────────────────────

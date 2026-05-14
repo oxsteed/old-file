@@ -10,6 +10,7 @@ import CountrySelect from '../components/CountrySelect';
 import RegionInput from '../components/RegionInput';
 import PostalCodeInput from '../components/PostalCodeInput';
 import AIKnowledgeTab from '../components/AIKnowledgeTab';
+import BusinessCalendarView from '../components/calendar/BusinessCalendarView';
 import {
   listBusinesses, createBusiness, updateBusiness, uploadBusinessPhotos,
   getAnalytics,
@@ -28,6 +29,7 @@ import {
   listBusinessFAQs, createBusinessFAQ, updateBusinessFAQ, deleteBusinessFAQ,
   listBusinessHours, updateBusinessHours,
   listBusinessSkills,
+  getBusinessCalendarSummary,
 } from '../api/businesses';
 import {
   convertMaintenanceRequestToJob,
@@ -862,7 +864,8 @@ function BusinessHubInner() {
   const canViewFinanceHub = currentRole !== 'representative';
   const financeTabIds = ['overview', 'invoices', 'tax', 'goals'];
   const contentTabIds = ['services', 'gallery', 'policies', 'faqs', 'hours', 'skills', 'ai'];
-  const visibleTabs = ['profile', ...contentTabIds, 'maintenance', ...financeTabIds, 'team'].filter((tb) => {
+  // Calendar is available to anyone with team access (owners, managers, reps).
+  const visibleTabs = ['profile', ...contentTabIds, 'calendar', 'maintenance', ...financeTabIds, 'team'].filter((tb) => {
     if (tb === 'profile' && !canEditBizProfile) return false;
     if (contentTabIds.includes(tb) && !canEditBizProfile) return false;
     if (financeTabIds.includes(tb) && !canViewFinanceHub) return false;
@@ -896,6 +899,7 @@ function BusinessHubInner() {
     if (tb === 'tax') return t('businessHub.tabTaxLabel');
     if (tb === 'goals') return t('businessHub.tabGoalsLabel');
     if (tb === 'maintenance') return 'Maintenance';
+    if (tb === 'calendar') return t('businessHub.tabCalendarLabel', { defaultValue: 'Calendar' });
     if (tb === 'ai') return t('businessHub.tabAILabel');
     return tb;
   };
@@ -1095,6 +1099,20 @@ function BusinessHubInner() {
               />
             )}
 
+            {tab === 'calendar' && bizId && (
+              <div className="bh-calendar-wrap">
+                <div className="bh-calendar-header">
+                  <h2>{currentBiz?.business_name || 'Business'} calendar</h2>
+                  <p>
+                    A calendar dedicated to this business - separate from your personal helper
+                    schedule. Track team meetings, deliveries, supplier visits, vehicle maintenance,
+                    training, and customer appointments that are tied to this business.
+                  </p>
+                </div>
+                <BusinessCalendarView bizId={bizId} canManage={canEditBizProfile} />
+              </div>
+            )}
+
             {/* ── Overview tab ────────────────────────────────────── */}
             {tab === 'overview' && (
               analyticsLoading || (bizId && !analytics && !analyticsError) ? (
@@ -1102,7 +1120,14 @@ function BusinessHubInner() {
               ) : analyticsError ? (
                 <p className="bh-error">{t('businessHub.errorAnalytics')}</p>
               ) : (
-                <OverviewTab analytics={analytics} currency={currency} />
+                <OverviewTab
+                  analytics={analytics}
+                  currency={currency}
+                  bizId={bizId}
+                  businessName={currentBiz?.business_name}
+                  canManage={canEditBizProfile}
+                  setTab={setTab}
+                />
               )
             )}
 
@@ -1914,7 +1939,7 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
 }
 
 // ── Overview tab ──────────────────────────────────────────────────────────────
-function OverviewTab({ analytics, currency }) {
+function OverviewTab({ analytics, currency, bizId, businessName, canManage, setTab }) {
   const { t } = useTranslation();
   const a = analytics;
   const monthly = a?.monthly || [];
@@ -1930,8 +1955,167 @@ function OverviewTab({ analytics, currency }) {
   ]);
   const maxVal = Math.max(...allVals.map(v => Math.abs(v)), 1);
 
+  // ── Calendar summary (today / this week / next 24h) ─────────────────────────
+  const [calSummary, setCalSummary] = useState(null);
+  useEffect(() => {
+    let mounted = true;
+    if (!bizId) return undefined;
+    getBusinessCalendarSummary(bizId)
+      .then((s) => { if (mounted) setCalSummary(s || {}); })
+      .catch(() => { if (mounted) setCalSummary({}); });
+    return () => { mounted = false; };
+  }, [bizId]);
+
+  // ── Cash-flow runway: avg net burn from negative-profit months ─────────────
+  const runway = (() => {
+    if (!monthly.length) return null;
+    const recent = monthly.slice(-6);
+    const profits = recent.map((m) => parseFloat(m.profit) || 0);
+    const avgProfit = profits.reduce((acc, v) => acc + v, 0) / profits.length;
+    const totalRevenue = recent.reduce((acc, m) => acc + (parseFloat(m.revenue) || 0), 0);
+    const totalExpenses = recent.reduce((acc, m) => acc + (parseFloat(m.expenses) || 0), 0);
+    const burn = Math.max(0, totalExpenses - totalRevenue) / recent.length;
+    const cashOnHand = parseFloat(a?.cash_on_hand) || null;
+    const months = burn > 0 && cashOnHand ? Math.floor(cashOnHand / burn) : null;
+    return { avgProfit, burn, months, healthy: avgProfit >= 0 };
+  })();
+
+  // ── Outstanding revenue ratio (overdue/sent) ───────────────────────────────
+  const outstandingPct = (() => {
+    const sent = parseFloat(a?.invoices?.outstanding_total) || 0;
+    const overdue = parseFloat(a?.invoices?.overdue_total) || 0;
+    if (sent <= 0) return 0;
+    return Math.min(100, Math.round((overdue / sent) * 100));
+  })();
+
+  const goTo = (id) => () => setTab && setTab(id);
+  const nextLabel = calSummary?.next_event_at
+    ? new Date(calSummary.next_event_at).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    : null;
+
   return (
     <>
+      {/* ── Today snapshot ─────────────────────────────────────────────────── */}
+      <div className="bh-today-strip" role="region" aria-label="Today">
+        <div className="bh-today-head">
+          <div>
+            <span className="bh-today-kicker">Today at {businessName || 'your business'}</span>
+            <h2>{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h2>
+          </div>
+          {nextLabel && (
+            <div className="bh-today-next">
+              <span>Next up</span>
+              <strong>{nextLabel}</strong>
+            </div>
+          )}
+        </div>
+        <div className="bh-today-cards">
+          <button type="button" className="bh-today-card" onClick={goTo('calendar')}>
+            <span className="bh-today-card-num">{calSummary?.today_count ?? '-'}</span>
+            <span className="bh-today-card-label">on the calendar today</span>
+          </button>
+          <button type="button" className="bh-today-card" onClick={goTo('calendar')}>
+            <span className="bh-today-card-num">{calSummary?.this_week_count ?? '-'}</span>
+            <span className="bh-today-card-label">events this week</span>
+          </button>
+          <button type="button" className="bh-today-card" onClick={goTo('invoices')}>
+            <span className="bh-today-card-num">{a?.invoices?.overdue_count ?? 0}</span>
+            <span className="bh-today-card-label">overdue invoices</span>
+          </button>
+          <button type="button" className="bh-today-card" onClick={goTo('invoices')}>
+            <span className="bh-today-card-num">{fmt$(a?.invoices?.outstanding_total, currency)}</span>
+            <span className="bh-today-card-label">awaiting payment</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Quick actions ribbon ──────────────────────────────────────────── */}
+      <div className="bh-quick-actions" role="region" aria-label="Quick actions">
+        {canManage && (
+          <button type="button" className="bh-quick-btn" onClick={goTo('calendar')}>
+            <span className="bh-quick-emoji" aria-hidden="true">📅</span>
+            <strong>Add event</strong>
+            <span>Schedule a team meeting, delivery, or appointment</span>
+          </button>
+        )}
+        <button type="button" className="bh-quick-btn" onClick={goTo('invoices')}>
+          <span className="bh-quick-emoji" aria-hidden="true">🧾</span>
+          <strong>Send an invoice</strong>
+          <span>Get paid faster - your customers can pay online</span>
+        </button>
+        <button type="button" className="bh-quick-btn" onClick={goTo('goals')}>
+          <span className="bh-quick-emoji" aria-hidden="true">🎯</span>
+          <strong>Set a goal</strong>
+          <span>Track revenue, profit, or job-count targets</span>
+        </button>
+        <button type="button" className="bh-quick-btn" onClick={goTo('team')}>
+          <span className="bh-quick-emoji" aria-hidden="true">👥</span>
+          <strong>Invite a teammate</strong>
+          <span>Bring a manager or representative on board</span>
+        </button>
+        <button type="button" className="bh-quick-btn" onClick={goTo('maintenance')}>
+          <span className="bh-quick-emoji" aria-hidden="true">🛠</span>
+          <strong>Open maintenance</strong>
+          <span>Property issues that need a fix</span>
+        </button>
+      </div>
+
+      {/* ── Financial health: runway + outstanding mix ───────────────────── */}
+      <div className="bh-health-grid">
+        <div className="bh-health-card">
+          <div className="bh-health-head">
+            <span className="bh-health-kicker">Cash-flow signal</span>
+            <h3>{runway?.healthy ? 'Healthy 6-month average' : 'Tightening - watch closely'}</h3>
+          </div>
+          <div className="bh-health-body">
+            <p className="bh-health-stat">
+              <strong>{fmt$(runway?.avgProfit ?? 0, currency)}</strong>
+              <span>avg monthly profit (last 6)</span>
+            </p>
+            {runway?.burn > 0 ? (
+              <p className="bh-health-stat warn">
+                <strong>{fmt$(runway.burn, currency)}</strong>
+                <span>avg monthly burn (expenses over revenue)</span>
+              </p>
+            ) : (
+              <p className="bh-health-stat ok">
+                <strong>Profitable</strong>
+                <span>revenue is covering expenses</span>
+              </p>
+            )}
+            {runway?.months != null && (
+              <p className="bh-health-stat">
+                <strong>{runway.months} mo</strong>
+                <span>estimated runway at current burn</span>
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="bh-health-card">
+          <div className="bh-health-head">
+            <span className="bh-health-kicker">Receivables mix</span>
+            <h3>Outstanding vs. overdue</h3>
+          </div>
+          <div className="bh-health-body">
+            <div className="bh-receivables-bar" aria-hidden="true">
+              <div className="bh-receivables-overdue" style={{ width: `${outstandingPct}%` }} />
+            </div>
+            <p className="bh-health-stat">
+              <strong>{fmt$(a?.invoices?.outstanding_total, currency)}</strong>
+              <span>total awaiting payment</span>
+            </p>
+            <p className="bh-health-stat warn">
+              <strong>{fmt$(a?.invoices?.overdue_total, currency)}</strong>
+              <span>{outstandingPct}% of outstanding is overdue</span>
+            </p>
+            <button type="button" className="bh-link-btn" onClick={goTo('invoices')}>
+              Review invoices →
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* KPI grid */}
       <div className="bh-kpi-grid">
         <KPI label={t('businessHub.kpiMtdRevenue')}    value={fmt$(a?.mtd?.revenue, currency)}    cls="positive" />
