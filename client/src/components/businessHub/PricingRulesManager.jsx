@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { axiosInstance } from '../../api/axios';
+import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Edit2, Trash2, Plus, TrendingUp, Clock, Users, Zap, Calendar } from 'lucide-react';
 import '../../styles/PricingRulesManager.css';
@@ -36,7 +36,7 @@ export function PricingRulesManager({ businessId }) {
   const loadRules = async () => {
     try {
       setLoading(true);
-      const response = await axiosInstance.get(
+      const response = await api.get(
         `/api/businesses/${businessId}/pricing-rules`
       );
       setRules(response.data || []);
@@ -55,13 +55,13 @@ export function PricingRulesManager({ businessId }) {
 
     try {
       if (selectedRule) {
-        await axiosInstance.put(
+        await api.put(
           `/api/businesses/${businessId}/pricing-rules/${selectedRule.id}`,
           formData
         );
         toast.success('Pricing rule updated');
       } else {
-        await axiosInstance.post(
+        await api.post(
           `/api/businesses/${businessId}/pricing-rules`,
           formData
         );
@@ -80,7 +80,7 @@ export function PricingRulesManager({ businessId }) {
     if (!window.confirm('Delete this pricing rule?')) return;
 
     try {
-      await axiosInstance.delete(
+      await api.delete(
         `/api/businesses/${businessId}/pricing-rules/${ruleId}`
       );
       toast.success('Rule deleted');

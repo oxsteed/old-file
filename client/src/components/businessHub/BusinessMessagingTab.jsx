@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { axiosInstance } from '../../api/axios';
+import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Send, Archive, Plus, Search } from 'lucide-react';
 import '../../styles/BusinessMessagingTab.css';
@@ -22,7 +22,7 @@ export function BusinessMessagingTab({ businessId }) {
   const loadConversations = async () => {
     try {
       setLoading(true);
-      const response = await axiosInstance.get(`/api/businesses/${businessId}/messages`, {
+      const response = await api.get(`/api/businesses/${businessId}/messages`, {
         params: { type: conversationType === 'all' ? undefined : conversationType, search }
       });
       setConversations(response.data.conversations);
@@ -36,7 +36,7 @@ export function BusinessMessagingTab({ businessId }) {
   // Load conversation messages
   const openConversation = async (conversationId) => {
     try {
-      const response = await axiosInstance.get(
+      const response = await api.get(
         `/api/businesses/${businessId}/messages/${conversationId}`
       );
       setSelectedConversation(response.data);
@@ -51,7 +51,7 @@ export function BusinessMessagingTab({ businessId }) {
     if (!messageText.trim() || !selectedConversation) return;
 
     try {
-      const response = await axiosInstance.post(
+      const response = await api.post(
         `/api/businesses/${businessId}/messages/${selectedConversation.id}`,
         { content: messageText, message_type: 'text' }
       );
@@ -67,7 +67,7 @@ export function BusinessMessagingTab({ businessId }) {
   // Archive conversation
   const handleArchiveConversation = async (conversationId) => {
     try {
-      await axiosInstance.post(
+      await api.post(
         `/api/businesses/${businessId}/messages/${conversationId}/archive`
       );
       toast.success('Conversation archived');
@@ -80,7 +80,7 @@ export function BusinessMessagingTab({ businessId }) {
 
   const handleNewConversation = async (type, data) => {
     try {
-      await axiosInstance.post(`/api/businesses/${businessId}/messages`, {
+      await api.post(`/api/businesses/${businessId}/messages`, {
         conversation_type: type,
         ...data
       });

@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { axiosInstance } from '../../api/axios';
+import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import '../../styles/ProductManagement.css';
@@ -29,7 +29,7 @@ export function ProductManagement({ businessId }) {
   const loadProducts = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axiosInstance.get(`/api/businesses/${businessId}/products`, {
+      const res = await api.get(`/api/businesses/${businessId}/products`, {
         params: { limit: 100 },
       });
       setProducts(res.data.data || []);
@@ -42,7 +42,7 @@ export function ProductManagement({ businessId }) {
 
   const loadLowStockAlerts = useCallback(async () => {
     try {
-      const res = await axiosInstance.get(
+      const res = await api.get(
         `/api/businesses/${businessId}/products/alerts/low-stock`
       );
       setLowStockAlerts(res.data.data || []);
@@ -63,7 +63,7 @@ export function ProductManagement({ businessId }) {
       return;
     }
     try {
-      const res = await axiosInstance.post(`/api/businesses/${businessId}/products`, {
+      const res = await api.post(`/api/businesses/${businessId}/products`, {
         name:        productForm.name,
         category:    productForm.category,
         description: productForm.description,
@@ -83,7 +83,7 @@ export function ProductManagement({ businessId }) {
   const handleDeleteProduct = async (productId) => {
     if (!window.confirm(t('common.confirmDelete', { defaultValue: 'Delete this product?' }))) return;
     try {
-      await axiosInstance.delete(`/api/businesses/${businessId}/products/${productId}`);
+      await api.delete(`/api/businesses/${businessId}/products/${productId}`);
       setProducts(products.filter(p => p.id !== productId));
       if (selectedProduct?.id === productId) setSelectedProduct(null);
       toast.success(t('common.deleted', { defaultValue: 'Deleted' }));
@@ -99,7 +99,7 @@ export function ProductManagement({ businessId }) {
       return;
     }
     try {
-      await axiosInstance.post(
+      await api.post(
         `/api/businesses/${businessId}/products/${selectedProduct.id}/variants`,
         {
           variantName:     variantForm.variantName,
@@ -120,7 +120,7 @@ export function ProductManagement({ businessId }) {
 
   const handleUpdateInventory = async (variantId, quantityChange, reason) => {
     try {
-      await axiosInstance.put(
+      await api.put(
         `/api/businesses/${businessId}/products/${selectedProduct.id}/variants/${variantId}/inventory`,
         { quantityChange: parseInt(quantityChange), reason }
       );

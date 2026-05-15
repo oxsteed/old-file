@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { axiosInstance } from '../../api/axios';
+import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Edit2, Trash2, Plus, Clock, DollarSign } from 'lucide-react';
 import '../../styles/BusinessServicesTab.css';
@@ -27,7 +27,7 @@ export function BusinessServicesTab({ businessId }) {
   const loadServices = async () => {
     try {
       setLoading(true);
-      const response = await axiosInstance.get(`/api/businesses/${businessId}/services`);
+      const response = await api.get(`/api/businesses/${businessId}/services`);
       setServices(response.data);
     } catch (error) {
       toast.error('Failed to load services');
@@ -44,13 +44,13 @@ export function BusinessServicesTab({ businessId }) {
 
     try {
       if (selectedService) {
-        await axiosInstance.put(
+        await api.put(
           `/api/businesses/${businessId}/services/${selectedService.id}`,
           formData
         );
         toast.success('Service updated');
       } else {
-        await axiosInstance.post(`/api/businesses/${businessId}/services`, formData);
+        await api.post(`/api/businesses/${businessId}/services`, formData);
         toast.success('Service created');
       }
       setShowForm(false);
@@ -75,7 +75,7 @@ export function BusinessServicesTab({ businessId }) {
     if (!window.confirm('Are you sure you want to delete this service?')) return;
 
     try {
-      await axiosInstance.put(`/api/businesses/${businessId}/services/${serviceId}`, {
+      await api.put(`/api/businesses/${businessId}/services/${serviceId}`, {
         is_active: false
       });
       toast.success('Service deactivated');

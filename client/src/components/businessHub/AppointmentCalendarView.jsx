@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { axiosInstance } from '../../api/axios';
+import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { ChevronLeft, ChevronRight, Clock, User, Phone, Mail, AlertCircle } from 'lucide-react';
 import '../../styles/AppointmentCalendarView.css';
@@ -22,7 +22,7 @@ export function AppointmentCalendarView({ businessId }) {
       const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
-      const response = await axiosInstance.get(`/api/businesses/${businessId}/appointments`, {
+      const response = await api.get(`/api/businesses/${businessId}/appointments`, {
         params: {
           status: filter === 'all' ? undefined : filter,
           startDate: startOfMonth.toISOString().split('T')[0],
@@ -91,7 +91,7 @@ export function AppointmentCalendarView({ businessId }) {
 
   const handleUpdateStatus = async (appointmentId, newStatus) => {
     try {
-      await axiosInstance.put(`/api/businesses/${businessId}/appointments/${appointmentId}/status`, {
+      await api.put(`/api/businesses/${businessId}/appointments/${appointmentId}/status`, {
         status: newStatus
       });
       toast.success(`Appointment ${newStatus}`);

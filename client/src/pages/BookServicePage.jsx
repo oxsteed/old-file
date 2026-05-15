@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { axiosInstance } from '../api/axios';
+import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { Calendar, Clock, DollarSign, User, Mail, Phone } from 'lucide-react';
 import '../styles/BookServicePage.css';
@@ -48,11 +48,11 @@ export default function BookServicePage() {
     try {
       setLoading(true);
       // Load business info
-      const businessRes = await axiosInstance.get(`/api/businesses/${businessId}/profile`);
+      const businessRes = await api.get(`/api/businesses/${businessId}/profile`);
       setBusiness(businessRes.data);
 
       // Load service
-      const serviceRes = await axiosInstance.get(
+      const serviceRes = await api.get(
         `/api/businesses/${businessId}/services`
       );
       const svc = serviceRes.data.find(s => s.id === serviceId);
@@ -67,7 +67,7 @@ export default function BookServicePage() {
 
   const loadAvailableSlots = async () => {
     try {
-      const response = await axiosInstance.get(
+      const response = await api.get(
         `/api/businesses/${businessId}/services/${serviceId}/slots`,
         { params: { date: selectedDate } }
       );
@@ -81,7 +81,7 @@ export default function BookServicePage() {
 
   const calculatePrice = async () => {
     try {
-      const response = await axiosInstance.get(
+      const response = await api.get(
         `/api/businesses/${businessId}/services/${serviceId}/calculate-price`,
         {
           params: {
@@ -117,7 +117,7 @@ export default function BookServicePage() {
       setLoading(true);
 
       // Create appointment
-      const response = await axiosInstance.post(
+      const response = await api.post(
         `/api/businesses/${businessId}/appointments`,
         {
           service_id: serviceId,
