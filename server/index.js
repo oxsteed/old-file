@@ -59,8 +59,11 @@ const verificationRoutes = require('./routes/verification');
 const messageRoutes = require('./routes/messages');
 const lifeDashboardRoutes = require('./routes/lifeDashboard');
 const diditRoutes = require('./routes/didit');
-const businessRoutes = require('./routes/businesses');
-const businessProfileImagesRoutes = require('./routes/businessProfileImages');
+const businessRoutes                = require('./routes/businesses');
+const businessOperationsRoutes      = require('./routes/businessOperations');
+const businessProductsRoutes        = require('./routes/businessProducts');
+const businessProductPricingRoutes  = require('./routes/businessProductPricing');
+const businessProfileImagesRoutes   = require('./routes/businessProfileImages');
 const supportRoutes = require('./routes/support');
 const supportChatRoutes = require('./routes/supportChat');
 const supportRoutingRoutes = require('./routes/supportRouting');
@@ -546,10 +549,6 @@ const emailPreferencesRoutes = require('./routes/emailPreferences');
 const smsNotificationsRoutes = require('./routes/smsNotifications');
 const templateRoutes = require('./routes/templates');
 const monitoringRoutes = require('./routes/monitoring');
-const businessOperationsRoutes     = require('./routes/businessOperations');
-const businessProductsRoutes       = require('./routes/businessProducts');
-const businessProductPricingRoutes = require('./routes/businessProductPricing');
-
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/bookings', bookingsRoutes);
 app.use('/api/maintenance-requests', maintenanceRequestsRoutes);
@@ -694,5 +693,6 @@ function shutdown(signal) {
   }, 15000).unref();
 }
 
+process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT',  () => shutdown('SIGINT'));
