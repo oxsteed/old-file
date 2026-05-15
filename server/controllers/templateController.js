@@ -52,14 +52,38 @@ exports.getMyAccess = async (req, res, next) => {
 // ── Auth: get active template for helper profile or business ───────────────
 exports.getActiveTemplate = async (req, res, next) => {
   try {
-    const { type } = req.query; // 'helper' | 'business'
+    const { type, bizId } = req.query; // 'helper' | 'business'
     let row;
     if (type === 'business') {
-      const { rows } = await pool.query(
-        `SELECT active_template FROM businesses WHERE user_id = $1 AND is_active = TRUE LIMIT 1`,
-        [req.user.id]
-      );
-      row = rows[0];
+      if (bizId) {
+        // Per-business: only the requested business; verify the caller has
+        // owner/manager access to it.
+        const { rows } = await pool.query(
+          `SELECT b.active_template
+             FROM businesses b
+            WHERE b.id = $1
+              AND b.is_active = TRUE
+              AND (
+                b.user_id = $2
+                OR EXISTS (
+                  SELECT 1 FROM business_members bm
+                   WHERE bm.business_id = b.id
+                     AND bm.member_id   = $2
+                     AND bm.role IN ('manager','representative')
+                     AND bm.status      = 'active'
+                )
+              )
+            LIMIT 1`,
+          [bizId, req.user.id]
+        );
+        row = rows[0];
+      } else {
+        const { rows } = await pool.query(
+          `SELECT active_template FROM businesses WHERE user_id = $1 AND is_active = TRUE LIMIT 1`,
+          [req.user.id]
+        );
+        row = rows[0];
+      }
     } else {
       const { rows } = await pool.query(
         `SELECT active_template FROM helper_profiles WHERE user_id = $1 LIMIT 1`,
@@ -76,7 +100,11 @@ exports.getActiveTemplate = async (req, res, next) => {
 // ── Auth: activate a template (must have access) ───────────────────────────
 exports.activateTemplate = async (req, res, next) => {
   try {
-    const { slug, type } = req.body; // type: 'helper' | 'business'
+    // type: 'helper' | 'business'
+    // bizId: optional - when type=business, scopes the change to a single
+    //                   business. If omitted, all of the user's active
+    //                   businesses are updated (legacy bulk apply).
+    const { slug, type, bizId } = req.body;
 
     if (!slug || !type) {
       throw new AppError('slug and type are required', 400, 'missing_fields');
@@ -112,11 +140,38 @@ exports.activateTemplate = async (req, res, next) => {
 
     // Apply
     if (type === 'business') {
-      await pool.query(
-        `UPDATE businesses SET active_template = $1, updated_at = NOW()
-         WHERE user_id = $2 AND is_active = TRUE`,
-        [slug, req.user.id]
-      );
+      if (bizId) {
+        // Per-business: only flip the chosen business; verify ownership / mgmt.
+        const accessRes = await pool.query(
+          `SELECT b.id FROM businesses b
+            WHERE b.id = $1
+              AND b.is_active = TRUE
+              AND (
+                b.user_id = $2
+                OR EXISTS (
+                  SELECT 1 FROM business_members bm
+                   WHERE bm.business_id = b.id
+                     AND bm.member_id   = $2
+                     AND bm.role        = 'manager'
+                     AND bm.status      = 'active'
+                )
+              )`,
+          [bizId, req.user.id]
+        );
+        if (!accessRes.rows.length) {
+          throw new AppError('Business not found or you cannot manage it', 404, 'business_not_found');
+        }
+        await pool.query(
+          `UPDATE businesses SET active_template = $1, updated_at = NOW() WHERE id = $2`,
+          [slug, bizId]
+        );
+      } else {
+        await pool.query(
+          `UPDATE businesses SET active_template = $1, updated_at = NOW()
+           WHERE user_id = $2 AND is_active = TRUE`,
+          [slug, req.user.id]
+        );
+      }
     } else {
       await pool.query(
         `UPDATE helper_profiles SET active_template = $1, updated_at = NOW()
@@ -125,8 +180,8 @@ exports.activateTemplate = async (req, res, next) => {
       );
     }
 
-    logger.info('Template activated', { userId: req.user.id, slug, type });
-    res.json({ success: true, active_template: slug });
+    logger.info('Template activated', { userId: req.user.id, slug, type, bizId: bizId || null });
+    res.json({ success: true, active_template: slug, bizId: bizId || null });
   } catch (err) {
     next(err);
   }

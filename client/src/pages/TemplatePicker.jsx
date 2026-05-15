@@ -401,9 +401,13 @@ const TemplateCard = ({ slug, template, isActive, hasAccess, trialExpiry, onPrev
 export default function TemplatePicker() {
   const { t } = useTranslation();
 
-  // Determine profile type from URL query param; default to helper
+  // Determine profile type from URL query param; default to helper.
+  // When ?bizId= is also present, the picker scopes activation to that
+  // specific business so multi-business owners can keep each business on
+  // a different template.
   const [searchParams] = useSearchParams();
   const profileType = searchParams.get('type') === 'business' ? 'business' : 'helper';
+  const bizIdParam = searchParams.get('bizId') || null;
 
   const [templates, setTemplates]         = useState([]);
   const [pricing, setPricing]             = useState({});   // slug → pricing row
@@ -425,7 +429,7 @@ export default function TemplatePicker() {
       const [tRes, aRes, activeRes] = await Promise.all([
         api.get('/templates'),
         api.get('/templates/my-access'),
-        api.get(`/templates/active?type=${profileType}`),
+        api.get(`/templates/active?type=${profileType}${bizIdParam ? `&bizId=${encodeURIComponent(bizIdParam)}` : ''}`),
       ]);
 
       // Build pricing map keyed by slug
@@ -456,7 +460,7 @@ export default function TemplatePicker() {
     } finally {
       setLoading(false);
     }
-  }, [profileType, t]);
+  }, [profileType, bizIdParam, t]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -464,7 +468,11 @@ export default function TemplatePicker() {
   const handleActivate = async (slug) => {
     setActivating(slug);
     try {
-      await api.post('/templates/activate', { slug: slug, type: profileType });
+      await api.post('/templates/activate', {
+        slug,
+        type: profileType,
+        ...(bizIdParam ? { bizId: bizIdParam } : {}),
+      });
       setActiveSlug(slug);
       setPreviewSlug(null);
       toast.success(t('templatePicker.activatedSuccess', { name: TEMPLATE_REGISTRY[slug]?.name || slug }));

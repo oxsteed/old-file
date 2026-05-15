@@ -69,6 +69,16 @@ export const updateBusinessEvent        = (id, eventId, payload) =>
 export const deleteBusinessEvent        = (id, eventId) =>
   api.delete(`/businesses/${id}/calendar/events/${eventId}`).then(r => r.data);
 
+// ── Per-business clients (CRM) ────────────────────────────────────────────────
+export const listBusinessClients        = (id, params = {}) =>
+  api.get(`/businesses/${id}/clients`, { params }).then(r => r.data?.data || r.data || {});
+export const createBusinessClient       = (id, payload) =>
+  api.post(`/businesses/${id}/clients`, payload).then(r => r.data?.data?.client || r.data?.client);
+export const updateBusinessClient       = (id, clientId, payload) =>
+  api.put(`/businesses/${id}/clients/${clientId}`, payload).then(r => r.data?.data?.client || r.data?.client);
+export const deleteBusinessClient       = (id, clientId) =>
+  api.delete(`/businesses/${id}/clients/${clientId}`).then(r => r.data);
+
 // ── Vortex tokens ─────────────────────────────────────────────────────────────
 export const listVortexTokens    = (bizId)               => api.get(`/businesses/${bizId}/vortex-tokens`).then(r => r.data?.tokens || []);
 export const generateVortexToken = (bizId, payload)      => api.post(`/businesses/${bizId}/vortex-tokens`, payload).then(r => r.data?.token);

@@ -921,6 +921,47 @@ exports.releaseStaleAcceptedBookings = async () => {
 
         sendNotification({
           userId: row.customer_id,
+          type: 'booking_declined',
+          title: 'Booking Request Expired',
+          body: `Your booking request for ${row.service_name} on ${row.requested_date} expired without a response.`,
+          data: { bookingId: row.id },
+          action_url: '/my-bookings',
+        }).catch((err) => logger.warn('Failed expiry notification', { error: err.message }));
+      }
+    }
+    return r.rowCount || 0;
+  } catch (err) {
+    logger.warn('expirePendingBookingRequests failed', { error: err.message });
+    return 0;
+  }
+};
+
+/**
+ * After scheduled end (date + end time in server TZ), release accepted bookings so customer can post publicly.
+ * Notifies both parties.
+ */
+exports.releaseStaleAcceptedBookings = async () => {
+  try {
+    const r = await pool.query(
+      `UPDATE booking_requests
+       SET status = 'accepted_cancelled',
+           helper_response_reason = COALESCE(
+             helper_response_reason,
+             'Automatically released after scheduled time passed'
+           ),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE status = 'accepted'
+         AND (requested_date::timestamp + requested_end_time::interval) < NOW()
+       RETURNING id, customer_id, helper_id, service_name, requested_date`
+    );
+    if (r.rowCount > 0) {
+      logger.info('Released accepted bookings past scheduled end', { count: r.rowCount });
+      for (const row of r.rows) {
+        broadcastToUser(row.customer_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
+        broadcastToUser(row.helper_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
+
+        sendNotification({
+          userId: row.customer_id,
           type: 'booking_auto_released',
           title: 'Booking Completed',
           body: `Your booking for ${row.service_name} on ${row.requested_date} has been marked complete. You can now post this as a job if you need follow-up work.`,

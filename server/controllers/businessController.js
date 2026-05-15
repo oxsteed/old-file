@@ -41,7 +41,8 @@ async function listBusinesses(req, res, next) {
     const { rows } = await pool.query(
       `SELECT id, business_name, business_type, description, website, phone,
               address_city, address_state, address_country, is_primary, is_active,
-              tax_rate, logo_url, created_at
+              tax_rate, logo_url, created_at,
+              COALESCE(active_template, 'default') AS active_template
        FROM businesses
        WHERE user_id = $1
        ORDER BY is_primary DESC, created_at ASC`,
@@ -872,8 +873,7 @@ async function getBusinessProfileForEditor(req, res) {
          b.address_zip,
          b.address_country,
          b.logo_url,
-         b.cover_photo_url,
-         COALESCE(b.profile_headline, hp.profile_headline) AS profile_headline,
+         b.cover_photo_url,         COALESCE(b.profile_headline, hp.profile_headline) AS profile_headline,
          hp.service_radius_miles,
          hp.bio_short,
          b.ai_knowledge

@@ -11,6 +11,7 @@ import RegionInput from '../components/RegionInput';
 import PostalCodeInput from '../components/PostalCodeInput';
 import AIKnowledgeTab from '../components/AIKnowledgeTab';
 import BusinessCalendarView from '../components/calendar/BusinessCalendarView';
+import BusinessClientsTab from '../components/businessHub/BusinessClientsTab';
 import {
   listBusinesses, createBusiness, updateBusiness, uploadBusinessPhotos,
   getAnalytics,
@@ -864,11 +865,35 @@ function BusinessHubInner() {
   const canViewFinanceHub = currentRole !== 'representative';
   const financeTabIds = ['overview', 'invoices', 'tax', 'goals'];
   const contentTabIds = ['services', 'gallery', 'policies', 'faqs', 'hours', 'skills', 'ai'];
-  // Calendar is available to anyone with team access (owners, managers, reps).
-  const visibleTabs = ['profile', ...contentTabIds, 'calendar', 'maintenance', ...financeTabIds, 'team'].filter((tb) => {
+  // Maintenance is only part of the default tab set when this business has
+  // selected the Property Manager template. For every other template the tab
+  // would be confusing dead UI - it lives there only because of that template.
+  const activeTemplate = currentBiz?.active_template || 'default';
+  const isPropertyManagerTpl = activeTemplate === 'property_manager';
+  // Tab order:
+  //   1. Overview (KPIs / health, the place owners land first)
+  //   2. Edit Profile
+  //   3. Clients (managers/owners track customers per business)
+  //   4. Content tabs (services, gallery, policies, faqs, hours, skills, ai)
+  //   5. Calendar
+  //   6. Maintenance (only for property_manager template)
+  //   7. Invoices / Tax / Goals
+  //   8. Team
+  const visibleTabs = [
+    'overview',
+    'profile',
+    'clients',
+    ...contentTabIds,
+    'calendar',
+    ...(isPropertyManagerTpl ? ['maintenance'] : []),
+    'invoices', 'tax', 'goals',
+    'team',
+  ].filter((tb) => {
     if (tb === 'profile' && !canEditBizProfile) return false;
+    if (tb === 'clients' && !canEditBizProfile) return false;
     if (contentTabIds.includes(tb) && !canEditBizProfile) return false;
     if (financeTabIds.includes(tb) && !canViewFinanceHub) return false;
+    if (tb === 'overview' && !canViewFinanceHub) return false;
     return true;
   });
 
@@ -900,6 +925,7 @@ function BusinessHubInner() {
     if (tb === 'goals') return t('businessHub.tabGoalsLabel');
     if (tb === 'maintenance') return 'Maintenance';
     if (tb === 'calendar') return t('businessHub.tabCalendarLabel', { defaultValue: 'Calendar' });
+    if (tb === 'clients') return t('businessHub.tabClientsLabel', { defaultValue: 'Clients' });
     if (tb === 'ai') return t('businessHub.tabAILabel');
     return tb;
   };
@@ -964,6 +990,16 @@ function BusinessHubInner() {
                   title={t('businessHub.viewPublicProfile')}
                 >
                   {t('businessHub.viewProfile')} ↗
+                </Link>
+              )}
+              {bizId && canEditBizProfile && (
+                <Link
+                  to={`/templates?type=business&bizId=${encodeURIComponent(bizId)}`}
+                  className="bh-view-profile-link"
+                  title={t('businessHub.switchTemplateTitle', { defaultValue: 'Switch this business to a different profile template' })}
+                  style={{ color: '#a855f7' }}
+                >
+                  {t('businessHub.switchTemplate', { defaultValue: 'Switch template' })} ✨
                 </Link>
               )}
             </div>
@@ -1111,6 +1147,14 @@ function BusinessHubInner() {
                 </div>
                 <BusinessCalendarView bizId={bizId} canManage={canEditBizProfile} />
               </div>
+            )}
+
+            {tab === 'clients' && bizId && canEditBizProfile && (
+              <BusinessClientsTab
+                bizId={bizId}
+                businessName={currentBiz?.business_name}
+                currency={currency}
+              />
             )}
 
             {/* ── Overview tab ────────────────────────────────────── */}

@@ -48,6 +48,11 @@ const {
   createBusinessEvent, updateBusinessEvent, deleteBusinessEvent,
 } = require('../controllers/businessCalendarController');
 
+const {
+  listBusinessClients, createBusinessClient,
+  updateBusinessClient, deleteBusinessClient,
+} = require('../controllers/businessClientsController');
+
 // ── Public invoice by token (no auth required) ────────────────────────────────
 router.get('/invoices/public/:token', getPublicInvoice);
 
@@ -106,6 +111,12 @@ router.get('/:id/calendar/summary',             authenticate, getBusinessCalenda
 router.post('/:id/calendar/events',             authenticate, createBusinessEvent);
 router.put('/:id/calendar/events/:eventId',     authenticate, updateBusinessEvent);
 router.delete('/:id/calendar/events/:eventId',  authenticate, deleteBusinessEvent);
+
+// ── Per-business clients (CRM) ────────────────────────────────────────────────
+router.get('/:id/clients',                      authenticate, listBusinessClients);
+router.post('/:id/clients',                     authenticate, createBusinessClient);
+router.put('/:id/clients/:clientId',            authenticate, updateBusinessClient);
+router.delete('/:id/clients/:clientId',         authenticate, deleteBusinessClient);
 
 // ── Business team members ─────────────────────────────────────────────────────
 router.get('/:id/members',                      authenticate, listMembers);
