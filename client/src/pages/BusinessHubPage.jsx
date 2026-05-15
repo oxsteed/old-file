@@ -12,6 +12,12 @@ import PostalCodeInput from '../components/PostalCodeInput';
 import AIKnowledgeTab from '../components/AIKnowledgeTab';
 import BusinessCalendarView from '../components/calendar/BusinessCalendarView';
 import BusinessClientsTab from '../components/businessHub/BusinessClientsTab';
+import { BusinessMessagingTab } from '../components/businessHub/BusinessMessagingTab';
+import { AppointmentCalendarView } from '../components/businessHub/AppointmentCalendarView';
+import { BusinessServicesTab } from '../components/businessHub/BusinessServicesTab';
+import { PricingRulesManager } from '../components/businessHub/PricingRulesManager';
+import { ProductManagement } from '../components/businessHub/ProductManagement';
+import { ProductPricingManager } from '../components/businessHub/ProductPricingManager';
 import {
   listBusinesses, createBusiness, updateBusiness, uploadBusinessPhotos,
   getAnalytics,
@@ -884,14 +890,21 @@ function BusinessHubInner() {
     'profile',
     'clients',
     ...contentTabIds,
+    'booking-services',
+    'appointments',
+    'products',
+    'messages',
     'calendar',
     ...(isPropertyManagerTpl ? ['maintenance'] : []),
     'invoices', 'tax', 'goals',
+    'service-pricing',
+    'product-pricing',
     'team',
   ].filter((tb) => {
     if (tb === 'profile' && !canEditBizProfile) return false;
     if (tb === 'clients' && !canEditBizProfile) return false;
     if (contentTabIds.includes(tb) && !canEditBizProfile) return false;
+    if (['booking-services','appointments','products','messages','service-pricing','product-pricing'].includes(tb) && !canEditBizProfile) return false;
     if (financeTabIds.includes(tb) && !canViewFinanceHub) return false;
     if (tb === 'overview' && !canViewFinanceHub) return false;
     return true;
@@ -927,6 +940,12 @@ function BusinessHubInner() {
     if (tb === 'calendar') return t('businessHub.tabCalendarLabel', { defaultValue: 'Calendar' });
     if (tb === 'clients') return t('businessHub.tabClientsLabel', { defaultValue: 'Clients' });
     if (tb === 'ai') return t('businessHub.tabAILabel');
+    if (tb === 'messages')         return t('businessHub.tabMessagesLabel',        { defaultValue: 'Messages' });
+    if (tb === 'appointments')     return t('businessHub.tabAppointmentsLabel',    { defaultValue: 'Appointments' });
+    if (tb === 'booking-services') return t('businessHub.tabBookingServicesLabel', { defaultValue: 'Book Services' });
+    if (tb === 'products')         return t('businessHub.tabProductsLabel',        { defaultValue: 'Products' });
+    if (tb === 'service-pricing')  return t('businessHub.tabServicePricingLabel',  { defaultValue: 'Service Pricing' });
+    if (tb === 'product-pricing')  return t('businessHub.tabProductPricingLabel',  { defaultValue: 'Product Pricing' });
     return tb;
   };
 
@@ -1256,6 +1275,36 @@ function BusinessHubInner() {
                 onAccept={handleAcceptInvitation}
                 onDecline={handleDeclineInvitation}
               />
+            )}
+
+            {/* ── Messages tab ─────────────────────────────────────── */}
+            {tab === 'messages' && bizId && canEditBizProfile && (
+              <BusinessMessagingTab businessId={bizId} />
+            )}
+
+            {/* ── Appointments tab ─────────────────────────────────── */}
+            {tab === 'appointments' && bizId && canEditBizProfile && (
+              <AppointmentCalendarView businessId={bizId} />
+            )}
+
+            {/* ── Booking Services tab ─────────────────────────────── */}
+            {tab === 'booking-services' && bizId && canEditBizProfile && (
+              <BusinessServicesTab businessId={bizId} />
+            )}
+
+            {/* ── Products tab ─────────────────────────────────────── */}
+            {tab === 'products' && bizId && canEditBizProfile && (
+              <ProductManagement businessId={bizId} />
+            )}
+
+            {/* ── Service Pricing tab ──────────────────────────────── */}
+            {tab === 'service-pricing' && bizId && canEditBizProfile && (
+              <PricingRulesManager businessId={bizId} />
+            )}
+
+            {/* ── Product Pricing tab ──────────────────────────────── */}
+            {tab === 'product-pricing' && bizId && canEditBizProfile && (
+              <ProductPricingManager businessId={bizId} />
             )}
           </>
         )}

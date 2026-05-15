@@ -1,0 +1,255 @@
+.bat-container {
+  padding: 2rem;
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+.bat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.bat-header h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.bat-date-selector {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--app-text);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.bat-date-selector:hover {
+  border-color: var(--brand-500, #f97316);
+}
+
+.bat-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.bat-stat-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  transition: all 0.3s;
+}
+
+.bat-stat-card:hover {
+  border-color: var(--brand-500, #f97316);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
+}
+
+.bat-stat-icon {
+  flex-shrink: 0;
+  width: 50px;
+  height: 50px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.bat-stat-icon.revenue {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+}
+
+.bat-stat-icon.appointments {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+.bat-stat-icon.customers {
+  background: linear-gradient(135deg, #06b6d4, #0891b2);
+}
+
+.bat-stat-icon.rating {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.bat-stat-content {
+  flex: 1;
+}
+
+.bat-stat-label {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+}
+
+.bat-stat-value {
+  margin: 0.5rem 0 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.bat-stat-meta {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+
+.bat-stat-change {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.bat-stat-change.positive {
+  color: #10b981;
+}
+
+.bat-stat-change.negative {
+  color: #ef4444;
+}
+
+.bat-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.bat-chart-container {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.bat-chart-container h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.bat-chart-container.full-width {
+  grid-column: 1 / -1;
+}
+
+.bat-insights-section {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.bat-insights-section h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.bat-insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.bat-insight {
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+
+.bat-insight.positive {
+  background: rgba(16, 185, 129, 0.1);
+  border-left-color: #10b981;
+}
+
+.bat-insight.warning {
+  background: rgba(217, 119, 6, 0.1);
+  border-left-color: #d97706;
+}
+
+.bat-insight.neutral {
+  background: rgba(107, 114, 128, 0.1);
+  border-left-color: #6b7280;
+}
+
+.bat-insight-text {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.bat-loading {
+  padding: 2rem;
+  text-align: center;
+  opacity: 0.6;
+}
+
+.bat-empty {
+  padding: 3rem 2rem;
+  text-align: center;
+  opacity: 0.6;
+}
+
+.bat-empty p {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.bat-no-insights {
+  margin: 0;
+  opacity: 0.7;
+  text-align: center;
+  padding: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .bat-charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bat-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .bat-container {
+    padding: 1rem;
+  }
+
+  .bat-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .bat-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bat-stat-card {
+    flex-direction: column;
+  }
+
+  .bat-charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bat-insights-grid {
+    grid-template-columns: 1fr;
+  }
+}

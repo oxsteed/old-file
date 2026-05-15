@@ -1,0 +1,317 @@
+.prm-container {
+  padding: 2rem;
+  background: var(--app-bg);
+  color: var(--app-text);
+  min-height: 100%;
+}
+
+.prm-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.prm-header h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.prm-btn-new,
+.prm-btn-new-large {
+  background: var(--brand-500, #f97316);
+  border: none;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.prm-btn-new:hover,
+.prm-btn-new-large:hover {
+  background: var(--brand-600, #ea580c);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+
+.prm-form-container {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.prm-form-container h4 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.prm-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.prm-form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.prm-form-group label {
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.prm-form-group input,
+.prm-form-group textarea,
+.prm-form-group select {
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  background: var(--app-bg);
+  color: var(--app-text);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.prm-form-group input:focus,
+.prm-form-group textarea:focus,
+.prm-form-group select:focus {
+  outline: none;
+  border-color: var(--brand-500, #f97316);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+}
+
+.prm-form-group small {
+  margin-top: 0.5rem;
+  opacity: 0.7;
+  font-size: 0.85rem;
+}
+
+.prm-config-section {
+  background: var(--app-bg);
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+}
+
+.prm-config-section h5 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.prm-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.prm-checkbox-label input {
+  width: auto;
+}
+
+.prm-form-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.prm-btn-cancel,
+.prm-btn-save {
+  flex: 1;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.prm-btn-cancel {
+  background: var(--card-bg);
+  color: var(--app-text);
+  border: 1px solid var(--border-color);
+}
+
+.prm-btn-cancel:hover {
+  background: var(--app-bg);
+}
+
+.prm-btn-save {
+  background: var(--brand-500, #f97316);
+  color: white;
+}
+
+.prm-btn-save:hover {
+  background: var(--brand-600, #ea580c);
+}
+
+.prm-rules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.prm-rule-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s;
+}
+
+.prm-rule-card:hover:not(.inactive) {
+  border-color: var(--brand-500, #f97316);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
+  transform: translateY(-2px);
+}
+
+.prm-rule-card.inactive {
+  opacity: 0.6;
+}
+
+.prm-rule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.prm-rule-icon {
+  flex-shrink: 0;
+}
+
+.prm-rule-header h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  flex: 1;
+}
+
+.prm-rule-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.prm-btn-action {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--app-text);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.prm-btn-action:hover {
+  background: var(--card-bg);
+  border-color: var(--brand-500, #f97316);
+  color: var(--brand-500, #f97316);
+}
+
+.prm-btn-action.delete:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.prm-rule-type {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: var(--border-color);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  margin-bottom: 1rem;
+  font-weight: 500;
+  color: var(--brand-500, #f97316);
+}
+
+.prm-rule-description {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  margin: 0.75rem 0;
+  line-height: 1.5;
+}
+
+.prm-rule-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.prm-status {
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.prm-status.active {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.prm-status.inactive {
+  background: rgba(107, 114, 128, 0.2);
+  color: #6b7280;
+}
+
+.prm-empty {
+  text-align: center;
+  padding: 3rem 2rem;
+  opacity: 0.6;
+}
+
+.prm-empty p {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.1rem;
+}
+
+.prm-btn-new-large {
+  padding: 1rem 2rem;
+  font-size: 1rem;
+}
+
+.prm-loading {
+  text-align: center;
+  padding: 3rem;
+  opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+  .prm-rules-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .prm-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .prm-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+}

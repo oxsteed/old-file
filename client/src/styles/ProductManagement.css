@@ -1,0 +1,103 @@
+/* Product Management Tab */
+.product-management { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.pm-header {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 0.75rem;
+}
+.pm-header h2 { margin: 0; font-size: 1.15rem; font-weight: 700; }
+
+/* Buttons */
+.pm-btn-primary {
+  background: var(--brand-500, #f97316); color: #fff;
+  border: none; border-radius: 6px; padding: 0.45rem 1rem;
+  font-size: 0.875rem; font-weight: 600; cursor: pointer;
+  transition: opacity .15s;
+}
+.pm-btn-primary:hover { opacity: 0.88; }
+.pm-btn-secondary {
+  background: transparent; border: 1.5px solid var(--border-color, #e5e7eb);
+  border-radius: 6px; padding: 0.4rem 0.9rem; font-size: 0.875rem;
+  cursor: pointer; color: var(--app-text, inherit);
+}
+.pm-btn-small {
+  background: transparent; border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 4px; padding: 0.2rem 0.45rem; font-size: 0.8rem;
+  cursor: pointer; margin-right: 0.25rem;
+}
+.pm-btn-small:hover { background: var(--card-bg, #f9fafb); }
+.pm-btn-delete:hover { background: #fee2e2; border-color: #fca5a5; }
+.pm-btn-close { background: none; border: none; font-size: 1.1rem; cursor: pointer; }
+
+/* Alerts */
+.pm-alerts {
+  background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+.pm-alerts h3 { margin: 0 0 0.5rem; font-size: 0.9rem; font-weight: 600; color: #c2410c; }
+.pm-alert-list { display: flex; flex-direction: column; gap: 0.35rem; }
+.pm-alert-item {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 0.825rem;
+}
+.pm-stock-warning { color: #c2410c; font-weight: 700; }
+.pm-alert-badge {
+  background: #fee2e2; color: #b91c1c; border-radius: 4px;
+  padding: 0.1rem 0.35rem; font-size: 0.75rem; font-weight: 600;
+}
+
+/* Loading / empty */
+.pm-loading { color: var(--muted-text, #6b7280); text-align: center; padding: 2rem 0; }
+.pm-empty { text-align: center; padding: 2.5rem 1rem; color: var(--muted-text, #6b7280); }
+.pm-empty p { margin-bottom: 0.75rem; }
+
+/* Table */
+.pm-table {
+  width: 100%; border-collapse: collapse; font-size: 0.875rem;
+}
+.pm-table th, .pm-table td {
+  text-align: left; padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+.pm-table th { font-weight: 600; color: var(--muted-text, #6b7280); font-size: 0.8rem; text-transform: uppercase; letter-spacing: .03em; }
+.pm-table tr:hover td { background: var(--card-bg, #f9fafb); }
+.pm-monospace { font-family: 'Courier New', monospace; font-size: 0.8rem; }
+.pm-out-of-stock { color: #b91c1c; font-weight: 700; }
+.pm-actions { white-space: nowrap; }
+
+/* Modal */
+.pm-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 1rem;
+}
+.pm-modal {
+  background: var(--nav-bg, #fff); border-radius: 12px;
+  padding: 1.5rem; width: 100%; max-width: 480px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+}
+.pm-modal h3 { margin: 0 0 1rem; font-size: 1rem; font-weight: 700; }
+.pm-modal input, .pm-modal textarea {
+  width: 100%; box-sizing: border-box;
+  border: 1px solid var(--border-color, #e5e7eb); border-radius: 6px;
+  padding: 0.55rem 0.75rem; margin-bottom: 0.6rem;
+  font-size: 0.875rem; background: var(--app-bg, #fff); color: var(--app-text, inherit);
+}
+.pm-modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.5rem; }
+
+/* Detail panel */
+.pm-detail {
+  border: 1px solid var(--border-color, #e5e7eb); border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+.pm-detail-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 0.75rem;
+}
+.pm-detail-header h3 { margin: 0; font-size: 1rem; }
+.pm-detail-section { margin-bottom: 1rem; }
+.pm-detail-section h4 { margin: 0 0 0.5rem; font-size: 0.875rem; font-weight: 600; }
+.pm-variant-table { width: 100%; border-collapse: collapse; font-size: 0.825rem; }
+.pm-variant-table th, .pm-variant-table td {
+  padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--border-color, #e5e7eb); text-align: left;
+}

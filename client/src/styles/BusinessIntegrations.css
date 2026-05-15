@@ -1,0 +1,468 @@
+.bi-container {
+  padding: 2rem;
+  background: var(--app-bg);
+  color: var(--app-text);
+  min-height: 100%;
+}
+
+.bi-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.bi-header h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.bi-loading {
+  padding: 2rem;
+  text-align: center;
+  opacity: 0.6;
+}
+
+.bi-integrations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.bi-integration-card {
+  background: var(--card-bg);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s;
+}
+
+.bi-integration-card.enabled {
+  border-color: #10b981;
+}
+
+.bi-integration-card:hover {
+  border-color: var(--brand-500, #f97316);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
+}
+
+.bi-integration-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  position: relative;
+}
+
+.bi-integration-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.bi-integration-header h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  flex: 1;
+}
+
+.bi-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.bi-status-badge.active {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.bi-status-badge.inactive {
+  background: rgba(107, 114, 128, 0.2);
+  color: #6b7280;
+}
+
+.bi-integration-desc {
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+  opacity: 0.7;
+  line-height: 1.4;
+}
+
+.bi-integration-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.bi-status-text {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.bi-stripe-info {
+  padding: 1rem;
+  background: var(--app-bg);
+  border-radius: 6px;
+  border-left: 3px solid var(--brand-500, #f97316);
+}
+
+.bi-connected-as {
+  margin: 0;
+  font-size: 0.9rem;
+  word-break: break-all;
+}
+
+.bi-btn-primary,
+.bi-btn-secondary,
+.bi-btn-danger,
+.bi-btn-cancel,
+.bi-btn-save {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+  font-size: 0.95rem;
+}
+
+.bi-btn-primary {
+  background: var(--brand-500, #f97316);
+  color: white;
+}
+
+.bi-btn-primary:hover {
+  background: var(--brand-600, #ea580c);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+
+.bi-btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--app-text);
+}
+
+.bi-btn-secondary:hover {
+  background: var(--app-bg);
+  border-color: var(--brand-500, #f97316);
+  color: var(--brand-500, #f97316);
+}
+
+.bi-btn-danger {
+  background: #ef4444;
+  color: white;
+}
+
+.bi-btn-danger:hover {
+  background: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.bi-btn-cancel {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  color: var(--app-text);
+}
+
+.bi-btn-cancel:hover {
+  background: var(--app-bg);
+}
+
+.bi-btn-save {
+  background: var(--brand-500, #f97316);
+  color: white;
+}
+
+.bi-btn-save:hover {
+  background: var(--brand-600, #ea580c);
+}
+
+.bi-btn-copy {
+  background: transparent;
+  border: none;
+  color: var(--app-text);
+  cursor: pointer;
+  padding: 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.bi-btn-copy:hover {
+  opacity: 1;
+  color: var(--brand-500, #f97316);
+}
+
+.bi-btn-delete {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--app-text);
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.bi-btn-delete:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.bi-webhook-form-container {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.bi-webhook-form-container h4 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.bi-form-group {
+  margin-bottom: 1.5rem;
+}
+
+.bi-form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.bi-form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  background: var(--app-bg);
+  color: var(--app-text);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.bi-form-group input:focus {
+  outline: none;
+  border-color: var(--brand-500, #f97316);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+}
+
+.bi-form-group small {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.bi-event-checkboxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.bi-checkbox-label {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  align-items: flex-start;
+}
+
+.bi-checkbox-label:hover {
+  background: var(--app-bg);
+  border-color: var(--brand-500, #f97316);
+}
+
+.bi-checkbox-label input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.bi-checkbox-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.bi-checkbox-text strong {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.bi-event-desc {
+  font-size: 0.8rem;
+  opacity: 0.65;
+  font-weight: normal;
+}
+
+.bi-form-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.bi-form-buttons button {
+  flex: 1;
+}
+
+.bi-webhooks-list {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.bi-webhooks-list h4 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.bi-webhook-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.bi-webhook-item:last-child {
+  margin-bottom: 0;
+}
+
+.bi-webhook-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.bi-webhook-url {
+  margin: 0 0 0.5rem 0;
+  font-family: monospace;
+  font-size: 0.85rem;
+  word-break: break-all;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bi-webhook-events,
+.bi-webhook-status {
+  margin: 0.25rem 0;
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.bi-settings-section {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+.bi-settings-section h4 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.bi-setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  gap: 2rem;
+}
+
+.bi-setting-item:last-child {
+  margin-bottom: 0;
+}
+
+.bi-setting-info h5 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.bi-setting-info p {
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.bi-setting-value {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.bi-setting-value code {
+  background: var(--app-bg);
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.8rem;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .bi-container {
+    padding: 1rem;
+  }
+
+  .bi-integrations-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bi-event-checkboxes {
+    grid-template-columns: 1fr;
+  }
+
+  .bi-webhook-item,
+  .bi-setting-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .bi-setting-value {
+    width: 100%;
+  }
+}

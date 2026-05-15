@@ -46,6 +46,7 @@ import HelperCancellationSettings from './pages/HelperCancellationSettings';
 import PublicProfile from './pages/PublicProfile';
 import BookHelperPage from './pages/BookHelperPage';
 import BookBusinessPage from './pages/BookBusinessPage';
+import BookServicePage from './pages/BookServicePage';
 import TemplatePicker from './pages/TemplatePicker';
 import BusinessProfilePage from './pages/BusinessProfilePage';
 import HelperBusinessProfilePage from './pages/HelperBusinessProfilePage';
@@ -162,6 +163,7 @@ export default function App() {
                     <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
                     <Route path="/book/:id"                element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookHelperPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/book/business/:id"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookBusinessPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/business/:businessId/services/:serviceId/book" element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookServicePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/business/:id"            element={<Guarded><BusinessProfilePage /></Guarded>} />
                     <Route path="/business/:businessId/maintenance-request" element={<Guarded><ProtectedRoute><RouteErrorBoundary><MaintenanceRequestPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/tool-rentals"            element={<Guarded><ToolRentalsBrowse /></Guarded>} />
