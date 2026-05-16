@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useParams, useNavigate } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
@@ -106,8 +106,14 @@ function BusinessHubInner() {
     || 'USD';
   const [businesses, setBusinesses]   = useState([]);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [bizId, setBizId]             = useState(() => localStorage.getItem(LS_KEY) || '');
-  const [tab, setTab]                 = useState(() => searchParams.get('tab') || 'overview');
+  // URL params take precedence over localStorage when the page is opened at
+  // /business/:businessId/workspace or /business/:businessId/workspace/:tab
+  const routeParams = useParams();
+  const routeBusinessId = routeParams.businessId ? String(routeParams.businessId) : null;
+  const routeTab = routeParams.tab ? String(routeParams.tab) : null;
+  const navigate = useNavigate();
+  const [bizId, setBizId]             = useState(() => routeBusinessId || localStorage.getItem(LS_KEY) || '');
+  const [tab, setTab]                 = useState(() => routeTab || searchParams.get('tab') || 'overview');
   const [loadingBiz, setLoadingBiz]   = useState(true);
 
   // modal state
@@ -198,15 +204,17 @@ function BusinessHubInner() {
         setMembers([]);
         setVortexTokens([]);
       } else {
+        // URL param (routeBusinessId) wins; fall back to localStorage, then first owned.
+        const fromUrl = routeBusinessId && merged.find(b => String(b.id) === routeBusinessId) ? routeBusinessId : null;
         const saved = localStorage.getItem(LS_KEY);
-        const valid = saved && merged.find(b => String(b.id) === String(saved));
-        const chosen = valid ? saved : String(merged[0].id);
+        const fromLs = saved && merged.find(b => String(b.id) === String(saved)) ? String(saved) : null;
+        const chosen = fromUrl || fromLs || String(merged[0].id);
         setBizId(chosen);
         localStorage.setItem(LS_KEY, chosen);
       }
     } catch { toast.error(t('businessHub.toastLoadBizFail')); }
     finally { setLoadingBiz(false); }
-  }, [t]);
+  }, [t, routeBusinessId]);
 
   useEffect(() => { loadBusinesses(); }, [loadBusinesses]);
 
@@ -220,13 +228,37 @@ function BusinessHubInner() {
   }, [searchParams, businesses, bizId]);
 
   useEffect(() => {
+    // Only mirror tab into ?tab= when we're on /business-hub (legacy URL).
+    // When on /business/:id/workspace, the tab lives in the path itself.
+    if (routeBusinessId) return;
     const urlTab = searchParams.get('tab') || 'overview';
     if (urlTab === tab) return;
     const n = new URLSearchParams(searchParams);
     if (tab === 'overview') n.delete('tab');
     else n.set('tab', tab);
     setSearchParams(n, { replace: true });
-  }, [tab, searchParams, setSearchParams]);
+  }, [tab, searchParams, setSearchParams, routeBusinessId]);
+
+  // When on the per-business workspace URL, keep state and URL in sync.
+  useEffect(() => {
+    if (!routeBusinessId) return;
+    if (String(bizId) !== routeBusinessId) setBizId(routeBusinessId);
+    if (routeTab && routeTab !== tab) setTab(routeTab);
+  }, [routeBusinessId, routeTab]); // intentionally ignore bizId/tab to avoid feedback loop
+
+  // When the user switches business or tab via in-page controls AND we're on
+  // the workspace URL, push the new path so refresh/back/share works.
+  useEffect(() => {
+    if (!routeBusinessId) return;
+    if (!bizId) return;
+    const desiredPath = tab === 'overview'
+      ? `/business/${bizId}/workspace`
+      : `/business/${bizId}/workspace/${tab}`;
+    // Only navigate if the URL actually needs to change
+    if (window.location.pathname !== desiredPath) {
+      navigate(desiredPath, { replace: true });
+    }
+  }, [bizId, tab, routeBusinessId, navigate]);
 
   // ── load tab data when bizId or tab changes ──────────────────────────────
   const loadOverview = useCallback(async () => {

@@ -9,6 +9,7 @@ const { withTransaction } = require('../utils/transaction');
 const { canEditProfile } = require('../utils/businessOwnership');
 const { getUserFinancialContext, formatFinancialContextForAI } = require('../services/userFinancialContextService');
 const { sanitizeMessage } = require('../utils/messageSanitizer');
+const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
 
 // BCP-47 code → English name, covering all languages LibreTranslate exposes
 const LANGUAGE_NAMES = {
@@ -699,6 +700,40 @@ exports.profileChatMessage = async (req, res, next) => {
         [conversationId]
       );
 
+      // Phase 1a: mirror into business_conversations / business_messages so the
+      // business workspace inbox shows the same thread. Fire-and-forget.
+      if (resolvedBusinessId) {
+        try {
+          const senderRowRes = await pool.query(
+            'SELECT first_name, last_name, email FROM users WHERE id = $1',
+            [userId]
+          );
+          const sRow = senderRowRes.rows[0] || {};
+          const senderDisplay = [sRow.first_name, sRow.last_name].filter(Boolean).join(' ') || sRow.email || null;
+          const bcId = await ensureBusinessConversation({
+            businessId: resolvedBusinessId,
+            legacyConversationId: conversationId,
+            customerId: userId,
+            customerName: senderDisplay,
+            customerEmail: sRow.email || `${userId}@user.local`,
+          });
+          if (bcId) {
+            await mirrorMessage({
+              businessConversationId: bcId,
+              senderId: userId,
+              senderName: senderDisplay,
+              senderEmail: sRow.email || null,
+              senderType: 'customer',
+              content,
+              messageType: 'text',
+              legacyMessageId: msgRow.rows[0] && msgRow.rows[0].id,
+            });
+          }
+        } catch (mirrorErr) {
+          logger.warn('chat business inbox mirror failed', { err: mirrorErr && mirrorErr.message });
+        }
+      }
+
       // Fetch sender info once for all socket emissions
       const senderRes = await pool.query(
         'SELECT first_name, last_name, profile_photo_url FROM users WHERE id = $1',
@@ -1099,6 +1134,49 @@ exports.transcribeAudio = async (req, res, next) => {
 exports.getProfileContext = async (req, res, next) => {
   try {
     const { type, id } = req.params;
+    if (!req.user || !req.user.id) {
+      throw new AppError('Authentication required', 401, 'auth_required');
+    }
+
+    if (type === 'helper') {
+      if (String(req.user.id) !== String(id)) {
+        throw new AppError('Forbidden', 403, 'forbidden');
+      }
+      const ctx = await helperContext.getHelperContext(id);
+      if (!ctx) throw new AppError('Helper not found', 404, 'not_found');
+      return res.json({
+        rawContext:   ctx.rawContext,
+        promptPreview: ctx.systemPrompt.slice(0, 3000),
+      });
+    }
+
+    if (type === 'business') {
+      const businessId = parseInt(id, 10);
+      if (!Number.isFinite(businessId)) {
+        throw new AppError('Invalid business id', 400, 'validation_failed');
+      }
+      const access = await canEditProfile(req.user.id, businessId);
+      if (!access) throw new AppError('Business not found', 404, 'not_found');
+      const ownerId = access.owner_id;
+      const ctx = await helperContext.getBusinessContext(businessId, ownerId);
+      if (!ctx) throw new AppError('Business not found', 404, 'not_found');
+      return res.json({
+        rawContext:   ctx.rawContext,
+        promptPreview: ctx.systemPrompt.slice(0, 3000),
+      });
+    }
+
+    throw new AppError('Invalid profile type', 400, 'validation_failed', { type: 'Must be helper or business' });
+  } catch (err) {
+    next(err);
+  }
+};
+).
+ * type = helper | business ; id = UUID (helper) or numeric business id
+ */
+exports.getProfileContext = async (req, res, next) => {
+  try {
+    const { type, id } = req.params;
     if (!req.user?.id) {
       throw new AppError('Authentication required', 401, 'auth_required');
     }
@@ -1132,6 +1210,53 @@ exports.getProfileContext = async (req, res, next) => {
     }
 
     throw new AppError('Invalid profile type', 400, 'validation_failed', { type: 'Must be helper or business' });
+  } catch (err) {
+    next(err);
+  }
+};
+).
+ * type = helper | business ; id = UUID (helper) or numeric business id
+ */
+exports.getProfileContext = async (req, res, next) => {
+  try {
+    const { type, id } = req.params;
+    if (!req.user || !req.user.id) {
+      throw new AppError('Authentication required', 401, 'auth_required');
+    }
+
+    if (type === 'helper') {
+      if (String(req.user.id) !== String(id)) {
+        throw new AppError('Forbidden', 403, 'forbidden');
+      }
+      const ctx = await helperContext.getHelperContext(id);
+      if (!ctx) throw new AppError('Helper not found', 404, 'not_found');
+      return res.json({
+        rawContext:   ctx.rawContext,
+        promptPreview: ctx.systemPrompt.slice(0, 3000),
+      });
+    }
+
+    if (type === 'business') {
+      const businessId = parseInt(id, 10);
+      if (!Number.isFinite(businessId)) {
+        throw new AppError('Invalid business id', 400, 'validation_failed');
+      }
+      const access = await canEditProfile(req.user.id, businessId);
+      if (!access) throw new AppError('Business not found', 404, 'not_found');
+      const ownerId = access.owner_id;
+      const ctx = await helperContext.getBusinessContext(businessId, ownerId);
+      if (!ctx) throw new AppError('Business not found', 404, 'not_found');
+      return res.json({
+        rawContext:   ctx.rawContext,
+        promptPreview: ctx.systemPrompt.slice(0, 3000),
+      });
+    }
+
+    throw new AppError('Invalid profile type', 400, 'validation_failed', { type: 'Must be helper or business' });
+  } catch (err) {
+    next(err);
+  }
+};
   } catch (err) {
     next(err);
   }

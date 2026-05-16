@@ -435,3 +435,50 @@ exports.deleteBusinessEvent = async (req, res) => {
     sendError(res, 500, 'Failed to delete event', 'event_delete_failed');
   }
 };
+
+// ----------------------------------------------------------------------
+// Phase 2b: slot / calendar endpoints powered by bookingSlotEngine
+// over the `business_services` + `business_appointments` schema (the
+// per-business workspace calendar). The legacy listBusinessCalendar()
+// above is for the helper-keyed `appointments` table and stays as-is.
+// ----------------------------------------------------------------------
+
+const slotEngine = require('../services/bookingSlotEngine');
+
+function _parseInt10(v) { const n = parseInt(v, 10); return Number.isFinite(n) ? n : null; }
+function _parseDate(v, fb) { if (!v) return fb; const d = new Date(v); return isNaN(d.getTime()) ? fb : d; }
+
+exports.getServiceSlots = async function getServiceSlots(req, res, next) {
+  try {
+    const businessId = _parseInt10(req.params.businessId);
+    const serviceId  = _parseInt10(req.params.serviceId);
+    if (!businessId || !serviceId) return sendError(res, 400, 'Invalid id', 'invalid_params');
+
+    const now = new Date();
+    const defaultEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+    const from = _parseDate(req.query.from, now);
+    const to   = _parseDate(req.query.to, defaultEnd);
+    const staffId = req.query.staff_id ? String(req.query.staff_id) : null;
+    if (to <= from) return sendError(res, 400, 'to must be after from', 'invalid_range');
+
+    const result = await slotEngine.computeSlots({ businessId, serviceId, from, to, staffId });
+    if (result.error) return sendError(res, 400, result.error, 'slot_engine_error');
+    return sendSuccess(res, result);
+  } catch (err) { next(err); }
+};
+
+exports.getBusinessAppointmentsCalendar = async function getBusinessAppointmentsCalendar(req, res, next) {
+  try {
+    const businessId = (req.business && req.business.id) || _parseInt10(req.params.businessId);
+    if (!businessId) return sendError(res, 400, 'Invalid business id', 'invalid_params');
+
+    const now = new Date();
+    const defaultFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const defaultTo   = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const from = _parseDate(req.query.from, defaultFrom);
+    const to   = _parseDate(req.query.to,   defaultTo);
+
+    const data = await slotEngine.getBusinessCalendar(businessId, from.toISOString(), to.toISOString());
+    return sendSuccess(res, { from: from.toISOString(), to: to.toISOString(), ...data });
+  } catch (err) { next(err); }
+};

@@ -89,7 +89,8 @@ async function createPaymentIntent(req, res) {
     if (!cart.rows.length) return sendError(res, 404, 'Cart not found');
 
     const items = await pool.query(
-      `SELECT sci.*, mp.id as product_id, mp.price_cents, mp.affiliate_url, mp.quantity_available
+      `SELECT sci.*, mp.id as product_id, mp.price_cents, mp.affiliate_url,
+              mp.quantity_available, mp.business_product_id, mp.source_business_id
        FROM shopping_cart_items sci
        JOIN marketplace_products mp ON sci.product_id = mp.id
        WHERE sci.cart_id = $1`,
@@ -104,19 +105,29 @@ async function createPaymentIntent(req, res) {
       return sendError(res, 400, `${outOfStock.length} item(s) out of stock`);
     }
 
+    // Phase 4d: apply dynamic pricing rules to business-source items.
+    // Non-business items pass through unchanged.
+    const { applyDynamicPricingToCartItems } = require('../services/checkoutPricing');
+    const repriced = await applyDynamicPricingToCartItems({
+      items: items.rows,
+      customerId: userId,
+    });
+
     // Calculate totals
     let subtotal = 0;
     const lineItems = [];
 
-    for (const item of items.rows) {
-      const itemTotal = item.quantity * item.price_cents;
+    for (const item of repriced) {
+      const unit = (item.adjusted_price_cents != null) ? item.adjusted_price_cents : item.price_cents;
+      const itemTotal = item.quantity * unit;
       subtotal += itemTotal;
       lineItems.push({
         product_id: item.product_id,
         quantity: item.quantity,
-        unit_price_cents: item.price_cents,
+        unit_price_cents: unit,
         total_price_cents: itemTotal,
-        affiliate_url: item.affiliate_url
+        affiliate_url: item.affiliate_url,
+        pricing_applied: item.applied || [],
       });
     }
 

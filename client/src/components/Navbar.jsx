@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import ThemeToggle from './ThemeToggle';
 import LanguageSelector from './LanguageSelector';
+import BusinessSwitcher from './BusinessSwitcher';
+import '../styles/BusinessSwitcher.css';
 
 /** The OxSteed brand icon (4-arrow clockwise ring with inner circle) */
 function OxSteedIcon({ size = 24 }) {
@@ -356,6 +358,7 @@ export default function Navbar() {
                 </div>
               </>
             )}
+            {isHelper && <BusinessSwitcher />}
             <LanguageSelector />
             <ThemeToggle />
           </div>
@@ -366,6 +369,7 @@ export default function Navbar() {
             alignItems: 'center',
             gap: 'var(--space-2)',
           }}>
+            {isHelper && <BusinessSwitcher compact />}
             <LanguageSelector />
             <ThemeToggle />
             <button

@@ -63,6 +63,7 @@ const businessRoutes                = require('./routes/businesses');
 const businessOperationsRoutes      = require('./routes/businessOperations');
 const businessProductsRoutes        = require('./routes/businessProducts');
 const businessProductPricingRoutes  = require('./routes/businessProductPricing');
+const pricingRulesAdminRoutes       = require('./routes/pricingRulesAdmin');
 const businessProfileImagesRoutes   = require('./routes/businessProfileImages');
 const supportRoutes = require('./routes/support');
 const supportChatRoutes = require('./routes/supportChat');
@@ -309,6 +310,18 @@ io.on('connection', (socket) => {
   socketService.trackConnect(userId, socket.id);
   logger.debug('Socket connected', { userId, role: socket.userRole, socketId: socket.id });
 
+  // Phase 1b: auto-join the per-business workspace rooms (inbox + calendar)
+  // for every business this user owns or is an active member of.
+  socketService.joinBusinessRooms(socket, userId).then(bids => {
+    if (bids && bids.length) {
+      logger.debug('Socket joined business workspace rooms', {
+        userId, socketId: socket.id, businessIds: bids,
+      });
+    }
+  }).catch(err => {
+    logger.warn('joinBusinessRooms failed', { userId, error: err && err.message });
+  });
+
   socket.on('disconnect', () => {
     socketService.trackDisconnect(userId, socket.id);
     logger.debug('Socket disconnected', { socketId: socket.id });
@@ -490,6 +503,7 @@ app.use('/api/didit', diditRoutes);
 app.use('/api/businesses', businessRoutes);
 app.use('/api/businesses', businessOperationsRoutes);
 app.use('/api/businesses', businessProductsRoutes);
+app.use('/api/businesses', pricingRulesAdminRoutes);
 app.use('/api/businesses', businessProductPricingRoutes);
 app.use('/api/business-profile', businessProfileImagesRoutes);
 app.use('/api/leads', leadRoutes);
@@ -693,6 +707,5 @@ function shutdown(signal) {
   }, 15000).unref();
 }
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT',  () => shutdown('SIGINT'));
