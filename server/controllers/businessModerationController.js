@@ -43,7 +43,7 @@ exports.listBusinesses = async (req, res) => {
         FROM businesses b
         JOIN users u ON b.user_id = u.id
         LEFT JOIN business_members bm ON bm.business_id = b.id AND bm.status = 'active'
-        LEFT JOIN (SELECT business_id, COUNT(*)::int as job_count FROM jobs WHERE is_deleted = FALSE GROUP BY business_id) j ON j.business_id = b.id
+        LEFT JOIN (SELECT business_id, COUNT(*)::int as job_count FROM jobs WHERE deleted_at IS NULL GROUP BY business_id) j ON j.business_id = b.id
         LEFT JOIN (SELECT helper_id, SUM(amount_cents)::bigint as total_earnings_cents FROM payments WHERE status = 'captured' GROUP BY helper_id) e ON e.helper_id = u.id
         ${wc}
        GROUP BY b.id, b.business_name, b.business_type, b.is_active, b.is_primary,
@@ -65,7 +65,7 @@ exports.listBusinesses = async (req, res) => {
         SUM(CASE WHEN DATE_TRUNC('month', b.created_at) = DATE_TRUNC('month', NOW()) THEN 1 ELSE 0 END)::int as newThisMonth,
         SUM(CASE WHEN COALESCE(j.job_count, 0) = 0 THEN 1 ELSE 0 END)::int as dormant
       FROM businesses b
-      LEFT JOIN (SELECT business_id, COUNT(*)::int as job_count FROM jobs WHERE is_deleted = FALSE GROUP BY business_id) j ON j.business_id = b.id
+      LEFT JOIN (SELECT business_id, COUNT(*)::int as job_count FROM jobs WHERE deleted_at IS NULL GROUP BY business_id) j ON j.business_id = b.id
       ${wc}
     `, params);
 
@@ -322,7 +322,7 @@ exports.getBusinessDetail = async (req, res) => {
         FROM businesses b
         JOIN users u ON b.user_id = u.id
         LEFT JOIN business_members bm ON bm.business_id = b.id AND bm.status = 'active'
-        LEFT JOIN (SELECT business_id, COUNT(*)::int as job_count FROM jobs WHERE is_deleted = FALSE GROUP BY business_id) j ON j.business_id = b.id
+        LEFT JOIN (SELECT business_id, COUNT(*)::int as job_count FROM jobs WHERE deleted_at IS NULL GROUP BY business_id) j ON j.business_id = b.id
        WHERE b.id = $1
        GROUP BY b.id, b.business_name, b.business_type, b.is_active, b.is_primary,
                 b.address_city, b.address_state, b.address_street, b.address_zip,
@@ -338,7 +338,7 @@ exports.getBusinessDetail = async (req, res) => {
     const { rows: jobs } = await db.query(`
       SELECT id, title, status, budget_cents, created_at
         FROM jobs
-       WHERE business_id = $1 AND is_deleted = FALSE
+       WHERE business_id = $1 AND deleted_at IS NULL
        ORDER BY created_at DESC
        LIMIT 10
     `, [id]);
