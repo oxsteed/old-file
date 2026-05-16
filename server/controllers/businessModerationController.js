@@ -32,26 +32,24 @@ exports.listBusinesses = async (req, res) => {
     const { rows } = await db.query(`
       SELECT b.id, b.business_name, b.business_type, b.is_active, b.is_primary,
              b.address_city, b.address_state, b.address_street, b.address_zip,
-             b.category, b.description, b.website, b.phone, b.admin_notes,
+             b.description, b.website, b.phone, b.admin_notes,
              b.created_at, b.updated_at,
+             NULL::text AS category,
              u.id AS owner_id,
              u.first_name || ' ' || u.last_name AS owner_name,
              u.email AS owner_email,
              COUNT(DISTINCT bm.id)::int AS member_count,
-             COALESCE(j.job_count, 0)::int AS job_count,
-             COALESCE(e.total_earnings_cents, 0)::bigint AS total_earnings_cents
+             (SELECT COUNT(*)::int FROM jobs WHERE assigned_helper_id = u.id AND deleted_at IS NULL) AS job_count,
+             0::bigint AS total_earnings_cents
         FROM businesses b
         JOIN users u ON b.user_id = u.id
         LEFT JOIN business_members bm ON bm.business_id = b.id AND bm.status = 'active'
-        LEFT JOIN (SELECT business_id, COUNT(*)::int as job_count FROM jobs WHERE deleted_at IS NULL GROUP BY business_id) j ON j.business_id = b.id
-        LEFT JOIN (SELECT helper_id, SUM(amount_cents)::bigint as total_earnings_cents FROM payments WHERE status = 'captured' GROUP BY helper_id) e ON e.helper_id = u.id
         ${wc}
        GROUP BY b.id, b.business_name, b.business_type, b.is_active, b.is_primary,
                 b.address_city, b.address_state, b.address_street, b.address_zip,
-                b.category, b.description, b.website, b.phone, b.admin_notes,
+                b.description, b.website, b.phone, b.admin_notes,
                 b.created_at, b.updated_at,
-                u.id, u.first_name, u.last_name, u.email,
-                j.job_count, e.total_earnings_cents
+                u.id, u.first_name, u.last_name, u.email
        ORDER BY ${orderBy}
        LIMIT $${p} OFFSET $${p + 1}
     `, [...params, parseInt(limit), offset]);
@@ -62,10 +60,10 @@ exports.listBusinesses = async (req, res) => {
         COUNT(*)::int as total,
         SUM(CASE WHEN b.is_active = TRUE THEN 1 ELSE 0 END)::int as active,
         SUM(CASE WHEN b.is_active = FALSE THEN 1 ELSE 0 END)::int as inactive,
-        SUM(CASE WHEN DATE_TRUNC('month', b.created_at) = DATE_TRUNC('month', NOW()) THEN 1 ELSE 0 END)::int as newThisMonth,
-        SUM(CASE WHEN COALESCE(j.job_count, 0) = 0 THEN 1 ELSE 0 END)::int as dormant
+        SUM(CASE WHEN DATE_TRUNC('month', b.created_at) = DATE_TRUNC('month', NOW()) THEN 1 ELSE 0 END)::int as "newThisMonth",
+        SUM(CASE WHEN (SELECT COUNT(*) FROM jobs WHERE assigned_helper_id = u.id AND deleted_at IS NULL) = 0 THEN 1 ELSE 0 END)::int as dormant
       FROM businesses b
-      LEFT JOIN (SELECT business_id, COUNT(*)::int as job_count FROM jobs WHERE deleted_at IS NULL GROUP BY business_id) j ON j.business_id = b.id
+      JOIN users u ON b.user_id = u.id
       ${wc}
     `, params);
 
@@ -313,35 +311,36 @@ exports.getBusinessDetail = async (req, res) => {
     const { rows: bizRows } = await db.query(`
       SELECT b.id, b.business_name, b.business_type, b.is_active, b.is_primary,
              b.address_city, b.address_state, b.address_street, b.address_zip,
-             b.category, b.description, b.website, b.phone,
+             b.description, b.website, b.phone,
              b.created_at, b.updated_at, b.admin_notes,
+             NULL::text AS category,
              u.id AS owner_id, u.first_name || ' ' || u.last_name AS owner_name,
-             u.email AS owner_email, u.phone_number AS owner_phone,
+             u.email AS owner_email,
+             COALESCE(u.phone_number, u.phone) AS owner_phone,
              COUNT(DISTINCT bm.id)::int AS member_count,
-             COALESCE(j.job_count, 0)::int AS job_count
+             (SELECT COUNT(*)::int FROM jobs WHERE assigned_helper_id = u.id AND deleted_at IS NULL) AS job_count
         FROM businesses b
         JOIN users u ON b.user_id = u.id
         LEFT JOIN business_members bm ON bm.business_id = b.id AND bm.status = 'active'
-        LEFT JOIN (SELECT business_id, COUNT(*)::int as job_count FROM jobs WHERE deleted_at IS NULL GROUP BY business_id) j ON j.business_id = b.id
        WHERE b.id = $1
        GROUP BY b.id, b.business_name, b.business_type, b.is_active, b.is_primary,
                 b.address_city, b.address_state, b.address_street, b.address_zip,
-                b.category, b.description, b.website, b.phone, b.created_at, b.updated_at, b.admin_notes,
-                u.id, u.first_name, u.last_name, u.email, u.phone_number, j.job_count
+                b.description, b.website, b.phone, b.created_at, b.updated_at, b.admin_notes,
+                u.id, u.first_name, u.last_name, u.email, u.phone_number, u.phone
     `, [id]);
 
     if (!bizRows.length) return res.status(404).json({ error: 'Business not found.' });
 
     const business = bizRows[0];
 
-    // Get recent jobs
+    // Get recent jobs assigned to this business owner
     const { rows: jobs } = await db.query(`
-      SELECT id, title, status, budget_cents, created_at
+      SELECT id, title, status, created_at
         FROM jobs
-       WHERE business_id = $1 AND deleted_at IS NULL
+       WHERE assigned_helper_id = $1 AND deleted_at IS NULL
        ORDER BY created_at DESC
        LIMIT 10
-    `, [id]);
+    `, [business.owner_id]);
 
     res.json({ business: { ...business, recent_jobs: jobs } });
   } catch (err) {
