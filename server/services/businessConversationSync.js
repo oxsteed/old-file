@@ -212,30 +212,3 @@ async function mirrorMessage(args) {
 }
 
 module.exports = { ensureBusinessConversation, mirrorMessage };
-   [businessConversationId]
-      );
-      const businessId = bizRows[0] && bizRows[0].business_id;
-      if (businessId) {
-        socketService.broadcastToBusinessInbox(businessId, 'business_inbox:message', {
-          conversation_id: businessConversationId,
-          message_id: inserted.rows[0] && inserted.rows[0].id,
-          sender_type: senderType,
-          sender_name: senderName,
-          content: String(content).slice(0, 280),
-          created_at: new Date().toISOString(),
-        });
-      }
-    } catch (broadcastErr) {
-      logger.warn('inbox broadcast failed', { err: broadcastErr && broadcastErr.message });
-    }
-    return inserted.rows[0] ? inserted.rows[0].id : null;
-  } catch (err) {
-    logger.warn('mirrorMessage failed', {
-      err: err && err.message,
-      businessConversationId,
-    });
-    return null;
-  }
-}
-
-module.exports = { ensureBusinessConversation, mirrorMessage };

@@ -1,6 +1,8 @@
 -- Migration 193: Business feature settings and configuration
 -- Enable/disable features per business, feature flags, advanced settings
 
+BEGIN;
+
 CREATE TABLE IF NOT EXISTS business_feature_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE UNIQUE,
@@ -68,3 +70,5 @@ CREATE TABLE IF NOT EXISTS business_feature_usage (
 
 CREATE INDEX idx_business_feature_usage_business_id ON business_feature_usage(business_id);
 CREATE INDEX idx_business_feature_usage_month_year ON business_feature_usage(month_year);
+
+COMMIT;
