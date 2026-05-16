@@ -1,6 +1,59 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-09
+**Last updated:** 2026-05-16
+
+## Per-Business Workspace Build (2026-05-16) — Phases -1 through 4 LANDED
+
+Audit + gap analysis at `docs/business-workspace-gap-analysis.md`.
+
+**Phase -1: Migration collision fixed.** Business-branch migrations 181-193 renamed to 219-231 (e.g., `181_business_messaging.sql` → `219_business_messaging.sql`). Reconciliation migration `218zz_business_workspace_filename_reconciliation.sql` runs first and inserts the new filenames into `_migrations` for DBs that already applied the old names.
+
+**Phase 0 (Tenancy spine):**
+- `server/middleware/requireBusinessAccess.js` — factory `requireBusinessAccess({ minRole })` with minRole ∈ owner/manager/representative/any. Attaches `req.business` + `req.businessRole`. Returns 404 (not 403) for non-members to avoid leaking business existence.
+- Migration `232_business_audit_log.sql` + `server/services/businessAuditLog.js` (`logBusinessAction(req, entry)` fire-and-forget, plus `listBusinessAudit`).
+- `/business/:businessId/workspace[/:tab]` routes in `client/src/App.jsx`; `BusinessHubPage` reads `useParams()` first, falls back to localStorage.
+- `client/src/components/BusinessSwitcher.jsx` + CSS. Mounted in `Navbar` (desktop + mobile compact) for helpers. Renders nothing for 0 businesses, chip for 1, dropdown for 2+.
+
+**Phase 1 (Messaging integration):**
+- Migration `233_business_conversation_legacy_link.sql` — adds `business_conversations.legacy_conversation_id`, `business_messages.legacy_message_id`, `business_conversations.assigned_to_user_id` + `assigned_at`.
+- `server/services/businessConversationSync.js` — tolerant dual-write bridge. `chatController.profileChatMessage` Live-mode path now mirrors business-scoped messages into `business_conversations`/`business_messages` after the legacy insert. Legacy flow is unaffected if the mirror fails.
+- `server/services/socketService.js` — `business_<id>_inbox` and `business_<id>_calendar` rooms. `server/index.js` connection handler auto-calls `joinBusinessRooms` for every business this user owns or is an active member of.
+- `server/controllers/businessConversationAssignmentController.js` — claim / release / reassign / list-assignments. Owner/manager can reassign; claimer or manager can release. Emits `business_inbox:claim_changed` and writes to `business_audit_log`.
+
+**Phase 2 (Booking slot engine + calendar):**
+- `server/services/bookingSlotEngine.js` — `computeSlots({ businessId, serviceId, from, to, staffId })` intersects `business_service_availability` − `business_service_blocked_times` − active `business_appointments`. Returns slots with available_capacity per staff. Honors `business_booking_rules.min_advance_booking_hours` and `max_advance_booking_days`. Also `getBusinessCalendar`.
+- `server/controllers/businessCalendarController.js` — appended `getServiceSlots` + `getBusinessAppointmentsCalendar` exports (legacy `listBusinessCalendar` for the old `appointments` table untouched).
+- `server/middleware/enforceBookingRules.js` — runs before `createAppointment`. Validates min-notice, max-advance, duration-matches-service, staff-assigned-to-service, **per-staff** overbooking (fixes the service-wide capacity bug), and time blocks.
+
+**Phase 3 (Business products → marketplace pipeline, option (b)):**
+- Migration `234_business_products_id_alignment.sql` — repairs `business_products.business_id` (was UUID against INTEGER `businesses.id`). Drops broken FK, converts to INTEGER, re-adds. Adds `business_products.marketplace_product_id`; on `marketplace_products`: `business_product_id`, `source_business_id`, `reserved_quantity`; extends `source` CHECK with `'business'`.
+- `server/services/businessProductMarketplaceSync.js` — `publishBusinessProduct(id)` creates/updates a marketplace mirror with `source='business'` + stock snapshot. `unpublishBusinessProduct`, `syncStock`, atomic `reserveProduct/releaseReservation/commitReservation`.
+- `server/routes/businessProducts.js` — new `POST /:businessId/products/:productId/publish|unpublish|sync-stock`. All write routes now go through `requireBusinessAccess({ minRole: 'manager' })`.
+
+**Phase 4 (Pricing engine):**
+- `server/services/pricingSignals.js` — `getCustomerSegment` (`new`/`returning`/`vip`/`loyalty_tier_*`) and `computeDemandSignal` (0..1). Both 10-min in-process cache.
+- `server/services/pricingEngine.js` — `calculatePrice({ businessId, kind, targetId, basePriceCents?, quantity, customerId, atTimeIso })`. Service path evaluates `service_price_rules` (priority DESC) across time/seasonal/volume/demand/segment children, clamps with `service_price_constraints`. Product path uses `product_pricing_rules.conditions_json` + `pricing_adjustment` (fixed_price / fixed_modifier / percent_off / price_multiplier). **Never throws** — fallback is base price.
+- `server/controllers/pricingRulesAdminController.js` + `server/routes/pricingRulesAdmin.js` — full CRUD + `POST /:businessId/pricing/preview`. All writes audit-logged.
+- `server/services/checkoutPricing.js` + patch to `cartCheckoutController.createPaymentIntent` — checkout now SELECTs `business_product_id`/`source_business_id`, calls `applyDynamicPricingToCartItems` before computing totals, attaches `pricing_applied[]` per line.
+
+**Outstanding (acknowledged in gap doc, not yet done):**
+1. Remove the legacy in-controller capacity check in `businessAppointmentsController.createAppointment` (`enforceBookingRules` short-circuits it but for hygiene it should go).
+2. Wire `commitReservation` from `paymentController.js` `payment_intent.succeeded`.
+3. Merge `product_promo_codes` into `discount_codes` (migration 235, follow-up).
+4. BOGO implementation in pricing engine.
+5. Reminder cron for `business_appointments` (separate from legacy `appointments` cron).
+6. **Run `node --check` on every touched server file locally before merge** — during this session the bash sandbox view of files diverged from the file-tool's view, so syntax was verified by Read rather than runtime check on some files.
+
+**Files this session — new:**
+`server/middleware/{requireBusinessAccess,enforceBookingRules}.js`, `server/services/{businessAuditLog,businessConversationSync,bookingSlotEngine,businessProductMarketplaceSync,pricingEngine,pricingSignals,checkoutPricing}.js`, `server/controllers/{businessConversationAssignmentController,pricingRulesAdminController}.js`, `server/routes/pricingRulesAdmin.js`, migrations `218zz_…_reconciliation`, `232_business_audit_log`, `233_business_conversation_legacy_link`, `234_business_products_id_alignment`, `client/src/components/BusinessSwitcher.jsx`, `client/src/styles/BusinessSwitcher.css`, `docs/business-workspace-gap-analysis.md`.
+
+**Files this session — modified:**
+`server/index.js` (route mount + socket joinBusinessRooms), `server/controllers/chatController.js` (inbox mirror + trailing JSDoc repaired), `server/controllers/businessCalendarController.js` (appended Phase 2b), `server/controllers/cartCheckoutController.js` (Phase 4d), `server/services/socketService.js` (rewritten with business rooms), `server/routes/businessOperations.js` (rewritten with `requireBusinessAccess` + new routes), `server/routes/businessProducts.js` (rewritten with `requireBusinessAccess` + publish endpoints), `client/src/App.jsx` (workspace routes), `client/src/pages/BusinessHubPage.jsx` (useParams), `client/src/components/Navbar.jsx` (switcher).
+
+**Renamed (Phase -1):** 13 migrations 181-193 → 219-231.
+
+---
+
 
 ## Instructions for Every Session
 
