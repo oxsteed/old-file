@@ -15,6 +15,7 @@ const RULE_TYPES = [
 export function PricingRulesManager({ businessId }) {
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [selectedRule, setSelectedRule] = useState(null);
   const [formData, setFormData] = useState({
@@ -36,12 +37,20 @@ export function PricingRulesManager({ businessId }) {
   const loadRules = async () => {
     try {
       setLoading(true);
+      setError(null);
+      if (!businessId) {
+        setError('Business ID is required');
+        return;
+      }
       const response = await api.get(
         `/api/businesses/${businessId}/pricing-rules`
       );
       setRules(response.data || []);
     } catch (error) {
-      toast.error('Failed to load pricing rules');
+      const errMsg = error.response?.data?.message || error.message || 'Failed to load pricing rules';
+      setError(errMsg);
+      console.error('Failed to load pricing rules:', error);
+      toast.error(errMsg);
     } finally {
       setLoading(false);
     }
@@ -415,6 +424,14 @@ export function PricingRulesManager({ businessId }) {
         </div>
       ) : (
         <div className="prm-rules-grid">
+          {error && (
+            <div className="prm-error" style={{ padding: '1rem', backgroundColor: '#fee2e2', borderRadius: '0.5rem', color: '#991b1b', marginBottom: '1rem' }}>
+              <p><strong>Error:</strong> {error}</p>
+              <button onClick={loadRules} className="prm-btn-new" style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
+                Try Again
+              </button>
+            </div>
+          )}
           {loading ? (
             <div className="prm-loading">Loading pricing rules...</div>
           ) : rules.length === 0 ? (
