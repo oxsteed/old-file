@@ -1,413 +1,396 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import { Edit2, Trash2, Plus, TrendingUp, Clock, Users, Zap, Calendar } from 'lucide-react';
+import { Trash2, Plus, TrendingUp, Clock, Users, Zap, Calendar, ToggleLeft, ToggleRight } from 'lucide-react';
 import '../../styles/PricingRulesManager.css';
 
+// Server rule_type values (not 'time_based' etc.)
 const RULE_TYPES = [
-  { id: 'time_based', name: 'Time-Based', description: 'Different prices for peak/off-peak hours', icon: Clock },
-  { id: 'demand_based', name: 'Demand-Based', description: 'Surge pricing based on availability', icon: Zap },
-  { id: 'volume_based', name: 'Volume-Based', description: 'Discounts for bulk bookings', icon: TrendingUp },
-  { id: 'customer_segment', name: 'Customer Segment', description: 'Loyalty tier discounts', icon: Users },
-  { id: 'seasonal', name: 'Seasonal', description: 'Date-range pricing overrides', icon: Calendar }
+  { id: 'time',     name: 'Time-Based',       description: 'Different prices for peak/off-peak hours', icon: Clock },
+  { id: 'demand',   name: 'Demand-Based',     description: 'Surge pricing based on availability',      icon: Zap },
+  { id: 'volume',   name: 'Volume-Based',     description: 'Discounts for bulk bookings',              icon: TrendingUp },
+  { id: 'segment',  name: 'Customer Segment', description: 'Loyalty tier discounts',                   icon: Users },
+  { id: 'seasonal', name: 'Seasonal',         description: 'Date-range pricing overrides',             icon: Calendar },
 ];
 
-export function PricingRulesManager({ businessId }) {
-  const [rules, setRules] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const [selectedRule, setSelectedRule] = useState(null);
-  const [formData, setFormData] = useState({
-    type: 'time_based',
-    name: '',
-    description: '',
-    priority: 1,
-    is_active: true,
-    conditions: {},
-    multiplier: 1,
-    discount_percent: 0,
-    fixed_price: 0
-  });
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+const DEFAULT_FORM = {
+  rule_type: 'time',
+  priority: 0,
+  time:     { day_of_week: 1, start_time: '18:00', end_time: '22:00', is_peak: true,  price_multiplier: 1.5,  fixed_modifier_cents: 0 },
+  demand:   { availability_threshold_percent: 50, surge_multiplier: 1.25 },
+  volume:   { min_quantity: 2, max_quantity: null, period: 'order', price_multiplier: 0.9, fixed_modifier_cents: 0 },
+  segment:  { segment_type: 'returning', segment_criteria: {}, price_multiplier: 0.95, min_customer_bookings: null, max_customer_bookings: null },
+  seasonal: { start_date: '', end_date: '', price_multiplier: 1.2, fixed_price_cents: null, fixed_modifier_cents: 0 },
+};
+
+export function PricingRulesManager({ businessId }) {
+  const [services, setServices]               = useState([]);
+  const [selectedServiceId, setSelectedServiceId] = useState(null);
+  const [rules, setRules]                     = useState([]);
+  const [loadingSvc, setLoadingSvc]           = useState(false);
+  const [loadingRules, setLoadingRules]       = useState(false);
+  const [error, setError]                     = useState(null);
+  const [showForm, setShowForm]               = useState(false);
+  const [formData, setFormData]               = useState(DEFAULT_FORM);
+
+  // Load services once businessId is available
   useEffect(() => {
-    loadRules();
+    if (!businessId) return;
+    setLoadingSvc(true);
+    api.get(`/businesses/${businessId}/services`)
+      .then(r => {
+        const list = Array.isArray(r.data) ? r.data : (r.data?.services || []);
+        setServices(list);
+        if (list.length > 0) setSelectedServiceId(list[0].id);
+      })
+      .catch(() => toast.error('Failed to load services'))
+      .finally(() => setLoadingSvc(false));
   }, [businessId]);
+
+  // Load rules whenever the selected service changes
+  useEffect(() => {
+    if (!businessId || !selectedServiceId) return;
+    loadRules();
+  }, [businessId, selectedServiceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadRules = async () => {
     try {
-      setLoading(true);
+      setLoadingRules(true);
       setError(null);
-      if (!businessId) {
-        setError('Business ID is required');
-        return;
-      }
       const response = await api.get(
-        `/api/businesses/${businessId}/pricing-rules`
+        `/businesses/${businessId}/pricing/service/${selectedServiceId}/rules`
       );
-      setRules(response.data || []);
-    } catch (error) {
-      const errMsg = error.response?.data?.message || error.message || 'Failed to load pricing rules';
-      setError(errMsg);
-      console.error('Failed to load pricing rules:', error);
-      toast.error(errMsg);
+      setRules(response.data?.rules || []);
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to load pricing rules';
+      setError(msg);
+      toast.error(msg);
     } finally {
-      setLoading(false);
+      setLoadingRules(false);
     }
   };
 
   const handleSaveRule = async () => {
-    if (!formData.name || !formData.type) {
-      toast.error('Please fill in required fields');
-      return;
-    }
-
     try {
-      if (selectedRule) {
-        await api.put(
-          `/api/businesses/${businessId}/pricing-rules/${selectedRule.id}`,
-          formData
-        );
-        toast.success('Pricing rule updated');
-      } else {
-        await api.post(
-          `/api/businesses/${businessId}/pricing-rules`,
-          formData
-        );
-        toast.success('Pricing rule created');
-      }
+      const { rule_type, priority } = formData;
+      const payload = {
+        rule_type,
+        priority: Number(priority) || 0,
+        [rule_type]: formData[rule_type],
+      };
+      await api.post(
+        `/businesses/${businessId}/pricing/service/${selectedServiceId}/rules`,
+        payload
+      );
+      toast.success('Pricing rule created');
       setShowForm(false);
-      setSelectedRule(null);
-      resetForm();
+      setFormData(DEFAULT_FORM);
       loadRules();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to save rule');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save rule');
+    }
+  };
+
+  const handleToggleRule = async (ruleId, currentlyActive) => {
+    try {
+      await api.patch(
+        `/businesses/${businessId}/pricing/service/${selectedServiceId}/rules/${ruleId}/toggle`,
+        { is_active: !currentlyActive }
+      );
+      toast.success(currentlyActive ? 'Rule disabled' : 'Rule enabled');
+      loadRules();
+    } catch {
+      toast.error('Failed to toggle rule');
     }
   };
 
   const handleDeleteRule = async (ruleId) => {
     if (!window.confirm('Delete this pricing rule?')) return;
-
     try {
       await api.delete(
-        `/api/businesses/${businessId}/pricing-rules/${ruleId}`
+        `/businesses/${businessId}/pricing/service/${selectedServiceId}/rules/${ruleId}`
       );
       toast.success('Rule deleted');
       loadRules();
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete rule');
     }
   };
 
-  const handleEditRule = (rule) => {
-    setSelectedRule(rule);
-    setFormData(rule);
-    setShowForm(true);
-  };
+  const getRuleTypeInfo = (ruleType) => RULE_TYPES.find(t => t.id === ruleType) || { name: ruleType, icon: TrendingUp };
 
-  const resetForm = () => {
-    setFormData({
-      type: 'time_based',
-      name: '',
-      description: '',
-      priority: 1,
-      is_active: true,
-      conditions: {},
-      multiplier: 1,
-      discount_percent: 0,
-      fixed_price: 0
-    });
-  };
-
-  const getRuleTypeIcon = (typeId) => {
-    const type = RULE_TYPES.find(t => t.id === typeId);
-    const Icon = type?.icon || TrendingUp;
-    return <Icon size={16} />;
-  };
-
-  const getRuleTypeName = (typeId) => {
-    const type = RULE_TYPES.find(t => t.id === typeId);
-    return type?.name || typeId;
-  };
+  const setDimension = (key, patch) =>
+    setFormData(prev => ({ ...prev, [key]: { ...prev[key], ...patch } }));
 
   const renderTypeSpecificConfig = () => {
-    switch (formData.type) {
-      case 'time_based':
+    const { rule_type } = formData;
+    switch (rule_type) {
+      case 'time':
         return (
-          <>
-            <div className="prm-config-section">
-              <h5>Time-Based Configuration</h5>
-              <div className="prm-form-row">
-                <div className="prm-form-group">
-                  <label>Peak Hours (e.g., 18:00-22:00)</label>
+          <div className="prm-config-section">
+            <h5>Time-Based Configuration</h5>
+            <div className="prm-form-row">
+              <div className="prm-form-group">
+                <label>Day of Week</label>
+                <select
+                  value={formData.time.day_of_week}
+                  onChange={e => setDimension('time', { day_of_week: parseInt(e.target.value) })}
+                >
+                  {DAY_NAMES.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                </select>
+              </div>
+              <div className="prm-form-group">
+                <label>Peak Period?</label>
+                <label className="prm-checkbox-label">
                   <input
-                    type="text"
-                    placeholder="HH:MM-HH:MM"
-                    value={formData.conditions?.peak_hours || ''}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        conditions: { ...formData.conditions, peak_hours: e.target.value }
-                      })
-                    }
+                    type="checkbox"
+                    checked={formData.time.is_peak}
+                    onChange={e => setDimension('time', { is_peak: e.target.checked })}
                   />
-                  <small>24-hour format, e.g., 18:00-22:00</small>
-                </div>
-                <div className="prm-form-group">
-                  <label>Peak Multiplier</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0.1"
-                    value={formData.multiplier}
-                    onChange={(e) => setFormData({ ...formData, multiplier: parseFloat(e.target.value) })}
-                  />
-                  <small>E.g., 1.5 = 50% markup</small>
-                </div>
+                  Is Peak
+                </label>
               </div>
             </div>
-          </>
+            <div className="prm-form-row">
+              <div className="prm-form-group">
+                <label>Start Time (24h)</label>
+                <input
+                  type="time"
+                  value={formData.time.start_time}
+                  onChange={e => setDimension('time', { start_time: e.target.value })}
+                />
+              </div>
+              <div className="prm-form-group">
+                <label>End Time (24h)</label>
+                <input
+                  type="time"
+                  value={formData.time.end_time}
+                  onChange={e => setDimension('time', { end_time: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="prm-form-row">
+              <div className="prm-form-group">
+                <label>Price Multiplier</label>
+                <input
+                  type="number" step="0.05" min="0.1"
+                  value={formData.time.price_multiplier}
+                  onChange={e => setDimension('time', { price_multiplier: parseFloat(e.target.value) })}
+                />
+                <small>e.g. 1.5 = 50% markup</small>
+              </div>
+            </div>
+          </div>
         );
-      case 'demand_based':
+      case 'demand':
         return (
-          <>
-            <div className="prm-config-section">
-              <h5>Demand-Based Configuration</h5>
-              <div className="prm-form-row">
-                <div className="prm-form-group">
-                  <label>Availability Threshold (%)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.conditions?.availability_threshold || 50}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        conditions: { ...formData.conditions, availability_threshold: parseInt(e.target.value) }
-                      })
-                    }
-                  />
-                  <small>When availability drops below this %, apply surge pricing</small>
-                </div>
-                <div className="prm-form-group">
-                  <label>Surge Multiplier</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0.1"
-                    value={formData.multiplier}
-                    onChange={(e) => setFormData({ ...formData, multiplier: parseFloat(e.target.value) })}
-                  />
-                </div>
+          <div className="prm-config-section">
+            <h5>Demand-Based Configuration</h5>
+            <div className="prm-form-row">
+              <div className="prm-form-group">
+                <label>Availability Threshold (%)</label>
+                <input
+                  type="number" min="0" max="100"
+                  value={formData.demand.availability_threshold_percent}
+                  onChange={e => setDimension('demand', { availability_threshold_percent: parseInt(e.target.value) })}
+                />
+                <small>When availability drops below this %, apply surge pricing</small>
+              </div>
+              <div className="prm-form-group">
+                <label>Surge Multiplier</label>
+                <input
+                  type="number" step="0.05" min="1"
+                  value={formData.demand.surge_multiplier}
+                  onChange={e => setDimension('demand', { surge_multiplier: parseFloat(e.target.value) })}
+                />
               </div>
             </div>
-          </>
+          </div>
         );
-      case 'volume_based':
+      case 'volume':
         return (
-          <>
-            <div className="prm-config-section">
-              <h5>Volume-Based Configuration</h5>
-              <div className="prm-form-row">
-                <div className="prm-form-group">
-                  <label>Minimum Quantity</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formData.conditions?.min_quantity || 1}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        conditions: { ...formData.conditions, min_quantity: parseInt(e.target.value) }
-                      })
-                    }
-                  />
-                </div>
-                <div className="prm-form-group">
-                  <label>Discount (%)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.discount_percent}
-                    onChange={(e) => setFormData({ ...formData, discount_percent: parseInt(e.target.value) })}
-                  />
-                </div>
+          <div className="prm-config-section">
+            <h5>Volume-Based Configuration</h5>
+            <div className="prm-form-row">
+              <div className="prm-form-group">
+                <label>Min Quantity</label>
+                <input
+                  type="number" min="1"
+                  value={formData.volume.min_quantity}
+                  onChange={e => setDimension('volume', { min_quantity: parseInt(e.target.value) })}
+                />
+              </div>
+              <div className="prm-form-group">
+                <label>Max Quantity (optional)</label>
+                <input
+                  type="number" min="1"
+                  value={formData.volume.max_quantity ?? ''}
+                  onChange={e => setDimension('volume', { max_quantity: e.target.value ? parseInt(e.target.value) : null })}
+                />
               </div>
             </div>
-          </>
+            <div className="prm-form-row">
+              <div className="prm-form-group">
+                <label>Period</label>
+                <select
+                  value={formData.volume.period}
+                  onChange={e => setDimension('volume', { period: e.target.value })}
+                >
+                  <option value="order">Per Order</option>
+                  <option value="day">Per Day</option>
+                  <option value="week">Per Week</option>
+                  <option value="month">Per Month</option>
+                </select>
+              </div>
+              <div className="prm-form-group">
+                <label>Price Multiplier</label>
+                <input
+                  type="number" step="0.05" min="0.1"
+                  value={formData.volume.price_multiplier}
+                  onChange={e => setDimension('volume', { price_multiplier: parseFloat(e.target.value) })}
+                />
+                <small>e.g. 0.9 = 10% off</small>
+              </div>
+            </div>
+          </div>
         );
-      case 'customer_segment':
+      case 'segment':
         return (
-          <>
-            <div className="prm-config-section">
-              <h5>Customer Segment Configuration</h5>
-              <div className="prm-form-row">
-                <div className="prm-form-group">
-                  <label>Loyalty Tier</label>
-                  <select
-                    value={formData.conditions?.tier || 'bronze'}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        conditions: { ...formData.conditions, tier: e.target.value }
-                      })
-                    }
-                  >
-                    <option value="bronze">Bronze</option>
-                    <option value="silver">Silver</option>
-                    <option value="gold">Gold</option>
-                    <option value="platinum">Platinum</option>
-                  </select>
-                </div>
-                <div className="prm-form-group">
-                  <label>Discount (%)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.discount_percent}
-                    onChange={(e) => setFormData({ ...formData, discount_percent: parseInt(e.target.value) })}
-                  />
-                </div>
+          <div className="prm-config-section">
+            <h5>Customer Segment Configuration</h5>
+            <div className="prm-form-row">
+              <div className="prm-form-group">
+                <label>Segment Type</label>
+                <select
+                  value={formData.segment.segment_type}
+                  onChange={e => setDimension('segment', { segment_type: e.target.value })}
+                >
+                  <option value="new">New Customer</option>
+                  <option value="returning">Returning</option>
+                  <option value="vip">VIP</option>
+                  <option value="loyalty_tier_bronze">Bronze</option>
+                  <option value="loyalty_tier_silver">Silver</option>
+                  <option value="loyalty_tier_gold">Gold</option>
+                  <option value="loyalty_tier_platinum">Platinum</option>
+                </select>
+              </div>
+              <div className="prm-form-group">
+                <label>Price Multiplier</label>
+                <input
+                  type="number" step="0.05" min="0.1"
+                  value={formData.segment.price_multiplier}
+                  onChange={e => setDimension('segment', { price_multiplier: parseFloat(e.target.value) })}
+                />
+                <small>e.g. 0.95 = 5% off</small>
               </div>
             </div>
-          </>
+          </div>
         );
       case 'seasonal':
         return (
-          <>
-            <div className="prm-config-section">
-              <h5>Seasonal Configuration</h5>
-              <div className="prm-form-row">
-                <div className="prm-form-group">
-                  <label>Start Date</label>
-                  <input
-                    type="date"
-                    value={formData.conditions?.start_date || ''}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        conditions: { ...formData.conditions, start_date: e.target.value }
-                      })
-                    }
-                  />
-                </div>
-                <div className="prm-form-group">
-                  <label>End Date</label>
-                  <input
-                    type="date"
-                    value={formData.conditions?.end_date || ''}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        conditions: { ...formData.conditions, end_date: e.target.value }
-                      })
-                    }
-                  />
-                </div>
+          <div className="prm-config-section">
+            <h5>Seasonal Configuration</h5>
+            <div className="prm-form-row">
+              <div className="prm-form-group">
+                <label>Start Date</label>
+                <input
+                  type="date"
+                  value={formData.seasonal.start_date}
+                  onChange={e => setDimension('seasonal', { start_date: e.target.value })}
+                />
               </div>
-              <div className="prm-form-row">
-                <div className="prm-form-group">
-                  <label>Price Multiplier</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0.1"
-                    value={formData.multiplier}
-                    onChange={(e) => setFormData({ ...formData, multiplier: parseFloat(e.target.value) })}
-                  />
-                </div>
+              <div className="prm-form-group">
+                <label>End Date</label>
+                <input
+                  type="date"
+                  value={formData.seasonal.end_date}
+                  onChange={e => setDimension('seasonal', { end_date: e.target.value })}
+                />
               </div>
             </div>
-          </>
+            <div className="prm-form-row">
+              <div className="prm-form-group">
+                <label>Price Multiplier</label>
+                <input
+                  type="number" step="0.05" min="0.1"
+                  value={formData.seasonal.price_multiplier}
+                  onChange={e => setDimension('seasonal', { price_multiplier: parseFloat(e.target.value) })}
+                />
+                <small>e.g. 1.2 = 20% markup</small>
+              </div>
+            </div>
+          </div>
         );
       default:
         return null;
     }
   };
 
+  if (loadingSvc) {
+    return <div className="prm-loading">Loading services...</div>;
+  }
+
+  if (services.length === 0) {
+    return (
+      <div className="prm-empty">
+        <p>No services found. Add a service first before setting pricing rules.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="prm-container">
       <div className="prm-header">
         <h3>Pricing Rules</h3>
-        <button
-          onClick={() => {
-            resetForm();
-            setSelectedRule(null);
-            setShowForm(true);
-          }}
-          className="prm-btn-new"
+        {!showForm && (
+          <button
+            onClick={() => { setFormData(DEFAULT_FORM); setShowForm(true); }}
+            className="prm-btn-new"
+          >
+            <Plus size={18} /> New Rule
+          </button>
+        )}
+      </div>
+
+      {/* Service selector */}
+      <div className="prm-form-group" style={{ marginBottom: '1rem' }}>
+        <label>Service</label>
+        <select
+          value={selectedServiceId || ''}
+          onChange={e => { setSelectedServiceId(e.target.value); setShowForm(false); }}
         >
-          <Plus size={18} /> New Rule
-        </button>
+          {services.map(s => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
       </div>
 
       {showForm ? (
         <div className="prm-form-container">
-          <h4>{selectedRule ? 'Edit Pricing Rule' : 'Create Pricing Rule'}</h4>
+          <h4>Create Pricing Rule</h4>
 
           <div className="prm-form-row">
-            <div className="prm-form-group">
-              <label>Rule Name *</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., Weekend Premium Pricing"
-                required
-              />
-            </div>
             <div className="prm-form-group">
               <label>Rule Type *</label>
               <select
-                value={formData.type}
-                onChange={(e) => {
-                  setFormData({ ...formData, type: e.target.value, conditions: {} });
-                }}
-                required
+                value={formData.rule_type}
+                onChange={e => setFormData({ ...formData, rule_type: e.target.value })}
               >
-                {RULE_TYPES.map(type => (
-                  <option key={type.id} value={type.id}>
-                    {type.name}
-                  </option>
+                {RULE_TYPES.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
               </select>
             </div>
-          </div>
-
-          <div className="prm-form-group">
-            <label>Description</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Explain when this rule applies..."
-              rows="2"
-            />
-          </div>
-
-          <div className="prm-form-row">
             <div className="prm-form-group">
               <label>Priority</label>
               <input
-                type="number"
-                min="1"
-                max="100"
+                type="number" min="0" max="100"
                 value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })}
+                onChange={e => setFormData({ ...formData, priority: parseInt(e.target.value) || 0 })}
               />
-              <small>Higher priority rules apply first (1-100)</small>
-            </div>
-            <div className="prm-form-group">
-              <label className="prm-checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                />
-                Active
-              </label>
+              <small>Higher value = evaluated first</small>
             </div>
           </div>
 
@@ -432,80 +415,71 @@ export function PricingRulesManager({ businessId }) {
               </button>
             </div>
           )}
-          {loading ? (
+          {loadingRules ? (
             <div className="prm-loading">Loading pricing rules...</div>
           ) : rules.length === 0 ? (
             <div className="prm-empty">
-              <p>No pricing rules yet</p>
-              <button
-                onClick={() => setShowForm(true)}
-                className="prm-btn-new-large"
-              >
+              <p>No pricing rules for this service yet.</p>
+              <button onClick={() => setShowForm(true)} className="prm-btn-new-large">
                 Create First Rule
               </button>
             </div>
           ) : (
             rules
-              .sort((a, b) => (a.priority || 0) - (b.priority || 0))
-              .map(rule => (
-                <div
-                  key={rule.id}
-                  className={`prm-rule-card ${!rule.is_active ? 'inactive' : ''}`}
-                >
-                  <div className="prm-rule-header">
-                    <div className="prm-rule-icon">
-                      {getRuleTypeIcon(rule.type)}
+              .slice()
+              .sort((a, b) => (b.priority || 0) - (a.priority || 0))
+              .map(rule => {
+                const typeInfo = getRuleTypeInfo(rule.rule_type);
+                const Icon = typeInfo.icon;
+                return (
+                  <div
+                    key={rule.id}
+                    className={`prm-rule-card ${!rule.is_active ? 'inactive' : ''}`}
+                  >
+                    <div className="prm-rule-header">
+                      <div className="prm-rule-icon">
+                        <Icon size={16} />
+                      </div>
+                      <h4>{typeInfo.name}</h4>
+                      <div className="prm-rule-actions">
+                        <button
+                          onClick={() => handleToggleRule(rule.id, rule.is_active)}
+                          className="prm-btn-action"
+                          aria-label={rule.is_active ? 'Disable rule' : 'Enable rule'}
+                          title={rule.is_active ? 'Disable' : 'Enable'}
+                        >
+                          {rule.is_active
+                            ? <ToggleRight size={18} style={{ color: '#f97316' }} />
+                            : <ToggleLeft  size={18} />}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteRule(rule.id)}
+                          className="prm-btn-action delete"
+                          aria-label="Delete rule"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
-                    <h4>{rule.name}</h4>
-                    <div className="prm-rule-actions">
-                      <button
-                        onClick={() => handleEditRule(rule)}
-                        className="prm-btn-action"
-                        aria-label="Edit rule"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteRule(rule.id)}
-                        className="prm-btn-action delete"
-                        aria-label="Delete rule"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+
+                    <p className="prm-rule-description" style={{ margin: '0.25rem 0', fontSize: '0.8rem', color: 'var(--muted-text)' }}>
+                      {typeInfo.description}
+                    </p>
+
+                    {rule.priority > 0 && (
+                      <div className="prm-rule-detail">
+                        <strong>Priority:</strong> {rule.priority}
+                      </div>
+                    )}
+
+                    <div className="prm-rule-meta">
+                      <span className={`prm-status ${rule.is_active ? 'active' : 'inactive'}`}>
+                        {rule.is_active ? 'Active' : 'Inactive'}
+                      </span>
                     </div>
                   </div>
-
-                  <span className="prm-rule-type">{getRuleTypeName(rule.type)}</span>
-
-                  {rule.description && (
-                    <p className="prm-rule-description">{rule.description}</p>
-                  )}
-
-                  {rule.multiplier && rule.multiplier !== 1 && (
-                    <div className="prm-rule-detail">
-                      <strong>Multiplier:</strong> {rule.multiplier.toFixed(2)}x
-                    </div>
-                  )}
-
-                  {rule.discount_percent > 0 && (
-                    <div className="prm-rule-detail">
-                      <strong>Discount:</strong> {rule.discount_percent}%
-                    </div>
-                  )}
-
-                  {rule.priority && (
-                    <div className="prm-rule-detail">
-                      <strong>Priority:</strong> {rule.priority}
-                    </div>
-                  )}
-
-                  <div className="prm-rule-meta">
-                    <span className={`prm-status ${rule.is_active ? 'active' : 'inactive'}`}>
-                      {rule.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                </div>
-              ))
+                );
+              })
           )}
         </div>
       )}
