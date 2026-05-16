@@ -22,10 +22,10 @@ export function BusinessMessagingTab({ businessId }) {
   const loadConversations = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/api/businesses/${businessId}/messages`, {
+      const response = await api.get(`/businesses/${businessId}/messages`, {
         params: { type: conversationType === 'all' ? undefined : conversationType, search }
       });
-      setConversations(response.data.conversations);
+      setConversations(response.data.conversations || []);
     } catch (error) {
       toast.error('Failed to load conversations');
     } finally {
@@ -37,7 +37,7 @@ export function BusinessMessagingTab({ businessId }) {
   const openConversation = async (conversationId) => {
     try {
       const response = await api.get(
-        `/api/businesses/${businessId}/messages/${conversationId}`
+        `/businesses/${businessId}/messages/${conversationId}`
       );
       setSelectedConversation(response.data);
       setMessages(response.data.messages || []);
@@ -52,7 +52,7 @@ export function BusinessMessagingTab({ businessId }) {
 
     try {
       const response = await api.post(
-        `/api/businesses/${businessId}/messages/${selectedConversation.id}`,
+        `/businesses/${businessId}/messages/${selectedConversation.id}`,
         { content: messageText, message_type: 'text' }
       );
       setMessages([...(messages || []), response.data]);
@@ -68,7 +68,7 @@ export function BusinessMessagingTab({ businessId }) {
   const handleArchiveConversation = async (conversationId) => {
     try {
       await api.post(
-        `/api/businesses/${businessId}/messages/${conversationId}/archive`
+        `/businesses/${businessId}/messages/${conversationId}/archive`
       );
       toast.success('Conversation archived');
       loadConversations();
@@ -80,7 +80,7 @@ export function BusinessMessagingTab({ businessId }) {
 
   const handleNewConversation = async (type, data) => {
     try {
-      await api.post(`/api/businesses/${businessId}/messages`, {
+      await api.post(`/businesses/${businessId}/messages`, {
         conversation_type: type,
         ...data
       });
