@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS business_service_policies (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   service_id UUID REFERENCES business_services(id) ON DELETE CASCADE,
   policy_type VARCHAR(50) NOT NULL CHECK (policy_type IN (
     'cancellation',

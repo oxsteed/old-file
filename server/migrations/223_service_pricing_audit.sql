@@ -38,7 +38,7 @@ CREATE INDEX idx_service_price_rule_changes_created_at ON service_price_rule_cha
 
 CREATE TABLE IF NOT EXISTS service_pricing_analytics (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   service_id UUID NOT NULL REFERENCES business_services(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   total_bookings INTEGER DEFAULT 0,

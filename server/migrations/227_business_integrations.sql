@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS business_integrations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   integration_type VARCHAR(100) NOT NULL CHECK (integration_type IN (
     'stripe',
     'google_calendar',

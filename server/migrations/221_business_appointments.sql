@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS business_appointments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   service_id UUID NOT NULL REFERENCES business_services(id) ON DELETE RESTRICT,
   staff_id UUID REFERENCES users(id) ON DELETE SET NULL,
   customer_id UUID REFERENCES users(id) ON DELETE SET NULL,

@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS business_conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   conversation_type VARCHAR(50) NOT NULL CHECK (conversation_type IN ('team', 'customer')),
   customer_id UUID REFERENCES users(id) ON DELETE SET NULL,
   customer_name VARCHAR(255),

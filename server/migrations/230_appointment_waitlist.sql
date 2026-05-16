@@ -1,6 +1,8 @@
 -- Migration 192: Appointment waitlist and cancellation notifications
 -- Let customers join waitlist when preferred time not available
 
+BEGIN;
+
 CREATE TABLE IF NOT EXISTS appointment_waitlist (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   service_id UUID NOT NULL REFERENCES business_services(id) ON DELETE CASCADE,
@@ -37,3 +39,5 @@ CREATE TABLE IF NOT EXISTS waitlist_notifications (
 
 CREATE INDEX idx_waitlist_notifications_waitlist_id ON waitlist_notifications(waitlist_id);
 CREATE INDEX idx_waitlist_notifications_notification_type ON waitlist_notifications(notification_type);
+
+COMMIT;

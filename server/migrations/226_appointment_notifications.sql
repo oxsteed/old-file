@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS appointment_notification_templates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   notification_type VARCHAR(100) NOT NULL,
   trigger_event VARCHAR(100) NOT NULL CHECK (trigger_event IN (
     'booking_confirmation',

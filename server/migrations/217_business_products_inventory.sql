@@ -7,7 +7,7 @@ BEGIN;
 -- Products
 CREATE TABLE IF NOT EXISTS business_products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
   description TEXT,
   category VARCHAR(100),

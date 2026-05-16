@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS business_feature_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE UNIQUE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE UNIQUE,
   bookings_enabled BOOLEAN DEFAULT TRUE,
   online_bookings_enabled BOOLEAN DEFAULT TRUE,
   phone_bookings_enabled BOOLEAN DEFAULT FALSE,
@@ -33,7 +33,7 @@ CREATE INDEX idx_business_feature_settings_business_id ON business_feature_setti
 
 CREATE TABLE IF NOT EXISTS business_advanced_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE UNIQUE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE UNIQUE,
   stripe_connect_account_id VARCHAR(500),
   stripe_payment_method VARCHAR(50) DEFAULT 'card' CHECK (stripe_payment_method IN ('card', 'ach', 'all')),
   enable_subscription_services BOOLEAN DEFAULT FALSE,
@@ -57,7 +57,7 @@ CREATE INDEX idx_business_advanced_settings_business_id ON business_advanced_set
 -- Feature usage/analytics
 CREATE TABLE IF NOT EXISTS business_feature_usage (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   feature_name VARCHAR(100) NOT NULL,
   usage_count INTEGER DEFAULT 0,
   last_used_at TIMESTAMP WITH TIME ZONE,

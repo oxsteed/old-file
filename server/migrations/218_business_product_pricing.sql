@@ -7,7 +7,7 @@ BEGIN;
 -- Product Pricing Rules (dynamic pricing)
 CREATE TABLE IF NOT EXISTS product_pricing_rules (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   rule_name VARCHAR(200) NOT NULL,
   rule_type VARCHAR(50) NOT NULL CHECK (rule_type IN (
     'volume', 'promotion', 'bundle', 'segment', 'seasonal'

@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS service_price_rules (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   service_id UUID REFERENCES business_services(id) ON DELETE CASCADE,
   rule_type VARCHAR(50) NOT NULL CHECK (rule_type IN ('base', 'time', 'demand', 'volume', 'segment', 'seasonal')),
   name VARCHAR(255) NOT NULL,

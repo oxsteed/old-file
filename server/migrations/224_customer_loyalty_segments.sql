@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS customer_business_profile (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   customer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   lifetime_bookings INTEGER DEFAULT 0,
   lifetime_spent_cents BIGINT DEFAULT 0,

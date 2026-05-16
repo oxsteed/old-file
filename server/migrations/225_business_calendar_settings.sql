@@ -6,7 +6,7 @@ ALTER TABLE IF EXISTS businesses ADD COLUMN IF NOT EXISTS business_hours_json JS
 
 CREATE TABLE IF NOT EXISTS business_holidays (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   holiday_name VARCHAR(255) NOT NULL,
   date DATE NOT NULL,
   is_working BOOLEAN DEFAULT FALSE,

@@ -1,9 +1,11 @@
 -- Migration 182: Business services and service staff assignments
 -- Services are time-based offerings that can be booked by customers
 
+BEGIN;
+
 CREATE TABLE IF NOT EXISTS business_services (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
   description TEXT,
   category VARCHAR(100),
@@ -65,7 +67,7 @@ CREATE TABLE IF NOT EXISTS business_service_blocked_times (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   service_id UUID REFERENCES business_services(id) ON DELETE CASCADE,
   staff_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   start_time TIMESTAMP WITH TIME ZONE NOT NULL,
   end_time TIMESTAMP WITH TIME ZONE NOT NULL,
   reason VARCHAR(500),
@@ -82,7 +84,7 @@ CREATE INDEX idx_business_service_blocked_times_time_range ON business_service_b
 
 CREATE TABLE IF NOT EXISTS business_booking_rules (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   min_advance_booking_hours INTEGER DEFAULT 0 CHECK (min_advance_booking_hours >= 0),
   max_advance_booking_days INTEGER DEFAULT 365 CHECK (max_advance_booking_days > 0),
   cancellation_allowed_hours_before INTEGER DEFAULT 24 CHECK (cancellation_allowed_hours_before >= 0),
@@ -95,3 +97,5 @@ CREATE TABLE IF NOT EXISTS business_booking_rules (
 );
 
 CREATE INDEX idx_business_booking_rules_business_id ON business_booking_rules(business_id);
+
+COMMIT;
