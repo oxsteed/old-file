@@ -411,19 +411,93 @@ const FEATURE_SECTIONS = [
   {
     id: 'business-hub',
     category: 'Business Growth',
-    title: 'Business Hub and Analytics',
+    title: 'Business Hub: Multi-Tab Operations Workspace',
     icon: PackageSearch,
     summary:
-      'Business Hub is where helpers and businesses can manage their work, services, products, analytics, moderation status, and operational growth.',
+      'Business Hub is the operations workspace for helpers and small businesses on OxSteed. Each business you own or help operate gets its own workspace with role-based access (owner, manager, representative), an audit log of every change, and roughly 35 tabs grouped into finance, profile and content, operations and scheduling, catalog and pricing, customer growth, and team and analytics. A switcher in the navbar lets a user move between businesses they belong to, and every tab lives at its own URL (/business/:id/workspace/:tab) so deep links, bookmarks, and shared URLs always point at the right tab of the right business.',
     realLife: [
-      'A local service provider can see what is working, manage service offerings, track jobs, and build a repeatable operation.',
-      'A business can connect product sales, bookings, profile quality, and customer communication into one workspace.',
-      'As OxSteed grows, Business Hub becomes the owner’s command center for reputation, revenue, availability, and customer demand.',
+      'A solo cleaner runs her entire operation from one page: keeps her service list and prices current, takes direct bookings, sends invoices, replies to customers, and watches revenue trend in the Overview tab - no spreadsheets, no separate tools.',
+      'A salon owner gives two front-desk staff "representative" access so they can see the calendar and respond to messages without seeing tax records or financial goals. Every action they take is recorded in the business audit log and the owner can reassign or revoke at any time.',
+      'A property manager picks the Property Manager template and a Maintenance tab appears alongside the standard tabs for tracking units, work orders, and recurring upkeep tied to specific properties.',
+      'A handyman growing into a small crew adds a manager from the Team tab, defines service pricing rules (time-of-day, seasonal, demand-based, volume, customer segment), and publishes products from internal inventory into the public marketplace with one click.',
+      'A tutoring business publishes a public booking page; parents pick from real availability slots (the engine intersects service availability, blocked times, staff schedules, and active appointments per staff member), the owner confirms or declines within the configured hours window, and stale requests auto-expire so the calendar stays honest.',
+      'A multi-location owner switches between locations from the navbar; each workspace remembers its own tab and state, and shared URLs like /business/12/workspace/messages land exactly where the recipient needs to be.',
+      'A growing service business sets a quarterly revenue goal in Goals, watches the Overview chart climb against it, runs a loyalty promo from the Loyalty tab, and tracks the lift on the Analytics tab - all without leaving the workspace.',
     ],
-    connectedTo: ['Helper Dashboard', 'Products', 'Tool Rentals', 'Profile Templates', 'Analytics', 'Messages'],
+    tabs: [
+      { label: 'Overview', description: 'Daily landing tab: revenue, jobs, bookings, messages, and trend lines for the currently selected business.' },
+      { label: 'Invoices', description: 'Generate, send, and track invoices tied to jobs, bookings, products, and tool rentals; export and reconcile.' },
+      { label: 'Tax', description: 'Tax summary across the business: collected, owed, and exportable views for filing prep.' },
+      { label: 'Goals', description: 'Set revenue, booking, or customer-acquisition goals and watch progress alongside finance trends.' },
+      { label: 'Edit Profile', description: 'Cover image, logo, name, category, description, contact, and AI knowledge that feed the public business profile.' },
+      { label: 'Services', description: 'Every service you sell, with duration, capacity, staff assignment, and bookability flags used by the booking engine.' },
+      { label: 'Gallery', description: 'Photos of past work, products, or the space - what customers see on the public profile.' },
+      { label: 'Policies', description: 'Cancellation, refund, deposit, late-arrival, and access policies surfaced on the public profile and during checkout.' },
+      { label: 'FAQs', description: 'Common questions and answers that feed both the public profile and the AI assistant on the profile page.' },
+      { label: 'Hours', description: 'Business hours, holiday hours, and recurring closures that drive what is bookable in the slot engine.' },
+      { label: 'Skills', description: 'Skills, certifications, and licenses powering helper search and category matching.' },
+      { label: 'AI Knowledge', description: 'Owner-written knowledge (up to 8000 chars) the AI uses to answer customer questions and accept guest bookings.' },
+      { label: 'Calendar', description: 'Unified calendar with appointments, blocks, and a live now-line. Switch between day, week, and agenda views.' },
+      { label: 'Appointments', description: 'List of upcoming, pending, and past appointments with claim, reassign, reschedule, and rebook controls.' },
+      { label: 'Book Services', description: 'The bookable service catalog and live slot view - exactly what customers see on the public booking flow.' },
+      { label: 'Messages', description: 'Business inbox with claim, release, and reassign across the team. Conversations are scoped to this business and mirror the legacy DM thread for continuity.' },
+      { label: 'Clients', description: 'Customer list with history, lifetime value, notes, and segmentation (new, returning, VIP, loyalty tier).' },
+      { label: 'Leads', description: 'Inbound contact requests and quote starters that have not yet become paying customers.' },
+      { label: 'Quotes', description: 'Draft quotes you can send to customers, convert to a job, or attach to an invoice.' },
+      { label: 'Recurring', description: 'Recurring jobs and standing appointments - cleaning routes, weekly tutoring, monthly maintenance.' },
+      { label: 'Waitlist', description: 'Customers waiting on canceled slots or sold-out windows; auto-offer when capacity opens.' },
+      { label: 'Maintenance', description: 'Property Manager template only: track units, work orders, and recurring upkeep beside the standard tabs.' },
+      { label: 'Products', description: 'Inventory and publishing pipeline: mirror products into the public marketplace with stock snapshots, atomic reservations at checkout, and unpublish or sync controls.' },
+      { label: 'Service Pricing', description: 'Pricing rules across time-of-day, seasonal, volume, demand, and customer segment, with min and max clamps and a preview tool before publishing.' },
+      { label: 'Product Pricing', description: 'Pricing adjustments for products: fixed price, fixed modifier, percent off, or price multiplier. Conditions evaluated at checkout.' },
+      { label: 'Packages', description: 'Bundle services and products into packages with their own price and rules.' },
+      { label: 'Loyalty', description: 'Loyalty tiers, points, and rewards that feed back into the pricing engine and customer segmentation.' },
+      { label: 'Marketing', description: 'Promotions, campaigns, and outbound messaging for past and prospective customers.' },
+      { label: 'Reviews', description: 'Review moderation, responses, and trend tracking across jobs, bookings, and products.' },
+      { label: 'Templates', description: 'Reusable message templates for booking confirmations, follow-ups, no-shows, and quotes.' },
+      { label: 'Team', description: 'Manage owners, managers, and representatives. Send invites, revoke access, and audit every change.' },
+      { label: 'Staff', description: 'Staff members assigned to services, schedules, and capacity - used by the booking engine to compute per-staff availability.' },
+      { label: 'Expenses', description: 'Track expenses against the business for tax and margin visibility.' },
+      { label: 'Analytics', description: 'Deeper analytics: trends, top services and products, conversion, customer cohorts, and payout history.' },
+      { label: 'Integrations', description: 'Connect external tools and services that extend the workspace.' },
+      { label: 'Health', description: 'Operational health view: setup completeness, stalled tasks, and recommended next actions to fix gaps.' },
+    ],
+    connectedTo: [
+      'Helper Dashboard',
+      'Public Business Profile',
+      'Booking Engine',
+      'Calendar',
+      'Messages',
+      'Clients',
+      'Products',
+      'Marketplace Publishing',
+      'Tool Rentals',
+      'Profile Templates',
+      'AI Knowledge',
+      'Service Pricing Rules',
+      'Product Pricing Rules',
+      'Invoices',
+      'Tax',
+      'Goals',
+      'Payments & Payouts',
+      'Reputation',
+      'Loyalty',
+      'Team & Roles',
+      'Audit Log',
+      'Growth Center',
+    ],
     actions: [
       { label: 'Open business hub', to: '/business-hub' },
+      { label: 'Overview', to: '/business-hub?tab=overview' },
+      { label: 'Calendar', to: '/business-hub?tab=calendar' },
+      { label: 'Messages', to: '/business-hub?tab=messages' },
+      { label: 'Products', to: '/business-hub?tab=products' },
+      { label: 'Service pricing', to: '/business-hub?tab=service-pricing' },
+      { label: 'AI knowledge', to: '/business-hub?tab=ai' },
+      { label: 'Team', to: '/business-hub?tab=team' },
+      { label: 'Edit profile', to: '/business-hub?tab=profile' },
       { label: 'Launch status', to: '/business-launch-status' },
+      { label: 'Growth center', to: '/promote' },
     ],
   },
   {
@@ -512,6 +586,7 @@ function sectionText(section) {
     section.summary,
     ...(section.realLife || []),
     ...(section.connectedTo || []),
+    ...((section.tabs || []).flatMap((tab) => [tab.label, tab.description])),
   ].join(' '));
 }
 
@@ -536,6 +611,16 @@ function getTranslatedFeatureSections(t) {
       `howOxsteedWorks.features.${section.id}.connectedTo`,
       section.connectedTo
     ),
+    tabs: Array.isArray(section.tabs)
+      ? section.tabs.map((tab, index) => ({
+          label: t(`howOxsteedWorks.features.${section.id}.tabs.${index}.label`, {
+            defaultValue: tab.label,
+          }),
+          description: t(`howOxsteedWorks.features.${section.id}.tabs.${index}.description`, {
+            defaultValue: tab.description,
+          }),
+        }))
+      : undefined,
     actions: section.actions.map((action, index) => ({
       ...action,
       label: t(`howOxsteedWorks.features.${section.id}.actions.${index}`, {
@@ -701,6 +786,31 @@ export default function FeatureGuidePage() {
                     </div>
 
                     <p className="feature-guide-summary">{section.summary}</p>
+
+                    {section.tabs && section.tabs.length > 0 && (
+                      <div className="feature-guide-tabs-block">
+                        <h3 className="feature-guide-tabs-title">
+                          {t('howOxsteedWorks.detail.tabsTitle', {
+                            defaultValue: `Inside the workspace (${section.tabs.length} tabs)`,
+                            count: section.tabs.length,
+                          })}
+                        </h3>
+                        <p className="feature-guide-tabs-intro">
+                          {t('howOxsteedWorks.detail.tabsIntro', {
+                            defaultValue:
+                              'Every tab in this workspace is listed below so you can scan what is in there before you click in. Visibility depends on your role and the template the business is using.',
+                          })}
+                        </p>
+                        <div className="feature-guide-tabs-grid">
+                          {section.tabs.map((tab) => (
+                            <div key={tab.label} className="feature-guide-tab-card">
+                              <p className="feature-guide-tab-label">{tab.label}</p>
+                              <p className="feature-guide-tab-desc">{tab.description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="feature-guide-detail-grid">
                       <div>

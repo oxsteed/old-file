@@ -389,6 +389,62 @@
   line-height: 1.75;
 }
 
+.feature-guide-tabs-block {
+  margin: 0 0 26px;
+  padding: 18px 18px 20px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.feature-guide-tabs-title {
+  margin: 0 0 6px;
+  color: #f8fafc;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.feature-guide-tabs-intro {
+  margin: 0 0 16px;
+  color: #94a3b8;
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+.feature-guide-tabs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.feature-guide-tab-card {
+  padding: 11px 12px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(8, 12, 20, 0.7);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.feature-guide-tab-card:hover {
+  border-color: rgba(249, 115, 22, 0.45);
+  transform: translateY(-1px);
+}
+
+.feature-guide-tab-label {
+  margin: 0 0 4px;
+  color: #fb923c;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.feature-guide-tab-desc {
+  margin: 0;
+  color: #aeb8c9;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
 .feature-guide-detail-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.75fr);
@@ -505,5 +561,13 @@
 
   .feature-guide-section h2 {
     font-size: 1.32rem;
+  }
+
+  .feature-guide-tabs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .feature-guide-tabs-block {
+    padding: 14px 14px 16px;
   }
 }
