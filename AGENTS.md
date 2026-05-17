@@ -29,6 +29,11 @@
 - **`client/src/admin/pages/SupportTickets.jsx`**: Redesigned the admin support page into a stronger command-center layout with a branded hero, KPI cards, more compact quick routes, more legible inbox cards, and a richer ticket-detail conversation surface. A follow-up layout pass reduced dead space in the empty state and turned the right panel into a structured support-workspace overview instead of a mostly blank canvas.
 - **Verification:** Client production build was not re-run in this workspace because the local `vite` binary is unavailable (`npm run build` fails with `'vite' is not recognized as an internal or external command`).
 
+**Support operations design suite pass (2026-05-17):** COMPLETE
+- **Shared chrome:** Added `client/src/admin/components/support/SupportPageChrome.jsx` to give support-admin pages a consistent dark command-center visual system: hero sections, KPI cards, reusable panels, empty states, action buttons, route cards, and tags.
+- **Pages refreshed:** `client/src/admin/pages/SupportAgentDashboard.jsx`, `SupportAgentManagement.jsx`, `SupportAgentOnboarding.jsx`, `SupportShiftsManager.jsx`, `SupportAgentChat.jsx`, and `SupportKnowledgeBase.jsx` now share the same visual language and use clearer hierarchy, denser information cards, and less generic empty states so the support area feels like one coordinated product surface.
+- **Verification:** Client production build was not re-run in this workspace because the local `vite` binary is unavailable (`npm run build` fails with `'vite' is not recognized as an internal or external command`).
+
 **Property maintenance request mode (2026-05-11):** COMPLETE
 - **Migration 211** (`server/migrations/211_property_maintenance_requests.sql`): Adds `property_maintenance_requests` and `property_maintenance_request_events` for landlord/property-manager workflows: tenant issue intake, status timeline, scheduling, helper assignment, photos, tenant-visible updates, cost logging, and job conversion linkage.
 - **API:** `server/controllers/maintenanceRequestController.js` + `server/routes/maintenanceRequests.js`, mounted at `/api/maintenance-requests`. Public business metadata is readable, authenticated tenants can submit requests with up to 5 photos, business team members can list/update requests, and authorized business users can convert a request into a published job.

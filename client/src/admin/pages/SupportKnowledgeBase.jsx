@@ -1,7 +1,27 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import adminApi from '../../lib/adminApi';
-import { BookOpen, Plus, Edit2, Trash2, Search, RefreshCw, Eye, ThumbsUp } from 'lucide-react';
+import {
+  BookOpen,
+  Plus,
+  Edit2,
+  Trash2,
+  Search,
+  RefreshCw,
+  Eye,
+  ThumbsUp,
+  LibraryBig,
+} from 'lucide-react';
+import {
+  SupportPageShell,
+  SupportHero,
+  SupportPanel,
+  SupportEmptyState,
+  SupportActionButton,
+  SupportTag,
+} from '../components/support/SupportPageChrome';
+
+const categories = ['general', 'billing', 'technical', 'account', 'shipping'];
 
 export default function SupportKnowledgeBase() {
   const { businessId } = useParams();
@@ -18,8 +38,6 @@ export default function SupportKnowledgeBase() {
     tags: [],
   });
 
-  const categories = ['general', 'billing', 'technical', 'account', 'shipping'];
-
   const loadArticles = useCallback(async () => {
     setLoading(true);
     try {
@@ -29,8 +47,10 @@ export default function SupportKnowledgeBase() {
       setArticles(res.data.articles || []);
     } catch (err) {
       console.error('Failed to load KB articles:', err);
+      setArticles([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [businessId, search, category]);
 
   useEffect(() => {
@@ -80,176 +100,202 @@ export default function SupportKnowledgeBase() {
     setShowForm(true);
   };
 
+  const totalViews = articles.reduce((sum, article) => sum + Number(article.views || 0), 0);
+  const totalHelpful = articles.reduce((sum, article) => sum + Number(article.helpful_count || 0), 0);
+
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <h1 className="text-white font-bold text-3xl mb-2">Knowledge Base</h1>
-          <p className="text-gray-400 text-sm">Create and manage support articles.</p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={loadArticles}
-            disabled={loading}
-            className="p-2.5 bg-gray-700 border border-gray-600 text-gray-400 rounded-lg hover:text-white transition"
-          >
-            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-          </button>
-          <button
-            onClick={() => {
-              setSelectedArticle(null);
-              setFormData({ title: '', content: '', category: 'general', tags: [] });
-              setShowForm(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition"
-          >
-            <Plus size={18} />
-            New Article
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-8 space-y-4">
-        <div className="relative">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input
-            type="text"
-            placeholder="Search articles..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-          />
-        </div>
-        <div className="flex gap-3">
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setCategory(category === cat ? '' : cat)}
-              className={`px-4 py-2 rounded-lg font-medium transition capitalize ${
-                category === cat
-                  ? 'bg-orange-600 text-white'
-                  : 'bg-gray-700 text-gray-400 hover:text-white'
-              }`}
+    <SupportPageShell>
+      <SupportHero
+        icon={LibraryBig}
+        eyebrow="Knowledge System"
+        title="Support knowledge base"
+        description="Organize reusable answers, troubleshooting guides, and policy references so agents can resolve issues faster and more consistently."
+        actions={(
+          <>
+            <SupportActionButton icon={RefreshCw} onClick={loadArticles} tone="secondary">
+              Refresh
+            </SupportActionButton>
+            <SupportActionButton
+              icon={Plus}
+              onClick={() => {
+                setSelectedArticle(null);
+                setFormData({ title: '', content: '', category: 'general', tags: [] });
+                setShowForm(true);
+              }}
+              tone="primary"
             >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
+              New article
+            </SupportActionButton>
+          </>
+        )}
+        stats={[
+          {
+            icon: BookOpen,
+            label: 'Articles',
+            value: articles.length,
+            detail: 'Published or draft support articles in this view.',
+          },
+          {
+            icon: Eye,
+            label: 'Views',
+            value: totalViews,
+            detail: 'Total recorded views across the current result set.',
+            tone: 'text-blue-300',
+          },
+          {
+            icon: ThumbsUp,
+            label: 'Helpful',
+            value: totalHelpful,
+            detail: 'Helpful votes visible in the current result set.',
+            tone: 'text-green-300',
+          },
+          {
+            icon: Search,
+            label: 'Category',
+            value: category || 'All',
+            detail: category ? `Filtering to ${category}.` : 'Browsing every support category.',
+            tone: 'text-orange-300',
+          },
+        ]}
+      />
 
-      <div className="grid grid-cols-1 gap-4">
-        {articles.length === 0 ? (
-          <div className="text-center py-12 bg-gray-800 border border-gray-700 rounded-xl">
-            <BookOpen size={40} className="mx-auto mb-3 text-gray-600" />
-            <p className="text-gray-400">No articles found</p>
+      <SupportPanel
+        title="Article library"
+        subtitle="Search by content or narrow the library by category to find the right playbook fast."
+      >
+        <div className="mb-5 space-y-4">
+          <div className="relative">
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
+            <input
+              type="text"
+              placeholder="Search articles..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="w-full rounded-2xl border border-gray-700 bg-gray-900 py-3 pl-11 pr-4 text-white focus:border-orange-500 focus:outline-none"
+            />
           </div>
+          <div className="flex flex-wrap gap-2">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategory(category === cat ? '' : cat)}
+                className={`rounded-full border px-3 py-2 text-sm font-medium capitalize transition ${
+                  category === cat
+                    ? 'border-orange-500/30 bg-orange-500/10 text-orange-300'
+                    : 'border-gray-700 bg-gray-950 text-gray-400 hover:border-gray-600'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {articles.length === 0 ? (
+          <SupportEmptyState
+            icon={BookOpen}
+            title="No knowledge base articles found"
+            body="Create an article or widen the search criteria to rebuild the support library view."
+          />
         ) : (
-          articles.map(article => (
-            <div key={article.id} className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="text-white font-bold text-lg mb-2">{article.title}</h3>
-                  <p className="text-gray-400 text-sm mb-3 line-clamp-2">{article.content}</p>
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <Eye size={14} />
-                      {article.views || 0} views
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <ThumbsUp size={14} />
-                      {article.helpful_count || 0} helpful
-                    </span>
-                    <span className="px-2 py-1 bg-gray-700 rounded text-xs capitalize">
-                      {article.category}
-                    </span>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {articles.map((article) => (
+              <div key={article.id} className="rounded-[24px] border border-gray-800 bg-gray-900/70 p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-lg font-semibold text-white">{article.title}</div>
+                    <div className="mt-3 max-h-[4.2rem] overflow-hidden text-sm leading-6 text-gray-400">
+                      {article.content}
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <SupportTag>{article.category}</SupportTag>
+                      <SupportTag tone="blue">{article.views || 0} views</SupportTag>
+                      <SupportTag tone="green">{article.helpful_count || 0} helpful</SupportTag>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleEdit(article)}
+                      className="rounded-xl border border-gray-700 bg-gray-900 p-2 text-gray-400 transition hover:text-white"
+                    >
+                      <Edit2 size={15} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(article.id)}
+                      className="rounded-xl border border-red-900/40 bg-red-950/30 p-2 text-red-400 transition hover:bg-red-900/30"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEdit(article)}
-                    className="p-2 hover:bg-gray-700 rounded transition"
-                  >
-                    <Edit2 size={16} className="text-gray-400" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(article.id)}
-                    className="p-2 hover:bg-red-900/30 rounded transition"
-                  >
-                    <Trash2 size={16} className="text-red-400" />
-                  </button>
-                </div>
               </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
-      </div>
+      </SupportPanel>
 
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="border-b border-gray-700 p-6 flex items-center justify-between sticky top-0 bg-gray-800">
-              <h2 className="text-white font-bold text-xl">
-                {selectedArticle ? 'Edit Article' : 'New Article'}
-              </h2>
-              <button
-                onClick={() => setShowForm(false)}
-                className="text-gray-500 hover:text-white text-2xl"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[28px] border border-gray-700 bg-gray-900 shadow-2xl">
+            <div className="sticky top-0 flex items-center justify-between border-b border-gray-800 bg-gray-900 px-6 py-5">
               <div>
-                <label className="block text-gray-400 text-sm mb-2">Title</label>
+                <div className="text-xl font-semibold text-white">
+                  {selectedArticle ? 'Edit article' : 'New article'}
+                </div>
+                <div className="mt-1 text-sm text-gray-500">Build reusable answers the whole support team can rely on.</div>
+              </div>
+              <button onClick={() => setShowForm(false)} className="text-2xl text-gray-500 hover:text-white">x</button>
+            </div>
+
+            <div className="space-y-5 px-6 py-6">
+              <div>
+                <label className="mb-2 block text-sm text-gray-400">Title</label>
                 <input
                   type="text"
                   value={formData.title}
-                  onChange={e => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                  onChange={(event) => setFormData({ ...formData, title: event.target.value })}
+                  className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
                   placeholder="Article title..."
                 />
               </div>
+
               <div>
-                <label className="block text-gray-400 text-sm mb-2">Category</label>
+                <label className="mb-2 block text-sm text-gray-400">Category</label>
                 <select
                   value={formData.category}
-                  onChange={e => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                  onChange={(event) => setFormData({ ...formData, category: event.target.value })}
+                  className="w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
                 >
-                  {categories.map(cat => (
-                    <option key={cat} value={cat} className="capitalize">
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
                       {cat.charAt(0).toUpperCase() + cat.slice(1)}
                     </option>
                   ))}
                 </select>
               </div>
+
               <div>
-                <label className="block text-gray-400 text-sm mb-2">Content</label>
+                <label className="mb-2 block text-sm text-gray-400">Content</label>
                 <textarea
                   value={formData.content}
-                  onChange={e => setFormData({ ...formData, content: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500 h-48"
+                  onChange={(event) => setFormData({ ...formData, content: event.target.value })}
+                  className="h-56 w-full rounded-2xl border border-gray-700 bg-gray-950 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
                   placeholder="Article content..."
                 />
               </div>
-              <div className="flex gap-3 pt-4 border-t border-gray-700">
-                <button
-                  onClick={() => setShowForm(false)}
-                  className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition"
-                >
+
+              <div className="flex gap-3 border-t border-gray-800 pt-5">
+                <SupportActionButton tone="secondary" onClick={() => setShowForm(false)}>
                   Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition font-medium"
-                >
-                  {selectedArticle ? 'Update Article' : 'Create Article'}
-                </button>
+                </SupportActionButton>
+                <SupportActionButton tone="primary" onClick={handleSave}>
+                  {selectedArticle ? 'Update article' : 'Create article'}
+                </SupportActionButton>
               </div>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </SupportPageShell>
   );
 }

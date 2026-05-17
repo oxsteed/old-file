@@ -1,7 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import adminApi from '../../lib/adminApi';
-import { Users, Search, RefreshCw, Eye, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import {
+  Users,
+  Search,
+  RefreshCw,
+  Eye,
+  Trash2,
+  ToggleLeft,
+  ToggleRight,
+  ShieldCheck,
+  Star,
+} from 'lucide-react';
+import {
+  SupportPageShell,
+  SupportHero,
+  SupportPanel,
+  SupportEmptyState,
+  SupportActionButton,
+  SupportTag,
+} from '../components/support/SupportPageChrome';
 
 export default function SupportAgentManagement() {
   const { businessId } = useParams();
@@ -19,8 +37,10 @@ export default function SupportAgentManagement() {
       setAgents(res.data.agents || []);
     } catch (err) {
       console.error('Failed to load agents:', err);
+      setAgents([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [businessId, search]);
 
   useEffect(() => {
@@ -46,161 +66,175 @@ export default function SupportAgentManagement() {
     }
   };
 
+  const activeCount = agents.filter((agent) => agent.is_active).length;
+  const skillCount = new Set(agents.flatMap((agent) => agent.skills || [])).size;
+
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <h1 className="text-white font-bold text-3xl mb-2">Agent Management</h1>
-          <p className="text-gray-400 text-sm">View and manage all support agents.</p>
-        </div>
-        <button
-          onClick={loadAgents}
-          disabled={loading}
-          className="p-2.5 bg-gray-700 border border-gray-600 text-gray-400 rounded-lg hover:text-white transition"
-        >
-          <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-        </button>
-      </div>
+    <SupportPageShell>
+      <SupportHero
+        icon={Users}
+        eyebrow="Team Directory"
+        title="Support agents"
+        description="Review staffing, inspect skills, and manage who is active in the support operation without leaving the team roster."
+        actions={(
+          <>
+            <SupportActionButton icon={RefreshCw} onClick={loadAgents} tone="secondary">
+              Refresh
+            </SupportActionButton>
+          </>
+        )}
+        stats={[
+          {
+            icon: Users,
+            label: 'Agents',
+            value: agents.length,
+            detail: 'Total support agents currently in the roster.',
+          },
+          {
+            icon: ShieldCheck,
+            label: 'Active',
+            value: activeCount,
+            detail: 'Agents currently enabled for support work.',
+            tone: 'text-green-300',
+          },
+          {
+            icon: Star,
+            label: 'Skill areas',
+            value: skillCount,
+            detail: 'Unique support specialties represented on the team.',
+            tone: 'text-blue-300',
+          },
+          {
+            icon: Search,
+            label: 'Search mode',
+            value: search ? 'Filtered' : 'All',
+            detail: search ? `Current query: ${search}` : 'Browsing the full team roster.',
+            tone: 'text-orange-300',
+          },
+        ]}
+      />
 
-      <div className="mb-8">
-        <div className="relative">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input
-            type="text"
-            placeholder="Search agents by name or email..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-          />
-        </div>
-      </div>
-
-      <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
-        {agents.length === 0 ? (
-          <div className="text-center py-12">
-            <Users size={40} className="mx-auto mb-3 text-gray-600" />
-            <p className="text-gray-400">No agents found</p>
+      <SupportPanel
+        title="Agent roster"
+        subtitle="Search by name or email, then inspect skills and activation status."
+      >
+        <div className="mb-5">
+          <div className="relative">
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
+            <input
+              type="text"
+              placeholder="Search agents by name or email..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="w-full rounded-2xl border border-gray-700 bg-gray-900 py-3 pl-11 pr-4 text-white focus:border-orange-500 focus:outline-none"
+            />
           </div>
+        </div>
+
+        {agents.length === 0 ? (
+          <SupportEmptyState
+            icon={Users}
+            title="No agents found"
+            body="Try a different search or onboard new support staff to begin building out the team roster."
+          />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-700 bg-gray-700/50">
-                  <th className="px-6 py-3 text-left text-gray-400 text-sm font-semibold">Agent</th>
-                  <th className="px-6 py-3 text-left text-gray-400 text-sm font-semibold">Role</th>
-                  <th className="px-6 py-3 text-left text-gray-400 text-sm font-semibold">Status</th>
-                  <th className="px-6 py-3 text-left text-gray-400 text-sm font-semibold">Skills</th>
-                  <th className="px-6 py-3 text-right text-gray-400 text-sm font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {agents.map(agent => (
-                  <tr key={agent.id} className="border-b border-gray-700 hover:bg-gray-700/30 transition">
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="text-white font-medium">{agent.name}</p>
-                        <p className="text-gray-400 text-sm">{agent.email}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-3 py-1 bg-blue-900/30 text-blue-300 rounded-full text-sm">
-                        {agent.role}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${agent.is_active ? 'bg-green-500' : 'bg-gray-500'}`} />
-                        <span className="text-white text-sm">{agent.is_active ? 'Active' : 'Inactive'}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {(agent.skills || []).slice(0, 2).map(skill => (
-                          <span key={skill} className="px-2 py-1 bg-orange-900/30 text-orange-300 rounded text-xs">
-                            {skill}
-                          </span>
-                        ))}
-                        {(agent.skills || []).length > 2 && (
-                          <span className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs">
-                            +{(agent.skills || []).length - 2}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setSelectedAgent(agent)}
-                          className="p-2 hover:bg-gray-700 rounded transition"
-                        >
-                          <Eye size={16} className="text-gray-400" />
-                        </button>
-                        <button
-                          onClick={() => handleToggleStatus(agent.id)}
-                          className="p-2 hover:bg-gray-700 rounded transition"
-                        >
-                          {agent.is_active ? (
-                            <ToggleRight size={16} className="text-green-400" />
-                          ) : (
-                            <ToggleLeft size={16} className="text-gray-400" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(agent.id)}
-                          className="p-2 hover:bg-red-900/30 rounded transition"
-                        >
-                          <Trash2 size={16} className="text-red-400" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {agents.map((agent) => (
+              <div key={agent.id} className="rounded-[24px] border border-gray-800 bg-gray-900/70 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-lg font-semibold text-white">{agent.name}</div>
+                    <div className="mt-1 text-sm text-gray-500">{agent.email}</div>
+                  </div>
+                  <SupportTag tone={agent.is_active ? 'green' : 'default'}>
+                    {agent.is_active ? 'Active' : 'Inactive'}
+                  </SupportTag>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <SupportTag tone="blue">{agent.role}</SupportTag>
+                  {(agent.skills || []).slice(0, 3).map((skill) => (
+                    <SupportTag key={skill} tone="orange">{skill}</SupportTag>
+                  ))}
+                  {(agent.skills || []).length > 3 && (
+                    <SupportTag>+{(agent.skills || []).length - 3} more</SupportTag>
+                  )}
+                </div>
+
+                <div className="mt-5 flex items-center justify-between border-t border-gray-800 pt-4">
+                  <div className="text-xs text-gray-500">
+                    Chats today: <span className="text-gray-300">{agent.chats_today || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setSelectedAgent(agent)}
+                      className="rounded-xl border border-gray-700 bg-gray-900 p-2 text-gray-400 transition hover:text-white"
+                    >
+                      <Eye size={15} />
+                    </button>
+                    <button
+                      onClick={() => handleToggleStatus(agent.id)}
+                      className="rounded-xl border border-gray-700 bg-gray-900 p-2 text-gray-400 transition hover:text-white"
+                    >
+                      {agent.is_active ? (
+                        <ToggleRight size={16} className="text-green-400" />
+                      ) : (
+                        <ToggleLeft size={16} className="text-gray-500" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(agent.id)}
+                      className="rounded-xl border border-red-900/40 bg-red-950/30 p-2 text-red-400 transition hover:bg-red-900/30"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
-      </div>
+      </SupportPanel>
 
       {selectedAgent && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-lg w-full">
-            <div className="border-b border-gray-700 p-6 flex items-center justify-between">
-              <h2 className="text-white font-bold text-xl">Agent Details</h2>
-              <button onClick={() => setSelectedAgent(null)} className="text-gray-500 hover:text-white text-2xl">×</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-xl rounded-[28px] border border-gray-700 bg-gray-900 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-800 px-6 py-5">
+              <div>
+                <div className="text-xl font-semibold text-white">Agent profile</div>
+                <div className="mt-1 text-sm text-gray-500">Support performance and specialization snapshot.</div>
+              </div>
+              <button onClick={() => setSelectedAgent(null)} className="text-2xl text-gray-500 hover:text-white">x</button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="space-y-5 px-6 py-6">
               <div>
-                <p className="text-gray-400 text-sm mb-1">Name</p>
-                <p className="text-white font-medium">{selectedAgent.name}</p>
+                <div className="text-sm font-medium text-white">{selectedAgent.name}</div>
+                <div className="mt-1 text-sm text-gray-500">{selectedAgent.email}</div>
               </div>
-              <div>
-                <p className="text-gray-400 text-sm mb-1">Email</p>
-                <p className="text-white">{selectedAgent.email}</p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-2xl border border-gray-800 bg-gray-950/70 p-4">
+                  <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Chats today</div>
+                  <div className="mt-2 text-2xl font-semibold text-white">{selectedAgent.chats_today || 0}</div>
+                </div>
+                <div className="rounded-2xl border border-gray-800 bg-gray-950/70 p-4">
+                  <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Avg rating</div>
+                  <div className="mt-2 text-2xl font-semibold text-white">{selectedAgent.avg_rating || '-'}</div>
+                </div>
               </div>
+
               <div>
-                <p className="text-gray-400 text-sm mb-2">Skills</p>
+                <div className="mb-2 text-sm font-medium text-gray-300">Skill coverage</div>
                 <div className="flex flex-wrap gap-2">
-                  {(selectedAgent.skills || []).map(skill => (
-                    <span key={skill} className="px-3 py-1 bg-orange-900/30 text-orange-300 rounded-full text-sm">
-                      {skill}
-                    </span>
+                  {(selectedAgent.skills || []).map((skill) => (
+                    <SupportTag key={skill} tone="orange">{skill}</SupportTag>
                   ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-700">
-                <div>
-                  <p className="text-gray-400 text-sm mb-1">Chats Today</p>
-                  <p className="text-white font-bold text-2xl">{selectedAgent.chats_today || 0}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-sm mb-1">Avg Rating</p>
-                  <p className="text-white font-bold text-2xl">{selectedAgent.avg_rating || '–'}★</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </SupportPageShell>
   );
 }
