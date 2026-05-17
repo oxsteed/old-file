@@ -23,7 +23,7 @@
 
 **Corporate setup dashboard launch-planning pass (2026-05-17):** COMPLETE
 - **`client/src/admin/pages/super/CorporateDepartments.jsx`**: Reworked the super-admin corporate setup page from a flat department/title editor into a country-launch dashboard. It now combines department catalog data with active corporate assignments, supports ISO-2 country focus, shows launch-readiness metrics, highlights open priority roles per department, and gives founder-facing staffing guidance while preserving department/title editing and permission management.
-- **Verification:** Client production build could not run in this workspace because the local `vite` binary is unavailable (`npm run build` fails with `'vite' is not recognized as an internal or external command`).
+- **Verification:** Local client production build could not run in this workspace because the local `vite` binary is unavailable (`npm run build` fails with `'vite' is not recognized as an internal or external command`). Follow-up deployment logs on 2026-05-17 caught an unsupported `lucide-react` import (`BriefcaseBusiness`); the page now uses the compatible `Briefcase` icon instead.
 
 **Property maintenance request mode (2026-05-11):** COMPLETE
 - **Migration 211** (`server/migrations/211_property_maintenance_requests.sql`): Adds `property_maintenance_requests` and `property_maintenance_request_events` for landlord/property-manager workflows: tenant issue intake, status timeline, scheduling, helper assignment, photos, tenant-visible updates, cost logging, and job conversion linkage.

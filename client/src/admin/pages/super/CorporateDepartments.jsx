@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
-  BriefcaseBusiness,
+  Briefcase,
   Building2,
   CheckCircle2,
   ChevronDown,
@@ -750,7 +750,7 @@ export default function CorporateDepartments() {
           hint={`${dashboard.activeDepartments} currently have at least one active assignment.`}
         />
         <MetricCard
-          icon={BriefcaseBusiness}
+          icon={Briefcase}
           label="Titles"
           value={dashboard.totalTitles}
           hint={`${dashboard.totalPermissions} default permissions mapped across departments.`}
@@ -951,7 +951,7 @@ export default function CorporateDepartments() {
 
                   <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
                     <MetricCard
-                      icon={BriefcaseBusiness}
+                      icon={Briefcase}
                       label="Defined titles"
                       value={department.titles?.length || 0}
                       hint="Total role slots available in this department."
