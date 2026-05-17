@@ -167,7 +167,7 @@ export default function Footer() {
           {/* Always visible: guests need entry to paste token → sign in → redeem (sessionStorage in VortexModal) */}
           <button
             type="button"
-            onClick={() => setVortexOpen(true)}
+            onClick={() => navigate('/vortex')}
             style={{
               background: 'none',
               border: '1px solid var(--color-primary)',
