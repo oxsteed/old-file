@@ -1,7 +1,55 @@
-import { useEffect, useState } from 'react';
-import { Map, Plus, Edit2, Trash2, Loader2, AlertCircle, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  AlertCircle,
+  Compass,
+  Edit2,
+  Globe2,
+  Layers3,
+  Loader2,
+  Map,
+  MapPinned,
+  Plus,
+  RefreshCcw,
+  Search,
+  ShieldCheck,
+  Trash2,
+  X,
+} from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
 import RegionForm from '../../../components/RegionForm';
+
+const TYPE_META = {
+  zip_range: {
+    label: 'ZIP ranges',
+    tone: 'rgba(59, 130, 246, 0.14)',
+    color: '#93c5fd',
+    description: 'Structured US postal coverage.',
+  },
+  city_state: {
+    label: 'City + state',
+    tone: 'rgba(14, 165, 233, 0.14)',
+    color: '#7dd3fc',
+    description: 'Named cities grouped by state.',
+  },
+  geo_radius: {
+    label: 'Geo radius',
+    tone: 'rgba(249, 115, 22, 0.14)',
+    color: '#fdba74',
+    description: 'Distance-based territory around a point.',
+  },
+  country_region: {
+    label: 'Country + region',
+    tone: 'rgba(34, 197, 94, 0.14)',
+    color: '#86efac',
+    description: 'International sub-market coverage.',
+  },
+  country_only: {
+    label: 'Whole country',
+    tone: 'rgba(168, 85, 247, 0.14)',
+    color: '#d8b4fe',
+    description: 'Entire national market ownership.',
+  },
+};
 
 function summarizeBoundary(def) {
   if (!def || !def.type) return '-';
@@ -9,12 +57,12 @@ function summarizeBoundary(def) {
     case 'zip_range':
       return `${def.ranges?.length || 0} ZIP range(s)`;
     case 'city_state':
-      return `${def.entries?.length || 0} city/state`;
+      return `${def.entries?.length || 0} city/state pair(s)`;
     case 'geo_radius':
       return `${def.radius_miles} mi around (${def.center?.lat?.toFixed(3)}, ${def.center?.lng?.toFixed(3)})`;
     case 'country_region': {
       const n = def.entries?.length || 0;
-      if (!n) return '0 country/region';
+      if (!n) return '0 country/region pairs';
       const first = def.entries[0];
       const more = n > 1 ? ` +${n - 1}` : '';
       return `${first?.country || '?'}/${first?.region || '?'}${more}`;
@@ -31,12 +79,170 @@ function summarizeBoundary(def) {
   }
 }
 
+function boundaryCount(def) {
+  if (!def || !def.type) return 0;
+  switch (def.type) {
+    case 'zip_range':
+      return def.ranges?.length || 0;
+    case 'city_state':
+    case 'country_region':
+      return def.entries?.length || 0;
+    case 'country_only':
+      return def.countries?.length || 0;
+    case 'geo_radius':
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+function boundaryHighlights(def) {
+  if (!def || !def.type) return [];
+  switch (def.type) {
+    case 'zip_range':
+      return (def.ranges || []).slice(0, 3).map((range) => `${range.start}-${range.end}`);
+    case 'city_state':
+      return (def.entries || []).slice(0, 3).map((entry) => `${entry.city}, ${entry.state}`);
+    case 'country_region':
+      return (def.entries || []).slice(0, 3).map((entry) => `${entry.country} - ${entry.region}`);
+    case 'country_only':
+      return (def.countries || []).slice(0, 4);
+    case 'geo_radius':
+      return [`${def.radius_miles} miles`, `Lat ${def.center?.lat ?? 0}`, `Lng ${def.center?.lng ?? 0}`];
+    default:
+      return [];
+  }
+}
+
+function MetricCard({ icon: Icon, label, value, hint, tone }) {
+  return (
+    <div
+      className="rounded-3xl border border-white/10 bg-slate-950/80 p-5 shadow-[0_22px_60px_rgba(2,6,23,0.28)]"
+      style={{ boxShadow: '0 22px 60px rgba(2, 6, 23, 0.28)' }}
+    >
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div
+          className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10"
+          style={{ background: tone }}
+        >
+          <Icon size={18} className="text-white" />
+        </div>
+        <div className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-slate-400">
+          {label}
+        </div>
+      </div>
+      <div className="text-3xl font-semibold text-white">{value}</div>
+      <div className="mt-2 text-sm leading-6 text-slate-400">{hint}</div>
+    </div>
+  );
+}
+
+function RegionCard({ region, onEdit, onDelete, deleting }) {
+  const type = region.boundary_definition?.type || 'unknown';
+  const meta = TYPE_META[type] || {
+    label: type,
+    tone: 'rgba(148, 163, 184, 0.14)',
+    color: '#cbd5e1',
+    description: 'Custom territory boundary.',
+  };
+  const chips = boundaryHighlights(region.boundary_definition);
+
+  return (
+    <article className="rounded-[28px] border border-white/10 bg-slate-950/80 p-5 shadow-[0_22px_60px_rgba(2,6,23,0.28)]">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span
+              className="inline-flex items-center rounded-full px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em]"
+              style={{ background: meta.tone, color: meta.color }}
+            >
+              {meta.label}
+            </span>
+            <span className="inline-flex items-center rounded-full bg-white/5 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-slate-300">
+              {region.active_grants_count || 0} active grant{region.active_grants_count === 1 ? '' : 's'}
+            </span>
+          </div>
+          <h2 className="truncate text-xl font-semibold text-white">{region.name}</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-400">
+            {region.description || meta.description}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onEdit(region)}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 transition hover:border-orange-400/40 hover:bg-orange-500/10 hover:text-orange-200"
+            title="Edit region"
+          >
+            <Edit2 size={15} />
+          </button>
+          <button
+            onClick={() => onDelete(region)}
+            disabled={deleting}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+            title="Delete region"
+          >
+            {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <div className="rounded-2xl border border-white/8 bg-slate-900/70 p-4">
+          <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-slate-500">
+            Coverage
+          </div>
+          <div className="mt-2 text-sm font-medium text-slate-100">
+            {summarizeBoundary(region.boundary_definition)}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-white/8 bg-slate-900/70 p-4">
+          <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-slate-500">
+            Boundary units
+          </div>
+          <div className="mt-2 text-sm font-medium text-slate-100">
+            {boundaryCount(region.boundary_definition)}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-white/8 bg-slate-900/70 p-4">
+          <div className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-slate-500">
+            Region owner load
+          </div>
+          <div className="mt-2 text-sm font-medium text-slate-100">
+            {region.active_grants_count > 0 ? 'Currently assigned' : 'Unassigned'}
+          </div>
+        </div>
+      </div>
+
+      {chips.length > 0 && (
+        <div className="mt-5 flex flex-wrap gap-2">
+          {chips.map((chip) => (
+            <span
+              key={chip}
+              className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300"
+            >
+              {chip}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/8 pt-4 text-xs text-slate-500">
+        <span>Created by {region.created_by_name || 'Unknown admin'}</span>
+        <span>Updated {new Date(region.updated_at || region.created_at).toLocaleDateString()}</span>
+      </div>
+    </article>
+  );
+}
+
 export default function RegionsManager() {
-  const [regions,    setRegions]    = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [loadError,  setLoadError]  = useState(null);
-  const [editing,    setEditing]    = useState(null); // null, 'new', or region object
+  const [regions, setRegions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [editing, setEditing] = useState(null); // null, 'new', or region object
   const [deletingId, setDeletingId] = useState(null);
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -51,7 +257,42 @@ export default function RegionsManager() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
+
+  const filteredRegions = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return regions.filter((region) => {
+      const type = region.boundary_definition?.type || '';
+      const matchesType = !typeFilter || type === typeFilter;
+      const haystack = [
+        region.name,
+        region.description,
+        type,
+        summarizeBoundary(region.boundary_definition),
+        ...boundaryHighlights(region.boundary_definition),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      const matchesSearch = !term || haystack.includes(term);
+      return matchesType && matchesSearch;
+    });
+  }, [regions, search, typeFilter]);
+
+  const metrics = useMemo(() => {
+    const total = regions.length;
+    const assigned = regions.filter((region) => (region.active_grants_count || 0) > 0).length;
+    const international = regions.filter((region) =>
+      ['country_region', 'country_only'].includes(region.boundary_definition?.type)
+    ).length;
+    const boundaryUnits = regions.reduce(
+      (sum, region) => sum + boundaryCount(region.boundary_definition),
+      0
+    );
+    return { total, assigned, international, boundaryUnits };
+  }, [regions]);
 
   const handleSaved = () => {
     setEditing(null);
@@ -72,113 +313,186 @@ export default function RegionsManager() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
-      <div className="flex items-start justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-md bg-orange-900/40 border border-orange-800">
-            <Map size={20} className="text-orange-400" />
+    <div className="min-h-full bg-[linear-gradient(180deg,#020617_0%,#0f172a_44%,#111827_100%)] px-4 py-6 text-slate-100">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6">
+        <section className="rounded-[32px] border border-white/10 bg-slate-950/80 p-6 shadow-[0_28px_90px_rgba(2,6,23,0.34)]">
+          <div className="flex flex-wrap items-start justify-between gap-5">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-orange-400/20 bg-orange-500/10 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-orange-200">
+                <MapPinned size={14} />
+                Regional control plane
+              </div>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white md:text-4xl">
+                Build geographic authority zones for super-admin and regional operations.
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400 md:text-base">
+                Regions define where admin grants apply across the platform. Use them to scope launch markets,
+                assign local oversight, and separate operations by ZIPs, cities, provinces, or whole countries.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={load}
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-200 transition hover:bg-white/10"
+              >
+                <RefreshCcw size={15} />
+                Refresh
+              </button>
+              <button
+                onClick={() => setEditing('new')}
+                className="inline-flex items-center gap-2 rounded-2xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-500"
+              >
+                <Plus size={15} />
+                New region
+              </button>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-semibold text-gray-100">Admin regions</h1>
-            <p className="text-sm text-gray-400">
-              Define geographic territories assignable to regional admins via permission grants.
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              icon={Map}
+              label="Total regions"
+              value={metrics.total}
+              hint="All territory definitions available for admin assignment."
+              tone="linear-gradient(135deg, rgba(59,130,246,0.3), rgba(14,165,233,0.15))"
+            />
+            <MetricCard
+              icon={ShieldCheck}
+              label="Actively assigned"
+              value={metrics.assigned}
+              hint="Regions currently powering at least one live admin grant."
+              tone="linear-gradient(135deg, rgba(34,197,94,0.3), rgba(16,185,129,0.15))"
+            />
+            <MetricCard
+              icon={Globe2}
+              label="International"
+              value={metrics.international}
+              hint="Regions scoped by country or country-plus-region boundaries."
+              tone="linear-gradient(135deg, rgba(168,85,247,0.3), rgba(99,102,241,0.15))"
+            />
+            <MetricCard
+              icon={Layers3}
+              label="Boundary units"
+              value={metrics.boundaryUnits}
+              hint="ZIP ranges, city pairs, radius blocks, and country entries combined."
+              tone="linear-gradient(135deg, rgba(249,115,22,0.3), rgba(234,88,12,0.15))"
+            />
+          </div>
+        </section>
+
+        <section className="rounded-[28px] border border-white/10 bg-slate-950/80 p-5 shadow-[0_22px_60px_rgba(2,6,23,0.28)]">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative min-w-[240px] flex-1">
+              <Search
+                size={16}
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+              />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by region name, coverage, or boundary details..."
+                className="w-full rounded-2xl border border-white/10 bg-slate-900/80 py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 focus:border-orange-500 focus:outline-none"
+              />
+            </div>
+
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white focus:border-orange-500 focus:outline-none"
+            >
+              <option value="">All boundary types</option>
+              {Object.entries(TYPE_META).map(([value, meta]) => (
+                <option key={value} value={value}>
+                  {meta.label}
+                </option>
+              ))}
+            </select>
+
+            {(search || typeFilter) && (
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setTypeFilter('');
+                }}
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </section>
+
+        {loadError && (
+          <div className="flex items-start gap-3 rounded-2xl border border-red-500/30 bg-red-950/40 p-4 text-sm text-red-200">
+            <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+            <span>{loadError}</span>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="flex items-center justify-center rounded-[28px] border border-white/10 bg-slate-950/70 py-20 text-slate-400">
+            <Loader2 size={20} className="mr-2 animate-spin" />
+            Loading regions...
+          </div>
+        ) : filteredRegions.length === 0 ? (
+          <div className="rounded-[28px] border border-dashed border-white/10 bg-slate-950/60 px-6 py-20 text-center">
+            <div className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-3xl bg-white/5 text-slate-300">
+              <Compass size={22} />
+            </div>
+            <h2 className="text-xl font-semibold text-white">
+              {regions.length === 0 ? 'No admin regions defined yet' : 'No regions match this filter'}
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate-400">
+              {regions.length === 0
+                ? 'Create regions for launch markets, support territories, or operational oversight before assigning them to admins.'
+                : 'Try broadening your search or switching the boundary-type filter to see more territory definitions.'}
             </p>
+            {regions.length === 0 && (
+              <button
+                onClick={() => setEditing('new')}
+                className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-500"
+              >
+                <Plus size={15} />
+                Create first region
+              </button>
+            )}
           </div>
-        </div>
-        <button
-          onClick={() => setEditing('new')}
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-orange-600 hover:bg-orange-500 text-white"
-        >
-          <Plus size={14} />
-          New region
-        </button>
+        ) : (
+          <div className="grid gap-5 xl:grid-cols-2">
+            {filteredRegions.map((region) => (
+              <RegionCard
+                key={region.id}
+                region={region}
+                onEdit={setEditing}
+                onDelete={handleDelete}
+                deleting={deletingId === region.id}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {loadError && (
-        <div className="flex items-start gap-2 p-3 mb-4 rounded-md bg-red-950 border border-red-800 text-red-300 text-sm">
-          <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
-          <span>{loadError}</span>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="flex items-center justify-center py-12 text-gray-400">
-          <Loader2 size={20} className="animate-spin mr-2" />
-          Loading regions…
-        </div>
-      ) : regions.length === 0 ? (
-        <div className="text-center py-12 rounded-lg border border-dashed border-gray-800 text-gray-500">
-          No regions defined yet.
-        </div>
-      ) : (
-        <div className="rounded-lg border border-gray-800 bg-gray-950 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-900 text-xs uppercase text-gray-400">
-              <tr>
-                <th className="text-left px-4 py-3">Name</th>
-                <th className="text-left px-4 py-3">Type</th>
-                <th className="text-left px-4 py-3">Coverage</th>
-                <th className="text-left px-4 py-3">Description</th>
-                <th className="text-right px-4 py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800">
-              {regions.map(r => (
-                <tr key={r.id} className="hover:bg-gray-900/40">
-                  <td className="px-4 py-3 font-medium text-gray-100">{r.name}</td>
-                  <td className="px-4 py-3 text-gray-400">
-                    {r.boundary_definition?.type || '-'}
-                  </td>
-                  <td className="px-4 py-3 text-gray-300">
-                    {summarizeBoundary(r.boundary_definition)}
-                  </td>
-                  <td className="px-4 py-3 text-gray-400 max-w-xs truncate">
-                    {r.description || '-'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => setEditing(r)}
-                        className="p-1.5 rounded text-gray-400 hover:text-orange-400 hover:bg-gray-800"
-                        title="Edit"
-                      >
-                        <Edit2 size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(r)}
-                        disabled={deletingId === r.id}
-                        className="p-1.5 rounded text-gray-400 hover:text-red-400 hover:bg-red-950 disabled:opacity-40"
-                        title="Delete"
-                      >
-                        {deletingId === r.id
-                          ? <Loader2 size={14} className="animate-spin" />
-                          : <Trash2 size={14} />}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Drawer / modal */}
       {editing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-2xl bg-gray-950 border border-gray-800 rounded-lg shadow-xl">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800">
-              <h2 className="text-base font-semibold text-gray-100">
-                {editing === 'new' ? 'New region' : `Edit region: ${editing.name}`}
-              </h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-3xl overflow-hidden rounded-[28px] border border-white/10 bg-slate-950 shadow-[0_32px_100px_rgba(0,0,0,0.5)]">
+            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+              <div>
+                <h2 className="text-lg font-semibold text-white">
+                  {editing === 'new' ? 'Create admin region' : `Edit region: ${editing.name}`}
+                </h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  Define who owns which operational geography across OxSteed.
+                </p>
+              </div>
               <button
                 onClick={() => setEditing(null)}
-                className="p-1 rounded hover:bg-gray-800 text-gray-400 hover:text-gray-100"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10"
               >
                 <X size={16} />
               </button>
             </div>
-            <div className="p-5 max-h-[70vh] overflow-y-auto">
+            <div className="max-h-[78vh] overflow-y-auto p-6">
               <RegionForm
                 region={editing === 'new' ? null : editing}
                 onSaved={handleSaved}
