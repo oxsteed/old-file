@@ -4,7 +4,7 @@
  * Mounted under /businesses/:businessId via businessOperations.js.
  */
 const pool = require('../db');
-const AppError = require('../utils/AppError');
+const AppError = require('../utils/appError');
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
