@@ -39,6 +39,10 @@
 - **`client/src/admin/pages/super/OneTruthPage.jsx`**: Rebuilt the page into a super-admin command center with scope filters for country/admin region, wider cross-operation stat sections, scope warnings, denser user cards, and the existing flagged-pairs workflow enriched with location and operations context.
 - **Verification:** `node --check server/controllers/oneTruthController.js` and `node --check server/routes/oneTruth.js` pass. Client production build still cannot run in this workspace because the local `vite` binary is unavailable (`npm run build` fails with `'vite' is not recognized as an internal or external command`).
 
+**Super-admin settings redesign (2026-05-17):** COMPLETE
+- **`client/src/admin/pages/super/PlatformSettings.jsx`**: Redesigned `/admin/super/settings` into a clearer control center with a stronger hero, overview KPI cards, grouped settings sections for revenue/marketplace/system controls, better unsaved-state visibility, and more intentional feature-flag rows while keeping the existing admin settings + feature-flag API contract intact.
+- **Verification:** Client production build still cannot run in this workspace because the local `vite` binary is unavailable (`npm run build` fails with `'vite' is not recognized as an internal or external command`).
+
 **Property maintenance request mode (2026-05-11):** COMPLETE
 - **Migration 211** (`server/migrations/211_property_maintenance_requests.sql`): Adds `property_maintenance_requests` and `property_maintenance_request_events` for landlord/property-manager workflows: tenant issue intake, status timeline, scheduling, helper assignment, photos, tenant-visible updates, cost logging, and job conversion linkage.
 - **API:** `server/controllers/maintenanceRequestController.js` + `server/routes/maintenanceRequests.js`, mounted at `/api/maintenance-requests`. Public business metadata is readable, authenticated tenants can submit requests with up to 5 photos, business team members can list/update requests, and authorized business users can convert a request into a published job.
