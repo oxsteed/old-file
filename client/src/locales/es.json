@@ -7973,5 +7973,115 @@
       "employee": "Empleado",
       "support_agent": "Agente de soporte"
     }
+  },
+  "corporateOrg": {
+    "title": "Jerarquía corporativa",
+    "subtitle": "Organigrama del personal de OxSteed y títulos corporativos.",
+    "orgChart": {
+      "pageTitle": "Organigrama corporativo",
+      "description": "Asignaciones corporativas activas en OxSteed - agrupadas por departamento y antigüedad.",
+      "filterCountry": "Filtrar por país (ISO-2)",
+      "emptyTitle": "Aún no hay asignaciones corporativas",
+      "emptyBody": "Comienza asignándote a ti o a otro administrador un título corporativo.",
+      "loading": "Cargando organigrama...",
+      "levelLabel": "Nivel {{level}}",
+      "globalScope": "Global",
+      "activeAssignments": "{{count}} asignaciones activas"
+    },
+    "assignments": {
+      "pageTitle": "Asignaciones corporativas",
+      "description": "Asigna títulos corporativos al personal de OxSteed. Con alcance por país y soporte para excepciones.",
+      "assignTitle": "Asignar título",
+      "editAssignment": "Editar asignación corporativa",
+      "endConfirm": "¿Finalizar esta asignación? El usuario perderá los permisos asociados.",
+      "endError": "No se pudo finalizar la asignación.",
+      "noResults": "Ninguna asignación coincide con los filtros actuales.",
+      "filters": {
+        "allDepartments": "Todos los departamentos",
+        "allTitles": "Todos los títulos",
+        "country": "País (ISO-2)",
+        "activeOnly": "Solo activas",
+        "endedOnly": "Solo finalizadas"
+      },
+      "table": {
+        "user": "Usuario",
+        "title": "Título",
+        "department": "Departamento",
+        "scope": "Alcance",
+        "started": "Inicio",
+        "status": "Estado",
+        "active": "Activa",
+        "ended": "Finalizada"
+      },
+      "modal": {
+        "userLabel": "Usuario administrador *",
+        "userPlaceholder": "- Selecciona un administrador -",
+        "userHint": "Los títulos corporativos solo se asignan a usuarios admin o super_admin.",
+        "departmentLabel": "Departamento *",
+        "departmentPlaceholder": "- Selecciona departamento -",
+        "titleLabel": "Título *",
+        "titlePlaceholder": "- Selecciona título -",
+        "titleHint": "Los niveles de mayor antigüedad y los títulos C-suite solo los puede asignar el super administrador.",
+        "countryLabel": "País (ISO-2)",
+        "countryPlaceholder": "ej. US, MX, HT, FR",
+        "countryHint": "Vacío = alcance global",
+        "regionLabel": "Región",
+        "regionNone": "- Ninguna -",
+        "reportsToLabel": "Reporta a",
+        "reportsToNone": "- Ninguno -",
+        "notesLabel": "Notas",
+        "cancel": "Cancelar",
+        "save": "Guardar cambios",
+        "create": "Asignar título",
+        "errorRequired": "El usuario y el título son obligatorios.",
+        "errorSave": "No se pudo guardar la asignación."
+      }
+    },
+    "departments": {
+      "pageTitle": "Departamentos y títulos corporativos",
+      "description": "Solo super administrador. Administra departamentos, títulos y conjuntos de permisos por defecto.",
+      "newDepartment": "Nuevo departamento",
+      "newTitle": "Nuevo título",
+      "editDepartment": "Editar departamento",
+      "editTitle": "Editar título",
+      "addTitle": "Agregar título",
+      "permissionsButton": "Permisos",
+      "savePermissions": "Guardar permisos por defecto",
+      "noTitles": "Sin títulos definidos.",
+      "titlesLabel": "Títulos",
+      "metaTitles": "{{count}} títulos",
+      "metaPermissions": "{{count}} permisos por defecto",
+      "form": {
+        "codeLabel": "Código *",
+        "nameLabel": "Nombre *",
+        "descriptionLabel": "Descripción",
+        "colorLabel": "Color",
+        "iconLabel": "Icono",
+        "sortLabel": "Orden",
+        "active": "Activo",
+        "csuite": "Título C-suite",
+        "seniorityLabel": "Antigüedad (1-10)",
+        "departmentLabel": "Departamento *",
+        "errorSave": "No se pudo guardar.",
+        "cancel": "Cancelar",
+        "save": "Guardar"
+      }
+    },
+    "guards": {
+      "cannotGrantAboveLevel": "No puedes asignar un título por encima de tu propio nivel de antigüedad.",
+      "noCsuiteForAdmins": "Solo los super administradores pueden asignar títulos C-suite.",
+      "targetNotStaff": "Los títulos corporativos solo se pueden asignar a usuarios admin o super_admin.",
+      "permissionDenied": "Permiso corporativo requerido.",
+      "duplicateAssignment": "El usuario ya tiene este título en ese país."
+    },
+    "departmentNames": {
+      "executive": "Ejecutivo y estrategia",
+      "technology": "Tecnología e ingeniería",
+      "operations": "Operaciones y éxito del cliente",
+      "marketing": "Marketing, ventas y crecimiento",
+      "finance": "Finanzas, legal y cumplimiento",
+      "people": "Personas y administración",
+      "data": "Datos, investigación e innovación"
+    }
   }
 }

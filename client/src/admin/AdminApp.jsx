@@ -31,6 +31,9 @@ import CreateUser        from './pages/super/CreateUser';
 import RegionsManager    from './pages/super/RegionsManager';
 import AuditLogUserActions from './pages/super/AuditLogUserActions';
 import OneTruthPage        from './pages/super/OneTruthPage';
+import CorporateOrgChart    from './pages/super/CorporateOrgChart';
+import CorporateAssignments from './pages/super/CorporateAssignments';
+import CorporateDepartments from './pages/super/CorporateDepartments';
 
 // Shared admin pages
 import UsersList            from './pages/UsersList';
@@ -235,6 +238,14 @@ export default function AdminApp() {
           } />
           <Route path="super/one-truth" element={
             <AdminGuard superOnly><OneTruthPage /></AdminGuard>
+          } />
+
+          {/* Corporate hierarchy (migration 246) - org chart open to all admins,
+              assignments + departments restricted by controller-level guards. */}
+          <Route path="corporate/org-chart" element={<CorporateOrgChart />} />
+          <Route path="corporate/assignments" element={<CorporateAssignments />} />
+          <Route path="super/corporate/departments" element={
+            <AdminGuard superOnly><CorporateDepartments /></AdminGuard>
           } />
         </Route>
 

@@ -7973,5 +7973,115 @@
       "employee": "Employee",
       "support_agent": "Support agent"
     }
+  },
+  "corporateOrg": {
+    "title": "Corporate hierarchy",
+    "subtitle": "OxSteed staff org chart and corporate titles.",
+    "orgChart": {
+      "pageTitle": "Corporate Org Chart",
+      "description": "Active corporate assignments across OxSteed - grouped by department and seniority.",
+      "filterCountry": "Filter by country (ISO-2)",
+      "emptyTitle": "No corporate assignments yet",
+      "emptyBody": "Start by assigning yourself or another admin a corporate title.",
+      "loading": "Loading org chart...",
+      "levelLabel": "Level {{level}}",
+      "globalScope": "Global",
+      "activeAssignments": "{{count}} active assignments"
+    },
+    "assignments": {
+      "pageTitle": "Corporate Assignments",
+      "description": "Assign corporate titles to OxSteed staff. Country-scoped, override-aware.",
+      "assignTitle": "Assign title",
+      "editAssignment": "Edit corporate assignment",
+      "endConfirm": "End this assignment? The user will lose its associated permissions.",
+      "endError": "Failed to end assignment.",
+      "noResults": "No assignments match the current filters.",
+      "filters": {
+        "allDepartments": "All departments",
+        "allTitles": "All titles",
+        "country": "Country (ISO-2)",
+        "activeOnly": "Active only",
+        "endedOnly": "Ended only"
+      },
+      "table": {
+        "user": "User",
+        "title": "Title",
+        "department": "Department",
+        "scope": "Scope",
+        "started": "Started",
+        "status": "Status",
+        "active": "Active",
+        "ended": "Ended"
+      },
+      "modal": {
+        "userLabel": "Admin user *",
+        "userPlaceholder": "- Select an admin -",
+        "userHint": "Corporate titles can only be held by admin or super_admin users.",
+        "departmentLabel": "Department *",
+        "departmentPlaceholder": "- Select department -",
+        "titleLabel": "Title *",
+        "titlePlaceholder": "- Select title -",
+        "titleHint": "Higher seniority levels and C-suite titles can only be assigned by super-admin.",
+        "countryLabel": "Country (ISO-2)",
+        "countryPlaceholder": "e.g. US, MX, HT, FR",
+        "countryHint": "Empty = global scope",
+        "regionLabel": "Region",
+        "regionNone": "- None -",
+        "reportsToLabel": "Reports to",
+        "reportsToNone": "- None -",
+        "notesLabel": "Notes",
+        "cancel": "Cancel",
+        "save": "Save changes",
+        "create": "Assign title",
+        "errorRequired": "User and title are required.",
+        "errorSave": "Failed to save assignment."
+      }
+    },
+    "departments": {
+      "pageTitle": "Corporate Departments & Titles",
+      "description": "Super-admin only. Manage departments, titles, and their default permission sets.",
+      "newDepartment": "New department",
+      "newTitle": "New title",
+      "editDepartment": "Edit department",
+      "editTitle": "Edit title",
+      "addTitle": "Add title",
+      "permissionsButton": "Permissions",
+      "savePermissions": "Save defaults",
+      "noTitles": "No titles defined.",
+      "titlesLabel": "Titles",
+      "metaTitles": "{{count}} titles",
+      "metaPermissions": "{{count}} default permissions",
+      "form": {
+        "codeLabel": "Code *",
+        "nameLabel": "Name *",
+        "descriptionLabel": "Description",
+        "colorLabel": "Color",
+        "iconLabel": "Icon",
+        "sortLabel": "Sort",
+        "active": "Active",
+        "csuite": "C-suite title",
+        "seniorityLabel": "Seniority (1-10)",
+        "departmentLabel": "Department *",
+        "errorSave": "Failed to save.",
+        "cancel": "Cancel",
+        "save": "Save"
+      }
+    },
+    "guards": {
+      "cannotGrantAboveLevel": "Cannot assign a title above your own seniority level.",
+      "noCsuiteForAdmins": "Only super-admins may assign C-suite titles.",
+      "targetNotStaff": "Corporate titles can only be assigned to admin or super_admin users.",
+      "permissionDenied": "Corporate permission required.",
+      "duplicateAssignment": "User already holds this title in that country."
+    },
+    "departmentNames": {
+      "executive": "Executive & Strategy",
+      "technology": "Technology & Engineering",
+      "operations": "Operations & Customer Success",
+      "marketing": "Marketing, Sales & Growth",
+      "finance": "Finance, Legal & Compliance",
+      "people": "People & Administrative",
+      "data": "Data, Research & Innovation"
+    }
   }
 }

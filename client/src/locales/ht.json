@@ -7973,5 +7973,115 @@
       "employee": "Anplwaye",
       "support_agent": "Ajan sipò"
     }
+  },
+  "corporateOrg": {
+    "title": "Yerachi konpayi",
+    "subtitle": "Òganigram pèsonèl OxSteed ak tit konpayi yo.",
+    "orgChart": {
+      "pageTitle": "Òganigram konpayi",
+      "description": "Asiyasyon konpayi aktif nan OxSteed - gwoupe pa depatman ak ansyènte.",
+      "filterCountry": "Filtre pa peyi (ISO-2)",
+      "emptyTitle": "Pa gen okenn asiyasyon konpayi pou kounye a",
+      "emptyBody": "Kòmanse pa asiyen oumenm oswa yon lòt admin yon tit konpayi.",
+      "loading": "Chaje òganigram lan...",
+      "levelLabel": "Nivo {{level}}",
+      "globalScope": "Global",
+      "activeAssignments": "{{count}} asiyasyon aktif"
+    },
+    "assignments": {
+      "pageTitle": "Asiyasyon konpayi",
+      "description": "Asiyen tit konpayi bay pèsonèl OxSteed. Pòte pa peyi, jere eksepsyon yo.",
+      "assignTitle": "Asiyen tit",
+      "editAssignment": "Modifye asiyasyon konpayi a",
+      "endConfirm": "Fini asiyasyon sa a? Itilizatè a ap pèdi pèmisyon ki asosye yo.",
+      "endError": "Echèk pou fini asiyasyon an.",
+      "noResults": "Pa gen asiyasyon ki matche ak filtè aktyèl yo.",
+      "filters": {
+        "allDepartments": "Tout depatman yo",
+        "allTitles": "Tout tit yo",
+        "country": "Peyi (ISO-2)",
+        "activeOnly": "Aktif sèlman",
+        "endedOnly": "Fini sèlman"
+      },
+      "table": {
+        "user": "Itilizatè",
+        "title": "Tit",
+        "department": "Depatman",
+        "scope": "Pòte",
+        "started": "Kòmansman",
+        "status": "Estati",
+        "active": "Aktif",
+        "ended": "Fini"
+      },
+      "modal": {
+        "userLabel": "Itilizatè admin *",
+        "userPlaceholder": "- Chwazi yon admin -",
+        "userHint": "Tit konpayi yo ka asiyen sèlman bay itilizatè admin oswa super_admin.",
+        "departmentLabel": "Depatman *",
+        "departmentPlaceholder": "- Chwazi depatman -",
+        "titleLabel": "Tit *",
+        "titlePlaceholder": "- Chwazi tit -",
+        "titleHint": "Nivo ansyènte ki pi wo yo ak tit C-suite yo ka asiyen sèlman pa super-admin.",
+        "countryLabel": "Peyi (ISO-2)",
+        "countryPlaceholder": "egz. US, MX, HT, FR",
+        "countryHint": "Vid = pòte global",
+        "regionLabel": "Rejyon",
+        "regionNone": "- Pa gen -",
+        "reportsToLabel": "Rapòte bay",
+        "reportsToNone": "- Pa gen -",
+        "notesLabel": "Nòt yo",
+        "cancel": "Anile",
+        "save": "Sove chanjman yo",
+        "create": "Asiyen tit",
+        "errorRequired": "Itilizatè a ak tit la oblijatwa.",
+        "errorSave": "Echèk pou sove asiyasyon an."
+      }
+    },
+    "departments": {
+      "pageTitle": "Depatman ak tit konpayi",
+      "description": "Super-admin sèlman. Jere depatman, tit, ak ansanm pèmisyon default yo.",
+      "newDepartment": "Nouvo depatman",
+      "newTitle": "Nouvo tit",
+      "editDepartment": "Modifye depatman",
+      "editTitle": "Modifye tit",
+      "addTitle": "Ajoute tit",
+      "permissionsButton": "Pèmisyon",
+      "savePermissions": "Sove pèmisyon default yo",
+      "noTitles": "Pa gen tit defini.",
+      "titlesLabel": "Tit yo",
+      "metaTitles": "{{count}} tit",
+      "metaPermissions": "{{count}} pèmisyon default",
+      "form": {
+        "codeLabel": "Kòd *",
+        "nameLabel": "Non *",
+        "descriptionLabel": "Deskripsyon",
+        "colorLabel": "Koulè",
+        "iconLabel": "Ikòn",
+        "sortLabel": "Lòd",
+        "active": "Aktif",
+        "csuite": "Tit C-suite",
+        "seniorityLabel": "Ansyènte (1-10)",
+        "departmentLabel": "Depatman *",
+        "errorSave": "Echèk pou sove.",
+        "cancel": "Anile",
+        "save": "Sove"
+      }
+    },
+    "guards": {
+      "cannotGrantAboveLevel": "Ou pa ka asiyen yon tit ki pi wo pase pwòp nivo ansyènte ou.",
+      "noCsuiteForAdmins": "Sèlman super-admin yo ka asiyen tit C-suite.",
+      "targetNotStaff": "Tit konpayi yo ka asiyen sèlman bay itilizatè admin oswa super_admin.",
+      "permissionDenied": "Pèmisyon konpayi obligatwa.",
+      "duplicateAssignment": "Itilizatè a deja gen tit sa a nan peyi sa a."
+    },
+    "departmentNames": {
+      "executive": "Egzekitif ak estrateji",
+      "technology": "Teknoloji ak Enjeniri",
+      "operations": "Operasyon ak siksè kliyan",
+      "marketing": "Maketing, vant ak kwasans",
+      "finance": "Finans, legal ak konfòmite",
+      "people": "Moun ak administrasyon",
+      "data": "Done, rechèch ak inovasyon"
+    }
   }
 }

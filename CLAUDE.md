@@ -2,6 +2,83 @@
 
 **Last updated:** 2026-05-17
 
+## Corporate Hierarchy (departments, titles, country-scoped assignments) (2026-05-17) — LANDED
+
+A new corporate-roles overlay above the existing `users.role IN ('admin','super_admin')` flags. Lets OxSteed express its corporate org chart (CEO, CTO, VP Eng, Director of Operations - LATAM, ...) and gate admin features by department / title with country/region scoping. Sits BESIDE the existing `admin_permission_grants` table (049) and `admin_regions` (119), not on top of it.
+
+**Migration 246 (`server/migrations/246_corporate_hierarchy.sql`):**
+- `corporate_departments` - 7 seeded: executive, technology, operations, marketing, finance, people, data. Each has icon + color for UI rendering.
+- `corporate_titles` - ~70 titles seeded across the 7 departments from the OxSteed org chart spec. Each has `seniority_level` (1-10) and `is_csuite` flag. Codes are stable (`ceo`, `cto`, `vp_engineering`, `director_operations`, etc.) so app code can reference them.
+- `corporate_permissions` - 49 catalog entries across 9 groups (`platform.*`, `engineering.*`, `operations.*`, `finance.*`, `legal.*`, `marketing.*`, `people.*`, `data.*`, `corporate.*`).
+- `corporate_department_permissions` - the *hybrid* default permission set per department (executive = all; technology gets engineering + platform-view; operations gets platform moderation + ops; finance gets finance/legal; etc.).
+- `corporate_assignments` - links a `users.id` to a `corporate_titles.id`. `country_code CHAR(2)` + `region_id` FK to `admin_regions(id)` for geographic scope. `reports_to_user_id` for reporting line. `started_at`/`ended_at`/`is_active` lifecycle. Unique partial index `(user_id, title_id, COALESCE(country_code,''))` where `is_active=TRUE` so a user can't hold the same title twice in the same country at the same time. `BEFORE UPDATE` trigger `corp_assignments_touch_updated_at` keeps `updated_at` fresh.
+- `corporate_assignment_permission_overrides` - per-assignment allow/deny that trumps department defaults.
+- `corporate_assignment_audit_log` - every create/update/end/overrides-set is recorded with before/after JSONB.
+
+**Permission resolver service (`server/services/corporateRolesService.js`):**
+- `getEffectiveCorporatePermissions({ userId, role, country })` - unions department defaults across every active assignment, then applies per-assignment overrides. Returns `{ permissions: Set<string>, raw, assignments }`. 60-second in-process cache keyed on `userId|country`.
+- super_admin short-circuits to all corporate_permissions.
+- Country filter accepts global assignments (NULL country) plus the requested country.
+- `getMaxActiveSeniority(userId, role)` - powers the cannot_grant_above_level guard. Super-admin returns `Infinity`.
+- `getCatalog()` - JSON-safe departments + titles + permissions snapshot for the UI. 60s cache.
+- `invalidateCache(userId)` / `invalidateCatalog()` exported.
+
+**Middleware (`server/middleware/requireCorporatePermission.js`):**
+- Factory `requireCorporatePermission('finance.view_payouts' | ['marketing.*'], 'any'|'all')`. Must run AFTER `requireAdmin` (uses `req.user` + `req.isSuper`). Super-admin always passes. Reads `?country=US` or `x-corporate-country` header for country scoping. Returns `403 { code: 'corporate_permission_denied', required, mode }` on failure.
+
+**Controller + routes (`server/controllers/corporateRolesController.js`, `server/routes/corporateRoles.js`):**
+Mounted in `server/index.js` at `app.use('/api/admin/corporate', corporateRolesRoutes)`.
+- `GET    /api/admin/corporate/catalog` - departments + titles + permissions (cached, public to all admins)
+- `GET    /api/admin/corporate/me?country=US` - caller's corporate titles + effective permissions for that country
+- `GET    /api/admin/corporate/departments` - list
+- `POST   /api/admin/corporate/departments` (super-only)
+- `PUT    /api/admin/corporate/departments/:id` (super-only)
+- `PUT    /api/admin/corporate/departments/:id/permissions` (super-only) - replace default permission set
+- `GET    /api/admin/corporate/titles?department_id=`
+- `POST   /api/admin/corporate/titles` (super-only)
+- `PUT    /api/admin/corporate/titles/:id` (super-only)
+- `GET    /api/admin/corporate/assignments?department_id=&title_id=&country=&active=&user_id=&region_id=` (limit 500)
+- `GET    /api/admin/corporate/assignments/:id` (includes overrides)
+- `POST   /api/admin/corporate/assignments`
+- `PATCH  /api/admin/corporate/assignments/:id`
+- `DELETE /api/admin/corporate/assignments/:id` - soft end (sets `is_active=FALSE`, `ended_at=NOW()`)
+- `PUT    /api/admin/corporate/assignments/:id/overrides` - replace per-assignment overrides
+- `GET    /api/admin/corporate/org-chart?country=` - grouped by department, ready for visualization
+- `GET    /api/admin/corporate/audit?limit=` (super-only)
+
+**Assignment guards (enforced in controller):**
+1. **target_not_staff**: Corporate titles can only be assigned to users with `users.role IN ('admin','super_admin')`.
+2. **no_csuite_for_admins**: Admins cannot assign / edit / end / set-overrides on titles flagged `is_csuite=TRUE`. Super-admin only.
+3. **cannot_grant_above_level**: Admins cannot assign a title whose `seniority_level` exceeds their own highest active seniority. Same check on edit/end/overrides.
+4. **cannot grant permission you do not hold**: When setting overrides, admin cannot ALLOW a permission they don't themselves have. Returns 403 with `offending_permission`.
+5. Super-admin bypasses all four.
+
+**Admin UI (new pages, super-admin sidebar + regular admin sidebar):**
+- `client/src/admin/pages/super/CorporateOrgChart.jsx` (route `/admin/corporate/org-chart`) - department-grouped, seniority-bucketed view with avatars + country badges. Filter by country. Open to all admins (read-only at the API level — they only see what the controller returns).
+- `client/src/admin/pages/super/CorporateAssignments.jsx` (route `/admin/corporate/assignments`) - table with filters (department/title/country/active), assign / edit / end actions, modal with user picker (pulls from `/admin/super/admin-accounts`).
+- `client/src/admin/pages/super/CorporateDepartments.jsx` (route `/admin/super/corporate/departments`, **super-only**) - per-department accordion with titles list, edit department, add/edit title modal, default-permissions editor (grouped checkboxes).
+- `client/src/api/corporateRoles.js` - axios helpers for all 14 endpoints.
+- Sidebar (`AdminLayout.jsx`): added "Org Chart" + "Corporate Titles" to `REGULAR_NAV`; added "Corporate Setup" to `SUPER_NAV`.
+- Routes wired in `AdminApp.jsx` (3 new routes; departments route wrapped in `<AdminGuard superOnly>`).
+
+**i18n (en/es/fr/ht parity):**
+- New top-level `corporateOrg.*` namespace: `title`, `subtitle`, `orgChart.*`, `assignments.*` (filters, table, modal), `departments.*` (form, permissions), `guards.*`, `departmentNames.*`. ~80 keys per locale.
+
+**Files this session — new:**
+`server/migrations/246_corporate_hierarchy.sql`, `server/services/corporateRolesService.js`, `server/middleware/requireCorporatePermission.js`, `server/controllers/corporateRolesController.js`, `server/routes/corporateRoles.js`, `client/src/api/corporateRoles.js`, `client/src/admin/pages/super/CorporateOrgChart.jsx`, `client/src/admin/pages/super/CorporateAssignments.jsx`, `client/src/admin/pages/super/CorporateDepartments.jsx`.
+
+**Files this session — modified:**
+`server/index.js` (require + mount `corporateRolesRoutes` at `/api/admin/corporate`), `client/src/admin/AdminApp.jsx` (3 imports + 3 routes), `client/src/admin/layouts/AdminLayout.jsx` (added Crown + Network + Building2 imports; 2 entries in `REGULAR_NAV`, 1 in `SUPER_NAV`), `client/src/locales/{en,es,fr,ht}.json` (corporateOrg namespace).
+
+**Outstanding (deliberate, not yet done):**
+1. Apply migration 246 against a non-prod DB and verify against migration 245's trigger fix (same `users` / `admin_regions` references — should coexist cleanly).
+2. The new admin pages use English strings inline in some places (mostly modals + labels). The `corporateOrg.*` i18n namespace is fully populated for all 4 locales as the target — a follow-up pass should replace the hardcoded strings with `t('corporateOrg.…')` calls. The user-facing org chart hierarchy and department names ARE already localized via the namespace keys.
+3. No backfill of existing super-admin / admin users into `corporate_assignments`. Each existing admin should be given an initial title via the new `/admin/corporate/assignments` UI (or super-admin can assign in bulk via SQL).
+4. `requireCorporatePermission` is built and exported but NOT YET wired onto any existing admin route. Wiring it onto e.g. `/api/admin/payments` (requires `finance.view_payouts`) or `/api/admin/super/financials` (requires `finance.view_financials`) is a follow-up; it's purely additive and won't break anything until enabled per-route.
+5. **Verified locally:** `node --check` passes on every new server file (`corporateRolesService.js`, `requireCorporatePermission.js`, `corporateRolesController.js`, `routes/corporateRoles.js`). `server/index.js` and the four locale JSON files could not be syntax-checked via the agent's bash sandbox (it serves a stale pre-edit snapshot — known divergence noted earlier in this file); they were verified via the file tool's reading of the host filesystem: server/index.js correctly contains the require at line 130 and the mount at line 537; all four locale files end at line 8088 with identical closing structure and contain the `corporateOrg` namespace at parity. Postgres is unavailable in the agent sandbox, so the migration SQL has NOT been executed — run it via `node server/migrate.js` on a non-prod DB first.
+
+---
+
 ## Team Roles + Permissions + Vortex code-entry (2026-05-17) — LANDED
 
 Implements the OxSteed team-role spec on top of the Phase 0 tenancy spine.

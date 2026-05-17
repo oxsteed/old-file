@@ -7973,5 +7973,115 @@
       "employee": "Employe",
       "support_agent": "Agent de support"
     }
+  },
+  "corporateOrg": {
+    "title": "Hierarchie corporative",
+    "subtitle": "Organigramme du personnel OxSteed et titres corporatifs.",
+    "orgChart": {
+      "pageTitle": "Organigramme corporatif",
+      "description": "Affectations corporatives actives chez OxSteed - regroupees par departement et anciennete.",
+      "filterCountry": "Filtrer par pays (ISO-2)",
+      "emptyTitle": "Aucune affectation corporative pour l'instant",
+      "emptyBody": "Commencez en vous attribuant ou en attribuant a un autre administrateur un titre corporatif.",
+      "loading": "Chargement de l'organigramme...",
+      "levelLabel": "Niveau {{level}}",
+      "globalScope": "Global",
+      "activeAssignments": "{{count}} affectations actives"
+    },
+    "assignments": {
+      "pageTitle": "Affectations corporatives",
+      "description": "Attribuez des titres corporatifs au personnel OxSteed. Portee par pays, gestion des exceptions.",
+      "assignTitle": "Attribuer un titre",
+      "editAssignment": "Modifier l'affectation corporative",
+      "endConfirm": "Terminer cette affectation ? L'utilisateur perdra les permissions associees.",
+      "endError": "Echec de la fin d'affectation.",
+      "noResults": "Aucune affectation ne correspond aux filtres actuels.",
+      "filters": {
+        "allDepartments": "Tous les departements",
+        "allTitles": "Tous les titres",
+        "country": "Pays (ISO-2)",
+        "activeOnly": "Actives uniquement",
+        "endedOnly": "Terminees uniquement"
+      },
+      "table": {
+        "user": "Utilisateur",
+        "title": "Titre",
+        "department": "Departement",
+        "scope": "Portee",
+        "started": "Debut",
+        "status": "Statut",
+        "active": "Active",
+        "ended": "Terminee"
+      },
+      "modal": {
+        "userLabel": "Utilisateur administrateur *",
+        "userPlaceholder": "- Selectionner un administrateur -",
+        "userHint": "Les titres corporatifs ne peuvent etre attribues qu'a des utilisateurs admin ou super_admin.",
+        "departmentLabel": "Departement *",
+        "departmentPlaceholder": "- Selectionner un departement -",
+        "titleLabel": "Titre *",
+        "titlePlaceholder": "- Selectionner un titre -",
+        "titleHint": "Les niveaux d'anciennete plus eleves et les titres C-suite ne peuvent etre attribues que par le super-administrateur.",
+        "countryLabel": "Pays (ISO-2)",
+        "countryPlaceholder": "ex. US, MX, HT, FR",
+        "countryHint": "Vide = portee globale",
+        "regionLabel": "Region",
+        "regionNone": "- Aucune -",
+        "reportsToLabel": "Reporte a",
+        "reportsToNone": "- Aucun -",
+        "notesLabel": "Notes",
+        "cancel": "Annuler",
+        "save": "Enregistrer les modifications",
+        "create": "Attribuer le titre",
+        "errorRequired": "L'utilisateur et le titre sont obligatoires.",
+        "errorSave": "Echec de l'enregistrement de l'affectation."
+      }
+    },
+    "departments": {
+      "pageTitle": "Departements et titres corporatifs",
+      "description": "Super-administrateur uniquement. Gerez les departements, les titres et leurs ensembles de permissions par defaut.",
+      "newDepartment": "Nouveau departement",
+      "newTitle": "Nouveau titre",
+      "editDepartment": "Modifier le departement",
+      "editTitle": "Modifier le titre",
+      "addTitle": "Ajouter un titre",
+      "permissionsButton": "Permissions",
+      "savePermissions": "Enregistrer les permissions par defaut",
+      "noTitles": "Aucun titre defini.",
+      "titlesLabel": "Titres",
+      "metaTitles": "{{count}} titres",
+      "metaPermissions": "{{count}} permissions par defaut",
+      "form": {
+        "codeLabel": "Code *",
+        "nameLabel": "Nom *",
+        "descriptionLabel": "Description",
+        "colorLabel": "Couleur",
+        "iconLabel": "Icone",
+        "sortLabel": "Ordre",
+        "active": "Actif",
+        "csuite": "Titre C-suite",
+        "seniorityLabel": "Anciennete (1-10)",
+        "departmentLabel": "Departement *",
+        "errorSave": "Echec de l'enregistrement.",
+        "cancel": "Annuler",
+        "save": "Enregistrer"
+      }
+    },
+    "guards": {
+      "cannotGrantAboveLevel": "Impossible d'attribuer un titre superieur a votre propre niveau d'anciennete.",
+      "noCsuiteForAdmins": "Seuls les super-administrateurs peuvent attribuer des titres C-suite.",
+      "targetNotStaff": "Les titres corporatifs ne peuvent etre attribues qu'a des utilisateurs admin ou super_admin.",
+      "permissionDenied": "Permission corporative requise.",
+      "duplicateAssignment": "L'utilisateur detient deja ce titre dans ce pays."
+    },
+    "departmentNames": {
+      "executive": "Direction et strategie",
+      "technology": "Technologie et ingenierie",
+      "operations": "Operations et succes client",
+      "marketing": "Marketing, ventes et croissance",
+      "finance": "Finance, juridique et conformite",
+      "people": "Personnes et administration",
+      "data": "Donnees, recherche et innovation"
+    }
   }
 }

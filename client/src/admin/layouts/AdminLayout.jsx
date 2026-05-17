@@ -10,7 +10,7 @@ import {
   Menu, X, Sun, Moon, HeadphonesIcon,
   Search, Key, ClipboardList, Building2, CreditCard, MessageSquare,
   HeartHandshake, Calendar, UserPlus, Map, ShoppingCart, Layers, Fingerprint,
-  AlertTriangle,
+  AlertTriangle, Crown, Network,
 } from 'lucide-react';
 
 const REGULAR_NAV = [
@@ -36,6 +36,8 @@ const REGULAR_NAV = [
   { to: '/admin/consulting/scheduler', icon: Calendar,           label: 'Scheduling'       },
   { to: '/admin/consulting/business-launch', icon: Briefcase,    label: 'Business Launch'  },
   { to: '/admin/consulting/sessions',  icon: Calendar,           label: 'Consulting Sessions' },
+  { to: '/admin/corporate/org-chart',  icon: Network,            label: 'Org Chart'        },
+  { to: '/admin/corporate/assignments',icon: Crown,              label: 'Corporate Titles' },
 ];
 
 const SUPER_NAV = [
@@ -53,6 +55,7 @@ const SUPER_NAV = [
   { to: '/admin/super/audit-log',      icon: ScrollText,    label: 'Audit Log'        },
   { to: '/admin/super/audit-log/user-actions', icon: ScrollText,    label: 'User Action Log' },
   { to: '/admin/super/one-truth',              icon: Fingerprint,   label: 'One Truth'       },
+  { to: '/admin/super/corporate/departments',  icon: Building2,     label: 'Corporate Setup' },
 ];
 
 const navClass = ({ isActive }) =>
