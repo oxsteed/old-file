@@ -21,6 +21,12 @@
 - 222 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
 
+**Super-admin money command center (2026-05-17):** COMPLETE
+- **Codebase monetization review:** Mapped the current money architecture across `platform_ledger`, `payments`, `subscriptions`, `consulting_payments`, `marketplace_orders`, `api_products`, `api_product_subscriptions`, `affiliate_commissions`, `affiliate_payouts`, and franchise agreements/programs. The output explicitly separates direct retained revenue from GMV, partner payouts, and configured future economics.
+- **API:** `server/controllers/superAdminController.js` adds `getMoneyOverview`; `server/routes/admin.js` exposes it at `/api/admin/super/money` behind the existing `view_financials` grant.
+- **Super-admin UI:** `client/src/admin/pages/super/MoneyPage.jsx`, wired through `client/src/admin/AdminApp.jsx` and `client/src/admin/layouts/AdminLayout.jsx` as `/admin/super/money`, gives leadership one command center for tracked revenue, pipeline, marketplace volume, affiliate flow, franchise economics, pricing overrides, fee settings, and recent money movement.
+- **Verification:** `node --check server/controllers/superAdminController.js` and `node --check server/routes/admin.js` pass. Client production build was not rerun here because the workspace still lacks a working local `vite` binary.
+
 **Global franchise program foundation (2026-05-17):** COMPLETE
 - **Migration 247** (`server/migrations/247_franchise_programs.sql`): Adds first-class franchise tables for global operations: `franchise_programs`, `franchise_applications`, checklist items, agreements, notes, and activity log. Applications track country, region, city, capital, agreement status, training, launch readiness, owner assignment, consulting linkage, and linked live business store.
 - **API:** `server/controllers/franchiseController.js` + `server/routes/franchise.js`, mounted at `/api/franchise`. Supports franchise lead creation, admin list/detail/update, note capture, checklist progression, agreement terms, and one-step store activation that converts an approved application into a real `businesses` row.

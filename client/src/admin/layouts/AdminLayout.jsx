@@ -42,6 +42,7 @@ const REGULAR_NAV = [
 
 const SUPER_NAV = [
   { to: '/admin/super/dashboard',      icon: BarChart2,     label: 'Super Dashboard'  },
+  { to: '/admin/super/money',          icon: DollarSign,    label: 'Money'            },
   { to: '/admin/super/revenue',        icon: TrendingUp,    label: 'Revenue'          },
   { to: '/admin/super/financials',     icon: DollarSign,    label: 'Financials'       },
   { to: '/admin/super/payouts',          icon: FileText,       label: 'Payouts'          },

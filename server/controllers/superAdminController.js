@@ -1411,6 +1411,561 @@ exports.getRevenueExport = async (req, res) => {
   }
 };
 
+exports.getMoneyOverview = async (req, res) => {
+  try {
+    const { period = '30d' } = req.query;
+    const intervalMap = {
+      '7d': { interval: '7 days', prev: '14 days' },
+      '30d': { interval: '30 days', prev: '60 days' },
+      '90d': { interval: '90 days', prev: '180 days' },
+      '1y': { interval: '1 year', prev: '2 years' },
+    };
+    const { interval, prev } = intervalMap[period] || intervalMap['30d'];
+
+    const [
+      hasLedger,
+      hasSubscriptions,
+      hasPayments,
+      hasConsultingPayments,
+      hasMarketplaceOrders,
+      hasApiProducts,
+      hasApiProductSubscriptions,
+      hasAffiliateCommissions,
+      hasAffiliatePayouts,
+      hasFranchisePrograms,
+      hasFranchiseAgreements,
+      hasFranchiseApplications,
+      hasPricingOverrides,
+      hasPlatformSettings,
+    ] = await Promise.all([
+      tableExists('platform_ledger'),
+      tableExists('subscriptions'),
+      tableExists('payments'),
+      tableExists('consulting_payments'),
+      tableExists('marketplace_orders'),
+      tableExists('api_products'),
+      tableExists('api_product_subscriptions'),
+      tableExists('affiliate_commissions'),
+      tableExists('affiliate_payouts'),
+      tableExists('franchise_programs'),
+      tableExists('franchise_agreements'),
+      tableExists('franchise_applications'),
+      tableExists('pricing_overrides'),
+      tableExists('platform_settings'),
+    ]);
+
+    const revenueLedgerSources = new Set([
+      'subscription',
+      'job_fee',
+      'protection_fee',
+      'broker_fee',
+      'marketing',
+      'adjustment',
+    ]);
+
+    let ledgerBySource = [];
+    let ledgerMovements = [];
+    if (hasLedger) {
+      const [{ rows: sourceRows }, { rows: movementRows }] = await Promise.all([
+        db.query(`
+          SELECT
+            source_type,
+            COUNT(*) FILTER (WHERE created_at >= now() - $1::interval) AS period_count,
+            COUNT(*) AS lifetime_count,
+            COALESCE(SUM(CASE WHEN amount_cents > 0 AND created_at >= now() - $1::interval THEN amount_cents ELSE 0 END), 0) AS period_positive_cents,
+            COALESCE(SUM(CASE WHEN amount_cents < 0 AND created_at >= now() - $1::interval THEN ABS(amount_cents) ELSE 0 END), 0) AS period_negative_cents,
+            COALESCE(SUM(CASE WHEN amount_cents > 0 THEN amount_cents ELSE 0 END), 0) AS lifetime_positive_cents,
+            COALESCE(SUM(CASE WHEN amount_cents < 0 THEN ABS(amount_cents) ELSE 0 END), 0) AS lifetime_negative_cents
+          FROM platform_ledger
+          GROUP BY source_type
+          ORDER BY lifetime_positive_cents DESC, source_type ASC
+        `, [interval]),
+        db.query(`
+          SELECT
+            id::text AS id,
+            'ledger' AS source,
+            created_at,
+            source_type AS label,
+            amount_cents,
+            description
+          FROM platform_ledger
+          WHERE created_at >= now() - $1::interval
+          ORDER BY created_at DESC
+          LIMIT 10
+        `, [interval]),
+      ]);
+      ledgerBySource = sourceRows;
+      ledgerMovements = movementRows;
+    }
+
+    const ledgerMap = ledgerBySource.reduce((acc, row) => {
+      acc[row.source_type] = {
+        periodCount: safeInt(row.period_count),
+        lifetimeCount: safeInt(row.lifetime_count),
+        periodPositiveCents: safeInt(row.period_positive_cents),
+        periodNegativeCents: safeInt(row.period_negative_cents),
+        lifetimePositiveCents: safeInt(row.lifetime_positive_cents),
+        lifetimeNegativeCents: safeInt(row.lifetime_negative_cents),
+      };
+      return acc;
+    }, {});
+
+    const ledgerRevenuePeriodCents = Object.entries(ledgerMap).reduce((sum, [source, value]) => (
+      revenueLedgerSources.has(source) ? sum + value.periodPositiveCents : sum
+    ), 0);
+    const ledgerRevenueLifetimeCents = Object.entries(ledgerMap).reduce((sum, [source, value]) => (
+      revenueLedgerSources.has(source) ? sum + value.lifetimePositiveCents : sum
+    ), 0);
+    const ledgerRefundsPeriodCents = Object.values(ledgerMap).reduce((sum, value) => sum + value.periodNegativeCents, 0);
+    const ledgerOutflowsLifetimeCents = Object.values(ledgerMap).reduce((sum, value) => sum + value.lifetimeNegativeCents, 0);
+
+    let activeSubscriptions = 0;
+    if (hasSubscriptions) {
+      const { rows } = await db.query(`
+        SELECT COUNT(*) AS count
+        FROM subscriptions
+        WHERE status = 'active'
+      `);
+      activeSubscriptions = safeInt(rows[0]?.count);
+    }
+
+    let servicePayments = {
+      capturedPeriodCents: 0,
+      capturedLifetimeCents: 0,
+      pendingVolumeCents: 0,
+      refundsPeriodCents: 0,
+      capturedCount: 0,
+    };
+    if (hasPayments) {
+      const { rows } = await db.query(`
+        SELECT
+          COALESCE(SUM(CASE WHEN status IN ('captured', 'released') AND created_at >= now() - $1::interval THEN platform_fee * 100 ELSE 0 END), 0) AS captured_period_cents,
+          COALESCE(SUM(CASE WHEN status IN ('captured', 'released') THEN platform_fee * 100 ELSE 0 END), 0) AS captured_lifetime_cents,
+          COALESCE(SUM(CASE WHEN status IN ('pending', 'authorized') THEN amount * 100 ELSE 0 END), 0) AS pending_volume_cents,
+          COALESCE(SUM(CASE WHEN status = 'refunded' AND refunded_at >= now() - $1::interval THEN refund_amount * 100 ELSE 0 END), 0) AS refunds_period_cents,
+          COUNT(*) FILTER (WHERE status IN ('captured', 'released')) AS captured_count
+        FROM payments
+      `, [interval]);
+      servicePayments = {
+        capturedPeriodCents: safeInt(rows[0]?.captured_period_cents),
+        capturedLifetimeCents: safeInt(rows[0]?.captured_lifetime_cents),
+        pendingVolumeCents: safeInt(rows[0]?.pending_volume_cents),
+        refundsPeriodCents: safeInt(rows[0]?.refunds_period_cents),
+        capturedCount: safeInt(rows[0]?.captured_count),
+      };
+    }
+
+    let consulting = {
+      completedPeriodCents: 0,
+      completedLifetimeCents: 0,
+      pendingCents: 0,
+      refundedPeriodCents: 0,
+      completedCount: 0,
+      recent: [],
+    };
+    if (hasConsultingPayments) {
+      const [{ rows: consultingRows }, { rows: consultingRecentRows }] = await Promise.all([
+        db.query(`
+          SELECT
+            COALESCE(SUM(CASE WHEN status = 'completed' AND created_at >= now() - $1::interval THEN amount_cents ELSE 0 END), 0) AS completed_period_cents,
+            COALESCE(SUM(CASE WHEN status = 'completed' THEN amount_cents ELSE 0 END), 0) AS completed_lifetime_cents,
+            COALESCE(SUM(CASE WHEN status IN ('pending', 'processing') THEN amount_cents ELSE 0 END), 0) AS pending_cents,
+            COALESCE(SUM(CASE WHEN status = 'refunded' AND updated_at >= now() - $1::interval THEN amount_cents ELSE 0 END), 0) AS refunded_period_cents,
+            COUNT(*) FILTER (WHERE status = 'completed') AS completed_count
+          FROM consulting_payments
+        `, [interval]),
+        db.query(`
+          SELECT
+            id::text AS id,
+            'consulting' AS source,
+            created_at,
+            service_tier AS label,
+            CASE
+              WHEN status = 'refunded' THEN -amount_cents
+              ELSE amount_cents
+            END AS amount_cents,
+            status AS description
+          FROM consulting_payments
+          WHERE created_at >= now() - $1::interval
+          ORDER BY created_at DESC
+          LIMIT 8
+        `, [interval]),
+      ]);
+      consulting = {
+        completedPeriodCents: safeInt(consultingRows[0]?.completed_period_cents),
+        completedLifetimeCents: safeInt(consultingRows[0]?.completed_lifetime_cents),
+        pendingCents: safeInt(consultingRows[0]?.pending_cents),
+        refundedPeriodCents: safeInt(consultingRows[0]?.refunded_period_cents),
+        completedCount: safeInt(consultingRows[0]?.completed_count),
+        recent: consultingRecentRows,
+      };
+    }
+
+    let marketplace = {
+      periodGmvCents: 0,
+      lifetimeGmvCents: 0,
+      pendingCents: 0,
+      refundedPeriodCents: 0,
+      paidOrderCount: 0,
+    };
+    if (hasMarketplaceOrders) {
+      const { rows } = await db.query(`
+        SELECT
+          COALESCE(SUM(CASE WHEN status IN ('paid', 'processing', 'completed') AND created_at >= now() - $1::interval THEN total_cents ELSE 0 END), 0) AS period_gmv_cents,
+          COALESCE(SUM(CASE WHEN status IN ('paid', 'processing', 'completed') THEN total_cents ELSE 0 END), 0) AS lifetime_gmv_cents,
+          COALESCE(SUM(CASE WHEN status = 'pending' THEN total_cents ELSE 0 END), 0) AS pending_cents,
+          COALESCE(SUM(CASE WHEN status = 'refunded' AND updated_at >= now() - $1::interval THEN total_cents ELSE 0 END), 0) AS refunded_period_cents,
+          COUNT(*) FILTER (WHERE status IN ('paid', 'processing', 'completed')) AS paid_order_count
+        FROM marketplace_orders
+      `, [interval]);
+      marketplace = {
+        periodGmvCents: safeInt(rows[0]?.period_gmv_cents),
+        lifetimeGmvCents: safeInt(rows[0]?.lifetime_gmv_cents),
+        pendingCents: safeInt(rows[0]?.pending_cents),
+        refundedPeriodCents: safeInt(rows[0]?.refunded_period_cents),
+        paidOrderCount: safeInt(rows[0]?.paid_order_count),
+      };
+    }
+
+    let apiProducts = {
+      publishedCount: 0,
+      activeSubscriptions: 0,
+      monthlyRevenueSnapshotCents: 0,
+      recurringProducts: 0,
+    };
+    if (hasApiProducts) {
+      const { rows } = await db.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE status = 'published') AS published_count,
+          COUNT(*) FILTER (WHERE pricing_type = 'recurring' AND status = 'published') AS recurring_products,
+          COALESCE(SUM(CASE WHEN status = 'published' THEN monthly_revenue_cents ELSE 0 END), 0) AS monthly_revenue_snapshot_cents
+        FROM api_products
+      `);
+      apiProducts = {
+        ...apiProducts,
+        publishedCount: safeInt(rows[0]?.published_count),
+        monthlyRevenueSnapshotCents: safeInt(rows[0]?.monthly_revenue_snapshot_cents),
+        recurringProducts: safeInt(rows[0]?.recurring_products),
+      };
+    }
+    if (hasApiProductSubscriptions) {
+      const { rows } = await db.query(`
+        SELECT COUNT(*) FILTER (WHERE status = 'active') AS active_count
+        FROM api_product_subscriptions
+      `);
+      apiProducts.activeSubscriptions = safeInt(rows[0]?.active_count);
+    }
+
+    let affiliates = {
+      pendingCommissionCents: 0,
+      confirmedCommissionCents: 0,
+      paidCommissionCents: 0,
+      payoutsCompletedCents: 0,
+      commissionCount: 0,
+    };
+    if (hasAffiliateCommissions) {
+      const { rows } = await db.query(`
+        SELECT
+          COALESCE(SUM(CASE WHEN status = 'pending' THEN commission_cents ELSE 0 END), 0) AS pending_commission_cents,
+          COALESCE(SUM(CASE WHEN status = 'confirmed' THEN commission_cents ELSE 0 END), 0) AS confirmed_commission_cents,
+          COALESCE(SUM(CASE WHEN status = 'paid' THEN commission_cents ELSE 0 END), 0) AS paid_commission_cents,
+          COUNT(*) AS commission_count
+        FROM affiliate_commissions
+      `);
+      affiliates = {
+        ...affiliates,
+        pendingCommissionCents: safeInt(rows[0]?.pending_commission_cents),
+        confirmedCommissionCents: safeInt(rows[0]?.confirmed_commission_cents),
+        paidCommissionCents: safeInt(rows[0]?.paid_commission_cents),
+        commissionCount: safeInt(rows[0]?.commission_count),
+      };
+    }
+    if (hasAffiliatePayouts) {
+      const { rows } = await db.query(`
+        SELECT
+          COALESCE(SUM(CASE WHEN status = 'completed' THEN total_commission_cents ELSE 0 END), 0) AS payouts_completed_cents
+        FROM affiliate_payouts
+      `);
+      affiliates.payoutsCompletedCents = safeInt(rows[0]?.payouts_completed_cents);
+    }
+
+    let franchise = {
+      activePrograms: 0,
+      signedInitialFeesCents: 0,
+      pendingInitialFeesCents: 0,
+      signedAgreements: 0,
+      pipelineApplications: 0,
+      launchedStores: 0,
+      averageRoyaltyBps: 0,
+      averageMarketingFeeBps: 0,
+    };
+    if (hasFranchisePrograms) {
+      const { rows } = await db.query(`
+        SELECT COUNT(*) FILTER (WHERE is_active = TRUE) AS active_programs
+        FROM franchise_programs
+      `);
+      franchise.activePrograms = safeInt(rows[0]?.active_programs);
+    }
+    if (hasFranchiseAgreements) {
+      const { rows } = await db.query(`
+        SELECT
+          COALESCE(SUM(CASE WHEN signed_at IS NOT NULL THEN initial_fee_cents ELSE 0 END), 0) AS signed_initial_fees_cents,
+          COALESCE(SUM(CASE WHEN signed_at IS NULL THEN initial_fee_cents ELSE 0 END), 0) AS pending_initial_fees_cents,
+          COUNT(*) FILTER (WHERE signed_at IS NOT NULL) AS signed_agreements,
+          COALESCE(AVG(NULLIF(royalty_bps, 0)), 0) AS average_royalty_bps,
+          COALESCE(AVG(NULLIF(marketing_fee_bps, 0)), 0) AS average_marketing_fee_bps
+        FROM franchise_agreements
+      `);
+      franchise = {
+        ...franchise,
+        signedInitialFeesCents: safeInt(rows[0]?.signed_initial_fees_cents),
+        pendingInitialFeesCents: safeInt(rows[0]?.pending_initial_fees_cents),
+        signedAgreements: safeInt(rows[0]?.signed_agreements),
+        averageRoyaltyBps: Math.round(safeFloat(rows[0]?.average_royalty_bps)),
+        averageMarketingFeeBps: Math.round(safeFloat(rows[0]?.average_marketing_fee_bps)),
+      };
+    }
+    if (hasFranchiseApplications) {
+      const { rows } = await db.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE status NOT IN ('rejected', 'archived', 'launched')) AS pipeline_applications,
+          COUNT(*) FILTER (WHERE status = 'launched') AS launched_stores
+        FROM franchise_applications
+      `);
+      franchise.pipelineApplications = safeInt(rows[0]?.pipeline_applications);
+      franchise.launchedStores = safeInt(rows[0]?.launched_stores);
+    }
+
+    let pricing = {
+      overrideCount: 0,
+      overrideCountries: [],
+      feeSettings: {},
+    };
+    if (hasPricingOverrides) {
+      const { rows } = await db.query(`
+        SELECT country_code
+        FROM pricing_overrides
+        WHERE is_active = TRUE
+        ORDER BY country_code ASC
+      `);
+      pricing.overrideCount = rows.length;
+      pricing.overrideCountries = rows.map((row) => row.country_code);
+    }
+    if (hasPlatformSettings) {
+      const { rows } = await db.query(`
+        SELECT key, value
+        FROM platform_settings
+        WHERE key IN (
+          'platform_fee_starter',
+          'platform_fee_pro',
+          'platform_fee_elite',
+          'platform_fee_broker',
+          'broker_cut_rate',
+          'tier2_subscription_cents',
+          'tier3_subscription_cents'
+        )
+      `);
+      pricing.feeSettings = rows.reduce((acc, row) => {
+        acc[row.key] = row.value;
+        return acc;
+      }, {});
+    }
+
+    let previousTrackedRevenueCents = 0;
+    if (hasLedger) {
+      const { rows } = await db.query(`
+        SELECT
+          COALESCE(SUM(CASE
+            WHEN source_type IN ('subscription', 'job_fee', 'protection_fee', 'broker_fee', 'marketing', 'adjustment')
+             AND amount_cents > 0
+            THEN amount_cents
+            ELSE 0
+          END), 0) AS total_cents
+        FROM platform_ledger
+        WHERE created_at >= now() - $1::interval
+          AND created_at < now() - $2::interval
+      `, [prev, interval]);
+      previousTrackedRevenueCents += safeInt(rows[0]?.total_cents);
+    }
+    if (hasConsultingPayments) {
+      const { rows } = await db.query(`
+        SELECT
+          COALESCE(SUM(amount_cents), 0) AS total_cents
+        FROM consulting_payments
+        WHERE status = 'completed'
+          AND created_at >= now() - $1::interval
+          AND created_at < now() - $2::interval
+      `, [prev, interval]);
+      previousTrackedRevenueCents += safeInt(rows[0]?.total_cents);
+    }
+
+    const trackedRevenuePeriodCents = ledgerRevenuePeriodCents + consulting.completedPeriodCents;
+    const trackedRevenueLifetimeCents = ledgerRevenueLifetimeCents + consulting.completedLifetimeCents;
+    const trackedGrowth = previousTrackedRevenueCents > 0
+      ? ((trackedRevenuePeriodCents - previousTrackedRevenueCents) / previousTrackedRevenueCents) * 100
+      : 0;
+
+    const serviceFeeSources = ['job_fee', 'protection_fee', 'broker_fee'];
+    const serviceFeesPeriodCents = serviceFeeSources.reduce((sum, key) => sum + (ledgerMap[key]?.periodPositiveCents || 0), 0);
+    const serviceFeesLifetimeCents = serviceFeeSources.reduce((sum, key) => sum + (ledgerMap[key]?.lifetimePositiveCents || 0), 0);
+    const otherLiveLedgerSources = Object.entries(ledgerMap)
+      .filter(([source]) => revenueLedgerSources.has(source) && !['subscription', ...serviceFeeSources].includes(source))
+      .map(([source, value]) => ({
+        source,
+        periodCents: value.periodPositiveCents,
+        lifetimeCents: value.lifetimePositiveCents,
+      }))
+      .filter((row) => row.periodCents > 0 || row.lifetimeCents > 0);
+
+    const channels = [
+      {
+        key: 'subscriptions',
+        label: 'Premium subscriptions',
+        category: 'direct_revenue',
+        trackingStatus: 'live_revenue',
+        periodCents: ledgerMap.subscription?.periodPositiveCents || 0,
+        lifetimeCents: ledgerMap.subscription?.lifetimePositiveCents || 0,
+        pendingCents: 0,
+        refundsCents: ledgerMap.subscription?.periodNegativeCents || 0,
+        count: activeSubscriptions,
+        note: 'Recurring paid plans already captured in the platform ledger.',
+        sources: ['platform_ledger', 'subscriptions'],
+      },
+      {
+        key: 'service_fees',
+        label: 'Service, escrow, and broker fees',
+        category: 'direct_revenue',
+        trackingStatus: 'live_revenue',
+        periodCents: serviceFeesPeriodCents,
+        lifetimeCents: serviceFeesLifetimeCents,
+        pendingCents: servicePayments.pendingVolumeCents,
+        refundsCents: servicePayments.refundsPeriodCents,
+        count: servicePayments.capturedCount,
+        note: 'OxSteed take-rate on protected job payments, escrow coverage, and brokered work.',
+        sources: ['platform_ledger', 'payments'],
+      },
+      {
+        key: 'consulting',
+        label: 'Consulting packages',
+        category: 'direct_revenue',
+        trackingStatus: 'live_revenue',
+        periodCents: consulting.completedPeriodCents,
+        lifetimeCents: consulting.completedLifetimeCents,
+        pendingCents: consulting.pendingCents,
+        refundsCents: consulting.refundedPeriodCents,
+        count: consulting.completedCount,
+        note: 'Direct OxSteed consulting revenue from strategy, launch, and implementation packages.',
+        sources: ['consulting_payments'],
+      },
+      {
+        key: 'marketplace_orders',
+        label: 'Marketplace commerce',
+        category: 'volume_signal',
+        trackingStatus: 'volume_only',
+        periodCents: marketplace.periodGmvCents,
+        lifetimeCents: marketplace.lifetimeGmvCents,
+        pendingCents: marketplace.pendingCents,
+        refundsCents: marketplace.refundedPeriodCents,
+        count: marketplace.paidOrderCount,
+        note: 'Tracks gross merchandise volume. The codebase does not yet expose a separate OxSteed platform cut here.',
+        sources: ['marketplace_orders', 'marketplace_transactions'],
+      },
+      {
+        key: 'api_products',
+        label: 'API products and recurring digital sales',
+        category: 'volume_signal',
+        trackingStatus: 'volume_only',
+        periodCents: apiProducts.monthlyRevenueSnapshotCents,
+        lifetimeCents: apiProducts.monthlyRevenueSnapshotCents,
+        pendingCents: 0,
+        refundsCents: 0,
+        count: apiProducts.activeSubscriptions,
+        note: 'Current code tracks creator-side recurring revenue snapshots and active subscriptions, not a distinct OxSteed take rate.',
+        sources: ['api_products', 'api_product_subscriptions'],
+      },
+      {
+        key: 'affiliate_network',
+        label: 'Affiliate network',
+        category: 'partner_flow',
+        trackingStatus: 'partner_payout_flow',
+        periodCents: affiliates.confirmedCommissionCents + affiliates.paidCommissionCents,
+        lifetimeCents: affiliates.confirmedCommissionCents + affiliates.paidCommissionCents,
+        pendingCents: affiliates.pendingCommissionCents,
+        refundsCents: 0,
+        count: affiliates.commissionCount,
+        note: 'This is partner commission flow payable out to affiliates, not direct OxSteed revenue in the current implementation.',
+        sources: ['affiliate_commissions', 'affiliate_payouts'],
+      },
+      {
+        key: 'franchise_program',
+        label: 'Franchise economics',
+        category: 'configured_program',
+        trackingStatus: 'configured_program_economics',
+        periodCents: franchise.signedInitialFeesCents,
+        lifetimeCents: franchise.signedInitialFeesCents,
+        pendingCents: franchise.pendingInitialFeesCents,
+        refundsCents: 0,
+        count: franchise.pipelineApplications,
+        note: 'Captures configured initial fees, royalties, and marketing fees for signed and in-flight franchise agreements.',
+        sources: ['franchise_programs', 'franchise_agreements', 'franchise_applications'],
+      },
+    ];
+
+    if (otherLiveLedgerSources.length) {
+      channels.push({
+        key: 'other_live_ledger',
+        label: 'Other ledger-coded revenue',
+        category: 'direct_revenue',
+        trackingStatus: 'live_revenue',
+        periodCents: otherLiveLedgerSources.reduce((sum, row) => sum + row.periodCents, 0),
+        lifetimeCents: otherLiveLedgerSources.reduce((sum, row) => sum + row.lifetimeCents, 0),
+        pendingCents: 0,
+        refundsCents: 0,
+        count: otherLiveLedgerSources.length,
+        note: `Additional ledger source types currently posting revenue: ${otherLiveLedgerSources.map((row) => row.source).join(', ')}.`,
+        sources: ['platform_ledger'],
+      });
+    }
+
+    const recentMovements = [...ledgerMovements, ...consulting.recent]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 12);
+
+    res.json({
+      period,
+      summary: {
+        trackedRevenuePeriodCents,
+        trackedRevenueLifetimeCents,
+        trackedGrowth: Math.round(trackedGrowth * 10) / 10,
+        ledgerRevenuePeriodCents,
+        consultingRevenuePeriodCents: consulting.completedPeriodCents,
+        refundsPeriodCents: ledgerRefundsPeriodCents + consulting.refundedPeriodCents,
+        gmvPeriodCents: marketplace.periodGmvCents,
+        pipelineCents: consulting.pendingCents + marketplace.pendingCents + franchise.pendingInitialFeesCents,
+        outflowsLifetimeCents: ledgerOutflowsLifetimeCents + affiliates.payoutsCompletedCents,
+      },
+      channels,
+      controls: {
+        pricingOverrides: pricing.overrideCount,
+        overrideCountries: pricing.overrideCountries,
+        feeSettings: pricing.feeSettings,
+        franchiseRoyaltyBps: franchise.averageRoyaltyBps,
+        franchiseMarketingFeeBps: franchise.averageMarketingFeeBps,
+      },
+      diagnostics: {
+        activeSubscriptions,
+        launchedFranchiseStores: franchise.launchedStores,
+        publishedApiProducts: apiProducts.publishedCount,
+        recurringApiProducts: apiProducts.recurringProducts,
+      },
+      recentMovements,
+    });
+  } catch (err) {
+    logger.error('getMoneyOverview error', { err });
+    res.status(500).json({ error: 'Failed to fetch money overview.' });
+  }
+};
+
 // PLATFORM SETTINGS
 exports.getSettings = async (req, res) => {
   try {

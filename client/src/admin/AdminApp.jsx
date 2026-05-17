@@ -23,6 +23,7 @@ import FeeConfig         from './pages/super/FeeConfig';
 import PricingConfig     from './pages/super/PricingConfig';
 import PricingOverrides  from './pages/super/PricingOverrides';
 import Revenue           from './pages/super/Revenue';
+import MoneyPage         from './pages/super/MoneyPage';
 import Payouts           from './pages/super/Payouts';
 import AdminAccounts     from './pages/super/AdminAccounts';
 import SearchLogs        from './pages/super/SearchLogs';
@@ -194,6 +195,9 @@ export default function AdminApp() {
           } />
           <Route path="super/revenue" element={
             <AdminGuard superOnly><Revenue /></AdminGuard>
+          } />
+          <Route path="super/money" element={
+            <AdminGuard superOnly><MoneyPage /></AdminGuard>
           } />
           <Route path="super/financials" element={
             <AdminGuard superOnly><Financials /></AdminGuard>

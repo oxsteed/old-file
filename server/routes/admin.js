@@ -133,6 +133,7 @@ router.get('/super/admin-activity/:adminId',    requireAdmin, requirePermission(
 // Financials - super-admin direct, or admin with view_financials grant
 router.get('/financials',            requireAdmin, requirePermission('view_financials'), superCtrl.getFinancials);
 router.get('/payouts',               requireAdmin, requirePermission('view_financials'), superCtrl.getPayouts);
+router.get('/super/money',           requireAdmin, requirePermission('view_financials'), superCtrl.getMoneyOverview);
 router.get('/super/revenue',         requireAdmin, requirePermission('view_financials'), superCtrl.getRevenueSummary);
 router.get('/super/revenue/export',  requireAdmin, requirePermission('view_financials'), superCtrl.getRevenueExport);
 router.post('/jobs/:jobId/refund',   requireAdmin, requirePermission('issue_refunds'),   superCtrl.issueManualRefund);
