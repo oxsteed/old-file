@@ -63,7 +63,7 @@ export function CustomerLoyaltyManager({ businessId }) {
       const response = await api.get(
         `/businesses/${businessId}/loyalty-tiers`
       );
-      setTiers(response.data || []);
+      setTiers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       toast.error('Failed to load loyalty tiers');
     } finally {

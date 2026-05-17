@@ -9,6 +9,7 @@ const businessAppointmentsController = require('../controllers/businessAppointme
 const dynamicPricingController = require('../controllers/dynamicPricingController');
 const businessConversationAssignmentController = require('../controllers/businessConversationAssignmentController');
 const businessCalendarController = require('../controllers/businessCalendarController');
+const loyaltyTiersController    = require('../controllers/loyaltyTiersController');
 
 // ── MESSAGING ROUTES ──────────────────────────────────────────
 router.get ('/:businessId/messages',                                       requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessMessagingController.getConversations);
@@ -51,5 +52,12 @@ router.get   ('/:businessId/pricing-rules',                                requi
 router.get   ('/:businessId/services/:serviceId/pricing-rules',            requireAuth, requireBusinessAccess({ minRole: 'any' }),     dynamicPricingController.listPricingRules);
 router.put   ('/:businessId/pricing-rules/:ruleId',                        requireAuth, requireBusinessAccess({ minRole: 'manager' }), dynamicPricingController.updatePricingRule);
 router.delete('/:businessId/pricing-rules/:ruleId',                        requireAuth, requireBusinessAccess({ minRole: 'manager' }), dynamicPricingController.deletePricingRule);
+
+// ── LOYALTY TIER ROUTES ───────────────────────────────────────
+router.get   ('/:businessId/loyalty-tiers',                   requireAuth, requireBusinessAccess({ minRole: 'any'     }), loyaltyTiersController.listLoyaltyTiers);
+router.post  ('/:businessId/loyalty-tiers',                   requireAuth, requireBusinessAccess({ minRole: 'manager' }), loyaltyTiersController.createLoyaltyTier);
+router.put   ('/:businessId/loyalty-tiers/:tierId',           requireAuth, requireBusinessAccess({ minRole: 'manager' }), loyaltyTiersController.updateLoyaltyTier);
+router.delete('/:businessId/loyalty-tiers/:tierId',           requireAuth, requireBusinessAccess({ minRole: 'manager' }), loyaltyTiersController.deleteLoyaltyTier);
+router.get   ('/:businessId/loyalty/tier/:tierId/customers',  requireAuth, requireBusinessAccess({ minRole: 'any'     }), loyaltyTiersController.listTierCustomers);
 
 module.exports = router;
