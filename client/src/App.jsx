@@ -61,6 +61,7 @@ import HelperGuestInquiryPage from './pages/HelperGuestInquiryPage';
 import PlannedNeedsPage from './pages/PlannedNeedsPage';
 import CarCarePage from './pages/CarCarePage';
 import BusinessHubPage from './pages/BusinessHubPage';
+import VortexPage from './pages/VortexPage';
 import VerifyIdentityPage from './pages/VerifyIdentityPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import PublicInvoiceView from './pages/PublicInvoiceView';
@@ -243,6 +244,8 @@ export default function App() {
                     <Route path="/planned-needs" element={<Guarded><ProtectedRoute><RouteErrorBoundary><PlannedNeedsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/car-care"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><CarCarePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
+                    {/* Vortex - unified workspace + access-code entry point (team-role spec) */}
+                    <Route path="/vortex"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><VortexPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Critical: Business analytics dashboard with multiple tabs */}
                     <Route path="/business-hub"  element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessHubPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Per-business workspace URLs. The businessId in the URL is the source of truth;

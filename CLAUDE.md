@@ -1,6 +1,73 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-16
+**Last updated:** 2026-05-17
+
+## Team Roles + Permissions + Vortex code-entry (2026-05-17) — LANDED
+
+Implements the OxSteed team-role spec on top of the Phase 0 tenancy spine.
+
+**Migration 245 (`server/migrations/245_team_roles_permissions_access_codes.sql`):**
+- Expands `business_members.role` CHECK to include `'employee'` and `'support_agent'` (previously only `'manager'`/`'representative'`).
+- Same expansion on `business_invite_tokens.role`.
+- **Repairs the broken `validate_member_role_update` trigger from migration 187** — the old version checked `bm.role = 'owner'` inside `business_members`, but owners are never stored there (they live in `businesses.user_id`), so the trigger blocked every legitimate role change. The new version looks up `businesses.user_id` and compares to `role_updated_by`.
+- New tables: `team_roles`, `team_permissions` (75 codes seeded), `team_role_permissions`, `membership_permission_overrides`, `business_access_codes`, `business_access_code_redemptions`, `user_workspace_contexts`, `conversation_team_assignments`, `team_notes`.
+- Seeds role defaults per spec section 2 (owner=all, manager=all except owner+billing+security+refunds-approve+payouts-manage+payroll, employee=assigned-only, representative=sales scope, support_agent=support scope).
+
+**Permissions service + middleware:**
+- `server/services/permissionsService.js` — `getEffectivePermissions({ businessId, userId, role, membershipId })` merges role defaults + per-membership overrides (allow/deny). 30-second in-process cache. Owner short-circuit grants all. Exports `getCatalog()` for the UI override editor.
+- `server/middleware/requireBusinessAccess.js` — extended to attach `req.membership = { id }` (null for owners) and `req.permissions = Set<string>`. New role rank: owner=5 > manager=4 > representative=3 > support_agent=2 > employee=1. Added `.representative()`, `.supportAgent()`, `.employee()` shortcuts.
+- `server/middleware/requirePermission.js` — new factory `requirePermission('perm.code' | [...], { mode: 'any'|'all' })`. Returns 403 with `code='permission_denied'` and the required permission list in the response.
+
+**Business access codes (reusable Vortex codes — distinct from single-use `business_invite_tokens`):**
+- `server/controllers/businessAccessCodesController.js` — CRUD (list/create/rotate/update/revoke), preview, redeem, approve/deny pending memberships. Codes use a friendly alphabet (no I/O/0/1) in format `VRTX-XXXXX-XXXXX`. Redemption is atomic with `SELECT ... FOR UPDATE`, increments `uses`, writes `business_access_code_redemptions`, reuses or reactivates an existing `business_members` row, and updates `user_workspace_contexts.last_selected_at`. If `requires_approval=TRUE` the membership lands `status='pending'` and the owner gets a row to approve via `POST /api/businesses/:businessId/memberships/:mid/approve`.
+
+**Team / membership controller (`server/controllers/businessTeamController.js`):**
+- `GET  /api/businesses/:businessId/memberships` — list with effective permissions
+- `GET  /api/businesses/:businessId/me` — caller's role + permission set
+- `PATCH /api/businesses/:businessId/memberships/:mid/role` — owner-only role change
+- `PUT  /api/businesses/:businessId/memberships/:mid/overrides` — replace per-permission overrides. Managers can't grant a permission they don't hold themselves (cannot_grant_above_level guard).
+- `POST /api/businesses/:businessId/memberships/:mid/approve` and `/deny`
+- `GET  /api/businesses/:businessId/team/catalog` — full roles + permissions catalog for the UI
+- `GET  /api/me/businesses` — unified owned + active + pending memberships for the switcher
+- `POST /api/me/workspace-context` — record `last_selected_at`
+
+**Routes mounted in `server/index.js`:** `businessTeamRoutes` at `/api/businesses`, `vortexAccessRoutes` at `/api/vortex`, `meWorkspaceRoutes` at `/api/me`. Existing `/businesses/:id/members` (single-user email invite flow) and `/businesses/:id/vortex-tokens` (single-use tokens) are untouched.
+
+**Frontend — Vortex page:**
+- New `client/src/pages/VortexPage.jsx` route `/vortex` — unified entry: workspace list (owned + memberships, sorted by `last_selected_at` desc), code-entry form with preview-then-confirm flow, and an owner shortcut. Replaces the buried "Vortex tokens" tab inside BusinessHubPage as the join entry point. Owners still create new businesses via the existing `/business-launch-status` flow (linked from VortexPage).
+- New `client/src/api/vortex.js` — `previewVortexCode`, `redeemVortexCode`, `getMyBusinesses`, `setWorkspaceContext`, plus manager-scoped access-code + membership CRUD helpers.
+
+**Frontend — Role-aware Business Hub menu:**
+- `client/src/utils/businessHubRoleMenu.js` — maps team-role spec sections 2 + 7 onto the existing tab keys. Per-role menu defs for owner/manager/employee/representative/support_agent. Each menu item maps to an existing BusinessHubPage tab (no new pages built; tabs are reused). `TAB_PERMISSIONS` table gates each tab by permission code. Owners bypass.
+- `client/src/components/businessHub/RoleMenu.jsx` — fetches `/businesses/:id/me`, renders the role-appropriate top menu rail above the existing `bh-tabs` strip in BusinessHubPage. Clicks call `setTab()` on the existing state. Shows a role pill + active item highlight. Renders nothing while loading or on error so the legacy tab strip remains usable.
+- `client/src/pages/BusinessHubPage.jsx` — adds `<RoleMenu>` immediately before the existing tab bar; no other behavior changed.
+
+**Frontend — BusinessSwitcher:**
+- `client/src/components/BusinessSwitcher.jsx` — now calls `getMyBusinesses()` (unified) first and falls back to the legacy `listBusinesses` + `listManagedBusinesses` if the new endpoint isn't deployed yet. Calls `setWorkspaceContext()` on switch so the server can remember the user's last workspace. Dropdown footer now includes a "Join or manage workspaces" link to `/vortex`.
+
+**Routes:**
+- `App.jsx` — new route `/vortex` rendering `VortexPage`. Existing `/business/:businessId/workspace` and `/business/:businessId/workspace/:tab` paths unchanged.
+
+**i18n (en/es/fr/ht parity verified):**
+- New `vortex.*` namespace (pageTitle, hero copy, codeEntry copy, status badges, role labels for all 5 roles, success/error toasts).
+- New `businessHub.menu.*` (43 keys covering all role-menu items + intro + aria + widgetsHint).
+- New `businessHub.widgets.*` (home widgets per spec section 7 for all 5 roles).
+- New `businessHub.switchToVortex` + `businessHub.vortexHint` for the switcher footer.
+
+**Files this session — new:**
+`server/migrations/245_team_roles_permissions_access_codes.sql`, `server/services/permissionsService.js`, `server/middleware/requirePermission.js`, `server/controllers/businessAccessCodesController.js`, `server/controllers/businessTeamController.js`, `server/routes/businessTeam.js`, `server/routes/vortex.js`, `server/routes/meWorkspace.js`, `client/src/api/vortex.js`, `client/src/pages/VortexPage.jsx`, `client/src/utils/businessHubRoleMenu.js`, `client/src/components/businessHub/RoleMenu.jsx`.
+
+**Files this session — modified:**
+`server/middleware/requireBusinessAccess.js` (attach `req.membership` + `req.permissions`, expand role rank), `server/index.js` (wire 3 new route files), `client/src/App.jsx` (Vortex route + import), `client/src/components/BusinessSwitcher.jsx` (unified endpoint + Vortex footer), `client/src/pages/BusinessHubPage.jsx` (mount RoleMenu), `client/src/locales/{en,es,fr,ht}.json` (vortex + menu + widgets keys).
+
+**Outstanding (deliberate, not yet done):**
+1. Apply migration 245 against the live DB and verify the trigger fix doesn't reject role changes (the existing 187 trigger has been broken for callers, so this is a net repair).
+2. Build the role-specific home widgets shown in the RoleMenu hint — they're enumerated in `businessHubRoleMenu.js#ROLE_MENUS[*].widgets` and have i18n labels, but no widget components yet. OverviewTab currently shows owner widgets only.
+3. Per spec section 6 trigger: managers can't escalate themselves — currently enforced in app layer (`setMembershipOverrides` cannot_grant_above_level check). Could be hardened with a DB trigger if desired.
+4. `audit_logs` table from the spec is satisfied by the existing `business_audit_log` (migration 232); new audit events from this session use the standard `logBusinessAction()` helper (`business.access_code.*`, `business.member.code_redeemed`, `business.member.role_changed`, `business.member.permissions_updated`, `business.member.approved`, `business.member.denied`).
+5. **Verified locally:** `node --check` on every touched server file, JSON parity across all 4 locale files (vortex namespace + businessHub.menu + businessHub.widgets), controller/route name match across all new endpoints. Postgres is not available in the agent sandbox, so the migration SQL has not been executed — run it via `node server/migrate.js` on a non-prod DB first.
+
+---
 
 ## Per-Business Workspace Build (2026-05-16) — Phases -1 through 4 LANDED
 

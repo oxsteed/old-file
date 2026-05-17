@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { listBusinesses, listManagedBusinesses } from '../api/businesses';
+import { getMyBusinesses, setWorkspaceContext } from '../api/vortex';
 
 const LS_KEY = 'oxs:bh:lastBusinessId';
 
@@ -45,14 +46,38 @@ export default function BusinessSwitcher({ compact = false }) {
     let cancelled = false;
     setLoading(true);
     (async () => {
+      // Primary: unified /me/businesses (post-team-role spec).
+      // Fallback: legacy listBusinesses + listManagedBusinesses (pre-migration-245
+      // deployments don't have the new endpoint yet).
+      try {
+        const data = await getMyBusinesses();
+        if (cancelled) return;
+        const items = Array.isArray(data?.items) ? data.items : [];
+        if (items.length > 0) {
+          const normalized = items
+            .filter(b => b.status === 'active')
+            .map(b => ({
+              id: b.business_id,
+              business_name: b.business_name,
+              _role: b.role,
+              _is_owner: b.is_owner,
+              _last_selected_at: b.last_selected_at,
+            }));
+          setBusinesses(normalized);
+          setLoading(false);
+          return;
+        }
+      } catch (_) {
+        // fall through to legacy
+      }
       try {
         const [owned, managed] = await Promise.all([
           listBusinesses().catch(() => []),
           listManagedBusinesses().catch(() => []),
         ]);
         if (cancelled) return;
-        const ownedTagged = (owned || []).map(b => ({ ...b, _role: 'owner' }));
-        const managedTagged = (managed || []).map(b => ({ ...b, _role: b.role || 'manager' }));
+        const ownedTagged = (owned || []).map(b => ({ ...b, _role: 'owner', _is_owner: true }));
+        const managedTagged = (managed || []).map(b => ({ ...b, _role: b.role || 'manager', _is_owner: false }));
         const seen = new Set(ownedTagged.map(b => String(b.id)));
         const merged = [
           ...ownedTagged,
@@ -88,6 +113,9 @@ export default function BusinessSwitcher({ compact = false }) {
   const switchTo = useCallback((id) => {
     if (!id) return;
     localStorage.setItem(LS_KEY, String(id));
+    // Best-effort: record the user's current workspace selection server-side
+    // so subsequent logins land on the right business.
+    setWorkspaceContext(id).catch(() => {});
     const tab = routeTab && routeBusinessId ? routeTab : '';
     const path = tab
       ? `/business/${id}/workspace/${tab}`
@@ -161,6 +189,22 @@ export default function BusinessSwitcher({ compact = false }) {
               </button>
             );
           })}
+          <Link
+            to="/vortex"
+            role="menuitem"
+            className="ox-biz-switcher__item ox-biz-switcher__item--vortex"
+            onClick={() => setOpen(false)}
+          >
+            <span className="ox-biz-switcher__avatar" aria-hidden="true">+</span>
+            <span className="ox-biz-switcher__item-text">
+              <span className="ox-biz-switcher__item-name">
+                {t('businessHub.switchToVortex', { defaultValue: 'Join or manage workspaces' })}
+              </span>
+              <span className="ox-biz-switcher__item-role">
+                {t('businessHub.vortexHint', { defaultValue: 'Enter access code' })}
+              </span>
+            </span>
+          </Link>
         </div>
       )}
     </div>

@@ -10,6 +10,7 @@ import CountrySelect from '../components/CountrySelect';
 import RegionInput from '../components/RegionInput';
 import PostalCodeInput from '../components/PostalCodeInput';
 import AIKnowledgeTab from '../components/AIKnowledgeTab';
+import RoleMenu from '../components/businessHub/RoleMenu';
 import BusinessCalendarView from '../components/calendar/BusinessCalendarView';
 import BusinessClientsTab from '../components/businessHub/BusinessClientsTab';
 import { BusinessMessagingTab } from '../components/businessHub/BusinessMessagingTab';
@@ -1100,6 +1101,16 @@ function BusinessHubInner() {
                 </Link>
               )}
             </div>
+
+            {/* Role-aware top menu (team-role spec section 7) — sits above the
+                legacy tab strip and switches the same `tab` state. */}
+            {bizId ? (
+              <RoleMenu
+                businessId={bizId}
+                activeTab={tab}
+                onSelectTab={(tb) => setTab(tb)}
+              />
+            ) : null}
 
             {/* Tabs */}
             <div className="bh-tabs">

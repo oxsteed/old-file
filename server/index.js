@@ -122,6 +122,10 @@ const marketplaceProductsRoutes = require('./routes/marketplaceProducts');
 const shoppingCartsRoutes = require('./routes/shoppingCarts');
 const sharedCartsRoutes = require('./routes/sharedCarts');
 const mobileRoutes = require('./routes/mobile');
+// Team / role / Vortex (per OxSteed team-role spec, migration 245)
+const businessTeamRoutes   = require('./routes/businessTeam');
+const vortexAccessRoutes   = require('./routes/vortex');
+const meWorkspaceRoutes    = require('./routes/meWorkspace');
 // roleToggleRoutes removed - use POST /api/auth/switch-role instead (authController.switchRole)
 // The old /api/role-toggle endpoint had no session invalidation, no helper_profiles row
 // creation, and no fresh JWT issuance, causing inconsistent auth state.
@@ -525,6 +529,9 @@ app.use('/api/businesses', businessLeadsRoutes);
 app.use('/api/businesses', businessMsgTemplatesRoutes);
 app.use('/api/businesses', businessIntegrationsRoutes);
 app.use('/api/businesses', businessProductPricingRoutes);
+app.use('/api/businesses', businessTeamRoutes);
+app.use('/api/vortex',     vortexAccessRoutes);
+app.use('/api/me',         meWorkspaceRoutes);
 app.use('/api/business-profile', businessProfileImagesRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/reviews/business', businessReviewsRoutes);
