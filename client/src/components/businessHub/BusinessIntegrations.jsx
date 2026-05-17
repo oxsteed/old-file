@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { axiosInstance } from '../../api/axios';
+import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Settings, Copy, RefreshCw, Link2, Trash2, Plus, Check, X } from 'lucide-react';
 import '../../styles/BusinessIntegrations.css';
@@ -64,8 +64,8 @@ export function BusinessIntegrations({ businessId }) {
     try {
       setLoading(true);
       const [intRes, webhookRes] = await Promise.all([
-        axiosInstance.get(`/api/businesses/${businessId}/integrations`),
-        axiosInstance.get(`/api/businesses/${businessId}/webhooks`)
+        api.get(`/businesses/${businessId}/integrations`),
+        api.get(`/businesses/${businessId}/webhooks`)
       ]);
       setIntegrations(intRes.data);
       setWebhooks(webhookRes.data || []);
@@ -78,8 +78,8 @@ export function BusinessIntegrations({ businessId }) {
 
   const handleStripeConnect = async () => {
     try {
-      const response = await axiosInstance.post(
-        `/api/businesses/${businessId}/integrations/stripe/auth`
+      const response = await api.post(
+        `/businesses/${businessId}/integrations/stripe/auth`
       );
       window.location.href = response.data.auth_url;
     } catch (error) {
@@ -91,8 +91,8 @@ export function BusinessIntegrations({ businessId }) {
     if (!window.confirm('Disconnect Stripe? You will need to reconnect to accept payments.')) return;
     
     try {
-      await axiosInstance.post(
-        `/api/businesses/${businessId}/integrations/stripe/disconnect`
+      await api.post(
+        `/businesses/${businessId}/integrations/stripe/disconnect`
       );
       toast.success('Stripe disconnected');
       loadIntegrations();
@@ -108,8 +108,8 @@ export function BusinessIntegrations({ businessId }) {
     }
 
     try {
-      await axiosInstance.post(
-        `/api/businesses/${businessId}/webhooks`,
+      await api.post(
+        `/businesses/${businessId}/webhooks`,
         webhookForm
       );
       toast.success('Webhook created');
@@ -125,8 +125,8 @@ export function BusinessIntegrations({ businessId }) {
     if (!window.confirm('Delete this webhook?')) return;
 
     try {
-      await axiosInstance.delete(
-        `/api/businesses/${businessId}/webhooks/${webhookId}`
+      await api.delete(
+        `/businesses/${businessId}/webhooks/${webhookId}`
       );
       toast.success('Webhook deleted');
       loadIntegrations();

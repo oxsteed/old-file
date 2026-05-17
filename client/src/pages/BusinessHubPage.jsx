@@ -18,6 +18,20 @@ import { BusinessServicesTab } from '../components/businessHub/BusinessServicesT
 import { PricingRulesManager } from '../components/businessHub/PricingRulesManager';
 import { ProductManagement } from '../components/businessHub/ProductManagement';
 import { ProductPricingManager } from '../components/businessHub/ProductPricingManager';
+import { BusinessAnalyticsTab } from '../components/businessHub/BusinessAnalyticsTab';
+import { CustomerLoyaltyManager } from '../components/businessHub/CustomerLoyaltyManager';
+import { BusinessIntegrations } from '../components/businessHub/BusinessIntegrations';
+import { ExpenseTracker } from '../components/businessHub/ExpenseTracker';
+import { QuoteBuilder } from '../components/businessHub/QuoteBuilder';
+import { RecurringBillingManager } from '../components/businessHub/RecurringBillingManager';
+import { StaffScheduler } from '../components/businessHub/StaffScheduler';
+import { ReviewManager } from '../components/businessHub/ReviewManager';
+import { MarketingTools } from '../components/businessHub/MarketingTools';
+import { WaitlistManager } from '../components/businessHub/WaitlistManager';
+import { ServicePackagesManager } from '../components/businessHub/ServicePackagesManager';
+import { HealthAlertsDashboard } from '../components/businessHub/HealthAlertsDashboard';
+import { LeadPipeline } from '../components/businessHub/LeadPipeline';
+import { MessageTemplatesManager } from '../components/businessHub/MessageTemplatesManager';
 import {
   listBusinesses, createBusiness, updateBusiness, uploadBusinessPhotos,
   getAnalytics,
@@ -931,7 +945,21 @@ function BusinessHubInner() {
     'invoices', 'tax', 'goals',
     'service-pricing',
     'product-pricing',
+    'analytics',
+    'loyalty',
     'team',
+    'integrations',
+    'expenses',
+    'quotes',
+    'recurring',
+    'staff',
+    'reviews-mgmt',
+    'marketing',
+    'waitlist',
+    'packages',
+    'health',
+    'leads',
+    'msg-templates',
   ].filter((tb) => {
     if (tb === 'profile' && !canEditBizProfile) return false;
     if (tb === 'clients' && !canEditBizProfile) return false;
@@ -939,6 +967,10 @@ function BusinessHubInner() {
     if (['booking-services','appointments','products','messages','service-pricing','product-pricing'].includes(tb) && !canEditBizProfile) return false;
     if (financeTabIds.includes(tb) && !canViewFinanceHub) return false;
     if (tb === 'overview' && !canViewFinanceHub) return false;
+    if (tb === 'analytics' && !canEditBizProfile) return false;
+    if (tb === 'loyalty' && !canEditBizProfile) return false;
+    if (tb === 'integrations' && currentRole !== 'owner') return false;
+    if (['expenses','quotes','recurring','staff','reviews-mgmt','marketing','waitlist','packages','health','leads','msg-templates'].includes(tb) && !canEditBizProfile) return false;
     return true;
   });
 
@@ -978,6 +1010,20 @@ function BusinessHubInner() {
     if (tb === 'products')         return t('businessHub.tabProductsLabel',        { defaultValue: 'Products' });
     if (tb === 'service-pricing')  return t('businessHub.tabServicePricingLabel',  { defaultValue: 'Service Pricing' });
     if (tb === 'product-pricing')  return t('businessHub.tabProductPricingLabel',  { defaultValue: 'Product Pricing' });
+    if (tb === 'analytics')        return t('businessHub.tabAnalyticsLabel',        { defaultValue: 'Analytics' });
+    if (tb === 'loyalty')          return t('businessHub.tabLoyaltyLabel',          { defaultValue: 'Loyalty' });
+    if (tb === 'integrations')     return t('businessHub.tabIntegrationsLabel',     { defaultValue: 'Integrations' });
+    if (tb === 'expenses')         return 'Expenses';
+    if (tb === 'quotes')           return 'Quotes';
+    if (tb === 'recurring')        return 'Recurring';
+    if (tb === 'staff')            return 'Staff';
+    if (tb === 'reviews-mgmt')     return 'Reviews';
+    if (tb === 'marketing')        return 'Marketing';
+    if (tb === 'waitlist')         return 'Waitlist';
+    if (tb === 'packages')         return 'Packages';
+    if (tb === 'health')           return 'Health';
+    if (tb === 'leads')            return 'Leads';
+    if (tb === 'msg-templates')    return 'Templates';
     return tb;
   };
 
@@ -1337,6 +1383,76 @@ function BusinessHubInner() {
             {/* ── Product Pricing tab ──────────────────────────────── */}
             {tab === 'product-pricing' && bizId && canEditBizProfile && (
               <ProductPricingManager businessId={bizId} />
+            )}
+
+            {/* ── Analytics tab ────────────────────────────────────── */}
+            {tab === 'analytics' && bizId && canEditBizProfile && (
+              <BusinessAnalyticsTab businessId={bizId} />
+            )}
+
+            {/* ── Loyalty tab ──────────────────────────────────────── */}
+            {tab === 'loyalty' && bizId && canEditBizProfile && (
+              <CustomerLoyaltyManager businessId={bizId} />
+            )}
+
+            {/* ── Integrations tab ─────────────────────────────────── */}
+            {tab === 'integrations' && bizId && currentRole === 'owner' && (
+              <BusinessIntegrations businessId={bizId} />
+            )}
+
+            {/* ── Expense Tracker ──────────────────────────────────── */}
+            {tab === 'expenses' && bizId && canEditBizProfile && (
+              <ExpenseTracker businessId={bizId} />
+            )}
+
+            {/* ── Quote Builder ────────────────────────────────────── */}
+            {tab === 'quotes' && bizId && canEditBizProfile && (
+              <QuoteBuilder businessId={bizId} />
+            )}
+
+            {/* ── Recurring Billing ────────────────────────────────── */}
+            {tab === 'recurring' && bizId && canEditBizProfile && (
+              <RecurringBillingManager businessId={bizId} />
+            )}
+
+            {/* ── Staff Scheduler ──────────────────────────────────── */}
+            {tab === 'staff' && bizId && canEditBizProfile && (
+              <StaffScheduler businessId={bizId} />
+            )}
+
+            {/* ── Review Manager ───────────────────────────────────── */}
+            {tab === 'reviews-mgmt' && bizId && canEditBizProfile && (
+              <ReviewManager businessId={bizId} />
+            )}
+
+            {/* ── Marketing Tools ──────────────────────────────────── */}
+            {tab === 'marketing' && bizId && canEditBizProfile && (
+              <MarketingTools businessId={bizId} />
+            )}
+
+            {/* ── Waitlist ─────────────────────────────────────────── */}
+            {tab === 'waitlist' && bizId && canEditBizProfile && (
+              <WaitlistManager businessId={bizId} />
+            )}
+
+            {/* ── Service Packages ─────────────────────────────────── */}
+            {tab === 'packages' && bizId && canEditBizProfile && (
+              <ServicePackagesManager businessId={bizId} />
+            )}
+
+            {/* ── Health Alerts ────────────────────────────────────── */}
+            {tab === 'health' && bizId && canEditBizProfile && (
+              <HealthAlertsDashboard businessId={bizId} />
+            )}
+
+            {/* ── Lead Pipeline ────────────────────────────────────── */}
+            {tab === 'leads' && bizId && canEditBizProfile && (
+              <LeadPipeline businessId={bizId} />
+            )}
+
+            {/* ── Message Templates ────────────────────────────────── */}
+            {tab === 'msg-templates' && bizId && canEditBizProfile && (
+              <MessageTemplatesManager businessId={bizId} />
             )}
           </>
         )}

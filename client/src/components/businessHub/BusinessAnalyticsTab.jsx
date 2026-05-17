@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { axiosInstance } from '../../api/axios';
+import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, DollarSign, Calendar, Users } from 'lucide-react';
@@ -20,8 +20,8 @@ export function BusinessAnalyticsTab({ businessId }) {
   const loadAnalytics = async () => {
     try {
       setLoading(true);
-      const response = await axiosInstance.get(
-        `/api/businesses/${businessId}/analytics`,
+      const response = await api.get(
+        `/businesses/${businessId}/analytics`,
         { params: { range: dateRange } }
       );
       setAnalytics(response.data);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { axiosInstance } from '../../api/axios';
+import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Edit2, Trash2, Plus, Gift, Zap, Crown } from 'lucide-react';
 import '../../styles/CustomerLoyaltyManager.css';
@@ -60,8 +60,8 @@ export function CustomerLoyaltyManager({ businessId }) {
   const loadTiers = async () => {
     try {
       setLoading(true);
-      const response = await axiosInstance.get(
-        `/api/businesses/${businessId}/loyalty-tiers`
+      const response = await api.get(
+        `/businesses/${businessId}/loyalty-tiers`
       );
       setTiers(response.data || []);
     } catch (error) {
@@ -73,8 +73,8 @@ export function CustomerLoyaltyManager({ businessId }) {
 
   const loadCustomersByTier = async (tierId) => {
     try {
-      const response = await axiosInstance.get(
-        `/api/businesses/${businessId}/loyalty/tier/${tierId}/customers`
+      const response = await api.get(
+        `/businesses/${businessId}/loyalty/tier/${tierId}/customers`
       );
       setCustomers(response.data || []);
       setShowCustomerList(true);
@@ -91,14 +91,14 @@ export function CustomerLoyaltyManager({ businessId }) {
 
     try {
       if (selectedTier) {
-        await axiosInstance.put(
-          `/api/businesses/${businessId}/loyalty-tiers/${selectedTier.id}`,
+        await api.put(
+          `/businesses/${businessId}/loyalty-tiers/${selectedTier.id}`,
           formData
         );
         toast.success('Tier updated');
       } else {
-        await axiosInstance.post(
-          `/api/businesses/${businessId}/loyalty-tiers`,
+        await api.post(
+          `/businesses/${businessId}/loyalty-tiers`,
           formData
         );
         toast.success('Tier created');
@@ -116,8 +116,8 @@ export function CustomerLoyaltyManager({ businessId }) {
     if (!window.confirm('Delete this loyalty tier?')) return;
 
     try {
-      await axiosInstance.delete(
-        `/api/businesses/${businessId}/loyalty-tiers/${tierId}`
+      await api.delete(
+        `/businesses/${businessId}/loyalty-tiers/${tierId}`
       );
       toast.success('Tier deleted');
       loadTiers();

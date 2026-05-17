@@ -1,0 +1,13 @@
+const express = require('express');
+const router = express.Router();
+const { requireAuth } = require('../middleware/auth');
+const ctrl = require('../controllers/businessQuotesController');
+
+router.get('/:businessId/quotes', requireAuth, ctrl.list);
+router.post('/:businessId/quotes', requireAuth, ctrl.create);
+router.put('/:businessId/quotes/:id', requireAuth, ctrl.update);
+router.post('/:businessId/quotes/:id/send', requireAuth, ctrl.sendQuote);
+router.post('/:businessId/quotes/:id/convert', requireAuth, ctrl.convertToInvoice);
+router.delete('/:businessId/quotes/:id', requireAuth, ctrl.remove);
+
+module.exports = router;
