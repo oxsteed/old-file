@@ -99,7 +99,7 @@ export default function BusinessLaunchAdmin() {
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState({ status: '', package: '', urgency: '', state: '' });
+  const [filters, setFilters] = useState({ status: '', package: '', urgency: '', state: '', country: '' });
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({});
 
@@ -111,6 +111,7 @@ export default function BusinessLaunchAdmin() {
       if (filters.package) params.set('package', filters.package);
       if (filters.urgency) params.set('urgency', filters.urgency);
       if (filters.state) params.set('state', filters.state);
+      if (filters.country) params.set('country', filters.country);
       if (search) params.set('search', search);
 
       const res = await axios.get(`/consulting/business-launch/requests?${params}`);
@@ -126,12 +127,13 @@ export default function BusinessLaunchAdmin() {
   useEffect(() => { loadRequests(); }, [loadRequests]);
 
   function exportCSV() {
-    const headers = ['Name', 'Email', 'Phone', 'Package', 'State', 'Urgency', 'Status', 'Submitted'];
+    const headers = ['Name', 'Email', 'Phone', 'Package', 'Country', 'State', 'Urgency', 'Status', 'Submitted'];
     const rows = requests.map(r => [
       `${r.first_name} ${r.last_name}`,
       r.email,
       r.phone || '',
       r.package_selected || '',
+      r.operating_country || '',
       r.operating_state || '',
       URGENCY_LABELS[r.urgency] || r.urgency || '',
       r.status,
@@ -224,8 +226,15 @@ export default function BusinessLaunchAdmin() {
           <option value="">All States</option>
           {['CA', 'TX', 'FL', 'NY', 'PA', 'IL', 'OH', 'GA', 'NC', 'MI', 'NJ', 'VA', 'WA', 'AZ', 'MA', 'TN', 'IN', 'MO', 'MD', 'WI', 'CO', 'MN', 'SC', 'AL', 'LA', 'KY', 'OR', 'OK', 'CT', 'UT', 'IA', 'NV', 'AR', 'MS', 'KS', 'NM', 'NE', 'WV', 'ID', 'HI', 'NH', 'ME', 'RI', 'MT', 'DE', 'SD', 'ND', 'AK', 'DC', 'VT', 'WY'].map(st => <option key={st} value={st}>{st}</option>)}
         </select>
-        {(search || filters.status || filters.package || filters.urgency || filters.state) && (
-          <button onClick={() => { setSearch(''); setFilters({ status: '', package: '', urgency: '', state: '' }); setPage(1); }} style={{ ...inputStyle, background: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
+        <input
+          type="text"
+          placeholder="Country code"
+          value={filters.country}
+          onChange={e => { setFilters(f => ({ ...f, country: e.target.value.toUpperCase() })); setPage(1); }}
+          style={{ ...inputStyle, minWidth: '120px' }}
+        />
+        {(search || filters.status || filters.package || filters.urgency || filters.state || filters.country) && (
+          <button onClick={() => { setSearch(''); setFilters({ status: '', package: '', urgency: '', state: '', country: '' }); setPage(1); }} style={{ ...inputStyle, background: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
             Clear All
           </button>
         )}

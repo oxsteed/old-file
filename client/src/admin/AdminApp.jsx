@@ -34,6 +34,7 @@ import OneTruthPage        from './pages/super/OneTruthPage';
 import CorporateOrgChart    from './pages/super/CorporateOrgChart';
 import CorporateAssignments from './pages/super/CorporateAssignments';
 import CorporateDepartments from './pages/super/CorporateDepartments';
+import FranchiseHQPage      from './pages/super/FranchiseHQPage';
 
 // Shared admin pages
 import UsersList            from './pages/UsersList';
@@ -238,6 +239,9 @@ export default function AdminApp() {
           } />
           <Route path="super/one-truth" element={
             <AdminGuard superOnly><OneTruthPage /></AdminGuard>
+          } />
+          <Route path="super/franchises" element={
+            <AdminGuard superOnly><FranchiseHQPage /></AdminGuard>
           } />
 
           {/* Corporate hierarchy (migration 246) - org chart open to all admins,

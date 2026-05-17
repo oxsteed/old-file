@@ -141,7 +141,7 @@ async function submitBusinessLaunchRequest(req, res) {
  * GET /api/consulting/business-launch/requests?page=1&limit=20&status=pending&package=launch
  */
 async function getBusinessLaunchRequests(req, res) {
-  const { page = 1, limit = 20, status, package: pkg, urgency, state, search } = req.query;
+  const { page = 1, limit = 20, status, package: pkg, urgency, state, country, search } = req.query;
   const offset = (parseInt(page) - 1) * parseInt(limit);
 
   try {
@@ -169,6 +169,11 @@ async function getBusinessLaunchRequests(req, res) {
       params.push(state);
     }
 
+    if (country) {
+      whereConditions.push(`operating_country = $${paramIndex++}`);
+      params.push(String(country).trim().toUpperCase());
+    }
+
     if (search) {
       whereConditions.push(`(first_name ILIKE $${paramIndex} OR last_name ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`);
       params.push(`%${search}%`);
@@ -192,7 +197,7 @@ async function getBusinessLaunchRequests(req, res) {
       `SELECT
         id, email, first_name, last_name, phone, referral_source,
         skill_description, target_market, has_revenue, business_name,
-        operating_state, setup_items_selected, select_all_chosen,
+        operating_country, operating_state, setup_items_selected, select_all_chosen,
         current_phase, urgency, package_selected, package_price, status,
         created_at, updated_at
       FROM consulting_requests
@@ -249,7 +254,7 @@ async function updateBusinessLaunchRequestStatus(req, res) {
   const { id } = req.params;
   const { status, notes } = req.body;
 
-  const validStatuses = ['pending', 'contacted', 'kickoff_scheduled', 'in_progress', 'completed', 'cancelled'];
+  const validStatuses = ['pending', 'contacted', 'kickoff_scheduled', 'in_progress', 'completed', 'cancelled', 'archived'];
 
   if (!status || !validStatuses.includes(status)) {
     return res.status(400).json({ error: 'Invalid status' });

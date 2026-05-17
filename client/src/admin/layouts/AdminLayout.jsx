@@ -10,7 +10,7 @@ import {
   Menu, X, Sun, Moon, HeadphonesIcon,
   Search, Key, ClipboardList, Building2, CreditCard, MessageSquare,
   HeartHandshake, Calendar, UserPlus, Map, ShoppingCart, Layers, Fingerprint,
-  AlertTriangle, Crown, Network,
+  AlertTriangle, Crown, Globe, Network,
 } from 'lucide-react';
 
 const REGULAR_NAV = [
@@ -55,6 +55,7 @@ const SUPER_NAV = [
   { to: '/admin/super/audit-log',      icon: ScrollText,    label: 'Audit Log'        },
   { to: '/admin/super/audit-log/user-actions', icon: ScrollText,    label: 'User Action Log' },
   { to: '/admin/super/one-truth',              icon: Fingerprint,   label: 'One Truth'       },
+  { to: '/admin/super/franchises',             icon: Globe,         label: 'Franchise HQ'    },
   { to: '/admin/super/corporate/departments',  icon: Building2,     label: 'Corporate Setup' },
 ];
 
