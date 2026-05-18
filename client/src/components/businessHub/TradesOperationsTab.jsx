@@ -1,0 +1,368 @@
+import { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
+import {
+  createTradesRecommendation,
+  createTradesTrustRecord,
+  updateTradesDiagnosticRequest,
+  updateTradesOperationsSettings,
+  updateTradesRecommendation,
+  updateTradesTrustRecord,
+  deleteTradesRecommendation,
+  deleteTradesTrustRecord,
+} from '../../api/tradesOperations';
+import { formatMoney } from '../../lib/format';
+
+const EMPTY_SETTINGS = {
+  response_promise_hours: 12,
+  estimate_turnaround_hours: 24,
+  booking_style: 'diagnostic_first',
+  primary_quote_label: 'Diagnostic and estimate',
+  supported_issue_types: '',
+  service_asset_types: '',
+  trust_artifacts: '',
+  dispatch_notes: '',
+  intake_instructions: '',
+  emergency_phone: '',
+};
+
+const EMPTY_RECOMMENDATION = {
+  diagnostic_request_id: '',
+  quote_id: '',
+  title: '',
+  recommendation_type: 'repair',
+  priority: 'recommended',
+  description: '',
+  estimated_cents: '',
+  status: 'open',
+};
+
+const EMPTY_TRUST = {
+  record_type: 'License',
+  title: '',
+  issuer: '',
+  status: 'active',
+  expires_on: '',
+  document_url: '',
+  notes: '',
+};
+
+function parseCommaList(value) {
+  return String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
+}
+
+function Card({ label, value, hint }) {
+  return (
+    <div className="rounded-3xl border border-gray-800 bg-gray-950/70 p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{label}</p>
+      <p className="mt-2 text-3xl font-semibold text-white">{value}</p>
+      {hint ? <p className="mt-1 text-sm text-gray-400">{hint}</p> : null}
+    </div>
+  );
+}
+
+function Section({ title, subtitle, actions, children }) {
+  return (
+    <section className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-white">{title}</h3>
+          {subtitle ? <p className="mt-1 text-sm leading-6 text-gray-400">{subtitle}</p> : null}
+        </div>
+        {actions}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Input({ label, children, wide = false }) {
+  return (
+    <label className={`${wide ? 'md:col-span-2' : ''} block`}>
+      <span className="mb-1.5 block text-sm font-medium text-gray-200">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function TextInput(props) {
+  return <input {...props} className={`w-full rounded-2xl border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-white outline-none placeholder:text-gray-500 ${props.className || ''}`} />;
+}
+
+function TextArea(props) {
+  return <textarea {...props} className={`w-full rounded-2xl border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-white outline-none placeholder:text-gray-500 ${props.className || ''}`} />;
+}
+
+function Select(props) {
+  return <select {...props} className={`w-full rounded-2xl border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-white outline-none ${props.className || ''}`} />;
+}
+
+export default function TradesOperationsTab({ businessId, workspace, currency = 'USD', onRefresh, onJumpTab }) {
+  const settings = workspace?.settings || {};
+  const diagnostics = workspace?.diagnostics || [];
+  const recommendations = workspace?.recommendations || [];
+  const trustRecords = workspace?.trustRecords || [];
+  const metrics = workspace?.metrics || {};
+
+  const [settingsForm, setSettingsForm] = useState(EMPTY_SETTINGS);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [recommendationForm, setRecommendationForm] = useState(EMPTY_RECOMMENDATION);
+  const [editingRecommendationId, setEditingRecommendationId] = useState(null);
+  const [trustForm, setTrustForm] = useState(EMPTY_TRUST);
+  const [editingTrustId, setEditingTrustId] = useState(null);
+
+  useEffect(() => {
+    setSettingsForm({
+      ...EMPTY_SETTINGS,
+      ...settings,
+      supported_issue_types: (settings.supported_issue_types || []).join(', '),
+      service_asset_types: (settings.service_asset_types || []).join(', '),
+      trust_artifacts: (settings.trust_artifacts || []).join(', '),
+    });
+  }, [settings]);
+
+  const groupedDiagnostics = useMemo(() => {
+    return {
+      urgent: diagnostics.filter((item) => ['emergency', 'urgent'].includes(item.urgency)),
+      estimate: diagnostics.filter((item) => item.workflow_stage === 'estimate' || item.status === 'quoted'),
+      repair: diagnostics.filter((item) => item.workflow_stage === 'repair' || item.status === 'approved'),
+    };
+  }, [diagnostics]);
+
+  async function saveSettings() {
+    setSavingSettings(true);
+    try {
+      await updateTradesOperationsSettings(businessId, {
+        ...settingsForm,
+        supported_issue_types: parseCommaList(settingsForm.supported_issue_types),
+        service_asset_types: parseCommaList(settingsForm.service_asset_types),
+        trust_artifacts: parseCommaList(settingsForm.trust_artifacts),
+      });
+      toast.success('Trades settings saved');
+      await onRefresh?.();
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not save trades settings');
+    } finally {
+      setSavingSettings(false);
+    }
+  }
+
+  async function saveRecommendation(event) {
+    event.preventDefault();
+    try {
+      const payload = {
+        ...recommendationForm,
+        quote_id: recommendationForm.quote_id || null,
+        diagnostic_request_id: recommendationForm.diagnostic_request_id || null,
+        estimated_cents: recommendationForm.estimated_cents ? Number(recommendationForm.estimated_cents) : null,
+      };
+      if (editingRecommendationId) await updateTradesRecommendation(businessId, editingRecommendationId, payload);
+      else await createTradesRecommendation(businessId, payload);
+      toast.success(editingRecommendationId ? 'Recommendation updated' : 'Recommendation added');
+      setRecommendationForm(EMPTY_RECOMMENDATION);
+      setEditingRecommendationId(null);
+      await onRefresh?.();
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not save recommendation');
+    }
+  }
+
+  async function saveTrustRecord(event) {
+    event.preventDefault();
+    try {
+      if (editingTrustId) await updateTradesTrustRecord(businessId, editingTrustId, trustForm);
+      else await createTradesTrustRecord(businessId, trustForm);
+      toast.success(editingTrustId ? 'Trust record updated' : 'Trust record added');
+      setTrustForm(EMPTY_TRUST);
+      setEditingTrustId(null);
+      await onRefresh?.();
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not save trust record');
+    }
+  }
+
+  async function quickUpdateRequest(requestId, patch) {
+    try {
+      await updateTradesDiagnosticRequest(businessId, requestId, patch);
+      toast.success('Request updated');
+      await onRefresh?.();
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Could not update request');
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-[32px] border border-gray-800 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.14),_transparent_36%),linear-gradient(135deg,rgba(17,24,39,0.98),rgba(15,23,42,0.96))] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.24)] sm:p-8">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <span className="inline-flex rounded-full border border-blue-400/25 bg-blue-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-100">
+              Trades Ops
+            </span>
+            <h2 className="mt-4 text-3xl font-semibold text-white">Technical-service operating system</h2>
+            <p className="mt-3 text-sm leading-7 text-gray-300">
+              Run diagnostics, estimate follow-up, repair approvals, and trust artifacts from one workspace designed for
+              technical trades, electrical service, and auto repair intake.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:min-w-[360px]">
+            <Card label="Open diagnostics" value={metrics.open_requests || 0} hint={`${metrics.auto_requests || 0} auto · ${metrics.field_requests || 0} field`} />
+            <Card label="Critical recommendations" value={metrics.critical_recommendations || 0} hint="Not yet completed or declined" />
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-4 lg:grid-cols-4">
+        <Card label="Follow-ups due" value={metrics.follow_up_due || 0} hint="Quotes or diagnostics needing response" />
+        <Card label="SLA risk" value={metrics.overdue_sla || 0} hint="Requests past promised response" />
+        <Card label="Open value" value={formatMoney((metrics.open_recommendation_value || 0) / 100, { currency })} hint="Recommendations still in play" />
+        <Card label="Trust records" value={metrics.active_trust_records || 0} hint={`${metrics.trust_expiring || 0} expiring or expired`} />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
+        <Section
+          title="Diagnostic Pipeline"
+          subtitle="Prioritize urgent issues, keep estimates moving, and convert approved repairs without losing the technical thread."
+          actions={<button type="button" className="bh-btn" onClick={() => onJumpTab?.('quotes')}>Open quotes</button>}
+        >
+          <div className="space-y-4">
+            {diagnostics.slice(0, 12).map((item) => (
+              <div key={item.id} className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-3">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-gray-800 px-2.5 py-1 text-[11px] font-semibold text-gray-300">{item.template_slug}</span>
+                      <span className="rounded-full bg-blue-400/10 px-2.5 py-1 text-[11px] font-semibold text-blue-200">{item.workflow_stage}</span>
+                      <span className="rounded-full bg-rose-400/10 px-2.5 py-1 text-[11px] font-semibold text-rose-200">{item.urgency}</span>
+                    </div>
+                    <p className="mt-2 text-sm font-semibold text-white">{item.title}</p>
+                    <p className="mt-1 text-sm text-gray-400">{item.issue_type}{item.asset_label ? ` · ${item.asset_label}` : ''}{item.vin ? ` · VIN ${item.vin}` : ''}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'quoted', workflow_stage: 'estimate' })}>Mark quoted</button>
+                    <button className="bh-btn sm" type="button" onClick={() => quickUpdateRequest(item.id, { status: 'approved', workflow_stage: 'repair' })}>Approve repair</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section
+          title="Queue Snapshot"
+          subtitle="Small operator view of what needs attention first."
+          actions={<button type="button" className="bh-btn" onClick={() => onRefresh?.()}>Refresh</button>}
+        >
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Urgent</p>
+              <p className="mt-2 text-sm text-gray-300">{groupedDiagnostics.urgent.length} requests need fast triage or dispatch.</p>
+            </div>
+            <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Estimate stage</p>
+              <p className="mt-2 text-sm text-gray-300">{groupedDiagnostics.estimate.length} requests are waiting on quote/recommendation follow-up.</p>
+            </div>
+            <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Repair approved</p>
+              <p className="mt-2 text-sm text-gray-300">{groupedDiagnostics.repair.length} requests have moved into live repair work.</p>
+            </div>
+          </div>
+        </Section>
+      </div>
+
+      <Section
+        title="Technical Intake and Quote Settings"
+        subtitle="These settings control how technical-service demand is framed, promised, and routed from the public profile into the team workflow."
+        actions={<button type="button" className="bh-btn primary" onClick={saveSettings} disabled={savingSettings}>{savingSettings ? 'Saving...' : 'Save settings'}</button>}
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <Input label="Response promise (hours)"><TextInput type="number" min="1" value={settingsForm.response_promise_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, response_promise_hours: e.target.value }))} /></Input>
+          <Input label="Estimate turnaround (hours)"><TextInput type="number" min="1" value={settingsForm.estimate_turnaround_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, estimate_turnaround_hours: e.target.value }))} /></Input>
+          <Input label="Booking style"><Select value={settingsForm.booking_style} onChange={(e) => setSettingsForm((current) => ({ ...current, booking_style: e.target.value }))}><option value="diagnostic_first">Diagnostic first</option><option value="quote_first">Quote first</option><option value="direct_service">Direct service</option></Select></Input>
+          <Input label="Primary quote label"><TextInput value={settingsForm.primary_quote_label} onChange={(e) => setSettingsForm((current) => ({ ...current, primary_quote_label: e.target.value }))} /></Input>
+          <Input label="Emergency phone"><TextInput value={settingsForm.emergency_phone} onChange={(e) => setSettingsForm((current) => ({ ...current, emergency_phone: e.target.value }))} /></Input>
+          <Input label="Service asset types"><TextInput value={settingsForm.service_asset_types} onChange={(e) => setSettingsForm((current) => ({ ...current, service_asset_types: e.target.value }))} placeholder="Residential, Commercial, Vehicle" /></Input>
+          <Input label="Supported issue types" wide><TextInput value={settingsForm.supported_issue_types} onChange={(e) => setSettingsForm((current) => ({ ...current, supported_issue_types: e.target.value }))} placeholder="Comma-separated issue types" /></Input>
+          <Input label="Trust artifacts" wide><TextInput value={settingsForm.trust_artifacts} onChange={(e) => setSettingsForm((current) => ({ ...current, trust_artifacts: e.target.value }))} placeholder="Comma-separated trust records or proofs" /></Input>
+          <Input label="Intake instructions" wide><TextArea rows={3} value={settingsForm.intake_instructions} onChange={(e) => setSettingsForm((current) => ({ ...current, intake_instructions: e.target.value }))} /></Input>
+          <Input label="Dispatch notes" wide><TextArea rows={3} value={settingsForm.dispatch_notes} onChange={(e) => setSettingsForm((current) => ({ ...current, dispatch_notes: e.target.value }))} /></Input>
+        </div>
+      </Section>
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+        <Section title="Recommendations and Upsell Path" subtitle="Document repair, replacement, maintenance, and safety recommendations with real dollar value.">
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={saveRecommendation}>
+            <Input label="Diagnostic request"><Select value={recommendationForm.diagnostic_request_id} onChange={(e) => setRecommendationForm((current) => ({ ...current, diagnostic_request_id: e.target.value }))}><option value="">Unlinked</option>{diagnostics.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</Select></Input>
+            <Input label="Quote ID"><TextInput value={recommendationForm.quote_id} onChange={(e) => setRecommendationForm((current) => ({ ...current, quote_id: e.target.value }))} /></Input>
+            <Input label="Title"><TextInput value={recommendationForm.title} onChange={(e) => setRecommendationForm((current) => ({ ...current, title: e.target.value }))} /></Input>
+            <Input label="Type"><Select value={recommendationForm.recommendation_type} onChange={(e) => setRecommendationForm((current) => ({ ...current, recommendation_type: e.target.value }))}><option value="repair">Repair</option><option value="upgrade">Upgrade</option><option value="maintenance">Maintenance</option><option value="replacement">Replacement</option><option value="safety">Safety</option></Select></Input>
+            <Input label="Priority"><Select value={recommendationForm.priority} onChange={(e) => setRecommendationForm((current) => ({ ...current, priority: e.target.value }))}><option value="critical">Critical</option><option value="recommended">Recommended</option><option value="optional">Optional</option></Select></Input>
+            <Input label="Status"><Select value={recommendationForm.status} onChange={(e) => setRecommendationForm((current) => ({ ...current, status: e.target.value }))}><option value="open">Open</option><option value="quoted">Quoted</option><option value="approved">Approved</option><option value="completed">Completed</option><option value="declined">Declined</option></Select></Input>
+            <Input label="Estimated cents"><TextInput type="number" min="0" value={recommendationForm.estimated_cents} onChange={(e) => setRecommendationForm((current) => ({ ...current, estimated_cents: e.target.value }))} /></Input>
+            <Input label="Description" wide><TextArea rows={2} value={recommendationForm.description} onChange={(e) => setRecommendationForm((current) => ({ ...current, description: e.target.value }))} /></Input>
+            <div className="md:col-span-2 flex gap-3">
+              <button className="bh-btn primary" type="submit">{editingRecommendationId ? 'Update recommendation' : 'Add recommendation'}</button>
+              {editingRecommendationId ? <button className="bh-btn" type="button" onClick={() => { setEditingRecommendationId(null); setRecommendationForm(EMPTY_RECOMMENDATION); }}>Cancel</button> : null}
+            </div>
+          </form>
+          <div className="mt-5 space-y-3">
+            {recommendations.map((item) => (
+              <div key={item.id} className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-3">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-white">{item.title}</p>
+                      <span className="rounded-full bg-gray-800 px-2.5 py-1 text-[11px] font-semibold text-gray-300">{item.recommendation_type}</span>
+                      <span className="rounded-full bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200">{item.priority}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-gray-400">{item.description || 'No description provided.'}</p>
+                    {item.estimated_cents != null ? <p className="mt-2 text-sm font-semibold text-white">{formatMoney((item.estimated_cents || 0) / 100, { currency })}</p> : null}
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="bh-btn sm" type="button" onClick={() => { setEditingRecommendationId(item.id); setRecommendationForm({ ...EMPTY_RECOMMENDATION, ...item, estimated_cents: item.estimated_cents ?? '' }); }}>Edit</button>
+                    <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm('Delete this recommendation?')) return; await deleteTradesRecommendation(businessId, item.id); toast.success('Recommendation deleted'); await onRefresh?.(); }}>Delete</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Trust and Compliance Records" subtitle="Keep licenses, certifications, inspections, and coverage documents visible so the template can project real authority.">
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={saveTrustRecord}>
+            <Input label="Record type"><TextInput value={trustForm.record_type} onChange={(e) => setTrustForm((current) => ({ ...current, record_type: e.target.value }))} /></Input>
+            <Input label="Title"><TextInput value={trustForm.title} onChange={(e) => setTrustForm((current) => ({ ...current, title: e.target.value }))} /></Input>
+            <Input label="Issuer"><TextInput value={trustForm.issuer} onChange={(e) => setTrustForm((current) => ({ ...current, issuer: e.target.value }))} /></Input>
+            <Input label="Status"><Select value={trustForm.status} onChange={(e) => setTrustForm((current) => ({ ...current, status: e.target.value }))}><option value="active">Active</option><option value="expiring">Expiring</option><option value="expired">Expired</option><option value="archived">Archived</option></Select></Input>
+            <Input label="Expires on"><TextInput type="date" value={trustForm.expires_on} onChange={(e) => setTrustForm((current) => ({ ...current, expires_on: e.target.value }))} /></Input>
+            <Input label="Document URL"><TextInput value={trustForm.document_url} onChange={(e) => setTrustForm((current) => ({ ...current, document_url: e.target.value }))} /></Input>
+            <Input label="Notes" wide><TextArea rows={2} value={trustForm.notes} onChange={(e) => setTrustForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
+            <div className="md:col-span-2 flex gap-3">
+              <button className="bh-btn primary" type="submit">{editingTrustId ? 'Update record' : 'Add record'}</button>
+              {editingTrustId ? <button className="bh-btn" type="button" onClick={() => { setEditingTrustId(null); setTrustForm(EMPTY_TRUST); }}>Cancel</button> : null}
+            </div>
+          </form>
+          <div className="mt-5 space-y-3">
+            {trustRecords.map((item) => (
+              <div key={item.id} className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-3">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-white">{item.title}</p>
+                      <span className="rounded-full bg-gray-800 px-2.5 py-1 text-[11px] font-semibold text-gray-300">{item.record_type}</span>
+                      <span className="rounded-full bg-blue-400/10 px-2.5 py-1 text-[11px] font-semibold text-blue-200">{item.status}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-gray-400">{item.issuer || 'No issuer specified'}{item.expires_on ? ` · expires ${new Date(item.expires_on).toLocaleDateString()}` : ''}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="bh-btn sm" type="button" onClick={() => { setEditingTrustId(item.id); setTrustForm({ ...EMPTY_TRUST, ...item, expires_on: item.expires_on ? String(item.expires_on).slice(0, 10) : '' }); }}>Edit</button>
+                    <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm('Delete this record?')) return; await deleteTradesTrustRecord(businessId, item.id); toast.success('Trust record deleted'); await onRefresh?.(); }}>Delete</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      </div>
+    </div>
+  );
+}

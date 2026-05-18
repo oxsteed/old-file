@@ -92,6 +92,7 @@ const CATEGORY_SYSTEMS = {
     intakeRequirements: ['Technical issue type', 'Property or asset context', 'Safety urgency', 'Photos or notes'],
     records: ['Licenses and badges', 'Quote history', 'Project notes', 'Upgrade recommendations'],
     unlockedSystems: [
+      { tab: 'trades-ops', label: 'Trades Ops', reason: 'Run diagnostics, recommendations, and technical trust records.' },
       { tab: 'quotes', label: 'Quotes', reason: 'Structure diagnostics and larger-scope proposals.' },
       { tab: 'service-pricing', label: 'Service Pricing', reason: 'Tune technical offer logic and margins.' },
       { tab: 'calendar', label: 'Schedule', reason: 'Coordinate site visits and install windows.' },
@@ -378,7 +379,29 @@ const TEMPLATE_OVERRIDES = {
   },
   electrician: {
     primaryDemand: ['Power-loss or wiring issues', 'Panel and safety upgrades', 'EV charger demand'],
+    unlockedSystems: [
+      { tab: 'trades-ops', label: 'Trades Ops', reason: 'Capture outage diagnostics, safety notes, and written recommendations.' },
+      { tab: 'quotes', label: 'Quotes', reason: 'Turn diagnostics into approved repair scopes.' },
+      { tab: 'calendar', label: 'Schedule', reason: 'Coordinate field visits and install windows.' },
+      { tab: 'reviews-mgmt', label: 'Reviews', reason: 'Reinforce trust after technical jobs close.' },
+    ],
     monetization: ['Diagnostics -> upgrade work', 'Panel or smart-home upsells', 'Maintenance/service-call retention'],
+  },
+  trades_pro: {
+    unlockedSystems: [
+      { tab: 'trades-ops', label: 'Trades Ops', reason: 'Route diagnostic and estimate-first technical demand.' },
+      { tab: 'quotes', label: 'Quotes', reason: 'Keep technical proposals disciplined.' },
+      { tab: 'service-pricing', label: 'Service Pricing', reason: 'Tune margins on core technical services.' },
+      { tab: 'calendar', label: 'Schedule', reason: 'Control visit and project timing.' },
+    ],
+  },
+  auto_mechanic: {
+    unlockedSystems: [
+      { tab: 'trades-ops', label: 'Trades Ops', reason: 'Track vehicle diagnostics, estimates, and approved repairs.' },
+      { tab: 'quotes', label: 'Quotes', reason: 'Convert findings into estimate-ready repair options.' },
+      { tab: 'clients', label: 'Clients', reason: 'Keep driver and vehicle relationships organized.' },
+      { tab: 'marketing', label: 'Growth Center', reason: 'Promote maintenance intervals and seasonal checks.' },
+    ],
   },
   photographer: {
     workflowStages: [

@@ -46,6 +46,7 @@ import { AvailabilityBlock, PricingBlock, SlotsBlock } from '../components/helpe
 
 import { getBusinessPublicProfile } from '../api/businesses';
 import { getPublicPropertyOperations } from '../api/propertyOperations';
+import { getPublicTradesOperations } from '../api/tradesOperations';
 import { ProfileTemplateRenderer, getTemplateBehavior } from '../components/profileTemplates/index';
 import TemplateBehaviorPanel from '../components/profileTemplates/TemplateBehaviorPanel';
 import '../components/profileTemplates/TemplateBehaviorPanel.css';
@@ -338,6 +339,78 @@ function PropertyOperationsPublicSection({ data }) {
   );
 }
 
+function TradesOperationsPublicSection({ data }) {
+  if (!data) return null;
+  const settings = data.settings || {};
+  const trustRecords = data.trustRecords || [];
+  const recommendations = data.recommendations || [];
+  const metrics = data.metrics || {};
+
+  return (
+    <section className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="max-w-2xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">Trades Operations</p>
+          <h2 className="mt-2 text-lg font-semibold text-white">Diagnostic-first technical workflow</h2>
+          <p className="mt-2 text-sm leading-7 text-gray-300">
+            {settings.intake_instructions || 'This profile is set up to capture the issue clearly, document diagnosis, and turn written findings into the right repair or upgrade recommendation.'}
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Response promise</p>
+            <p className="mt-2 text-2xl font-semibold text-white">{settings.response_promise_hours || 12}h</p>
+          </div>
+          <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Estimate turnaround</p>
+            <p className="mt-2 text-2xl font-semibold text-white">{settings.estimate_turnaround_hours || 24}h</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
+        <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Authority and proof</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(settings.trust_artifacts || []).map((item) => (
+              <span key={item} className="rounded-full border border-gray-700 bg-gray-900 px-3 py-1 text-xs font-medium text-gray-200">
+                {item}
+              </span>
+            ))}
+          </div>
+          {trustRecords.length > 0 ? (
+            <div className="mt-4 space-y-2 text-sm text-gray-300">
+              {trustRecords.slice(0, 3).map((record) => (
+                <p key={record.id}><strong>{record.record_type}:</strong> {record.title}</p>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Live recommendation signals</p>
+          <div className="mt-3 space-y-3">
+            {recommendations.length === 0 ? (
+              <p className="text-sm text-gray-400">Diagnostics and written recommendations can be managed from Business Hub as this template is configured further.</p>
+            ) : recommendations.slice(0, 3).map((item) => (
+              <div key={item.id} className="rounded-2xl border border-gray-800 bg-gray-900 px-3 py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-white">{item.title}</p>
+                  <span className="rounded-full bg-blue-400/10 px-2 py-0.5 text-[11px] font-semibold text-blue-200">{item.priority}</span>
+                </div>
+                {item.description ? <p className="mt-2 text-sm text-gray-400">{item.description}</p> : null}
+              </div>
+            ))}
+            <p className="text-xs text-gray-500">
+              {metrics.critical_recommendations || 0} critical recommendations tracked internally.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ── Main page component ───────────────────────────────────────────────────────
 export default function BusinessProfilePage() {
   const { id }    = useParams();
@@ -347,6 +420,7 @@ export default function BusinessProfilePage() {
 
   const [profileData,     setProfileData]     = useState(null);
   const [propertyOpsData, setPropertyOpsData] = useState(null);
+  const [tradesOpsData, setTradesOpsData] = useState(null);
   const [loadState,       setLoadState]       = useState('idle');
   const [error,           setError]           = useState(null);
   const [activeTemplate,  setActiveTemplate]  = useState('default');
@@ -383,6 +457,11 @@ export default function BusinessProfilePage() {
       } else {
         setPropertyOpsData(null);
       }
+      if (['trades_pro', 'electrician', 'auto_mechanic'].includes(raw.business?.active_template || 'default')) {
+        getPublicTradesOperations(id).then(setTradesOpsData).catch(() => {});
+      } else {
+        setTradesOpsData(null);
+      }
       setLoadState('success');
     } catch (e) {
       setError(
@@ -413,6 +492,10 @@ export default function BusinessProfilePage() {
     const behavior = getTemplateBehavior(activeTemplate);
     if (behavior.primaryIntent === 'maintenance_request') {
       navigate(`/business/${profileData.bizId || id}/maintenance-request`);
+      return;
+    }
+    if (behavior.primaryIntent === 'trades_diagnostic') {
+      navigate(`/business/${profileData.bizId || id}/trades-request`);
       return;
     }
     if (behavior.primaryIntent === 'tool_rental') {
@@ -545,6 +628,11 @@ export default function BusinessProfilePage() {
               <PropertyOperationsPublicSection data={propertyOpsData} />
             </div>
           ) : null}
+          {['trades_pro', 'electrician', 'auto_mechanic'].includes(activeTemplate) ? (
+            <div className="mt-6">
+              <TradesOperationsPublicSection data={tradesOpsData} />
+            </div>
+          ) : null}
         </div>
         <Footer />
       </div>
@@ -625,6 +713,9 @@ export default function BusinessProfilePage() {
 
             {activeTemplate === 'property_manager' ? (
               <PropertyOperationsPublicSection data={propertyOpsData} />
+            ) : null}
+            {['trades_pro', 'electrician', 'auto_mechanic'].includes(activeTemplate) ? (
+              <TradesOperationsPublicSection data={tradesOpsData} />
             ) : null}
 
             {/* Services & Pricing (empty state built into component) */}

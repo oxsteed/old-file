@@ -28,13 +28,21 @@
 - **`client/src/pages/TemplatePicker.jsx`**: Template previews now show the internal workflow system a user unlocks before activation, not just the public-facing visual style.
 - **Verification:** Not build-verified locally; this workspace still does not have a working local `vite` binary.
 
-**Property-manager vertical operating system pass (2026-05-18):** PARTIAL CLUSTER COMPLETE
+**Property-manager vertical operating system pass (2026-05-18):** COMPLETE
 - **Migration 249** (`server/migrations/249_property_manager_operating_system.sql`): Adds `property_operation_settings`, `property_portfolio_units`, `property_management_packages`, `property_compliance_records`, and extends `property_maintenance_requests` with workflow-stage, SLA, follow-up, billing, and template-intake fields.
 - **API:** `server/controllers/propertyOperationsController.js` + `server/routes/propertyOperations.js`, mounted in `server/index.js` at `/api/property-operations`, provide the property-manager-specific operating workspace: settings, units, packages, compliance records, metrics, and follow-up queue. `server/controllers/maintenanceRequestController.js` now exposes property-manager public intake settings and stores richer intake + follow-up workflow data on maintenance requests.
 - **Business Hub:** `client/src/components/businessHub/PropertyOperationsTab.jsx` + `client/src/pages/BusinessHubPage.jsx` add a template-only `property-ops` workspace for units, tenant-intake settings, dispatch pricing/packages, compliance records, recent request visibility, and auto-generated follow-up reminders, while the maintenance workspace now exposes property-specific workflow stage, billing party, SLA/follow-up stats, and richer intake context.
 - **Public profile / intake:** `client/src/pages/BusinessProfilePage.jsx` now surfaces a property-operations trust section with live response standards and package visibility; `client/src/pages/MaintenanceRequestPage.jsx` now captures richer property-manager intake such as room/asset context, symptom timing, entry preference, update channel, presence requirements, pets, and default billing party.
 - **Template metadata:** `client/src/components/profileTemplates/templateWorkflowSystems.js` and `templateFeaturePacks.js` now point the `property_manager` template at the new Property Ops workspace and compliance-aware trust signals.
 - **Verification:** `node --check server/controllers/propertyOperationsController.js server/controllers/maintenanceRequestController.js server/routes/propertyOperations.js server/index.js` passes. Client production build was not rerun here because the workspace still lacks a working local `vite` binary.
+
+**Trades vertical operating system pass (2026-05-18):** COMPLETE
+- **Migration 250** (`server/migrations/250_trades_operating_system.sql`): Adds `trades_operation_settings`, `trades_diagnostic_requests`, `trades_service_recommendations`, and `trades_trust_records` so `trades_pro`, `electrician`, and `auto_mechanic` can run diagnosis-first technical-service workflows instead of generic booking-only behavior.
+- **API:** `server/controllers/tradesOperationsController.js` + `server/routes/tradesOperations.js`, mounted in `server/index.js` at `/api/trades-operations`, provide public trades-intake settings plus the internal trades workspace for diagnostic requests, recommendations, trust records, metrics, and follow-up/SLA handling.
+- **Business Hub:** `client/src/components/businessHub/TradesOperationsTab.jsx` + `client/src/pages/BusinessHubPage.jsx` add a template-only `trades-ops` workspace for technical intake settings, diagnostic pipeline visibility, quote-stage follow-up, recommendation tracking, and trade trust/compliance records.
+- **Public profile / intake:** `client/src/pages/BusinessProfilePage.jsx` now surfaces a trades-operations section for `trades_pro`, `electrician`, and `auto_mechanic`; `client/src/pages/TradesDiagnosticRequestPage.jsx`, routed in `client/src/App.jsx` as `/business/:businessId/trades-request`, captures technical diagnostic intake with template-aware fields including asset context and vehicle data for `auto_mechanic`.
+- **Template metadata:** `client/src/components/profileTemplates/templateBehavior.js`, `templateWorkflowSystems.js`, and `templateFeaturePacks.js` now treat the trades cluster as diagnostic-first vertical products with `trades-ops` as a core unlocked system and trust/recommendation expectations reflected in the public template layer.
+- **Verification:** `node --check server/controllers/tradesOperationsController.js server/routes/tradesOperations.js server/index.js` passes. Client production build was not rerun here because the workspace still lacks a working local `vite` binary.
 
 **Template industry feature-pack foundation (2026-05-17):** COMPLETE
 - **`client/src/components/profileTemplates/templateFeaturePacks.js`**: Added a centralized industry feature-pack system for every registered template. Each template now has category-aware plus slug-specific demand moments, operating workflow, differentiators, client expectations, trust signals, and signature offering structure so templates can express what that industry actually sells instead of only changing visuals.
@@ -1273,11 +1281,10 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 ### TEMPLATE VERTICALIZATION (Now in Progress)
 
 **Finish remaining high-value template clusters as backend-backed operating systems**
-- [ ] `trades_pro` + `electrician` + `auto_mechanic`: template-specific intake, quote/diagnostic workflow, pricing logic, records/trust artifacts, dashboard metrics, and follow-up automations.
 - [ ] `beauty_style` + `barbershop` + `hair_stylist` + `spa_skincare`: appointment-intake differences, chair/service workflow states, package or membership logic, consent/prep/no-show artifacts, retention metrics, and rebooking automations.
 - [ ] `photographer` + `creative_studio` + `graphic_design`: discovery/intake, project-stage workflow, proposal/package logic, asset/approval records, portfolio-performance metrics, and follow-up reminders.
 - [ ] `accountant` + `consulting_coaching` + `legal_admin`: engagement intake, document/process workflow states, engagement/package logic, compliance/trust records, pipeline/revenue metrics, and recurring obligation reminders.
-- [ ] Broader template system follow-through: activation still needs to unlock template-specific operations for the remaining templates beyond the property-manager cluster shipped on 2026-05-18.
+- [ ] Broader template system follow-through: activation still needs to unlock template-specific operations for the remaining templates beyond the property-manager and trades clusters shipped on 2026-05-18.
 
 ### POST-LAUNCH FEATURES (Customer Support & Analytics)
 

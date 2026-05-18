@@ -146,6 +146,7 @@ const TEMPLATE_OVERRIDES = {
     differentiators: ['Authority-forward presentation', 'Scope seriousness', 'Technical trust cues'],
     expectations: ['Problem-specific service naming', 'Certification visibility', 'Professional quote framing'],
     sampleOfferings: ['Diagnostic visit', 'Repair or replacement', 'Inspection and upgrade package'],
+    trustSignals: ['Written recommendations', 'Technical diagnostics', 'Licensed trade proof'],
   },
   handyman: {
     marketLabel: 'Multi-skill neighborhood repair',
@@ -349,6 +350,7 @@ const TEMPLATE_OVERRIDES = {
     differentiators: ['Safety-first technical trust', 'Emergency readiness', 'Upgrade-friendly service framing'],
     expectations: ['Problem-specific services', 'Licensing cues', 'Fast-response electrical confidence'],
     sampleOfferings: ['Electrical diagnostic', 'Panel or wiring upgrade', 'EV charger installation'],
+    trustSignals: ['Licensed electrician proof', 'Safety documentation', 'Upgrade-ready recommendations'],
   },
   photographer: {
     marketLabel: 'Photography and visual sessions',
@@ -370,6 +372,7 @@ const TEMPLATE_OVERRIDES = {
     differentiators: ['Garage-floor credibility', 'Repair-specific presentation', 'Problem-diagnosis confidence'],
     expectations: ['Repair category clarity', 'Vehicle trust signals', 'Practical next-step guidance'],
     sampleOfferings: ['Vehicle diagnostic', 'Routine maintenance package', 'Repair consultation'],
+    trustSignals: ['Vehicle diagnostics', 'Written estimate options', 'Maintenance recommendation tracking'],
   },
   dog_walker: {
     marketLabel: 'Dog walking and routine pet movement',

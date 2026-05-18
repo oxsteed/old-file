@@ -37,6 +37,31 @@ const PROPERTY_MANAGER_BEHAVIOR = {
   recommendedFeatures: ['Maintenance requests', 'Jobs', 'Messages', 'Calendar', 'Invoices', 'Business Hub'],
 };
 
+const TRADES_DIAGNOSTIC_BEHAVIOR = {
+  mode: 'trades_diagnostic',
+  label: 'Trades diagnostic mode',
+  headline: 'Built for diagnostics, technical trust, and quote-first repair decisions.',
+  description:
+    'This profile should capture the problem clearly, route it into diagnosis, preserve technical notes, and turn recommendations into approved repair or upgrade work.',
+  primaryCta: 'Request a diagnostic',
+  secondaryCta: 'Message technician',
+  primaryIntent: 'trades_diagnostic',
+  allowPrimaryWithoutServices: true,
+  workflow: [
+    { title: 'Capture the issue', text: 'Collect symptoms, urgency, safety risk, asset context, and photos before the visit.', icon: ClipboardList },
+    { title: 'Diagnose and document', text: 'Move the request into triage, diagnosis, and written findings instead of vague back-and-forth.', icon: Wrench },
+    { title: 'Quote the right fix', text: 'Turn findings into repair, replacement, maintenance, or safety recommendations with estimates.', icon: FileText },
+    { title: 'Build long-term trust', text: 'Keep licenses, technical records, and completed recommendations visible across repeat jobs.', icon: ShieldCheck },
+  ],
+  setup: [
+    'Add diagnostic or inspection offers',
+    'Define supported issue types and response expectations',
+    'Load licenses, certifications, or shop trust documents',
+    'Set estimate follow-up and emergency response rules',
+  ],
+  recommendedFeatures: ['Trades Ops', 'Quotes', 'Calendar', 'Messages', 'Reviews', 'Business Hub'],
+};
+
 const APPOINTMENT_BEHAVIOR = {
   mode: 'appointment_business',
   label: 'Appointment business mode',
@@ -139,9 +164,9 @@ const BEHAVIOR_BY_SLUG = {
   landlord_property: PROPERTY_MANAGER_BEHAVIOR,
   cleaning_service: STANDARD_SERVICE_BEHAVIOR,
   handyman: STANDARD_SERVICE_BEHAVIOR,
-  trades_pro: STANDARD_SERVICE_BEHAVIOR,
-  electrician: STANDARD_SERVICE_BEHAVIOR,
-  auto_mechanic: STANDARD_SERVICE_BEHAVIOR,
+  trades_pro: TRADES_DIAGNOSTIC_BEHAVIOR,
+  electrician: TRADES_DIAGNOSTIC_BEHAVIOR,
+  auto_mechanic: TRADES_DIAGNOSTIC_BEHAVIOR,
   beauty_style: APPOINTMENT_BEHAVIOR,
   barbershop: APPOINTMENT_BEHAVIOR,
   spa_skincare: APPOINTMENT_BEHAVIOR,
@@ -168,6 +193,7 @@ export function getTemplateMode(slug = 'default') {
 
 export const TEMPLATE_BEHAVIORS = {
   property: PROPERTY_MANAGER_BEHAVIOR,
+  tradesDiagnostic: TRADES_DIAGNOSTIC_BEHAVIOR,
   appointment: APPOINTMENT_BEHAVIOR,
   toolRental: TOOL_RENTAL_BEHAVIOR,
   portfolio: PORTFOLIO_BEHAVIOR,

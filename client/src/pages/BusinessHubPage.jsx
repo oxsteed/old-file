@@ -34,6 +34,7 @@ import { HealthAlertsDashboard } from '../components/businessHub/HealthAlertsDas
 import { LeadPipeline } from '../components/businessHub/LeadPipeline';
 import { MessageTemplatesManager } from '../components/businessHub/MessageTemplatesManager';
 import PropertyOperationsTab from '../components/businessHub/PropertyOperationsTab';
+import TradesOperationsTab from '../components/businessHub/TradesOperationsTab';
 import TemplateWorkflowSystemTab from '../components/businessHub/TemplateWorkflowSystemTab';
 import {
   listBusinesses, createBusiness, updateBusiness, uploadBusinessPhotos,
@@ -61,6 +62,7 @@ import {
   updateMaintenanceRequest,
 } from '../api/maintenanceRequests';
 import { getPropertyOperationsWorkspace } from '../api/propertyOperations';
+import { getTradesOperationsWorkspace } from '../api/tradesOperations';
 import { formatMoney } from '../lib/format';
 import { getDefaultCurrency } from '../lib/countries';
 import '../styles/BusinessHubPage.css';
@@ -156,6 +158,8 @@ function BusinessHubInner() {
   const [maintenanceLoading, setMaintenanceLoading] = useState(false);
   const [propertyOpsData, setPropertyOpsData] = useState(null);
   const [propertyOpsLoading, setPropertyOpsLoading] = useState(false);
+  const [tradesOpsData, setTradesOpsData] = useState(null);
+  const [tradesOpsLoading, setTradesOpsLoading] = useState(false);
 
   // team tab
   const [members, setMembers]             = useState([]);
@@ -344,6 +348,18 @@ function BusinessHubInner() {
     }
   }, [bizId]);
 
+  const loadTradesOperations = useCallback(async () => {
+    if (!bizId) return;
+    setTradesOpsLoading(true);
+    try {
+      setTradesOpsData(await getTradesOperationsWorkspace(bizId));
+    } catch {
+      toast.error('Could not load trades operations');
+    } finally {
+      setTradesOpsLoading(false);
+    }
+  }, [bizId]);
+
   const loadTeam = useCallback(async () => {
     if (!bizId) return;
     setMembersLoading(true);
@@ -525,6 +541,7 @@ function BusinessHubInner() {
     else if (tab === 'policies') loadPolicies();
     else if (tab === 'faqs') loadFAQs();
     else if (tab === 'property-ops') loadPropertyOperations();
+    else if (tab === 'trades-ops') loadTradesOperations();
     else if (tab === 'calendar') loadHours();
     else if (tab === 'skills') loadSkills();
     else if (tab === 'ai') { /* AI tab loads its own data */ }
@@ -537,14 +554,14 @@ function BusinessHubInner() {
     }
     else if (tab === 'maintenance') loadMaintenance();
     else if (tab === 'team') loadTeam();
-  }, [loadingBiz, businesses, bizId, tab, loadProfile, loadServices, loadGallery, loadPolicies, loadFAQs, loadHours, loadSkills, loadOverview, loadInvoices, loadTax, loadGoals, loadMaintenance, loadPropertyOperations, loadTeam]);
+  }, [loadingBiz, businesses, bizId, tab, loadProfile, loadServices, loadGallery, loadPolicies, loadFAQs, loadHours, loadSkills, loadOverview, loadInvoices, loadTax, loadGoals, loadMaintenance, loadPropertyOperations, loadTradesOperations, loadTeam]);
 
   // ── switcher ──────────────────────────────────────────────────────────────
   function handleSwitchBiz(id) {
     setBizId(id);
     localStorage.setItem(LS_KEY, id);
     setAnalyticsLoading(true);
-    setAnalytics(null); setAnalyticsError(false); setInvoiceData(null); setTaxData(null); setGoals([]); setMaintenanceData({ requests: [], stats: null }); setPropertyOpsData(null);
+    setAnalytics(null); setAnalyticsError(false); setInvoiceData(null); setTaxData(null); setGoals([]); setMaintenanceData({ requests: [], stats: null }); setPropertyOpsData(null); setTradesOpsData(null);
     setMembersLoading(true);
     setMembers([]);
   }
@@ -955,6 +972,7 @@ function BusinessHubInner() {
   // would be confusing dead UI - it lives there only because of that template.
   const activeTemplate = currentBiz?.active_template || 'default';
   const isPropertyManagerTpl = activeTemplate === 'property_manager';
+  const isTradesOpsTemplate = ['trades_pro', 'electrician', 'auto_mechanic'].includes(activeTemplate);
   // Tab order:
   //   1. Overview (KPIs / health, the place owners land first)
   //   2. Edit Profile
@@ -974,6 +992,7 @@ function BusinessHubInner() {
     'messages',
     'calendar',
     ...(isPropertyManagerTpl ? ['property-ops'] : []),
+    ...(isTradesOpsTemplate ? ['trades-ops'] : []),
     ...(isPropertyManagerTpl ? ['maintenance'] : []),
     'invoices', 'tax', 'goals',
     'service-pricing',
@@ -1003,7 +1022,7 @@ function BusinessHubInner() {
     if (tb === 'analytics' && !canEditBizProfile) return false;
     if (tb === 'loyalty' && !canEditBizProfile) return false;
     if (tb === 'integrations' && currentRole !== 'owner') return false;
-    if (['property-ops','expenses','quotes','recurring','staff','reviews-mgmt','marketing','waitlist','packages','health','leads','msg-templates'].includes(tb) && !canEditBizProfile) return false;
+    if (['property-ops','trades-ops','expenses','quotes','recurring','staff','reviews-mgmt','marketing','waitlist','packages','health','leads','msg-templates'].includes(tb) && !canEditBizProfile) return false;
     return true;
   });
 
@@ -1021,6 +1040,9 @@ function BusinessHubInner() {
       setTab(canViewFinanceHub ? 'overview' : 'team');
     }
     if (tab === 'property-ops' && !canEditBizProfile) {
+      setTab(canViewFinanceHub ? 'overview' : 'team');
+    }
+    if (tab === 'trades-ops' && !canEditBizProfile) {
       setTab(canViewFinanceHub ? 'overview' : 'team');
     }
     if (tab === 'ai' && !canEditBizProfile) {
@@ -1048,6 +1070,7 @@ function BusinessHubInner() {
     if (tb === 'goals') return t('businessHub.tabGoalsLabel');
     if (tb === 'maintenance') return 'Maintenance';
     if (tb === 'property-ops') return 'Property Ops';
+    if (tb === 'trades-ops') return 'Trades Ops';
     if (tb === 'calendar') return t('businessHub.tabCalendarLabel', { defaultValue: 'Schedule' });
     if (tb === 'clients') return t('businessHub.tabClientsLabel', { defaultValue: 'Clients' });
     if (tb === 'ai') return t('businessHub.tabAILabel');
@@ -1295,6 +1318,17 @@ function BusinessHubInner() {
                 workspace={propertyOpsData}
                 currency={currency}
                 onRefresh={loadPropertyOperations}
+                onJumpTab={(nextTab) => setTab(nextTab)}
+              />
+            )}
+
+            {tab === 'trades-ops' && (
+              tradesOpsLoading ? <p className="bh-loading">Loading trades operations...</p> :
+              <TradesOperationsTab
+                businessId={bizId}
+                workspace={tradesOpsData}
+                currency={currency}
+                onRefresh={loadTradesOperations}
                 onJumpTab={(nextTab) => setTab(nextTab)}
               />
             )}
