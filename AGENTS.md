@@ -21,6 +21,11 @@
 - 223 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
 
+**Template profile identity pass (2026-05-17):** COMPLETE
+- **`client/src/components/profileTemplates/index.jsx`**: Upgraded the shared template renderer so every public template profile now gets a stronger presentation shell with category-based visual direction, per-template positioning copy, audience framing, and template-specific highlight chips before and after the existing industry layout. This makes the templates read as more distinct products without rewriting each underlying layout component.
+- **Presentation metadata:** Added category presentation presets plus slug-level overrides for all registered templates, so property, trades, creative, health, care, events, beauty, tech, professional, education, food, and automotive templates now project different moods and priorities instead of sharing a near-generic wrapper.
+- **Verification:** Not build-verified locally; this workspace still does not have a working local `vite` binary.
+
 **Business Hub tab consolidation (2026-05-17):** COMPLETE
 - **`client/src/pages/BusinessHubPage.jsx`**: Consolidated the Business Hub editing surface by merging `hours`, `appointments`, `waitlist`, and `calendar` into one `calendar` workspace tab, and merging `services` with `book services` into one `services` workspace tab. Legacy Business Hub tab ids now normalize into the merged workspaces instead of rendering duplicate standalone panels.
 - **`client/src/utils/businessHubRoleMenu.js`**: Updated role-specific Business Hub navigation so jobs, follow-ups, and schedule shortcuts point at the merged `calendar` workspace instead of retired standalone tab ids.
