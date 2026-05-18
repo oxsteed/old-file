@@ -161,16 +161,7 @@
     "errorCreating": "Failed to create. Please try again.",
     "done": "Done",
     "failedToCancel": "Failed to cancel. Please try again.",
-    "fillRequiredFields": "Please fill in all required fields.",
-    "name": "Non",
-    "price": "Pri",
-    "status": "Estati",
-    "email": "Imèl",
-    "phone": "Telefòn",
-    "ongoing": "Ap kontinye",
-    "confirmDelete": "Efase eleman sa a?",
-    "deleted": "Efase",
-    "failedToDelete": "Echèk efase"
+    "fillRequiredFields": "Please fill in all required fields."
   },
   "trial": {
     "active": "Esè aktif",
@@ -1628,8 +1619,7 @@
       "confirmTitle": "Efase Kont Ou",
       "confirmDesc": "Aksyon sa a pa ka defè. Tout done ou yo ap efase definitif",
       "yesDelete": "Wi, Efase Kont Mwen"
-    },
-    "tabPaymentPolicies": "Politik peman"
+    }
   },
   "messages": {
     "title": "Mesaj",
@@ -2172,27 +2162,7 @@
       "toolSaveFailed": "Erè sove zouti",
       "toolRemoved": "Zouti efase",
       "toolRemoveFailed": "Erè efase zouti",
-      "removeToolConfirm": "Ou sèten ou vle efase zouti sa a?",
-      "toolNameRequired": "Non zouti a obligatwa",
-      "toolCategoryRequired": "Kategori zouti a obligatwa",
-      "toolCityRequired": "Vil la obligatwa pou lokatè yo konnen kote pou ranmase",
-      "toolPhotoLabel": "Foto zouti",
-      "toolPhotoHint": "Ajoute yon foto klè pou lokatè yo ka enspekte zouti a anvan yo rezève.",
-      "toolPhotoEmpty": "Pa gen foto pou kounye a",
-      "toolImageInvalid": "Chwazi yon imaj JPG, PNG, GIF, oswa WebP.",
-      "toolImageTooLarge": "Foto zouti a dwe 10MB oswa mwens.",
-      "ownerRulesLabel": "Règ pwopriytè / nòt maniyen",
-      "ownerRulesPlaceholder": "Egzanp: retounen pwòp, itilize sèlman ak bwa, pa itilize anba lapli, mete batri/chajè.",
-      "ownerCustomTermsLabel": "Tèm lwaye ki bay pa pwopriytè a",
-      "ownerCustomTermsPlaceholder": "Opsyonèl. Ajoute tèm akò ou vle lokatè yo aksepte, tankou atant retou an reta, règ netwayaj, responsablite aksesorit manke, oswa atant ranplasman.",
-      "ownerCustomTermsHint": "Lokatè yo pral wè sa yo kòm tèm ki bay pa pwopriytè a. OxSteed pa rédige, revize, valide, ni garanti yo.",
-      "ownerAttestationText": "Mwen konprann sa a se yon lwaye vwazen a vwazen. Mwen responsab pou dekri zouti a ak presizyon, etabli atant règ/depo, epi jere pwoblèm kondisyon, domaj, retou, ak peman ak lokatè a. OxSteed sèlman ede dokimante lis la, rezèvasyon an, mesaj yo, rapò yo, ak dosye akò yo.",
-      "ownerAttestationRequired": "Konfime rekonesans lwaye ant pè yo anvan ou liste zouti sa a",
-      "replacementValueLabel": "Valè ranplasman",
-      "hourlyRateInvalid": "To pa èdtan dwe pi gran pase 0",
-      "dailyRateRequired": "To jodia dwe pi gran pase 0",
-      "depositInvalid": "Depo a pa ka negatif",
-      "replacementInvalid": "Valè ranplasman an pa ka negatif"
+      "removeToolConfirm": "Ou sèten ou vle efase zouti sa a?"
     },
     "personalCare": {
       "title": "Sante ak Byennèt mwen",
@@ -4087,23 +4057,7 @@
       "ai_drafts": "Bouyon IA"
     },
     "switchToVortex": "Rantre oswa jere espas yo",
-    "vortexHint": "Antre kod akse",
-    "switchBusiness": "Chanje biznis",
-    "tabWorkflowLabel": "Sistèm travay",
-    "tabAnalyticsLabel": "Analitik",
-    "tabLoyaltyLabel": "Fidelite",
-    "tabIntegrationsLabel": "Entegrasyon",
-    "switchTemplate": "Chanje modèl",
-    "switchTemplateTitle": "Chanje biznis sa a a yon modèl pwofil diferan",
-    "profileStudioEyebrow": "Estidyo pwofil",
-    "profileStudioSupportCopy": "Sa a se devandevan kliyan yo jije an kèk segond, kidonk dirije ak konfyans, klate ak vizyèl fò.",
-    "profileReadinessLabel": "Preparasyon pwofil",
-    "brandAssetsLabel": "Aktif mak",
-    "trustSignalsLabel": "Siyal konfyans",
-    "serviceReachLabel": "Pòte sèvis",
-    "photosSectionSupportCopy": "Kliyan yo eskane vizyèl anvan yo li detay. Itilize yon logo kare pwòp ak yon imaj kouvèti kè kontan ki sanble lokal, pwofesyonèl, epi reyèl.",
-    "identitySectionSupportCopy": "Non an, kategori a, tit la, ak deskripsyon an fòme premye enpresyon serye. Kenbe li konsiz, espesifik, epi orante kliyan.",
-    "quickChecklistLabel": "Lis verifikasyon rapid"
+    "vortexHint": "Antre kod akse"
   },
   "plans": {
     "free": "Gratis",
@@ -4342,9 +4296,7 @@
       "cancelled": "Anile",
       "published": "Pibliye",
       "regenerated": "Renouvle"
-    },
-    "autoPublishCount": "{{count}} ap pibliye otomatikman",
-    "queueBanner": "{{count}} bezwen ap aktive byento"
+    }
   },
   "helperRegister": {
     "step4": {
@@ -4479,9 +4431,7 @@
       "helperReplied": "Èd la te reponn",
       "responseFromHelper": "Repons bò kote èd la",
       "verifiedPurchase": "Achat verifye",
-      "showFewer": "Montre mwens",
-      "noVerifiedYet": "Pa gen revizyon verifye pou kounye a",
-      "noVerifiedYetSub": "Revizyon yo parèt apre travay OxSteed konplete, kidonk nouvo èd yo kòmanse san nòt jiskaske kliyan yo gen travay reyèl pou evalye."
+      "showFewer": "Montre mwens"
     },
     "services": {
       "quote": "Devis",
@@ -4511,14 +4461,7 @@
       "trustBadgesAria": "Badj konfyans ak verifikasyon",
       "qrProfileTitle": "Skanye pou louvri pwofil sa a sou OxSteed",
       "qrProfileCaption": "Kòd QR ki mennen nan pwofil asistan sa a sou OxSteed",
-      "postJobPublic": "Pibliye travay la pou tout moun",
-      "noReviewsYet": "Pa gen revizyon pou kounye a",
-      "saveHelper": "Sove",
-      "savedHelper": "Sovgade",
-      "addedSavedHelper": "Èd sovgade",
-      "removedSavedHelper": "Retire nan èd sovgade yo",
-      "saveHelperFailed": "Pa ka mete ajou èd sovgade a",
-      "cannotSaveSelf": "Ou pa ka sove pwòp pwofil ou"
+      "postJobPublic": "Pibliye travay la pou tout moun"
     },
     "share": {
       "copyLink": "Kopi lyen",
@@ -4549,10 +4492,7 @@
       "messageHelperAria": "Voye yon mesaj bay aidè sa a",
       "trustSignalsAria": "Siyal konfyans",
       "showDetails": "Afiche detay yo",
-      "hideDetails": "Kache detay yo",
-      "startingAtPrice": "Kòmanse a",
-      "flatRate": "flat",
-      "contactForPricing": "Kontakte pou pri"
+      "hideDetails": "Kache detay yo"
     },
     "trust": {
       "trustSignalsAria": "Konfyans ak Fyabilite",
@@ -4702,8 +4642,7 @@
       "messageComposer": "Konpoze Mesaj",
       "chatPanel": "Panèl Chat",
       "filterSearchResults": "Filtye rezilta chèch",
-      "clearSearch": "Efase rechech",
-      "expandChat": "Elaji chat la"
+      "clearSearch": "Efase rechech"
     }
   },
   "disputes": {
@@ -4995,9 +4934,7 @@
     "noReviews": "Pa gen evalyasyon ankò.",
     "reviewCount_one": "{{count}} evalyasyon",
     "reviewCount_other": "{{count}} evalyasyon",
-    "jobsDone": "{{count}} travay konplete",
-    "reviewCount": "{{count}} revizyon",
-    "reviewCount_plural": "{{count}} revizyon"
+    "jobsDone": "{{count}} travay konplete"
   },
   "cookieConsent": {
     "title": "Preferans Cookie",
@@ -5051,8 +4988,7 @@
       "copyFailed": "Pa t kapab kopye lyen an",
       "defaultMessage": "Gade {{name}} sou OxSteed: {{url}}"
     },
-    "contactBusiness": "Contact Business",
-    "badgeBusinessVerified": "Biznis verifye"
+    "contactBusiness": "Contact Business"
   },
   "leads": {
     "title": "Demann Sèvis",
@@ -5645,22 +5581,7 @@
     "disputeResolution": "Dipo yo rezoud traverse pwosesis chajbak bank w.",
     "canReport": "W ka rapòte violasyon; platfòm pral pran aksyon.",
     "termsAccepted": "Kondisyon aksepte",
-    "acceptTermsFailed": "Echèk aksepte kondisyon",
-    "depositLabel": "Depo",
-    "makeModel": "Mak / modèl",
-    "replacementValue": "Valè ranplasman",
-    "ownerRules": "Règ pwopriytè",
-    "ownerProvidedTerms": "Tèm ki bay pa pwopriytè a",
-    "ownerTermsDisclaimer": "Tèm sa yo te bay pa pwopriytè zouti a. OxSteed pa rédige, revize, valide, ni garanti yo.",
-    "peerAgreementTitle": "Akò lwaye ant pè yo",
-    "peerAgreementOxSteedRole": "OxSteed ede dokimante lwaye sa a men li pa pwopriytè, lokatè, enspektè, asirans, oswa garanti zouti a.",
-    "peerAgreementInspect": "Enspekte zouti a anvan itilizasyon epi deside si li apwopriye pou travay ou a.",
-    "peerAgreementDamage": "Ou ka responsab pou domaj pi lwen pase sèvis nòmal, pèt, vòl, pati ki manke, retou an reta, oswa retounen zouti a sal oswa ki pa fonksyone.",
-    "peerAgreementReport": "Ou ka rapòte move konpòtman oswa yon dispite atravè OxSteed.",
-    "peerAgreementAccept": "Mwen konprann sa a se yon lwaye vwazen a vwazen, OxSteed gen kontwòl limite sou zouti a, epi mwen aksepte responsablite yo anwo yo.",
-    "peerAgreementRequired": "Tanpri aksepte akò lwaye ant pè yo anvan ou rezève.",
-    "paymentConfirmed": "Peman konfime",
-    "markCompleted": "Mak konplete"
+    "acceptTermsFailed": "Echèk aksepte kondisyon"
   },
   "toolRentalsDir": {
     "heroEyebrow": "Lwaye Zouti",
@@ -7480,10 +7401,7 @@
     "feesShow": "Montre",
     "feesHide": "Kache",
     "feeTo": "Ba",
-    "feeUnknownJob": "Travay",
-    "newHelperBadge": "Nouvo èd",
-    "notEnoughHistoryTitle": "Pa ase istwa travay pou kounye a",
-    "notEnoughHistoryCopy": "Nòt fyabilite parèt apre travay OxSteed konplete. Pou kounye a, revize badj verifikasyon, sèvis, disponibilite, ak jan èd la kominike klèman."
+    "feeUnknownJob": "Travay"
   },
   "reportModal": {
     "report": "Rapòte",
@@ -7780,10 +7698,7 @@
     "nextStepsTitle": "Sa ki pral swiv",
     "nextStepOne": "Koòdone detay nan mesaj si sa nesesè.",
     "nextStepTwo": "Kalandriye ou montre randevou a lè li konfime.",
-    "nextStepThree": "Si plan chanje, anile nan rezèvasyon ou oswa kalandriye a.",
-    "bookBusinessHeading": "Reserve yon randevou",
-    "businessIntro": "Chwazi yon dat ak lè ki bon pou ou. Biznis lan pral konfime anvan yo bloke espas la.",
-    "invalidBusiness": "Biznis pa jwenn."
+    "nextStepThree": "Si plan chanje, anile nan rezèvasyon ou oswa kalandriye a."
   },
   "checkout": {
     "title": "Checkout",
@@ -7979,9 +7894,7 @@
     "detail": {
       "realLifeTitle": "Ka itilizasyon nan lavi rey?l",
       "connectsTitle": "Kijan li konekte",
-      "actionsTitle": "Pwochen aksyon ki itil",
-      "tabsTitle": "Onglet espas travay",
-      "tabsIntro": "Chak onglet nan espas travay sa a liste anba a pou ou ka wè sa ki ladan anvan ou klike. Vizibilite depann de wòl ou ak modèl biznis lan ap itilize."
+      "actionsTitle": "Pwochen aksyon ki itil"
     }
   },
   "businessPublicProfile": {
@@ -8062,169 +7975,113 @@
     }
   },
   "corporateOrg": {
+    "title": "Yerachi konpayi",
+    "subtitle": "Òganigram pèsonèl OxSteed ak tit konpayi yo.",
     "orgChart": {
-      "title": "Chato Oganigrann Antrepriz",
-      "subtitle": "Asinasman antrepriz aktif sou OxSteed, groupe pa depatman ak nivo eksperyans.",
-      "filterPlaceholder": "Filtre pa peyi (ISO-2)",
-      "loading": "Ap chaje oganigrann...",
-      "activeAssignments_one": "{{count}} asinasman aktif",
-      "activeAssignments_other": "{{count}} asinasman aktif",
-      "level": "Nivo {{level}}",
-      "emptyTitle": "Pa gen asinasman antrepriz pou kounye a",
-      "emptyBody": "Kòmanse pa asiye tèt ou oswa yon lòt administratè yon tit antrepriz.",
-      "scopeGlobal": "Global"
+      "pageTitle": "Òganigram konpayi",
+      "description": "Asiyasyon konpayi aktif nan OxSteed - gwoupe pa depatman ak ansyènte.",
+      "filterCountry": "Filtre pa peyi (ISO-2)",
+      "emptyTitle": "Pa gen okenn asiyasyon konpayi pou kounye a",
+      "emptyBody": "Kòmanse pa asiyen oumenm oswa yon lòt admin yon tit konpayi.",
+      "loading": "Chaje òganigram lan...",
+      "levelLabel": "Nivo {{level}}",
+      "globalScope": "Global",
+      "activeAssignments": "{{count}} asiyasyon aktif"
     },
     "assignments": {
-      "title": "Asinasman Antrepriz",
-      "subtitle": "Asiye tit antrepriz pou anplwaye OxSteed. Limite pa peyi, avèk jèsyon pèmisyon.",
-      "assignBtn": "Asiye tit",
-      "filterAllDepts": "Tout depatman",
-      "filterAllTitles": "Tout tit",
-      "filterCountryPlaceholder": "Peyi (ISO-2)",
-      "filterActiveOnly": "Aktif sèlman",
-      "filterEndedOnly": "Fini sèlman",
-      "loading": "Ap chaje...",
-      "noResults": "Pa gen asinasman ki koresponn ak filtè yo.",
-      "colUser": "Itilizatè",
-      "colTitle": "Tit",
-      "colDept": "Depatman",
-      "colScope": "Pòte",
-      "colStarted": "Kòmanse",
-      "colStatus": "Estati",
-      "statusActive": "Aktif",
-      "statusEnded": "Fini",
-      "modalTitleNew": "Asiye tit antrepriz",
-      "modalTitleEdit": "Modifye asinasman antrepriz",
-      "fieldAdminUser": "Itilizatè administratè",
-      "selectAdmin": "- Chwazi yon administratè -",
-      "hintAdminOnly": "Tit antrepriz sèlman ka bay itilizatè admin oswa super_admin.",
-      "fieldDept": "Depatman",
-      "selectDept": "- Chwazi depatman -",
-      "fieldTitle": "Tit",
-      "selectTitle": "- Chwazi tit -",
-      "hintSeniority": "Nivo eksperyans ki pi wo ak tit C-suite sèlman ka asiye pa super-admin.",
-      "fieldCountry": "Peyi (ISO-2)",
-      "countryPlaceholder": "ex. US, MX, HT, FR",
-      "hintGlobalScope": "Vid = pòte mondyal",
-      "fieldRegion": "Rejyon",
-      "regionNone": "- Okenn -",
-      "fieldReportsTo": "Rapòte a",
-      "reportsToNone": "- Okenn -",
-      "fieldNotes": "Nòt",
-      "validationRequired": "Itilizatè ak tit yo obligatwa.",
-      "saveBtnNew": "Asiye tit",
-      "saveBtnEdit": "Sove chanjman yo",
-      "cancel": "Anile",
-      "editTooltip": "Modifye",
-      "endTooltip": "Fini asinasman",
-      "endConfirm": "Fini asinasman sa a? Itilizatè a pral pèdi pèmisyon ki asosye yo.",
-      "errorLoad": "Echèk chajman asinasman yo.",
-      "errorSave": "Echèk sove asinasman an.",
-      "errorEnd": "Echèk fini asinasman an.",
-      "scopeGlobal": "Global",
-      "csuiteSuffix": "(C-suite)",
-      "senioritySuffix": "N{{level}}"
+      "pageTitle": "Asiyasyon konpayi",
+      "description": "Asiyen tit konpayi bay pèsonèl OxSteed. Pòte pa peyi, jere eksepsyon yo.",
+      "assignTitle": "Asiyen tit",
+      "editAssignment": "Modifye asiyasyon konpayi a",
+      "endConfirm": "Fini asiyasyon sa a? Itilizatè a ap pèdi pèmisyon ki asosye yo.",
+      "endError": "Echèk pou fini asiyasyon an.",
+      "noResults": "Pa gen asiyasyon ki matche ak filtè aktyèl yo.",
+      "filters": {
+        "allDepartments": "Tout depatman yo",
+        "allTitles": "Tout tit yo",
+        "country": "Peyi (ISO-2)",
+        "activeOnly": "Aktif sèlman",
+        "endedOnly": "Fini sèlman"
+      },
+      "table": {
+        "user": "Itilizatè",
+        "title": "Tit",
+        "department": "Depatman",
+        "scope": "Pòte",
+        "started": "Kòmansman",
+        "status": "Estati",
+        "active": "Aktif",
+        "ended": "Fini"
+      },
+      "modal": {
+        "userLabel": "Itilizatè admin *",
+        "userPlaceholder": "- Chwazi yon admin -",
+        "userHint": "Tit konpayi yo ka asiyen sèlman bay itilizatè admin oswa super_admin.",
+        "departmentLabel": "Depatman *",
+        "departmentPlaceholder": "- Chwazi depatman -",
+        "titleLabel": "Tit *",
+        "titlePlaceholder": "- Chwazi tit -",
+        "titleHint": "Nivo ansyènte ki pi wo yo ak tit C-suite yo ka asiyen sèlman pa super-admin.",
+        "countryLabel": "Peyi (ISO-2)",
+        "countryPlaceholder": "egz. US, MX, HT, FR",
+        "countryHint": "Vid = pòte global",
+        "regionLabel": "Rejyon",
+        "regionNone": "- Pa gen -",
+        "reportsToLabel": "Rapòte bay",
+        "reportsToNone": "- Pa gen -",
+        "notesLabel": "Nòt yo",
+        "cancel": "Anile",
+        "save": "Sove chanjman yo",
+        "create": "Asiyen tit",
+        "errorRequired": "Itilizatè a ak tit la oblijatwa.",
+        "errorSave": "Echèk pou sove asiyasyon an."
+      }
     },
     "departments": {
-      "title": "Konfigirasyon Antrepriz",
-      "subtitle": "Jere depatman, tit ak ansanm pèmisyon pa defò yo.",
-      "filterPlaceholder": "Filtre pa peyi lanse (ISO-2)",
-      "loading": "Ap chaje katalòg...",
-      "errorLoad": "Echèk chajman katalòg la.",
-      "addDept": "Ajoute depatman",
+      "pageTitle": "Depatman ak tit konpayi",
+      "description": "Super-admin sèlman. Jere depatman, tit, ak ansanm pèmisyon default yo.",
+      "newDepartment": "Nouvo depatman",
+      "newTitle": "Nouvo tit",
+      "editDepartment": "Modifye depatman",
+      "editTitle": "Modifye tit",
       "addTitle": "Ajoute tit",
-      "editDeptTitle": "Modifye depatman",
-      "newDeptTitle": "Nouvo depatman",
-      "editTitleTitle": "Modifye tit",
-      "newTitleTitle": "Nouvo tit",
-      "fieldCode": "Kòd",
-      "fieldName": "Non",
-      "fieldDesc": "Deskripsyon",
-      "fieldColor": "Koulè",
-      "fieldIcon": "Ikòn",
-      "iconPlaceholder": "non ikòn lucide",
-      "fieldSort": "Òd",
-      "fieldSeniority": "Eksperyans (1-10)",
-      "fieldSortOrder": "Òd triyaj",
-      "fieldDept": "Depatman",
-      "fieldActive": "Aktif",
-      "fieldCsuite": "Tit C-suite",
-      "defaultPerms": "Pèmisyon pa defò",
-      "saveDefaults": "Sove valè pa defò yo",
-      "save": "Sove",
-      "cancel": "Anile",
-      "errorSave": "Echèk sove.",
-      "errorSavePerms": "Echèk sove pèmisyon yo.",
-      "activeSeat_one": "{{count}} plas aktif",
-      "activeSeat_other": "{{count}} plas aktif",
-      "editTitleLink": "Modifye tit",
-      "coverage": {
-        "assigned": "Asiye",
-        "country": "Kouvri nan peyi a",
-        "global": "Kouvri mondyalman",
-        "open": "Priyorite ouvè"
+      "permissionsButton": "Pèmisyon",
+      "savePermissions": "Sove pèmisyon default yo",
+      "noTitles": "Pa gen tit defini.",
+      "titlesLabel": "Tit yo",
+      "metaTitles": "{{count}} tit",
+      "metaPermissions": "{{count}} pèmisyon default",
+      "form": {
+        "codeLabel": "Kòd *",
+        "nameLabel": "Non *",
+        "descriptionLabel": "Deskripsyon",
+        "colorLabel": "Koulè",
+        "iconLabel": "Ikòn",
+        "sortLabel": "Lòd",
+        "active": "Aktif",
+        "csuite": "Tit C-suite",
+        "seniorityLabel": "Ansyènte (1-10)",
+        "departmentLabel": "Depatman *",
+        "errorSave": "Echèk pou sove.",
+        "cancel": "Anile",
+        "save": "Sove"
       }
     },
     "guards": {
-      "targetNotStaff": "Tit antrepriz sèlman ka asiye a itilizatè admin oswa super_admin.",
-      "noCsuiteForAdmins": "Sèlman super-admin ka asiye oswa jere tit C-suite.",
-      "cannotGrantAboveLevel": "Ou pa ka asiye yon tit ak nivo eksperyans ki pi wo pase pa ou.",
-      "cannotGrantPermission": "Ou pa ka bay yon pèmisyon ou pa genyen."
+      "cannotGrantAboveLevel": "Ou pa ka asiyen yon tit ki pi wo pase pwòp nivo ansyènte ou.",
+      "noCsuiteForAdmins": "Sèlman super-admin yo ka asiyen tit C-suite.",
+      "targetNotStaff": "Tit konpayi yo ka asiyen sèlman bay itilizatè admin oswa super_admin.",
+      "permissionDenied": "Pèmisyon konpayi obligatwa.",
+      "duplicateAssignment": "Itilizatè a deja gen tit sa a nan peyi sa a."
     },
     "departmentNames": {
-      "executive": "Direksyon",
-      "technology": "Teknoloji",
-      "operations": "Operasyon",
-      "marketing": "Maketing",
-      "finance": "Finans",
-      "people": "Moun",
-      "data": "Done"
+      "executive": "Egzekitif ak estrateji",
+      "technology": "Teknoloji ak Enjeniri",
+      "operations": "Operasyon ak siksè kliyan",
+      "marketing": "Maketing, vant ak kwasans",
+      "finance": "Finans, legal ak konfòmite",
+      "people": "Moun ak administrasyon",
+      "data": "Done, rechèch ak inovasyon"
     }
-  },
-  "inventory": {
-    "stock": "Envantè",
-    "initialStock": "Envantè inisyal",
-    "reorderLevel": "Nivo rekòmande",
-    "lowStock": "Ba",
-    "lowStockAlerts": "Alèt envantè ba",
-    "updated": "Envantè mete ajou"
-  },
-  "pricing": {
-    "productRulesTitle": "Règ pri pwodwi",
-    "productRulesDesc": "Rabè volim, pwomosyon, pakè, ak pri sezonnye pou pwodwi ou yo.",
-    "addRule": "Ajoute règ",
-    "noRules": "Pa gen règ pri pou kounye a",
-    "createFirst": "Kreye premye règ ou a",
-    "createNewRule": "Nouvo règ pri",
-    "type": "Tip",
-    "priority": "Priyorite",
-    "adjustment": "Rabè / Ajisteman",
-    "percentage": "Pousantaj rabè",
-    "fixedAmount": "Montan fiks rabè",
-    "multiplier": "Miltiplikatè pri",
-    "validFrom": "Valab depi",
-    "validUntil": "Valab jiskaske",
-    "volumeBased": "Baze sou volim",
-    "timeLimited": "Pwomosyon",
-    "bundleOffer": "Pakè",
-    "customerSegment": "Segman kliyan",
-    "seasonal": "Sezonnye",
-    "ruleCreated": "Règ pri kreye"
-  },
-  "products": {
-    "management": "Jesyon pwodwi",
-    "addProduct": "Ajoute pwodwi",
-    "noProducts": "Pa gen pwodwi pou kounye a",
-    "createFirst": "Kreye premye pwodwi ou a",
-    "createNew": "Nouvo pwodwi",
-    "created": "Pwodwi kreye",
-    "category": "Kategori",
-    "sku": "SKU",
-    "cost": "Pri (opsyonèl)",
-    "priceAdjustment": "Ajisteman pri",
-    "variants": "Varyant",
-    "addVariant": "Ajoute varyant",
-    "variantName": "Non varyant",
-    "variantCreated": "Varyant kreye"
   }
 }

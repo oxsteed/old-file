@@ -161,16 +161,7 @@
     "errorCreating": "Failed to create. Please try again.",
     "done": "Done",
     "failedToCancel": "Failed to cancel. Please try again.",
-    "fillRequiredFields": "Please fill in all required fields.",
-    "name": "Nom",
-    "price": "Prix",
-    "status": "Statut",
-    "email": "E-mail",
-    "phone": "Telephone",
-    "ongoing": "En cours",
-    "confirmDelete": "Supprimer cet element ?",
-    "deleted": "Supprime",
-    "failedToDelete": "Echec de la suppression"
+    "fillRequiredFields": "Please fill in all required fields."
   },
   "jobs": {
     "title": "Détails de la mission",
@@ -1543,8 +1534,7 @@
       "confirmTitle": "Supprimer Votre Compte",
       "confirmDesc": "Cette action ne peut pas être annulée. Toutes vos données seront définitivement supprimées.",
       "yesDelete": "Oui, Supprimer Mon Compte"
-    },
-    "tabPaymentPolicies": "Politiques de paiement"
+    }
   },
   "messages": {
     "title": "Messages",
@@ -2087,27 +2077,7 @@
       "toolSaveFailed": "Erreur lors de l'enregistrement de l'outil",
       "toolRemoved": "Outil supprimé",
       "toolRemoveFailed": "Erreur lors de la suppression de l'outil",
-      "removeToolConfirm": "Êtes-vous sûr de vouloir supprimer cet outil?",
-      "toolNameRequired": "Le nom de l'outil est obligatoire",
-      "toolCategoryRequired": "La categorie de l'outil est obligatoire",
-      "toolCityRequired": "La ville est obligatoire pour que les locataires sachent ou recuperer l'outil",
-      "toolPhotoLabel": "Photo de l'outil",
-      "toolPhotoHint": "Ajoutez une photo claire pour que les locataires puissent inspecter l'outil avant de reserver.",
-      "toolPhotoEmpty": "Pas encore de photo",
-      "toolImageInvalid": "Choisissez une image JPG, PNG, GIF ou WebP.",
-      "toolImageTooLarge": "La photo de l'outil doit faire 10 Mo ou moins.",
-      "ownerRulesLabel": "Regles du proprietaire / notes de manipulation",
-      "ownerRulesPlaceholder": "Exemple : retourner propre, utiliser uniquement avec du bois, ne pas utiliser sous la pluie, inclure les piles/chargeur.",
-      "ownerCustomTermsLabel": "Conditions de location fournies par le proprietaire",
-      "ownerCustomTermsPlaceholder": "Optionnel. Ajoutez les conditions d'accord que vous souhaitez que les locataires acceptent, telles que les attentes de retour tardif, les regles de nettoyage, la responsabilite des accessoires manquants ou les attentes de remplacement.",
-      "ownerCustomTermsHint": "Les locataires verront ces conditions comme fournies par le proprietaire. OxSteed ne les redige pas, ne les examine pas, ne les valide pas et ne les garantit pas.",
-      "ownerAttestationText": "Je comprends qu'il s'agit d'une location entre voisins. Je suis responsable de decrire avec precision l'outil, d'etablir des attentes de regles/depot et de gerer les problemes de condition, de dommages, de retour et de paiement avec le locataire. OxSteed aide uniquement a documenter l'annonce, la reservation, les messages, les rapports et les enregistrements d'accord.",
-      "ownerAttestationRequired": "Confirmez la reconnaissance de location entre pairs avant de lister cet outil",
-      "replacementValueLabel": "Valeur de remplacement",
-      "hourlyRateInvalid": "Le tarif horaire doit etre superieur a 0",
-      "dailyRateRequired": "Le tarif journalier doit etre superieur a 0",
-      "depositInvalid": "Le depot ne peut pas etre negatif",
-      "replacementInvalid": "La valeur de remplacement ne peut pas etre negative"
+      "removeToolConfirm": "Êtes-vous sûr de vouloir supprimer cet outil?"
     },
     "personalCare": {
       "title": "Ma Santé & Bien-être",
@@ -4002,23 +3972,7 @@
       "ai_drafts": "Brouillons IA"
     },
     "switchToVortex": "Rejoindre ou gerer les espaces",
-    "vortexHint": "Entrer un code d acces",
-    "switchBusiness": "Changer d'entreprise",
-    "tabWorkflowLabel": "Systeme de flux de travail",
-    "tabAnalyticsLabel": "Analytique",
-    "tabLoyaltyLabel": "Fidelite",
-    "tabIntegrationsLabel": "Integrations",
-    "switchTemplate": "Changer de modele",
-    "switchTemplateTitle": "Basculer cette entreprise vers un autre modele de profil",
-    "profileStudioEyebrow": "Studio de profil",
-    "profileStudioSupportCopy": "C'est la vitrine que les clients jugent en quelques secondes, alors mettez en avant la confiance, la clarte et des visuels forts.",
-    "profileReadinessLabel": "Completude du profil",
-    "brandAssetsLabel": "Actifs de marque",
-    "trustSignalsLabel": "Signaux de confiance",
-    "serviceReachLabel": "Portee du service",
-    "photosSectionSupportCopy": "Les clients scannent les visuels avant de lire les details. Utilisez un logo carre propre et une image de couverture accueillante qui semble locale, professionnelle et authentique.",
-    "identitySectionSupportCopy": "Le nom, la categorie, le titre et la description forment la premiere impression serieuse. Restez concis, specifique et oriente client.",
-    "quickChecklistLabel": "Liste de controle rapide"
+    "vortexHint": "Entrer un code d acces"
   },
   "plans": {
     "free": "Gratuit",
@@ -4342,9 +4296,7 @@
       "cancelled": "Annulé",
       "published": "Publié",
       "regenerated": "Renouvelé"
-    },
-    "autoPublishCount": "{{count}} en publication automatique",
-    "queueBanner": "{{count}} besoins s'activent bientot"
+    }
   },
   "helperRegister": {
     "step4": {
@@ -4479,9 +4431,7 @@
       "helperReplied": "L'aidant a répondu",
       "responseFromHelper": "Réponse de l'aidant",
       "verifiedPurchase": "Achat vérifié",
-      "showFewer": "Afficher moins",
-      "noVerifiedYet": "Pas encore d'avis verifies",
-      "noVerifiedYetSub": "Les avis apparaissent apres les missions OxSteed terminees, donc les nouveaux prestataires commencent sans note jusqu'a ce que les clients aient du vrai travail a evaluer."
+      "showFewer": "Afficher moins"
     },
     "services": {
       "quote": "Sur devis",
@@ -4511,14 +4461,7 @@
       "trustBadgesAria": "Badges de confiance et de vérification",
       "qrProfileTitle": "Scannez pour ouvrir ce profil sur OxSteed",
       "qrProfileCaption": "Code QR vers le profil de cet assistant sur OxSteed",
-      "postJobPublic": "Publier pour tous",
-      "noReviewsYet": "Pas encore d'avis",
-      "saveHelper": "Sauvegarder",
-      "savedHelper": "Sauvegarde",
-      "addedSavedHelper": "Prestataire sauvegarde",
-      "removedSavedHelper": "Retire des prestataires sauvegardes",
-      "saveHelperFailed": "Impossible de mettre a jour le prestataire sauvegarde",
-      "cannotSaveSelf": "Vous ne pouvez pas sauvegarder votre propre profil"
+      "postJobPublic": "Publier pour tous"
     },
     "share": {
       "copyLink": "Copier le lien",
@@ -4549,10 +4492,7 @@
       "messageHelperAria": "Envoyer un message à ce prestataire",
       "trustSignalsAria": "Signaux de confiance",
       "showDetails": "Afficher les détails",
-      "hideDetails": "Masquer les détails",
-      "startingAtPrice": "A partir de",
-      "flatRate": "fixe",
-      "contactForPricing": "Contacter pour le prix"
+      "hideDetails": "Masquer les détails"
     },
     "trust": {
       "trustSignalsAria": "Confiance et Fiabilité",
@@ -4702,8 +4642,7 @@
       "messageComposer": "Compositeur de messages",
       "chatPanel": "Panneau de chat",
       "filterSearchResults": "Filtrer les résultats de recherche",
-      "clearSearch": "Effacer la recherche",
-      "expandChat": "Agrandir le chat"
+      "clearSearch": "Effacer la recherche"
     }
   },
   "disputes": {
@@ -4995,9 +4934,7 @@
     "noReviews": "Aucun avis pour l'instant.",
     "reviewCount_one": "{{count}} avis",
     "reviewCount_other": "{{count}} avis",
-    "jobsDone": "{{count}} missions terminées",
-    "reviewCount": "{{count}} avis",
-    "reviewCount_plural": "{{count}} avis"
+    "jobsDone": "{{count}} missions terminées"
   },
   "cookieConsent": {
     "title": "Préférences de cookies",
@@ -5051,8 +4988,7 @@
       "copyFailed": "Impossible de copier le lien",
       "defaultMessage": "Découvrez {{name}} sur OxSteed : {{url}}"
     },
-    "contactBusiness": "Contact Business",
-    "badgeBusinessVerified": "Entreprise verifiee"
+    "contactBusiness": "Contact Business"
   },
   "leads": {
     "title": "Demandes de Services",
@@ -5645,22 +5581,7 @@
     "disputeResolution": "Les litiges sont résolus par le processus de rétrofacturation de votre banque.",
     "canReport": "Vous pouvez signaler les violations; la plateforme prendra des mesures.",
     "termsAccepted": "Conditions acceptées",
-    "acceptTermsFailed": "Impossible d'accepter les conditions",
-    "depositLabel": "Caution",
-    "makeModel": "Marque / modele",
-    "replacementValue": "Valeur de remplacement",
-    "ownerRules": "Regles du proprietaire",
-    "ownerProvidedTerms": "Conditions fournies par le proprietaire",
-    "ownerTermsDisclaimer": "Ces conditions ont ete fournies par le proprietaire de l'outil. OxSteed ne les redige pas, ne les examine pas, ne les valide pas et ne les garantit pas.",
-    "peerAgreementTitle": "Accord de location entre pairs",
-    "peerAgreementOxSteedRole": "OxSteed aide a documenter cette location mais n'est pas le proprietaire, locataire, inspecteur, assureur ou garant.",
-    "peerAgreementInspect": "Inspectez l'outil avant utilisation et decidez s'il est approprie pour votre tache.",
-    "peerAgreementDamage": "Vous pouvez etre responsable des dommages au-dela de l'usure normale, de la perte, du vol, des pieces manquantes, du retour tardif ou du retour de l'outil sale ou non fonctionnel.",
-    "peerAgreementReport": "Vous pouvez signaler un mauvais comportement ou un litige via OxSteed.",
-    "peerAgreementAccept": "Je comprends qu'il s'agit d'une location entre voisins, OxSteed a un controle limite sur l'outil et j'accepte les responsabilites ci-dessus.",
-    "peerAgreementRequired": "Veuillez accepter l'accord de location entre pairs avant de reserver.",
-    "paymentConfirmed": "Paiement confirme",
-    "markCompleted": "Marquer comme termine"
+    "acceptTermsFailed": "Impossible d'accepter les conditions"
   },
   "toolRentalsDir": {
     "heroEyebrow": "Location d'Outils",
@@ -7480,10 +7401,7 @@
     "feesShow": "Afficher",
     "feesHide": "Masquer",
     "feeTo": "À",
-    "feeUnknownJob": "Travail",
-    "newHelperBadge": "Nouveau prestataire",
-    "notEnoughHistoryTitle": "Pas encore assez d'historique de missions",
-    "notEnoughHistoryCopy": "Le score de fiabilite apparait apres les missions OxSteed terminees. Pour l'instant, consultez les badges de verification, les services, la disponibilite et la clarte de communication du prestataire."
+    "feeUnknownJob": "Travail"
   },
   "reportModal": {
     "report": "Signaler",
@@ -7780,10 +7698,7 @@
     "nextStepsTitle": "La suite",
     "nextStepOne": "Coordonnez les détails par message si besoin.",
     "nextStepTwo": "Votre calendrier affiche le rendez-vous une fois confirmé.",
-    "nextStepThree": "Si les plans changent, annulez depuis votre réservation ou le calendrier.",
-    "bookBusinessHeading": "Prendre rendez-vous",
-    "businessIntro": "Choisissez une date et une heure qui vous conviennent. L'entreprise confirmera avant de bloquer le creneau.",
-    "invalidBusiness": "Entreprise introuvable."
+    "nextStepThree": "Si les plans changent, annulez depuis votre réservation ou le calendrier."
   },
   "checkout": {
     "title": "Checkout",
@@ -7979,9 +7894,7 @@
     "detail": {
       "realLifeTitle": "Cas d?utilisation concrets",
       "connectsTitle": "Comment cela se connecte",
-      "actionsTitle": "Prochaines actions utiles",
-      "tabsTitle": "Onglets de l'espace de travail",
-      "tabsIntro": "Chaque onglet de cet espace de travail est liste ci-dessous pour que vous puissiez voir ce qui s'y trouve avant de cliquer. La visibilite depend de votre role et du modele utilise par l'entreprise."
+      "actionsTitle": "Prochaines actions utiles"
     }
   },
   "businessPublicProfile": {
@@ -8062,169 +7975,113 @@
     }
   },
   "corporateOrg": {
+    "title": "Hierarchie corporative",
+    "subtitle": "Organigramme du personnel OxSteed et titres corporatifs.",
     "orgChart": {
-      "title": "Organigramme d'entreprise",
-      "subtitle": "Assignations d'entreprise actives sur OxSteed, groupees par departement et anciennete.",
-      "filterPlaceholder": "Filtrer par pays (ISO-2)",
+      "pageTitle": "Organigramme corporatif",
+      "description": "Affectations corporatives actives chez OxSteed - regroupees par departement et anciennete.",
+      "filterCountry": "Filtrer par pays (ISO-2)",
+      "emptyTitle": "Aucune affectation corporative pour l'instant",
+      "emptyBody": "Commencez en vous attribuant ou en attribuant a un autre administrateur un titre corporatif.",
       "loading": "Chargement de l'organigramme...",
-      "activeAssignments_one": "{{count}} assignation active",
-      "activeAssignments_other": "{{count}} assignations actives",
-      "level": "Niveau {{level}}",
-      "emptyTitle": "Aucune assignation d'entreprise pour l'instant",
-      "emptyBody": "Commencez par attribuer un titre d'entreprise a vous-meme ou a un autre administrateur.",
-      "scopeGlobal": "Global"
+      "levelLabel": "Niveau {{level}}",
+      "globalScope": "Global",
+      "activeAssignments": "{{count}} affectations actives"
     },
     "assignments": {
-      "title": "Assignations d'entreprise",
-      "subtitle": "Attribuez des titres d'entreprise au personnel OxSteed. Portee par pays, avec gestion des permissions.",
-      "assignBtn": "Attribuer un titre",
-      "filterAllDepts": "Tous les departements",
-      "filterAllTitles": "Tous les titres",
-      "filterCountryPlaceholder": "Pays (ISO-2)",
-      "filterActiveOnly": "Actifs seulement",
-      "filterEndedOnly": "Termines seulement",
-      "loading": "Chargement...",
-      "noResults": "Aucune assignation ne correspond aux filtres actuels.",
-      "colUser": "Utilisateur",
-      "colTitle": "Titre",
-      "colDept": "Departement",
-      "colScope": "Portee",
-      "colStarted": "Debut",
-      "colStatus": "Statut",
-      "statusActive": "Actif",
-      "statusEnded": "Termine",
-      "modalTitleNew": "Attribuer un titre d'entreprise",
-      "modalTitleEdit": "Modifier l'assignation d'entreprise",
-      "fieldAdminUser": "Utilisateur administrateur",
-      "selectAdmin": "- Selectionner un administrateur -",
-      "hintAdminOnly": "Les titres d'entreprise ne peuvent etre attribues qu'aux utilisateurs admin ou super_admin.",
-      "fieldDept": "Departement",
-      "selectDept": "- Selectionner un departement -",
-      "fieldTitle": "Titre",
-      "selectTitle": "- Selectionner un titre -",
-      "hintSeniority": "Les niveaux d'anciennete superieurs et les titres C-suite ne peuvent etre attribues que par le super-admin.",
-      "fieldCountry": "Pays (ISO-2)",
-      "countryPlaceholder": "ex. US, MX, HT, FR",
-      "hintGlobalScope": "Vide = portee globale",
-      "fieldRegion": "Region",
-      "regionNone": "- Aucune -",
-      "fieldReportsTo": "Responsable hierarchique",
-      "reportsToNone": "- Aucun -",
-      "fieldNotes": "Notes",
-      "validationRequired": "L'utilisateur et le titre sont requis.",
-      "saveBtnNew": "Attribuer le titre",
-      "saveBtnEdit": "Enregistrer les modifications",
-      "cancel": "Annuler",
-      "editTooltip": "Modifier",
-      "endTooltip": "Terminer l'assignation",
-      "endConfirm": "Terminer cette assignation ? L'utilisateur perdra les permissions associees.",
-      "errorLoad": "Impossible de charger les assignations.",
-      "errorSave": "Impossible d'enregistrer l'assignation.",
-      "errorEnd": "Impossible de terminer l'assignation.",
-      "scopeGlobal": "Global",
-      "csuiteSuffix": "(C-suite)",
-      "senioritySuffix": "N{{level}}"
+      "pageTitle": "Affectations corporatives",
+      "description": "Attribuez des titres corporatifs au personnel OxSteed. Portee par pays, gestion des exceptions.",
+      "assignTitle": "Attribuer un titre",
+      "editAssignment": "Modifier l'affectation corporative",
+      "endConfirm": "Terminer cette affectation ? L'utilisateur perdra les permissions associees.",
+      "endError": "Echec de la fin d'affectation.",
+      "noResults": "Aucune affectation ne correspond aux filtres actuels.",
+      "filters": {
+        "allDepartments": "Tous les departements",
+        "allTitles": "Tous les titres",
+        "country": "Pays (ISO-2)",
+        "activeOnly": "Actives uniquement",
+        "endedOnly": "Terminees uniquement"
+      },
+      "table": {
+        "user": "Utilisateur",
+        "title": "Titre",
+        "department": "Departement",
+        "scope": "Portee",
+        "started": "Debut",
+        "status": "Statut",
+        "active": "Active",
+        "ended": "Terminee"
+      },
+      "modal": {
+        "userLabel": "Utilisateur administrateur *",
+        "userPlaceholder": "- Selectionner un administrateur -",
+        "userHint": "Les titres corporatifs ne peuvent etre attribues qu'a des utilisateurs admin ou super_admin.",
+        "departmentLabel": "Departement *",
+        "departmentPlaceholder": "- Selectionner un departement -",
+        "titleLabel": "Titre *",
+        "titlePlaceholder": "- Selectionner un titre -",
+        "titleHint": "Les niveaux d'anciennete plus eleves et les titres C-suite ne peuvent etre attribues que par le super-administrateur.",
+        "countryLabel": "Pays (ISO-2)",
+        "countryPlaceholder": "ex. US, MX, HT, FR",
+        "countryHint": "Vide = portee globale",
+        "regionLabel": "Region",
+        "regionNone": "- Aucune -",
+        "reportsToLabel": "Reporte a",
+        "reportsToNone": "- Aucun -",
+        "notesLabel": "Notes",
+        "cancel": "Annuler",
+        "save": "Enregistrer les modifications",
+        "create": "Attribuer le titre",
+        "errorRequired": "L'utilisateur et le titre sont obligatoires.",
+        "errorSave": "Echec de l'enregistrement de l'affectation."
+      }
     },
     "departments": {
-      "title": "Configuration d'entreprise",
-      "subtitle": "Gerer les departements, les titres et leurs ensembles de permissions par defaut.",
-      "filterPlaceholder": "Filtrer par pays de lancement (ISO-2)",
-      "loading": "Chargement du catalogue...",
-      "errorLoad": "Impossible de charger le catalogue.",
-      "addDept": "Ajouter un departement",
+      "pageTitle": "Departements et titres corporatifs",
+      "description": "Super-administrateur uniquement. Gerez les departements, les titres et leurs ensembles de permissions par defaut.",
+      "newDepartment": "Nouveau departement",
+      "newTitle": "Nouveau titre",
+      "editDepartment": "Modifier le departement",
+      "editTitle": "Modifier le titre",
       "addTitle": "Ajouter un titre",
-      "editDeptTitle": "Modifier le departement",
-      "newDeptTitle": "Nouveau departement",
-      "editTitleTitle": "Modifier le titre",
-      "newTitleTitle": "Nouveau titre",
-      "fieldCode": "Code",
-      "fieldName": "Nom",
-      "fieldDesc": "Description",
-      "fieldColor": "Couleur",
-      "fieldIcon": "Icone",
-      "iconPlaceholder": "nom d'icone lucide",
-      "fieldSort": "Ordre",
-      "fieldSeniority": "Anciennete (1-10)",
-      "fieldSortOrder": "Ordre de tri",
-      "fieldDept": "Departement",
-      "fieldActive": "Actif",
-      "fieldCsuite": "Titre C-suite",
-      "defaultPerms": "Permissions par defaut",
-      "saveDefaults": "Enregistrer les valeurs par defaut",
-      "save": "Enregistrer",
-      "cancel": "Annuler",
-      "errorSave": "Impossible d'enregistrer.",
-      "errorSavePerms": "Impossible d'enregistrer les permissions.",
-      "activeSeat_one": "{{count}} poste actif",
-      "activeSeat_other": "{{count}} postes actifs",
-      "editTitleLink": "Modifier le titre",
-      "coverage": {
-        "assigned": "Assigne",
-        "country": "Couvert dans le pays",
-        "global": "Couvert globalement",
-        "open": "Priorite ouverte"
+      "permissionsButton": "Permissions",
+      "savePermissions": "Enregistrer les permissions par defaut",
+      "noTitles": "Aucun titre defini.",
+      "titlesLabel": "Titres",
+      "metaTitles": "{{count}} titres",
+      "metaPermissions": "{{count}} permissions par defaut",
+      "form": {
+        "codeLabel": "Code *",
+        "nameLabel": "Nom *",
+        "descriptionLabel": "Description",
+        "colorLabel": "Couleur",
+        "iconLabel": "Icone",
+        "sortLabel": "Ordre",
+        "active": "Actif",
+        "csuite": "Titre C-suite",
+        "seniorityLabel": "Anciennete (1-10)",
+        "departmentLabel": "Departement *",
+        "errorSave": "Echec de l'enregistrement.",
+        "cancel": "Annuler",
+        "save": "Enregistrer"
       }
     },
     "guards": {
-      "targetNotStaff": "Les titres d'entreprise ne peuvent etre attribues qu'aux utilisateurs admin ou super_admin.",
-      "noCsuiteForAdmins": "Seul le super-admin peut attribuer ou gerer les titres C-suite.",
-      "cannotGrantAboveLevel": "Vous ne pouvez pas attribuer un titre avec un niveau d'anciennete superieur au votre.",
-      "cannotGrantPermission": "Vous ne pouvez pas accorder une permission que vous ne possedez pas."
+      "cannotGrantAboveLevel": "Impossible d'attribuer un titre superieur a votre propre niveau d'anciennete.",
+      "noCsuiteForAdmins": "Seuls les super-administrateurs peuvent attribuer des titres C-suite.",
+      "targetNotStaff": "Les titres corporatifs ne peuvent etre attribues qu'a des utilisateurs admin ou super_admin.",
+      "permissionDenied": "Permission corporative requise.",
+      "duplicateAssignment": "L'utilisateur detient deja ce titre dans ce pays."
     },
     "departmentNames": {
-      "executive": "Direction",
-      "technology": "Technologie",
-      "operations": "Operations",
-      "marketing": "Marketing",
-      "finance": "Finance",
-      "people": "Ressources humaines",
-      "data": "Donnees"
+      "executive": "Direction et strategie",
+      "technology": "Technologie et ingenierie",
+      "operations": "Operations et succes client",
+      "marketing": "Marketing, ventes et croissance",
+      "finance": "Finance, juridique et conformite",
+      "people": "Personnes et administration",
+      "data": "Donnees, recherche et innovation"
     }
-  },
-  "inventory": {
-    "stock": "Stock",
-    "initialStock": "Stock initial",
-    "reorderLevel": "Niveau de reapprovisionnement",
-    "lowStock": "Bas",
-    "lowStockAlerts": "Alertes de stock bas",
-    "updated": "Inventaire mis a jour"
-  },
-  "pricing": {
-    "productRulesTitle": "Regles de prix du produit",
-    "productRulesDesc": "Remises sur volume, promotions, offres groupees et tarification saisonniere pour vos produits.",
-    "addRule": "Ajouter une regle",
-    "noRules": "Pas encore de regles de tarification",
-    "createFirst": "Creez votre premiere regle",
-    "createNewRule": "Nouvelle regle de tarification",
-    "type": "Type",
-    "priority": "Priorite",
-    "adjustment": "Remise / Ajustement",
-    "percentage": "Pourcentage de remise",
-    "fixedAmount": "Montant fixe de remise",
-    "multiplier": "Multiplicateur de prix",
-    "validFrom": "Valide du",
-    "validUntil": "Valide jusqu'au",
-    "volumeBased": "Base sur le volume",
-    "timeLimited": "Promotion",
-    "bundleOffer": "Offre groupee",
-    "customerSegment": "Segment client",
-    "seasonal": "Saisonnier",
-    "ruleCreated": "Regle de tarification creee"
-  },
-  "products": {
-    "management": "Gestion des produits",
-    "addProduct": "Ajouter un produit",
-    "noProducts": "Pas encore de produits",
-    "createFirst": "Creez votre premier produit",
-    "createNew": "Nouveau produit",
-    "created": "Produit cree",
-    "category": "Categorie",
-    "sku": "Reference",
-    "cost": "Cout (optionnel)",
-    "priceAdjustment": "Ajustement de prix",
-    "variants": "Variantes",
-    "addVariant": "Ajouter une variante",
-    "variantName": "Nom de la variante",
-    "variantCreated": "Variante creee"
   }
 }

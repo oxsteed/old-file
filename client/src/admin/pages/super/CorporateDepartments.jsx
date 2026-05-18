@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
   Briefcase,
@@ -104,7 +103,6 @@ function formatCodeLabel(code) {
 }
 
 function DepartmentModal({ initial, onClose, onSaved }) {
-  const { t } = useTranslation();
   const [form, setForm] = useState({
     id: initial?.id || null,
     code: initial?.code || '',
@@ -130,7 +128,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
       await upsertCorporateDepartment(form);
       onSaved();
     } catch (err) {
-      setError(err?.response?.data?.error || t('corporateOrg.departments.errorSave'));
+      setError(err?.response?.data?.error || 'Failed to save.');
     } finally {
       setSaving(false);
     }
@@ -141,7 +139,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
       <div className="w-full max-w-lg rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">
-            {initial ? t('corporateOrg.departments.editDeptTitle') : t('corporateOrg.departments.newDeptTitle')}
+            {initial ? 'Edit department' : 'New department'}
           </h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-300">
             <X size={18} />
@@ -151,7 +149,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.fieldCode')} *</label>
+              <label className="mb-1 block text-sm text-gray-400">Code *</label>
               <input
                 type="text"
                 value={form.code}
@@ -161,7 +159,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.fieldName')} *</label>
+              <label className="mb-1 block text-sm text-gray-400">Name *</label>
               <input
                 type="text"
                 value={form.name}
@@ -172,7 +170,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.fieldDesc')}</label>
+            <label className="mb-1 block text-sm text-gray-400">Description</label>
             <textarea
               value={form.description}
               onChange={(event) => setF('description', event.target.value)}
@@ -183,7 +181,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.fieldColor')}</label>
+              <label className="mb-1 block text-sm text-gray-400">Color</label>
               <input
                 type="color"
                 value={form.color}
@@ -192,17 +190,17 @@ function DepartmentModal({ initial, onClose, onSaved }) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.fieldIcon')}</label>
+              <label className="mb-1 block text-sm text-gray-400">Icon</label>
               <input
                 type="text"
                 value={form.icon}
                 onChange={(event) => setF('icon', event.target.value)}
-                placeholder={t('corporateOrg.departments.iconPlaceholder')}
+                placeholder="lucide name"
                 className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.fieldSort')}</label>
+              <label className="mb-1 block text-sm text-gray-400">Sort</label>
               <input
                 type="number"
                 value={form.sort_order}
@@ -218,7 +216,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
               checked={form.is_active}
               onChange={(event) => setF('is_active', event.target.checked)}
             />
-            {t('corporateOrg.departments.fieldActive')}
+            Active
           </label>
 
           {error && (
@@ -229,7 +227,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
 
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white">
-              {t('corporateOrg.departments.cancel')}
+              Cancel
             </button>
             <button
               type="submit"
@@ -237,7 +235,7 @@ function DepartmentModal({ initial, onClose, onSaved }) {
               className="flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50"
             >
               {saving && <Loader2 size={14} className="animate-spin" />}
-              {t('corporateOrg.departments.save')}
+              Save
             </button>
           </div>
         </form>
@@ -247,7 +245,6 @@ function DepartmentModal({ initial, onClose, onSaved }) {
 }
 
 function TitleModal({ initial, departments, onClose, onSaved }) {
-  const { t } = useTranslation();
   const [form, setForm] = useState({
     id: initial?.id || null,
     department_id: initial?.department_id || departments[0]?.id || '',
@@ -274,7 +271,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
       await upsertCorporateTitle(form);
       onSaved();
     } catch (err) {
-      setError(err?.response?.data?.error || t('corporateOrg.departments.errorSave'));
+      setError(err?.response?.data?.error || 'Failed to save.');
     } finally {
       setSaving(false);
     }
@@ -285,7 +282,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">
-            {initial ? t('corporateOrg.departments.editTitleTitle') : t('corporateOrg.departments.newTitleTitle')}
+            {initial ? 'Edit title' : 'New title'}
           </h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-300">
             <X size={18} />
@@ -294,7 +291,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.fieldDept')} *</label>
+            <label className="mb-1 block text-sm text-gray-400">Department *</label>
             <select
               value={form.department_id}
               onChange={(event) => setF('department_id', Number(event.target.value))}
@@ -308,7 +305,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.fieldCode')} *</label>
+              <label className="mb-1 block text-sm text-gray-400">Code *</label>
               <input
                 type="text"
                 value={form.code}
@@ -318,7 +315,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.fieldName')} *</label>
+              <label className="mb-1 block text-sm text-gray-400">Name *</label>
               <input
                 type="text"
                 value={form.name}
@@ -329,7 +326,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.fieldDesc')}</label>
+            <label className="mb-1 block text-sm text-gray-400">Description</label>
             <textarea
               value={form.description}
               onChange={(event) => setF('description', event.target.value)}
@@ -340,7 +337,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.fieldSeniority')}</label>
+              <label className="mb-1 block text-sm text-gray-400">Seniority (1-10)</label>
               <input
                 type="number"
                 min="1"
@@ -351,7 +348,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-gray-400">{t('corporateOrg.departments.fieldSortOrder')}</label>
+              <label className="mb-1 block text-sm text-gray-400">Sort order</label>
               <input
                 type="number"
                 value={form.sort_order}
@@ -368,7 +365,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
                 checked={form.is_csuite}
                 onChange={(event) => setF('is_csuite', event.target.checked)}
               />
-              {t('corporateOrg.departments.fieldCsuite')}
+              C-suite title
             </label>
             <label className="flex items-center gap-2 text-sm text-gray-300">
               <input
@@ -376,7 +373,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
                 checked={form.is_active}
                 onChange={(event) => setF('is_active', event.target.checked)}
               />
-              {t('corporateOrg.departments.fieldActive')}
+              Active
             </label>
           </div>
 
@@ -388,7 +385,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
 
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white">
-              {t('corporateOrg.departments.cancel')}
+              Cancel
             </button>
             <button
               type="submit"
@@ -396,7 +393,7 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
               className="flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50"
             >
               {saving && <Loader2 size={14} className="animate-spin" />}
-              {t('corporateOrg.departments.save')}
+              Save
             </button>
           </div>
         </form>
@@ -406,7 +403,6 @@ function TitleModal({ initial, departments, onClose, onSaved }) {
 }
 
 function PermissionsEditor({ department, catalog, onSaved }) {
-  const { t } = useTranslation();
   const allPermissions = catalog?.permissions || [];
   const [allowed, setAllowed] = useState(new Set(department.permissions || []));
   const [saving, setSaving] = useState(false);
@@ -438,7 +434,7 @@ function PermissionsEditor({ department, catalog, onSaved }) {
       await setDepartmentDefaultPermissions(department.id, payload);
       onSaved();
     } catch (err) {
-      setError(err?.response?.data?.error || t('corporateOrg.departments.errorSavePerms'));
+      setError(err?.response?.data?.error || 'Failed to save permissions.');
     } finally {
       setSaving(false);
     }
@@ -446,7 +442,7 @@ function PermissionsEditor({ department, catalog, onSaved }) {
 
   return (
     <div className="mt-4 rounded-lg border border-gray-800 bg-gray-950 p-4">
-      <div className="mb-3 text-sm font-medium text-white">{t('corporateOrg.departments.defaultPerms')}</div>
+      <div className="mb-3 text-sm font-medium text-white">Default permissions</div>
       <div className="max-h-[400px] space-y-3 overflow-y-auto">
         {Object.entries(grouped).map(([group, permissions]) => (
           <div key={group}>
@@ -480,7 +476,7 @@ function PermissionsEditor({ department, catalog, onSaved }) {
           className="flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50"
         >
           {saving && <Loader2 size={14} className="animate-spin" />}
-          {t('corporateOrg.departments.saveDefaults')}
+          Save defaults
         </button>
       </div>
     </div>
@@ -501,7 +497,6 @@ function MetricCard({ icon: Icon, label, value, hint }) {
 }
 
 function CoveragePill({ status }) {
-  const { t } = useTranslation();
   const styles = {
     assigned: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
     country: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
@@ -509,10 +504,10 @@ function CoveragePill({ status }) {
     open: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
   };
   const labels = {
-    assigned: t('corporateOrg.departments.coverage.assigned'),
-    country: t('corporateOrg.departments.coverage.country'),
-    global: t('corporateOrg.departments.coverage.global'),
-    open: t('corporateOrg.departments.coverage.open'),
+    assigned: 'Assigned',
+    country: 'Filled in country',
+    global: 'Covered globally',
+    open: 'Open priority',
   };
 
   return (
@@ -523,7 +518,6 @@ function CoveragePill({ status }) {
 }
 
 function PriorityRoleCard({ item, selectedCountry, onEdit }) {
-  const { t } = useTranslation();
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-950 p-4">
       <div className="mb-3 flex items-start justify-between gap-3">
@@ -558,10 +552,10 @@ function PriorityRoleCard({ item, selectedCountry, onEdit }) {
       )}
 
       <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
-        <span>{t('corporateOrg.departments.activeSeat', { count: item.assignmentCount })}</span>
+        <span>{item.assignmentCount} active seat{item.assignmentCount === 1 ? '' : 's'}</span>
         {item.title && (
           <button onClick={() => onEdit(item.title)} className="text-gray-400 hover:text-white">
-            {t('corporateOrg.departments.editTitleLink')}
+            Edit title
           </button>
         )}
       </div>
@@ -570,7 +564,6 @@ function PriorityRoleCard({ item, selectedCountry, onEdit }) {
 }
 
 export default function CorporateDepartments() {
-  const { t } = useTranslation();
   const [catalog, setCatalog] = useState(null);
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -594,7 +587,7 @@ export default function CorporateDepartments() {
       setCatalog(catalogResponse);
       setAssignments(activeAssignments);
     } catch (err) {
-      setError(err?.response?.data?.error || t('corporateOrg.departments.errorLoad'));
+      setError(err?.response?.data?.error || 'Failed to load catalog.');
     } finally {
       setLoading(false);
     }
@@ -705,7 +698,7 @@ export default function CorporateDepartments() {
   if (loading) {
     return (
       <div className="p-10 text-center text-gray-400">
-        <Loader2 className="mr-2 inline animate-spin" size={18} /> {t('corporateOrg.departments.loading')}
+        <Loader2 className="mr-2 inline animate-spin" size={18} /> Loading...
       </div>
     );
   }
@@ -720,10 +713,10 @@ export default function CorporateDepartments() {
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold text-white">
             <Shield size={22} />
-            {t('corporateOrg.departments.title')}
+            Corporate Departments & Titles
           </h1>
           <p className="mt-1 max-w-3xl text-sm text-gray-400">
-            {t('corporateOrg.departments.subtitle')}
+            Super-admin command center for structuring departments, defining titles, and checking whether a new country launch has the right people covering the work.
           </p>
         </div>
 
@@ -744,7 +737,7 @@ export default function CorporateDepartments() {
             onClick={() => setDeptModal({})}
             className="flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
           >
-            <Plus size={16} /> {t('corporateOrg.departments.addDept')}
+            <Plus size={16} /> New department
           </button>
         </div>
       </div>
@@ -915,7 +908,7 @@ export default function CorporateDepartments() {
                           setDeptModal(department);
                         }}
                         className="p-1 text-gray-500 hover:text-white"
-                        title={t('corporateOrg.departments.editDeptTitle')}
+                        title="Edit department"
                       >
                         <Edit3 size={15} />
                       </button>
@@ -994,7 +987,7 @@ export default function CorporateDepartments() {
                       onClick={() => setTitleModal({ department_id: department.id })}
                       className="flex items-center gap-1 px-3 py-1 text-xs text-orange-300 hover:text-orange-200"
                     >
-                      <Plus size={12} /> {t('corporateOrg.departments.addTitle')}
+                      <Plus size={12} /> Add title
                     </button>
                   </div>
 
@@ -1039,7 +1032,7 @@ export default function CorporateDepartments() {
                               <button
                                 onClick={() => setTitleModal(title)}
                                 className="p-1 text-gray-500 hover:text-white"
-                                title={t('corporateOrg.departments.editTitleLink')}
+                                title="Edit title"
                               >
                                 <Edit3 size={13} />
                               </button>
@@ -1049,7 +1042,7 @@ export default function CorporateDepartments() {
 
                             <div className="mt-4 flex flex-wrap gap-2">
                               <span className="rounded-full border border-gray-700 bg-gray-900 px-2.5 py-1 text-xs text-gray-300">
-                                {t('corporateOrg.departments.activeSeat', { count: totalAssignments })}
+                                {totalAssignments} active seat{totalAssignments === 1 ? '' : 's'}
                               </span>
                               {selectedCountry && (
                                 <span className="rounded-full border border-gray-700 bg-gray-900 px-2.5 py-1 text-xs text-gray-300">
