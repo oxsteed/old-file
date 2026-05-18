@@ -160,6 +160,31 @@ const PORTFOLIO_BEHAVIOR = {
   recommendedFeatures: ['Gallery', 'Services', 'Messages', 'Reviews', 'Business Hub'],
 };
 
+const CREATIVE_PROJECT_BEHAVIOR = {
+  mode: 'creative_intake',
+  label: 'Creative project mode',
+  headline: 'Built for discovery, proposal clarity, approvals, and delivery follow-through.',
+  description:
+    'This profile should collect project goals, style direction, package fit, and delivery expectations before moving the client into a quote, proof, or production workflow.',
+  primaryCta: 'Start creative discovery',
+  secondaryCta: 'Ask about the project',
+  primaryIntent: 'creative_intake',
+  allowPrimaryWithoutServices: true,
+  workflow: [
+    { title: 'Capture the brief', text: 'Collect the project goal, references, timeline, and deliverables before quoting.', icon: ClipboardList },
+    { title: 'Package and propose', text: 'Route the lead into discovery, a productized package, or a custom proposal.', icon: Briefcase },
+    { title: 'Manage approvals', text: 'Keep proofs, revisions, and client approvals documented instead of scattered across messages.', icon: FileText },
+    { title: 'Deliver and follow up', text: 'Close the project with final assets, testimonial prompts, and referral-ready proof.', icon: Star },
+  ],
+  setup: [
+    'Add clear packages and deliverables',
+    'Define revision and approval expectations',
+    'Curate gallery work by project type',
+    'Set delivery windows and testimonial follow-up prompts',
+  ],
+  recommendedFeatures: ['Creative Ops', 'Gallery', 'Quotes', 'Messages', 'Reviews', 'Business Hub'],
+};
+
 const STANDARD_SERVICE_BEHAVIOR = {
   mode: 'service_business',
   label: 'Service business mode',
@@ -201,9 +226,9 @@ const BEHAVIOR_BY_SLUG = {
   wellness_therapy: APPOINTMENT_BEHAVIOR,
   dog_walker: APPOINTMENT_BEHAVIOR,
   private_chef: APPOINTMENT_BEHAVIOR,
-  photographer: PORTFOLIO_BEHAVIOR,
-  creative_studio: PORTFOLIO_BEHAVIOR,
-  graphic_design: PORTFOLIO_BEHAVIOR,
+  photographer: CREATIVE_PROJECT_BEHAVIOR,
+  creative_studio: CREATIVE_PROJECT_BEHAVIOR,
+  graphic_design: CREATIVE_PROJECT_BEHAVIOR,
   interior_design: PORTFOLIO_BEHAVIOR,
   web_app_dev: PORTFOLIO_BEHAVIOR,
 };
@@ -221,6 +246,7 @@ export const TEMPLATE_BEHAVIORS = {
   tradesDiagnostic: TRADES_DIAGNOSTIC_BEHAVIOR,
   beauty: BEAUTY_APPOINTMENT_BEHAVIOR,
   appointment: APPOINTMENT_BEHAVIOR,
+  creativeProject: CREATIVE_PROJECT_BEHAVIOR,
   toolRental: TOOL_RENTAL_BEHAVIOR,
   portfolio: PORTFOLIO_BEHAVIOR,
   standard: STANDARD_SERVICE_BEHAVIOR,

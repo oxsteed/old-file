@@ -386,6 +386,15 @@ const TEMPLATE_OVERRIDES = {
   spa_skincare: {
     trustSignals: ['Sensitivity-aware treatment intake', 'Calm aftercare guidance', 'Package-led ritual continuity'],
   },
+  photographer: {
+    trustSignals: ['Discovery-first project fit', 'Selection and delivery clarity', 'Proof-led session planning'],
+  },
+  creative_studio: {
+    trustSignals: ['Scope and approval checkpoints', 'System-level creative packaging', 'Delivery-ready process proof'],
+  },
+  graphic_design: {
+    trustSignals: ['Revision-boundary clarity', 'Brand-system deliverable packaging', 'Approval-ready proof flow'],
+  },
   dog_walker: {
     marketLabel: 'Dog walking and routine pet movement',
     demandMoments: ['Daily walk support', 'Travel routine coverage', 'Recurring pet exercise needs'],

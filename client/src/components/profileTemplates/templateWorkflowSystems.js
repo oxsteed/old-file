@@ -427,10 +427,27 @@ const TEMPLATE_OVERRIDES = {
       'Turn successful sessions into referrals and premium packages',
     ],
     unlockedSystems: [
+      { tab: 'creative-ops', label: 'Creative Ops', reason: 'Run discovery, package fit, approvals, and post-delivery follow-up.' },
       { tab: 'gallery', label: 'Gallery', reason: 'Lead with images that sell the next booking.' },
       { tab: 'services', label: 'Packages', reason: 'Package sessions and deliverables clearly.' },
       { tab: 'quotes', label: 'Quotes', reason: 'Handle custom events and commercial scopes.' },
       { tab: 'messages', label: 'Client Comms', reason: 'Coordinate briefs, timelines, and shot needs.' },
+    ],
+  },
+  creative_studio: {
+    unlockedSystems: [
+      { tab: 'creative-ops', label: 'Creative Ops', reason: 'Route discovery, scope, approvals, and delivery across larger creative projects.' },
+      { tab: 'gallery', label: 'Portfolio', reason: 'Lead with the work that fits the next project.' },
+      { tab: 'quotes', label: 'Quotes', reason: 'Handle custom creative proposals with more rigor.' },
+      { tab: 'recurring', label: 'Documents & Records', reason: 'Keep briefs, approvals, and reusable process assets organized.' },
+    ],
+  },
+  graphic_design: {
+    unlockedSystems: [
+      { tab: 'creative-ops', label: 'Creative Ops', reason: 'Manage discovery, revisions, proofs, and final asset delivery.' },
+      { tab: 'gallery', label: 'Portfolio', reason: 'Show branding and design proof before the brief call.' },
+      { tab: 'quotes', label: 'Quotes', reason: 'Package design work and custom scopes with discipline.' },
+      { tab: 'recurring', label: 'Documents & Records', reason: 'Track deliverables, approvals, and brand-system records.' },
     ],
   },
   hair_stylist: {

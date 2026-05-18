@@ -36,6 +36,7 @@ import { MessageTemplatesManager } from '../components/businessHub/MessageTempla
 import PropertyOperationsTab from '../components/businessHub/PropertyOperationsTab';
 import TradesOperationsTab from '../components/businessHub/TradesOperationsTab';
 import BeautyOperationsTab from '../components/businessHub/BeautyOperationsTab';
+import CreativeOperationsTab from '../components/businessHub/CreativeOperationsTab';
 import TemplateWorkflowSystemTab from '../components/businessHub/TemplateWorkflowSystemTab';
 import {
   listBusinesses, createBusiness, updateBusiness, uploadBusinessPhotos,
@@ -65,6 +66,7 @@ import {
 import { getPropertyOperationsWorkspace } from '../api/propertyOperations';
 import { getTradesOperationsWorkspace } from '../api/tradesOperations';
 import { getBeautyOperationsWorkspace } from '../api/beautyOperations';
+import { getCreativeOperationsWorkspace } from '../api/creativeOperations';
 import { formatMoney } from '../lib/format';
 import { getDefaultCurrency } from '../lib/countries';
 import '../styles/BusinessHubPage.css';
@@ -164,6 +166,8 @@ function BusinessHubInner() {
   const [tradesOpsLoading, setTradesOpsLoading] = useState(false);
   const [beautyOpsData, setBeautyOpsData] = useState(null);
   const [beautyOpsLoading, setBeautyOpsLoading] = useState(false);
+  const [creativeOpsData, setCreativeOpsData] = useState(null);
+  const [creativeOpsLoading, setCreativeOpsLoading] = useState(false);
 
   // team tab
   const [members, setMembers]             = useState([]);
@@ -376,6 +380,18 @@ function BusinessHubInner() {
     }
   }, [bizId]);
 
+  const loadCreativeOperations = useCallback(async () => {
+    if (!bizId) return;
+    setCreativeOpsLoading(true);
+    try {
+      setCreativeOpsData(await getCreativeOperationsWorkspace(bizId));
+    } catch {
+      toast.error('Could not load creative operations');
+    } finally {
+      setCreativeOpsLoading(false);
+    }
+  }, [bizId]);
+
   const loadTeam = useCallback(async () => {
     if (!bizId) return;
     setMembersLoading(true);
@@ -559,6 +575,7 @@ function BusinessHubInner() {
     else if (tab === 'property-ops') loadPropertyOperations();
     else if (tab === 'trades-ops') loadTradesOperations();
     else if (tab === 'beauty-ops') loadBeautyOperations();
+    else if (tab === 'creative-ops') loadCreativeOperations();
     else if (tab === 'calendar') loadHours();
     else if (tab === 'skills') loadSkills();
     else if (tab === 'ai') { /* AI tab loads its own data */ }
@@ -571,7 +588,7 @@ function BusinessHubInner() {
     }
     else if (tab === 'maintenance') loadMaintenance();
     else if (tab === 'team') loadTeam();
-  }, [loadingBiz, businesses, bizId, tab, loadProfile, loadServices, loadGallery, loadPolicies, loadFAQs, loadHours, loadSkills, loadOverview, loadInvoices, loadTax, loadGoals, loadMaintenance, loadPropertyOperations, loadTradesOperations, loadBeautyOperations, loadTeam]);
+  }, [loadingBiz, businesses, bizId, tab, loadProfile, loadServices, loadGallery, loadPolicies, loadFAQs, loadHours, loadSkills, loadOverview, loadInvoices, loadTax, loadGoals, loadMaintenance, loadPropertyOperations, loadTradesOperations, loadBeautyOperations, loadCreativeOperations, loadTeam]);
 
   // ── switcher ──────────────────────────────────────────────────────────────
   function handleSwitchBiz(id) {
@@ -991,6 +1008,7 @@ function BusinessHubInner() {
   const isPropertyManagerTpl = activeTemplate === 'property_manager';
   const isTradesOpsTemplate = ['trades_pro', 'electrician', 'auto_mechanic'].includes(activeTemplate);
   const isBeautyOpsTemplate = ['beauty_style', 'barbershop', 'hair_stylist', 'spa_skincare'].includes(activeTemplate);
+  const isCreativeOpsTemplate = ['photographer', 'creative_studio', 'graphic_design'].includes(activeTemplate);
   // Tab order:
   //   1. Overview (KPIs / health, the place owners land first)
   //   2. Edit Profile
@@ -1012,6 +1030,7 @@ function BusinessHubInner() {
     ...(isPropertyManagerTpl ? ['property-ops'] : []),
     ...(isTradesOpsTemplate ? ['trades-ops'] : []),
     ...(isBeautyOpsTemplate ? ['beauty-ops'] : []),
+    ...(isCreativeOpsTemplate ? ['creative-ops'] : []),
     ...(isPropertyManagerTpl ? ['maintenance'] : []),
     'invoices', 'tax', 'goals',
     'service-pricing',
@@ -1041,7 +1060,7 @@ function BusinessHubInner() {
     if (tb === 'analytics' && !canEditBizProfile) return false;
     if (tb === 'loyalty' && !canEditBizProfile) return false;
     if (tb === 'integrations' && currentRole !== 'owner') return false;
-    if (['property-ops','trades-ops','beauty-ops','expenses','quotes','recurring','staff','reviews-mgmt','marketing','waitlist','packages','health','leads','msg-templates'].includes(tb) && !canEditBizProfile) return false;
+    if (['property-ops','trades-ops','beauty-ops','creative-ops','expenses','quotes','recurring','staff','reviews-mgmt','marketing','waitlist','packages','health','leads','msg-templates'].includes(tb) && !canEditBizProfile) return false;
     return true;
   });
 
@@ -1065,6 +1084,9 @@ function BusinessHubInner() {
       setTab(canViewFinanceHub ? 'overview' : 'team');
     }
     if (tab === 'beauty-ops' && !canEditBizProfile) {
+      setTab(canViewFinanceHub ? 'overview' : 'team');
+    }
+    if (tab === 'creative-ops' && !canEditBizProfile) {
       setTab(canViewFinanceHub ? 'overview' : 'team');
     }
     if (tab === 'ai' && !canEditBizProfile) {
@@ -1094,6 +1116,7 @@ function BusinessHubInner() {
     if (tb === 'property-ops') return 'Property Ops';
     if (tb === 'trades-ops') return 'Trades Ops';
     if (tb === 'beauty-ops') return 'Beauty Ops';
+    if (tb === 'creative-ops') return 'Creative Ops';
     if (tb === 'calendar') return t('businessHub.tabCalendarLabel', { defaultValue: 'Schedule' });
     if (tb === 'clients') return t('businessHub.tabClientsLabel', { defaultValue: 'Clients' });
     if (tb === 'ai') return t('businessHub.tabAILabel');
@@ -1363,6 +1386,17 @@ function BusinessHubInner() {
                 workspace={beautyOpsData}
                 currency={currency}
                 onRefresh={loadBeautyOperations}
+                onJumpTab={(nextTab) => setTab(nextTab)}
+              />
+            )}
+
+            {tab === 'creative-ops' && (
+              creativeOpsLoading ? <p className="bh-loading">Loading creative operations...</p> :
+              <CreativeOperationsTab
+                businessId={bizId}
+                workspace={creativeOpsData}
+                currency={currency}
+                onRefresh={loadCreativeOperations}
                 onJumpTab={(nextTab) => setTab(nextTab)}
               />
             )}
