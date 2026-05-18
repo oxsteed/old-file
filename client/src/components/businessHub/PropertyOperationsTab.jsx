@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
   createPropertyComplianceRecord,
@@ -117,6 +118,8 @@ function Select(props) {
 }
 
 export default function PropertyOperationsTab({ businessId, workspace, currency = 'USD', onRefresh, onJumpTab }) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage || i18n.language || undefined;
   const metrics = workspace?.metrics || {};
   const settings = workspace?.settings || {};
   const units = workspace?.units || [];
@@ -168,10 +171,10 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
         trust_artifacts: parseCommaList(settingsForm.trust_artifacts),
         managed_property_types: parseCommaList(settingsForm.managed_property_types),
       });
-      toast.success('Property operations settings saved');
+      toast.success(t('businessHub.propertyOps.toasts.settingsSaved'));
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not save property settings');
+      toast.error(error?.response?.data?.error || t('businessHub.propertyOps.toasts.settingsSaveError'));
     } finally {
       setSavingSettings(false);
     }
@@ -182,12 +185,12 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
     try {
       if (editingUnitId) await updatePropertyUnit(businessId, editingUnitId, unitForm);
       else await createPropertyUnit(businessId, unitForm);
-      toast.success(editingUnitId ? 'Unit updated' : 'Unit added');
+      toast.success(editingUnitId ? t('businessHub.propertyOps.toasts.unitUpdated') : t('businessHub.propertyOps.toasts.unitAdded'));
       setUnitForm(EMPTY_UNIT);
       setEditingUnitId(null);
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not save unit');
+      toast.error(error?.response?.data?.error || t('businessHub.propertyOps.toasts.unitSaveError'));
     }
   }
 
@@ -202,12 +205,12 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
       };
       if (editingPackageId) await updatePropertyPackage(businessId, editingPackageId, payload);
       else await createPropertyPackage(businessId, payload);
-      toast.success(editingPackageId ? 'Package updated' : 'Package added');
+      toast.success(editingPackageId ? t('businessHub.propertyOps.toasts.packageUpdated') : t('businessHub.propertyOps.toasts.packageAdded'));
       setPackageForm(EMPTY_PACKAGE);
       setEditingPackageId(null);
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not save package');
+      toast.error(error?.response?.data?.error || t('businessHub.propertyOps.toasts.packageSaveError'));
     }
   }
 
@@ -220,12 +223,12 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
       };
       if (editingComplianceId) await updatePropertyComplianceRecord(businessId, editingComplianceId, payload);
       else await createPropertyComplianceRecord(businessId, payload);
-      toast.success(editingComplianceId ? 'Compliance record updated' : 'Compliance record added');
+      toast.success(editingComplianceId ? t('businessHub.propertyOps.toasts.complianceUpdated') : t('businessHub.propertyOps.toasts.complianceAdded'));
       setComplianceForm(EMPTY_COMPLIANCE);
       setEditingComplianceId(null);
       await onRefresh?.();
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not save compliance record');
+      toast.error(error?.response?.data?.error || t('businessHub.propertyOps.toasts.complianceSaveError'));
     }
   }
 
@@ -235,37 +238,34 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <span className="inline-flex rounded-full border border-amber-400/25 bg-amber-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-100">
-              Property Ops
+              {t('businessHub.propertyOps.badge')}
             </span>
-            <h2 className="mt-4 text-3xl font-semibold text-white">Property manager operating system</h2>
-            <p className="mt-3 text-sm leading-7 text-gray-300">
-              This tab turns the template into a live property workspace with units, tenant intake standards, compliance reminders,
-              dispatch pricing, and follow-up queues tied to maintenance operations.
-            </p>
+            <h2 className="mt-4 text-3xl font-semibold text-white">{t('businessHub.propertyOps.title')}</h2>
+            <p className="mt-3 text-sm leading-7 text-gray-300">{t('businessHub.propertyOps.description')}</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:min-w-[360px]">
-            <MetricCard label="Units tracked" value={metrics.total_units || 0} hint={`${occupancySummary.occupied || 0} occupied · ${occupancySummary.turnover || 0} turnover`} />
-            <MetricCard label="Compliance risk" value={metrics.compliance_overdue || 0} hint="Due or overdue records needing action" />
+            <MetricCard label={t('businessHub.propertyOps.metrics.unitsTracked')} value={metrics.total_units || 0} hint={t('businessHub.propertyOps.metrics.unitsTrackedHint', { occupied: occupancySummary.occupied || 0, turnover: occupancySummary.turnover || 0 })} />
+            <MetricCard label={t('businessHub.propertyOps.metrics.complianceRisk')} value={metrics.compliance_overdue || 0} hint={t('businessHub.propertyOps.metrics.complianceRiskHint')} />
           </div>
         </div>
       </section>
 
       <div className="grid gap-4 lg:grid-cols-4">
-        <MetricCard label="Open requests" value={metrics.open_requests || 0} hint="Current repair pipeline" />
-        <MetricCard label="Follow-ups due" value={metrics.follow_up_requests || 0} hint="Requests waiting on next contact" />
-        <MetricCard label="Recorded cost" value={formatMoney(metrics.recorded_cost_total || 0, { currency })} hint="Logged repair spend" />
-        <MetricCard label="Active packages" value={metrics.active_packages || 0} hint="Billable service logic live" />
+        <MetricCard label={t('businessHub.propertyOps.metrics.openRequests')} value={metrics.open_requests || 0} hint={t('businessHub.propertyOps.metrics.openRequestsHint')} />
+        <MetricCard label={t('businessHub.propertyOps.metrics.followUpsDue')} value={metrics.follow_up_requests || 0} hint={t('businessHub.propertyOps.metrics.followUpsDueHint')} />
+        <MetricCard label={t('businessHub.propertyOps.metrics.recordedCost')} value={formatMoney(metrics.recorded_cost_total || 0, { currency })} hint={t('businessHub.propertyOps.metrics.recordedCostHint')} />
+        <MetricCard label={t('businessHub.propertyOps.metrics.activePackages')} value={metrics.active_packages || 0} hint={t('businessHub.propertyOps.metrics.activePackagesHint')} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
         <Section
-          title="Follow-up Queue"
-          subtitle="These reminders are auto-generated from stale maintenance requests and due compliance records."
-          actions={<button type="button" className="bh-btn" onClick={() => onRefresh?.()}>Refresh</button>}
+          title={t('businessHub.propertyOps.followUpQueue.title')}
+          subtitle={t('businessHub.propertyOps.followUpQueue.subtitle')}
+          actions={<button type="button" className="bh-btn" onClick={() => onRefresh?.()}>{t('businessHub.propertyOps.common.refresh')}</button>}
         >
           {followUps.length === 0 ? (
             <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4 text-sm text-gray-400">
-              No follow-ups are due right now.
+              {t('businessHub.propertyOps.followUpQueue.empty')}
             </div>
           ) : (
             <div className="space-y-3">
@@ -277,7 +277,7 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
                       <p className="mt-1 text-sm leading-6 text-gray-400">{item.detail}</p>
                     </div>
                     <span className="rounded-full bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200">
-                      {item.due_at ? new Date(item.due_at).toLocaleDateString() : 'Due now'}
+                      {item.due_at ? new Date(item.due_at).toLocaleDateString(locale) : t('businessHub.propertyOps.followUpQueue.dueNow')}
                     </span>
                   </div>
                 </div>
@@ -287,18 +287,18 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
         </Section>
 
         <Section
-          title="Recent Property Workflow"
-          subtitle="Recent maintenance items stay visible here so the operations tab and maintenance queue work together."
+          title={t('businessHub.propertyOps.recentWorkflow.title')}
+          subtitle={t('businessHub.propertyOps.recentWorkflow.subtitle')}
           actions={(
             <button type="button" className="bh-btn" onClick={() => onJumpTab?.('maintenance')}>
-              Open maintenance
+              {t('businessHub.propertyOps.recentWorkflow.openMaintenance')}
             </button>
           )}
         >
           <div className="space-y-3">
             {recentRequests.length === 0 ? (
               <div className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4 text-sm text-gray-400">
-                No maintenance requests have been logged yet.
+                {t('businessHub.propertyOps.recentWorkflow.empty')}
               </div>
             ) : recentRequests.map((request) => (
               <div key={request.id} className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-3">
@@ -309,7 +309,7 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
                 </div>
                 <p className="mt-2 text-sm font-semibold text-white">{request.title}</p>
                 <p className="mt-1 text-sm text-gray-400">
-                  {(request.property_label || 'Property')}{request.unit_label ? ` · ${request.unit_label}` : ''}{request.vendor_name ? ` · ${request.vendor_name}` : ''}
+                  {(request.property_label || t('businessHub.propertyOps.recentWorkflow.propertyFallback'))}{request.unit_label ? ` · ${request.unit_label}` : ''}{request.vendor_name ? ` · ${request.vendor_name}` : ''}
                 </p>
               </div>
             ))}
@@ -318,71 +318,71 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
       </div>
 
       <Section
-        title="Tenant Intake and Trust Settings"
-        subtitle="These settings change what the tenant sees, how maintenance gets categorized, and how quickly the team is expected to follow up."
-        actions={<button type="button" className="bh-btn primary" onClick={handleSaveSettings} disabled={savingSettings}>{savingSettings ? 'Saving...' : 'Save settings'}</button>}
+        title={t('businessHub.propertyOps.settings.title')}
+        subtitle={t('businessHub.propertyOps.settings.subtitle')}
+        actions={<button type="button" className="bh-btn primary" onClick={handleSaveSettings} disabled={savingSettings}>{savingSettings ? t('businessHub.propertyOps.common.saving') : t('businessHub.propertyOps.common.saveSettings')}</button>}
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <Input label="Emergency phone">
-            <TextInput value={settingsForm.emergency_phone} onChange={(e) => setSettingsForm((current) => ({ ...current, emergency_phone: e.target.value }))} placeholder="Optional emergency line" />
+          <Input label={t('businessHub.propertyOps.settings.emergencyPhone')}>
+            <TextInput value={settingsForm.emergency_phone} onChange={(e) => setSettingsForm((current) => ({ ...current, emergency_phone: e.target.value }))} placeholder={t('businessHub.propertyOps.settings.emergencyPhonePlaceholder')} />
           </Input>
-          <Input label="Default bill to">
+          <Input label={t('businessHub.propertyOps.settings.defaultBillTo')}>
             <Select value={settingsForm.default_bill_to} onChange={(e) => setSettingsForm((current) => ({ ...current, default_bill_to: e.target.value }))}>
-              <option value="owner">Owner</option>
-              <option value="tenant">Tenant</option>
+              <option value="owner">{t('businessHub.propertyOps.options.billTo.owner')}</option>
+              <option value="tenant">{t('businessHub.propertyOps.options.billTo.tenant')}</option>
               <option value="hoa">HOA</option>
-              <option value="internal">Internal</option>
+              <option value="internal">{t('businessHub.propertyOps.options.billTo.internal')}</option>
             </Select>
           </Input>
-          <Input label="Response promise (hours)">
+          <Input label={t('businessHub.propertyOps.settings.responsePromiseHours')}>
             <TextInput type="number" min="1" value={settingsForm.response_promise_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, response_promise_hours: e.target.value }))} />
           </Input>
-          <Input label="Follow-up cadence (hours)">
+          <Input label={t('businessHub.propertyOps.settings.followUpCadenceHours')}>
             <TextInput type="number" min="1" value={settingsForm.follow_up_interval_hours} onChange={(e) => setSettingsForm((current) => ({ ...current, follow_up_interval_hours: e.target.value }))} />
           </Input>
-          <Input label="Issue categories" wide>
-            <TextInput value={settingsForm.supported_issue_categories} onChange={(e) => setSettingsForm((current) => ({ ...current, supported_issue_categories: e.target.value }))} placeholder="Comma-separated categories" />
+          <Input label={t('businessHub.propertyOps.settings.issueCategories')} wide>
+            <TextInput value={settingsForm.supported_issue_categories} onChange={(e) => setSettingsForm((current) => ({ ...current, supported_issue_categories: e.target.value }))} placeholder={t('businessHub.propertyOps.settings.issueCategoriesPlaceholder')} />
           </Input>
-          <Input label="Trust artifacts" wide>
-            <TextInput value={settingsForm.trust_artifacts} onChange={(e) => setSettingsForm((current) => ({ ...current, trust_artifacts: e.target.value }))} placeholder="Comma-separated trust cues" />
+          <Input label={t('businessHub.propertyOps.settings.trustArtifacts')} wide>
+            <TextInput value={settingsForm.trust_artifacts} onChange={(e) => setSettingsForm((current) => ({ ...current, trust_artifacts: e.target.value }))} placeholder={t('businessHub.propertyOps.settings.trustArtifactsPlaceholder')} />
           </Input>
-          <Input label="Managed property types" wide>
-            <TextInput value={settingsForm.managed_property_types} onChange={(e) => setSettingsForm((current) => ({ ...current, managed_property_types: e.target.value }))} placeholder="Apartment, Duplex, HOA, Short-term rental" />
+          <Input label={t('businessHub.propertyOps.settings.managedPropertyTypes')} wide>
+            <TextInput value={settingsForm.managed_property_types} onChange={(e) => setSettingsForm((current) => ({ ...current, managed_property_types: e.target.value }))} placeholder={t('businessHub.propertyOps.settings.managedPropertyTypesPlaceholder')} />
           </Input>
-          <Input label="Tenant portal intro" wide>
-            <TextArea rows={3} value={settingsForm.tenant_portal_intro} onChange={(e) => setSettingsForm((current) => ({ ...current, tenant_portal_intro: e.target.value }))} placeholder="Public guidance for tenants before they submit a request" />
+          <Input label={t('businessHub.propertyOps.settings.tenantPortalIntro')} wide>
+            <TextArea rows={3} value={settingsForm.tenant_portal_intro} onChange={(e) => setSettingsForm((current) => ({ ...current, tenant_portal_intro: e.target.value }))} placeholder={t('businessHub.propertyOps.settings.tenantPortalIntroPlaceholder')} />
           </Input>
-          <Input label="Emergency instructions" wide>
-            <TextArea rows={3} value={settingsForm.emergency_instructions} onChange={(e) => setSettingsForm((current) => ({ ...current, emergency_instructions: e.target.value }))} placeholder="What a tenant should do for flooding, fire, or safety issues" />
+          <Input label={t('businessHub.propertyOps.settings.emergencyInstructions')} wide>
+            <TextArea rows={3} value={settingsForm.emergency_instructions} onChange={(e) => setSettingsForm((current) => ({ ...current, emergency_instructions: e.target.value }))} placeholder={t('businessHub.propertyOps.settings.emergencyInstructionsPlaceholder')} />
           </Input>
-          <Input label="After-hours policy" wide>
-            <TextArea rows={3} value={settingsForm.after_hours_policy} onChange={(e) => setSettingsForm((current) => ({ ...current, after_hours_policy: e.target.value }))} placeholder="After-hours dispatch or emergency-only guidance" />
+          <Input label={t('businessHub.propertyOps.settings.afterHoursPolicy')} wide>
+            <TextArea rows={3} value={settingsForm.after_hours_policy} onChange={(e) => setSettingsForm((current) => ({ ...current, after_hours_policy: e.target.value }))} placeholder={t('businessHub.propertyOps.settings.afterHoursPolicyPlaceholder')} />
           </Input>
         </div>
       </Section>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <Section title="Portfolio Units" subtitle="Track units, occupants, access context, and priority tiers so dispatch happens with the right property context.">
+        <Section title={t('businessHub.propertyOps.units.title')} subtitle={t('businessHub.propertyOps.units.subtitle')}>
           <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSaveUnit}>
-            <Input label="Property label"><TextInput value={unitForm.property_label} onChange={(e) => setUnitForm((current) => ({ ...current, property_label: e.target.value }))} /></Input>
-            <Input label="Unit"><TextInput value={unitForm.unit_label} onChange={(e) => setUnitForm((current) => ({ ...current, unit_label: e.target.value }))} /></Input>
-            <Input label="Property type"><TextInput value={unitForm.property_type} onChange={(e) => setUnitForm((current) => ({ ...current, property_type: e.target.value }))} /></Input>
-            <Input label="Occupancy">
+            <Input label={t('businessHub.propertyOps.units.propertyLabel')}><TextInput value={unitForm.property_label} onChange={(e) => setUnitForm((current) => ({ ...current, property_label: e.target.value }))} /></Input>
+            <Input label={t('businessHub.propertyOps.units.unit')}><TextInput value={unitForm.unit_label} onChange={(e) => setUnitForm((current) => ({ ...current, unit_label: e.target.value }))} /></Input>
+            <Input label={t('businessHub.propertyOps.units.propertyType')}><TextInput value={unitForm.property_type} onChange={(e) => setUnitForm((current) => ({ ...current, property_type: e.target.value }))} /></Input>
+            <Input label={t('businessHub.propertyOps.units.occupancy')}>
               <Select value={unitForm.occupancy_status} onChange={(e) => setUnitForm((current) => ({ ...current, occupancy_status: e.target.value }))}>
-                <option value="occupied">Occupied</option>
-                <option value="vacant">Vacant</option>
-                <option value="turnover">Turnover</option>
-                <option value="owner_hold">Owner hold</option>
+                <option value="occupied">{t('businessHub.propertyOps.options.occupancy.occupied')}</option>
+                <option value="vacant">{t('businessHub.propertyOps.options.occupancy.vacant')}</option>
+                <option value="turnover">{t('businessHub.propertyOps.options.occupancy.turnover')}</option>
+                <option value="owner_hold">{t('businessHub.propertyOps.options.occupancy.ownerHold')}</option>
               </Select>
             </Input>
-            <Input label="Contact name"><TextInput value={unitForm.contact_name} onChange={(e) => setUnitForm((current) => ({ ...current, contact_name: e.target.value }))} /></Input>
-            <Input label="Contact phone"><TextInput value={unitForm.contact_phone} onChange={(e) => setUnitForm((current) => ({ ...current, contact_phone: e.target.value }))} /></Input>
-            <Input label="Priority tier"><Select value={unitForm.priority_tier} onChange={(e) => setUnitForm((current) => ({ ...current, priority_tier: e.target.value }))}><option value="standard">Standard</option><option value="priority">Priority</option><option value="vip">VIP</option></Select></Input>
-            <Input label="Access summary" wide><TextArea rows={2} value={unitForm.access_summary} onChange={(e) => setUnitForm((current) => ({ ...current, access_summary: e.target.value }))} /></Input>
-            <Input label="Notes" wide><TextArea rows={2} value={unitForm.notes} onChange={(e) => setUnitForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
+            <Input label={t('businessHub.propertyOps.units.contactName')}><TextInput value={unitForm.contact_name} onChange={(e) => setUnitForm((current) => ({ ...current, contact_name: e.target.value }))} /></Input>
+            <Input label={t('businessHub.propertyOps.units.contactPhone')}><TextInput value={unitForm.contact_phone} onChange={(e) => setUnitForm((current) => ({ ...current, contact_phone: e.target.value }))} /></Input>
+            <Input label={t('businessHub.propertyOps.units.priorityTier')}><Select value={unitForm.priority_tier} onChange={(e) => setUnitForm((current) => ({ ...current, priority_tier: e.target.value }))}><option value="standard">{t('businessHub.propertyOps.options.priority.standard')}</option><option value="priority">{t('businessHub.propertyOps.options.priority.priority')}</option><option value="vip">{t('businessHub.propertyOps.options.priority.vip')}</option></Select></Input>
+            <Input label={t('businessHub.propertyOps.units.accessSummary')} wide><TextArea rows={2} value={unitForm.access_summary} onChange={(e) => setUnitForm((current) => ({ ...current, access_summary: e.target.value }))} /></Input>
+            <Input label={t('businessHub.propertyOps.units.notes')} wide><TextArea rows={2} value={unitForm.notes} onChange={(e) => setUnitForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingUnitId ? 'Update unit' : 'Add unit'}</button>
-              {editingUnitId ? <button className="bh-btn" type="button" onClick={() => { setEditingUnitId(null); setUnitForm(EMPTY_UNIT); }}>Cancel</button> : null}
+              <button className="bh-btn primary" type="submit">{editingUnitId ? t('businessHub.propertyOps.units.updateUnit') : t('businessHub.propertyOps.units.addUnit')}</button>
+              {editingUnitId ? <button className="bh-btn" type="button" onClick={() => { setEditingUnitId(null); setUnitForm(EMPTY_UNIT); }}>{t('businessHub.propertyOps.common.cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -395,8 +395,8 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
                     {unit.access_summary ? <p className="mt-2 text-sm leading-6 text-gray-400">{unit.access_summary}</p> : null}
                   </div>
                   <div className="flex gap-2">
-                    <button className="bh-btn sm" type="button" onClick={() => { setEditingUnitId(unit.id); setUnitForm({ ...EMPTY_UNIT, ...unit }); }}>Edit</button>
-                    <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm('Delete this unit?')) return; await deletePropertyUnit(businessId, unit.id); toast.success('Unit deleted'); await onRefresh?.(); }}>Delete</button>
+                    <button className="bh-btn sm" type="button" onClick={() => { setEditingUnitId(unit.id); setUnitForm({ ...EMPTY_UNIT, ...unit }); }}>{t('businessHub.propertyOps.common.edit')}</button>
+                    <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm(t('businessHub.propertyOps.confirms.deleteUnit'))) return; await deletePropertyUnit(businessId, unit.id); toast.success(t('businessHub.propertyOps.toasts.unitDeleted')); await onRefresh?.(); }}>{t('businessHub.propertyOps.common.delete')}</button>
                   </div>
                 </div>
               </div>
@@ -404,19 +404,19 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
           </div>
         </Section>
 
-        <Section title="Property Packages and Pricing" subtitle="Define dispatch, inspection, turnover, and retainer logic that this template can actually sell and bill against.">
+        <Section title={t('businessHub.propertyOps.packages.title')} subtitle={t('businessHub.propertyOps.packages.subtitle')}>
           <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSavePackage}>
-            <Input label="Package name"><TextInput value={packageForm.name} onChange={(e) => setPackageForm((current) => ({ ...current, name: e.target.value }))} /></Input>
-            <Input label="Pricing model"><Select value={packageForm.pricing_model} onChange={(e) => setPackageForm((current) => ({ ...current, pricing_model: e.target.value }))}><option value="flat">Flat</option><option value="hourly">Hourly</option><option value="inspection">Inspection</option><option value="turnover">Turnover</option><option value="retainer">Retainer</option></Select></Input>
-            <Input label="Bill to"><Select value={packageForm.bill_to_party} onChange={(e) => setPackageForm((current) => ({ ...current, bill_to_party: e.target.value }))}><option value="owner">Owner</option><option value="tenant">Tenant</option><option value="hoa">HOA</option><option value="internal">Internal</option></Select></Input>
-            <Input label="Base price (cents)"><TextInput type="number" min="0" value={packageForm.base_price_cents} onChange={(e) => setPackageForm((current) => ({ ...current, base_price_cents: e.target.value }))} /></Input>
-            <Input label="After-hours surcharge (cents)"><TextInput type="number" min="0" value={packageForm.after_hours_surcharge_cents} onChange={(e) => setPackageForm((current) => ({ ...current, after_hours_surcharge_cents: e.target.value }))} /></Input>
-            <Input label="Target turnaround (hours)"><TextInput type="number" min="0" value={packageForm.target_turnaround_hours} onChange={(e) => setPackageForm((current) => ({ ...current, target_turnaround_hours: e.target.value }))} /></Input>
-            <Input label="Description" wide><TextArea rows={2} value={packageForm.description} onChange={(e) => setPackageForm((current) => ({ ...current, description: e.target.value }))} /></Input>
-            <Input label="Includes" wide><TextInput value={packageForm.includes} onChange={(e) => setPackageForm((current) => ({ ...current, includes: e.target.value }))} placeholder="Comma-separated inclusions" /></Input>
+            <Input label={t('businessHub.propertyOps.packages.packageName')}><TextInput value={packageForm.name} onChange={(e) => setPackageForm((current) => ({ ...current, name: e.target.value }))} /></Input>
+            <Input label={t('businessHub.propertyOps.packages.pricingModel')}><Select value={packageForm.pricing_model} onChange={(e) => setPackageForm((current) => ({ ...current, pricing_model: e.target.value }))}><option value="flat">{t('businessHub.propertyOps.options.pricingModel.flat')}</option><option value="hourly">{t('businessHub.propertyOps.options.pricingModel.hourly')}</option><option value="inspection">{t('businessHub.propertyOps.options.pricingModel.inspection')}</option><option value="turnover">{t('businessHub.propertyOps.options.pricingModel.turnover')}</option><option value="retainer">{t('businessHub.propertyOps.options.pricingModel.retainer')}</option></Select></Input>
+            <Input label={t('businessHub.propertyOps.packages.billTo')}><Select value={packageForm.bill_to_party} onChange={(e) => setPackageForm((current) => ({ ...current, bill_to_party: e.target.value }))}><option value="owner">{t('businessHub.propertyOps.options.billTo.owner')}</option><option value="tenant">{t('businessHub.propertyOps.options.billTo.tenant')}</option><option value="hoa">HOA</option><option value="internal">{t('businessHub.propertyOps.options.billTo.internal')}</option></Select></Input>
+            <Input label={t('businessHub.propertyOps.packages.basePriceCents')}><TextInput type="number" min="0" value={packageForm.base_price_cents} onChange={(e) => setPackageForm((current) => ({ ...current, base_price_cents: e.target.value }))} /></Input>
+            <Input label={t('businessHub.propertyOps.packages.afterHoursSurchargeCents')}><TextInput type="number" min="0" value={packageForm.after_hours_surcharge_cents} onChange={(e) => setPackageForm((current) => ({ ...current, after_hours_surcharge_cents: e.target.value }))} /></Input>
+            <Input label={t('businessHub.propertyOps.packages.targetTurnaroundHours')}><TextInput type="number" min="0" value={packageForm.target_turnaround_hours} onChange={(e) => setPackageForm((current) => ({ ...current, target_turnaround_hours: e.target.value }))} /></Input>
+            <Input label={t('businessHub.propertyOps.packages.descriptionLabel')} wide><TextArea rows={2} value={packageForm.description} onChange={(e) => setPackageForm((current) => ({ ...current, description: e.target.value }))} /></Input>
+            <Input label={t('businessHub.propertyOps.packages.includes')} wide><TextInput value={packageForm.includes} onChange={(e) => setPackageForm((current) => ({ ...current, includes: e.target.value }))} placeholder={t('businessHub.propertyOps.packages.includesPlaceholder')} /></Input>
             <div className="md:col-span-2 flex gap-3">
-              <button className="bh-btn primary" type="submit">{editingPackageId ? 'Update package' : 'Add package'}</button>
-              {editingPackageId ? <button className="bh-btn" type="button" onClick={() => { setEditingPackageId(null); setPackageForm(EMPTY_PACKAGE); }}>Cancel</button> : null}
+              <button className="bh-btn primary" type="submit">{editingPackageId ? t('businessHub.propertyOps.packages.updatePackage') : t('businessHub.propertyOps.packages.addPackage')}</button>
+              {editingPackageId ? <button className="bh-btn" type="button" onClick={() => { setEditingPackageId(null); setPackageForm(EMPTY_PACKAGE); }}>{t('businessHub.propertyOps.common.cancel')}</button> : null}
             </div>
           </form>
           <div className="mt-5 space-y-3">
@@ -429,12 +429,12 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
                       <span className="rounded-full bg-gray-800 px-2.5 py-1 text-[11px] font-semibold text-gray-300">{item.pricing_model}</span>
                       <span className="rounded-full bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200">{item.bill_to_party}</span>
                     </div>
-                    <p className="mt-1 text-sm text-gray-400">{formatMoney((item.base_price_cents || 0) / 100, { currency })} base{item.after_hours_surcharge_cents ? ` · ${formatMoney((item.after_hours_surcharge_cents || 0) / 100, { currency })} after-hours` : ''}</p>
+                    <p className="mt-1 text-sm text-gray-400">{formatMoney((item.base_price_cents || 0) / 100, { currency })} {t('businessHub.propertyOps.packages.baseSuffix')}{item.after_hours_surcharge_cents ? ` · ${formatMoney((item.after_hours_surcharge_cents || 0) / 100, { currency })} ${t('businessHub.propertyOps.packages.afterHoursSuffix')}` : ''}</p>
                     {item.description ? <p className="mt-2 text-sm leading-6 text-gray-400">{item.description}</p> : null}
                   </div>
                   <div className="flex gap-2">
-                    <button className="bh-btn sm" type="button" onClick={() => { setEditingPackageId(item.id); setPackageForm({ ...EMPTY_PACKAGE, ...item, includes: (item.includes || []).join(', ') }); }}>Edit</button>
-                    <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm('Delete this package?')) return; await deletePropertyPackage(businessId, item.id); toast.success('Package deleted'); await onRefresh?.(); }}>Delete</button>
+                    <button className="bh-btn sm" type="button" onClick={() => { setEditingPackageId(item.id); setPackageForm({ ...EMPTY_PACKAGE, ...item, includes: (item.includes || []).join(', ') }); }}>{t('businessHub.propertyOps.common.edit')}</button>
+                    <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm(t('businessHub.propertyOps.confirms.deletePackage'))) return; await deletePropertyPackage(businessId, item.id); toast.success(t('businessHub.propertyOps.toasts.packageDeleted')); await onRefresh?.(); }}>{t('businessHub.propertyOps.common.delete')}</button>
                   </div>
                 </div>
               </div>
@@ -443,19 +443,19 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
         </Section>
       </div>
 
-      <Section title="Compliance and Trust Records" subtitle="Track inspections, recurring obligations, and trust artifacts that make the property template feel like an actual management system.">
+      <Section title={t('businessHub.propertyOps.compliance.title')} subtitle={t('businessHub.propertyOps.compliance.subtitle')}>
         <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSaveCompliance}>
-          <Input label="Unit"><Select value={complianceForm.unit_id} onChange={(e) => setComplianceForm((current) => ({ ...current, unit_id: e.target.value }))}><option value="">General / whole property</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.property_label}{unit.unit_label ? ` · ${unit.unit_label}` : ''}</option>)}</Select></Input>
-          <Input label="Record type"><TextInput value={complianceForm.record_type} onChange={(e) => setComplianceForm((current) => ({ ...current, record_type: e.target.value }))} /></Input>
-          <Input label="Title"><TextInput value={complianceForm.title} onChange={(e) => setComplianceForm((current) => ({ ...current, title: e.target.value }))} /></Input>
-          <Input label="Status"><Select value={complianceForm.status} onChange={(e) => setComplianceForm((current) => ({ ...current, status: e.target.value }))}><option value="pending">Pending</option><option value="in_progress">In progress</option><option value="complete">Complete</option><option value="overdue">Overdue</option></Select></Input>
-          <Input label="Due date"><TextInput type="date" value={complianceForm.due_date} onChange={(e) => setComplianceForm((current) => ({ ...current, due_date: e.target.value }))} /></Input>
-          <Input label="Vendor"><TextInput value={complianceForm.vendor_name} onChange={(e) => setComplianceForm((current) => ({ ...current, vendor_name: e.target.value }))} /></Input>
-          <Input label="Document URL" wide><TextInput value={complianceForm.document_url} onChange={(e) => setComplianceForm((current) => ({ ...current, document_url: e.target.value }))} /></Input>
-          <Input label="Notes" wide><TextArea rows={2} value={complianceForm.notes} onChange={(e) => setComplianceForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
+          <Input label={t('businessHub.propertyOps.compliance.unit')}><Select value={complianceForm.unit_id} onChange={(e) => setComplianceForm((current) => ({ ...current, unit_id: e.target.value }))}><option value="">{t('businessHub.propertyOps.compliance.generalWholeProperty')}</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.property_label}{unit.unit_label ? ` · ${unit.unit_label}` : ''}</option>)}</Select></Input>
+          <Input label={t('businessHub.propertyOps.compliance.recordType')}><TextInput value={complianceForm.record_type} onChange={(e) => setComplianceForm((current) => ({ ...current, record_type: e.target.value }))} /></Input>
+          <Input label={t('businessHub.propertyOps.compliance.titleLabel')}><TextInput value={complianceForm.title} onChange={(e) => setComplianceForm((current) => ({ ...current, title: e.target.value }))} /></Input>
+          <Input label={t('businessHub.propertyOps.compliance.status')}><Select value={complianceForm.status} onChange={(e) => setComplianceForm((current) => ({ ...current, status: e.target.value }))}><option value="pending">{t('businessHub.propertyOps.options.complianceStatus.pending')}</option><option value="in_progress">{t('businessHub.propertyOps.options.complianceStatus.inProgress')}</option><option value="complete">{t('businessHub.propertyOps.options.complianceStatus.complete')}</option><option value="overdue">{t('businessHub.propertyOps.options.complianceStatus.overdue')}</option></Select></Input>
+          <Input label={t('businessHub.propertyOps.compliance.dueDate')}><TextInput type="date" value={complianceForm.due_date} onChange={(e) => setComplianceForm((current) => ({ ...current, due_date: e.target.value }))} /></Input>
+          <Input label={t('businessHub.propertyOps.compliance.vendor')}><TextInput value={complianceForm.vendor_name} onChange={(e) => setComplianceForm((current) => ({ ...current, vendor_name: e.target.value }))} /></Input>
+          <Input label={t('businessHub.propertyOps.compliance.documentUrl')} wide><TextInput value={complianceForm.document_url} onChange={(e) => setComplianceForm((current) => ({ ...current, document_url: e.target.value }))} /></Input>
+          <Input label={t('businessHub.propertyOps.compliance.notes')} wide><TextArea rows={2} value={complianceForm.notes} onChange={(e) => setComplianceForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
           <div className="md:col-span-2 flex gap-3">
-            <button className="bh-btn primary" type="submit">{editingComplianceId ? 'Update record' : 'Add record'}</button>
-            {editingComplianceId ? <button className="bh-btn" type="button" onClick={() => { setEditingComplianceId(null); setComplianceForm(EMPTY_COMPLIANCE); }}>Cancel</button> : null}
+            <button className="bh-btn primary" type="submit">{editingComplianceId ? t('businessHub.propertyOps.compliance.updateRecord') : t('businessHub.propertyOps.compliance.addRecord')}</button>
+            {editingComplianceId ? <button className="bh-btn" type="button" onClick={() => { setEditingComplianceId(null); setComplianceForm(EMPTY_COMPLIANCE); }}>{t('businessHub.propertyOps.common.cancel')}</button> : null}
           </div>
         </form>
         <div className="mt-5 space-y-3">
@@ -468,11 +468,11 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
                     <span className="rounded-full bg-gray-800 px-2.5 py-1 text-[11px] font-semibold text-gray-300">{record.record_type}</span>
                     <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${record.status === 'overdue' ? 'bg-rose-400/10 text-rose-200' : record.status === 'complete' ? 'bg-emerald-400/10 text-emerald-200' : 'bg-amber-400/10 text-amber-200'}`}>{record.status}</span>
                   </div>
-                  <p className="mt-1 text-sm text-gray-400">{record.unit_property_label || 'General record'}{record.due_date ? ` · due ${new Date(record.due_date).toLocaleDateString()}` : ''}</p>
+                  <p className="mt-1 text-sm text-gray-400">{record.unit_property_label || t('businessHub.propertyOps.compliance.generalRecord')}{record.due_date ? ` · ${t('businessHub.propertyOps.compliance.duePrefix')} ${new Date(record.due_date).toLocaleDateString(locale)}` : ''}</p>
                 </div>
                 <div className="flex gap-2">
-                  <button className="bh-btn sm" type="button" onClick={() => { setEditingComplianceId(record.id); setComplianceForm({ ...EMPTY_COMPLIANCE, ...record, due_date: record.due_date ? String(record.due_date).slice(0, 10) : '' }); }}>Edit</button>
-                  <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm('Delete this record?')) return; await deletePropertyComplianceRecord(businessId, record.id); toast.success('Compliance record deleted'); await onRefresh?.(); }}>Delete</button>
+                  <button className="bh-btn sm" type="button" onClick={() => { setEditingComplianceId(record.id); setComplianceForm({ ...EMPTY_COMPLIANCE, ...record, due_date: record.due_date ? String(record.due_date).slice(0, 10) : '' }); }}>{t('businessHub.propertyOps.common.edit')}</button>
+                  <button className="bh-btn sm danger" type="button" onClick={async () => { if (!window.confirm(t('businessHub.propertyOps.confirms.deleteRecord'))) return; await deletePropertyComplianceRecord(businessId, record.id); toast.success(t('businessHub.propertyOps.toasts.complianceDeleted')); await onRefresh?.(); }}>{t('businessHub.propertyOps.common.delete')}</button>
                 </div>
               </div>
             </div>

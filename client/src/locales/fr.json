@@ -4040,7 +4040,169 @@
       "ai_drafts": "Brouillons IA"
     },
     "switchToVortex": "Rejoindre ou gerer les espaces",
-    "vortexHint": "Entrer un code d acces"
+    "vortexHint": "Entrer un code d acces",
+    "propertyOps": {
+      "badge": "Ops immobili?res",
+      "title": "Syst?me op?ratoire du gestionnaire immobilier",
+      "description": "Cet onglet transforme le mod?le en espace immobilier vivant avec unit?s, normes d intake locataire, rappels de conformit?, logique tarifaire de dispatch et files de suivi li?es ? la maintenance.",
+      "common": {
+        "refresh": "Actualiser",
+        "saveSettings": "Enregistrer les r?glages",
+        "saving": "Enregistrement...",
+        "cancel": "Annuler",
+        "edit": "Modifier",
+        "delete": "Supprimer"
+      },
+      "metrics": {
+        "unitsTracked": "Unit?s suivies",
+        "unitsTrackedHint": "{{occupied}} occup?es ? {{turnover}} en rotation",
+        "complianceRisk": "Risque conformit?",
+        "complianceRiskHint": "?l?ments dus ou en retard",
+        "openRequests": "Demandes ouvertes",
+        "openRequestsHint": "Pipeline actuel de r?paration",
+        "followUpsDue": "Relances dues",
+        "followUpsDueHint": "Demandes en attente du prochain contact",
+        "recordedCost": "Co?t enregistr?",
+        "recordedCostHint": "D?penses de r?paration consign?es",
+        "activePackages": "Forfaits actifs",
+        "activePackagesHint": "Logique facturable en service"
+      },
+      "followUpQueue": {
+        "title": "File de suivi",
+        "subtitle": "Ces rappels sont g?n?r?s automatiquement ? partir des demandes de maintenance inactives et des ?l?ments de conformit? arriv?s ? ?ch?ance.",
+        "empty": "Aucune relance n est due pour le moment.",
+        "dueNow": "? faire maintenant"
+      },
+      "recentWorkflow": {
+        "title": "Flux immobilier r?cent",
+        "subtitle": "Les ?l?ments de maintenance r?cents restent visibles ici pour que l onglet op?rations et la file de maintenance restent synchronis?s.",
+        "openMaintenance": "Ouvrir la maintenance",
+        "empty": "Aucune demande de maintenance n a encore ?t? enregistr?e.",
+        "propertyFallback": "Propri?t?"
+      },
+      "settings": {
+        "title": "R?glages intake locataire et confiance",
+        "subtitle": "Ces r?glages modifient ce que voit le locataire, comment la maintenance est cat?goris?e et ? quelle vitesse l ?quipe doit faire le suivi.",
+        "emergencyPhone": "T?l?phone d urgence",
+        "emergencyPhonePlaceholder": "Ligne d urgence facultative",
+        "defaultBillTo": "Facturer par d?faut ?",
+        "responsePromiseHours": "Promesse de r?ponse (heures)",
+        "followUpCadenceHours": "Cadence de suivi (heures)",
+        "issueCategories": "Cat?gories d incidents",
+        "issueCategoriesPlaceholder": "Cat?gories s?par?es par des virgules",
+        "trustArtifacts": "?l?ments de confiance",
+        "trustArtifactsPlaceholder": "Signaux de confiance s?par?s par des virgules",
+        "managedPropertyTypes": "Types de biens g?r?s",
+        "managedPropertyTypesPlaceholder": "Appartement, Duplex, HOA, location courte dur?e",
+        "tenantPortalIntro": "Intro portail locataire",
+        "tenantPortalIntroPlaceholder": "Consignes publiques avant l envoi d une demande",
+        "emergencyInstructions": "Consignes d urgence",
+        "emergencyInstructionsPlaceholder": "Que doit faire un locataire en cas d inondation, incendie ou risque de s?curit?",
+        "afterHoursPolicy": "Politique hors horaires",
+        "afterHoursPolicyPlaceholder": "Consignes pour dispatch hors horaires ou urgences uniquement"
+      },
+      "units": {
+        "title": "Unit?s du portefeuille",
+        "subtitle": "Suivez unit?s, occupants, contexte d acc?s et niveaux de priorit? pour dispatcher avec le bon contexte de propri?t?.",
+        "propertyLabel": "Libell? propri?t?",
+        "unit": "Unit?",
+        "propertyType": "Type de propri?t?",
+        "occupancy": "Occupation",
+        "contactName": "Nom du contact",
+        "contactPhone": "T?l?phone du contact",
+        "priorityTier": "Niveau de priorit?",
+        "accessSummary": "R?sum? d acc?s",
+        "notes": "Notes",
+        "updateUnit": "Mettre ? jour l unit?",
+        "addUnit": "Ajouter une unit?"
+      },
+      "packages": {
+        "title": "Forfaits et tarification immobiliers",
+        "subtitle": "D?finissez une logique de dispatch, inspection, rotation et r?tention que ce mod?le peut r?ellement vendre et facturer.",
+        "packageName": "Nom du forfait",
+        "pricingModel": "Mod?le tarifaire",
+        "billTo": "Facturer ?",
+        "basePriceCents": "Prix de base (centimes)",
+        "afterHoursSurchargeCents": "Suppl?ment hors horaires (centimes)",
+        "targetTurnaroundHours": "D?lai cible (heures)",
+        "descriptionLabel": "Description",
+        "includes": "Comprend",
+        "includesPlaceholder": "?l?ments inclus s?par?s par des virgules",
+        "updatePackage": "Mettre ? jour le forfait",
+        "addPackage": "Ajouter un forfait",
+        "baseSuffix": "base",
+        "afterHoursSuffix": "hors horaires"
+      },
+      "compliance": {
+        "title": "Conformit? et preuves de confiance",
+        "subtitle": "Suivez inspections, obligations r?currentes et ?l?ments de confiance qui donnent au mod?le immobilier la sensation d un vrai syst?me de gestion.",
+        "unit": "Unit?",
+        "generalWholeProperty": "G?n?ral / propri?t? enti?re",
+        "recordType": "Type d enregistrement",
+        "titleLabel": "Titre",
+        "status": "Statut",
+        "dueDate": "Date d ?ch?ance",
+        "vendor": "Prestataire",
+        "documentUrl": "URL du document",
+        "notes": "Notes",
+        "updateRecord": "Mettre ? jour l enregistrement",
+        "addRecord": "Ajouter un enregistrement",
+        "generalRecord": "Enregistrement g?n?ral",
+        "duePrefix": "?ch?ance"
+      },
+      "options": {
+        "billTo": {
+          "owner": "Propri?taire",
+          "tenant": "Locataire",
+          "internal": "Interne"
+        },
+        "occupancy": {
+          "occupied": "Occup?e",
+          "vacant": "Vacante",
+          "turnover": "Rotation",
+          "ownerHold": "R?serve propri?taire"
+        },
+        "priority": {
+          "standard": "Standard",
+          "priority": "Prioritaire",
+          "vip": "VIP"
+        },
+        "pricingModel": {
+          "flat": "Forfait",
+          "hourly": "Horaire",
+          "inspection": "Inspection",
+          "turnover": "Rotation",
+          "retainer": "R?tention"
+        },
+        "complianceStatus": {
+          "pending": "En attente",
+          "inProgress": "En cours",
+          "complete": "Termin?",
+          "overdue": "En retard"
+        }
+      },
+      "toasts": {
+        "settingsSaved": "R?glages des op?rations immobili?res enregistr?s",
+        "settingsSaveError": "Impossible d enregistrer les r?glages immobiliers",
+        "unitUpdated": "Unit? mise ? jour",
+        "unitAdded": "Unit? ajout?e",
+        "unitSaveError": "Impossible d enregistrer l unit?",
+        "unitDeleted": "Unit? supprim?e",
+        "packageUpdated": "Forfait mis ? jour",
+        "packageAdded": "Forfait ajout?",
+        "packageSaveError": "Impossible d enregistrer le forfait",
+        "packageDeleted": "Forfait supprim?",
+        "complianceUpdated": "Enregistrement de conformit? mis ? jour",
+        "complianceAdded": "Enregistrement de conformit? ajout?",
+        "complianceSaveError": "Impossible d enregistrer la conformit?",
+        "complianceDeleted": "Enregistrement de conformit? supprim?"
+      },
+      "confirms": {
+        "deleteUnit": "Supprimer cette unit? ?",
+        "deletePackage": "Supprimer ce forfait ?",
+        "deleteRecord": "Supprimer cet enregistrement ?"
+      }
+    }
   },
   "plans": {
     "free": "Gratuit",

@@ -4040,7 +4040,169 @@
       "ai_drafts": "AI drafts"
     },
     "switchToVortex": "Join or manage workspaces",
-    "vortexHint": "Enter access code"
+    "vortexHint": "Enter access code",
+    "propertyOps": {
+      "badge": "Property Ops",
+      "title": "Property manager operating system",
+      "description": "This tab turns the template into a live property workspace with units, tenant intake standards, compliance reminders, dispatch pricing, and follow-up queues tied to maintenance operations.",
+      "common": {
+        "refresh": "Refresh",
+        "saveSettings": "Save settings",
+        "saving": "Saving...",
+        "cancel": "Cancel",
+        "edit": "Edit",
+        "delete": "Delete"
+      },
+      "metrics": {
+        "unitsTracked": "Units tracked",
+        "unitsTrackedHint": "{{occupied}} occupied ? {{turnover}} turnover",
+        "complianceRisk": "Compliance risk",
+        "complianceRiskHint": "Due or overdue records needing action",
+        "openRequests": "Open requests",
+        "openRequestsHint": "Current repair pipeline",
+        "followUpsDue": "Follow-ups due",
+        "followUpsDueHint": "Requests waiting on next contact",
+        "recordedCost": "Recorded cost",
+        "recordedCostHint": "Logged repair spend",
+        "activePackages": "Active packages",
+        "activePackagesHint": "Billable service logic live"
+      },
+      "followUpQueue": {
+        "title": "Follow-up Queue",
+        "subtitle": "These reminders are auto-generated from stale maintenance requests and due compliance records.",
+        "empty": "No follow-ups are due right now.",
+        "dueNow": "Due now"
+      },
+      "recentWorkflow": {
+        "title": "Recent Property Workflow",
+        "subtitle": "Recent maintenance items stay visible here so the operations tab and maintenance queue work together.",
+        "openMaintenance": "Open maintenance",
+        "empty": "No maintenance requests have been logged yet.",
+        "propertyFallback": "Property"
+      },
+      "settings": {
+        "title": "Tenant Intake and Trust Settings",
+        "subtitle": "These settings change what the tenant sees, how maintenance gets categorized, and how quickly the team is expected to follow up.",
+        "emergencyPhone": "Emergency phone",
+        "emergencyPhonePlaceholder": "Optional emergency line",
+        "defaultBillTo": "Default bill to",
+        "responsePromiseHours": "Response promise (hours)",
+        "followUpCadenceHours": "Follow-up cadence (hours)",
+        "issueCategories": "Issue categories",
+        "issueCategoriesPlaceholder": "Comma-separated categories",
+        "trustArtifacts": "Trust artifacts",
+        "trustArtifactsPlaceholder": "Comma-separated trust cues",
+        "managedPropertyTypes": "Managed property types",
+        "managedPropertyTypesPlaceholder": "Apartment, Duplex, HOA, Short-term rental",
+        "tenantPortalIntro": "Tenant portal intro",
+        "tenantPortalIntroPlaceholder": "Public guidance for tenants before they submit a request",
+        "emergencyInstructions": "Emergency instructions",
+        "emergencyInstructionsPlaceholder": "What a tenant should do for flooding, fire, or safety issues",
+        "afterHoursPolicy": "After-hours policy",
+        "afterHoursPolicyPlaceholder": "After-hours dispatch or emergency-only guidance"
+      },
+      "units": {
+        "title": "Portfolio Units",
+        "subtitle": "Track units, occupants, access context, and priority tiers so dispatch happens with the right property context.",
+        "propertyLabel": "Property label",
+        "unit": "Unit",
+        "propertyType": "Property type",
+        "occupancy": "Occupancy",
+        "contactName": "Contact name",
+        "contactPhone": "Contact phone",
+        "priorityTier": "Priority tier",
+        "accessSummary": "Access summary",
+        "notes": "Notes",
+        "updateUnit": "Update unit",
+        "addUnit": "Add unit"
+      },
+      "packages": {
+        "title": "Property Packages and Pricing",
+        "subtitle": "Define dispatch, inspection, turnover, and retainer logic that this template can actually sell and bill against.",
+        "packageName": "Package name",
+        "pricingModel": "Pricing model",
+        "billTo": "Bill to",
+        "basePriceCents": "Base price (cents)",
+        "afterHoursSurchargeCents": "After-hours surcharge (cents)",
+        "targetTurnaroundHours": "Target turnaround (hours)",
+        "descriptionLabel": "Description",
+        "includes": "Includes",
+        "includesPlaceholder": "Comma-separated inclusions",
+        "updatePackage": "Update package",
+        "addPackage": "Add package",
+        "baseSuffix": "base",
+        "afterHoursSuffix": "after-hours"
+      },
+      "compliance": {
+        "title": "Compliance and Trust Records",
+        "subtitle": "Track inspections, recurring obligations, and trust artifacts that make the property template feel like an actual management system.",
+        "unit": "Unit",
+        "generalWholeProperty": "General / whole property",
+        "recordType": "Record type",
+        "titleLabel": "Title",
+        "status": "Status",
+        "dueDate": "Due date",
+        "vendor": "Vendor",
+        "documentUrl": "Document URL",
+        "notes": "Notes",
+        "updateRecord": "Update record",
+        "addRecord": "Add record",
+        "generalRecord": "General record",
+        "duePrefix": "due"
+      },
+      "options": {
+        "billTo": {
+          "owner": "Owner",
+          "tenant": "Tenant",
+          "internal": "Internal"
+        },
+        "occupancy": {
+          "occupied": "Occupied",
+          "vacant": "Vacant",
+          "turnover": "Turnover",
+          "ownerHold": "Owner hold"
+        },
+        "priority": {
+          "standard": "Standard",
+          "priority": "Priority",
+          "vip": "VIP"
+        },
+        "pricingModel": {
+          "flat": "Flat",
+          "hourly": "Hourly",
+          "inspection": "Inspection",
+          "turnover": "Turnover",
+          "retainer": "Retainer"
+        },
+        "complianceStatus": {
+          "pending": "Pending",
+          "inProgress": "In progress",
+          "complete": "Complete",
+          "overdue": "Overdue"
+        }
+      },
+      "toasts": {
+        "settingsSaved": "Property operations settings saved",
+        "settingsSaveError": "Could not save property settings",
+        "unitUpdated": "Unit updated",
+        "unitAdded": "Unit added",
+        "unitSaveError": "Could not save unit",
+        "unitDeleted": "Unit deleted",
+        "packageUpdated": "Package updated",
+        "packageAdded": "Package added",
+        "packageSaveError": "Could not save package",
+        "packageDeleted": "Package deleted",
+        "complianceUpdated": "Compliance record updated",
+        "complianceAdded": "Compliance record added",
+        "complianceSaveError": "Could not save compliance record",
+        "complianceDeleted": "Compliance record deleted"
+      },
+      "confirms": {
+        "deleteUnit": "Delete this unit?",
+        "deletePackage": "Delete this package?",
+        "deleteRecord": "Delete this record?"
+      }
+    }
   },
   "plans": {
     "free": "Free",

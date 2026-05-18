@@ -26,6 +26,11 @@
 - **`client/src/locales/en.json`, `es.json`, `fr.json`, `ht.json`**: Added a dedicated `businessHub.overview` translation block plus missing tab-label / template-switch keys so language switches cover the Business Hub workspace more consistently.
 - **Verification:** Locale JSON parses cleanly via Node. A full client build was not rerun here because this workspace still lacks a working local `vite` binary.
 
+**Property Ops workspace localization pass (2026-05-18):** COMPLETE
+- **`client/src/components/businessHub/PropertyOperationsTab.jsx`**: Replaced hardcoded property-manager workspace copy with locale lookups across the hero, KPI cards, follow-up queue, recent workflow, tenant-intake settings, units, packages, compliance records, action buttons, confirmations, toasts, and locale-aware date formatting.
+- **`client/src/locales/en.json`, `es.json`, `fr.json`, `ht.json`**: Added `businessHub.propertyOps` translation blocks so the property-operations workspace now switches language more reliably alongside the already-localized Business Hub shell.
+- **Verification:** Locale JSON parses cleanly via Node, and a key-coverage script confirmed every `businessHub.propertyOps.*` key referenced by `PropertyOperationsTab.jsx` exists in all four locales. Full client build still was not rerun here because the workspace lacks a working local `vite` binary.
+
 **Template internal workflow systems foundation (2026-05-17):** COMPLETE
 - **`client/src/components/profileTemplates/templateWorkflowSystems.js`**: Added a centralized internal workflow registry for all template categories and template slugs. Each template now defines an operating model, demand pattern, workflow stages, intake requirements, recordkeeping expectations, cadence, quality controls, monetization plays, and Business Hub systems it should rely on.
 - **`client/src/components/businessHub/TemplateWorkflowSystemTab.jsx`**: Added a dedicated Business Hub template-workflow workspace that translates the active template into an internal operating system with readiness metrics, live setup checklist scoring, gap detection, next-best-action routing, demand fit, workflow stages, required records, operating cadence, quality controls, monetization guidance, and click-through system shortcuts.

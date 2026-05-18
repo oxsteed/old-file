@@ -4040,7 +4040,169 @@
       "ai_drafts": "Borradores IA"
     },
     "switchToVortex": "Unirme o administrar espacios",
-    "vortexHint": "Ingresar codigo de acceso"
+    "vortexHint": "Ingresar codigo de acceso",
+    "propertyOps": {
+      "badge": "Ops de propiedades",
+      "title": "Sistema operativo para administradores de propiedades",
+      "description": "Esta pesta?a convierte la plantilla en un espacio inmobiliario vivo con unidades, normas de intake para inquilinos, recordatorios de cumplimiento, l?gica de precios de despacho y colas de seguimiento ligadas al mantenimiento.",
+      "common": {
+        "refresh": "Actualizar",
+        "saveSettings": "Guardar ajustes",
+        "saving": "Guardando...",
+        "cancel": "Cancelar",
+        "edit": "Editar",
+        "delete": "Eliminar"
+      },
+      "metrics": {
+        "unitsTracked": "Unidades seguidas",
+        "unitsTrackedHint": "{{occupied}} ocupadas ? {{turnover}} en rotaci?n",
+        "complianceRisk": "Riesgo de cumplimiento",
+        "complianceRiskHint": "Registros vencidos o por vencer que requieren acci?n",
+        "openRequests": "Solicitudes abiertas",
+        "openRequestsHint": "Flujo actual de reparaciones",
+        "followUpsDue": "Seguimientos pendientes",
+        "followUpsDueHint": "Solicitudes esperando el pr?ximo contacto",
+        "recordedCost": "Costo registrado",
+        "recordedCostHint": "Gasto de reparaci?n registrado",
+        "activePackages": "Paquetes activos",
+        "activePackagesHint": "L?gica facturable en vivo"
+      },
+      "followUpQueue": {
+        "title": "Cola de seguimiento",
+        "subtitle": "Estos recordatorios se generan autom?ticamente a partir de solicitudes de mantenimiento estancadas y registros de cumplimiento pendientes.",
+        "empty": "No hay seguimientos pendientes ahora mismo.",
+        "dueNow": "Vence ahora"
+      },
+      "recentWorkflow": {
+        "title": "Flujo reciente de propiedades",
+        "subtitle": "Los elementos de mantenimiento recientes siguen visibles aqu? para que la pesta?a de operaciones y la cola de mantenimiento trabajen juntas.",
+        "openMaintenance": "Abrir mantenimiento",
+        "empty": "A?n no se han registrado solicitudes de mantenimiento.",
+        "propertyFallback": "Propiedad"
+      },
+      "settings": {
+        "title": "Ajustes de intake y confianza para inquilinos",
+        "subtitle": "Estos ajustes cambian lo que ve el inquilino, c?mo se clasifica el mantenimiento y qu? tan r?pido debe hacer seguimiento el equipo.",
+        "emergencyPhone": "Tel?fono de emergencia",
+        "emergencyPhonePlaceholder": "L?nea de emergencia opcional",
+        "defaultBillTo": "Cobrar por defecto a",
+        "responsePromiseHours": "Promesa de respuesta (horas)",
+        "followUpCadenceHours": "Cadencia de seguimiento (horas)",
+        "issueCategories": "Categor?as de incidentes",
+        "issueCategoriesPlaceholder": "Categor?as separadas por comas",
+        "trustArtifacts": "Elementos de confianza",
+        "trustArtifactsPlaceholder": "Se?ales de confianza separadas por comas",
+        "managedPropertyTypes": "Tipos de propiedad gestionados",
+        "managedPropertyTypesPlaceholder": "Apartamento, d?plex, HOA, renta de corta duraci?n",
+        "tenantPortalIntro": "Introducci?n del portal del inquilino",
+        "tenantPortalIntroPlaceholder": "Gu?a p?blica antes de enviar una solicitud",
+        "emergencyInstructions": "Instrucciones de emergencia",
+        "emergencyInstructionsPlaceholder": "Qu? debe hacer un inquilino en caso de inundaci?n, incendio o problema de seguridad",
+        "afterHoursPolicy": "Pol?tica fuera de horario",
+        "afterHoursPolicyPlaceholder": "Gu?a de despacho fuera de horario o solo para emergencias"
+      },
+      "units": {
+        "title": "Unidades del portafolio",
+        "subtitle": "Sigue unidades, ocupantes, contexto de acceso y niveles de prioridad para despachar con el contexto correcto.",
+        "propertyLabel": "Etiqueta de la propiedad",
+        "unit": "Unidad",
+        "propertyType": "Tipo de propiedad",
+        "occupancy": "Ocupaci?n",
+        "contactName": "Nombre del contacto",
+        "contactPhone": "Tel?fono del contacto",
+        "priorityTier": "Nivel de prioridad",
+        "accessSummary": "Resumen de acceso",
+        "notes": "Notas",
+        "updateUnit": "Actualizar unidad",
+        "addUnit": "Agregar unidad"
+      },
+      "packages": {
+        "title": "Paquetes y precios de propiedades",
+        "subtitle": "Define l?gica de despacho, inspecci?n, rotaci?n y retainer que esta plantilla realmente pueda vender y facturar.",
+        "packageName": "Nombre del paquete",
+        "pricingModel": "Modelo de precio",
+        "billTo": "Cobrar a",
+        "basePriceCents": "Precio base (centavos)",
+        "afterHoursSurchargeCents": "Recargo fuera de horario (centavos)",
+        "targetTurnaroundHours": "Tiempo objetivo (horas)",
+        "descriptionLabel": "Descripci?n",
+        "includes": "Incluye",
+        "includesPlaceholder": "Inclusiones separadas por comas",
+        "updatePackage": "Actualizar paquete",
+        "addPackage": "Agregar paquete",
+        "baseSuffix": "base",
+        "afterHoursSuffix": "fuera de horario"
+      },
+      "compliance": {
+        "title": "Cumplimiento y registros de confianza",
+        "subtitle": "Sigue inspecciones, obligaciones recurrentes y elementos de confianza que hacen que la plantilla se sienta como un sistema real de gesti?n.",
+        "unit": "Unidad",
+        "generalWholeProperty": "General / propiedad completa",
+        "recordType": "Tipo de registro",
+        "titleLabel": "T?tulo",
+        "status": "Estado",
+        "dueDate": "Fecha de vencimiento",
+        "vendor": "Proveedor",
+        "documentUrl": "URL del documento",
+        "notes": "Notas",
+        "updateRecord": "Actualizar registro",
+        "addRecord": "Agregar registro",
+        "generalRecord": "Registro general",
+        "duePrefix": "vence"
+      },
+      "options": {
+        "billTo": {
+          "owner": "Propietario",
+          "tenant": "Inquilino",
+          "internal": "Interno"
+        },
+        "occupancy": {
+          "occupied": "Ocupada",
+          "vacant": "Vacante",
+          "turnover": "Rotaci?n",
+          "ownerHold": "Reserva del propietario"
+        },
+        "priority": {
+          "standard": "Est?ndar",
+          "priority": "Prioridad",
+          "vip": "VIP"
+        },
+        "pricingModel": {
+          "flat": "Fijo",
+          "hourly": "Por hora",
+          "inspection": "Inspecci?n",
+          "turnover": "Rotaci?n",
+          "retainer": "Retainer"
+        },
+        "complianceStatus": {
+          "pending": "Pendiente",
+          "inProgress": "En progreso",
+          "complete": "Completo",
+          "overdue": "Vencido"
+        }
+      },
+      "toasts": {
+        "settingsSaved": "Ajustes de operaciones guardados",
+        "settingsSaveError": "No se pudieron guardar los ajustes de propiedades",
+        "unitUpdated": "Unidad actualizada",
+        "unitAdded": "Unidad agregada",
+        "unitSaveError": "No se pudo guardar la unidad",
+        "unitDeleted": "Unidad eliminada",
+        "packageUpdated": "Paquete actualizado",
+        "packageAdded": "Paquete agregado",
+        "packageSaveError": "No se pudo guardar el paquete",
+        "packageDeleted": "Paquete eliminado",
+        "complianceUpdated": "Registro de cumplimiento actualizado",
+        "complianceAdded": "Registro de cumplimiento agregado",
+        "complianceSaveError": "No se pudo guardar el registro de cumplimiento",
+        "complianceDeleted": "Registro de cumplimiento eliminado"
+      },
+      "confirms": {
+        "deleteUnit": "?Eliminar esta unidad?",
+        "deletePackage": "?Eliminar este paquete?",
+        "deleteRecord": "?Eliminar este registro?"
+      }
+    }
   },
   "plans": {
     "free": "Gratis",

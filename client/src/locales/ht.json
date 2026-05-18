@@ -4125,7 +4125,169 @@
     "tabLeadsLabel": "Lead",
     "tabTemplatesLabel": "Model",
     "switchTemplate": "Chanje model",
-    "switchTemplateTitle": "Chanje biznis sa a pou yon lot model pwofil"
+    "switchTemplateTitle": "Chanje biznis sa a pou yon lot model pwofil",
+    "propertyOps": {
+      "badge": "Ops pwopriyete",
+      "title": "Sist?m operasyon pou jere pwopriyete",
+      "description": "Tab sa a f? mod?l la tounen yon espas pwopriyete vivan ak inite, r?g intake pou lokat?, rap?l konf?mite, lojik pri dispatch, ak lis swivi ki mare ak operasyon antretyen.",
+      "common": {
+        "refresh": "Rafrechi",
+        "saveSettings": "Sove reglaj yo",
+        "saving": "Ap sove...",
+        "cancel": "Anile",
+        "edit": "Modifye",
+        "delete": "Efase"
+      },
+      "metrics": {
+        "unitsTracked": "Inite swiv",
+        "unitsTrackedHint": "{{occupied}} okipe ? {{turnover}} an wotasyon",
+        "complianceRisk": "Risk konf?mite",
+        "complianceRiskHint": "Dosye ki dwe f?t oswa an reta",
+        "openRequests": "Demann ouv?",
+        "openRequestsHint": "Kouran reparasyon akty?l la",
+        "followUpsDue": "Swivi ki dwe f?t",
+        "followUpsDueHint": "Demann k ap tann pwochen kontak la",
+        "recordedCost": "Pri anrejistre",
+        "recordedCostHint": "Depans reparasyon ki antre",
+        "activePackages": "Pake aktif",
+        "activePackagesHint": "Lojik fakti k ap mache"
+      },
+      "followUpQueue": {
+        "title": "Lis swivi",
+        "subtitle": "Rap?l sa yo f?t otomatikman apati demann antretyen ki pa bouje ak dosye konf?mite ki rive l? yo.",
+        "empty": "Pa gen swivi ki dwe f?t kounye a.",
+        "dueNow": "Dwe f?t kounye a"
+      },
+      "recentWorkflow": {
+        "title": "D?nye workflow pwopriyete",
+        "subtitle": "D?nye bagay antretyen yo rete vizib isit la pou tab operasyon an ak lis antretyen an mache ansanm.",
+        "openMaintenance": "Louvri antretyen",
+        "empty": "Pa gen demann antretyen ki antre ank?.",
+        "propertyFallback": "Pwopriyete"
+      },
+      "settings": {
+        "title": "Reglaj intake lokat? ak konfyans",
+        "subtitle": "Reglaj sa yo chanje sa lokat? a w?, kijan antretyen klase, ak konbyen vit ekip la dwe f? swivi.",
+        "emergencyPhone": "Telef?n ijans",
+        "emergencyPhonePlaceholder": "Liy ijans opsyon?l",
+        "defaultBillTo": "Faktire pa default bay",
+        "responsePromiseHours": "Pwom?s repons (?dtan)",
+        "followUpCadenceHours": "Kadans swivi (?dtan)",
+        "issueCategories": "Kategori pwobl?m",
+        "issueCategoriesPlaceholder": "Kategori separe ak vigil",
+        "trustArtifacts": "Eleman konfyans",
+        "trustArtifactsPlaceholder": "Siy konfyans separe ak vigil",
+        "managedPropertyTypes": "Kalite pwopriyete yo jere",
+        "managedPropertyTypesPlaceholder": "Apatman, duplex, HOA, lokasyon kout t?m",
+        "tenantPortalIntro": "Entwodiksyon p?tal lokat?",
+        "tenantPortalIntroPlaceholder": "Gid piblik anvan lokat? a voye yon demann",
+        "emergencyInstructions": "Enstriksyon ijans",
+        "emergencyInstructionsPlaceholder": "Kisa yon lokat? dwe f? pou inondasyon, dife, oswa risk sekirite",
+        "afterHoursPolicy": "Politik apre l?",
+        "afterHoursPolicyPlaceholder": "Gid dispatch apre l? oswa pou ijans s?lman"
+      },
+      "units": {
+        "title": "Inite p?tfolyo",
+        "subtitle": "Swiv inite, moun ki ladan yo, kont?ks aks?, ak nivo priyorite pou dispatch f?t ak bon kont?ks pwopriyete a.",
+        "propertyLabel": "Etik?t pwopriyete",
+        "unit": "Inite",
+        "propertyType": "Kalite pwopriyete",
+        "occupancy": "Okipasyon",
+        "contactName": "Non kontak",
+        "contactPhone": "Telef?n kontak",
+        "priorityTier": "Nivo priyorite",
+        "accessSummary": "Rezime aks?",
+        "notes": "N?t",
+        "updateUnit": "Mete inite a ajou",
+        "addUnit": "Ajoute inite"
+      },
+      "packages": {
+        "title": "Pake ak pri pwopriyete",
+        "subtitle": "Defini lojik dispatch, enspeksyon, turnover, ak retainer ke mod?l sa a ka vann ak faktire toutbon.",
+        "packageName": "Non pake",
+        "pricingModel": "Mod?l pri",
+        "billTo": "Faktire bay",
+        "basePriceCents": "Pri baz (santim)",
+        "afterHoursSurchargeCents": "Siplemant? apre l? (santim)",
+        "targetTurnaroundHours": "Tan sib pou fini (?dtan)",
+        "descriptionLabel": "Deskripsyon",
+        "includes": "Sa ki ladan li",
+        "includesPlaceholder": "Sa ki ladan yo separe ak vigil",
+        "updatePackage": "Mete pake a ajou",
+        "addPackage": "Ajoute pake",
+        "baseSuffix": "baz",
+        "afterHoursSuffix": "apre l?"
+      },
+      "compliance": {
+        "title": "Konf?mite ak dosye konfyans",
+        "subtitle": "Swiv enspeksyon, obligasyon repete, ak eleman konfyans ki f? mod?l pwopriyete a santi tankou yon vr? sist?m jesyon.",
+        "unit": "Inite",
+        "generalWholeProperty": "Jeneral / tout pwopriyete a",
+        "recordType": "Kalite dosye",
+        "titleLabel": "Tit",
+        "status": "Estati",
+        "dueDate": "Dat limit",
+        "vendor": "Founis?",
+        "documentUrl": "URL dokiman",
+        "notes": "N?t",
+        "updateRecord": "Mete dosye a ajou",
+        "addRecord": "Ajoute dosye",
+        "generalRecord": "Dosye jeneral",
+        "duePrefix": "dwe"
+      },
+      "options": {
+        "billTo": {
+          "owner": "Pwopriyet?",
+          "tenant": "Lokat?",
+          "internal": "Ent?n"
+        },
+        "occupancy": {
+          "occupied": "Okipe",
+          "vacant": "Vid",
+          "turnover": "Turnover",
+          "ownerHold": "Kenbe pou pwopriyet?"
+        },
+        "priority": {
+          "standard": "N?mal",
+          "priority": "Priyorite",
+          "vip": "VIP"
+        },
+        "pricingModel": {
+          "flat": "Fiks",
+          "hourly": "Pa ?dtan",
+          "inspection": "Enspeksyon",
+          "turnover": "Turnover",
+          "retainer": "Retainer"
+        },
+        "complianceStatus": {
+          "pending": "An atant",
+          "inProgress": "An pwogr?",
+          "complete": "Fini",
+          "overdue": "An reta"
+        }
+      },
+      "toasts": {
+        "settingsSaved": "Reglaj operasyon pwopriyete yo sove",
+        "settingsSaveError": "Pa t ka sove reglaj pwopriyete yo",
+        "unitUpdated": "Inite a mete ajou",
+        "unitAdded": "Inite a ajoute",
+        "unitSaveError": "Pa t ka sove inite a",
+        "unitDeleted": "Inite a efase",
+        "packageUpdated": "Pake a mete ajou",
+        "packageAdded": "Pake a ajoute",
+        "packageSaveError": "Pa t ka sove pake a",
+        "packageDeleted": "Pake a efase",
+        "complianceUpdated": "Dosye konf?mite a mete ajou",
+        "complianceAdded": "Dosye konf?mite a ajoute",
+        "complianceSaveError": "Pa t ka sove dosye konf?mite a",
+        "complianceDeleted": "Dosye konf?mite a efase"
+      },
+      "confirms": {
+        "deleteUnit": "Efase inite sa a?",
+        "deletePackage": "Efase pake sa a?",
+        "deleteRecord": "Efase dosye sa a?"
+      }
+    }
   },
   "plans": {
     "free": "Gratis",
