@@ -35,6 +35,7 @@ import { LeadPipeline } from '../components/businessHub/LeadPipeline';
 import { MessageTemplatesManager } from '../components/businessHub/MessageTemplatesManager';
 import PropertyOperationsTab from '../components/businessHub/PropertyOperationsTab';
 import TradesOperationsTab from '../components/businessHub/TradesOperationsTab';
+import BeautyOperationsTab from '../components/businessHub/BeautyOperationsTab';
 import TemplateWorkflowSystemTab from '../components/businessHub/TemplateWorkflowSystemTab';
 import {
   listBusinesses, createBusiness, updateBusiness, uploadBusinessPhotos,
@@ -63,6 +64,7 @@ import {
 } from '../api/maintenanceRequests';
 import { getPropertyOperationsWorkspace } from '../api/propertyOperations';
 import { getTradesOperationsWorkspace } from '../api/tradesOperations';
+import { getBeautyOperationsWorkspace } from '../api/beautyOperations';
 import { formatMoney } from '../lib/format';
 import { getDefaultCurrency } from '../lib/countries';
 import '../styles/BusinessHubPage.css';
@@ -160,6 +162,8 @@ function BusinessHubInner() {
   const [propertyOpsLoading, setPropertyOpsLoading] = useState(false);
   const [tradesOpsData, setTradesOpsData] = useState(null);
   const [tradesOpsLoading, setTradesOpsLoading] = useState(false);
+  const [beautyOpsData, setBeautyOpsData] = useState(null);
+  const [beautyOpsLoading, setBeautyOpsLoading] = useState(false);
 
   // team tab
   const [members, setMembers]             = useState([]);
@@ -360,6 +364,18 @@ function BusinessHubInner() {
     }
   }, [bizId]);
 
+  const loadBeautyOperations = useCallback(async () => {
+    if (!bizId) return;
+    setBeautyOpsLoading(true);
+    try {
+      setBeautyOpsData(await getBeautyOperationsWorkspace(bizId));
+    } catch {
+      toast.error('Could not load beauty operations');
+    } finally {
+      setBeautyOpsLoading(false);
+    }
+  }, [bizId]);
+
   const loadTeam = useCallback(async () => {
     if (!bizId) return;
     setMembersLoading(true);
@@ -542,6 +558,7 @@ function BusinessHubInner() {
     else if (tab === 'faqs') loadFAQs();
     else if (tab === 'property-ops') loadPropertyOperations();
     else if (tab === 'trades-ops') loadTradesOperations();
+    else if (tab === 'beauty-ops') loadBeautyOperations();
     else if (tab === 'calendar') loadHours();
     else if (tab === 'skills') loadSkills();
     else if (tab === 'ai') { /* AI tab loads its own data */ }
@@ -554,7 +571,7 @@ function BusinessHubInner() {
     }
     else if (tab === 'maintenance') loadMaintenance();
     else if (tab === 'team') loadTeam();
-  }, [loadingBiz, businesses, bizId, tab, loadProfile, loadServices, loadGallery, loadPolicies, loadFAQs, loadHours, loadSkills, loadOverview, loadInvoices, loadTax, loadGoals, loadMaintenance, loadPropertyOperations, loadTradesOperations, loadTeam]);
+  }, [loadingBiz, businesses, bizId, tab, loadProfile, loadServices, loadGallery, loadPolicies, loadFAQs, loadHours, loadSkills, loadOverview, loadInvoices, loadTax, loadGoals, loadMaintenance, loadPropertyOperations, loadTradesOperations, loadBeautyOperations, loadTeam]);
 
   // ── switcher ──────────────────────────────────────────────────────────────
   function handleSwitchBiz(id) {
@@ -973,6 +990,7 @@ function BusinessHubInner() {
   const activeTemplate = currentBiz?.active_template || 'default';
   const isPropertyManagerTpl = activeTemplate === 'property_manager';
   const isTradesOpsTemplate = ['trades_pro', 'electrician', 'auto_mechanic'].includes(activeTemplate);
+  const isBeautyOpsTemplate = ['beauty_style', 'barbershop', 'hair_stylist', 'spa_skincare'].includes(activeTemplate);
   // Tab order:
   //   1. Overview (KPIs / health, the place owners land first)
   //   2. Edit Profile
@@ -993,6 +1011,7 @@ function BusinessHubInner() {
     'calendar',
     ...(isPropertyManagerTpl ? ['property-ops'] : []),
     ...(isTradesOpsTemplate ? ['trades-ops'] : []),
+    ...(isBeautyOpsTemplate ? ['beauty-ops'] : []),
     ...(isPropertyManagerTpl ? ['maintenance'] : []),
     'invoices', 'tax', 'goals',
     'service-pricing',
@@ -1022,7 +1041,7 @@ function BusinessHubInner() {
     if (tb === 'analytics' && !canEditBizProfile) return false;
     if (tb === 'loyalty' && !canEditBizProfile) return false;
     if (tb === 'integrations' && currentRole !== 'owner') return false;
-    if (['property-ops','trades-ops','expenses','quotes','recurring','staff','reviews-mgmt','marketing','waitlist','packages','health','leads','msg-templates'].includes(tb) && !canEditBizProfile) return false;
+    if (['property-ops','trades-ops','beauty-ops','expenses','quotes','recurring','staff','reviews-mgmt','marketing','waitlist','packages','health','leads','msg-templates'].includes(tb) && !canEditBizProfile) return false;
     return true;
   });
 
@@ -1043,6 +1062,9 @@ function BusinessHubInner() {
       setTab(canViewFinanceHub ? 'overview' : 'team');
     }
     if (tab === 'trades-ops' && !canEditBizProfile) {
+      setTab(canViewFinanceHub ? 'overview' : 'team');
+    }
+    if (tab === 'beauty-ops' && !canEditBizProfile) {
       setTab(canViewFinanceHub ? 'overview' : 'team');
     }
     if (tab === 'ai' && !canEditBizProfile) {
@@ -1071,6 +1093,7 @@ function BusinessHubInner() {
     if (tb === 'maintenance') return 'Maintenance';
     if (tb === 'property-ops') return 'Property Ops';
     if (tb === 'trades-ops') return 'Trades Ops';
+    if (tb === 'beauty-ops') return 'Beauty Ops';
     if (tb === 'calendar') return t('businessHub.tabCalendarLabel', { defaultValue: 'Schedule' });
     if (tb === 'clients') return t('businessHub.tabClientsLabel', { defaultValue: 'Clients' });
     if (tb === 'ai') return t('businessHub.tabAILabel');
@@ -1329,6 +1352,17 @@ function BusinessHubInner() {
                 workspace={tradesOpsData}
                 currency={currency}
                 onRefresh={loadTradesOperations}
+                onJumpTab={(nextTab) => setTab(nextTab)}
+              />
+            )}
+
+            {tab === 'beauty-ops' && (
+              beautyOpsLoading ? <p className="bh-loading">Loading beauty operations...</p> :
+              <BeautyOperationsTab
+                businessId={bizId}
+                workspace={beautyOpsData}
+                currency={currency}
+                onRefresh={loadBeautyOperations}
                 onJumpTab={(nextTab) => setTab(nextTab)}
               />
             )}

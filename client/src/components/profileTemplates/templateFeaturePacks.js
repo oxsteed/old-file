@@ -374,6 +374,18 @@ const TEMPLATE_OVERRIDES = {
     sampleOfferings: ['Vehicle diagnostic', 'Routine maintenance package', 'Repair consultation'],
     trustSignals: ['Vehicle diagnostics', 'Written estimate options', 'Maintenance recommendation tracking'],
   },
+  beauty_style: {
+    trustSignals: ['Prep-aware booking flow', 'Membership and ritual continuity', 'Photo-led look planning'],
+  },
+  barbershop: {
+    trustSignals: ['Repeat grooming rhythm', 'Chair-side no-show expectations', 'Style-proof look book'],
+  },
+  hair_stylist: {
+    trustSignals: ['Color and transformation intake', 'Rebook discipline', 'Consultation-led look planning'],
+  },
+  spa_skincare: {
+    trustSignals: ['Sensitivity-aware treatment intake', 'Calm aftercare guidance', 'Package-led ritual continuity'],
+  },
   dog_walker: {
     marketLabel: 'Dog walking and routine pet movement',
     demandMoments: ['Daily walk support', 'Travel routine coverage', 'Recurring pet exercise needs'],

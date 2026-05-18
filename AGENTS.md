@@ -44,6 +44,14 @@
 - **Template metadata:** `client/src/components/profileTemplates/templateBehavior.js`, `templateWorkflowSystems.js`, and `templateFeaturePacks.js` now treat the trades cluster as diagnostic-first vertical products with `trades-ops` as a core unlocked system and trust/recommendation expectations reflected in the public template layer.
 - **Verification:** `node --check server/controllers/tradesOperationsController.js server/routes/tradesOperations.js server/index.js` passes. Client production build was not rerun here because the workspace still lacks a working local `vite` binary.
 
+**Beauty vertical operating system pass (2026-05-18):** COMPLETE
+- **Migration 251** (`server/migrations/251_beauty_operating_system.sql`): Adds `beauty_operation_settings`, `beauty_intake_requests`, `beauty_membership_packages`, and `beauty_trust_records` so `beauty_style`, `barbershop`, `hair_stylist`, and `spa_skincare` can run intake, prep, retention, membership, and compliance workflows instead of generic appointment-only behavior.
+- **API:** `server/controllers/beautyOperationsController.js` + `server/routes/beautyOperations.js`, mounted in `server/index.js` at `/api/beauty-operations`, provide public beauty-intake settings plus the internal beauty workspace for intake requests, memberships/packages, trust records, metrics, and follow-up / rebook tracking.
+- **Business Hub:** `client/src/components/businessHub/BeautyOperationsTab.jsx` + `client/src/pages/BusinessHubPage.jsx` add a template-only `beauty-ops` workspace for beauty-intake pipeline management, prep / deposit / no-show settings, membership logic, trust records, and upcoming appointment visibility connected to the shared schedule stack.
+- **Public profile / intake:** `client/src/pages/BusinessProfilePage.jsx` now surfaces a beauty-operations section for the beauty cluster; `client/src/pages/BeautyIntakeRequestPage.jsx`, routed in `client/src/App.jsx` as `/business/:businessId/beauty-intake`, captures look goals, prep and sensitivity context, package interest, and policy acknowledgements before booking.
+- **Template metadata:** `client/src/components/profileTemplates/templateBehavior.js`, `templateWorkflowSystems.js`, and `templateFeaturePacks.js` now treat the beauty cluster as prep-aware retention products with `beauty-ops` as a core unlocked system and stronger trust / rebook cues across the public template layer.
+- **Verification:** `node --check server/controllers/beautyOperationsController.js server/routes/beautyOperations.js server/index.js` passes. Client production build was not rerun here because the workspace still lacks a working local `vite` binary.
+
 **Template industry feature-pack foundation (2026-05-17):** COMPLETE
 - **`client/src/components/profileTemplates/templateFeaturePacks.js`**: Added a centralized industry feature-pack system for every registered template. Each template now has category-aware plus slug-specific demand moments, operating workflow, differentiators, client expectations, trust signals, and signature offering structure so templates can express what that industry actually sells instead of only changing visuals.
 - **`client/src/components/profileTemplates/TemplateFeatureStack.jsx`**: Added a reusable public profile feature stack that renders the industry demand fit, buying workflow, offer structure, and trust expectations unlocked by the active template.
@@ -1281,10 +1289,9 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 ### TEMPLATE VERTICALIZATION (Now in Progress)
 
 **Finish remaining high-value template clusters as backend-backed operating systems**
-- [ ] `beauty_style` + `barbershop` + `hair_stylist` + `spa_skincare`: appointment-intake differences, chair/service workflow states, package or membership logic, consent/prep/no-show artifacts, retention metrics, and rebooking automations.
 - [ ] `photographer` + `creative_studio` + `graphic_design`: discovery/intake, project-stage workflow, proposal/package logic, asset/approval records, portfolio-performance metrics, and follow-up reminders.
 - [ ] `accountant` + `consulting_coaching` + `legal_admin`: engagement intake, document/process workflow states, engagement/package logic, compliance/trust records, pipeline/revenue metrics, and recurring obligation reminders.
-- [ ] Broader template system follow-through: activation still needs to unlock template-specific operations for the remaining templates beyond the property-manager and trades clusters shipped on 2026-05-18.
+- [ ] Broader template system follow-through: activation still needs to unlock template-specific operations for the remaining templates beyond the property-manager, trades, and beauty clusters shipped on 2026-05-18.
 
 ### POST-LAUNCH FEATURES (Customer Support & Analytics)
 

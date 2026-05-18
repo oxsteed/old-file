@@ -403,6 +403,22 @@ const TEMPLATE_OVERRIDES = {
       { tab: 'marketing', label: 'Growth Center', reason: 'Promote maintenance intervals and seasonal checks.' },
     ],
   },
+  beauty_style: {
+    unlockedSystems: [
+      { tab: 'beauty-ops', label: 'Beauty Ops', reason: 'Run style intake, prep expectations, memberships, and rebook flow.' },
+      { tab: 'gallery', label: 'Look Book', reason: 'Sell visual outcomes before the booking conversation.' },
+      { tab: 'calendar', label: 'Schedule', reason: 'Coordinate appointments, same-day fills, and chair rhythm.' },
+      { tab: 'loyalty', label: 'Retention', reason: 'Push repeat maintenance and routine-beauty cadence.' },
+    ],
+  },
+  barbershop: {
+    unlockedSystems: [
+      { tab: 'beauty-ops', label: 'Beauty Ops', reason: 'Handle repeat cut intake, no-show policy, and grooming retention flow.' },
+      { tab: 'calendar', label: 'Schedule', reason: 'Protect chair turnover and same-week repeat demand.' },
+      { tab: 'gallery', label: 'Look Book', reason: 'Show fades, beard shaping, and grooming proof.' },
+      { tab: 'loyalty', label: 'Retention', reason: 'Drive recurring maintenance visits.' },
+    ],
+  },
   photographer: {
     workflowStages: [
       'Qualify style and session fit',
@@ -419,10 +435,19 @@ const TEMPLATE_OVERRIDES = {
   },
   hair_stylist: {
     unlockedSystems: [
+      { tab: 'beauty-ops', label: 'Beauty Ops', reason: 'Run color-intake, prep discipline, packages, and rebook timing.' },
       { tab: 'gallery', label: 'Look Book', reason: 'Sell through visible outcomes and style reference.' },
       { tab: 'services', label: 'Services & Booking', reason: 'Structure cuts, color, and treatment paths.' },
       { tab: 'calendar', label: 'Schedule', reason: 'Optimize chair utilization and repeat visits.' },
       { tab: 'loyalty', label: 'Retention', reason: 'Encourage rebook behavior and recurring maintenance.' },
+    ],
+  },
+  spa_skincare: {
+    unlockedSystems: [
+      { tab: 'beauty-ops', label: 'Beauty Ops', reason: 'Capture sensitivities, treatment prep, rituals, and package continuity.' },
+      { tab: 'gallery', label: 'Ritual Proof', reason: 'Show treatment outcomes and atmosphere cues.' },
+      { tab: 'calendar', label: 'Schedule', reason: 'Manage treatment cadence and quieter room utilization.' },
+      { tab: 'loyalty', label: 'Retention', reason: 'Push recurring skin-care plans and rituals.' },
     ],
   },
   accountant: {

@@ -86,6 +86,31 @@ const APPOINTMENT_BEHAVIOR = {
   recommendedFeatures: ['Direct booking', 'Calendar', 'Photos', 'Reviews', 'Messages', 'Payments'],
 };
 
+const BEAUTY_APPOINTMENT_BEHAVIOR = {
+  mode: 'beauty_intake',
+  label: 'Beauty retention mode',
+  headline: 'Built for look intake, prep expectations, and repeat-beauty retention.',
+  description:
+    'This profile should capture style goals, prep and sensitivity context, no-show expectations, and package or membership interest before the appointment is locked in.',
+  primaryCta: 'Start beauty intake',
+  secondaryCta: 'Ask a beauty question',
+  primaryIntent: 'beauty_intake',
+  allowPrimaryWithoutServices: true,
+  workflow: [
+    { title: 'Capture look goals', text: 'Collect desired service, inspiration, preferred staff, and timing before the chair is reserved.', icon: ClipboardList },
+    { title: 'Review prep and consent', text: 'Keep patch-test, sensitivity, prep, and no-show expectations visible before booking.', icon: ShieldCheck },
+    { title: 'Deliver and rebook', text: 'Move clients through prep, visit, aftercare, and the next recommended rebook window.', icon: CalendarCheck },
+    { title: 'Grow retention plans', text: 'Turn one-off appointments into memberships, maintenance plans, or ritual packages.', icon: Star },
+  ],
+  setup: [
+    'Add service categories by look, ritual, or grooming outcome',
+    'Set prep, deposit, and no-show expectations',
+    'Add memberships, series, or bridal package logic',
+    'Load licenses, sanitation, or treatment trust records',
+  ],
+  recommendedFeatures: ['Beauty Ops', 'Calendar', 'Gallery', 'Loyalty', 'Messages', 'Packages'],
+};
+
 const TOOL_RENTAL_BEHAVIOR = {
   mode: 'tool_rental',
   label: 'Tool rental mode',
@@ -167,10 +192,10 @@ const BEHAVIOR_BY_SLUG = {
   trades_pro: TRADES_DIAGNOSTIC_BEHAVIOR,
   electrician: TRADES_DIAGNOSTIC_BEHAVIOR,
   auto_mechanic: TRADES_DIAGNOSTIC_BEHAVIOR,
-  beauty_style: APPOINTMENT_BEHAVIOR,
-  barbershop: APPOINTMENT_BEHAVIOR,
-  spa_skincare: APPOINTMENT_BEHAVIOR,
-  hair_stylist: APPOINTMENT_BEHAVIOR,
+  beauty_style: BEAUTY_APPOINTMENT_BEHAVIOR,
+  barbershop: BEAUTY_APPOINTMENT_BEHAVIOR,
+  spa_skincare: BEAUTY_APPOINTMENT_BEHAVIOR,
+  hair_stylist: BEAUTY_APPOINTMENT_BEHAVIOR,
   massage_therapist: APPOINTMENT_BEHAVIOR,
   fitness_pro: APPOINTMENT_BEHAVIOR,
   wellness_therapy: APPOINTMENT_BEHAVIOR,
@@ -194,6 +219,7 @@ export function getTemplateMode(slug = 'default') {
 export const TEMPLATE_BEHAVIORS = {
   property: PROPERTY_MANAGER_BEHAVIOR,
   tradesDiagnostic: TRADES_DIAGNOSTIC_BEHAVIOR,
+  beauty: BEAUTY_APPOINTMENT_BEHAVIOR,
   appointment: APPOINTMENT_BEHAVIOR,
   toolRental: TOOL_RENTAL_BEHAVIOR,
   portfolio: PORTFOLIO_BEHAVIOR,
