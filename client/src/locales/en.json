@@ -161,7 +161,16 @@
     "errorCreating": "Failed to create. Please try again.",
     "done": "Done",
     "failedToCancel": "Failed to cancel. Please try again.",
-    "fillRequiredFields": "Please fill in all required fields."
+    "fillRequiredFields": "Please fill in all required fields.",
+    "name": "Name",
+    "price": "Price",
+    "status": "Status",
+    "email": "Email",
+    "phone": "Phone",
+    "ongoing": "Ongoing",
+    "confirmDelete": "Delete this item?",
+    "deleted": "Deleted",
+    "failedToDelete": "Failed to delete"
   },
   "jobs": {
     "title": "Job Details",
@@ -1534,7 +1543,8 @@
       "confirmDesc": "This action cannot be undone. All your data will be permanently deleted.",
       "yesDelete": "Yes, Delete My Account"
     },
-    "preferencesTab": "Preferences"
+    "preferencesTab": "Preferences",
+    "tabPaymentPolicies": "Payment Policies"
   },
   "messages": {
     "title": "Messages",
@@ -2077,7 +2087,27 @@
       "toolSaveFailed": "Failed to save tool",
       "toolRemoved": "Tool removed",
       "toolRemoveFailed": "Failed to remove tool",
-      "removeToolConfirm": "Are you sure you want to remove this tool?"
+      "removeToolConfirm": "Are you sure you want to remove this tool?",
+      "toolNameRequired": "Tool name is required",
+      "toolCategoryRequired": "Tool category is required",
+      "toolCityRequired": "City is required so renters know where pickup happens",
+      "toolPhotoLabel": "Tool photo",
+      "toolPhotoHint": "Add a clear photo so renters can inspect the tool before booking.",
+      "toolPhotoEmpty": "No photo yet",
+      "toolImageInvalid": "Choose a JPG, PNG, GIF, or WebP image.",
+      "toolImageTooLarge": "Tool photo must be 10MB or smaller.",
+      "ownerRulesLabel": "Owner rules / handling notes",
+      "ownerRulesPlaceholder": "Example: return clean, use only with wood, do not use in rain, include batteries/charger.",
+      "ownerCustomTermsLabel": "Owner-provided rental terms",
+      "ownerCustomTermsPlaceholder": "Optional. Add the agreement terms you want renters to accept, such as late return expectations, cleaning rules, missing accessory responsibility, or replacement expectations.",
+      "ownerCustomTermsHint": "Renters will see these as owner-provided terms. OxSteed does not draft, review, validate, or guarantee them.",
+      "ownerAttestationText": "I understand this is a neighbor-to-neighbor rental. I am responsible for accurately describing the tool, setting rules/deposit expectations, and handling condition, damage, return, and payment issues with the renter. OxSteed only helps document the listing, booking, messages, reports, and agreement records.",
+      "ownerAttestationRequired": "Confirm the peer rental acknowledgement before listing this tool",
+      "replacementValueLabel": "Replacement value",
+      "hourlyRateInvalid": "Hourly rate must be greater than 0",
+      "dailyRateRequired": "Daily rate must be greater than 0",
+      "depositInvalid": "Deposit cannot be negative",
+      "replacementInvalid": "Replacement value cannot be negative"
     },
     "personalCare": {
       "title": "My Health & Wellness",
@@ -3972,7 +4002,23 @@
       "ai_drafts": "AI drafts"
     },
     "switchToVortex": "Join or manage workspaces",
-    "vortexHint": "Enter access code"
+    "vortexHint": "Enter access code",
+    "switchBusiness": "Switch business",
+    "tabWorkflowLabel": "Workflow System",
+    "tabAnalyticsLabel": "Analytics",
+    "tabLoyaltyLabel": "Loyalty",
+    "tabIntegrationsLabel": "Integrations",
+    "switchTemplate": "Switch template",
+    "switchTemplateTitle": "Switch this business to a different profile template",
+    "profileStudioEyebrow": "Profile Studio",
+    "profileStudioSupportCopy": "This is the storefront customers judge in a few seconds, so lead with trust, clarity, and strong visuals.",
+    "profileReadinessLabel": "Profile Readiness",
+    "brandAssetsLabel": "Brand Assets",
+    "trustSignalsLabel": "Trust Signals",
+    "serviceReachLabel": "Service Reach",
+    "photosSectionSupportCopy": "Customers scan visuals before reading details. Use a clean square logo and a welcoming cover image that feels local, professional, and real.",
+    "identitySectionSupportCopy": "Name, category, headline, and description shape the first serious impression. Keep this crisp, specific, and customer-facing.",
+    "quickChecklistLabel": "Quick Checklist"
   },
   "plans": {
     "free": "Free",
@@ -4296,7 +4342,9 @@
       "cancelled": "Cancelled",
       "published": "Posted",
       "regenerated": "Renewed"
-    }
+    },
+    "autoPublishCount": "{{count}} auto-publishing",
+    "queueBanner": "{{count}} needs activating soon"
   },
   "helperRegister": {
     "step4": {
@@ -4431,7 +4479,9 @@
       "verifiedPurchase": "Verified purchase",
       "showFewer": "Show fewer",
       "showAll": "Show all {{count}} reviews",
-      "ratingDistribution": "Rating distribution"
+      "ratingDistribution": "Rating distribution",
+      "noVerifiedYet": "No verified reviews yet",
+      "noVerifiedYetSub": "Reviews appear after completed OxSteed jobs, so new helpers start without a rating until customers have real work to evaluate."
     },
     "services": {
       "title": "Services & Pricing",
@@ -4461,7 +4511,14 @@
       "verifiedTitle": "Identity verified by OxSteed",
       "trustBadgesAria": "Trust and verification badges",
       "qrProfileTitle": "Scan to open this profile on OxSteed",
-      "qrProfileCaption": "QR code linking to this helper profile on OxSteed"
+      "qrProfileCaption": "QR code linking to this helper profile on OxSteed",
+      "noReviewsYet": "No reviews yet",
+      "saveHelper": "Save",
+      "savedHelper": "Saved",
+      "addedSavedHelper": "Saved helper",
+      "removedSavedHelper": "Removed from saved helpers",
+      "saveHelperFailed": "Could not update saved helper",
+      "cannotSaveSelf": "You cannot save your own profile"
     },
     "share": {
       "copyLink": "Copy link",
@@ -4492,7 +4549,10 @@
       "messageHelperAria": "Send a message to this helper",
       "trustSignalsAria": "Trust signals",
       "showDetails": "Show details",
-      "hideDetails": "Hide details"
+      "hideDetails": "Hide details",
+      "startingAtPrice": "Starting at",
+      "flatRate": "flat",
+      "contactForPricing": "Contact for pricing"
     },
     "trust": {
       "trustSignalsAria": "Trust & Reliability",
@@ -4642,7 +4702,8 @@
       "messageComposer": "Message composer",
       "chatPanel": "Chat panel",
       "filterSearchResults": "Filter search results",
-      "clearSearch": "Clear search"
+      "clearSearch": "Clear search",
+      "expandChat": "Expand chat"
     }
   },
   "disputes": {
@@ -4934,7 +4995,9 @@
     "noReviews": "No reviews yet.",
     "reviewCount_one": "{{count}} review",
     "reviewCount_other": "{{count}} reviews",
-    "jobsDone": "{{count}} jobs completed"
+    "jobsDone": "{{count}} jobs completed",
+    "reviewCount": "{{count}} review",
+    "reviewCount_plural": "{{count}} reviews"
   },
   "cookieConsent": {
     "title": "Cookie Preferences",
@@ -4988,7 +5051,8 @@
       "copyFailed": "Could not copy link",
       "defaultMessage": "Check out {{name}} on OxSteed: {{url}}"
     },
-    "contactBusiness": "Contact Business"
+    "contactBusiness": "Contact Business",
+    "badgeBusinessVerified": "Business Verified"
   },
   "leads": {
     "title": "Service Requests",
@@ -5581,7 +5645,22 @@
     "disputeResolution": "Disputes are resolved through your bank's chargeback process.",
     "canReport": "You can report violations; platform will take action.",
     "termsAccepted": "Terms accepted",
-    "acceptTermsFailed": "Failed to accept terms"
+    "acceptTermsFailed": "Failed to accept terms",
+    "depositLabel": "Deposit",
+    "makeModel": "Make / model",
+    "replacementValue": "Replacement value",
+    "ownerRules": "Owner rules",
+    "ownerProvidedTerms": "Owner-provided terms",
+    "ownerTermsDisclaimer": "These terms were provided by the tool owner. OxSteed does not draft, review, validate, or guarantee them.",
+    "peerAgreementTitle": "Peer rental agreement",
+    "peerAgreementOxSteedRole": "OxSteed helps document this rental but is not the tool owner, renter, inspector, insurer, or guarantor.",
+    "peerAgreementInspect": "Inspect the tool before use and decide whether it is appropriate for your task.",
+    "peerAgreementDamage": "You may be responsible for damage beyond normal wear, loss, theft, missing parts, late return, or returning the tool dirty or not working.",
+    "peerAgreementReport": "You can report bad behavior or a dispute through OxSteed.",
+    "peerAgreementAccept": "I understand this is a neighbor-to-neighbor rental, OxSteed has limited control over the tool, and I accept the responsibilities above.",
+    "peerAgreementRequired": "Please accept the peer rental agreement before booking.",
+    "paymentConfirmed": "Payment confirmed",
+    "markCompleted": "Mark completed"
   },
   "toolRentalsDir": {
     "heroEyebrow": "Tool Rentals",
@@ -7068,7 +7147,10 @@
     "nextStepsTitle": "What's next",
     "nextStepOne": "Coordinate details by message if needed.",
     "nextStepTwo": "Your calendar will show the appointment once confirmed.",
-    "nextStepThree": "If plans change, cancel from your booking or calendar."
+    "nextStepThree": "If plans change, cancel from your booking or calendar.",
+    "bookBusinessHeading": "Book an appointment",
+    "businessIntro": "Pick a date and time that works for you. The business will confirm before the slot is locked.",
+    "invalidBusiness": "Business not found."
   },
   "verifyEmail": {
     "title": "Verify your email",
@@ -7494,7 +7576,10 @@
     "feesShow": "Show",
     "feesHide": "Hide",
     "feeTo": "To",
-    "feeUnknownJob": "Job"
+    "feeUnknownJob": "Job",
+    "newHelperBadge": "New helper",
+    "notEnoughHistoryTitle": "Not enough job history yet",
+    "notEnoughHistoryCopy": "Reliability score appears after completed OxSteed jobs. For now, review verification badges, services, availability, and how clearly the helper communicates."
   },
   "reportModal": {
     "report": "Report",
@@ -7894,7 +7979,9 @@
     "detail": {
       "realLifeTitle": "Real-life use cases",
       "connectsTitle": "How it connects",
-      "actionsTitle": "Useful next actions"
+      "actionsTitle": "Useful next actions",
+      "tabsTitle": "Workspace Tabs",
+      "tabsIntro": "Every tab in this workspace is listed below so you can scan what is in there before you click in. Visibility depends on your role and the template the business is using."
     }
   },
   "businessPublicProfile": {
@@ -7971,117 +8058,173 @@
       "manager": "Manager",
       "representative": "Representative",
       "employee": "Employee",
-      "support_agent": "Support agent"
+      "support_agent": "Support Agent"
     }
   },
   "corporateOrg": {
-    "title": "Corporate hierarchy",
-    "subtitle": "OxSteed staff org chart and corporate titles.",
     "orgChart": {
-      "pageTitle": "Corporate Org Chart",
-      "description": "Active corporate assignments across OxSteed - grouped by department and seniority.",
-      "filterCountry": "Filter by country (ISO-2)",
+      "title": "Corporate Org Chart",
+      "subtitle": "Active corporate assignments across OxSteed, grouped by department and seniority.",
+      "filterPlaceholder": "Filter by country (ISO-2)",
+      "loading": "Loading org chart...",
+      "activeAssignments_one": "{{count}} active assignment",
+      "activeAssignments_other": "{{count}} active assignments",
+      "level": "Level {{level}}",
       "emptyTitle": "No corporate assignments yet",
       "emptyBody": "Start by assigning yourself or another admin a corporate title.",
-      "loading": "Loading org chart...",
-      "levelLabel": "Level {{level}}",
-      "globalScope": "Global",
-      "activeAssignments": "{{count}} active assignments"
+      "scopeGlobal": "Global"
     },
     "assignments": {
-      "pageTitle": "Corporate Assignments",
-      "description": "Assign corporate titles to OxSteed staff. Country-scoped, override-aware.",
-      "assignTitle": "Assign title",
-      "editAssignment": "Edit corporate assignment",
-      "endConfirm": "End this assignment? The user will lose its associated permissions.",
-      "endError": "Failed to end assignment.",
+      "title": "Corporate Assignments",
+      "subtitle": "Assign corporate titles to OxSteed staff. Country-scoped, override-aware.",
+      "assignBtn": "Assign title",
+      "filterAllDepts": "All departments",
+      "filterAllTitles": "All titles",
+      "filterCountryPlaceholder": "Country (ISO-2)",
+      "filterActiveOnly": "Active only",
+      "filterEndedOnly": "Ended only",
+      "loading": "Loading...",
       "noResults": "No assignments match the current filters.",
-      "filters": {
-        "allDepartments": "All departments",
-        "allTitles": "All titles",
-        "country": "Country (ISO-2)",
-        "activeOnly": "Active only",
-        "endedOnly": "Ended only"
-      },
-      "table": {
-        "user": "User",
-        "title": "Title",
-        "department": "Department",
-        "scope": "Scope",
-        "started": "Started",
-        "status": "Status",
-        "active": "Active",
-        "ended": "Ended"
-      },
-      "modal": {
-        "userLabel": "Admin user *",
-        "userPlaceholder": "- Select an admin -",
-        "userHint": "Corporate titles can only be held by admin or super_admin users.",
-        "departmentLabel": "Department *",
-        "departmentPlaceholder": "- Select department -",
-        "titleLabel": "Title *",
-        "titlePlaceholder": "- Select title -",
-        "titleHint": "Higher seniority levels and C-suite titles can only be assigned by super-admin.",
-        "countryLabel": "Country (ISO-2)",
-        "countryPlaceholder": "e.g. US, MX, HT, FR",
-        "countryHint": "Empty = global scope",
-        "regionLabel": "Region",
-        "regionNone": "- None -",
-        "reportsToLabel": "Reports to",
-        "reportsToNone": "- None -",
-        "notesLabel": "Notes",
-        "cancel": "Cancel",
-        "save": "Save changes",
-        "create": "Assign title",
-        "errorRequired": "User and title are required.",
-        "errorSave": "Failed to save assignment."
-      }
+      "colUser": "User",
+      "colTitle": "Title",
+      "colDept": "Department",
+      "colScope": "Scope",
+      "colStarted": "Started",
+      "colStatus": "Status",
+      "statusActive": "Active",
+      "statusEnded": "Ended",
+      "modalTitleNew": "Assign corporate title",
+      "modalTitleEdit": "Edit corporate assignment",
+      "fieldAdminUser": "Admin user",
+      "selectAdmin": "- Select an admin -",
+      "hintAdminOnly": "Corporate titles can only be held by admin or super_admin users.",
+      "fieldDept": "Department",
+      "selectDept": "- Select department -",
+      "fieldTitle": "Title",
+      "selectTitle": "- Select title -",
+      "hintSeniority": "Higher seniority levels and C-suite titles can only be assigned by super-admin.",
+      "fieldCountry": "Country (ISO-2)",
+      "countryPlaceholder": "e.g. US, MX, HT, FR",
+      "hintGlobalScope": "Empty = global scope",
+      "fieldRegion": "Region",
+      "regionNone": "- None -",
+      "fieldReportsTo": "Reports to",
+      "reportsToNone": "- None -",
+      "fieldNotes": "Notes",
+      "validationRequired": "User and title are required.",
+      "saveBtnNew": "Assign title",
+      "saveBtnEdit": "Save changes",
+      "cancel": "Cancel",
+      "editTooltip": "Edit",
+      "endTooltip": "End assignment",
+      "endConfirm": "End this assignment? The user will lose its associated permissions.",
+      "errorLoad": "Failed to load assignments.",
+      "errorSave": "Failed to save assignment.",
+      "errorEnd": "Failed to end assignment.",
+      "scopeGlobal": "Global",
+      "csuiteSuffix": "(C-suite)",
+      "senioritySuffix": "L{{level}}"
     },
     "departments": {
-      "pageTitle": "Corporate Departments & Titles",
-      "description": "Super-admin only. Manage departments, titles, and their default permission sets.",
-      "newDepartment": "New department",
-      "newTitle": "New title",
-      "editDepartment": "Edit department",
-      "editTitle": "Edit title",
+      "title": "Corporate Setup",
+      "subtitle": "Manage departments, titles, and their default permission sets.",
+      "filterPlaceholder": "Filter by launch country (ISO-2)",
+      "loading": "Loading catalog...",
+      "errorLoad": "Failed to load catalog.",
+      "addDept": "Add department",
       "addTitle": "Add title",
-      "permissionsButton": "Permissions",
-      "savePermissions": "Save defaults",
-      "noTitles": "No titles defined.",
-      "titlesLabel": "Titles",
-      "metaTitles": "{{count}} titles",
-      "metaPermissions": "{{count}} default permissions",
-      "form": {
-        "codeLabel": "Code *",
-        "nameLabel": "Name *",
-        "descriptionLabel": "Description",
-        "colorLabel": "Color",
-        "iconLabel": "Icon",
-        "sortLabel": "Sort",
-        "active": "Active",
-        "csuite": "C-suite title",
-        "seniorityLabel": "Seniority (1-10)",
-        "departmentLabel": "Department *",
-        "errorSave": "Failed to save.",
-        "cancel": "Cancel",
-        "save": "Save"
+      "editDeptTitle": "Edit department",
+      "newDeptTitle": "New department",
+      "editTitleTitle": "Edit title",
+      "newTitleTitle": "New title",
+      "fieldCode": "Code",
+      "fieldName": "Name",
+      "fieldDesc": "Description",
+      "fieldColor": "Color",
+      "fieldIcon": "Icon",
+      "iconPlaceholder": "lucide icon name",
+      "fieldSort": "Sort",
+      "fieldSeniority": "Seniority (1-10)",
+      "fieldSortOrder": "Sort order",
+      "fieldDept": "Department",
+      "fieldActive": "Active",
+      "fieldCsuite": "C-suite title",
+      "defaultPerms": "Default permissions",
+      "saveDefaults": "Save defaults",
+      "save": "Save",
+      "cancel": "Cancel",
+      "errorSave": "Failed to save.",
+      "errorSavePerms": "Failed to save permissions.",
+      "activeSeat_one": "{{count}} active seat",
+      "activeSeat_other": "{{count}} active seats",
+      "editTitleLink": "Edit title",
+      "coverage": {
+        "assigned": "Assigned",
+        "country": "Filled in country",
+        "global": "Covered globally",
+        "open": "Open priority"
       }
     },
     "guards": {
-      "cannotGrantAboveLevel": "Cannot assign a title above your own seniority level.",
-      "noCsuiteForAdmins": "Only super-admins may assign C-suite titles.",
       "targetNotStaff": "Corporate titles can only be assigned to admin or super_admin users.",
-      "permissionDenied": "Corporate permission required.",
-      "duplicateAssignment": "User already holds this title in that country."
+      "noCsuiteForAdmins": "Only super-admin can assign or manage C-suite titles.",
+      "cannotGrantAboveLevel": "You cannot assign a title with a higher seniority level than your own.",
+      "cannotGrantPermission": "You cannot grant a permission you do not hold."
     },
     "departmentNames": {
-      "executive": "Executive & Strategy",
-      "technology": "Technology & Engineering",
-      "operations": "Operations & Customer Success",
-      "marketing": "Marketing, Sales & Growth",
-      "finance": "Finance, Legal & Compliance",
-      "people": "People & Administrative",
-      "data": "Data, Research & Innovation"
+      "executive": "Executive",
+      "technology": "Technology",
+      "operations": "Operations",
+      "marketing": "Marketing",
+      "finance": "Finance",
+      "people": "People",
+      "data": "Data"
     }
+  },
+  "inventory": {
+    "stock": "Stock",
+    "initialStock": "Initial Stock",
+    "reorderLevel": "Reorder Level",
+    "lowStock": "Low",
+    "lowStockAlerts": "Low Stock Alerts",
+    "updated": "Inventory updated"
+  },
+  "pricing": {
+    "productRulesTitle": "Product Pricing Rules",
+    "productRulesDesc": "Volume discounts, promotions, bundles, and seasonal pricing for your products.",
+    "addRule": "Add Rule",
+    "noRules": "No pricing rules yet",
+    "createFirst": "Create your first rule",
+    "createNewRule": "New Pricing Rule",
+    "type": "Type",
+    "priority": "Priority",
+    "adjustment": "Discount / Adjustment",
+    "percentage": "Percentage off",
+    "fixedAmount": "Fixed amount off",
+    "multiplier": "Price multiplier",
+    "validFrom": "Valid from",
+    "validUntil": "Valid until",
+    "volumeBased": "Volume-Based",
+    "timeLimited": "Promotion",
+    "bundleOffer": "Bundle",
+    "customerSegment": "Customer Segment",
+    "seasonal": "Seasonal",
+    "ruleCreated": "Pricing rule created"
+  },
+  "products": {
+    "management": "Product Management",
+    "addProduct": "Add Product",
+    "noProducts": "No products yet",
+    "createFirst": "Create your first product",
+    "createNew": "New Product",
+    "created": "Product created",
+    "category": "Category",
+    "sku": "SKU",
+    "cost": "Cost (optional)",
+    "priceAdjustment": "Price Adjustment",
+    "variants": "Variants",
+    "addVariant": "Add Variant",
+    "variantName": "Variant Name",
+    "variantCreated": "Variant created"
   }
 }

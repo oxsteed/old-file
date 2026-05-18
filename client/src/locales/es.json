@@ -161,7 +161,16 @@
     "errorCreating": "Failed to create. Please try again.",
     "done": "Done",
     "failedToCancel": "Failed to cancel. Please try again.",
-    "fillRequiredFields": "Please fill in all required fields."
+    "fillRequiredFields": "Please fill in all required fields.",
+    "name": "Nombre",
+    "price": "Precio",
+    "status": "Estado",
+    "email": "Correo electronico",
+    "phone": "Telefono",
+    "ongoing": "En curso",
+    "confirmDelete": "Eliminar este elemento?",
+    "deleted": "Eliminado",
+    "failedToDelete": "Error al eliminar"
   },
   "jobs": {
     "title": "Detalles del Trabajo",
@@ -1534,7 +1543,8 @@
       "confirmTitle": "Eliminar Tu Cuenta",
       "confirmDesc": "Esta acción no se puede deshacer. Todos tus datos serán eliminados permanentemente.",
       "yesDelete": "Sí, Eliminar Mi Cuenta"
-    }
+    },
+    "tabPaymentPolicies": "Politicas de pago"
   },
   "messages": {
     "title": "Mensajes",
@@ -2077,7 +2087,27 @@
       "toolSaveFailed": "Error al guardar la herramienta",
       "toolRemoved": "Herramienta removida",
       "toolRemoveFailed": "Error al remover la herramienta",
-      "removeToolConfirm": "¿Estás seguro de que quieres remover esta herramienta?"
+      "removeToolConfirm": "¿Estás seguro de que quieres remover esta herramienta?",
+      "toolNameRequired": "El nombre de la herramienta es obligatorio",
+      "toolCategoryRequired": "La categoria de la herramienta es obligatoria",
+      "toolCityRequired": "La ciudad es obligatoria para que los arrendatarios sepan donde recoger",
+      "toolPhotoLabel": "Foto de la herramienta",
+      "toolPhotoHint": "Agrega una foto clara para que los arrendatarios puedan inspeccionar la herramienta antes de reservar.",
+      "toolPhotoEmpty": "Sin foto aun",
+      "toolImageInvalid": "Elige una imagen JPG, PNG, GIF o WebP.",
+      "toolImageTooLarge": "La foto de la herramienta debe ser de 10MB o menos.",
+      "ownerRulesLabel": "Reglas del propietario / notas de manejo",
+      "ownerRulesPlaceholder": "Ejemplo: devolver limpio, usar solo con madera, no usar bajo lluvia, incluir baterias/cargador.",
+      "ownerCustomTermsLabel": "Terminos de alquiler proporcionados por el propietario",
+      "ownerCustomTermsPlaceholder": "Opcional. Agrega los terminos del acuerdo que deseas que los arrendatarios acepten, como expectativas de devolucion tardía, reglas de limpieza, responsabilidad por accesorios faltantes o expectativas de reemplazo.",
+      "ownerCustomTermsHint": "Los arrendatarios veran estos como terminos proporcionados por el propietario. OxSteed no los redacta, revisa, valida ni garantiza.",
+      "ownerAttestationText": "Entiendo que este es un alquiler vecino a vecino. Soy responsable de describir con precision la herramienta, establecer expectativas de reglas/deposito y manejar los problemas de condicion, dano, devolucion y pago con el arrendatario. OxSteed solo ayuda a documentar el listado, la reserva, los mensajes, los informes y los registros del acuerdo.",
+      "ownerAttestationRequired": "Confirma el reconocimiento de alquiler entre pares antes de listar esta herramienta",
+      "replacementValueLabel": "Valor de reemplazo",
+      "hourlyRateInvalid": "La tarifa por hora debe ser mayor que 0",
+      "dailyRateRequired": "La tarifa diaria debe ser mayor que 0",
+      "depositInvalid": "El deposito no puede ser negativo",
+      "replacementInvalid": "El valor de reemplazo no puede ser negativo"
     },
     "personalCare": {
       "title": "Mi Salud y Bienestar",
@@ -3972,7 +4002,23 @@
       "ai_drafts": "Borradores IA"
     },
     "switchToVortex": "Unirme o administrar espacios",
-    "vortexHint": "Ingresar codigo de acceso"
+    "vortexHint": "Ingresar codigo de acceso",
+    "switchBusiness": "Cambiar negocio",
+    "tabWorkflowLabel": "Sistema de flujo de trabajo",
+    "tabAnalyticsLabel": "Analiticas",
+    "tabLoyaltyLabel": "Lealtad",
+    "tabIntegrationsLabel": "Integraciones",
+    "switchTemplate": "Cambiar plantilla",
+    "switchTemplateTitle": "Cambiar este negocio a una plantilla de perfil diferente",
+    "profileStudioEyebrow": "Estudio de perfil",
+    "profileStudioSupportCopy": "Este es el escaparate que los clientes juzgan en pocos segundos, asi que lidera con confianza, claridad y visuales fuertes.",
+    "profileReadinessLabel": "Preparacion del perfil",
+    "brandAssetsLabel": "Activos de marca",
+    "trustSignalsLabel": "Senales de confianza",
+    "serviceReachLabel": "Alcance del servicio",
+    "photosSectionSupportCopy": "Los clientes escanean las imagenes antes de leer los detalles. Usa un logo cuadrado limpio y una imagen de portada acogedora que se sienta local, profesional y real.",
+    "identitySectionSupportCopy": "El nombre, la categoria, el titular y la descripcion forman la primera impresion seria. Mantelo conciso, especifico y orientado al cliente.",
+    "quickChecklistLabel": "Lista de verificacion rapida"
   },
   "plans": {
     "free": "Gratis",
@@ -4296,7 +4342,9 @@
       "cancelled": "Cancelada",
       "published": "Publicada",
       "regenerated": "Renovada"
-    }
+    },
+    "autoPublishCount": "{{count}} en publicacion automatica",
+    "queueBanner": "{{count}} necesidades se activan pronto"
   },
   "helperRegister": {
     "step4": {
@@ -4431,7 +4479,9 @@
       "helperReplied": "El ayudante respondió",
       "responseFromHelper": "Respuesta del ayudante",
       "verifiedPurchase": "Compra verificada",
-      "showFewer": "Mostrar menos"
+      "showFewer": "Mostrar menos",
+      "noVerifiedYet": "Aun no hay resenas verificadas",
+      "noVerifiedYetSub": "Las resenas aparecen despues de los trabajos completados en OxSteed, por lo que los nuevos ayudantes comienzan sin calificacion hasta que los clientes tengan trabajo real que evaluar."
     },
     "services": {
       "quote": "Cotización",
@@ -4461,7 +4511,14 @@
       "trustBadgesAria": "Insignias de confianza y verificación",
       "qrProfileTitle": "Escanea para abrir este perfil en OxSteed",
       "qrProfileCaption": "Código QR que enlaza al perfil de este ayudante en OxSteed",
-      "postJobPublic": "Publicar trabajo para todos"
+      "postJobPublic": "Publicar trabajo para todos",
+      "noReviewsYet": "Sin resenas aun",
+      "saveHelper": "Guardar",
+      "savedHelper": "Guardado",
+      "addedSavedHelper": "Ayudante guardado",
+      "removedSavedHelper": "Eliminado de ayudantes guardados",
+      "saveHelperFailed": "No se pudo actualizar el ayudante guardado",
+      "cannotSaveSelf": "No puedes guardar tu propio perfil"
     },
     "share": {
       "copyLink": "Copiar enlace",
@@ -4492,7 +4549,10 @@
       "messageHelperAria": "Enviar un mensaje a este ayudante",
       "trustSignalsAria": "Señales de confianza",
       "showDetails": "Mostrar detalles",
-      "hideDetails": "Ocultar detalles"
+      "hideDetails": "Ocultar detalles",
+      "startingAtPrice": "Desde",
+      "flatRate": "fijo",
+      "contactForPricing": "Contactar para precio"
     },
     "trust": {
       "trustSignalsAria": "Confianza y Fiabilidad",
@@ -4642,7 +4702,8 @@
       "messageComposer": "Compositor de mensajes",
       "chatPanel": "Panel de chat",
       "filterSearchResults": "Filtrar resultados de búsqueda",
-      "clearSearch": "Limpiar búsqueda"
+      "clearSearch": "Limpiar búsqueda",
+      "expandChat": "Expandir chat"
     }
   },
   "disputes": {
@@ -4934,7 +4995,9 @@
     "noReviews": "Aún no hay reseñas.",
     "reviewCount_one": "{{count}} reseña",
     "reviewCount_other": "{{count}} reseñas",
-    "jobsDone": "{{count}} trabajos completados"
+    "jobsDone": "{{count}} trabajos completados",
+    "reviewCount": "{{count}} resena",
+    "reviewCount_plural": "{{count}} resenas"
   },
   "cookieConsent": {
     "title": "Preferencias de Cookies",
@@ -4988,7 +5051,8 @@
       "copyFailed": "No se pudo copiar el enlace",
       "defaultMessage": "Mira {{name}} en OxSteed: {{url}}"
     },
-    "contactBusiness": "Contact Business"
+    "contactBusiness": "Contact Business",
+    "badgeBusinessVerified": "Negocio verificado"
   },
   "leads": {
     "title": "Solicitudes de Servicio",
@@ -5581,7 +5645,22 @@
     "disputeResolution": "Las disputas se resuelven a través del proceso de contracargo de su banco.",
     "canReport": "Puede reportar violaciones; la plataforma tomará medidas.",
     "termsAccepted": "Términos aceptados",
-    "acceptTermsFailed": "No se pudo aceptar los términos"
+    "acceptTermsFailed": "No se pudo aceptar los términos",
+    "depositLabel": "Deposito",
+    "makeModel": "Marca / modelo",
+    "replacementValue": "Valor de reemplazo",
+    "ownerRules": "Reglas del propietario",
+    "ownerProvidedTerms": "Terminos proporcionados por el propietario",
+    "ownerTermsDisclaimer": "Estos terminos fueron proporcionados por el propietario de la herramienta. OxSteed no los redacta, revisa, valida ni garantiza.",
+    "peerAgreementTitle": "Acuerdo de alquiler entre pares",
+    "peerAgreementOxSteedRole": "OxSteed ayuda a documentar este alquiler pero no es el propietario, arrendatario, inspector, asegurador ni garante.",
+    "peerAgreementInspect": "Inspecciona la herramienta antes de usarla y decide si es apropiada para tu tarea.",
+    "peerAgreementDamage": "Puedes ser responsable de danos mas alla del desgaste normal, perdida, robo, piezas faltantes, devolucion tardía o devolver la herramienta sucia o sin funcionar.",
+    "peerAgreementReport": "Puedes reportar mal comportamiento o una disputa a traves de OxSteed.",
+    "peerAgreementAccept": "Entiendo que este es un alquiler vecino a vecino, OxSteed tiene control limitado sobre la herramienta y acepto las responsabilidades anteriores.",
+    "peerAgreementRequired": "Por favor acepta el acuerdo de alquiler entre pares antes de reservar.",
+    "paymentConfirmed": "Pago confirmado",
+    "markCompleted": "Marcar como completado"
   },
   "toolRentalsDir": {
     "heroEyebrow": "Alquiler de Herramientas",
@@ -7401,7 +7480,10 @@
     "feesShow": "Mostrar",
     "feesHide": "Ocultar",
     "feeTo": "A",
-    "feeUnknownJob": "Trabajo"
+    "feeUnknownJob": "Trabajo",
+    "newHelperBadge": "Nuevo ayudante",
+    "notEnoughHistoryTitle": "Aun no hay suficiente historial de trabajos",
+    "notEnoughHistoryCopy": "La puntuacion de confiabilidad aparece despues de los trabajos completados en OxSteed. Por ahora, revisa las insignias de verificacion, los servicios, la disponibilidad y como se comunica el ayudante."
   },
   "reportModal": {
     "report": "Reportar",
@@ -7698,7 +7780,10 @@
     "nextStepsTitle": "Qué sigue",
     "nextStepOne": "Coordina detalles por mensaje si hace falta.",
     "nextStepTwo": "Tu calendario mostrará la cita cuando esté confirmada.",
-    "nextStepThree": "Si cambian los planes, cancela desde tu reserva o calendario."
+    "nextStepThree": "Si cambian los planes, cancela desde tu reserva o calendario.",
+    "bookBusinessHeading": "Reservar una cita",
+    "businessIntro": "Elige una fecha y hora que te convenga. El negocio confirmara antes de bloquear el espacio.",
+    "invalidBusiness": "Negocio no encontrado."
   },
   "checkout": {
     "title": "Checkout",
@@ -7894,7 +7979,9 @@
     "detail": {
       "realLifeTitle": "Casos de uso reales",
       "connectsTitle": "C?mo se conecta",
-      "actionsTitle": "Pr?ximas acciones ?tiles"
+      "actionsTitle": "Pr?ximas acciones ?tiles",
+      "tabsTitle": "Pestanas del espacio de trabajo",
+      "tabsIntro": "Cada pestana en este espacio de trabajo se lista a continuacion para que puedas ver lo que hay antes de hacer clic. La visibilidad depende de tu rol y la plantilla que usa el negocio."
     }
   },
   "businessPublicProfile": {
@@ -7975,113 +8062,169 @@
     }
   },
   "corporateOrg": {
-    "title": "Jerarquía corporativa",
-    "subtitle": "Organigrama del personal de OxSteed y títulos corporativos.",
     "orgChart": {
-      "pageTitle": "Organigrama corporativo",
-      "description": "Asignaciones corporativas activas en OxSteed - agrupadas por departamento y antigüedad.",
-      "filterCountry": "Filtrar por país (ISO-2)",
-      "emptyTitle": "Aún no hay asignaciones corporativas",
-      "emptyBody": "Comienza asignándote a ti o a otro administrador un título corporativo.",
+      "title": "Organigrama Corporativo",
+      "subtitle": "Asignaciones corporativas activas en OxSteed, agrupadas por departamento y antiguedad.",
+      "filterPlaceholder": "Filtrar por pais (ISO-2)",
       "loading": "Cargando organigrama...",
-      "levelLabel": "Nivel {{level}}",
-      "globalScope": "Global",
-      "activeAssignments": "{{count}} asignaciones activas"
+      "activeAssignments_one": "{{count}} asignacion activa",
+      "activeAssignments_other": "{{count}} asignaciones activas",
+      "level": "Nivel {{level}}",
+      "emptyTitle": "Aun no hay asignaciones corporativas",
+      "emptyBody": "Comience asignandose a usted mismo o a otro administrador un titulo corporativo.",
+      "scopeGlobal": "Global"
     },
     "assignments": {
-      "pageTitle": "Asignaciones corporativas",
-      "description": "Asigna títulos corporativos al personal de OxSteed. Con alcance por país y soporte para excepciones.",
-      "assignTitle": "Asignar título",
-      "editAssignment": "Editar asignación corporativa",
-      "endConfirm": "¿Finalizar esta asignación? El usuario perderá los permisos asociados.",
-      "endError": "No se pudo finalizar la asignación.",
-      "noResults": "Ninguna asignación coincide con los filtros actuales.",
-      "filters": {
-        "allDepartments": "Todos los departamentos",
-        "allTitles": "Todos los títulos",
-        "country": "País (ISO-2)",
-        "activeOnly": "Solo activas",
-        "endedOnly": "Solo finalizadas"
-      },
-      "table": {
-        "user": "Usuario",
-        "title": "Título",
-        "department": "Departamento",
-        "scope": "Alcance",
-        "started": "Inicio",
-        "status": "Estado",
-        "active": "Activa",
-        "ended": "Finalizada"
-      },
-      "modal": {
-        "userLabel": "Usuario administrador *",
-        "userPlaceholder": "- Selecciona un administrador -",
-        "userHint": "Los títulos corporativos solo se asignan a usuarios admin o super_admin.",
-        "departmentLabel": "Departamento *",
-        "departmentPlaceholder": "- Selecciona departamento -",
-        "titleLabel": "Título *",
-        "titlePlaceholder": "- Selecciona título -",
-        "titleHint": "Los niveles de mayor antigüedad y los títulos C-suite solo los puede asignar el super administrador.",
-        "countryLabel": "País (ISO-2)",
-        "countryPlaceholder": "ej. US, MX, HT, FR",
-        "countryHint": "Vacío = alcance global",
-        "regionLabel": "Región",
-        "regionNone": "- Ninguna -",
-        "reportsToLabel": "Reporta a",
-        "reportsToNone": "- Ninguno -",
-        "notesLabel": "Notas",
-        "cancel": "Cancelar",
-        "save": "Guardar cambios",
-        "create": "Asignar título",
-        "errorRequired": "El usuario y el título son obligatorios.",
-        "errorSave": "No se pudo guardar la asignación."
-      }
+      "title": "Asignaciones Corporativas",
+      "subtitle": "Asignar titulos corporativos al personal de OxSteed. Acotado por pais y con soporte de permisos.",
+      "assignBtn": "Asignar titulo",
+      "filterAllDepts": "Todos los departamentos",
+      "filterAllTitles": "Todos los titulos",
+      "filterCountryPlaceholder": "Pais (ISO-2)",
+      "filterActiveOnly": "Solo activos",
+      "filterEndedOnly": "Solo finalizados",
+      "loading": "Cargando...",
+      "noResults": "No hay asignaciones que coincidan con los filtros actuales.",
+      "colUser": "Usuario",
+      "colTitle": "Titulo",
+      "colDept": "Departamento",
+      "colScope": "Alcance",
+      "colStarted": "Iniciado",
+      "colStatus": "Estado",
+      "statusActive": "Activo",
+      "statusEnded": "Finalizado",
+      "modalTitleNew": "Asignar titulo corporativo",
+      "modalTitleEdit": "Editar asignacion corporativa",
+      "fieldAdminUser": "Usuario administrador",
+      "selectAdmin": "- Seleccionar administrador -",
+      "hintAdminOnly": "Los titulos corporativos solo pueden ser asignados a usuarios admin o super_admin.",
+      "fieldDept": "Departamento",
+      "selectDept": "- Seleccionar departamento -",
+      "fieldTitle": "Titulo",
+      "selectTitle": "- Seleccionar titulo -",
+      "hintSeniority": "Los niveles de antiguedad mas altos y los titulos de C-suite solo pueden ser asignados por super-admin.",
+      "fieldCountry": "Pais (ISO-2)",
+      "countryPlaceholder": "ej. US, MX, HT, FR",
+      "hintGlobalScope": "Vacio = alcance global",
+      "fieldRegion": "Region",
+      "regionNone": "- Ninguno -",
+      "fieldReportsTo": "Reporta a",
+      "reportsToNone": "- Ninguno -",
+      "fieldNotes": "Notas",
+      "validationRequired": "El usuario y el titulo son requeridos.",
+      "saveBtnNew": "Asignar titulo",
+      "saveBtnEdit": "Guardar cambios",
+      "cancel": "Cancelar",
+      "editTooltip": "Editar",
+      "endTooltip": "Finalizar asignacion",
+      "endConfirm": "Finalizar esta asignacion? El usuario perdera los permisos asociados.",
+      "errorLoad": "Error al cargar las asignaciones.",
+      "errorSave": "Error al guardar la asignacion.",
+      "errorEnd": "Error al finalizar la asignacion.",
+      "scopeGlobal": "Global",
+      "csuiteSuffix": "(C-suite)",
+      "senioritySuffix": "N{{level}}"
     },
     "departments": {
-      "pageTitle": "Departamentos y títulos corporativos",
-      "description": "Solo super administrador. Administra departamentos, títulos y conjuntos de permisos por defecto.",
-      "newDepartment": "Nuevo departamento",
-      "newTitle": "Nuevo título",
-      "editDepartment": "Editar departamento",
-      "editTitle": "Editar título",
-      "addTitle": "Agregar título",
-      "permissionsButton": "Permisos",
-      "savePermissions": "Guardar permisos por defecto",
-      "noTitles": "Sin títulos definidos.",
-      "titlesLabel": "Títulos",
-      "metaTitles": "{{count}} títulos",
-      "metaPermissions": "{{count}} permisos por defecto",
-      "form": {
-        "codeLabel": "Código *",
-        "nameLabel": "Nombre *",
-        "descriptionLabel": "Descripción",
-        "colorLabel": "Color",
-        "iconLabel": "Icono",
-        "sortLabel": "Orden",
-        "active": "Activo",
-        "csuite": "Título C-suite",
-        "seniorityLabel": "Antigüedad (1-10)",
-        "departmentLabel": "Departamento *",
-        "errorSave": "No se pudo guardar.",
-        "cancel": "Cancelar",
-        "save": "Guardar"
+      "title": "Configuracion Corporativa",
+      "subtitle": "Gestionar departamentos, titulos y sus conjuntos de permisos predeterminados.",
+      "filterPlaceholder": "Filtrar por pais de lanzamiento (ISO-2)",
+      "loading": "Cargando catalogo...",
+      "errorLoad": "Error al cargar el catalogo.",
+      "addDept": "Agregar departamento",
+      "addTitle": "Agregar titulo",
+      "editDeptTitle": "Editar departamento",
+      "newDeptTitle": "Nuevo departamento",
+      "editTitleTitle": "Editar titulo",
+      "newTitleTitle": "Nuevo titulo",
+      "fieldCode": "Codigo",
+      "fieldName": "Nombre",
+      "fieldDesc": "Descripcion",
+      "fieldColor": "Color",
+      "fieldIcon": "Icono",
+      "iconPlaceholder": "nombre de icono lucide",
+      "fieldSort": "Orden",
+      "fieldSeniority": "Antiguedad (1-10)",
+      "fieldSortOrder": "Orden de clasificacion",
+      "fieldDept": "Departamento",
+      "fieldActive": "Activo",
+      "fieldCsuite": "Titulo C-suite",
+      "defaultPerms": "Permisos predeterminados",
+      "saveDefaults": "Guardar valores predeterminados",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "errorSave": "Error al guardar.",
+      "errorSavePerms": "Error al guardar los permisos.",
+      "activeSeat_one": "{{count}} puesto activo",
+      "activeSeat_other": "{{count}} puestos activos",
+      "editTitleLink": "Editar titulo",
+      "coverage": {
+        "assigned": "Asignado",
+        "country": "Cubierto en el pais",
+        "global": "Cubierto globalmente",
+        "open": "Prioridad abierta"
       }
     },
     "guards": {
-      "cannotGrantAboveLevel": "No puedes asignar un título por encima de tu propio nivel de antigüedad.",
-      "noCsuiteForAdmins": "Solo los super administradores pueden asignar títulos C-suite.",
-      "targetNotStaff": "Los títulos corporativos solo se pueden asignar a usuarios admin o super_admin.",
-      "permissionDenied": "Permiso corporativo requerido.",
-      "duplicateAssignment": "El usuario ya tiene este título en ese país."
+      "targetNotStaff": "Los titulos corporativos solo pueden ser asignados a usuarios admin o super_admin.",
+      "noCsuiteForAdmins": "Solo el super-admin puede asignar o gestionar titulos C-suite.",
+      "cannotGrantAboveLevel": "No puede asignar un titulo con un nivel de antiguedad mayor al suyo.",
+      "cannotGrantPermission": "No puede otorgar un permiso que usted mismo no posee."
     },
     "departmentNames": {
-      "executive": "Ejecutivo y estrategia",
-      "technology": "Tecnología e ingeniería",
-      "operations": "Operaciones y éxito del cliente",
-      "marketing": "Marketing, ventas y crecimiento",
-      "finance": "Finanzas, legal y cumplimiento",
-      "people": "Personas y administración",
-      "data": "Datos, investigación e innovación"
+      "executive": "Ejecutivo",
+      "technology": "Tecnologia",
+      "operations": "Operaciones",
+      "marketing": "Marketing",
+      "finance": "Finanzas",
+      "people": "Personas",
+      "data": "Datos"
     }
+  },
+  "inventory": {
+    "stock": "Inventario",
+    "initialStock": "Inventario inicial",
+    "reorderLevel": "Nivel de reorden",
+    "lowStock": "Bajo",
+    "lowStockAlerts": "Alertas de inventario bajo",
+    "updated": "Inventario actualizado"
+  },
+  "pricing": {
+    "productRulesTitle": "Reglas de precio del producto",
+    "productRulesDesc": "Descuentos por volumen, promociones, paquetes y precios estacionales para tus productos.",
+    "addRule": "Agregar regla",
+    "noRules": "Aun no hay reglas de precios",
+    "createFirst": "Crea tu primera regla",
+    "createNewRule": "Nueva regla de precios",
+    "type": "Tipo",
+    "priority": "Prioridad",
+    "adjustment": "Descuento / Ajuste",
+    "percentage": "Porcentaje de descuento",
+    "fixedAmount": "Monto fijo de descuento",
+    "multiplier": "Multiplicador de precio",
+    "validFrom": "Valido desde",
+    "validUntil": "Valido hasta",
+    "volumeBased": "Basado en volumen",
+    "timeLimited": "Promocion",
+    "bundleOffer": "Paquete",
+    "customerSegment": "Segmento de cliente",
+    "seasonal": "Estacional",
+    "ruleCreated": "Regla de precios creada"
+  },
+  "products": {
+    "management": "Gestion de productos",
+    "addProduct": "Agregar producto",
+    "noProducts": "Aun no hay productos",
+    "createFirst": "Crea tu primer producto",
+    "createNew": "Nuevo producto",
+    "created": "Producto creado",
+    "category": "Categoria",
+    "sku": "SKU",
+    "cost": "Costo (opcional)",
+    "priceAdjustment": "Ajuste de precio",
+    "variants": "Variantes",
+    "addVariant": "Agregar variante",
+    "variantName": "Nombre de variante",
+    "variantCreated": "Variante creada"
   }
 }

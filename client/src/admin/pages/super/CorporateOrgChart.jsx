@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Building2, Crown, MapPin, Users as UsersIcon,
   ChevronDown, ChevronRight, Loader2, Filter,
@@ -32,6 +33,7 @@ function Avatar({ row, size = 36 }) {
 }
 
 function DepartmentSection({ block }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(true);
   const { department, assignments } = block;
 
@@ -55,7 +57,7 @@ function DepartmentSection({ block }) {
           <Building2 size={18} style={{ color: department.color || '#7c3aed' }} />
           <div>
             <div className="text-white font-semibold">{department.name}</div>
-            <div className="text-xs text-gray-500">{assignments.length} active assignments</div>
+            <div className="text-xs text-gray-500">{t('corporateOrg.orgChart.activeAssignments', { count: assignments.length })}</div>
           </div>
         </div>
         {open ? <ChevronDown size={18} className="text-gray-500" />
@@ -68,7 +70,7 @@ function DepartmentSection({ block }) {
             <div key={level}>
               <div className="flex items-center gap-2 mb-2">
                 <div className="text-xs uppercase text-gray-500 tracking-wide">
-                  Level {level}
+                  {t('corporateOrg.orgChart.level', { level })}
                 </div>
                 <div className="flex-1 h-px bg-gray-800" />
               </div>
@@ -89,7 +91,7 @@ function DepartmentSection({ block }) {
                       <div className="text-xs text-gray-400 truncate">{userName(a)}</div>
                       <div className="text-xs text-gray-500 truncate mt-0.5 flex items-center gap-1">
                         <MapPin size={10} />
-                        {a.country_code || 'Global'}
+                        {a.country_code || t('corporateOrg.orgChart.scopeGlobal')}
                       </div>
                     </div>
                   </div>
@@ -104,6 +106,7 @@ function DepartmentSection({ block }) {
 }
 
 export default function CorporateOrgChart() {
+  const { t } = useTranslation();
   const [chart,   setChart]   = useState(null);
   const [catalog, setCatalog] = useState(null);
   const [country, setCountry] = useState('');
@@ -135,17 +138,17 @@ export default function CorporateOrgChart() {
         <div>
           <h1 className="text-2xl font-semibold text-white flex items-center gap-2">
             <UsersIcon size={22} />
-            Corporate Org Chart
+            {t('corporateOrg.orgChart.title')}
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Active corporate assignments across OxSteed - grouped by department and seniority.
+            {t('corporateOrg.orgChart.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Filter size={14} className="text-gray-500" />
           <input
             type="text"
-            placeholder="Filter by country (ISO-2)"
+            placeholder={t('corporateOrg.orgChart.filterPlaceholder')}
             value={country}
             onChange={(e) => setCountry(e.target.value.toUpperCase().slice(0, 2))}
             className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm"
@@ -161,14 +164,14 @@ export default function CorporateOrgChart() {
 
       {loading ? (
         <div className="p-10 text-center text-gray-400">
-          <Loader2 className="inline animate-spin mr-2" size={18} /> Loading org chart...
+          <Loader2 className="inline animate-spin mr-2" size={18} /> {t('corporateOrg.orgChart.loading')}
         </div>
       ) : !chart || chart.total_assignments === 0 ? (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-10 text-center">
           <UsersIcon size={32} className="text-gray-600 mx-auto mb-3" />
-          <p className="text-gray-300 font-medium mb-1">No corporate assignments yet</p>
+          <p className="text-gray-300 font-medium mb-1">{t('corporateOrg.orgChart.emptyTitle')}</p>
           <p className="text-gray-500 text-sm">
-            Start by assigning yourself or another admin a corporate title.
+            {t('corporateOrg.orgChart.emptyBody')}
           </p>
         </div>
       ) : (
