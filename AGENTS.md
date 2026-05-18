@@ -21,6 +21,11 @@
 - 223 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
 
+**Business Hub tab consolidation (2026-05-17):** COMPLETE
+- **`client/src/pages/BusinessHubPage.jsx`**: Consolidated the Business Hub editing surface by merging `hours`, `appointments`, `waitlist`, and `calendar` into one `calendar` workspace tab, and merging `services` with `book services` into one `services` workspace tab. Legacy Business Hub tab ids now normalize into the merged workspaces instead of rendering duplicate standalone panels.
+- **`client/src/utils/businessHubRoleMenu.js`**: Updated role-specific Business Hub navigation so jobs, follow-ups, and schedule shortcuts point at the merged `calendar` workspace instead of retired standalone tab ids.
+- **Verification:** Not build-verified locally; this workspace still does not have a working local `vite` binary.
+
 **Local consultant contractor network for business ascension referrals (2026-05-17):** COMPLETE
 - **Migration 248** (`server/migrations/248_consultant_contractor_network.sql`): Adds `consultant_contractor_profiles`, consultant referral fields on `consulting_requests`, and `consulting_request_referral_log` so OxSteed can route business-launch leads to independent local consultants in any country while preserving negotiated referral economics per lead.
 - **Contractor API:** `server/controllers/consultantNetworkController.js` + `server/routes/consultantNetwork.js`, mounted in `server/index.js` at `/api/consulting/contractor`, provide consultant profile management, coverage/language/specialty settings, assigned-referral dashboard data, and contractor-side referral status updates.

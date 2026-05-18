@@ -499,7 +499,7 @@ function BusinessHubInner() {
     else if (tab === 'gallery') loadGallery();
     else if (tab === 'policies') loadPolicies();
     else if (tab === 'faqs') loadFAQs();
-    else if (tab === 'hours') loadHours();
+    else if (tab === 'calendar') loadHours();
     else if (tab === 'skills') loadSkills();
     else if (tab === 'ai') { /* AI tab loads its own data */ }
     else if (tab === 'overview') loadOverview();
@@ -917,7 +917,13 @@ function BusinessHubInner() {
   const canEditBizProfile = currentRole === 'owner' || currentRole === 'manager';
   const canViewFinanceHub = currentRole !== 'representative';
   const financeTabIds = ['overview', 'invoices', 'tax', 'goals'];
-  const contentTabIds = ['services', 'gallery', 'policies', 'faqs', 'hours', 'skills', 'ai'];
+  const contentTabIds = ['services', 'gallery', 'policies', 'faqs', 'skills', 'ai'];
+  const tabAliases = {
+    hours: 'calendar',
+    appointments: 'calendar',
+    waitlist: 'calendar',
+    'booking-services': 'services',
+  };
   // Maintenance is only part of the default tab set when this business has
   // selected the Property Manager template. For every other template the tab
   // would be confusing dead UI - it lives there only because of that template.
@@ -937,8 +943,6 @@ function BusinessHubInner() {
     'profile',
     'clients',
     ...contentTabIds,
-    'booking-services',
-    'appointments',
     'products',
     'messages',
     'calendar',
@@ -956,7 +960,6 @@ function BusinessHubInner() {
     'staff',
     'reviews-mgmt',
     'marketing',
-    'waitlist',
     'packages',
     'health',
     'leads',
@@ -976,6 +979,11 @@ function BusinessHubInner() {
   });
 
   useEffect(() => {
+    const aliasedTab = tabAliases[tab];
+    if (aliasedTab && aliasedTab !== tab) {
+      setTab(aliasedTab);
+      return;
+    }
     if ((tab === 'profile' || contentTabIds.includes(tab)) && !canEditBizProfile) {
       setTab(canViewFinanceHub ? 'overview' : 'team');
     }
@@ -990,7 +998,7 @@ function BusinessHubInner() {
   // tab label resolver
   const tabLabel = (tb) => {
     if (tb === 'profile') return t('businessHub.tabEditProfile');
-    if (tb === 'services') return t('businessHub.tabServicesLabel');
+    if (tb === 'services') return t('businessHub.tabServicesLabel', { defaultValue: 'Services & Booking' });
     if (tb === 'gallery') return t('businessHub.tabGalleryLabel');
     if (tb === 'policies') return t('businessHub.tabPoliciesLabel');
     if (tb === 'faqs') return t('businessHub.tabFAQsLabel');
@@ -1002,7 +1010,7 @@ function BusinessHubInner() {
     if (tb === 'tax') return t('businessHub.tabTaxLabel');
     if (tb === 'goals') return t('businessHub.tabGoalsLabel');
     if (tb === 'maintenance') return 'Maintenance';
-    if (tb === 'calendar') return t('businessHub.tabCalendarLabel', { defaultValue: 'Calendar' });
+    if (tb === 'calendar') return t('businessHub.tabCalendarLabel', { defaultValue: 'Schedule' });
     if (tb === 'clients') return t('businessHub.tabClientsLabel', { defaultValue: 'Clients' });
     if (tb === 'ai') return t('businessHub.tabAILabel');
     if (tb === 'messages')         return t('businessHub.tabMessagesLabel',        { defaultValue: 'Messages' });
@@ -1156,11 +1164,32 @@ function BusinessHubInner() {
             {/* ── Services tab ─────────────────────────────────────── */}
             {tab === 'services' && (
               servicesLoading ? <p className="bh-loading">{t('businessHub.loadingServices')}</p> :
-              <ServicesTab services={services} businessId={bizId}
-                onNew={() => { setForm({}); setFormErr(''); setModal('add-service'); }}
-                onEdit={svc => { setSelected(svc); setForm(svc); setFormErr(''); setModal('edit-service'); }}
-                onDelete={handleDeleteService}
-              />
+              <div className="space-y-6">
+                <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
+                  <div className="mb-4">
+                    <h2 className="text-xl font-semibold text-white">Services & Booking</h2>
+                    <p className="mt-1 text-sm leading-6 text-gray-400">
+                      Manage the public services customers see and the bookable service configurations they can schedule against from one place.
+                    </p>
+                  </div>
+                  <ServicesTab services={services} businessId={bizId}
+                    onNew={() => { setForm({}); setFormErr(''); setModal('add-service'); }}
+                    onEdit={svc => { setSelected(svc); setForm(svc); setFormErr(''); setModal('edit-service'); }}
+                    onDelete={handleDeleteService}
+                  />
+                </div>
+                {bizId && canEditBizProfile && (
+                  <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-semibold text-white">Bookable Service Setup</h3>
+                      <p className="mt-1 text-sm leading-6 text-gray-400">
+                        Set durations, capacity, pricing, booking notice, and service-level scheduling rules for appointments tied to this business.
+                      </p>
+                    </div>
+                    <BusinessServicesTab businessId={bizId} />
+                  </div>
+                )}
+              </div>
             )}
 
             {/* ── Gallery tab ──────────────────────────────────────── */}
@@ -1194,29 +1223,7 @@ function BusinessHubInner() {
             )}
 
             {/* ── Hours tab ────────────────────────────────────────── */}
-            {tab === 'hours' && (
-              hoursLoading ? <p className="bh-loading">{t('businessHub.loadingHours')}</p> :
-              <HoursTab hours={hours} businessId={bizId}
-                onEdit={() => {
-                  setFormErr('');
-                  const formData = {};
-                  hours.forEach(h => {
-                    formData[`closed_${h.day_of_week}`] = h.is_closed;
-                    formData[`start_${h.day_of_week}`] = h.start_time || '';
-                    formData[`end_${h.day_of_week}`] = h.end_time || '';
-                  });
-                  [0, 1, 2, 3, 4, 5, 6].forEach(d => {
-                    if (!formData[`closed_${d}`] && !formData[`start_${d}`]) {
-                      formData[`closed_${d}`] = false;
-                      formData[`start_${d}`] = '';
-                      formData[`end_${d}`] = '';
-                    }
-                  });
-                  setForm(formData);
-                  setModal('edit-hours');
-                }}
-              />
-            )}
+
 
             {/* ── Skills tab ───────────────────────────────────────── */}
             {tab === 'skills' && (
@@ -1244,16 +1251,84 @@ function BusinessHubInner() {
             )}
 
             {tab === 'calendar' && bizId && (
-              <div className="bh-calendar-wrap">
-                <div className="bh-calendar-header">
-                  <h2>{currentBiz?.business_name || 'Business'} calendar</h2>
-                  <p>
-                    A calendar dedicated to this business - separate from your personal helper
-                    schedule. Track team meetings, deliveries, supplier visits, vehicle maintenance,
-                    training, and customer appointments that are tied to this business.
-                  </p>
+              <div className="space-y-6">
+                <div className="bh-calendar-wrap">
+                  <div className="bh-calendar-header">
+                    <h2>{currentBiz?.business_name || 'Business'} schedule</h2>
+                    <p>
+                      This combined schedule workspace keeps business hours, appointments,
+                      calendar events, and follow-up demand in one place so the team can plan
+                      work without bouncing between tabs.
+                    </p>
+                  </div>
                 </div>
-                <BusinessCalendarView bizId={bizId} canManage={canEditBizProfile} />
+
+                <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
+                  <div className="mb-4 flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">Business Hours</h3>
+                      <p className="mt-1 text-sm leading-6 text-gray-400">
+                        Set when this business is open so customers and staff see the right operating rhythm.
+                      </p>
+                    </div>
+                  </div>
+                  {hoursLoading ? <p className="bh-loading">{t('businessHub.loadingHours')}</p> : (
+                    <HoursTab hours={hours} businessId={bizId}
+                      onEdit={() => {
+                        setFormErr('');
+                        const formData = {};
+                        hours.forEach(h => {
+                          formData[`closed_${h.day_of_week}`] = h.is_closed;
+                          formData[`start_${h.day_of_week}`] = h.start_time || '';
+                          formData[`end_${h.day_of_week}`] = h.end_time || '';
+                        });
+                        [0, 1, 2, 3, 4, 5, 6].forEach(d => {
+                          if (!formData[`closed_${d}`] && !formData[`start_${d}`]) {
+                            formData[`closed_${d}`] = false;
+                            formData[`start_${d}`] = '';
+                            formData[`end_${d}`] = '';
+                          }
+                        });
+                        setForm(formData);
+                        setModal('edit-hours');
+                      }}
+                    />
+                  )}
+                </div>
+
+                {canEditBizProfile && (
+                  <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-semibold text-white">Appointments</h3>
+                      <p className="mt-1 text-sm leading-6 text-gray-400">
+                        Manage the appointment calendar tied to this business, including bookable slots and customer reservations.
+                      </p>
+                    </div>
+                    <AppointmentCalendarView businessId={bizId} />
+                  </div>
+                )}
+
+                <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-white">Business Calendar</h3>
+                    <p className="mt-1 text-sm leading-6 text-gray-400">
+                      Track team meetings, deliveries, supplier visits, training, and other events that belong to this business.
+                    </p>
+                  </div>
+                  <BusinessCalendarView bizId={bizId} canManage={canEditBizProfile} />
+                </div>
+
+                {canEditBizProfile && (
+                  <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-semibold text-white">Waitlist & Follow-ups</h3>
+                      <p className="mt-1 text-sm leading-6 text-gray-400">
+                        Keep demand warm by tracking people waiting for availability, reschedules, or the next open spot.
+                      </p>
+                    </div>
+                    <WaitlistManager businessId={bizId} />
+                  </div>
+                )}
               </div>
             )}
 
@@ -1371,16 +1446,6 @@ function BusinessHubInner() {
               <BusinessMessagingTab businessId={bizId} />
             )}
 
-            {/* ── Appointments tab ─────────────────────────────────── */}
-            {tab === 'appointments' && bizId && canEditBizProfile && (
-              <AppointmentCalendarView businessId={bizId} />
-            )}
-
-            {/* ── Booking Services tab ─────────────────────────────── */}
-            {tab === 'booking-services' && bizId && canEditBizProfile && (
-              <BusinessServicesTab businessId={bizId} />
-            )}
-
             {/* ── Products tab ─────────────────────────────────────── */}
             {tab === 'products' && bizId && canEditBizProfile && (
               <ProductManagement businessId={bizId} />
@@ -1439,11 +1504,6 @@ function BusinessHubInner() {
             {/* ── Marketing Tools ──────────────────────────────────── */}
             {tab === 'marketing' && bizId && canEditBizProfile && (
               <MarketingTools businessId={bizId} />
-            )}
-
-            {/* ── Waitlist ─────────────────────────────────────────── */}
-            {tab === 'waitlist' && bizId && canEditBizProfile && (
-              <WaitlistManager businessId={bizId} />
             )}
 
             {/* ── Service Packages ─────────────────────────────────── */}

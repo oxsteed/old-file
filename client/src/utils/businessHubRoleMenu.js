@@ -81,7 +81,7 @@ export const ROLE_MENUS = {
     widgets: ['revenue','payouts','open_jobs','completion_rate','team_utilization','new_leads','quote_conversion','message_volume','template_usage','profile_health'],
     menu: [
       { id: 'overview',    label: 'businessHub.menu.overview',    tab: 'overview' },
-      { id: 'jobs',        label: 'businessHub.menu.jobs',        tab: 'appointments' },
+      { id: 'jobs',        label: 'businessHub.menu.jobs',        tab: 'calendar' },
       { id: 'calendar',    label: 'businessHub.menu.calendar',    tab: 'calendar' },
       { id: 'customers',   label: 'businessHub.menu.customers',   tab: 'clients' },
       { id: 'messages',    label: 'businessHub.menu.messages',    tab: 'messages' },
@@ -100,7 +100,7 @@ export const ROLE_MENUS = {
     widgets: ['today_jobs','unassigned_work','late_jobs','staff_availability','overdue_replies','open_escalations'],
     menu: [
       { id: 'overview',    label: 'businessHub.menu.operationsOverview', tab: 'overview' },
-      { id: 'jobs',        label: 'businessHub.menu.jobs',        tab: 'appointments' },
+      { id: 'jobs',        label: 'businessHub.menu.jobs',        tab: 'calendar' },
       { id: 'calendar',    label: 'businessHub.menu.calendar',    tab: 'calendar' },
       { id: 'teamSchedule',label: 'businessHub.menu.teamSchedule',tab: 'staff' },
       { id: 'customers',   label: 'businessHub.menu.customers',   tab: 'clients' },
@@ -118,9 +118,9 @@ export const ROLE_MENUS = {
     home: 'calendar',
     widgets: ['next_job','today_schedule','tasks_needing_update','waiting_replies','checklists','personal_stats'],
     menu: [
-      { id: 'myWork',      label: 'businessHub.menu.myWork',      tab: 'appointments' },
+      { id: 'myWork',      label: 'businessHub.menu.myWork',      tab: 'calendar' },
       { id: 'mySchedule',  label: 'businessHub.menu.mySchedule',  tab: 'calendar' },
-      { id: 'assignedJobs',label: 'businessHub.menu.assignedJobs',tab: 'appointments' },
+      { id: 'assignedJobs',label: 'businessHub.menu.assignedJobs',tab: 'calendar' },
       { id: 'messages',    label: 'businessHub.menu.messages',    tab: 'messages' },
       { id: 'customers',   label: 'businessHub.menu.customers',   tab: 'clients' },
       { id: 'tools',       label: 'businessHub.menu.toolsEquipment',tab: 'products' },
@@ -138,7 +138,7 @@ export const ROLE_MENUS = {
       { id: 'quotes',      label: 'businessHub.menu.quotes',      tab: 'quotes' },
       { id: 'appointments',label: 'businessHub.menu.appointments',tab: 'calendar' },
       { id: 'customers',   label: 'businessHub.menu.customers',   tab: 'clients' },
-      { id: 'followups',   label: 'businessHub.menu.followups',   tab: 'waitlist' },
+      { id: 'followups',   label: 'businessHub.menu.followups',   tab: 'calendar' },
       { id: 'templates',   label: 'businessHub.menu.scripts',     tab: 'msg-templates' },
       { id: 'reports',     label: 'businessHub.menu.performance', tab: 'analytics' },
     ],
