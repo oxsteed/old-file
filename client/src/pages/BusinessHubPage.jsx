@@ -1867,10 +1867,116 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
     onChange({ [name]: value });
   }
 
+  const profileChecks = [
+    !!form.business_name?.trim(),
+    !!form.business_type?.trim(),
+    !!form.profile_headline?.trim(),
+    !!form.description?.trim(),
+    !!form.phone?.trim(),
+    !!form.address_city?.trim(),
+    !!logoPreview,
+    !!coverPreview,
+  ];
+  const completedChecks = profileChecks.filter(Boolean).length;
+  const completionPct = Math.round((completedChecks / profileChecks.length) * 100);
+  const contactSummary = [
+    form.phone?.trim(),
+    form.website?.trim(),
+  ].filter(Boolean).join(' • ') || 'Add a phone number and website so customers can trust and contact your business.';
+  const locationParts = [
+    form.address_city?.trim(),
+    form.address_state?.trim(),
+    form.address_country?.trim(),
+  ].filter(Boolean);
+  const locationSummary = locationParts.length
+    ? locationParts.join(', ')
+    : 'Set your city, region, country, and service radius so local customers can find you.';
+  const serviceRadiusLabel = form.service_radius_miles
+    ? `${form.service_radius_miles} mile radius`
+    : 'Service radius not set yet';
+
   return (
     <div className="space-y-6">
       {/* ── Header with preview link ──────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="rounded-3xl border border-orange-500/20 bg-[radial-gradient(circle_at_top_left,rgba(249,115,22,0.16),transparent_34%),linear-gradient(180deg,rgba(17,24,39,0.96),rgba(15,23,42,0.96))] px-6 py-6 shadow-[0_20px_80px_rgba(0,0,0,0.24)]">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-3xl">
+            <span className="inline-flex items-center gap-2 rounded-full border border-orange-500/25 bg-orange-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-300">
+              {t('businessHub.profileStudioEyebrow', { defaultValue: 'Profile Studio' })}
+            </span>
+            <h2 className="mt-4 text-2xl font-bold tracking-tight text-white">{t('businessHub.publicProfile')}</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-300">
+              {t('businessHub.publicProfileSubtitle')} {t('businessHub.profileStudioSupportCopy', {
+                defaultValue: 'This is the storefront customers judge in a few seconds, so lead with trust, clarity, and strong visuals.',
+              })}
+            </p>
+            {currentRole === 'manager' && (
+              <p className="mt-3 text-xs text-indigo-300">
+                <Trans i18nKey="businessHub.managerNote">
+                  You are editing as a <strong>Manager</strong>. Changes apply to the business owner's public profile.
+                </Trans>
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-right">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">
+                {t('businessHub.profileReadinessLabel', { defaultValue: 'Profile Readiness' })}
+              </div>
+              <div className="mt-1 text-2xl font-bold text-white">{completionPct}%</div>
+            </div>
+            {bizId && (
+              <a
+                href={`/business/${bizId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-sm font-semibold text-orange-300 transition hover:bg-orange-500/20"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/>
+                  <line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+                {t('businessHub.preview')} →
+              </a>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/8">
+          <div className="h-full rounded-full bg-gradient-to-r from-orange-400 via-amber-400 to-emerald-400 transition-all" style={{ width: `${completionPct}%` }} />
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">
+              {t('businessHub.brandAssetsLabel', { defaultValue: 'Brand Assets' })}
+            </div>
+            <div className="mt-2 text-lg font-semibold text-white">{logoPreview && coverPreview ? 'Ready to publish' : 'Needs visual polish'}</div>
+            <p className="mt-1 text-sm leading-6 text-gray-400">
+              {logoPreview && coverPreview
+                ? 'Your logo and cover already give the public page a stronger first impression.'
+                : 'Add a logo and cover photo so the public profile feels established before customers scroll.'}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">
+              {t('businessHub.trustSignalsLabel', { defaultValue: 'Trust Signals' })}
+            </div>
+            <div className="mt-2 text-lg font-semibold text-white">{form.phone?.trim() && form.website?.trim() ? 'Contact-ready' : 'Needs contact details'}</div>
+            <p className="mt-1 text-sm leading-6 text-gray-400">{contactSummary}</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">
+              {t('businessHub.serviceReachLabel', { defaultValue: 'Service Reach' })}
+            </div>
+            <div className="mt-2 text-lg font-semibold text-white">{locationParts.length ? locationSummary : 'Location not fully set'}</div>
+            <p className="mt-1 text-sm leading-6 text-gray-400">{serviceRadiusLabel}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="hidden flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-lg font-bold text-white">{t('businessHub.publicProfile')}</h2>
           <p className="text-xs text-gray-500 mt-1">{t('businessHub.publicProfileSubtitle')}</p>
@@ -1899,17 +2005,43 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
       </div>
 
       {/* ── Photos Card ──────────────────────────────────────────────────── */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5">
-        <h3 className="text-base font-semibold text-white mb-4">{t('businessHub.sectionPhotos')}</h3>
-        <div className="grid sm:grid-cols-2 gap-6">
+      <div className="overflow-hidden rounded-3xl border border-gray-800 bg-gray-900/95 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
+        <div className="border-b border-gray-800 bg-white/[0.02] px-6 py-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-white">{t('businessHub.sectionPhotos')}</h3>
+              <p className="mt-1 text-sm leading-6 text-gray-400">
+                {t('businessHub.photosSectionSupportCopy', {
+                  defaultValue: 'Customers scan visuals before reading details. Use a clean square logo and a welcoming cover image that feels local, professional, and real.',
+                })}
+              </p>
+            </div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-gray-300">
+              <span className={`h-2.5 w-2.5 rounded-full ${logoPreview || coverPreview ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+              {logoPreview || coverPreview ? 'Visuals in progress' : 'Add visuals to unlock trust'}
+            </span>
+          </div>
+        </div>
+        <div className="grid gap-6 px-6 py-6 lg:grid-cols-[0.95fr,1.05fr]">
           {/* Logo */}
-          <div>
-            <label className="text-sm font-medium text-gray-300 block mb-2">{t('businessHub.businessLogo')}</label>
-            <div className="w-full aspect-square bg-gray-800 border border-gray-700 rounded-lg flex items-center justify-center overflow-hidden mb-3">
+          <div className="rounded-2xl border border-gray-800 bg-slate-950/35 p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <label className="text-sm font-medium text-gray-200">{t('businessHub.businessLogo')}</label>
+              <span className="text-xs text-gray-500">Square works best</span>
+            </div>
+            <div className="mb-3 flex w-full aspect-square items-center justify-center overflow-hidden rounded-2xl border border-dashed border-gray-700 bg-gray-800/70">
               {logoPreview ? (
                 <img src={logoPreview} alt={t('businessHub.logoPreviewAlt')} className="w-full h-full object-cover" />
               ) : (
-                <span className="text-gray-500 text-sm">{t('businessHub.noLogo')}</span>
+                <div className="flex max-w-[15rem] flex-col items-center gap-3 px-6 text-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-2xl">◎</div>
+                  <div>
+                    <div className="text-sm font-medium text-gray-300">{t('businessHub.noLogo')}</div>
+                    <p className="mt-1 text-xs leading-5 text-gray-500">
+                      Use your mark, monogram, or storefront badge so customers recognize the business instantly.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
             <input
@@ -1920,11 +2052,12 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
               id="bh-logo-input"
             />
             <div className="flex gap-2">
-              <label htmlFor="bh-logo-input" className="flex-1 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium rounded-lg transition cursor-pointer text-center">
+              <label htmlFor="bh-logo-input" className="flex-1 cursor-pointer rounded-xl bg-gray-800 px-3 py-2.5 text-center text-sm font-medium text-gray-200 transition hover:bg-gray-700">
                 {logoPreview ? t('businessHub.changeLogo') : t('businessHub.uploadLogo')}
               </label>
               {logoPreview && (
                 <button
+                  type="button"
                   className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-medium rounded-lg transition"
                   onClick={() => { onLogoChange(null); onChange({ logo_url: '' }); }}
                 >
@@ -1935,13 +2068,24 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
           </div>
 
           {/* Cover photo */}
-          <div>
-            <label className="text-sm font-medium text-gray-300 block mb-2">{t('businessHub.coverPhoto')}</label>
-            <div className="w-full aspect-video bg-gray-800 border border-gray-700 rounded-lg flex items-center justify-center overflow-hidden mb-3">
+          <div className="rounded-2xl border border-gray-800 bg-slate-950/35 p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <label className="text-sm font-medium text-gray-200">{t('businessHub.coverPhoto')}</label>
+              <span className="text-xs text-gray-500">Wide banner</span>
+            </div>
+            <div className="mb-3 flex w-full aspect-[3/1.5] items-center justify-center overflow-hidden rounded-2xl border border-dashed border-gray-700 bg-gray-800/70">
               {coverPreview ? (
                 <img src={coverPreview} alt={t('businessHub.coverPreviewAlt')} className="w-full h-full object-cover" />
               ) : (
-                <span className="text-gray-500 text-sm">{t('businessHub.noCoverPhoto')}</span>
+                <div className="flex max-w-[18rem] flex-col items-center gap-3 px-6 text-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-2xl">▭</div>
+                  <div>
+                    <div className="text-sm font-medium text-gray-300">{t('businessHub.noCoverPhoto')}</div>
+                    <p className="mt-1 text-xs leading-5 text-gray-500">
+                      Show your shop, team, equipment, or signature work so the page feels alive before a customer books.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
             <input
@@ -1952,11 +2096,12 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
               id="bh-cover-input"
             />
             <div className="flex gap-2">
-              <label htmlFor="bh-cover-input" className="flex-1 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium rounded-lg transition cursor-pointer text-center">
+              <label htmlFor="bh-cover-input" className="flex-1 cursor-pointer rounded-xl bg-gray-800 px-3 py-2.5 text-center text-sm font-medium text-gray-200 transition hover:bg-gray-700">
                 {coverPreview ? t('businessHub.changeCover') : t('businessHub.uploadCover')}
               </label>
               {coverPreview && (
                 <button
+                  type="button"
                   className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-medium rounded-lg transition"
                   onClick={() => { onCoverChange(null); onChange({ cover_photo_url: '' }); }}
                 >
@@ -1966,74 +2111,123 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
             </div>
           </div>
         </div>
-        <p className="text-xs text-gray-500 mt-4">💡 Logo: square preferred. Cover: 3:1 ratio for best results.</p>
+        <div className="border-t border-gray-800 px-6 py-4 text-xs text-gray-500">
+          Logo: square preferred. Cover: 3:1 ratio for best results.
+        </div>
       </div>
 
       {/* ── Business Identity Card ──────────────────────────────────── */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5">
-        <h3 className="text-base font-semibold text-white mb-4">{t('businessHub.sectionBusinessIdentity')}</h3>
-        <div className="space-y-4">
+      <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
+        <div className="mb-5 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldBusinessNameRequired')}</label>
-            <input
-              name="business_name"
-              value={form.business_name}
-              onChange={pf}
-              placeholder={t('businessHub.placeholderBizName')}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
-            />
+            <h3 className="text-lg font-semibold text-white">{t('businessHub.sectionBusinessIdentity')}</h3>
+            <p className="mt-1 text-sm leading-6 text-gray-400">
+              {t('businessHub.identitySectionSupportCopy', {
+                defaultValue: 'Name, category, headline, and description shape the first serious impression. Keep this crisp, specific, and customer-facing.',
+              })}
+            </p>
           </div>
-
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-gray-300">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">What customers see first</div>
+            <div className="mt-1 text-white">{form.profile_headline?.trim() || 'Add a sharp one-line promise for your business.'}</div>
+          </div>
+        </div>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldBusinessType')}</label>
-              <select
-                name="business_type"
-                value={form.business_type}
-                onChange={pf}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
-              >
-                <option value="">{t('businessHub.selectTypePlaceholder')}</option>
-                {BIZ_TYPES.map(bt => <option key={bt.value} value={bt.value}>{t(`businessHub.${bt.labelKey}`)}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldTagline')}</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-300">{t('businessHub.fieldBusinessNameRequired')}</label>
+              <p className="mb-2 text-xs text-gray-500">Use the exact name you want customers to remember and share.</p>
               <input
-                name="profile_headline"
-                value={form.profile_headline}
+                name="business_name"
+                value={form.business_name}
                 onChange={pf}
-                placeholder={t('businessHub.placeholderTagline')}
-                maxLength={120}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+                placeholder={t('businessHub.placeholderBizName')}
+                className="w-full rounded-xl border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white transition focus:border-orange-500 focus:outline-none"
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-300">{t('businessHub.fieldBusinessType')}</label>
+                <p className="mb-2 text-xs text-gray-500">Choose the lane customers most likely search for first.</p>
+                <select
+                  name="business_type"
+                  value={form.business_type}
+                  onChange={pf}
+                  className="w-full rounded-xl border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white transition focus:border-orange-500 focus:outline-none"
+                >
+                  <option value="">{t('businessHub.selectTypePlaceholder')}</option>
+                  {BIZ_TYPES.map(bt => <option key={bt.value} value={bt.value}>{t(`businessHub.${bt.labelKey}`)}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-300">{t('businessHub.fieldTagline')}</label>
+                <p className="mb-2 text-xs text-gray-500">A clear one-line promise beats a list of buzzwords.</p>
+                <input
+                  name="profile_headline"
+                  value={form.profile_headline}
+                  onChange={pf}
+                  placeholder={t('businessHub.placeholderTagline')}
+                  maxLength={120}
+                  className="w-full rounded-xl border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white transition focus:border-orange-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-300">{t('businessHub.fieldAbout')}</label>
+              <p className="mb-2 text-xs text-gray-500">Explain what you do, where you work, and why a customer should trust your business.</p>
+              <textarea
+                name="description"
+                value={form.description}
+                onChange={pf}
+                rows={5}
+                placeholder={t('businessHub.placeholderAbout')}
+                className="w-full resize-none rounded-xl border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white transition focus:border-orange-500 focus:outline-none"
               />
             </div>
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldAbout')}</label>
-            <textarea
-              name="description"
-              value={form.description}
-              onChange={pf}
-              rows={4}
-              placeholder={t('businessHub.placeholderAbout')}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition resize-none"
-            />
+          <div className="rounded-2xl border border-gray-800 bg-slate-950/35 p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+              {t('businessHub.quickChecklistLabel', { defaultValue: 'Quick Checklist' })}
+            </div>
+            <ul className="mt-3 space-y-3 text-sm text-gray-300">
+              {[
+                { done: !!form.business_name?.trim(), label: 'Business name is set' },
+                { done: !!form.business_type?.trim(), label: 'Business type is selected' },
+                { done: !!form.profile_headline?.trim(), label: 'Headline is ready' },
+                { done: !!form.description?.trim(), label: 'About section has content' },
+              ].map((item) => (
+                <li key={item.label} className="flex items-start gap-3">
+                  <span className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${item.done ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white/8 text-gray-500'}`}>
+                    {item.done ? '✓' : '•'}
+                  </span>
+                  <span>{item.label}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </div>
 
       {/* ── Contact Info (Collapsible) ──────────────────────────────── */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5">
+      <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
         <button
+          type="button"
           onClick={() => setExpandContact(!expandContact)}
           aria-expanded={expandContact}
-          className="w-full flex items-center justify-between mb-4 hover:opacity-80 transition"
+          className="flex w-full items-center justify-between gap-4 text-left transition hover:opacity-90"
         >
-          <h3 className="text-base font-semibold text-white">{t('businessHub.sectionContact')}</h3>
+          <div>
+            <div className="flex items-center gap-3">
+              <h3 className="text-lg font-semibold text-white">{t('businessHub.sectionContact')}</h3>
+              <span className={`inline-flex h-2.5 w-2.5 rounded-full ${form.phone?.trim() || form.website?.trim() ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+            </div>
+            <p className="mt-2 text-sm leading-6 text-gray-400">{contactSummary}</p>
+          </div>
           <svg
-            className={`w-5 h-5 text-gray-400 transition-transform ${expandContact ? 'rotate-180' : ''}`}
+            className={`h-5 w-5 flex-shrink-0 text-gray-400 transition-transform ${expandContact ? 'rotate-180' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -2043,27 +2237,27 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
         </button>
 
         {expandContact && (
-          <div className="space-y-4">
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
             <div>
-              <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldPhone')}</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-300">{t('businessHub.fieldPhone')}</label>
               <input
                 name="phone"
                 value={form.phone}
                 onChange={pf}
                 placeholder={t('businessHub.placeholderPhone')}
                 type="tel"
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+                className="w-full rounded-xl border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white transition focus:border-orange-500 focus:outline-none"
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldWebsite')}</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-300">{t('businessHub.fieldWebsite')}</label>
               <input
                 name="website"
                 value={form.website}
                 onChange={pf}
                 placeholder={t('businessHub.placeholderWebsiteFull')}
                 type="url"
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+                className="w-full rounded-xl border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white transition focus:border-orange-500 focus:outline-none"
               />
             </div>
           </div>
@@ -2071,15 +2265,24 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
       </div>
 
       {/* ── Location & Service Area (Collapsible) ──────────────────────── */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5">
+      <div className="rounded-3xl border border-gray-800 bg-gray-900/95 px-6 py-5 shadow-[0_12px_48px_rgba(0,0,0,0.18)]">
         <button
+          type="button"
           onClick={() => setExpandLocation(!expandLocation)}
           aria-expanded={expandLocation}
-          className="w-full flex items-center justify-between mb-4 hover:opacity-80 transition"
+          className="flex w-full items-center justify-between gap-4 text-left transition hover:opacity-90"
         >
-          <h3 className="text-base font-semibold text-white">{t('businessHub.sectionLocation')}</h3>
+          <div>
+            <div className="flex items-center gap-3">
+              <h3 className="text-lg font-semibold text-white">{t('businessHub.sectionLocation')}</h3>
+              <span className={`inline-flex h-2.5 w-2.5 rounded-full ${form.address_city?.trim() ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+            </div>
+            <p className="mt-2 text-sm leading-6 text-gray-400">
+              {locationSummary}. {serviceRadiusLabel}.
+            </p>
+          </div>
           <svg
-            className={`w-5 h-5 text-gray-400 transition-transform ${expandLocation ? 'rotate-180' : ''}`}
+            className={`h-5 w-5 flex-shrink-0 text-gray-400 transition-transform ${expandLocation ? 'rotate-180' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -2089,21 +2292,21 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
         </button>
 
         {expandLocation && (
-          <div className="space-y-4">
+          <div className="mt-5 space-y-4">
             <div>
-              <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldStreetAddress')}</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-300">{t('businessHub.fieldStreetAddress')}</label>
               <input
                 name="address_street"
                 value={form.address_street}
                 onChange={pf}
                 placeholder={t('businessHub.placeholderStreet')}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+                className="w-full rounded-xl border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white transition focus:border-orange-500 focus:outline-none"
               />
               <p className="text-xs text-gray-500 mt-1">{t('businessHub.streetHint')}</p>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldCountry') || 'Country'}</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-300">{t('businessHub.fieldCountry') || 'Country'}</label>
               <CountrySelect
                 value={form.address_country || 'US'}
                 onChange={(code) => {
@@ -2112,46 +2315,46 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
                   onChange({ address_country: code, address_state: '' });
                 }}
                 includeBlank={false}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+                className="w-full rounded-xl border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white transition focus:border-orange-500 focus:outline-none"
               />
             </div>
 
             <div className="grid sm:grid-cols-3 gap-4">
               <div>
-                <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldCity')}</label>
+                <label className="mb-1.5 block text-sm font-medium text-gray-300">{t('businessHub.fieldCity')}</label>
                 <input
                   name="address_city"
                   value={form.address_city}
                   onChange={pf}
                   placeholder={t('businessHub.placeholderCity')}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+                  className="w-full rounded-xl border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white transition focus:border-orange-500 focus:outline-none"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldState')}</label>
+                <label className="mb-1.5 block text-sm font-medium text-gray-300">{t('businessHub.fieldState')}</label>
                 <RegionInput
                   country={form.address_country || 'US'}
                   name="address_state"
                   value={form.address_state}
                   onChange={(v) => onChange({ address_state: v })}
                   placeholder={t('businessHub.selectStatePlaceholder')}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+                  className="w-full rounded-xl border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white transition focus:border-orange-500 focus:outline-none"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldZip')}</label>
+                <label className="mb-1.5 block text-sm font-medium text-gray-300">{t('businessHub.fieldZip')}</label>
                 <PostalCodeInput
                   country={form.address_country || 'US'}
                   name="address_zip"
                   value={form.address_zip}
                   onChange={(v) => onChange({ address_zip: v })}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+                  className="w-full rounded-xl border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white transition focus:border-orange-500 focus:outline-none"
                 />
               </div>
             </div>
 
             <div className="sm:w-1/3">
-              <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldServiceRadius')}</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-300">{t('businessHub.fieldServiceRadius')}</label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
@@ -2161,7 +2364,7 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
                   placeholder={t('businessHub.placeholderRadius')}
                   min="1"
                   max="200"
-                  className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+                  className="flex-1 rounded-xl border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white transition focus:border-orange-500 focus:outline-none"
                 />
                 <span className="text-gray-500 text-sm">mi</span>
               </div>
@@ -2171,21 +2374,34 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
       </div>
 
       {/* ── Error & Actions ──────────────────────────────────────────────── */}
-      {err && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{err}</p>}
-
-      <button
-        className="bh-btn primary w-full"
-        onClick={onSave}
-        disabled={saving}
-      >
-        {saving ? t('businessHub.btnSaving') : t('businessHub.btnSaveProfile')}
-      </button>
-
-      <p className="text-xs text-gray-500">
-        <Trans i18nKey="businessHub.profileFooterNote">
-          Services, gallery, availability, and policies are managed from your <a href="/dashboard" className="text-orange-400 hover:text-orange-300">helper profile settings</a>.
-        </Trans>
-      </p>
+      <div className="sticky bottom-4 z-10 rounded-3xl border border-orange-500/20 bg-[linear-gradient(180deg,rgba(17,24,39,0.96),rgba(15,23,42,0.98))] px-5 py-4 shadow-[0_20px_80px_rgba(0,0,0,0.3)] backdrop-blur">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="text-sm font-semibold text-white">
+              {completionPct >= 100 ? 'Profile looks publish-ready.' : `Profile is ${completionPct}% complete.`}
+            </div>
+            <p className="mt-1 text-xs leading-5 text-gray-400">
+              {completionPct >= 100
+                ? 'Give the preview one final review, then keep services, gallery, and hours aligned with the public promise above.'
+                : 'Finish the missing basics before publishing so customers see a confident, complete storefront.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="inline-flex min-w-[220px] items-center justify-center rounded-2xl bg-gradient-to-r from-orange-400 to-amber-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:from-orange-300 hover:to-amber-300 disabled:cursor-not-allowed disabled:opacity-70"
+            onClick={onSave}
+            disabled={saving}
+          >
+            {saving ? t('businessHub.btnSaving') : t('businessHub.btnSaveProfile')}
+          </button>
+        </div>
+        {err && <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{err}</div>}
+        <p className="mt-4 text-xs text-gray-500">
+          <Trans i18nKey="businessHub.profileFooterNote">
+            Services, gallery, availability, and policies are managed from your <Link to="/helper-dashboard?tab=editProfile" className="text-orange-400 hover:text-orange-300">helper profile settings</Link>.
+          </Trans>
+        </p>
+      </div>
     </div>
   );
 }
