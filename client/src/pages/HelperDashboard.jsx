@@ -106,6 +106,15 @@ export default function HelperDashboard() {
 
   // Detect "selected Pro during registration but hasn't paid yet"
   const selectedProNoPay = !subscription?.status && user?.effective_tier==='pro' && !!user?.tier_selected;
+  const isIdVerified =
+    verification.identity?.status === 'verified' ||
+    verification.identity?.status === 'approved' ||
+    user?.didit_status === 'verified' ||
+    user?.identity_verified === true ||
+    user?.is_verified === true;
+  const idVerificationStatusLabel = user?.didit_status === 'verified'
+    ? 'verified'
+    : (verification.identity?.status || 'verified');
 
   // ── Products state ────────────────────────────────────────────────────────
   const [myProducts, setMyProducts] = useState([]);
@@ -885,8 +894,19 @@ export default function HelperDashboard() {
     }
   }, [tab]);
 
-  const startBackgroundCheck=async()=>{try{await api.post('/verification/background-check');window.location.reload();}catch(e){alert(e.response?.data?.error||'Failed');}};
-  const startIdentityVerification=async()=>{try{const{data}=await api.post('/verification/identity/session');window.location.href=data.url;}catch(e){alert(e.response?.data?.error||'Failed');}};
+  const startBackgroundCheck = async () => {
+    try {
+      const { data } = await api.post('/verification/background-check');
+      toast.success(data?.message || 'Background check started. Check your email for next steps.');
+      window.location.reload();
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'Failed to start background check.');
+    }
+  };
+
+  const startIdentityVerification = () => {
+    navigate('/verify-identity');
+  };
 
   // Form handlers
   const handleAddExpense = async (e) => {
@@ -1285,12 +1305,13 @@ export default function HelperDashboard() {
                 {verification.backgroundCheck?<Tag text={verification.backgroundCheck.status} color={verification.backgroundCheck.status==='passed'?'green':'orange'}/>
                 :(<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.bgCheckHint')} Available on every account, with or without Pro.</p><button onClick={startBackgroundCheck} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.startCheck')}</button></>)}
               </Card>
-              <Card>
-                <div className="flex items-center gap-2 mb-3"><IcoId size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.idVerification')}</span></div>
-                {verification.identity?<Tag text={verification.identity.status} color={verification.identity.status==='approved'?'green':'orange'}/>
-                :(<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.idVerificationHint')} Available on every account, with or without Pro.</p><button onClick={startIdentityVerification} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.verifyId')}</button></>)}
-              </Card>
-            </div>
+                <Card>
+                  <div className="flex items-center gap-2 mb-3"><IcoId size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.idVerification')}</span></div>
+                  {isIdVerified
+                    ? <Tag text={idVerificationStatusLabel} color="green"/>
+                    : (<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.idVerificationHint')} Available on every account, with or without Pro.</p><button onClick={startIdentityVerification} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.verifyId')}</button></>)}
+                </Card>
+              </div>
 
             {/* Quick actions */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">

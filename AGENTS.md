@@ -73,6 +73,7 @@
 
 **Helper trial + verification dashboard alignment (2026-05-17):** COMPLETE
 - **`client/src/pages/HelperDashboard.jsx`**: Fixed the helper overview cards so they no longer contradict the active trial banner. The subscription tile now treats active free-Pro trials as real Pro access, background check and ID verification no longer show `Requires Pro`, and the lower upgrade CTA only appears once the user no longer has Pro access through either trial or paid subscription.
+- **ID verification launch hardening:** `HelperDashboard.jsx` now routes the Verify ID card into the real `/verify-identity` Didit flow instead of calling the legacy Stripe Identity session endpoint directly, uses OxSteed toasts instead of raw browser alerts for verification actions, and treats existing Didit-verified users as already verified in the overview card. `server/controllers/verificationController.js` now converts Stripe permission failures on the old endpoint into a safe `verification_unavailable` app error instead of leaking the provider permission message to the user.
 - **Verification:** Client production build still cannot run in this workspace because the local `vite` binary is unavailable (`npm run build` fails with `'vite' is not recognized as an internal or external command`).
 
 **Property maintenance request mode (2026-05-11):** COMPLETE

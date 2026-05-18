@@ -201,6 +201,29 @@ exports.createIdentitySession = async (req, res, next) => {
 
     res.json({ url: session.url, sessionId: session.id });
   } catch (err) {
+    logger.error('Stripe identity session creation failed', {
+      userId: req.user?.id,
+      type: err?.type,
+      code: err?.code,
+      message: err?.message,
+    });
+
+    const rawMessage = `${err?.message || ''} ${err?.raw?.message || ''}`.toLowerCase();
+    const missingPermission =
+      rawMessage.includes('rak_identity_product_write') ||
+      rawMessage.includes('does not have the required permissions') ||
+      rawMessage.includes('identity verification');
+
+    if (missingPermission) {
+      return next(
+        new AppError(
+          'Identity verification is temporarily unavailable through this legacy endpoint. Please use the OxSteed verification flow instead.',
+          503,
+          'verification_unavailable'
+        )
+      );
+    }
+
     next(err);
   }
 };
