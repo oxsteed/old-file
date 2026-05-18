@@ -21,6 +21,19 @@
 - 223 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
 
+**Template internal workflow systems foundation (2026-05-17):** COMPLETE
+- **`client/src/components/profileTemplates/templateWorkflowSystems.js`**: Added a centralized internal workflow registry for all template categories and template slugs. Each template now defines an operating model, demand pattern, workflow stages, intake requirements, recordkeeping expectations, cadence, quality controls, monetization plays, and Business Hub systems it should rely on.
+- **`client/src/components/businessHub/TemplateWorkflowSystemTab.jsx`**: Added a dedicated Business Hub template-workflow workspace that translates the active template into an internal operating system with readiness metrics, live setup checklist scoring, gap detection, next-best-action routing, demand fit, workflow stages, required records, operating cadence, quality controls, monetization guidance, and click-through system shortcuts.
+- **`client/src/pages/BusinessHubPage.jsx` + `client/src/utils/businessHubRoleMenu.js`**: Added the new `workflow` tab to Business Hub for owner/manager roles, wired template-aware data loading into that workspace, and surfaced the workflow system in role-based navigation.
+- **`client/src/pages/TemplatePicker.jsx`**: Template previews now show the internal workflow system a user unlocks before activation, not just the public-facing visual style.
+- **Verification:** Not build-verified locally; this workspace still does not have a working local `vite` binary.
+
+**Template industry feature-pack foundation (2026-05-17):** COMPLETE
+- **`client/src/components/profileTemplates/templateFeaturePacks.js`**: Added a centralized industry feature-pack system for every registered template. Each template now has category-aware plus slug-specific demand moments, operating workflow, differentiators, client expectations, trust signals, and signature offering structure so templates can express what that industry actually sells instead of only changing visuals.
+- **`client/src/components/profileTemplates/TemplateFeatureStack.jsx`**: Added a reusable public profile feature stack that renders the industry demand fit, buying workflow, offer structure, and trust expectations unlocked by the active template.
+- **`client/src/components/profileTemplates/index.jsx`**: Wired the feature-pack layer into the shared template renderer so activating any non-default template now adds specialized industry sections on top of the existing template-specific layout system.
+- **Verification:** Not build-verified locally; this workspace still does not have a working local `vite` binary.
+
 **Template profile identity pass (2026-05-17):** COMPLETE
 - **`client/src/components/profileTemplates/index.jsx`**: Upgraded the shared template renderer so every public template profile now gets a stronger presentation shell with category-based visual direction, per-template positioning copy, audience framing, and template-specific highlight chips before and after the existing industry layout. This makes the templates read as more distinct products without rewriting each underlying layout component.
 - **Presentation metadata:** Added category presentation presets plus slug-level overrides for all registered templates, so property, trades, creative, health, care, events, beauty, tech, professional, education, food, and automotive templates now project different moods and priorities instead of sharing a near-generic wrapper.

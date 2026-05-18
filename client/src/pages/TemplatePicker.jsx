@@ -10,6 +10,7 @@ import api from '../api/axios';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import { TEMPLATE_REGISTRY, ProfileTemplateRenderer } from '../components/profileTemplates/index';
+import { getTemplateWorkflowSystem } from '../components/profileTemplates/templateWorkflowSystems.js';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -145,6 +146,7 @@ const PreviewModal = ({ template, slug, pricing, hasAccess, trialExpiry, isActiv
 
   const price = pricing?.[slug];
   const monthly = price ? (price.monthly_price_cents / 100).toFixed(2) : '0.99';
+  const workflowSystem = getTemplateWorkflowSystem(slug, template.category);
 
   return (
     <div
@@ -220,6 +222,24 @@ const PreviewModal = ({ template, slug, pricing, hasAccess, trialExpiry, isActiv
               <div className="text-blue-300/70 text-[11px] mt-2.5">+ {t('templatePicker.freeTrialOneYear', { defaultValue: '1-year free trial' })}</div>
             </div>
           )}
+
+          <div className="rounded-xl border border-gray-700/50 bg-gray-950/70 p-4 mb-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 mb-2">
+              Internal workflow unlocked
+            </div>
+            <p className="text-sm font-semibold text-white">{workflowSystem.operatingModel}</p>
+            <p className="text-xs text-gray-400 mt-2 leading-6">{workflowSystem.headline}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(workflowSystem.unlockedSystems || []).slice(0, 4).map((item) => (
+                <span
+                  key={`${item.tab}-${item.label}`}
+                  className="rounded-full border border-gray-700 bg-gray-900 px-2.5 py-1 text-[11px] font-medium text-gray-300"
+                >
+                  {item.label}
+                </span>
+              ))}
+            </div>
+          </div>
 
           {/* Actions */}
           <div className="flex flex-col gap-2 mt-auto pt-4">

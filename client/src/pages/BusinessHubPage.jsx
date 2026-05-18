@@ -33,6 +33,7 @@ import { ServicePackagesManager } from '../components/businessHub/ServicePackage
 import { HealthAlertsDashboard } from '../components/businessHub/HealthAlertsDashboard';
 import { LeadPipeline } from '../components/businessHub/LeadPipeline';
 import { MessageTemplatesManager } from '../components/businessHub/MessageTemplatesManager';
+import TemplateWorkflowSystemTab from '../components/businessHub/TemplateWorkflowSystemTab';
 import {
   listBusinesses, createBusiness, updateBusiness, uploadBusinessPhotos,
   getAnalytics,
@@ -495,6 +496,14 @@ function BusinessHubInner() {
     if (!bizId) return;
     if (!businesses.some((b) => String(b.id) === String(bizId))) return;
     if (tab === 'profile') loadProfile();
+    else if (tab === 'workflow') {
+      loadOverview();
+      loadServices();
+      loadGallery();
+      loadFAQs();
+      loadHours();
+      loadTeam();
+    }
     else if (tab === 'services') loadServices();
     else if (tab === 'gallery') loadGallery();
     else if (tab === 'policies') loadPolicies();
@@ -940,6 +949,7 @@ function BusinessHubInner() {
   //   8. Team
   const visibleTabs = [
     'overview',
+    'workflow',
     'profile',
     'clients',
     ...contentTabIds,
@@ -965,6 +975,7 @@ function BusinessHubInner() {
     'leads',
     'msg-templates',
   ].filter((tb) => {
+    if (tb === 'workflow' && !canEditBizProfile) return false;
     if (tb === 'profile' && !canEditBizProfile) return false;
     if (tb === 'clients' && !canEditBizProfile) return false;
     if (contentTabIds.includes(tb) && !canEditBizProfile) return false;
@@ -984,6 +995,10 @@ function BusinessHubInner() {
       setTab(aliasedTab);
       return;
     }
+    if (tab === 'workflow' && !canEditBizProfile) {
+      setTab(canViewFinanceHub ? 'overview' : 'team');
+      return;
+    }
     if ((tab === 'profile' || contentTabIds.includes(tab)) && !canEditBizProfile) {
       setTab(canViewFinanceHub ? 'overview' : 'team');
     }
@@ -997,6 +1012,7 @@ function BusinessHubInner() {
 
   // tab label resolver
   const tabLabel = (tb) => {
+    if (tb === 'workflow') return t('businessHub.tabWorkflowLabel', { defaultValue: 'Workflow System' });
     if (tb === 'profile') return t('businessHub.tabEditProfile');
     if (tb === 'services') return t('businessHub.tabServicesLabel', { defaultValue: 'Services & Booking' });
     if (tb === 'gallery') return t('businessHub.tabGalleryLabel');
@@ -1356,6 +1372,22 @@ function BusinessHubInner() {
                   setTab={setTab}
                 />
               )
+            )}
+
+            {tab === 'workflow' && bizId && canEditBizProfile && (
+              <TemplateWorkflowSystemTab
+                activeTemplate={activeTemplate}
+                currentBiz={currentBiz}
+                currentRole={currentRole}
+                services={services}
+                gallery={gallery}
+                reviews={[]}
+                faqs={faqs}
+                hours={hours}
+                members={members}
+                analytics={analytics}
+                onJumpTab={setTab}
+              />
             )}
 
             {/* ── Invoices tab ─────────────────────────────────────── */}

@@ -16,6 +16,7 @@
 // Mapping tab key -> the permission code that gates it. Owner bypasses.
 export const TAB_PERMISSIONS = {
   overview:         'business.view',
+  workflow:         'business.edit_profile',
   profile:          'business.edit_profile',
   clients:          'customers.view_all',
   services:         'products.manage',
@@ -81,6 +82,7 @@ export const ROLE_MENUS = {
     widgets: ['revenue','payouts','open_jobs','completion_rate','team_utilization','new_leads','quote_conversion','message_volume','template_usage','profile_health'],
     menu: [
       { id: 'overview',    label: 'businessHub.menu.overview',    tab: 'overview' },
+      { id: 'workflow',    label: 'businessHub.menu.workflows',   tab: 'workflow' },
       { id: 'jobs',        label: 'businessHub.menu.jobs',        tab: 'calendar' },
       { id: 'calendar',    label: 'businessHub.menu.calendar',    tab: 'calendar' },
       { id: 'customers',   label: 'businessHub.menu.customers',   tab: 'clients' },
@@ -100,6 +102,7 @@ export const ROLE_MENUS = {
     widgets: ['today_jobs','unassigned_work','late_jobs','staff_availability','overdue_replies','open_escalations'],
     menu: [
       { id: 'overview',    label: 'businessHub.menu.operationsOverview', tab: 'overview' },
+      { id: 'workflow',    label: 'businessHub.menu.workflows',   tab: 'workflow' },
       { id: 'jobs',        label: 'businessHub.menu.jobs',        tab: 'calendar' },
       { id: 'calendar',    label: 'businessHub.menu.calendar',    tab: 'calendar' },
       { id: 'teamSchedule',label: 'businessHub.menu.teamSchedule',tab: 'staff' },

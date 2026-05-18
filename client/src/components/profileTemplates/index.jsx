@@ -61,6 +61,8 @@ import {
 } from './templates/Batch1Templates.jsx';
 
 export { getTemplateBehavior, getTemplateMode, TEMPLATE_BEHAVIORS } from './templateBehavior.js';
+import TemplateFeatureStack from './TemplateFeatureStack.jsx';
+import { getTemplateFeaturePack } from './templateFeaturePacks.js';
 
 // Template registry
 // Maps slug -> { component, meta }
@@ -401,10 +403,12 @@ export function getTemplatePresentationMeta(slug = 'default') {
 export function ProfileTemplateRenderer({ slug = 'default', profileData }) {
   const TemplateComponent = getTemplateComponent(slug);
   const templateMeta = getTemplatePresentation(slug);
+  const featurePack = getTemplateFeaturePack(slug, templateMeta.category);
 
   return (
     <TemplatePresentationShell slug={slug} profileData={profileData}>
       <TemplateComponent profileData={profileData} templateMeta={templateMeta} />
+      <TemplateFeatureStack pack={featurePack} profileData={profileData} />
     </TemplatePresentationShell>
   );
 }
