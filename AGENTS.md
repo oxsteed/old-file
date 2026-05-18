@@ -21,6 +21,12 @@
 - 266 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
 
+**Native SwiftUI iOS app foundation (2026-05-18):** COMPLETE
+- **`mobile/ios/App/App/OxSteedApp.swift`, `AppDelegate.swift`, `Models/OxSteedModels.swift`, `Models/OxSteedAPIModels.swift`, `Services/OxSteedRouter.swift`, `Services/OxSteedAPIClient.swift`, `Stores/SessionStore.swift`, `Support/SafariView.swift`, `Views/*.swift`**: Replaced the Capacitor WebView entry point with a native SwiftUI iOS app. The app now has a first-run OxSteed intro plus native tabs for Overview, Discover, Jobs, Helpers, Work, and Account. Discover, Jobs, and Helpers fetch live public OxSteed API data and render native SwiftUI lists/search; Account signs in through the OxSteed API; Work adds native post-job, product browsing, consultation intake, messages, calendar, and service-booking entry surfaces. Selected detail/action routes still open through `SFSafariViewController` until those flows are rebuilt natively.
+- **`mobile/ios/App/App.xcodeproj/project.pbxproj` + `Info.plist`**: Removed stale Capacitor/CocoaPods build phase dependencies and the old main-storyboard startup path, wired the new SwiftUI files into the iOS target, and raised the iOS deployment target to 17.0 while preserving bundle id `com.oxsteed.app`, launch screen, icons, URL scheme, and associated-domain entitlements.
+- **`mobile/README.md`**: Updated mobile docs to describe the SwiftUI app shape, native workflow coverage, and current follow-up work.
+- **Verification:** `xcodebuild -workspace mobile/ios/App/App.xcworkspace -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build` passes. Unsigned device-target release build also passes with `xcodebuild -workspace mobile/ios/App/App.xcworkspace -scheme App -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build`.
+
 **Business Hub localization hardening (2026-05-18):** COMPLETE
 - **`client/src/pages/BusinessHubPage.jsx`**: Replaced hardcoded overview-card, quick-action, financial-summary, and Business Hub tab labels with locale keys, and date/time formatting in the overview now follows the active app language instead of the browser default.
 - **`client/src/locales/en.json`, `es.json`, `fr.json`, `ht.json`**: Added a dedicated `businessHub.overview` translation block plus missing tab-label / template-switch keys so language switches cover the Business Hub workspace more consistently.
@@ -372,15 +378,15 @@
 - **Dashboard readability follow-up**: Light-mode muted text now maps darker (`text-gray-300/400/500/600`), and translucent dashboard row/card fills (`bg-gray-800/10..40`, `bg-gray-700/10..30`) remap to near-white surfaces instead of muddy gray blocks.
 - **Verification**: `client` production build passes with only the existing large chunk warning remaining. Local browser smoke check was attempted against Vite on port 5173, but the dev server did not respond reliably in the agent environment, so this pass is code/build verified rather than visually verified.
 
-**Mobile app shell + native push foundation (2026-05-09):** ✅ IOS BUILD SUBMITTED WITH REAL ICON
-- **`mobile/`**: Added Capacitor 7 shell for iOS/Android App Store packaging. Defaults to `https://oxsteed.com` via `OXSTEED_APP_URL`, app id `com.oxsteed.app`, native splash/status bar/keyboard config, offline fallback, external-link handling, deep-link handling for `oxsteed://...` and `oxsteed.com` links. Generated native iOS project under `mobile/ios/`. Docs: `mobile/README.md` and `docs/mobile/app-store-release-checklist.md`.
-- **iOS native project**: `AppDelegate.swift` forwards APNs registration success/failure to Capacitor PushNotifications. `Info.plist` registers `oxsteed://`. `App.entitlements` includes push + associated domains for `applinks:oxsteed.com` and `applinks:www.oxsteed.com`. Xcode Team selected: `ZBRGSDRRU7` (`emile jean philippe`).
+**Mobile app shell + native push foundation (2026-05-09):** SUPERSEDED BY 2026-05-18 SWIFTUI APP
+- **`mobile/`**: Originally added a Capacitor 7 shell for iOS/Android App Store packaging. The iOS target has since been converted to native SwiftUI; this section remains historical context for the backend push-token and app-store release work.
+- **iOS native project**: `Info.plist` registers `oxsteed://`. `App.entitlements` includes push + associated domains for `applinks:oxsteed.com` and `applinks:www.oxsteed.com`. Xcode Team selected: `ZBRGSDRRU7` (`emile jean philippe`).
 - **`client/src/utils/mobileBridge.js`**: Web app now detects Capacitor only inside the native app, requests push permission after a signed-in `accessToken` exists, registers APNs/FCM token through `/api/mobile/push-token`, and routes notification taps to same-origin OxSteed paths.
 - **`server/controllers/mobileController.js` + `server/routes/mobile.js`**: Added authenticated `POST /api/mobile/push-token` and `DELETE /api/mobile/push-token` for native token registration/disable.
 - **`server/services/mobilePushService.js` + `server/services/notificationService.js`**: Native mobile push sender added. Existing OxSteed notification flow now fans out to enabled `mobile_push_tokens` through direct APNs (current iOS app) or FCM HTTP v1 (future Firebase/Android tokens). Invalid tokens are disabled when APNs/FCM rejects them. Sender is disabled unless production secrets are configured.
 - **`server/index.js`**: Added `/.well-known/apple-app-site-association` and `/apple-app-site-association`; uses `APPLE_TEAM_ID` with fallback `ZBRGSDRRU7`.
 - **Migration 183** (`server/migrations/183_mobile_push_tokens.sql`): Adds `mobile_push_tokens` registry for APNs/FCM tokens with provider/platform/device metadata and enabled/disabled state.
-- **App Store review:** Version 1.0 is `Waiting for Review` in App Store Connect with build `1.0 (2)` attached. The iOS app icon was replaced with the real OxSteed logo (`mobile/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png`) and `CURRENT_PROJECT_VERSION` was bumped to `2`; the earlier build 1 submission was cancelled and replaced before final submission. Before production push notifications are expected to work, add APNs production provider credentials to production secrets; Firebase screenshot shows FCM API v1 enabled and a development APNs key, but no production APNs key.
+- **App Store review:** Historical Capacitor submission used build `1.0 (2)`. Before submitting the SwiftUI build, capture fresh screenshots and confirm whether the previous App Store Connect submission should be cancelled/replaced. Before production push notifications are expected to work, add APNs production provider credentials to production secrets; Firebase screenshot shows FCM API v1 enabled and a development APNs key, but no production APNs key.
 - **Verification:** `mobile` Vite build passes using local Node 22. iOS CocoaPods sync passes with CocoaPods 1.15.2 (`RUBYOPT=-rlogger` needed on system Ruby 2.6). `xcodebuild -workspace mobile/ios/App/App.xcworkspace -scheme App -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17' build` passes. Installed/launched simulator app `com.oxsteed.app`; screenshot confirmed live OxSteed home page renders. `xcodebuild archive` produced `mobile/build/OxSteed.xcarchive`; `xcodebuild -exportArchive` produced `mobile/build/export/App.ipa`. Real-icon archive `mobile/build/OxSteed-icon.xcarchive` and `mobile/build/export-icon/App.ipa` were created and uploaded through Xcode Organizer as App Store Connect build `1.0 (2)` at 8:55 PM; App Store Connect processed it, export compliance was set, build 2 was attached, and the app version was submitted for review. `node --check` passes on mobile push/server entry files.
 
 **Calendar / Planned Needs hardening (2026-05-09):** ✅ COMPLETE
@@ -1329,6 +1335,13 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 
 - [ ] Continue the i18n audit beyond Business Hub: newer vertical operations tabs and adjacent workspace pages still contain hardcoded copy and should be moved onto locale keys before a full multilingual QA pass.
 
+### NATIVE IOS APP FOLLOW-THROUGH
+
+- [ ] Replace the remaining Safari handoffs in the SwiftUI app with native authenticated API flows for the highest-value mobile edges still missing after the 2026-05-18 pass: helper profile booking, job detail/bidding, product checkout, full message threads, and Business Hub overview.
+- [ ] Move native iOS session-token storage from `UserDefaults` to Keychain before production release.
+- [ ] Reconnect APNs registration directly from Swift and verify notification deep links against the SwiftUI router before submitting a replacement App Store build.
+- [ ] Capture fresh SwiftUI App Store screenshots and decide whether to cancel/replace the historical Capacitor build `1.0 (2)` in App Store Connect.
+
 ### POST-LAUNCH FEATURES (Customer Support & Analytics)
 
 **Customer-Facing Support Widget** ✅ COMPLETE (2026-04-29)
@@ -1430,4 +1443,3 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 
 - **Internal:** Check `server/.env.example` for environment variable reference
 - **External:** Report issues at https://github.com/anthropics/Codex/issues
-

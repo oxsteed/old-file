@@ -1,81 +1,74 @@
 # OxSteed Mobile
 
-Capacitor shell for publishing OxSteed to the iOS App Store and Google Play while keeping the existing website as the primary product surface.
+Native iOS app project for publishing OxSteed to the App Store.
 
-## What this app does
+## Current Shape
 
-- Loads the production OxSteed website in a native Capacitor WebView.
-- Enables native deep links and universal-link routing into the same web routes.
-- Provides native status bar, splash screen, keyboard, offline, and external-browser handling.
-- Pairs with the web bridge in `client/src/utils/mobileBridge.js` so signed-in users can register APNs/FCM push tokens.
+- `mobile/ios/App` is now a SwiftUI iOS app, not a Capacitor WebView shell.
+- The app keeps the existing bundle id `com.oxsteed.app`, icon assets, launch screen, URL scheme, and associated-domain entitlements.
+- First launch shows a native SwiftUI introduction to OxSteed.
+- Main tabs now combine native product education with live native marketplace data:
+  - Overview
+  - Discover
+  - Jobs
+  - Helpers
+  - Work
+  - Account
+- `Discover`, `Jobs`, and `Helpers` fetch live public OxSteed API data and render it in SwiftUI lists/search screens.
+- `Account` signs in through the OxSteed API and stores the native session token for authenticated actions.
+- `Work` covers the main App Review-facing workflows with native SwiftUI surfaces:
+  - Post a job through the authenticated `/api/jobs` endpoint.
+  - Browse marketplace products from `/api/marketplace/products/browse`.
+  - Submit business consultation requests through `/api/consulting/submit`.
+  - Load authenticated messages from `/api/messages/conversations`.
+  - Load authenticated appointments from `/api/calendar/appointments`.
+  - Route into service booking from the native helper/business discovery flow.
+- Detail/action buttons still open selected live OxSteed routes in `SFSafariViewController` for flows that have not yet been rebuilt natively: profile detail, job detail/bidding, checkout, full booking, full conversation threads, Business Hub, and tool rentals.
+- The iOS deployment target is currently `17.0`.
 
-## Setup
+## Build
 
-```bash
-cd mobile
-npm install
-npm run build
-npm run ios:add
-npm run android:add
-npm run cap:sync
-```
-
-Set a different target URL when syncing native projects:
-
-```bash
-OXSTEED_APP_URL=https://staging.oxsteed.com npm run cap:sync
-```
-
-On the current Mac, the system Ruby is 2.6. If `pod install` fails with an ActiveSupport `Logger` error, run Capacitor sync with:
-
-```bash
-RUBYOPT=-rlogger npm run cap:sync
-```
-
-## iOS
+Simulator:
 
 ```bash
-cd mobile
-npm run cap:ios
+xcodebuild \
+  -workspace mobile/ios/App/App.xcworkspace \
+  -scheme App \
+  -configuration Debug \
+  -sdk iphonesimulator \
+  -destination 'generic/platform=iOS Simulator' \
+  CODE_SIGNING_ALLOWED=NO \
+  build
 ```
+
+Unsigned device-target release build:
+
+```bash
+xcodebuild \
+  -workspace mobile/ios/App/App.xcworkspace \
+  -scheme App \
+  -configuration Release \
+  -sdk iphoneos \
+  -destination 'generic/platform=iOS' \
+  CODE_SIGNING_ALLOWED=NO \
+  build
+```
+
+## App Store Configuration
 
 In Xcode:
 
-- Set the bundle identifier to `com.oxsteed.app` or the final App Store identifier.
+- Keep the bundle identifier as `com.oxsteed.app` unless App Store Connect changes require otherwise.
 - Select the OxSteed Apple Developer team.
-- Enable Push Notifications.
-- Enable Associated Domains and add `applinks:oxsteed.com`.
-- Team ID discovered in Xcode: `ZBRGSDRRU7`. Set `APPLE_TEAM_ID=ZBRGSDRRU7` in production so `/.well-known/apple-app-site-association` returns the final `ZBRGSDRRU7.com.oxsteed.app` app ID.
-- Add production APNs provider credentials to the API environment before relying on TestFlight/App Store push delivery:
+- Keep Associated Domains enabled for:
+  - `applinks:oxsteed.com`
+  - `applinks:www.oxsteed.com`
+- Keep Push Notifications enabled if native notification registration is reconnected in a later pass.
+- Team ID discovered in Xcode: `ZBRGSDRRU7`. Production should keep `APPLE_TEAM_ID=ZBRGSDRRU7` so `/.well-known/apple-app-site-association` returns `ZBRGSDRRU7.com.oxsteed.app`.
 
-```bash
-APNS_ENV=production
-APNS_BUNDLE_ID=com.oxsteed.app
-APNS_TEAM_ID=ZBRGSDRRU7
-APNS_KEY_ID=...
-APNS_PRIVATE_KEY_PATH=/run/secrets/AuthKey_XXXX.p8
-```
+## Native Follow-Up
 
-The server also supports `APNS_PRIVATE_KEY` or `APNS_PRIVATE_KEY_BASE64` instead of a file path.
-
-## Android
-
-```bash
-cd mobile
-npm run cap:android
-```
-
-In Android Studio:
-
-- Set the application ID to `com.oxsteed.app` or the final Play Store identifier.
-- Add `google-services.json` once Firebase Cloud Messaging is configured.
-- Generate a release signing key before producing the Play Store bundle.
-
-## Store Review Notes
-
-The app should be submitted as the OxSteed marketplace app, not as a generic website wrapper. Native functionality to call out in review notes:
-
-- Account-authenticated job, bid, booking, message, and marketplace workflows.
-- Push notification registration for job, booking, message, and reminder alerts.
-- Native deep links from notifications into OxSteed routes.
-- Native offline and external-link handling.
+- Reconnect native APNs registration directly from Swift instead of through the former Capacitor web bridge.
+- Move the remaining detail/transaction edges out of Safari: helper profile booking, job detail/bidding, product checkout, full message threads, and Business Hub overview.
+- Store session tokens in Keychain instead of `UserDefaults` before production release.
+- Capture fresh App Store screenshots from the SwiftUI tabs before submitting the next build.
