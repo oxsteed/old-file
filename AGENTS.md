@@ -16,9 +16,9 @@
 **OxSteed** is a full-stack local trades marketplace built with React 18 + Node.js + PostgreSQL.
 
 **Codebase metrics:**
-- 359 React JSX/TSX files (includes `AIKnowledgeTab`, `AIPreviewPage` for profile AI)
-- 132 backend controllers
-- 223 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
+- 410 React JSX/TSX files (includes `AIKnowledgeTab`, `AIPreviewPage` for profile AI)
+- 169 backend controllers
+- 266 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
 
 **Template internal workflow systems foundation (2026-05-17):** COMPLETE
@@ -67,6 +67,14 @@
 - **Public profile / intake:** `client/src/pages/BusinessProfilePage.jsx` now surfaces a professional-operations section for the professional cluster; `client/src/pages/ProfessionalIntakeRequestPage.jsx`, routed in `client/src/App.jsx` as `/business/:businessId/professional-intake`, captures service need, business context, document summary, timeline, and contact preferences before consultation or scoping.
 - **Template metadata:** `client/src/components/profileTemplates/templateBehavior.js`, `templateWorkflowSystems.js`, and `templateFeaturePacks.js` now treat the professional cluster as engagement-first products with `professional-ops` as a core unlocked system and stronger document / obligation trust cues across the public template layer.
 - **Verification:** `node --check server/controllers/professionalOperationsController.js server/routes/professionalOperations.js server/index.js` passes. Client production build was not rerun here because the workspace still lacks a working local `vite` binary.
+
+**Continuity vertical operating system pass (2026-05-18):** COMPLETE
+- **Migration 254** (`server/migrations/254_continuity_operating_system.sql`): Adds `continuity_operation_settings`, `continuity_intake_requests`, `continuity_service_plans`, and `continuity_trust_records` so health, care, and education templates can run guided intake, trust-sensitive follow-up, recurring plan logic, and continuity records instead of generic appointment-only behavior.
+- **API:** `server/controllers/continuityOperationsController.js` + `server/routes/continuityOperations.js`, mounted in `server/index.js` at `/api/continuity-operations`, provide public guided-intake settings plus the internal continuity workspace for requests, plans, trust records, metrics, and next-session follow-up.
+- **Business Hub:** `client/src/components/businessHub/ContinuityOperationsTab.jsx` + `client/src/pages/BusinessHubPage.jsx` add a template-only `continuity-ops` workspace for recurring intake pipeline management, guardian / trust settings, continuity-plan pricing, trust records, and upcoming session visibility tied to the shared schedule stack.
+- **Public profile / intake:** `client/src/pages/BusinessProfilePage.jsx` now surfaces a continuity-operations section for `fitness_pro`, `wellness_therapy`, `nutrition_diet`, `mental_health`, `massage_therapist`, `care_trust`, `pet_services`, `tutoring_education`, `child_development`, `dog_walker`, and `math_tutor`; `client/src/pages/ContinuityIntakeRequestPage.jsx`, routed in `client/src/App.jsx` as `/business/:businessId/continuity-intake`, captures goals, routine context, guardian/trust considerations, recurring cadence, and contact preferences before scheduling or plan matching.
+- **Template metadata:** `client/src/components/profileTemplates/templateBehavior.js` and `templateWorkflowSystems.js` now treat the continuity cluster as guided-intake recurring-support products with `continuity-ops` as a core unlocked system rather than falling back to generic appointment behavior.
+- **Verification:** `node --check server/controllers/continuityOperationsController.js server/routes/continuityOperations.js server/index.js` passes. Client production build was not rerun here because the workspace still lacks a working local `vite` binary.
 
 **Template industry feature-pack foundation (2026-05-17):** COMPLETE
 - **`client/src/components/profileTemplates/templateFeaturePacks.js`**: Added a centralized industry feature-pack system for every registered template. Each template now has category-aware plus slug-specific demand moments, operating workflow, differentiators, client expectations, trust signals, and signature offering structure so templates can express what that industry actually sells instead of only changing visuals.
@@ -1305,7 +1313,7 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 ### TEMPLATE VERTICALIZATION (Now in Progress)
 
 **Finish remaining high-value template clusters as backend-backed operating systems**
-- [ ] Broader template system follow-through: activation still needs to unlock template-specific operations for the remaining templates beyond the property-manager, trades, beauty, creative, and professional-services clusters shipped on 2026-05-18.
+- [ ] Broader template system follow-through: activation still needs to unlock template-specific operations for the remaining templates beyond the property-manager, trades, beauty, creative, professional-services, and continuity clusters shipped on 2026-05-18 (notably home/general long-tail, events, food, tech, and automotive follow-through).
 
 ### POST-LAUNCH FEATURES (Customer Support & Analytics)
 
@@ -1408,3 +1416,4 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 
 - **Internal:** Check `server/.env.example` for environment variable reference
 - **External:** Report issues at https://github.com/anthropics/Codex/issues
+

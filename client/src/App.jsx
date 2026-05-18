@@ -97,6 +97,7 @@ import TradesDiagnosticRequestPage from './pages/TradesDiagnosticRequestPage';
 import BeautyIntakeRequestPage from './pages/BeautyIntakeRequestPage';
 import CreativeIntakeRequestPage from './pages/CreativeIntakeRequestPage';
 import ProfessionalIntakeRequestPage from './pages/ProfessionalIntakeRequestPage';
+import ContinuityIntakeRequestPage from './pages/ContinuityIntakeRequestPage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -176,6 +177,7 @@ export default function App() {
                     <Route path="/business/:businessId/beauty-intake" element={<Guarded><RouteErrorBoundary><BeautyIntakeRequestPage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/business/:businessId/creative-intake" element={<Guarded><RouteErrorBoundary><CreativeIntakeRequestPage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/business/:businessId/professional-intake" element={<Guarded><RouteErrorBoundary><ProfessionalIntakeRequestPage /></RouteErrorBoundary></Guarded>} />
+                    <Route path="/business/:businessId/continuity-intake" element={<Guarded><RouteErrorBoundary><ContinuityIntakeRequestPage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/tool-rentals"            element={<Guarded><ToolRentalsBrowse /></Guarded>} />
                     <Route path="/tool-rentals/:toolId"    element={<Guarded><ToolRentalsBrowse /></Guarded>} />
                     <Route path="/my-bookings"             element={<Guarded><ProtectedRoute><MyBookingsPage /></ProtectedRoute></Guarded>} />

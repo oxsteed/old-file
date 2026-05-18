@@ -111,6 +111,31 @@ const BEAUTY_APPOINTMENT_BEHAVIOR = {
   recommendedFeatures: ['Beauty Ops', 'Calendar', 'Gallery', 'Loyalty', 'Messages', 'Packages'],
 };
 
+const CONTINUITY_INTAKE_BEHAVIOR = {
+  mode: 'continuity_intake',
+  label: 'Continuity intake mode',
+  headline: 'Built for guided intake, recurring sessions, and progress-led follow-through.',
+  description:
+    'This profile should capture goals, routine context, trust considerations, and next-session fit before the business moves someone into a recurring plan, supported schedule, or continuity workflow.',
+  primaryCta: 'Start guided intake',
+  secondaryCta: 'Ask a question',
+  primaryIntent: 'continuity_intake',
+  allowPrimaryWithoutServices: true,
+  workflow: [
+    { title: 'Capture the goal', text: 'Collect the main concern, current routine, schedule rhythm, and any trust-sensitive context first.', icon: ClipboardList },
+    { title: 'Match the right plan', text: 'Route the lead into the right session type, membership, learning plan, or care cadence.', icon: Briefcase },
+    { title: 'Support continuity', text: 'Keep appointments, progress notes, and next-step recommendations in one recurring workflow.', icon: CalendarCheck },
+    { title: 'Retain with trust', text: 'Use guardian, safety, or continuity expectations to make repeat support feel reliable and intentional.', icon: ShieldCheck },
+  ],
+  setup: [
+    'Add recurring plans, packages, or cadence-based support offers',
+    'Set trust, guardian, or intake acknowledgement expectations',
+    'Define progress prompts and next-session timing',
+    'Load credentials, care standards, or learning/process trust records',
+  ],
+  recommendedFeatures: ['Continuity Ops', 'Calendar', 'Messages', 'Loyalty', 'Reviews', 'Business Hub'],
+};
+
 const TOOL_RENTAL_BEHAVIOR = {
   mode: 'tool_rental',
   label: 'Tool rental mode',
@@ -246,10 +271,17 @@ const BEHAVIOR_BY_SLUG = {
   barbershop: BEAUTY_APPOINTMENT_BEHAVIOR,
   spa_skincare: BEAUTY_APPOINTMENT_BEHAVIOR,
   hair_stylist: BEAUTY_APPOINTMENT_BEHAVIOR,
-  massage_therapist: APPOINTMENT_BEHAVIOR,
-  fitness_pro: APPOINTMENT_BEHAVIOR,
-  wellness_therapy: APPOINTMENT_BEHAVIOR,
-  dog_walker: APPOINTMENT_BEHAVIOR,
+  fitness_pro: CONTINUITY_INTAKE_BEHAVIOR,
+  wellness_therapy: CONTINUITY_INTAKE_BEHAVIOR,
+  nutrition_diet: CONTINUITY_INTAKE_BEHAVIOR,
+  mental_health: CONTINUITY_INTAKE_BEHAVIOR,
+  massage_therapist: CONTINUITY_INTAKE_BEHAVIOR,
+  care_trust: CONTINUITY_INTAKE_BEHAVIOR,
+  pet_services: CONTINUITY_INTAKE_BEHAVIOR,
+  tutoring_education: CONTINUITY_INTAKE_BEHAVIOR,
+  child_development: CONTINUITY_INTAKE_BEHAVIOR,
+  dog_walker: CONTINUITY_INTAKE_BEHAVIOR,
+  math_tutor: CONTINUITY_INTAKE_BEHAVIOR,
   private_chef: APPOINTMENT_BEHAVIOR,
   photographer: CREATIVE_PROJECT_BEHAVIOR,
   creative_studio: CREATIVE_PROJECT_BEHAVIOR,
@@ -273,6 +305,7 @@ export const TEMPLATE_BEHAVIORS = {
   property: PROPERTY_MANAGER_BEHAVIOR,
   tradesDiagnostic: TRADES_DIAGNOSTIC_BEHAVIOR,
   beauty: BEAUTY_APPOINTMENT_BEHAVIOR,
+  continuity: CONTINUITY_INTAKE_BEHAVIOR,
   appointment: APPOINTMENT_BEHAVIOR,
   creativeProject: CREATIVE_PROJECT_BEHAVIOR,
   professionalEngagement: PROFESSIONAL_ENGAGEMENT_BEHAVIOR,

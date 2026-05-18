@@ -145,8 +145,8 @@ const CATEGORY_SYSTEMS = {
     intakeRequirements: ['Goal or concern', 'Session preference', 'Availability', 'Any important prep notes'],
     records: ['Session packages', 'Care-path guidance', 'Availability quality', 'Retention touchpoints'],
     unlockedSystems: [
+      { tab: 'continuity-ops', label: 'Continuity Ops', reason: 'Run guided intake, progress, and repeat-session continuity from one queue.' },
       { tab: 'services', label: 'Services & Booking', reason: 'Structure session types and durations.' },
-      { tab: 'calendar', label: 'Schedule', reason: 'Keep appointment flow clean and dependable.' },
       { tab: 'calendar', label: 'Schedule & Waitlist', reason: 'Backfill cancellations and hold demand from one schedule workspace.' },
       { tab: 'loyalty', label: 'Loyalty', reason: 'Drive retention and repeat appointments.' },
     ],
@@ -171,6 +171,7 @@ const CATEGORY_SYSTEMS = {
     intakeRequirements: ['Care need', 'Schedule routine', 'Special notes', 'Contact preferences'],
     records: ['Routine notes', 'Preference history', 'Family or owner communication', 'Repeat-booking cadence'],
     unlockedSystems: [
+      { tab: 'continuity-ops', label: 'Continuity Ops', reason: 'Track routines, trust notes, and recurring support intake in one place.' },
       { tab: 'clients', label: 'Clients', reason: 'Track people, households, or pets with context.' },
       { tab: 'calendar', label: 'Schedule', reason: 'Run recurring support without missing routines.' },
       { tab: 'messages', label: 'Messages', reason: 'Keep trust-sensitive communication documented.' },
@@ -301,6 +302,7 @@ const CATEGORY_SYSTEMS = {
     intakeRequirements: ['Student level', 'Subject or topic', 'Goal', 'Schedule preference'],
     records: ['Progress notes', 'Subject demand patterns', 'Parent communication', 'Recurring plan health'],
     unlockedSystems: [
+      { tab: 'continuity-ops', label: 'Continuity Ops', reason: 'Run student intake, progress notes, and recurring academic cadence.' },
       { tab: 'services', label: 'Services & Booking', reason: 'Package sessions by outcome and level.' },
       { tab: 'calendar', label: 'Schedule', reason: 'Run recurring sessions without confusion.' },
       { tab: 'clients', label: 'Clients', reason: 'Track student and family context.' },
@@ -492,8 +494,89 @@ const TEMPLATE_OVERRIDES = {
       { tab: 'recurring', label: 'Documents & Records', reason: 'Track obligations, due dates, and delivery artifacts.' },
     ],
   },
+  fitness_pro: {
+    unlockedSystems: [
+      { tab: 'continuity-ops', label: 'Continuity Ops', reason: 'Capture goals, training baseline, and recurring plan retention.' },
+      { tab: 'calendar', label: 'Schedule', reason: 'Protect repeat session cadence.' },
+      { tab: 'loyalty', label: 'Retention', reason: 'Drive consistency and rebook behavior.' },
+      { tab: 'services', label: 'Programs', reason: 'Sell structured fitness offers instead of one-off sessions.' },
+    ],
+  },
+  wellness_therapy: {
+    unlockedSystems: [
+      { tab: 'continuity-ops', label: 'Continuity Ops', reason: 'Run care-path intake, trust-sensitive notes, and repeat-support follow-up.' },
+      { tab: 'calendar', label: 'Schedule', reason: 'Coordinate recurring appointments and continuity.' },
+      { tab: 'loyalty', label: 'Retention', reason: 'Keep repeat wellness support moving.' },
+      { tab: 'messages', label: 'Messages', reason: 'Document gentle, trust-first communication.' },
+    ],
+  },
+  nutrition_diet: {
+    unlockedSystems: [
+      { tab: 'continuity-ops', label: 'Continuity Ops', reason: 'Track goals, check-ins, and recurring nutrition support plans.' },
+      { tab: 'calendar', label: 'Schedule', reason: 'Coordinate check-ins and planning sessions.' },
+      { tab: 'services', label: 'Programs', reason: 'Package assessments, plans, and follow-up sessions.' },
+      { tab: 'loyalty', label: 'Retention', reason: 'Turn one consult into a longer improvement cycle.' },
+    ],
+  },
+  mental_health: {
+    unlockedSystems: [
+      { tab: 'continuity-ops', label: 'Continuity Ops', reason: 'Capture fit, continuity, and recurring support context with more discipline.' },
+      { tab: 'calendar', label: 'Schedule', reason: 'Hold session rhythm and follow-up timing.' },
+      { tab: 'messages', label: 'Messages', reason: 'Keep trust-sensitive communication organized.' },
+      { tab: 'loyalty', label: 'Retention', reason: 'Support continuity where appropriate.' },
+    ],
+  },
+  massage_therapist: {
+    unlockedSystems: [
+      { tab: 'continuity-ops', label: 'Continuity Ops', reason: 'Track bodywork goals, maintenance cadence, and rebook timing.' },
+      { tab: 'calendar', label: 'Schedule', reason: 'Coordinate repeat bodywork sessions.' },
+      { tab: 'gallery', label: 'Trust Signals', reason: 'Use proof and service framing to convert better.' },
+      { tab: 'loyalty', label: 'Retention', reason: 'Build massage membership and maintenance rhythm.' },
+    ],
+  },
+  care_trust: {
+    unlockedSystems: [
+      { tab: 'continuity-ops', label: 'Continuity Ops', reason: 'Run family intake, routine notes, and trust-sensitive repeat support.' },
+      { tab: 'clients', label: 'Clients', reason: 'Track household and family context.' },
+      { tab: 'calendar', label: 'Schedule', reason: 'Protect recurring care routines.' },
+      { tab: 'messages', label: 'Messages', reason: 'Document reassurance and preference updates.' },
+    ],
+  },
+  pet_services: {
+    unlockedSystems: [
+      { tab: 'continuity-ops', label: 'Continuity Ops', reason: 'Capture pet routine, care notes, and recurring service continuity.' },
+      { tab: 'clients', label: 'Pet Profiles', reason: 'Track owners, pets, and behavioral context.' },
+      { tab: 'calendar', label: 'Schedule', reason: 'Manage dependable recurring visits.' },
+      { tab: 'messages', label: 'Messages', reason: 'Keep owner updates and notes together.' },
+    ],
+  },
+  dog_walker: {
+    unlockedSystems: [
+      { tab: 'continuity-ops', label: 'Continuity Ops', reason: 'Track walk cadence, behavior notes, and repeat-route retention.' },
+      { tab: 'calendar', label: 'Schedule', reason: 'Run recurring walks and backup coverage.' },
+      { tab: 'clients', label: 'Pet Profiles', reason: 'Keep pet and owner context visible.' },
+      { tab: 'loyalty', label: 'Retention', reason: 'Support weekly or daily walk continuity.' },
+    ],
+  },
+  tutoring_education: {
+    unlockedSystems: [
+      { tab: 'continuity-ops', label: 'Continuity Ops', reason: 'Capture student goals, parent context, and progress follow-through.' },
+      { tab: 'calendar', label: 'Schedule', reason: 'Run recurring learning sessions clearly.' },
+      { tab: 'clients', label: 'Students', reason: 'Track parent and student context.' },
+      { tab: 'loyalty', label: 'Retention', reason: 'Encourage plan continuation and next-goal work.' },
+    ],
+  },
+  child_development: {
+    unlockedSystems: [
+      { tab: 'continuity-ops', label: 'Continuity Ops', reason: 'Handle parent intake, developmental goals, and recurring support planning.' },
+      { tab: 'calendar', label: 'Schedule', reason: 'Protect consistent developmental support cadence.' },
+      { tab: 'clients', label: 'Families', reason: 'Track guardian and child context.' },
+      { tab: 'messages', label: 'Messages', reason: 'Document parent-facing updates and next steps.' },
+    ],
+  },
   math_tutor: {
     unlockedSystems: [
+      { tab: 'continuity-ops', label: 'Continuity Ops', reason: 'Track academic goal intake, progress targets, and recurring tutoring plans.' },
       { tab: 'services', label: 'Programs', reason: 'Package sessions by subject and goal.' },
       { tab: 'calendar', label: 'Schedule', reason: 'Run recurring student sessions cleanly.' },
       { tab: 'clients', label: 'Students', reason: 'Track student and family context.' },

@@ -52,6 +52,7 @@ export const TAB_PERMISSIONS = {
   'msg-templates':  'support.manage_macros',
   ai:               'business.edit_branding',
   maintenance:      'jobs.view_all',
+  'continuity-ops': 'business.edit_profile',
 };
 
 // Filter a tab list down to ones the active user can see, owners bypass.
