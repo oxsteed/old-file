@@ -10,6 +10,8 @@ const {
   updateBusinessLaunchRequestStatus,
   getUserBusinessLaunchRequests,
   searchBusinessLaunchRequests,
+  getMatchedConsultants,
+  assignConsultant,
 } = require('../controllers/businessLaunchController');
 const {
   addNote,
@@ -46,6 +48,13 @@ router.get(
 
 // Admin routes: View and manage requests
 router.get(
+  '/consultants',
+  authenticate,
+  requireAdmin,
+  getMatchedConsultants
+);
+
+router.get(
   '/requests',
   authenticate,
   requireAdmin,
@@ -64,6 +73,13 @@ router.patch(
   authenticate,
   requireAdmin,
   updateBusinessLaunchRequestStatus
+);
+
+router.post(
+  '/requests/:id/assign-consultant',
+  authenticate,
+  requireAdmin,
+  assignConsultant
 );
 
 // Notes endpoints (admin only)

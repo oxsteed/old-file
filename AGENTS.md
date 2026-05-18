@@ -16,10 +16,17 @@
 **OxSteed** is a full-stack local trades marketplace built with React 18 + Node.js + PostgreSQL.
 
 **Codebase metrics:**
-- 358 React JSX/TSX files (includes `AIKnowledgeTab`, `AIPreviewPage` for profile AI)
-- 131 backend controllers
-- 222 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
+- 359 React JSX/TSX files (includes `AIKnowledgeTab`, `AIPreviewPage` for profile AI)
+- 132 backend controllers
+- 223 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
+
+**Local consultant contractor network for business ascension referrals (2026-05-17):** COMPLETE
+- **Migration 248** (`server/migrations/248_consultant_contractor_network.sql`): Adds `consultant_contractor_profiles`, consultant referral fields on `consulting_requests`, and `consulting_request_referral_log` so OxSteed can route business-launch leads to independent local consultants in any country while preserving negotiated referral economics per lead.
+- **Contractor API:** `server/controllers/consultantNetworkController.js` + `server/routes/consultantNetwork.js`, mounted in `server/index.js` at `/api/consulting/contractor`, provide consultant profile management, coverage/language/specialty settings, assigned-referral dashboard data, and contractor-side referral status updates.
+- **Business-launch admin routing:** `server/controllers/businessLaunchController.js`, `server/routes/businessLaunch.js`, `client/src/admin/pages/BusinessLaunchAdmin.jsx`, and `client/src/admin/pages/BusinessLaunchRequestDetail.jsx` now surface assigned consultants, country/market context, consultant matching, referral-cut assignment, and capacity-aware consultant handoff. Matching respects coverage, virtual fallback, active referral limits, and consultant minimum package thresholds.
+- **Consultant UI:** `client/src/pages/ConsultantContractorDashboard.jsx`, registered in `client/src/App.jsx` as `/consulting/contractor-dashboard`, gives independent consultants a proper OxSteed workspace for market coverage, negotiated cut defaults, availability link-out, referral pipeline, follow-ups, and status notes. `client/src/pages/ConsultantAvailabilityPage.jsx` now links back to the contractor dashboard so both surfaces behave like one workspace.
+- **Verification:** `node --check server/controllers/consultantNetworkController.js server/controllers/businessLaunchController.js server/routes/consultantNetwork.js server/routes/businessLaunch.js server/index.js` passes. Client production build was not rerun here because the workspace still lacks a working local `vite` binary.
 
 **Super-admin money command center (2026-05-17):** COMPLETE
 - **Codebase monetization review:** Mapped the current money architecture across `platform_ledger`, `payments`, `subscriptions`, `consulting_payments`, `marketplace_orders`, `api_products`, `api_product_subscriptions`, `affiliate_commissions`, `affiliate_payouts`, and franchise agreements/programs. The output explicitly separates direct retained revenue from GMV, partner payouts, and configured future economics.

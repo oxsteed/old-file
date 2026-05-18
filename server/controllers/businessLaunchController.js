@@ -2,6 +2,11 @@ const db = require('../db');
 const logger = require('../utils/logger');
 const { sendEmail } = require('../utils/email');
 
+function sanitizeCountry(code) {
+  const value = String(code || '').trim().toUpperCase();
+  return value.length === 2 ? value : null;
+}
+
 /**
  * Submit a Business Launch Program intake form
  * POST /api/consulting/business-launch/submit
@@ -199,10 +204,19 @@ async function getBusinessLaunchRequests(req, res) {
         skill_description, target_market, has_revenue, business_name,
         operating_country, operating_state, setup_items_selected, select_all_chosen,
         current_phase, urgency, package_selected, package_price, status,
+        consultant_assigned_id, consultant_assignment_status,
+        consultant_assigned_at, consultant_follow_up_at,
+        assigned_oxsteed_cut_bps, assigned_consultant_cut_bps,
+        estimated_oxsteed_share_cents, estimated_consultant_share_cents,
+        cu.first_name AS consultant_first_name,
+        cu.last_name AS consultant_last_name,
+        cp.headline AS consultant_headline,
         created_at, updated_at
-      FROM consulting_requests
+      FROM consulting_requests cr
+      LEFT JOIN users cu ON cr.consultant_assigned_id = cu.id
+      LEFT JOIN consultant_contractor_profiles cp ON cp.user_id = cr.consultant_assigned_id
       ${whereClause}
-      ORDER BY created_at DESC
+      ORDER BY cr.created_at DESC
       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
       params
     );
@@ -231,7 +245,22 @@ async function getBusinessLaunchRequest(req, res) {
 
   try {
     const result = await db.query(
-      `SELECT * FROM consulting_requests WHERE id = $1`,
+      `SELECT
+         cr.*,
+         cu.first_name AS consultant_first_name,
+         cu.last_name AS consultant_last_name,
+         cu.email AS consultant_email,
+         cp.headline AS consultant_headline,
+         cp.home_country AS consultant_home_country,
+         cp.home_region AS consultant_home_region,
+         cp.home_city AS consultant_home_city,
+         cp.languages AS consultant_languages,
+         cp.specialties AS consultant_specialties,
+         cp.accepts_virtual_consulting
+       FROM consulting_requests cr
+       LEFT JOIN users cu ON cr.consultant_assigned_id = cu.id
+       LEFT JOIN consultant_contractor_profiles cp ON cp.user_id = cr.consultant_assigned_id
+       WHERE cr.id = $1`,
       [id]
     );
 
@@ -243,6 +272,239 @@ async function getBusinessLaunchRequest(req, res) {
   } catch (err) {
     logger.error('Error fetching business launch request', { id, err });
     return res.status(500).json({ error: 'Failed to fetch request' });
+  }
+}
+
+async function getMatchedConsultants(req, res) {
+  const country = sanitizeCountry(req.query.country);
+  const region = String(req.query.region || '').trim();
+  const packagePriceCents = Math.max(0, Math.round(Number(req.query.package_price || 0) * 100));
+
+  try {
+    const result = await db.query(
+      `SELECT
+         p.user_id,
+         u.first_name,
+         u.last_name,
+         u.email,
+         p.headline,
+         p.bio,
+         p.home_country,
+         p.home_region,
+         p.home_city,
+         p.coverage_countries,
+         p.coverage_regions,
+         p.languages,
+         p.specialties,
+         p.years_experience,
+         p.default_oxsteed_cut_bps,
+         p.minimum_package_price_cents,
+         p.active_referral_limit,
+         p.accepts_new_referrals,
+         p.accepts_virtual_consulting,
+         p.timezone,
+         COUNT(cr.id) FILTER (
+           WHERE cr.consultant_assigned_id = p.user_id
+             AND cr.consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed')
+         ) AS active_referrals,
+         CASE
+           WHEN $1::text IS NOT NULL AND $1 = ANY(p.coverage_countries) AND $2::text <> '' AND $2 = ANY(p.coverage_regions) THEN 3
+           WHEN $1::text IS NOT NULL AND $1 = ANY(p.coverage_countries) THEN 2
+           WHEN p.accepts_virtual_consulting = TRUE THEN 1
+           ELSE 0
+         END AS match_score
+       FROM consultant_contractor_profiles p
+       JOIN users u ON u.id = p.user_id
+       LEFT JOIN consulting_requests cr ON cr.consultant_assigned_id = p.user_id
+       WHERE p.is_active = TRUE
+         AND p.accepts_new_referrals = TRUE
+         AND ($3::integer = 0 OR p.minimum_package_price_cents <= $3)
+         AND (
+           $1::text IS NULL
+           OR $1 = ANY(p.coverage_countries)
+           OR p.accepts_virtual_consulting = TRUE
+         )
+       GROUP BY p.user_id, u.id
+       HAVING COUNT(cr.id) FILTER (
+         WHERE cr.consultant_assigned_id = p.user_id
+           AND cr.consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed')
+       ) < p.active_referral_limit
+       ORDER BY match_score DESC, active_referrals ASC, p.updated_at DESC
+       LIMIT 40`,
+      [country, region, packagePriceCents]
+    );
+
+    return res.json({ consultants: result.rows });
+  } catch (err) {
+    logger.error('Error fetching matched consultants', { err });
+    return res.status(500).json({ error: 'Failed to fetch consultants' });
+  }
+}
+
+async function assignConsultant(req, res) {
+  const { id } = req.params;
+  const {
+    consultant_user_id,
+    assigned_oxsteed_cut_bps,
+    note_text,
+  } = req.body;
+
+  if (!consultant_user_id) {
+    return res.status(400).json({ error: 'consultant_user_id is required' });
+  }
+
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+
+      const requestResult = await client.query(
+        `SELECT * FROM consulting_requests WHERE id = $1 FOR UPDATE`,
+        [id]
+      );
+
+      if (!requestResult.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Request not found' });
+      }
+
+      const launchRequest = requestResult.rows[0];
+      const consultantResult = await client.query(
+        `SELECT
+           p.*,
+           u.first_name,
+           u.last_name,
+           u.email
+         FROM consultant_contractor_profiles p
+         JOIN users u ON u.id = p.user_id
+         WHERE p.user_id = $1
+           AND p.is_active = TRUE
+           AND p.accepts_new_referrals = TRUE`,
+        [consultant_user_id]
+      );
+
+      if (!consultantResult.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Consultant profile not found or inactive.' });
+      }
+
+      const consultant = consultantResult.rows[0];
+      const totalPriceCents = Math.max(0, Math.round(Number(launchRequest.package_price || 0) * 100));
+
+      const activeReferralCountResult = await client.query(
+        `SELECT COUNT(*)::int AS active_referrals
+         FROM consulting_requests
+         WHERE consultant_assigned_id = $1
+           AND consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed')`,
+        [consultant_user_id]
+      );
+
+      if (consultant.active_referral_limit >= 0 && activeReferralCountResult.rows[0].active_referrals >= consultant.active_referral_limit) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'Consultant is already at their active referral limit.' });
+      }
+
+      if (consultant.minimum_package_price_cents > totalPriceCents) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'Consultant minimum package requirement is higher than this launch package.' });
+      }
+
+      const oxsteedCutBps = Math.max(
+        0,
+        Math.min(
+          10000,
+          parseInt(assigned_oxsteed_cut_bps ?? consultant.default_oxsteed_cut_bps ?? 0, 10) || 0
+        )
+      );
+      const oxsteedShareCents = Math.round(totalPriceCents * (oxsteedCutBps / 10000));
+      const consultantShareCents = Math.max(0, totalPriceCents - oxsteedShareCents);
+
+      const updateResult = await client.query(
+        `UPDATE consulting_requests
+         SET consultant_assigned_id = $1,
+             consultant_assignment_status = 'assigned',
+             consultant_assigned_at = NOW(),
+             assigned_oxsteed_cut_bps = $2,
+             assigned_consultant_cut_bps = $3,
+             estimated_total_price_cents = $4,
+             estimated_oxsteed_share_cents = $5,
+             estimated_consultant_share_cents = $6,
+             consultant_status_notes = COALESCE($7, consultant_status_notes),
+             updated_at = NOW()
+         WHERE id = $8
+         RETURNING *`,
+        [
+          consultant_user_id,
+          oxsteedCutBps,
+          Math.max(0, 10000 - oxsteedCutBps),
+          totalPriceCents,
+          oxsteedShareCents,
+          consultantShareCents,
+          note_text?.trim() || null,
+          id,
+        ]
+      );
+
+      await client.query(
+        `INSERT INTO consulting_request_referral_log (request_id, actor_id, event_type, note_text, metadata)
+         VALUES ($1, $2, 'consultant_assigned', $3, $4::jsonb)`,
+        [
+          id,
+          req.user?.id || null,
+          note_text?.trim() || null,
+          JSON.stringify({
+            consultant_user_id,
+            oxsteed_cut_bps: oxsteedCutBps,
+            consultant_share_cents: consultantShareCents,
+            oxsteed_share_cents: oxsteedShareCents,
+          }),
+        ]
+      );
+
+      await client.query('COMMIT');
+
+      sendEmail({
+        to: consultant.email,
+        subject: 'New OxSteed local consulting referral assigned',
+        html: `
+          <p>Hi ${consultant.first_name},</p>
+          <p>OxSteed assigned you a new business-launch referral for ${launchRequest.first_name} ${launchRequest.last_name}.</p>
+          <p><strong>Market:</strong> ${launchRequest.operating_country || '-'} / ${launchRequest.operating_state || '-'}</p>
+          <p><strong>Package:</strong> ${launchRequest.package_selected || '-'} (${launchRequest.package_price || 0})</p>
+          <p><strong>Your estimated share:</strong> $${(consultantShareCents / 100).toFixed(2)}</p>
+          <p>Log in to your contractor dashboard to review the lead and continue the introduction.</p>
+        `,
+      }).catch((err) => {
+        logger.warn('Failed to send consultant assignment email', { id, consultant_user_id, err: err.message });
+      });
+
+      sendEmail({
+        to: launchRequest.email,
+        subject: 'OxSteed matched you with a local consultant',
+        html: `
+          <p>Hi ${launchRequest.first_name},</p>
+          <p>OxSteed has matched your business-launch request with ${consultant.first_name} ${consultant.last_name}${consultant.home_city ? ` in ${consultant.home_city}` : ''}.</p>
+          <p>Your consultant will continue the introduction and next-step planning through the platform.</p>
+          <p><strong>Consultant:</strong> ${consultant.first_name} ${consultant.last_name}</p>
+          <p><strong>Specialties:</strong> ${(consultant.specialties || []).join(', ') || 'Business launch support'}</p>
+        `,
+      }).catch((err) => {
+        logger.warn('Failed to send client consultant intro email', { id, err: err.message });
+      });
+
+      return res.json({
+        message: 'Consultant assigned successfully.',
+        request: updateResult.rows[0],
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error assigning consultant to business launch request', { id, err });
+    return res.status(500).json({ error: 'Failed to assign consultant.' });
   }
 }
 
@@ -631,4 +893,6 @@ module.exports = {
   updateBusinessLaunchRequestStatus,
   getUserBusinessLaunchRequests,
   searchBusinessLaunchRequests,
+  getMatchedConsultants,
+  assignConsultant,
 };

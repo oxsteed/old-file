@@ -253,7 +253,7 @@ export default function BusinessLaunchAdmin() {
           <table style={{ width: '100%', borderCollapse: 'collapse', background: 'var(--color-surface)', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
             <thead>
               <tr>
-                {['Name', 'Email', 'Phone', 'Package', 'State', 'Urgency', 'Status', 'Submitted', 'Actions'].map(h => (
+                {['Name', 'Email', 'Phone', 'Package', 'Market', 'Consultant', 'Urgency', 'Status', 'Submitted', 'Actions'].map(h => (
                   <th key={h} style={{ background: 'var(--color-bg)', padding: '0.85rem 1rem', textAlign: 'left', borderBottom: '2px solid var(--color-border)', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -271,7 +271,19 @@ export default function BusinessLaunchAdmin() {
                   <td style={{ padding: '0.85rem 1rem' }}>
                     <Badge color="#8B5CF6">{req.package_selected}</Badge>
                   </td>
-                  <td style={{ padding: '0.85rem 1rem', fontSize: '0.85rem' }}>{req.operating_state || '-'}</td>
+                  <td style={{ padding: '0.85rem 1rem', fontSize: '0.85rem' }}>
+                    {(req.operating_country || '-')} / {(req.operating_state || '-')}
+                  </td>
+                  <td style={{ padding: '0.85rem 1rem', fontSize: '0.82rem' }}>
+                    {req.consultant_first_name ? (
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{req.consultant_first_name} {req.consultant_last_name}</div>
+                        <div style={{ color: 'var(--color-text-muted)' }}>{req.consultant_assignment_status || 'assigned'}</div>
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--color-text-muted)' }}>Unassigned</span>
+                    )}
+                  </td>
                   <td style={{ padding: '0.85rem 1rem' }}>
                     <UrgencyBadge urgency={req.urgency} />
                   </td>

@@ -108,6 +108,7 @@ const consultingFeedbackRoutes = require('./routes/consultingFeedback');
 const consultantSchedulingRoutes = require('./routes/consultantScheduling');
 const consultingAnalyticsRoutes = require('./routes/consultingAnalytics');
 const consultingActionItemsRoutes = require('./routes/consultingActionItems');
+const consultantNetworkRoutes = require('./routes/consultantNetwork');
 const calendarRoutes = require('./routes/calendar');
 const bookingsRoutes = require('./routes/bookings');
 const maintenanceRequestsRoutes = require('./routes/maintenanceRequests');
@@ -569,6 +570,7 @@ app.use('/api/consulting/business-launch', businessLaunchRoutes);
 app.use('/api/franchise', franchiseRoutes);
 app.use('/api/consulting/analytics', consultingAnalyticsRoutes);
 app.use('/api/consulting', consultingActionItemsRoutes);
+app.use('/api/consulting/contractor', consultantNetworkRoutes);
 app.use('/api/scheduling', consultantSchedulingRoutes);
 app.use('/api/helper-settings', helperCancellationPoliciesRoutes);
 // NOTE: /api/role-toggle intentionally removed - see comment near top of file

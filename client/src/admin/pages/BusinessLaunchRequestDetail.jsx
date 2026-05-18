@@ -22,6 +22,14 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
   const [noteLoading, setNoteLoading] = useState(false);
   const [messageLoading, setMessageLoading] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [consultants, setConsultants] = useState([]);
+  const [consultantsLoading, setConsultantsLoading] = useState(false);
+  const [assignmentLoading, setAssignmentLoading] = useState(false);
+  const [assignmentForm, setAssignmentForm] = useState({
+    consultant_user_id: request.consultant_assigned_id || '',
+    assigned_oxsteed_cut_bps: request.assigned_oxsteed_cut_bps || 2000,
+    note_text: '',
+  });
   const [customMessage, setCustomMessage] = useState({
     subject: '',
     message_html: '',
@@ -31,6 +39,12 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
     loadNotes();
     loadMessages();
     loadTemplates();
+    loadConsultants();
+    setAssignmentForm({
+      consultant_user_id: request.consultant_assigned_id || '',
+      assigned_oxsteed_cut_bps: request.assigned_oxsteed_cut_bps || 2000,
+      note_text: '',
+    });
   }, [request.id]);
 
   async function loadNotes() {
@@ -57,6 +71,22 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
       setTemplates(res.data || []);
     } catch (err) {
       toast.error(t('common.errorLoading'));
+    }
+  }
+
+  async function loadConsultants() {
+    try {
+      setConsultantsLoading(true);
+      const params = new URLSearchParams();
+      if (request.operating_country) params.set('country', request.operating_country);
+      if (request.operating_state) params.set('region', request.operating_state);
+      if (request.package_price) params.set('package_price', request.package_price);
+      const res = await axios.get(`/consulting/business-launch/consultants?${params}`);
+      setConsultants(res.data.consultants || []);
+    } catch (err) {
+      toast.error('Failed to load consultants');
+    } finally {
+      setConsultantsLoading(false);
     }
   }
 
@@ -120,6 +150,24 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
       toast.error(t('common.errorUpdating'));
     } finally {
       setMessageLoading(false);
+    }
+  }
+
+  async function assignConsultant() {
+    if (!assignmentForm.consultant_user_id) {
+      toast.error('Select a consultant first');
+      return;
+    }
+
+    try {
+      setAssignmentLoading(true);
+      await axios.post(`/consulting/business-launch/requests/${request.id}/assign-consultant`, assignmentForm);
+      toast.success('Consultant assigned');
+      onStatusUpdate?.();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to assign consultant');
+    } finally {
+      setAssignmentLoading(false);
     }
   }
 
@@ -263,9 +311,86 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
             <div style={sectionTitleStyle}>Business Details</div>
             <p><strong>Skill:</strong> {request.skill_description}</p>
             <p><strong>Target Market:</strong> {request.target_market}</p>
+            <p><strong>Country:</strong> {request.operating_country || '-'}</p>
             <p><strong>State:</strong> {request.operating_state || '-'}</p>
             <p><strong>Current Phase:</strong> {request.current_phase || 'Not specified'} / 25</p>
             {request.business_name && <p><strong>Business Name:</strong> {request.business_name}</p>}
+          </div>
+
+          <div style={sectionStyle}>
+            <div style={sectionTitleStyle}>Local Consultant Match</div>
+            {request.consultant_first_name ? (
+              <div style={{ ...noteCardStyle, borderLeft: '4px solid #10B981', marginBottom: '1rem' }}>
+                <p style={{ margin: '0 0 0.35rem' }}>
+                  <strong>{request.consultant_first_name} {request.consultant_last_name}</strong>
+                  {request.consultant_headline ? ` — ${request.consultant_headline}` : ''}
+                </p>
+                <p style={{ margin: '0.2rem 0', color: 'var(--color-text-muted)' }}>
+                  Assignment status: {request.consultant_assignment_status || 'assigned'}
+                </p>
+                <p style={{ margin: '0.2rem 0', color: 'var(--color-text-muted)' }}>
+                  OxSteed cut: {((request.assigned_oxsteed_cut_bps || 0) / 100).toFixed(2)}%
+                  {' • '}
+                  Consultant share: ${(((request.estimated_consultant_share_cents || 0) / 100)).toFixed(2)}
+                </p>
+              </div>
+            ) : (
+              <p style={{ color: 'var(--color-text-muted)' }}>No consultant assigned yet. Match this lead to a local contractor or a virtual consultant.</p>
+            )}
+
+            <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600 }}>Consultant</label>
+                <select
+                  value={assignmentForm.consultant_user_id}
+                  onChange={(e) => setAssignmentForm((prev) => ({ ...prev, consultant_user_id: e.target.value }))}
+                  style={inputStyle}
+                  disabled={consultantsLoading}
+                >
+                  <option value="">Select a consultant</option>
+                  {consultants.map((consultant) => (
+                    <option key={consultant.user_id} value={consultant.user_id}>
+                      {consultant.first_name} {consultant.last_name} • {consultant.home_country || 'Global'} • {consultant.active_referrals} active
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600 }}>OxSteed referral cut (bps)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="10000"
+                  value={assignmentForm.assigned_oxsteed_cut_bps}
+                  onChange={(e) => setAssignmentForm((prev) => ({ ...prev, assigned_oxsteed_cut_bps: e.target.value }))}
+                  style={inputStyle}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600 }}>Assignment note</label>
+                <textarea
+                  value={assignmentForm.note_text}
+                  onChange={(e) => setAssignmentForm((prev) => ({ ...prev, note_text: e.target.value }))}
+                  placeholder="Optional handoff note for the consultant"
+                  style={{ ...inputStyle, minHeight: '90px', resize: 'vertical' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <button style={buttonStyle} onClick={assignConsultant} disabled={assignmentLoading || consultantsLoading}>
+                {assignmentLoading ? 'Assigning...' : 'Assign Consultant'}
+              </button>
+              <button
+                type="button"
+                onClick={loadConsultants}
+                style={{ ...buttonStyle, background: 'var(--color-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+              >
+                Refresh Matches
+              </button>
+            </div>
           </div>
 
           <div style={sectionStyle}>

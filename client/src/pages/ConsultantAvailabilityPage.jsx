@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import { Link } from 'react-router-dom';
 import axios from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 
@@ -221,7 +222,20 @@ export default function ConsultantAvailabilityPage() {
 
   return (
     <div style={pageStyle}>
-      <h1 style={titleStyle}>{t('scheduling.manageAvailability') || 'Manage Your Availability'}</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '2rem' }}>
+        <h1 style={{ ...titleStyle, marginBottom: 0 }}>{t('scheduling.manageAvailability') || 'Manage Your Availability'}</h1>
+        <Link
+          to="/consulting/contractor-dashboard"
+          style={{
+            ...primaryButtonStyle,
+            textDecoration: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+          }}
+        >
+          Open contractor dashboard
+        </Link>
+      </div>
 
       {/* Recurring Availability */}
       <div style={sectionStyle}>

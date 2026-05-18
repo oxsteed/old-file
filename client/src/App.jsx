@@ -73,6 +73,7 @@ import QRCodeGeneratorPage from './pages/QRCodeGeneratorPage';
 import ConsultingFullPortal from './pages/ConsultingFullPortal';
 import ConsultingPortalPage from './pages/ConsultingPortalPage';
 import ConsultantAvailabilityPage from './pages/ConsultantAvailabilityPage';
+import ConsultantContractorDashboard from './pages/ConsultantContractorDashboard';
 import InvoicesPage from './pages/InvoicesPage';
 import CalendarPage from './pages/CalendarPage';
 import AIPreviewPage from './pages/AIPreviewPage';
@@ -220,6 +221,7 @@ export default function App() {
                     <Route path="/my-bids"        element={<Guarded><ProtectedRoute><MyBidsPage /></ProtectedRoute></Guarded>} />
                     <Route path="/invoices"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvoicesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/consultant-availability" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultantAvailabilityPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/consulting/contractor-dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultantContractorDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Redirect tool-rentals listing CTA to the dashboard skills tab */}
                     <Route path="/profile/tool-rentals" element={<Navigate to="/dashboard?tab=skills" replace />} />
                     <Route path="/settings"       element={<Guarded><ProtectedRoute><SettingsPage /></ProtectedRoute></Guarded>} />
