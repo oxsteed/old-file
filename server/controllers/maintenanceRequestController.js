@@ -16,6 +16,9 @@ const VALID_STATUSES = new Set([
 ]);
 
 const VALID_URGENCY = new Set(['emergency', 'urgent', 'normal', 'low']);
+const VALID_WORKFLOW_STAGES = new Set(['intake', 'triage', 'dispatch', 'scheduled', 'repair', 'follow_up', 'closed']);
+const VALID_INTAKE_CHANNELS = new Set(['tenant_portal', 'phone', 'email', 'internal']);
+const VALID_BILL_TO = new Set(['owner', 'tenant', 'hoa', 'internal']);
 
 function trimString(value, max = 4000) {
   const text = String(value ?? '').trim();
@@ -26,6 +29,44 @@ function toNumberOrNull(value) {
   if (value === '' || value == null) return null;
   const n = Number(value);
   return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function computeSlaTargetAt(urgency) {
+  const hours = {
+    emergency: 4,
+    urgent: 12,
+    normal: 24,
+    low: 72,
+  }[urgency] || 24;
+  return new Date(Date.now() + hours * 60 * 60 * 1000);
+}
+
+function computeFollowUpDueAt(status, scheduledStartAt) {
+  if (status === 'completed') return new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+  if (scheduledStartAt) return new Date(new Date(scheduledStartAt).getTime() + 12 * 60 * 60 * 1000);
+  return new Date(Date.now() + 24 * 60 * 60 * 1000);
+}
+
+function deriveWorkflowStage(status, requestedStage) {
+  if (VALID_WORKFLOW_STAGES.has(requestedStage)) return requestedStage;
+  if (status === 'completed') return 'closed';
+  if (status === 'in_progress') return 'repair';
+  if (status === 'assigned') return 'dispatch';
+  if (status === 'scheduled') return 'scheduled';
+  if (status === 'accepted') return 'triage';
+  return 'intake';
+}
+
+function buildTemplateIntake(body = {}) {
+  return {
+    location_area: trimString(body.location_area || body.locationArea, 120) || null,
+    symptom_started_at: trimString(body.symptom_started_at || body.symptomStartedAt, 120) || null,
+    best_update_channel: trimString(body.best_update_channel || body.bestUpdateChannel, 40) || null,
+    entry_preference: trimString(body.entry_preference || body.entryPreference, 120) || null,
+    resident_present_required: body.resident_present_required === true || body.resident_present_required === 'true',
+    pets_on_site: body.pets_on_site === true || body.pets_on_site === 'true',
+    asset_label: trimString(body.asset_label || body.assetLabel, 160) || null,
+  };
 }
 
 function mapStatusFromAction(status, scheduledStart, assignedHelperId) {
@@ -86,6 +127,14 @@ async function insertEvent(client, requestId, actorId, type, fromStatus, toStatu
 exports.getPublicBusiness = async (req, res, next) => {
   try {
     const business = await getBusinessOrThrow(req.params.businessId);
+    const { rows: settingRows } = await pool.query(
+      `SELECT intake_enabled, emergency_phone, emergency_instructions, after_hours_policy,
+              response_promise_hours, supported_issue_categories, tenant_portal_intro
+       FROM property_operation_settings
+       WHERE business_id = $1`,
+      [business.id]
+    );
+    const settings = settingRows[0] || null;
     return res.json({
       business: {
         id: business.id,
@@ -98,6 +147,17 @@ exports.getPublicBusiness = async (req, res, next) => {
         statuses: Array.from(VALID_STATUSES),
         urgency: Array.from(VALID_URGENCY),
       },
+      propertyOperations: settings
+        ? {
+            intake_enabled: settings.intake_enabled,
+            emergency_phone: settings.emergency_phone,
+            emergency_instructions: settings.emergency_instructions,
+            after_hours_policy: settings.after_hours_policy,
+            response_promise_hours: settings.response_promise_hours,
+            supported_issue_categories: settings.supported_issue_categories,
+            tenant_portal_intro: settings.tenant_portal_intro,
+          }
+        : null,
     });
   } catch (err) {
     next(err);
@@ -112,6 +172,12 @@ exports.createRequest = async (req, res, next) => {
     const description = trimString(req.body.description, 4000);
     const issueCategory = trimString(req.body.issue_category || req.body.issueCategory || 'General', 80);
     const urgency = VALID_URGENCY.has(req.body.urgency) ? req.body.urgency : 'normal';
+    const intakeChannel = VALID_INTAKE_CHANNELS.has(req.body.intake_channel) ? req.body.intake_channel : 'tenant_portal';
+    const billableParty = VALID_BILL_TO.has(req.body.billable_party) ? req.body.billable_party : null;
+    const templateIntake = buildTemplateIntake(req.body);
+    const workflowStage = deriveWorkflowStage('reported', req.body.workflow_stage);
+    const slaTargetAt = computeSlaTargetAt(urgency);
+    const followUpDueAt = computeFollowUpDueAt('reported', null);
 
     if (title.length < 6) fields.title = 'Title is required';
     if (description.length < 20) fields.description = 'Please describe the issue in more detail';
@@ -143,9 +209,10 @@ exports.createRequest = async (req, res, next) => {
         `INSERT INTO property_maintenance_requests (
            business_id, owner_id, requester_id, urgency, issue_category, title, description,
            property_label, unit_label, access_notes, preferred_times, permission_to_enter,
-           contact_name, contact_email, contact_phone, photo_urls
+           contact_name, contact_email, contact_phone, photo_urls, workflow_stage,
+           intake_channel, billable_party, template_intake, sla_target_at, follow_up_due_at
          )
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::jsonb,$21,$22)
          RETURNING *`,
         [
           business.id,
@@ -164,6 +231,12 @@ exports.createRequest = async (req, res, next) => {
           trimString(req.body.contact_email || req.body.contactEmail, 255) || null,
           trimString(req.body.contact_phone || req.body.contactPhone, 60) || null,
           photoUrls,
+          workflowStage,
+          intakeChannel,
+          billableParty,
+          JSON.stringify(templateIntake),
+          slaTargetAt,
+          followUpDueAt,
         ]
       );
       await insertEvent(client, request.id, req.user.id, 'created', null, 'reported', 'Tenant submitted maintenance request');
@@ -220,6 +293,8 @@ exports.listBusinessRequests = async (req, res, next) => {
          COUNT(*)::int AS total,
          COUNT(*) FILTER (WHERE status IN ('reported','accepted','scheduled','assigned','in_progress'))::int AS open_count,
          COUNT(*) FILTER (WHERE status = 'completed')::int AS completed_count,
+         COUNT(*) FILTER (WHERE workflow_stage = 'follow_up')::int AS follow_up_count,
+         COUNT(*) FILTER (WHERE sla_target_at IS NOT NULL AND sla_target_at < NOW() AND status NOT IN ('completed', 'cancelled', 'rejected'))::int AS overdue_sla_count,
          COALESCE(SUM(actual_cost), 0)::numeric AS actual_cost_total
        FROM property_maintenance_requests
        WHERE business_id = $1`,
@@ -271,12 +346,23 @@ exports.updateRequest = async (req, res, next) => {
     const assignedHelperId = trimString(req.body.assigned_helper_id || req.body.assignedHelperId, 80) || existing.assigned_helper_id;
     const scheduledStart = req.body.scheduled_start_at || req.body.scheduledStartAt || existing.scheduled_start_at;
     const nextStatus = mapStatusFromAction(req.body.status, scheduledStart, assignedHelperId);
+    const workflowStage = deriveWorkflowStage(nextStatus, req.body.workflow_stage);
     const tenantVisibleNotes = req.body.tenant_visible_notes !== undefined
       ? trimString(req.body.tenant_visible_notes, 2000)
       : existing.tenant_visible_notes;
     const ownerNotes = req.body.owner_notes !== undefined
       ? trimString(req.body.owner_notes, 4000)
       : existing.owner_notes;
+    const resolutionSummary = req.body.resolution_summary !== undefined
+      ? trimString(req.body.resolution_summary, 4000)
+      : existing.resolution_summary;
+    const nextScheduledEnd = req.body.scheduled_end_at || req.body.scheduledEndAt || existing.scheduled_end_at || null;
+    const nextFollowUpAt = req.body.follow_up_due_at
+      || req.body.followUpDueAt
+      || computeFollowUpDueAt(nextStatus, scheduledStart);
+    const nextTemplateIntake = req.body.template_intake
+      ? { ...(existing.template_intake || {}), ...req.body.template_intake }
+      : existing.template_intake;
 
     const { rows: [request] } = await client.query(
       `UPDATE property_maintenance_requests
@@ -289,20 +375,30 @@ exports.updateRequest = async (req, res, next) => {
            vendor_name = $7,
            owner_notes = $8,
            tenant_visible_notes = $9,
+           workflow_stage = $10,
+           billable_party = COALESCE($11, billable_party),
+           follow_up_due_at = $12,
+           resolution_summary = $13,
+           template_intake = COALESCE($14::jsonb, template_intake),
            updated_at = NOW(),
            status_updated_at = CASE WHEN status <> $1 THEN NOW() ELSE status_updated_at END
-       WHERE id = $10
+       WHERE id = $15
        RETURNING *`,
       [
         nextStatus,
         assignedHelperId || null,
         scheduledStart || null,
-        req.body.scheduled_end_at || req.body.scheduledEndAt || existing.scheduled_end_at || null,
+        nextScheduledEnd,
         toNumberOrNull(req.body.estimated_cost ?? req.body.estimatedCost) ?? existing.estimated_cost,
         toNumberOrNull(req.body.actual_cost ?? req.body.actualCost) ?? existing.actual_cost,
         req.body.vendor_name !== undefined ? trimString(req.body.vendor_name, 180) : existing.vendor_name,
         ownerNotes || null,
         tenantVisibleNotes || null,
+        workflowStage,
+        VALID_BILL_TO.has(req.body.billable_party) ? req.body.billable_party : null,
+        nextFollowUpAt,
+        resolutionSummary || null,
+        nextTemplateIntake ? JSON.stringify(nextTemplateIntake) : null,
         existing.id,
       ]
     );

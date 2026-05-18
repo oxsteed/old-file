@@ -45,6 +45,7 @@ import ChatPanel from '../components/helperProfile/chat/ChatPanel';
 import { AvailabilityBlock, PricingBlock, SlotsBlock } from '../components/helperProfile/DynamicBlocks';
 
 import { getBusinessPublicProfile } from '../api/businesses';
+import { getPublicPropertyOperations } from '../api/propertyOperations';
 import { ProfileTemplateRenderer, getTemplateBehavior } from '../components/profileTemplates/index';
 import TemplateBehaviorPanel from '../components/profileTemplates/TemplateBehaviorPanel';
 import '../components/profileTemplates/TemplateBehaviorPanel.css';
@@ -270,6 +271,73 @@ function ContactLinksSection({ phone, website }) {
   );
 }
 
+function PropertyOperationsPublicSection({ data }) {
+  if (!data) return null;
+  const settings = data.settings || {};
+  const packages = data.packages || [];
+  const metrics = data.metrics || {};
+
+  return (
+    <section className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="max-w-2xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Property Operations</p>
+          <h2 className="mt-2 text-lg font-semibold text-white">Tenant-ready maintenance workflow</h2>
+          <p className="mt-2 text-sm leading-7 text-gray-300">
+            {settings.tenant_portal_intro || 'Tenants can report issues with urgency, access notes, photos, and repair-window preferences while the property team keeps the response and compliance trail organized.'}
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Response promise</p>
+            <p className="mt-2 text-2xl font-semibold text-white">{settings.response_promise_hours || 24}h</p>
+          </div>
+          <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Units tracked</p>
+            <p className="mt-2 text-2xl font-semibold text-white">{metrics.total_units || 0}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
+        <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Trusted process signals</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(settings.trust_artifacts || []).map((item) => (
+              <span key={item} className="rounded-full border border-gray-700 bg-gray-900 px-3 py-1 text-xs font-medium text-gray-200">
+                {item}
+              </span>
+            ))}
+          </div>
+          {settings.emergency_phone || settings.after_hours_policy ? (
+            <div className="mt-4 space-y-2 text-sm text-gray-300">
+              {settings.emergency_phone ? <p><strong>Emergency line:</strong> {settings.emergency_phone}</p> : null}
+              {settings.after_hours_policy ? <p><strong>After hours:</strong> {settings.after_hours_policy}</p> : null}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Live service packages</p>
+          <div className="mt-3 space-y-3">
+            {packages.length === 0 ? (
+              <p className="text-sm text-gray-400">Maintenance intake is live. Package-level billing can be configured inside Business Hub.</p>
+            ) : packages.map((item) => (
+              <div key={item.id} className="rounded-2xl border border-gray-800 bg-gray-900 px-3 py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-white">{item.name}</p>
+                  <span className="rounded-full bg-amber-400/10 px-2 py-0.5 text-[11px] font-semibold text-amber-200">{item.pricing_model}</span>
+                </div>
+                {item.description ? <p className="mt-2 text-sm text-gray-400">{item.description}</p> : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ── Main page component ───────────────────────────────────────────────────────
 export default function BusinessProfilePage() {
   const { id }    = useParams();
@@ -278,6 +346,7 @@ export default function BusinessProfilePage() {
   const { user } = useAuth();
 
   const [profileData,     setProfileData]     = useState(null);
+  const [propertyOpsData, setPropertyOpsData] = useState(null);
   const [loadState,       setLoadState]       = useState('idle');
   const [error,           setError]           = useState(null);
   const [activeTemplate,  setActiveTemplate]  = useState('default');
@@ -309,6 +378,11 @@ export default function BusinessProfilePage() {
       const raw = await getBusinessPublicProfile(id);
       setProfileData(mapToHelperProfileData(raw, t));
       setActiveTemplate(raw.business?.active_template || 'default');
+      if ((raw.business?.active_template || 'default') === 'property_manager') {
+        getPublicPropertyOperations(id).then(setPropertyOpsData).catch(() => {});
+      } else {
+        setPropertyOpsData(null);
+      }
       setLoadState('success');
     } catch (e) {
       setError(
@@ -466,6 +540,11 @@ export default function BusinessProfilePage() {
             onPrimaryAction={handleTemplatePrimaryAction}
             onSecondaryAction={handleOpenChat}
           />
+          {activeTemplate === 'property_manager' ? (
+            <div className="mt-6">
+              <PropertyOperationsPublicSection data={propertyOpsData} />
+            </div>
+          ) : null}
         </div>
         <Footer />
       </div>
@@ -543,6 +622,10 @@ export default function BusinessProfilePage() {
               onPrimaryAction={handleTemplatePrimaryAction}
               onSecondaryAction={handleOpenChat}
             />
+
+            {activeTemplate === 'property_manager' ? (
+              <PropertyOperationsPublicSection data={propertyOpsData} />
+            ) : null}
 
             {/* Services & Pricing (empty state built into component) */}
             <ServicesSection

@@ -7,17 +7,6 @@ import PageShell from '../components/PageShell';
 import { createMaintenanceRequest, getMaintenanceBusiness } from '../api/maintenanceRequests';
 import '../styles/MaintenanceRequestPage.css';
 
-const ISSUE_CATEGORIES = [
-  'Plumbing',
-  'Electrical',
-  'Appliance',
-  'Heating / Cooling',
-  'Doors / Locks',
-  'Pest concern',
-  'Safety concern',
-  'General repair',
-];
-
 const INITIAL_FORM = {
   issue_category: 'Plumbing',
   title: '',
@@ -29,6 +18,14 @@ const INITIAL_FORM = {
   preferred_times: '',
   permission_to_enter: false,
   contact_phone: '',
+  location_area: '',
+  symptom_started_at: '',
+  best_update_channel: 'sms',
+  entry_preference: '',
+  resident_present_required: false,
+  pets_on_site: false,
+  asset_label: '',
+  billable_party: 'owner',
   photos: [],
 };
 
@@ -45,7 +42,15 @@ export default function MaintenanceRequestPage() {
     setLoading(true);
     getMaintenanceBusiness(businessId)
       .then((data) => {
-        if (!cancelled) setBusiness(data.business);
+        if (!cancelled) {
+          setBusiness({ ...data.business, propertyOperations: data.propertyOperations || null });
+          if (data.propertyOperations?.supported_issue_categories?.length) {
+            setForm((current) => ({
+              ...current,
+              issue_category: data.propertyOperations.supported_issue_categories[0],
+            }));
+          }
+        }
       })
       .catch(() => toast.error('Could not load this property profile.'))
       .finally(() => {
@@ -129,7 +134,7 @@ export default function MaintenanceRequestPage() {
             <p className="mrq-eyebrow"><Building2 size={16} /> Property maintenance</p>
             <h1>Report an issue to {business?.business_name || 'this property manager'}</h1>
             <p>
-              Send the details the owner needs to decide, schedule, assign a helper, and keep a clean repair record.
+              {business?.propertyOperations?.tenant_portal_intro || 'Send the details the owner needs to decide, schedule, assign a helper, and keep a clean repair record.'}
             </p>
           </div>
           <div className="mrq-hero-card">
@@ -145,7 +150,16 @@ export default function MaintenanceRequestPage() {
             <div className="mrq-field">
               <label>Issue category</label>
               <select value={form.issue_category} onChange={(e) => updateField('issue_category', e.target.value)}>
-                {ISSUE_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+                {(business?.propertyOperations?.supported_issue_categories || [
+                  'Plumbing',
+                  'Electrical',
+                  'Appliance',
+                  'Heating / Cooling',
+                  'Doors / Locks',
+                  'Pest concern',
+                  'Safety concern',
+                  'General repair',
+                ]).map((category) => <option key={category} value={category}>{category}</option>)}
               </select>
             </div>
             <div className="mrq-field">
@@ -176,6 +190,20 @@ export default function MaintenanceRequestPage() {
                 ))}
               </div>
             </div>
+            <div className="mrq-two">
+              <div className="mrq-field">
+                <label>Room, area, or location</label>
+                <input value={form.location_area} onChange={(e) => updateField('location_area', e.target.value)} placeholder="Kitchen, hallway, rear unit bathroom" />
+              </div>
+              <div className="mrq-field">
+                <label>Asset or appliance</label>
+                <input value={form.asset_label} onChange={(e) => updateField('asset_label', e.target.value)} placeholder="Water heater, fridge, breaker panel" />
+              </div>
+            </div>
+            <div className="mrq-field">
+              <label>When did it start?</label>
+              <input value={form.symptom_started_at} onChange={(e) => updateField('symptom_started_at', e.target.value)} placeholder="Today at 8 AM, noticed last night, ongoing for a week" />
+            </div>
           </section>
 
           <section className="mrq-panel">
@@ -198,6 +226,20 @@ export default function MaintenanceRequestPage() {
               <label>Access notes</label>
               <textarea value={form.access_notes} onChange={(e) => updateField('access_notes', e.target.value)} rows={3} placeholder="Pets, gate code, parking, permission rules, or how to reach you." />
             </div>
+            <div className="mrq-two">
+              <div className="mrq-field">
+                <label>Entry preference</label>
+                <input value={form.entry_preference} onChange={(e) => updateField('entry_preference', e.target.value)} placeholder="Call first, manager key okay, text on arrival" />
+              </div>
+              <div className="mrq-field">
+                <label>Best update channel</label>
+                <select value={form.best_update_channel} onChange={(e) => updateField('best_update_channel', e.target.value)}>
+                  <option value="sms">SMS</option>
+                  <option value="phone">Phone call</option>
+                  <option value="email">Email</option>
+                </select>
+              </div>
+            </div>
             <label className="mrq-check">
               <input
                 type="checkbox"
@@ -206,9 +248,34 @@ export default function MaintenanceRequestPage() {
               />
               <span>I give permission to enter if the property manager schedules the repair according to the notes above.</span>
             </label>
+            <label className="mrq-check">
+              <input
+                type="checkbox"
+                checked={form.resident_present_required}
+                onChange={(e) => updateField('resident_present_required', e.target.checked)}
+              />
+              <span>A resident should be present when someone enters the unit.</span>
+            </label>
+            <label className="mrq-check">
+              <input
+                type="checkbox"
+                checked={form.pets_on_site}
+                onChange={(e) => updateField('pets_on_site', e.target.checked)}
+              />
+              <span>There are pets on site or anything else entry teams should know about.</span>
+            </label>
             <div className="mrq-field">
               <label>Best phone number</label>
               <input value={form.contact_phone} onChange={(e) => updateField('contact_phone', e.target.value)} placeholder="Optional" />
+            </div>
+            <div className="mrq-field">
+              <label>Default bill to</label>
+              <select value={form.billable_party} onChange={(e) => updateField('billable_party', e.target.value)}>
+                <option value="owner">Owner / management</option>
+                <option value="tenant">Tenant</option>
+                <option value="hoa">HOA</option>
+                <option value="internal">Internal maintenance budget</option>
+              </select>
             </div>
           </section>
 
@@ -232,7 +299,10 @@ export default function MaintenanceRequestPage() {
             </div>
             <div className="mrq-note warning">
               <AlertTriangle size={18} />
-              <p>For immediate danger, active flooding, fire, gas smell, or urgent safety risk, contact emergency services or your property emergency line first.</p>
+              <p>
+                For immediate danger, active flooding, fire, gas smell, or urgent safety risk, contact emergency services
+                {business?.propertyOperations?.emergency_phone ? ` or ${business.propertyOperations.emergency_phone}` : ' or your property emergency line'} first.
+              </p>
             </div>
             <button className="mrq-btn primary submit" type="submit" disabled={submitting}>
               {submitting ? 'Sending...' : 'Send maintenance request'}

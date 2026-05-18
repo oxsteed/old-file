@@ -33,6 +33,7 @@ import { ServicePackagesManager } from '../components/businessHub/ServicePackage
 import { HealthAlertsDashboard } from '../components/businessHub/HealthAlertsDashboard';
 import { LeadPipeline } from '../components/businessHub/LeadPipeline';
 import { MessageTemplatesManager } from '../components/businessHub/MessageTemplatesManager';
+import PropertyOperationsTab from '../components/businessHub/PropertyOperationsTab';
 import TemplateWorkflowSystemTab from '../components/businessHub/TemplateWorkflowSystemTab';
 import {
   listBusinesses, createBusiness, updateBusiness, uploadBusinessPhotos,
@@ -59,6 +60,7 @@ import {
   listBusinessMaintenanceRequests,
   updateMaintenanceRequest,
 } from '../api/maintenanceRequests';
+import { getPropertyOperationsWorkspace } from '../api/propertyOperations';
 import { formatMoney } from '../lib/format';
 import { getDefaultCurrency } from '../lib/countries';
 import '../styles/BusinessHubPage.css';
@@ -152,6 +154,8 @@ function BusinessHubInner() {
   const [goalsLoading, setGoalsLoading] = useState(false);
   const [maintenanceData, setMaintenanceData] = useState({ requests: [], stats: null });
   const [maintenanceLoading, setMaintenanceLoading] = useState(false);
+  const [propertyOpsData, setPropertyOpsData] = useState(null);
+  const [propertyOpsLoading, setPropertyOpsLoading] = useState(false);
 
   // team tab
   const [members, setMembers]             = useState([]);
@@ -325,6 +329,18 @@ function BusinessHubInner() {
       toast.error('Could not load maintenance requests');
     } finally {
       setMaintenanceLoading(false);
+    }
+  }, [bizId]);
+
+  const loadPropertyOperations = useCallback(async () => {
+    if (!bizId) return;
+    setPropertyOpsLoading(true);
+    try {
+      setPropertyOpsData(await getPropertyOperationsWorkspace(bizId));
+    } catch {
+      toast.error('Could not load property operations');
+    } finally {
+      setPropertyOpsLoading(false);
     }
   }, [bizId]);
 
@@ -508,6 +524,7 @@ function BusinessHubInner() {
     else if (tab === 'gallery') loadGallery();
     else if (tab === 'policies') loadPolicies();
     else if (tab === 'faqs') loadFAQs();
+    else if (tab === 'property-ops') loadPropertyOperations();
     else if (tab === 'calendar') loadHours();
     else if (tab === 'skills') loadSkills();
     else if (tab === 'ai') { /* AI tab loads its own data */ }
@@ -520,14 +537,14 @@ function BusinessHubInner() {
     }
     else if (tab === 'maintenance') loadMaintenance();
     else if (tab === 'team') loadTeam();
-  }, [loadingBiz, businesses, bizId, tab, loadProfile, loadServices, loadGallery, loadPolicies, loadFAQs, loadHours, loadSkills, loadOverview, loadInvoices, loadTax, loadGoals, loadMaintenance, loadTeam]);
+  }, [loadingBiz, businesses, bizId, tab, loadProfile, loadServices, loadGallery, loadPolicies, loadFAQs, loadHours, loadSkills, loadOverview, loadInvoices, loadTax, loadGoals, loadMaintenance, loadPropertyOperations, loadTeam]);
 
   // ── switcher ──────────────────────────────────────────────────────────────
   function handleSwitchBiz(id) {
     setBizId(id);
     localStorage.setItem(LS_KEY, id);
     setAnalyticsLoading(true);
-    setAnalytics(null); setAnalyticsError(false); setInvoiceData(null); setTaxData(null); setGoals([]); setMaintenanceData({ requests: [], stats: null });
+    setAnalytics(null); setAnalyticsError(false); setInvoiceData(null); setTaxData(null); setGoals([]); setMaintenanceData({ requests: [], stats: null }); setPropertyOpsData(null);
     setMembersLoading(true);
     setMembers([]);
   }
@@ -944,7 +961,7 @@ function BusinessHubInner() {
   //   3. Clients (managers/owners track customers per business)
   //   4. Content tabs (services, gallery, policies, faqs, hours, skills, ai)
   //   5. Calendar
-  //   6. Maintenance (only for property_manager template)
+  //   6. Property ops + maintenance (only for property_manager template)
   //   7. Invoices / Tax / Goals
   //   8. Team
   const visibleTabs = [
@@ -956,6 +973,7 @@ function BusinessHubInner() {
     'products',
     'messages',
     'calendar',
+    ...(isPropertyManagerTpl ? ['property-ops'] : []),
     ...(isPropertyManagerTpl ? ['maintenance'] : []),
     'invoices', 'tax', 'goals',
     'service-pricing',
@@ -985,7 +1003,7 @@ function BusinessHubInner() {
     if (tb === 'analytics' && !canEditBizProfile) return false;
     if (tb === 'loyalty' && !canEditBizProfile) return false;
     if (tb === 'integrations' && currentRole !== 'owner') return false;
-    if (['expenses','quotes','recurring','staff','reviews-mgmt','marketing','waitlist','packages','health','leads','msg-templates'].includes(tb) && !canEditBizProfile) return false;
+    if (['property-ops','expenses','quotes','recurring','staff','reviews-mgmt','marketing','waitlist','packages','health','leads','msg-templates'].includes(tb) && !canEditBizProfile) return false;
     return true;
   });
 
@@ -1000,6 +1018,9 @@ function BusinessHubInner() {
       return;
     }
     if ((tab === 'profile' || contentTabIds.includes(tab)) && !canEditBizProfile) {
+      setTab(canViewFinanceHub ? 'overview' : 'team');
+    }
+    if (tab === 'property-ops' && !canEditBizProfile) {
       setTab(canViewFinanceHub ? 'overview' : 'team');
     }
     if (tab === 'ai' && !canEditBizProfile) {
@@ -1026,6 +1047,7 @@ function BusinessHubInner() {
     if (tb === 'tax') return t('businessHub.tabTaxLabel');
     if (tb === 'goals') return t('businessHub.tabGoalsLabel');
     if (tb === 'maintenance') return 'Maintenance';
+    if (tb === 'property-ops') return 'Property Ops';
     if (tb === 'calendar') return t('businessHub.tabCalendarLabel', { defaultValue: 'Schedule' });
     if (tb === 'clients') return t('businessHub.tabClientsLabel', { defaultValue: 'Clients' });
     if (tb === 'ai') return t('businessHub.tabAILabel');
@@ -1263,6 +1285,17 @@ function BusinessHubInner() {
                 onRefresh={loadMaintenance}
                 onUpdate={handleUpdateMaintenanceRequest}
                 onConvert={handleConvertMaintenanceRequest}
+              />
+            )}
+
+            {tab === 'property-ops' && (
+              propertyOpsLoading ? <p className="bh-loading">Loading property operations...</p> :
+              <PropertyOperationsTab
+                businessId={bizId}
+                workspace={propertyOpsData}
+                currency={currency}
+                onRefresh={loadPropertyOperations}
+                onJumpTab={(nextTab) => setTab(nextTab)}
               />
             )}
 
@@ -2955,11 +2988,14 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
   function getDraft(request) {
     return drafts[request.id] || {
       status: request.status,
+      workflow_stage: request.workflow_stage || 'intake',
       scheduled_start_at: request.scheduled_start_at ? String(request.scheduled_start_at).slice(0, 16) : '',
       assigned_helper_id: request.assigned_helper_id || '',
       tenant_visible_notes: request.tenant_visible_notes || '',
       actual_cost: request.actual_cost || '',
       vendor_name: request.vendor_name || '',
+      billable_party: request.billable_party || 'owner',
+      resolution_summary: request.resolution_summary || '',
     };
   }
 
@@ -2972,6 +3008,8 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
       <div className="bh-kpi-grid">
         <KPI label="Open requests" value={stats.open_count || 0} cls="warn" sub="Reported, scheduled, assigned, or in progress" />
         <KPI label="Completed" value={stats.completed_count || 0} cls="positive" sub="Closed maintenance records" />
+        <KPI label="Follow-ups due" value={stats.follow_up_count || 0} cls="warn" sub="Requests in follow-up stage" />
+        <KPI label="SLA at risk" value={stats.overdue_sla_count || 0} cls="danger" sub="Requests past response target" />
         <KPI label="Tracked cost" value={fmt$(stats.actual_cost_total || 0, currency)} sub="Actual repair costs logged" />
       </div>
 
@@ -3029,10 +3067,21 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
                     {request.property_label && <p><strong>Property:</strong> {request.property_label}</p>}
                     {request.preferred_times && <p><strong>Preferred times:</strong> {request.preferred_times}</p>}
                     {request.access_notes && <p><strong>Access:</strong> {request.access_notes}</p>}
+                    {request.template_intake?.location_area && <p><strong>Area:</strong> {request.template_intake.location_area}</p>}
+                    {request.template_intake?.asset_label && <p><strong>Asset:</strong> {request.template_intake.asset_label}</p>}
+                    {request.template_intake?.entry_preference && <p><strong>Entry preference:</strong> {request.template_intake.entry_preference}</p>}
                     {request.permission_to_enter && <p><strong>Permission:</strong> Tenant granted permission to enter with scheduling.</p>}
                   </div>
 
                   <div className="bh-maint-controls">
+                    <label>
+                      Workflow stage
+                      <select value={draft.workflow_stage} onChange={(e) => patchDraft(request.id, { workflow_stage: e.target.value })}>
+                        {['intake', 'triage', 'dispatch', 'scheduled', 'repair', 'follow_up', 'closed'].map((stage) => (
+                          <option key={stage} value={stage}>{stage.replaceAll('_', ' ')}</option>
+                        ))}
+                      </select>
+                    </label>
                     <label>
                       Status
                       <select value={draft.status} onChange={(e) => patchDraft(request.id, { status: e.target.value })}>
@@ -3057,9 +3106,21 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
                       Actual cost
                       <input type="number" min="0" step="0.01" value={draft.actual_cost || ''} onChange={(e) => patchDraft(request.id, { actual_cost: e.target.value })} placeholder="0.00" />
                     </label>
+                    <label>
+                      Bill to
+                      <select value={draft.billable_party || 'owner'} onChange={(e) => patchDraft(request.id, { billable_party: e.target.value })}>
+                        {['owner', 'tenant', 'hoa', 'internal'].map((value) => (
+                          <option key={value} value={value}>{value}</option>
+                        ))}
+                      </select>
+                    </label>
                     <label className="wide">
                       Tenant-visible update
                       <textarea value={draft.tenant_visible_notes || ''} onChange={(e) => patchDraft(request.id, { tenant_visible_notes: e.target.value })} rows={2} placeholder="Example: We can send someone Friday morning." />
+                    </label>
+                    <label className="wide">
+                      Resolution summary
+                      <textarea value={draft.resolution_summary || ''} onChange={(e) => patchDraft(request.id, { resolution_summary: e.target.value })} rows={2} placeholder="What was fixed, what still needs approval, or what should be billed." />
                     </label>
                   </div>
 

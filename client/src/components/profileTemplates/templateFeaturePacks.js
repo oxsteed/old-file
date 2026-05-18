@@ -138,7 +138,7 @@ const TEMPLATE_OVERRIDES = {
     differentiators: ['Maintenance intake workflow', 'Tenant-friendly issue framing', 'Operational recordkeeping'],
     expectations: ['Access and urgency notes', 'Clear repair categories', 'Timeline coordination language'],
     sampleOfferings: ['Maintenance issue intake', 'Turnover coordination', 'Preferred vendor dispatch'],
-    trustSignals: ['Tenant-safe reporting flow', 'Operational clarity', 'Repair history readiness'],
+    trustSignals: ['Tenant-safe reporting flow', 'Operational clarity', 'Repair history readiness', 'Compliance and inspection tracking'],
   },
   trades_pro: {
     marketLabel: 'Licensed trade contractor',

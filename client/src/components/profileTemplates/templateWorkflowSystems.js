@@ -369,6 +369,7 @@ const TEMPLATE_OVERRIDES = {
   default: { operatingModel: 'General OxSteed business workflow' },
   property_manager: {
     unlockedSystems: [
+      { tab: 'property-ops', label: 'Property Ops', reason: 'Manage units, compliance, dispatch packages, and follow-up automation.' },
       { tab: 'maintenance', label: 'Maintenance', reason: 'Template-specific issue intake and repair coordination.' },
       { tab: 'calendar', label: 'Schedule', reason: 'Manage tenant-facing repair windows.' },
       { tab: 'clients', label: 'Tenants & Owners', reason: 'Track recurring property contacts.' },
