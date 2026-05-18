@@ -395,6 +395,15 @@ const TEMPLATE_OVERRIDES = {
   graphic_design: {
     trustSignals: ['Revision-boundary clarity', 'Brand-system deliverable packaging', 'Approval-ready proof flow'],
   },
+  accountant: {
+    trustSignals: ['Document-discipline process', 'Recurring obligation tracking', 'Confidentiality-forward engagement framing'],
+  },
+  consulting_coaching: {
+    trustSignals: ['Program and retainer clarity', 'Milestone-based follow-up', 'Structured advisory engagement framing'],
+  },
+  legal_admin: {
+    trustSignals: ['Deadline and filing discipline', 'Structured document intake', 'Professional process seriousness'],
+  },
   dog_walker: {
     marketLabel: 'Dog walking and routine pet movement',
     demandMoments: ['Daily walk support', 'Travel routine coverage', 'Recurring pet exercise needs'],

@@ -469,10 +469,27 @@ const TEMPLATE_OVERRIDES = {
   },
   accountant: {
     unlockedSystems: [
+      { tab: 'professional-ops', label: 'Professional Ops', reason: 'Run engagement intake, document discipline, and recurring obligations.' },
       { tab: 'recurring', label: 'Documents & Records', reason: 'Manage recurring document-driven delivery.' },
       { tab: 'services', label: 'Services', reason: 'Separate tax, bookkeeping, and advisory offers.' },
       { tab: 'quotes', label: 'Quotes', reason: 'Handle business-scope engagements professionally.' },
       { tab: 'messages', label: 'Client Comms', reason: 'Maintain documented professional communication.' },
+    ],
+  },
+  consulting_coaching: {
+    unlockedSystems: [
+      { tab: 'professional-ops', label: 'Professional Ops', reason: 'Capture engagement fit, package logic, and recurring accountability follow-up.' },
+      { tab: 'services', label: 'Services', reason: 'Separate sessions, programs, and advisory offers.' },
+      { tab: 'quotes', label: 'Quotes', reason: 'Handle longer engagements with more rigor.' },
+      { tab: 'recurring', label: 'Documents & Records', reason: 'Track milestones, notes, and repeat accountability rhythm.' },
+    ],
+  },
+  legal_admin: {
+    unlockedSystems: [
+      { tab: 'professional-ops', label: 'Professional Ops', reason: 'Manage intake, documents, deadlines, and engagement follow-up with more discipline.' },
+      { tab: 'services', label: 'Services', reason: 'Separate document support, filing help, and admin packages.' },
+      { tab: 'quotes', label: 'Quotes', reason: 'Handle higher-scope document or admin engagements professionally.' },
+      { tab: 'recurring', label: 'Documents & Records', reason: 'Track obligations, due dates, and delivery artifacts.' },
     ],
   },
   math_tutor: {

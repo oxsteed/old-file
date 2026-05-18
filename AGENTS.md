@@ -60,6 +60,14 @@
 - **Template metadata:** `client/src/components/profileTemplates/templateBehavior.js`, `templateWorkflowSystems.js`, and `templateFeaturePacks.js` now treat the creative cluster as discovery-first project products with `creative-ops` as a core unlocked system and stronger proposal / approval trust cues across the public template layer.
 - **Verification:** `node --check server/controllers/creativeOperationsController.js server/routes/creativeOperations.js server/index.js` passes. Client production build was not rerun here because the workspace still lacks a working local `vite` binary.
 
+**Professional-services vertical operating system pass (2026-05-18):** COMPLETE
+- **Migration 253** (`server/migrations/253_professional_operating_system.sql`): Adds `professional_operation_settings`, `professional_engagement_requests`, `professional_service_packages`, and `professional_compliance_records` so `accountant`, `consulting_coaching`, and `legal_admin` can run engagement intake, package logic, compliance tracking, and recurring obligation workflows instead of generic contact-only behavior.
+- **API:** `server/controllers/professionalOperationsController.js` + `server/routes/professionalOperations.js`, mounted in `server/index.js` at `/api/professional-operations`, provide public engagement-intake settings plus the internal professional workspace for requests, packages, compliance records, metrics, and obligation follow-up.
+- **Business Hub:** `client/src/components/businessHub/ProfessionalOperationsTab.jsx` + `client/src/pages/BusinessHubPage.jsx` add a template-only `professional-ops` workspace for engagement intake, document discipline, package logic, compliance records, and recurring reminder / obligation visibility.
+- **Public profile / intake:** `client/src/pages/BusinessProfilePage.jsx` now surfaces a professional-operations section for the professional cluster; `client/src/pages/ProfessionalIntakeRequestPage.jsx`, routed in `client/src/App.jsx` as `/business/:businessId/professional-intake`, captures service need, business context, document summary, timeline, and contact preferences before consultation or scoping.
+- **Template metadata:** `client/src/components/profileTemplates/templateBehavior.js`, `templateWorkflowSystems.js`, and `templateFeaturePacks.js` now treat the professional cluster as engagement-first products with `professional-ops` as a core unlocked system and stronger document / obligation trust cues across the public template layer.
+- **Verification:** `node --check server/controllers/professionalOperationsController.js server/routes/professionalOperations.js server/index.js` passes. Client production build was not rerun here because the workspace still lacks a working local `vite` binary.
+
 **Template industry feature-pack foundation (2026-05-17):** COMPLETE
 - **`client/src/components/profileTemplates/templateFeaturePacks.js`**: Added a centralized industry feature-pack system for every registered template. Each template now has category-aware plus slug-specific demand moments, operating workflow, differentiators, client expectations, trust signals, and signature offering structure so templates can express what that industry actually sells instead of only changing visuals.
 - **`client/src/components/profileTemplates/TemplateFeatureStack.jsx`**: Added a reusable public profile feature stack that renders the industry demand fit, buying workflow, offer structure, and trust expectations unlocked by the active template.
@@ -1297,8 +1305,7 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 ### TEMPLATE VERTICALIZATION (Now in Progress)
 
 **Finish remaining high-value template clusters as backend-backed operating systems**
-- [ ] `accountant` + `consulting_coaching` + `legal_admin`: engagement intake, document/process workflow states, engagement/package logic, compliance/trust records, pipeline/revenue metrics, and recurring obligation reminders.
-- [ ] Broader template system follow-through: activation still needs to unlock template-specific operations for the remaining templates beyond the property-manager, trades, beauty, and creative clusters shipped on 2026-05-18.
+- [ ] Broader template system follow-through: activation still needs to unlock template-specific operations for the remaining templates beyond the property-manager, trades, beauty, creative, and professional-services clusters shipped on 2026-05-18.
 
 ### POST-LAUNCH FEATURES (Customer Support & Analytics)
 

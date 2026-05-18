@@ -185,6 +185,31 @@ const CREATIVE_PROJECT_BEHAVIOR = {
   recommendedFeatures: ['Creative Ops', 'Gallery', 'Quotes', 'Messages', 'Reviews', 'Business Hub'],
 };
 
+const PROFESSIONAL_ENGAGEMENT_BEHAVIOR = {
+  mode: 'professional_intake',
+  label: 'Professional engagement mode',
+  headline: 'Built for documented intake, package clarity, and recurring obligation follow-through.',
+  description:
+    'This profile should collect the service need, document context, and engagement timeline before the client is moved into a proposal, delivery, or recurring support rhythm.',
+  primaryCta: 'Start engagement intake',
+  secondaryCta: 'Ask a question',
+  primaryIntent: 'professional_intake',
+  allowPrimaryWithoutServices: true,
+  workflow: [
+    { title: 'Capture the need', text: 'Collect the service request, timeline, and required document context before quoting.', icon: ClipboardList },
+    { title: 'Scope the engagement', text: 'Turn the request into a consultation, package, or recurring support path with clear boundaries.', icon: Briefcase },
+    { title: 'Track documents and obligations', text: 'Keep milestones, records, and recurring deadlines organized instead of buried in messages.', icon: FileText },
+    { title: 'Retain and follow up', text: 'Move completed work into repeat support, filing reminders, or future strategic check-ins.', icon: Star },
+  ],
+  setup: [
+    'Add package tiers or recurring support offers',
+    'Define document and deadline expectations',
+    'Load compliance or trust-ready records',
+    'Set follow-up prompts and recurring reminder cadence',
+  ],
+  recommendedFeatures: ['Professional Ops', 'Quotes', 'Messages', 'Recurring', 'Reviews', 'Business Hub'],
+};
+
 const STANDARD_SERVICE_BEHAVIOR = {
   mode: 'service_business',
   label: 'Service business mode',
@@ -229,6 +254,9 @@ const BEHAVIOR_BY_SLUG = {
   photographer: CREATIVE_PROJECT_BEHAVIOR,
   creative_studio: CREATIVE_PROJECT_BEHAVIOR,
   graphic_design: CREATIVE_PROJECT_BEHAVIOR,
+  accountant: PROFESSIONAL_ENGAGEMENT_BEHAVIOR,
+  consulting_coaching: PROFESSIONAL_ENGAGEMENT_BEHAVIOR,
+  legal_admin: PROFESSIONAL_ENGAGEMENT_BEHAVIOR,
   interior_design: PORTFOLIO_BEHAVIOR,
   web_app_dev: PORTFOLIO_BEHAVIOR,
 };
@@ -247,6 +275,7 @@ export const TEMPLATE_BEHAVIORS = {
   beauty: BEAUTY_APPOINTMENT_BEHAVIOR,
   appointment: APPOINTMENT_BEHAVIOR,
   creativeProject: CREATIVE_PROJECT_BEHAVIOR,
+  professionalEngagement: PROFESSIONAL_ENGAGEMENT_BEHAVIOR,
   toolRental: TOOL_RENTAL_BEHAVIOR,
   portfolio: PORTFOLIO_BEHAVIOR,
   standard: STANDARD_SERVICE_BEHAVIOR,
