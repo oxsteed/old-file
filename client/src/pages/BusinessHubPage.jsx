@@ -2396,11 +2396,7 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
           </button>
         </div>
         {err && <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{err}</div>}
-        <p className="mt-4 text-xs text-gray-500">
-          <Trans i18nKey="businessHub.profileFooterNote">
-            Services, gallery, availability, and policies are managed from your <Link to="/helper-dashboard?tab=editProfile" className="text-orange-400 hover:text-orange-300">helper profile settings</Link>.
-          </Trans>
-        </p>
+        <p className="mt-4 text-xs text-gray-500">{t('businessHub.profileFooterNote')}</p>
       </div>
     </div>
   );

@@ -3635,7 +3635,7 @@
     "fieldServiceRadius": "Rayon de Service (miles)",
     "placeholderRadius": "25",
     "btnSaveProfile": "Enregistrer le Profil",
-    "profileFooterNote": "Les services, la galerie, la disponibilité et les politiques sont gérés depuis vos <1>paramètres de profil d'assistant</1>.",
+    "profileFooterNote": "Les services, la galerie, la disponibilité, les politiques et le contenu visible par les clients sont gérés indépendamment pour cette entreprise dans les onglets du Business Hub.",
     "kpiMtdRevenue": "Revenu du Mois",
     "kpiMtdProfit": "Bénéfice du Mois",
     "kpiLastMonthRevenue": "Revenu du Mois Dernier",

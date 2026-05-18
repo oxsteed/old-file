@@ -3635,7 +3635,7 @@
     "fieldServiceRadius": "Service Radius (miles)",
     "placeholderRadius": "25",
     "btnSaveProfile": "Save Profile",
-    "profileFooterNote": "Services, gallery, availability, and policies are managed from your <1>helper profile settings</1>.",
+    "profileFooterNote": "Services, gallery, availability, policies, and related customer-facing content are managed independently for this business inside the tabs in Business Hub.",
     "kpiMtdRevenue": "MTD Revenue",
     "kpiMtdProfit": "MTD Profit",
     "kpiLastMonthRevenue": "Last Mo Revenue",

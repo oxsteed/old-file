@@ -3635,7 +3635,7 @@
     "fieldServiceRadius": "Radio de Servicio (millas)",
     "placeholderRadius": "25",
     "btnSaveProfile": "Guardar Perfil",
-    "profileFooterNote": "Los servicios, galería, disponibilidad y políticas se gestionan desde tu <1>configuración de perfil de ayudante</1>.",
+    "profileFooterNote": "Los servicios, galería, disponibilidad, políticas y demás contenido visible al cliente se gestionan de forma independiente para este negocio dentro de las pestañas del Business Hub.",
     "kpiMtdRevenue": "Ingresos del Mes",
     "kpiMtdProfit": "Ganancia del Mes",
     "kpiLastMonthRevenue": "Ingresos del Mes Pasado",

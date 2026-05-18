@@ -78,6 +78,7 @@
 
 **Business Hub profile studio redesign (2026-05-17):** COMPLETE
 - **`client/src/pages/BusinessHubPage.jsx`**: Reworked the `/business-hub?tab=profile` editing surface into a stronger profile studio. Added a readiness hero with completion progress and storefront signals, upgraded the media area with clearer empty states for logo/cover, turned business identity into a more guided editing section, improved contact/location cards with better summaries and hierarchy, and replaced the plain save button with a sticky save bar that keeps profile readiness and next steps visible while editing.
+- **Business-specific profile copy fix:** Removed the incorrect helper-profile dependency note from the Business Hub profile footer. The footer now correctly states that each business manages its own services, gallery, availability, policies, and related customer-facing content inside Business Hub, with matching copy updates in `client/src/locales/en.json`, `es.json`, `fr.json`, and `ht.json`.
 - **Verification:** Client production build still cannot run in this workspace because the local `vite` binary is unavailable (`npm run build` fails with `'vite' is not recognized as an internal or external command`).
 
 **Property maintenance request mode (2026-05-11):** COMPLETE
