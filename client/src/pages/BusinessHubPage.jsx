@@ -1156,13 +1156,13 @@ function BusinessHubInner() {
     if (tb === 'invoices') return t('businessHub.tabInvoicesLabel');
     if (tb === 'tax') return t('businessHub.tabTaxLabel');
     if (tb === 'goals') return t('businessHub.tabGoalsLabel');
-    if (tb === 'maintenance') return 'Maintenance';
-    if (tb === 'property-ops') return 'Property Ops';
-    if (tb === 'trades-ops') return 'Trades Ops';
-    if (tb === 'beauty-ops') return 'Beauty Ops';
-    if (tb === 'creative-ops') return 'Creative Ops';
-    if (tb === 'professional-ops') return 'Professional Ops';
-    if (tb === 'continuity-ops') return 'Continuity Ops';
+    if (tb === 'maintenance') return t('businessHub.tabMaintenanceLabel', { defaultValue: 'Maintenance' });
+    if (tb === 'property-ops') return t('businessHub.tabPropertyOpsLabel', { defaultValue: 'Property Ops' });
+    if (tb === 'trades-ops') return t('businessHub.tabTradesOpsLabel', { defaultValue: 'Trades Ops' });
+    if (tb === 'beauty-ops') return t('businessHub.tabBeautyOpsLabel', { defaultValue: 'Beauty Ops' });
+    if (tb === 'creative-ops') return t('businessHub.tabCreativeOpsLabel', { defaultValue: 'Creative Ops' });
+    if (tb === 'professional-ops') return t('businessHub.tabProfessionalOpsLabel', { defaultValue: 'Professional Ops' });
+    if (tb === 'continuity-ops') return t('businessHub.tabContinuityOpsLabel', { defaultValue: 'Continuity Ops' });
     if (tb === 'calendar') return t('businessHub.tabCalendarLabel', { defaultValue: 'Schedule' });
     if (tb === 'clients') return t('businessHub.tabClientsLabel', { defaultValue: 'Clients' });
     if (tb === 'ai') return t('businessHub.tabAILabel');
@@ -1175,17 +1175,17 @@ function BusinessHubInner() {
     if (tb === 'analytics')        return t('businessHub.tabAnalyticsLabel',        { defaultValue: 'Analytics' });
     if (tb === 'loyalty')          return t('businessHub.tabLoyaltyLabel',          { defaultValue: 'Loyalty' });
     if (tb === 'integrations')     return t('businessHub.tabIntegrationsLabel',     { defaultValue: 'Integrations' });
-    if (tb === 'expenses')         return 'Expenses';
-    if (tb === 'quotes')           return 'Quotes';
-    if (tb === 'recurring')        return 'Recurring';
-    if (tb === 'staff')            return 'Staff';
-    if (tb === 'reviews-mgmt')     return 'Reviews';
-    if (tb === 'marketing')        return 'Marketing';
-    if (tb === 'waitlist')         return 'Waitlist';
-    if (tb === 'packages')         return 'Packages';
-    if (tb === 'health')           return 'Health';
-    if (tb === 'leads')            return 'Leads';
-    if (tb === 'msg-templates')    return 'Templates';
+    if (tb === 'expenses')         return t('businessHub.tabExpensesLabel', { defaultValue: 'Expenses' });
+    if (tb === 'quotes')           return t('businessHub.tabQuotesLabel', { defaultValue: 'Quotes' });
+    if (tb === 'recurring')        return t('businessHub.tabRecurringLabel', { defaultValue: 'Recurring' });
+    if (tb === 'staff')            return t('businessHub.tabStaffLabel', { defaultValue: 'Staff' });
+    if (tb === 'reviews-mgmt')     return t('businessHub.tabReviewsLabel', { defaultValue: 'Reviews' });
+    if (tb === 'marketing')        return t('businessHub.tabMarketingLabel', { defaultValue: 'Marketing' });
+    if (tb === 'waitlist')         return t('businessHub.tabWaitlistLabel', { defaultValue: 'Waitlist' });
+    if (tb === 'packages')         return t('businessHub.tabPackagesLabel', { defaultValue: 'Packages' });
+    if (tb === 'health')           return t('businessHub.tabHealthLabel', { defaultValue: 'Health' });
+    if (tb === 'leads')            return t('businessHub.tabLeadsLabel', { defaultValue: 'Leads' });
+    if (tb === 'msg-templates')    return t('businessHub.tabTemplatesLabel', { defaultValue: 'Templates' });
     return tb;
   };
 
@@ -2699,7 +2699,7 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
 
 // ── Overview tab ──────────────────────────────────────────────────────────────
 function OverviewTab({ analytics, currency, bizId, businessName, canManage, setTab }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const a = analytics;
   const monthly = a?.monthly || [];
   const profitCls = value => {
@@ -2748,22 +2748,27 @@ function OverviewTab({ analytics, currency, bizId, businessName, canManage, setT
   })();
 
   const goTo = (id) => () => setTab && setTab(id);
+  const locale = i18n.resolvedLanguage || i18n.language || undefined;
   const nextLabel = calSummary?.next_event_at
-    ? new Date(calSummary.next_event_at).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    ? new Date(calSummary.next_event_at).toLocaleString(locale, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
     : null;
 
   return (
     <>
       {/* ── Today snapshot ─────────────────────────────────────────────────── */}
-      <div className="bh-today-strip" role="region" aria-label="Today">
+      <div className="bh-today-strip" role="region" aria-label={t('businessHub.overview.todayRegion')}>
         <div className="bh-today-head">
           <div>
-            <span className="bh-today-kicker">Today at {businessName || 'your business'}</span>
-            <h2>{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h2>
+            <span className="bh-today-kicker">
+              {t('businessHub.overview.todayAtBusiness', {
+                business: businessName || t('businessHub.overview.yourBusiness'),
+              })}
+            </span>
+            <h2>{new Date().toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' })}</h2>
           </div>
           {nextLabel && (
             <div className="bh-today-next">
-              <span>Next up</span>
+              <span>{t('businessHub.overview.nextUp')}</span>
               <strong>{nextLabel}</strong>
             </div>
           )}
@@ -2771,51 +2776,51 @@ function OverviewTab({ analytics, currency, bizId, businessName, canManage, setT
         <div className="bh-today-cards">
           <button type="button" className="bh-today-card" onClick={goTo('calendar')}>
             <span className="bh-today-card-num">{calSummary?.today_count ?? '-'}</span>
-            <span className="bh-today-card-label">on the calendar today</span>
+            <span className="bh-today-card-label">{t('businessHub.overview.onCalendarToday')}</span>
           </button>
           <button type="button" className="bh-today-card" onClick={goTo('calendar')}>
             <span className="bh-today-card-num">{calSummary?.this_week_count ?? '-'}</span>
-            <span className="bh-today-card-label">events this week</span>
+            <span className="bh-today-card-label">{t('businessHub.overview.eventsThisWeek')}</span>
           </button>
           <button type="button" className="bh-today-card" onClick={goTo('invoices')}>
             <span className="bh-today-card-num">{a?.invoices?.overdue_count ?? 0}</span>
-            <span className="bh-today-card-label">overdue invoices</span>
+            <span className="bh-today-card-label">{t('businessHub.overview.overdueInvoices')}</span>
           </button>
           <button type="button" className="bh-today-card" onClick={goTo('invoices')}>
             <span className="bh-today-card-num">{fmt$(a?.invoices?.outstanding_total, currency)}</span>
-            <span className="bh-today-card-label">awaiting payment</span>
+            <span className="bh-today-card-label">{t('businessHub.overview.awaitingPayment')}</span>
           </button>
         </div>
       </div>
 
       {/* ── Quick actions ribbon ──────────────────────────────────────────── */}
-      <div className="bh-quick-actions" role="region" aria-label="Quick actions">
+      <div className="bh-quick-actions" role="region" aria-label={t('businessHub.overview.quickActionsRegion')}>
         {canManage && (
           <button type="button" className="bh-quick-btn" onClick={goTo('calendar')}>
             <span className="bh-quick-emoji" aria-hidden="true">📅</span>
-            <strong>Add event</strong>
-            <span>Schedule a team meeting, delivery, or appointment</span>
+            <strong>{t('businessHub.overview.quickActions.addEvent.title')}</strong>
+            <span>{t('businessHub.overview.quickActions.addEvent.description')}</span>
           </button>
         )}
         <button type="button" className="bh-quick-btn" onClick={goTo('invoices')}>
           <span className="bh-quick-emoji" aria-hidden="true">🧾</span>
-          <strong>Send an invoice</strong>
-          <span>Get paid faster - your customers can pay online</span>
+          <strong>{t('businessHub.overview.quickActions.sendInvoice.title')}</strong>
+          <span>{t('businessHub.overview.quickActions.sendInvoice.description')}</span>
         </button>
         <button type="button" className="bh-quick-btn" onClick={goTo('goals')}>
           <span className="bh-quick-emoji" aria-hidden="true">🎯</span>
-          <strong>Set a goal</strong>
-          <span>Track revenue, profit, or job-count targets</span>
+          <strong>{t('businessHub.overview.quickActions.setGoal.title')}</strong>
+          <span>{t('businessHub.overview.quickActions.setGoal.description')}</span>
         </button>
         <button type="button" className="bh-quick-btn" onClick={goTo('team')}>
           <span className="bh-quick-emoji" aria-hidden="true">👥</span>
-          <strong>Invite a teammate</strong>
-          <span>Bring a manager or representative on board</span>
+          <strong>{t('businessHub.overview.quickActions.inviteTeammate.title')}</strong>
+          <span>{t('businessHub.overview.quickActions.inviteTeammate.description')}</span>
         </button>
         <button type="button" className="bh-quick-btn" onClick={goTo('maintenance')}>
           <span className="bh-quick-emoji" aria-hidden="true">🛠</span>
-          <strong>Open maintenance</strong>
-          <span>Property issues that need a fix</span>
+          <strong>{t('businessHub.overview.quickActions.openMaintenance.title')}</strong>
+          <span>{t('businessHub.overview.quickActions.openMaintenance.description')}</span>
         </button>
       </div>
 
@@ -2823,29 +2828,29 @@ function OverviewTab({ analytics, currency, bizId, businessName, canManage, setT
       <div className="bh-health-grid">
         <div className="bh-health-card">
           <div className="bh-health-head">
-            <span className="bh-health-kicker">Cash-flow signal</span>
-            <h3>{runway?.healthy ? 'Healthy 6-month average' : 'Tightening - watch closely'}</h3>
+            <span className="bh-health-kicker">{t('businessHub.overview.cashFlowSignal')}</span>
+            <h3>{runway?.healthy ? t('businessHub.overview.healthyAverage') : t('businessHub.overview.tighteningWatch')}</h3>
           </div>
           <div className="bh-health-body">
             <p className="bh-health-stat">
               <strong>{fmt$(runway?.avgProfit ?? 0, currency)}</strong>
-              <span>avg monthly profit (last 6)</span>
+              <span>{t('businessHub.overview.avgMonthlyProfit')}</span>
             </p>
             {runway?.burn > 0 ? (
               <p className="bh-health-stat warn">
                 <strong>{fmt$(runway.burn, currency)}</strong>
-                <span>avg monthly burn (expenses over revenue)</span>
+                <span>{t('businessHub.overview.avgMonthlyBurn')}</span>
               </p>
             ) : (
               <p className="bh-health-stat ok">
-                <strong>Profitable</strong>
-                <span>revenue is covering expenses</span>
+                <strong>{t('businessHub.overview.profitable')}</strong>
+                <span>{t('businessHub.overview.revenueCoveringExpenses')}</span>
               </p>
             )}
             {runway?.months != null && (
               <p className="bh-health-stat">
-                <strong>{runway.months} mo</strong>
-                <span>estimated runway at current burn</span>
+                <strong>{t('businessHub.overview.runwayMonthsValue', { count: runway.months })}</strong>
+                <span>{t('businessHub.overview.estimatedRunway')}</span>
               </p>
             )}
           </div>
@@ -2853,8 +2858,8 @@ function OverviewTab({ analytics, currency, bizId, businessName, canManage, setT
 
         <div className="bh-health-card">
           <div className="bh-health-head">
-            <span className="bh-health-kicker">Receivables mix</span>
-            <h3>Outstanding vs. overdue</h3>
+            <span className="bh-health-kicker">{t('businessHub.overview.receivablesMix')}</span>
+            <h3>{t('businessHub.overview.outstandingVsOverdue')}</h3>
           </div>
           <div className="bh-health-body">
             <div className="bh-receivables-bar" aria-hidden="true">
@@ -2862,14 +2867,14 @@ function OverviewTab({ analytics, currency, bizId, businessName, canManage, setT
             </div>
             <p className="bh-health-stat">
               <strong>{fmt$(a?.invoices?.outstanding_total, currency)}</strong>
-              <span>total awaiting payment</span>
+              <span>{t('businessHub.overview.totalAwaitingPayment')}</span>
             </p>
             <p className="bh-health-stat warn">
               <strong>{fmt$(a?.invoices?.overdue_total, currency)}</strong>
-              <span>{outstandingPct}% of outstanding is overdue</span>
+              <span>{t('businessHub.overview.outstandingOverdueRatio', { percent: outstandingPct })}</span>
             </p>
             <button type="button" className="bh-link-btn" onClick={goTo('invoices')}>
-              Review invoices →
+              {t('businessHub.overview.reviewInvoices')} →
             </button>
           </div>
         </div>

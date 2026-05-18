@@ -3647,6 +3647,54 @@
     "kpiAvgJobValue": "Valor Promedio del Trabajo",
     "kpiInvoicesSent": "{{count}} enviadas",
     "kpiInvoicesCount": "{{count}} facturas",
+    "overview": {
+      "todayRegion": "Hoy",
+      "quickActionsRegion": "Acciones rapidas",
+      "yourBusiness": "tu negocio",
+      "todayAtBusiness": "Hoy en {{business}}",
+      "nextUp": "Siguiente",
+      "onCalendarToday": "en el calendario de hoy",
+      "eventsThisWeek": "eventos esta semana",
+      "overdueInvoices": "facturas vencidas",
+      "awaitingPayment": "pendiente de pago",
+      "cashFlowSignal": "Senal de flujo de caja",
+      "healthyAverage": "Promedio saludable de 6 meses",
+      "tighteningWatch": "Ajustandose - vigilar de cerca",
+      "avgMonthlyProfit": "ganancia mensual promedio (ultimos 6)",
+      "avgMonthlyBurn": "consumo mensual promedio (gastos sobre ingresos)",
+      "profitable": "Rentable",
+      "revenueCoveringExpenses": "los ingresos cubren los gastos",
+      "runwayMonthsValue_one": "{{count}} mes",
+      "runwayMonthsValue_other": "{{count}} meses",
+      "estimatedRunway": "margen estimado al ritmo actual",
+      "receivablesMix": "Mezcla de cuentas por cobrar",
+      "outstandingVsOverdue": "Pendiente vs. vencido",
+      "totalAwaitingPayment": "total pendiente de pago",
+      "outstandingOverdueRatio": "{{percent}}% de lo pendiente esta vencido",
+      "reviewInvoices": "Revisar facturas",
+      "quickActions": {
+        "addEvent": {
+          "title": "Agregar evento",
+          "description": "Programa una reunion de equipo, entrega o cita"
+        },
+        "sendInvoice": {
+          "title": "Enviar una factura",
+          "description": "Cobra mas rapido - tus clientes pueden pagar en linea"
+        },
+        "setGoal": {
+          "title": "Definir una meta",
+          "description": "Sigue metas de ingresos, ganancias o cantidad de trabajos"
+        },
+        "inviteTeammate": {
+          "title": "Invitar a un companero",
+          "description": "Suma a un gerente o representante"
+        },
+        "openMaintenance": {
+          "title": "Abrir mantenimiento",
+          "description": "Problemas de la propiedad que necesitan solucion"
+        }
+      }
+    },
     "chartTitle": "P&G de 6 meses",
     "chartRevenue": "Ingresos",
     "chartExpenses": "Gastos",
@@ -3889,7 +3937,27 @@
     "loadingPolicies": "Cargando políticas…",
     "loadingServices": "Cargando servicios…",
     "tabSkillsLabel": "Habilidades",
-    "tabAILabel": "AI knowledge",
+    "tabAILabel": "Conocimiento de IA",
+    "tabMaintenanceLabel": "Mantenimiento",
+    "tabPropertyOpsLabel": "Operaciones de propiedades",
+    "tabTradesOpsLabel": "Operaciones de oficios",
+    "tabBeautyOpsLabel": "Operaciones de belleza",
+    "tabCreativeOpsLabel": "Operaciones creativas",
+    "tabProfessionalOpsLabel": "Operaciones profesionales",
+    "tabContinuityOpsLabel": "Operaciones de continuidad",
+    "tabExpensesLabel": "Gastos",
+    "tabQuotesLabel": "Cotizaciones",
+    "tabRecurringLabel": "Recurrente",
+    "tabStaffLabel": "Personal",
+    "tabReviewsLabel": "Resenas",
+    "tabMarketingLabel": "Marketing",
+    "tabWaitlistLabel": "Lista de espera",
+    "tabPackagesLabel": "Paquetes",
+    "tabHealthLabel": "Salud",
+    "tabLeadsLabel": "Prospectos",
+    "tabTemplatesLabel": "Plantillas",
+    "switchTemplate": "Cambiar plantilla",
+    "switchTemplateTitle": "Cambiar este negocio a otra plantilla de perfil",
     "editProfile": "Edit Profile",
     "menu": {
       "aria": "Navegacion del espacio",

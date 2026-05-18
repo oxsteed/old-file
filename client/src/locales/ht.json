@@ -3974,7 +3974,7 @@
     "loadingPolicies": "Chajman politiki…",
     "loadingServices": "Chajman sèvis…",
     "tabSkillsLabel": "Konpetans",
-    "tabAILabel": "AI knowledge",
+    "tabAILabel": "Konesans IA",
     "editProfile": "Edit Profile",
     "menu": {
       "aria": "Navigasyon espas la",
@@ -4057,7 +4057,75 @@
       "ai_drafts": "Bouyon IA"
     },
     "switchToVortex": "Rantre oswa jere espas yo",
-    "vortexHint": "Antre kod akse"
+    "vortexHint": "Antre kod akse",
+    "overview": {
+      "todayRegion": "Jodi a",
+      "quickActionsRegion": "Aksyon rapid",
+      "yourBusiness": "biznis ou",
+      "todayAtBusiness": "Jodi a nan {{business}}",
+      "nextUp": "Apre sa",
+      "onCalendarToday": "sou kalandriye jodi a",
+      "eventsThisWeek": "evenman semenn sa a",
+      "overdueInvoices": "fakti an reta",
+      "awaitingPayment": "peman ap tann",
+      "cashFlowSignal": "Siyal koule lajan",
+      "healthyAverage": "Bon mwayen sou 6 mwa",
+      "tighteningWatch": "Sa ap sere - veye li byen",
+      "avgMonthlyProfit": "mwayen pwofi pa mwa (6 denye yo)",
+      "avgMonthlyBurn": "mwayen depans pa mwa (depans plis pase revni)",
+      "profitable": "Li pwofitab",
+      "revenueCoveringExpenses": "revni a ap kouvri depans yo",
+      "runwayMonthsValue_one": "{{count}} mwa",
+      "runwayMonthsValue_other": "{{count}} mwa",
+      "estimatedRunway": "tan rezerv estime ak depans aktyel la",
+      "receivablesMix": "Melanj resivab",
+      "outstandingVsOverdue": "An atant kont an reta",
+      "totalAwaitingPayment": "total peman ap tann",
+      "outstandingOverdueRatio": "{{percent}}% nan sa k ap tann lan an reta",
+      "reviewInvoices": "Revize fakti yo",
+      "quickActions": {
+        "addEvent": {
+          "title": "Ajoute evenman",
+          "description": "Pwograme reyinyon ekip, livrezon, oswa randevou"
+        },
+        "sendInvoice": {
+          "title": "Voye yon fakti",
+          "description": "Resevwa lajan pi vit - kliyan ou yo ka peye sou entenet"
+        },
+        "setGoal": {
+          "title": "Mete yon objektif",
+          "description": "Swiv objektif revni, pwofi, oswa kantite travay"
+        },
+        "inviteTeammate": {
+          "title": "Envite yon koleg",
+          "description": "Mete yon manadje oswa reprezantan sou ekip la"
+        },
+        "openMaintenance": {
+          "title": "Louvri antretyen",
+          "description": "Pwoblem pwopriyete ki bezwen reparasyon"
+        }
+      }
+    },
+    "tabMaintenanceLabel": "Antretyen",
+    "tabPropertyOpsLabel": "Ops pwopriyete",
+    "tabTradesOpsLabel": "Ops metye",
+    "tabBeautyOpsLabel": "Ops bote",
+    "tabCreativeOpsLabel": "Ops kreyatif",
+    "tabProfessionalOpsLabel": "Ops pwofesyonel",
+    "tabContinuityOpsLabel": "Ops kontinwite",
+    "tabExpensesLabel": "Depans",
+    "tabQuotesLabel": "Devi",
+    "tabRecurringLabel": "Repete",
+    "tabStaffLabel": "Ekip",
+    "tabReviewsLabel": "Revizyon",
+    "tabMarketingLabel": "Maketing",
+    "tabWaitlistLabel": "Lis datant",
+    "tabPackagesLabel": "Pake",
+    "tabHealthLabel": "Sante",
+    "tabLeadsLabel": "Lead",
+    "tabTemplatesLabel": "Model",
+    "switchTemplate": "Chanje model",
+    "switchTemplateTitle": "Chanje biznis sa a pou yon lot model pwofil"
   },
   "plans": {
     "free": "Gratis",

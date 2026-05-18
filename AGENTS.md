@@ -21,6 +21,11 @@
 - 266 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
 
+**Business Hub localization hardening (2026-05-18):** COMPLETE
+- **`client/src/pages/BusinessHubPage.jsx`**: Replaced hardcoded overview-card, quick-action, financial-summary, and Business Hub tab labels with locale keys, and date/time formatting in the overview now follows the active app language instead of the browser default.
+- **`client/src/locales/en.json`, `es.json`, `fr.json`, `ht.json`**: Added a dedicated `businessHub.overview` translation block plus missing tab-label / template-switch keys so language switches cover the Business Hub workspace more consistently.
+- **Verification:** Locale JSON parses cleanly via Node. A full client build was not rerun here because this workspace still lacks a working local `vite` binary.
+
 **Template internal workflow systems foundation (2026-05-17):** COMPLETE
 - **`client/src/components/profileTemplates/templateWorkflowSystems.js`**: Added a centralized internal workflow registry for all template categories and template slugs. Each template now defines an operating model, demand pattern, workflow stages, intake requirements, recordkeeping expectations, cadence, quality controls, monetization plays, and Business Hub systems it should rely on.
 - **`client/src/components/businessHub/TemplateWorkflowSystemTab.jsx`**: Added a dedicated Business Hub template-workflow workspace that translates the active template into an internal operating system with readiness metrics, live setup checklist scoring, gap detection, next-best-action routing, demand fit, workflow stages, required records, operating cadence, quality controls, monetization guidance, and click-through system shortcuts.
@@ -1314,6 +1319,10 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 
 **Finish remaining high-value template clusters as backend-backed operating systems**
 - [ ] Broader template system follow-through: activation still needs to unlock template-specific operations for the remaining templates beyond the property-manager, trades, beauty, creative, professional-services, and continuity clusters shipped on 2026-05-18 (notably home/general long-tail, events, food, tech, and automotive follow-through).
+
+### LOCALIZATION FOLLOW-THROUGH
+
+- [ ] Continue the i18n audit beyond Business Hub: newer vertical operations tabs and adjacent workspace pages still contain hardcoded copy and should be moved onto locale keys before a full multilingual QA pass.
 
 ### POST-LAUNCH FEATURES (Customer Support & Analytics)
 

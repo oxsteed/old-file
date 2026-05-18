@@ -3647,6 +3647,54 @@
     "kpiAvgJobValue": "Avg Job Value",
     "kpiInvoicesSent": "{{count}} sent",
     "kpiInvoicesCount": "{{count}} invoices",
+    "overview": {
+      "todayRegion": "Today",
+      "quickActionsRegion": "Quick actions",
+      "yourBusiness": "your business",
+      "todayAtBusiness": "Today at {{business}}",
+      "nextUp": "Next up",
+      "onCalendarToday": "on the calendar today",
+      "eventsThisWeek": "events this week",
+      "overdueInvoices": "overdue invoices",
+      "awaitingPayment": "awaiting payment",
+      "cashFlowSignal": "Cash-flow signal",
+      "healthyAverage": "Healthy 6-month average",
+      "tighteningWatch": "Tightening - watch closely",
+      "avgMonthlyProfit": "avg monthly profit (last 6)",
+      "avgMonthlyBurn": "avg monthly burn (expenses over revenue)",
+      "profitable": "Profitable",
+      "revenueCoveringExpenses": "revenue is covering expenses",
+      "runwayMonthsValue_one": "{{count}} mo",
+      "runwayMonthsValue_other": "{{count}} mo",
+      "estimatedRunway": "estimated runway at current burn",
+      "receivablesMix": "Receivables mix",
+      "outstandingVsOverdue": "Outstanding vs. overdue",
+      "totalAwaitingPayment": "total awaiting payment",
+      "outstandingOverdueRatio": "{{percent}}% of outstanding is overdue",
+      "reviewInvoices": "Review invoices",
+      "quickActions": {
+        "addEvent": {
+          "title": "Add event",
+          "description": "Schedule a team meeting, delivery, or appointment"
+        },
+        "sendInvoice": {
+          "title": "Send an invoice",
+          "description": "Get paid faster - your customers can pay online"
+        },
+        "setGoal": {
+          "title": "Set a goal",
+          "description": "Track revenue, profit, or job-count targets"
+        },
+        "inviteTeammate": {
+          "title": "Invite a teammate",
+          "description": "Bring a manager or representative on board"
+        },
+        "openMaintenance": {
+          "title": "Open maintenance",
+          "description": "Property issues that need a fix"
+        }
+      }
+    },
     "chartTitle": "6-Month P&L",
     "chartRevenue": "Revenue",
     "chartExpenses": "Expenses",
@@ -3889,7 +3937,27 @@
     "loadingPolicies": "Loading policies…",
     "loadingServices": "Loading services…",
     "tabSkillsLabel": "Skills",
-    "tabAILabel": "AI knowledge",
+    "tabAILabel": "AI Knowledge",
+    "tabMaintenanceLabel": "Maintenance",
+    "tabPropertyOpsLabel": "Property Ops",
+    "tabTradesOpsLabel": "Trades Ops",
+    "tabBeautyOpsLabel": "Beauty Ops",
+    "tabCreativeOpsLabel": "Creative Ops",
+    "tabProfessionalOpsLabel": "Professional Ops",
+    "tabContinuityOpsLabel": "Continuity Ops",
+    "tabExpensesLabel": "Expenses",
+    "tabQuotesLabel": "Quotes",
+    "tabRecurringLabel": "Recurring",
+    "tabStaffLabel": "Staff",
+    "tabReviewsLabel": "Reviews",
+    "tabMarketingLabel": "Marketing",
+    "tabWaitlistLabel": "Waitlist",
+    "tabPackagesLabel": "Packages",
+    "tabHealthLabel": "Health",
+    "tabLeadsLabel": "Leads",
+    "tabTemplatesLabel": "Templates",
+    "switchTemplate": "Switch template",
+    "switchTemplateTitle": "Switch this business to a different profile template",
     "editProfile": "Edit Profile",
     "menu": {
       "aria": "Workspace navigation",

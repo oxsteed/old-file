@@ -3647,6 +3647,54 @@
     "kpiAvgJobValue": "Valeur Moyenne du Travail",
     "kpiInvoicesSent": "{{count}} envoyées",
     "kpiInvoicesCount": "{{count}} factures",
+    "overview": {
+      "todayRegion": "Aujourd'hui",
+      "quickActionsRegion": "Actions rapides",
+      "yourBusiness": "votre entreprise",
+      "todayAtBusiness": "Aujourd'hui chez {{business}}",
+      "nextUp": "A suivre",
+      "onCalendarToday": "au calendrier aujourd'hui",
+      "eventsThisWeek": "evenements cette semaine",
+      "overdueInvoices": "factures en retard",
+      "awaitingPayment": "paiements en attente",
+      "cashFlowSignal": "Signal de tresorerie",
+      "healthyAverage": "Moyenne solide sur 6 mois",
+      "tighteningWatch": "Resserrement - a surveiller",
+      "avgMonthlyProfit": "benefice mensuel moyen (6 derniers)",
+      "avgMonthlyBurn": "consommation mensuelle moyenne (depenses au-dessus du revenu)",
+      "profitable": "Rentable",
+      "revenueCoveringExpenses": "le revenu couvre les depenses",
+      "runwayMonthsValue_one": "{{count}} mois",
+      "runwayMonthsValue_other": "{{count}} mois",
+      "estimatedRunway": "reserve estimee au rythme actuel",
+      "receivablesMix": "Mix des creances",
+      "outstandingVsOverdue": "En attente vs. en retard",
+      "totalAwaitingPayment": "total en attente de paiement",
+      "outstandingOverdueRatio": "{{percent}}% du montant en attente est en retard",
+      "reviewInvoices": "Voir les factures",
+      "quickActions": {
+        "addEvent": {
+          "title": "Ajouter un evenement",
+          "description": "Planifiez une reunion, une livraison ou un rendez-vous"
+        },
+        "sendInvoice": {
+          "title": "Envoyer une facture",
+          "description": "Soyez paye plus vite - vos clients peuvent payer en ligne"
+        },
+        "setGoal": {
+          "title": "Definir un objectif",
+          "description": "Suivez les objectifs de revenu, benefice ou volume de travaux"
+        },
+        "inviteTeammate": {
+          "title": "Inviter un coequipier",
+          "description": "Ajoutez un gestionnaire ou un representant"
+        },
+        "openMaintenance": {
+          "title": "Ouvrir la maintenance",
+          "description": "Problemes immobiliers qui ont besoin d une intervention"
+        }
+      }
+    },
     "chartTitle": "P&P sur 6 mois",
     "chartRevenue": "Revenu",
     "chartExpenses": "Dépenses",
@@ -3889,7 +3937,27 @@
     "loadingPolicies": "Chargement des politiques…",
     "loadingServices": "Chargement des services…",
     "tabSkillsLabel": "Compétences",
-    "tabAILabel": "AI knowledge",
+    "tabAILabel": "Connaissance IA",
+    "tabMaintenanceLabel": "Maintenance",
+    "tabPropertyOpsLabel": "Ops immobilieres",
+    "tabTradesOpsLabel": "Ops metiers",
+    "tabBeautyOpsLabel": "Ops beaute",
+    "tabCreativeOpsLabel": "Ops creatives",
+    "tabProfessionalOpsLabel": "Ops professionnelles",
+    "tabContinuityOpsLabel": "Ops continuite",
+    "tabExpensesLabel": "Depenses",
+    "tabQuotesLabel": "Devis",
+    "tabRecurringLabel": "Recurrent",
+    "tabStaffLabel": "Personnel",
+    "tabReviewsLabel": "Avis",
+    "tabMarketingLabel": "Marketing",
+    "tabWaitlistLabel": "Liste d attente",
+    "tabPackagesLabel": "Forfaits",
+    "tabHealthLabel": "Sante",
+    "tabLeadsLabel": "Prospects",
+    "tabTemplatesLabel": "Modeles",
+    "switchTemplate": "Changer de modele",
+    "switchTemplateTitle": "Basculer cette entreprise vers un autre modele de profil",
     "editProfile": "Edit Profile",
     "menu": {
       "aria": "Navigation de l espace de travail",
