@@ -1069,6 +1069,9 @@ export default function HelperDashboard() {
     if (pref === 'business_name') return user?.business_name || user?.first_name || '';
     return user?.first_name || '';
   })();
+  const isTrialActive = !!user?.is_trial_active;
+  const trialDaysLeft = user?.trial_days_left ?? 0;
+  const hasProAccess = isTrialActive || user?.effective_tier === 'pro' || subscription?.status === 'active' || subscription?.status === 'trialing';
   const isProActive = subscription?.status === 'active';
   const unreadNotifs = notifications.filter(n => !n.read && !n.read_at).length;
   const activeBids = myBids.filter(b => b.status === 'pending' || b.status === 'accepted');
@@ -1273,20 +1276,19 @@ export default function HelperDashboard() {
               <Card>
                 <div className="flex items-center gap-2 mb-3"><IcoDollar size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.subscription')}</span></div>
                 {isProActive?(<><p className="text-lg font-bold text-orange-400 mb-1">{t('common.pro')}</p><Tag text={t('helperDashboard.active')} color="green"/><button onClick={openPortal} className="mt-2 text-xs text-gray-400 hover:text-gray-200 transition font-medium block">{t('helperDashboard.manageBilling')} →</button></>)
+                :isTrialActive?(<><p className="text-lg font-bold text-orange-400 mb-1">{t('common.pro')}</p><Tag text={`${t('trial.active', { defaultValue: 'Trial Active' })} · ${trialDaysLeft} ${trialDaysLeft === 1 ? t('trial.dayLeft', { defaultValue: 'day left' }) : t('trial.daysLeft', { defaultValue: 'days left' })}`} color="purple"/><p className="text-xs text-gray-500 my-2">All new accounts start with free Pro access, including verification and background check tools.</p><button onClick={()=>navigate('/upgrade')} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.viewPlans')}</button></>)
                 :selectedProNoPay?(<><p className="text-lg font-bold text-orange-400 mb-1">{t('common.pro')}</p><Tag text={t('helperDashboard.paymentPending')} color="orange"/><p className="text-xs text-gray-500 my-2">{t('helperDashboard.selectedProNoPay')}</p><button onClick={()=>createCheckout('pro')} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.completeUpgrade')}</button></>)
                 :(<><p className="text-lg font-bold text-gray-400 mb-1">{t('helperDashboard.free')}</p><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.upgradeHint')}</p><button onClick={()=>navigate('/upgrade')} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.upgradeToPro')}</button></>)}
               </Card>
               <Card>
                 <div className="flex items-center gap-2 mb-3"><IcoShield size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.backgroundCheck')}</span></div>
                 {verification.backgroundCheck?<Tag text={verification.backgroundCheck.status} color={verification.backgroundCheck.status==='passed'?'green':'orange'}/>
-                :isProActive?(<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.bgCheckHint')}</p><button onClick={startBackgroundCheck} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.startCheck')}</button></>)
-                :<p className="text-xs text-gray-500">{t('helperDashboard.requiresPro')}</p>}
+                :(<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.bgCheckHint')} Available on every account, with or without Pro.</p><button onClick={startBackgroundCheck} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.startCheck')}</button></>)}
               </Card>
               <Card>
                 <div className="flex items-center gap-2 mb-3"><IcoId size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.idVerification')}</span></div>
                 {verification.identity?<Tag text={verification.identity.status} color={verification.identity.status==='approved'?'green':'orange'}/>
-                :isProActive?(<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.idVerificationHint')}</p><button onClick={startIdentityVerification} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.verifyId')}</button></>)
-                :<p className="text-xs text-gray-500">{t('helperDashboard.requiresPro')}</p>}
+                :(<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.idVerificationHint')} Available on every account, with or without Pro.</p><button onClick={startIdentityVerification} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.verifyId')}</button></>)}
               </Card>
             </div>
 
@@ -1337,7 +1339,7 @@ export default function HelperDashboard() {
             )}
 
             {/* Pro upgrade CTA */}
-            {!isProActive && (
+            {!hasProAccess && (
               <div className="bg-gradient-to-r from-orange-500/10 via-orange-600/5 to-transparent border border-orange-500/20 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div><div className="flex items-center gap-2 mb-1"><IcoZap size={18} cls="text-orange-400"/><h3 className="text-lg font-bold text-white">{t('helperDashboard.upgradeToPro')}</h3></div><p className="text-sm text-gray-400">{t('helperDashboard.upgradeProDesc')}</p></div>
                 <button onClick={()=>navigate('/upgrade')} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2.5 rounded-xl transition whitespace-nowrap text-sm">{t('helperDashboard.viewPlans')}</button>
