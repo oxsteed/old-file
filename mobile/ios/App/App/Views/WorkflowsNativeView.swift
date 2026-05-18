@@ -16,6 +16,11 @@ struct WorkflowsNativeView: View {
                         WorkflowRow(title: "Buy products", subtitle: "Browse live marketplace products in SwiftUI.", systemImage: "bag.fill")
                     }
                     NavigationLink {
+                        ToolsNativeView()
+                    } label: {
+                        WorkflowRow(title: "Rent tools", subtitle: "Browse tools and submit peer rental requests.", systemImage: "wrench.and.screwdriver.fill")
+                    }
+                    NavigationLink {
                         ConsultationNativeView()
                     } label: {
                         WorkflowRow(title: "Book consultation", subtitle: "Submit a business ascension consulting intake.", systemImage: "hammer.fill")
@@ -61,6 +66,282 @@ struct WorkflowsNativeView: View {
             }
             .navigationTitle("Work")
         }
+    }
+}
+
+@MainActor
+final class ToolsViewModel: ObservableObject {
+    @Published var query = ""
+    @Published var tools: [NativeToolRental] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+
+    func load() async {
+        isLoading = true
+        errorMessage = nil
+        do {
+            tools = try await OxSteedAPIClient.shared.tools(query: query)
+        } catch {
+            errorMessage = "Tool rentals are temporarily unavailable."
+        }
+        isLoading = false
+    }
+}
+
+struct ToolsNativeView: View {
+    @StateObject private var model = ToolsViewModel()
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 10) {
+                    TextField("Search tools", text: $model.query)
+                        .textFieldStyle(.roundedBorder)
+                        .submitLabel(.search)
+                        .onSubmit { Task { await model.load() } }
+                    Button("Search") {
+                        Task { await model.load() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.orange)
+                }
+
+                if model.isLoading {
+                    ProgressView("Loading tools...")
+                        .frame(maxWidth: .infinity, minHeight: 120)
+                } else if let error = model.errorMessage {
+                    NativeEmptyState(title: "Tools paused", message: error, systemImage: "wrench.and.screwdriver.fill")
+                } else {
+                    ForEach(model.tools) { tool in
+                        NavigationLink {
+                            ToolDetailNativeView(toolId: tool.id.value, fallback: tool)
+                        } label: {
+                            ToolCard(tool: tool)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .navigationTitle("Tool Rentals")
+        .task {
+            if model.tools.isEmpty { await model.load() }
+        }
+    }
+}
+
+private struct ToolCard: View {
+    let tool: NativeToolRental
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top) {
+                Image(systemName: "wrench.and.screwdriver.fill")
+                    .font(.title)
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(tool.name)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text([tool.category, tool.condition].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text(toolRate(tool))
+                    .font(.caption.bold())
+                    .foregroundStyle(.orange)
+            }
+            Text(tool.description?.nilIfBlank ?? "Peer tool rental available through OxSteed.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+            Text([tool.locationCity, tool.locationState].compactMap { $0?.nilIfBlank }.joined(separator: ", "))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private func toolRate(_ tool: NativeToolRental) -> String {
+        if let value = tool.dailyRate?.value, value > 0 { return String(format: "$%.0f/day", value) }
+        if let value = tool.hourlyRate?.value, value > 0 { return String(format: "$%.0f/hr", value) }
+        return "Ask"
+    }
+}
+
+struct ToolDetailNativeView: View {
+    let toolId: String
+    let fallback: NativeToolRental
+    @EnvironmentObject private var session: SessionStore
+    @EnvironmentObject private var router: OxSteedRouter
+    @State private var tool: NativeToolRental?
+    @State private var startDate = ""
+    @State private var endDate = ""
+    @State private var agreementAccepted = false
+    @State private var isLoading = false
+    @State private var isSubmitting = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                toolHero
+                rentalTerms
+                requestPanel
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .navigationTitle("Rent Tool")
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            if tool == nil { await load() }
+        }
+        .onAppear {
+            if startDate.isEmpty {
+                startDate = Self.dateString(daysFromNow: 1)
+                endDate = Self.dateString(daysFromNow: 2)
+            }
+        }
+    }
+
+    private var current: NativeToolRental { tool ?? fallback }
+
+    private var toolHero: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let raw = current.imageURL, let url = URL(string: raw) {
+                AsyncImage(url: url) { image in
+                    image.resizable().scaledToFit()
+                } placeholder: {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: 140)
+                }
+                .frame(maxWidth: .infinity, maxHeight: 220)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            } else {
+                Image(systemName: "wrench.and.screwdriver.fill")
+                    .font(.system(size: 54))
+                    .foregroundStyle(.orange)
+            }
+            Text(current.category ?? "Tool rental")
+                .font(.caption.bold())
+                .foregroundStyle(.orange)
+            Text(current.name)
+                .font(.largeTitle.bold())
+            Text(current.description?.nilIfBlank ?? "This peer-owned tool can be requested for rental dates.")
+                .foregroundStyle(.secondary)
+            Text([current.brand, current.model, current.condition].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(20)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private var rentalTerms: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Rental terms")
+                .font(.headline)
+            Text(rateText)
+                .font(.title3.bold())
+            if current.requiresDeposit == true {
+                Text("Deposit may be required: \(money(current.depositAmount?.value))")
+                    .foregroundStyle(.secondary)
+            }
+            Text(current.ownerRules?.nilIfBlank ?? "Inspect the tool before use, follow owner rules, and return it clean and working.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var requestPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Request rental")
+                .font(.headline)
+            TextField("Start date (YYYY-MM-DD)", text: $startDate)
+                .textFieldStyle(.roundedBorder)
+            TextField("End date (YYYY-MM-DD)", text: $endDate)
+                .textFieldStyle(.roundedBorder)
+            Toggle("I accept the peer rental acknowledgement", isOn: $agreementAccepted)
+            if !session.isSignedIn {
+                Text("Sign in on the Account tab to request this rental.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            PrimaryButton(title: isSubmitting ? "Requesting..." : "Request rental", systemImage: "calendar.badge.plus") {
+                Task { await submit() }
+            }
+            .disabled(!session.isSignedIn || !agreementAccepted || isSubmitting)
+            SecondaryButton(title: "Full listing fallback", systemImage: "safari") {
+                router.open(OxSteedRoute(id: "tool-\(toolId)", path: "/tool-rentals?openTool=\(toolId)"))
+            }
+            if let statusMessage {
+                Text(statusMessage)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(statusMessage.contains("sent") ? .green : .secondary)
+            }
+        }
+        .padding(16)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var rateText: String {
+        if let value = current.dailyRate?.value, value > 0 { return String(format: "$%.2f per day", value) }
+        if let value = current.hourlyRate?.value, value > 0 { return String(format: "$%.2f per hour", value) }
+        return "Price by owner"
+    }
+
+    private func money(_ value: Double?) -> String {
+        guard let value else { return "TBD" }
+        return String(format: "$%.2f", value)
+    }
+
+    private func load() async {
+        isLoading = true
+        do {
+            tool = try await OxSteedAPIClient.shared.toolDetail(id: toolId)
+        } catch {
+            statusMessage = "Full tool detail could not load. Showing browse data."
+        }
+        isLoading = false
+    }
+
+    private func submit() async {
+        isSubmitting = true
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.bookTool(ToolBookingSubmission(
+                toolId: toolId,
+                startDate: startDate,
+                endDate: endDate,
+                renterAgreementAccepted: agreementAccepted
+            ))
+            statusMessage = "Rental request sent."
+        } catch {
+            statusMessage = "Could not request this rental. Check the dates and availability."
+        }
+        isSubmitting = false
+    }
+
+    private static func dateString(daysFromNow: Int) -> String {
+        let date = Calendar.current.date(byAdding: .day, value: daysFromNow, to: Date()) ?? Date()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
     }
 }
 
@@ -603,20 +884,33 @@ struct CalendarNativeView: View {
     @EnvironmentObject private var session: SessionStore
     @State private var appointments: [AppointmentItem] = []
     @State private var statusMessage: String?
+    @State private var role = "customer"
 
     var body: some View {
-        List {
-            if !session.isSignedIn {
-                Text("Sign in on the Account tab to load calendar appointments.")
-            } else if appointments.isEmpty {
-                Text(statusMessage ?? "No appointments loaded yet.")
-            } else {
-                ForEach(appointments) { appointment in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(appointment.jobTitle ?? "Appointment")
-                        Text([appointment.status, appointment.scheduledStartTime].compactMap { $0 }.joined(separator: " - "))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+        VStack {
+            Picker("Calendar role", selection: $role) {
+                Text("Customer").tag("customer")
+                Text("Helper").tag("helper")
+            }
+            .pickerStyle(.segmented)
+            .padding([.horizontal, .top])
+            .onChange(of: role) {
+                Task { await load() }
+            }
+
+            List {
+                if !session.isSignedIn {
+                    Text("Sign in on the Account tab to load calendar appointments.")
+                } else if appointments.isEmpty {
+                    Text(statusMessage ?? "No appointments loaded yet.")
+                } else {
+                    ForEach(appointments) { appointment in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(appointment.jobTitle ?? "Appointment")
+                            Text([appointment.status, appointment.scheduledStartTime].compactMap { $0 }.joined(separator: " - "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
@@ -624,8 +918,16 @@ struct CalendarNativeView: View {
         .navigationTitle("Calendar")
         .task {
             guard session.isSignedIn else { return }
-            do { appointments = try await OxSteedAPIClient.shared.appointments() }
-            catch { statusMessage = "Could not load appointments." }
+            if appointments.isEmpty { await load() }
+        }
+    }
+
+    private func load() async {
+        do {
+            appointments = try await OxSteedAPIClient.shared.appointments(role: role)
+            statusMessage = nil
+        } catch {
+            statusMessage = "Could not load appointments."
         }
     }
 }
@@ -651,7 +953,11 @@ struct BusinessHubNativeView: View {
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(owned) { business in
-                            BusinessRow(business: business)
+                            NavigationLink {
+                                BusinessCalendarNativeView(business: business)
+                            } label: {
+                                BusinessRow(business: business)
+                            }
                         }
                     }
                 }
@@ -662,7 +968,11 @@ struct BusinessHubNativeView: View {
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(managed) { business in
-                            BusinessRow(business: business)
+                            NavigationLink {
+                                BusinessCalendarNativeView(business: business)
+                            } label: {
+                                BusinessRow(business: business)
+                            }
                         }
                     }
                 }
@@ -718,6 +1028,67 @@ struct BusinessHubNativeView: View {
             managed = try await managedBusinesses
         } catch {
             statusMessage = "Could not load Business Hub data."
+        }
+        isLoading = false
+    }
+}
+
+struct BusinessCalendarNativeView: View {
+    let business: NativeBusiness
+    @State private var appointments: [BusinessAppointmentItem] = []
+    @State private var isLoading = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        List {
+            Section {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(business.businessName)
+                        .font(.headline)
+                    Text([business.businessType, business.activeTemplate, business.role].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section("Appointments") {
+                if isLoading {
+                    ProgressView("Loading appointments...")
+                } else if appointments.isEmpty {
+                    Text(statusMessage ?? "No business appointments loaded.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(appointments) { appointment in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(appointment.serviceName ?? "Appointment")
+                                .font(.headline)
+                            Text(appointment.customerName ?? "Customer")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text([appointment.status, appointment.startTime].compactMap { $0 }.joined(separator: " - "))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Business Calendar")
+        .task {
+            if appointments.isEmpty { await load() }
+        }
+        .refreshable {
+            await load()
+        }
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            appointments = try await OxSteedAPIClient.shared.businessAppointments(businessId: business.id.value)
+        } catch {
+            statusMessage = "Could not load this business calendar."
         }
         isLoading = false
     }

@@ -86,6 +86,10 @@ final class OxSteedAPIClient {
         try await postEncodable("jobs", body: payload, authenticated: true)
     }
 
+    func submitBookingRequest(_ payload: BookingRequestSubmission) async throws -> BookingRequestResponse {
+        try await postEncodable("bookings", body: payload, authenticated: true)
+    }
+
     func conversations() async throws -> [ConversationItem] {
         try await get("messages/conversations", authenticated: true)
     }
@@ -105,6 +109,14 @@ final class OxSteedAPIClient {
     func appointments() async throws -> [AppointmentItem] {
         let response: AppointmentsResponse = try await get("calendar/appointments", queryItems: [
             URLQueryItem(name: "limit", value: "10")
+        ], authenticated: true)
+        return response.appointments
+    }
+
+    func appointments(role: String) async throws -> [AppointmentItem] {
+        let response: AppointmentsResponse = try await get("calendar/appointments", queryItems: [
+            URLQueryItem(name: "limit", value: "25"),
+            URLQueryItem(name: "role", value: role)
         ], authenticated: true)
         return response.appointments
     }
@@ -131,6 +143,35 @@ final class OxSteedAPIClient {
             "productId": productId,
             "quantity": quantity
         ], authenticated: true)
+    }
+
+    func tools(query: String = "") async throws -> [NativeToolRental] {
+        var items = [
+            URLQueryItem(name: "limit", value: "20"),
+            URLQueryItem(name: "sort", value: "newest")
+        ]
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            items.append(URLQueryItem(name: "name", value: trimmed))
+        }
+        let response: ToolBrowseResponse = try await get("tool-rentals/browse", queryItems: items)
+        return response.tools
+    }
+
+    func toolDetail(id: String) async throws -> NativeToolRental {
+        let response: ToolDetailResponse = try await get("tool-rentals/public/\(id)")
+        return response.tool
+    }
+
+    func bookTool(_ payload: ToolBookingSubmission) async throws -> ToolBookingResponse {
+        try await postEncodable("tool-rentals/bookings", body: payload, authenticated: true)
+    }
+
+    func businessAppointments(businessId: String) async throws -> [BusinessAppointmentItem] {
+        let response: BusinessAppointmentsResponse = try await get("businesses/\(businessId)/appointments", queryItems: [
+            URLQueryItem(name: "limit", value: "25")
+        ], authenticated: true)
+        return response.appointments
     }
 
     private func get<T: Decodable>(_ path: String, queryItems: [URLQueryItem] = [], authenticated: Bool = false) async throws -> T {

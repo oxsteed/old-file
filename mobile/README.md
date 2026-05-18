@@ -20,14 +20,16 @@ Native iOS app project for publishing OxSteed to the App Store.
   - Post a job through the authenticated `/api/jobs` endpoint.
   - Browse marketplace products from `/api/marketplace/products/browse`.
   - Open native product detail pages and create native carts.
+  - Request helper services through the authenticated `/api/bookings` endpoint without requiring payment at submission time.
+  - Browse tool rentals, open native tool detail pages, and request rentals through `/api/tool-rentals`.
   - Submit business consultation requests through `/api/consulting/submit`.
   - Load authenticated messages from `/api/messages/conversations`.
   - Open native message threads and send messages through `/api/messages/conversations/:id`.
-  - Load authenticated appointments from `/api/calendar/appointments`.
+  - Load authenticated customer/helper appointments from `/api/calendar/appointments` with a native role toggle.
   - Open native helper profile details, service menus, trust signals, hours, and reviews.
   - Open native job detail pages with scope, requirements, budget, status, and schedule context.
-  - Load owned and managed Business Hub businesses natively.
-- `SFSafariViewController` is now limited to explicit fallback paths for flows that still require the full web transaction layer: final service booking, protected bid submission, payment checkout, full Business Hub tools not yet rebuilt natively, account creation, and tool rentals.
+  - Load owned and managed Business Hub businesses natively and drill into per-business appointment calendars.
+- `SFSafariViewController` is now limited to explicit fallback paths for flows that still require the full web transaction layer: protected bid submission, payment checkout, full Business Hub editing tools not yet rebuilt natively, account creation, and full listing pages when native detail data is unavailable.
 - The iOS deployment target is currently `17.0`.
 
 ## Build
@@ -73,6 +75,6 @@ In Xcode:
 ## Native Follow-Up
 
 - Reconnect native APNs registration directly from Swift instead of through the former Capacitor web bridge.
-- Move the remaining transaction edges out of Safari: final helper booking, protected bid submission, payment checkout, account creation, and deeper Business Hub editing tools.
+- Move the remaining transaction edges out of Safari: protected bid submission, payment checkout, account creation, and deeper Business Hub editing tools.
 - Store session tokens in Keychain instead of `UserDefaults` before production release.
 - Capture fresh App Store screenshots from the SwiftUI tabs before submitting the next build.

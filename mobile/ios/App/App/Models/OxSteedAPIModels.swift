@@ -391,6 +391,47 @@ struct AppointmentItem: Decodable, Identifiable {
     }
 }
 
+struct BookingRequestSubmission: Encodable {
+    let helperId: String?
+    let businessId: String?
+    let serviceName: String
+    let requestedDate: String
+    let requestedStartTime: String
+    let requestedEndTime: String
+    let serviceLocation: String
+    let description: String
+    let confirmationHours: Int
+}
+
+struct BookingRequestResponse: Decodable {
+    let success: Bool?
+    let bookingId: FlexibleString?
+    let data: BookingRequestItem?
+    let message: String?
+}
+
+struct BookingRequestItem: Decodable, Identifiable {
+    let id: FlexibleString
+    let helperId: FlexibleString?
+    let serviceName: String?
+    let requestedDate: String?
+    let requestedStartTime: String?
+    let requestedEndTime: String?
+    let serviceLocation: String?
+    let description: String?
+    let status: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, description, status
+        case helperId = "helper_id"
+        case serviceName = "service_name"
+        case requestedDate = "requested_date"
+        case requestedStartTime = "requested_start_time"
+        case requestedEndTime = "requested_end_time"
+        case serviceLocation = "service_location"
+    }
+}
+
 struct ConsultingSubmission: Encodable {
     let email: String
     let first_name: String
@@ -471,6 +512,111 @@ struct CartItemResponse: Decodable {
     enum CodingKeys: String, CodingKey {
         case id, quantity
         case productId = "product_id"
+    }
+}
+
+struct ToolBrowseResponse: Decodable {
+    let tools: [NativeToolRental]
+}
+
+struct ToolDetailResponse: Decodable {
+    let tool: NativeToolRental
+}
+
+struct NativeToolRental: Decodable, Identifiable {
+    let id: FlexibleString
+    let ownerId: FlexibleString?
+    let name: String
+    let category: String?
+    let description: String?
+    let dailyRate: FlexibleDouble?
+    let hourlyRate: FlexibleDouble?
+    let depositAmount: FlexibleDouble?
+    let condition: String?
+    let brand: String?
+    let model: String?
+    let isAvailable: Bool?
+    let requiresDeposit: Bool?
+    let deliveryAvailable: Bool?
+    let pickupOnly: Bool?
+    let locationCity: String?
+    let locationState: String?
+    let ownerRules: String?
+    let ownerName: String?
+    let avgRating: FlexibleDouble?
+    let reviewCount: Int?
+    let imageURL: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, category, description, condition, brand, model
+        case ownerId = "owner_id"
+        case dailyRate = "daily_rate"
+        case hourlyRate = "hourly_rate"
+        case depositAmount = "deposit_amount"
+        case isAvailable = "is_available"
+        case requiresDeposit = "requires_deposit"
+        case deliveryAvailable = "delivery_available"
+        case pickupOnly = "pickup_only"
+        case locationCity = "location_city"
+        case locationState = "location_state"
+        case ownerRules = "owner_rules"
+        case ownerName = "owner_name"
+        case avgRating = "avg_rating"
+        case reviewCount = "review_count"
+        case imageURL = "image_url"
+    }
+}
+
+struct ToolBookingSubmission: Encodable {
+    let toolId: String
+    let startDate: String
+    let endDate: String
+    let renterAgreementAccepted: Bool
+}
+
+struct ToolBookingResponse: Decodable {
+    let id: FlexibleString
+    let toolId: FlexibleString?
+    let customerId: FlexibleString?
+    let ownerId: FlexibleString?
+    let startDate: String?
+    let endDate: String?
+    let totalPrice: FlexibleDouble?
+    let status: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, status
+        case toolId = "tool_id"
+        case customerId = "customer_id"
+        case ownerId = "owner_id"
+        case startDate = "start_date"
+        case endDate = "end_date"
+        case totalPrice = "total_price"
+    }
+}
+
+struct BusinessAppointmentsResponse: Decodable {
+    let appointments: [BusinessAppointmentItem]
+}
+
+struct BusinessAppointmentItem: Decodable, Identifiable {
+    let id: FlexibleString
+    let serviceName: String?
+    let customerName: String?
+    let startTime: String?
+    let endTime: String?
+    let status: String?
+    let paymentStatus: String?
+    let finalPriceCents: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id, status
+        case serviceName = "service_name"
+        case customerName = "customer_name"
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case paymentStatus = "payment_status"
+        case finalPriceCents = "final_price_cents"
     }
 }
 

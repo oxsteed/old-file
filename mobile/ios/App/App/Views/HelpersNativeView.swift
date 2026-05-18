@@ -131,6 +131,7 @@ struct HelperDetailNativeView: View {
     let helperId: String
     let fallback: NativeHelper
     @EnvironmentObject private var router: OxSteedRouter
+    @EnvironmentObject private var session: SessionStore
     @State private var profile: HelperProfileResponse?
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -267,8 +268,19 @@ struct HelperDetailNativeView: View {
 
     private var actions: some View {
         VStack(spacing: 10) {
-            PrimaryButton(title: "Start booking", systemImage: "calendar.badge.plus") {
-                router.open(fallback.route)
+            if session.isSignedIn {
+                NavigationLink {
+                    ServiceBookingRequestNativeView(helperId: helperId, defaultService: profile?.services.first?.name ?? fallback.displayName)
+                } label: {
+                    Label("Request service", systemImage: "calendar.badge.plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.orange)
+            } else {
+                Text("Sign in on the Account tab to request service natively.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             SecondaryButton(title: "Open full web profile", systemImage: "safari") {
                 router.open(fallback.route)
@@ -303,6 +315,93 @@ struct HelperDetailNativeView: View {
             errorMessage = "Could not load the full native profile. You can still use the booking action."
         }
         isLoading = false
+    }
+}
+
+struct ServiceBookingRequestNativeView: View {
+    let helperId: String
+    let defaultService: String
+    @State private var serviceName: String
+    @State private var requestedDate = ""
+    @State private var startTime = "09:00"
+    @State private var endTime = "10:00"
+    @State private var location = ""
+    @State private var description = ""
+    @State private var statusMessage: String?
+    @State private var isSubmitting = false
+
+    init(helperId: String, defaultService: String) {
+        self.helperId = helperId
+        self.defaultService = defaultService
+        _serviceName = State(initialValue: defaultService)
+    }
+
+    var body: some View {
+        Form {
+            Section("Service") {
+                TextField("Service name", text: $serviceName)
+                TextField("Date (YYYY-MM-DD)", text: $requestedDate)
+                    .textContentType(.none)
+                TextField("Start time (HH:MM)", text: $startTime)
+                TextField("End time (HH:MM)", text: $endTime)
+            }
+            Section("Where and what") {
+                TextField("Service location", text: $location, axis: .vertical)
+                    .lineLimit(2, reservesSpace: true)
+                TextField("Describe the work", text: $description, axis: .vertical)
+                    .lineLimit(5, reservesSpace: true)
+            }
+            Section {
+                Button(isSubmitting ? "Submitting..." : "Send booking request") {
+                    Task { await submit() }
+                }
+                .disabled(isSubmitting)
+                Text("This creates a real OxSteed booking request. Payment can be handled later if the helper accepts.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if let statusMessage {
+                Section {
+                    Text(statusMessage)
+                }
+            }
+        }
+        .navigationTitle("Request Service")
+        .onAppear {
+            if requestedDate.isEmpty {
+                requestedDate = Self.defaultDate()
+            }
+        }
+    }
+
+    private func submit() async {
+        isSubmitting = true
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.submitBookingRequest(BookingRequestSubmission(
+                helperId: helperId,
+                businessId: nil,
+                serviceName: serviceName,
+                requestedDate: requestedDate,
+                requestedStartTime: startTime,
+                requestedEndTime: endTime,
+                serviceLocation: location,
+                description: description,
+                confirmationHours: 24
+            ))
+            statusMessage = "Booking request sent."
+            description = ""
+        } catch {
+            statusMessage = "Could not send booking request. Check the date, time, and work description."
+        }
+        isSubmitting = false
+    }
+
+    private static func defaultDate() -> String {
+        let date = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
     }
 }
 
