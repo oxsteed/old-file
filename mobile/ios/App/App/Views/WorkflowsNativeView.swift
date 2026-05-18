@@ -1,8 +1,6 @@
 import SwiftUI
 
 struct WorkflowsNativeView: View {
-    @EnvironmentObject private var router: OxSteedRouter
-
     var body: some View {
         NavigationStack {
             List {
@@ -37,8 +35,8 @@ struct WorkflowsNativeView: View {
                     } label: {
                         WorkflowRow(title: "Calendar", subtitle: "View upcoming appointments from your OxSteed account.", systemImage: "calendar")
                     }
-                    Button {
-                        router.open(.helpers)
+                    NavigationLink {
+                        HelpersNativeView()
                     } label: {
                         WorkflowRow(title: "Book services", subtitle: "Choose a helper or business, then continue to booking.", systemImage: "calendar.badge.plus")
                     }
@@ -47,12 +45,15 @@ struct WorkflowsNativeView: View {
                 }
 
                 Section {
-                    ForEach(OxSteedContent.businessWorkflows) { workflow in
-                        Button {
-                            router.open(workflow.route)
-                        } label: {
-                            WorkflowRow(title: workflow.title, subtitle: workflow.body, systemImage: workflow.symbol)
-                        }
+                    NavigationLink {
+                        BusinessHubNativeView()
+                    } label: {
+                        WorkflowRow(title: "Business Hub", subtitle: "Load owned and managed businesses natively.", systemImage: "building.columns.fill")
+                    }
+                    NavigationLink {
+                        ConsultationNativeView()
+                    } label: {
+                        WorkflowRow(title: "Business support", subtitle: "Book consulting intake without leaving the app.", systemImage: "hammer.fill")
                     }
                 } header: {
                     Text("Business")
@@ -184,7 +185,6 @@ final class ProductsViewModel: ObservableObject {
 
 struct ProductsNativeView: View {
     @StateObject private var model = ProductsViewModel()
-    @EnvironmentObject private var router: OxSteedRouter
 
     var body: some View {
         ScrollView {
@@ -196,8 +196,8 @@ struct ProductsNativeView: View {
                     NativeEmptyState(title: "Products paused", message: error, systemImage: "bag.fill")
                 } else {
                     ForEach(model.products) { product in
-                        Button {
-                            router.open(product.route)
+                        NavigationLink {
+                            ProductDetailNativeView(productId: product.id.value, fallback: product)
                         } label: {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(product.category ?? "Marketplace")
@@ -235,6 +235,174 @@ struct ProductsNativeView: View {
     private func price(_ cents: Int?) -> String {
         guard let cents else { return "Price available at checkout" }
         return String(format: "$%.2f", Double(cents) / 100)
+    }
+}
+
+struct ProductDetailNativeView: View {
+    let productId: String
+    let fallback: NativeProduct
+    @EnvironmentObject private var session: SessionStore
+    @EnvironmentObject private var router: OxSteedRouter
+    @State private var product: NativeProductDetail?
+    @State private var quantity = 1
+    @State private var isLoading = false
+    @State private var isAdding = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                if isLoading && product == nil {
+                    ProgressView("Loading product...")
+                        .frame(maxWidth: .infinity, minHeight: 160)
+                } else {
+                    productHero
+                    productFacts
+                    productSkills
+                    cartPanel
+                }
+
+                if let statusMessage {
+                    Text(statusMessage)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(statusMessage.contains("Added") ? .green : .secondary)
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(AppTheme.card)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .navigationTitle("Product")
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            if product == nil { await load() }
+        }
+    }
+
+    private var currentName: String { product?.name ?? fallback.name }
+    private var currentDescription: String { product?.description?.nilIfBlank ?? fallback.description?.nilIfBlank ?? "Marketplace product details are available for OxSteed work." }
+
+    private var productHero: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let raw = product?.productImageURL ?? fallback.productImageURL, let url = URL(string: raw) {
+                AsyncImage(url: url) { image in
+                    image.resizable().scaledToFit()
+                } placeholder: {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: 160)
+                }
+                .frame(maxWidth: .infinity, maxHeight: 220)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            } else {
+                Image(systemName: "bag.fill")
+                    .font(.system(size: 54))
+                    .foregroundStyle(.orange)
+            }
+            Text(product?.category ?? fallback.category ?? "Marketplace")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.orange)
+            Text(currentName)
+                .font(.largeTitle.bold())
+            Text(currentDescription)
+                .foregroundStyle(.secondary)
+            Text(price(product?.priceCents ?? fallback.priceCents))
+                .font(.title2.bold())
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(20)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private var productFacts: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 10)], spacing: 10) {
+            ProductFact(title: "Rating", value: ratingText, systemImage: "star.fill")
+            ProductFact(title: "Availability", value: product?.isAvailable == false ? "Paused" : "Available", systemImage: "checkmark.seal.fill")
+            ProductFact(title: "In carts", value: "\(product?.inCartsCount ?? 0)", systemImage: "cart.fill")
+            ProductFact(title: "Source", value: product?.source ?? "OxSteed", systemImage: "shippingbox.fill")
+        }
+    }
+
+    private var productSkills: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Useful for")
+                .font(.headline)
+            let skills = product?.skills ?? []
+            if skills.isEmpty {
+                Text("Skill matching will appear here when this product is connected to work categories.")
+                    .foregroundStyle(.secondary)
+            } else {
+                FlowTags(tags: skills.map(\.name))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var cartPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Cart")
+                .font(.headline)
+            Stepper("Quantity: \(quantity)", value: $quantity, in: 1...20)
+            if !session.isSignedIn {
+                Text("Sign in on the Account tab to create a cart natively.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            PrimaryButton(title: isAdding ? "Adding..." : "Add to native cart", systemImage: "cart.badge.plus") {
+                Task { await addToCart() }
+            }
+            .disabled(!session.isSignedIn || isAdding)
+            SecondaryButton(title: "Checkout fallback", systemImage: "creditcard.fill") {
+                router.open(fallback.route)
+            }
+        }
+        .padding(16)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var ratingText: String {
+        let value = product?.avgRating?.value ?? fallback.avgRating?.value ?? 0
+        return value > 0 ? String(format: "%.1f", value) : "New"
+    }
+
+    private func price(_ cents: Int?) -> String {
+        guard let cents else { return "Price available at checkout" }
+        return String(format: "$%.2f", Double(cents) / 100)
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            product = try await OxSteedAPIClient.shared.productDetail(id: productId)
+        } catch {
+            statusMessage = "Full product detail could not load. Showing browse data."
+        }
+        isLoading = false
+    }
+
+    private func addToCart() async {
+        isAdding = true
+        statusMessage = nil
+        do {
+            let cart = try await OxSteedAPIClient.shared.createCart(
+                name: "Mobile cart - \(currentName)",
+                description: "Created from the native iOS app."
+            )
+            _ = try await OxSteedAPIClient.shared.addProduct(productId: productId, toCart: cart.id.value, quantity: quantity)
+            statusMessage = "Added to native cart."
+        } catch {
+            statusMessage = "Could not add this product to a cart yet."
+        }
+        isAdding = false
     }
 }
 
@@ -313,11 +481,28 @@ struct MessagesNativeView: View {
                 Text(statusMessage ?? "No conversations loaded yet.")
             } else {
                 ForEach(conversations) { conversation in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(conversation.otherUserName ?? conversation.jobTitle ?? "Conversation")
-                        Text(conversation.lastMessage ?? "No recent message")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    NavigationLink {
+                        ConversationThreadNativeView(conversation: conversation)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(conversation.otherUserName ?? conversation.jobTitle ?? "Conversation")
+                                Spacer()
+                                if let unread = conversation.unreadCount, unread > 0 {
+                                    Text("\(unread)")
+                                        .font(.caption.bold())
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 7)
+                                        .padding(.vertical, 3)
+                                        .background(.orange)
+                                        .clipShape(Capsule())
+                                }
+                            }
+                            Text(conversation.lastMessage ?? "No recent message")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
                     }
                 }
             }
@@ -328,6 +513,89 @@ struct MessagesNativeView: View {
             do { conversations = try await OxSteedAPIClient.shared.conversations() }
             catch { statusMessage = "Could not load conversations." }
         }
+    }
+}
+
+struct ConversationThreadNativeView: View {
+    let conversation: ConversationItem
+    @State private var messages: [MessageItem] = []
+    @State private var draft = ""
+    @State private var isLoading = false
+    @State private var isSending = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            List {
+                if isLoading && messages.isEmpty {
+                    ProgressView("Loading thread...")
+                } else if messages.isEmpty {
+                    Text(statusMessage ?? "No messages yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(messages) { message in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(message.senderName ?? "OxSteed user")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.orange)
+                            Text(message.content)
+                            if let created = message.createdAt {
+                                Text(created)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+            }
+
+            HStack(spacing: 10) {
+                TextField("Message", text: $draft, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(1...4)
+                Button {
+                    Task { await send() }
+                } label: {
+                    Image(systemName: isSending ? "hourglass" : "paperplane.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.orange)
+                .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
+            }
+            .padding()
+            .background(.bar)
+        }
+        .navigationTitle(conversation.otherUserName ?? conversation.jobTitle ?? "Thread")
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            if messages.isEmpty { await load() }
+        }
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            messages = try await OxSteedAPIClient.shared.conversationMessages(conversationId: conversation.id.value)
+        } catch {
+            statusMessage = "Could not load this message thread."
+        }
+        isLoading = false
+    }
+
+    private func send() async {
+        let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        isSending = true
+        do {
+            _ = try await OxSteedAPIClient.shared.sendMessage(conversationId: conversation.id.value, content: trimmed)
+            draft = ""
+            await load()
+        } catch {
+            statusMessage = "Could not send this message."
+        }
+        isSending = false
     }
 }
 
@@ -359,5 +627,172 @@ struct CalendarNativeView: View {
             do { appointments = try await OxSteedAPIClient.shared.appointments() }
             catch { statusMessage = "Could not load appointments." }
         }
+    }
+}
+
+struct BusinessHubNativeView: View {
+    @EnvironmentObject private var session: SessionStore
+    @EnvironmentObject private var router: OxSteedRouter
+    @State private var owned: [NativeBusiness] = []
+    @State private var managed: [NativeBusiness] = []
+    @State private var isLoading = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        List {
+            if !session.isSignedIn {
+                Text("Sign in on the Account tab to load Business Hub natively.")
+            } else if isLoading {
+                ProgressView("Loading businesses...")
+            } else {
+                Section("Owned businesses") {
+                    if owned.isEmpty {
+                        Text("No owned businesses found.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(owned) { business in
+                            BusinessRow(business: business)
+                        }
+                    }
+                }
+
+                Section("Managed businesses") {
+                    if managed.isEmpty {
+                        Text("No managed businesses found.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(managed) { business in
+                            BusinessRow(business: business)
+                        }
+                    }
+                }
+
+                Section("Native tools") {
+                    NavigationLink {
+                        CalendarNativeView()
+                    } label: {
+                        WorkflowRow(title: "Calendar", subtitle: "Appointments and scheduling context.", systemImage: "calendar")
+                    }
+                    NavigationLink {
+                        MessagesNativeView()
+                    } label: {
+                        WorkflowRow(title: "Messages", subtitle: "Customer and work conversations.", systemImage: "message.fill")
+                    }
+                    NavigationLink {
+                        ProductsNativeView()
+                    } label: {
+                        WorkflowRow(title: "Products", subtitle: "Marketplace products and cart creation.", systemImage: "bag.fill")
+                    }
+                }
+
+                Section {
+                    Button {
+                        router.open(.businessHub)
+                    } label: {
+                        WorkflowRow(title: "Full Business Hub fallback", subtitle: "Use only for tools not rebuilt natively yet.", systemImage: "safari")
+                    }
+                }
+            }
+
+            if let statusMessage {
+                Section {
+                    Text(statusMessage)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle("Business Hub")
+        .task {
+            guard session.isSignedIn, owned.isEmpty && managed.isEmpty else { return }
+            await load()
+        }
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            async let ownedBusinesses = OxSteedAPIClient.shared.businesses()
+            async let managedBusinesses = OxSteedAPIClient.shared.managedBusinesses()
+            owned = try await ownedBusinesses
+            managed = try await managedBusinesses
+        } catch {
+            statusMessage = "Could not load Business Hub data."
+        }
+        isLoading = false
+    }
+}
+
+private struct BusinessRow: View {
+    let business: NativeBusiness
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(business.businessName)
+                    .font(.headline)
+                Spacer()
+                if business.isPrimary == true {
+                    Text("Primary")
+                        .font(.caption.bold())
+                        .foregroundStyle(.orange)
+                }
+            }
+            Text([business.businessType, business.activeTemplate, business.role].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text([business.addressCity, business.addressState, business.addressCountry].compactMap { $0?.nilIfBlank }.joined(separator: ", "))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+private struct ProductFact: View {
+    let title: String
+    let value: String
+    let systemImage: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: systemImage)
+                .foregroundStyle(.orange)
+            Text(value)
+                .font(.headline)
+                .lineLimit(2)
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+private struct FlowTags: View {
+    let tags: [String]
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 8)], alignment: .leading, spacing: 8) {
+            ForEach(tags, id: \.self) { tag in
+                Text(tag)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.orange)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.orange.opacity(0.12))
+                    .clipShape(Capsule())
+            }
+        }
+    }
+}
+
+private extension String {
+    var nilIfBlank: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }

@@ -55,6 +55,19 @@ final class OxSteedAPIClient {
         return response.data
     }
 
+    func helperProfile(id: String) async throws -> HelperProfileResponse {
+        try await get("helpers/\(id)/profile")
+    }
+
+    func jobDetail(id: String) async throws -> NativeJobDetail {
+        try await get("jobs/\(id)")
+    }
+
+    func productDetail(id: String) async throws -> NativeProductDetail {
+        let response: APIDataResponse<NativeProductDetail> = try await get("marketplace/products/\(id)")
+        return response.data
+    }
+
     func login(email: String, password: String, agreementName: String) async throws -> LoginResponse {
         try await post("auth/login", body: [
             "email": email,
@@ -77,11 +90,47 @@ final class OxSteedAPIClient {
         try await get("messages/conversations", authenticated: true)
     }
 
+    func conversationMessages(conversationId: String) async throws -> [MessageItem] {
+        try await get("messages/conversations/\(conversationId)", queryItems: [
+            URLQueryItem(name: "limit", value: "60")
+        ], authenticated: true)
+    }
+
+    func sendMessage(conversationId: String, content: String) async throws -> MessageSendResponse {
+        try await post("messages/conversations/\(conversationId)", body: [
+            "content": content
+        ], authenticated: true)
+    }
+
     func appointments() async throws -> [AppointmentItem] {
         let response: AppointmentsResponse = try await get("calendar/appointments", queryItems: [
             URLQueryItem(name: "limit", value: "10")
         ], authenticated: true)
         return response.appointments
+    }
+
+    func businesses() async throws -> [NativeBusiness] {
+        let response: BusinessListResponse = try await get("businesses", authenticated: true)
+        return response.businesses
+    }
+
+    func managedBusinesses() async throws -> [NativeBusiness] {
+        let response: BusinessListResponse = try await get("businesses/managed", authenticated: true)
+        return response.businesses
+    }
+
+    func createCart(name: String, description: String?) async throws -> CartCreateResponse {
+        try await post("carts", body: [
+            "name": name,
+            "description": description ?? ""
+        ], authenticated: true)
+    }
+
+    func addProduct(productId: String, toCart cartId: String, quantity: Int) async throws -> CartItemResponse {
+        try await post("carts/\(cartId)/items", body: [
+            "productId": productId,
+            "quantity": quantity
+        ], authenticated: true)
     }
 
     private func get<T: Decodable>(_ path: String, queryItems: [URLQueryItem] = [], authenticated: Bool = false) async throws -> T {

@@ -20,7 +20,6 @@ final class JobsViewModel: ObservableObject {
 
 struct JobsNativeView: View {
     @StateObject private var model = JobsViewModel()
-    @EnvironmentObject private var router: OxSteedRouter
 
     var body: some View {
         NavigationStack {
@@ -40,9 +39,12 @@ struct JobsNativeView: View {
                     } else {
                         VStack(spacing: 12) {
                             ForEach(model.jobs) { job in
-                                JobCard(job: job) {
-                                    router.open(job.route)
+                                NavigationLink {
+                                    JobDetailNativeView(jobId: job.id.value, fallback: job)
+                                } label: {
+                                    JobCard(job: job)
                                 }
+                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -69,52 +71,48 @@ struct JobsNativeView: View {
 
 private struct JobCard: View {
     let job: NativeJob
-    let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(job.categoryName ?? "Local service")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.orange)
-                        Text(job.title)
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                            .multilineTextAlignment(.leading)
-                    }
-                    Spacer()
-                    if job.isUrgent == true {
-                        Label("Urgent", systemImage: "bolt.fill")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.red)
-                    }
-                }
-
-                if let description = job.description, !description.isEmpty {
-                    Text(description)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(job.categoryName ?? "Local service")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.orange)
+                    Text(job.title)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
                         .multilineTextAlignment(.leading)
-                        .lineLimit(3)
                 }
-
-                HStack(spacing: 10) {
-                    Label(location, systemImage: "mappin.and.ellipse")
-                    if let bids = job.bidCount {
-                        Label("\(bids) bids", systemImage: "bubble.left.and.bubble.right.fill")
-                    }
-                    Text(budget)
+                Spacer()
+                if job.isUrgent == true {
+                    Label("Urgent", systemImage: "bolt.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.red)
                 }
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
             }
-            .padding(16)
-            .background(AppTheme.card)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+            if let description = job.description, !description.isEmpty {
+                Text(description)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(3)
+            }
+
+            HStack(spacing: 10) {
+                Label(location.isEmpty ? "Remote/local" : location, systemImage: "mappin.and.ellipse")
+                if let bids = job.bidCount {
+                    Label("\(bids) bids", systemImage: "bubble.left.and.bubble.right.fill")
+                }
+                Text(budget)
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
         }
-        .buttonStyle(.plain)
+        .padding(16)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private var location: String {
@@ -131,5 +129,186 @@ private struct JobCard: View {
             return "From $\(Int(min))"
         }
         return "Open budget"
+    }
+}
+
+struct JobDetailNativeView: View {
+    let jobId: String
+    let fallback: NativeJob
+    @EnvironmentObject private var router: OxSteedRouter
+    @EnvironmentObject private var session: SessionStore
+    @State private var job: NativeJobDetail?
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                if isLoading && job == nil {
+                    ProgressView("Loading job...")
+                        .frame(maxWidth: .infinity, minHeight: 160)
+                } else {
+                    header
+                    quickFacts
+                    descriptionSection
+                    requirementsSection
+                    actionPanel
+                }
+
+                if let errorMessage {
+                    NativeEmptyState(title: "Job details paused", message: errorMessage, systemImage: "briefcase.fill")
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .navigationTitle("Job")
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            if job == nil { await load() }
+        }
+    }
+
+    private var currentTitle: String { job?.title ?? fallback.title }
+    private var currentDescription: String { job?.description?.nilIfBlank ?? fallback.description?.nilIfBlank ?? "The customer has not added more written scope yet." }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(job?.categoryName ?? fallback.categoryName ?? "Local service")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.orange)
+            Text(currentTitle)
+                .font(.largeTitle.bold())
+            Text([job?.locationCity ?? fallback.locationCity, job?.locationState ?? fallback.locationState].compactMap { $0?.nilIfBlank }.joined(separator: ", "))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            if job?.isUrgent == true || fallback.isUrgent == true {
+                Label("Urgent request", systemImage: "bolt.fill")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.red)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(20)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private var quickFacts: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 10)], spacing: 10) {
+            JobFactTile(title: "Budget", value: budget, systemImage: "dollarsign.circle.fill")
+            JobFactTile(title: "Bids", value: "\(job?.bidCount ?? fallback.bidCount ?? 0)", systemImage: "bubble.left.and.bubble.right.fill")
+            JobFactTile(title: "Status", value: job?.status ?? fallback.status ?? "Open", systemImage: "flag.fill")
+            JobFactTile(title: "Schedule", value: schedule, systemImage: "calendar")
+        }
+    }
+
+    private var descriptionSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Scope")
+                .font(.headline)
+            Text(currentDescription)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var requirementsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Requirements")
+                .font(.headline)
+            let requirements = job?.requirements ?? []
+            if requirements.isEmpty {
+                Text("No special requirements listed.")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(requirements, id: \.self) { requirement in
+                    Label(requirement, systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var actionPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Next action")
+                .font(.headline)
+            Text(session.isSignedIn ? "Use the native job detail to decide fit. Bidding still needs the full protected bid flow." : "Sign in on the Account tab to bid or manage this job.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            PrimaryButton(title: session.isSignedIn ? "Open bid flow" : "Sign in to bid", systemImage: "paperplane.fill") {
+                router.open(fallback.route)
+            }
+            SecondaryButton(title: "Share job link", systemImage: "square.and.arrow.up") {
+                router.open(fallback.route)
+            }
+        }
+        .padding(16)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var budget: String {
+        let min = job?.budgetMin?.value ?? fallback.budgetMin?.value ?? 0
+        let max = job?.budgetMax?.value ?? fallback.budgetMax?.value ?? 0
+        if max > 0 { return "$\(Int(min))-$\(Int(max))" }
+        if min > 0 { return "From $\(Int(min))" }
+        return "Open"
+    }
+
+    private var schedule: String {
+        if let date = job?.scheduledDate?.nilIfBlank {
+            return [date, job?.scheduledTime].compactMap { $0?.nilIfBlank }.joined(separator: " ")
+        }
+        return "Flexible"
+    }
+
+    private func load() async {
+        isLoading = true
+        errorMessage = nil
+        do {
+            job = try await OxSteedAPIClient.shared.jobDetail(id: jobId)
+        } catch {
+            errorMessage = "Could not load the full native job detail. The public job route is still available."
+        }
+        isLoading = false
+    }
+}
+
+private struct JobFactTile: View {
+    let title: String
+    let value: String
+    let systemImage: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: systemImage)
+                .foregroundStyle(.orange)
+            Text(value)
+                .font(.headline)
+                .lineLimit(2)
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+private extension String {
+    var nilIfBlank: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }

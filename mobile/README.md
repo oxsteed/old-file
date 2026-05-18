@@ -19,11 +19,15 @@ Native iOS app project for publishing OxSteed to the App Store.
 - `Work` covers the main App Review-facing workflows with native SwiftUI surfaces:
   - Post a job through the authenticated `/api/jobs` endpoint.
   - Browse marketplace products from `/api/marketplace/products/browse`.
+  - Open native product detail pages and create native carts.
   - Submit business consultation requests through `/api/consulting/submit`.
   - Load authenticated messages from `/api/messages/conversations`.
+  - Open native message threads and send messages through `/api/messages/conversations/:id`.
   - Load authenticated appointments from `/api/calendar/appointments`.
-  - Route into service booking from the native helper/business discovery flow.
-- Detail/action buttons still open selected live OxSteed routes in `SFSafariViewController` for flows that have not yet been rebuilt natively: profile detail, job detail/bidding, checkout, full booking, full conversation threads, Business Hub, and tool rentals.
+  - Open native helper profile details, service menus, trust signals, hours, and reviews.
+  - Open native job detail pages with scope, requirements, budget, status, and schedule context.
+  - Load owned and managed Business Hub businesses natively.
+- `SFSafariViewController` is now limited to explicit fallback paths for flows that still require the full web transaction layer: final service booking, protected bid submission, payment checkout, full Business Hub tools not yet rebuilt natively, account creation, and tool rentals.
 - The iOS deployment target is currently `17.0`.
 
 ## Build
@@ -69,6 +73,6 @@ In Xcode:
 ## Native Follow-Up
 
 - Reconnect native APNs registration directly from Swift instead of through the former Capacitor web bridge.
-- Move the remaining detail/transaction edges out of Safari: helper profile booking, job detail/bidding, product checkout, full message threads, and Business Hub overview.
+- Move the remaining transaction edges out of Safari: final helper booking, protected bid submission, payment checkout, account creation, and deeper Business Hub editing tools.
 - Store session tokens in Keychain instead of `UserDefaults` before production release.
 - Capture fresh App Store screenshots from the SwiftUI tabs before submitting the next build.

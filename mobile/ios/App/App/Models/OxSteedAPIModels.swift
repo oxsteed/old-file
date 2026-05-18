@@ -26,7 +26,7 @@ struct HelpersResponse: Decodable {
 }
 
 struct NativeHelper: Decodable, Identifiable {
-    let id: String
+    let id: FlexibleString
     let businessName: String?
     let ownerName: String?
     let tagline: String?
@@ -49,7 +49,7 @@ struct NativeHelper: Decodable, Identifiable {
     }
 
     var route: OxSteedRoute {
-        OxSteedRoute(id: "helper-\(id)", path: profileUrl ?? "/helpers/\(id)")
+        OxSteedRoute(id: "helper-\(id.value)", path: profileUrl ?? "/helpers/\(id.value)")
     }
 }
 
@@ -58,7 +58,7 @@ struct JobsResponse: Decodable {
 }
 
 struct NativeJob: Decodable, Identifiable {
-    let id: String
+    let id: FlexibleString
     let title: String
     let description: String?
     let categoryName: String?
@@ -74,7 +74,7 @@ struct NativeJob: Decodable, Identifiable {
     let createdAt: String?
 
     var route: OxSteedRoute {
-        OxSteedRoute(id: "job-\(id)", path: "/jobs/\(id)")
+        OxSteedRoute(id: "job-\(id.value)", path: "/jobs/\(id.value)")
     }
 
     enum CodingKeys: String, CodingKey {
@@ -113,6 +113,10 @@ struct ProductBrowseResponse: Decodable {
     let data: [NativeProduct]
 }
 
+struct APIDataResponse<T: Decodable>: Decodable {
+    let data: T
+}
+
 struct NativeProduct: Decodable, Identifiable {
     let id: FlexibleString
     let name: String
@@ -134,6 +138,171 @@ struct NativeProduct: Decodable, Identifiable {
         case avgRating = "avg_rating"
         case ratingCount = "rating_count"
     }
+}
+
+struct HelperProfileResponse: Decodable {
+    let helper: HelperProfile
+    let services: [HelperService]
+    let gallery: [HelperGalleryItem]?
+    let hours: [HelperHour]?
+    let policies: [HelperPolicy]?
+    let reviews: [HelperReview]?
+    let faqs: [HelperFAQ]?
+}
+
+struct HelperProfile: Decodable, Identifiable {
+    let id: FlexibleString
+    let businessName: String?
+    let ownerName: String?
+    let tagline: String?
+    let bio: String?
+    let rating: FlexibleDouble?
+    let reviewCount: Int?
+    let jobsCompleted: Int?
+    let verified: Bool?
+    let responseTime: String?
+    let responseRate: Int?
+    let badges: [HelperBadge]?
+    let categories: [String]?
+    let city: String?
+    let state: String?
+    let hasLicense: Bool?
+    let hasInsurance: Bool?
+    let yearsInBusiness: Int?
+    let isAvailableNow: Bool?
+    let allowBooking: Bool?
+    let allowLiveChat: Bool?
+}
+
+struct HelperBadge: Decodable, Identifiable {
+    let id: String
+    let label: String
+}
+
+struct HelperService: Decodable, Identifiable {
+    let id: FlexibleString
+    let name: String
+    let description: String?
+    let price: FlexibleDouble?
+    let priceUnit: String?
+    let duration: String?
+    let popular: Bool?
+    let category: String?
+}
+
+struct HelperGalleryItem: Decodable, Identifiable {
+    let id: FlexibleString
+    let url: String?
+    let caption: String?
+}
+
+struct HelperHour: Decodable, Identifiable {
+    var id: String { day }
+    let day: String
+    let open: String?
+    let close: String?
+    let closed: Bool?
+}
+
+struct HelperPolicy: Decodable, Identifiable {
+    let id: FlexibleString
+    let title: String
+    let content: String?
+}
+
+struct HelperReview: Decodable, Identifiable {
+    let id: FlexibleString
+    let authorName: String?
+    let rating: FlexibleDouble?
+    let content: String?
+    let verified: Bool?
+}
+
+struct HelperFAQ: Decodable, Identifiable {
+    let id: FlexibleString
+    let question: String
+    let answer: String?
+}
+
+struct NativeJobDetail: Decodable, Identifiable {
+    let id: FlexibleString
+    let clientId: FlexibleString?
+    let title: String
+    let description: String?
+    let categoryName: String?
+    let budgetType: String?
+    let budgetMin: FlexibleDouble?
+    let budgetMax: FlexibleDouble?
+    let urgency: String?
+    let isUrgent: Bool?
+    let status: String?
+    let jobTypeLabel: String?
+    let locationCity: String?
+    let locationState: String?
+    let locationCountry: String?
+    let scheduledDate: String?
+    let scheduledTime: String?
+    let requirements: [String]?
+    let bidCount: Int?
+    let clientName: String?
+    let helperName: String?
+    let createdAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, description, urgency, status, requirements
+        case clientId = "client_id"
+        case categoryName = "category_name"
+        case budgetType = "budget_type"
+        case budgetMin = "budget_min"
+        case budgetMax = "budget_max"
+        case isUrgent = "is_urgent"
+        case jobTypeLabel = "job_type_label"
+        case locationCity = "location_city"
+        case locationState = "location_state"
+        case locationCountry = "location_country"
+        case scheduledDate = "scheduled_date"
+        case scheduledTime = "scheduled_time"
+        case bidCount = "bid_count"
+        case clientName = "client_name"
+        case helperName = "helper_name"
+        case createdAt = "created_at"
+    }
+}
+
+struct NativeProductDetail: Decodable, Identifiable {
+    let id: FlexibleString
+    let name: String
+    let description: String?
+    let category: String?
+    let sku: String?
+    let priceCents: Int?
+    let currency: String?
+    let affiliateURL: String?
+    let productImageURL: String?
+    let isAvailable: Bool?
+    let source: String?
+    let avgRating: FlexibleDouble?
+    let ratingCount: Int?
+    let inCartsCount: Int?
+    let helperReviewCount: Int?
+    let skills: [ProductSkill]?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, description, category, sku, currency, source, skills
+        case priceCents = "price_cents"
+        case affiliateURL = "affiliate_url"
+        case productImageURL = "product_image_url"
+        case isAvailable = "is_available"
+        case avgRating = "avg_rating"
+        case ratingCount = "rating_count"
+        case inCartsCount = "in_carts_count"
+        case helperReviewCount = "helper_review_count"
+    }
+}
+
+struct ProductSkill: Decodable, Identifiable {
+    let id: FlexibleString
+    let name: String
 }
 
 struct FlexibleString: Decodable, Hashable {
@@ -177,6 +346,28 @@ struct ConversationItem: Decodable, Identifiable {
         case unreadCount = "unread_count"
         case lastMessageAt = "last_message_at"
     }
+}
+
+struct MessageItem: Decodable, Identifiable {
+    let id: FlexibleString
+    let conversationId: FlexibleString?
+    let senderId: FlexibleString?
+    let senderName: String?
+    let content: String
+    let createdAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, content
+        case conversationId = "conversation_id"
+        case senderId = "sender_id"
+        case senderName = "sender_name"
+        case createdAt = "created_at"
+    }
+}
+
+struct MessageSendResponse: Decodable {
+    let id: FlexibleString?
+    let content: String?
 }
 
 struct AppointmentsResponse: Decodable {
@@ -233,6 +424,54 @@ struct JobSubmission: Encodable {
 struct JobSubmissionResponse: Decodable {
     let id: FlexibleString?
     let title: String?
+}
+
+struct BusinessListResponse: Decodable {
+    let businesses: [NativeBusiness]
+}
+
+struct NativeBusiness: Decodable, Identifiable {
+    let id: FlexibleString
+    let businessName: String
+    let businessType: String?
+    let description: String?
+    let website: String?
+    let phone: String?
+    let addressCity: String?
+    let addressState: String?
+    let addressCountry: String?
+    let isPrimary: Bool?
+    let isActive: Bool?
+    let activeTemplate: String?
+    let role: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, description, website, phone, role
+        case businessName = "business_name"
+        case businessType = "business_type"
+        case addressCity = "address_city"
+        case addressState = "address_state"
+        case addressCountry = "address_country"
+        case isPrimary = "is_primary"
+        case isActive = "is_active"
+        case activeTemplate = "active_template"
+    }
+}
+
+struct CartCreateResponse: Decodable {
+    let id: FlexibleString
+    let name: String?
+}
+
+struct CartItemResponse: Decodable {
+    let id: FlexibleString?
+    let productId: FlexibleString?
+    let quantity: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id, quantity
+        case productId = "product_id"
+    }
 }
 
 private extension String {
