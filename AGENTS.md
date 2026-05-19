@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-18
+**Last updated:** 2026-05-19
 
 ## Instructions for Every Session
 
@@ -21,11 +21,16 @@
 - 266 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
 
-**Native SwiftUI iOS app foundation (2026-05-18):** COMPLETE
-- **`mobile/ios/App/App/OxSteedApp.swift`, `AppDelegate.swift`, `Models/OxSteedModels.swift`, `Models/OxSteedAPIModels.swift`, `Services/OxSteedRouter.swift`, `Services/OxSteedAPIClient.swift`, `Stores/SessionStore.swift`, `Support/SafariView.swift`, `Views/*.swift`**: Replaced the Capacitor WebView entry point with a native SwiftUI iOS app. The app now has a first-run OxSteed intro plus native tabs for Overview, Discover, Jobs, Helpers, Work, and Account. Discover, Jobs, and Helpers fetch live public OxSteed API data and render native SwiftUI lists/search; Account signs in and creates customer/helper accounts through the OxSteed API with website-parity agreement capture, server error surfacing, `/auth/me` validation, 2FA completion, refresh-token retry, profile update, resend-verification, and role switching; Work adds native post-job, product browsing/detail/cart creation, order list/cancel, tool-rental browse/detail/request, consultation intake, message list/thread/send, customer/helper calendar role switching, booking request list/cancel/accept/decline, helper profile detail, native service-booking requests via `/api/bookings`, job detail with native bid submission via `/api/bids`, owned/managed Business Hub listing, per-business appointment calendar drill-in, business create/edit profile forms, native business service creation, invoice list/create/send/mark-paid, client CRM list/create, business product list/create/detail, product variant create, low-stock alerts, inventory adjustment, service package list/create, client package list/issue/redeem, product bulk-pricing tier editing, product pricing rule list/create, team member list/invite, finance/tax/calendar summary dashboard, expense list/create, quote list/create/send, lead pipeline list/create, recurring billing list/create, revenue goal list/create, and internal calendar event creation. `SFSafariViewController` is now reserved for explicit fallbacks around checkout, advanced Business Hub tools, and full listing pages.
-- **`mobile/ios/App/App.xcodeproj/project.pbxproj`, `Info.plist`, `mobile/ios/App/ExportOptions-app-store.plist`**: Removed stale Capacitor/CocoaPods build phase dependencies and the old main-storyboard startup path, wired the new SwiftUI files into the iOS target, raised the iOS deployment target to 17.0, bumped the native TestFlight build to `1.0 (11)`, and added App Store Connect upload export options while preserving bundle id `com.oxsteed.app`, launch screen, icons, URL scheme, and associated-domain entitlements.
-- **`mobile/README.md`**: Updated mobile docs to describe the SwiftUI app shape, native workflow coverage, and current follow-up work.
-- **Verification:** `xcodebuild -workspace mobile/ios/App/App.xcworkspace -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build` passes. Unsigned device-target release build also passes with `xcodebuild -workspace mobile/ios/App/App.xcworkspace -scheme App -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build`. `plutil -lint mobile/ios/App/App/Info.plist mobile/ios/App/App/App.entitlements mobile/ios/App/ExportOptions-app-store.plist` passes. Signed archives `mobile/build/OxSteed-native-1.0.3.xcarchive`, `mobile/build/OxSteed-native-1.0.4.xcarchive`, `mobile/build/OxSteed-native-1.0.5.xcarchive`, `mobile/build/OxSteed-native-1.0.6.xcarchive`, `mobile/build/OxSteed-native-1.0.7.xcarchive`, `mobile/build/OxSteed-native-1.0.8.xcarchive`, `mobile/build/OxSteed-native-1.0.9.xcarchive`, `mobile/build/OxSteed-native-1.0.10.xcarchive`, and `mobile/build/OxSteed-native-1.0.11.xcarchive` were created with Xcode automatic provisioning; `xcodebuild -exportArchive` uploaded build `1.0 (3)` to App Store Connect/TestFlight processing on 2026-05-18 at 9:02 PM America/New_York, build `1.0 (4)` at 9:33 PM, build `1.0 (5)` at 9:54 PM, build `1.0 (6)` at 9:59 PM, build `1.0 (7)` at 10:13 PM, build `1.0 (8)` at 10:21 PM, build `1.0 (9)` at 10:37 PM, build `1.0 (10)` on 2026-05-19 at 6:13 AM, and build `1.0 (11)` on 2026-05-19 at 6:35 AM America/New_York.
+**Expo React Native mobile reset (2026-05-19):** IN PROGRESS
+- **`mobile/package.json`, `mobile/app.json`, `mobile/App.tsx`, `mobile/tsconfig.json`, `mobile/babel.config.js`, `mobile/src/**`**: Restarted the mobile client as an Expo React Native + TypeScript companion app instead of continuing the SwiftUI-only pass. The shell now uses React Navigation tabs, TanStack Query, Zustand auth state, SecureStore sessions, Expo Notifications, shared native UI primitives, and feature flags for staged rollout.
+- **Mobile cleanup:** Removed stale Capacitor/Vite entry files, the SwiftUI iOS project, old mobile screenshots, and the obsolete lockfile so `mobile/` now represents the Expo app source instead of multiple competing mobile shells.
+- **Phase 1 foundation:** Mobile login, registration, two-factor completion, `/api/auth/me` hydration, refresh-token retry, customer/helper role switching, email-verification resend, push-token registration, Customer / Helper / Post / Messages / Account tabs, and an initial native Post Job transaction flow are scaffolded against the existing backend.
+- **Backend mobile feed:** **`server/controllers/mobileController.js` + `server/routes/mobile.js`** add authenticated `GET /api/mobile/feed`, a consolidated mobile dashboard payload for customer jobs, available jobs, booking requests, appointments, planned needs, conversations, marketplace order summary, and owned businesses. Existing `POST /api/mobile/push-token` remains the push-registration endpoint.
+- **`mobile/README.md`** now documents the Expo reset, active backend contract, local-development commands, and product direction: native iOS/Android companion app for transaction flows, not a replacement for the full web platform.
+- **Verification:** `node --check server/controllers/mobileController.js server/routes/mobile.js` passes. Expo install/typecheck was not run because this workspace shell currently has no working `npm` binary.
+
+**Historical native SwiftUI iOS app foundation (2026-05-18):** REPLACED BY EXPO RESET
+- This SwiftUI/TestFlight pass remains in repository history, but active mobile development has pivoted to the Expo React Native plan above so iOS and Android can share one client on the existing backend.
 
 **Business Hub localization hardening (2026-05-18):** COMPLETE
 - **`client/src/pages/BusinessHubPage.jsx`**: Replaced hardcoded overview-card, quick-action, financial-summary, and Business Hub tab labels with locale keys, and date/time formatting in the overview now follows the active app language instead of the browser default.
@@ -378,8 +383,8 @@
 - **Dashboard readability follow-up**: Light-mode muted text now maps darker (`text-gray-300/400/500/600`), and translucent dashboard row/card fills (`bg-gray-800/10..40`, `bg-gray-700/10..30`) remap to near-white surfaces instead of muddy gray blocks.
 - **Verification**: `client` production build passes with only the existing large chunk warning remaining. Local browser smoke check was attempted against Vite on port 5173, but the dev server did not respond reliably in the agent environment, so this pass is code/build verified rather than visually verified.
 
-**Mobile app shell + native push foundation (2026-05-09):** SUPERSEDED BY 2026-05-18 SWIFTUI APP
-- **`mobile/`**: Originally added a Capacitor 7 shell for iOS/Android App Store packaging. The iOS target has since been converted to native SwiftUI; this section remains historical context for the backend push-token and app-store release work.
+**Mobile app shell + native push foundation (2026-05-09):** SUPERSEDED BY 2026-05-19 EXPO RESET
+- **`mobile/`**: Originally added a Capacitor 7 shell for iOS/Android App Store packaging. The mobile client has since been reset to Expo React Native; this section remains historical context for the backend push-token and app-store release work.
 - **iOS native project**: `Info.plist` registers `oxsteed://`. `App.entitlements` includes push + associated domains for `applinks:oxsteed.com` and `applinks:www.oxsteed.com`. Xcode Team selected: `ZBRGSDRRU7` (`emile jean philippe`).
 - **`client/src/utils/mobileBridge.js`**: Web app now detects Capacitor only inside the native app, requests push permission after a signed-in `accessToken` exists, registers APNs/FCM token through `/api/mobile/push-token`, and routes notification taps to same-origin OxSteed paths.
 - **`server/controllers/mobileController.js` + `server/routes/mobile.js`**: Added authenticated `POST /api/mobile/push-token` and `DELETE /api/mobile/push-token` for native token registration/disable.
@@ -1335,12 +1340,13 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 
 - [ ] Continue the i18n audit beyond Business Hub: newer vertical operations tabs and adjacent workspace pages still contain hardcoded copy and should be moved onto locale keys before a full multilingual QA pass.
 
-### NATIVE IOS APP FOLLOW-THROUGH
+### EXPO MOBILE APP FOLLOW-THROUGH
 
-- [ ] Replace the remaining Safari handoffs in the SwiftUI app with native transaction flows for the edges still missing after the 2026-05-18 native-transaction pass: payment checkout and deeper Business Hub tools such as finance detail and vertical operating-system tabs.
-- [ ] Move native iOS session-token storage from `UserDefaults` to Keychain before production release.
-- [ ] Reconnect APNs registration directly from Swift and verify notification deep links against the SwiftUI router before submitting a replacement App Store build.
-- [ ] Capture fresh SwiftUI App Store screenshots and decide whether to cancel/replace the historical Capacitor build `1.0 (2)` in App Store Connect.
+- [ ] Install Expo dependencies once a package manager is available, run `npm run typecheck`, and launch the app through Expo on iOS before cutting the next TestFlight candidate.
+- [ ] Finish Phase 2 customer core: multi-step Post Job with photos/location/drafts, helper browse/profile/detail booking CTA, native messages, planned-needs creation/conversion, and invoice/payment-status screens.
+- [ ] Finish Phase 3 helper core: job feed filters, bid submission, helper availability/calendar, profile/service/gallery editing, and earnings/payout status.
+- [ ] Add the remaining required mobile endpoints: `GET /api/mobile/nearby`, `POST /api/mobile/offline-sync`, and `GET /api/business/:id/workspace/mobile-summary`.
+- [ ] Add deep linking, crash reporting, Expo build credentials, fresh App Store / Play Store screenshots, and production push-provider verification before launch review.
 
 ### POST-LAUNCH FEATURES (Customer Support & Analytics)
 

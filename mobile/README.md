@@ -1,86 +1,62 @@
 # OxSteed Mobile
 
-Native iOS app project for publishing OxSteed to the App Store.
+Expo React Native + TypeScript app for building a native iOS/Android companion to the current OxSteed web platform.
 
 ## Current Shape
 
-- `mobile/ios/App` is now a SwiftUI iOS app, not a Capacitor WebView shell.
-- The app keeps the existing bundle id `com.oxsteed.app`, icon assets, launch screen, URL scheme, and associated-domain entitlements.
-- First launch shows a native SwiftUI introduction to OxSteed.
-- Main tabs now combine native product education with live native marketplace data:
-  - Overview
-  - Discover
-  - Jobs
-  - Helpers
-  - Work
-  - Account
-- `Discover`, `Jobs`, and `Helpers` fetch live public OxSteed API data and render it in SwiftUI lists/search screens.
-- `Account` signs in or creates customer/helper accounts through the OxSteed API and stores the native session token for authenticated actions.
-- `Work` covers the main App Review-facing workflows with native SwiftUI surfaces:
-  - Post a job through the authenticated `/api/jobs` endpoint.
-  - Browse marketplace products from `/api/marketplace/products/browse`.
-  - Open native product detail pages and create native carts.
-  - Request helper services through the authenticated `/api/bookings` endpoint without requiring payment at submission time.
-  - Browse tool rentals, open native tool detail pages, and request rentals through `/api/tool-rentals`.
-  - Submit business consultation requests through `/api/consulting/submit`.
-  - Load authenticated messages from `/api/messages/conversations`.
-  - Open native message threads and send messages through `/api/messages/conversations/:id`.
-  - Load authenticated customer/helper appointments from `/api/calendar/appointments` with a native role toggle.
-  - Open native helper profile details, service menus, trust signals, hours, and reviews.
-  - Open native job detail pages with scope, requirements, budget, status, and schedule context.
-  - Submit helper bids through `/api/bids` directly from native job detail pages.
-  - Load owned and managed Business Hub businesses natively, drill into per-business appointment calendars, edit business profile/contact/location fields, create businesses, and create business services.
-- Load and create core Business Hub records natively: invoices, clients, business products, and team invites.
-- Manage more Business Hub commerce tools natively: service packages, product detail/variants, low-stock alerts, inventory adjustments, and product pricing rules.
-- Issue and redeem client packages natively, and set product bulk-pricing discount tiers from product detail pages.
-- `SFSafariViewController` is now limited to explicit fallback paths for flows that still require the full web transaction layer: payment checkout, advanced Business Hub tools not yet rebuilt natively, and full listing pages when native detail data is unavailable.
-- The iOS deployment target is currently `17.0`.
-- The current native TestFlight build number is `1.0 (8)`.
+- `mobile/package.json`, `mobile/app.json`, `mobile/App.tsx`, and `mobile/src/**` are the active mobile app surface.
+- The app uses Expo, React Navigation bottom tabs, TanStack Query, Zustand, SecureStore, and Expo Notifications.
+- The bundle identifiers remain `com.oxsteed.app` for iOS and Android so the App Store / Play Store identity can stay consistent.
+- Phase 1 is focused on the logged-in native shell:
+  - JWT login against the existing OxSteed API.
+  - Two-factor login completion.
+  - Registration for customer and helper accounts.
+  - Session hydration with `/api/auth/me`.
+  - Token refresh and secure token storage.
+  - Customer/helper role switching from Account.
+  - Push token registration through `/api/mobile/push-token`.
+  - Feature flags for tabs that are being built in phases.
+- Phase 2 has an initial foothold:
+  - Customer dashboard reads the consolidated `/api/mobile/feed` payload.
+  - Post Job submits a first native transaction through `/api/jobs`.
+  - Helper dashboard summarizes available jobs, booking requests, messages, and business ownership from the same mobile feed.
 
-## Build
+## Backend Contract
 
-Simulator:
+The mobile app is API-first. It should read from and write to the existing Node/PostgreSQL backend instead of duplicating platform logic.
 
-```bash
-xcodebuild \
-  -workspace mobile/ios/App/App.xcworkspace \
-  -scheme App \
-  -configuration Debug \
-  -sdk iphonesimulator \
-  -destination 'generic/platform=iOS Simulator' \
-  CODE_SIGNING_ALLOWED=NO \
-  build
-```
+Active mobile endpoints:
 
-Unsigned device-target release build:
+- `POST /api/mobile/push-token`
+- `DELETE /api/mobile/push-token`
+- `GET /api/mobile/feed`
+
+Planned mobile endpoints from the six-phase roadmap:
+
+- `GET /api/mobile/nearby`
+- `POST /api/mobile/offline-sync`
+- `GET /api/business/:id/workspace/mobile-summary`
+
+## Local Development
+
+This workspace currently does not expose a working `npm` binary on the shell path, so dependencies cannot be installed or typechecked here yet.
+
+Once Node tooling is available:
 
 ```bash
-xcodebuild \
-  -workspace mobile/ios/App/App.xcworkspace \
-  -scheme App \
-  -configuration Release \
-  -sdk iphoneos \
-  -destination 'generic/platform=iOS' \
-  CODE_SIGNING_ALLOWED=NO \
-  build
+cd mobile
+npm install
+npm run typecheck
+npm run ios
 ```
 
-## App Store Configuration
+For Expo development builds:
 
-In Xcode:
+```bash
+cd mobile
+npm run start
+```
 
-- Keep the bundle identifier as `com.oxsteed.app` unless App Store Connect changes require otherwise.
-- Select the OxSteed Apple Developer team.
-- Keep Associated Domains enabled for:
-  - `applinks:oxsteed.com`
-  - `applinks:www.oxsteed.com`
-- Keep Push Notifications enabled if native notification registration is reconnected in a later pass.
-- Team ID discovered in Xcode: `ZBRGSDRRU7`. Production should keep `APPLE_TEAM_ID=ZBRGSDRRU7` so `/.well-known/apple-app-site-association` returns `ZBRGSDRRU7.com.oxsteed.app`.
-- `mobile/ios/App/ExportOptions-app-store.plist` is configured for automatic App Store Connect uploads with team `ZBRGSDRRU7`.
+## Product Direction
 
-## Native Follow-Up
-
-- Reconnect native APNs registration directly from Swift instead of through the former Capacitor web bridge.
-- Move the remaining transaction edges out of Safari: payment checkout and deeper Business Hub tools such as finance detail and vertical operating-system tabs.
-- Store session tokens in Keychain instead of `UserDefaults` before production release.
-- Capture fresh App Store screenshots from the SwiftUI tabs before submitting the next build.
+This is a native companion app for the existing web platform, not a replacement for the web experience. Mobile should prioritize transaction-driving flows first: auth, posting jobs, finding helpers, bidding, messaging, scheduling, payments/status, tool rentals, trust/safety, notifications, and a Business Hub Lite. The full web Business Hub and admin surfaces remain the deeper desktop-grade workspace.

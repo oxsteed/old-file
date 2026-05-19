@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "OxSteed",
+    "slug": "oxsteed",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "oxsteed",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "bundleIdentifier": "com.oxsteed.app",
+      "supportsTablet": true,
+      "associatedDomains": ["applinks:oxsteed.com", "applinks:www.oxsteed.com"]
+    },
+    "android": {
+      "package": "com.oxsteed.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "oxsteed.com" },
+            { "scheme": "https", "host": "www.oxsteed.com" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "plugins": ["expo-secure-store", "expo-notifications"],
+    "extra": {
+      "apiBaseUrl": "https://oxsteed.com/api"
+    }
+  }
+}

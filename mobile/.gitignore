@@ -1,8 +1,10 @@
 node_modules/
+.expo/
+.expo-shared/
 dist/
 build/
-ios/App/Pods/
-ios/App/DerivedData/
-android/.gradle/
-android/app/build/
-android/build/
+
+# Generated native projects can be recreated with Expo prebuild until native
+# customizations are intentionally committed.
+ios/
+android/
