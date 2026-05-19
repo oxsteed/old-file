@@ -804,6 +804,228 @@ struct BusinessProductMutationResponse: Decodable {
     let data: BusinessProductItem
 }
 
+struct BusinessProductDetailResponse: Decodable {
+    let success: Bool?
+    let data: BusinessProductDetail
+}
+
+struct BusinessProductDetail: Decodable, Identifiable {
+    let id: FlexibleString
+    let name: String
+    let description: String?
+    let category: String?
+    let price: FlexibleDouble?
+    let sku: String?
+    let isActive: Bool?
+    let variants: [BusinessProductVariant]
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, description, category, price, sku, variants
+        case priceCents = "price_cents"
+        case isActive = "isActive"
+        case isActiveSnake = "is_active"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(FlexibleString.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        category = try container.decodeIfPresent(String.self, forKey: .category)
+        sku = try container.decodeIfPresent(String.self, forKey: .sku)
+        isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive)
+            ?? container.decodeIfPresent(Bool.self, forKey: .isActiveSnake)
+        variants = (try? container.decodeIfPresent([BusinessProductVariant].self, forKey: .variants)) ?? []
+        if let decodedPrice = try container.decodeIfPresent(FlexibleDouble.self, forKey: .price) {
+            price = decodedPrice
+        } else if let cents = try container.decodeIfPresent(FlexibleDouble.self, forKey: .priceCents) {
+            price = FlexibleDouble(value: cents.value / 100)
+        } else {
+            price = nil
+        }
+    }
+}
+
+struct BusinessProductVariant: Decodable, Identifiable {
+    let id: FlexibleString
+    let name: String?
+    let sku: String?
+    let priceAdjustment: FlexibleDouble?
+    let stock: Int?
+    let reorderLevel: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, sku, stock
+        case variantName = "variant_name"
+        case priceAdjustment = "priceAdjustment"
+        case priceAdjustmentCents = "price_adjustment_cents"
+        case reorderLevel = "reorderLevel"
+        case reorderLevelSnake = "reorder_level"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(FlexibleString.self, forKey: .id)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+            ?? container.decodeIfPresent(String.self, forKey: .variantName)
+        sku = try container.decodeIfPresent(String.self, forKey: .sku)
+        stock = try container.decodeIfPresent(Int.self, forKey: .stock)
+        reorderLevel = try container.decodeIfPresent(Int.self, forKey: .reorderLevel)
+            ?? container.decodeIfPresent(Int.self, forKey: .reorderLevelSnake)
+        if let adjustment = try container.decodeIfPresent(FlexibleDouble.self, forKey: .priceAdjustment) {
+            priceAdjustment = adjustment
+        } else if let cents = try container.decodeIfPresent(FlexibleDouble.self, forKey: .priceAdjustmentCents) {
+            priceAdjustment = FlexibleDouble(value: cents.value / 100)
+        } else {
+            priceAdjustment = nil
+        }
+    }
+}
+
+struct BusinessProductVariantSubmission: Encodable {
+    let variantName: String
+    let sku: String
+    let priceAdjustment: Double
+    let stock: Int
+    let reorderLevel: Int
+}
+
+struct BusinessProductVariantMutationResponse: Decodable {
+    let success: Bool?
+    let data: BusinessProductVariant
+}
+
+struct BusinessInventoryAdjustmentSubmission: Encodable {
+    let quantityChange: Int
+    let reason: String
+}
+
+struct BusinessInventoryAdjustmentResponse: Decodable {
+    let success: Bool?
+    let data: BusinessInventoryAdjustmentResult
+}
+
+struct BusinessInventoryAdjustmentResult: Decodable {
+    let stock: Int?
+    let lastUpdated: String?
+}
+
+struct BusinessLowStockResponse: Decodable {
+    let success: Bool?
+    let data: [BusinessLowStockItem]
+    let alertCount: Int?
+}
+
+struct BusinessLowStockItem: Decodable, Identifiable {
+    let productId: FlexibleString
+    let productName: String
+    let category: String?
+    let variantId: FlexibleString
+    let sku: String?
+    let variantName: String?
+    let currentStock: Int
+    let reorderLevel: Int
+
+    var id: String { variantId.value }
+}
+
+struct BusinessServicePackage: Decodable, Identifiable {
+    let id: FlexibleString
+    let name: String
+    let description: String?
+    let totalSessions: Int?
+    let priceCents: Int?
+    let validityDays: Int?
+    let sortOrder: Int?
+    let isActive: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, description
+        case totalSessions = "total_sessions"
+        case priceCents = "price_cents"
+        case validityDays = "validity_days"
+        case sortOrder = "sort_order"
+        case isActive = "is_active"
+    }
+}
+
+struct BusinessServicePackageSubmission: Encodable {
+    let name: String
+    let description: String?
+    let services: [String]
+    let total_sessions: Int
+    let price_cents: Int
+    let validity_days: Int?
+    let sort_order: Int
+}
+
+struct BusinessProductPricingRulesResponse: Decodable {
+    let success: Bool?
+    let data: [BusinessProductPricingRule]
+    let total: Int?
+}
+
+struct BusinessProductPricingRule: Decodable, Identifiable {
+    let id: FlexibleString
+    let name: String
+    let type: String?
+    let description: String?
+    let priority: Int?
+    let isActive: Bool?
+    let appliesToType: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, type, description, priority
+        case ruleName = "rule_name"
+        case ruleType = "rule_type"
+        case isActive = "isActive"
+        case isActiveSnake = "is_active"
+        case appliesToType = "appliesToType"
+        case appliesToSnake = "applies_to"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(FlexibleString.self, forKey: .id)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+            ?? container.decodeIfPresent(String.self, forKey: .ruleName)
+            ?? "Pricing rule"
+        type = try container.decodeIfPresent(String.self, forKey: .type)
+            ?? container.decodeIfPresent(String.self, forKey: .ruleType)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        priority = try container.decodeIfPresent(Int.self, forKey: .priority)
+        isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive)
+            ?? container.decodeIfPresent(Bool.self, forKey: .isActiveSnake)
+        appliesToType = try container.decodeIfPresent(String.self, forKey: .appliesToType)
+            ?? container.decodeIfPresent(String.self, forKey: .appliesToSnake)
+    }
+}
+
+struct BusinessProductPricingRuleSubmission: Encodable {
+    let name: String
+    let type: String
+    let description: String?
+    let priority: Int
+    let appliesToType: String
+    let appliesTo: String?
+    let conditions: ProductPricingConditions
+    let adjustment: ProductPricingAdjustment
+}
+
+struct ProductPricingConditions: Encodable {
+    let minQuantity: Int?
+}
+
+struct ProductPricingAdjustment: Encodable {
+    let type: String
+    let value: Double
+}
+
+struct BusinessProductPricingRuleMutationResponse: Decodable {
+    let success: Bool?
+    let data: BusinessProductPricingRule
+}
+
 struct NativeBusinessService: Decodable, Identifiable {
     let id: FlexibleString
     let name: String

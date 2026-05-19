@@ -1081,6 +1081,16 @@ struct BusinessWorkspaceNativeView: View {
                     WorkflowRow(title: "Business products", subtitle: "List and create products for this business.", systemImage: "shippingbox.fill")
                 }
                 NavigationLink {
+                    BusinessPackagesNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Packages", subtitle: "Create prepaid service bundles and session packs.", systemImage: "rectangle.stack.badge.plus")
+                }
+                NavigationLink {
+                    BusinessProductPricingNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Product pricing", subtitle: "Manage native product promotions and volume rules.", systemImage: "tag.fill")
+                }
+                NavigationLink {
                     BusinessTeamNativeView(business: business)
                 } label: {
                     WorkflowRow(title: "Team", subtitle: "View members and invite managers or representatives.", systemImage: "person.crop.circle.badge.plus")
@@ -1586,6 +1596,11 @@ struct BusinessProductsNativeView: View {
                 } label: {
                     WorkflowRow(title: "Add product", subtitle: "Create a business product listing.", systemImage: "plus.circle.fill")
                 }
+                NavigationLink {
+                    BusinessLowStockNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Low stock", subtitle: "Review variants that need attention.", systemImage: "exclamationmark.triangle.fill")
+                }
             }
             Section("Products") {
                 if isLoading {
@@ -1595,14 +1610,18 @@ struct BusinessProductsNativeView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(products) { product in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(product.name)
-                                .font(.headline)
-                            Text([product.category, product.sku].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(money(product.price?.value))
-                                .font(.caption.bold())
+                        NavigationLink {
+                            BusinessProductDetailNativeView(business: business, product: product)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(product.name)
+                                    .font(.headline)
+                                Text([product.category, product.sku].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text([money(product.price?.value), "Stock \(product.totalStock ?? 0)"].joined(separator: " - "))
+                                    .font(.caption.bold())
+                            }
                         }
                     }
                 }
@@ -1620,6 +1639,241 @@ struct BusinessProductsNativeView: View {
             products = try await OxSteedAPIClient.shared.businessProducts(businessId: business.id.value)
         } catch {
             statusMessage = "Could not load products."
+        }
+        isLoading = false
+    }
+}
+
+struct BusinessProductDetailNativeView: View {
+    let business: NativeBusiness
+    let product: BusinessProductItem
+    @State private var detail: BusinessProductDetail?
+    @State private var quantityChange = ""
+    @State private var adjustmentReason = "Manual adjustment"
+    @State private var selectedVariantId = ""
+    @State private var isLoading = false
+    @State private var isSaving = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        List {
+            Section("Product") {
+                Text(detail?.name ?? product.name)
+                    .font(.headline)
+                Text([detail?.category ?? product.category, detail?.sku ?? product.sku].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(money(detail?.price?.value ?? product.price?.value))
+                    .font(.caption.bold())
+                if let description = detail?.description?.nilIfBlank {
+                    Text(description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Section {
+                NavigationLink {
+                    BusinessProductVariantCreateNativeView(business: business, product: product)
+                } label: {
+                    WorkflowRow(title: "Add variant", subtitle: "Create a size, option, or stock-keeping variant.", systemImage: "plus.square.on.square")
+                }
+            }
+            Section("Variants") {
+                if isLoading {
+                    ProgressView("Loading variants...")
+                } else if variants.isEmpty {
+                    Text(statusMessage ?? "No variants yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(variants) { variant in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(variant.name ?? "Variant")
+                                .font(.headline)
+                            Text([variant.sku, "Stock \(variant.stock ?? 0)", "Reorder \(variant.reorderLevel ?? 0)"].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if let adjustment = variant.priceAdjustment?.value, adjustment != 0 {
+                                Text("Price adjustment \(money(adjustment))")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+            if !variants.isEmpty {
+                Section("Adjust inventory") {
+                    Picker("Variant", selection: $selectedVariantId) {
+                        ForEach(variants) { variant in
+                            Text(variant.name ?? variant.sku ?? "Variant").tag(variant.id.value)
+                        }
+                    }
+                    TextField("Quantity change (+5 or -2)", text: $quantityChange)
+                        .keyboardType(.numbersAndPunctuation)
+                    TextField("Reason", text: $adjustmentReason)
+                    Button(isSaving ? "Saving..." : "Save inventory change") {
+                        Task { await adjustInventory() }
+                    }
+                    .disabled(isSaving || selectedVariantId.isEmpty || Int(quantityChange) == nil)
+                }
+            }
+            if let statusMessage {
+                Section { Text(statusMessage) }
+            }
+        }
+        .navigationTitle("Product")
+        .task { await load() }
+        .refreshable { await load() }
+    }
+
+    private var variants: [BusinessProductVariant] {
+        detail?.variants ?? []
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            detail = try await OxSteedAPIClient.shared.businessProductDetail(businessId: business.id.value, productId: product.id.value)
+            if selectedVariantId.isEmpty, let first = detail?.variants.first {
+                selectedVariantId = first.id.value
+            }
+        } catch {
+            statusMessage = "Could not load product details."
+        }
+        isLoading = false
+    }
+
+    private func adjustInventory() async {
+        guard let change = Int(quantityChange) else {
+            statusMessage = "Enter a valid quantity change."
+            return
+        }
+        isSaving = true
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.adjustBusinessProductInventory(
+                businessId: business.id.value,
+                productId: product.id.value,
+                variantId: selectedVariantId,
+                payload: BusinessInventoryAdjustmentSubmission(quantityChange: change, reason: adjustmentReason.trimmed)
+            )
+            quantityChange = ""
+            statusMessage = "Inventory updated."
+            await load()
+        } catch {
+            statusMessage = "Could not update inventory."
+        }
+        isSaving = false
+    }
+}
+
+struct BusinessProductVariantCreateNativeView: View {
+    let business: NativeBusiness
+    let product: BusinessProductItem
+    @State private var name = ""
+    @State private var sku = ""
+    @State private var priceAdjustment = "0"
+    @State private var stock = "0"
+    @State private var reorderLevel = "10"
+    @State private var isSaving = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        Form {
+            Section("Variant") {
+                TextField("Variant name", text: $name)
+                TextField("SKU", text: $sku)
+                    .textInputAutocapitalization(.characters)
+                TextField("Price adjustment", text: $priceAdjustment)
+                    .keyboardType(.decimalPad)
+                TextField("Starting stock", text: $stock)
+                    .keyboardType(.numberPad)
+                TextField("Reorder level", text: $reorderLevel)
+                    .keyboardType(.numberPad)
+            }
+            Section {
+                Button(isSaving ? "Creating..." : "Create variant") {
+                    Task { await create() }
+                }
+                .disabled(isSaving || name.trimmed.isEmpty || sku.trimmed.isEmpty || Double(priceAdjustment) == nil || Int(stock) == nil || Int(reorderLevel) == nil)
+            }
+            if let statusMessage {
+                Section { Text(statusMessage) }
+            }
+        }
+        .navigationTitle("Add Variant")
+    }
+
+    private func create() async {
+        guard let adjustment = Double(priceAdjustment), let startingStock = Int(stock), let reorder = Int(reorderLevel) else {
+            statusMessage = "Enter valid stock and pricing values."
+            return
+        }
+        isSaving = true
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.createBusinessProductVariant(
+                businessId: business.id.value,
+                productId: product.id.value,
+                payload: BusinessProductVariantSubmission(
+                    variantName: name.trimmed,
+                    sku: sku.trimmed,
+                    priceAdjustment: adjustment,
+                    stock: startingStock,
+                    reorderLevel: reorder
+                )
+            )
+            statusMessage = "Variant created."
+        } catch {
+            statusMessage = "Could not create this variant."
+        }
+        isSaving = false
+    }
+}
+
+struct BusinessLowStockNativeView: View {
+    let business: NativeBusiness
+    @State private var alerts: [BusinessLowStockItem] = []
+    @State private var isLoading = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        List {
+            Section("Alerts") {
+                if isLoading {
+                    ProgressView("Loading low-stock alerts...")
+                } else if alerts.isEmpty {
+                    Text(statusMessage ?? "No low-stock variants right now.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(alerts) { alert in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(alert.productName)
+                                .font(.headline)
+                            Text([alert.variantName, alert.sku, alert.category].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("Stock \(alert.currentStock) - Reorder at \(alert.reorderLevel)")
+                                .font(.caption.bold())
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Low Stock")
+        .task { if alerts.isEmpty { await load() } }
+        .refreshable { await load() }
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            alerts = try await OxSteedAPIClient.shared.businessLowStockAlerts(businessId: business.id.value)
+        } catch {
+            statusMessage = "Could not load low-stock alerts."
         }
         isLoading = false
     }
@@ -1688,6 +1942,285 @@ struct BusinessProductCreateNativeView: View {
             statusMessage = "Product created."
         } catch {
             statusMessage = "Could not create this product. SKU must be unique."
+        }
+        isSaving = false
+    }
+}
+
+struct BusinessPackagesNativeView: View {
+    let business: NativeBusiness
+    @State private var packages: [BusinessServicePackage] = []
+    @State private var isLoading = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        List {
+            Section {
+                NavigationLink {
+                    BusinessPackageCreateNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Add package", subtitle: "Create a prepaid service bundle.", systemImage: "plus.circle.fill")
+                }
+            }
+            Section("Packages") {
+                if isLoading {
+                    ProgressView("Loading packages...")
+                } else if packages.isEmpty {
+                    Text(statusMessage ?? "No packages yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(packages) { package in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(package.name)
+                                .font(.headline)
+                            Text(package.description ?? "Service package")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text([packageMoney(package.priceCents), "\(package.totalSessions ?? 1) session(s)", validityText(package.validityDays)].compactMap { $0.nilIfBlank }.joined(separator: " - "))
+                                .font(.caption.bold())
+                        }
+                    }
+                }
+            }
+            if let statusMessage {
+                Section { Text(statusMessage) }
+            }
+        }
+        .navigationTitle("Packages")
+        .task { if packages.isEmpty { await load() } }
+        .refreshable { await load() }
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            packages = try await OxSteedAPIClient.shared.businessServicePackages(businessId: business.id.value)
+        } catch {
+            statusMessage = "Could not load packages."
+        }
+        isLoading = false
+    }
+
+    private func packageMoney(_ cents: Int?) -> String {
+        guard let cents else { return "TBD" }
+        return money(Double(cents) / 100)
+    }
+
+    private func validityText(_ days: Int?) -> String {
+        guard let days, days > 0 else { return "No expiry" }
+        return "\(days) days"
+    }
+}
+
+struct BusinessPackageCreateNativeView: View {
+    let business: NativeBusiness
+    @State private var name = ""
+    @State private var description = ""
+    @State private var price = ""
+    @State private var totalSessions = "1"
+    @State private var validityDays = ""
+    @State private var sortOrder = "0"
+    @State private var isSaving = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        Form {
+            Section("Package") {
+                TextField("Package name", text: $name)
+                TextField("Description", text: $description, axis: .vertical)
+                    .lineLimit(4, reservesSpace: true)
+                TextField("Price", text: $price)
+                    .keyboardType(.decimalPad)
+                TextField("Total sessions", text: $totalSessions)
+                    .keyboardType(.numberPad)
+                TextField("Validity days (optional)", text: $validityDays)
+                    .keyboardType(.numberPad)
+                TextField("Sort order", text: $sortOrder)
+                    .keyboardType(.numberPad)
+            }
+            Section {
+                Button(isSaving ? "Creating..." : "Create package") {
+                    Task { await create() }
+                }
+                .disabled(isSaving || name.trimmed.isEmpty || Double(price) == nil || Int(totalSessions) == nil)
+            }
+            if let statusMessage {
+                Section { Text(statusMessage) }
+            }
+        }
+        .navigationTitle("Add Package")
+    }
+
+    private func create() async {
+        guard let amount = Double(price), let sessions = Int(totalSessions) else {
+            statusMessage = "Enter a valid package price and session count."
+            return
+        }
+        isSaving = true
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.createBusinessServicePackage(
+                businessId: business.id.value,
+                payload: BusinessServicePackageSubmission(
+                    name: name.trimmed,
+                    description: description.trimmed.nilIfBlank,
+                    services: [],
+                    total_sessions: sessions,
+                    price_cents: Int((amount * 100).rounded()),
+                    validity_days: Int(validityDays),
+                    sort_order: Int(sortOrder) ?? 0
+                )
+            )
+            statusMessage = "Package created."
+        } catch {
+            statusMessage = "Could not create this package."
+        }
+        isSaving = false
+    }
+}
+
+struct BusinessProductPricingNativeView: View {
+    let business: NativeBusiness
+    @State private var rules: [BusinessProductPricingRule] = []
+    @State private var isLoading = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        List {
+            Section {
+                NavigationLink {
+                    BusinessProductPricingCreateNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Add pricing rule", subtitle: "Create a product promotion or volume discount.", systemImage: "plus.circle.fill")
+                }
+            }
+            Section("Rules") {
+                if isLoading {
+                    ProgressView("Loading pricing rules...")
+                } else if rules.isEmpty {
+                    Text(statusMessage ?? "No product pricing rules yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(rules) { rule in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(rule.name)
+                                .font(.headline)
+                            Text([rule.type, rule.appliesToType, rule.isActive == false ? "Inactive" : "Active"].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if let description = rule.description?.nilIfBlank {
+                                Text(description)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+            if let statusMessage {
+                Section { Text(statusMessage) }
+            }
+        }
+        .navigationTitle("Product Pricing")
+        .task { if rules.isEmpty { await load() } }
+        .refreshable { await load() }
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            rules = try await OxSteedAPIClient.shared.businessProductPricingRules(businessId: business.id.value)
+        } catch {
+            statusMessage = "Could not load product pricing rules."
+        }
+        isLoading = false
+    }
+}
+
+struct BusinessProductPricingCreateNativeView: View {
+    let business: NativeBusiness
+    @State private var name = ""
+    @State private var description = ""
+    @State private var type = "promotion"
+    @State private var appliesToType = "all"
+    @State private var adjustmentType = "percentage"
+    @State private var adjustmentValue = ""
+    @State private var minQuantity = ""
+    @State private var priority = "50"
+    @State private var isSaving = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        Form {
+            Section("Rule") {
+                TextField("Rule name", text: $name)
+                TextField("Description", text: $description, axis: .vertical)
+                    .lineLimit(3, reservesSpace: true)
+                Picker("Rule type", selection: $type) {
+                    Text("Promotion").tag("promotion")
+                    Text("Volume").tag("volume")
+                    Text("Seasonal").tag("seasonal")
+                    Text("Segment").tag("segment")
+                    Text("Bundle").tag("bundle")
+                }
+                Picker("Applies to", selection: $appliesToType) {
+                    Text("All products").tag("all")
+                    Text("Product").tag("product")
+                    Text("Category").tag("category")
+                }
+                TextField("Priority 1-100", text: $priority)
+                    .keyboardType(.numberPad)
+            }
+            Section("Adjustment") {
+                Picker("Adjustment type", selection: $adjustmentType) {
+                    Text("Percent off").tag("percentage")
+                    Text("Fixed amount off").tag("fixed")
+                    Text("Multiplier").tag("multiplier")
+                }
+                TextField("Adjustment value", text: $adjustmentValue)
+                    .keyboardType(.decimalPad)
+                TextField("Minimum quantity (optional)", text: $minQuantity)
+                    .keyboardType(.numberPad)
+            }
+            Section {
+                Button(isSaving ? "Creating..." : "Create pricing rule") {
+                    Task { await create() }
+                }
+                .disabled(isSaving || name.trimmed.isEmpty || Double(adjustmentValue) == nil || Int(priority) == nil)
+            }
+            if let statusMessage {
+                Section { Text(statusMessage) }
+            }
+        }
+        .navigationTitle("Add Pricing Rule")
+    }
+
+    private func create() async {
+        guard let value = Double(adjustmentValue), let priorityValue = Int(priority) else {
+            statusMessage = "Enter a valid adjustment and priority."
+            return
+        }
+        isSaving = true
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.createBusinessProductPricingRule(
+                businessId: business.id.value,
+                payload: BusinessProductPricingRuleSubmission(
+                    name: name.trimmed,
+                    type: type,
+                    description: description.trimmed.nilIfBlank,
+                    priority: priorityValue,
+                    appliesToType: appliesToType,
+                    appliesTo: nil,
+                    conditions: ProductPricingConditions(minQuantity: Int(minQuantity)),
+                    adjustment: ProductPricingAdjustment(type: adjustmentType, value: value)
+                )
+            )
+            statusMessage = "Pricing rule created."
+        } catch {
+            statusMessage = "Could not create this pricing rule."
         }
         isSaving = false
     }

@@ -240,6 +240,43 @@ final class OxSteedAPIClient {
         try await postEncodable("businesses/\(businessId)/products", body: payload, authenticated: true)
     }
 
+    func businessProductDetail(businessId: String, productId: String) async throws -> BusinessProductDetail {
+        let response: BusinessProductDetailResponse = try await get("businesses/\(businessId)/products/\(productId)", authenticated: true)
+        return response.data
+    }
+
+    func businessLowStockAlerts(businessId: String) async throws -> [BusinessLowStockItem] {
+        let response: BusinessLowStockResponse = try await get("businesses/\(businessId)/products/alerts/low-stock", authenticated: true)
+        return response.data
+    }
+
+    func createBusinessProductVariant(businessId: String, productId: String, payload: BusinessProductVariantSubmission) async throws -> BusinessProductVariantMutationResponse {
+        try await postEncodable("businesses/\(businessId)/products/\(productId)/variants", body: payload, authenticated: true)
+    }
+
+    func adjustBusinessProductInventory(businessId: String, productId: String, variantId: String, payload: BusinessInventoryAdjustmentSubmission) async throws -> BusinessInventoryAdjustmentResponse {
+        try await putEncodable("businesses/\(businessId)/products/\(productId)/variants/\(variantId)/inventory", body: payload, authenticated: true)
+    }
+
+    func businessServicePackages(businessId: String) async throws -> [BusinessServicePackage] {
+        try await get("businesses/\(businessId)/packages", authenticated: true)
+    }
+
+    func createBusinessServicePackage(businessId: String, payload: BusinessServicePackageSubmission) async throws -> BusinessServicePackage {
+        try await postEncodable("businesses/\(businessId)/packages", body: payload, authenticated: true)
+    }
+
+    func businessProductPricingRules(businessId: String) async throws -> [BusinessProductPricingRule] {
+        let response: BusinessProductPricingRulesResponse = try await get("businesses/\(businessId)/product-pricing/rules", queryItems: [
+            URLQueryItem(name: "limit", value: "50")
+        ], authenticated: true)
+        return response.data
+    }
+
+    func createBusinessProductPricingRule(businessId: String, payload: BusinessProductPricingRuleSubmission) async throws -> BusinessProductPricingRuleMutationResponse {
+        try await postEncodable("businesses/\(businessId)/product-pricing/rules", body: payload, authenticated: true)
+    }
+
     private func get<T: Decodable>(_ path: String, queryItems: [URLQueryItem] = [], authenticated: Bool = false) async throws -> T {
         var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
         components.queryItems = queryItems.isEmpty ? nil : queryItems
