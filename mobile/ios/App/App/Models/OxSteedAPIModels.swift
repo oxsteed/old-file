@@ -665,6 +665,45 @@ struct BusinessInvoiceMutationResponse: Decodable {
     let invoice: BusinessInvoiceItem
 }
 
+struct BusinessGoalsResponse: Decodable {
+    let goals: [BusinessGoalItem]
+}
+
+struct BusinessGoalItem: Decodable, Identifiable {
+    let id: FlexibleString
+    let title: String
+    let goalType: String?
+    let period: String?
+    let targetValue: FlexibleDouble?
+    let currentValue: FlexibleDouble?
+    let periodStart: String?
+    let periodEnd: String?
+    let isCompleted: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, period
+        case goalType = "goal_type"
+        case targetValue = "target_value"
+        case currentValue = "current_value"
+        case periodStart = "period_start"
+        case periodEnd = "period_end"
+        case isCompleted = "is_completed"
+    }
+}
+
+struct BusinessGoalSubmission: Encodable {
+    let title: String
+    let goal_type: String
+    let period: String
+    let target_value: Double
+    let period_start: String?
+    let period_end: String?
+}
+
+struct BusinessGoalMutationResponse: Decodable {
+    let goal: BusinessGoalItem
+}
+
 struct BusinessClientsResponse: Decodable {
     let clients: [BusinessClientItem]
     let total: Int?
@@ -1185,6 +1224,40 @@ struct BusinessCalendarSummary: Decodable {
     }
 }
 
+struct BusinessCalendarEvent: Decodable, Identifiable {
+    let id: FlexibleString
+    let title: String
+    let description: String?
+    let location: String?
+    let category: String?
+    let startsAt: String?
+    let endsAt: String?
+    let status: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, description, location, category, status
+        case startsAt = "starts_at"
+        case endsAt = "ends_at"
+    }
+}
+
+struct BusinessCalendarEventMutationData: Decodable {
+    let event: BusinessCalendarEvent
+}
+
+struct BusinessCalendarEventSubmission: Encodable {
+    let title: String
+    let description: String?
+    let location: String?
+    let category: String
+    let starts_at: String
+    let ends_at: String
+    let all_day: Bool
+    let status: String
+    let remind_minutes: Int?
+    let recurrence: String
+}
+
 struct BusinessExpensesResponse: Decodable {
     let expenses: [BusinessExpenseItem]
     let total: Int?
@@ -1314,6 +1387,39 @@ struct BusinessLeadSubmission: Encodable {
     let budget_cents: Int?
     let notes: String?
     let source: String
+}
+
+struct BusinessRecurringBillingItem: Decodable, Identifiable {
+    let id: FlexibleString
+    let customerId: FlexibleString?
+    let clientName: String?
+    let clientEmail: String?
+    let description: String?
+    let amountCents: Int?
+    let frequency: String?
+    let nextBillingDate: String?
+    let status: String?
+    let notes: String?
+    let createdAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, description, frequency, status, notes
+        case customerId = "customer_id"
+        case clientName = "client_name"
+        case clientEmail = "client_email"
+        case amountCents = "amount_cents"
+        case nextBillingDate = "next_billing_date"
+        case createdAt = "created_at"
+    }
+}
+
+struct BusinessRecurringBillingSubmission: Encodable {
+    let customer_id: String?
+    let description: String?
+    let amount_cents: Int
+    let frequency: String
+    let start_date: String
+    let notes: String?
 }
 
 struct NativeBusinessService: Decodable, Identifiable {

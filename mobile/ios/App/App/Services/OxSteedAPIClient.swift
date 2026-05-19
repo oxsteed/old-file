@@ -209,6 +209,18 @@ final class OxSteedAPIClient {
         try await postEncodable("businesses/\(businessId)/invoices", body: payload, authenticated: true)
     }
 
+    func sendBusinessInvoice(businessId: String, invoiceId: String) async throws -> BusinessInvoiceMutationResponse {
+        try await post("businesses/\(businessId)/invoices/\(invoiceId)/send", body: [:], authenticated: true)
+    }
+
+    func markBusinessInvoicePaid(businessId: String, invoiceId: String, amount: Double?) async throws -> BusinessInvoiceMutationResponse {
+        var body: [String: Any] = [:]
+        if let amount {
+            body["amount"] = amount
+        }
+        return try await post("businesses/\(businessId)/invoices/\(invoiceId)/pay", body: body, authenticated: true)
+    }
+
     func businessClients(businessId: String) async throws -> [BusinessClientItem] {
         let response: BusinessClientsResponse = try await get("businesses/\(businessId)/clients", queryItems: [
             URLQueryItem(name: "limit", value: "50")
@@ -311,6 +323,11 @@ final class OxSteedAPIClient {
         return response.data
     }
 
+    func createBusinessCalendarEvent(businessId: String, payload: BusinessCalendarEventSubmission) async throws -> BusinessCalendarEvent {
+        let response: APIDataResponse<BusinessCalendarEventMutationData> = try await postEncodable("businesses/\(businessId)/calendar/events", body: payload, authenticated: true)
+        return response.data.event
+    }
+
     func businessExpenses(businessId: String) async throws -> BusinessExpensesResponse {
         try await get("businesses/\(businessId)/expenses", queryItems: [
             URLQueryItem(name: "limit", value: "40")
@@ -343,6 +360,23 @@ final class OxSteedAPIClient {
 
     func createBusinessLead(businessId: String, payload: BusinessLeadSubmission) async throws -> BusinessLeadItem {
         try await postEncodable("businesses/\(businessId)/leads", body: payload, authenticated: true)
+    }
+
+    func businessRecurringBilling(businessId: String) async throws -> [BusinessRecurringBillingItem] {
+        try await get("businesses/\(businessId)/recurring", authenticated: true)
+    }
+
+    func createBusinessRecurringBilling(businessId: String, payload: BusinessRecurringBillingSubmission) async throws -> BusinessRecurringBillingItem {
+        try await postEncodable("businesses/\(businessId)/recurring", body: payload, authenticated: true)
+    }
+
+    func businessGoals(businessId: String) async throws -> [BusinessGoalItem] {
+        let response: BusinessGoalsResponse = try await get("businesses/\(businessId)/goals", authenticated: true)
+        return response.goals
+    }
+
+    func createBusinessGoal(businessId: String, payload: BusinessGoalSubmission) async throws -> BusinessGoalMutationResponse {
+        try await postEncodable("businesses/\(businessId)/goals", body: payload, authenticated: true)
     }
 
     private func get<T: Decodable>(_ path: String, queryItems: [URLQueryItem] = [], authenticated: Bool = false) async throws -> T {

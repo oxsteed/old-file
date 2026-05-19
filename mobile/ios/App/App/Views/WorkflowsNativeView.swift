@@ -1071,6 +1071,16 @@ struct BusinessWorkspaceNativeView: View {
                     WorkflowRow(title: "Invoices", subtitle: "List invoices and draft a simple invoice natively.", systemImage: "doc.text.fill")
                 }
                 NavigationLink {
+                    BusinessRecurringBillingNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Recurring billing", subtitle: "Set up repeat charges or retainers for clients.", systemImage: "arrow.triangle.2.circlepath")
+                }
+                NavigationLink {
+                    BusinessGoalsNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Revenue goals", subtitle: "Track monthly or quarterly growth targets.", systemImage: "target")
+                }
+                NavigationLink {
                     BusinessFinanceNativeView(business: business)
                 } label: {
                     WorkflowRow(title: "Finance command center", subtitle: "Review revenue, tax estimates, expenses, and schedule pressure.", systemImage: "chart.line.uptrend.xyaxis")
@@ -1893,6 +1903,20 @@ struct BusinessInvoicesNativeView: View {
                                 .foregroundStyle(.secondary)
                             Text(money(invoice.total?.value))
                                 .font(.caption.bold())
+                            HStack {
+                                if invoice.status == "draft" {
+                                    Button("Send") {
+                                        Task { await send(invoice) }
+                                    }
+                                    .font(.caption)
+                                }
+                                if invoice.status != "paid" {
+                                    Button("Mark paid") {
+                                        Task { await markPaid(invoice) }
+                                    }
+                                    .font(.caption)
+                                }
+                            }
                         }
                     }
                 }
@@ -1914,6 +1938,279 @@ struct BusinessInvoicesNativeView: View {
             statusMessage = "Could not load invoices."
         }
         isLoading = false
+    }
+
+    private func send(_ invoice: BusinessInvoiceItem) async {
+        do {
+            _ = try await OxSteedAPIClient.shared.sendBusinessInvoice(businessId: business.id.value, invoiceId: invoice.id.value)
+            await load()
+        } catch {
+            statusMessage = "Could not send this invoice."
+        }
+    }
+
+    private func markPaid(_ invoice: BusinessInvoiceItem) async {
+        do {
+            _ = try await OxSteedAPIClient.shared.markBusinessInvoicePaid(businessId: business.id.value, invoiceId: invoice.id.value, amount: invoice.total?.value)
+            await load()
+        } catch {
+            statusMessage = "Could not mark this invoice paid."
+        }
+    }
+}
+
+struct BusinessRecurringBillingNativeView: View {
+    let business: NativeBusiness
+    @State private var plans: [BusinessRecurringBillingItem] = []
+    @State private var isLoading = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        List {
+            Section {
+                NavigationLink {
+                    BusinessRecurringBillingCreateNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Add recurring plan", subtitle: "Create a monthly, weekly, or yearly billing record.", systemImage: "plus.circle.fill")
+                }
+            }
+            Section("Plans") {
+                if isLoading {
+                    ProgressView("Loading recurring billing...")
+                } else if plans.isEmpty {
+                    Text(statusMessage ?? "No recurring billing plans yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(plans) { plan in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(plan.description?.nilIfBlank ?? "Recurring billing")
+                                .font(.headline)
+                            Text([plan.clientName, plan.clientEmail].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text([plan.frequency, plan.status, plan.nextBillingDate].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text(centsMoney(plan.amountCents))
+                                .font(.caption.bold())
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Recurring")
+        .task { if plans.isEmpty { await load() } }
+        .refreshable { await load() }
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            plans = try await OxSteedAPIClient.shared.businessRecurringBilling(businessId: business.id.value)
+        } catch {
+            statusMessage = "Could not load recurring billing."
+        }
+        isLoading = false
+    }
+}
+
+struct BusinessRecurringBillingCreateNativeView: View {
+    let business: NativeBusiness
+    @State private var description = ""
+    @State private var amount = ""
+    @State private var frequency = "monthly"
+    @State private var startDate = ""
+    @State private var customerId = ""
+    @State private var notes = ""
+    @State private var isSaving = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        Form {
+            Section("Plan") {
+                TextField("Description", text: $description)
+                TextField("Amount", text: $amount)
+                    .keyboardType(.decimalPad)
+                Picker("Frequency", selection: $frequency) {
+                    Text("Weekly").tag("weekly")
+                    Text("Monthly").tag("monthly")
+                    Text("Quarterly").tag("quarterly")
+                    Text("Yearly").tag("yearly")
+                }
+                TextField("Start date (YYYY-MM-DD)", text: $startDate)
+                TextField("Customer ID (optional)", text: $customerId)
+                TextField("Notes", text: $notes, axis: .vertical)
+                    .lineLimit(3, reservesSpace: true)
+            }
+            Section {
+                Button(isSaving ? "Creating..." : "Create recurring plan") {
+                    Task { await create() }
+                }
+                .disabled(isSaving || Double(amount) == nil || startDate.trimmed.isEmpty)
+            }
+            if let statusMessage {
+                Section { Text(statusMessage) }
+            }
+        }
+        .navigationTitle("Add Recurring")
+    }
+
+    private func create() async {
+        guard let value = Double(amount) else {
+            statusMessage = "Enter a valid amount."
+            return
+        }
+        isSaving = true
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.createBusinessRecurringBilling(
+                businessId: business.id.value,
+                payload: BusinessRecurringBillingSubmission(
+                    customer_id: customerId.trimmed.nilIfBlank,
+                    description: description.trimmed.nilIfBlank,
+                    amount_cents: Int((value * 100).rounded()),
+                    frequency: frequency,
+                    start_date: startDate.trimmed,
+                    notes: notes.trimmed.nilIfBlank
+                )
+            )
+            statusMessage = "Recurring plan created."
+            description = ""; amount = ""; startDate = ""; customerId = ""; notes = ""
+        } catch {
+            statusMessage = "Could not create this recurring plan."
+        }
+        isSaving = false
+    }
+}
+
+struct BusinessGoalsNativeView: View {
+    let business: NativeBusiness
+    @State private var goals: [BusinessGoalItem] = []
+    @State private var isLoading = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        List {
+            Section {
+                NavigationLink {
+                    BusinessGoalCreateNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Add goal", subtitle: "Create a revenue, profit, jobs, or client target.", systemImage: "plus.circle.fill")
+                }
+            }
+            Section("Goals") {
+                if isLoading {
+                    ProgressView("Loading goals...")
+                } else if goals.isEmpty {
+                    Text(statusMessage ?? "No goals yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(goals) { goal in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(goal.title)
+                                .font(.headline)
+                            Text([goal.goalType, goal.period, goal.periodEnd].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("\(money(goal.currentValue?.value)) of \(money(goal.targetValue?.value))")
+                                .font(.caption.bold())
+                            if goal.isCompleted == true {
+                                Text("Completed")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(.green)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Goals")
+        .task { if goals.isEmpty { await load() } }
+        .refreshable { await load() }
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            goals = try await OxSteedAPIClient.shared.businessGoals(businessId: business.id.value)
+        } catch {
+            statusMessage = "Could not load goals."
+        }
+        isLoading = false
+    }
+}
+
+struct BusinessGoalCreateNativeView: View {
+    let business: NativeBusiness
+    @State private var title = ""
+    @State private var goalType = "revenue"
+    @State private var period = "monthly"
+    @State private var targetValue = ""
+    @State private var periodStart = ""
+    @State private var periodEnd = ""
+    @State private var isSaving = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        Form {
+            Section("Goal") {
+                TextField("Title", text: $title)
+                Picker("Type", selection: $goalType) {
+                    Text("Revenue").tag("revenue")
+                    Text("Profit").tag("profit")
+                    Text("Jobs").tag("jobs")
+                    Text("Clients").tag("clients")
+                }
+                Picker("Period", selection: $period) {
+                    Text("Monthly").tag("monthly")
+                    Text("Quarterly").tag("quarterly")
+                    Text("Yearly").tag("yearly")
+                }
+                TextField("Target value", text: $targetValue)
+                    .keyboardType(.decimalPad)
+                TextField("Start date (YYYY-MM-DD)", text: $periodStart)
+                TextField("End date (YYYY-MM-DD)", text: $periodEnd)
+            }
+            Section {
+                Button(isSaving ? "Creating..." : "Create goal") {
+                    Task { await create() }
+                }
+                .disabled(isSaving || title.trimmed.isEmpty || Double(targetValue) == nil)
+            }
+            if let statusMessage {
+                Section { Text(statusMessage) }
+            }
+        }
+        .navigationTitle("Add Goal")
+    }
+
+    private func create() async {
+        guard let target = Double(targetValue) else {
+            statusMessage = "Enter a valid target."
+            return
+        }
+        isSaving = true
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.createBusinessGoal(
+                businessId: business.id.value,
+                payload: BusinessGoalSubmission(
+                    title: title.trimmed,
+                    goal_type: goalType,
+                    period: period,
+                    target_value: target,
+                    period_start: periodStart.trimmed.nilIfBlank,
+                    period_end: periodEnd.trimmed.nilIfBlank
+                )
+            )
+            statusMessage = "Goal created."
+            title = ""; targetValue = ""; periodStart = ""; periodEnd = ""
+        } catch {
+            statusMessage = "Could not create this goal."
+        }
+        isSaving = false
     }
 }
 
@@ -3115,6 +3412,13 @@ struct BusinessCalendarNativeView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            Section {
+                NavigationLink {
+                    BusinessCalendarEventCreateNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Add internal event", subtitle: "Block time, add follow-up work, or create a staff reminder.", systemImage: "calendar.badge.plus")
+                }
+            }
 
             Section("Appointments") {
                 if isLoading {
@@ -3156,6 +3460,91 @@ struct BusinessCalendarNativeView: View {
             statusMessage = "Could not load this business calendar."
         }
         isLoading = false
+    }
+}
+
+struct BusinessCalendarEventCreateNativeView: View {
+    let business: NativeBusiness
+    @State private var title = ""
+    @State private var description = ""
+    @State private var location = ""
+    @State private var category = "other"
+    @State private var startsAt = ""
+    @State private var endsAt = ""
+    @State private var allDay = false
+    @State private var remindMinutes = "60"
+    @State private var recurrence = "none"
+    @State private var isSaving = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        Form {
+            Section("Event") {
+                TextField("Title", text: $title)
+                TextField("Description", text: $description, axis: .vertical)
+                    .lineLimit(3, reservesSpace: true)
+                TextField("Location", text: $location)
+                Picker("Category", selection: $category) {
+                    Text("Other").tag("other")
+                    Text("Team meeting").tag("team_meeting")
+                    Text("Admin").tag("admin")
+                    Text("Site visit").tag("site_visit")
+                    Text("Inspection").tag("inspection")
+                    Text("Training").tag("training")
+                    Text("Time off").tag("time_off")
+                }
+                Toggle("All day", isOn: $allDay)
+            }
+            Section("Time") {
+                TextField("Starts at (ISO or date time)", text: $startsAt)
+                TextField("Ends at (ISO or date time)", text: $endsAt)
+                TextField("Reminder minutes", text: $remindMinutes)
+                    .keyboardType(.numberPad)
+                Picker("Repeat", selection: $recurrence) {
+                    Text("None").tag("none")
+                    Text("Daily").tag("daily")
+                    Text("Weekly").tag("weekly")
+                    Text("Monthly").tag("monthly")
+                }
+            }
+            Section {
+                Button(isSaving ? "Creating..." : "Create event") {
+                    Task { await create() }
+                }
+                .disabled(isSaving || title.trimmed.isEmpty || startsAt.trimmed.isEmpty || endsAt.trimmed.isEmpty)
+            }
+            if let statusMessage {
+                Section { Text(statusMessage) }
+            }
+        }
+        .navigationTitle("Add Event")
+    }
+
+    private func create() async {
+        isSaving = true
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.createBusinessCalendarEvent(
+                businessId: business.id.value,
+                payload: BusinessCalendarEventSubmission(
+                    title: title.trimmed,
+                    description: description.trimmed.nilIfBlank,
+                    location: location.trimmed.nilIfBlank,
+                    category: category,
+                    starts_at: startsAt.trimmed,
+                    ends_at: endsAt.trimmed,
+                    all_day: allDay,
+                    status: "scheduled",
+                    remind_minutes: Int(remindMinutes),
+                    recurrence: recurrence
+                )
+            )
+            statusMessage = "Event created."
+            title = ""; description = ""; location = ""; startsAt = ""; endsAt = ""
+        } catch {
+            statusMessage = "Could not create this event. Use a full ISO date like 2026-05-19T14:00:00-04:00."
+        }
+        isSaving = false
     }
 }
 
