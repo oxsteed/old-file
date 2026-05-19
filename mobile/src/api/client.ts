@@ -1,6 +1,19 @@
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
-import type { AuthResponse, AuthUser, JobPostPayload, MobileFeed, RegisterPayload } from "./types";
+import type {
+  AuthResponse,
+  AuthUser,
+  Conversation,
+  HelperDirectoryItem,
+  HelperProfile,
+  Invoice,
+  JobPostPayload,
+  Message,
+  MobileFeed,
+  PlannedNeed,
+  PlannedNeedPayload,
+  RegisterPayload
+} from "./types";
 
 const ACCESS_TOKEN_KEY = "oxsteed.mobile.accessToken";
 const REFRESH_TOKEN_KEY = "oxsteed.mobile.refreshToken";
@@ -15,6 +28,13 @@ type RequestOptions = {
   body?: unknown;
   authenticated?: boolean;
   retryOnUnauthorized?: boolean;
+};
+
+type MobileAsset = {
+  uri: string;
+  name?: string;
+  mimeType?: string;
+  type?: string;
 };
 
 export class OxSteedApiError extends Error {
@@ -101,6 +121,38 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   return payload as T;
+}
+
+async function authenticatedFormDataRequest<T>(path: string, formData: FormData): Promise<T> {
+  const headers: Record<string, string> = {
+    Accept: "application/json"
+  };
+  const accessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+  const url = `${apiBaseUrl}/${path.replace(/^\/+/, "")}`;
+  if (__DEV__) {
+    console.info("[OxSteed API]", "POST", url);
+  }
+
+  const response = await fetch(url, { method: "POST", headers, body: formData });
+  const payload = await readJson(response);
+  if (!response.ok) {
+    const message =
+      typeof payload === "object" && payload
+        ? (payload.error as string | undefined) ||
+          (payload.message as string | undefined) ||
+          Object.values((payload.fields as Record<string, string> | undefined) ?? {})[0]
+        : undefined;
+    throw new OxSteedApiError(response.status, message || `OxSteed upload failed (${response.status})`);
+  }
+  return payload as T;
+}
+
+function appendAsset(formData: FormData, fieldName: string, asset: MobileAsset, index: number) {
+  const name = asset.name || `oxsteed-upload-${index}.jpg`;
+  const type = asset.mimeType || asset.type || "image/jpeg";
+  formData.append(fieldName, { uri: asset.uri, name, type } as unknown as Blob);
 }
 
 export async function refreshTokens() {
@@ -217,6 +269,96 @@ export const api = {
     return response.data;
   },
 
+  async listHelpers(params: { query?: string; page?: number; limit?: number; sort?: string } = {}) {
+    const search = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value).trim()) {
+        search.set(key, String(value));
+      }
+    });
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    return request<{ helpers: HelperDirectoryItem[]; total?: number; page?: number }>(`helpers${suffix}`);
+  },
+
+  async helperProfile(id: string | number) {
+    return request<HelperProfile>(`helpers/${id}/profile`);
+  },
+
+  async createConversation(input: { helperId: string | number; jobId?: string | number; businessId?: string | number }) {
+    return request<Conversation>("messages/conversations", {
+      method: "POST",
+      authenticated: true,
+      body: input
+    });
+  },
+
+  async listConversations() {
+    return request<Conversation[]>("messages/conversations", {
+      authenticated: true
+    });
+  },
+
+  async getMessages(conversationId: string | number) {
+    return request<Message[]>(`messages/conversations/${conversationId}`, {
+      authenticated: true
+    });
+  },
+
+  async sendMessage(conversationId: string | number, content: string) {
+    return request<Message>(`messages/conversations/${conversationId}`, {
+      method: "POST",
+      authenticated: true,
+      body: { content }
+    });
+  },
+
+  async uploadMessageAttachment(conversationId: string | number, asset: MobileAsset) {
+    const formData = new FormData();
+    appendAsset(formData, "file", asset, 0);
+    return authenticatedFormDataRequest<{ url: string; name: string; mimeType: string }>(
+      `messages/conversations/${conversationId}/attachments`,
+      formData
+    );
+  },
+
+  async listPlannedNeeds() {
+    const response = await request<{ planned_needs: PlannedNeed[] }>("planned-needs?status=planned,funding,activating_soon&limit=50", {
+      authenticated: true
+    });
+    return response.planned_needs;
+  },
+
+  async createPlannedNeed(payload: PlannedNeedPayload) {
+    return request<PlannedNeed>("planned-needs", {
+      method: "POST",
+      authenticated: true,
+      body: payload
+    });
+  },
+
+  async listInvoices() {
+    const response = await request<{ success: boolean; invoices: Invoice[] }>("invoices?limit=50", {
+      authenticated: true
+    });
+    return response.invoices;
+  },
+
+  async createBookingRequest(payload: {
+    helperId: string | number;
+    serviceName: string;
+    requestedDate: string;
+    requestedStartTime: string;
+    requestedEndTime: string;
+    serviceLocation?: string;
+    description?: string;
+  }) {
+    return request<{ booking?: unknown; id?: string }>("bookings", {
+      method: "POST",
+      authenticated: true,
+      body: payload
+    });
+  },
+
   async registerPushToken(input: {
     token: string;
     provider: "apns" | "fcm";
@@ -238,5 +380,18 @@ export const api = {
       authenticated: true,
       body: payload
     });
+  },
+
+  async postJobWithPhotos(payload: JobPostPayload, photos: MobileAsset[]) {
+    if (photos.length === 0) return api.postJob(payload);
+
+    const formData = new FormData();
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        formData.append(key, String(value));
+      }
+    });
+    photos.forEach((photo, index) => appendAsset(formData, "media", photo, index));
+    return authenticatedFormDataRequest<{ id?: string; title?: string }>("jobs", formData);
   }
 };

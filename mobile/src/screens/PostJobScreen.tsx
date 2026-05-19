@@ -1,11 +1,14 @@
-import { useState } from "react";
-import { StyleSheet, TextInput } from "react-native";
+import { useEffect, useState } from "react";
+import { Image, StyleSheet, View } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { api, OxSteedApiError } from "../api/client";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
+import { FormInput } from "../components/FormInput";
 import { Screen } from "../components/Screen";
 import { AppText } from "../components/Text";
-import { colors, radius, spacing } from "../theme";
+import { useJobDraftStore } from "../state/jobDraftStore";
+import { spacing } from "../theme";
 
 export function PostJobScreen() {
   const [title, setTitle] = useState("");
@@ -15,14 +18,44 @@ export function PostJobScreen() {
   const [state, setState] = useState("");
   const [budgetMin, setBudgetMin] = useState("");
   const [budgetMax, setBudgetMax] = useState("");
+  const [photos, setPhotos] = useState<ImagePicker.ImagePickerAsset[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const { draft, clearDraft } = useJobDraftStore();
+
+  useEffect(() => {
+    if (!draft) return;
+    setTitle(draft.title);
+    setDescription(draft.description);
+    setCategory(draft.category);
+    setBudgetMin(draft.budgetMin);
+    setBudgetMax(draft.budgetMax);
+    setStatus("Draft loaded from Planned Needs. Add location details, then post when ready.");
+    clearDraft();
+  }, [draft, clearDraft]);
+
+  async function pickPhotos() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setStatus("Photo permission is needed to attach job images.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 0.82,
+      selectionLimit: 6
+    });
+    if (!result.canceled) {
+      setPhotos(result.assets.slice(0, 6));
+    }
+  }
 
   async function submit() {
     setIsSaving(true);
     setStatus(null);
     try {
-      await api.postJob({
+      await api.postJobWithPhotos({
         title: title.trim(),
         description: description.trim(),
         category_name: category.trim() || "General",
@@ -33,7 +66,7 @@ export function PostJobScreen() {
         location_city: city.trim(),
         location_state: state.trim() || undefined,
         location_country: "US"
-      });
+      }, photos);
       setStatus("Job posted. It will now be visible to matching helpers.");
       setTitle("");
       setDescription("");
@@ -42,6 +75,7 @@ export function PostJobScreen() {
       setState("");
       setBudgetMin("");
       setBudgetMax("");
+      setPhotos([]);
     } catch (error) {
       setStatus(error instanceof OxSteedApiError ? error.message : "Could not post this job.");
     } finally {
@@ -56,25 +90,38 @@ export function PostJobScreen() {
       <AppText variant="caption">PHASE 2 START</AppText>
       <AppText variant="title">Post a job</AppText>
       <AppText variant="muted">
-        This is the first mobile transaction form. Later passes will split it into
-        the full multi-step customer wizard with media, maps, and saved drafts.
+        Step through the basics helpers need first: category, scope, photos,
+        location, and budget. This writes to the same job endpoint as the web app.
       </AppText>
 
       <Card>
-        <TextInput style={styles.input} placeholder="Job title, at least 10 characters" placeholderTextColor={colors.muted} value={title} onChangeText={setTitle} />
-        <TextInput
+        <AppText variant="caption">1. Scope</AppText>
+        <FormInput placeholder="Job title, at least 10 characters" value={title} onChangeText={setTitle} />
+        <FormInput
           multiline
-          style={[styles.input, styles.multiline]}
           placeholder="Describe the work, at least 50 characters"
-          placeholderTextColor={colors.muted}
           value={description}
           onChangeText={setDescription}
         />
-        <TextInput style={styles.input} placeholder="Category" placeholderTextColor={colors.muted} value={category} onChangeText={setCategory} />
-        <TextInput style={styles.input} placeholder="City" placeholderTextColor={colors.muted} value={city} onChangeText={setCity} />
-        <TextInput style={styles.input} placeholder="State optional" placeholderTextColor={colors.muted} value={state} onChangeText={setState} />
-        <TextInput style={styles.input} placeholder="Minimum budget optional" placeholderTextColor={colors.muted} value={budgetMin} onChangeText={setBudgetMin} keyboardType="numeric" />
-        <TextInput style={styles.input} placeholder="Maximum budget optional" placeholderTextColor={colors.muted} value={budgetMax} onChangeText={setBudgetMax} keyboardType="numeric" />
+
+        <AppText variant="caption">2. Category and photos</AppText>
+        <FormInput placeholder="Category" value={category} onChangeText={setCategory} />
+        <Button variant="secondary" onPress={pickPhotos}>
+          {photos.length ? `Change photos (${photos.length})` : "Add photos"}
+        </Button>
+        {photos.length > 0 && (
+          <View style={styles.photos}>
+            {photos.map((photo) => (
+              <Image key={photo.assetId || photo.uri} source={{ uri: photo.uri }} style={styles.photo} />
+            ))}
+          </View>
+        )}
+
+        <AppText variant="caption">3. Location and budget</AppText>
+        <FormInput placeholder="City" value={city} onChangeText={setCity} />
+        <FormInput placeholder="State optional" value={state} onChangeText={setState} />
+        <FormInput placeholder="Minimum budget optional" value={budgetMin} onChangeText={setBudgetMin} keyboardType="numeric" />
+        <FormInput placeholder="Maximum budget optional" value={budgetMax} onChangeText={setBudgetMax} keyboardType="numeric" />
         {status && <AppText variant="muted">{status}</AppText>}
         <Button disabled={isSaving || !canSubmit} onPress={submit}>
           {isSaving ? "Posting..." : "Post job"}
@@ -85,18 +132,14 @@ export function PostJobScreen() {
 }
 
 const styles = StyleSheet.create({
-  input: {
-    minHeight: 48,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    color: colors.text,
-    backgroundColor: colors.background
+  photos: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm
   },
-  multiline: {
-    minHeight: 120,
-    paddingTop: spacing.md,
-    textAlignVertical: "top"
+  photo: {
+    width: 72,
+    height: 72,
+    borderRadius: 8
   }
 });

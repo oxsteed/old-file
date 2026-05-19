@@ -47,6 +47,94 @@ export type MobileFeed = {
   businesses: MobileBusiness[];
 };
 
+export type HelperDirectoryItem = {
+  id: string | number;
+  businessName?: string;
+  ownerName?: string;
+  avatar?: string;
+  rating?: number;
+  reviewCount?: number;
+  jobsCompleted?: number;
+  verified?: boolean;
+  backgroundChecked?: boolean;
+  categories?: string[];
+  skills?: string[];
+  topServices?: Array<{ name: string; price?: number; priceUnit?: string }>;
+  startingPrice?: number;
+  startingPriceUnit?: string;
+  responseTime?: string;
+  city?: string;
+  state?: string;
+  availableToday?: boolean;
+  shortBio?: string;
+};
+
+export type HelperProfile = {
+  helper: HelperDirectoryItem & {
+    tagline?: string;
+    bio?: string;
+    coverImage?: string;
+    allowBooking?: boolean;
+    allowScheduling?: boolean;
+    responseRate?: number;
+    badges?: Array<{ id: string; label: string; variant?: string }>;
+  };
+  services: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    price?: number;
+    priceUnit?: string;
+    duration?: string;
+    popular?: boolean;
+  }>;
+  gallery: Array<{ id: string; url: string; caption?: string }>;
+  policies: Array<{ id: string; title: string; content: string }>;
+  reviews: Array<{ id: string; authorName?: string; rating?: number; content?: string; date?: string }>;
+};
+
+export type Conversation = {
+  id: string | number;
+  job_id?: string | number | null;
+  customer_id?: string | number;
+  helper_id?: string | number;
+  status?: string;
+  other_user_name?: string;
+  other_user_id?: string | number;
+  job_title?: string;
+  last_message?: string;
+  unread_count?: string | number;
+  last_message_at?: string;
+  helper_business_name?: string;
+  conversation_business_name?: string;
+};
+
+export type Message = {
+  id: string | number;
+  conversation_id: string | number;
+  sender_id: string | number;
+  sender_name?: string;
+  content: string;
+  created_at?: string;
+  is_read?: boolean;
+  pending?: boolean;
+};
+
+export type Invoice = {
+  id: string | number;
+  invoice_number?: string;
+  client_name?: string;
+  client_email?: string;
+  status?: string;
+  amount_cents?: string | number;
+  total?: string | number;
+  amount_paid?: string | number;
+  issued_at?: string;
+  due_at?: string;
+  business_name?: string;
+  created_at?: string;
+};
+
 export type MobileJob = {
   id: string;
   title: string;
@@ -82,11 +170,16 @@ export type MobileAppointment = {
 export type PlannedNeed = {
   id: number;
   title: string;
+  description?: string;
   category?: string;
   status?: string;
   due_date?: string;
   estimated_cost?: string | number | null;
   reserved_amount?: string | number | null;
+  lead_time_days?: number;
+  recurrence_type?: string;
+  recurrence_interval_days?: number | null;
+  days_until_due?: string | number;
 };
 
 export type MobileConversation = {
@@ -133,4 +226,16 @@ export type JobPostPayload = {
   location_city: string;
   location_state?: string;
   location_country: string;
+};
+
+export type PlannedNeedPayload = {
+  title: string;
+  description?: string;
+  category: "car_care" | "personal_care" | "other";
+  due_date: string;
+  estimated_cost?: number;
+  lead_time_days: number;
+  recurrence_type: "none" | "fixed" | "floating";
+  recurrence_interval_days?: number;
+  notes?: string;
 };

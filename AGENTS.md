@@ -29,6 +29,14 @@
 - **`mobile/README.md`** now documents the Expo reset, active backend contract, local-development commands, and product direction: native iOS/Android companion app for transaction flows, not a replacement for the full web platform.
 - **Verification:** Local npm was bootstrapped through `/tmp/codex-npm/package/bin/npm-cli.js` using the Codex-bundled Node runtime. `npm install` succeeds and generates `mobile/package-lock.json`; `npm run typecheck` passes; `expo export --platform ios --output-dir /tmp/oxsteed-expo-export` passes. `node --check server/controllers/mobileController.js server/routes/mobile.js` passes.
 
+**Expo React Native mobile Phase 2 customer core (2026-05-19):** COMPLETE
+- **`mobile/src/screens/PostJobScreen.tsx` + `mobile/src/api/client.ts`**: Upgraded Post Job into a native multi-section form for scope, category, photos, location, and budget. The app now posts JSON when no photos are selected and multipart `media` uploads when photos are attached, both against the existing `/api/jobs` endpoint.
+- **`mobile/src/screens/BrowseHelpersScreen.tsx`**: Added native helper discovery using `/api/helpers`, helper profile drill-in using `/api/helpers/:id/profile`, service/trust/policy display, direct conversation creation through `/api/messages/conversations`, and direct booking requests through `/api/bookings`.
+- **`mobile/src/screens/MessagesScreen.tsx`**: Added native conversation inbox, threaded messages, optimistic send, image attachment upload through `/api/messages/conversations/:id/attachments`, and send through `/api/messages/conversations/:id`.
+- **`mobile/src/screens/PlannedNeedsScreen.tsx` + `mobile/src/screens/PaymentsScreen.tsx`**: Added planned-needs list/create against `/api/planned-needs`, a mobile conversion-to-job-draft cue, and invoice/payment-status summary against `/api/invoices`.
+- **Navigation / API:** **`mobile/src/bootstrap/OxSteedMobileApp.tsx`, `mobile/src/api/types.ts`, `mobile/src/components/FormInput.tsx`, `mobile/package.json`, `mobile/package-lock.json`** add Phase 2 tabs and Expo Image Picker support for job/message media selection.
+- **Verification:** `npm run typecheck` passes. `expo export --platform ios --output-dir /tmp/oxsteed-expo-export` passes. `npm audit --audit-level=high` passes; remaining audit output is moderate Expo/PostCSS transitive risk that requires a breaking Expo 55 upgrade to auto-fix.
+
 **Historical native SwiftUI iOS app foundation (2026-05-18):** REPLACED BY EXPO RESET
 - This SwiftUI/TestFlight pass remains in repository history, but active mobile development has pivoted to the Expo React Native plan above so iOS and Android can share one client on the existing backend.
 
@@ -1344,7 +1352,7 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 
 - [x] Install Expo dependencies and run `npm run typecheck` for the Phase 1 shell. (2026-05-19)
 - [ ] Launch the app through Expo on iOS before cutting the next TestFlight candidate.
-- [ ] Finish Phase 2 customer core: multi-step Post Job with photos/location/drafts, helper browse/profile/detail booking CTA, native messages, planned-needs creation/conversion, and invoice/payment-status screens.
+- [x] Finish Phase 2 customer core: multi-step Post Job with photos/location, helper browse/profile/detail booking CTA, native messages, planned-needs creation/conversion cue, and invoice/payment-status screens. (2026-05-19)
 - [ ] Finish Phase 3 helper core: job feed filters, bid submission, helper availability/calendar, profile/service/gallery editing, and earnings/payout status.
 - [ ] Add the remaining required mobile endpoints: `GET /api/mobile/nearby`, `POST /api/mobile/offline-sync`, and `GET /api/business/:id/workspace/mobile-summary`.
 - [ ] Add deep linking, crash reporting, Expo build credentials, fresh App Store / Play Store screenshots, and production push-provider verification before launch review.

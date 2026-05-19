@@ -7,9 +7,12 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { AccountScreen } from "../screens/AccountScreen";
 import { AuthScreen } from "../screens/AuthScreen";
+import { BrowseHelpersScreen } from "../screens/BrowseHelpersScreen";
 import { CustomerHomeScreen } from "../screens/CustomerHomeScreen";
 import { HelperHomeScreen } from "../screens/HelperHomeScreen";
-import { PlaceholderScreen } from "../screens/PlaceholderScreen";
+import { MessagesScreen } from "../screens/MessagesScreen";
+import { PaymentsScreen } from "../screens/PaymentsScreen";
+import { PlannedNeedsScreen } from "../screens/PlannedNeedsScreen";
 import { PostJobScreen } from "../screens/PostJobScreen";
 import { isEnabled } from "../config/featureFlags";
 import { useAuthStore } from "../state/authStore";
@@ -19,8 +22,11 @@ import { usePushRegistration } from "./usePushRegistration";
 type RootTabs = {
   Customer: undefined;
   Post: undefined;
-  Helper: undefined;
+  Helpers: undefined;
   Messages: undefined;
+  Plans: undefined;
+  Payments: undefined;
+  Helper: undefined;
   Account: undefined;
 };
 
@@ -47,15 +53,6 @@ const navTheme: Theme = {
 
 const Tabs = createBottomTabNavigator<RootTabs>();
 
-function MessagesPlaceholderScreen() {
-  return (
-    <PlaceholderScreen
-      title="Messaging"
-      body="Phase 2 wires threaded chat, optimistic sending, and attachment upload to the existing messages API."
-    />
-  );
-}
-
 function SignedInTabs() {
   usePushRegistration();
 
@@ -73,8 +70,11 @@ function SignedInTabs() {
     >
       {isEnabled("customerDashboard") && <Tabs.Screen name="Customer" component={CustomerHomeScreen} />}
       {isEnabled("postJob") && <Tabs.Screen name="Post" component={PostJobScreen} />}
+      <Tabs.Screen name="Helpers" component={BrowseHelpersScreen} />
+      <Tabs.Screen name="Messages" component={MessagesScreen} />
+      <Tabs.Screen name="Plans" component={PlannedNeedsScreen} />
+      <Tabs.Screen name="Payments" component={PaymentsScreen} />
       {isEnabled("helperDashboard") && <Tabs.Screen name="Helper" component={HelperHomeScreen} />}
-      <Tabs.Screen name="Messages" component={MessagesPlaceholderScreen} />
       <Tabs.Screen name="Account" component={AccountScreen} />
     </Tabs.Navigator>
   );

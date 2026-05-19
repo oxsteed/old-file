@@ -18,10 +18,14 @@ Expo React Native + TypeScript app for building a native iOS/Android companion t
   - Push token registration through `/api/mobile/push-token`.
   - Foreground notification presentation and notification-open listener.
   - Feature flags for tabs that are being built in phases.
-- Phase 2 has an initial foothold:
+- Phase 2 customer core is implemented:
   - Customer dashboard reads the consolidated `/api/mobile/feed` payload.
-  - Post Job submits a first native transaction through `/api/jobs`.
-  - Helper dashboard summarizes available jobs, booking requests, messages, and business ownership from the same mobile feed.
+  - Post Job submits scope, category, location, budget, and optional photo uploads through `/api/jobs`.
+  - Helpers tab searches `/api/helpers`, drills into `/api/helpers/:id/profile`, starts conversations, and sends direct booking requests through `/api/bookings`.
+  - Messages tab lists `/api/messages/conversations`, renders threads, sends optimistic messages, and uploads image attachments.
+  - Plans tab lists and creates `/api/planned-needs` records and prepares job-draft conversion context.
+  - Payments tab surfaces `/api/invoices` records and payment status while full Stripe mobile checkout remains a later phase.
+  - Helper dashboard summarizes available jobs, booking requests, messages, and business ownership from the mobile feed.
 
 ## Backend Contract
 
@@ -32,6 +36,18 @@ Active mobile endpoints:
 - `POST /api/mobile/push-token`
 - `DELETE /api/mobile/push-token`
 - `GET /api/mobile/feed`
+- `GET /api/helpers`
+- `GET /api/helpers/:id/profile`
+- `POST /api/messages/conversations`
+- `GET /api/messages/conversations`
+- `GET /api/messages/conversations/:id`
+- `POST /api/messages/conversations/:id`
+- `POST /api/messages/conversations/:id/attachments`
+- `POST /api/jobs`
+- `POST /api/bookings`
+- `GET /api/planned-needs`
+- `POST /api/planned-needs`
+- `GET /api/invoices`
 
 Planned mobile endpoints from the six-phase roadmap:
 
