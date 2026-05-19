@@ -1086,6 +1086,11 @@ struct BusinessWorkspaceNativeView: View {
                     WorkflowRow(title: "Packages", subtitle: "Create prepaid service bundles and session packs.", systemImage: "rectangle.stack.badge.plus")
                 }
                 NavigationLink {
+                    BusinessClientPackagesNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Client packages", subtitle: "Issue packages and redeem sessions natively.", systemImage: "checklist.checked")
+                }
+                NavigationLink {
                     BusinessProductPricingNativeView(business: business)
                 } label: {
                     WorkflowRow(title: "Product pricing", subtitle: "Manage native product promotions and volume rules.", systemImage: "tag.fill")
@@ -1677,6 +1682,11 @@ struct BusinessProductDetailNativeView: View {
                 } label: {
                     WorkflowRow(title: "Add variant", subtitle: "Create a size, option, or stock-keeping variant.", systemImage: "plus.square.on.square")
                 }
+                NavigationLink {
+                    BusinessBulkPricingNativeView(business: business, product: product)
+                } label: {
+                    WorkflowRow(title: "Bulk pricing", subtitle: "Set quantity discount tiers for this product.", systemImage: "square.stack.3d.up.fill")
+                }
             }
             Section("Variants") {
                 if isLoading {
@@ -1879,6 +1889,100 @@ struct BusinessLowStockNativeView: View {
     }
 }
 
+struct BusinessBulkPricingNativeView: View {
+    let business: NativeBusiness
+    let product: BusinessProductItem
+    @State private var tiers: [BusinessBulkPricingTier] = []
+    @State private var minQuantityOne = "5"
+    @State private var discountOne = "10"
+    @State private var minQuantityTwo = "10"
+    @State private var discountTwo = "15"
+    @State private var isLoading = false
+    @State private var isSaving = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        Form {
+            Section("Current tiers") {
+                if isLoading {
+                    ProgressView("Loading tiers...")
+                } else if tiers.isEmpty {
+                    Text(statusMessage ?? "No bulk pricing tiers yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(tiers) { tier in
+                        Text("\(tier.minQuantity)+ units - \(String(format: "%.1f", tier.discountPercent))% off")
+                    }
+                }
+            }
+            Section("Replace tiers") {
+                TextField("First minimum quantity", text: $minQuantityOne)
+                    .keyboardType(.numberPad)
+                TextField("First discount percent", text: $discountOne)
+                    .keyboardType(.decimalPad)
+                TextField("Second minimum quantity", text: $minQuantityTwo)
+                    .keyboardType(.numberPad)
+                TextField("Second discount percent", text: $discountTwo)
+                    .keyboardType(.decimalPad)
+                Button(isSaving ? "Saving..." : "Save tiers") {
+                    Task { await save() }
+                }
+                .disabled(isSaving || parsedTiers.isEmpty)
+            }
+            if let statusMessage {
+                Section { Text(statusMessage) }
+            }
+        }
+        .navigationTitle("Bulk Pricing")
+        .task { if tiers.isEmpty { await load() } }
+        .refreshable { await load() }
+    }
+
+    private var parsedTiers: [BusinessBulkPricingTier] {
+        [
+            (Int(minQuantityOne), Double(discountOne)),
+            (Int(minQuantityTwo), Double(discountTwo))
+        ]
+        .compactMap { quantity, discount in
+            guard let quantity, let discount, quantity > 0, discount > 0 else { return nil }
+            return BusinessBulkPricingTier(minQuantity: quantity, discountPercent: discount)
+        }
+        .sorted { $0.minQuantity < $1.minQuantity }
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            tiers = try await OxSteedAPIClient.shared.businessBulkPricingTiers(businessId: business.id.value, productId: product.id.value)
+            if let first = tiers.first {
+                minQuantityOne = "\(first.minQuantity)"
+                discountOne = String(format: "%.1f", first.discountPercent)
+            }
+            if tiers.count > 1 {
+                minQuantityTwo = "\(tiers[1].minQuantity)"
+                discountTwo = String(format: "%.1f", tiers[1].discountPercent)
+            }
+        } catch {
+            statusMessage = "Could not load bulk pricing tiers."
+        }
+        isLoading = false
+    }
+
+    private func save() async {
+        isSaving = true
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.setBusinessBulkPricingTiers(businessId: business.id.value, productId: product.id.value, tiers: parsedTiers)
+            statusMessage = "Bulk pricing tiers saved."
+            await load()
+        } catch {
+            statusMessage = "Could not save bulk pricing tiers."
+        }
+        isSaving = false
+    }
+}
+
 struct BusinessProductCreateNativeView: View {
     let business: NativeBusiness
     @State private var name = ""
@@ -2077,6 +2181,160 @@ struct BusinessPackageCreateNativeView: View {
             statusMessage = "Could not create this package."
         }
         isSaving = false
+    }
+}
+
+struct BusinessClientPackagesNativeView: View {
+    let business: NativeBusiness
+    @State private var clientPackages: [BusinessClientPackage] = []
+    @State private var clients: [BusinessClientItem] = []
+    @State private var packages: [BusinessServicePackage] = []
+    @State private var selectedCustomerId = ""
+    @State private var selectedPackageId = ""
+    @State private var paidAmount = ""
+    @State private var isLoading = false
+    @State private var isSaving = false
+    @State private var redeemingId: String?
+    @State private var statusMessage: String?
+
+    var body: some View {
+        List {
+            Section("Issue package") {
+                if linkedClients.isEmpty {
+                    Text("Add or link a client to an OxSteed customer account before issuing a package.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Picker("Client", selection: $selectedCustomerId) {
+                        ForEach(linkedClients) { client in
+                            Text(client.displayName).tag(client.customerId?.value ?? "")
+                        }
+                    }
+                }
+                if packages.isEmpty {
+                    Text("Create a package first.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Picker("Package", selection: $selectedPackageId) {
+                        ForEach(packages) { package in
+                            Text(package.name).tag(package.id.value)
+                        }
+                    }
+                }
+                TextField("Paid amount (optional)", text: $paidAmount)
+                    .keyboardType(.decimalPad)
+                Button(isSaving ? "Issuing..." : "Issue package") {
+                    Task { await issue() }
+                }
+                .disabled(isSaving || selectedCustomerId.isEmpty || selectedPackageId.isEmpty)
+            }
+            Section("Active client packages") {
+                if isLoading {
+                    ProgressView("Loading client packages...")
+                } else if clientPackages.isEmpty {
+                    Text(statusMessage ?? "No client packages yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(clientPackages) { package in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(package.packageName ?? "Client package")
+                                .font(.headline)
+                            Text(package.customerName ?? "Customer")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text([package.status, sessionText(package), paidText(package.paidCents)].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                .font(.caption.bold())
+                            Button(redeemingId == package.id.value ? "Redeeming..." : "Redeem session") {
+                                Task { await redeem(package) }
+                            }
+                            .disabled(redeemingId != nil || (package.sessionsRemaining ?? 0) <= 0 || package.status != "active")
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+            }
+            if let statusMessage {
+                Section { Text(statusMessage) }
+            }
+        }
+        .navigationTitle("Client Packages")
+        .task { if clientPackages.isEmpty { await load() } }
+        .refreshable { await load() }
+    }
+
+    private var linkedClients: [BusinessClientItem] {
+        clients.filter { $0.customerId?.value.nilIfBlank != nil }
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            async let loadedClientPackages = OxSteedAPIClient.shared.businessClientPackages(businessId: business.id.value)
+            async let loadedClients = OxSteedAPIClient.shared.businessClients(businessId: business.id.value)
+            async let loadedPackages = OxSteedAPIClient.shared.businessServicePackages(businessId: business.id.value)
+            clientPackages = try await loadedClientPackages
+            clients = try await loadedClients
+            packages = try await loadedPackages
+            if selectedCustomerId.isEmpty {
+                selectedCustomerId = linkedClients.first?.customerId?.value ?? ""
+            }
+            if selectedPackageId.isEmpty {
+                selectedPackageId = packages.first?.id.value ?? ""
+            }
+        } catch {
+            statusMessage = "Could not load client package data."
+        }
+        isLoading = false
+    }
+
+    private func issue() async {
+        isSaving = true
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.issueBusinessClientPackage(
+                businessId: business.id.value,
+                payload: BusinessClientPackageIssueSubmission(
+                    customer_id: selectedCustomerId,
+                    package_id: selectedPackageId,
+                    paid_cents: paidCents
+                )
+            )
+            paidAmount = ""
+            statusMessage = "Package issued."
+            await load()
+        } catch {
+            statusMessage = "Could not issue this package."
+        }
+        isSaving = false
+    }
+
+    private func redeem(_ package: BusinessClientPackage) async {
+        redeemingId = package.id.value
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.redeemBusinessClientPackage(businessId: business.id.value, clientPackageId: package.id.value)
+            statusMessage = "Session redeemed."
+            await load()
+        } catch {
+            statusMessage = "Could not redeem this session."
+        }
+        redeemingId = nil
+    }
+
+    private var paidCents: Int? {
+        guard let amount = Double(paidAmount) else { return nil }
+        return Int((amount * 100).rounded())
+    }
+
+    private func sessionText(_ package: BusinessClientPackage) -> String {
+        "\(package.sessionsRemaining ?? 0) left, \(package.sessionsUsed ?? 0) used"
+    }
+
+    private func paidText(_ cents: Int?) -> String {
+        guard let cents else { return "No payment recorded" }
+        return money(Double(cents) / 100)
     }
 }
 

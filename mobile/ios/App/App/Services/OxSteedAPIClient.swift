@@ -266,6 +266,27 @@ final class OxSteedAPIClient {
         try await postEncodable("businesses/\(businessId)/packages", body: payload, authenticated: true)
     }
 
+    func businessClientPackages(businessId: String) async throws -> [BusinessClientPackage] {
+        try await get("businesses/\(businessId)/client-packages", authenticated: true)
+    }
+
+    func issueBusinessClientPackage(businessId: String, payload: BusinessClientPackageIssueSubmission) async throws -> BusinessClientPackage {
+        try await postEncodable("businesses/\(businessId)/client-packages", body: payload, authenticated: true)
+    }
+
+    func redeemBusinessClientPackage(businessId: String, clientPackageId: String) async throws -> BusinessClientPackage {
+        try await post("businesses/\(businessId)/client-packages/\(clientPackageId)/redeem", body: [:], authenticated: true)
+    }
+
+    func businessBulkPricingTiers(businessId: String, productId: String) async throws -> [BusinessBulkPricingTier] {
+        let response: BusinessBulkPricingTiersResponse = try await get("businesses/\(businessId)/products/\(productId)/bulk-pricing", authenticated: true)
+        return response.data
+    }
+
+    func setBusinessBulkPricingTiers(businessId: String, productId: String, tiers: [BusinessBulkPricingTier]) async throws -> BusinessBulkPricingTiersMutationResponse {
+        try await postEncodable("businesses/\(businessId)/products/\(productId)/bulk-pricing", body: BusinessBulkPricingTiersSubmission(tiers: tiers), authenticated: true)
+    }
+
     func businessProductPricingRules(businessId: String) async throws -> [BusinessProductPricingRule] {
         let response: BusinessProductPricingRulesResponse = try await get("businesses/\(businessId)/product-pricing/rules", queryItems: [
             URLQueryItem(name: "limit", value: "50")

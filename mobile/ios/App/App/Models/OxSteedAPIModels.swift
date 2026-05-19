@@ -672,6 +672,7 @@ struct BusinessClientsResponse: Decodable {
 
 struct BusinessClientItem: Decodable, Identifiable {
     let id: FlexibleString
+    let customerId: FlexibleString?
     let displayName: String
     let email: String?
     let phone: String?
@@ -684,6 +685,7 @@ struct BusinessClientItem: Decodable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case id, email, phone, city, state, status
+        case customerId = "customer_id"
         case displayName = "display_name"
         case preferredContact = "preferred_contact"
         case lifetimeValueCents = "lifetime_value_cents"
@@ -957,6 +959,64 @@ struct BusinessServicePackageSubmission: Encodable {
     let price_cents: Int
     let validity_days: Int?
     let sort_order: Int
+}
+
+struct BusinessClientPackage: Decodable, Identifiable {
+    let id: FlexibleString
+    let packageName: String?
+    let customerName: String?
+    let customerId: FlexibleString?
+    let packageId: FlexibleString?
+    let sessionsRemaining: Int?
+    let sessionsUsed: Int?
+    let status: String?
+    let paidCents: Int?
+    let expiresAt: String?
+    let purchasedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, status
+        case packageName = "package_name"
+        case customerName = "customer_name"
+        case customerId = "customer_id"
+        case packageId = "package_id"
+        case sessionsRemaining = "sessions_remaining"
+        case sessionsUsed = "sessions_used"
+        case paidCents = "paid_cents"
+        case expiresAt = "expires_at"
+        case purchasedAt = "purchased_at"
+    }
+}
+
+struct BusinessClientPackageIssueSubmission: Encodable {
+    let customer_id: String
+    let package_id: String
+    let paid_cents: Int?
+}
+
+struct BusinessClientPackageMutationResponse: Decodable {
+    let id: FlexibleString?
+}
+
+struct BusinessBulkPricingTier: Codable, Identifiable {
+    let minQuantity: Int
+    let discountPercent: Double
+
+    var id: String { "\(minQuantity)-\(discountPercent)" }
+}
+
+struct BusinessBulkPricingTiersResponse: Decodable {
+    let success: Bool?
+    let data: [BusinessBulkPricingTier]
+}
+
+struct BusinessBulkPricingTiersSubmission: Encodable {
+    let tiers: [BusinessBulkPricingTier]
+}
+
+struct BusinessBulkPricingTiersMutationResponse: Decodable {
+    let success: Bool?
+    let message: String?
 }
 
 struct BusinessProductPricingRulesResponse: Decodable {
