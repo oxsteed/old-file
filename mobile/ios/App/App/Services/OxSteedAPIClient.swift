@@ -1,5 +1,14 @@
 import Foundation
 
+struct OxSteedAPIError: LocalizedError {
+    let statusCode: Int
+    let message: String
+    let code: String?
+    let fields: [String: String]?
+
+    var errorDescription: String? { message }
+}
+
 final class OxSteedAPIClient {
     static let shared = OxSteedAPIClient()
 
@@ -70,16 +79,49 @@ final class OxSteedAPIClient {
 
     func login(email: String, password: String, agreementName: String) async throws -> LoginResponse {
         try await post("auth/login", body: [
-            "email": email,
+            "email": email.trimmed.lowercased(),
             "password": password,
             "rememberMe": true,
             "termsAgreed": true,
-            "agreementName": agreementName
+            "agreementName": agreementName.trimmed
         ], authenticated: false)
     }
 
     func registerAccount(_ payload: RegistrationSubmission) async throws -> LoginResponse {
         try await postEncodable("auth/register", body: payload, authenticated: false)
+    }
+
+    func completeTwoFactorLogin(mfaToken: String, code: String, isBackupCode: Bool) async throws -> LoginResponse {
+        try await post("auth/login/2fa", body: [
+            "mfaToken": mfaToken,
+            "token": code.trimmed,
+            "isBackupCode": isBackupCode
+        ], authenticated: false)
+    }
+
+    func me() async throws -> AuthUser {
+        let response: AuthMeResponse = try await get("auth/me", authenticated: true)
+        return response.user
+    }
+
+    func refreshSession(refreshToken: String) async throws -> LoginResponse {
+        try await post("auth/refresh", body: [
+            "refreshToken": refreshToken
+        ], authenticated: false)
+    }
+
+    func updateAuthProfile(_ payload: AuthProfileUpdateSubmission) async throws -> AuthProfileUpdateResponse {
+        try await putEncodable("auth/profile", body: payload, authenticated: true)
+    }
+
+    func resendVerificationEmail() async throws -> MessageResponse {
+        try await post("auth/resend-verification", body: [:], authenticated: true)
+    }
+
+    func switchRole(to role: String) async throws -> LoginResponse {
+        try await post("auth/switch-role", body: [
+            "target_role": role
+        ], authenticated: true)
     }
 
     func submitConsultation(_ payload: ConsultingSubmission) async throws -> ConsultingResponse {
@@ -127,6 +169,58 @@ final class OxSteedAPIClient {
             URLQueryItem(name: "role", value: role)
         ], authenticated: true)
         return response.appointments
+    }
+
+    func myBookings(status: String? = nil) async throws -> [NativeBooking] {
+        var queryItems: [URLQueryItem] = []
+        if let status, !status.isEmpty {
+            queryItems.append(URLQueryItem(name: "status", value: status))
+        }
+        let response: APIDataResponse<[NativeBooking]> = try await get("bookings", queryItems: queryItems, authenticated: true)
+        return response.data
+    }
+
+    func incomingBookings(status: String? = "pending") async throws -> [NativeBooking] {
+        var queryItems: [URLQueryItem] = []
+        if let status, !status.isEmpty {
+            queryItems.append(URLQueryItem(name: "status", value: status))
+        }
+        let response: APIDataResponse<[NativeBooking]> = try await get("bookings/incoming", queryItems: queryItems, authenticated: true)
+        return response.data
+    }
+
+    func cancelBooking(bookingId: String) async throws -> NativeBooking {
+        let response: APIDataResponse<NativeBooking> = try await post("bookings/\(bookingId)/cancel", body: [:], authenticated: true)
+        return response.data
+    }
+
+    func acceptBooking(bookingId: String) async throws -> NativeBooking {
+        let response: APIDataResponse<NativeBooking> = try await post("bookings/\(bookingId)/accept", body: [:], authenticated: true)
+        return response.data
+    }
+
+    func declineBooking(bookingId: String, reason: String?) async throws -> NativeBooking {
+        let response: APIDataResponse<NativeBooking> = try await post("bookings/\(bookingId)/decline", body: [
+            "reason": reason ?? ""
+        ], authenticated: true)
+        return response.data
+    }
+
+    func orders() async throws -> [NativeOrder] {
+        let response: APIDataResponse<[NativeOrder]> = try await get("orders", queryItems: [
+            URLQueryItem(name: "limit", value: "30")
+        ], authenticated: true)
+        return response.data
+    }
+
+    func orderStats() async throws -> NativeOrderStats {
+        let response: APIDataResponse<NativeOrderStats> = try await get("orders/stats", authenticated: true)
+        return response.data
+    }
+
+    func cancelOrder(orderId: String) async throws -> NativeOrder {
+        let response: APIDataResponse<NativeOrder> = try await post("orders/\(orderId)/cancel", body: [:], authenticated: true)
+        return response.data
     }
 
     func businesses() async throws -> [NativeBusiness] {
@@ -392,9 +486,16 @@ final class OxSteedAPIClient {
         request.timeoutInterval = 20
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
+        if let http = response as? HTTPURLResponse, http.statusCode == 401, authenticated, try await refreshStoredSession() {
+            var retry = request
+            if let token = UserDefaults.standard.string(forKey: "oxsteedAccessToken") {
+                retry.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            }
+            let (retryData, retryResponse) = try await URLSession.shared.data(for: retry)
+            try validate(retryResponse, data: retryData)
+            return try decoder.decode(T.self, from: retryData)
         }
+        try validate(response, data: data)
         return try decoder.decode(T.self, from: data)
     }
 
@@ -429,9 +530,59 @@ final class OxSteedAPIClient {
         request.timeoutInterval = 25
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+        if let http = response as? HTTPURLResponse, http.statusCode == 401, authenticated, try await refreshStoredSession() {
+            var retry = request
+            if let token = UserDefaults.standard.string(forKey: "oxsteedAccessToken") {
+                retry.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            }
+            let (retryData, retryResponse) = try await URLSession.shared.data(for: retry)
+            try validate(retryResponse, data: retryData)
+            return try decoder.decode(T.self, from: retryData)
+        }
+        try validate(response, data: data)
+        return try decoder.decode(T.self, from: data)
+    }
+
+    private func refreshStoredSession() async throws -> Bool {
+        guard let refreshToken = UserDefaults.standard.string(forKey: "oxsteedRefreshToken"), !refreshToken.isEmpty else {
+            return false
+        }
+        do {
+            let response = try await refreshSession(refreshToken: refreshToken)
+            guard let accessToken = response.accessToken else { return false }
+            UserDefaults.standard.set(accessToken, forKey: "oxsteedAccessToken")
+            if let newRefreshToken = response.refreshToken {
+                UserDefaults.standard.set(newRefreshToken, forKey: "oxsteedRefreshToken")
+            }
+            return true
+        } catch {
+            UserDefaults.standard.removeObject(forKey: "oxsteedAccessToken")
+            UserDefaults.standard.removeObject(forKey: "oxsteedRefreshToken")
+            return false
+        }
+    }
+
+    private func validate(_ response: URLResponse, data: Data) throws {
+        guard let http = response as? HTTPURLResponse else {
             throw URLError(.badServerResponse)
         }
-        return try decoder.decode(T.self, from: data)
+        guard (200..<300).contains(http.statusCode) else {
+            if let envelope = try? decoder.decode(APIErrorEnvelope.self, from: data) {
+                let fieldMessage = envelope.fields?.values.first
+                throw OxSteedAPIError(
+                    statusCode: http.statusCode,
+                    message: envelope.error ?? envelope.message ?? fieldMessage ?? "OxSteed request failed.",
+                    code: envelope.code,
+                    fields: envelope.fields
+                )
+            }
+            throw OxSteedAPIError(statusCode: http.statusCode, message: "OxSteed request failed with status \(http.statusCode).", code: nil, fields: nil)
+        }
+    }
+}
+
+private extension String {
+    var trimmed: String {
+        trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

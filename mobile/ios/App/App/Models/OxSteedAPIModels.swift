@@ -121,6 +121,13 @@ struct APIDataResponse<T: Decodable>: Decodable {
     let data: T
 }
 
+struct APIErrorEnvelope: Decodable {
+    let error: String?
+    let message: String?
+    let code: String?
+    let fields: [String: String]?
+}
+
 struct NativeProduct: Decodable, Identifiable {
     let id: FlexibleString
     let name: String
@@ -329,9 +336,77 @@ struct FlexibleString: Decodable, Hashable {
 struct LoginResponse: Decodable {
     let success: Bool?
     let message: String?
+    let user: AuthUser?
     let accessToken: String?
     let refreshToken: String?
     let requiresTwoFactor: Bool?
+    let mfaToken: String?
+}
+
+struct AuthMeResponse: Decodable {
+    let success: Bool?
+    let user: AuthUser
+}
+
+struct AuthUser: Decodable, Identifiable {
+    let id: FlexibleString
+    let firstName: String?
+    let lastName: String?
+    let email: String
+    let phone: String?
+    let zipCode: String?
+    let role: String?
+    let emailVerified: Bool?
+    let onboardingStep: String?
+    let diditStatus: String?
+    let diditEnforcementRequired: Bool?
+    let displayNamePreference: String?
+
+    var displayName: String {
+        let full = [firstName, lastName].compactMap { $0?.nilIfBlank }.joined(separator: " ")
+        return full.nilIfBlank ?? email
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, email, role
+        case firstName = "first_name"
+        case lastName = "last_name"
+        case phone
+        case zipCode = "zip_code"
+        case emailVerified = "email_verified"
+        case onboardingStep = "onboarding_step"
+        case diditStatus = "didit_status"
+        case diditEnforcementRequired = "didit_enforcement_required"
+        case displayNamePreference = "display_name_preference"
+    }
+}
+
+struct AuthProfileUpdateSubmission: Encodable {
+    let phone: String?
+    let zip_code: String?
+    let display_name_preference: String?
+}
+
+struct AuthProfileUpdateResponse: Decodable {
+    let id: FlexibleString
+    let email: String?
+    let firstName: String?
+    let lastName: String?
+    let phone: String?
+    let zipCode: String?
+    let displayNamePreference: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, email, phone
+        case firstName = "first_name"
+        case lastName = "last_name"
+        case zipCode = "zip_code"
+        case displayNamePreference = "display_name_preference"
+    }
+}
+
+struct MessageResponse: Decodable {
+    let message: String?
 }
 
 struct RegistrationSubmission: Encodable {
@@ -443,6 +518,60 @@ struct BookingRequestItem: Decodable, Identifiable {
         case requestedStartTime = "requested_start_time"
         case requestedEndTime = "requested_end_time"
         case serviceLocation = "service_location"
+    }
+}
+
+struct NativeBooking: Decodable, Identifiable {
+    let id: FlexibleString
+    let customerId: FlexibleString?
+    let helperId: FlexibleString?
+    let serviceName: String?
+    let requestedDate: String?
+    let requestedStartTime: String?
+    let requestedEndTime: String?
+    let serviceLocation: String?
+    let description: String?
+    let status: String?
+    let expiresAt: String?
+    let acceptedAt: String?
+    let declinedAt: String?
+    let helperResponseReason: String?
+    let customerName: String?
+    let createdAt: String?
+}
+
+struct NativeOrder: Decodable, Identifiable {
+    let id: FlexibleString
+    let status: String?
+    let totalCents: Int?
+    let subtotalCents: Int?
+    let taxCents: Int?
+    let shippingCents: Int?
+    let createdAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, status
+        case totalCents = "total_cents"
+        case subtotalCents = "subtotal_cents"
+        case taxCents = "tax_cents"
+        case shippingCents = "shipping_cents"
+        case createdAt = "created_at"
+    }
+}
+
+struct NativeOrderStats: Decodable {
+    let totalOrders: FlexibleString?
+    let completedOrders: FlexibleString?
+    let pendingOrders: FlexibleString?
+    let cancelledOrders: FlexibleString?
+    let totalSpentCents: FlexibleString?
+
+    enum CodingKeys: String, CodingKey {
+        case totalOrders = "total_orders"
+        case completedOrders = "completed_orders"
+        case pendingOrders = "pending_orders"
+        case cancelledOrders = "cancelled_orders"
+        case totalSpentCents = "total_spent_cents"
     }
 }
 

@@ -41,6 +41,16 @@ struct WorkflowsNativeView: View {
                         WorkflowRow(title: "Calendar", subtitle: "View upcoming appointments from your OxSteed account.", systemImage: "calendar")
                     }
                     NavigationLink {
+                        BookingRequestsNativeView()
+                    } label: {
+                        WorkflowRow(title: "Booking requests", subtitle: "Manage sent bookings and helper inbox decisions.", systemImage: "calendar.badge.clock")
+                    }
+                    NavigationLink {
+                        OrdersNativeView()
+                    } label: {
+                        WorkflowRow(title: "Orders", subtitle: "Review marketplace purchases and cancel eligible orders.", systemImage: "shippingbox.fill")
+                    }
+                    NavigationLink {
                         HelpersNativeView()
                     } label: {
                         WorkflowRow(title: "Book services", subtitle: "Choose a helper or business, then continue to booking.", systemImage: "calendar.badge.plus")
@@ -928,6 +938,212 @@ struct CalendarNativeView: View {
             statusMessage = nil
         } catch {
             statusMessage = "Could not load appointments."
+        }
+    }
+}
+
+struct BookingRequestsNativeView: View {
+    @EnvironmentObject private var session: SessionStore
+    @State private var sent: [NativeBooking] = []
+    @State private var incoming: [NativeBooking] = []
+    @State private var selectedScope = "sent"
+    @State private var statusMessage: String?
+    @State private var responseReason = ""
+
+    var body: some View {
+        VStack {
+            Picker("Bookings", selection: $selectedScope) {
+                Text("Sent").tag("sent")
+                Text("Incoming").tag("incoming")
+            }
+            .pickerStyle(.segmented)
+            .padding([.horizontal, .top])
+
+            List {
+                if !session.isSignedIn {
+                    Text("Sign in on the Account tab to manage booking requests.")
+                } else if selectedItems.isEmpty {
+                    Text(statusMessage ?? "No booking requests in this view.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(selectedItems) { booking in
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text(booking.serviceName?.nilIfBlank ?? "Booking request")
+                                    .font(.headline)
+                                Spacer()
+                                Text(booking.status ?? "pending")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.orange)
+                            }
+                            Text([booking.requestedDate, booking.requestedStartTime, booking.requestedEndTime].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if let customerName = booking.customerName?.nilIfBlank {
+                                Text("Customer: \(customerName)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let location = booking.serviceLocation?.nilIfBlank {
+                                Text(location)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if selectedScope == "sent", booking.status == "pending" || booking.status == "accepted" {
+                                Button("Cancel booking") {
+                                    Task { await cancel(booking) }
+                                }
+                                .font(.caption)
+                            }
+                            if selectedScope == "incoming", booking.status == "pending" || booking.status == "expired" {
+                                TextField("Decline reason (optional)", text: $responseReason)
+                                    .textFieldStyle(.roundedBorder)
+                                HStack {
+                                    Button("Accept") {
+                                        Task { await accept(booking) }
+                                    }
+                                    Button("Decline") {
+                                        Task { await decline(booking) }
+                                    }
+                                }
+                                .font(.caption)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+            }
+            .refreshable { await load() }
+        }
+        .navigationTitle("Bookings")
+        .task {
+            guard session.isSignedIn else { return }
+            if sent.isEmpty && incoming.isEmpty { await load() }
+        }
+    }
+
+    private var selectedItems: [NativeBooking] {
+        selectedScope == "sent" ? sent : incoming
+    }
+
+    private func load() async {
+        statusMessage = nil
+        do {
+            async let sentBookings = OxSteedAPIClient.shared.myBookings()
+            async let incomingBookings = OxSteedAPIClient.shared.incomingBookings()
+            sent = try await sentBookings
+            incoming = try await incomingBookings
+        } catch {
+            statusMessage = "Could not load booking requests."
+        }
+    }
+
+    private func cancel(_ booking: NativeBooking) async {
+        do {
+            _ = try await OxSteedAPIClient.shared.cancelBooking(bookingId: booking.id.value)
+            await load()
+        } catch {
+            statusMessage = "Could not cancel this booking."
+        }
+    }
+
+    private func accept(_ booking: NativeBooking) async {
+        do {
+            _ = try await OxSteedAPIClient.shared.acceptBooking(bookingId: booking.id.value)
+            await load()
+        } catch {
+            statusMessage = "Could not accept this booking."
+        }
+    }
+
+    private func decline(_ booking: NativeBooking) async {
+        do {
+            _ = try await OxSteedAPIClient.shared.declineBooking(bookingId: booking.id.value, reason: responseReason.trimmed.nilIfBlank)
+            responseReason = ""
+            await load()
+        } catch {
+            statusMessage = "Could not decline this booking."
+        }
+    }
+}
+
+struct OrdersNativeView: View {
+    @EnvironmentObject private var session: SessionStore
+    @State private var orders: [NativeOrder] = []
+    @State private var stats: NativeOrderStats?
+    @State private var statusMessage: String?
+
+    var body: some View {
+        List {
+            if !session.isSignedIn {
+                Text("Sign in on the Account tab to load marketplace orders.")
+            } else {
+                if let stats {
+                    Section("Summary") {
+                        LabeledContent("Total orders", value: stats.totalOrders?.value ?? "0")
+                        LabeledContent("Completed", value: stats.completedOrders?.value ?? "0")
+                        LabeledContent("Pending", value: stats.pendingOrders?.value ?? "0")
+                        LabeledContent("Spent", value: centsMoney(Int(stats.totalSpentCents?.value ?? "0")))
+                    }
+                }
+                Section("Orders") {
+                    if orders.isEmpty {
+                        Text(statusMessage ?? "No marketplace orders found.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(orders) { order in
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Text("Order #\(order.id.value)")
+                                        .font(.headline)
+                                        .lineLimit(1)
+                                    Spacer()
+                                    Text(order.status ?? "pending")
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(.orange)
+                                }
+                                Text([order.createdAt, centsMoney(order.totalCents)].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                if order.status == "pending" || order.status == "paid" {
+                                    Button("Cancel order") {
+                                        Task { await cancel(order) }
+                                    }
+                                    .font(.caption)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Orders")
+        .task {
+            guard session.isSignedIn else { return }
+            if orders.isEmpty { await load() }
+        }
+        .refreshable { await load() }
+    }
+
+    private func load() async {
+        statusMessage = nil
+        do {
+            async let orderRows = OxSteedAPIClient.shared.orders()
+            async let orderStats = OxSteedAPIClient.shared.orderStats()
+            orders = try await orderRows
+            stats = try await orderStats
+        } catch {
+            statusMessage = "Could not load marketplace orders."
+        }
+    }
+
+    private func cancel(_ order: NativeOrder) async {
+        do {
+            _ = try await OxSteedAPIClient.shared.cancelOrder(orderId: order.id.value)
+            await load()
+        } catch {
+            statusMessage = "Could not cancel this order."
         }
     }
 }
