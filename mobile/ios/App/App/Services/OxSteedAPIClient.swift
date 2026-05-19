@@ -78,6 +78,10 @@ final class OxSteedAPIClient {
         ], authenticated: false)
     }
 
+    func registerAccount(_ payload: RegistrationSubmission) async throws -> LoginResponse {
+        try await postEncodable("auth/register", body: payload, authenticated: false)
+    }
+
     func submitConsultation(_ payload: ConsultingSubmission) async throws -> ConsultingResponse {
         try await postEncodable("consulting/submit", body: payload, authenticated: false)
     }
@@ -88,6 +92,10 @@ final class OxSteedAPIClient {
 
     func submitBookingRequest(_ payload: BookingRequestSubmission) async throws -> BookingRequestResponse {
         try await postEncodable("bookings", body: payload, authenticated: true)
+    }
+
+    func submitBid(_ payload: BidSubmission) async throws -> BidResponse {
+        try await postEncodable("bids", body: payload, authenticated: true)
     }
 
     func conversations() async throws -> [ConversationItem] {
@@ -174,6 +182,23 @@ final class OxSteedAPIClient {
         return response.appointments
     }
 
+    func businessProfileEdit(businessId: String) async throws -> BusinessProfileEdit {
+        let response: BusinessProfileEditResponse = try await get("businesses/\(businessId)/profile-edit", authenticated: true)
+        return response.business
+    }
+
+    func createBusiness(_ payload: BusinessProfileUpdate) async throws -> BusinessMutationResponse {
+        try await postEncodable("businesses", body: payload, authenticated: true)
+    }
+
+    func updateBusiness(id: String, payload: BusinessProfileUpdate) async throws -> BusinessMutationResponse {
+        try await putEncodable("businesses/\(id)", body: payload, authenticated: true)
+    }
+
+    func createBusinessService(businessId: String, payload: BusinessServiceSubmission) async throws -> NativeBusinessService {
+        try await postEncodable("businesses/\(businessId)/services", body: payload, authenticated: true)
+    }
+
     private func get<T: Decodable>(_ path: String, queryItems: [URLQueryItem] = [], authenticated: Bool = false) async throws -> T {
         var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
         components.queryItems = queryItems.isEmpty ? nil : queryItems
@@ -203,9 +228,18 @@ final class OxSteedAPIClient {
         return try await send(path, body: data, authenticated: authenticated)
     }
 
+    private func putEncodable<T: Decodable, U: Encodable>(_ path: String, body: U, authenticated: Bool) async throws -> T {
+        let data = try JSONEncoder().encode(body)
+        return try await send(path, method: "PUT", body: data, authenticated: authenticated)
+    }
+
     private func send<T: Decodable>(_ path: String, body: Data, authenticated: Bool) async throws -> T {
+        try await send(path, method: "POST", body: body, authenticated: authenticated)
+    }
+
+    private func send<T: Decodable>(_ path: String, method: String, body: Data, authenticated: Bool) async throws -> T {
         var request = URLRequest(url: baseURL.appendingPathComponent(path))
-        request.httpMethod = "POST"
+        request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if authenticated, let token = UserDefaults.standard.string(forKey: "oxsteedAccessToken") {

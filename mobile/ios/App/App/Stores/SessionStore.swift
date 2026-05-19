@@ -36,6 +36,26 @@ final class SessionStore: ObservableObject {
         isWorking = false
     }
 
+    func register(_ payload: RegistrationSubmission) async {
+        isWorking = true
+        errorMessage = nil
+        do {
+            let response = try await OxSteedAPIClient.shared.registerAccount(payload)
+            if let accessToken = response.accessToken {
+                UserDefaults.standard.set(accessToken, forKey: "oxsteedAccessToken")
+                if let refreshToken = response.refreshToken {
+                    UserDefaults.standard.set(refreshToken, forKey: "oxsteedRefreshToken")
+                }
+                isSignedIn = true
+            } else {
+                errorMessage = response.message ?? "Account created, but sign in did not finish."
+            }
+        } catch {
+            errorMessage = "Could not create this account. Check required fields or use a different email."
+        }
+        isWorking = false
+    }
+
     func signOut() {
         UserDefaults.standard.removeObject(forKey: "oxsteedAccessToken")
         UserDefaults.standard.removeObject(forKey: "oxsteedRefreshToken")

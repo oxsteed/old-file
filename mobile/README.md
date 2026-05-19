@@ -15,7 +15,7 @@ Native iOS app project for publishing OxSteed to the App Store.
   - Work
   - Account
 - `Discover`, `Jobs`, and `Helpers` fetch live public OxSteed API data and render it in SwiftUI lists/search screens.
-- `Account` signs in through the OxSteed API and stores the native session token for authenticated actions.
+- `Account` signs in or creates customer/helper accounts through the OxSteed API and stores the native session token for authenticated actions.
 - `Work` covers the main App Review-facing workflows with native SwiftUI surfaces:
   - Post a job through the authenticated `/api/jobs` endpoint.
   - Browse marketplace products from `/api/marketplace/products/browse`.
@@ -28,10 +28,11 @@ Native iOS app project for publishing OxSteed to the App Store.
   - Load authenticated customer/helper appointments from `/api/calendar/appointments` with a native role toggle.
   - Open native helper profile details, service menus, trust signals, hours, and reviews.
   - Open native job detail pages with scope, requirements, budget, status, and schedule context.
-  - Load owned and managed Business Hub businesses natively and drill into per-business appointment calendars.
-- `SFSafariViewController` is now limited to explicit fallback paths for flows that still require the full web transaction layer: protected bid submission, payment checkout, full Business Hub editing tools not yet rebuilt natively, account creation, and full listing pages when native detail data is unavailable.
+  - Submit helper bids through `/api/bids` directly from native job detail pages.
+  - Load owned and managed Business Hub businesses natively, drill into per-business appointment calendars, edit business profile/contact/location fields, create businesses, and create business services.
+- `SFSafariViewController` is now limited to explicit fallback paths for flows that still require the full web transaction layer: payment checkout, advanced Business Hub tools not yet rebuilt natively, and full listing pages when native detail data is unavailable.
 - The iOS deployment target is currently `17.0`.
-- The current native TestFlight build number is `1.0 (3)`.
+- The current native TestFlight build number is `1.0 (4)`.
 
 ## Build
 
@@ -77,6 +78,6 @@ In Xcode:
 ## Native Follow-Up
 
 - Reconnect native APNs registration directly from Swift instead of through the former Capacitor web bridge.
-- Move the remaining transaction edges out of Safari: protected bid submission, payment checkout, account creation, and deeper Business Hub editing tools.
+- Move the remaining transaction edges out of Safari: payment checkout and deeper Business Hub tools such as invoices, team, products, packages, pricing rules, and vertical operating-system tabs.
 - Store session tokens in Keychain instead of `UserDefaults` before production release.
 - Capture fresh App Store screenshots from the SwiftUI tabs before submitting the next build.

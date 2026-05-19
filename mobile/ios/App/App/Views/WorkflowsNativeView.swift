@@ -954,11 +954,19 @@ struct BusinessHubNativeView: View {
                     } else {
                         ForEach(owned) { business in
                             NavigationLink {
-                                BusinessCalendarNativeView(business: business)
+                                BusinessWorkspaceNativeView(business: business)
                             } label: {
                                 BusinessRow(business: business)
                             }
                         }
+                    }
+                }
+
+                Section("Create") {
+                    NavigationLink {
+                        BusinessProfileEditorNativeView(mode: .create)
+                    } label: {
+                        WorkflowRow(title: "Add business", subtitle: "Create a Business Hub profile natively.", systemImage: "plus.circle.fill")
                     }
                 }
 
@@ -969,7 +977,7 @@ struct BusinessHubNativeView: View {
                     } else {
                         ForEach(managed) { business in
                             NavigationLink {
-                                BusinessCalendarNativeView(business: business)
+                                BusinessWorkspaceNativeView(business: business)
                             } label: {
                                 BusinessRow(business: business)
                             }
@@ -1030,6 +1038,256 @@ struct BusinessHubNativeView: View {
             statusMessage = "Could not load Business Hub data."
         }
         isLoading = false
+    }
+}
+
+struct BusinessWorkspaceNativeView: View {
+    let business: NativeBusiness
+
+    var body: some View {
+        List {
+            Section {
+                BusinessRow(business: business)
+            }
+            Section("Native workspace") {
+                NavigationLink {
+                    BusinessCalendarNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Calendar", subtitle: "View upcoming appointments for this business.", systemImage: "calendar")
+                }
+                NavigationLink {
+                    BusinessProfileEditorNativeView(mode: .edit(business))
+                } label: {
+                    WorkflowRow(title: "Profile studio", subtitle: "Edit public business copy, contact, and location.", systemImage: "building.2.fill")
+                }
+                NavigationLink {
+                    BusinessServiceCreateNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Add service", subtitle: "Create a bookable service without opening Business Hub web.", systemImage: "list.bullet.rectangle.fill")
+                }
+            }
+        }
+        .navigationTitle("Business")
+    }
+}
+
+enum BusinessProfileEditorMode {
+    case create
+    case edit(NativeBusiness)
+}
+
+struct BusinessProfileEditorNativeView: View {
+    let mode: BusinessProfileEditorMode
+    @State private var businessName = ""
+    @State private var businessType = ""
+    @State private var headline = ""
+    @State private var description = ""
+    @State private var website = ""
+    @State private var phone = ""
+    @State private var street = ""
+    @State private var city = ""
+    @State private var state = ""
+    @State private var zip = ""
+    @State private var country = "US"
+    @State private var radius = ""
+    @State private var aiKnowledge = ""
+    @State private var isLoading = false
+    @State private var isSaving = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        Form {
+            Section("Identity") {
+                TextField("Business name", text: $businessName)
+                TextField("Business type", text: $businessType)
+                TextField("Profile headline", text: $headline)
+                TextField("Description", text: $description, axis: .vertical)
+                    .lineLimit(5, reservesSpace: true)
+            }
+            Section("Contact") {
+                TextField("Website", text: $website)
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                TextField("Phone", text: $phone)
+                    .keyboardType(.phonePad)
+            }
+            Section("Location") {
+                TextField("Street", text: $street)
+                TextField("City", text: $city)
+                TextField("State", text: $state)
+                TextField("Zip", text: $zip)
+                TextField("Country", text: $country)
+                TextField("Service radius miles", text: $radius)
+                    .keyboardType(.decimalPad)
+            }
+            Section("AI profile context") {
+                TextField("What should OxSteed know about this business?", text: $aiKnowledge, axis: .vertical)
+                    .lineLimit(5, reservesSpace: true)
+            }
+            Section {
+                if isLoading {
+                    ProgressView("Loading profile...")
+                }
+                Button(isSaving ? "Saving..." : saveTitle) {
+                    Task { await save() }
+                }
+                .disabled(isSaving || businessName.trimmed.isEmpty)
+            }
+            if let statusMessage {
+                Section {
+                    Text(statusMessage)
+                }
+            }
+        }
+        .navigationTitle(saveTitle)
+        .task { await load() }
+    }
+
+    private var saveTitle: String {
+        switch mode {
+        case .create: return "Create Business"
+        case .edit: return "Save Profile"
+        }
+    }
+
+    private func load() async {
+        guard case .edit(let business) = mode, businessName.isEmpty else { return }
+        businessName = business.businessName
+        businessType = business.businessType ?? ""
+        description = business.description ?? ""
+        website = business.website ?? ""
+        phone = business.phone ?? ""
+        city = business.addressCity ?? ""
+        state = business.addressState ?? ""
+        country = business.addressCountry ?? "US"
+        isLoading = true
+        do {
+            let profile = try await OxSteedAPIClient.shared.businessProfileEdit(businessId: business.id.value)
+            businessName = profile.businessName
+            businessType = profile.businessType ?? ""
+            headline = profile.profileHeadline ?? ""
+            description = profile.description ?? ""
+            website = profile.website ?? ""
+            phone = profile.phone ?? ""
+            street = profile.addressStreet ?? ""
+            city = profile.addressCity ?? ""
+            state = profile.addressState ?? ""
+            zip = profile.addressZip ?? ""
+            country = profile.addressCountry ?? "US"
+            if let value = profile.serviceRadiusMiles?.value, value > 0 {
+                radius = String(Int(value))
+            }
+            aiKnowledge = profile.aiKnowledge ?? ""
+        } catch {
+            statusMessage = "Could not load the full editor profile. Showing list data."
+        }
+        isLoading = false
+    }
+
+    private func save() async {
+        isSaving = true
+        statusMessage = nil
+        let payload = BusinessProfileUpdate(
+            business_name: businessName.trimmed,
+            business_type: businessType.trimmed.nilIfBlank,
+            description: description.trimmed.nilIfBlank,
+            website: website.trimmed.nilIfBlank,
+            phone: phone.trimmed.nilIfBlank,
+            address_street: street.trimmed.nilIfBlank,
+            address_city: city.trimmed.nilIfBlank,
+            address_state: state.trimmed.nilIfBlank,
+            address_zip: zip.trimmed.nilIfBlank,
+            address_country: country.trimmed.nilIfBlank ?? "US",
+            profile_headline: headline.trimmed.nilIfBlank,
+            service_radius_miles: Double(radius),
+            ai_knowledge: aiKnowledge.trimmed.nilIfBlank
+        )
+        do {
+            switch mode {
+            case .create:
+                _ = try await OxSteedAPIClient.shared.createBusiness(payload)
+                statusMessage = "Business created."
+            case .edit(let business):
+                _ = try await OxSteedAPIClient.shared.updateBusiness(id: business.id.value, payload: payload)
+                statusMessage = "Business profile saved."
+            }
+        } catch {
+            statusMessage = "Could not save this business profile."
+        }
+        isSaving = false
+    }
+}
+
+struct BusinessServiceCreateNativeView: View {
+    let business: NativeBusiness
+    @State private var name = ""
+    @State private var category = "General"
+    @State private var description = ""
+    @State private var price = ""
+    @State private var priceUnit = "flat"
+    @State private var duration = ""
+    @State private var popular = false
+    @State private var isSaving = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        Form {
+            Section("Service") {
+                TextField("Name", text: $name)
+                TextField("Category", text: $category)
+                TextField("Description", text: $description, axis: .vertical)
+                    .lineLimit(4, reservesSpace: true)
+                TextField("Price", text: $price)
+                    .keyboardType(.decimalPad)
+                Picker("Price unit", selection: $priceUnit) {
+                    Text("Flat").tag("flat")
+                    Text("Hourly").tag("hourly")
+                    Text("Starting at").tag("starting_at")
+                }
+                TextField("Duration", text: $duration)
+                Toggle("Mark as popular", isOn: $popular)
+            }
+            Section {
+                Button(isSaving ? "Creating..." : "Create service") {
+                    Task { await create() }
+                }
+                .disabled(isSaving || name.trimmed.isEmpty || Double(price) == nil)
+            }
+            if let statusMessage {
+                Section {
+                    Text(statusMessage)
+                }
+            }
+        }
+        .navigationTitle("Add Service")
+    }
+
+    private func create() async {
+        guard let amount = Double(price) else {
+            statusMessage = "Enter a valid service price."
+            return
+        }
+        isSaving = true
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.createBusinessService(
+                businessId: business.id.value,
+                payload: BusinessServiceSubmission(
+                    name: name.trimmed,
+                    description: description.trimmed.nilIfBlank,
+                    price: amount,
+                    price_unit: priceUnit,
+                    duration: duration.trimmed.nilIfBlank,
+                    popular: popular,
+                    category: category.trimmed.nilIfBlank ?? "General"
+                )
+            )
+            statusMessage = "Service created."
+            name = ""; description = ""; price = ""; duration = ""; popular = false
+        } catch {
+            statusMessage = "Could not create this service."
+        }
+        isSaving = false
     }
 }
 
@@ -1162,6 +1420,10 @@ private struct FlowTags: View {
 }
 
 private extension String {
+    var trimmed: String {
+        trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     var nilIfBlank: String? {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed

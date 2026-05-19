@@ -241,11 +241,22 @@ struct JobDetailNativeView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Next action")
                 .font(.headline)
-            Text(session.isSignedIn ? "Use the native job detail to decide fit. Bidding still needs the full protected bid flow." : "Sign in on the Account tab to bid or manage this job.")
+            Text(session.isSignedIn ? "Submit a quote natively. OxSteed will still handle customer acceptance and payment protection later." : "Sign in on the Account tab to bid or manage this job.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            PrimaryButton(title: session.isSignedIn ? "Open bid flow" : "Sign in to bid", systemImage: "paperplane.fill") {
-                router.open(fallback.route)
+            if session.isSignedIn {
+                NavigationLink {
+                    BidSubmissionNativeView(jobId: jobId, jobTitle: currentTitle, suggestedAmount: suggestedBidAmount)
+                } label: {
+                    Label("Submit native bid", systemImage: "paperplane.fill")
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.orange)
+            } else {
+                Text("Sign in to bid.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             SecondaryButton(title: "Share job link", systemImage: "square.and.arrow.up") {
                 router.open(fallback.route)
@@ -264,6 +275,13 @@ struct JobDetailNativeView: View {
         return "Open"
     }
 
+    private var suggestedBidAmount: String {
+        let max = job?.budgetMax?.value ?? fallback.budgetMax?.value ?? 0
+        let min = job?.budgetMin?.value ?? fallback.budgetMin?.value ?? 0
+        let amount = max > 0 ? max : min
+        return amount > 0 ? String(Int(amount)) : ""
+    }
+
     private var schedule: String {
         if let date = job?.scheduledDate?.nilIfBlank {
             return [date, job?.scheduledTime].compactMap { $0?.nilIfBlank }.joined(separator: " ")
@@ -280,6 +298,74 @@ struct JobDetailNativeView: View {
             errorMessage = "Could not load the full native job detail. The public job route is still available."
         }
         isLoading = false
+    }
+}
+
+struct BidSubmissionNativeView: View {
+    let jobId: String
+    let jobTitle: String
+    let suggestedAmount: String
+    @State private var amount = ""
+    @State private var etaHours = ""
+    @State private var message = ""
+    @State private var isSubmitting = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        Form {
+            Section("Job") {
+                Text(jobTitle)
+                    .font(.headline)
+                Text("Your quote creates a real OxSteed bid. The customer can accept it later; payment is not collected at bid submission.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section("Quote") {
+                TextField("Amount", text: $amount)
+                    .keyboardType(.decimalPad)
+                TextField("Estimated hours (optional)", text: $etaHours)
+                    .keyboardType(.decimalPad)
+                TextField("Message to customer", text: $message, axis: .vertical)
+                    .lineLimit(5, reservesSpace: true)
+            }
+            Section {
+                Button(isSubmitting ? "Submitting..." : "Submit bid") {
+                    Task { await submit() }
+                }
+                .disabled(isSubmitting || Double(amount) == nil || message.trimmed.isEmpty)
+            }
+            if let statusMessage {
+                Section {
+                    Text(statusMessage)
+                }
+            }
+        }
+        .navigationTitle("Submit Bid")
+        .onAppear {
+            if amount.isEmpty { amount = suggestedAmount }
+            if message.isEmpty { message = "I can help with this job. I reviewed the scope and can coordinate timing through OxSteed." }
+        }
+    }
+
+    private func submit() async {
+        guard let quote = Double(amount) else {
+            statusMessage = "Enter a valid bid amount."
+            return
+        }
+        isSubmitting = true
+        statusMessage = nil
+        do {
+            let bid = try await OxSteedAPIClient.shared.submitBid(BidSubmission(
+                job_id: jobId,
+                amount: quote,
+                message: message.trimmed,
+                eta_hours: Double(etaHours)
+            ))
+            statusMessage = "Bid submitted. Status: \(bid.status ?? "pending")."
+        } catch {
+            statusMessage = "Could not submit this bid. Helper accounts may need verified email, active onboarding, and Pro trial access."
+        }
+        isSubmitting = false
     }
 }
 
@@ -307,6 +393,10 @@ private struct JobFactTile: View {
 }
 
 private extension String {
+    var trimmed: String {
+        trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     var nilIfBlank: String? {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed

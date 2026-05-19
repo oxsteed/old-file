@@ -330,6 +330,16 @@ struct LoginResponse: Decodable {
     let requiresTwoFactor: Bool?
 }
 
+struct RegistrationSubmission: Encodable {
+    let email: String
+    let password: String
+    let first_name: String
+    let last_name: String
+    let phone: String?
+    let role: String
+    let language: String
+}
+
 struct ConversationItem: Decodable, Identifiable {
     let id: FlexibleString
     let otherUserName: String?
@@ -467,6 +477,32 @@ struct JobSubmissionResponse: Decodable {
     let title: String?
 }
 
+struct BidSubmission: Encodable {
+    let job_id: String
+    let amount: Double
+    let message: String
+    let eta_hours: Double?
+}
+
+struct BidResponse: Decodable, Identifiable {
+    let id: FlexibleString
+    let jobId: FlexibleString?
+    let helperId: FlexibleString?
+    let amount: FlexibleDouble?
+    let message: String?
+    let status: String?
+    let etaHours: FlexibleDouble?
+    let createdAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, amount, message, status
+        case jobId = "job_id"
+        case helperId = "helper_id"
+        case etaHours = "eta_hours"
+        case createdAt = "created_at"
+    }
+}
+
 struct BusinessListResponse: Decodable {
     let businesses: [NativeBusiness]
 }
@@ -496,6 +532,89 @@ struct NativeBusiness: Decodable, Identifiable {
         case isPrimary = "is_primary"
         case isActive = "is_active"
         case activeTemplate = "active_template"
+    }
+}
+
+struct BusinessProfileEditResponse: Decodable {
+    let business: BusinessProfileEdit
+}
+
+struct BusinessProfileEdit: Decodable, Identifiable {
+    let id: FlexibleString
+    let businessName: String
+    let businessType: String?
+    let description: String?
+    let website: String?
+    let phone: String?
+    let addressStreet: String?
+    let addressCity: String?
+    let addressState: String?
+    let addressZip: String?
+    let addressCountry: String?
+    let profileHeadline: String?
+    let serviceRadiusMiles: FlexibleDouble?
+    let aiKnowledge: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, description, website, phone
+        case businessName = "business_name"
+        case businessType = "business_type"
+        case addressStreet = "address_street"
+        case addressCity = "address_city"
+        case addressState = "address_state"
+        case addressZip = "address_zip"
+        case addressCountry = "address_country"
+        case profileHeadline = "profile_headline"
+        case serviceRadiusMiles = "service_radius_miles"
+        case aiKnowledge = "ai_knowledge"
+    }
+}
+
+struct BusinessMutationResponse: Decodable {
+    let business: NativeBusiness
+}
+
+struct BusinessProfileUpdate: Encodable {
+    let business_name: String
+    let business_type: String?
+    let description: String?
+    let website: String?
+    let phone: String?
+    let address_street: String?
+    let address_city: String?
+    let address_state: String?
+    let address_zip: String?
+    let address_country: String?
+    let profile_headline: String?
+    let service_radius_miles: Double?
+    let ai_knowledge: String?
+}
+
+struct BusinessServiceSubmission: Encodable {
+    let name: String
+    let description: String?
+    let price: Double
+    let price_unit: String
+    let duration: String?
+    let popular: Bool
+    let category: String
+}
+
+struct NativeBusinessService: Decodable, Identifiable {
+    let id: FlexibleString
+    let name: String
+    let description: String?
+    let price: FlexibleDouble?
+    let priceUnit: String?
+    let duration: String?
+    let popular: Bool?
+    let category: String?
+    let isActive: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, description, price, duration, popular, category
+        case priceUnit = "price_unit"
+        case isActive = "is_active"
     }
 }
 
