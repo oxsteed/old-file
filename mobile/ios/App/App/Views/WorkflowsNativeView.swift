@@ -1065,6 +1065,26 @@ struct BusinessWorkspaceNativeView: View {
                 } label: {
                     WorkflowRow(title: "Add service", subtitle: "Create a bookable service without opening Business Hub web.", systemImage: "list.bullet.rectangle.fill")
                 }
+                NavigationLink {
+                    BusinessInvoicesNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Invoices", subtitle: "List invoices and draft a simple invoice natively.", systemImage: "doc.text.fill")
+                }
+                NavigationLink {
+                    BusinessClientsNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Clients", subtitle: "View and add Business Hub CRM contacts.", systemImage: "person.2.fill")
+                }
+                NavigationLink {
+                    BusinessProductsNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Business products", subtitle: "List and create products for this business.", systemImage: "shippingbox.fill")
+                }
+                NavigationLink {
+                    BusinessTeamNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Team", subtitle: "View members and invite managers or representatives.", systemImage: "person.crop.circle.badge.plus")
+                }
             }
         }
         .navigationTitle("Business")
@@ -1291,6 +1311,473 @@ struct BusinessServiceCreateNativeView: View {
     }
 }
 
+struct BusinessInvoicesNativeView: View {
+    let business: NativeBusiness
+    @State private var invoices: [BusinessInvoiceItem] = []
+    @State private var summary: BusinessInvoiceSummary?
+    @State private var isLoading = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        List {
+            Section {
+                NavigationLink {
+                    BusinessInvoiceCreateNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Create invoice", subtitle: "Draft a simple invoice with one line item.", systemImage: "plus.circle.fill")
+                }
+                if let summary {
+                    Text("Outstanding: \(money(summary.outstandingTotal?.value))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Section("Recent invoices") {
+                if isLoading {
+                    ProgressView("Loading invoices...")
+                } else if invoices.isEmpty {
+                    Text(statusMessage ?? "No invoices yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(invoices) { invoice in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(invoice.invoiceNumber ?? "Invoice")
+                                .font(.headline)
+                            Text(invoice.clientName ?? "Client")
+                            Text([invoice.status, invoice.dueDate].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(money(invoice.total?.value))
+                                .font(.caption.bold())
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Invoices")
+        .task { if invoices.isEmpty { await load() } }
+        .refreshable { await load() }
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            let response = try await OxSteedAPIClient.shared.businessInvoices(businessId: business.id.value)
+            invoices = response.invoices
+            summary = response.summary
+        } catch {
+            statusMessage = "Could not load invoices."
+        }
+        isLoading = false
+    }
+}
+
+struct BusinessInvoiceCreateNativeView: View {
+    let business: NativeBusiness
+    @State private var clientName = ""
+    @State private var clientEmail = ""
+    @State private var itemDescription = ""
+    @State private var quantity = "1"
+    @State private var unitPrice = ""
+    @State private var dueDate = ""
+    @State private var taxRate = "0"
+    @State private var notes = ""
+    @State private var isSaving = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        Form {
+            Section("Client") {
+                TextField("Client name", text: $clientName)
+                TextField("Client email", text: $clientEmail)
+                    .keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                TextField("Due date (YYYY-MM-DD)", text: $dueDate)
+            }
+            Section("Line item") {
+                TextField("Description", text: $itemDescription)
+                TextField("Quantity", text: $quantity)
+                    .keyboardType(.decimalPad)
+                TextField("Unit price", text: $unitPrice)
+                    .keyboardType(.decimalPad)
+                TextField("Tax rate percent", text: $taxRate)
+                    .keyboardType(.decimalPad)
+                TextField("Notes", text: $notes, axis: .vertical)
+                    .lineLimit(3, reservesSpace: true)
+            }
+            Section {
+                Button(isSaving ? "Creating..." : "Create draft invoice") {
+                    Task { await create() }
+                }
+                .disabled(isSaving || clientName.trimmed.isEmpty || itemDescription.trimmed.isEmpty || Double(unitPrice) == nil)
+            }
+            if let statusMessage {
+                Section { Text(statusMessage) }
+            }
+        }
+        .navigationTitle("Create Invoice")
+    }
+
+    private func create() async {
+        guard let qty = Double(quantity), let price = Double(unitPrice) else {
+            statusMessage = "Enter a valid quantity and price."
+            return
+        }
+        isSaving = true
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.createBusinessInvoice(
+                businessId: business.id.value,
+                payload: BusinessInvoiceSubmission(
+                    client_name: clientName.trimmed,
+                    client_email: clientEmail.trimmed.nilIfBlank,
+                    client_company: nil,
+                    due_date: dueDate.trimmed.nilIfBlank,
+                    line_items: [BusinessInvoiceLineItem(description: itemDescription.trimmed, quantity: qty, unit_price: price)],
+                    invoice_tax_rate: Double(taxRate) ?? 0,
+                    notes: notes.trimmed.nilIfBlank,
+                    status: "draft"
+                )
+            )
+            statusMessage = "Draft invoice created."
+        } catch {
+            statusMessage = "Could not create this invoice."
+        }
+        isSaving = false
+    }
+}
+
+struct BusinessClientsNativeView: View {
+    let business: NativeBusiness
+    @State private var clients: [BusinessClientItem] = []
+    @State private var isLoading = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        List {
+            Section {
+                NavigationLink {
+                    BusinessClientCreateNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Add client", subtitle: "Create a Business Hub client record.", systemImage: "person.badge.plus")
+                }
+            }
+            Section("Clients") {
+                if isLoading {
+                    ProgressView("Loading clients...")
+                } else if clients.isEmpty {
+                    Text(statusMessage ?? "No clients yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(clients) { client in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(client.displayName)
+                                .font(.headline)
+                            Text([client.email, client.phone].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text([client.status, client.city, client.state].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Clients")
+        .task { if clients.isEmpty { await load() } }
+        .refreshable { await load() }
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            clients = try await OxSteedAPIClient.shared.businessClients(businessId: business.id.value)
+        } catch {
+            statusMessage = "Could not load clients."
+        }
+        isLoading = false
+    }
+}
+
+struct BusinessClientCreateNativeView: View {
+    let business: NativeBusiness
+    @State private var displayName = ""
+    @State private var email = ""
+    @State private var phone = ""
+    @State private var city = ""
+    @State private var state = ""
+    @State private var preferredContact = "email"
+    @State private var notes = ""
+    @State private var isSaving = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        Form {
+            Section("Client") {
+                TextField("Name", text: $displayName)
+                TextField("Email", text: $email)
+                    .keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                TextField("Phone", text: $phone)
+                    .keyboardType(.phonePad)
+                TextField("City", text: $city)
+                TextField("State", text: $state)
+                Picker("Preferred contact", selection: $preferredContact) {
+                    Text("Email").tag("email")
+                    Text("Phone").tag("phone")
+                    Text("SMS").tag("sms")
+                }
+                TextField("Internal notes", text: $notes, axis: .vertical)
+                    .lineLimit(4, reservesSpace: true)
+            }
+            Section {
+                Button(isSaving ? "Adding..." : "Add client") {
+                    Task { await create() }
+                }
+                .disabled(isSaving || displayName.trimmed.isEmpty)
+            }
+            if let statusMessage {
+                Section { Text(statusMessage) }
+            }
+        }
+        .navigationTitle("Add Client")
+    }
+
+    private func create() async {
+        isSaving = true
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.createBusinessClient(
+                businessId: business.id.value,
+                payload: BusinessClientSubmission(
+                    display_name: displayName.trimmed,
+                    email: email.trimmed.nilIfBlank,
+                    phone: phone.trimmed.nilIfBlank,
+                    city: city.trimmed.nilIfBlank,
+                    state: state.trimmed.nilIfBlank,
+                    status: "active",
+                    preferred_contact: preferredContact,
+                    internal_notes: notes.trimmed.nilIfBlank,
+                    tags: []
+                )
+            )
+            statusMessage = "Client added."
+        } catch {
+            statusMessage = "Could not add this client."
+        }
+        isSaving = false
+    }
+}
+
+struct BusinessProductsNativeView: View {
+    let business: NativeBusiness
+    @State private var products: [BusinessProductItem] = []
+    @State private var isLoading = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        List {
+            Section {
+                NavigationLink {
+                    BusinessProductCreateNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Add product", subtitle: "Create a business product listing.", systemImage: "plus.circle.fill")
+                }
+            }
+            Section("Products") {
+                if isLoading {
+                    ProgressView("Loading products...")
+                } else if products.isEmpty {
+                    Text(statusMessage ?? "No products yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(products) { product in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(product.name)
+                                .font(.headline)
+                            Text([product.category, product.sku].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(money(product.price?.value))
+                                .font(.caption.bold())
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Products")
+        .task { if products.isEmpty { await load() } }
+        .refreshable { await load() }
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            products = try await OxSteedAPIClient.shared.businessProducts(businessId: business.id.value)
+        } catch {
+            statusMessage = "Could not load products."
+        }
+        isLoading = false
+    }
+}
+
+struct BusinessProductCreateNativeView: View {
+    let business: NativeBusiness
+    @State private var name = ""
+    @State private var category = "General"
+    @State private var description = ""
+    @State private var price = ""
+    @State private var cost = ""
+    @State private var sku = ""
+    @State private var isActive = true
+    @State private var isSaving = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        Form {
+            Section("Product") {
+                TextField("Name", text: $name)
+                TextField("Category", text: $category)
+                TextField("SKU", text: $sku)
+                    .textInputAutocapitalization(.characters)
+                TextField("Description", text: $description, axis: .vertical)
+                    .lineLimit(4, reservesSpace: true)
+                TextField("Price", text: $price)
+                    .keyboardType(.decimalPad)
+                TextField("Cost (optional)", text: $cost)
+                    .keyboardType(.decimalPad)
+                Toggle("Active listing", isOn: $isActive)
+            }
+            Section {
+                Button(isSaving ? "Creating..." : "Create product") {
+                    Task { await create() }
+                }
+                .disabled(isSaving || name.trimmed.isEmpty || category.trimmed.isEmpty || sku.trimmed.isEmpty || Double(price) == nil)
+            }
+            if let statusMessage {
+                Section { Text(statusMessage) }
+            }
+        }
+        .navigationTitle("Add Product")
+    }
+
+    private func create() async {
+        guard let amount = Double(price) else {
+            statusMessage = "Enter a valid product price."
+            return
+        }
+        isSaving = true
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.createBusinessProduct(
+                businessId: business.id.value,
+                payload: BusinessProductSubmission(
+                    name: name.trimmed,
+                    description: description.trimmed.nilIfBlank,
+                    category: category.trimmed,
+                    price: amount,
+                    cost: Double(cost),
+                    sku: sku.trimmed,
+                    isActive: isActive
+                )
+            )
+            statusMessage = "Product created."
+        } catch {
+            statusMessage = "Could not create this product. SKU must be unique."
+        }
+        isSaving = false
+    }
+}
+
+struct BusinessTeamNativeView: View {
+    let business: NativeBusiness
+    @State private var members: [BusinessMemberItem] = []
+    @State private var inviteEmail = ""
+    @State private var inviteRole = "representative"
+    @State private var isLoading = false
+    @State private var isInviting = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        List {
+            Section("Invite") {
+                TextField("Email", text: $inviteEmail)
+                    .keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                Picker("Role", selection: $inviteRole) {
+                    Text("Representative").tag("representative")
+                    Text("Manager").tag("manager")
+                }
+                Button(isInviting ? "Inviting..." : "Send invite") {
+                    Task { await invite() }
+                }
+                .disabled(isInviting || inviteEmail.trimmed.isEmpty)
+            }
+            Section("Members") {
+                if isLoading {
+                    ProgressView("Loading team...")
+                } else if members.isEmpty {
+                    Text(statusMessage ?? "No members yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(members) { member in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(memberName(member))
+                                .font(.headline)
+                            Text([member.role, member.status].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            if let statusMessage {
+                Section { Text(statusMessage) }
+            }
+        }
+        .navigationTitle("Team")
+        .task { if members.isEmpty { await load() } }
+        .refreshable { await load() }
+    }
+
+    private func memberName(_ member: BusinessMemberItem) -> String {
+        let name = [member.firstName, member.lastName].compactMap { $0?.nilIfBlank }.joined(separator: " ")
+        return name.nilIfBlank ?? member.memberEmail ?? member.inviteEmail ?? "Team member"
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            members = try await OxSteedAPIClient.shared.businessMembers(businessId: business.id.value)
+        } catch {
+            statusMessage = "Could not load team."
+        }
+        isLoading = false
+    }
+
+    private func invite() async {
+        isInviting = true
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.inviteBusinessMember(
+                businessId: business.id.value,
+                payload: BusinessMemberInviteSubmission(email: inviteEmail.trimmed, role: inviteRole)
+            )
+            inviteEmail = ""
+            statusMessage = "Invite sent."
+            await load()
+        } catch {
+            statusMessage = "Could not send this invite. Owners can invite team members."
+        }
+        isInviting = false
+    }
+}
+
 struct BusinessCalendarNativeView: View {
     let business: NativeBusiness
     @State private var appointments: [BusinessAppointmentItem] = []
@@ -1350,6 +1837,11 @@ struct BusinessCalendarNativeView: View {
         }
         isLoading = false
     }
+}
+
+private func money(_ value: Double?) -> String {
+    guard let value else { return "TBD" }
+    return String(format: "$%.2f", value)
 }
 
 private struct BusinessRow: View {

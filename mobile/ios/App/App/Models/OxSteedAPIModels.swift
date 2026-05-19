@@ -95,6 +95,10 @@ struct NativeJob: Decodable, Identifiable {
 struct FlexibleDouble: Decodable, Hashable {
     let value: Double
 
+    init(value: Double) {
+        self.value = value
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         if let number = try? container.decode(Double.self) {
@@ -598,6 +602,206 @@ struct BusinessServiceSubmission: Encodable {
     let duration: String?
     let popular: Bool
     let category: String
+}
+
+struct BusinessInvoiceListResponse: Decodable {
+    let invoices: [BusinessInvoiceItem]
+    let summary: BusinessInvoiceSummary?
+}
+
+struct BusinessInvoiceSummary: Decodable {
+    let draft: FlexibleString?
+    let sent: FlexibleString?
+    let paid: FlexibleString?
+    let overdue: FlexibleString?
+    let outstandingTotal: FlexibleDouble?
+
+    enum CodingKeys: String, CodingKey {
+        case draft, sent, paid, overdue
+        case outstandingTotal = "outstanding_total"
+    }
+}
+
+struct BusinessInvoiceItem: Decodable, Identifiable {
+    let id: FlexibleString
+    let invoiceNumber: String?
+    let clientName: String?
+    let clientEmail: String?
+    let status: String?
+    let dueDate: String?
+    let total: FlexibleDouble?
+    let amountPaid: FlexibleDouble?
+    let createdAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, status, total
+        case invoiceNumber = "invoice_number"
+        case clientName = "client_name"
+        case clientEmail = "client_email"
+        case dueDate = "due_date"
+        case amountPaid = "amount_paid"
+        case createdAt = "created_at"
+    }
+}
+
+struct BusinessInvoiceLineItem: Encodable {
+    let description: String
+    let quantity: Double
+    let unit_price: Double
+}
+
+struct BusinessInvoiceSubmission: Encodable {
+    let client_name: String
+    let client_email: String?
+    let client_company: String?
+    let due_date: String?
+    let line_items: [BusinessInvoiceLineItem]
+    let invoice_tax_rate: Double
+    let notes: String?
+    let status: String
+}
+
+struct BusinessInvoiceMutationResponse: Decodable {
+    let invoice: BusinessInvoiceItem
+}
+
+struct BusinessClientsResponse: Decodable {
+    let clients: [BusinessClientItem]
+    let total: Int?
+}
+
+struct BusinessClientItem: Decodable, Identifiable {
+    let id: FlexibleString
+    let displayName: String
+    let email: String?
+    let phone: String?
+    let city: String?
+    let state: String?
+    let status: String?
+    let preferredContact: String?
+    let lifetimeValueCents: Int?
+    let totalJobs: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id, email, phone, city, state, status
+        case displayName = "display_name"
+        case preferredContact = "preferred_contact"
+        case lifetimeValueCents = "lifetime_value_cents"
+        case totalJobs = "total_jobs"
+    }
+}
+
+struct BusinessClientSubmission: Encodable {
+    let display_name: String
+    let email: String?
+    let phone: String?
+    let city: String?
+    let state: String?
+    let status: String
+    let preferred_contact: String?
+    let internal_notes: String?
+    let tags: [String]
+}
+
+struct BusinessClientMutationResponse: Decodable {
+    let client: BusinessClientItem
+}
+
+struct BusinessMembersResponse: Decodable {
+    let members: [BusinessMemberItem]
+}
+
+struct BusinessMemberItem: Decodable, Identifiable {
+    let id: FlexibleString
+    let role: String?
+    let status: String?
+    let inviteEmail: String?
+    let memberEmail: String?
+    let firstName: String?
+    let lastName: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, role, status
+        case inviteEmail = "invite_email"
+        case memberEmail = "member_email"
+        case firstName = "first_name"
+        case lastName = "last_name"
+    }
+}
+
+struct BusinessMemberInviteSubmission: Encodable {
+    let email: String
+    let role: String
+}
+
+struct BusinessMemberInviteResponse: Decodable {
+    let member: BusinessMemberItem
+    let userFound: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case member
+        case userFound = "user_found"
+    }
+}
+
+struct BusinessProductListResponse: Decodable {
+    let success: Bool?
+    let data: [BusinessProductItem]
+    let total: Int?
+}
+
+struct BusinessProductItem: Decodable, Identifiable {
+    let id: FlexibleString
+    let name: String
+    let category: String?
+    let price: FlexibleDouble?
+    let sku: String?
+    let totalStock: Int?
+    let isActive: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, category, price, sku
+        case priceCents = "price_cents"
+        case totalStock = "totalStock"
+        case totalStockSnake = "total_stock"
+        case isActive = "isActive"
+        case isActiveSnake = "is_active"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(FlexibleString.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        category = try container.decodeIfPresent(String.self, forKey: .category)
+        sku = try container.decodeIfPresent(String.self, forKey: .sku)
+        totalStock = try container.decodeIfPresent(Int.self, forKey: .totalStock)
+            ?? container.decodeIfPresent(Int.self, forKey: .totalStockSnake)
+        isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive)
+            ?? container.decodeIfPresent(Bool.self, forKey: .isActiveSnake)
+
+        if let decodedPrice = try container.decodeIfPresent(FlexibleDouble.self, forKey: .price) {
+            price = decodedPrice
+        } else if let cents = try container.decodeIfPresent(FlexibleDouble.self, forKey: .priceCents) {
+            price = FlexibleDouble(value: cents.value / 100)
+        } else {
+            price = nil
+        }
+    }
+}
+
+struct BusinessProductSubmission: Encodable {
+    let name: String
+    let description: String?
+    let category: String
+    let price: Double
+    let cost: Double?
+    let sku: String
+    let isActive: Bool
+}
+
+struct BusinessProductMutationResponse: Decodable {
+    let success: Bool?
+    let data: BusinessProductItem
 }
 
 struct NativeBusinessService: Decodable, Identifiable {

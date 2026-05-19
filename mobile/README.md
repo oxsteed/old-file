@@ -30,9 +30,10 @@ Native iOS app project for publishing OxSteed to the App Store.
   - Open native job detail pages with scope, requirements, budget, status, and schedule context.
   - Submit helper bids through `/api/bids` directly from native job detail pages.
   - Load owned and managed Business Hub businesses natively, drill into per-business appointment calendars, edit business profile/contact/location fields, create businesses, and create business services.
+- Load and create core Business Hub records natively: invoices, clients, business products, and team invites.
 - `SFSafariViewController` is now limited to explicit fallback paths for flows that still require the full web transaction layer: payment checkout, advanced Business Hub tools not yet rebuilt natively, and full listing pages when native detail data is unavailable.
 - The iOS deployment target is currently `17.0`.
-- The current native TestFlight build number is `1.0 (4)`.
+- The current native TestFlight build number is `1.0 (6)`.
 
 ## Build
 
@@ -78,6 +79,6 @@ In Xcode:
 ## Native Follow-Up
 
 - Reconnect native APNs registration directly from Swift instead of through the former Capacitor web bridge.
-- Move the remaining transaction edges out of Safari: payment checkout and deeper Business Hub tools such as invoices, team, products, packages, pricing rules, and vertical operating-system tabs.
+- Move the remaining transaction edges out of Safari: payment checkout and deeper Business Hub tools such as packages, pricing rules, finance detail, inventory variants, and vertical operating-system tabs.
 - Store session tokens in Keychain instead of `UserDefaults` before production release.
 - Capture fresh App Store screenshots from the SwiftUI tabs before submitting the next build.
