@@ -31,6 +31,7 @@ Native iOS app project for publishing OxSteed to the App Store.
   - Load owned and managed Business Hub businesses natively and drill into per-business appointment calendars.
 - `SFSafariViewController` is now limited to explicit fallback paths for flows that still require the full web transaction layer: protected bid submission, payment checkout, full Business Hub editing tools not yet rebuilt natively, account creation, and full listing pages when native detail data is unavailable.
 - The iOS deployment target is currently `17.0`.
+- The current native TestFlight build number is `1.0 (3)`.
 
 ## Build
 
@@ -71,6 +72,7 @@ In Xcode:
   - `applinks:www.oxsteed.com`
 - Keep Push Notifications enabled if native notification registration is reconnected in a later pass.
 - Team ID discovered in Xcode: `ZBRGSDRRU7`. Production should keep `APPLE_TEAM_ID=ZBRGSDRRU7` so `/.well-known/apple-app-site-association` returns `ZBRGSDRRU7.com.oxsteed.app`.
+- `mobile/ios/App/ExportOptions-app-store.plist` is configured for automatic App Store Connect uploads with team `ZBRGSDRRU7`.
 
 ## Native Follow-Up
 
