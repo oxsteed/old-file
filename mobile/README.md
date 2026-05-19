@@ -24,7 +24,7 @@ Expo React Native + TypeScript app for building a native iOS/Android companion t
   - Helpers tab searches `/api/helpers`, drills into `/api/helpers/:id/profile`, starts conversations, and sends direct booking requests through `/api/bookings`.
   - Messages tab lists `/api/messages/conversations`, renders threads, sends optimistic messages, and uploads image attachments.
   - Plans tab lists and creates `/api/planned-needs` records and prepares job-draft conversion context.
-  - Payments tab surfaces `/api/invoices` records and payment status while full Stripe mobile checkout remains a later phase.
+  - Payments tab surfaces `/api/invoices` records, creates mobile invoice PaymentIntents through `/api/mobile/invoices/:id/payment-intent`, opens Stripe PaymentSheet, and confirms invoice payment through `/api/mobile/invoices/:id/confirm-payment`.
   - Helper dashboard summarizes available jobs, booking requests, messages, and business ownership from the mobile feed.
 
 ## Backend Contract
@@ -36,6 +36,9 @@ Active mobile endpoints:
 - `POST /api/mobile/push-token`
 - `DELETE /api/mobile/push-token`
 - `GET /api/mobile/feed`
+- `GET /api/mobile/payment-config`
+- `POST /api/mobile/invoices/:id/payment-intent`
+- `POST /api/mobile/invoices/:id/confirm-payment`
 - `GET /api/helpers`
 - `GET /api/helpers/:id/profile`
 - `POST /api/messages/conversations`

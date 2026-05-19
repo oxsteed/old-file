@@ -7,6 +7,7 @@ import type {
   HelperDirectoryItem,
   HelperProfile,
   Invoice,
+  InvoicePaymentIntent,
   JobPostPayload,
   Message,
   MobileFeed,
@@ -341,6 +342,33 @@ export const api = {
       authenticated: true
     });
     return response.invoices;
+  },
+
+  async paymentConfig() {
+    const response = await request<{ success: boolean; data: { publishableKey: string } }>("mobile/payment-config", {
+      authenticated: true
+    });
+    return response.data;
+  },
+
+  async createInvoicePaymentIntent(invoiceId: string | number) {
+    const response = await request<{ success: boolean; data: InvoicePaymentIntent }>(`mobile/invoices/${invoiceId}/payment-intent`, {
+      method: "POST",
+      authenticated: true
+    });
+    return response.data;
+  },
+
+  async confirmInvoicePayment(invoiceId: string | number, paymentIntentId: string) {
+    const response = await request<{ success: boolean; data: { invoice: Invoice; status?: string } }>(
+      `mobile/invoices/${invoiceId}/confirm-payment`,
+      {
+        method: "POST",
+        authenticated: true,
+        body: { paymentIntentId }
+      }
+    );
+    return response.data;
   },
 
   async createBookingRequest(payload: {

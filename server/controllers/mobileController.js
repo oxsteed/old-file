@@ -1,6 +1,10 @@
 const pool = require('../db');
 const AppError = require('../utils/appError');
 
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? require('stripe')(process.env.STRIPE_SECRET_KEY)
+  : null;
+
 const VALID_PROVIDERS = new Set(['apns', 'fcm']);
 const VALID_PLATFORMS = new Set(['ios', 'android', 'web']);
 
@@ -25,6 +29,138 @@ function firstNumber(rows, key, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 }
+
+function requireStripe() {
+  if (!stripe || !process.env.STRIPE_PUBLISHABLE_KEY) {
+    throw new AppError('Stripe payments are not configured', 503, 'stripe_not_configured');
+  }
+}
+
+function invoiceBalanceCents(invoice) {
+  const totalCents = Math.round(Number(invoice.total || 0) * 100);
+  const paidCents = Math.round(Number(invoice.amount_paid || 0) * 100);
+  return Math.max(0, totalCents - paidCents);
+}
+
+async function getPayableInvoice(invoiceId, user) {
+  const { rows } = await pool.query(
+    `SELECT bi.*, b.business_name
+       FROM business_invoices bi
+       LEFT JOIN businesses b ON b.id = bi.business_id
+      WHERE bi.id = $1
+        AND (
+          bi.user_id = $2
+          OR LOWER(COALESCE(bi.client_email, '')) = LOWER($3)
+        )`,
+    [invoiceId, user.id, user.email || '']
+  );
+  return rows[0] || null;
+}
+
+exports.getPaymentConfig = async (req, res, next) => {
+  try {
+    requireStripe();
+    res.json({
+      success: true,
+      data: {
+        publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createInvoicePaymentIntent = async (req, res, next) => {
+  try {
+    requireStripe();
+    const invoice = await getPayableInvoice(req.params.invoiceId, req.user);
+    if (!invoice) {
+      throw new AppError('Invoice not found', 404, 'invoice_not_found');
+    }
+
+    const balanceCents = invoiceBalanceCents(invoice);
+    if (balanceCents <= 0 || invoice.status === 'paid') {
+      throw new AppError('Invoice is already paid', 409, 'invoice_already_paid');
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: balanceCents,
+      currency: 'usd',
+      receipt_email: req.user.email || invoice.client_email || undefined,
+      metadata: {
+        invoice_id: String(invoice.id),
+        payer_id: String(req.user.id),
+        invoice_type: invoice.business_id ? 'business_invoice' : 'helper_invoice',
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        invoiceId: invoice.id,
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+        amountCents: balanceCents,
+        publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.confirmInvoicePayment = async (req, res, next) => {
+  try {
+    requireStripe();
+    const invoice = await getPayableInvoice(req.params.invoiceId, req.user);
+    if (!invoice) {
+      throw new AppError('Invoice not found', 404, 'invoice_not_found');
+    }
+
+    const paymentIntentId = normalizeString(req.body.paymentIntentId, 255);
+    if (!paymentIntentId) {
+      throw new AppError('Payment intent is required', 400, 'validation_failed', {
+        paymentIntentId: 'Required',
+      });
+    }
+
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    if (paymentIntent.metadata?.invoice_id && String(paymentIntent.metadata.invoice_id) !== String(invoice.id)) {
+      throw new AppError('Payment does not belong to this invoice', 403, 'payment_invoice_mismatch');
+    }
+    if (paymentIntent.status !== 'succeeded') {
+      return res.status(409).json({
+        success: false,
+        error: `Payment status: ${paymentIntent.status}`,
+        status: paymentIntent.status,
+      });
+    }
+
+    const amountPaid = Number(paymentIntent.amount_received || paymentIntent.amount || 0) / 100;
+    const { rows } = await pool.query(
+      `UPDATE business_invoices
+          SET status = CASE WHEN total <= COALESCE(amount_paid, 0) + $1 THEN 'paid' ELSE 'partial' END,
+              amount_paid = LEAST(total, COALESCE(amount_paid, 0) + $1),
+              paid_at = CASE WHEN total <= COALESCE(amount_paid, 0) + $1 THEN NOW() ELSE paid_at END,
+              updated_at = NOW()
+        WHERE id = $2
+        RETURNING *`,
+      [amountPaid, invoice.id]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        invoice: rows[0],
+        paymentIntentId,
+        status: rows[0]?.status,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
 
 exports.getFeed = async (req, res, next) => {
   try {

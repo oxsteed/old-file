@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "../api/client";
+import { initStripe, useStripe } from "@stripe/stripe-react-native";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api, OxSteedApiError } from "../api/client";
 import type { Invoice } from "../api/types";
+import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { MetricGrid } from "../components/MetricGrid";
 import { Screen } from "../components/Screen";
@@ -19,9 +22,46 @@ function money(value: number) {
 }
 
 export function PaymentsScreen() {
+  const stripe = useStripe();
+  const queryClient = useQueryClient();
+  const [status, setStatus] = useState<string | null>(null);
+
   const invoices = useQuery({
     queryKey: ["invoices"],
     queryFn: api.listInvoices
+  });
+
+  const payInvoice = useMutation({
+    mutationFn: async (invoice: Invoice) => {
+      setStatus(`Preparing secure payment for ${invoice.invoice_number || `invoice ${invoice.id}`}...`);
+      const intent = await api.createInvoicePaymentIntent(invoice.id);
+      await initStripe({
+        publishableKey: intent.publishableKey,
+        merchantIdentifier: "merchant.com.oxsteed.app"
+      });
+      const initResult = await stripe.initPaymentSheet({
+        merchantDisplayName: "OxSteed",
+        paymentIntentClientSecret: intent.clientSecret,
+        defaultBillingDetails: {
+          email: invoice.client_email
+        }
+      });
+      if (initResult.error) throw new Error(initResult.error.message);
+
+      const sheetResult = await stripe.presentPaymentSheet();
+      if (sheetResult.error) throw new Error(sheetResult.error.message);
+
+      await api.confirmInvoicePayment(invoice.id, intent.paymentIntentId);
+      return invoice;
+    },
+    onSuccess: async (invoice) => {
+      setStatus(`${invoice.invoice_number || "Invoice"} paid successfully.`);
+      await queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      await queryClient.invalidateQueries({ queryKey: ["mobile-feed"] });
+    },
+    onError: (error) => {
+      setStatus(error instanceof OxSteedApiError || error instanceof Error ? error.message : "Payment failed.");
+    }
   });
 
   const records = invoices.data || [];
@@ -35,7 +75,7 @@ export function PaymentsScreen() {
         <AppText variant="caption">PAYMENTS</AppText>
         <AppText variant="title">Track invoices and payment status.</AppText>
         <AppText variant="muted">
-          Full escrow and card-management screens come later; Phase 2 surfaces the existing invoice/payment records natively.
+          Pay invoices securely in-app through Stripe, then keep paid, partial, and open records visible in one place.
         </AppText>
       </View>
 
@@ -49,10 +89,11 @@ export function PaymentsScreen() {
       />
 
       <Card>
-        <AppText variant="headline">Saved payment method</AppText>
+        <AppText variant="headline">Secure card payment</AppText>
         <AppText variant="muted">
-          Payment method setup will connect to the Stripe mobile SDK in the scheduling/payment phase. For now, invoices show whether payment is pending, partial, or complete.
+          OxSteed opens Stripe PaymentSheet for invoices. Job escrow and product carts use the same payment infrastructure and can share this native payment surface as those screens expand.
         </AppText>
+        {status && <AppText variant="caption">{status}</AppText>}
       </Card>
 
       {invoices.isLoading ? <ActivityIndicator color={colors.orange} /> : null}
@@ -63,6 +104,11 @@ export function PaymentsScreen() {
           <AppText variant="caption">
             {[money(cents(invoice)), invoice.status || "draft", invoice.due_at ? `due ${invoice.due_at}` : null].filter(Boolean).join(" • ")}
           </AppText>
+          {invoice.status !== "paid" && (
+            <Button disabled={payInvoice.isPending} onPress={() => payInvoice.mutate(invoice)}>
+              {payInvoice.isPending ? "Processing..." : `Pay ${money(cents(invoice))}`}
+            </Button>
+          )}
         </Card>
       ))}
       {records.length === 0 && !invoices.isLoading && (

@@ -135,6 +135,14 @@ export type Invoice = {
   created_at?: string;
 };
 
+export type InvoicePaymentIntent = {
+  invoiceId: string | number;
+  clientSecret: string;
+  paymentIntentId: string;
+  amountCents: number;
+  publishableKey: string;
+};
+
 export type MobileJob = {
   id: string;
   title: string;
