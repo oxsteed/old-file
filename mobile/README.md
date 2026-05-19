@@ -10,11 +10,13 @@ Expo React Native + TypeScript app for building a native iOS/Android companion t
 - Phase 1 is focused on the logged-in native shell:
   - JWT login against the existing OxSteed API.
   - Two-factor login completion.
+  - Password reset request and token-based password reset.
   - Registration for customer and helper accounts.
   - Session hydration with `/api/auth/me`.
   - Token refresh and secure token storage.
   - Customer/helper role switching from Account.
   - Push token registration through `/api/mobile/push-token`.
+  - Foreground notification presentation and notification-open listener.
   - Feature flags for tabs that are being built in phases.
 - Phase 2 has an initial foothold:
   - Customer dashboard reads the consolidated `/api/mobile/feed` payload.
@@ -39,9 +41,9 @@ Planned mobile endpoints from the six-phase roadmap:
 
 ## Local Development
 
-This workspace currently does not expose a working `npm` binary on the shell path, so dependencies cannot be installed or typechecked here yet.
+This workspace did not expose `npm` on the default shell path, so local verification used the Codex-bundled Node binary with a temporary npm bootstrap at `/tmp/codex-npm/package/bin/npm-cli.js`.
 
-Once Node tooling is available:
+Standard development commands:
 
 ```bash
 cd mobile

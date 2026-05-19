@@ -8,9 +8,11 @@ import { useAuthStore } from "../state/authStore";
 import { colors, radius, spacing } from "../theme";
 
 export function AuthScreen() {
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot" | "reset">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [agreementName, setAgreementName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -19,14 +21,34 @@ export function AuthScreen() {
   const [mfaCode, setMfaCode] = useState("");
   const [useBackupCode, setUseBackupCode] = useState(false);
 
-  const { error, isWorking, pendingMfaToken, login, register, completeTwoFactor } = useAuthStore();
+  const {
+    error,
+    isWorking,
+    pendingMfaToken,
+    login,
+    register,
+    forgotPassword,
+    resetPassword,
+    completeTwoFactor
+  } = useAuthStore();
 
   const canLogin = Boolean(email.trim() && password && agreementName.trim());
   const canRegister = Boolean(firstName.trim() && lastName.trim() && email.trim() && password.length >= 8);
+  const canRequestReset = Boolean(email.trim());
+  const canResetPassword = Boolean(resetToken.trim() && password.length >= 8 && password === confirmPassword);
 
   async function submit() {
     if (mode === "login") {
       await login(email, password, agreementName);
+      return;
+    }
+    if (mode === "forgot") {
+      await forgotPassword(email);
+      setMode("reset");
+      return;
+    }
+    if (mode === "reset") {
+      await resetPassword(resetToken, password);
       return;
     }
     await register({
@@ -60,6 +82,9 @@ export function AuthScreen() {
             <Button variant={mode === "register" ? "primary" : "secondary"} onPress={() => setMode("register")}>
               Register
             </Button>
+            <Button variant={mode === "forgot" || mode === "reset" ? "primary" : "secondary"} onPress={() => setMode("forgot")}>
+              Reset
+            </Button>
           </View>
 
           {mode === "register" && (
@@ -74,24 +99,30 @@ export function AuthScreen() {
             </>
           )}
 
-          <TextInput
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor={colors.muted}
-            value={email}
-            onChangeText={setEmail}
-          />
-          <TextInput
-            secureTextEntry
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor={colors.muted}
-            value={password}
-            onChangeText={setPassword}
-          />
+          {mode !== "reset" && (
+            <TextInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor={colors.muted}
+              value={email}
+              onChangeText={setEmail}
+            />
+          )}
+
+          {mode !== "forgot" && (
+            <TextInput
+              secureTextEntry
+              style={styles.input}
+              placeholder={mode === "reset" ? "New password" : "Password"}
+              placeholderTextColor={colors.muted}
+              value={password}
+              onChangeText={setPassword}
+            />
+          )}
+
           {mode === "login" && (
             <>
               <TextInput
@@ -105,6 +136,37 @@ export function AuthScreen() {
                 OxSteed web sign-in requires a typed Terms and Privacy signature. The mobile
                 app sends the same agreement fields to the backend.
               </AppText>
+            </>
+          )}
+
+          {mode === "forgot" && (
+            <AppText variant="caption">
+              We will send the same secure reset link used by the OxSteed website.
+            </AppText>
+          )}
+
+          {mode === "reset" && (
+            <>
+              <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={styles.input}
+                placeholder="Reset token from email link"
+                placeholderTextColor={colors.muted}
+                value={resetToken}
+                onChangeText={setResetToken}
+              />
+              <TextInput
+                secureTextEntry
+                style={styles.input}
+                placeholder="Confirm new password"
+                placeholderTextColor={colors.muted}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+              />
+              <Button variant="secondary" onPress={() => setMode("forgot")}>
+                Send another reset email
+              </Button>
             </>
           )}
 
@@ -128,8 +190,25 @@ export function AuthScreen() {
               </Button>
             </View>
           ) : (
-            <Button disabled={isWorking || (mode === "login" ? !canLogin : !canRegister)} onPress={submit}>
-              {isWorking ? "Working..." : mode === "login" ? "Sign in" : "Create account"}
+            <Button
+              disabled={
+                isWorking ||
+                (mode === "login" && !canLogin) ||
+                (mode === "register" && !canRegister) ||
+                (mode === "forgot" && !canRequestReset) ||
+                (mode === "reset" && !canResetPassword)
+              }
+              onPress={submit}
+            >
+              {isWorking
+                ? "Working..."
+                : mode === "login"
+                  ? "Sign in"
+                  : mode === "register"
+                    ? "Create account"
+                    : mode === "forgot"
+                      ? "Send reset email"
+                      : "Reset password"}
             </Button>
           )}
         </Card>

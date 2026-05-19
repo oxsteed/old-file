@@ -12,6 +12,8 @@ type AuthState = {
   login: (email: string, password: string, agreementName: string) => Promise<void>;
   completeTwoFactor: (token: string, isBackupCode: boolean) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (token: string, password: string) => Promise<void>;
   switchRole: (role: "customer" | "helper") => Promise<void>;
   resendVerification: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -94,6 +96,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ user, isWorking: false });
     } catch (error) {
       set({ error: friendlyError(error, "Could not create account."), isWorking: false });
+    }
+  },
+
+  async forgotPassword(email) {
+    set({ isWorking: true, error: null, pendingMfaToken: null });
+    try {
+      const response = await api.forgotPassword(email);
+      set({
+        error: response.message ?? "If that email exists, a reset link has been sent.",
+        isWorking: false
+      });
+    } catch (error) {
+      set({ error: friendlyError(error, "Could not request a password reset."), isWorking: false });
+    }
+  },
+
+  async resetPassword(token, password) {
+    set({ isWorking: true, error: null, pendingMfaToken: null });
+    try {
+      const response = await api.resetPassword(token, password);
+      set({
+        error: response.message ?? "Password reset successful. You can sign in now.",
+        isWorking: false
+      });
+    } catch (error) {
+      set({ error: friendlyError(error, "Could not reset password."), isWorking: false });
     }
   },
 

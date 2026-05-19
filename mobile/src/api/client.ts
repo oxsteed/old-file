@@ -186,6 +186,20 @@ export const api = {
     });
   },
 
+  async forgotPassword(email: string) {
+    return request<{ message?: string }>("auth/forgot-password", {
+      method: "POST",
+      body: { email: email.trim().toLowerCase() }
+    });
+  },
+
+  async resetPassword(token: string, password: string) {
+    return request<{ message?: string }>("auth/reset-password", {
+      method: "POST",
+      body: { token: token.trim(), password }
+    });
+  },
+
   async switchRole(targetRole: "customer" | "helper") {
     const payload = await request<AuthResponse>("auth/switch-role", {
       method: "POST",

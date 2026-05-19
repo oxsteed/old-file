@@ -11,6 +11,7 @@ import { CustomerHomeScreen } from "../screens/CustomerHomeScreen";
 import { HelperHomeScreen } from "../screens/HelperHomeScreen";
 import { PlaceholderScreen } from "../screens/PlaceholderScreen";
 import { PostJobScreen } from "../screens/PostJobScreen";
+import { isEnabled } from "../config/featureFlags";
 import { useAuthStore } from "../state/authStore";
 import { colors } from "../theme";
 import { usePushRegistration } from "./usePushRegistration";
@@ -70,9 +71,9 @@ function SignedInTabs() {
         }
       }}
     >
-      <Tabs.Screen name="Customer" component={CustomerHomeScreen} />
-      <Tabs.Screen name="Post" component={PostJobScreen} />
-      <Tabs.Screen name="Helper" component={HelperHomeScreen} />
+      {isEnabled("customerDashboard") && <Tabs.Screen name="Customer" component={CustomerHomeScreen} />}
+      {isEnabled("postJob") && <Tabs.Screen name="Post" component={PostJobScreen} />}
+      {isEnabled("helperDashboard") && <Tabs.Screen name="Helper" component={HelperHomeScreen} />}
       <Tabs.Screen name="Messages" component={MessagesPlaceholderScreen} />
       <Tabs.Screen name="Account" component={AccountScreen} />
     </Tabs.Navigator>

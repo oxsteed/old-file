@@ -7,6 +7,16 @@ import { api } from "../api/client";
 import { isEnabled } from "../config/featureFlags";
 import { useAuthStore } from "../state/authStore";
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: false,
+    shouldSetBadge: true
+  })
+});
+
 export function usePushRegistration() {
   const user = useAuthStore((state) => state.user);
 
@@ -45,5 +55,15 @@ export function usePushRegistration() {
     return () => {
       cancelled = true;
     };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || Platform.OS === "web") return;
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      if (__DEV__) {
+        console.info("Notification opened", response.notification.request.content.data);
+      }
+    });
+    return () => subscription.remove();
   }, [user]);
 }

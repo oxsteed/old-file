@@ -21,13 +21,13 @@
 - 266 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
 
-**Expo React Native mobile reset (2026-05-19):** IN PROGRESS
-- **`mobile/package.json`, `mobile/app.json`, `mobile/App.tsx`, `mobile/tsconfig.json`, `mobile/babel.config.js`, `mobile/src/**`**: Restarted the mobile client as an Expo React Native + TypeScript companion app instead of continuing the SwiftUI-only pass. The shell now uses React Navigation tabs, TanStack Query, Zustand auth state, SecureStore sessions, Expo Notifications, shared native UI primitives, and feature flags for staged rollout.
+**Expo React Native mobile Phase 1 foundation (2026-05-19):** COMPLETE
+- **`mobile/package.json`, `mobile/app.json`, `mobile/App.tsx`, `mobile/tsconfig.json`, `mobile/babel.config.js`, `mobile/src/**`**: Restarted the mobile client as an Expo React Native + TypeScript companion app instead of continuing the SwiftUI-only pass. The shell now uses React Navigation tabs, TanStack Query, Zustand auth state, SecureStore sessions, Expo Notifications, shared native UI primitives, and feature flags for staged rollout. App bootstrap lives in `mobile/src/bootstrap` so Expo does not confuse the project with an Expo Router app directory.
 - **Mobile cleanup:** Removed stale Capacitor/Vite entry files, the SwiftUI iOS project, old mobile screenshots, and the obsolete lockfile so `mobile/` now represents the Expo app source instead of multiple competing mobile shells.
-- **Phase 1 foundation:** Mobile login, registration, two-factor completion, `/api/auth/me` hydration, refresh-token retry, customer/helper role switching, email-verification resend, push-token registration, Customer / Helper / Post / Messages / Account tabs, and an initial native Post Job transaction flow are scaffolded against the existing backend.
+- **Phase 1 foundation:** Mobile login, registration, password reset request, token-based password reset, two-factor completion, `/api/auth/me` hydration, refresh-token retry, customer/helper role switching, email-verification resend, push-token registration, foreground notification handling, notification-open listener, feature-flagged Customer / Helper / Post / Messages / Account tabs, and an initial native Post Job transaction flow are scaffolded against the existing backend.
 - **Backend mobile feed:** **`server/controllers/mobileController.js` + `server/routes/mobile.js`** add authenticated `GET /api/mobile/feed`, a consolidated mobile dashboard payload for customer jobs, available jobs, booking requests, appointments, planned needs, conversations, marketplace order summary, and owned businesses. Existing `POST /api/mobile/push-token` remains the push-registration endpoint.
 - **`mobile/README.md`** now documents the Expo reset, active backend contract, local-development commands, and product direction: native iOS/Android companion app for transaction flows, not a replacement for the full web platform.
-- **Verification:** `node --check server/controllers/mobileController.js server/routes/mobile.js` passes. Expo install/typecheck was not run because this workspace shell currently has no working `npm` binary.
+- **Verification:** Local npm was bootstrapped through `/tmp/codex-npm/package/bin/npm-cli.js` using the Codex-bundled Node runtime. `npm install` succeeds and generates `mobile/package-lock.json`; `npm run typecheck` passes; `expo export --platform ios --output-dir /tmp/oxsteed-expo-export` passes. `node --check server/controllers/mobileController.js server/routes/mobile.js` passes.
 
 **Historical native SwiftUI iOS app foundation (2026-05-18):** REPLACED BY EXPO RESET
 - This SwiftUI/TestFlight pass remains in repository history, but active mobile development has pivoted to the Expo React Native plan above so iOS and Android can share one client on the existing backend.
@@ -1342,7 +1342,8 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 
 ### EXPO MOBILE APP FOLLOW-THROUGH
 
-- [ ] Install Expo dependencies once a package manager is available, run `npm run typecheck`, and launch the app through Expo on iOS before cutting the next TestFlight candidate.
+- [x] Install Expo dependencies and run `npm run typecheck` for the Phase 1 shell. (2026-05-19)
+- [ ] Launch the app through Expo on iOS before cutting the next TestFlight candidate.
 - [ ] Finish Phase 2 customer core: multi-step Post Job with photos/location/drafts, helper browse/profile/detail booking CTA, native messages, planned-needs creation/conversion, and invoice/payment-status screens.
 - [ ] Finish Phase 3 helper core: job feed filters, bid submission, helper availability/calendar, profile/service/gallery editing, and earnings/payout status.
 - [ ] Add the remaining required mobile endpoints: `GET /api/mobile/nearby`, `POST /api/mobile/offline-sync`, and `GET /api/business/:id/workspace/mobile-summary`.
