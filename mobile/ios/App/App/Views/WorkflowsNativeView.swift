@@ -1071,6 +1071,26 @@ struct BusinessWorkspaceNativeView: View {
                     WorkflowRow(title: "Invoices", subtitle: "List invoices and draft a simple invoice natively.", systemImage: "doc.text.fill")
                 }
                 NavigationLink {
+                    BusinessFinanceNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Finance command center", subtitle: "Review revenue, tax estimates, expenses, and schedule pressure.", systemImage: "chart.line.uptrend.xyaxis")
+                }
+                NavigationLink {
+                    BusinessQuotesNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Quotes", subtitle: "Create estimates and send draft quotes from the app.", systemImage: "doc.badge.plus")
+                }
+                NavigationLink {
+                    BusinessExpensesNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Expenses", subtitle: "Track business costs and category totals natively.", systemImage: "creditcard.fill")
+                }
+                NavigationLink {
+                    BusinessLeadsNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Lead pipeline", subtitle: "Capture incoming opportunities and buying intent.", systemImage: "person.line.dotted.person.fill")
+                }
+                NavigationLink {
                     BusinessClientsNativeView(business: business)
                 } label: {
                     WorkflowRow(title: "Clients", subtitle: "View and add Business Hub CRM contacts.", systemImage: "person.2.fill")
@@ -1103,6 +1123,515 @@ struct BusinessWorkspaceNativeView: View {
             }
         }
         .navigationTitle("Business")
+    }
+}
+
+struct BusinessFinanceNativeView: View {
+    let business: NativeBusiness
+    @State private var analytics: BusinessAnalyticsResponse?
+    @State private var tax: BusinessTaxResponse?
+    @State private var calendar: BusinessCalendarSummary?
+    @State private var isLoading = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        List {
+            Section("This month") {
+                if isLoading {
+                    ProgressView("Loading finance...")
+                } else if let analytics {
+                    LabeledContent("Revenue", value: money(analytics.mtd.revenue?.value))
+                    LabeledContent("Expenses", value: money(analytics.mtd.expenses?.value))
+                    LabeledContent("Profit", value: money(analytics.mtd.profit?.value))
+                    LabeledContent("YTD profit", value: money(analytics.ytd.profit?.value))
+                } else {
+                    Text(statusMessage ?? "Finance data will appear here once loaded.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if let analytics {
+                Section("Receivables and work") {
+                    LabeledContent("Outstanding", value: money(analytics.invoices.outstandingTotal?.value))
+                    LabeledContent("Overdue", value: money(analytics.invoices.overdueTotal?.value))
+                    LabeledContent("Sent invoices", value: "\(analytics.invoices.sent ?? 0)")
+                    LabeledContent("Jobs completed", value: "\(analytics.jobs.completed6m ?? 0)")
+                    LabeledContent("Average job value", value: money(analytics.jobs.avgValue?.value))
+                }
+                Section("Six month trend") {
+                    ForEach(analytics.monthly) { month in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(month.month)
+                                .font(.headline)
+                            Text("Revenue \(money(month.revenue?.value)) - Expenses \(money(month.expenses?.value)) - Profit \(money(month.profit?.value))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            Section("Calendar pressure") {
+                if let calendar {
+                    LabeledContent("Today", value: "\(calendar.todayCount ?? 0)")
+                    LabeledContent("This week", value: "\(calendar.thisWeekCount ?? 0)")
+                    LabeledContent("Next 24 hours", value: "\(calendar.next24hCount ?? 0)")
+                    if let next = calendar.nextEventAt?.nilIfBlank {
+                        LabeledContent("Next event", value: next)
+                    }
+                } else {
+                    Text("No calendar summary loaded yet.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Section("Estimated taxes") {
+                if let tax {
+                    if let rate = tax.taxRate?.value {
+                        LabeledContent("Configured tax rate", value: "\(rate)%")
+                    }
+                    if tax.estimates.isEmpty {
+                        Text("No estimates yet.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(tax.estimates.prefix(6)) { estimate in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Q\(estimate.quarter ?? 0) \(estimate.taxYear ?? 0)")
+                                    .font(.headline)
+                                Text("Estimated tax \(money(estimate.estimatedTax?.value)) from net \(money(estimate.estimatedNetIncome?.value))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text([estimate.status, estimate.dueDate].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                } else {
+                    Text("Tax estimates will show after the business has finance data.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle("Finance")
+        .task { if analytics == nil { await load() } }
+        .refreshable { await load() }
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        async let analyticsLoad = OxSteedAPIClient.shared.businessAnalytics(businessId: business.id.value)
+        async let taxLoad = OxSteedAPIClient.shared.businessTax(businessId: business.id.value)
+        async let calendarLoad = OxSteedAPIClient.shared.businessCalendarSummary(businessId: business.id.value)
+        do {
+            analytics = try await analyticsLoad
+            tax = try? await taxLoad
+            calendar = try? await calendarLoad
+        } catch {
+            statusMessage = "Could not load finance data."
+        }
+        isLoading = false
+    }
+}
+
+struct BusinessExpensesNativeView: View {
+    let business: NativeBusiness
+    @State private var expenses: [BusinessExpenseItem] = []
+    @State private var summary: [BusinessExpenseSummary] = []
+    @State private var isLoading = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        List {
+            Section {
+                NavigationLink {
+                    BusinessExpenseCreateNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Log expense", subtitle: "Add a deductible cost with date and category.", systemImage: "plus.circle.fill")
+                }
+            }
+            if !summary.isEmpty {
+                Section("Category totals") {
+                    ForEach(summary) { item in
+                        LabeledContent(item.category, value: centsMoney(item.totalCents))
+                    }
+                }
+            }
+            Section("Recent expenses") {
+                if isLoading {
+                    ProgressView("Loading expenses...")
+                } else if expenses.isEmpty {
+                    Text(statusMessage ?? "No expenses yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(expenses) { expense in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(expense.description?.nilIfBlank ?? expense.category ?? "Expense")
+                                .font(.headline)
+                            Text([expense.category, expense.expenseDate].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(centsMoney(expense.amountCents))
+                                .font(.caption.bold())
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Expenses")
+        .task { if expenses.isEmpty { await load() } }
+        .refreshable { await load() }
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            let response = try await OxSteedAPIClient.shared.businessExpenses(businessId: business.id.value)
+            expenses = response.expenses
+            summary = response.summary
+        } catch {
+            statusMessage = "Could not load expenses."
+        }
+        isLoading = false
+    }
+}
+
+struct BusinessExpenseCreateNativeView: View {
+    let business: NativeBusiness
+    @State private var category = "Supplies"
+    @State private var description = ""
+    @State private var amount = ""
+    @State private var expenseDate = ""
+    @State private var notes = ""
+    @State private var isSaving = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        Form {
+            Section("Expense") {
+                TextField("Category", text: $category)
+                TextField("Description", text: $description)
+                TextField("Amount", text: $amount)
+                    .keyboardType(.decimalPad)
+                TextField("Date (YYYY-MM-DD)", text: $expenseDate)
+                TextField("Notes", text: $notes, axis: .vertical)
+                    .lineLimit(3, reservesSpace: true)
+            }
+            Section {
+                Button(isSaving ? "Saving..." : "Save expense") {
+                    Task { await create() }
+                }
+                .disabled(isSaving || category.trimmed.isEmpty || Double(amount) == nil || expenseDate.trimmed.isEmpty)
+            }
+            if let statusMessage {
+                Section { Text(statusMessage) }
+            }
+        }
+        .navigationTitle("Log Expense")
+    }
+
+    private func create() async {
+        guard let value = Double(amount) else {
+            statusMessage = "Enter a valid amount."
+            return
+        }
+        isSaving = true
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.createBusinessExpense(
+                businessId: business.id.value,
+                payload: BusinessExpenseSubmission(
+                    category: category.trimmed,
+                    description: description.trimmed.nilIfBlank,
+                    amount_cents: Int((value * 100).rounded()),
+                    expense_date: expenseDate.trimmed,
+                    receipt_url: nil,
+                    notes: notes.trimmed.nilIfBlank
+                )
+            )
+            statusMessage = "Expense saved."
+            description = ""; amount = ""; notes = ""
+        } catch {
+            statusMessage = "Could not save this expense."
+        }
+        isSaving = false
+    }
+}
+
+struct BusinessQuotesNativeView: View {
+    let business: NativeBusiness
+    @State private var quotes: [BusinessQuoteItem] = []
+    @State private var isLoading = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        List {
+            Section {
+                NavigationLink {
+                    BusinessQuoteCreateNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Create quote", subtitle: "Draft an estimate with a single line item.", systemImage: "plus.circle.fill")
+                }
+            }
+            Section("Recent quotes") {
+                if isLoading {
+                    ProgressView("Loading quotes...")
+                } else if quotes.isEmpty {
+                    Text(statusMessage ?? "No quotes yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(quotes) { quote in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(quote.title?.nilIfBlank ?? "Quote")
+                                .font(.headline)
+                            Text([quote.clientName, quote.status, quote.validUntil].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            HStack {
+                                Text(centsMoney(quote.totalCents))
+                                    .font(.caption.bold())
+                                Spacer()
+                                if quote.status == "draft" {
+                                    Button("Send") {
+                                        Task { await send(quote) }
+                                    }
+                                    .font(.caption)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Quotes")
+        .task { if quotes.isEmpty { await load() } }
+        .refreshable { await load() }
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            quotes = try await OxSteedAPIClient.shared.businessQuotes(businessId: business.id.value).quotes
+        } catch {
+            statusMessage = "Could not load quotes."
+        }
+        isLoading = false
+    }
+
+    private func send(_ quote: BusinessQuoteItem) async {
+        do {
+            _ = try await OxSteedAPIClient.shared.sendBusinessQuote(businessId: business.id.value, quoteId: quote.id.value)
+            await load()
+        } catch {
+            statusMessage = "Could not send this quote."
+        }
+    }
+}
+
+struct BusinessQuoteCreateNativeView: View {
+    let business: NativeBusiness
+    @State private var clientName = ""
+    @State private var clientEmail = ""
+    @State private var title = ""
+    @State private var itemDescription = ""
+    @State private var quantity = "1"
+    @State private var unitPrice = ""
+    @State private var taxRate = "0"
+    @State private var validUntil = ""
+    @State private var isSaving = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        Form {
+            Section("Client") {
+                TextField("Client name", text: $clientName)
+                TextField("Client email", text: $clientEmail)
+                    .keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+            }
+            Section("Estimate") {
+                TextField("Title", text: $title)
+                TextField("Line item", text: $itemDescription)
+                TextField("Quantity", text: $quantity)
+                    .keyboardType(.decimalPad)
+                TextField("Unit price", text: $unitPrice)
+                    .keyboardType(.decimalPad)
+                TextField("Tax rate percent", text: $taxRate)
+                    .keyboardType(.decimalPad)
+                TextField("Valid until (YYYY-MM-DD)", text: $validUntil)
+            }
+            Section {
+                Button(isSaving ? "Creating..." : "Create quote") {
+                    Task { await create() }
+                }
+                .disabled(isSaving || clientName.trimmed.isEmpty || title.trimmed.isEmpty || itemDescription.trimmed.isEmpty || Double(unitPrice) == nil)
+            }
+            if let statusMessage {
+                Section { Text(statusMessage) }
+            }
+        }
+        .navigationTitle("Create Quote")
+    }
+
+    private func create() async {
+        guard let qty = Double(quantity), let price = Double(unitPrice) else {
+            statusMessage = "Enter a valid quantity and price."
+            return
+        }
+        isSaving = true
+        statusMessage = nil
+        do {
+            _ = try await OxSteedAPIClient.shared.createBusinessQuote(
+                businessId: business.id.value,
+                payload: BusinessQuoteSubmission(
+                    client_name: clientName.trimmed,
+                    client_email: clientEmail.trimmed.nilIfBlank,
+                    title: title.trimmed,
+                    line_items: [BusinessQuoteLineItem(description: itemDescription.trimmed, quantity: qty, unit_price_cents: Int((price * 100).rounded()))],
+                    tax_rate: Double(taxRate) ?? 0,
+                    valid_until: validUntil.trimmed.nilIfBlank
+                )
+            )
+            statusMessage = "Quote created."
+        } catch {
+            statusMessage = "Could not create this quote."
+        }
+        isSaving = false
+    }
+}
+
+struct BusinessLeadsNativeView: View {
+    let business: NativeBusiness
+    @State private var leads: [BusinessLeadItem] = []
+    @State private var summary: [BusinessLeadSummary] = []
+    @State private var isLoading = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        List {
+            Section {
+                NavigationLink {
+                    BusinessLeadCreateNativeView(business: business)
+                } label: {
+                    WorkflowRow(title: "Capture lead", subtitle: "Add an incoming opportunity from a call, DM, or referral.", systemImage: "plus.circle.fill")
+                }
+            }
+            if !summary.isEmpty {
+                Section("Pipeline") {
+                    ForEach(summary) { item in
+                        LabeledContent(item.status.capitalized, value: item.count?.value ?? "0")
+                    }
+                }
+            }
+            Section("Leads") {
+                if isLoading {
+                    ProgressView("Loading leads...")
+                } else if leads.isEmpty {
+                    Text(statusMessage ?? "No leads yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(leads) { lead in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(lead.name)
+                                .font(.headline)
+                            Text([lead.serviceInterest, lead.status, lead.source].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text([lead.email, lead.phone].compactMap { $0?.nilIfBlank }.joined(separator: " - "))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            if let budget = lead.budgetCents {
+                                Text("Budget \(centsMoney(budget))")
+                                    .font(.caption.bold())
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Leads")
+        .task { if leads.isEmpty { await load() } }
+        .refreshable { await load() }
+    }
+
+    private func load() async {
+        isLoading = true
+        statusMessage = nil
+        do {
+            let response = try await OxSteedAPIClient.shared.businessLeads(businessId: business.id.value)
+            leads = response.leads
+            summary = response.summary
+        } catch {
+            statusMessage = "Could not load leads."
+        }
+        isLoading = false
+    }
+}
+
+struct BusinessLeadCreateNativeView: View {
+    let business: NativeBusiness
+    @State private var name = ""
+    @State private var email = ""
+    @State private var phone = ""
+    @State private var serviceInterest = ""
+    @State private var budget = ""
+    @State private var notes = ""
+    @State private var source = "native_app"
+    @State private var isSaving = false
+    @State private var statusMessage: String?
+
+    var body: some View {
+        Form {
+            Section("Lead") {
+                TextField("Name", text: $name)
+                TextField("Email", text: $email)
+                    .keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                TextField("Phone", text: $phone)
+                    .keyboardType(.phonePad)
+                TextField("Service interest", text: $serviceInterest)
+                TextField("Budget", text: $budget)
+                    .keyboardType(.decimalPad)
+                TextField("Source", text: $source)
+                TextField("Notes", text: $notes, axis: .vertical)
+                    .lineLimit(4, reservesSpace: true)
+            }
+            Section {
+                Button(isSaving ? "Saving..." : "Save lead") {
+                    Task { await create() }
+                }
+                .disabled(isSaving || name.trimmed.isEmpty)
+            }
+            if let statusMessage {
+                Section { Text(statusMessage) }
+            }
+        }
+        .navigationTitle("Capture Lead")
+    }
+
+    private func create() async {
+        isSaving = true
+        statusMessage = nil
+        let cents = Double(budget).map { Int(($0 * 100).rounded()) }
+        do {
+            _ = try await OxSteedAPIClient.shared.createBusinessLead(
+                businessId: business.id.value,
+                payload: BusinessLeadSubmission(
+                    name: name.trimmed,
+                    email: email.trimmed.nilIfBlank,
+                    phone: phone.trimmed.nilIfBlank,
+                    service_interest: serviceInterest.trimmed.nilIfBlank,
+                    budget_cents: cents,
+                    notes: notes.trimmed.nilIfBlank,
+                    source: source.trimmed.nilIfBlank ?? "native_app"
+                )
+            )
+            statusMessage = "Lead saved."
+            name = ""; email = ""; phone = ""; serviceInterest = ""; budget = ""; notes = ""
+        } catch {
+            statusMessage = "Could not save this lead."
+        }
+        isSaving = false
     }
 }
 
@@ -2633,6 +3162,11 @@ struct BusinessCalendarNativeView: View {
 private func money(_ value: Double?) -> String {
     guard let value else { return "TBD" }
     return String(format: "$%.2f", value)
+}
+
+private func centsMoney(_ value: Int?) -> String {
+    guard let value else { return "$0.00" }
+    return String(format: "$%.2f", Double(value) / 100)
 }
 
 private struct BusinessRow: View {

@@ -1086,6 +1086,236 @@ struct BusinessProductPricingRuleMutationResponse: Decodable {
     let data: BusinessProductPricingRule
 }
 
+struct BusinessAnalyticsResponse: Decodable {
+    let businessId: FlexibleString?
+    let monthly: [BusinessMonthlyMetric]
+    let mtd: BusinessMoneyMetric
+    let lastMonth: BusinessMoneyMetric?
+    let ytd: BusinessMoneyMetric
+    let invoices: BusinessAnalyticsInvoiceSummary
+    let jobs: BusinessAnalyticsJobSummary
+
+    enum CodingKeys: String, CodingKey {
+        case monthly, mtd, ytd, invoices, jobs
+        case businessId = "business_id"
+        case lastMonth = "last_month"
+    }
+}
+
+struct BusinessMonthlyMetric: Decodable, Identifiable {
+    let month: String
+    let revenue: FlexibleDouble?
+    let expenses: FlexibleDouble?
+    let profit: FlexibleDouble?
+
+    var id: String { month }
+}
+
+struct BusinessMoneyMetric: Decodable {
+    let revenue: FlexibleDouble?
+    let expenses: FlexibleDouble?
+    let profit: FlexibleDouble?
+}
+
+struct BusinessAnalyticsInvoiceSummary: Decodable {
+    let outstandingTotal: FlexibleDouble?
+    let overdueTotal: FlexibleDouble?
+    let sent: Int?
+    let overdueCount: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case sent
+        case outstandingTotal = "outstanding_total"
+        case overdueTotal = "overdue_total"
+        case overdueCount = "overdue_count"
+    }
+}
+
+struct BusinessAnalyticsJobSummary: Decodable {
+    let completed6m: Int?
+    let avgValue: FlexibleDouble?
+    let maxValue: FlexibleDouble?
+
+    enum CodingKeys: String, CodingKey {
+        case completed6m = "completed_6m"
+        case avgValue = "avg_value"
+        case maxValue = "max_value"
+    }
+}
+
+struct BusinessTaxResponse: Decodable {
+    let estimates: [BusinessTaxEstimate]
+    let taxRate: FlexibleDouble?
+
+    enum CodingKeys: String, CodingKey {
+        case estimates
+        case taxRate = "tax_rate"
+    }
+}
+
+struct BusinessTaxEstimate: Decodable, Identifiable {
+    let id: FlexibleString
+    let taxYear: Int?
+    let quarter: Int?
+    let estimatedNetIncome: FlexibleDouble?
+    let estimatedTax: FlexibleDouble?
+    let dueDate: String?
+    let status: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, quarter, status
+        case taxYear = "tax_year"
+        case estimatedNetIncome = "estimated_net_income"
+        case estimatedTax = "estimated_tax"
+        case dueDate = "due_date"
+    }
+}
+
+struct BusinessCalendarSummary: Decodable {
+    let todayCount: Int?
+    let thisWeekCount: Int?
+    let next24hCount: Int?
+    let nextEventAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case todayCount = "today_count"
+        case thisWeekCount = "this_week_count"
+        case next24hCount = "next_24h_count"
+        case nextEventAt = "next_event_at"
+    }
+}
+
+struct BusinessExpensesResponse: Decodable {
+    let expenses: [BusinessExpenseItem]
+    let total: Int?
+    let summary: [BusinessExpenseSummary]
+}
+
+struct BusinessExpenseSummary: Decodable, Identifiable {
+    let category: String
+    let totalCents: Int?
+
+    var id: String { category }
+
+    enum CodingKeys: String, CodingKey {
+        case category
+        case totalCents = "total_cents"
+    }
+}
+
+struct BusinessExpenseItem: Decodable, Identifiable {
+    let id: FlexibleString
+    let category: String?
+    let description: String?
+    let amountCents: Int?
+    let expenseDate: String?
+    let notes: String?
+    let createdAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, category, description, notes
+        case amountCents = "amount_cents"
+        case expenseDate = "expense_date"
+        case createdAt = "created_at"
+    }
+}
+
+struct BusinessExpenseSubmission: Encodable {
+    let category: String
+    let description: String?
+    let amount_cents: Int
+    let expense_date: String
+    let receipt_url: String?
+    let notes: String?
+}
+
+struct BusinessQuotesResponse: Decodable {
+    let quotes: [BusinessQuoteItem]
+    let total: Int?
+}
+
+struct BusinessQuoteItem: Decodable, Identifiable {
+    let id: FlexibleString
+    let clientName: String?
+    let clientEmail: String?
+    let title: String?
+    let subtotalCents: Int?
+    let taxRate: FlexibleDouble?
+    let totalCents: Int?
+    let validUntil: String?
+    let status: String?
+    let createdAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, status
+        case clientName = "client_name"
+        case clientEmail = "client_email"
+        case subtotalCents = "subtotal_cents"
+        case taxRate = "tax_rate"
+        case totalCents = "total_cents"
+        case validUntil = "valid_until"
+        case createdAt = "created_at"
+    }
+}
+
+struct BusinessQuoteLineItem: Encodable {
+    let description: String
+    let quantity: Double
+    let unit_price_cents: Int
+}
+
+struct BusinessQuoteSubmission: Encodable {
+    let client_name: String
+    let client_email: String?
+    let title: String
+    let line_items: [BusinessQuoteLineItem]
+    let tax_rate: Double
+    let valid_until: String?
+}
+
+struct BusinessLeadsResponse: Decodable {
+    let leads: [BusinessLeadItem]
+    let total: Int?
+    let summary: [BusinessLeadSummary]
+}
+
+struct BusinessLeadSummary: Decodable, Identifiable {
+    let status: String
+    let count: FlexibleString?
+
+    var id: String { status }
+}
+
+struct BusinessLeadItem: Decodable, Identifiable {
+    let id: FlexibleString
+    let name: String
+    let email: String?
+    let phone: String?
+    let serviceInterest: String?
+    let budgetCents: Int?
+    let status: String?
+    let source: String?
+    let notes: String?
+    let createdAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, email, phone, status, source, notes
+        case serviceInterest = "service_interest"
+        case budgetCents = "budget_cents"
+        case createdAt = "created_at"
+    }
+}
+
+struct BusinessLeadSubmission: Encodable {
+    let name: String
+    let email: String?
+    let phone: String?
+    let service_interest: String?
+    let budget_cents: Int?
+    let notes: String?
+    let source: String
+}
+
 struct NativeBusinessService: Decodable, Identifiable {
     let id: FlexibleString
     let name: String

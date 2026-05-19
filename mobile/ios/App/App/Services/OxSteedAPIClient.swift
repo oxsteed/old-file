@@ -298,6 +298,53 @@ final class OxSteedAPIClient {
         try await postEncodable("businesses/\(businessId)/product-pricing/rules", body: payload, authenticated: true)
     }
 
+    func businessAnalytics(businessId: String) async throws -> BusinessAnalyticsResponse {
+        try await get("businesses/\(businessId)/analytics", authenticated: true)
+    }
+
+    func businessTax(businessId: String) async throws -> BusinessTaxResponse {
+        try await get("businesses/\(businessId)/tax", authenticated: true)
+    }
+
+    func businessCalendarSummary(businessId: String) async throws -> BusinessCalendarSummary {
+        let response: APIDataResponse<BusinessCalendarSummary> = try await get("businesses/\(businessId)/calendar/summary", authenticated: true)
+        return response.data
+    }
+
+    func businessExpenses(businessId: String) async throws -> BusinessExpensesResponse {
+        try await get("businesses/\(businessId)/expenses", queryItems: [
+            URLQueryItem(name: "limit", value: "40")
+        ], authenticated: true)
+    }
+
+    func createBusinessExpense(businessId: String, payload: BusinessExpenseSubmission) async throws -> BusinessExpenseItem {
+        try await postEncodable("businesses/\(businessId)/expenses", body: payload, authenticated: true)
+    }
+
+    func businessQuotes(businessId: String) async throws -> BusinessQuotesResponse {
+        try await get("businesses/\(businessId)/quotes", queryItems: [
+            URLQueryItem(name: "limit", value: "40")
+        ], authenticated: true)
+    }
+
+    func createBusinessQuote(businessId: String, payload: BusinessQuoteSubmission) async throws -> BusinessQuoteItem {
+        try await postEncodable("businesses/\(businessId)/quotes", body: payload, authenticated: true)
+    }
+
+    func sendBusinessQuote(businessId: String, quoteId: String) async throws -> BusinessQuoteItem {
+        try await post("businesses/\(businessId)/quotes/\(quoteId)/send", body: [:], authenticated: true)
+    }
+
+    func businessLeads(businessId: String) async throws -> BusinessLeadsResponse {
+        try await get("businesses/\(businessId)/leads", queryItems: [
+            URLQueryItem(name: "limit", value: "40")
+        ], authenticated: true)
+    }
+
+    func createBusinessLead(businessId: String, payload: BusinessLeadSubmission) async throws -> BusinessLeadItem {
+        try await postEncodable("businesses/\(businessId)/leads", body: payload, authenticated: true)
+    }
+
     private func get<T: Decodable>(_ path: String, queryItems: [URLQueryItem] = [], authenticated: Bool = false) async throws -> T {
         var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
         components.queryItems = queryItems.isEmpty ? nil : queryItems
