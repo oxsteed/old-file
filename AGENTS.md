@@ -27,6 +27,12 @@
 - **`mobile/app.json` + `mobile/build_rn_testflight.command`**: Bumped iOS build number to `102` for a fresh TestFlight candidate and kept Sentry auto-upload disabled in the archive command.
 - **Verification:** `npm run typecheck` passes with the Codex-bundled Node/npm path. `expo export --platform ios --output-dir /tmp/oxsteed-export-check-102 --clear` passes. `mobile/build_rn_testflight.command` archived and uploaded build `1.0 (102)` to App Store Connect/TestFlight; upload succeeded and Apple processing began. Xcode reported missing dSYM upload warnings for React/Hermes frameworks only.
 
+**Expo React Native app icon hotfix (2026-05-20):** COMPLETE
+- **`mobile/assets/icon.png` + `mobile/app.json`**: Restored the real OxSteed orange/navy app icon as the Expo source icon instead of relying on the blank generated native asset.
+- **`mobile/ios/OxSteed/Images.xcassets/AppIcon.appiconset/App-Icon-1024x1024@1x.png`**: Replaced the white 1024px TestFlight icon asset locally with the opaque OxSteed mark so the next archive uses the visible brand icon.
+- **`mobile/app.json` + `mobile/build_rn_testflight.command`**: Bumped iOS build number to `103` for the corrected TestFlight candidate.
+- **Verification:** `sips` confirms both icon files are 1024x1024 with no alpha. `npm run typecheck` passes with the Codex-bundled Node/npm path. `expo export --platform ios --output-dir /tmp/oxsteed-export-check-103 --clear` passes. `mobile/build_rn_testflight.command` archived and uploaded build `1.0 (103)` to App Store Connect/TestFlight; upload succeeded and Apple processing began. Xcode reported the same missing dSYM upload warnings for React/Hermes frameworks only.
+
 **Expo React Native mobile Phase 1 foundation (2026-05-19):** COMPLETE
 - **`mobile/package.json`, `mobile/app.json`, `mobile/App.tsx`, `mobile/tsconfig.json`, `mobile/babel.config.js`, `mobile/src/**`**: Restarted the mobile client as an Expo React Native + TypeScript companion app instead of continuing the SwiftUI-only pass. The shell now uses React Navigation tabs, TanStack Query, Zustand auth state, SecureStore sessions, Expo Notifications, shared native UI primitives, and feature flags for staged rollout. App bootstrap lives in `mobile/src/bootstrap` so Expo does not confuse the project with an Expo Router app directory.
 - **Mobile cleanup:** Removed stale Capacitor/Vite entry files, the SwiftUI iOS project, old mobile screenshots, and the obsolete lockfile so `mobile/` now represents the Expo app source instead of multiple competing mobile shells.
