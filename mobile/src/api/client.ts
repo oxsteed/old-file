@@ -3,14 +3,22 @@ import * as SecureStore from "expo-secure-store";
 import type {
   AuthResponse,
   AuthUser,
+  AvailabilityBlock,
+  ConnectStatus,
   Conversation,
+  HelperBid,
   HelperDirectoryItem,
+  HelperPayment,
   HelperProfile,
+  HelperProfileLite,
   Invoice,
   InvoicePaymentIntent,
   JobPostPayload,
   Message,
+  MobileAppointment,
+  MobileBooking,
   MobileFeed,
+  MobileJob,
   PlannedNeed,
   PlannedNeedPayload,
   RegisterPayload
@@ -421,5 +429,180 @@ export const api = {
     });
     photos.forEach((photo, index) => appendAsset(formData, "media", photo, index));
     return authenticatedFormDataRequest<{ id?: string; title?: string }>("jobs", formData);
+  },
+
+  async listJobs(params: {
+    q?: string;
+    category?: string;
+    city?: string;
+    state?: string;
+    radius?: string | number;
+    sort?: "newest" | "urgent" | "budget_high" | "budget_low" | "nearest";
+    page?: number;
+    limit?: number;
+  } = {}) {
+    const search = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value).trim()) {
+        search.set(key, String(value));
+      }
+    });
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    return request<{ jobs: MobileJob[]; total: number; page: number; limit: number }>(`jobs${suffix}`);
+  },
+
+  async listMyBids(status?: string) {
+    const suffix = status ? `?status=${encodeURIComponent(status)}` : "";
+    return request<HelperBid[]>(`bids/me${suffix}`, {
+      authenticated: true
+    });
+  },
+
+  async submitBid(payload: { job_id: string | number; amount: number; message: string; eta_hours?: number }) {
+    return request<HelperBid>("bids", {
+      method: "POST",
+      authenticated: true,
+      body: payload
+    });
+  },
+
+  async withdrawBid(id: string | number) {
+    return request<{ message?: string }>(`bids/${id}/withdraw`, {
+      method: "POST",
+      authenticated: true
+    });
+  },
+
+  async listIncomingBookings() {
+    const response = await request<{ success: boolean; data: MobileBooking[] }>("bookings/incoming", {
+      authenticated: true
+    });
+    return response.data;
+  },
+
+  async acceptBooking(id: string | number) {
+    return request<{ success?: boolean; data?: MobileBooking; booking?: MobileBooking; appointment?: MobileAppointment; message?: string }>(`bookings/${id}/accept`, {
+      method: "POST",
+      authenticated: true
+    });
+  },
+
+  async declineBooking(id: string | number, reason?: string) {
+    return request<{ message?: string }>(`bookings/${id}/decline`, {
+      method: "POST",
+      authenticated: true,
+      body: reason ? { reason } : {}
+    });
+  },
+
+  async listAppointments() {
+    const response = await request<{ success?: boolean; data?: { appointments: MobileAppointment[] } }>(
+      "calendar/appointments?role=helper&limit=50",
+      {
+        authenticated: true
+      }
+    );
+    return response.data?.appointments ?? [];
+  },
+
+  async listAvailabilityBlocks() {
+    const response = await request<{ blocks: AvailabilityBlock[] }>("calendar/availability/mine?limit=50", {
+      authenticated: true
+    });
+    return response.blocks;
+  },
+
+  async createAvailabilityBlock(payload: {
+    start_time: string;
+    end_time: string;
+    type: "available" | "unavailable" | "busy";
+    title?: string;
+    notes?: string;
+  }) {
+    return request<AvailabilityBlock>("calendar/availability", {
+      method: "POST",
+      authenticated: true,
+      body: payload
+    });
+  },
+
+  async deleteAvailabilityBlock(id: string | number) {
+    return request<{ message?: string }>(`calendar/availability/${id}`, {
+      method: "DELETE",
+      authenticated: true
+    });
+  },
+
+  async helperProfileMe() {
+    return request<HelperProfileLite>("helper-profile/me", {
+      authenticated: true
+    });
+  },
+
+  async updateHelperProfileCore(payload: Partial<HelperProfileLite>) {
+    return request<{ ok: boolean }>("helper-profile/core", {
+      method: "PUT",
+      authenticated: true,
+      body: payload
+    });
+  },
+
+  async addHelperService(payload: {
+    name: string;
+    description?: string;
+    price?: number;
+    price_unit?: "flat" | "hour" | "starting_at" | "quote";
+    duration?: string;
+    category?: string;
+  }) {
+    return request<HelperProfileLite["services"][number]>("helper-profile/services", {
+      method: "POST",
+      authenticated: true,
+      body: payload
+    });
+  },
+
+  async addHelperPolicy(payload: { title: string; content: string }) {
+    return request<HelperProfileLite["policies"][number]>("helper-profile/policies", {
+      method: "POST",
+      authenticated: true,
+      body: payload
+    });
+  },
+
+  async uploadHelperGallery(asset: MobileAsset, caption?: string) {
+    const formData = new FormData();
+    appendAsset(formData, "file", asset, 0);
+    if (caption) formData.append("caption", caption);
+    const response = await authenticatedFormDataRequest<{ success: boolean; data: HelperProfileLite["gallery"][number] }>(
+      "mobile/helper/gallery",
+      formData
+    );
+    return response.data;
+  },
+
+  async helperProfileQrCode(helperId: string | number) {
+    return request<{ success: boolean; qr_code: string; profile_url?: string }>(
+      `helper-profile/${helperId}/qr-code?size=medium&format=dataurl`
+    );
+  },
+
+  async connectStatus() {
+    return request<ConnectStatus>("payments/connect/status", {
+      authenticated: true
+    });
+  },
+
+  async createConnectAccount() {
+    return request<{ url?: string; account_id?: string; message?: string }>("payments/connect", {
+      method: "POST",
+      authenticated: true
+    });
+  },
+
+  async listPayeePayments() {
+    return request<{ payments: HelperPayment[]; total: number }>("payments/me?role=payee&limit=50", {
+      authenticated: true
+    });
   }
 };

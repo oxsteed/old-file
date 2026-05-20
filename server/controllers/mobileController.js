@@ -1,5 +1,6 @@
 const pool = require('../db');
 const AppError = require('../utils/appError');
+const { uploadFile, getPublicUrl } = require('../utils/storage');
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? require('stripe')(process.env.STRIPE_SECRET_KEY)
@@ -436,6 +437,42 @@ exports.unregisterPushToken = async (req, res, next) => {
     );
 
     res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.uploadHelperGallery = async (req, res, next) => {
+  try {
+    if (!['helper', 'helper_pro', 'broker'].includes(req.user.role)) {
+      throw new AppError('Helper access required', 403, 'forbidden');
+    }
+    if (!req.file) {
+      throw new AppError('Gallery image is required', 400, 'validation_failed', {
+        file: 'Required',
+      });
+    }
+
+    const caption = normalizeString(req.body.caption, 200);
+    const key = await uploadFile(
+      req.file.buffer,
+      `helper-gallery/${req.user.id}`,
+      req.file.originalname,
+      req.file.mimetype
+    );
+    if (!key) {
+      throw new AppError('File storage is not configured', 503, 'storage_not_configured');
+    }
+
+    const url = getPublicUrl(key);
+    const { rows } = await pool.query(
+      `INSERT INTO helper_gallery (user_id, url, caption, sort_order)
+       VALUES ($1, $2, $3, 0)
+       RETURNING id, user_id, url, caption, sort_order, created_at`,
+      [req.user.id, url, caption]
+    );
+
+    res.status(201).json({ success: true, data: rows[0] });
   } catch (err) {
     next(err);
   }

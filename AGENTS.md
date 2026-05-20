@@ -38,6 +38,12 @@
 - **Navigation / API:** **`mobile/src/bootstrap/OxSteedMobileApp.tsx`, `mobile/src/api/types.ts`, `mobile/src/components/FormInput.tsx`, `mobile/package.json`, `mobile/package-lock.json`** add Phase 2 tabs, Expo Image Picker support for job/message media selection, and `@stripe/stripe-react-native` / `react-native-webview` for mobile payments.
 - **Verification:** `npm run typecheck` passes. `expo export --platform ios --output-dir /tmp/oxsteed-expo-export` passes. `node --check server/controllers/mobileController.js server/routes/mobile.js` passes. `npm audit --audit-level=high` passes; remaining audit output is moderate Expo/PostCSS transitive risk that requires a breaking Expo 55 upgrade to auto-fix.
 
+**Expo React Native mobile Phase 3 helper core (2026-05-19):** COMPLETE
+- **`mobile/src/screens/HelperHomeScreen.tsx`**: Rebuilt the Helper tab into a native work center with internal Overview, Jobs, Calendar, Profile, and Earnings sections. Helpers can now see incoming booking requests, unread-message and bid metrics, available job feed filters, submit bids, accept/decline booking requests, block unavailable time, view agenda/availability blocks, edit public profile basics, add services and policies, upload gallery photos, view a profile QR/public-link cue, inspect earnings, and start Stripe Connect onboarding.
+- **`mobile/src/api/client.ts` + `mobile/src/api/types.ts`**: Added typed mobile client calls for `/api/jobs`, `/api/bids`, `/api/bookings/incoming`, `/api/calendar/appointments`, `/api/calendar/availability/mine`, `/api/helper-profile/*`, `/api/payments/connect`, and `/api/payments/me?role=payee` so helper flows use the same backend contracts as the website.
+- **Mobile gallery upload:** **`server/controllers/mobileController.js` + `server/routes/mobile.js`** add authenticated `POST /api/mobile/helper/gallery`, a native multipart image upload endpoint for helper gallery photos that stores public profile media through the existing storage utility and inserts `helper_gallery` records.
+- **Verification:** `npm run typecheck` passes. `node --check server/controllers/mobileController.js server/routes/mobile.js` passes. `expo export --platform ios --output-dir /tmp/oxsteed-expo-export` passes.
+
 **Historical native SwiftUI iOS app foundation (2026-05-18):** REPLACED BY EXPO RESET
 - This SwiftUI/TestFlight pass remains in repository history, but active mobile development has pivoted to the Expo React Native plan above so iOS and Android can share one client on the existing backend.
 

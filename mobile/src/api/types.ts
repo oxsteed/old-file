@@ -146,25 +146,39 @@ export type InvoicePaymentIntent = {
 export type MobileJob = {
   id: string;
   title: string;
+  description?: string;
   status?: string;
   category_name?: string;
+  budget_type?: string;
   budget_min?: string | number | null;
   budget_max?: string | number | null;
+  is_urgent?: boolean;
+  urgency?: string;
   location_city?: string | null;
   location_state?: string | null;
+  distance_miles?: string | number | null;
+  bid_count?: string | number | null;
+  client_name?: string;
   created_at?: string;
 };
 
 export type MobileBooking = {
   id: string;
   service_name?: string;
+  serviceName?: string;
   requested_date?: string;
+  requestedDate?: string;
   requested_start_time?: string;
+  requestedStartTime?: string;
   requested_end_time?: string;
+  requestedEndTime?: string;
   service_location?: string;
+  serviceLocation?: string;
   status?: string;
   customer_name?: string;
+  customerName?: string | null;
   created_at?: string;
+  createdAt?: string;
 };
 
 export type MobileAppointment = {
@@ -246,4 +260,83 @@ export type PlannedNeedPayload = {
   recurrence_type: "none" | "fixed" | "floating";
   recurrence_interval_days?: number;
   notes?: string;
+};
+
+export type HelperBid = {
+  id: string | number;
+  job_id: string | number;
+  amount: string | number;
+  message?: string;
+  status?: "pending" | "accepted" | "rejected" | "withdrawn" | string;
+  eta_hours?: string | number | null;
+  job_title?: string;
+  job_category?: string;
+  job_status?: string;
+  location_city?: string;
+  location_state?: string;
+  created_at?: string;
+};
+
+export type AvailabilityBlock = {
+  id: string | number;
+  helper_id?: string | number;
+  start_time: string;
+  end_time: string;
+  type: "available" | "unavailable" | "busy" | string;
+  title?: string | null;
+  notes?: string | null;
+};
+
+export type HelperProfileLite = {
+  profile_headline?: string | null;
+  bio_short?: string | null;
+  bio_long?: string | null;
+  profile_photo_url?: string | null;
+  cover_photo_url?: string | null;
+  service_city?: string | null;
+  service_state?: string | null;
+  service_zip?: string | null;
+  service_radius_miles?: string | number | null;
+  hourly_rate_min?: string | number | null;
+  hourly_rate_max?: string | number | null;
+  rate_preference?: string | null;
+  services: Array<{
+    id: string | number;
+    name: string;
+    description?: string;
+    price?: string | number;
+    price_unit?: string;
+    duration?: string;
+    category?: string;
+  }>;
+  policies: Array<{
+    id: string | number;
+    title: string;
+    content: string;
+    icon?: string;
+  }>;
+  gallery: Array<{
+    id: string | number;
+    url: string;
+    caption?: string;
+  }>;
+};
+
+export type HelperPayment = {
+  id: string | number;
+  job_id?: string | number;
+  job_title?: string;
+  amount?: string | number;
+  platform_fee?: string | number;
+  status?: string;
+  payment_hold_status?: string;
+  created_at?: string;
+  captured_at?: string | null;
+};
+
+export type ConnectStatus = {
+  connected: boolean;
+  charges_enabled?: boolean;
+  payouts_enabled?: boolean;
+  onboarding_complete?: boolean;
 };
