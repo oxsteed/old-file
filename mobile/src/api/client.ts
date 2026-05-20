@@ -6,8 +6,10 @@ import type {
   AvailabilityBlock,
   AvailableSlot,
   BookingPaymentIntent,
+  BusinessMobileSummary,
   ConnectStatus,
   Conversation,
+  Dispute,
   HelperBid,
   HelperDirectoryItem,
   HelperPayment,
@@ -21,10 +23,14 @@ import type {
   MobileBooking,
   MobileFeed,
   MobileJob,
+  NearbyPayload,
+  NotificationItem,
   PlannedNeed,
   PlannedNeedPayload,
   RegisterPayload,
-  ReviewEligibility
+  ReviewEligibility,
+  ToolBooking,
+  ToolRental
 } from "./types";
 
 const ACCESS_TOKEN_KEY = "oxsteed.mobile.accessToken";
@@ -677,6 +683,112 @@ export const api = {
       method: "POST",
       authenticated: true,
       body: payload
+    });
+  },
+
+  async notifications() {
+    return request<{ notifications: NotificationItem[]; unread_count: number }>("notifications?limit=50", {
+      authenticated: true
+    });
+  },
+
+  async markNotificationsRead(ids: "all" | Array<string | number>) {
+    return request<{ unread_count: number }>("notifications/mark-read", {
+      method: "POST",
+      authenticated: true,
+      body: { ids }
+    });
+  },
+
+  async listDisputes() {
+    const response = await request<{ disputes?: Dispute[] } | Dispute[]>("disputes/my", {
+      authenticated: true
+    });
+    return Array.isArray(response) ? response : response.disputes || [];
+  },
+
+  async openDispute(jobId: string | number, payload: { reason: string; description: string }) {
+    return request<{ dispute?: Dispute }>(`disputes/jobs/${jobId}`, {
+      method: "POST",
+      authenticated: true,
+      body: payload
+    });
+  },
+
+  async submitDisputeEvidence(disputeId: string | number, assets: MobileAsset[], description: string) {
+    const formData = new FormData();
+    assets.forEach((asset, index) => appendAsset(formData, "files", asset, index));
+    formData.append("description", description);
+    return authenticatedFormDataRequest<{ evidence?: unknown }>(`disputes/${disputeId}/evidence`, formData);
+  },
+
+  async browseTools(params: { category?: string; city?: string; name?: string; limit?: number } = {}) {
+    const search = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value).trim()) search.set(key, String(value));
+    });
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    return request<{ tools: ToolRental[] }>(`tool-rentals/browse${suffix}`);
+  },
+
+  async toolAvailability(toolId: string | number, startDate: string, endDate: string) {
+    return request<{ available?: boolean; isAvailable?: boolean; conflicts?: unknown[] }>(
+      `tool-rentals/${toolId}/availability?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
+    );
+  },
+
+  async createToolBooking(payload: { toolId: string | number; startDate: string; endDate: string; renterAgreementAccepted: boolean }) {
+    return request<ToolBooking>("tool-rentals/bookings", {
+      method: "POST",
+      authenticated: true,
+      body: payload
+    });
+  },
+
+  async myToolBookings() {
+    return request<ToolBooking[]>("tool-rentals/bookings/my", {
+      authenticated: true
+    });
+  },
+
+  async nearby(params: { city?: string; category?: string; q?: string; limit?: number } = {}) {
+    const search = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value).trim()) search.set(key, String(value));
+    });
+    const response = await request<{ success: boolean; data: NearbyPayload }>(`mobile/nearby?${search.toString()}`, {
+      authenticated: true
+    });
+    return response.data;
+  },
+
+  async offlineSync(actions: Array<{ clientId: string; type: string; payload: Record<string, unknown> }>) {
+    return request<{ success: boolean; data: { results: unknown[] } }>("mobile/offline-sync", {
+      method: "POST",
+      authenticated: true,
+      body: { actions }
+    });
+  },
+
+  async businessMobileSummary(businessId: string | number) {
+    const response = await request<{ success: boolean; data: BusinessMobileSummary }>(
+      `mobile/business/${businessId}/workspace/mobile-summary`,
+      { authenticated: true }
+    );
+    return response.data;
+  },
+
+  async publishBusinessProduct(businessId: string | number, productId: string | number) {
+    return request<{ success?: boolean; data?: unknown }>(`businesses/${businessId}/products/${productId}/publish`, {
+      method: "POST",
+      authenticated: true
+    });
+  },
+
+  async unpublishBusinessProduct(businessId: string | number, productId: string | number) {
+    return request<{ success?: boolean; data?: unknown }>(`businesses/${businessId}/products/${productId}/unpublish`, {
+      method: "POST",
+      authenticated: true
     });
   }
 };

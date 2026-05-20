@@ -624,6 +624,7 @@ app.use('/api/carts', shoppingCartsRoutes);
 app.use('/api/carts', cartCheckoutRoutes);
 app.use('/api/shared-carts', sharedCartsRoutes);
 app.use('/api/mobile', mobileRoutes);
+app.get('/api/business/:businessId/workspace/mobile-summary', require('./middleware/auth').authenticate, require('./controllers/mobileController').getBusinessMobileSummary);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/admin/orders', adminOrdersRoutes);
 app.use('/api/admin/products', adminProductsRoutes);

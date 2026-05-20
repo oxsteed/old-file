@@ -7,6 +7,7 @@ Expo React Native + TypeScript app for building a native iOS/Android companion t
 - `mobile/package.json`, `mobile/app.json`, `mobile/App.tsx`, and `mobile/src/**` are the active mobile app surface.
 - The app uses Expo, React Navigation bottom tabs, TanStack Query, Zustand, SecureStore, and Expo Notifications.
 - Native device-calendar integration uses Expo Calendar for confirmed bookings and appointments.
+- Sentry React Native is initialized when `expo.extra.sentryDsn` is configured.
 - The bundle identifiers remain `com.oxsteed.app` for iOS and Android so the App Store / Play Store identity can stay consistent.
 - Phase 1 is focused on the logged-in native shell:
   - JWT login against the existing OxSteed API.
@@ -40,6 +41,15 @@ Expo React Native + TypeScript app for building a native iOS/Android companion t
   - Customers can request appointment reschedules through the shared calendar reschedule API.
   - Messages, booking queues, helper appointments, bids, and dashboard data poll on short intervals for real-time-lite updates.
   - Completed and closed jobs expose a native review form wired to `/api/reviews/jobs/:jobId`.
+- Phase 5 trust, safety, and tool rentals is implemented:
+  - Trust tab lists notifications, marks them read, opens job disputes, uploads photo evidence, and lists existing disputes.
+  - Tool Rentals tab browses `/api/tool-rentals/browse`, requests rentals, shows user's bookings, and starts owner conversations.
+  - The mobile nearby API combines open jobs, tools, and helpers into one cellular-friendly discovery payload.
+- Phase 6 Business Hub Lite and launch plumbing is implemented:
+  - Business tab loads a mobile summary for owned/managed businesses: overview metrics, appointments, invoices, messages, products, and health checklist.
+  - Products can be published or unpublished from mobile through the existing Business Products API.
+  - Universal/deep linking is configured for helper, tool rental, dispute, invoice, account, and Business Hub paths.
+  - Offline sync queues client actions through `/api/mobile/offline-sync`; processing workers can expand this queue post-launch.
 
 ## Backend Contract
 
@@ -56,6 +66,10 @@ Active mobile endpoints:
 - `POST /api/mobile/bookings/:bookingId/payment-intent`
 - `POST /api/mobile/bookings/:bookingId/confirm-payment`
 - `POST /api/mobile/helper/gallery`
+- `GET /api/mobile/nearby`
+- `POST /api/mobile/offline-sync`
+- `GET /api/mobile/business/:businessId/workspace/mobile-summary`
+- `GET /api/business/:businessId/workspace/mobile-summary`
 - `GET /api/helpers`
 - `GET /api/helpers/:id/profile`
 - `POST /api/messages/conversations`
@@ -89,6 +103,17 @@ Active mobile endpoints:
 - `GET /api/payments/me?role=payee`
 - `GET /api/reviews/jobs/:jobId/eligibility`
 - `POST /api/reviews/jobs/:jobId`
+- `GET /api/notifications`
+- `POST /api/notifications/mark-read`
+- `GET /api/disputes/my`
+- `POST /api/disputes/jobs/:jobId`
+- `POST /api/disputes/:disputeId/evidence`
+- `GET /api/tool-rentals/browse`
+- `POST /api/tool-rentals/bookings`
+- `GET /api/tool-rentals/bookings/my`
+- `GET /api/tool-rentals/:toolId/availability`
+- `POST /api/businesses/:businessId/products/:productId/publish`
+- `POST /api/businesses/:businessId/products/:productId/unpublish`
 - `GET /api/planned-needs`
 - `POST /api/planned-needs`
 - `GET /api/invoices`

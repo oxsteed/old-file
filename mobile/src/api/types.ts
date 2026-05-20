@@ -370,3 +370,92 @@ export type ReviewEligibility = {
   already_reviewed: boolean;
   job_status?: string;
 };
+
+export type NotificationItem = {
+  id: string | number;
+  type?: string;
+  title?: string;
+  body?: string;
+  message?: string;
+  action_url?: string;
+  is_read?: boolean;
+  created_at?: string;
+};
+
+export type ToolRental = {
+  id: string | number;
+  name: string;
+  category?: string;
+  description?: string;
+  daily_rate?: string | number;
+  hourly_rate?: string | number;
+  deposit_amount?: string | number;
+  requires_deposit?: boolean;
+  location_city?: string;
+  location_state?: string;
+  image_url?: string;
+  image_gallery?: string[];
+  owner_id?: string | number;
+  owner_name?: string;
+};
+
+export type ToolBooking = {
+  id: string | number;
+  tool_id?: string | number;
+  name?: string;
+  start_date?: string;
+  end_date?: string;
+  total_price?: string | number;
+  status?: string;
+};
+
+export type Dispute = {
+  id: string | number;
+  job_id?: string | number;
+  job_title?: string;
+  reason?: string;
+  description?: string;
+  status?: string;
+  created_at?: string;
+};
+
+export type NearbyPayload = {
+  jobs: MobileJob[];
+  tools: ToolRental[];
+  helpers: Array<{
+    id: string | number;
+    owner_name?: string;
+    profile_headline?: string;
+    bio_short?: string;
+    service_city?: string;
+    service_state?: string;
+    avg_rating?: string | number;
+    total_reviews?: string | number;
+    is_background_checked?: boolean;
+    is_identity_verified?: boolean;
+    profile_photo_url?: string;
+  }>;
+};
+
+export type BusinessMobileSummary = {
+  business: MobileBusiness;
+  overview: {
+    openInvoices: number;
+    paidRevenue: number;
+    outstanding: number;
+    unreadMessages: number;
+    profileCompleteness: number;
+  };
+  appointments: MobileAppointment[];
+  invoices: Invoice[];
+  messages: Conversation[];
+  products: Array<{
+    id: string | number;
+    name: string;
+    category?: string;
+    price_cents?: string | number;
+    is_active?: boolean;
+    total_stock?: string | number;
+  }>;
+  health: Array<{ label: string; value: string | number; status?: string }>;
+};

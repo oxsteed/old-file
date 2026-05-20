@@ -18,7 +18,7 @@
 **Codebase metrics:**
 - 410 React JSX/TSX files (includes `AIKnowledgeTab`, `AIPreviewPage` for profile AI)
 - 169 backend controllers
-- 266 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
+- 268 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
 
 **Expo React Native mobile Phase 1 foundation (2026-05-19):** COMPLETE
@@ -50,6 +50,14 @@
 - **Calendar + rescheduling:** **`mobile/src/utils/deviceCalendar.ts`, `mobile/app.json`, `mobile/src/screens/CustomerHomeScreen.tsx`** add Expo Calendar permission/config, device-calendar insertion for accepted bookings and appointments, and customer reschedule requests through the existing appointment reschedule API, which already writes in-app notifications and broadcasts socket events.
 - **Real-time-lite updates + reviews:** Messages, helper bookings, helper appointments, helper bids, and the customer dashboard now poll on short intervals so accept/decline/message changes appear without manual refresh. Customer completed/closed jobs now expose a native review form that submits to `/api/reviews/jobs/:jobId`.
 - **Verification:** `npm run typecheck` passes. `node --check server/controllers/mobileController.js server/routes/mobile.js` passes. `expo export --platform ios --output-dir /tmp/oxsteed-expo-export` passes. `npm audit --audit-level=high` passes; remaining audit output is the same moderate Expo/PostCSS advisory requiring a breaking Expo 55 upgrade to auto-fix.
+
+**Expo React Native mobile Phase 5/6 trust, rentals, Business Hub Lite, launch API pass (2026-05-20):** COMPLETE
+- **Trust & Safety:** **`mobile/src/screens/TrustSafetyScreen.tsx`** adds a native notifications center, dispute filing against `/api/disputes/jobs/:jobId`, photo evidence upload to `/api/disputes/:disputeId/evidence`, and a dispute list. Helper profile badges already expose background-check / identity-verification signals from the helper profile API and now sit alongside the Trust tab.
+- **Tool rentals:** **`mobile/src/screens/ToolRentalsScreen.tsx`** adds native tool browsing through `/api/tool-rentals/browse`, nearby discovery via `/api/mobile/nearby`, date-range rental requests through `/api/tool-rentals/bookings`, owner messaging, and the user's rental history. Tool deposits are surfaced from listing data; payment remains via the existing rental invoice / owner payment-method flow rather than a new direct Stripe charge.
+- **Business Hub Lite:** **`mobile/src/screens/BusinessHubLiteScreen.tsx`** adds Overview, Calendar/Appointments, Invoices, Messages, Products publish/unpublish, and Health checklist views for owned/managed businesses.
+- **Launch/mobile API:** **`server/controllers/mobileController.js`, `server/routes/mobile.js`, `server/index.js`** add `GET /api/mobile/nearby`, `POST /api/mobile/offline-sync`, `GET /api/mobile/business/:businessId/workspace/mobile-summary`, and the requested alias `GET /api/business/:businessId/workspace/mobile-summary`. **Migration 268** adds `mobile_offline_actions` for queued offline mutations.
+- **Launch plumbing:** **`mobile/src/bootstrap/OxSteedMobileApp.tsx`** adds deep-link mappings for shared OxSteed URLs; **`mobile/App.tsx`, `mobile/app.json`, `mobile/package.json`** add Sentry React Native initialization and config placeholders.
+- **Verification:** `npm run typecheck` passes. `node --check server/controllers/mobileController.js server/routes/mobile.js server/index.js` passes. `expo export --platform ios --output-dir /tmp/oxsteed-expo-export` passes with Sentry org/project upload-config warning only. `npm audit --audit-level=high` passes; remaining audit output is the known moderate Expo/PostCSS advisory requiring a breaking Expo 55 upgrade to auto-fix.
 
 **Historical native SwiftUI iOS app foundation (2026-05-18):** REPLACED BY EXPO RESET
 - This SwiftUI/TestFlight pass remains in repository history, but active mobile development has pivoted to the Expo React Native plan above so iOS and Android can share one client on the existing backend.

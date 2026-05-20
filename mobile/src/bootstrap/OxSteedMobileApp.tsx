@@ -8,12 +8,15 @@ import { StatusBar } from "expo-status-bar";
 import { AccountScreen } from "../screens/AccountScreen";
 import { AuthScreen } from "../screens/AuthScreen";
 import { BrowseHelpersScreen } from "../screens/BrowseHelpersScreen";
+import { BusinessHubLiteScreen } from "../screens/BusinessHubLiteScreen";
 import { CustomerHomeScreen } from "../screens/CustomerHomeScreen";
 import { HelperHomeScreen } from "../screens/HelperHomeScreen";
 import { MessagesScreen } from "../screens/MessagesScreen";
 import { PaymentsScreen } from "../screens/PaymentsScreen";
 import { PlannedNeedsScreen } from "../screens/PlannedNeedsScreen";
 import { PostJobScreen } from "../screens/PostJobScreen";
+import { ToolRentalsScreen } from "../screens/ToolRentalsScreen";
+import { TrustSafetyScreen } from "../screens/TrustSafetyScreen";
 import { isEnabled } from "../config/featureFlags";
 import { useAuthStore } from "../state/authStore";
 import { colors } from "../theme";
@@ -26,6 +29,9 @@ type RootTabs = {
   Messages: undefined;
   Plans: undefined;
   Payments: undefined;
+  Tools: undefined;
+  Trust: undefined;
+  Business: undefined;
   Helper: undefined;
   Account: undefined;
 };
@@ -53,6 +59,25 @@ const navTheme: Theme = {
 
 const Tabs = createBottomTabNavigator<RootTabs>();
 
+const linking = {
+  prefixes: ["oxsteed://", "https://oxsteed.com", "https://www.oxsteed.com"],
+  config: {
+    screens: {
+      Customer: "",
+      Post: "post-job",
+      Helpers: "helpers/:id?",
+      Messages: "messages",
+      Plans: "planned-needs",
+      Payments: "invoices",
+      Tools: "tool-rentals/:id?",
+      Trust: "disputes/:id?",
+      Business: "business-hub",
+      Helper: "helper-dashboard",
+      Account: "account"
+    }
+  }
+};
+
 function SignedInTabs() {
   usePushRegistration();
 
@@ -74,6 +99,9 @@ function SignedInTabs() {
       <Tabs.Screen name="Messages" component={MessagesScreen} />
       <Tabs.Screen name="Plans" component={PlannedNeedsScreen} />
       <Tabs.Screen name="Payments" component={PaymentsScreen} />
+      <Tabs.Screen name="Tools" component={ToolRentalsScreen} />
+      <Tabs.Screen name="Trust" component={TrustSafetyScreen} />
+      <Tabs.Screen name="Business" component={BusinessHubLiteScreen} />
       {isEnabled("helperDashboard") && <Tabs.Screen name="Helper" component={HelperHomeScreen} />}
       <Tabs.Screen name="Account" component={AccountScreen} />
     </Tabs.Navigator>
@@ -96,7 +124,7 @@ function Root() {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer theme={navTheme} linking={linking}>
       {user ? <SignedInTabs /> : <AuthScreen />}
     </NavigationContainer>
   );

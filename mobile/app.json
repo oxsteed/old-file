@@ -29,6 +29,7 @@
     "plugins": [
       "expo-secure-store",
       "expo-notifications",
+      "@sentry/react-native/expo",
       [
         "expo-calendar",
         {
@@ -37,7 +38,8 @@
       ]
     ],
     "extra": {
-      "apiBaseUrl": "https://oxsteed.com/api"
+      "apiBaseUrl": "https://oxsteed.com/api",
+      "sentryDsn": ""
     }
   }
 }

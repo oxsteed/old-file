@@ -492,6 +492,241 @@ exports.getFeed = async (req, res, next) => {
   }
 };
 
+exports.getNearby = async (req, res, next) => {
+  try {
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const city = normalizeString(req.query.city, 100);
+    const category = normalizeString(req.query.category, 120);
+    const q = normalizeString(req.query.q, 120);
+
+    const jobParams = [];
+    const jobWhere = [`j.deleted_at IS NULL`, `j.status IN ('published', 'matched')`];
+    if (city) {
+      jobParams.push(`%${city}%`);
+      jobWhere.push(`j.location_city ILIKE $${jobParams.length}`);
+    }
+    if (category) {
+      jobParams.push(category);
+      jobWhere.push(`j.category_name = $${jobParams.length}`);
+    }
+    if (q) {
+      jobParams.push(`%${q}%`);
+      jobWhere.push(`(j.title ILIKE $${jobParams.length} OR j.description ILIKE $${jobParams.length})`);
+    }
+    jobParams.push(limit);
+
+    const toolParams = [];
+    const toolWhere = [`t.is_available = TRUE`];
+    if (city) {
+      toolParams.push(`%${city}%`);
+      toolWhere.push(`t.location_city ILIKE $${toolParams.length}`);
+    }
+    if (category) {
+      toolParams.push(`%${category}%`);
+      toolWhere.push(`t.category ILIKE $${toolParams.length}`);
+    }
+    if (q) {
+      toolParams.push(`%${q}%`);
+      toolWhere.push(`(t.name ILIKE $${toolParams.length} OR t.description ILIKE $${toolParams.length})`);
+    }
+    toolParams.push(limit);
+
+    const helperParams = [];
+    const helperWhere = [`u.is_active = TRUE`, `u.deleted_at IS NULL`, `u.role IN ('helper', 'helper_pro', 'broker')`];
+    if (city) {
+      helperParams.push(`%${city}%`);
+      helperWhere.push(`hp.service_city ILIKE $${helperParams.length}`);
+    }
+    if (q) {
+      helperParams.push(`%${q}%`);
+      helperWhere.push(`(u.first_name ILIKE $${helperParams.length} OR u.last_name ILIKE $${helperParams.length} OR hp.profile_headline ILIKE $${helperParams.length})`);
+    }
+    helperParams.push(limit);
+
+    const [jobs, tools, helpers] = await Promise.all([
+      safeQuery(
+        `SELECT j.id, j.title, j.description, j.category_name, j.budget_min, j.budget_max,
+                j.location_city, j.location_state, j.is_urgent, j.created_at
+           FROM jobs j
+          WHERE ${jobWhere.join(' AND ')}
+          ORDER BY j.created_at DESC
+          LIMIT $${jobParams.length}`,
+        jobParams
+      ),
+      safeQuery(
+        `SELECT t.id, t.name, t.category, t.description, t.daily_rate, t.hourly_rate,
+                t.deposit_amount, t.requires_deposit, t.location_city, t.location_state,
+                t.image_gallery, t.user_id AS owner_id, u.first_name || ' ' || u.last_name AS owner_name
+           FROM tool_rentals t
+           JOIN users u ON u.id = t.user_id
+          WHERE ${toolWhere.join(' AND ')}
+          ORDER BY t.created_at DESC
+          LIMIT $${toolParams.length}`,
+        toolParams
+      ),
+      safeQuery(
+        `SELECT u.id, u.first_name || ' ' || u.last_name AS owner_name,
+                hp.profile_headline, hp.bio_short, hp.service_city, hp.service_state,
+                hp.avg_rating, hp.total_reviews, hp.is_background_checked, hp.is_identity_verified,
+                hp.profile_photo_url
+           FROM users u
+           JOIN helper_profiles hp ON hp.user_id = u.id
+          WHERE ${helperWhere.join(' AND ')}
+          ORDER BY hp.avg_rating DESC NULLS LAST, u.created_at DESC
+          LIMIT $${helperParams.length}`,
+        helperParams
+      ),
+    ]);
+
+    res.json({ success: true, data: { jobs, tools, helpers } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.offlineSync = async (req, res, next) => {
+  try {
+    const actions = Array.isArray(req.body.actions) ? req.body.actions : [];
+    if (actions.length > 50) {
+      throw new AppError('Too many offline actions in one sync', 400, 'validation_failed');
+    }
+    const results = [];
+    for (const action of actions) {
+      const type = normalizeString(action.type, 80);
+      const payload = action.payload && typeof action.payload === 'object' ? action.payload : {};
+      const clientId = normalizeString(action.clientId || action.client_id, 120) || `offline-${Date.now()}-${results.length}`;
+      try {
+        const { rows } = await pool.query(
+          `INSERT INTO mobile_offline_actions (user_id, client_action_id, action_type, payload, status)
+           VALUES ($1, $2, $3, $4::jsonb, 'queued')
+           ON CONFLICT (user_id, client_action_id)
+           DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
+           RETURNING id, client_action_id, action_type, status`,
+          [req.user.id, clientId, type || 'unknown', JSON.stringify(payload)]
+        );
+        results.push({ clientId, status: 'queued', serverId: rows[0].id });
+      } catch (err) {
+        results.push({ clientId, status: 'failed', error: err.message });
+      }
+    }
+    res.json({ success: true, data: { results } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getBusinessMobileSummary = async (req, res, next) => {
+  try {
+    const businessId = req.params.businessId || req.params.id;
+    const access = await pool.query(
+      `SELECT b.id, b.business_name, b.business_type, b.active_template, b.user_id
+         FROM businesses b
+        WHERE b.id = $1
+          AND b.is_active = TRUE
+          AND (
+            b.user_id = $2 OR EXISTS (
+              SELECT 1 FROM business_members bm
+               WHERE bm.business_id = b.id AND bm.member_id = $2 AND bm.status = 'active'
+            )
+          )`,
+      [businessId, req.user.id]
+    );
+    if (!access.rows.length) {
+      throw new AppError('Business not found', 404, 'business_not_found');
+    }
+
+    const [appointments, invoices, messages, products, healthRows] = await Promise.all([
+      safeQuery(
+        `SELECT id, title, status, scheduled_start_time, scheduled_end_time
+           FROM appointments
+          WHERE business_id = $1 AND scheduled_start_time >= NOW() - interval '1 day'
+          ORDER BY scheduled_start_time ASC
+          LIMIT 10`,
+        [businessId]
+      ),
+      safeQuery(
+        `SELECT id, invoice_number, client_name, client_email, status, total, amount_paid, due_at, created_at
+           FROM business_invoices
+          WHERE business_id = $1
+          ORDER BY created_at DESC
+          LIMIT 10`,
+        [businessId]
+      ),
+      safeQuery(
+        `SELECT c.id, c.last_message_at, c.status,
+                COUNT(m.id) FILTER (WHERE m.is_read = FALSE AND m.sender_id <> $2) AS unread_count,
+                lm.content AS last_message
+           FROM conversations c
+           LEFT JOIN LATERAL (
+             SELECT content FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1
+           ) lm ON TRUE
+           LEFT JOIN messages m ON m.conversation_id = c.id
+          WHERE c.business_id = $1
+          GROUP BY c.id, lm.content
+          ORDER BY COALESCE(c.last_message_at, c.created_at) DESC
+          LIMIT 10`,
+        [businessId, req.user.id]
+      ),
+      safeQuery(
+        `SELECT p.id, p.name, p.category, p.price_cents, p.is_active,
+                COALESCE(SUM(pi.stock_quantity), 0) AS total_stock
+           FROM business_products p
+           LEFT JOIN business_product_variants pv ON pv.product_id = p.id
+           LEFT JOIN business_product_inventory pi ON pi.variant_id = pv.id
+          WHERE p.business_id = $1 AND p.deleted_at IS NULL
+          GROUP BY p.id
+          ORDER BY p.created_at DESC
+          LIMIT 10`,
+        [businessId]
+      ),
+      safeQuery(
+        `SELECT
+           COUNT(*) FILTER (WHERE status IN ('sent', 'overdue', 'partial')) AS open_invoices,
+           COALESCE(SUM(total) FILTER (WHERE status = 'paid'), 0) AS paid_revenue,
+           COALESCE(SUM(total - COALESCE(amount_paid, 0)) FILTER (WHERE status <> 'paid'), 0) AS outstanding
+          FROM business_invoices
+         WHERE business_id = $1`,
+        [businessId],
+        [{ open_invoices: 0, paid_revenue: 0, outstanding: 0 }]
+      ),
+    ]);
+
+    const health = healthRows[0] || {};
+    const profileCompleteness = [
+      access.rows[0].business_name,
+      access.rows[0].business_type,
+      products.length > 0,
+      invoices.length > 0,
+      appointments.length > 0,
+    ].filter(Boolean).length * 20;
+
+    res.json({
+      success: true,
+      data: {
+        business: access.rows[0],
+        overview: {
+          openInvoices: Number(health.open_invoices || 0),
+          paidRevenue: Number(health.paid_revenue || 0),
+          outstanding: Number(health.outstanding || 0),
+          unreadMessages: messages.reduce((sum, msg) => sum + (Number(msg.unread_count) || 0), 0),
+          profileCompleteness,
+        },
+        appointments,
+        invoices,
+        messages,
+        products,
+        health: [
+          { label: 'Profile completeness', value: profileCompleteness, status: profileCompleteness >= 80 ? 'good' : 'needs_work' },
+          { label: 'Products listed', value: products.length, status: products.length ? 'good' : 'needs_work' },
+          { label: 'Open invoices', value: Number(health.open_invoices || 0), status: Number(health.open_invoices || 0) ? 'watch' : 'good' },
+        ],
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.registerPushToken = async (req, res, next) => {
   try {
     const token = normalizeString(req.body.token, 4096);
