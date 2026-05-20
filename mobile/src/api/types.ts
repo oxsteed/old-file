@@ -143,6 +143,15 @@ export type InvoicePaymentIntent = {
   publishableKey: string;
 };
 
+export type BookingPaymentIntent = {
+  bookingId: string | number;
+  clientSecret: string;
+  paymentIntentId: string;
+  amountCents: number;
+  paymentRequirement: "deposit" | "full";
+  publishableKey: string;
+};
+
 export type MobileJob = {
   id: string;
   title: string;
@@ -179,14 +188,29 @@ export type MobileBooking = {
   customerName?: string | null;
   created_at?: string;
   createdAt?: string;
+  payment_status?: string;
+  paymentStatus?: string;
+  payment_amount_cents?: string | number;
+  paymentAmountCents?: string | number;
 };
 
 export type MobileAppointment = {
   id: string;
   title?: string;
+  service_description?: string;
+  job_id?: string | number | null;
   status?: string;
   scheduled_start_time?: string;
   scheduled_end_time?: string;
+  customer_name?: string;
+  helper_name?: string;
+  job_title?: string;
+};
+
+export type AvailableSlot = {
+  startTime: string;
+  endTime: string;
+  available: boolean;
 };
 
 export type PlannedNeed = {
@@ -339,4 +363,10 @@ export type ConnectStatus = {
   charges_enabled?: boolean;
   payouts_enabled?: boolean;
   onboarding_complete?: boolean;
+};
+
+export type ReviewEligibility = {
+  eligible: boolean;
+  already_reviewed: boolean;
+  job_status?: string;
 };

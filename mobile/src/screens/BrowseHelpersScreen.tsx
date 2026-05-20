@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, View } from "react-native";
+import { initStripe, useStripe } from "@stripe/stripe-react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, OxSteedApiError } from "../api/client";
-import type { HelperDirectoryItem, HelperProfile } from "../api/types";
+import type { AvailableSlot, HelperDirectoryItem, HelperProfile } from "../api/types";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { FormInput } from "../components/FormInput";
@@ -17,6 +18,8 @@ type BookingDraft = {
   requestedEndTime: string;
   serviceLocation: string;
   description: string;
+  paymentAmount: string;
+  paymentRequirement: "deposit" | "full";
 };
 
 const initialBooking: BookingDraft = {
@@ -25,7 +28,9 @@ const initialBooking: BookingDraft = {
   requestedStartTime: "09:00",
   requestedEndTime: "10:00",
   serviceLocation: "",
-  description: ""
+  description: "",
+  paymentAmount: "",
+  paymentRequirement: "deposit"
 };
 
 function money(value?: number, unit?: string) {
@@ -34,6 +39,7 @@ function money(value?: number, unit?: string) {
 }
 
 export function BrowseHelpersScreen() {
+  const stripe = useStripe();
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [activeHelper, setActiveHelper] = useState<HelperDirectoryItem | null>(null);
@@ -49,6 +55,12 @@ export function BrowseHelpersScreen() {
     queryKey: ["helper-profile", activeHelper?.id],
     enabled: Boolean(activeHelper),
     queryFn: () => api.helperProfile(activeHelper!.id)
+  });
+
+  const slots = useQuery({
+    queryKey: ["helper-slots", activeHelper?.id, booking.requestedDate],
+    enabled: Boolean(activeHelper?.id && booking.requestedDate),
+    queryFn: () => api.availableSlots(activeHelper!.id, booking.requestedDate)
   });
 
   async function openHelper(helper: HelperDirectoryItem) {
@@ -73,7 +85,7 @@ export function BrowseHelpersScreen() {
     const helperId = profileData?.helper?.id || activeHelper?.id;
     if (!helperId) return;
     try {
-      await api.createBookingRequest({
+      const bookingRecord = await api.createBookingRequest({
         helperId,
         serviceName: booking.serviceName || profileData?.services?.[0]?.name || "Service request",
         requestedDate: booking.requestedDate,
@@ -82,6 +94,22 @@ export function BrowseHelpersScreen() {
         serviceLocation: booking.serviceLocation,
         description: booking.description
       });
+      const amountCents = Math.round(Number(booking.paymentAmount || 0) * 100);
+      if (amountCents > 0 && bookingRecord.id) {
+        const intent = await api.createBookingPaymentIntent(bookingRecord.id, amountCents, booking.paymentRequirement);
+        await initStripe({
+          publishableKey: intent.publishableKey,
+          merchantIdentifier: "merchant.com.oxsteed.app"
+        });
+        const initResult = await stripe.initPaymentSheet({
+          merchantDisplayName: "OxSteed",
+          paymentIntentClientSecret: intent.clientSecret
+        });
+        if (initResult.error) throw new Error(initResult.error.message);
+        const sheetResult = await stripe.presentPaymentSheet();
+        if (sheetResult.error) throw new Error(sheetResult.error.message);
+        await api.confirmBookingPayment(bookingRecord.id, intent.paymentIntentId);
+      }
       setStatus("Booking request sent. It will show in your dashboard once the helper responds.");
       setBooking(initialBooking);
       await queryClient.invalidateQueries({ queryKey: ["mobile-feed"] });
@@ -126,15 +154,36 @@ export function BrowseHelpersScreen() {
             </Card>
 
             <Card>
-              <AppText variant="headline">Direct booking request</AppText>
+              <AppText variant="headline">Direct booking</AppText>
               <FormInput placeholder="Service name" value={booking.serviceName} onChangeText={(serviceName) => setBooking((draft) => ({ ...draft, serviceName }))} />
               <FormInput placeholder="Date YYYY-MM-DD" value={booking.requestedDate} onChangeText={(requestedDate) => setBooking((draft) => ({ ...draft, requestedDate }))} />
+              {slots.isLoading ? <ActivityIndicator color={colors.orange} /> : null}
+              {(slots.data?.slots || []).filter((slot) => slot.available).slice(0, 8).length > 0 && (
+                <View style={styles.slotGrid}>
+                  {(slots.data?.slots || []).filter((slot) => slot.available).slice(0, 8).map((slot: AvailableSlot) => (
+                    <Button
+                      key={`${slot.startTime}-${slot.endTime}`}
+                      variant={booking.requestedStartTime === slot.startTime ? "primary" : "secondary"}
+                      onPress={() => setBooking((draft) => ({ ...draft, requestedStartTime: slot.startTime.slice(0, 5), requestedEndTime: slot.endTime.slice(0, 5) }))}
+                    >
+                      {slot.startTime.slice(0, 5)}
+                    </Button>
+                  ))}
+                </View>
+              )}
               <View style={styles.split}>
                 <FormInput style={styles.splitInput} placeholder="Start HH:MM" value={booking.requestedStartTime} onChangeText={(requestedStartTime) => setBooking((draft) => ({ ...draft, requestedStartTime }))} />
                 <FormInput style={styles.splitInput} placeholder="End HH:MM" value={booking.requestedEndTime} onChangeText={(requestedEndTime) => setBooking((draft) => ({ ...draft, requestedEndTime }))} />
               </View>
               <FormInput placeholder="Location" value={booking.serviceLocation} onChangeText={(serviceLocation) => setBooking((draft) => ({ ...draft, serviceLocation }))} />
               <FormInput multiline placeholder="Notes for the helper" value={booking.description} onChangeText={(description) => setBooking((draft) => ({ ...draft, description }))} />
+              <View style={styles.split}>
+                <FormInput style={styles.splitInput} placeholder="Optional deposit/full amount" keyboardType="decimal-pad" value={booking.paymentAmount} onChangeText={(paymentAmount) => setBooking((draft) => ({ ...draft, paymentAmount }))} />
+                <Button variant="secondary" onPress={() => setBooking((draft) => ({ ...draft, paymentRequirement: draft.paymentRequirement === "deposit" ? "full" : "deposit" }))}>
+                  {booking.paymentRequirement === "deposit" ? "Deposit" : "Full"}
+                </Button>
+              </View>
+              <AppText variant="caption">Payment is optional for now. If added, OxSteed collects it securely with Stripe and marks the booking paid.</AppText>
               {status && <AppText variant="muted">{status}</AppText>}
               <Button disabled={!booking.requestedDate || !booking.requestedStartTime || !booking.requestedEndTime} onPress={() => requestBooking(data)}>
                 Request booking
@@ -229,5 +278,10 @@ const styles = StyleSheet.create({
   },
   splitInput: {
     flex: 1
+  },
+  slotGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm
   }
 });

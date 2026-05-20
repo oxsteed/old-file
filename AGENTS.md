@@ -44,6 +44,13 @@
 - **Mobile gallery upload:** **`server/controllers/mobileController.js` + `server/routes/mobile.js`** add authenticated `POST /api/mobile/helper/gallery`, a native multipart image upload endpoint for helper gallery photos that stores public profile media through the existing storage utility and inserts `helper_gallery` records.
 - **Verification:** `npm run typecheck` passes. `node --check server/controllers/mobileController.js server/routes/mobile.js` passes. `expo export --platform ios --output-dir /tmp/oxsteed-expo-export` passes.
 
+**Expo React Native mobile Phase 4 scheduling/direct booking (2026-05-20):** COMPLETE
+- **Booking engine:** **`mobile/src/screens/BrowseHelpersScreen.tsx`** now loads live helper availability slots from `/api/bookings/helper/:helperId/available-slots`, lets customers select a slot, and can collect an optional deposit or full booking amount through Stripe PaymentSheet before marking the booking paid.
+- **Mobile booking payments:** **Migration 267** (`server/migrations/267_mobile_booking_payments.sql`) adds booking payment status/amount/PaymentIntent fields. **`server/controllers/mobileController.js` + `server/routes/mobile.js`** add `POST /api/mobile/bookings/:bookingId/payment-intent` and `POST /api/mobile/bookings/:bookingId/confirm-payment`.
+- **Calendar + rescheduling:** **`mobile/src/utils/deviceCalendar.ts`, `mobile/app.json`, `mobile/src/screens/CustomerHomeScreen.tsx`** add Expo Calendar permission/config, device-calendar insertion for accepted bookings and appointments, and customer reschedule requests through the existing appointment reschedule API, which already writes in-app notifications and broadcasts socket events.
+- **Real-time-lite updates + reviews:** Messages, helper bookings, helper appointments, helper bids, and the customer dashboard now poll on short intervals so accept/decline/message changes appear without manual refresh. Customer completed/closed jobs now expose a native review form that submits to `/api/reviews/jobs/:jobId`.
+- **Verification:** `npm run typecheck` passes. `node --check server/controllers/mobileController.js server/routes/mobile.js` passes. `expo export --platform ios --output-dir /tmp/oxsteed-expo-export` passes. `npm audit --audit-level=high` passes; remaining audit output is the same moderate Expo/PostCSS advisory requiring a breaking Expo 55 upgrade to auto-fix.
+
 **Historical native SwiftUI iOS app foundation (2026-05-18):** REPLACED BY EXPO RESET
 - This SwiftUI/TestFlight pass remains in repository history, but active mobile development has pivoted to the Expo React Native plan above so iOS and Android can share one client on the existing backend.
 

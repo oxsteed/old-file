@@ -26,13 +26,15 @@ export function MessagesScreen() {
 
   const conversations = useQuery({
     queryKey: ["conversations"],
-    queryFn: api.listConversations
+    queryFn: api.listConversations,
+    refetchInterval: 15_000
   });
 
   const messages = useQuery({
     queryKey: ["messages", activeConversation?.id],
     enabled: Boolean(activeConversation),
-    queryFn: () => api.getMessages(activeConversation!.id)
+    queryFn: () => api.getMessages(activeConversation!.id),
+    refetchInterval: activeConversation ? 7_500 : false
   });
 
   const optimisticMessages = useMemo(() => messages.data || [], [messages.data]);

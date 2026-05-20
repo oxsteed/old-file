@@ -163,6 +163,137 @@ exports.confirmInvoicePayment = async (req, res, next) => {
   }
 };
 
+async function getPayableBooking(bookingId, user) {
+  const { rows } = await pool.query(
+    `SELECT br.*, h.email AS helper_email
+       FROM booking_requests br
+       JOIN users h ON h.id = br.helper_id
+      WHERE br.id = $1
+        AND br.customer_id = $2`,
+    [bookingId, user.id]
+  );
+  return rows[0] || null;
+}
+
+exports.createBookingPaymentIntent = async (req, res, next) => {
+  try {
+    requireStripe();
+    const booking = await getPayableBooking(req.params.bookingId, req.user);
+    if (!booking) {
+      throw new AppError('Booking request not found', 404, 'booking_not_found');
+    }
+    if (!['pending', 'accepted'].includes(booking.status)) {
+      throw new AppError('Booking is not payable in its current state', 409, 'booking_not_payable');
+    }
+    if (booking.payment_status === 'paid') {
+      throw new AppError('Booking is already paid', 409, 'booking_already_paid');
+    }
+
+    const amountCents = Math.round(Number(req.body.amountCents || req.body.amount_cents || 0));
+    const paymentRequirement = normalizeString(req.body.paymentRequirement || req.body.payment_requirement, 20) || 'deposit';
+    if (!['deposit', 'full'].includes(paymentRequirement)) {
+      throw new AppError('Payment requirement must be deposit or full', 400, 'validation_failed', {
+        paymentRequirement: 'Must be deposit or full',
+      });
+    }
+    if (!Number.isFinite(amountCents) || amountCents < 50 || amountCents > 5000000) {
+      throw new AppError('Payment amount must be between $0.50 and $50,000', 400, 'validation_failed', {
+        amountCents: 'Invalid amount',
+      });
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amountCents,
+      currency: 'usd',
+      receipt_email: req.user.email || undefined,
+      metadata: {
+        booking_request_id: String(booking.id),
+        customer_id: String(req.user.id),
+        helper_id: String(booking.helper_id),
+        payment_requirement: paymentRequirement,
+        source: 'mobile_booking',
+      },
+    });
+
+    await pool.query(
+      `UPDATE booking_requests
+          SET payment_requirement = $1,
+              payment_amount_cents = $2,
+              payment_status = 'requires_payment',
+              stripe_payment_intent_id = $3,
+              updated_at = CURRENT_TIMESTAMP
+        WHERE id = $4`,
+      [paymentRequirement, amountCents, paymentIntent.id, booking.id]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        bookingId: booking.id,
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+        amountCents,
+        paymentRequirement,
+        publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.confirmBookingPayment = async (req, res, next) => {
+  try {
+    requireStripe();
+    const booking = await getPayableBooking(req.params.bookingId, req.user);
+    if (!booking) {
+      throw new AppError('Booking request not found', 404, 'booking_not_found');
+    }
+
+    const paymentIntentId = normalizeString(req.body.paymentIntentId, 255) || booking.stripe_payment_intent_id;
+    if (!paymentIntentId) {
+      throw new AppError('Payment intent is required', 400, 'validation_failed', {
+        paymentIntentId: 'Required',
+      });
+    }
+
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    if (paymentIntent.metadata?.booking_request_id && String(paymentIntent.metadata.booking_request_id) !== String(booking.id)) {
+      throw new AppError('Payment does not belong to this booking', 403, 'payment_booking_mismatch');
+    }
+    if (paymentIntent.status !== 'succeeded') {
+      await pool.query(
+        `UPDATE booking_requests
+            SET payment_status = $1,
+                updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2`,
+        [paymentIntent.status === 'processing' ? 'processing' : 'failed', booking.id]
+      );
+      return res.status(409).json({
+        success: false,
+        error: `Payment status: ${paymentIntent.status}`,
+        status: paymentIntent.status,
+      });
+    }
+
+    const { rows } = await pool.query(
+      `UPDATE booking_requests
+          SET payment_status = 'paid',
+              payment_amount_cents = GREATEST(payment_amount_cents, $1),
+              stripe_payment_intent_id = $2,
+              paid_at = COALESCE(paid_at, NOW()),
+              updated_at = CURRENT_TIMESTAMP
+        WHERE id = $3
+        RETURNING *`,
+      [paymentIntent.amount_received || paymentIntent.amount || 0, paymentIntentId, booking.id]
+    );
+
+    res.json({ success: true, data: { booking: rows[0], paymentIntentId, status: 'paid' } });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.getFeed = async (req, res, next) => {
   try {
     const userId = req.user.id;
@@ -199,7 +330,8 @@ exports.getFeed = async (req, res, next) => {
       ),
       safeQuery(
         `SELECT id, service_name, requested_date, requested_start_time, requested_end_time,
-                service_location, status, expires_at, created_at
+                service_location, status, payment_status, payment_amount_cents,
+                payment_requirement, expires_at, created_at
            FROM booking_requests
           WHERE customer_id = $1
           ORDER BY created_at DESC
@@ -208,8 +340,9 @@ exports.getFeed = async (req, res, next) => {
       ),
       safeQuery(
         `SELECT br.id, br.service_name, br.requested_date, br.requested_start_time,
-                br.requested_end_time, br.service_location, br.status, br.expires_at,
-                br.created_at, u.first_name || ' ' || u.last_name AS customer_name
+                br.requested_end_time, br.service_location, br.status,
+                br.payment_status, br.payment_amount_cents, br.payment_requirement,
+                br.expires_at, br.created_at, u.first_name || ' ' || u.last_name AS customer_name
            FROM booking_requests br
            JOIN users u ON u.id = br.customer_id
           WHERE br.helper_id = $1

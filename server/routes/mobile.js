@@ -10,6 +10,8 @@ router.get('/feed', authenticate, mobileController.getFeed);
 router.get('/payment-config', authenticate, mobileController.getPaymentConfig);
 router.post('/invoices/:invoiceId/payment-intent', authenticate, mobileController.createInvoicePaymentIntent);
 router.post('/invoices/:invoiceId/confirm-payment', authenticate, mobileController.confirmInvoicePayment);
+router.post('/bookings/:bookingId/payment-intent', authenticate, mobileController.createBookingPaymentIntent);
+router.post('/bookings/:bookingId/confirm-payment', authenticate, mobileController.confirmBookingPayment);
 router.post('/helper/gallery', authenticate, upload.single('file'), validateFileUpload, mobileController.uploadHelperGallery);
 
 module.exports = router;

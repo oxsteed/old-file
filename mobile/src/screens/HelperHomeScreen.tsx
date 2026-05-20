@@ -71,7 +71,7 @@ export function HelperHomeScreen() {
   const [policyDraft, setPolicyDraft] = useState({ title: "", content: "" });
   const [galleryCaption, setGalleryCaption] = useState("");
 
-  const feed = useQuery({ queryKey: ["mobile-feed"], queryFn: api.mobileFeed });
+  const feed = useQuery({ queryKey: ["mobile-feed"], queryFn: api.mobileFeed, refetchInterval: 20_000 });
   const jobs = useQuery({
     queryKey: ["helper-jobs", jobFilters],
     queryFn: () =>
@@ -84,9 +84,9 @@ export function HelperHomeScreen() {
         limit: 25
       })
   });
-  const bids = useQuery({ queryKey: ["helper-bids"], queryFn: () => api.listMyBids() });
-  const incomingBookings = useQuery({ queryKey: ["helper-bookings"], queryFn: api.listIncomingBookings });
-  const appointments = useQuery({ queryKey: ["helper-appointments"], queryFn: api.listAppointments });
+  const bids = useQuery({ queryKey: ["helper-bids"], queryFn: () => api.listMyBids(), refetchInterval: 20_000 });
+  const incomingBookings = useQuery({ queryKey: ["helper-bookings"], queryFn: api.listIncomingBookings, refetchInterval: 12_000 });
+  const appointments = useQuery({ queryKey: ["helper-appointments"], queryFn: api.listAppointments, refetchInterval: 20_000 });
   const availability = useQuery({ queryKey: ["helper-availability"], queryFn: api.listAvailabilityBlocks });
   const profile = useQuery({
     queryKey: ["helper-profile-me"],

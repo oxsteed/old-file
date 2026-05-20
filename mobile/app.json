@@ -26,7 +26,16 @@
         }
       ]
     },
-    "plugins": ["expo-secure-store", "expo-notifications"],
+    "plugins": [
+      "expo-secure-store",
+      "expo-notifications",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Allow OxSteed to add confirmed bookings and appointments to your calendar."
+        }
+      ]
+    ],
     "extra": {
       "apiBaseUrl": "https://oxsteed.com/api"
     }

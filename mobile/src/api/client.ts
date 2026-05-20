@@ -4,6 +4,8 @@ import type {
   AuthResponse,
   AuthUser,
   AvailabilityBlock,
+  AvailableSlot,
+  BookingPaymentIntent,
   ConnectStatus,
   Conversation,
   HelperBid,
@@ -21,7 +23,8 @@ import type {
   MobileJob,
   PlannedNeed,
   PlannedNeedPayload,
-  RegisterPayload
+  RegisterPayload,
+  ReviewEligibility
 } from "./types";
 
 const ACCESS_TOKEN_KEY = "oxsteed.mobile.accessToken";
@@ -367,6 +370,27 @@ export const api = {
     return response.data;
   },
 
+  async createBookingPaymentIntent(bookingId: string | number, amountCents: number, paymentRequirement: "deposit" | "full") {
+    const response = await request<{ success: boolean; data: BookingPaymentIntent }>(`mobile/bookings/${bookingId}/payment-intent`, {
+      method: "POST",
+      authenticated: true,
+      body: { amountCents, paymentRequirement }
+    });
+    return response.data;
+  },
+
+  async confirmBookingPayment(bookingId: string | number, paymentIntentId: string) {
+    const response = await request<{ success: boolean; data: { booking: MobileBooking; status?: string } }>(
+      `mobile/bookings/${bookingId}/confirm-payment`,
+      {
+        method: "POST",
+        authenticated: true,
+        body: { paymentIntentId }
+      }
+    );
+    return response.data;
+  },
+
   async confirmInvoicePayment(invoiceId: string | number, paymentIntentId: string) {
     const response = await request<{ success: boolean; data: { invoice: Invoice; status?: string } }>(
       `mobile/invoices/${invoiceId}/confirm-payment`,
@@ -388,11 +412,19 @@ export const api = {
     serviceLocation?: string;
     description?: string;
   }) {
-    return request<{ booking?: unknown; id?: string }>("bookings", {
+    const response = await request<{ success?: boolean; data?: MobileBooking; booking?: MobileBooking; id?: string }>("bookings", {
       method: "POST",
       authenticated: true,
       body: payload
     });
+    return response.data || response.booking || response;
+  },
+
+  async availableSlots(helperId: string | number, date: string) {
+    const response = await request<{ success: boolean; data: { date: string; dayOfWeek: string; slots: AvailableSlot[] } }>(
+      `bookings/helper/${helperId}/available-slots?date=${encodeURIComponent(date)}`
+    );
+    return response.data;
   },
 
   async registerPushToken(input: {
@@ -505,6 +537,34 @@ export const api = {
     return response.data?.appointments ?? [];
   },
 
+  async requestAppointmentReschedule(appointmentId: string | number, payload: { proposed_start: string; proposed_end: string; message?: string }) {
+    const response = await request<{ success?: boolean; data?: unknown }>(`calendar/appointments/${appointmentId}/reschedule-request`, {
+      method: "POST",
+      authenticated: true,
+      body: payload
+    });
+    return response.data;
+  },
+
+  async listRescheduleRequests(appointmentId: string | number) {
+    const response = await request<{ success?: boolean; data?: unknown[] }>(`calendar/appointments/${appointmentId}/reschedule-requests`, {
+      authenticated: true
+    });
+    return response.data ?? [];
+  },
+
+  async respondToReschedule(appointmentId: string | number, requestId: string | number, action: "accept" | "decline") {
+    const response = await request<{ success?: boolean; data?: unknown }>(
+      `calendar/appointments/${appointmentId}/reschedule-request/${requestId}`,
+      {
+        method: "PUT",
+        authenticated: true,
+        body: { action }
+      }
+    );
+    return response.data;
+  },
+
   async listAvailabilityBlocks() {
     const response = await request<{ blocks: AvailabilityBlock[] }>("calendar/availability/mine?limit=50", {
       authenticated: true
@@ -603,6 +663,20 @@ export const api = {
   async listPayeePayments() {
     return request<{ payments: HelperPayment[]; total: number }>("payments/me?role=payee&limit=50", {
       authenticated: true
+    });
+  },
+
+  async reviewEligibility(jobId: string | number) {
+    return request<ReviewEligibility>(`reviews/jobs/${jobId}/eligibility`, {
+      authenticated: true
+    });
+  },
+
+  async submitJobReview(jobId: string | number, payload: { rating: number; title?: string; body?: string }) {
+    return request<{ review: unknown }>(`reviews/jobs/${jobId}`, {
+      method: "POST",
+      authenticated: true,
+      body: payload
     });
   }
 };

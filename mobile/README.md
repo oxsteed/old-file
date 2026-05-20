@@ -6,6 +6,7 @@ Expo React Native + TypeScript app for building a native iOS/Android companion t
 
 - `mobile/package.json`, `mobile/app.json`, `mobile/App.tsx`, and `mobile/src/**` are the active mobile app surface.
 - The app uses Expo, React Navigation bottom tabs, TanStack Query, Zustand, SecureStore, and Expo Notifications.
+- Native device-calendar integration uses Expo Calendar for confirmed bookings and appointments.
 - The bundle identifiers remain `com.oxsteed.app` for iOS and Android so the App Store / Play Store identity can stay consistent.
 - Phase 1 is focused on the logged-in native shell:
   - JWT login against the existing OxSteed API.
@@ -32,6 +33,13 @@ Expo React Native + TypeScript app for building a native iOS/Android companion t
   - Calendar lists incoming booking requests from `/api/bookings/incoming`, accepts/declines them, reads helper appointments, and creates unavailable blocks through `/api/calendar/availability`.
   - Profile management reads and writes `/api/helper-profile/me`, `/api/helper-profile/core`, `/api/helper-profile/services`, `/api/helper-profile/policies`, uploads native gallery photos through `/api/mobile/helper/gallery`, and shows the public profile QR/link target.
   - Earnings reads `/api/payments/me?role=payee`, shows Stripe Connect readiness from `/api/payments/connect/status`, and launches onboarding through `/api/payments/connect`.
+- Phase 4 scheduling and direct booking is implemented:
+  - Helper profile booking fetches live availability slots from `/api/bookings/helper/:helperId/available-slots`.
+  - Customers can request a direct booking from a selected slot and optionally pay a deposit or full amount through Stripe PaymentSheet.
+  - Accepted bookings and appointments can be added to the device calendar.
+  - Customers can request appointment reschedules through the shared calendar reschedule API.
+  - Messages, booking queues, helper appointments, bids, and dashboard data poll on short intervals for real-time-lite updates.
+  - Completed and closed jobs expose a native review form wired to `/api/reviews/jobs/:jobId`.
 
 ## Backend Contract
 
@@ -45,6 +53,8 @@ Active mobile endpoints:
 - `GET /api/mobile/payment-config`
 - `POST /api/mobile/invoices/:id/payment-intent`
 - `POST /api/mobile/invoices/:id/confirm-payment`
+- `POST /api/mobile/bookings/:bookingId/payment-intent`
+- `POST /api/mobile/bookings/:bookingId/confirm-payment`
 - `POST /api/mobile/helper/gallery`
 - `GET /api/helpers`
 - `GET /api/helpers/:id/profile`
@@ -57,12 +67,16 @@ Active mobile endpoints:
 - `POST /api/jobs`
 - `POST /api/bookings`
 - `GET /api/bookings/incoming`
+- `GET /api/bookings/helper/:helperId/available-slots`
 - `POST /api/bookings/:bookingId/accept`
 - `POST /api/bookings/:bookingId/decline`
 - `GET /api/bids/me`
 - `POST /api/bids`
 - `POST /api/bids/:id/withdraw`
 - `GET /api/calendar/appointments`
+- `POST /api/calendar/appointments/:id/reschedule-request`
+- `GET /api/calendar/appointments/:id/reschedule-requests`
+- `PUT /api/calendar/appointments/:id/reschedule-request/:reqId`
 - `GET /api/calendar/availability/mine`
 - `POST /api/calendar/availability`
 - `DELETE /api/calendar/availability/:id`
@@ -73,6 +87,8 @@ Active mobile endpoints:
 - `GET /api/payments/connect/status`
 - `POST /api/payments/connect`
 - `GET /api/payments/me?role=payee`
+- `GET /api/reviews/jobs/:jobId/eligibility`
+- `POST /api/reviews/jobs/:jobId`
 - `GET /api/planned-needs`
 - `POST /api/planned-needs`
 - `GET /api/invoices`
