@@ -40,6 +40,10 @@
 - **`mobile/src/bootstrap/OxSteedMobileApp.tsx`**: Wrapped the root tree in `GestureHandlerRootView` so the tab/navigation shell matches React Navigation’s native startup expectations.
 - **Verification:** `./node_modules/.bin/tsc --noEmit` passes inside `mobile/` when run with the Codex-bundled Node binary. `xcodebuild -project mobile/ios/OxSteed.xcodeproj -scheme OxSteed -list` parses successfully after the `.pbxproj` edit.
 
+**Expo React Native TestFlight build 104 upload (2026-05-20):** COMPLETE
+- **`mobile/app.json`, `mobile/build_rn_testflight.command`, `mobile/ios/OxSteed.xcodeproj/project.pbxproj`, `mobile/ios/OxSteed/Info.plist`**: Aligned the iOS build number to `104` across the Expo config, archive script, native Xcode project, and native Info.plist after App Store Connect rejected a duplicate upload that still identified itself as build `103`.
+- **Verification:** `/tmp/OxSteedRN.xcarchive/Products/Applications/OxSteed.app/Info.plist` reports `CFBundleVersion = 104`. `mobile/build_rn_testflight.command` archived and uploaded build `1.0 (104)` successfully; App Store Connect responded `Upload succeeded` and moved the package into processing. The upload still reports missing framework dSYM warnings for `React.framework`, `ReactNativeDependencies.framework`, and `hermes.framework`.
+
 **Expo React Native mobile Phase 1 foundation (2026-05-19):** COMPLETE
 - **`mobile/package.json`, `mobile/app.json`, `mobile/App.tsx`, `mobile/tsconfig.json`, `mobile/babel.config.js`, `mobile/src/**`**: Restarted the mobile client as an Expo React Native + TypeScript companion app instead of continuing the SwiftUI-only pass. The shell now uses React Navigation tabs, TanStack Query, Zustand auth state, SecureStore sessions, Expo Notifications, shared native UI primitives, and feature flags for staged rollout. App bootstrap lives in `mobile/src/bootstrap` so Expo does not confuse the project with an Expo Router app directory.
 - **Mobile cleanup:** Removed stale Capacitor/Vite entry files, the SwiftUI iOS project, old mobile screenshots, and the obsolete lockfile so `mobile/` now represents the Expo app source instead of multiple competing mobile shells.
@@ -1396,7 +1400,7 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 - [x] Finish Phase 2 customer core: multi-step Post Job with photos/location, helper browse/profile/detail booking CTA, native messages, planned-needs creation/conversion cue, and invoice/payment-status screens. (2026-05-19)
 - [x] Finish Phase 3 helper core: job feed filters, bid submission, helper availability/calendar, profile/service/gallery editing, and earnings/payout status. (2026-05-19)
 - [x] Add the remaining required mobile endpoints: `GET /api/mobile/nearby`, `POST /api/mobile/offline-sync`, and `GET /api/business/:id/workspace/mobile-summary`. (2026-05-20)
-- [ ] Archive and upload a fresh TestFlight build after the 2026-05-20 release bundle/embed startup hardening so on-device launch is rechecked beyond build `1.0 (103)`.
+- [ ] Confirm TestFlight build `1.0 (104)` opens on-device without the black-screen regression once Apple finishes processing.
 - [ ] Add final crash-reporting org/project config, fresh App Store / Play Store screenshots, and production push-provider verification before launch review.
 
 ### POST-LAUNCH FEATURES (Customer Support & Analytics)
