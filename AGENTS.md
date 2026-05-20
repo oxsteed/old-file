@@ -33,6 +33,13 @@
 - **`mobile/app.json` + `mobile/build_rn_testflight.command`**: Bumped iOS build number to `103` for the corrected TestFlight candidate.
 - **Verification:** `sips` confirms both icon files are 1024x1024 with no alpha. `npm run typecheck` passes with the Codex-bundled Node/npm path. `expo export --platform ios --output-dir /tmp/oxsteed-export-check-103 --clear` passes. `mobile/build_rn_testflight.command` archived and uploaded build `1.0 (103)` to App Store Connect/TestFlight; upload succeeded and Apple processing began. Xcode reported the same missing dSYM upload warnings for React/Hermes frameworks only.
 
+**Expo React Native release bundle/embed startup hardening (2026-05-20):** COMPLETE
+- **`mobile/ios/OxSteed.xcodeproj/project.pbxproj`**: Hardened the existing `Bundle React Native code and images` phase so release builds explicitly copy `main.jsbundle` into `OxSteed.app` when Expo/RN leaves the compiled bundle beside the app instead of inside it. Local inspection of `~/Library/Developer/Xcode/DerivedData/.../Build/Products/Release-iphoneos/OxSteed.app` showed the bundle missing while `ArchiveIntermediates/.../Release-iphoneos/main.jsbundle` existed, which explains the TestFlight black-screen risk on launch.
+- **`mobile/src/state/authStore.ts`**: Wrapped saved-session hydration completely in the existing `try/catch` so SecureStore read failures cannot leave `isHydrating` stuck forever before the first screen.
+- **`mobile/src/bootstrap/usePushRegistration.ts`**: Moved notification handler setup out of module initialization and into a one-time effect so startup is less dependent on Expo Notifications native initialization timing.
+- **`mobile/src/bootstrap/OxSteedMobileApp.tsx`**: Wrapped the root tree in `GestureHandlerRootView` so the tab/navigation shell matches React Navigation’s native startup expectations.
+- **Verification:** `./node_modules/.bin/tsc --noEmit` passes inside `mobile/` when run with the Codex-bundled Node binary. `xcodebuild -project mobile/ios/OxSteed.xcodeproj -scheme OxSteed -list` parses successfully after the `.pbxproj` edit.
+
 **Expo React Native mobile Phase 1 foundation (2026-05-19):** COMPLETE
 - **`mobile/package.json`, `mobile/app.json`, `mobile/App.tsx`, `mobile/tsconfig.json`, `mobile/babel.config.js`, `mobile/src/**`**: Restarted the mobile client as an Expo React Native + TypeScript companion app instead of continuing the SwiftUI-only pass. The shell now uses React Navigation tabs, TanStack Query, Zustand auth state, SecureStore sessions, Expo Notifications, shared native UI primitives, and feature flags for staged rollout. App bootstrap lives in `mobile/src/bootstrap` so Expo does not confuse the project with an Expo Router app directory.
 - **Mobile cleanup:** Removed stale Capacitor/Vite entry files, the SwiftUI iOS project, old mobile screenshots, and the obsolete lockfile so `mobile/` now represents the Expo app source instead of multiple competing mobile shells.
@@ -1389,7 +1396,7 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 - [x] Finish Phase 2 customer core: multi-step Post Job with photos/location, helper browse/profile/detail booking CTA, native messages, planned-needs creation/conversion cue, and invoice/payment-status screens. (2026-05-19)
 - [x] Finish Phase 3 helper core: job feed filters, bid submission, helper availability/calendar, profile/service/gallery editing, and earnings/payout status. (2026-05-19)
 - [x] Add the remaining required mobile endpoints: `GET /api/mobile/nearby`, `POST /api/mobile/offline-sync`, and `GET /api/business/:id/workspace/mobile-summary`. (2026-05-20)
-- [ ] Confirm TestFlight build 1.0 (102) opens on-device without the black-screen regression after Apple finishes processing.
+- [ ] Archive and upload a fresh TestFlight build after the 2026-05-20 release bundle/embed startup hardening so on-device launch is rechecked beyond build `1.0 (103)`.
 - [ ] Add final crash-reporting org/project config, fresh App Store / Play Store screenshots, and production push-provider verification before launch review.
 
 ### POST-LAUNCH FEATURES (Customer Support & Analytics)

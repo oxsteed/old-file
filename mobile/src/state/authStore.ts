@@ -37,13 +37,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   async hydrate() {
     set({ isHydrating: true, error: null });
-    const storedUser = await getStoredUser();
-    if (!storedUser) {
-      set({ user: null, isHydrating: false });
-      return;
-    }
-
     try {
+      const storedUser = await getStoredUser();
+      if (!storedUser) {
+        set({ user: null, isHydrating: false });
+        return;
+      }
+
       const user = await api.me();
       set({ user, isHydrating: false });
     } catch {

@@ -7,18 +7,25 @@ import { api } from "../api/client";
 import { isEnabled } from "../config/featureFlags";
 import { useAuthStore } from "../state/authStore";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: true
-  })
-});
+let notificationHandlerConfigured = false;
 
 export function usePushRegistration() {
   const user = useAuthStore((state) => state.user);
+
+  useEffect(() => {
+    if (!notificationHandlerConfigured) {
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: false,
+          shouldSetBadge: true
+        })
+      });
+      notificationHandlerConfigured = true;
+    }
+  }, []);
 
   useEffect(() => {
     if (!user || !isEnabled("pushRegistration") || Platform.OS === "web") return;
