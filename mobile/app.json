@@ -9,7 +9,7 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "bundleIdentifier": "com.oxsteed.app",
-      "buildNumber": "101",
+      "buildNumber": "102",
       "supportsTablet": true,
       "associatedDomains": ["applinks:oxsteed.com", "applinks:www.oxsteed.com"]
     },

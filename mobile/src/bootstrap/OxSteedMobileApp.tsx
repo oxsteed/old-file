@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { NavigationContainer, DarkTheme, Theme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -17,9 +17,10 @@ import { PlannedNeedsScreen } from "../screens/PlannedNeedsScreen";
 import { PostJobScreen } from "../screens/PostJobScreen";
 import { ToolRentalsScreen } from "../screens/ToolRentalsScreen";
 import { TrustSafetyScreen } from "../screens/TrustSafetyScreen";
+import { AppText } from "../components/Text";
 import { isEnabled } from "../config/featureFlags";
 import { useAuthStore } from "../state/authStore";
-import { colors } from "../theme";
+import { colors, spacing } from "../theme";
 import { usePushRegistration } from "./usePushRegistration";
 
 type RootTabs = {
@@ -110,15 +111,22 @@ function SignedInTabs() {
 
 function Root() {
   const { user, isHydrating, hydrate } = useAuthStore();
+  const [startupTimedOut, setStartupTimedOut] = useState(false);
 
   useEffect(() => {
+    const timer = setTimeout(() => setStartupTimedOut(true), 8000);
     hydrate();
+    return () => clearTimeout(timer);
   }, [hydrate]);
 
   if (isHydrating) {
     return (
       <View style={styles.loading}>
+        <AppText variant="caption">OXSTEED MOBILE</AppText>
         <ActivityIndicator color={colors.orange} />
+        <AppText variant="muted">
+          {startupTimedOut ? "Still starting. Checking your saved session..." : "Starting your native app..."}
+        </AppText>
       </View>
     );
   }
@@ -146,6 +154,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    gap: spacing.md,
+    padding: spacing.lg,
     backgroundColor: colors.background
   }
 });

@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-19
+**Last updated:** 2026-05-20
 
 ## Instructions for Every Session
 
@@ -20,6 +20,12 @@
 - 169 backend controllers
 - 268 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
+
+**Expo React Native TestFlight black-screen hotfix (2026-05-20):** COMPLETE
+- **`mobile/babel.config.js`**: Added the required `react-native-worklets/plugin` Babel transform for the Reanimated 4 / Worklets native stack so release bundles do not start without transformed worklet metadata.
+- **`mobile/src/bootstrap/OxSteedMobileApp.tsx`**: Made the native startup state visibly branded with a progress message instead of an easy-to-misread dark blank screen while saved-session hydration runs.
+- **`mobile/app.json` + `mobile/build_rn_testflight.command`**: Bumped iOS build number to `102` for a fresh TestFlight candidate and kept Sentry auto-upload disabled in the archive command.
+- **Verification:** `npm run typecheck` passes with the Codex-bundled Node/npm path. `expo export --platform ios --output-dir /tmp/oxsteed-export-check-102 --clear` passes. `mobile/build_rn_testflight.command` archived and uploaded build `1.0 (102)` to App Store Connect/TestFlight; upload succeeded and Apple processing began. Xcode reported missing dSYM upload warnings for React/Hermes frameworks only.
 
 **Expo React Native mobile Phase 1 foundation (2026-05-19):** COMPLETE
 - **`mobile/package.json`, `mobile/app.json`, `mobile/App.tsx`, `mobile/tsconfig.json`, `mobile/babel.config.js`, `mobile/src/**`**: Restarted the mobile client as an Expo React Native + TypeScript companion app instead of continuing the SwiftUI-only pass. The shell now uses React Navigation tabs, TanStack Query, Zustand auth state, SecureStore sessions, Expo Notifications, shared native UI primitives, and feature flags for staged rollout. App bootstrap lives in `mobile/src/bootstrap` so Expo does not confuse the project with an Expo Router app directory.
@@ -1373,11 +1379,12 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 ### EXPO MOBILE APP FOLLOW-THROUGH
 
 - [x] Install Expo dependencies and run `npm run typecheck` for the Phase 1 shell. (2026-05-19)
-- [ ] Launch the app through Expo on iOS before cutting the next TestFlight candidate.
+- [x] Launch/archive the Expo iOS app and upload a fresh TestFlight candidate. (2026-05-20, build 1.0 (102))
 - [x] Finish Phase 2 customer core: multi-step Post Job with photos/location, helper browse/profile/detail booking CTA, native messages, planned-needs creation/conversion cue, and invoice/payment-status screens. (2026-05-19)
-- [ ] Finish Phase 3 helper core: job feed filters, bid submission, helper availability/calendar, profile/service/gallery editing, and earnings/payout status.
-- [ ] Add the remaining required mobile endpoints: `GET /api/mobile/nearby`, `POST /api/mobile/offline-sync`, and `GET /api/business/:id/workspace/mobile-summary`.
-- [ ] Add deep linking, crash reporting, Expo build credentials, fresh App Store / Play Store screenshots, and production push-provider verification before launch review.
+- [x] Finish Phase 3 helper core: job feed filters, bid submission, helper availability/calendar, profile/service/gallery editing, and earnings/payout status. (2026-05-19)
+- [x] Add the remaining required mobile endpoints: `GET /api/mobile/nearby`, `POST /api/mobile/offline-sync`, and `GET /api/business/:id/workspace/mobile-summary`. (2026-05-20)
+- [ ] Confirm TestFlight build 1.0 (102) opens on-device without the black-screen regression after Apple finishes processing.
+- [ ] Add final crash-reporting org/project config, fresh App Store / Play Store screenshots, and production push-provider verification before launch review.
 
 ### POST-LAUNCH FEATURES (Customer Support & Analytics)
 
