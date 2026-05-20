@@ -44,6 +44,14 @@
 - **`mobile/app.json`, `mobile/build_rn_testflight.command`, `mobile/ios/OxSteed.xcodeproj/project.pbxproj`, `mobile/ios/OxSteed/Info.plist`**: Aligned the iOS build number to `104` across the Expo config, archive script, native Xcode project, and native Info.plist after App Store Connect rejected a duplicate upload that still identified itself as build `103`.
 - **Verification:** `/tmp/OxSteedRN.xcarchive/Products/Applications/OxSteed.app/Info.plist` reports `CFBundleVersion = 104`. `mobile/build_rn_testflight.command` archived and uploaded build `1.0 (104)` successfully; App Store Connect responded `Upload succeeded` and moved the package into processing. The upload still reports missing framework dSYM warnings for `React.framework`, `ReactNativeDependencies.framework`, and `hermes.framework`.
 
+**Expo React Native TestFlight build 105 + bundle lookup hardening (2026-05-20):** IN PROGRESS
+- **`mobile/app.json`, `mobile/build_rn_testflight.command`, `mobile/ios/OxSteed.xcodeproj/project.pbxproj`, `mobile/ios/OxSteed/Info.plist`**: Bumped the iOS build number to `105` and uploaded another TestFlight candidate after the black-screen report so Apple could process a fresh build while native startup investigation continued.
+- **`mobile/ios/OxSteed/AppDelegate.swift`**: Hardened release bundle lookup so the native bootstrap now tries the standard `main.jsbundle`, a sibling `main.jsbundle` beside the `.app`, and a recursive fallback search inside the app bundle before giving up. This is meant to catch release packaging layouts where Expo/RN places the JS bundle somewhere other than the exact top-level resource path.
+- **Verification:** `./node_modules/.bin/tsc --noEmit` passes inside `mobile/`. `mobile/build_rn_testflight.command` archived and uploaded build `1.0 (105)` successfully; `/tmp/OxSteedRN.xcarchive/Products/Applications/OxSteed.app/main.jsbundle` exists in the uploaded archive. A Release simulator launch reproduced `No script URL provided` before the `AppDelegate.swift` fallback hardening. A follow-up fast Release simulator rebuild is in progress to confirm whether the new fallback resolves launch on-device before the next upload.
+
+**Mobile source archive added for GitHub handoff (2026-05-20):** COMPLETE
+- **`artifacts/oxsteed-mobile-source.tar.gz`**: Added the user-provided mobile source archive to the repository under `artifacts/` so it can be pushed to GitHub as a shareable handoff artifact. The archive currently expands into an `artifacts/mobile/` tree containing the alternate Expo Router-based mobile source snapshot.
+
 **Expo React Native mobile Phase 1 foundation (2026-05-19):** COMPLETE
 - **`mobile/package.json`, `mobile/app.json`, `mobile/App.tsx`, `mobile/tsconfig.json`, `mobile/babel.config.js`, `mobile/src/**`**: Restarted the mobile client as an Expo React Native + TypeScript companion app instead of continuing the SwiftUI-only pass. The shell now uses React Navigation tabs, TanStack Query, Zustand auth state, SecureStore sessions, Expo Notifications, shared native UI primitives, and feature flags for staged rollout. App bootstrap lives in `mobile/src/bootstrap` so Expo does not confuse the project with an Expo Router app directory.
 - **Mobile cleanup:** Removed stale Capacitor/Vite entry files, the SwiftUI iOS project, old mobile screenshots, and the obsolete lockfile so `mobile/` now represents the Expo app source instead of multiple competing mobile shells.
@@ -1401,6 +1409,7 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 - [x] Finish Phase 3 helper core: job feed filters, bid submission, helper availability/calendar, profile/service/gallery editing, and earnings/payout status. (2026-05-19)
 - [x] Add the remaining required mobile endpoints: `GET /api/mobile/nearby`, `POST /api/mobile/offline-sync`, and `GET /api/business/:id/workspace/mobile-summary`. (2026-05-20)
 - [ ] Confirm TestFlight build `1.0 (104)` opens on-device without the black-screen regression once Apple finishes processing.
+- [ ] Confirm whether the `AppDelegate.swift` fallback bundle lookup resolves the Release launch failure locally, then ship a new TestFlight candidate if build `1.0 (105)` still black-screens.
 - [ ] Add final crash-reporting org/project config, fresh App Store / Play Store screenshots, and production push-provider verification before launch review.
 
 ### POST-LAUNCH FEATURES (Customer Support & Analytics)
