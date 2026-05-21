@@ -15,6 +15,7 @@ import PaymentMethodSettings from '../components/PaymentMethodSettings';
 import CountrySelect from '../components/CountrySelect';
 import RegionInput from '../components/RegionInput';
 import PostalCodeInput from '../components/PostalCodeInput';
+import { SELF_SELECTABLE_MODES, MODE_CATALOG } from '../utils/modeRouter';
 import '../styles/SettingsPage.css';
 
 const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
@@ -98,28 +99,55 @@ export default function SettingsPage() {
   ], [t]);
 
   const [activeTab, setActiveTab] = useState('profile');
-  const [switchingRole, setSwitchingRole] = useState(false);
-  const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
+  const [switchingMode, setSwitchingMode] = useState(null); // mode being switched into, or null
+  const [grantedModes, setGrantedModes] = useState([]); // [{ mode, business_name, role }]
   const isHelper = HELPER_ROLES.includes(user?.role);
-  const targetRole = isHelper ? 'customer' : 'helper';
+  const currentMode = user?.default_mode || (isHelper ? 'helper' : 'customer');
 
-  const handleSwitchRole = async () => {
-    setSwitchingRole(true);
+  const handleSwitchMode = async (targetMode) => {
+    if (!targetMode || targetMode === currentMode) return;
+    setSwitchingMode(targetMode);
     try {
-      await switchRole(targetRole);
-      setShowSwitchConfirm(false);
-      toast.success(
-        targetRole === 'helper'
-          ? t('settings.switch.successHelper')
-          : t('settings.switch.successCustomer'),
-      );
-      navigate(targetRole === 'helper' ? '/dashboard' : '/dashboard', { replace: true });
+      await switchRole(targetMode);
+      toast.success(t('settings.account.switchSuccess', {
+        mode: t(MODE_CATALOG[targetMode]?.labelKey || `modes.${targetMode}.label`, { defaultValue: targetMode }),
+        defaultValue: 'Account type switched.',
+      }));
+      // Hard reload so every part of the app (nav, sidebars, role gates) re-reads from the fresh user state.
+      navigate('/dashboard', { replace: true });
       window.location.reload();
     } catch (err) {
       toast.error(err?.response?.data?.error || t('settings.roleSwitchFailed'));
+      setSwitchingMode(null);
     }
-    setSwitchingRole(false);
   };
+
+  // Discover any "granted" modes the user holds (business_manager / employee
+  // / representative / support_agent). We display these as read-only entries
+  // — they're switched into via the Mode Switcher, not via Settings.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    api.get('/me/businesses')
+      .then(res => {
+        if (cancelled) return;
+        const items = Array.isArray(res?.data?.items) ? res.data.items : [];
+        const grants = [];
+        for (const m of items.filter(x => x.status === 'active' && !x.is_owner)) {
+          const map = {
+            manager: 'business_manager',
+            representative: 'business_representative',
+            employee: 'business_employee',
+            support_agent: 'business_support_agent',
+          };
+          const mode = map[m.role];
+          if (mode) grants.push({ mode, business_name: m.business_name, role: m.role });
+        }
+        setGrantedModes(grants);
+      })
+      .catch(() => { /* endpoint optional; fail silent */ });
+    return () => { cancelled = true; };
+  }, [user]);
 
   const [profile, setProfile] = useState({ first_name: '', last_name: '', phone: '', bio: '', zipcode: '' });
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' });
@@ -760,51 +788,89 @@ export default function SettingsPage() {
     <div className="sp-card">
       <h2 className="sp-card-title">{t('settings.account.title')}</h2>
       <p className="sp-card-subtitle">
-        {isHelper
-          ? t('settings.account.helperDesc')
-          : t('settings.account.customerDesc')}
+        {t('settings.account.unifiedDesc', { defaultValue: 'Your account type drives the dashboard, the navbar, and which features are visible. Switch any time — the change is instant and your data is preserved.' })}
       </p>
-      <div className="flex items-center gap-3 mb-5">
-        <span className={`sp-role-badge ${isHelper ? 'sp-role-helper' : 'sp-role-customer'}`}>
-          {isHelper ? t('common.helper') : t('common.customer')}
-        </span>
-        <span className="text-sm" style={{ color: 'var(--muted-text,#94a3b8)' }}>{t('settings.account.currentRole')}</span>
-      </div>
 
-      {!showSwitchConfirm ? (
-        <button
-          onClick={() => setShowSwitchConfirm(true)}
-          className={`sp-btn ${isHelper ? 'sp-btn-ghost' : 'sp-btn-primary'}`}
-        >
-          {isHelper ? t('settings.account.switchToCustomer') : t('settings.account.switchToHelper')}
-        </button>
-      ) : (
-        <div className="sp-confirm-box">
-          {isHelper ? (
-            <>
-              <p className="text-sm font-semibold mb-1" style={{ color: 'var(--app-text,#f1f5f9)' }}>{t('settings.account.confirmSwitchCustomer')}</p>
-              <p className="text-sm mb-4" style={{ color: 'var(--muted-text,#94a3b8)' }}>
-                {t('settings.account.switchCustomerNotice')}
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="text-sm font-semibold mb-1" style={{ color: 'var(--app-text,#f1f5f9)' }}>{t('settings.account.confirmSwitchHelper')}</p>
-              <p className="text-sm mb-4" style={{ color: 'var(--muted-text,#94a3b8)' }}>
-                {t('settings.account.switchHelperNotice')}
-              </p>
-            </>
-          )}
-          <div className="flex gap-3">
-            <button
-              onClick={handleSwitchRole}
-              disabled={switchingRole}
-              className={`sp-btn ${isHelper ? 'sp-btn-ghost' : 'sp-btn-primary'} disabled:opacity-50`}
+      <ul className="flex flex-col gap-2 mb-2">
+        {SELF_SELECTABLE_MODES.map((m) => {
+          const meta = MODE_CATALOG[m] || {};
+          const isCurrent = m === currentMode;
+          const isSwitching = switchingMode === m;
+          return (
+            <li
+              key={m}
+              className="flex items-start gap-3 p-3 rounded-lg border"
+              style={{
+                borderColor: isCurrent ? 'rgba(249,115,22,0.4)' : 'var(--color-border, #1f2937)',
+                background: isCurrent ? 'rgba(249,115,22,0.08)' : 'transparent',
+              }}
             >
-              {switchingRole ? t('common.switching') : t('settings.account.yesSwitch')}
-            </button>
-            <button onClick={() => setShowSwitchConfirm(false)} className="sp-btn sp-btn-ghost">{t('common.cancel')}</button>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold" style={{ color: 'var(--app-text,#f1f5f9)' }}>
+                    {t(meta.labelKey || `modes.${m}.label`, { defaultValue: m })}
+                  </span>
+                  {isCurrent && (
+                    <span
+                      className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md"
+                      style={{ background: '#F97316', color: '#fff' }}
+                    >
+                      {t('settings.account.currentRole', { defaultValue: 'Current' })}
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs mt-0.5" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+                  {t(meta.hintKey || `modes.${m}.hint`, { defaultValue: '' })}
+                </div>
+              </div>
+              {!isCurrent && (
+                <button
+                  type="button"
+                  onClick={() => handleSwitchMode(m)}
+                  disabled={!!switchingMode}
+                  className="sp-btn sp-btn-ghost text-xs whitespace-nowrap disabled:opacity-50"
+                  style={{ padding: '0.4rem 0.75rem' }}
+                >
+                  {isSwitching ? t('common.switching', { defaultValue: 'Switching...' }) : t('settings.account.switchTo', { defaultValue: 'Switch' })}
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      {grantedModes.length > 0 && (
+        <div className="mt-5">
+          <div className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+            {t('settings.account.grantedTitle', { defaultValue: 'Workspaces you belong to' })}
           </div>
+          <p className="text-xs mb-3" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+            {t('settings.account.grantedHint', { defaultValue: 'You\'ve been granted these roles by other workspace owners. Enter them from the Mode Switcher in the navbar.' })}
+          </p>
+          <ul className="flex flex-col gap-2">
+            {grantedModes.map((g, i) => {
+              const meta = MODE_CATALOG[g.mode] || {};
+              return (
+                <li
+                  key={`${g.mode}-${i}`}
+                  className="flex items-start gap-3 p-3 rounded-lg border"
+                  style={{ borderColor: 'var(--color-border, #1f2937)', background: 'transparent' }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold" style={{ color: 'var(--app-text,#f1f5f9)' }}>
+                      {t(meta.labelKey || `modes.${g.mode}.label`, { defaultValue: g.mode })}
+                      <span className="ml-2 text-xs font-normal" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+                        · {g.business_name}
+                      </span>
+                    </div>
+                    <div className="text-xs mt-0.5" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+                      {t(meta.hintKey || `modes.${g.mode}.hint`, { defaultValue: '' })}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
     </div>

@@ -165,12 +165,21 @@ export function AuthProvider({ children }) {
     }
   }, [fetchMe, clearAuthState]);
 
-  const switchRole = useCallback(async (targetRole) => {
+  // Unified mode + role switcher. Accepts a mode string (see
+  // server/utils/modeRole.js for the catalog). Legacy 'helper' / 'customer'
+  // string still works — server normalizes them.
+  const switchRole = useCallback(async (targetMode) => {
     const { data } = await api.post(
       '/auth/switch-role',
-      { target_role: targetRole },
+      { mode: targetMode, target_role: targetMode },
       { withCredentials: true }
     );
+
+    // Backend may return fresh tokens when mode/role actually changed.
+    if (data?.accessToken && data?.refreshToken) {
+      localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('refreshToken', data.refreshToken);
+    }
 
     const updatedUser = normalizeUserPayload(data);
 

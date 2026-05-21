@@ -22,6 +22,7 @@ const { AppError } = require('../middleware/errorHandler');
 const { grantFreeTrialToUser } = require('./templateController');
 const { checkAndAlertNewLogin } = require('../services/loginAlertService');
 const { logSecurityEvent, extractRequestDetails } = require('../services/auditLoggerService');
+const modeRoleUtil = require('../utils/modeRole');
 const SALT_ROUNDS = 12;
 const TERMS_IP_HASH_MAX_LEN = 45;
 
@@ -898,10 +899,14 @@ async function verifyRegistrationOTP(req, res) {
       : null;
     const preferredCurrency = countriesUtil.getDefaultCurrency(countryU);
 
-    // Carry the user's chosen mode + role through from the pending row. Falls
-    // back to 'customer' for legacy pending rows that pre-date migration 270.
-    const pendingRole = pending.role && ['customer', 'helper'].includes(pending.role) ? pending.role : 'customer';
+    // Carry the user's chosen mode through; derive role from it via the
+    // single source of truth in modeRole.js. Falls back to 'customer'/legacy
+    // role for pending rows that pre-date migration 270.
     const pendingDefaultMode = normalizeDefaultMode(pending.default_mode);
+    const derivedRole = pendingDefaultMode
+      ? modeRoleUtil.roleForMode(pendingDefaultMode)
+      : (pending.role && ['customer', 'helper'].includes(pending.role) ? pending.role : 'customer');
+    const pendingRole = derivedRole;
 
     const userResult = await pool.query(
       `INSERT INTO users (
@@ -935,6 +940,19 @@ async function verifyRegistrationOTP(req, res) {
     const { rows: delRows } = await pool.query('DELETE FROM pending_registrations WHERE token = $1 RETURNING id', [token]);
     if (delRows.length === 0) {
       logger.warn('Pending registration cleanup failed', { token, userId: user.id });
+    }
+
+    // If the chosen mode is a helper-class mode (helper / business_owner /
+    // consultant / tool_owner), seed the helper_profiles row so the user can
+    // immediately start using helper features. is_listed=FALSE keeps them
+    // out of the public directory until they explicitly go online.
+    if (pendingRole === 'helper') {
+      await pool.query(
+        `INSERT INTO helper_profiles (user_id, is_listed)
+         VALUES ($1, FALSE)
+         ON CONFLICT (user_id) DO NOTHING`,
+        [user.id],
+      );
     }
 
     // Increment referrer count (non-fatal)
@@ -1092,6 +1110,7 @@ async function getMe(req, res) {
 }
 
 async function updateProfile(req, res) {
+  const client = await pool.connect();
   try {
     const { phone, zip_code, zipcode, display_name_preference, default_mode } = req.body;
     const finalZip = zip_code || zipcode;
@@ -1099,37 +1118,47 @@ async function updateProfile(req, res) {
     const VALID_PREFS = ['full_name', 'first_name', 'business_name'];
     const pref = VALID_PREFS.includes(display_name_preference) ? display_name_preference : undefined;
 
-    // Mode switcher persists "Set as default" via this same endpoint. Accept
-    // any mode the DB CHECK allows (self-selectable + granted + admin) — the
-    // granted modes are only writable by the user once they've been granted
-    // them elsewhere; if they cheat and write 'business_manager' without a
-    // membership, the worst case is the switcher shows that label when no
-    // workspace is actually attached, which is harmless.
-    const ALLOWED_DEFAULT_MODES = new Set([
-      ...SELF_SELECTABLE_MODES,
-      'business_manager', 'business_representative',
-      'business_employee', 'business_support_agent',
-      'admin',
-    ]);
-    const modeVal = (typeof default_mode === 'string' && ALLOWED_DEFAULT_MODES.has(default_mode))
-      ? default_mode
-      : null;
+    // default_mode through updateProfile is a convenience for clients that
+    // want to do everything in one PATCH. The actual switch goes through
+    // applyModeSwitch so role + default_mode + helper_profiles row + session
+    // invalidation all happen atomically — same code path as /switch-role.
+    let updatedUser = null;
+    let didModeSwitch = false;
+    await client.query('BEGIN');
+    if (typeof default_mode === 'string' && modeRoleUtil.isValidMode(default_mode) && default_mode !== req.user.default_mode) {
+      updatedUser = await modeRoleUtil.applyModeSwitch(client, req.user.id, default_mode);
+      if (!updatedUser) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'state_conflict' });
+      }
+      didModeSwitch = true;
+    }
 
-    const { rows } = await pool.query(
+    const { rows } = await client.query(
       `UPDATE users
        SET phone = COALESCE($1, phone),
            zip_code = COALESCE($2, zip_code),
            display_name_preference = COALESCE($3, display_name_preference),
-           default_mode = COALESCE($4, default_mode),
            updated_at = NOW()
-       WHERE id = $5
+       WHERE id = $4
        RETURNING *`,
-      [phone || null, finalZip || null, pref || null, modeVal, req.user.id]
+      [phone || null, finalZip || null, pref || null, req.user.id]
     );
-    res.json({ success: true, user: formatAuthUser(rows[0]) });
+    if (didModeSwitch) {
+      await modeRoleUtil.invalidateUserSessions(client, req.user.id);
+    }
+    await client.query('COMMIT');
+
+    // Prefer the post-switch row if we did a switch (it has the joined
+    // business_name + is_listed); otherwise the plain UPDATE row is fine.
+    const finalRow = didModeSwitch && updatedUser ? updatedUser : rows[0];
+    res.json({ success: true, user: formatAuthUser(finalRow), mode_switched: didModeSwitch });
   } catch (err) {
-    logger.error('Update profile error', { err });
+    try { await client.query('ROLLBACK'); } catch (_) { /* ignore */ }
+    logger.error('Update profile error', { err: err.message });
     res.status(500).json({ error: 'Failed to update profile' });
+  } finally {
+    client.release();
   }
 }
 
@@ -1369,87 +1398,93 @@ async function resendVerification(req, res) {
     res.status(500).json({ error: 'Failed to send verification email' });
   }
 }
-// Switch a user's role between customer and helper (and back).
-// Allowed transitions: customer ↔ helper
-// When switching to helper: creates a helper_profiles row (is_listed=FALSE so they
-// don't appear in the directory until they explicitly go online).
-// When switching back to customer: preserves the helper_profiles row so their
-// profile data is retained if they ever switch back.
-// Issues fresh tokens so the JWT role claim is correct immediately.
+// Switch a user's account-type / mode. This endpoint replaces what was
+// previously a customer↔helper toggle. The wire format accepts either:
+//
+//   { mode: 'business_owner' }        ← new unified shape
+//   { target_role: 'helper' }         ← legacy shape, preserved so older
+//                                       clients keep working
+//
+// Internally a single concept (default_mode) drives a derived users.role.
+// The role mapping is owned by server/utils/modeRole.js — this controller
+// just orchestrates the transaction + token rotation.
+//
+// Granted modes (business_manager / representative / employee / support_agent)
+// are NOT auto-switched into when a membership is granted; they're only
+// reachable here if the caller explicitly asks for one AND we've verified
+// they hold the underlying membership.
 async function switchRole(req, res) {
+  const client = await pool.connect();
   try {
-    const { target_role } = req.body;
-    const userId      = req.user.id;
+    const { mode: requestedMode, target_role: legacyTargetRole } = req.body;
+    const userId = req.user.id;
     const currentRole = req.user.role;
+    const currentMode = req.user.default_mode;
 
-    const ALLOWED = {
-      customer:   ['helper'],
-      helper:     ['customer'],
-      helper_pro: ['customer'],
-      broker:     ['customer'],
-    };
-
-    if (!ALLOWED[currentRole]?.includes(target_role)) {
-      return res.status(400).json({ error: `Cannot switch from "${currentRole}" to "${target_role}"` });
+    // Resolve the requested mode. Legacy callers send target_role — map it.
+    let newMode = requestedMode;
+    if (!newMode && legacyTargetRole) {
+      if (legacyTargetRole === 'helper') newMode = 'helper';
+      else if (legacyTargetRole === 'customer') newMode = 'customer';
+      // unknown legacy values fall through to validation
+    }
+    if (!modeRoleUtil.isValidMode(newMode)) {
+      return res.status(400).json({
+        error: 'invalid_mode',
+        message: `Mode must be one of: ${Object.keys(modeRoleUtil.MODE_ROLE_MAP).join(', ')}`,
+      });
     }
 
-    if (target_role === 'helper') {
-      // Ensure a helper_profiles row exists; is_listed starts FALSE so the helper
-      // chooses when to become visible in the directory.
-      await pool.query(
-        `INSERT INTO helper_profiles (user_id, is_listed)
-         VALUES ($1, FALSE)
-         ON CONFLICT (user_id) DO NOTHING`,
-        [userId],
+    // Granted modes require proof of the underlying membership. Anyone with
+    // an active business_members row of the right role qualifies. Admins
+    // bypass.
+    if (modeRoleUtil.isGrantedMode(newMode) && currentRole !== 'admin' && currentRole !== 'super_admin') {
+      const memberRole = ({
+        business_manager: 'manager',
+        business_representative: 'representative',
+        business_employee: 'employee',
+        business_support_agent: 'support_agent',
+      })[newMode];
+      const { rows: memb } = await client.query(
+        `SELECT id FROM business_members
+          WHERE user_id = $1 AND role = $2 AND status = 'active'
+          LIMIT 1`,
+        [userId, memberRole],
       );
-      const { rows: updateRows } = await pool.query(
-        `UPDATE users
-         SET role = 'helper',
-             onboarding_completed = TRUE,
-             membership_tier = COALESCE(membership_tier, 'tier1'),
-             updated_at = NOW()
-         WHERE id = $1 AND role = $2
-         RETURNING id`,
-        [userId, currentRole],
-      );
-      if (updateRows.length === 0) {
-        return res.status(409).json({ error: 'Role changed during switch. Please try again.' });
-      }
-    } else {
-      // Switching back to customer - preserve the helper_profiles row.
-      const { rows: updateRows } = await pool.query(
-        `UPDATE users SET role = 'customer', updated_at = NOW() WHERE id = $1 AND role = $2 RETURNING id`,
-        [userId, currentRole],
-      );
-      if (updateRows.length === 0) {
-        return res.status(409).json({ error: 'Role changed during switch. Please try again.' });
+      if (memb.length === 0) {
+        return res.status(403).json({
+          error: 'mode_not_granted',
+          message: `You don't have an active "${memberRole}" membership on any workspace.`,
+        });
       }
     }
 
-    // Re-fetch the updated user row (with helper profile for is_listed).
-    const { rows } = await pool.query(
-      `SELECT u.*, b.business_name, hp.is_listed
-       FROM users u
-       LEFT JOIN businesses b ON b.user_id = u.id AND b.is_primary = TRUE
-       LEFT JOIN helper_profiles hp ON hp.user_id = u.id
-       WHERE u.id = $1`,
-      [userId],
-    );
-    const updatedUser = rows[0];
+    if (newMode === currentMode) {
+      // No-op — return the current user shape so clients can rely on the
+      // response regardless of whether the switch was needed.
+      return res.json({
+        success: true,
+        user: formatAuthUser(req.user),
+      });
+    }
 
-    // Invalidate all existing sessions then issue a fresh token pair.
-    await pool.query(
-      `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')}`,
-      [String(userId)],
-    );
-    const tokens       = generateTokens(updatedUser);
+    await client.query('BEGIN');
+    const updatedUser = await modeRoleUtil.applyModeSwitch(client, userId, newMode);
+    if (!updatedUser) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'state_conflict', message: 'Mode changed during switch. Please try again.' });
+    }
+    await modeRoleUtil.invalidateUserSessions(client, userId);
+    await client.query('COMMIT');
+
+    const tokens = generateTokens(updatedUser);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     await pool.query(
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [updatedUser.id, hashedRefresh],
     );
 
-    logger.info('Role switch', { userId, from: currentRole, to: target_role });
+    logger.info('Mode switch', { userId, fromMode: currentMode, toMode: newMode, fromRole: currentRole, toRole: updatedUser.role });
     return res.json({
       success: true,
       user: formatAuthUser(updatedUser),
@@ -1457,8 +1492,13 @@ async function switchRole(req, res) {
       refreshToken: tokens.refreshToken,
     });
   } catch (err) {
-    logger.error('Switch role error', { err });
-    res.status(500).json({ error: 'Failed to switch role' });
+    try { await client.query('ROLLBACK'); } catch (_) { /* ignore */ }
+    logger.error('Switch mode error', { err: err.message, code: err.code });
+    if (err.code === 'invalid_mode') return res.status(400).json({ error: 'invalid_mode' });
+    if (err.code === 'user_not_found') return res.status(404).json({ error: 'user_not_found' });
+    res.status(500).json({ error: 'Failed to switch mode' });
+  } finally {
+    client.release();
   }
 }
 
