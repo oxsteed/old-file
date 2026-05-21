@@ -8313,5 +8313,76 @@
       "people": "People & Administrative",
       "data": "Data, Research & Innovation"
     }
+  },
+  "join": {
+    "heroTitle": "Join OxSteed",
+    "heroSubtitle": "One account. Pick how you want to show up.",
+    "heroNote": "You can change your mode at any time from the in-app switcher.",
+    "modeLabel": "I'm joining as",
+    "termsLabel": "I agree to the <a href='/terms' target='_blank' class='text-orange-400 underline'>Terms of Service</a> and <a href='/privacy' target='_blank' class='text-orange-400 underline'>Privacy Policy</a>.",
+    "submit": "Continue",
+    "submitting": "Sending verification code...",
+    "otpTitle": "Check your email",
+    "otpHint": "We sent a 6-digit code to {{email}}.",
+    "resend": "Resend code",
+    "verifying": "Verifying...",
+    "errorMode": "Please pick a mode."
+  },
+  "modeSwitcher": {
+    "mode": "Mode",
+    "switchTo": "Switch to",
+    "setAsDefault": "Set default",
+    "setAsDefaultHint": "Land here on every sign-in",
+    "defaultBadge": "Default"
+  },
+  "modes": {
+    "customer": {
+      "label": "Customer",
+      "hint": "Post jobs, hire helpers, shop the marketplace."
+    },
+    "helper": {
+      "label": "Helper",
+      "hint": "Offer services, bid on jobs, build your reputation."
+    },
+    "business_owner": {
+      "label": "Business Owner",
+      "hint": "Run a service business with clients, invoices, and a team."
+    },
+    "consultant": {
+      "label": "Consultant",
+      "hint": "Advise other businesses and book paid sessions."
+    },
+    "tool_owner": {
+      "label": "Tool Owner",
+      "hint": "List your tools for rent in your area."
+    },
+    "franchise_applicant": {
+      "label": "Franchise Applicant",
+      "hint": "Apply to operate a franchised OxSteed business."
+    },
+    "life_only": {
+      "label": "Life",
+      "hint": "Manage your personal finances, vehicles, and home."
+    },
+    "business_manager": {
+      "label": "Business Manager",
+      "hint": "Manage a workspace you don't own."
+    },
+    "business_representative": {
+      "label": "Representative",
+      "hint": "Represent a business with customers."
+    },
+    "business_employee": {
+      "label": "Employee",
+      "hint": "Work on jobs assigned to you."
+    },
+    "business_support_agent": {
+      "label": "Support Agent",
+      "hint": "Handle customer support for the businesses you work for."
+    },
+    "admin": {
+      "label": "Admin",
+      "hint": "Administer the OxSteed platform."
+    }
   }
 }

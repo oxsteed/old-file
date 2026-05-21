@@ -8313,5 +8313,76 @@
       "people": "Personas y administración",
       "data": "Datos, investigación e innovación"
     }
+  },
+  "join": {
+    "heroTitle": "Únete a OxSteed",
+    "heroSubtitle": "Una cuenta. Elige cómo quieres aparecer.",
+    "heroNote": "Puedes cambiar tu modo en cualquier momento desde el selector.",
+    "modeLabel": "Me uno como",
+    "termsLabel": "Acepto los <a href='/terms' target='_blank' class='text-orange-400 underline'>Términos de Servicio</a> y la <a href='/privacy' target='_blank' class='text-orange-400 underline'>Política de Privacidad</a>.",
+    "submit": "Continuar",
+    "submitting": "Enviando código de verificación...",
+    "otpTitle": "Revisa tu correo",
+    "otpHint": "Enviamos un código de 6 dígitos a {{email}}.",
+    "resend": "Reenviar código",
+    "verifying": "Verificando...",
+    "errorMode": "Por favor selecciona un modo."
+  },
+  "modeSwitcher": {
+    "mode": "Modo",
+    "switchTo": "Cambiar a",
+    "setAsDefault": "Predeterminado",
+    "setAsDefaultHint": "Entrar aquí cada vez que inicies sesión",
+    "defaultBadge": "Predet."
+  },
+  "modes": {
+    "customer": {
+      "label": "Cliente",
+      "hint": "Publica trabajos, contrata ayudantes, compra en el mercado."
+    },
+    "helper": {
+      "label": "Ayudante",
+      "hint": "Ofrece servicios, postúlate a trabajos, construye tu reputación."
+    },
+    "business_owner": {
+      "label": "Dueño de Negocio",
+      "hint": "Administra un negocio con clientes, facturas y un equipo."
+    },
+    "consultant": {
+      "label": "Consultor",
+      "hint": "Asesora a otros negocios y reserva sesiones pagadas."
+    },
+    "tool_owner": {
+      "label": "Dueño de Herramientas",
+      "hint": "Pon tus herramientas en alquiler en tu zona."
+    },
+    "franchise_applicant": {
+      "label": "Solicitante de Franquicia",
+      "hint": "Solicita operar una franquicia de OxSteed."
+    },
+    "life_only": {
+      "label": "Vida",
+      "hint": "Administra tus finanzas, vehículos y hogar."
+    },
+    "business_manager": {
+      "label": "Gerente",
+      "hint": "Administra un espacio de trabajo que no es tuyo."
+    },
+    "business_representative": {
+      "label": "Representante",
+      "hint": "Representa un negocio ante los clientes."
+    },
+    "business_employee": {
+      "label": "Empleado",
+      "hint": "Trabaja en los trabajos que te asignen."
+    },
+    "business_support_agent": {
+      "label": "Agente de Soporte",
+      "hint": "Atiende soporte al cliente para los negocios donde trabajas."
+    },
+    "admin": {
+      "label": "Administrador",
+      "hint": "Administra la plataforma OxSteed."
+    }
   }
 }

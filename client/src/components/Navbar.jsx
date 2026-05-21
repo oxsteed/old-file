@@ -6,6 +6,7 @@ import api from '../api/axios';
 import ThemeToggle from './ThemeToggle';
 import LanguageSelector from './LanguageSelector';
 import BusinessSwitcher from './BusinessSwitcher';
+import ModeSwitcher from './ModeSwitcher';
 import '../styles/BusinessSwitcher.css';
 
 /** The OxSteed brand icon (4-arrow clockwise ring with inner circle) */
@@ -303,61 +304,20 @@ export default function Navbar() {
                 <NavLink to="/login" active={isActive('/login')}>{t('nav.signIn')}</NavLink>
                 <NavLink to="/jobs" active={isActive('/jobs')}>{t('nav.browseJobs')}</NavLink>
                 <NavLink to="/how-it-works" active={isActive('/how-it-works')}>{t('nav.howItWorks')}</NavLink>
-                <div ref={joinMenuRef} style={{ position: 'relative', display: 'inline-block' }}>
-                  <button
-                    type="button"
-                    className="ox-btn ox-btn-primary ox-btn-sm"
-                    aria-haspopup="menu"
-                    aria-expanded={joinMenuOpen}
-                    aria-controls="nav-join-menu"
-                    onClick={() => setJoinMenuOpen((o) => !o)}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                  >
-                    {t('nav.joinOxsteed')}
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-                  {joinMenuOpen && (
-                    <div
-                      id="nav-join-menu"
-                      role="menu"
-                      style={{
-                        position: 'absolute',
-                        right: 0,
-                        top: 'calc(100% + 0.35rem)',
-                        minWidth: 'min(18rem, calc(100vw - 2rem))',
-                        padding: '0.35rem',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--color-border)',
-                        background: 'var(--color-surface)',
-                        boxShadow: '0 10px 40px rgba(0,0,0,0.18)',
-                        zIndex: 60,
-                      }}
-                    >
-                      <Link
-                        role="menuitem"
-                        to="/register/customer"
-                        className="ox-nav-join-option"
-                        onClick={() => setJoinMenuOpen(false)}
-                      >
-                        <span className="ox-nav-join-option-title">{t('nav.joinAsCustomer')}</span>
-                        <span className="ox-nav-join-option-hint">{t('nav.joinAsCustomerHint')}</span>
-                      </Link>
-                      <Link
-                        role="menuitem"
-                        to="/register/helper"
-                        className="ox-nav-join-option"
-                        onClick={() => setJoinMenuOpen(false)}
-                      >
-                        <span className="ox-nav-join-option-title">{t('nav.joinAsHelper')}</span>
-                        <span className="ox-nav-join-option-hint">{t('nav.joinAsHelperHint')}</span>
-                      </Link>
-                    </div>
-                  )}
-                </div>
+                {/* Unified signup CTA — replaces the customer/helper dropdown.
+                    Mode picker now lives inside /join itself. The customer/
+                    helper register pages are still mounted in App.jsx for
+                    back-compat with old inbound links. */}
+                <Link
+                  to="/join"
+                  className="ox-btn ox-btn-primary ox-btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  {t('nav.joinOxsteed')}
+                </Link>
               </>
             )}
+            {user && <ModeSwitcher />}
             {isHelper && <BusinessSwitcher />}
             <LanguageSelector />
             <ThemeToggle />
@@ -369,6 +329,7 @@ export default function Navbar() {
             alignItems: 'center',
             gap: 'var(--space-2)',
           }}>
+            {user && <ModeSwitcher compact />}
             {isHelper && <BusinessSwitcher compact />}
             <LanguageSelector />
             <ThemeToggle />
@@ -460,23 +421,8 @@ export default function Navbar() {
                     borderTop: '1px solid var(--color-border)',
                   }}
                 >
-                  <div
-                    style={{
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
-                      color: 'var(--color-text-muted)',
-                      padding: '0 0.75rem 0.35rem',
-                    }}
-                  >
+                  <MobileNavLink to="/join" onClick={() => setMobileOpen(false)} primary>
                     {t('nav.joinOxsteed')}
-                  </div>
-                  <MobileNavLink to="/register/customer" onClick={() => setMobileOpen(false)} primary>
-                    {t('nav.joinAsCustomer')}
-                  </MobileNavLink>
-                  <MobileNavLink to="/register/helper" onClick={() => setMobileOpen(false)} highlight>
-                    {t('nav.joinAsHelper')}
                   </MobileNavLink>
                 </div>
               </>

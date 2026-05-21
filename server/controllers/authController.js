@@ -25,6 +25,33 @@ const { logSecurityEvent, extractRequestDetails } = require('../services/auditLo
 const SALT_ROUNDS = 12;
 const TERMS_IP_HASH_MAX_LEN = 45;
 
+// Modes a user may self-select when signing up through the unified /join flow.
+// Mirrors the CHECK constraint on pending_registrations.default_mode (mig 270).
+const SELF_SELECTABLE_MODES = Object.freeze([
+  'customer',
+  'helper',
+  'business_owner',
+  'consultant',
+  'tool_owner',
+  'franchise_applicant',
+  'life_only',
+]);
+
+// Modes that imply users.role='helper' at the DB level so existing
+// role-based RBAC keeps working. Everything else maps to 'customer'.
+const MODES_REQUIRING_HELPER_ROLE = new Set([
+  'helper',
+  'business_owner',
+  'consultant',
+  'tool_owner',
+]);
+
+function normalizeDefaultMode(raw) {
+  if (raw === undefined || raw === null) return null;
+  const s = String(raw).trim().toLowerCase();
+  return SELF_SELECTABLE_MODES.includes(s) ? s : null;
+}
+
 function formatAuthUser(user) {
   if (!user) return null;
 
@@ -77,6 +104,7 @@ function formatAuthUser(user) {
     business_name:         user.business_name || null,
     is_listed:             user.is_listed !== undefined ? !!user.is_listed : true,
     allow_guest_contact:   user.allow_guest_contact !== undefined ? !!user.allow_guest_contact : true,
+    default_mode:          user.default_mode || null,
   };
 }
 
@@ -672,7 +700,21 @@ async function startRegistration(req, res) {
       email, password, firstName, lastName, phone, zip,
       addressLine1, address_line1, city, state, country,
       ageConfirmed, ref,
+      defaultMode, default_mode,
     } = req.body;
+    // Accept either camelCase or snake_case; null means "no preference recorded"
+    // and is fine — the existing customer-only flow doesn't send this field.
+    const modePref = normalizeDefaultMode(defaultMode ?? default_mode);
+    // If a value was sent but didn't validate, reject so the user knows.
+    if ((defaultMode ?? default_mode) !== undefined && (defaultMode ?? default_mode) !== null && modePref === null) {
+      return res.status(400).json({
+        error: 'validation_failed',
+        fields: { defaultMode: `Must be one of: ${SELF_SELECTABLE_MODES.join(', ')}` },
+      });
+    }
+    // role written to pending_registrations.role — derived from mode so
+    // existing role-based RBAC works on day one for helper-mode signups.
+    const dbRole = modePref && MODES_REQUIRING_HELPER_ROLE.has(modePref) ? 'helper' : 'customer';
     const line1 = String(addressLine1 ?? address_line1 ?? '').trim();
     const cityTrim = String(city || '').trim();
     // Country defaults to 'US' so existing US-only clients (helper signup,
@@ -745,17 +787,17 @@ async function startRegistration(req, res) {
       `INSERT INTO pending_registrations (
          token, email, password_hash, first_name, last_name, phone, zip_code,
          address_line1, city, state, country,
-         age_confirmed, role, referral_ref
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+         age_confirmed, role, referral_ref, default_mode
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        ON CONFLICT (email) DO UPDATE SET
          token = $1, password_hash = $3, first_name = $4, last_name = $5, phone = $6, zip_code = $7,
          address_line1 = $8, city = $9, state = $10, country = $11,
-         age_confirmed = $12, referral_ref = $14, updated_at = NOW()
+         age_confirmed = $12, role = $13, referral_ref = $14, default_mode = $15, updated_at = NOW()
        RETURNING id`,
       [
         token, normalized.email, passwordHash, normalized.firstName, normalized.lastName, formattedPhone, normalized.zip,
         normalized.addressLine1, normalized.city, normalized.state, normalized.country,
-        normalized.ageConfirmed, 'customer', normalized.ref,
+        normalized.ageConfirmed, dbRole, normalized.ref, modePref,
       ],
     );
     if (insertRows.length === 0) {
@@ -856,6 +898,11 @@ async function verifyRegistrationOTP(req, res) {
       : null;
     const preferredCurrency = countriesUtil.getDefaultCurrency(countryU);
 
+    // Carry the user's chosen mode + role through from the pending row. Falls
+    // back to 'customer' for legacy pending rows that pre-date migration 270.
+    const pendingRole = pending.role && ['customer', 'helper'].includes(pending.role) ? pending.role : 'customer';
+    const pendingDefaultMode = normalizeDefaultMode(pending.default_mode);
+
     const userResult = await pool.query(
       `INSERT INTO users (
          email, password_hash, first_name, last_name, phone, zip_code, city, state, address_line1,
@@ -864,15 +911,15 @@ async function verifyRegistrationOTP(req, res) {
          terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua, referral_code,
          trial_started_at, trial_ends_at, referred_by,
          onboarding_status, onboarding_completed, profile_completed, tier_selected, terms_accepted,
-         contact_completed, membership_tier
+         contact_completed, membership_tier, default_mode
        ) VALUES (
          $1,$2,$3,$4,$5,$6,$7,$8,$9,
          $10,$11,
-         'customer',$12,true,
+         $21,$12,true,
          $13,$14,$15,$16,$17,
          $18,$19,$20,
          'onboarding_complete', TRUE, TRUE, TRUE, TRUE,
-         TRUE, 'tier1'
+         TRUE, 'tier1', $22
        ) RETURNING *`,
       [
         pending.email, pending.password_hash, pending.first_name, pending.last_name, pending.phone, pending.zip_code,
@@ -881,6 +928,7 @@ async function verifyRegistrationOTP(req, res) {
         pending.age_confirmed,
         pending.terms_accepted_at, pending.terms_version, pending.terms_acceptance_ip, pending.terms_acceptance_ua, referralCode,
         trial_started_at, trial_ends_at, referrerId,
+        pendingRole, pendingDefaultMode,
       ]
     );
     const user = userResult.rows[0];
@@ -1045,23 +1093,40 @@ async function getMe(req, res) {
 
 async function updateProfile(req, res) {
   try {
-    const { phone, zip_code, zipcode, display_name_preference } = req.body;
+    const { phone, zip_code, zipcode, display_name_preference, default_mode } = req.body;
     const finalZip = zip_code || zipcode;
 
     const VALID_PREFS = ['full_name', 'first_name', 'business_name'];
     const pref = VALID_PREFS.includes(display_name_preference) ? display_name_preference : undefined;
+
+    // Mode switcher persists "Set as default" via this same endpoint. Accept
+    // any mode the DB CHECK allows (self-selectable + granted + admin) — the
+    // granted modes are only writable by the user once they've been granted
+    // them elsewhere; if they cheat and write 'business_manager' without a
+    // membership, the worst case is the switcher shows that label when no
+    // workspace is actually attached, which is harmless.
+    const ALLOWED_DEFAULT_MODES = new Set([
+      ...SELF_SELECTABLE_MODES,
+      'business_manager', 'business_representative',
+      'business_employee', 'business_support_agent',
+      'admin',
+    ]);
+    const modeVal = (typeof default_mode === 'string' && ALLOWED_DEFAULT_MODES.has(default_mode))
+      ? default_mode
+      : null;
 
     const { rows } = await pool.query(
       `UPDATE users
        SET phone = COALESCE($1, phone),
            zip_code = COALESCE($2, zip_code),
            display_name_preference = COALESCE($3, display_name_preference),
+           default_mode = COALESCE($4, default_mode),
            updated_at = NOW()
-       WHERE id = $4
-       RETURNING id, email, first_name, last_name, phone, zip_code, display_name_preference`,
-      [phone || null, finalZip || null, pref || null, req.user.id]
+       WHERE id = $5
+       RETURNING *`,
+      [phone || null, finalZip || null, pref || null, modeVal, req.user.id]
     );
-    res.json(rows[0]);
+    res.json({ success: true, user: formatAuthUser(rows[0]) });
   } catch (err) {
     logger.error('Update profile error', { err });
     res.status(500).json({ error: 'Failed to update profile' });

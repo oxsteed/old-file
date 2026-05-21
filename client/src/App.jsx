@@ -15,6 +15,7 @@ import HomePage from './pages/HomePage';
 import Login from './pages/Login';
 import CustomerRegister from './pages/CustomerRegister';
 import HelperRegister from './pages/HelperRegister';
+import JoinPage from './pages/JoinPage';
 import ConsultingIntakePage from './pages/ConsultingIntakePage';
 import ConsultingFeedbackPage from './pages/ConsultingFeedbackPage';
 import BusinessLaunchStatusPage from './pages/BusinessLaunchStatusPage';
@@ -154,6 +155,10 @@ export default function App() {
                     <Route path="/login"                   element={<Guarded><Login /></Guarded>} />
                     <Route path="/register/customer"       element={<Guarded><CustomerRegister /></Guarded>} />
                     <Route path="/register/helper"         element={<Guarded><HelperRegister /></Guarded>} />
+                    {/* ── Unified signup (post-2026-05). Replaces the navbar's */}
+                    {/*    customer/helper choice. Old /register/* routes kept   */}
+                    {/*    intact for inbound links + back-compat.               */}
+                    <Route path="/join"                    element={<Guarded><JoinPage /></Guarded>} />
                     <Route path="/forgot-password"         element={<Guarded><ForgotPasswordPage /></Guarded>} />
                     <Route path="/reset-password/:token"   element={<Guarded><ResetPasswordPage /></Guarded>} />
                     <Route path="/how-it-works"            element={<Guarded><FeatureGuidePage /></Guarded>} />

@@ -8313,5 +8313,76 @@
       "people": "Moun ak administrasyon",
       "data": "Done, rechèch ak inovasyon"
     }
+  },
+  "join": {
+    "heroTitle": "Vin jwenn OxSteed",
+    "heroSubtitle": "Yon kont. Chwazi kijan ou vle parèt.",
+    "heroNote": "Ou ka chanje mòd ou nenpòt lè soti nan switcher la.",
+    "modeLabel": "M'ap vin jwenn kòm",
+    "termsLabel": "M aksepte <a href='/terms' target='_blank' class='text-orange-400 underline'>Kondisyon Sèvis yo</a> ak <a href='/privacy' target='_blank' class='text-orange-400 underline'>Règleman Konfidansyalite a</a>.",
+    "submit": "Kontinye",
+    "submitting": "N ap voye kòd verifikasyon...",
+    "otpTitle": "Tcheke imel ou",
+    "otpHint": "Nou voye yon kòd 6 chif bay {{email}}.",
+    "resend": "Voye kòd la ankò",
+    "verifying": "N ap verifye...",
+    "errorMode": "Tanpri chwazi yon mòd."
+  },
+  "modeSwitcher": {
+    "mode": "Mòd",
+    "switchTo": "Chanje pou",
+    "setAsDefault": "Mete kòm defo",
+    "setAsDefaultHint": "Ateri isit la chak fwa ou siyen",
+    "defaultBadge": "Defo"
+  },
+  "modes": {
+    "customer": {
+      "label": "Kliyan",
+      "hint": "Poste travay, anboche èd, achte nan mache a."
+    },
+    "helper": {
+      "label": "Èd",
+      "hint": "Ofri sèvis, aplike pou travay, bati repitasyon ou."
+    },
+    "business_owner": {
+      "label": "Pwopriyetè Biznis",
+      "hint": "Jere yon biznis sèvis ak kliyan, fakti, ak yon ekip."
+    },
+    "consultant": {
+      "label": "Konsiltan",
+      "hint": "Konseye lòt biznis epi rezève sesyon peye."
+    },
+    "tool_owner": {
+      "label": "Pwopriyetè Zouti",
+      "hint": "Mete zouti ou yo nan lokasyon nan zòn ou."
+    },
+    "franchise_applicant": {
+      "label": "Aplikan Franchiz",
+      "hint": "Aplike pou opere yon franchiz OxSteed."
+    },
+    "life_only": {
+      "label": "Lavi",
+      "hint": "Jere finans pèsonèl ou, machin, ak kay ou."
+    },
+    "business_manager": {
+      "label": "Manadjè",
+      "hint": "Jere yon espas travay ki pa pou ou."
+    },
+    "business_representative": {
+      "label": "Reprezantan",
+      "hint": "Reprezante yon biznis devan kliyan."
+    },
+    "business_employee": {
+      "label": "Anplwaye",
+      "hint": "Travay sou travay yo asiyen ou."
+    },
+    "business_support_agent": {
+      "label": "Ajan Sipò",
+      "hint": "Okipe sipò kliyan pou biznis ou travay yo."
+    },
+    "admin": {
+      "label": "Administratè",
+      "hint": "Administre platfòm OxSteed la."
+    }
   }
 }
