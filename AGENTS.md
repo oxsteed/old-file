@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-20
+**Last updated:** 2026-05-21
 
 ## Instructions for Every Session
 
@@ -57,6 +57,12 @@
 - **Standalone package normalization:** **`mobile-replit/package.json`, `mobile-replit/tsconfig.json`, `mobile-replit/app.json`, `mobile-replit/babel.config.js`, `mobile-replit/README.md`** remove Replit-only workspace assumptions (`catalog:`, `workspace:*`, the broken TypeScript reference to `../../lib/api-client-react`, the Replit-specific Expo Router origin override, and the Replit-only `dev` script), add standard Expo `start` / `ios` / `android` / `web` scripts, give the imported app its own slug/scheme/package identity, and add the `react-native-worklets/plugin` Babel transform so the Reanimated/Worklets stack has the same release-safety fix used elsewhere in this repo.
 - **Imported app consistency fix:** **`mobile-replit/context/AppContext.tsx`** now defines `totalUnread` in the context value so the imported tabs layout typechecks cleanly instead of referencing a missing property.
 - **Verification:** `npm install` succeeds in `mobile-replit/` using the Codex-bundled Node runtime plus a locally bootstrapped npm CLI at `/tmp/codex-npm/package/bin/npm-cli.js`, generating `mobile-replit/package-lock.json`. `npm run typecheck` passes in `mobile-replit/`. `./node_modules/.bin/expo config --json` resolves successfully and writes `/tmp/oxsteed-replit-config.json`.
+
+**Website Learn Mode landing page foundation (2026-05-21):** COMPLETE
+- **`client/src/pages/LearnModePage.jsx` + `client/src/pages/LearnModePage.css`**: Added a first-pass Learn Mode page for the website at `/learn`, built around the “skills-first TikTok Shop for trades” concept from `EMERGENT_APP_PROMPT.md`. The page includes AI-style lesson search, curated skills-based tutorial cards, per-lesson item recommendations with product/tool-rental deep links, and creator requirements that explicitly capture both skill tags and item lists.
+- **Fallback learning behavior:** Searches with no matching tutorial video now switch into a written-guide state instead of a dead end. The first shipped example is `fix sink`, which produces a step-by-step plumbing guide, lists likely needed items, and encourages the user to become the first creator to post that tutorial video.
+- **Routing:** **`client/src/App.jsx`** now exposes the new public route at `/learn`.
+- **Verification:** Implemented and route-wired locally. A client `vite build` attempt in this Codex runtime was blocked by the existing Rollup native-addon / code-signing mismatch on macOS, so this page was not fully production-build-verified here.
 
 **Expo React Native mobile Phase 1 foundation (2026-05-19):** COMPLETE
 - **`mobile/package.json`, `mobile/app.json`, `mobile/App.tsx`, `mobile/tsconfig.json`, `mobile/babel.config.js`, `mobile/src/**`**: Restarted the mobile client as an Expo React Native + TypeScript companion app instead of continuing the SwiftUI-only pass. The shell now uses React Navigation tabs, TanStack Query, Zustand auth state, SecureStore sessions, Expo Notifications, shared native UI primitives, and feature flags for staged rollout. App bootstrap lives in `mobile/src/bootstrap` so Expo does not confuse the project with an Expo Router app directory.
@@ -1462,6 +1468,7 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 - [ ] Decide whether to suppress devtools/dev-mode for forced Debug simulator bundling in `mobile3`, or treat Release/TestFlight as the canonical smoke target now that `main.jsbundle` is embedded correctly.
 - [ ] Confirm the newly uploaded `mobile3` TestFlight build for `OxSteed One` opens and reaches the actual app UI on-device once App Store Connect finishes processing.
 - [ ] Replace the current curated/static Learn mode lesson cards with backend-managed media/tutorial content and cross-mode deep links once the Learn content model/API is defined.
+- [ ] Add a real creator publishing flow plus backend content model for the website Learn Mode page so tutorials, skill tags, AI-matched item links, and written fallbacks come from `/api/learn/*` instead of the current curated front-end dataset.
 - [ ] Confirm TestFlight build `1.0 (104)` opens on-device without the black-screen regression once Apple finishes processing.
 - [ ] Confirm whether the `AppDelegate.swift` fallback bundle lookup resolves the Release launch failure locally, then ship a new TestFlight candidate if build `1.0 (105)` still black-screens.
 - [ ] Add final crash-reporting org/project config, fresh App Store / Play Store screenshots, and production push-provider verification before launch review.

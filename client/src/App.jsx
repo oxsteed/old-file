@@ -92,6 +92,7 @@ import EnforcementPolicyPage from './pages/EnforcementPolicyPage';
 import HelperProfileEditPage from './pages/HelperProfileEditPage';
 import BusinessProfileEditPage from './pages/BusinessProfileEditPage';
 import FeatureGuidePage from './pages/FeatureGuidePage';
+import LearnModePage from './pages/LearnModePage';
 import PromotePage from './pages/PromotePage';
 import MaintenanceRequestPage from './pages/MaintenanceRequestPage';
 import TradesDiagnosticRequestPage from './pages/TradesDiagnosticRequestPage';
@@ -163,6 +164,7 @@ export default function App() {
                     <Route path="/reset-password/:token"   element={<Guarded><ResetPasswordPage /></Guarded>} />
                     <Route path="/how-it-works"            element={<Guarded><FeatureGuidePage /></Guarded>} />
                     <Route path="/features"                element={<Guarded><FeatureGuidePage /></Guarded>} />
+                    <Route path="/learn"                   element={<Guarded><LearnModePage /></Guarded>} />
                     <Route path="/about"                   element={<Guarded><AboutPage /></Guarded>} />
                     <Route path="/jobs"                    element={<Guarded><JobListPage /></Guarded>} />
                     <Route path="/jobs/:id"                element={<Guarded><JobDetailPage /></Guarded>} />
