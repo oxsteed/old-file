@@ -4,10 +4,12 @@ import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Screen } from "../components/Screen";
 import { AppText } from "../components/Text";
+import { useI18n } from "../i18n";
 import { useAuthStore } from "../state/authStore";
 import { colors, radius, spacing } from "../theme";
 
 export function AuthScreen() {
+  const { t, language } = useI18n();
   const [mode, setMode] = useState<"login" | "register" | "forgot" | "reset">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -58,7 +60,7 @@ export function AuthScreen() {
       last_name: lastName.trim(),
       phone: phone.trim() || undefined,
       role,
-      language: "en"
+      language
     });
   }
 
@@ -66,35 +68,26 @@ export function AuthScreen() {
     <Screen>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={styles.header}>
-          <AppText variant="caption">OXSTEED MOBILE</AppText>
-          <AppText variant="title">Sign in to move work, money, and schedules.</AppText>
-          <AppText variant="muted">
-            Phase 1 focuses on a real authenticated shell: customer mode, helper mode,
-            push readiness, token refresh, and two-factor login.
-          </AppText>
+          <AppText variant="caption">{t("auth.brand")}</AppText>
+          <AppText variant="title">{t("auth.title")}</AppText>
+          <AppText variant="muted">{t("auth.subtitle")}</AppText>
         </View>
 
         <Card>
           <View style={styles.segment}>
-            <Button variant={mode === "login" ? "primary" : "secondary"} onPress={() => setMode("login")}>
-              Sign in
-            </Button>
-            <Button variant={mode === "register" ? "primary" : "secondary"} onPress={() => setMode("register")}>
-              Register
-            </Button>
-            <Button variant={mode === "forgot" || mode === "reset" ? "primary" : "secondary"} onPress={() => setMode("forgot")}>
-              Reset
-            </Button>
+            <Button variant={mode === "login" ? "primary" : "secondary"} onPress={() => setMode("login")}>{t("auth.signIn")}</Button>
+            <Button variant={mode === "register" ? "primary" : "secondary"} onPress={() => setMode("register")}>{t("auth.register")}</Button>
+            <Button variant={mode === "forgot" || mode === "reset" ? "primary" : "secondary"} onPress={() => setMode("forgot")}>{t("auth.reset")}</Button>
           </View>
 
           {mode === "register" && (
             <>
-              <TextInput style={styles.input} placeholder="First name" placeholderTextColor={colors.muted} value={firstName} onChangeText={setFirstName} />
-              <TextInput style={styles.input} placeholder="Last name" placeholderTextColor={colors.muted} value={lastName} onChangeText={setLastName} />
-              <TextInput style={styles.input} placeholder="Phone optional" placeholderTextColor={colors.muted} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+              <TextInput style={styles.input} placeholder={t("auth.firstName")} placeholderTextColor={colors.muted} value={firstName} onChangeText={setFirstName} />
+              <TextInput style={styles.input} placeholder={t("auth.lastName")} placeholderTextColor={colors.muted} value={lastName} onChangeText={setLastName} />
+              <TextInput style={styles.input} placeholder={t("auth.phoneOptional")} placeholderTextColor={colors.muted} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
               <View style={styles.segment}>
-                <Button variant={role === "customer" ? "primary" : "secondary"} onPress={() => setRole("customer")}>Customer</Button>
-                <Button variant={role === "helper" ? "primary" : "secondary"} onPress={() => setRole("helper")}>Helper</Button>
+                <Button variant={role === "customer" ? "primary" : "secondary"} onPress={() => setRole("customer")}>{t("auth.customer")}</Button>
+                <Button variant={role === "helper" ? "primary" : "secondary"} onPress={() => setRole("helper")}>{t("auth.helper")}</Button>
               </View>
             </>
           )}
@@ -105,7 +98,7 @@ export function AuthScreen() {
               autoCorrect={false}
               keyboardType="email-address"
               style={styles.input}
-              placeholder="Email"
+              placeholder={t("auth.email")}
               placeholderTextColor={colors.muted}
               value={email}
               onChangeText={setEmail}
@@ -116,7 +109,7 @@ export function AuthScreen() {
             <TextInput
               secureTextEntry
               style={styles.input}
-              placeholder={mode === "reset" ? "New password" : "Password"}
+              placeholder={mode === "reset" ? t("auth.newPassword") : t("auth.password")}
               placeholderTextColor={colors.muted}
               value={password}
               onChangeText={setPassword}
@@ -127,22 +120,17 @@ export function AuthScreen() {
             <>
               <TextInput
                 style={styles.input}
-                placeholder="Full name agreement signature"
+                placeholder={t("auth.signature")}
                 placeholderTextColor={colors.muted}
                 value={agreementName}
                 onChangeText={setAgreementName}
               />
-              <AppText variant="caption">
-                OxSteed web sign-in requires a typed Terms and Privacy signature. The mobile
-                app sends the same agreement fields to the backend.
-              </AppText>
+              <AppText variant="caption">{t("auth.signatureHelp")}</AppText>
             </>
           )}
 
           {mode === "forgot" && (
-            <AppText variant="caption">
-              We will send the same secure reset link used by the OxSteed website.
-            </AppText>
+            <AppText variant="caption">{t("auth.forgotHelp")}</AppText>
           )}
 
           {mode === "reset" && (
@@ -151,7 +139,7 @@ export function AuthScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 style={styles.input}
-                placeholder="Reset token from email link"
+                placeholder={t("auth.resetToken")}
                 placeholderTextColor={colors.muted}
                 value={resetToken}
                 onChangeText={setResetToken}
@@ -159,13 +147,13 @@ export function AuthScreen() {
               <TextInput
                 secureTextEntry
                 style={styles.input}
-                placeholder="Confirm new password"
+                placeholder={t("auth.confirmPassword")}
                 placeholderTextColor={colors.muted}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
               />
               <Button variant="secondary" onPress={() => setMode("forgot")}>
-                Send another reset email
+                {t("auth.sendAnotherReset")}
               </Button>
             </>
           )}
@@ -176,17 +164,17 @@ export function AuthScreen() {
             <View style={styles.mfaBox}>
               <TextInput
                 style={styles.input}
-                placeholder={useBackupCode ? "Backup code" : "Two-factor code"}
+                placeholder={useBackupCode ? t("auth.backupCode") : t("auth.twoFactorCode")}
                 placeholderTextColor={colors.muted}
                 value={mfaCode}
                 onChangeText={setMfaCode}
                 keyboardType={useBackupCode ? "default" : "number-pad"}
               />
               <Button variant="secondary" onPress={() => setUseBackupCode((value) => !value)}>
-                {useBackupCode ? "Use authenticator code" : "Use backup code"}
+                {useBackupCode ? t("auth.useAuthenticator") : t("auth.useBackupCode")}
               </Button>
               <Button disabled={isWorking || !mfaCode.trim()} onPress={() => completeTwoFactor(mfaCode, useBackupCode)}>
-                Verify code
+                {t("auth.verifyCode")}
               </Button>
             </View>
           ) : (
@@ -201,14 +189,14 @@ export function AuthScreen() {
               onPress={submit}
             >
               {isWorking
-                ? "Working..."
+                ? t("auth.working")
                 : mode === "login"
-                  ? "Sign in"
+                  ? t("auth.signIn")
                   : mode === "register"
-                    ? "Create account"
+                    ? t("auth.createAccount")
                     : mode === "forgot"
-                      ? "Send reset email"
-                      : "Reset password"}
+                      ? t("auth.sendResetEmail")
+                      : t("auth.resetPassword")}
             </Button>
           )}
         </Card>

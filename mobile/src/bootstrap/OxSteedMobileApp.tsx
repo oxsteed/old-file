@@ -8,33 +8,22 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { AccountScreen } from "../screens/AccountScreen";
 import { AuthScreen } from "../screens/AuthScreen";
-import { BrowseHelpersScreen } from "../screens/BrowseHelpersScreen";
-import { BusinessHubLiteScreen } from "../screens/BusinessHubLiteScreen";
-import { CustomerHomeScreen } from "../screens/CustomerHomeScreen";
-import { HelperHomeScreen } from "../screens/HelperHomeScreen";
-import { MessagesScreen } from "../screens/MessagesScreen";
-import { PaymentsScreen } from "../screens/PaymentsScreen";
-import { PlannedNeedsScreen } from "../screens/PlannedNeedsScreen";
-import { PostJobScreen } from "../screens/PostJobScreen";
+import { HomeModeScreen } from "../screens/HomeModeScreen";
+import { LearnModeScreen } from "../screens/LearnModeScreen";
+import { ProModeScreen } from "../screens/ProModeScreen";
 import { ToolRentalsScreen } from "../screens/ToolRentalsScreen";
-import { TrustSafetyScreen } from "../screens/TrustSafetyScreen";
 import { AppText } from "../components/Text";
-import { isEnabled } from "../config/featureFlags";
+import { MobileI18nProvider, useI18n } from "../i18n";
+import { useAppPreferencesStore } from "../state/appPreferencesStore";
 import { useAuthStore } from "../state/authStore";
 import { colors, spacing } from "../theme";
 import { usePushRegistration } from "./usePushRegistration";
 
 type RootTabs = {
-  Customer: undefined;
-  Post: undefined;
-  Helpers: undefined;
-  Messages: undefined;
-  Plans: undefined;
-  Payments: undefined;
+  Home: undefined;
+  Learn: undefined;
   Tools: undefined;
-  Trust: undefined;
-  Business: undefined;
-  Helper: undefined;
+  Pro: undefined;
   Account: undefined;
 };
 
@@ -82,6 +71,8 @@ const linking = {
 
 function SignedInTabs() {
   usePushRegistration();
+  const { t } = useI18n();
+  const enabledModes = useAppPreferencesStore((state) => state.enabledModes);
 
   return (
     <Tabs.Navigator
@@ -95,38 +86,35 @@ function SignedInTabs() {
         }
       }}
     >
-      {isEnabled("customerDashboard") && <Tabs.Screen name="Customer" component={CustomerHomeScreen} />}
-      {isEnabled("postJob") && <Tabs.Screen name="Post" component={PostJobScreen} />}
-      <Tabs.Screen name="Helpers" component={BrowseHelpersScreen} />
-      <Tabs.Screen name="Messages" component={MessagesScreen} />
-      <Tabs.Screen name="Plans" component={PlannedNeedsScreen} />
-      <Tabs.Screen name="Payments" component={PaymentsScreen} />
-      <Tabs.Screen name="Tools" component={ToolRentalsScreen} />
-      <Tabs.Screen name="Trust" component={TrustSafetyScreen} />
-      <Tabs.Screen name="Business" component={BusinessHubLiteScreen} />
-      {isEnabled("helperDashboard") && <Tabs.Screen name="Helper" component={HelperHomeScreen} />}
-      <Tabs.Screen name="Account" component={AccountScreen} />
+      {enabledModes.home && <Tabs.Screen name="Home" component={HomeModeScreen} options={{ title: t("nav.home") }} />}
+      {enabledModes.learn && <Tabs.Screen name="Learn" component={LearnModeScreen} options={{ title: t("nav.learn") }} />}
+      {enabledModes.tools && <Tabs.Screen name="Tools" component={ToolRentalsScreen} options={{ title: t("nav.tools") }} />}
+      {enabledModes.pro && <Tabs.Screen name="Pro" component={ProModeScreen} options={{ title: t("nav.pro") }} />}
+      <Tabs.Screen name="Account" component={AccountScreen} options={{ title: t("nav.account") }} />
     </Tabs.Navigator>
   );
 }
 
 function Root() {
   const { user, isHydrating, hydrate } = useAuthStore();
+  const { isHydrating: isPrefsHydrating, hydrate: hydratePreferences } = useAppPreferencesStore();
+  const { t } = useI18n();
   const [startupTimedOut, setStartupTimedOut] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setStartupTimedOut(true), 8000);
     hydrate();
+    hydratePreferences();
     return () => clearTimeout(timer);
-  }, [hydrate]);
+  }, [hydrate, hydratePreferences]);
 
-  if (isHydrating) {
+  if (isHydrating || isPrefsHydrating) {
     return (
       <View style={styles.loading}>
-        <AppText variant="caption">OXSTEED MOBILE</AppText>
+        <AppText variant="caption">{t("app.loading.brand")}</AppText>
         <ActivityIndicator color={colors.orange} />
         <AppText variant="muted">
-          {startupTimedOut ? "Still starting. Checking your saved session..." : "Starting your native app..."}
+          {startupTimedOut ? t("app.loading.checkingSession") : t("app.loading.starting")}
         </AppText>
       </View>
     );
@@ -144,8 +132,10 @@ export function OxSteedMobileApp() {
     <GestureHandlerRootView style={styles.appRoot}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <StatusBar style="light" />
-          <Root />
+          <MobileI18nProvider>
+            <StatusBar style="light" />
+            <Root />
+          </MobileI18nProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

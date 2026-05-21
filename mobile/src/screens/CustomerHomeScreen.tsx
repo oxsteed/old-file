@@ -9,11 +9,12 @@ import { FormInput } from "../components/FormInput";
 import { MetricGrid } from "../components/MetricGrid";
 import { Screen } from "../components/Screen";
 import { AppText } from "../components/Text";
+import { useI18n } from "../i18n";
 import { colors, spacing } from "../theme";
 import { addAppointmentToDeviceCalendar, addBookingToDeviceCalendar } from "../utils/deviceCalendar";
 
 function bookingName(booking: MobileBooking) {
-  return booking.serviceName || booking.service_name || "Booking request";
+  return booking.serviceName || booking.service_name;
 }
 
 function bookingDate(booking: MobileBooking) {
@@ -29,6 +30,7 @@ function isCompletedJob(job: MobileJob) {
 }
 
 export function CustomerHomeScreen() {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const [reviewDrafts, setReviewDrafts] = useState<Record<string, { rating: string; body: string }>>({});
   const [rescheduleDrafts, setRescheduleDrafts] = useState<Record<string, { start: string; end: string; message: string }>>({});
@@ -43,10 +45,10 @@ export function CustomerHomeScreen() {
     mutationFn: ({ job, rating, body }: { job: MobileJob; rating: number; body: string }) =>
       api.submitJobReview(job.id, { rating, body, title: "Mobile review" }),
     onSuccess: async () => {
-      Alert.alert("Review sent", "Thanks for helping the next customer choose well.");
+      Alert.alert(t("customer.reviewSent"), t("customer.reviewSentBody"));
       await queryClient.invalidateQueries({ queryKey: ["mobile-feed"] });
     },
-    onError: (error) => Alert.alert("Review not sent", error instanceof OxSteedApiError || error instanceof Error ? error.message : "Please try again.")
+    onError: (error) => Alert.alert(t("customer.reviewFailed"), error instanceof OxSteedApiError || error instanceof Error ? error.message : t("common.retry"))
   });
 
   const requestReschedule = useMutation({
@@ -57,10 +59,10 @@ export function CustomerHomeScreen() {
         message
       }),
     onSuccess: async () => {
-      Alert.alert("Reschedule requested", "The other party will be notified in OxSteed.");
+      Alert.alert(t("customer.reschedule.sent"), t("customer.reschedule.sentBody"));
       await queryClient.invalidateQueries({ queryKey: ["mobile-feed"] });
     },
-    onError: (error) => Alert.alert("Reschedule failed", error instanceof Error ? error.message : "Please try again.")
+    onError: (error) => Alert.alert(t("customer.reschedule.failed"), error instanceof Error ? error.message : t("common.retry"))
   });
 
   if (feed.isLoading) {
@@ -68,7 +70,7 @@ export function CustomerHomeScreen() {
       <Screen scroll={false}>
         <View style={styles.center}>
           <ActivityIndicator color={colors.orange} />
-          <AppText variant="muted">Loading your OxSteed command center...</AppText>
+          <AppText variant="muted">{t("customer.loading")}</AppText>
         </View>
       </Screen>
     );
@@ -78,9 +80,9 @@ export function CustomerHomeScreen() {
     return (
       <Screen>
         <Card>
-          <AppText variant="headline">Could not load dashboard</AppText>
-          <AppText variant="muted">Pull this screen again after checking your connection.</AppText>
-          <Button onPress={() => feed.refetch()}>Retry</Button>
+          <AppText variant="headline">{t("customer.errorTitle")}</AppText>
+          <AppText variant="muted">{t("customer.errorBody")}</AppText>
+          <Button onPress={() => feed.refetch()}>{t("common.retry")}</Button>
         </Card>
       </Screen>
     );
@@ -91,23 +93,23 @@ export function CustomerHomeScreen() {
   return (
     <Screen>
       <View>
-        <AppText variant="caption">CUSTOMER COMMAND CENTER</AppText>
-        <AppText variant="title">Get work posted, booked, and paid.</AppText>
+        <AppText variant="caption">{t("customer.caption")}</AppText>
+        <AppText variant="title">{t("customer.title")}</AppText>
       </View>
 
       <MetricGrid
         metrics={[
-          { label: "Open jobs", value: data.summary.open_jobs },
-          { label: "Unread messages", value: data.summary.unread_messages },
-          { label: "Upcoming bookings", value: data.bookings.sent.length },
-          { label: "Planned needs", value: data.planned_needs.length }
+          { label: t("customer.metrics.openJobs"), value: data.summary.open_jobs },
+          { label: t("customer.metrics.unread"), value: data.summary.unread_messages },
+          { label: t("customer.metrics.bookings"), value: data.bookings.sent.length },
+          { label: t("customer.metrics.plans"), value: data.planned_needs.length }
         ]}
       />
 
       <Card>
-        <AppText variant="headline">My recent jobs</AppText>
+        <AppText variant="headline">{t("customer.jobs")}</AppText>
         {data.jobs.mine.length === 0 ? (
-          <AppText variant="muted">No jobs posted yet. Phase 2 expands this into the full multi-step job wizard.</AppText>
+          <AppText variant="muted">{t("customer.jobs.empty")}</AppText>
         ) : (
           data.jobs.mine.map((job) => (
             <View key={job.id} style={styles.row}>
@@ -116,13 +118,13 @@ export function CustomerHomeScreen() {
               {isCompletedJob(job) && (
                 <View style={styles.reviewBox}>
                   <FormInput
-                    placeholder="Rating 1-5"
+                    placeholder={t("customer.reviewRating")}
                     keyboardType="number-pad"
                     value={reviewDrafts[job.id]?.rating || ""}
                     onChangeText={(rating) => setReviewDrafts((drafts) => ({ ...drafts, [job.id]: { rating, body: drafts[job.id]?.body || "" } }))}
                   />
                   <FormInput
-                    placeholder="What should others know?"
+                    placeholder={t("customer.reviewBody")}
                     multiline
                     value={reviewDrafts[job.id]?.body || ""}
                     onChangeText={(body) => setReviewDrafts((drafts) => ({ ...drafts, [job.id]: { rating: drafts[job.id]?.rating || "5", body } }))}
@@ -138,7 +140,7 @@ export function CustomerHomeScreen() {
                       })
                     }
                   >
-                    Leave review
+                    {t("customer.leaveReview")}
                   </Button>
                 </View>
               )}
@@ -148,13 +150,13 @@ export function CustomerHomeScreen() {
       </Card>
 
       <Card>
-        <AppText variant="headline">Upcoming bookings</AppText>
+        <AppText variant="headline">{t("customer.booking.title")}</AppText>
         {data.bookings.sent.length === 0 ? (
-          <AppText variant="muted">No direct booking requests yet.</AppText>
+          <AppText variant="muted">{t("customer.booking.empty")}</AppText>
         ) : (
           data.bookings.sent.map((booking) => (
             <View key={booking.id} style={styles.row}>
-              <AppText>{bookingName(booking)}</AppText>
+              <AppText>{bookingName(booking) || t("customer.status.bookingRequest")}</AppText>
               <AppText variant="caption">{[bookingDate(booking), bookingStatus(booking), booking.paymentStatus || booking.payment_status].filter(Boolean).join(" - ")}</AppText>
               {bookingStatus(booking) === "accepted" && (
                 <Button
@@ -162,13 +164,13 @@ export function CustomerHomeScreen() {
                   onPress={async () => {
                     try {
                       await addBookingToDeviceCalendar(booking);
-                      Alert.alert("Added to calendar", "This booking is now on your device calendar.");
+                      Alert.alert(t("customer.calendar.added"), t("customer.calendar.bookingAdded"));
                     } catch (error) {
-                      Alert.alert("Calendar not updated", error instanceof Error ? error.message : "Please try again.");
+                      Alert.alert(t("customer.calendar.failed"), error instanceof Error ? error.message : t("common.retry"));
                     }
                   }}
                 >
-                  Add to calendar
+                  {t("customer.calendar.add")}
                 </Button>
               )}
             </View>
@@ -177,9 +179,9 @@ export function CustomerHomeScreen() {
       </Card>
 
       <Card>
-        <AppText variant="headline">Appointments</AppText>
+        <AppText variant="headline">{t("customer.appointments.title")}</AppText>
         {data.appointments.length === 0 ? (
-          <AppText variant="muted">Accepted appointments will appear here with device-calendar and reschedule actions.</AppText>
+          <AppText variant="muted">{t("customer.appointments.empty")}</AppText>
         ) : (
           data.appointments.map((appointment) => {
             const draft = rescheduleDrafts[appointment.id] || { start: "", end: "", message: "" };
@@ -192,26 +194,26 @@ export function CustomerHomeScreen() {
                   onPress={async () => {
                     try {
                       await addAppointmentToDeviceCalendar(appointment);
-                      Alert.alert("Added to calendar", "This appointment is now on your device calendar.");
+                      Alert.alert(t("customer.calendar.added"), t("customer.calendar.appointmentAdded"));
                     } catch (error) {
-                      Alert.alert("Calendar not updated", error instanceof Error ? error.message : "Please try again.");
+                      Alert.alert(t("customer.calendar.failed"), error instanceof Error ? error.message : t("common.retry"));
                     }
                   }}
                 >
-                  Add to calendar
+                  {t("customer.calendar.add")}
                 </Button>
                 <FormInput
-                  placeholder="New start, e.g. 2026-05-22 14:00"
+                  placeholder={t("customer.reschedule.start")}
                   value={draft.start}
                   onChangeText={(start) => setRescheduleDrafts((drafts) => ({ ...drafts, [appointment.id]: { ...draft, start } }))}
                 />
                 <FormInput
-                  placeholder="New end"
+                  placeholder={t("customer.reschedule.end")}
                   value={draft.end}
                   onChangeText={(end) => setRescheduleDrafts((drafts) => ({ ...drafts, [appointment.id]: { ...draft, end } }))}
                 />
                 <FormInput
-                  placeholder="Message"
+                  placeholder={t("customer.reschedule.message")}
                   value={draft.message}
                   onChangeText={(message) => setRescheduleDrafts((drafts) => ({ ...drafts, [appointment.id]: { ...draft, message } }))}
                 />
@@ -219,7 +221,7 @@ export function CustomerHomeScreen() {
                   disabled={!draft.start || !draft.end || requestReschedule.isPending}
                   onPress={() => requestReschedule.mutate({ appointment, start: draft.start, end: draft.end, message: draft.message })}
                 >
-                  Request reschedule
+                  {t("customer.reschedule.button")}
                 </Button>
               </View>
             );
@@ -228,9 +230,9 @@ export function CustomerHomeScreen() {
       </Card>
 
       <Card>
-        <AppText variant="headline">Planned needs</AppText>
+        <AppText variant="headline">{t("customer.plans.title")}</AppText>
         {data.planned_needs.length === 0 ? (
-          <AppText variant="muted">Future needs will appear here once planned-needs mobile creation lands in Phase 2.</AppText>
+          <AppText variant="muted">{t("customer.plans.empty")}</AppText>
         ) : (
           data.planned_needs.map((need) => (
             <View key={need.id} style={styles.row}>

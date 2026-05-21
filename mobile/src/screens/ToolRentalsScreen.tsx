@@ -9,14 +9,11 @@ import { FormInput } from "../components/FormInput";
 import { MetricGrid } from "../components/MetricGrid";
 import { Screen } from "../components/Screen";
 import { AppText } from "../components/Text";
+import { useI18n } from "../i18n";
 import { colors, spacing } from "../theme";
 
-function money(value?: string | number | null) {
-  const num = Number(value || 0);
-  return `$${num.toFixed(2)}`;
-}
-
 export function ToolRentalsScreen() {
+  const { t, formatCurrency } = useI18n();
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState({ name: "", city: "", category: "" });
   const [selectedTool, setSelectedTool] = useState<ToolRental | null>(null);
@@ -31,7 +28,7 @@ export function ToolRentalsScreen() {
 
   const bookTool = useMutation({
     mutationFn: async () => {
-      if (!selectedTool) throw new Error("Choose a tool first.");
+      if (!selectedTool) throw new Error(t("tools.search"));
       return api.createToolBooking({
         toolId: selectedTool.id,
         startDate: dates.startDate,
@@ -40,12 +37,12 @@ export function ToolRentalsScreen() {
       });
     },
     onSuccess: async () => {
-      Alert.alert("Tool requested", "The rental request is recorded. If a deposit is required, use the generated rental invoice or owner payment method.");
+      Alert.alert(t("tools.requested"), t("tools.requestedBody"));
       setSelectedTool(null);
       setDates({ startDate: "", endDate: "" });
       await queryClient.invalidateQueries({ queryKey: ["tool-bookings"] });
     },
-    onError: (error) => Alert.alert("Could not book tool", error instanceof Error ? error.message : "Please try again.")
+    onError: (error) => Alert.alert(t("tools.requestFailed"), error instanceof Error ? error.message : t("common.retry"))
   });
 
   const records = tools.data?.tools || [];
@@ -53,25 +50,25 @@ export function ToolRentalsScreen() {
   return (
     <Screen>
       <View>
-        <AppText variant="caption">TOOL RENTALS</AppText>
-        <AppText variant="title">Browse, reserve, and coordinate tools nearby.</AppText>
+        <AppText variant="caption">{t("tools.caption")}</AppText>
+        <AppText variant="title">{t("tools.title")}</AppText>
       </View>
 
       <MetricGrid
         metrics={[
-          { label: "Tools found", value: records.length },
-          { label: "Nearby jobs", value: nearby.data?.jobs.length || 0 },
-          { label: "My rentals", value: bookings.data?.length || 0 },
-          { label: "Nearby helpers", value: nearby.data?.helpers.length || 0 }
+          { label: t("tools.metrics.found"), value: records.length },
+          { label: t("tools.metrics.jobs"), value: nearby.data?.jobs.length || 0 },
+          { label: t("tools.metrics.rentals"), value: bookings.data?.length || 0 },
+          { label: t("tools.metrics.helpers"), value: nearby.data?.helpers.length || 0 }
         ]}
       />
 
       <Card>
-        <AppText variant="headline">Search tools</AppText>
-        <FormInput placeholder="Tool name" value={filters.name} onChangeText={(name) => setFilters((prev) => ({ ...prev, name }))} />
+        <AppText variant="headline">{t("tools.search")}</AppText>
+        <FormInput placeholder={t("tools.name")} value={filters.name} onChangeText={(name) => setFilters((prev) => ({ ...prev, name }))} />
         <View style={styles.split}>
-          <FormInput style={styles.splitInput} placeholder="City" value={filters.city} onChangeText={(city) => setFilters((prev) => ({ ...prev, city }))} />
-          <FormInput style={styles.splitInput} placeholder="Category" value={filters.category} onChangeText={(category) => setFilters((prev) => ({ ...prev, category }))} />
+          <FormInput style={styles.splitInput} placeholder={t("tools.city")} value={filters.city} onChangeText={(city) => setFilters((prev) => ({ ...prev, city }))} />
+          <FormInput style={styles.splitInput} placeholder={t("tools.category")} value={filters.category} onChangeText={(category) => setFilters((prev) => ({ ...prev, category }))} />
         </View>
       </Card>
 
@@ -79,14 +76,19 @@ export function ToolRentalsScreen() {
         <Card key={String(tool.id)}>
           {tool.image_url ? <Image source={{ uri: tool.image_url }} style={styles.image} /> : null}
           <AppText variant="headline">{tool.name}</AppText>
-          <AppText variant="muted">{tool.description || tool.category || "Tool rental"}</AppText>
+          <AppText variant="muted">{tool.description || tool.category || t("tools.caption")}</AppText>
           <AppText variant="caption">
-            {[money(tool.daily_rate), tool.requires_deposit ? `Deposit ${money(tool.deposit_amount)}` : null, tool.location_city, tool.owner_name].filter(Boolean).join(" - ")}
+            {[
+              formatCurrency(Number(tool.daily_rate || 0)),
+              tool.requires_deposit ? `${t("tools.category")}: ${formatCurrency(Number(tool.deposit_amount || 0))}` : null,
+              tool.location_city,
+              tool.owner_name
+            ].filter(Boolean).join(" - ")}
           </AppText>
-          <Button onPress={() => setSelectedTool(tool)}>Rent this tool</Button>
+          <Button onPress={() => setSelectedTool(tool)}>{t("tools.rentThis")}</Button>
           {tool.owner_id && (
-            <Button variant="secondary" onPress={() => api.createConversation({ helperId: tool.owner_id! }).then(() => Alert.alert("Message started", "Open Messages to continue the rental conversation."))}>
-              Message owner
+            <Button variant="secondary" onPress={() => api.createConversation({ helperId: tool.owner_id! }).then(() => Alert.alert(t("tools.ownerMessageStarted"), t("tools.ownerMessageBody")))}>
+              {t("tools.messageOwner")}
             </Button>
           )}
         </Card>
@@ -94,22 +96,22 @@ export function ToolRentalsScreen() {
 
       {selectedTool && (
         <Card>
-          <AppText variant="headline">Reserve {selectedTool.name}</AppText>
-          <FormInput placeholder="Start date YYYY-MM-DD" value={dates.startDate} onChangeText={(startDate) => setDates((prev) => ({ ...prev, startDate }))} />
-          <FormInput placeholder="End date YYYY-MM-DD" value={dates.endDate} onChangeText={(endDate) => setDates((prev) => ({ ...prev, endDate }))} />
-          <AppText variant="caption">By booking, you accept the peer rental agreement and owner rules for this listing.</AppText>
+          <AppText variant="headline">{t("tools.reserve", { name: selectedTool.name })}</AppText>
+          <FormInput placeholder={t("tools.startDate")} value={dates.startDate} onChangeText={(startDate) => setDates((prev) => ({ ...prev, startDate }))} />
+          <FormInput placeholder={t("tools.endDate")} value={dates.endDate} onChangeText={(endDate) => setDates((prev) => ({ ...prev, endDate }))} />
+          <AppText variant="caption">{t("tools.agreement")}</AppText>
           <Button disabled={!dates.startDate || !dates.endDate || bookTool.isPending} onPress={() => bookTool.mutate()}>
-            Request rental
+            {t("tools.requestRental")}
           </Button>
         </Card>
       )}
 
       <Card>
-        <AppText variant="headline">My tool bookings</AppText>
+        <AppText variant="headline">{t("tools.myBookings")}</AppText>
         {(bookings.data || []).slice(0, 6).map((booking) => (
           <View key={String(booking.id)} style={styles.row}>
             <AppText>{booking.name || `Tool booking ${booking.id}`}</AppText>
-            <AppText variant="caption">{[booking.start_date, booking.end_date, booking.status, money(booking.total_price)].filter(Boolean).join(" - ")}</AppText>
+            <AppText variant="caption">{[booking.start_date, booking.end_date, booking.status, formatCurrency(Number(booking.total_price || 0))].filter(Boolean).join(" - ")}</AppText>
           </View>
         ))}
       </Card>
