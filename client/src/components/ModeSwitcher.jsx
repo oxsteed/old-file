@@ -1,19 +1,17 @@
 // client/src/components/ModeSwitcher.jsx
 //
-// Navbar dropdown for switching the user's active mode. Sits next to
-// <BusinessSwitcher /> in Navbar.jsx and only renders for signed-in users.
+// Navbar dropdown for switching the user's account type / mode. Each switch
+// calls the unified /auth/switch-role endpoint (via useAuth().switchRole)
+// which atomically updates users.default_mode + users.role, invalidates
+// existing sessions, and returns fresh tokens.
 //
-// The user's *default* mode (saved on signup via /join) is the initial value.
-// In-session switches are persisted to localStorage so a refresh keeps the
-// user in the same mode without rewriting users.default_mode on the server.
-// To make a switch sticky across devices the user can hit "Set as default"
-// inside the dropdown, which calls PATCH /api/users/me { default_mode }.
-//
-// All copy comes from i18n under modes.* and modeSwitcher.*.
+// Sits next to <BusinessSwitcher /> in Navbar.jsx and only renders for
+// signed-in users.
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import {
@@ -22,23 +20,19 @@ import {
   routeForMode,
 } from '../utils/modeRouter';
 
-const LS_KEY = 'oxs:activeMode';
-
 export default function ModeSwitcher({ compact = false }) {
   const { t } = useTranslation();
-  const { user, setUser } = useAuth();
+  const { user, switchRole } = useAuth();
   const navigate = useNavigate();
   const menuRef = useRef(null);
 
   const [open, setOpen] = useState(false);
   const [memberships, setMemberships] = useState([]);
-  const [activeMode, setActiveMode] = useState(() => {
-    try { return localStorage.getItem(LS_KEY) || null; } catch { return null; }
-  });
-  const [savingDefault, setSavingDefault] = useState(false);
+  const [switching, setSwitching] = useState(null); // mode being switched to, or null
 
   // Pull workspace memberships once we know who the user is, so granted
-  // modes (manager / employee / support_agent / etc.) show in the list.
+  // modes (manager / employee / support_agent) show up in the list — even
+  // though the user has to explicitly opt in (no auto-switching on grant).
   useEffect(() => {
     if (!user) { setMemberships([]); return; }
     let cancelled = false;
@@ -51,12 +45,6 @@ export default function ModeSwitcher({ compact = false }) {
       .catch(() => { /* endpoint may not be deployed everywhere — fail quiet */ });
     return () => { cancelled = true; };
   }, [user]);
-
-  // Sync activeMode to user.default_mode when nothing's in localStorage.
-  useEffect(() => {
-    if (activeMode || !user?.default_mode) return;
-    setActiveMode(user.default_mode);
-  }, [user, activeMode]);
 
   const availableModes = useMemo(
     () => getAvailableModesForUser(user, { memberships }),
@@ -78,38 +66,34 @@ export default function ModeSwitcher({ compact = false }) {
     };
   }, [open]);
 
-  const handleSwitch = useCallback((mode) => {
-    setActiveMode(mode);
-    try { localStorage.setItem(LS_KEY, mode); } catch { /* private mode */ }
+  const handleSwitch = useCallback(async (mode) => {
+    if (mode === current || switching) return;
+    setSwitching(mode);
     setOpen(false);
-    navigate(routeForMode(mode));
-  }, [navigate]);
-
-  const handleSetDefault = useCallback(async (mode) => {
-    if (!user || savingDefault) return;
-    setSavingDefault(true);
     try {
-      // Same endpoint Settings page uses for profile updates. Now accepts
-      // default_mode (see authController.updateProfile).
-      const res = await api.put('/auth/profile', { default_mode: mode });
-      if (res?.data?.user) {
-        setUser(res.data.user);
-        try {
-          localStorage.setItem('user', JSON.stringify(res.data.user));
-        } catch { /* private mode */ }
-      }
-    } catch {
-      // Fail silent — preference is still remembered locally.
-    } finally {
-      setSavingDefault(false);
+      await switchRole(mode);
+      toast.success(t('modeSwitcher.switchedTo', {
+        mode: t(MODE_CATALOG[mode]?.labelKey || `modes.${mode}.label`, { defaultValue: mode }),
+        defaultValue: 'Switched.',
+      }));
+      // Hard reload so navbar / sidebars / role gates everywhere pick up the
+      // new user shape. Same pattern as Settings page.
+      navigate(routeForMode(mode), { replace: true });
+      window.location.reload();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('modeSwitcher.switchFailed', { defaultValue: 'Could not switch.' }));
+      setSwitching(null);
     }
-  }, [user, savingDefault, setUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [switchRole, navigate, t, switching]);
 
   // Don't render for logged-out users or when there's only one option.
   if (!user) return null;
   if (availableModes.length <= 1) return null;
 
-  const current = activeMode && availableModes.includes(activeMode) ? activeMode : availableModes[0];
+  // Source of truth for "current mode": the user object. No localStorage drift.
+  const current = user.default_mode ||
+    (['helper', 'helper_pro', 'broker'].includes(user.role) ? 'helper' : 'customer');
   const currentMeta = MODE_CATALOG[current] || MODE_CATALOG.customer;
   const currentLabel = t(currentMeta.labelKey, { defaultValue: current });
 
@@ -145,7 +129,11 @@ export default function ModeSwitcher({ compact = false }) {
           }}
           aria-hidden="true"
         />
-        {!compact && <span style={{ opacity: 0.7, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('modeSwitcher.mode')}</span>}
+        {!compact && (
+          <span style={{ opacity: 0.7, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {t('modeSwitcher.mode')}
+          </span>
+        )}
         <span>{currentLabel}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
           <polyline points="6 9 12 15 18 9" />
@@ -184,7 +172,6 @@ export default function ModeSwitcher({ compact = false }) {
           {availableModes.map((m) => {
             const meta = MODE_CATALOG[m] || {};
             const isCurrent = m === current;
-            const isDefault = m === user?.default_mode;
             return (
               <div
                 key={m}
@@ -195,20 +182,21 @@ export default function ModeSwitcher({ compact = false }) {
                   gap: '0.5rem',
                   padding: '0.5rem 0.6rem',
                   borderRadius: 'var(--radius-sm)',
-                  cursor: isCurrent ? 'default' : 'pointer',
+                  cursor: isCurrent || switching ? 'default' : 'pointer',
                   background: isCurrent ? 'var(--color-primary-soft, rgba(249,115,22,0.08))' : 'transparent',
+                  opacity: switching && switching !== m ? 0.5 : 1,
                   transition: 'background var(--transition-fast)',
                 }}
-                onClick={() => { if (!isCurrent) handleSwitch(m); }}
-                onMouseEnter={(e) => { if (!isCurrent) e.currentTarget.style.background = 'var(--color-surface-hover, rgba(0,0,0,0.04))'; }}
-                onMouseLeave={(e) => { if (!isCurrent) e.currentTarget.style.background = 'transparent'; }}
+                onClick={() => { if (!isCurrent && !switching) handleSwitch(m); }}
+                onMouseEnter={(e) => { if (!isCurrent && !switching) e.currentTarget.style.background = 'var(--color-surface-hover, rgba(0,0,0,0.04))'; }}
+                onMouseLeave={(e) => { if (!isCurrent && !switching) e.currentTarget.style.background = 'transparent'; }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>
                       {t(meta.labelKey || `modes.${m}.label`, { defaultValue: m })}
                     </span>
-                    {isDefault && (
+                    {isCurrent && (
                       <span
                         style={{
                           fontSize: '0.6rem',
@@ -221,7 +209,12 @@ export default function ModeSwitcher({ compact = false }) {
                           letterSpacing: '0.04em',
                         }}
                       >
-                        {t('modeSwitcher.defaultBadge')}
+                        {t('modeSwitcher.currentBadge', { defaultValue: 'Current' })}
+                      </span>
+                    )}
+                    {switching === m && (
+                      <span style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)' }}>
+                        {t('common.switching', { defaultValue: 'Switching...' })}
                       </span>
                     )}
                   </div>
@@ -229,27 +222,6 @@ export default function ModeSwitcher({ compact = false }) {
                     {t(meta.hintKey || `modes.${m}.hint`, { defaultValue: '' })}
                   </div>
                 </div>
-                {!isDefault && !isCurrent && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); handleSetDefault(m); }}
-                    disabled={savingDefault}
-                    style={{
-                      fontSize: '0.65rem',
-                      fontWeight: 600,
-                      padding: '0.2rem 0.4rem',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--color-border)',
-                      background: 'transparent',
-                      color: 'var(--color-text-muted)',
-                      cursor: savingDefault ? 'wait' : 'pointer',
-                      whiteSpace: 'nowrap',
-                    }}
-                    title={t('modeSwitcher.setAsDefaultHint')}
-                  >
-                    {t('modeSwitcher.setAsDefault')}
-                  </button>
-                )}
               </div>
             );
           })}

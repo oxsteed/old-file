@@ -288,9 +288,8 @@ export default function Navbar() {
                   )}
                 </div>
 
-                <span className="ox-badge ox-badge-primary" style={{ textTransform: 'capitalize' }}>
-                  {user?.role}
-                </span>
+                {/* Role badge removed — the ModeSwitcher is now the sole
+                    indicator of the user's account type. */}
                 <button
                   onClick={logout}
                   className="ox-btn ox-btn-ghost ox-btn-sm"
