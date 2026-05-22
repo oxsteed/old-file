@@ -199,6 +199,7 @@ async function register(req, res, next) {
    tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
    background_check_passed, city, state, zip_code,
    trial_started_at, trial_ends_at, didit_status, didit_verified_at,
+   default_mode,
    COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required
    FROM users WHERE id = $1`,
   [user.id]
@@ -246,6 +247,7 @@ async function login(req, res, next) {
               membership_tier, id_verified, background_check_passed,
               city, state, zip_code, totp_enabled,
               trial_started_at, trial_ends_at, didit_status, didit_verified_at,
+              default_mode,
               COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required
        FROM users WHERE email = $1`,
       [email.toLowerCase()]
@@ -569,6 +571,7 @@ async function refreshToken(req, res, next) {
               membership_tier, id_verified, background_check_passed,
               city, state, zip_code,
               trial_started_at, trial_ends_at, didit_status, didit_verified_at,
+              default_mode,
               COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required
        FROM users WHERE id = $1`,
       [sessionRows[0].user_id]

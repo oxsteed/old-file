@@ -155,26 +155,25 @@ export const MODE_CATALOG = {
   },
 };
 
-// Resolve which modes the current user is allowed to be in. Used by the Mode
-// Switcher to decide which entries to show. Anyone can be a `customer`; a
-// helper-role user also gets `helper`; the granted modes flow in from the
-// caller's known memberships (passed via opts).
+// Resolve which modes the current user can switch into from the navbar.
+// Mirrors what Settings → Account Type shows:
+//   - All 7 SELF_SELECTABLE_MODES are always offered. The server-side
+//     switchRole endpoint does the validation; if a user lands in a mode
+//     that doesn't make sense for them (e.g., consultant without a
+//     consultant profile), the destination page handles its own empty
+//     state. Hiding modes here just means "you have to go to Settings to
+//     find the option," which is exactly the inconsistency we don't want.
+//   - Granted modes (business_manager / representative / employee /
+//     support_agent) are added on top from the caller's memberships.
+//   - admin appears only for admin / super_admin users.
 export function getAvailableModesForUser(user, opts = {}) {
   if (!user) return [];
-  const set = new Set(['customer']);
-  if (user.role === 'helper' || user.role === 'admin' || user.role === 'super_admin') {
-    set.add('helper');
-  }
-  if (user.role === 'admin' || user.role === 'super_admin') {
-    set.add('admin');
-  }
-  // life_only is a UX preference — anyone may switch into it.
-  set.add('life_only');
-  // Memberships → granted modes. Caller passes { memberships: [{role}] }.
+  const set = new Set(SELF_SELECTABLE_MODES);
+
+  // Granted modes — only show if the user actually holds the membership.
   const memberships = Array.isArray(opts.memberships) ? opts.memberships : [];
   for (const m of memberships) {
     switch (m.role) {
-      case 'owner':           set.add('business_owner'); break;
       case 'manager':         set.add('business_manager'); break;
       case 'representative':  set.add('business_representative'); break;
       case 'employee':        set.add('business_employee'); break;
@@ -182,12 +181,19 @@ export function getAvailableModesForUser(user, opts = {}) {
       default: break;
     }
   }
+
+  if (user.role === 'admin' || user.role === 'super_admin') {
+    set.add('admin');
+  }
+
   // Always include the user's saved default so the switcher can show it even
-  // if the membership endpoint hasn't loaded yet.
+  // if memberships haven't loaded yet (e.g., they're currently in a granted
+  // mode and the /me/businesses request is in flight).
   if (user.default_mode && ALL_MODES.includes(user.default_mode)) {
     set.add(user.default_mode);
   }
-  // Preserve a sensible order: self-selectable first, then granted.
+
+  // Preserve a sensible order: self-selectable first, then granted, then admin.
   const ordered = [];
   for (const m of SELF_SELECTABLE_MODES) if (set.has(m)) ordered.push(m);
   for (const m of GRANTED_MODES) if (set.has(m)) ordered.push(m);

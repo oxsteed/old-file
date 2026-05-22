@@ -99,6 +99,7 @@ async function authenticate(req, res, next) {
          u.didit_status, u.didit_verified_at,
          COALESCE(u.didit_enforcement_required, FALSE) AS didit_enforcement_required,
          u.trial_started_at, u.trial_ends_at,
+         u.default_mode,
          b.business_name,
          hp.is_listed,
          COALESCE(hp.allow_guest_contact, TRUE) AS allow_guest_contact
@@ -227,7 +228,7 @@ const optionalAuth = async (req, res, next) => {
     }
 
     const { rows } = await pool.query(
-      `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active
+      `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.default_mode
          FROM users u WHERE u.id = $1`,
       [decoded.id]
     );
