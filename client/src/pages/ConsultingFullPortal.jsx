@@ -32,7 +32,7 @@ import PageMeta from '../components/PageMeta';
 import {
   CalendarClock, CheckCircle2, Circle, AlertTriangle, FileText, User, ArrowRight,
   Sparkles, Clock, Video, Award, MessageSquare, Package, Loader2, Plus,
-  ChevronRight, Target,
+  ChevronRight, Target, Compass, ClipboardCheck, ShieldCheck, TrendingUp,
 } from 'lucide-react';
 
 // ── small primitives ────────────────────────────────────────────────────────
@@ -299,7 +299,7 @@ function PackageGrid({ packages, t }) {
               : fmtMoney(p.price_cents)}
           </div>
           <Link
-            to="/consulting"
+            to="/consulting-intake"
             className="inline-flex items-center gap-1.5 mt-3 text-xs font-semibold text-orange-400 hover:text-orange-300"
           >
             {t('consultingPortal.startWith', { defaultValue: 'Start with this' })} <ArrowRight size={12} />
@@ -402,23 +402,99 @@ export default function ConsultingFullPortal() {
       <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-bg, #06080d)', color: 'var(--color-text, #f3f4f6)' }}>
         <PageMeta title={t('consultingPortal.title', { defaultValue: 'Consulting portal' })} />
         <Navbar />
-        <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-12 flex flex-col gap-8">
-          <section className="text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mx-auto" style={{ background: 'rgba(249,115,22,0.12)' }}>
-              <Sparkles size={32} className="text-orange-500" />
+        <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-10 flex flex-col gap-8">
+          <section
+            className="rounded-3xl border p-6 md:p-8 overflow-hidden"
+            style={{
+              borderColor: 'rgba(249,115,22,0.18)',
+              background:
+                'radial-gradient(circle at top left, rgba(249,115,22,0.18), transparent 28%), radial-gradient(circle at top right, rgba(56,189,248,0.12), transparent 24%), linear-gradient(180deg, rgba(17,24,39,0.88), rgba(9,12,18,0.96))',
+            }}
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_340px] gap-6 items-start">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider" style={{ background: 'rgba(249,115,22,0.15)', color: '#fdba74' }}>
+                  <Sparkles size={12} />
+                  {t('consultingPortal.emptyEyebrow', { defaultValue: 'Business launch consulting' })}
+                </div>
+                <h1 className="text-3xl md:text-5xl font-bold tracking-tight mt-4 max-w-3xl">
+                  {t('consultingPortal.emptyTitle', { defaultValue: 'Start your consulting journey' })}
+                </h1>
+                <p className="text-base md:text-lg mt-4 max-w-2xl" style={{ color: 'var(--color-text-muted)' }}>
+                  {t('consultingPortal.emptySubtitle', { defaultValue: 'Pick a package, share what you need help with, and an OxSteed consultant will guide you from idea to launch.' })}
+                </p>
+
+                <div className="flex flex-wrap gap-3 mt-6">
+                  <Link
+                    to="/consulting-intake"
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition"
+                  >
+                    {t('consultingPortal.bookIntake', { defaultValue: 'Book your intake call' })} <ArrowRight size={16} />
+                  </Link>
+                  <Link
+                    to="/business-launch-status"
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl border text-sm font-semibold transition hover:border-orange-400 hover:text-orange-300"
+                    style={{ borderColor: 'rgba(148,163,184,0.22)', color: 'var(--color-text)' }}
+                  >
+                    {t('consultingPortal.viewLaunchStatus', { defaultValue: 'View launch status' })}
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-8">
+                  <Card padding={4} style={{ background: 'rgba(255,255,255,0.04)' }}>
+                    <div className="text-[10px] uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
+                      <Compass size={11} /> {t('consultingPortal.emptyStat1Label', { defaultValue: 'Starts with clarity' })}
+                    </div>
+                    <div className="text-sm font-semibold mt-2">{t('consultingPortal.emptyStat1Value', { defaultValue: 'Discovery, direction, and package fit' })}</div>
+                  </Card>
+                  <Card padding={4} style={{ background: 'rgba(255,255,255,0.04)' }}>
+                    <div className="text-[10px] uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
+                      <ClipboardCheck size={11} /> {t('consultingPortal.emptyStat2Label', { defaultValue: 'Built for execution' })}
+                    </div>
+                    <div className="text-sm font-semibold mt-2">{t('consultingPortal.emptyStat2Value', { defaultValue: 'Phases, deliverables, and action items' })}</div>
+                  </Card>
+                  <Card padding={4} style={{ background: 'rgba(255,255,255,0.04)' }}>
+                    <div className="text-[10px] uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
+                      <ShieldCheck size={11} /> {t('consultingPortal.emptyStat3Label', { defaultValue: 'One portal after purchase' })}
+                    </div>
+                    <div className="text-sm font-semibold mt-2">{t('consultingPortal.emptyStat3Value', { defaultValue: 'Sessions, progress, files, and consultant communication' })}</div>
+                  </Card>
+                </div>
+              </div>
+
+              <Card
+                padding={5}
+                style={{
+                  background: 'rgba(6,8,13,0.56)',
+                  borderColor: 'rgba(148,163,184,0.18)',
+                }}
+              >
+                <h2 className="text-base font-semibold flex items-center gap-2">
+                  <TrendingUp size={16} className="text-orange-500" />
+                  {t('consultingPortal.emptyPreviewTitle', { defaultValue: 'What this portal becomes after purchase' })}
+                </h2>
+                <div className="mt-4 grid gap-3">
+                  <div className="rounded-xl border p-3" style={{ borderColor: 'rgba(148,163,184,0.16)', background: 'rgba(255,255,255,0.03)' }}>
+                    <div className="text-xs font-semibold">Active phase progress</div>
+                    <div className="text-[11px] mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                      Know exactly where your business is in the consulting roadmap.
+                    </div>
+                  </div>
+                  <div className="rounded-xl border p-3" style={{ borderColor: 'rgba(148,163,184,0.16)', background: 'rgba(255,255,255,0.03)' }}>
+                    <div className="text-xs font-semibold">Action items and due dates</div>
+                    <div className="text-[11px] mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                      Keep momentum between calls instead of losing track in scattered notes.
+                    </div>
+                  </div>
+                  <div className="rounded-xl border p-3" style={{ borderColor: 'rgba(148,163,184,0.16)', background: 'rgba(255,255,255,0.03)' }}>
+                    <div className="text-xs font-semibold">Deliverables and consultant contact</div>
+                    <div className="text-[11px] mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                      Download files, review next steps, and know who owns the next move.
+                    </div>
+                  </div>
+                </div>
+              </Card>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight mt-4">
-              {t('consultingPortal.emptyTitle', { defaultValue: 'Start your consulting journey' })}
-            </h1>
-            <p className="text-base mt-3 max-w-xl mx-auto" style={{ color: 'var(--color-text-muted)' }}>
-              {t('consultingPortal.emptySubtitle', { defaultValue: 'Pick a package, share what you need help with, and an OxSteed consultant will guide you from idea to launch.' })}
-            </p>
-            <Link
-              to="/consulting"
-              className="inline-flex items-center gap-2 mt-6 px-5 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition"
-            >
-              {t('consultingPortal.bookIntake', { defaultValue: 'Book your intake call' })} <ArrowRight size={16} />
-            </Link>
           </section>
 
           {packages.length > 0 && (
@@ -430,6 +506,36 @@ export default function ConsultingFullPortal() {
               <PackageGrid packages={packages} t={t} />
             </section>
           )}
+
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card padding={5}>
+              <div className="text-[10px] uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-muted)' }}>
+                1. Intake
+              </div>
+              <h3 className="text-base font-semibold mb-2">Tell us what you are building</h3>
+              <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                Share the skill, market, setup needs, urgency, and package level so the right consultant can pick it up with context.
+              </p>
+            </Card>
+            <Card padding={5}>
+              <div className="text-[10px] uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-muted)' }}>
+                2. Strategy
+              </div>
+              <h3 className="text-base font-semibold mb-2">Receive a real roadmap</h3>
+              <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                Your consultant organizes the work into phases, deliverables, and action items so progress feels concrete from week one.
+              </p>
+            </Card>
+            <Card padding={5}>
+              <div className="text-[10px] uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-muted)' }}>
+                3. Execution
+              </div>
+              <h3 className="text-base font-semibold mb-2">Track everything here</h3>
+              <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                Sessions, files, responsibilities, and next steps stay inside one consulting workspace instead of disappearing into email threads.
+              </p>
+            </Card>
+          </section>
         </main>
         <Footer />
       </div>
