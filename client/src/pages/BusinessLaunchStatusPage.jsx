@@ -1,117 +1,215 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import {
+  ArrowRight,
+  AlertCircle,
+  Briefcase,
+  CalendarClock,
+  CheckCircle2,
+  Compass,
+  FileStack,
+  Mail,
+  MapPin,
+  Rocket,
+  Search,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
 
-// ---------- constants ----------
-
 const STATUS_PROGRESS = {
-  pending:           10,
-  contacted:         30,
+  pending: 10,
+  contacted: 30,
   kickoff_scheduled: 50,
-  in_progress:       75,
-  completed:         100,
-  cancelled:         0,
+  in_progress: 75,
+  completed: 100,
+  cancelled: 0,
 };
 
 const STATUS_COLORS = {
-  pending:           '#F59E0B',
-  contacted:         '#4F46E5',
+  pending: '#F59E0B',
+  contacted: '#4F46E5',
   kickoff_scheduled: '#8B5CF6',
-  in_progress:       '#0EA5E9',
-  completed:         '#10B981',
-  cancelled:         '#EF4444',
+  in_progress: '#0EA5E9',
+  completed: '#10B981',
+  cancelled: '#EF4444',
+};
+
+const STATUS_COPY = {
+  pending: 'Submission received',
+  contacted: 'Consultant team reached out',
+  kickoff_scheduled: 'Kickoff locked in',
+  in_progress: 'Launch work in motion',
+  completed: 'Launch delivered',
+  cancelled: 'Request closed',
 };
 
 const PACKAGE_DISPLAY = {
-  initial:     'Initial Consultation ($100)',
-  foundation:  'Business Foundation ($750)',
-  launch:      'Business Launch ($1,500)',
+  initial: 'Initial Consultation ($100)',
+  foundation: 'Business Foundation ($750)',
+  launch: 'Business Launch ($1,500)',
   accelerator: 'Business Accelerator ($3,000)',
 };
 
 const URGENCY_DISPLAY = {
-  exploring:  'Just exploring',
-  two_weeks:  'Within two weeks',
-  asap:       'As soon as possible',
+  exploring: 'Just exploring',
+  two_weeks: 'Within two weeks',
+  asap: 'As soon as possible',
 };
-
-// ---------- helpers ----------
 
 function fmtDate(iso) {
   if (!iso) return '-';
   return new Date(iso).toLocaleDateString(undefined, {
-    year: 'numeric', month: 'short', day: 'numeric',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
   });
 }
 
 function fmtDateTime(iso) {
   if (!iso) return '-';
   return new Date(iso).toLocaleString(undefined, {
-    year: 'numeric', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }
 
 function safeItems(raw) {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw;
-  try { return JSON.parse(raw); } catch { return []; }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
 }
-
-// ---------- sub-components ----------
 
 function StatusBadge({ status }) {
   const { t } = useTranslation();
-  const label = t(`businessLaunchStatus.status_${status}`, {
-    defaultValue: status.replace(/_/g, ' '),
-  });
   return (
-    <span style={{
-      display: 'inline-block',
-      background: STATUS_COLORS[status] || '#6B7280',
-      color: 'white',
-      padding: '0.35rem 0.9rem',
-      borderRadius: '999px',
-      fontSize: '0.85rem',
-      fontWeight: 600,
-      textTransform: 'capitalize',
-      whiteSpace: 'nowrap',
-    }}>
-      {label}
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.45rem',
+        background: `${STATUS_COLORS[status] || '#6B7280'}22`,
+        color: STATUS_COLORS[status] || '#CBD5E1',
+        border: `1px solid ${STATUS_COLORS[status] || '#6B7280'}55`,
+        padding: '0.4rem 0.85rem',
+        borderRadius: '999px',
+        fontSize: '0.82rem',
+        fontWeight: 700,
+        textTransform: 'capitalize',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          width: '8px',
+          height: '8px',
+          borderRadius: '999px',
+          background: STATUS_COLORS[status] || '#6B7280',
+        }}
+      />
+      {t(`businessLaunchStatus.status_${status}`, {
+        defaultValue: status.replace(/_/g, ' '),
+      })}
     </span>
   );
 }
 
-function ProgressBar({ status }) {
+function ProgressBar({ status, compact = false }) {
   const pct = STATUS_PROGRESS[status] ?? 0;
   return (
+    <div style={{ marginTop: compact ? '0.45rem' : '0.75rem' }}>
+      <div
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`Progress: ${pct}%`}
+        style={{
+          width: '100%',
+          height: compact ? '7px' : '9px',
+          background: 'rgba(148,163,184,0.18)',
+          borderRadius: '999px',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            height: '100%',
+            width: `${pct}%`,
+            background: STATUS_COLORS[status] || '#6B7280',
+            borderRadius: '999px',
+            transition: 'width 0.4s ease',
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function StageTimeline({ status }) {
+  const { t } = useTranslation();
+  const stages = ['pending', 'contacted', 'kickoff_scheduled', 'in_progress', 'completed'];
+  const activeIndex = stages.indexOf(status);
+
+  return (
     <div
-      role="progressbar"
-      aria-valuenow={pct}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-label={`Progress: ${pct}%`}
       style={{
-        width: '100%',
-        height: '8px',
-        background: 'var(--border-color)',
-        borderRadius: '4px',
-        overflow: 'hidden',
-        marginTop: '0.75rem',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+        gap: '0.6rem',
       }}
     >
-      <div style={{
-        height: '100%',
-        width: `${pct}%`,
-        background: STATUS_COLORS[status] || '#6B7280',
-        borderRadius: '4px',
-        transition: 'width 0.4s ease',
-      }} />
+      {stages.map((stage, index) => {
+        const done = activeIndex >= index;
+        const color = STATUS_COLORS[stage];
+        return (
+          <div
+            key={stage}
+            style={{
+              border: `1px solid ${done ? `${color}55` : 'rgba(148,163,184,0.15)'}`,
+              background: done ? `${color}14` : 'rgba(255,255,255,0.02)',
+              borderRadius: '16px',
+              padding: '0.8rem',
+            }}
+          >
+            <div
+              style={{
+                width: '26px',
+                height: '26px',
+                borderRadius: '999px',
+                background: done ? color : 'rgba(148,163,184,0.2)',
+                color: done ? '#fff' : '#94A3B8',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                marginBottom: '0.65rem',
+              }}
+            >
+              {index + 1}
+            </div>
+            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: done ? 'var(--app-text)' : 'var(--muted-text)' }}>
+              {t(`businessLaunchStatus.status_${stage}`, {
+                defaultValue: stage.replace(/_/g, ' '),
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -119,7 +217,7 @@ function ProgressBar({ status }) {
 function NextSteps({ status }) {
   const { t } = useTranslation();
 
-  const STEPS = {
+  const steps = {
     pending: [
       t('businessLaunchStatus.next_pending_1', { defaultValue: 'Our team reviews your submission (usually within 24 hours)' }),
       t('businessLaunchStatus.next_pending_2', { defaultValue: "You'll receive a scheduling link to book your kickoff call" }),
@@ -151,130 +249,131 @@ function NextSteps({ status }) {
     ],
   };
 
-  const items = STEPS[status] || STEPS.pending;
+  const items = steps[status] || steps.pending;
   return (
-    <ol style={{
-      margin: 0,
-      paddingLeft: '1.5rem',
-      color: 'var(--muted-text)',
-      lineHeight: 1.8,
-      fontSize: '0.95rem',
-    }}>
-      {items.map((step, i) => <li key={i}>{step}</li>)}
+    <ol
+      style={{
+        margin: 0,
+        paddingLeft: '1.3rem',
+        color: 'var(--muted-text)',
+        lineHeight: 1.85,
+        fontSize: '0.95rem',
+      }}
+    >
+      {items.map((step, index) => (
+        <li key={index}>{step}</li>
+      ))}
     </ol>
   );
 }
 
-function RequestCard({ request, onClick }) {
+function RequestCard({ request, onClick, featured = false }) {
   const { t } = useTranslation();
-
-  const STATUS_DESC_DEFAULTS = {
-    pending:           'Your intake form has been received. Our team is reviewing it.',
-    contacted:         'We have reviewed your submission and will be reaching out soon.',
-    kickoff_scheduled: 'Your kickoff call is scheduled. Check your email for details.',
-    in_progress:       'Your business setup is underway. We are implementing your services.',
-    completed:         'Your Business Launch Program is complete! Welcome to your new business.',
-    cancelled:         'This request has been cancelled.',
-  };
+  const packageName = PACKAGE_DISPLAY[request.package_selected] || request.package_selected;
+  const progress = STATUS_PROGRESS[request.status] ?? 0;
+  const summary = t(`businessLaunchStatus.desc_${request.status}`, {
+    defaultValue: STATUS_COPY[request.status] || '',
+  });
+  const title = request.business_name || `${request.first_name} ${request.last_name}`;
 
   return (
     <article
       onClick={onClick}
-      onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onClick()}
+      onKeyDown={(event) => (event.key === 'Enter' || event.key === ' ') && onClick()}
       tabIndex={0}
       role="button"
       aria-label={t('businessLaunchStatus.viewDetailsFor', {
         defaultValue: 'View details for {{name}}',
-        name: request.business_name || `${request.first_name} ${request.last_name}`,
+        name: title,
       })}
       style={{
-        background: 'var(--card-bg)',
-        border: '1px solid var(--border-color)',
-        borderRadius: '10px',
-        padding: '1.5rem',
+        background: featured
+          ? 'linear-gradient(180deg, rgba(79,70,229,0.12), rgba(11,18,32,0.96))'
+          : 'rgba(15,23,42,0.72)',
+        border: `1px solid ${featured ? 'rgba(79,70,229,0.28)' : 'rgba(148,163,184,0.14)'}`,
+        borderRadius: '24px',
+        padding: featured ? '1.5rem' : '1.25rem',
         cursor: 'pointer',
-        transition: 'box-shadow 0.18s, border-color 0.18s',
+        transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
+        boxShadow: featured ? '0 18px 50px rgba(2,6,23,0.28)' : 'none',
         outline: 'none',
       }}
-      onMouseEnter={e => {
-        e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.09)';
-        e.currentTarget.style.borderColor = STATUS_COLORS[request.status] || '#d1d5db';
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-1px)';
+        e.currentTarget.style.borderColor = `${STATUS_COLORS[request.status] || '#94A3B8'}55`;
       }}
-      onMouseLeave={e => {
-        e.currentTarget.style.boxShadow = 'none';
-        e.currentTarget.style.borderColor = 'var(--border-color)';
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.borderColor = featured ? 'rgba(79,70,229,0.28)' : 'rgba(148,163,184,0.14)';
       }}
-      onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 3px rgba(79,70,229,0.2)'; }}
-      onBlur={e => { e.currentTarget.style.boxShadow = 'none'; }}
+      onFocus={(e) => {
+        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(79,70,229,0.2)';
+      }}
+      onBlur={(e) => {
+        e.currentTarget.style.boxShadow = featured ? '0 18px 50px rgba(2,6,23,0.28)' : 'none';
+      }}
     >
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        gap: '1rem',
-        flexWrap: 'wrap',
-        marginBottom: '1rem',
-      }}>
-        <div>
-          <h3 style={{ margin: '0 0 0.35rem', fontSize: '1.15rem', fontWeight: 600 }}>
-            {request.business_name || `${request.first_name} ${request.last_name}`}
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        <div style={{ minWidth: 0 }}>
+          {featured && (
+            <div style={{ marginBottom: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#A5B4FC', fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <Rocket size={13} />
+              Active launch
+            </div>
+          )}
+          <h3 style={{ margin: '0 0 0.3rem', fontSize: featured ? '1.35rem' : '1.08rem', fontWeight: 700, color: 'var(--app-text)' }}>
+            {title}
           </h3>
-          <p style={{ margin: '0 0 0.2rem', color: 'var(--muted-text)', fontSize: '0.9rem' }}>
-            {PACKAGE_DISPLAY[request.package_selected] || request.package_selected}
-          </p>
-          <p style={{ margin: 0, color: 'var(--muted-text)', fontSize: '0.85rem' }}>
-            {t('businessLaunchStatus.submitted', { defaultValue: 'Submitted' })}{' '}
-            {fmtDate(request.created_at)}
-          </p>
+          <p style={{ margin: 0, color: 'var(--muted-text)', fontSize: '0.92rem' }}>{packageName}</p>
         </div>
         <StatusBadge status={request.status} />
       </div>
 
-      <ProgressBar status={request.status} />
+      <div style={{ marginTop: '1rem', display: 'grid', gap: '0.8rem' }}>
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.82rem', color: 'var(--muted-text)', fontWeight: 600 }}>
+              {t('businessLaunchStatus.progressLabel', { defaultValue: 'Launch progress' })}
+            </span>
+            <span style={{ fontSize: '0.82rem', color: 'var(--app-text)', fontWeight: 700 }}>{progress}%</span>
+          </div>
+          <ProgressBar status={request.status} compact />
+        </div>
 
-      <p style={{ margin: '0.85rem 0 0', color: 'var(--muted-text)', fontSize: '0.9rem' }}>
-        {t(`businessLaunchStatus.desc_${request.status}`, {
-          defaultValue: STATUS_DESC_DEFAULTS[request.status] || '',
-        })}
-      </p>
+        <p style={{ margin: 0, color: 'var(--muted-text)', fontSize: '0.9rem', lineHeight: 1.55 }}>
+          {summary}
+        </p>
 
-      <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', color: '#4F46E5', fontWeight: 500 }}>
-        {t('businessLaunchStatus.viewDetails', { defaultValue: 'View details' })} →
-      </p>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', color: 'var(--muted-text)', fontSize: '0.82rem' }}>
+          <span>{t('businessLaunchStatus.submitted', { defaultValue: 'Submitted' })} {fmtDate(request.created_at)}</span>
+          {request.current_phase ? <span>{t('businessLaunchStatus.currentPhase', { defaultValue: 'Current Phase' })}: {request.current_phase} / 25</span> : null}
+          {request.urgency ? <span>{URGENCY_DISPLAY[request.urgency] || request.urgency}</span> : null}
+        </div>
+
+        <div style={{ color: '#A5B4FC', fontSize: '0.84rem', fontWeight: 700 }}>
+          {t('businessLaunchStatus.viewDetails', { defaultValue: 'View details' })} →
+        </div>
+      </div>
     </article>
   );
 }
 
-function Section({ title, children }) {
-  return (
-    <div style={{ marginBottom: '1.5rem' }}>
-      <h3 style={{
-        margin: '0 0 0.75rem',
-        fontSize: '0.8rem',
-        fontWeight: 700,
-        textTransform: 'uppercase',
-        letterSpacing: '0.07em',
-        color: 'var(--muted-text)',
-      }}>
-        {title}
-      </h3>
-      {children}
-    </div>
-  );
-}
-
-function InfoRow({ label, value }) {
+function DetailField({ icon: Icon, label, value }) {
   if (!value) return null;
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: '160px 1fr',
-      gap: '0.5rem',
-      marginBottom: '0.5rem',
-      fontSize: '0.9rem',
-    }}>
-      <span style={{ color: 'var(--muted-text)', fontWeight: 500 }}>{label}</span>
-      <span style={{ color: 'var(--app-text)' }}>{value}</span>
+    <div
+      style={{
+        border: '1px solid rgba(148,163,184,0.14)',
+        background: 'rgba(255,255,255,0.02)',
+        borderRadius: '18px',
+        padding: '0.9rem 1rem',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.35rem', color: 'var(--muted-text)', fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <Icon size={14} />
+        {label}
+      </div>
+      <div style={{ color: 'var(--app-text)', fontSize: '0.95rem', lineHeight: 1.5 }}>{value}</div>
     </div>
   );
 }
@@ -282,9 +381,14 @@ function InfoRow({ label, value }) {
 function DetailModal({ request, onClose }) {
   const { t } = useTranslation();
   const items = safeItems(request.setup_items_selected);
+  const summary = t(`businessLaunchStatus.desc_${request.status}`, {
+    defaultValue: STATUS_COPY[request.status] || '',
+  });
 
   useEffect(() => {
-    const handler = e => { if (e.key === 'Escape') onClose(); };
+    const handler = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
@@ -297,7 +401,7 @@ function DetailModal({ request, onClose }) {
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.55)',
+        background: 'rgba(2,6,23,0.72)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -308,134 +412,252 @@ function DetailModal({ request, onClose }) {
     >
       <div
         style={{
-          background: 'var(--card-bg)',
-          borderRadius: '12px',
-          padding: '2rem',
-          maxWidth: '640px',
           width: '100%',
+          maxWidth: '980px',
           maxHeight: '88vh',
           overflowY: 'auto',
+          background: 'linear-gradient(180deg, rgba(15,23,42,0.98), rgba(8,13,23,0.98))',
+          border: '1px solid rgba(148,163,184,0.18)',
+          borderRadius: '28px',
+          padding: '1.4rem',
+          boxShadow: '0 28px 90px rgba(2,6,23,0.45)',
         }}
-        onClick={e => e.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
       >
-        {/* Title row */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: '1.25rem',
-          gap: '1rem',
-        }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', marginBottom: '1.15rem' }}>
           <div>
-            <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.3rem', fontWeight: 700 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', color: '#FBBF24', fontSize: '0.76rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>
+              <Sparkles size={14} />
+              Business launch request
+            </div>
+            <h2 style={{ margin: '0 0 0.55rem', fontSize: '1.7rem', fontWeight: 800, color: 'var(--app-text)' }}>
               {request.business_name || `${request.first_name} ${request.last_name}`}
             </h2>
-            <StatusBadge status={request.status} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <StatusBadge status={request.status} />
+              <span style={{ color: 'var(--muted-text)', fontSize: '0.9rem' }}>
+                {PACKAGE_DISPLAY[request.package_selected] || request.package_selected}
+              </span>
+            </div>
           </div>
+
           <button
             onClick={onClose}
             aria-label={t('common.close', { defaultValue: 'Close' })}
             style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              fontSize: '1.5rem', color: 'var(--muted-text)', lineHeight: 1,
-              padding: '0 4px', borderRadius: '4px', flexShrink: 0,
+              width: '42px',
+              height: '42px',
+              borderRadius: '999px',
+              border: '1px solid rgba(148,163,184,0.16)',
+              background: 'rgba(255,255,255,0.03)',
+              color: 'var(--muted-text)',
+              cursor: 'pointer',
+              fontSize: '1.35rem',
+              lineHeight: 1,
+              flexShrink: 0,
             }}
           >
             ×
           </button>
         </div>
 
-        <ProgressBar status={request.status} />
-
-        <p style={{ margin: '0.75rem 0 1.5rem', color: 'var(--muted-text)', fontSize: '0.95rem' }}>
-          {t(`businessLaunchStatus.desc_${request.status}`, { defaultValue: '' })}
-        </p>
-
-        <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', marginBottom: '1.5rem' }} />
-
-        {/* Package */}
-        <Section title={t('businessLaunchStatus.selectedPackage', { defaultValue: 'Selected Package' })}>
-          <p style={{ margin: 0, fontWeight: 600 }}>
-            {PACKAGE_DISPLAY[request.package_selected] || request.package_selected}
-          </p>
-        </Section>
-
-        {/* Business info */}
-        <Section title={t('businessLaunchStatus.businessInfo', { defaultValue: 'Business Information' })}>
-          <InfoRow label={t('businessLaunchStatus.skill',        { defaultValue: 'Skill / Offer' })}   value={request.skill_description} />
-          <InfoRow label={t('businessLaunchStatus.targetMarket', { defaultValue: 'Target Market' })}   value={request.target_market} />
-          <InfoRow label={t('businessLaunchStatus.businessName', { defaultValue: 'Business Name' })}   value={request.business_name} />
-          <InfoRow
-            label={t('businessLaunchStatus.location', { defaultValue: 'Location' })}
-            value={[request.operating_state, request.operating_country].filter(Boolean).join(', ') || null}
-          />
-          <InfoRow
-            label={t('businessLaunchStatus.currentPhase', { defaultValue: 'Current Phase' })}
-            value={request.current_phase ? `${request.current_phase} / 25` : null}
-          />
-          <InfoRow
-            label={t('businessLaunchStatus.urgency', { defaultValue: 'Urgency' })}
-            value={request.urgency ? (URGENCY_DISPLAY[request.urgency] || request.urgency) : null}
-          />
-        </Section>
-
-        {/* Setup items */}
-        {(items.length > 0 || request.select_all_chosen) && (
-          <Section title={t('businessLaunchStatus.setupItems', { defaultValue: 'Selected Setup Items' })}>
-            {request.select_all_chosen ? (
-              <p style={{ margin: 0, color: 'var(--muted-text)' }}>
-                {t('businessLaunchStatus.allItemsSelected', { defaultValue: 'All available setup items selected' })}
-              </p>
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                {items.map((item, i) => (
-                  <span key={i} style={{
-                    background: 'var(--app-bg)',
-                    border: '1px solid var(--border-color)',
-                    padding: '0.3rem 0.75rem',
-                    borderRadius: '999px',
-                    fontSize: '0.85rem',
-                    color: 'var(--app-text)',
-                  }}>
-                    {item}
-                  </span>
-                ))}
+        <div
+          style={{
+            border: '1px solid rgba(148,163,184,0.14)',
+            background: 'rgba(255,255,255,0.03)',
+            borderRadius: '22px',
+            padding: '1rem',
+            marginBottom: '1rem',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ color: 'var(--muted-text)', fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                {t('businessLaunchStatus.progressLabel', { defaultValue: 'Launch progress' })}
               </div>
-            )}
-          </Section>
-        )}
-
-        {/* Timeline */}
-        <Section title={t('businessLaunchStatus.timeline', { defaultValue: 'Timeline' })}>
-          <InfoRow label={t('businessLaunchStatus.submitted',   { defaultValue: 'Submitted' })}   value={fmtDateTime(request.created_at)} />
-          {request.updated_at && request.updated_at !== request.created_at && (
-            <InfoRow label={t('businessLaunchStatus.lastUpdated', { defaultValue: 'Last Updated' })} value={fmtDateTime(request.updated_at)} />
-          )}
-        </Section>
-
-        {/* Status-specific next steps */}
-        {request.status !== 'cancelled' && (
-          <Section title={t('businessLaunchStatus.whatsNext', { defaultValue: "What's Next?" })}>
-            <NextSteps status={request.status} />
-          </Section>
-        )}
-
-        {/* Support footer */}
-        <div style={{
-          padding: '1rem',
-          background: 'var(--app-bg)',
-          borderRadius: '8px',
-          fontSize: '0.9rem',
-          color: 'var(--muted-text)',
-          textAlign: 'center',
-          marginBottom: '1.25rem',
-        }}>
-          {t('businessLaunchStatus.contactSupport', { defaultValue: 'Questions? Email us at' })}{' '}
-          <a href="mailto:support@oxsteed.com" style={{ color: '#4F46E5', fontWeight: 600, textDecoration: 'none' }}>
-            support@oxsteed.com
-          </a>
+              <div style={{ color: 'var(--app-text)', fontSize: '1.1rem', fontWeight: 700, marginTop: '0.2rem' }}>
+                {summary}
+              </div>
+            </div>
+            <div style={{ color: 'var(--app-text)', fontSize: '1.3rem', fontWeight: 800 }}>
+              {STATUS_PROGRESS[request.status] ?? 0}%
+            </div>
+          </div>
+          <ProgressBar status={request.status} />
         </div>
 
+        <div style={{ marginBottom: '1rem' }}>
+          <StageTimeline status={request.status} />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) 320px', gap: '1rem' }}>
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            <section
+              style={{
+                border: '1px solid rgba(148,163,184,0.14)',
+                borderRadius: '22px',
+                padding: '1rem',
+                background: 'rgba(255,255,255,0.02)',
+              }}
+            >
+              <h3 style={{ margin: '0 0 0.9rem', fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--muted-text)' }}>
+                {t('businessLaunchStatus.businessInfo', { defaultValue: 'Business Information' })}
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.8rem' }}>
+                <DetailField icon={BriefcaseBusiness} label={t('businessLaunchStatus.skill', { defaultValue: 'Skill / Offer' })} value={request.skill_description} />
+                <DetailField icon={Compass} label={t('businessLaunchStatus.targetMarket', { defaultValue: 'Target Market' })} value={request.target_market} />
+                <DetailField icon={Rocket} label={t('businessLaunchStatus.businessName', { defaultValue: 'Business Name' })} value={request.business_name} />
+                <DetailField icon={MapPin} label={t('businessLaunchStatus.location', { defaultValue: 'Location' })} value={[request.operating_state, request.operating_country].filter(Boolean).join(', ') || null} />
+                <DetailField icon={CalendarClock} label={t('businessLaunchStatus.currentPhase', { defaultValue: 'Current Phase' })} value={request.current_phase ? `${request.current_phase} / 25` : null} />
+                <DetailField icon={AlertCircle} label={t('businessLaunchStatus.urgency', { defaultValue: 'Urgency' })} value={request.urgency ? (URGENCY_DISPLAY[request.urgency] || request.urgency) : null} />
+              </div>
+            </section>
+
+            {(items.length > 0 || request.select_all_chosen) && (
+              <section
+                style={{
+                  border: '1px solid rgba(148,163,184,0.14)',
+                  borderRadius: '22px',
+                  padding: '1rem',
+                  background: 'rgba(255,255,255,0.02)',
+                }}
+              >
+                <h3 style={{ margin: '0 0 0.9rem', fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--muted-text)' }}>
+                  {t('businessLaunchStatus.setupItems', { defaultValue: 'Selected Setup Items' })}
+                </h3>
+                {request.select_all_chosen ? (
+                  <p style={{ margin: 0, color: 'var(--muted-text)' }}>
+                    {t('businessLaunchStatus.allItemsSelected', { defaultValue: 'All available setup items selected' })}
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.55rem' }}>
+                    {items.map((item, index) => (
+                      <span
+                        key={index}
+                        style={{
+                          border: '1px solid rgba(148,163,184,0.16)',
+                          background: 'rgba(255,255,255,0.04)',
+                          color: 'var(--app-text)',
+                          borderRadius: '999px',
+                          padding: '0.42rem 0.8rem',
+                          fontSize: '0.84rem',
+                        }}
+                      >
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            <section
+              style={{
+                border: '1px solid rgba(148,163,184,0.14)',
+                borderRadius: '22px',
+                padding: '1rem',
+                background: 'rgba(255,255,255,0.02)',
+              }}
+            >
+              <h3 style={{ margin: '0 0 0.9rem', fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--muted-text)' }}>
+                {t('businessLaunchStatus.timeline', { defaultValue: 'Timeline' })}
+              </h3>
+              <div style={{ display: 'grid', gap: '0.8rem' }}>
+                <DetailField icon={CalendarClock} label={t('businessLaunchStatus.submitted', { defaultValue: 'Submitted' })} value={fmtDateTime(request.created_at)} />
+                {request.updated_at && request.updated_at !== request.created_at ? (
+                  <DetailField icon={FileStack} label={t('businessLaunchStatus.lastUpdated', { defaultValue: 'Last Updated' })} value={fmtDateTime(request.updated_at)} />
+                ) : null}
+              </div>
+            </section>
+
+            {request.status !== 'cancelled' && (
+              <section
+                style={{
+                  border: '1px solid rgba(148,163,184,0.14)',
+                  borderRadius: '22px',
+                  padding: '1rem',
+                  background: 'rgba(255,255,255,0.02)',
+                }}
+              >
+                <h3 style={{ margin: '0 0 0.9rem', fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--muted-text)' }}>
+                  {t('businessLaunchStatus.whatsNext', { defaultValue: "What's Next?" })}
+                </h3>
+                <NextSteps status={request.status} />
+              </section>
+            )}
+
+            <section
+              style={{
+                border: '1px solid rgba(249,115,22,0.18)',
+                borderRadius: '22px',
+                padding: '1rem',
+                background: 'rgba(249,115,22,0.08)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', marginBottom: '0.7rem', color: '#FDBA74', fontSize: '0.82rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                <ShieldCheck size={14} />
+                Support
+              </div>
+              <p style={{ margin: '0 0 0.8rem', color: 'var(--muted-text)', lineHeight: 1.6 }}>
+                {t('businessLaunchStatus.contactSupport', { defaultValue: 'Questions? Email us at' })}{' '}
+                <a href="mailto:support@oxsteed.com" style={{ color: '#FDBA74', fontWeight: 700, textDecoration: 'none' }}>
+                  support@oxsteed.com
+                </a>
+              </p>
+              <div style={{ display: 'grid', gap: '0.65rem' }}>
+                <Link
+                  to="/consulting"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    color: '#FDBA74',
+                    fontWeight: 700,
+                    fontSize: '0.88rem',
+                  }}
+                >
+                  Open consulting workspace <ArrowRight size={14} />
+                </Link>
+                <Link
+                  to="/consulting-intake"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    color: 'var(--app-text)',
+                    fontWeight: 700,
+                    fontSize: '0.88rem',
+                  }}
+                >
+                  Start another intake <ArrowRight size={14} />
+                </Link>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ icon: Icon, label, value, tint = '#94A3B8' }) {
+  return (
+    <div
+      style={{
+        border: `1px solid ${tint}22`,
+        background: 'rgba(15,23,42,0.68)',
+        borderRadius: '22px',
+        padding: '1rem',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: tint, fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+        <Icon size={14} />
+        {label}
+      </div>
+      <div style={{ marginTop: '0.55rem', color: 'var(--app-text)', fontSize: '1.55rem', fontWeight: 800 }}>
+        {value}
       </div>
     </div>
   );
@@ -473,8 +695,8 @@ export default function BusinessLaunchStatusPage() {
     if (user?.email) setEmailQuery(user.email);
   }, [user?.email]);
 
-  const handleSearch = async e => {
-    e.preventDefault();
+  const handleSearch = async (event) => {
+    event.preventDefault();
     const email = emailQuery.trim();
     if (!email) {
       toast.error(t('businessLaunchStatus.enterEmail', { defaultValue: 'Please enter an email address to search' }));
@@ -491,7 +713,11 @@ export default function BusinessLaunchStatusPage() {
         toast(t('businessLaunchStatus.noRequests', { defaultValue: 'No intake forms found for this email' }));
       }
     } catch (err) {
-      const msg = err.response?.data?.error || t('businessLaunchStatus.searchError', { defaultValue: 'Error searching for intake forms. Please try again.' });
+      const msg =
+        err.response?.data?.error ||
+        t('businessLaunchStatus.searchError', {
+          defaultValue: 'Error searching for intake forms. Please try again.',
+        });
       setError(msg);
       toast.error(msg);
     } finally {
@@ -499,136 +725,349 @@ export default function BusinessLaunchStatusPage() {
     }
   };
 
+  const activeRequest = useMemo(() => {
+    if (!requests.length) return null;
+    const order = ['in_progress', 'kickoff_scheduled', 'contacted', 'pending', 'completed', 'cancelled'];
+    return [...requests].sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status))[0];
+  }, [requests]);
+
+  const stats = useMemo(() => {
+    const total = requests.length;
+    const completed = requests.filter((request) => request.status === 'completed').length;
+    const inMotion = requests.filter((request) => ['contacted', 'kickoff_scheduled', 'in_progress'].includes(request.status)).length;
+    const avg = total
+      ? Math.round(
+          requests.reduce((sum, request) => sum + (STATUS_PROGRESS[request.status] ?? 0), 0) / total,
+        )
+      : 0;
+    return { total, completed, inMotion, avg };
+  }, [requests]);
+
   return (
-    <PageShell>
+    <PageShell hideFooter>
       <PageMeta
         title={t('businessLaunchStatus.trackYourBusiness', { defaultValue: 'Track Your Business Launch' })}
         description={t('businessLaunchStatus.checkStatus', { defaultValue: 'Check the status of your intake form and upcoming milestones' })}
       />
-      <div style={{ maxWidth: '720px', margin: '0 auto', padding: '1.25rem' }}>
-        <h1 style={{ margin: '0 0 0.5rem', fontSize: '1.75rem', fontWeight: 700 }}>
-          {t('businessLaunchStatus.trackYourBusiness', { defaultValue: 'Track Your Business Launch' })}
-        </h1>
-        <p style={{ margin: '0 0 1.5rem', color: 'var(--muted-text)', fontSize: '1rem', lineHeight: 1.5 }}>
-          {t('businessLaunchStatus.checkStatus', { defaultValue: 'Check the status of your intake form and upcoming milestones' })}
-        </p>
 
-        <form
-          onSubmit={handleSearch}
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
-            alignItems: 'center',
-            marginBottom: '1.5rem',
-          }}
-        >
-          <input
-            id="bls-email-search"
-            type="email"
-            autoComplete="email"
-            aria-label={t('businessLaunchStatus.emailPlaceholder', { defaultValue: 'Enter your email address' })}
-            value={emailQuery}
-            onChange={e => setEmailQuery(e.target.value)}
-            placeholder={t('businessLaunchStatus.emailPlaceholder', { defaultValue: 'Enter your email address' })}
+      <div
+        style={{
+          minHeight: '100vh',
+          background:
+            'radial-gradient(circle at top left, rgba(79,70,229,0.14), transparent 24%), radial-gradient(circle at top right, rgba(14,165,233,0.14), transparent 22%), linear-gradient(180deg, #07101d 0%, #030712 100%)',
+          color: 'var(--app-text)',
+        }}
+      >
+        <div style={{ maxWidth: '1260px', margin: '0 auto', padding: '1.25rem 1rem 2rem' }}>
+          <section
             style={{
-              flex: '1 1 220px',
-              minWidth: 0,
-              padding: '0.65rem 0.9rem',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-              background: 'var(--card-bg)',
-              color: 'var(--app-text)',
-              fontSize: '1rem',
-            }}
-          />
-          <button
-            type="submit"
-            disabled={searching}
-            style={{
-              padding: '0.65rem 1.25rem',
-              borderRadius: '8px',
-              border: 'none',
-              background: '#4F46E5',
-              color: 'white',
-              fontWeight: 600,
-              cursor: searching ? 'wait' : 'pointer',
+              border: '1px solid rgba(148,163,184,0.16)',
+              borderRadius: '30px',
+              background:
+                'linear-gradient(180deg, rgba(15,23,42,0.92), rgba(7,12,20,0.96))',
+              padding: '1.4rem',
+              boxShadow: '0 24px 80px rgba(2,6,23,0.34)',
             }}
           >
-            {searching
-              ? t('common.loading', { defaultValue: 'Loading…' })
-              : t('businessLaunchStatus.search', { defaultValue: 'Check Status' })}
-          </button>
-          <button
-            type="button"
-            onClick={() => loadMine()}
-            disabled={loading}
-            style={{
-              padding: '0.65rem 1rem',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-              background: 'var(--app-bg)',
-              color: 'var(--app-text)',
-              fontWeight: 500,
-              cursor: loading ? 'wait' : 'pointer',
-            }}
-          >
-            {t('common.retry', { defaultValue: 'Retry' })}
-          </button>
-        </form>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.3fr) 360px', gap: '1rem', alignItems: 'stretch' }}>
+              <div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', color: '#A5B4FC', fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.9rem' }}>
+                  <Rocket size={15} />
+                  Launch command center
+                </div>
+                <h1 style={{ margin: '0 0 0.6rem', fontSize: 'clamp(2.2rem, 4vw, 4rem)', lineHeight: 0.95, fontWeight: 800, letterSpacing: '-0.04em' }}>
+                  {t('businessLaunchStatus.trackYourBusiness', { defaultValue: 'Track Your Business Launch' })}
+                </h1>
+                <p style={{ margin: '0 0 1.15rem', color: 'var(--muted-text)', fontSize: '1.03rem', lineHeight: 1.65, maxWidth: '52rem' }}>
+                  {t('businessLaunchStatus.checkStatus', { defaultValue: 'Check the status of your intake form and upcoming milestones' })}
+                </p>
 
-        {error && (
-          <p style={{ color: '#DC2626', marginBottom: '1rem', fontSize: '0.95rem' }} role="alert">
-            {error}
-          </p>
-        )}
+                <form
+                  onSubmit={handleSearch}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(0, 1fr) auto auto',
+                    gap: '0.75rem',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'auto minmax(0, 1fr)',
+                      gap: '0.7rem',
+                      alignItems: 'center',
+                      border: '1px solid rgba(148,163,184,0.16)',
+                      borderRadius: '18px',
+                      background: 'rgba(255,255,255,0.03)',
+                      padding: '0.85rem 0.95rem',
+                    }}
+                  >
+                    <Mail size={17} color="#A5B4FC" aria-hidden="true" />
+                    <input
+                      id="bls-email-search"
+                      type="email"
+                      autoComplete="email"
+                      aria-label={t('businessLaunchStatus.emailPlaceholder', { defaultValue: 'Enter your email address' })}
+                      value={emailQuery}
+                      onChange={(event) => setEmailQuery(event.target.value)}
+                      placeholder={t('businessLaunchStatus.emailPlaceholder', { defaultValue: 'Enter your email address' })}
+                      style={{
+                        width: '100%',
+                        minWidth: 0,
+                        border: 'none',
+                        outline: 'none',
+                        background: 'transparent',
+                        color: 'var(--app-text)',
+                        fontSize: '1rem',
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={searching}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.45rem',
+                      padding: '0.9rem 1.2rem',
+                      borderRadius: '18px',
+                      border: 'none',
+                      background: '#4F46E5',
+                      color: 'white',
+                      fontWeight: 700,
+                      cursor: searching ? 'wait' : 'pointer',
+                    }}
+                  >
+                    <Search size={16} />
+                    {searching
+                      ? t('common.loading', { defaultValue: 'Loading…' })
+                      : t('businessLaunchStatus.search', { defaultValue: 'Check Status' })}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => loadMine()}
+                    disabled={loading}
+                    style={{
+                      padding: '0.9rem 1rem',
+                      borderRadius: '18px',
+                      border: '1px solid rgba(148,163,184,0.18)',
+                      background: 'rgba(255,255,255,0.03)',
+                      color: 'var(--app-text)',
+                      fontWeight: 700,
+                      cursor: loading ? 'wait' : 'pointer',
+                    }}
+                  >
+                    {t('common.retry', { defaultValue: 'Retry' })}
+                  </button>
+                </form>
 
-        {loading ? (
-          <p style={{ color: 'var(--muted-text)' }}>{t('common.loading', { defaultValue: 'Loading…' })}</p>
-        ) : requests.length === 0 ? (
-          <div
-            style={{
-              padding: '1.5rem',
-              borderRadius: '10px',
-              border: '1px dashed var(--border-color)',
-              textAlign: 'center',
-              color: 'var(--muted-text)',
-            }}
-          >
-            <p style={{ margin: '0 0 1rem' }}>
-              {t('businessLaunchStatus.noRequests', { defaultValue: 'No intake forms found for this email' })}
+                {error ? (
+                  <p style={{ color: '#FCA5A5', margin: '0.9rem 0 0', fontSize: '0.95rem' }} role="alert">
+                    {error}
+                  </p>
+                ) : null}
+              </div>
+
+              <div
+                style={{
+                  border: '1px solid rgba(148,163,184,0.16)',
+                  borderRadius: '24px',
+                  background: 'rgba(255,255,255,0.03)',
+                  padding: '1rem',
+                  display: 'grid',
+                  gap: '0.8rem',
+                }}
+              >
+                <div style={{ color: '#FBBF24', fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  What this page gives you
+                </div>
+                <div style={{ display: 'grid', gap: '0.7rem' }}>
+                  <div style={{ border: '1px solid rgba(148,163,184,0.12)', borderRadius: '18px', padding: '0.85rem', background: 'rgba(255,255,255,0.02)' }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700, marginBottom: '0.25rem' }}>See the real launch stage</div>
+                    <div style={{ color: 'var(--muted-text)', fontSize: '0.84rem', lineHeight: 1.5 }}>
+                      Know whether you are waiting for contact, scheduled for kickoff, or already in execution.
+                    </div>
+                  </div>
+                  <div style={{ border: '1px solid rgba(148,163,184,0.12)', borderRadius: '18px', padding: '0.85rem', background: 'rgba(255,255,255,0.02)' }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700, marginBottom: '0.25rem' }}>Review intake details</div>
+                    <div style={{ color: 'var(--muted-text)', fontSize: '0.84rem', lineHeight: 1.5 }}>
+                      Check your package, urgency, setup items, and business details without digging through old emails.
+                    </div>
+                  </div>
+                  <div style={{ border: '1px solid rgba(148,163,184,0.12)', borderRadius: '18px', padding: '0.85rem', background: 'rgba(255,255,255,0.02)' }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700, marginBottom: '0.25rem' }}>Know the next action</div>
+                    <div style={{ color: 'var(--muted-text)', fontSize: '0.84rem', lineHeight: 1.5 }}>
+                      Every status includes a clearer next-steps checklist so the process feels less opaque.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '0.85rem', marginTop: '1rem' }}>
+            <StatCard icon={FileStack} label="Requests found" value={stats.total} tint="#A5B4FC" />
+            <StatCard icon={Rocket} label="In motion" value={stats.inMotion} tint="#38BDF8" />
+            <StatCard icon={CheckCircle2} label="Completed" value={stats.completed} tint="#34D399" />
+            <StatCard icon={Compass} label="Average progress" value={`${stats.avg}%`} tint="#FBBF24" />
+          </section>
+
+          {loading ? (
+            <div style={{ marginTop: '1.5rem', color: 'var(--muted-text)' }}>
+              {t('common.loading', { defaultValue: 'Loading…' })}
+            </div>
+          ) : requests.length === 0 ? (
+            <section
+              style={{
+                marginTop: '1rem',
+                border: '1px dashed rgba(148,163,184,0.22)',
+                borderRadius: '28px',
+                padding: '2rem',
+                textAlign: 'center',
+                background: 'rgba(15,23,42,0.48)',
+              }}
+            >
+              <div style={{ width: '58px', height: '58px', margin: '0 auto 1rem', borderRadius: '999px', background: 'rgba(79,70,229,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A5B4FC' }}>
+                <Rocket size={26} />
+              </div>
+              <h2 style={{ margin: '0 0 0.6rem', fontSize: '1.5rem', fontWeight: 800 }}>
+                {t('businessLaunchStatus.noRequests', { defaultValue: 'No intake forms found for this email' })}
+              </h2>
+              <p style={{ margin: '0 auto 1.2rem', maxWidth: '40rem', color: 'var(--muted-text)', lineHeight: 1.65 }}>
+                Start the business launch intake to get matched with the right package, planning steps, and launch support.
+              </p>
+              <Link
+                to="/consulting-intake"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: '#4F46E5',
+                  color: 'white',
+                  borderRadius: '16px',
+                  padding: '0.95rem 1.25rem',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                }}
+              >
+                {t('businessLaunchStatus.startLaunch', { defaultValue: 'Start Your Business Launch →' })}
+              </Link>
+            </section>
+          ) : (
+            <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) 360px', gap: '1rem', alignItems: 'start' }}>
+              <div style={{ display: 'grid', gap: '1rem' }}>
+                {activeRequest ? (
+                  <RequestCard request={activeRequest} onClick={() => setSelected(activeRequest)} featured />
+                ) : null}
+                <div style={{ display: 'grid', gap: '0.9rem' }}>
+                  {requests
+                    .filter((request) => !activeRequest || request.id !== activeRequest.id)
+                    .map((request) => (
+                      <RequestCard key={request.id} request={request} onClick={() => setSelected(request)} />
+                    ))}
+                </div>
+              </div>
+
+              <aside style={{ display: 'grid', gap: '1rem' }}>
+                <div
+                  style={{
+                    border: '1px solid rgba(148,163,184,0.16)',
+                    borderRadius: '24px',
+                    background: 'rgba(15,23,42,0.68)',
+                    padding: '1rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: '#FBBF24', fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.85rem' }}>
+                    <ShieldCheck size={14} />
+                    Need help?
+                  </div>
+                  <p style={{ margin: '0 0 0.9rem', color: 'var(--muted-text)', lineHeight: 1.65 }}>
+                    Questions about your launch request, package, or timeline can go through the consulting team.
+                  </p>
+                  <a
+                    href="mailto:support@oxsteed.com"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.45rem',
+                      color: '#FDBA74',
+                      fontWeight: 700,
+                      textDecoration: 'none',
+                    }}
+                  >
+                    Email support@oxsteed.com <ArrowRight size={14} />
+                  </a>
+                </div>
+
+                <div
+                  style={{
+                    border: '1px solid rgba(148,163,184,0.16)',
+                    borderRadius: '24px',
+                    background: 'rgba(15,23,42,0.68)',
+                    padding: '1rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: '#38BDF8', fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.85rem' }}>
+                    <Briefcase size={14} />
+                    Related workspaces
+                  </div>
+                  <div style={{ display: 'grid', gap: '0.7rem' }}>
+                    <Link to="/consulting" style={{ color: 'var(--app-text)', fontWeight: 700, textDecoration: 'none' }}>
+                      Open consulting workspace →
+                    </Link>
+                    <Link to="/consulting-intake" style={{ color: 'var(--app-text)', fontWeight: 700, textDecoration: 'none' }}>
+                      Submit a new intake form →
+                    </Link>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    border: '1px solid rgba(148,163,184,0.16)',
+                    borderRadius: '24px',
+                    background: 'rgba(15,23,42,0.68)',
+                    padding: '1rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: '#A5B4FC', fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.85rem' }}>
+                    <Compass size={14} />
+                    Process snapshot
+                  </div>
+                  <div style={{ display: 'grid', gap: '0.7rem', color: 'var(--muted-text)', fontSize: '0.9rem', lineHeight: 1.6 }}>
+                    <div>1. Intake review and package confirmation</div>
+                    <div>2. Kickoff scheduling and prep</div>
+                    <div>3. Setup execution and milestone updates</div>
+                    <div>4. Final handoff and launch readiness</div>
+                  </div>
+                </div>
+              </aside>
+            </div>
+          )}
+
+          <div style={{ marginTop: '1.2rem', textAlign: 'center' }}>
+            <p style={{ margin: '0 0 0.75rem', color: 'var(--muted-text)', fontSize: '0.95rem' }}>
+              {t('businessLaunchStatus.wantAnother', { defaultValue: 'Want to start another business?' })}
             </p>
             <Link
               to="/consulting-intake"
-              style={{ color: '#4F46E5', fontWeight: 600, textDecoration: 'none' }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                color: '#A5B4FC',
+                fontWeight: 700,
+                textDecoration: 'none',
+              }}
             >
-              {t('businessLaunchStatus.startLaunch', { defaultValue: 'Start Your Business Launch →' })}
+              {t('businessLaunchStatus.submitNew', { defaultValue: 'Submit a New Intake Form' })}
+              <ArrowRight size={14} />
             </Link>
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {requests.map(req => (
-              <RequestCard key={req.id} request={req} onClick={() => setSelected(req)} />
-            ))}
-          </div>
-        )}
-
-        <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)', textAlign: 'center' }}>
-          <p style={{ margin: '0 0 0.75rem', color: 'var(--muted-text)', fontSize: '0.95rem' }}>
-            {t('businessLaunchStatus.wantAnother', { defaultValue: 'Want to start another business?' })}
-          </p>
-          <Link
-            to="/consulting-intake"
-            style={{ color: '#4F46E5', fontWeight: 600, textDecoration: 'none' }}
-          >
-            {t('businessLaunchStatus.submitNew', { defaultValue: 'Submit a New Intake Form' })}
-          </Link>
         </div>
       </div>
 
-      {selected && (
-        <DetailModal request={selected} onClose={() => setSelected(null)} />
-      )}
+      {selected ? <DetailModal request={selected} onClose={() => setSelected(null)} /> : null}
     </PageShell>
   );
 }

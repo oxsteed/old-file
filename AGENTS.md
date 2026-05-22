@@ -70,6 +70,11 @@
 - **`client/src/pages/ConsultingFullPortal.jsx`**: Reworked the no-session state into a stronger consulting landing/workspace entry surface with a premium hero, clearer intake and launch-status actions, portal-preview content, a three-step “how this works” strip, and package CTAs that route into the actual intake flow instead of looping back into `/consulting`.
 - **Verification:** `client/src/pages/ConsultingFullPortal.jsx` bundles successfully in isolation via `esbuild`.
 
+**Business launch status page redesign at `/business-launch-status` (2026-05-22):** COMPLETE
+- **`client/src/pages/BusinessLaunchStatusPage.jsx`**: Rebuilt the page from a narrow plain lookup form into a darker launch-status command center with a stronger hero, email search bar, quick metrics, a featured active request card, richer secondary request cards, and a right-side support/process rail so applicants can understand both status and context without feeling stuck in an empty utility page.
+- **Details experience:** The request modal is now a fuller launch workspace with phase timeline, structured business fields, setup-item chips, clearer timeline metadata, stronger next-steps guidance, and direct links back into consulting/support flows.
+- **Verification:** `client/src/pages/BusinessLaunchStatusPage.jsx` bundles successfully in isolation via `esbuild`.
+
 **Expo React Native mobile Phase 1 foundation (2026-05-19):** COMPLETE
 - **`mobile/package.json`, `mobile/app.json`, `mobile/App.tsx`, `mobile/tsconfig.json`, `mobile/babel.config.js`, `mobile/src/**`**: Restarted the mobile client as an Expo React Native + TypeScript companion app instead of continuing the SwiftUI-only pass. The shell now uses React Navigation tabs, TanStack Query, Zustand auth state, SecureStore sessions, Expo Notifications, shared native UI primitives, and feature flags for staged rollout. App bootstrap lives in `mobile/src/bootstrap` so Expo does not confuse the project with an Expo Router app directory.
 - **Mobile cleanup:** Removed stale Capacitor/Vite entry files, the SwiftUI iOS project, old mobile screenshots, and the obsolete lockfile so `mobile/` now represents the Expo app source instead of multiple competing mobile shells.
