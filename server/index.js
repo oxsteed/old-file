@@ -136,6 +136,8 @@ const vortexAccessRoutes   = require('./routes/vortex');
 const meWorkspaceRoutes    = require('./routes/meWorkspace');
 // OxSteed corporate hierarchy (migration 246)
 const corporateRolesRoutes = require('./routes/corporateRoles');
+// Per-mode platform approval gates (migration 272)
+const modePlatformApprovalRoutes = require('./routes/modePlatformApprovals');
 // roleToggleRoutes removed - use POST /api/auth/switch-role instead (authController.switchRole)
 // The old /api/role-toggle endpoint had no session invalidation, no helper_profiles row
 // creation, and no fresh JWT issuance, causing inconsistent auth state.
@@ -543,6 +545,9 @@ app.use('/api/businesses', businessTeamRoutes);
 app.use('/api/vortex',     vortexAccessRoutes);
 app.use('/api/me',         meWorkspaceRoutes);
 app.use('/api/admin/corporate', corporateRolesRoutes);
+// Per-mode platform approval gates — user-facing + admin queues.
+app.use('/api/mode-approvals', modePlatformApprovalRoutes.userRouter);
+app.use('/api/admin',          modePlatformApprovalRoutes.adminRouter);
 app.use('/api/business-profile', businessProfileImagesRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/reviews/business', businessReviewsRoutes);

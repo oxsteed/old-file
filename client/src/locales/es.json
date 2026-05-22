@@ -8494,5 +8494,49 @@
       "growSubtitle": "Conecta con un consultor, abre un mercado nuevo o solicita una franquicia.",
       "talkConsultant": "Hablar con un consultor"
     }
+  },
+  "platformApproval": {
+    "title": "Aprobación de OxSteed requerida",
+    "subtitle": {
+      "default": "Una breve solicitud antes de poder actuar aquí.",
+      "consultant": "Envía una solicitud corta para que OxSteed verifique tus credenciales antes de tomar clientes pagos."
+    },
+    "statusApproved": "Estás aprobado",
+    "statusApprovedHint": "Ya puedes tomar clientes pagos.",
+    "statusRequested": "Solicitud en revisión",
+    "statusRequestedHint": "Te enviaremos un correo cuando se decida — usualmente 1-2 días hábiles.",
+    "statusRejected": "La solicitud anterior no fue aprobada",
+    "statusRejectedHint": "Puedes actualizar tus respuestas e intentar de nuevo.",
+    "reviewerNotes": "Nota del revisor:",
+    "noFieldsHint": "No se requieren detalles adicionales. Envía para solicitar.",
+    "submit": "Enviar solicitud",
+    "resubmit": "Reenviar",
+    "submitting": "Enviando...",
+    "approvedToast": "Estás aprobado.",
+    "submittedToast": "Solicitud enviada.",
+    "submitFailed": "No se pudo enviar. Intenta de nuevo.",
+    "noLongerRequired": "Ya no se requiere aprobación para este modo.",
+    "validationFailed": "Algunos campos necesitan atención.",
+    "fieldErrorRequired": "Este campo es obligatorio.",
+    "fieldErrorMinLength": "Demasiado corto.",
+    "fieldErrorMaxLength": "Demasiado largo.",
+    "fieldErrorNumber": "Debe ser un número.",
+    "fieldErrorUrl": "Debe ser una URL válida.",
+    "banner": {
+      "viewStatus": "Ver estado",
+      "requestNow": "Solicitar aprobación",
+      "default": {
+        "title": "Aprobación de OxSteed requerida",
+        "hint": "Envía una solicitud rápida para desbloquear acciones.",
+        "pendingTitle": "Solicitud en revisión",
+        "pendingHint": "Te enviaremos un correo cuando se decida."
+      },
+      "consultant": {
+        "title": "Se necesita aprobación de OxSteed",
+        "hint": "Envía una solicitud corta antes de aceptar clientes pagos.",
+        "pendingTitle": "Aprobación en revisión",
+        "pendingHint": "Te enviaremos un correo cuando se decida — usualmente 1-2 días hábiles."
+      }
+    }
   }
 }

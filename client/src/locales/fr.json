@@ -8494,5 +8494,49 @@
       "growSubtitle": "Contactez un consultant, ouvrez un nouveau marché ou postulez à la franchise OxSteed.",
       "talkConsultant": "Parler à un consultant"
     }
+  },
+  "platformApproval": {
+    "title": "Approbation OxSteed requise",
+    "subtitle": {
+      "default": "Une courte candidature avant de pouvoir agir ici.",
+      "consultant": "Soumettez une courte candidature pour qu'OxSteed vérifie vos qualifications avant de prendre des clients payants."
+    },
+    "statusApproved": "Vous êtes approuvé",
+    "statusApprovedHint": "Vous pouvez maintenant prendre des clients payants.",
+    "statusRequested": "Candidature en cours d'examen",
+    "statusRequestedHint": "Nous vous enverrons un e-mail dès la décision — généralement 1-2 jours ouvrables.",
+    "statusRejected": "La candidature précédente n'a pas été approuvée",
+    "statusRejectedHint": "Vous pouvez mettre à jour vos réponses et réessayer.",
+    "reviewerNotes": "Note du réviseur :",
+    "noFieldsHint": "Aucun détail supplémentaire requis. Envoyez pour soumettre la demande.",
+    "submit": "Soumettre la candidature",
+    "resubmit": "Renvoyer",
+    "submitting": "Envoi...",
+    "approvedToast": "Vous êtes approuvé.",
+    "submittedToast": "Candidature soumise.",
+    "submitFailed": "Échec de l'envoi. Veuillez réessayer.",
+    "noLongerRequired": "L'approbation n'est plus requise pour ce mode.",
+    "validationFailed": "Certains champs nécessitent une attention.",
+    "fieldErrorRequired": "Ce champ est obligatoire.",
+    "fieldErrorMinLength": "Trop court.",
+    "fieldErrorMaxLength": "Trop long.",
+    "fieldErrorNumber": "Doit être un nombre.",
+    "fieldErrorUrl": "Doit être une URL valide.",
+    "banner": {
+      "viewStatus": "Voir le statut",
+      "requestNow": "Demander l'approbation",
+      "default": {
+        "title": "Approbation OxSteed requise",
+        "hint": "Soumettez une candidature rapide pour débloquer les actions.",
+        "pendingTitle": "Demande en cours d'examen",
+        "pendingHint": "Nous vous enverrons un e-mail dès la décision."
+      },
+      "consultant": {
+        "title": "Approbation OxSteed nécessaire",
+        "hint": "Soumettez une courte candidature avant d'accepter des clients payants.",
+        "pendingTitle": "Approbation en cours",
+        "pendingHint": "Nous vous enverrons un e-mail dès la décision — généralement 1-2 jours ouvrables."
+      }
+    }
   }
 }

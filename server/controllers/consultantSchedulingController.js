@@ -1,6 +1,7 @@
 const db = require('../db');
 const { sendEmail } = require('../utils/email');
 const logger = require('../utils/logger');
+const platformApprovalSvc = require('../services/modePlatformApprovalService');
 
 // Get consultant's recurring availability (day of week schedule)
 exports.getConsultantAvailability = async (req, res) => {
@@ -251,6 +252,24 @@ exports.bookTimeSlot = async (req, res) => {
     const isAdmin = req.user && (req.user.role === 'admin' || req.user.role === 'super_admin');
     if (!isAdmin && (!req.user || session.user_id !== req.user.id)) {
       return res.status(403).json({ error: 'Not authorized for this session' });
+    }
+
+    // Platform-approval gate: an unapproved consultant cannot have a paid
+    // booking pinned to their calendar. We check the *consultant* (not the
+    // caller) — they're the one who needs OxSteed sign-off. Admins bypass.
+    if (!isAdmin) {
+      const consultantCheck = await platformApprovalSvc.canPerformAction(
+        consultantId,
+        'consultant',
+        'accept_paying_booking',
+      );
+      if (!consultantCheck.allowed) {
+        return res.status(409).json({
+          error: 'consultant_pending_platform_approval',
+          message: 'This consultant is still completing OxSteed verification and cannot accept bookings yet.',
+          current_status: consultantCheck.current_status,
+        });
+      }
     }
 
     // Calculate end time

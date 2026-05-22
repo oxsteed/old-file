@@ -8494,5 +8494,49 @@
       "growSubtitle": "Connect with a consultant, open a new market, or apply to franchise OxSteed.",
       "talkConsultant": "Talk to a consultant"
     }
+  },
+  "platformApproval": {
+    "title": "OxSteed approval required",
+    "subtitle": {
+      "default": "A quick application before you can take action here.",
+      "consultant": "Submit a short application so OxSteed can verify your consulting credentials before you take paying clients."
+    },
+    "statusApproved": "You're approved",
+    "statusApprovedHint": "You can take paying clients now.",
+    "statusRequested": "Application under review",
+    "statusRequestedHint": "We'll email you when it's decided — usually 1-2 business days.",
+    "statusRejected": "Previous application was not approved",
+    "statusRejectedHint": "You can update your answers below and try again.",
+    "reviewerNotes": "Reviewer's note:",
+    "noFieldsHint": "No additional details required. Submit to send a request.",
+    "submit": "Submit application",
+    "resubmit": "Resubmit",
+    "submitting": "Submitting...",
+    "approvedToast": "You're approved.",
+    "submittedToast": "Application submitted.",
+    "submitFailed": "Could not submit. Please try again.",
+    "noLongerRequired": "Approval is no longer required for this mode.",
+    "validationFailed": "Some fields need attention.",
+    "fieldErrorRequired": "This field is required.",
+    "fieldErrorMinLength": "Too short.",
+    "fieldErrorMaxLength": "Too long.",
+    "fieldErrorNumber": "Must be a number.",
+    "fieldErrorUrl": "Must be a valid URL.",
+    "banner": {
+      "viewStatus": "View status",
+      "requestNow": "Request approval",
+      "default": {
+        "title": "OxSteed approval required",
+        "hint": "Submit a quick application to unlock gated actions.",
+        "pendingTitle": "Approval request under review",
+        "pendingHint": "We'll email you when it's decided."
+      },
+      "consultant": {
+        "title": "OxSteed approval needed",
+        "hint": "Submit a short application before you can accept paying clients.",
+        "pendingTitle": "Approval under review",
+        "pendingHint": "We'll email you when it's decided — usually 1-2 business days."
+      }
+    }
   }
 }

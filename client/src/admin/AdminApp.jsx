@@ -22,6 +22,8 @@ import AuditLog          from './pages/super/AuditLog';
 import FeeConfig         from './pages/super/FeeConfig';
 import PricingConfig     from './pages/super/PricingConfig';
 import PricingOverrides  from './pages/super/PricingOverrides';
+import ModePolicies      from './pages/super/ModePolicies';
+import ModeApprovals     from './pages/super/ModeApprovals';
 import Revenue           from './pages/super/Revenue';
 import MoneyPage         from './pages/super/MoneyPage';
 import Payouts           from './pages/super/Payouts';
@@ -222,6 +224,12 @@ export default function AdminApp() {
           } />
           <Route path="super/pricing-overrides" element={
             <AdminGuard superOnly><PricingOverrides /></AdminGuard>
+          } />
+          <Route path="super/mode-policies" element={
+            <AdminGuard superOnly><ModePolicies /></AdminGuard>
+          } />
+          <Route path="super/mode-approvals" element={
+            <AdminGuard superOnly><ModeApprovals /></AdminGuard>
           } />
           <Route path="super/admin-accounts" element={
             <AdminGuard superOnly><AdminAccounts /></AdminGuard>

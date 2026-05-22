@@ -1,5 +1,6 @@
 const db = require('../db');
 const logger = require('../utils/logger');
+const platformApprovalSvc = require('../services/modePlatformApprovalService');
 
 const REFERRAL_STATUSES = [
   'assigned',
@@ -13,6 +14,12 @@ const REFERRAL_STATUSES = [
   'completed',
   'paused',
 ];
+
+// Statuses that constitute the consultant "taking a paying client" and
+// therefore require OxSteed platform approval (see migration 272 +
+// server/services/modePlatformApprovalService.js). Anything else — intro
+// messages, scheduling discovery calls — is fine without approval.
+const PAYING_REFERRAL_STATUSES = new Set(['engaged', 'won']);
 
 function splitList(value) {
   if (Array.isArray(value)) {
@@ -311,6 +318,30 @@ exports.updateMyReferral = async (req, res) => {
 
     if (existing.rows[0].consultant_assigned_id !== req.user.id) {
       return res.status(403).json({ error: 'You are not assigned to this referral.' });
+    }
+
+    // Platform-approval gate: moving a referral into a paying state (engaged,
+    // won) means the consultant is taking on a paying client. Admins bypass.
+    // If the consultant hasn't been OxSteed-approved yet, return a structured
+    // 403 that the frontend turns into the application modal.
+    if (
+      PAYING_REFERRAL_STATUSES.has(consultant_assignment_status) &&
+      !['admin', 'super_admin'].includes(req.user.role)
+    ) {
+      const check = await platformApprovalSvc.canPerformAction(
+        req.user.id,
+        'consultant',
+        'accept_paying_booking',
+      );
+      if (!check.allowed) {
+        return res.status(403).json({
+          error: 'platform_approval_required',
+          mode: 'consultant',
+          action: 'accept_paying_booking',
+          current_status: check.current_status,
+          policy: check.policy,
+        });
+      }
     }
 
     const { rows } = await db.query(

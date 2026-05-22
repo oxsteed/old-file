@@ -8494,5 +8494,49 @@
       "growSubtitle": "Konekte ak yon konsiltan, ouvri yon nouvo mache, oswa aplike pou franchiz.",
       "talkConsultant": "Pale ak yon konsiltan"
     }
+  },
+  "platformApproval": {
+    "title": "Apwobasyon OxSteed obligatwa",
+    "subtitle": {
+      "default": "Yon aplikasyon kout anvan ou ka aji isit la.",
+      "consultant": "Soumèt yon aplikasyon kout pou OxSteed ka verifye kalifikasyon ou anvan ou pran kliyan peye yo."
+    },
+    "statusApproved": "Ou apwouve",
+    "statusApprovedHint": "Ou ka pran kliyan peye kounye a.",
+    "statusRequested": "Aplikasyon an revize",
+    "statusRequestedHint": "N ap voye yon imel ba ou lè desizyon an pran — anjeneral 1-2 jou travay.",
+    "statusRejected": "Aplikasyon anvan an pa t apwouve",
+    "statusRejectedHint": "Ou ka mete repons ou ajou epi eseye ankò.",
+    "reviewerNotes": "Nòt revize a:",
+    "noFieldsHint": "Pa gen detay anplis ki obligatwa. Soumèt pou voye demann nan.",
+    "submit": "Soumèt aplikasyon",
+    "resubmit": "Renvoye",
+    "submitting": "N ap voye...",
+    "approvedToast": "Ou apwouve.",
+    "submittedToast": "Aplikasyon soumèt.",
+    "submitFailed": "Pa t kapab voye. Tanpri eseye ankò.",
+    "noLongerRequired": "Apwobasyon pa plis obligatwa pou mòd sa a.",
+    "validationFailed": "Kèk chan bezwen atansyon.",
+    "fieldErrorRequired": "Chan sa a obligatwa.",
+    "fieldErrorMinLength": "Twò kout.",
+    "fieldErrorMaxLength": "Twò long.",
+    "fieldErrorNumber": "Dwe yon nimewo.",
+    "fieldErrorUrl": "Dwe yon URL valab.",
+    "banner": {
+      "viewStatus": "Wè estati",
+      "requestNow": "Mande apwobasyon",
+      "default": {
+        "title": "Apwobasyon OxSteed obligatwa",
+        "hint": "Soumèt yon aplikasyon rapid pou debloke aksyon yo.",
+        "pendingTitle": "Demann an revize",
+        "pendingHint": "N ap voye yon imel ba ou lè desizyon an pran."
+      },
+      "consultant": {
+        "title": "Apwobasyon OxSteed bezwen",
+        "hint": "Soumèt yon aplikasyon kout anvan ou aksepte kliyan peye yo.",
+        "pendingTitle": "Apwobasyon an revize",
+        "pendingHint": "N ap voye yon imel ba ou lè desizyon an pran — anjeneral 1-2 jou travay."
+      }
+    }
   }
 }

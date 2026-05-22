@@ -16,6 +16,7 @@ import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
+import PlatformApprovalBanner from '../components/PlatformApprovalBanner';
 
 const STATUS_OPTIONS = [
   'assigned',
@@ -277,6 +278,11 @@ export default function ConsultantContractorDashboard() {
 
       <div className="min-h-screen bg-[#06080d] text-gray-100">
         <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          {/* Renders only when consultant mode is gated and the user is
+              not yet approved. Self-hides on approval. */}
+          <div className="mb-4">
+            <PlatformApprovalBanner mode="consultant" />
+          </div>
           <section className="overflow-hidden rounded-[34px] border border-gray-800 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.22),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(56,189,248,0.14),_transparent_24%),#0d1016] p-6 lg:p-8">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
               <div className="max-w-3xl">
