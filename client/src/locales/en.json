@@ -8538,5 +8538,52 @@
         "pendingHint": "We'll email you when it's decided — usually 1-2 business days."
       }
     }
+  },
+  "consultingPortal": {
+    "title": "Consulting portal",
+    "heroEyebrow": "Active engagement",
+    "yourJourney": "Your consulting journey",
+    "nextSession": "Next session",
+    "joinMeeting": "Join meeting",
+    "meetingLinkSoon": "Meeting link will be available 15 min before.",
+    "phases": {
+      "discover": "Discover",
+      "plan": "Plan",
+      "execute": "Execute",
+      "handoff": "Handoff"
+    },
+    "actionItems": "Action items",
+    "openItems": "Open action items",
+    "openItemsCount": "{{count}} open",
+    "noActionItems": "No action items yet. Your consultant will add some after your next session.",
+    "sectionOverdue": "Overdue",
+    "sectionDueSoon": "Due soon",
+    "sectionLater": "Later",
+    "due": "Due ",
+    "dueOverdue": "Overdue · ",
+    "priorityHigh": "High",
+    "recentlyDone": "Recently completed ({{count}})",
+    "overdue": "Overdue",
+    "upcoming": "Upcoming sessions",
+    "completed": "Completed",
+    "upcomingSessionsTitle": "Upcoming sessions",
+    "pastSessionsTitle": "Past sessions",
+    "completedOn": "Completed",
+    "giveFeedback": "Give feedback",
+    "tba": "TBA",
+    "yourConsultant": "Your consultant",
+    "consultantPending": "A consultant will be assigned to you shortly. You'll get an email when they reach out.",
+    "consultantAssigned": "Assigned consultant",
+    "openConversation": "Open conversation",
+    "activePackages": "Your packages",
+    "bookMoreTitle": "Need more help?",
+    "bookMoreHint": "Add another package or schedule a follow-up session with your consultant.",
+    "addPackage": "Add a package",
+    "messageConsultant": "Message your consultant",
+    "emptyTitle": "Start your consulting journey",
+    "emptySubtitle": "Pick a package, share what you need help with, and an OxSteed consultant will guide you from idea to launch.",
+    "bookIntake": "Book your intake call",
+    "packagesTitle": "Choose a starting package",
+    "startWith": "Start with this"
   }
 }

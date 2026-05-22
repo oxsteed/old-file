@@ -8538,5 +8538,52 @@
         "pendingHint": "Te enviaremos un correo cuando se decida — usualmente 1-2 días hábiles."
       }
     }
+  },
+  "consultingPortal": {
+    "title": "Portal de consultoría",
+    "heroEyebrow": "Compromiso activo",
+    "yourJourney": "Tu camino de consultoría",
+    "nextSession": "Próxima sesión",
+    "joinMeeting": "Unirse a la reunión",
+    "meetingLinkSoon": "El enlace estará disponible 15 minutos antes.",
+    "phases": {
+      "discover": "Descubrir",
+      "plan": "Planear",
+      "execute": "Ejecutar",
+      "handoff": "Entrega"
+    },
+    "actionItems": "Elementos de acción",
+    "openItems": "Elementos abiertos",
+    "openItemsCount": "{{count}} abiertos",
+    "noActionItems": "Aún no hay elementos. Tu consultor agregará algunos después de la próxima sesión.",
+    "sectionOverdue": "Vencidos",
+    "sectionDueSoon": "Próximos a vencer",
+    "sectionLater": "Más tarde",
+    "due": "Vence ",
+    "dueOverdue": "Vencido · ",
+    "priorityHigh": "Alto",
+    "recentlyDone": "Completados recientemente ({{count}})",
+    "overdue": "Vencidos",
+    "upcoming": "Próximas sesiones",
+    "completed": "Completadas",
+    "upcomingSessionsTitle": "Próximas sesiones",
+    "pastSessionsTitle": "Sesiones pasadas",
+    "completedOn": "Completada",
+    "giveFeedback": "Dejar opinión",
+    "tba": "Por confirmar",
+    "yourConsultant": "Tu consultor",
+    "consultantPending": "Pronto se te asignará un consultor. Recibirás un correo cuando te contacte.",
+    "consultantAssigned": "Consultor asignado",
+    "openConversation": "Abrir conversación",
+    "activePackages": "Tus paquetes",
+    "bookMoreTitle": "¿Necesitas más ayuda?",
+    "bookMoreHint": "Agrega otro paquete o programa una sesión de seguimiento con tu consultor.",
+    "addPackage": "Agregar paquete",
+    "messageConsultant": "Mensaje a tu consultor",
+    "emptyTitle": "Comienza tu camino de consultoría",
+    "emptySubtitle": "Elige un paquete, cuenta en qué necesitas ayuda y un consultor de OxSteed te guiará desde la idea hasta el lanzamiento.",
+    "bookIntake": "Reserva tu llamada inicial",
+    "packagesTitle": "Elige un paquete inicial",
+    "startWith": "Comenzar con esto"
   }
 }

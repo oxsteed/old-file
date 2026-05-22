@@ -8538,5 +8538,52 @@
         "pendingHint": "N ap voye yon imel ba ou lè desizyon an pran — anjeneral 1-2 jou travay."
       }
     }
+  },
+  "consultingPortal": {
+    "title": "Pòtal konsiltasyon",
+    "heroEyebrow": "Angajman aktif",
+    "yourJourney": "Wout konsiltasyon ou",
+    "nextSession": "Pwochen sesyon",
+    "joinMeeting": "Antre nan reyinyon",
+    "meetingLinkSoon": "Lyen reyinyon an ap disponib 15 minit anvan.",
+    "phases": {
+      "discover": "Dekouvri",
+      "plan": "Planifye",
+      "execute": "Egzekite",
+      "handoff": "Remèt"
+    },
+    "actionItems": "Eleman aksyon",
+    "openItems": "Eleman ouvè",
+    "openItemsCount": "{{count}} ouvè",
+    "noActionItems": "Pa gen eleman ankò. Konsiltan w ap ajoute kèk apre pwochen sesyon w.",
+    "sectionOverdue": "An reta",
+    "sectionDueSoon": "Bezwen byento",
+    "sectionLater": "Pita",
+    "due": "Bezwen ",
+    "dueOverdue": "An reta · ",
+    "priorityHigh": "Wo",
+    "recentlyDone": "Fin fè dènyèman ({{count}})",
+    "overdue": "An reta",
+    "upcoming": "Sesyon kap vini",
+    "completed": "Fini",
+    "upcomingSessionsTitle": "Sesyon kap vini",
+    "pastSessionsTitle": "Sesyon ki pase",
+    "completedOn": "Fini",
+    "giveFeedback": "Bay opinyon",
+    "tba": "Ap konfime",
+    "yourConsultant": "Konsiltan w",
+    "consultantPending": "Yon konsiltan ap asiyen byento. W ap resevwa yon imel lè li kontakte w.",
+    "consultantAssigned": "Konsiltan asiyen",
+    "openConversation": "Ouvri konvèsasyon",
+    "activePackages": "Pakèt ou yo",
+    "bookMoreTitle": "Bezwen plis èd?",
+    "bookMoreHint": "Ajoute yon lòt pakèt oswa pwograme yon sesyon swivi ak konsiltan w.",
+    "addPackage": "Ajoute yon pakèt",
+    "messageConsultant": "Voye mesaj bay konsiltan w",
+    "emptyTitle": "Kòmanse wout konsiltasyon ou",
+    "emptySubtitle": "Chwazi yon pakèt, di nou de sa ou bezwen èd, epi yon konsiltan OxSteed ap gide w soti nan lide rive nan lansman.",
+    "bookIntake": "Rezève apèl entwodiksyon w",
+    "packagesTitle": "Chwazi yon pakèt kòmansman",
+    "startWith": "Kòmanse ak sa a"
   }
 }

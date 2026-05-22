@@ -8538,5 +8538,52 @@
         "pendingHint": "Nous vous enverrons un e-mail dès la décision — généralement 1-2 jours ouvrables."
       }
     }
+  },
+  "consultingPortal": {
+    "title": "Portail de conseil",
+    "heroEyebrow": "Engagement actif",
+    "yourJourney": "Votre parcours de conseil",
+    "nextSession": "Prochaine séance",
+    "joinMeeting": "Rejoindre la réunion",
+    "meetingLinkSoon": "Le lien sera disponible 15 minutes avant.",
+    "phases": {
+      "discover": "Découvrir",
+      "plan": "Planifier",
+      "execute": "Exécuter",
+      "handoff": "Remettre"
+    },
+    "actionItems": "Éléments d'action",
+    "openItems": "Éléments ouverts",
+    "openItemsCount": "{{count}} ouverts",
+    "noActionItems": "Aucun élément encore. Votre consultant en ajoutera après la prochaine séance.",
+    "sectionOverdue": "En retard",
+    "sectionDueSoon": "Bientôt dus",
+    "sectionLater": "Plus tard",
+    "due": "Dû ",
+    "dueOverdue": "En retard · ",
+    "priorityHigh": "Élevé",
+    "recentlyDone": "Récemment terminés ({{count}})",
+    "overdue": "En retard",
+    "upcoming": "Séances à venir",
+    "completed": "Terminées",
+    "upcomingSessionsTitle": "Séances à venir",
+    "pastSessionsTitle": "Séances passées",
+    "completedOn": "Terminée",
+    "giveFeedback": "Donner votre avis",
+    "tba": "À confirmer",
+    "yourConsultant": "Votre consultant",
+    "consultantPending": "Un consultant vous sera bientôt assigné. Vous recevrez un e-mail quand il vous contactera.",
+    "consultantAssigned": "Consultant assigné",
+    "openConversation": "Ouvrir la conversation",
+    "activePackages": "Vos forfaits",
+    "bookMoreTitle": "Besoin d'aide supplémentaire ?",
+    "bookMoreHint": "Ajoutez un autre forfait ou planifiez une séance de suivi avec votre consultant.",
+    "addPackage": "Ajouter un forfait",
+    "messageConsultant": "Envoyer un message à votre consultant",
+    "emptyTitle": "Commencez votre parcours de conseil",
+    "emptySubtitle": "Choisissez un forfait, dites-nous ce dont vous avez besoin, et un consultant OxSteed vous guidera de l'idée au lancement.",
+    "bookIntake": "Réservez votre appel d'introduction",
+    "packagesTitle": "Choisissez un forfait de départ",
+    "startWith": "Commencer avec ceci"
   }
 }
