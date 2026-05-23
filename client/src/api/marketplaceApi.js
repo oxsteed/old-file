@@ -2,13 +2,29 @@ import api from './axios';
 
 export const marketplaceApi = {
   // Product browsing
-  browseProducts: (skillId, search, category, page = 1, limit = 20) => {
+  browseProducts: (options = {}) => {
     const params = new URLSearchParams();
-    if (skillId) params.append('skill', skillId);
-    if (search) params.append('search', search);
+    const {
+      skillIds,
+      minPrice,
+      maxPrice,
+      category,
+      sortBy,
+      page = 1,
+      limit = 20,
+    } = options;
+
+    if (Array.isArray(skillIds) && skillIds.length > 0) {
+      params.append('skillIds', skillIds.join(','));
+    } else if (skillIds) {
+      params.append('skillIds', skillIds);
+    }
+    if (minPrice) params.append('minPrice', minPrice);
+    if (maxPrice) params.append('maxPrice', maxPrice);
     if (category) params.append('category', category);
-    params.append('page', page);
-    params.append('limit', limit);
+    if (sortBy) params.append('sortBy', sortBy);
+    params.append('page', String(page));
+    params.append('limit', String(limit));
     return api.get(`/marketplace/products/browse?${params.toString()}`);
   },
 
@@ -17,15 +33,19 @@ export const marketplaceApi = {
   getProductsBySkill: (skillId, limit = 50) =>
     api.get(`/marketplace/products/by-skill/${skillId}?limit=${limit}`),
 
-  searchProducts: (query, skillId, minPrice, maxPrice, page = 1, limit = 20, sortBy = 'best_match', category) => {
+  searchProducts: (query, skillIds, minPrice, maxPrice, page = 1, limit = 20, sortBy = 'best_match', category) => {
     const params = new URLSearchParams();
     if (query) params.append('q', query);
-    if (skillId) params.append('skill', skillId);
+    if (Array.isArray(skillIds) && skillIds.length > 0) {
+      params.append('skillIds', skillIds.join(','));
+    } else if (skillIds) {
+      params.append('skillIds', skillIds);
+    }
     if (minPrice) params.append('minPrice', minPrice);
     if (maxPrice) params.append('maxPrice', maxPrice);
     if (category) params.append('category', category);
-    params.append('page', page);
-    params.append('limit', limit);
+    params.append('page', String(page));
+    params.append('limit', String(limit));
     params.append('sortBy', sortBy);
     return api.get(`/marketplace/products/search?${params.toString()}`);
   },
@@ -37,6 +57,9 @@ export const marketplaceApi = {
   },
 
   getCategories: () => api.get('/marketplace/products/categories'),
+
+  getRecommendedProducts: (limit = 20) =>
+    api.get(`/marketplace/products/recommended?limit=${limit}`),
 
   syncFromHomeDepot: () => api.post('/marketplace/products/sync-homedepot'),
 

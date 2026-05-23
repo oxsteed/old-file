@@ -61,7 +61,7 @@ router.get('/lookup', async (req, res) => {
 router.get('/me', authenticate, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, skill_name, category, hourly_rate, description,
+      `SELECT id, skill_id, skill_name, category, hourly_rate, description,
               years_exp, is_available, created_at, updated_at
          FROM user_skills
         WHERE user_id = $1

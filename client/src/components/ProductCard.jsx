@@ -11,9 +11,11 @@ export default function ProductCard({
 }) {
   const { t } = useTranslation();
 
-  const rating = product.rating || 0;
-  const reviewCount = product.review_count || 0;
-  const inStock = product.stock_count > 0;
+  const rating = product.avg_rating ?? product.average_rating ?? product.rating ?? 0;
+  const reviewCount = product.rating_count ?? product.review_count ?? 0;
+  const inStock = typeof product.stock_count === 'number'
+    ? product.stock_count > 0
+    : product.is_available !== false;
   const savings = product.original_price_cents && product.original_price_cents > product.price_cents;
   const savingsPercent = savings
     ? Math.round(((product.original_price_cents - product.price_cents) / product.original_price_cents) * 100)

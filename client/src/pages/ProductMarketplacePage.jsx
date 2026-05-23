@@ -26,6 +26,7 @@ import ProductCard from '../components/ProductCard';
 import ProductDetailModal from '../components/ProductDetailModal';
 
 import { marketplaceApi, cartApi } from '../api/marketplaceApi';
+import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import '../styles/ProductMarketplacePage.css';
 
@@ -53,6 +54,20 @@ const SORT_OPTIONS = {
 };
 
 const PAGE_SIZE = 9;
+
+const BROWSE_SORT_MAP = {
+  best_match: 'in_carts',
+  price_asc: 'price_asc',
+  price_desc: 'price_desc',
+  rating: 'rating',
+  newest: 'newest',
+  in_carts: 'in_carts',
+};
+
+const normalizeProductsPayload = (payload) => ({
+  products: payload?.data || payload?.products || [],
+  pagination: payload?.pagination || {},
+});
 
 // ── Card skeleton ─────────────────────────────────────────────────────────────
 const CardSkeleton = () => (
@@ -232,6 +247,61 @@ const DirectoryHero = ({ searchValue, onSearch }) => {
   );
 };
 
+const SkillFilterStrip = ({ skills, selectedSkillId, onSelectSkill, showingRecommended }) => {
+  const { t } = useTranslation();
+
+  if (!skills.length) return null;
+
+  return (
+    <section className="bg-gray-900 border-b border-gray-800">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-1">
+                {t('marketplace.browseBySkill', { defaultValue: 'Browse by Skill' })}
+              </p>
+              <p className="text-sm text-gray-400">
+                {showingRecommended
+                  ? t('marketplace.recommendedForYourSkills', { defaultValue: 'Recommended for Your Skills' })
+                  : t('marketplace.pickASkillFilter', { defaultValue: 'Pick one of your skills to narrow the catalog.' })}
+              </p>
+            </div>
+            {selectedSkillId && (
+              <button
+                type="button"
+                onClick={() => onSelectSkill('')}
+                className="text-sm text-orange-400 hover:text-orange-300 transition-colors"
+              >
+                {t('marketplace.clearSkillFilter', { defaultValue: 'Clear skill filter' })}
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {skills.map((skill) => {
+              const active = String(selectedSkillId) === String(skill.skill_id);
+              return (
+                <button
+                  key={skill.id}
+                  type="button"
+                  onClick={() => onSelectSkill(active ? '' : String(skill.skill_id))}
+                  className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                    active
+                      ? 'bg-orange-500/20 border-orange-500 text-orange-200'
+                      : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white'
+                  }`}
+                >
+                  {skill.skill_name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 // ── Desktop sidebar filters ───────────────────────────────────────────────────
 const FilterPanel = ({ selectedCategory, selectedMinPrice, selectedMaxPrice, onCategoryChange, onMinPriceChange, onMaxPriceChange, categories, sortBy, onSortChange }) => {
   const { t } = useTranslation();
@@ -350,13 +420,14 @@ export default function ProductMarketplacePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, isHelper } = useAuth();
 
   // State from URL
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
   const [selectedMinPrice, setSelectedMinPrice] = useState(searchParams.get('minPrice') || '');
   const [selectedMaxPrice, setSelectedMaxPrice] = useState(searchParams.get('maxPrice') || '');
+  const [selectedSkillId, setSelectedSkillId] = useState(searchParams.get('skillId') || '');
   const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || 'best_match');
 
   // UI state
@@ -384,9 +455,10 @@ export default function ProductMarketplacePage() {
     if (selectedCategory) params.set('category', selectedCategory);
     if (selectedMinPrice) params.set('minPrice', selectedMinPrice);
     if (selectedMaxPrice) params.set('maxPrice', selectedMaxPrice);
+    if (selectedSkillId) params.set('skillId', selectedSkillId);
     if (sortBy !== 'best_match') params.set('sortBy', sortBy);
     setSearchParams(params, { replace: true });
-  }, [searchQuery, selectedCategory, selectedMinPrice, selectedMaxPrice, sortBy, setSearchParams]);
+  }, [searchQuery, selectedCategory, selectedMinPrice, selectedMaxPrice, selectedSkillId, sortBy, setSearchParams]);
 
   // Persist cart
   useEffect(() => {
@@ -403,24 +475,71 @@ export default function ProductMarketplacePage() {
   });
   const categories = categoriesData?.data?.categories || [];
 
+  const { data: userSkillsData } = useQuery({
+    queryKey: ['productMarketplaceUserSkills', user?.id],
+    queryFn: async () => {
+      const response = await api.get('/user-skills/me');
+      return response.data?.skills || [];
+    },
+    enabled: !!user && isHelper,
+    staleTime: 5 * 60 * 1000,
+  });
+  const userSkills = (userSkillsData || []).filter((skill) => skill.skill_id);
+  const trimmedSearchQuery = searchQuery.trim();
+  const selectedSkillIds = selectedSkillId ? [Number(selectedSkillId)].filter(Boolean) : [];
+  const hasPriceFilters = Boolean(selectedMinPrice || selectedMaxPrice);
+  const hasBrowseFilters = Boolean(selectedCategory || hasPriceFilters || selectedSkillIds.length > 0);
+  const shouldUseRecommended = Boolean(
+    user &&
+    isHelper &&
+    userSkills.length > 0 &&
+    !trimmedSearchQuery &&
+    !hasBrowseFilters
+  );
+  const shouldUseSearch = trimmedSearchQuery.length >= 2;
+
   // Infinite scroll products
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
-    queryKey: ['products', searchQuery, selectedCategory, selectedMinPrice, selectedMaxPrice, sortBy],
+    queryKey: ['products', trimmedSearchQuery, selectedCategory, selectedMinPrice, selectedMaxPrice, selectedSkillId, sortBy, shouldUseRecommended],
     queryFn: async ({ pageParam = 1 }) => {
-      const minPrice = selectedMinPrice ? Math.floor(parseFloat(selectedMinPrice) * 100) : null;
-      const maxPrice = selectedMaxPrice ? Math.floor(parseFloat(selectedMaxPrice) * 100) : null;
+      const minPrice = selectedMinPrice ? Number(selectedMinPrice) : null;
+      const maxPrice = selectedMaxPrice ? Number(selectedMaxPrice) : null;
 
-      const response = await marketplaceApi.searchProducts(
-        searchQuery,
-        null,
-        minPrice,
-        maxPrice,
-        pageParam,
-        PAGE_SIZE,
-        sortBy,
-        selectedCategory
-      );
-      return response.data;
+      if (shouldUseRecommended) {
+        const response = await marketplaceApi.getRecommendedProducts(PAGE_SIZE);
+        return {
+          products: response.data?.data || [],
+          pagination: {
+            page: 1,
+            limit: PAGE_SIZE,
+            total: response.data?.data?.length || 0,
+            hasMore: false,
+          },
+        };
+      }
+
+      const response = shouldUseSearch
+        ? await marketplaceApi.searchProducts(
+            trimmedSearchQuery,
+            selectedSkillIds,
+            minPrice,
+            maxPrice,
+            pageParam,
+            PAGE_SIZE,
+            sortBy,
+            selectedCategory
+          )
+        : await marketplaceApi.browseProducts({
+            skillIds: selectedSkillIds,
+            minPrice,
+            maxPrice,
+            category: selectedCategory,
+            sortBy: BROWSE_SORT_MAP[sortBy] || 'newest',
+            page: pageParam,
+            limit: PAGE_SIZE,
+          });
+
+      return normalizeProductsPayload(response.data);
     },
     getNextPageParam: (lastPage) => {
       const currentPage = lastPage.pagination?.page || 1;
@@ -431,8 +550,7 @@ export default function ProductMarketplacePage() {
   });
 
   const allProducts = data?.pages.flatMap((page) => page.products || []) || [];
-  const total = data?.pages[0]?.pagination?.total || 0;
-  const activeFilterCount = [searchQuery, selectedCategory, selectedMinPrice, selectedMaxPrice].filter(Boolean).length;
+  const activeFilterCount = [trimmedSearchQuery, selectedCategory, selectedMinPrice, selectedMaxPrice, selectedSkillId].filter(Boolean).length;
 
   // Handlers
   const handleClearAllFilters = () => {
@@ -440,10 +558,11 @@ export default function ProductMarketplacePage() {
     setSelectedCategory('');
     setSelectedMinPrice('');
     setSelectedMaxPrice('');
+    setSelectedSkillId('');
     setSortBy('best_match');
   };
 
-  const handleAddToCart = async (productId) => {
+  const handleAddToCart = async (productId, quantity = 1) => {
     if (!user) {
       toast.error(t('marketplace.loginRequired'));
       navigate('/login');
@@ -456,7 +575,7 @@ export default function ProductMarketplacePage() {
     }
 
     try {
-      await cartApi.addItem(currentCart.id, productId, 1);
+      await cartApi.addItem(currentCart.id, productId, quantity);
       toast.success(t('marketplace.itemAdded'));
     } catch {
       toast.error(t('common.errorUpdating'));
@@ -478,10 +597,6 @@ export default function ProductMarketplacePage() {
     } catch {
       toast.error(t('common.errorCreating'));
     }
-  };
-
-  const handleOpenCart = () => {
-    if (currentCart) navigate(`/cart/${currentCart.id}`);
   };
 
   // Intersection observer for infinite scroll
@@ -510,6 +625,12 @@ export default function ProductMarketplacePage() {
       <Navbar />
 
       <DirectoryHero searchValue={searchQuery} onSearch={debouncedSearch} />
+      <SkillFilterStrip
+        skills={userSkills}
+        selectedSkillId={selectedSkillId}
+        onSelectSkill={setSelectedSkillId}
+        showingRecommended={shouldUseRecommended}
+      />
 
       <CategoryTileGrid selectedCategory={selectedCategory} onSelect={setSelectedCategory} />
 
@@ -567,6 +688,7 @@ export default function ProductMarketplacePage() {
                     <div key={product.id} role="listitem">
                       <ProductCard
                         product={product}
+                        isRecommended={shouldUseRecommended}
                         onAddToCart={() => handleAddToCart(product.id)}
                         onViewDetails={() => setSelectedProduct(product)}
                         disabled={!user}

@@ -118,10 +118,10 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
     );
   }
 
-  const rating = fullProduct.average_rating || 0;
-  const reviewCount = fullProduct.review_count || 0;
+  const rating = fullProduct.avg_rating ?? fullProduct.average_rating ?? 0;
+  const reviewCount = fullProduct.rating_count ?? fullProduct.review_count ?? 0;
   const cartsCount = fullProduct.in_carts_count || 0;
-  const hasAffiliateLink = !!fullProduct.external_id;
+  const hasAffiliateLink = !!(fullProduct.affiliate_url || fullProduct.external_url || fullProduct.external_id);
 
   // If a related product is selected, show its detail modal instead
   if (selectedRelatedProduct) {
@@ -239,7 +239,7 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
             {hasAffiliateLink && (
               <div className="pdm-affiliate-section">
                 <a
-                  href={fullProduct.external_url || '#'}
+                  href={fullProduct.affiliate_url || fullProduct.external_url || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="pdm-affiliate-link"

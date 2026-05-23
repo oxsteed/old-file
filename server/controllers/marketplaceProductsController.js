@@ -62,18 +62,39 @@ const browseProducts = async (req, res) => {
     }
 
     // Count total for pagination (before grouping)
-    const countQuery = `
+    let countQuery = `
       SELECT COUNT(DISTINCT mp.id) as total
       FROM marketplace_products mp
       LEFT JOIN marketplace_product_skills mps ON mp.id = mps.product_id
       WHERE mp.is_active = TRUE AND mp.is_available = TRUE
-      ${minPrice ? `AND mp.price_cents >= ${Math.ceil(parseFloat(minPrice) * 100)}` : ''}
-      ${maxPrice ? `AND mp.price_cents <= ${Math.floor(parseFloat(maxPrice) * 100)}` : ''}
-      ${skillIdArray.length > 0 ? `AND mps.skill_id = ANY(ARRAY[${skillIdArray.join(',')}]::int[])` : ''}
-      ${category && category.trim() ? `AND mp.category ILIKE '${category.replace(/'/g, "''")}'` : ''}
     `;
+    const countParams = [];
+    let countParamCount = 1;
 
-    const countResult = await pool.query(countQuery);
+    if (minPrice) {
+      countQuery += ` AND mp.price_cents >= $${countParamCount}`;
+      countParams.push(Math.ceil(parseFloat(minPrice) * 100));
+      countParamCount++;
+    }
+
+    if (maxPrice) {
+      countQuery += ` AND mp.price_cents <= $${countParamCount}`;
+      countParams.push(Math.floor(parseFloat(maxPrice) * 100));
+      countParamCount++;
+    }
+
+    if (skillIdArray.length > 0) {
+      countQuery += ` AND mps.skill_id = ANY($${countParamCount}::int[])`;
+      countParams.push(skillIdArray);
+      countParamCount++;
+    }
+
+    if (category && category.trim()) {
+      countQuery += ` AND mp.category ILIKE $${countParamCount}`;
+      countParams.push(`%${category}%`);
+    }
+
+    const countResult = await pool.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0]?.total || 0);
 
     // Apply grouping and ordering
@@ -254,7 +275,7 @@ const getCategories = async (req, res) => {
  */
 const searchProducts = async (req, res) => {
   try {
-    const { q, skillIds, minPrice, maxPrice, page = 1, limit = 20 } = req.query;
+    const { q, skillIds, minPrice, maxPrice, page = 1, limit = 20, sortBy = 'best_match', category } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     const safeLimit = Math.min(parseInt(limit), 100);
 
@@ -306,8 +327,73 @@ const searchProducts = async (req, res) => {
       paramCount++;
     }
 
+    if (category && category.trim()) {
+      query += ` AND mp.category ILIKE $${paramCount}`;
+      params.push(`%${category}%`);
+      paramCount++;
+    }
+
+    let countQuery = `
+      SELECT COUNT(DISTINCT mp.id) as total
+      FROM marketplace_products mp
+      LEFT JOIN marketplace_product_skills mps ON mp.id = mps.product_id
+      WHERE mp.is_active = TRUE
+        AND to_tsvector('english', mp.name || ' ' || COALESCE(mp.description, ''))
+            @@ plainto_tsquery('english', $1)
+    `;
+    const countParams = [q];
+    let countParamCount = 2;
+
+    if (minPrice) {
+      countQuery += ` AND mp.price_cents >= $${countParamCount}`;
+      countParams.push(Math.ceil(parseFloat(minPrice) * 100));
+      countParamCount++;
+    }
+
+    if (maxPrice) {
+      countQuery += ` AND mp.price_cents <= $${countParamCount}`;
+      countParams.push(Math.floor(parseFloat(maxPrice) * 100));
+      countParamCount++;
+    }
+
+    if (skillIdArray.length > 0) {
+      countQuery += ` AND mps.skill_id = ANY($${countParamCount}::int[])`;
+      countParams.push(skillIdArray);
+      countParamCount++;
+    }
+
+    if (category && category.trim()) {
+      countQuery += ` AND mp.category ILIKE $${countParamCount}`;
+      countParams.push(`%${category}%`);
+    }
+
+    const countResult = await pool.query(countQuery, countParams);
+    const total = parseInt(countResult.rows[0]?.total || 0);
+
+    let orderBy = 'relevance DESC, mp.name ASC';
+    switch (sortBy) {
+      case 'price_asc':
+        orderBy = 'mp.price_cents ASC, relevance DESC, mp.name ASC';
+        break;
+      case 'price_desc':
+        orderBy = 'mp.price_cents DESC, relevance DESC, mp.name ASC';
+        break;
+      case 'rating':
+        orderBy = 'mp.avg_rating DESC NULLS LAST, mp.rating_count DESC, relevance DESC';
+        break;
+      case 'in_carts':
+        orderBy = 'mp.in_carts_count DESC, relevance DESC';
+        break;
+      case 'newest':
+        orderBy = 'mp.updated_at DESC, relevance DESC';
+        break;
+      case 'best_match':
+      default:
+        orderBy = 'relevance DESC, mp.name ASC';
+    }
+
     query += ` GROUP BY mp.id
-              ORDER BY relevance DESC, mp.name ASC
+              ORDER BY ${orderBy}
               LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
     params.push(safeLimit, offset);
 
@@ -320,8 +406,8 @@ const searchProducts = async (req, res) => {
       pagination: {
         page: parseInt(page),
         limit: safeLimit,
-        total: result.rows.length,
-        hasMore: offset + safeLimit < result.rows.length,
+        total,
+        hasMore: offset + safeLimit < total,
       },
     });
   } catch (err) {
