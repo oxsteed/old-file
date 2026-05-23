@@ -15,7 +15,24 @@ const ROLES    = ['', 'customer', 'helper', 'helper_pro', 'broker'];
 const PLANS    = ['', 'starter', 'pro', 'elite', 'broker'];
 const STATUSES = ['', 'active', 'banned'];
 const PAGE_SIZES = [25, 50, 100];
-const NEW_ROLES  = ['customer', 'helper', 'broker'];
+const QUICK_CREATE_ACCOUNT_TYPES = [
+  { value: 'customer', label: 'Customer' },
+  { value: 'helper', label: 'Helper' },
+  { value: 'helper_pro', label: 'Helper Pro' },
+  { value: 'broker', label: 'Broker' },
+  { value: 'logistics', label: 'Logistics' },
+  { value: 'business_owner', label: 'Business Owner' },
+  { value: 'consultant', label: 'Consultant' },
+  { value: 'tool_owner', label: 'Tool Owner' },
+  { value: 'franchise_applicant', label: 'Franchise Applicant' },
+  { value: 'life_only', label: 'Life Only' },
+  { value: 'business_manager', label: 'Business Manager' },
+  { value: 'business_representative', label: 'Business Representative' },
+  { value: 'business_employee', label: 'Business Employee' },
+  { value: 'business_support_agent', label: 'Business Support Agent' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'super_admin', label: 'Super Admin' },
+];
 
 const SORT_COLS = [
   { key: 'first_name',   label: 'Name'        },
@@ -66,7 +83,7 @@ function useClickOutside(ref, handler) {
 // CreateUserModal (unchanged from original)
 // ---------------------------------------------------------------------------
 function CreateUserModal({ onClose, onCreated }) {
-  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', password: '', role: 'customer' });
+  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', password: '', account_type: 'customer' });
   const [error, setError] = useState('');
   const [busy, setBusy]   = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -74,7 +91,10 @@ function CreateUserModal({ onClose, onCreated }) {
   const handleSubmit = async (e) => {
     e.preventDefault(); setBusy(true); setError('');
     try {
-      const { data } = await adminApi.post('/admin/super/users', form);
+      const { data } = await adminApi.post('/admin/super/users/create-full', {
+        ...form,
+        role: form.account_type,
+      });
       onCreated(data.user);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to create user.');
@@ -114,11 +134,15 @@ function CreateUserModal({ onClose, onCreated }) {
                          text-white placeholder-gray-500 focus:outline-none focus:border-orange-500" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">Role</label>
-            <select value={form.role} onChange={e => set('role', e.target.value)}
+            <label className="block text-xs font-medium text-gray-400 mb-1">Account type</label>
+            <select value={form.account_type} onChange={e => set('account_type', e.target.value)}
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
                          text-gray-300 focus:outline-none focus:border-orange-500">
-              {NEW_ROLES.map(r => <option key={r} value={r} className="capitalize">{r}</option>)}
+              {QUICK_CREATE_ACCOUNT_TYPES.map((accountType) => (
+                <option key={accountType.value} value={accountType.value}>
+                  {accountType.label}
+                </option>
+              ))}
             </select>
           </div>
           {error && <p className="text-red-400 text-xs">{error}</p>}
