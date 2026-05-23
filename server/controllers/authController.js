@@ -31,6 +31,7 @@ const TERMS_IP_HASH_MAX_LEN = 45;
 const SELF_SELECTABLE_MODES = Object.freeze([
   'customer',
   'helper',
+  'logistics',
   'business_owner',
   'consultant',
   'tool_owner',

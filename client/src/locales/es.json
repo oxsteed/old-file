@@ -8352,6 +8352,10 @@
       "label": "Ayudante",
       "hint": "Ofrece servicios, postúlate a trabajos, construye tu reputación."
     },
+    "logistics": {
+      "label": "Logística",
+      "hint": "Abastece productos, únete a pedidos colectivos, sigue la carga y administra la distribución."
+    },
     "business_owner": {
       "label": "Dueño de Negocio",
       "hint": "Administra un negocio con clientes, facturas y un equipo."

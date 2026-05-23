@@ -8352,6 +8352,10 @@
       "label": "Aide",
       "hint": "Offrez vos services, postulez à des tâches, bâtissez votre réputation."
     },
+    "logistics": {
+      "label": "Logistique",
+      "hint": "Sourcez des produits, rejoignez des achats groupés, suivez le fret et gérez la distribution."
+    },
     "business_owner": {
       "label": "Propriétaire d'entreprise",
       "hint": "Dirigez une entreprise de services avec clients, factures et équipe."

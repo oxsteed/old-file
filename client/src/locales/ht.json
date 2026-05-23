@@ -8352,6 +8352,10 @@
       "label": "Èd",
       "hint": "Ofri sèvis, aplike pou travay, bati repitasyon ou."
     },
+    "logistics": {
+      "label": "Lojistik",
+      "hint": "Sous pwodwi, antre nan kòmann gwoup, swiv chajman, epi jere distribisyon."
+    },
     "business_owner": {
       "label": "Pwopriyetè Biznis",
       "hint": "Jere yon biznis sèvis ak kliyan, fakti, ak yon ekip."

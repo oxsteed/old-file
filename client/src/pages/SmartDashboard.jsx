@@ -39,6 +39,8 @@ export default function SmartDashboard() {
     const key = dashboardKeyForMode(user.default_mode || user.role);
     if (key === 'support_agent') {
       navigate('/support/agent', { replace: true });
+    } else if (key === 'logistics') {
+      navigate('/logistics', { replace: true });
     } else if (key === 'admin') {
       navigate('/admin', { replace: true });
     }
@@ -61,6 +63,7 @@ export default function SmartDashboard() {
     case 'business_manager':    return <BusinessManagerDashboard />;
     case 'business_representative': return <BusinessRepresentativeDashboard />;
     case 'business_employee':   return <BusinessEmployeeDashboard />;
+    case 'logistics':
     case 'support_agent':
     case 'admin':
       // Effect above handles navigation; render spinner while it happens.

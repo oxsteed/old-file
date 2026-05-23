@@ -18,6 +18,7 @@
 export const SELF_SELECTABLE_MODES = [
   'customer',
   'helper',
+  'logistics',
   'business_owner',
   'consultant',
   'tool_owner',
@@ -43,6 +44,7 @@ export const ALL_MODES = [...SELF_SELECTABLE_MODES, ...GRANTED_MODES, 'admin'];
 const ROUTE_BY_MODE = {
   customer:                 '/dashboard',
   helper:                   '/helper-dashboard',
+  logistics:                '/logistics',
   business_owner:           '/dashboard',
   consultant:               '/dashboard',
   tool_owner:               '/dashboard',
@@ -91,6 +93,12 @@ export const MODE_CATALOG = {
     labelKey: 'modes.helper.label',
     hintKey:  'modes.helper.hint',
     icon: 'briefcase',
+    selfSelectable: true,
+  },
+  logistics: {
+    labelKey: 'modes.logistics.label',
+    hintKey:  'modes.logistics.hint',
+    icon: 'truck',
     selfSelectable: true,
   },
   business_owner: {
@@ -157,7 +165,7 @@ export const MODE_CATALOG = {
 
 // Resolve which modes the current user can switch into from the navbar.
 // Mirrors what Settings → Account Type shows:
-//   - All 7 SELF_SELECTABLE_MODES are always offered. The server-side
+//   - All self-selectable modes are always offered. The server-side
 //     switchRole endpoint does the validation; if a user lands in a mode
 //     that doesn't make sense for them (e.g., consultant without a
 //     consultant profile), the destination page handles its own empty

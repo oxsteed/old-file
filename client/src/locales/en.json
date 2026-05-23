@@ -8352,6 +8352,10 @@
       "label": "Helper",
       "hint": "Offer services, bid on jobs, build your reputation."
     },
+    "logistics": {
+      "label": "Logistics",
+      "hint": "Source goods, join pooled orders, track freight, and manage distribution."
+    },
     "business_owner": {
       "label": "Business Owner",
       "hint": "Run a service business with clients, invoices, and a team."

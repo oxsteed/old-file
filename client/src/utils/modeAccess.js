@@ -25,6 +25,7 @@ const HELPER_CLASS_MODES = new Set([
 // surfaces shown.
 const CUSTOMER_CLASS_MODES = new Set([
   'customer',
+  'logistics',
   'franchise_applicant',
   'life_only',
 ]);
@@ -46,6 +47,7 @@ export function isCustomerClassMode(user) {
 export function dashboardKeyForMode(mode) {
   switch (mode) {
     case 'helper':                  return 'helper';
+    case 'logistics':               return 'logistics';
     case 'business_owner':          return 'business_owner';
     case 'consultant':              return 'consultant';
     case 'tool_owner':              return 'tool_owner';

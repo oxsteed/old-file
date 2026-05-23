@@ -24,6 +24,7 @@ const crypto = require('crypto');
 const MODE_ROLE_MAP = Object.freeze({
   customer:                 'customer',
   helper:                   'helper',
+  logistics:                'customer',
   business_owner:           'helper',
   consultant:               'helper',
   tool_owner:               'helper',
@@ -44,6 +45,7 @@ const MODE_ROLE_MAP = Object.freeze({
 const SELF_SELECTABLE_MODES = Object.freeze([
   'customer',
   'helper',
+  'logistics',
   'business_owner',
   'consultant',
   'tool_owner',
