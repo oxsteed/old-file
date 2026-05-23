@@ -2,6 +2,68 @@
 
 **Last updated:** 2026-05-23
 
+## Access-gate rate limit + lockouts + recovery (2026-05-23) — LANDED
+
+Layered hardening on top of the existing two-stage gate that protects `/admin/login`, `/logistics/operations/gate`, and `/logistics/compliance/gate` (the `logistics_internal_access_credentials` table + `logisticsInternalAccessController.{verifyInternalAccess,loginWithInternalAccess}` from migrations 276/277). The gate model is one (name, key) per user with scope booleans — the existing system; per-scope keys remain a future migration.
+
+**Migration 278 (`server/migrations/278_access_gate_rate_limit.sql`):**
+- `access_gate_attempts` — append-only audit log of every verify call (ip, normalized_name, scope, success, error_code, matched_user_id, user_agent, created_at). Indexed by (ip, normalized_name, created_at) for the sliding-window count, plus (created_at) and (matched_user_id, created_at) for admin views.
+- `access_gate_lockouts` — denormalized "currently locked" rows: (ip, normalized_name, display_name, fail_count, first_fail_at, last_fail_at, locked_until, lift state: lifted_at, lifted_by_user_id, lift_reason, lift_source). Partial UNIQUE on (ip, normalized_name) WHERE lifted_at IS NULL — one active row per pair.
+- `access_gate_recovery_tokens` — one-time email recovery links (token_hash, recovery_email, scope_ip, scope_normalized_name, expires_at, used_at, used_ip). 30-minute TTL.
+
+**Service `server/services/accessGateRateLimitService.js`:**
+- `checkLockout({ ip, claimedName })` — pre-flight; reads the lockouts row, auto-lifts on `locked_until <= NOW()` with `lift_source = 'auto_window_expired'`. Returns `{ locked, lockedUntil, attemptsLeft, lockoutId }`.
+- `recordFailure({ ip, claimedName, scope, errorCode, userAgent })` — atomic transaction. Inserts the audit row, computes the rolling 24h fail count from `access_gate_attempts` (authoritative source), upserts the lockouts row with `SELECT ... FOR UPDATE`, and sets `locked_until = NOW() + ACCESS_GATE_LOCKOUT_HOURS` once `fail_count >= ACCESS_GATE_MAX_FAILS` (defaults 3 / 24h). Returns `{ lockedUntil, attemptsLeft, justLocked }`.
+- `recordSuccess(...)` — appends success audit row + auto-lifts any active lockout for (ip, name) so the user isn't immediately re-locked on the next typo.
+- `liftLockout({ lockoutId, byUserId, reason, source })` — super-admin / CLI lift. `source ∈ {super_admin_ui, recovery_email, cli, auto_window_expired}`.
+- `liftLockoutsByKey({ ip, normalizedName, ... })` — recovery email path.
+- `liftAllActiveLockouts(...)` — CLI bulk nuke.
+- `listActiveLockouts({ limit, offset })`, `listRecentAttempts({ limit, offset, success, ip, name })` — super-admin views.
+- `normalizeName()` (lowercase + trim) and `normalizeIp()` (left-most XFF entry, strip IPv6 brackets, cap at 64 chars).
+
+**Controller wiring (`server/controllers/logisticsInternalAccessController.js`):**
+- `verifyInternalAccess` rewritten. Order: shape check (400) → `checkLockout` (423 with `lockedUntil`) → credential lookup; bad credential paths call `recordFailure` and respond 401 with `{ attemptsLeft, lockedUntil }`. Success path calls `recordSuccess` + issues the existing 15-minute `internalAccessToken` JWT. The login step (`loginWithInternalAccess`) is unchanged — it already requires the token + password and validates `decoded.userId === user.id`.
+- New handlers: `listLockouts`, `liftLockoutById`, `listAttempts` (super-admin only); `requestRecovery`, `useRecovery` (public, allowlist-gated). Recovery email uses `utils/email.sendEmail`; allowlist read from `ACCESS_GATE_RECOVERY_EMAILS` env (comma-separated). Returns 200 regardless of allowlist hit so the endpoint can't enumerate authorised emails.
+
+**Routes:**
+- `server/routes/auth.js` — added `POST /api/auth/internal-access/recovery/request` and `/recovery/use` (both `strictLimiter`).
+- `server/routes/admin.js` — added `GET /api/admin/super/access-gate/lockouts`, `POST /api/admin/super/access-gate/lockouts/:id/lift`, `GET /api/admin/super/access-gate/attempts` (all `requireSuperAdmin`).
+
+**Frontend:**
+- `client/src/admin/pages/Login.jsx` and `client/src/pages/logistics/LogisticsOperatorLoginPage.jsx` — drop the old client-only counter; honor the server's 423 / 401-with-`attemptsLeft` shape so a lockout survives page reload and across machines. Added "Request a recovery email" button shown when locked.
+- `client/src/pages/AccessGateRecoveryPage.jsx` (new) — landing page for the email link, POSTs `/recovery/use`. Route `/access-gate/recovery` added to `App.jsx` (public — token-gated server-side).
+- `client/src/admin/pages/super/AccessGateLockouts.jsx` (new) — super-admin page at `/admin/super/access-gate-lockouts`. Active lockouts table with per-row Lift (with reason prompt), plus recent-attempts audit table with "Failed only" filter. Wired into `AdminApp.jsx` and the super-admin sidebar in `AdminLayout.jsx` ("Gate Lockouts", `ShieldAlert` icon).
+
+**CLI recovery (`server/scripts/resetAccessGateLockouts.js`):**
+- `node server/scripts/resetAccessGateLockouts.js` — interactive list + prompt.
+- `--list` / `--lift <id>` / `--lift-all` — non-interactive.
+- Uses the same service; every lift writes `lift_source = 'cli'` to the audit columns. For the case where every super-admin has locked themselves out of `/admin/login` and there's no admin UI to click.
+
+**Env vars (`server/.env.example`):**
+- `ACCESS_GATE_MAX_FAILS=3` (threshold, must be ≥ 1)
+- `ACCESS_GATE_LOCKOUT_HOURS=24` (lockout duration AND sliding window for failure counting)
+- `ACCESS_GATE_RECOVERY_EMAILS=` (comma-separated allowlist; empty disables the email path — CLI still works)
+
+**Tests (`server/__tests__/accessGateRateLimit.test.js`):**
+DB-mocked Jest tests covering `normalizeName` / `normalizeIp`, `checkLockout` (no row / locked future / auto-lifted past / empty name short-circuit), `recordFailure` (sub-threshold no lock / threshold locks), `recordSuccess` (audit + lift), `liftLockout` (found / missing), `listActiveLockouts` (limit clamp).
+
+**Verified locally:** `node --check` passes on every new and modified server file (`accessGateRateLimitService.js`, `logisticsInternalAccessController.js`, `routes/auth.js`, `routes/admin.js`, `scripts/resetAccessGateLockouts.js`, `__tests__/accessGateRateLimit.test.js`). JSX files (the four frontend changes) are not `node --check`able — Vite parses them at build. Eight-assertion raw-`node` smoke pass against a stub pool confirms normalize helpers, `checkLockout` happy + locked + auto-lift paths, and `recordFailure` threshold transition. Jest cannot run in the agent sandbox (no `node_modules`); the new test follows the same pattern as the existing suite and should be re-run locally before deploy.
+
+**Outstanding (deliberate):**
+1. The gate still uses one (name, key) per user (the existing model) — per-(user, scope) grants are a follow-up if blast-radius isolation becomes a concern.
+2. The `loginWithInternalAccess` password step is not separately rate-limited by this system — it remains under the standard `authLimiter` (5/hr/IP). An attacker who has a valid 5-minute `internalAccessToken` could try a few passwords before that limiter kicks in. To tighten further, mirror the lockout check inside `loginWithInternalAccess` keyed on `(IP, decoded.userId)`.
+3. Recovery email allowlist is env-driven (comma-separated). If you want per-user opt-in, move it to a DB column on `users` or a dedicated `access_gate_recovery_emails` table.
+4. The `/admin/super/access-gate-lockouts` page is a basic table — no charts, no per-user history view. Add when operational pattern demands.
+5. No notification fan-out on lockout — only a `logger.warn` line. Wire a super-admin email/notification in `recordFailure` when `justLocked === true` if you want active alerting.
+
+**Files this session — new:**
+`server/migrations/278_access_gate_rate_limit.sql`, `server/services/accessGateRateLimitService.js`, `server/scripts/resetAccessGateLockouts.js`, `server/__tests__/accessGateRateLimit.test.js`, `client/src/pages/AccessGateRecoveryPage.jsx`, `client/src/admin/pages/super/AccessGateLockouts.jsx`.
+
+**Files this session — modified:**
+`server/controllers/logisticsInternalAccessController.js` (rate-limit wiring on verify + new admin/recovery handlers), `server/routes/auth.js` (recovery endpoints), `server/routes/admin.js` (super-admin lockout endpoints), `server/.env.example` (ACCESS_GATE_* block), `client/src/admin/pages/Login.jsx` (server-driven lockout state + recovery button), `client/src/pages/logistics/LogisticsOperatorLoginPage.jsx` (same), `client/src/App.jsx` (recovery route), `client/src/admin/AdminApp.jsx` (lockouts route), `client/src/admin/layouts/AdminLayout.jsx` (Gate Lockouts sidebar entry + `ShieldAlert` import).
+
+---
+
 ## Translation platform — multi-provider fallback + glossary CRUD + scheduled worker (2026-05-23) — LANDED
 
 Earlier session laid down migration `275_translation_platform.sql` (languages, glossaries, glossary_terms, translation_requests, translations, translation_jobs, ui_locale_keys, seed rows for EN/ES/FR/HT/DE/PT/IT/NL/PL/AR/ZH), plus `server/modules/{cache,glossary,jobs,localization,providers,translation}/*` with cache versioned keys, glossary mask/restore/validate, translation orchestrator (normalize → cache → DB → provider → schema-validate → persist), repository, controller, routes. Mounted at `/api/translate`.

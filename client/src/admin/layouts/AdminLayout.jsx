@@ -10,7 +10,7 @@ import {
   Menu, X, Sun, Moon, HeadphonesIcon,
   Search, Key, ClipboardList, Building2, CreditCard, MessageSquare,
   HeartHandshake, Calendar, UserPlus, Map, ShoppingCart, Layers, Fingerprint,
-  AlertTriangle, Crown, Globe, Network, Package, Truck,
+  AlertTriangle, Crown, Globe, Network, Package, Truck, ShieldAlert,
 } from 'lucide-react';
 
 const REGULAR_NAV = [
@@ -52,6 +52,7 @@ const SUPER_NAV = [
   { to: '/admin/super/permissions',    icon: Key,           label: 'Permissions'      },
   { to: '/admin/super/regions',        icon: Map,           label: 'Regions'          },
   { to: '/admin/super/logistics-internal-access', icon: Key, label: 'Internal Access' },
+  { to: '/admin/super/access-gate-lockouts', icon: ShieldAlert, label: 'Gate Lockouts' },
   { to: '/admin/super/users/create',   icon: UserPlus,      label: 'Create User'      },
   { to: '/admin/super/search-logs',    icon: ClipboardList, label: 'Search Logs'      },
   { to: '/admin/super/settings',       icon: Settings,      label: 'Settings'         },

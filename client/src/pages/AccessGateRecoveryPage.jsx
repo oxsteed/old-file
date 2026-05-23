@@ -1,0 +1,93 @@
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import api from '../api/axios';
+
+/**
+ * Recovery landing page. Email sent by /api/auth/internal-access/recovery/request
+ * links here with ?token=<raw>. We POST it to /recovery/use which:
+ *   - validates the token (unused, unexpired)
+ *   - lifts any active lockouts for the user's bound IP + name
+ *
+ * Always runs once per mount; subsequent token reuse fails with 409.
+ */
+export default function AccessGateRecoveryPage() {
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const [status, setStatus] = useState('working'); // working | ok | error
+  const [message, setMessage] = useState('Validating your recovery link...');
+  const [liftedCount, setLiftedCount] = useState(0);
+
+  useEffect(() => {
+    const token = params.get('token');
+    if (!token) {
+      setStatus('error');
+      setMessage('Missing recovery token.');
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.post('/auth/internal-access/recovery/use', { token });
+        if (cancelled) return;
+        setStatus('ok');
+        setLiftedCount(data.liftedCount || 0);
+        setMessage(
+          data.liftedCount
+            ? `Lifted ${data.liftedCount} lockout${data.liftedCount === 1 ? '' : 's'}. You can sign in again.`
+            : 'No active lockout matched, but the token has been consumed. You can sign in again.'
+        );
+      } catch (err) {
+        if (cancelled) return;
+        setStatus('error');
+        const status = err.response?.status;
+        if (status === 409) setMessage('This recovery link has already been used.');
+        else if (status === 410) setMessage('This recovery link has expired. Request a new one from the login page.');
+        else setMessage(err.response?.data?.error || 'Recovery link could not be used.');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [params]);
+
+  return (
+    <div className="min-h-screen bg-gray-950 text-gray-100 flex items-center justify-center px-4">
+      <div className="max-w-md w-full bg-gray-900/80 border border-gray-800 rounded-xl p-6 shadow-xl">
+        <h1 className="text-xl font-semibold mb-3">Access gate recovery</h1>
+        <div
+          className={`px-3 py-2 rounded mb-4 text-sm ${
+            status === 'ok'
+              ? 'bg-emerald-900/40 border border-emerald-700 text-emerald-200'
+              : status === 'error'
+              ? 'bg-rose-900/40 border border-rose-700 text-rose-200'
+              : 'bg-gray-800/60 border border-gray-700 text-gray-200'
+          }`}
+        >
+          {message}
+        </div>
+        {status === 'ok' && liftedCount > 0 && (
+          <p className="text-xs text-gray-400 mb-4">
+            The lockout has been cleared. If you are still seeing the gate, wait a moment and try again, or use a different
+            network connection.
+          </p>
+        )}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => navigate('/admin/login')}
+            className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-lg"
+          >
+            Go to admin login
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/logistics')}
+            className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-100 font-semibold py-2 rounded-lg"
+          >
+            Logistics home
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -88,19 +88,45 @@ export default function AdminLogin() {
       setInternalAccessToken(data.internalAccessToken);
       setApprovedIdentity(data.user);
       setAttempts(0);
+      setLockedUntil(null);
       setError('');
     } catch (err) {
-      const newAttempts = attempts + 1;
-      setAttempts(newAttempts);
-      if (newAttempts >= MAX_ATTEMPTS) {
-        const lockTime = Date.now() + LOCKOUT_MS;
-        setLockedUntil(lockTime);
-        setError('Access temporarily locked due to too many failed attempts.');
+      const status = err.response?.status;
+      const payload = err.response?.data || {};
+      // Server-side 24h lockout (423) — authoritative across page reloads.
+      if (status === 423 && payload.lockedUntil) {
+        setLockedUntil(new Date(payload.lockedUntil).getTime());
+        setError(payload.message || 'Access temporarily locked. Request a recovery email or contact a super-admin.');
+      } else if (status === 401 && payload.lockedUntil) {
+        // We were just locked on this attempt.
+        setLockedUntil(new Date(payload.lockedUntil).getTime());
+        setError('Too many failed attempts. Locked until the timer expires.');
+      } else if (status === 401 && typeof payload.attemptsLeft === 'number') {
+        // Surface server's remaining count instead of the local one.
+        setAttempts(MAX_ATTEMPTS - payload.attemptsLeft);
+        setError(`Invalid credentials. ${payload.attemptsLeft} attempt${payload.attemptsLeft === 1 ? '' : 's'} remaining before lockout.`);
       } else {
-        setError(err.response?.data?.error || 'Internal access verification failed.');
+        const newAttempts = attempts + 1;
+        setAttempts(newAttempts);
+        setError(payload.error || 'Internal access verification failed.');
       }
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleRequestRecovery() {
+    setError('');
+    const email = (window.prompt('Enter the recovery email on file:') || '').trim();
+    if (!email) return;
+    try {
+      await api.post('/auth/internal-access/recovery/request', {
+        email,
+        internal_name: internalName.trim() || undefined,
+      });
+      setError('If that email is authorised for recovery, a one-time link has been sent. Check your inbox.');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not request recovery email.');
     }
   }
 
@@ -337,6 +363,15 @@ export default function AdminLogin() {
               >
                 {loading ? 'Checking...' : isLocked ? 'Access Locked' : 'Continue'}
               </button>
+              {isLocked && (
+                <button
+                  type="button"
+                  onClick={handleRequestRecovery}
+                  className="w-full mt-2 text-sm text-orange-400 hover:text-orange-300 underline"
+                >
+                  Request a recovery email
+                </button>
+              )}
             </form>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">

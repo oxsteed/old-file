@@ -137,6 +137,11 @@ router.put('/super/logistics-internal-access/me', requireSuperAdmin, logisticsIn
 router.get('/super/logistics-internal-access', requireSuperAdmin, logisticsInternalAccessCtrl.listInternalAccessRecords);
 router.put('/super/logistics-internal-access/:userId', requireSuperAdmin, logisticsInternalAccessCtrl.upsertInternalAccessForUser);
 
+// Access gate rate-limit / lockout management (super-admin only)
+router.get('/super/access-gate/lockouts',           requireSuperAdmin, logisticsInternalAccessCtrl.listLockouts);
+router.post('/super/access-gate/lockouts/:id/lift', requireSuperAdmin, logisticsInternalAccessCtrl.liftLockoutById);
+router.get('/super/access-gate/attempts',           requireSuperAdmin, logisticsInternalAccessCtrl.listAttempts);
+
 // Financials - super-admin direct, or admin with view_financials grant
 router.get('/financials',            requireAdmin, requirePermission('view_financials'), superCtrl.getFinancials);
 router.get('/payouts',               requireAdmin, requirePermission('view_financials'), superCtrl.getPayouts);

@@ -33,6 +33,7 @@ import PermissionGrants  from './pages/super/PermissionGrants';
 import CreateUser        from './pages/super/CreateUser';
 import RegionsManager    from './pages/super/RegionsManager';
 import LogisticsInternalAccess from './pages/super/LogisticsInternalAccess';
+import AccessGateLockouts from './pages/super/AccessGateLockouts';
 import AuditLogUserActions from './pages/super/AuditLogUserActions';
 import OneTruthPage        from './pages/super/OneTruthPage';
 import CorporateOrgChart    from './pages/super/CorporateOrgChart';
@@ -270,6 +271,9 @@ export default function AdminApp() {
           } />
           <Route path="super/logistics-internal-access" element={
             <AdminGuard superOnly><LogisticsInternalAccess /></AdminGuard>
+          } />
+          <Route path="super/access-gate-lockouts" element={
+            <AdminGuard superOnly><AccessGateLockouts /></AdminGuard>
           } />
           <Route path="super/audit-log/user-actions" element={
             <AdminGuard superOnly><AuditLogUserActions /></AdminGuard>
