@@ -68,6 +68,10 @@ import LogisticsHomePage    from './pages/logistics/LogisticsHomePage';
 import BuyerDashboardPage   from './pages/logistics/BuyerDashboardPage';
 import OrganizerDashboardPage from './pages/logistics/OrganizerDashboardPage';
 import BusinessProcurementPage from './pages/logistics/BusinessProcurementPage';
+import DistributorResellerPage from './pages/logistics/DistributorResellerPage';
+import OperationsWorkspacePage from './pages/logistics/OperationsWorkspacePage';
+import ComplianceWorkspacePage from './pages/logistics/ComplianceWorkspacePage';
+import AdminControlWorkspacePage from './pages/logistics/AdminControlWorkspacePage';
 import CampaignsPage        from './pages/logistics/CampaignsPage';
 import CampaignDetailPage   from './pages/logistics/CampaignDetailPage';
 import SourcingPage         from './pages/logistics/SourcingPage';
@@ -290,6 +294,10 @@ export default function App() {
                     <Route path="/logistics/buyer"            element={<Guarded><ProtectedRoute><RouteErrorBoundary><BuyerDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/organizer"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><OrganizerDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/business-procurement" element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessProcurementPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/distributor"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><DistributorResellerPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/operations"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><OperationsWorkspacePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/compliance-workspace" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ComplianceWorkspacePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/admin-control"    element={<Guarded><ProtectedRoute><RouteErrorBoundary><AdminControlWorkspacePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/campaigns"        element={<Guarded><RouteErrorBoundary><CampaignsPage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/logistics/campaigns/:id"    element={<Guarded><RouteErrorBoundary><CampaignDetailPage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/logistics/sourcing"         element={<Guarded><ProtectedRoute><RouteErrorBoundary><SourcingPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

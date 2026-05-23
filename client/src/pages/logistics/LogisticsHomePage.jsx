@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { listCampaigns, listOrders, getMyParticipation, listSourcingRequests, listShipments, listAllocations, listDeliveries, listMyClaims, listRefundCases } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
+import { LOGISTICS_WORKSPACES, recommendedLogisticsWorkspace, workspaceAvailabilityForUser } from '../../utils/logisticsWorkspaces';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const MENU_ITEMS = [
@@ -32,6 +33,8 @@ export default function LogisticsHomePage() {
   const [myRefunds, setMyRefunds]           = useState([]);
   const [organizerCampaigns, setOrganizerCampaigns] = useState([]);
   const [loading, setLoading]               = useState(true);
+  const workspaceAvailability = useMemo(() => workspaceAvailabilityForUser(user), [user]);
+  const recommendedWorkspace = useMemo(() => recommendedLogisticsWorkspace(user), [user]);
 
   useEffect(() => {
     if (!user) {
@@ -92,9 +95,45 @@ export default function LogisticsHomePage() {
             <Link to="/logistics/campaigns" className="lx-btn-ghost">
               {t('logistics.home.browseCampaigns','Browse Open Campaigns')}
             </Link>
+            {user && (
+              <Link to={recommendedWorkspace} className="lx-btn-ghost">
+                Open recommended workspace
+              </Link>
+            )}
           </div>
         </div>
       </div>
+
+      <section className="lx-section">
+        <div className="lx-section-header">
+          <h2>Logistics Mode Workspaces</h2>
+          {user && <Link to={recommendedWorkspace}>Open recommended workspace</Link>}
+        </div>
+        <div className="lx-nav-grid">
+          {LOGISTICS_WORKSPACES.map((workspace) => {
+            const available = workspaceAvailability[workspace.key];
+            return (
+              <Link
+                key={workspace.key}
+                to={available ? workspace.path : '/login'}
+                className="lx-nav-tile"
+                style={{ position: 'relative', textDecoration: 'none' }}
+              >
+                <span className="lx-nav-icon">{workspace.icon}</span>
+                <span className="lx-nav-label">{workspace.label}</span>
+                <span style={{ fontSize: '.78rem', color: '#64748b', lineHeight: 1.5 }}>
+                  {workspace.description}
+                </span>
+                {!available && (
+                  <span style={{ marginTop: '.45rem', fontSize: '.72rem', fontWeight: 700, color: '#f97316' }}>
+                    {user ? 'Not enabled for this account' : 'Sign in to unlock'}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      </section>
 
       {/* Navigation tiles */}
       <div className="lx-nav-grid">
@@ -118,6 +157,28 @@ export default function LogisticsHomePage() {
               <span className="lx-nav-icon">🏢</span>
               <span className="lx-nav-label">Business Procurement</span>
             </Link>
+            <Link to="/logistics/distributor" className="lx-nav-tile">
+              <span className="lx-nav-icon">📤</span>
+              <span className="lx-nav-label">Distributor / Reseller</span>
+            </Link>
+            {workspaceAvailability.operations && (
+              <Link to="/logistics/operations" className="lx-nav-tile">
+                <span className="lx-nav-icon">⚙️</span>
+                <span className="lx-nav-label">Operations</span>
+              </Link>
+            )}
+            {workspaceAvailability.compliance && (
+              <Link to="/logistics/compliance-workspace" className="lx-nav-tile">
+                <span className="lx-nav-icon">🛡️</span>
+                <span className="lx-nav-label">Compliance Workspace</span>
+              </Link>
+            )}
+            {workspaceAvailability.admin_control && (
+              <Link to="/logistics/admin-control" className="lx-nav-tile">
+                <span className="lx-nav-icon">👑</span>
+                <span className="lx-nav-label">Admin Control</span>
+              </Link>
+            )}
           </>
         )}
       </div>
