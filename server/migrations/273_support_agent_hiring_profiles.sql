@@ -18,5 +18,6 @@ CREATE TABLE IF NOT EXISTS support_agent_hiring_profiles (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+
 CREATE INDEX IF NOT EXISTS idx_support_agent_hiring_profiles_accepting
   ON support_agent_hiring_profiles (is_accepting_applications);
