@@ -2,6 +2,64 @@
 
 **Last updated:** 2026-05-23
 
+## Translation platform — multi-provider fallback + glossary CRUD + scheduled worker (2026-05-23) — LANDED
+
+Earlier session laid down migration `275_translation_platform.sql` (languages, glossaries, glossary_terms, translation_requests, translations, translation_jobs, ui_locale_keys, seed rows for EN/ES/FR/HT/DE/PT/IT/NL/PL/AR/ZH), plus `server/modules/{cache,glossary,jobs,localization,providers,translation}/*` with cache versioned keys, glossary mask/restore/validate, translation orchestrator (normalize → cache → DB → provider → schema-validate → persist), repository, controller, routes. Mounted at `/api/translate`.
+
+**This session filled the gaps the prior pass left open:**
+
+**Multi-provider with fallback chain (new):**
+- `server/modules/providers/translationResponseSchema.js` — JSON Schema (strict) for the structured translation response we send to OpenAI-compatible models via `response_format: { type: 'json_schema', json_schema }`. Plus `validateAgainstResponseSchema()` — in-process guard that throws `Error.code='PROVIDER_RESPONSE_SHAPE'` on any drift so the orchestrator can fall back instead of trusting free-form output.
+- `server/modules/providers/openRouterProvider.js` — primary adapter. POSTs to `https://openrouter.ai/api/v1/chat/completions` with `response_format=json_schema`, system prompt that preserves `__OXSTEED_GLOSSARY_<n>__` placeholders, 20s default timeout (`OPENROUTER_TIMEOUT_MS`), model from `OPENROUTER_TRANSLATION_MODEL` (default `openai/gpt-4o-mini`). Optional `OPENROUTER_APP_URL` / `OPENROUTER_APP_NAME` headers for OpenRouter attribution.
+- `server/modules/providers/openAIProvider.js` — direct OpenAI fallback. Same shape, hits `/v1/chat/completions`, supports `OPENAI_ORG_ID` and `OPENAI_TRANSLATION_MODEL` (default `gpt-4o-mini`).
+- `server/modules/providers/libreTranslateProvider.js` — extended with `isConfigured()` (returns false when `LIBRETRANSLATE_URL` unset) and every error path now carries an `Error.code` (`PROVIDER_NOT_CONFIGURED` / `PROVIDER_NETWORK` / `PROVIDER_TIMEOUT` / `PROVIDER_UPSTREAM_5XX` / `PROVIDER_RATE_LIMITED` / `PROVIDER_NON_JSON` / `PROVIDER_4XX`) so it participates in the fallback chain on the same rules as the LLM adapters.
+- `server/modules/providers/providerRegistry.js` — rewritten. `resolveChain()` reads `TRANSLATION_PROVIDER` (legacy single override) → `TRANSLATION_PRIMARY_PROVIDER` + `TRANSLATION_FALLBACK_PROVIDERS` (CSV) → default chain `openrouter → openai → libretranslate`. `listConfiguredChain()` silently drops providers whose `isConfigured()` returns false. `translateWithFallback(input, { onAttempt })` walks the chain and only falls back on `FALLBACK_TRIGGERS = {PROVIDER_NOT_CONFIGURED, PROVIDER_NETWORK, PROVIDER_TIMEOUT, PROVIDER_UPSTREAM_5XX, PROVIDER_RATE_LIMITED, PROVIDER_NON_JSON, PROVIDER_RESPONSE_SHAPE}` — a deterministic 4xx (unsupported language pair etc.) re-throws immediately. Throws `ALL_PROVIDERS_FAILED` (502) when every link errors with a fallback-trigger, or `NO_PROVIDER_CONFIGURED` (503) when none are configured. `detectWithFallback()` mirrors the same logic for `detectLanguage()`. Plus `__testOverrideProvider()` seam for unit tests.
+
+**Orchestrator wiring:**
+- `server/modules/translation/translationService.js` — replaced `getTranslationProvider().translate(...)` with `translateWithFallback(..., { onAttempt })`, and `provider.detectLanguage(...)` with `detectWithFallback(...)`. Each per-attempt outcome (`providerId`, `ok`, `errCode`, `errMessage`) is collected into a `providerAttempts` array, persisted into `translations.metadata.providerAttempts`, and returned to the client so the UI / audit can see exactly which providers were tried.
+
+**Glossary + history endpoints (new):**
+- `server/modules/glossary/glossaryService.js` — added `updateGlossary(id, owner, patch)` (whitelisted fields: name, domain, description, status, sourceLanguage, targetLanguage; bumps `version` + `updated_at`), `deleteGlossary(id, owner)`, `deleteGlossaryTerm(glossaryId, termId, owner)` (verifies ownership before deleting, then bumps glossary `version`).
+- `server/modules/translation/translationRepository.js` — `listTranslationHistory` now paginated (returns `{ items, total, limit, offset }`; limit clamped 1–100).
+- `server/modules/translation/translationController.js` — added `handleUpdateGlossary` (PATCH), `handleDeleteGlossary` (DELETE → 204), `handleDeleteGlossaryTerm` (DELETE → 204 / 404 distinct between unknown-glossary and unknown-term). `handleAddGlossaryTerms` now validates every term has non-empty `sourceTerm` + `targetTerm` strings before calling the service. `handleHistory` accepts `?limit` + `?offset` and returns the paginated repository shape.
+- `server/routes/translate.js` — added `PATCH /:id`, `DELETE /:id`, `DELETE /:id/terms/:termId` under `/api/translate/glossaries`.
+
+**Scheduled batch worker:**
+- `server/index.js` — `node-cron` schedule for `pollTranslationJobs()` (`server/modules/jobs/translationJobWorker.js`). Default cadence `*/30 * * * * *` (every 30 seconds, 6-field cron with seconds), overridable via `TRANSLATION_JOB_POLL_CRON`. The worker uses `SELECT ... FOR UPDATE SKIP LOCKED` so multiple server instances can coexist without double-processing. Schedule errors are caught so an invalid cron expression cannot block server boot.
+
+**Client surface:**
+- `client/src/features/translator/api/translationPlatform.js` — added `getGlossary`, `createGlossary`, `updateGlossary`, `deleteGlossary`, `addGlossaryTerms`, `deleteGlossaryTerm`, `getTranslationById` helpers.
+- `client/src/api/translate.js` — re-exports the new helpers so existing imports from `api/translate` still work.
+- `client/src/features/translator/hooks/useTranslateContent.js` (new) — drop-in React hook for translating user-generated content (job descriptions, message bodies, product names) on demand. Tracks `status` (idle / loading / ready / error), abandons stale in-flight responses when inputs change, debounces re-renders by a composite `requestKey`, and surfaces `meta.providerAttempts` from the orchestrator. The backend dedupes by cache key, so many components on the same page calling this hook for the same text only fire one network request.
+
+**Env vars (new) — `server/.env.example`:**
+`TRANSLATION_PRIMARY_PROVIDER` (default `openrouter`), `TRANSLATION_FALLBACK_PROVIDERS` (default `openai,libretranslate`), `TRANSLATION_PROVIDER` (legacy single-mode override), `OPENROUTER_TRANSLATION_MODEL`, `OPENROUTER_TIMEOUT_MS`, `OPENROUTER_APP_URL`, `OPENROUTER_APP_NAME`, `OPENAI_TRANSLATION_MODEL`, `OPENAI_TIMEOUT_MS`, `OPENAI_ORG_ID`, `LIBRETRANSLATE_URL`, `LIBRETRANSLATE_API_KEY`, `LIBRETRANSLATE_MODEL_NAME`, `TRANSLATION_MODEL_POLICY_VERSION` (default `policy-v1` — bump to invalidate the entire cache without flushing Redis; it's part of the cache key hash), `TRANSLATION_JOB_POLL_CRON`.
+
+**Tests (new):**
+- `server/__tests__/translationPlatform.test.js` — DB-free / Redis-free pure-logic tests covering:
+  - `validateAgainstResponseSchema` accepts valid, rejects missing `translatedText`, rejects non-string `translatedText`, rejects confidence outside [0,1], rejects non-array warnings, filters non-string entries out of warnings, all shape errors carry `code='PROVIDER_RESPONSE_SHAPE'`.
+  - `buildTranslationCacheKey` is deterministic and changes when any of `normalizedText` / `sourceLanguage` / `targetLanguage` / `tone` / `glossaryVersion` / `modelPolicyVersion` change.
+  - `resolveChain` returns the default chain, honors `TRANSLATION_PROVIDER`, honors primary + fallback env vars (CSV), drops unknown provider names, dedupes when primary appears in the fallback list.
+  - `translateWithFallback` returns first success, falls back on `PROVIDER_TIMEOUT` / `PROVIDER_RESPONSE_SHAPE`, does NOT fall back on `PROVIDER_4XX` (deterministic caller error), throws `ALL_PROVIDERS_FAILED` when every link errors with a fallback-trigger, skips unconfigured providers, throws `NO_PROVIDER_CONFIGURED` when none configured.
+  - `protectGlossaryTerms` / `restoreGlossaryTerms` / `validateGlossaryOutput` round-trip and emit warnings on locked-term loss.
+
+**Verified locally:** `node --check` passes on every new and modified server file (13 files: 5 new providers/schema, 4 modified service/controller/repo/glossary, 2 modified worker/route + index.js + new test file). Smoke-ran the pure-logic paths via raw `node` — schema validation, cache key versioning, chain resolution under env overrides, and end-to-end `translateWithFallback` (PROVIDER_TIMEOUT on primary → secondary returns success) all behave correctly. Jest cannot run in the agent sandbox (no `node_modules`); the new tests follow the same pattern as the existing 82-test suite and should be re-run locally before deploy.
+
+**Outstanding (deliberate):**
+1. `mcp__workspace__bash` could not install `node_modules` so the Jest suite was not actually executed — run `cd server && npm install && npm test -- translationPlatform.test.js` locally.
+2. The current `translationService.js` still imports `validateProviderResponse` (looser sanity check) — keeping it as a second line of defense after `validateAgainstResponseSchema` runs inside each LLM adapter; it doesn't hurt and catches the LibreTranslate path which doesn't use Structured Outputs.
+3. `getTranslationProvider()` remains exported from the registry for any caller that doesn't want fallback semantics, but the orchestrator no longer uses it.
+4. No admin UI yet for glossary CRUD or translation history — the API + client helpers + `useTranslateContent` hook are all wired, so a page can be built when needed.
+5. No rate-limit middleware specifically scoped to `/api/translate/*` beyond the global `generalLimiter` that's already on `POST /` and `POST /detect-language`. Add a per-user budget if cost becomes a concern.
+
+**Files this session — new:**
+`server/modules/providers/translationResponseSchema.js`, `server/modules/providers/openRouterProvider.js`, `server/modules/providers/openAIProvider.js`, `client/src/features/translator/hooks/useTranslateContent.js`, `server/__tests__/translationPlatform.test.js`.
+
+**Files this session — modified:**
+`server/modules/providers/libreTranslateProvider.js` (isConfigured + error codes), `server/modules/providers/providerRegistry.js` (rewritten — chain resolution + fallback), `server/modules/translation/translationService.js` (translateWithFallback + detectWithFallback + providerAttempts metadata), `server/modules/translation/translationController.js` (glossary update/delete/term-delete + paginated history), `server/modules/translation/translationRepository.js` (history pagination), `server/modules/glossary/glossaryService.js` (update/delete/term-delete), `server/routes/translate.js` (3 new routes), `server/index.js` (translation job cron), `server/.env.example` (translation env block), `client/src/features/translator/api/translationPlatform.js` (glossary + translation-by-id helpers), `client/src/api/translate.js` (re-export the new helpers).
+
+---
+
 ## OxSteed Logistics — full branch hardening (2026-05-23) — LANDED
 
 Migration 247 (`server/migrations/247_oxsteed_logistics.sql`) already created the full logistics schema in a prior session — 22 tables (logistics_lanes, trade_rules, country_access_rules, supplier_profiles, supplier_products, sourcing_requests, supplier_quotes, markup_rules, fee_rules, pooled_orders, pooled_order_participants, purchase_orders, shipment_records, shipment_milestones, shipment_documents, warehouses, inventory_receipts, inventory_allocations, delivery_orders, logistics_claims, logistics_refund_cases, logistics_audit_log), 12 enums (risk_tier, fulfillment_model, user_role, sourcing_request_status, purchase_order_status, shipment_status, pooled_order_status, participant_status, inventory_receipt_status, delivery_order_status, claim_status, freight_option), seed data for 8 lanes (CN→US, CN→HT, US→HT, US domestic, CN→CA, US→MX, CN→GB, US→Caribbean) and global default fee rules. Migration 269 already added the recurring procurement table.

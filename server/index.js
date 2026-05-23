@@ -747,6 +747,28 @@ logger.info('Support message cleanup job scheduled', {
   cronExpression: cleanupOldMessagesJob.cronExpression,
 });
 
+// ── TRANSLATION BATCH JOB WORKER ─────────────────────────────
+// Polls translation_jobs for queued batches. Picks one at a time with
+// SELECT ... FOR UPDATE SKIP LOCKED so multiple instances of this server
+// can coexist without double-processing. Default schedule is every 30
+// seconds; override with TRANSLATION_JOB_POLL_CRON if you need different
+// cadence in a particular environment.
+const { pollTranslationJobs } = require('./modules/jobs/translationJobWorker');
+const translationJobCron = process.env.TRANSLATION_JOB_POLL_CRON || '*/30 * * * * *';
+try {
+  cron.schedule(translationJobCron, async () => {
+    try {
+      await pollTranslationJobs();
+    } catch (err) {
+      logger.warn('Translation job poll failed', { error: err.message });
+    }
+  });
+  logger.info('Translation batch job worker scheduled', { cronExpression: translationJobCron });
+} catch (err) {
+  // node-cron throws on invalid expressions — never block server boot on this.
+  logger.error('Failed to schedule translation batch worker', { error: err.message, cronExpression: translationJobCron });
+}
+
 // ── GRACEFUL SHUTDOWN ────────────────────────────────────────
 function shutdown(signal) {
   logger.info('Shutdown received', { signal });

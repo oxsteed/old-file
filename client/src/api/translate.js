@@ -1,4 +1,21 @@
 import api from './axios';
+import {
+  addGlossaryTerms,
+  createBatchTranslationJob,
+  createGlossary,
+  deleteGlossary,
+  deleteGlossaryTerm,
+  detectLanguage,
+  getAppLocales,
+  getGlossary,
+  getTranslationById,
+  getTranslationHistory,
+  getTranslationJob,
+  getTranslationLanguages,
+  listGlossaries,
+  translateText,
+  updateGlossary,
+} from '../features/translator/api/translationPlatform';
 
 /**
  * Translate an array of strings to the target language.
@@ -11,8 +28,23 @@ export const translateTexts = (texts, target, source = 'en') =>
   api.post('/translate', { texts, target, source }).then(r => r.data);
 
 /**
- * Fetch the list of languages supported by the LibreTranslate instance.
- * @returns {Promise<{ code: string, name: string }[]>}
+ * New structured single-text translation contract.
  */
-export const getSupportedLanguages = () =>
-  api.get('/translate/languages').then(r => r.data);
+export {
+  translateText,
+  createBatchTranslationJob,
+  detectLanguage,
+  getTranslationJob,
+  getTranslationById,
+  getTranslationHistory,
+  getAppLocales,
+  listGlossaries,
+  getGlossary,
+  createGlossary,
+  updateGlossary,
+  deleteGlossary,
+  addGlossaryTerms,
+  deleteGlossaryTerm,
+};
+
+export const getSupportedLanguages = getTranslationLanguages;

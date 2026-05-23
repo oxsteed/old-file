@@ -1,0 +1,13 @@
+{
+  "actions": {
+    "cancel": "Cancel",
+    "create": "Create",
+    "loading": "Loading",
+    "save": "Save",
+    "submit": "Submit",
+    "translate": "Translate"
+  },
+  "languages": {
+    "autoDetect": "Auto-detect"
+  }
+}

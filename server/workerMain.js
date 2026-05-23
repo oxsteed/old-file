@@ -19,6 +19,7 @@ const {
   processStripeWebhook,
   processNotification,
 } = require('./workers/paymentWorker');
+const { pollTranslationJobs } = require('./modules/jobs/translationJobWorker');
 
 // Map queue to processor function
 const processors = {
@@ -106,7 +107,13 @@ const runWorker = async () => {
     queueIndex = (queueIndex + 1) % queueList.length;
   }, 500); // Poll every 500ms (adjustable)
 
-  logger.info('✅ Payment worker started, polling queues');
+  setInterval(() => {
+    pollTranslationJobs().catch((err) => {
+      logger.error('Translation worker loop failed', { error: err.message });
+    });
+  }, 1500);
+
+  logger.info('✅ Worker started, polling payment queues and translation jobs');
 };
 
 // Graceful shutdown handler

@@ -261,6 +261,14 @@ export default function Navbar() {
                       >
                         <span className="ox-nav-resource-option-title">{t('logistics.nav.entry', 'OxSteed Logistics')}</span>
                       </Link>
+                      <Link
+                        role="menuitem"
+                        to="/translator"
+                        className="ox-nav-resource-option"
+                        onClick={() => setResourcesMenuOpen(false)}
+                      >
+                        <span className="ox-nav-resource-option-title">{t('translator:navigation.workspace')}</span>
+                      </Link>
                       {isHelper && (
                         <>
                           <Link
@@ -571,4 +579,3 @@ function Divider() {
     }} />
   );
 }
-

@@ -1,0 +1,71 @@
+{
+  "navigation": {
+    "workspace": "Translation Workspace"
+  },
+  "page": {
+    "eyebrow": "Translation Platform",
+    "title": "Translate runtime content through a structured backend pipeline.",
+    "subtitle": "Keep app UI localization separate from user-submitted translation jobs, with cache-aware results, glossary controls, and async batch processing.",
+    "shellTitle": "Translation Workspace"
+  },
+  "form": {
+    "sourceLanguage": "Source language",
+    "targetLanguage": "Target language",
+    "tone": "Tone",
+    "glossary": "Glossary",
+    "input": "Text to translate",
+    "placeholder": "Paste the customer, support, product, or ops copy you want to translate.",
+    "translateNow": "Translate now",
+    "createBatchJob": "Create batch job",
+    "batchHint": "Batch mode splits the text on blank lines and processes each section asynchronously.",
+    "toneDefault": "Default",
+    "toneFormal": "Formal",
+    "toneFriendly": "Friendly",
+    "toneTechnical": "Technical"
+  },
+  "results": {
+    "title": "Structured result",
+    "empty": "Run a translation to see the normalized request, translated text, cache status, provider info, and glossary hits.",
+    "translatedText": "Translated text",
+    "sourceLanguage": "Source language",
+    "targetLanguage": "Target language",
+    "provider": "Provider",
+    "model": "Model",
+    "confidence": "Confidence",
+    "cacheStatus": "Cache status",
+    "glossaryHits": "Glossary hits",
+    "warnings": "Warnings",
+    "cached": "Cache hit",
+    "fresh": "Fresh result",
+    "none": "None"
+  },
+  "batch": {
+    "title": "Batch job",
+    "empty": "Create a batch job to translate longer multi-section text without blocking the browser.",
+    "status": "Status",
+    "progress": "Progress",
+    "completedItems": "Completed items",
+    "jobId": "Job ID",
+    "results": "Batch results",
+    "waiting": "Waiting for results."
+  },
+  "glossary": {
+    "none": "No glossary",
+    "loadError": "Glossaries could not be loaded for this account."
+  },
+  "history": {
+    "title": "Recent translation history",
+    "empty": "Sign in and run translations to build a reviewable request log.",
+    "cached": "cached",
+    "fresh": "fresh",
+    "noSource": "No source text recorded."
+  },
+  "languageCard": {
+    "title": "Website language",
+    "body": "This switcher controls the app shell locale. Runtime translations stay separate and always flow through the backend translation pipeline."
+  },
+  "errors": {
+    "generic": "Translation failed. Please try again.",
+    "batchRequiresBreaks": "Add blank lines between sections before creating a batch job."
+  }
+}

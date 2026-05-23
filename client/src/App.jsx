@@ -124,6 +124,7 @@ import BeautyIntakeRequestPage from './pages/BeautyIntakeRequestPage';
 import CreativeIntakeRequestPage from './pages/CreativeIntakeRequestPage';
 import ProfessionalIntakeRequestPage from './pages/ProfessionalIntakeRequestPage';
 import ContinuityIntakeRequestPage from './pages/ContinuityIntakeRequestPage';
+import TranslatorWorkspacePage from './pages/TranslatorWorkspacePage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -189,6 +190,7 @@ export default function App() {
                     <Route path="/how-it-works"            element={<Guarded><FeatureGuidePage /></Guarded>} />
                     <Route path="/features"                element={<Guarded><FeatureGuidePage /></Guarded>} />
                     <Route path="/learn"                   element={<Guarded><LearnModePage /></Guarded>} />
+                    <Route path="/translator"              element={<Guarded><TranslatorWorkspacePage /></Guarded>} />
                     <Route path="/about"                   element={<Guarded><AboutPage /></Guarded>} />
                     <Route path="/jobs"                    element={<Guarded><JobListPage /></Guarded>} />
                     <Route path="/jobs/:id"                element={<Guarded><JobDetailPage /></Guarded>} />

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Globe } from 'lucide-react';
-import { translateTexts } from '../api/translate';
+import { translateText } from '../api/translate';
 import { primaryLanguageTag } from '../utils/messageTranslate';
 
 interface AutoTranslatedMessageProps {
@@ -58,9 +58,13 @@ export default function AutoTranslatedMessage({
 
     (async () => {
       try {
-        const { translations, source } = await translateTexts([text], target, 'auto');
+        const { translatedText, sourceLanguage: source } = await translateText({
+          text,
+          sourceLang: 'auto',
+          targetLang: target,
+        });
         if (cancelled) return;
-        const tr = translations[0];
+        const tr = translatedText;
         const src = primaryLanguageTag(source);
         const same =
           !tr ||
