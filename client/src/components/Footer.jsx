@@ -34,7 +34,6 @@ export default function Footer() {
   const { t } = useTranslation();
   const helperRoles = new Set(['helper', 'helper_pro', 'broker']);
   const currentMode = user?.default_mode || (helperRoles.has(user?.role) ? 'helper' : 'customer');
-  const dashboardPath = routeForMode(currentMode);
   const isHelper = helperRoles.has(user?.role);
 
   const footerSectionTitleStyle = {
@@ -77,6 +76,7 @@ export default function Footer() {
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          alignItems: 'start',
           gap: 'var(--space-8)',
           marginBottom: 'var(--space-8)',
           paddingBottom: 'var(--space-8)',
@@ -85,8 +85,9 @@ export default function Footer() {
           <div style={{
             border: '1px solid var(--color-border)',
             borderRadius: '1.25rem',
-            padding: '1.35rem',
+            padding: '1.1rem 1.15rem',
             background: 'linear-gradient(180deg, rgba(148,163,184,0.04) 0%, rgba(148,163,184,0.02) 100%)',
+            maxWidth: '32rem',
           }}>
             <div style={{
               display: 'inline-flex',
@@ -134,17 +135,9 @@ export default function Footer() {
             <p style={{ fontSize: '0.94rem', color: 'var(--color-text-muted)', maxWidth: '34ch', lineHeight: 1.7, margin: '0 0 1rem' }}>
               {t('footer.tagline')}
             </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.9rem 1.15rem', fontSize: '0.84rem' }}>
-              <Link to={dashboardPath} style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontWeight: 600 }}>
-                {t('nav.dashboard')}
-              </Link>
-              <Link to="/how-it-works" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontWeight: 600 }}>
-                {t('footer.howOxsteedWorks')}
-              </Link>
-              <Link to="/logistics" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontWeight: 600 }}>
-                {t('logistics.nav.entry', 'OxSteed Logistics')}
-              </Link>
-            </div>
+            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text-faint)', lineHeight: 1.6 }}>
+              Built for hiring, logistics, and trusted local business operations.
+            </p>
           </div>
 
           <div style={{
@@ -153,19 +146,6 @@ export default function Footer() {
             gap: 'var(--space-6)',
             alignContent: 'start',
           }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
-              <span style={footerSectionTitleStyle}>
-                Platform
-              </span>
-              {user ? (
-                <FooterLink to={dashboardPath}>{t('nav.dashboard')}</FooterLink>
-              ) : (
-                <FooterLink to="/login">{t('nav.signIn')}</FooterLink>
-              )}
-              <FooterLink to="/jobs">{t('footer.browseJobs')}</FooterLink>
-              <FooterLink to={user?.role === 'customer' ? '/post-job' : '/register/customer'}>{t('footer.postJob')}</FooterLink>
-              <FooterLink to={isHelper ? dashboardPath : '/register/helper'}>{t('footer.listSkills')}</FooterLink>
-            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
               <span style={footerSectionTitleStyle}>
                 Company
@@ -188,12 +168,16 @@ export default function Footer() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
               <span style={footerSectionTitleStyle}>
-                Resources
+                Platform
               </span>
-              <FooterLink to="/tool-rentals">{t('toolRentals.browsePage')}</FooterLink>
-              <FooterLink to="/consulting-intake">{t('footer.consulting')}</FooterLink>
-              <FooterLink to="/settings">{t('nav.settings')}</FooterLink>
-              {user && <FooterLink to="/support/agent">{t('nav.supportWorkspace')}</FooterLink>}
+              {user ? (
+                <FooterLink to={routeForMode(currentMode)}>{t('nav.dashboard')}</FooterLink>
+              ) : (
+                <FooterLink to="/login">{t('nav.signIn')}</FooterLink>
+              )}
+              <FooterLink to="/jobs">{t('footer.browseJobs')}</FooterLink>
+              <FooterLink to={user?.role === 'customer' ? '/post-job' : '/register/customer'}>{t('footer.postJob')}</FooterLink>
+              <FooterLink to={isHelper ? routeForMode(currentMode) : '/register/helper'}>{t('footer.listSkills')}</FooterLink>
               {isHelper && (
                 <>
                   <span style={{ ...footerSectionTitleStyle, marginTop: '0.6rem', marginBottom: '0.1rem' }}>
