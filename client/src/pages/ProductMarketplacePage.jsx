@@ -44,12 +44,12 @@ const PRODUCT_CATEGORIES = [
 ];
 
 const SORT_OPTIONS = {
-  best_match: 'marketplace.sortOptions.bestMatch',
-  price_asc: 'marketplace.sortOptions.lowestPrice',
-  price_desc: 'marketplace.sortOptions.highestPrice',
-  rating: 'marketplace.sortOptions.topRated',
-  newest: 'marketplace.sortOptions.newest',
-  in_carts: 'marketplace.sortOptions.mostPopular',
+  best_match: 'marketplace.sort.bestMatch',
+  price_asc: 'marketplace.sort.lowestPrice',
+  price_desc: 'marketplace.sort.highestPrice',
+  rating: 'marketplace.sort.topRated',
+  newest: 'marketplace.sort.newest',
+  in_carts: 'marketplace.sort.mostPopular',
 };
 
 const PAGE_SIZE = 9;

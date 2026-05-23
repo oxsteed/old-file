@@ -21,6 +21,10 @@
 - 269 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
 
+**Product marketplace sort-label translation fix (2026-05-23):** COMPLETE
+- **Locale-key mismatch fix:** **`client/src/pages/ProductMarketplacePage.jsx`** now points the sort dropdown at the existing `marketplace.sort.*` locale keys instead of the missing `marketplace.sortOptions.*` keys, which fixes the raw translation-key text that was rendering in the lower-left marketplace filter panel.
+- **Verification:** `client/node_modules/.bin/esbuild client/src/pages/ProductMarketplacePage.jsx --bundle --format=esm --platform=browser --outfile=/tmp/product-marketplace-check.js --log-limit=0` passes.
+
 **OxSteed Logistics branch completion pass (2026-05-23):** COMPLETE
 - **Admin/API hardening:** **`server/index.js`, `server/middleware/auth.js`, `server/routes/logisticsAdmin.js`** now enforce authenticated admin/super-admin access for `/api/admin/logistics`, set `req.isAdmin` / `req.isSuperAdmin` during auth hydration, and expose an admin quotes listing endpoint so the new logistics admin surfaces can rely on consistent role-aware controller behavior.
 - **Logistics data-scope fixes:** **`server/controllers/logisticsShipmentsController.js`, `server/services/shipmentService.js`, `server/controllers/logisticsSourcingController.js`, `server/services/supplierService.js`, `server/services/sourcingService.js`, `server/controllers/logisticsAdminController.js`** now scope non-admin shipment access to the relevant user context, restrict public supplier browsing to approved suppliers only, and add server-side quote listing support used by the admin workflow.
