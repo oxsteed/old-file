@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { redeemVortexToken } from '../api/businesses';
 import { useCookieConsentContext } from '../context/CookieConsentContext';
 import { useTranslation } from 'react-i18next';
+import { routeForMode } from '../utils/modeRouter';
 
 export default function Footer() {
   const { user } = useAuth();
@@ -31,31 +32,81 @@ export default function Footer() {
   // update the same showSettings state that <CookieConsent> is listening to.
   const { openSettings } = useCookieConsentContext();
   const { t } = useTranslation();
+  const helperRoles = new Set(['helper', 'helper_pro', 'broker']);
+  const currentMode = user?.default_mode || (helperRoles.has(user?.role) ? 'helper' : 'customer');
+  const dashboardPath = routeForMode(currentMode);
+  const isHelper = helperRoles.has(user?.role);
+
+  const footerSectionTitleStyle = {
+    fontSize: '0.75rem',
+    fontWeight: 700,
+    color: 'var(--color-text)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    marginBottom: '0.95rem',
+  };
+
+  const actionPillStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.4rem',
+    textDecoration: 'none',
+    background: 'rgba(249,115,22,0.08)',
+    border: '1px solid rgba(249,115,22,0.28)',
+    borderRadius: '999px',
+    padding: '0.42rem 0.85rem',
+    fontSize: '0.78rem',
+    fontWeight: 700,
+    color: 'var(--color-primary)',
+    cursor: 'pointer',
+    letterSpacing: '0.02em',
+    transition: 'background var(--transition-fast), transform var(--transition-fast)',
+  };
 
   return (
     <>
     <footer
       style={{
         borderTop: '1px solid var(--color-border)',
-        background: 'var(--color-surface)',
+        background: 'linear-gradient(180deg, var(--color-bg) 0%, var(--color-surface) 18%, var(--color-surface) 100%)',
         color: 'var(--color-text-muted)',
-        padding: 'var(--space-12) 0 var(--space-8)',
+        padding: 'var(--space-10) 0 var(--space-8)',
       }}
     >
       <div className="ox-container">
-        {/* Top: Logo + Nav links */}
         <div style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 'var(--space-6)',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: 'var(--space-8)',
           marginBottom: 'var(--space-8)',
           paddingBottom: 'var(--space-8)',
           borderBottom: '1px solid var(--color-border)',
         }}>
-          {/* Logo */}
-          <div>
+          <div style={{
+            border: '1px solid var(--color-border)',
+            borderRadius: '1.25rem',
+            padding: '1.35rem',
+            background: 'linear-gradient(135deg, rgba(15,23,42,0.96) 0%, rgba(30,41,59,0.96) 55%, rgba(249,115,22,0.16) 100%)',
+            boxShadow: '0 18px 40px rgba(2,6,23,0.16)',
+          }}>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.55rem',
+              padding: '0.3rem 0.7rem',
+              borderRadius: '999px',
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              color: '#f8fafc',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              marginBottom: '1rem',
+            }}>
+              <span>OxSteed network</span>
+            </div>
+
             <Link
               to="/"
               style={{
@@ -63,13 +114,13 @@ export default function Footer() {
                 alignItems: 'center',
                 gap: 'var(--space-2)',
                 textDecoration: 'none',
-                fontSize: 'var(--text-lg)',
-                fontWeight: 700,
-                color: 'var(--color-text)',
-                marginBottom: 'var(--space-2)',
+                fontSize: '1.9rem',
+                fontWeight: 800,
+                color: '#fff',
+                marginBottom: '0.85rem',
               }}
             >
-              <svg width="22" height="22" viewBox="0 0 512 512" aria-hidden="true">
+              <svg width="26" height="26" viewBox="0 0 512 512" aria-hidden="true">
                 <rect width="512" height="512" rx="88" fill="#16213e" />
                 <path d="M 40 285 A 218 218 0 0 1 173 55 L 211 26 A 178 178 0 0 0 80 279 Z" fill="#F97316" />
                 <path d="M 228 40 A 218 218 0 0 1 457 173 L 486 211 A 178 178 0 0 0 233 80 Z" fill="#F97316" />
@@ -81,28 +132,37 @@ export default function Footer() {
               </svg>
               OxSteed
             </Link>
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-faint)', maxWidth: '36ch', lineHeight: 1.6 }}>
+            <p style={{ fontSize: '0.97rem', color: 'rgba(226,232,240,0.82)', maxWidth: '34ch', lineHeight: 1.7, margin: '0 0 1.1rem' }}>
               {t('footer.tagline')}
             </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.65rem' }}>
+              <Link to={dashboardPath} style={actionPillStyle}>{t('nav.dashboard')}</Link>
+              <Link to="/logistics" style={actionPillStyle}>{t('logistics.nav.entry', 'OxSteed Logistics')}</Link>
+              <Link to="/how-it-works" style={actionPillStyle}>{t('footer.howOxsteedWorks')}</Link>
+            </div>
           </div>
 
-          {/* Navigation links */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-6)' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+            gap: 'var(--space-6)',
+            alignContent: 'start',
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
+              <span style={footerSectionTitleStyle}>
                 Platform
               </span>
               {user ? (
-                <FooterLink to="/dashboard">{t('nav.dashboard')}</FooterLink>
+                <FooterLink to={dashboardPath}>{t('nav.dashboard')}</FooterLink>
               ) : (
                 <FooterLink to="/login">{t('nav.signIn')}</FooterLink>
               )}
               <FooterLink to="/jobs">{t('footer.browseJobs')}</FooterLink>
               <FooterLink to={user?.role === 'customer' ? '/post-job' : '/register/customer'}>{t('footer.postJob')}</FooterLink>
-              <FooterLink to={user?.role === 'helper' ? '/dashboard' : '/register/helper'}>{t('footer.listSkills')}</FooterLink>
+              <FooterLink to={isHelper ? dashboardPath : '/register/helper'}>{t('footer.listSkills')}</FooterLink>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
+              <span style={footerSectionTitleStyle}>
                 Company
               </span>
               <FooterLink to="/how-it-works">{t('footer.howOxsteedWorks')}</FooterLink>
@@ -110,8 +170,8 @@ export default function Footer() {
               <FooterLink to="/helpers">{t('footer.findHelpers')}</FooterLink>
               <FooterLink to="/products">{t('footer.browseProducts')}</FooterLink>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
+              <span style={footerSectionTitleStyle}>
                 {t('footer.legal')}
               </span>
               <FooterLink to="/legal/background-check">{t('footer.backgroundCheck')}</FooterLink>
@@ -121,122 +181,101 @@ export default function Footer() {
               <FooterLink to="/legal/dispute-resolution">{t('footer.disputeResolution')}</FooterLink>
               <FooterLink to="/legal/independent-contractor">{t('footer.independentContractor')}</FooterLink>
             </div>
-            {user && (user.role === 'helper' || user.role === 'helper_pro' || user.role === 'broker') && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
+              <span style={footerSectionTitleStyle}>
+                Access
+              </span>
+              <FooterLink to="/tool-rentals">{t('toolRentals.browsePage')}</FooterLink>
+              <FooterLink to="/settings">{t('nav.settings')}</FooterLink>
+              <FooterLink to="/consulting-intake">{t('footer.consulting')}</FooterLink>
+              {user && <FooterLink to="/support/agent">{t('nav.supportWorkspace')}</FooterLink>}
+              {isHelper && (
+                <>
+                  <span style={{ ...footerSectionTitleStyle, marginTop: '0.6rem', marginBottom: '0.1rem' }}>
                   {t('footer.resource')}
-                </span>
-                <FooterLink to="/qr-generator">{t('footer.qrGenerator')}</FooterLink>
-              </div>
-            )}
+                  </span>
+                  <FooterLink to="/qr-generator">{t('footer.qrGenerator')}</FooterLink>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Legal links */}
         <div style={{
           display: 'flex',
           flexWrap: 'wrap',
+          justifyContent: 'space-between',
           gap: 'var(--space-4)',
           marginBottom: 'var(--space-4)',
           alignItems: 'center',
+          padding: '1rem 1.1rem',
+          border: '1px solid var(--color-border)',
+          borderRadius: '1rem',
+          background: 'rgba(148,163,184,0.04)',
         }}>
-          <LegalLink to="/terms">{t('footer.terms')}</LegalLink>
-          <LegalLink to="/privacy">{t('footer.privacy')}</LegalLink>
-          <LegalLink to="/security">{t('footer.security')}</LegalLink>
-          <LegalLink to="/cookie-policy">{t('footer.cookiePolicy')}</LegalLink>
-          <LegalLink to="/do-not-sell">{t('footer.doNotSell')}</LegalLink>
-          <LegalLink to="/accessibility">{t('footer.accessibility')}</LegalLink>
-          {/* GDPR: persistent entry point so users can change consent at any time */}
-          <button
-            onClick={openSettings}
-            aria-label="Manage cookie preferences"
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              fontSize: '0.78rem',
-              color: 'var(--color-text-faint)',
-              cursor: 'pointer',
-              transition: 'color var(--transition-fast)',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text-muted)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-faint)')}
-          >
-            Manage Cookies
-          </button>
-          {/* Always visible: guests need entry to paste token → sign in → redeem (sessionStorage in VortexModal) */}
-          <button
-            type="button"
-            onClick={() => navigate('/vortex')}
-            style={{
-              background: 'none',
-              border: '1px solid var(--color-primary)',
-              borderRadius: '999px',
-              padding: '0.15rem 0.7rem',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              color: 'var(--color-primary)',
-              cursor: 'pointer',
-              letterSpacing: '0.04em',
-              transition: 'background var(--transition-fast)',
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.1)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'none'}
-          >
-            {t('footer.vortex')}
-          </button>
-          {user && (
-            <Link
-              to="/support/agent"
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)', alignItems: 'center' }}>
+            <LegalLink to="/terms">{t('footer.terms')}</LegalLink>
+            <LegalLink to="/privacy">{t('footer.privacy')}</LegalLink>
+            <LegalLink to="/security">{t('footer.security')}</LegalLink>
+            <LegalLink to="/cookie-policy">{t('footer.cookiePolicy')}</LegalLink>
+            <LegalLink to="/do-not-sell">{t('footer.doNotSell')}</LegalLink>
+            <LegalLink to="/accessibility">{t('footer.accessibility')}</LegalLink>
+            <button
+              onClick={openSettings}
+              aria-label="Manage cookie preferences"
               style={{
-                display: 'inline-block',
-                textDecoration: 'none',
                 background: 'none',
-                border: '1px solid var(--color-primary)',
-                borderRadius: '999px',
-                padding: '0.15rem 0.7rem',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: 'var(--color-primary)',
+                border: 'none',
+                padding: 0,
+                fontSize: '0.78rem',
+                color: 'var(--color-text-faint)',
                 cursor: 'pointer',
-                letterSpacing: '0.04em',
-                transition: 'background var(--transition-fast)',
+                transition: 'color var(--transition-fast)',
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(249,115,22,0.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'none';
-              }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-faint)')}
             >
-              {t('nav.supportWorkspace')}
-            </Link>
-          )}
-          {/* Consulting button */}
-          <button
-            type="button"
-            onClick={() => navigate('/consulting-intake')}
-            style={{
-              background: 'none',
-              border: '1px solid var(--color-primary)',
-              borderRadius: '999px',
-              padding: '0.15rem 0.7rem',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              color: 'var(--color-primary)',
-              cursor: 'pointer',
-              letterSpacing: '0.04em',
-              transition: 'background var(--transition-fast)',
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.1)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'none'}
-            title={t('footer.consultingTooltip')}
-          >
-            {t('footer.consulting')}
-          </button>
+              Manage Cookies
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.65rem' }}>
+            <button
+              type="button"
+              onClick={() => navigate('/vortex')}
+              style={actionPillStyle}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.14)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(249,115,22,0.08)'}
+            >
+              {t('footer.vortex')}
+            </button>
+            {user && (
+              <Link
+                to="/support/agent"
+                style={actionPillStyle}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(249,115,22,0.14)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(249,115,22,0.08)';
+                }}
+              >
+                {t('nav.supportWorkspace')}
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={() => navigate('/consulting-intake')}
+              style={actionPillStyle}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.14)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(249,115,22,0.08)'}
+              title={t('footer.consultingTooltip')}
+            >
+              {t('footer.consulting')}
+            </button>
+          </div>
         </div>
 
-        {/* Copyright */}
         <div style={{
           display: 'flex',
           flexWrap: 'wrap',
@@ -283,13 +322,19 @@ function FooterLink({ to, children }) {
     <Link
       to={to}
       style={{
-        fontSize: 'var(--text-sm)',
+        fontSize: '0.96rem',
         color: 'var(--color-text-muted)',
         textDecoration: 'none',
-        transition: 'color var(--transition-fast)',
+        transition: 'color var(--transition-fast), transform var(--transition-fast)',
       }}
-      onMouseEnter={e => e.currentTarget.style.color = 'var(--color-text)'}
-      onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
+      onMouseEnter={e => {
+        e.currentTarget.style.color = 'var(--color-text)';
+        e.currentTarget.style.transform = 'translateX(2px)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.color = 'var(--color-text-muted)';
+        e.currentTarget.style.transform = 'translateX(0)';
+      }}
     >
       {children}
     </Link>
