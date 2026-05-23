@@ -8,6 +8,7 @@ import { fetchBookingPrefillForJob } from '../api/bookings';
 import api from '../api/axios';
 import '../styles/PostJobPage.css';
 import PageMeta from '../components/PageMeta';
+import PageShell from '../components/PageShell';
 import { useTranslation } from 'react-i18next';
 
 // ─── Category taxonomy ───────────────────────────────────────────────────────
@@ -1130,76 +1131,65 @@ export default function PostJobPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="pjw-root">
-      <PageMeta
-        title={t('postJob.title')}
-        description="Describe what you need done and get competitive bids from trusted local helpers within hours. Free to post."
-        url="https://oxsteed.com/post-job"
-        noIndex={true}
-      />
-      {/* ── Nav ─────────────────────────────────────────────────────────── */}
-      <nav className="pjw-nav" aria-label="Main navigation">
-        <Link to="/" className="pjw-nav-logo">
-          <OxSteedIcon size={26} />
-          OxSteed
-        </Link>
-        <div className="pjw-nav-actions">
-          <Link to="/jobs"      className="pjw-nav-link">Browse Jobs</Link>
-          <Link to="/dashboard" className="pjw-nav-link">My Posts</Link>
-        </div>
-      </nav>
+    <PageShell>
+      <div className="pjw-root">
+        <PageMeta
+          title={t('postJob.title')}
+          description="Describe what you need done and get competitive bids from trusted local helpers within hours. Free to post."
+          url="https://oxsteed.com/post-job"
+          noIndex={true}
+        />
+        <main className="pjw-main-wrap">
 
-      <main className="pjw-main-wrap">
+          {/* ── Page header ────────────────────────────────────────────────── */}
+          <header className="pjw-hero">
+            <nav className="pjw-breadcrumb" aria-label="Breadcrumb">
+              <Link to="/">Home</Link><span>›</span>
+              <Link to="/jobs">Jobs</Link><span>›</span>
+              <span aria-current="page">Post a Job</span>
+            </nav>
+            <div className="pjw-hero-grid">
+              <div className="pjw-hero-copy">
+                <div className="pjw-hero-kicker">Customer job post</div>
+                <h1 className="pjw-page-title">{t('postJob.title')}</h1>
+                <p className="pjw-page-sub">Describe what needs doing, set the bar for who can bid, and turn one messy task into a clear request helpers can price quickly.</p>
 
-        {/* ── Page header ────────────────────────────────────────────────── */}
-        <header className="pjw-hero">
-          <nav className="pjw-breadcrumb" aria-label="Breadcrumb">
-            <Link to="/">Home</Link><span>›</span>
-            <Link to="/jobs">Jobs</Link><span>›</span>
-            <span aria-current="page">Post a Job</span>
-          </nav>
-          <div className="pjw-hero-grid">
-            <div className="pjw-hero-copy">
-              <div className="pjw-hero-kicker">Customer job post</div>
-              <h1 className="pjw-page-title">{t('postJob.title')}</h1>
-              <p className="pjw-page-sub">Describe what needs doing, set the bar for who can bid, and turn one messy task into a clear request helpers can price quickly.</p>
+                <div className="pjw-hero-trust">
+                  <span className="pjw-hero-pill">Free to post</span>
+                  <span className="pjw-hero-pill">Set your own requirements</span>
+                  <span className="pjw-hero-pill">Invite competitive bids</span>
+                </div>
+              </div>
 
-              <div className="pjw-hero-trust">
-                <span className="pjw-hero-pill">Free to post</span>
-                <span className="pjw-hero-pill">Set your own requirements</span>
-                <span className="pjw-hero-pill">Invite competitive bids</span>
+              <div className="pjw-hero-panel">
+                <div className="pjw-hero-panel-card">
+                  <div className="pjw-hero-panel-label">What makes bids better</div>
+                  <ul className="pjw-hero-panel-list">
+                    <li>Specific scope beats broad descriptions.</li>
+                    <li>Photos or video reduce back-and-forth questions.</li>
+                    <li>Requirements prevent low-fit helpers from wasting your time.</li>
+                  </ul>
+                </div>
               </div>
             </div>
-
-            <div className="pjw-hero-panel">
-              <div className="pjw-hero-panel-card">
-                <div className="pjw-hero-panel-label">What makes bids better</div>
-                <ul className="pjw-hero-panel-list">
-                  <li>Specific scope beats broad descriptions.</li>
-                  <li>Photos or video reduce back-and-forth questions.</li>
-                  <li>Requirements prevent low-fit helpers from wasting your time.</li>
-                </ul>
+            {directHelperId && (
+              <div style={{ display:'flex', alignItems:'center', gap:'10px', marginTop:'12px', padding:'12px 16px', background:'rgba(249,115,22,0.08)', border:'1px solid rgba(249,115,22,0.25)', borderRadius:'12px', fontSize:'13px', color:'#fb923c' }}>
+                <span>⚡</span>
+                <span>Direct request to <strong style={{ color:'#fff' }}>{directHelperName || 'this helper'}</strong> - they'll be notified when your job is posted.</span>
+                <a href={`/helpers/${directHelperId}`} style={{ marginLeft:'auto', color:'#fb923c', textDecoration:'underline', whiteSpace:'nowrap' }}>View profile</a>
               </div>
-            </div>
-          </div>
-          {directHelperId && (
-            <div style={{ display:'flex', alignItems:'center', gap:'10px', marginTop:'12px', padding:'12px 16px', background:'rgba(249,115,22,0.08)', border:'1px solid rgba(249,115,22,0.25)', borderRadius:'12px', fontSize:'13px', color:'#fb923c' }}>
-              <span>⚡</span>
-              <span>Direct request to <strong style={{ color:'#fff' }}>{directHelperName || 'this helper'}</strong> - they'll be notified when your job is posted.</span>
-              <a href={`/helpers/${directHelperId}`} style={{ marginLeft:'auto', color:'#fb923c', textDecoration:'underline', whiteSpace:'nowrap' }}>View profile</a>
-            </div>
-          )}
-          {fromBookingId && (
-            <div style={{ marginTop:'12px', padding:'12px 16px', background:'rgba(59,130,246,0.08)', border:'1px solid rgba(59,130,246,0.25)', borderRadius:'12px', fontSize:'13px', color:'#93c5fd' }}>
-              {t('postJob.prefillFromBooking', 'We pulled details from your booking request. Review everything below before posting publicly.')}
-            </div>
-          )}
-          {isMaintenanceRequestMode && (
-            <div style={{ marginTop:'12px', padding:'12px 16px', background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.25)', borderRadius:'12px', fontSize:'13px', color:'#6ee7b7' }}>
-              Maintenance request mode is on. Add photos, access notes, urgency, and preferred repair windows so the property manager can accept, schedule, or assign the work.
-            </div>
-          )}
-        </header>
+            )}
+            {fromBookingId && (
+              <div style={{ marginTop:'12px', padding:'12px 16px', background:'rgba(59,130,246,0.08)', border:'1px solid rgba(59,130,246,0.25)', borderRadius:'12px', fontSize:'13px', color:'#93c5fd' }}>
+                {t('postJob.prefillFromBooking', 'We pulled details from your booking request. Review everything below before posting publicly.')}
+              </div>
+            )}
+            {isMaintenanceRequestMode && (
+              <div style={{ marginTop:'12px', padding:'12px 16px', background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.25)', borderRadius:'12px', fontSize:'13px', color:'#6ee7b7' }}>
+                Maintenance request mode is on. Add photos, access notes, urgency, and preferred repair windows so the property manager can accept, schedule, or assign the work.
+              </div>
+            )}
+          </header>
 
         {/* ── Step bar ───────────────────────────────────────────────────── */}
         <div className="pjw-step-bar" role="list" aria-label="Progress steps">
@@ -2069,60 +2059,60 @@ export default function PostJobPage() {
             </div>
           </aside>
 
-        </div>{/* /two-col */}
-      </main>
+          </div>{/* /two-col */}
+        </main>
 
-      {/* ── Live Capture Modal ───────────────────────────────────────────── */}
-      {liveCapture && (
-        <LiveCaptureModal
-          mode={liveCapture}
-          onCapture={file => handleMediaFiles([file])}
-          onClose={() => setLiveCapture(null)}
-        />
-      )}
+        {/* ── Live Capture Modal ───────────────────────────────────────────── */}
+        {liveCapture && (
+          <LiveCaptureModal
+            mode={liveCapture}
+            onCapture={file => handleMediaFiles([file])}
+            onClose={() => setLiveCapture(null)}
+          />
+        )}
 
-      {/* ── Success Overlay ──────────────────────────────────────────────── */}
-      {form.submitted && form.submittedJob && (
-        <div
-          ref={successModalRef}
-          className="pjw-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="pjw-success-title"
-        >
-          <div className="pjw-success-card">
-            <div className="pjw-success-icon" aria-hidden="true">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-            </div>
-            <h2 className="pjw-success-title" id="pjw-success-title">{t('postJob.jobPostedSuccess')}</h2>
-            <p className="pjw-success-sub">
-              {t('postJob.jobLiveMessage', { city: form.locationCity?.trim() || t('postJob.yourArea') })}
-            </p>
-            <div className="pjw-job-id">
-              JOB-{String(form.submittedJob.id || '').toUpperCase().slice(0, 8)}
-            </div>
-            <div className="pjw-success-actions">
-              <button
-                type="button"
-                className="pjw-btn pjw-btn-primary pjw-btn-full"
-                onClick={() => navigate('/dashboard')}
-                aria-label={t('postJob.viewMyJobsAriaLabel')}
-              >
-                {t('postJob.viewMyJobs')}
-              </button>
-              <button
-                type="button"
-                className="pjw-btn pjw-btn-secondary pjw-btn-full"
-                onClick={() => { setForm(INIT); setErrors({}); }}
-                aria-label={t('postJob.postAnotherJobAriaLabel')}
-              >
-                {t('postJob.postAnotherJob')}
-              </button>
+        {/* ── Success Overlay ──────────────────────────────────────────────── */}
+        {form.submitted && form.submittedJob && (
+          <div
+            ref={successModalRef}
+            className="pjw-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pjw-success-title"
+          >
+            <div className="pjw-success-card">
+              <div className="pjw-success-icon" aria-hidden="true">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <h2 className="pjw-success-title" id="pjw-success-title">{t('postJob.jobPostedSuccess')}</h2>
+              <p className="pjw-success-sub">
+                {t('postJob.jobLiveMessage', { city: form.locationCity?.trim() || t('postJob.yourArea') })}
+              </p>
+              <div className="pjw-job-id">
+                JOB-{String(form.submittedJob.id || '').toUpperCase().slice(0, 8)}
+              </div>
+              <div className="pjw-success-actions">
+                <button
+                  type="button"
+                  className="pjw-btn pjw-btn-primary pjw-btn-full"
+                  onClick={() => navigate('/dashboard')}
+                  aria-label={t('postJob.viewMyJobsAriaLabel')}
+                >
+                  {t('postJob.viewMyJobs')}
+                </button>
+                <button
+                  type="button"
+                  className="pjw-btn pjw-btn-secondary pjw-btn-full"
+                  onClick={() => { setForm(INIT); setErrors({}); }}
+                  aria-label={t('postJob.postAnotherJobAriaLabel')}
+                >
+                  {t('postJob.postAnotherJob')}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-
-    </div>
+        )}
+      </div>
+    </PageShell>
   );
 }

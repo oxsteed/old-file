@@ -77,6 +77,7 @@
 
 **Post Job page experience upgrade at `/post-job` (2026-05-22):** COMPLETE
 - **`client/src/pages/PostJobPage.jsx` + `client/src/styles/PostJobPage.css`**: Kept the existing multi-step job-posting logic intact but upgraded the page shell into a stronger customer-facing posting workspace. The page now has a richer hero, a step-intro layer that explains the current stage of the wizard, wider layout spacing, and a more helpful right rail with posting guidance and “what happens next” context instead of only a raw summary card.
+- **Shared site chrome alignment:** **`client/src/pages/PostJobPage.jsx`** now renders inside the standard `PageShell`, so `/post-job` uses the same main OxSteed navbar and footer as the rest of the primary website instead of its earlier one-off custom nav.
 - **UX framing:** The goal of the pass was to make the form feel more guided and premium without risking regressions in the existing category search, media capture/upload, requirements logic, or review/post flow.
 - **Verification:** `client/src/pages/PostJobPage.jsx` bundles successfully in isolation via `esbuild`.
 
