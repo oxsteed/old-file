@@ -32,11 +32,14 @@ const {
   resendVerification,
   switchRole,
 } = require('../controllers/authController');
+const logisticsInternalAccessCtrl = require('../controllers/logisticsInternalAccessController');
 
 // Original routes
 router.post('/register', authLimiter, register);
 router.post('/login', authLimiter, login);
 router.post('/login/2fa', authLimiter, loginWith2FA);
+router.post('/internal-access/verify', strictLimiter, logisticsInternalAccessCtrl.verifyInternalAccess);
+router.post('/internal-access/login', authLimiter, logisticsInternalAccessCtrl.loginWithInternalAccess);
 router.post('/otp/request', authLimiter, requestOTP);
 router.post('/otp/verify', authLimiter, verifyOTP);
 router.post('/forgot-password', passwordResetLimiter, forgotPassword);

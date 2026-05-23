@@ -13,6 +13,7 @@ const bizModCtrl      = require('../controllers/businessModerationController');
 const convAdminCtrl   = require('../controllers/conversationsAdminController');
 const paymentsCtrl    = require('../controllers/paymentsAdminController');
 const adminMsgCtrl    = require('../controllers/adminMessageController');
+const logisticsInternalAccessCtrl = require('../controllers/logisticsInternalAccessController');
 
 // ══════════════════════════════════════════════════════════════
 // REGULAR ADMIN - both admin and super_admin can access
@@ -129,6 +130,10 @@ router.get('/super/admin-accounts',             requireAdmin, requirePermission(
 router.post('/super/admin-accounts',            requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.createAdminAccount);
 router.put('/super/admin-accounts/:id/status',  requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.toggleAdminAccountStatus);
 router.get('/super/admin-activity/:adminId',    requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.getAdminActivity);
+
+// Logistics internal access bootstrap (super-admin self-setup)
+router.get('/super/logistics-internal-access/me', requireSuperAdmin, logisticsInternalAccessCtrl.getMyInternalAccess);
+router.put('/super/logistics-internal-access/me', requireSuperAdmin, logisticsInternalAccessCtrl.upsertMyInternalAccess);
 
 // Financials - super-admin direct, or admin with view_financials grant
 router.get('/financials',            requireAdmin, requirePermission('view_financials'), superCtrl.getFinancials);

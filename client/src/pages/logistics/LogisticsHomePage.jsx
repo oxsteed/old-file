@@ -85,6 +85,20 @@ export default function LogisticsHomePage() {
     locked:'#8b5cf6', placed:'#3b82f6', in_transit:'#06b6d4', completed:'#10b981',
   };
 
+  const workspaceHref = (workspace, available) => {
+    if (available) return workspace.path;
+    if (workspace.key === 'operations') {
+      return `/logistics/operations/login?next=${encodeURIComponent(workspace.path)}`;
+    }
+    if (workspace.key === 'compliance') {
+      return `/logistics/compliance-workspace/login?next=${encodeURIComponent(workspace.path)}`;
+    }
+    if (workspace.key === 'admin_control') {
+      return `/logistics/admin-control/login?next=${encodeURIComponent(workspace.path)}`;
+    }
+    return '/login';
+  };
+
   return (
     <PageShell>
       <div className="lx-home">
@@ -123,7 +137,7 @@ export default function LogisticsHomePage() {
             return (
               <Link
                 key={workspace.key}
-                to={available ? workspace.path : '/login'}
+                to={workspaceHref(workspace, available)}
                 className="lx-nav-tile"
                 style={{ position: 'relative', textDecoration: 'none' }}
               >

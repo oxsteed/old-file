@@ -357,6 +357,8 @@ async function loginWith2FA(req, res) {
       const decoded = jwt.verify(mfaToken, process.env.JWT_SECRET || 'secret');
       if (!decoded.isMfaToken) throw new Error('Invalid token type');
       userId = decoded.id;
+      req.internalAccessId = decoded.internalAccessId || null;
+      req.internalAccessRoute = decoded.internalAccessRoute || null;
     } catch (err) {
       return res.status(401).json({ error: 'Invalid or expired MFA token' });
     }
@@ -384,6 +386,29 @@ async function loginWith2FA(req, res) {
     }
     const user = rows[0];
     if (!user.is_active) return res.status(403).json({ error: 'Account deactivated' });
+
+    if (req.internalAccessId && req.internalAccessRoute) {
+      const routeField = req.internalAccessRoute === 'operations'
+        ? 'operations_enabled'
+        : req.internalAccessRoute === 'compliance'
+          ? 'compliance_enabled'
+          : null;
+      if (!routeField) {
+        return res.status(401).json({ error: 'Invalid internal-access MFA session' });
+      }
+
+      const { rows: accessRows } = await pool.query(
+        `SELECT id, is_active, ${routeField} AS route_enabled
+         FROM logistics_internal_access_credentials
+         WHERE id = $1 AND user_id = $2
+         LIMIT 1`,
+        [req.internalAccessId, userId]
+      );
+      if (!accessRows[0] || !accessRows[0].is_active || !accessRows[0].route_enabled) {
+        return res.status(401).json({ error: 'Internal-access approval is no longer valid.' });
+      }
+    }
+
     let verified = false;
     if (isBackupCode) {
       const codes = user.backup_codes || [];

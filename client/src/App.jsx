@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import { CookieConsentProvider } from './context/CookieConsentContext';
 import './i18n'; // initialise i18next before any component renders
 import ProtectedRoute from './components/ProtectedRoute';
+import LogisticsOperatorGuard from './components/LogisticsOperatorGuard';
 import ErrorBoundary, { RouterAwareErrorBoundary } from './components/ErrorBoundary';
 import RouteErrorBoundary from './components/RouteErrorBoundary';
 import ScrollToTop from './components/ScrollToTop';
@@ -72,6 +73,7 @@ import DistributorResellerPage from './pages/logistics/DistributorResellerPage';
 import OperationsWorkspacePage from './pages/logistics/OperationsWorkspacePage';
 import ComplianceWorkspacePage from './pages/logistics/ComplianceWorkspacePage';
 import AdminControlWorkspacePage from './pages/logistics/AdminControlWorkspacePage';
+import LogisticsOperatorLoginPage from './pages/logistics/LogisticsOperatorLoginPage';
 import CampaignsPage        from './pages/logistics/CampaignsPage';
 import CampaignDetailPage   from './pages/logistics/CampaignDetailPage';
 import SourcingPage         from './pages/logistics/SourcingPage';
@@ -293,13 +295,17 @@ export default function App() {
 
                     {/* OxSteed Logistics branch (migration 247) */}
                     <Route path="/logistics"                  element={<Guarded><RouteErrorBoundary><LogisticsHomePage /></RouteErrorBoundary></Guarded>} />
+                    <Route path="/logistics/internal/login"   element={<Guarded><LogisticsOperatorLoginPage /></Guarded>} />
+                    <Route path="/logistics/operations/login" element={<Guarded><LogisticsOperatorLoginPage /></Guarded>} />
+                    <Route path="/logistics/compliance-workspace/login" element={<Guarded><LogisticsOperatorLoginPage /></Guarded>} />
+                    <Route path="/logistics/admin-control/login" element={<Guarded><LogisticsOperatorLoginPage /></Guarded>} />
                     <Route path="/logistics/buyer"            element={<Guarded><ProtectedRoute><RouteErrorBoundary><BuyerDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/organizer"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><OrganizerDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/business-procurement" element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessProcurementPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/distributor"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><DistributorResellerPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
-                    <Route path="/logistics/operations"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><OperationsWorkspacePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
-                    <Route path="/logistics/compliance-workspace" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ComplianceWorkspacePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
-                    <Route path="/logistics/admin-control"    element={<Guarded><ProtectedRoute><RouteErrorBoundary><AdminControlWorkspacePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/operations"       element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><OperationsWorkspacePage /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
+                    <Route path="/logistics/compliance-workspace" element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><ComplianceWorkspacePage /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
+                    <Route path="/logistics/admin-control"    element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><AdminControlWorkspacePage /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
                     <Route path="/logistics/campaigns"        element={<Guarded><RouteErrorBoundary><CampaignsPage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/logistics/campaigns/:id"    element={<Guarded><RouteErrorBoundary><CampaignDetailPage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/logistics/sourcing"         element={<Guarded><ProtectedRoute><RouteErrorBoundary><SourcingPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

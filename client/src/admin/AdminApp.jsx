@@ -32,6 +32,7 @@ import SearchLogs        from './pages/super/SearchLogs';
 import PermissionGrants  from './pages/super/PermissionGrants';
 import CreateUser        from './pages/super/CreateUser';
 import RegionsManager    from './pages/super/RegionsManager';
+import LogisticsInternalAccess from './pages/super/LogisticsInternalAccess';
 import AuditLogUserActions from './pages/super/AuditLogUserActions';
 import OneTruthPage        from './pages/super/OneTruthPage';
 import CorporateOrgChart    from './pages/super/CorporateOrgChart';
@@ -266,6 +267,9 @@ export default function AdminApp() {
           } />
           <Route path="super/regions" element={
             <AdminGuard superOnly><RegionsManager /></AdminGuard>
+          } />
+          <Route path="super/logistics-internal-access" element={
+            <AdminGuard superOnly><LogisticsInternalAccess /></AdminGuard>
           } />
           <Route path="super/audit-log/user-actions" element={
             <AdminGuard superOnly><AuditLogUserActions /></AdminGuard>
