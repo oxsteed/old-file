@@ -22,7 +22,8 @@ export default function CreateUser() {
         <div>
           <h1 className="text-xl font-semibold text-gray-100">Create user</h1>
           <p className="text-sm text-gray-400">
-            Provision a new account on behalf of a customer, helper, or broker.
+            Provision a new account for any current OxSteed account type, including logistics,
+            business workspaces, granted business roles, and internal staff.
             All fields are recorded in the audit log.
           </p>
         </div>

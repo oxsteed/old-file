@@ -28,10 +28,29 @@ const {
 const { sendNotification } = require('../services/notificationService');
 const { withTransaction }  = require('../utils/transaction');
 const { userMatchesAnyRegion } = require('../middleware/regionAuth');
+const modeRoleUtil = require('../utils/modeRole');
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
-const ALLOWED_ROLES = ['customer', 'helper', 'helper_pro', 'broker'];
+const ACCOUNT_TYPE_CONFIG = Object.freeze({
+  customer:                { role: 'customer',    default_mode: 'customer',                helperTier: null },
+  helper:                  { role: 'helper',      default_mode: 'helper',                  helperTier: 'tier1' },
+  helper_pro:              { role: 'helper_pro',  default_mode: 'helper',                  helperTier: 'tier2' },
+  broker:                  { role: 'broker',      default_mode: 'helper',                  helperTier: 'tier3' },
+  logistics:               { role: 'customer',    default_mode: 'logistics',               helperTier: null },
+  business_owner:          { role: 'helper',      default_mode: 'business_owner',          helperTier: 'tier1' },
+  consultant:              { role: 'helper',      default_mode: 'consultant',              helperTier: 'tier1' },
+  tool_owner:              { role: 'helper',      default_mode: 'tool_owner',              helperTier: 'tier1' },
+  franchise_applicant:     { role: 'customer',    default_mode: 'franchise_applicant',     helperTier: null },
+  life_only:               { role: 'customer',    default_mode: 'life_only',               helperTier: null },
+  business_manager:        { role: 'helper',      default_mode: 'business_manager',        helperTier: 'tier1' },
+  business_representative: { role: 'helper',      default_mode: 'business_representative', helperTier: 'tier1' },
+  business_employee:       { role: 'helper',      default_mode: 'business_employee',       helperTier: 'tier1' },
+  business_support_agent:  { role: 'helper',      default_mode: 'business_support_agent',  helperTier: 'tier1' },
+  admin:                   { role: 'admin',       default_mode: 'admin',                   helperTier: null },
+  super_admin:             { role: 'super_admin', default_mode: 'admin',                   helperTier: null },
+});
+const ALLOWED_ACCOUNT_TYPES = Object.freeze(Object.keys(ACCOUNT_TYPE_CONFIG));
 const SENSITIVE_FIELDS = new Set(['password', 'password_hash']);
 
 // Editable fields with simple metadata. Boolean fields are coerced; password
@@ -47,7 +66,7 @@ const EDITABLE_FIELDS = [
   { key: 'country',                 column: 'country',                 type: 'country' },
   { key: 'membership_tier',         column: 'membership_tier',         type: 'string' },
   { key: 'subscription_status',     column: 'subscription_status',     type: 'string' },
-  { key: 'role',                    column: 'role',                    type: 'enum', enumValues: ALLOWED_ROLES.concat(['admin']) },
+  { key: 'role',                    column: 'role',                    type: 'enum', enumValues: ['customer', 'helper', 'helper_pro', 'broker', 'admin', 'super_admin'] },
   { key: 'email_verified',          column: 'email_verified',          type: 'boolean' },
   { key: 'is_verified',             column: 'is_verified',             type: 'boolean' },
   { key: 'background_check_passed', column: 'background_check_passed', type: 'boolean' },
@@ -84,6 +103,11 @@ function safeDisplay(field, value) {
   if (value === null || value === undefined) return '';
   if (typeof value === 'boolean') return value ? 'yes' : 'no';
   return String(value);
+}
+
+function resolveAccountTypeConfig(rawAccountType) {
+  const key = String(rawAccountType || '').trim().toLowerCase();
+  return ACCOUNT_TYPE_CONFIG[key] || null;
 }
 
 async function getUserSnapshot(client, userId) {
@@ -126,6 +150,7 @@ exports.createUserFull = async (req, res) => {
       phone, city, state, zip_code,
       country: rawCountry = 'US',
       role = 'customer',
+      account_type,
       membership_tier = null,
       subscription_status = 'none',
       email_verified = false,
@@ -143,7 +168,11 @@ exports.createUserFull = async (req, res) => {
     if (!password || password.length < 8)    errors.password  = 'Password must be at least 8 characters.';
     if (!first_name?.toString().trim())      errors.first_name = 'first_name is required.';
     if (!last_name?.toString().trim())       errors.last_name  = 'last_name is required.';
-    if (!ALLOWED_ROLES.includes(role))       errors.role       = `role must be one of: ${ALLOWED_ROLES.join(', ')}.`;
+    const selectedAccountType = account_type ?? role;
+    const accountTypeConfig = resolveAccountTypeConfig(selectedAccountType);
+    if (!accountTypeConfig) {
+      errors.role = `account type must be one of: ${ALLOWED_ACCOUNT_TYPES.join(', ')}.`;
+    }
     if (!countriesUtil.isValidCountry(country)) errors.country  = 'Invalid country code.';
     if (state && !countriesUtil.isValidRegion(country, state)) {
       errors.state = `Invalid state/region for ${country}.`;
@@ -156,6 +185,10 @@ exports.createUserFull = async (req, res) => {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
+    const effectiveAccountType = account_type ?? role;
+    const resolvedAccountType = resolveAccountTypeConfig(effectiveAccountType);
+    const resolvedRole = resolvedAccountType.role;
+    const resolvedDefaultMode = resolvedAccountType.default_mode;
 
     // Email uniqueness
     const { rows: dup } = await db.query(
@@ -165,10 +198,14 @@ exports.createUserFull = async (req, res) => {
       return res.status(409).json({ error: 'An account with this email already exists.' });
     }
 
+    if (resolvedRole === 'super_admin' && req.user.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Only super_admin can create another super_admin.' });
+    }
+
     const passwordHash = await bcrypt.hash(password, 12);
     const referralCode = crypto.randomBytes(6).toString('hex');
-    const isHelper = role === 'helper' || role === 'helper_pro';
-    const tier     = membership_tier || (role === 'helper_pro' ? 'tier2' : (isHelper ? 'tier1' : null));
+    const isHelper = ['helper', 'helper_pro', 'broker'].includes(resolvedRole) || modeRoleUtil.roleForMode(resolvedDefaultMode, { currentRole: resolvedRole }) === 'helper';
+    const tier = membership_tier || resolvedAccountType.helperTier || null;
 
     const preferredCurrency = countriesUtil.getDefaultCurrency(country) || 'USD';
 
@@ -182,6 +219,7 @@ exports.createUserFull = async (req, res) => {
         INSERT INTO users (
           first_name, last_name, email, password_hash,
           phone, city, state, zip_code, country, preferred_currency,
+          default_mode,
           role, membership_tier, subscription_status,
           email_verified, is_verified, background_check_passed,
           is_active,
@@ -191,21 +229,22 @@ exports.createUserFull = async (req, res) => {
         ) VALUES (
           $1, $2, $3, $4,
           $5, $6, $7, $8, $9, $10,
-          $11, $12, $13,
-          $14, $15, $16,
+          $11,
+          $12, $13, $14,
+          $15, $16, $17,
           TRUE,
           TRUE, 'onboarding_complete',
           TRUE, TRUE, TRUE,
           NOW(), NOW()
         )
         RETURNING id, first_name, last_name, email, role,
-                  membership_tier, subscription_status, is_active,
+                  default_mode, membership_tier, subscription_status, is_active,
                   country, preferred_currency,
                   created_at
       `, [
         first_name.trim(), last_name.trim(), normalizedEmail, passwordHash,
         phone || null, city || null, normalizedState, zip_code || null, country, preferredCurrency,
-        role, tier, subscription_status,
+        resolvedDefaultMode, resolvedRole, tier, subscription_status,
         coerceBoolean(email_verified), coerceBoolean(is_verified), coerceBoolean(background_check_passed),
       ]);
 
@@ -226,7 +265,7 @@ exports.createUserFull = async (req, res) => {
         adminId,
         targetUserId: newUser.id,
         actionType:   'create_user',
-        notes:        notes || `Admin-created ${role} account for ${normalizedEmail}`,
+        notes:        notes || `Admin-created ${effectiveAccountType} account for ${normalizedEmail}`,
         ipAddress:    req.ip || null,
       });
 
@@ -239,8 +278,8 @@ exports.createUserFull = async (req, res) => {
       action: 'user_created_full',
       targetType: 'user',
       targetId: result.id,
-      description: `Created ${role} account for ${normalizedEmail}`,
-      after: { role, email: normalizedEmail, membership_tier: tier },
+      description: `Created ${effectiveAccountType} account for ${normalizedEmail}`,
+      after: { account_type: effectiveAccountType, role: resolvedRole, default_mode: resolvedDefaultMode, email: normalizedEmail, membership_tier: tier },
       req,
     }).catch(() => {});
 

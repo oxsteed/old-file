@@ -14,11 +14,23 @@ import { detectCountryFromLocale } from '../lib/countries';
  *   onCreated  – callback(user) fired after successful creation
  *   onCancel   – callback fired when the user clicks Cancel
  */
-const ROLES = [
-  { value: 'customer',   label: 'Customer' },
-  { value: 'helper',     label: 'Helper' },
-  { value: 'helper_pro', label: 'Helper Pro' },
-  { value: 'broker',     label: 'Broker' },
+const ACCOUNT_TYPES = [
+  { value: 'customer', label: 'Customer', hint: 'Standard customer account' },
+  { value: 'helper', label: 'Helper', hint: 'Base helper account' },
+  { value: 'helper_pro', label: 'Helper Pro', hint: 'Paid helper tier' },
+  { value: 'broker', label: 'Broker', hint: 'Tier 3 helper / broker account' },
+  { value: 'logistics', label: 'Logistics', hint: 'Core logistics buyer mode' },
+  { value: 'business_owner', label: 'Business Owner', hint: 'Business workspace owner' },
+  { value: 'consultant', label: 'Consultant', hint: 'Consulting workspace account' },
+  { value: 'tool_owner', label: 'Tool Owner', hint: 'Tool-rental owner account' },
+  { value: 'franchise_applicant', label: 'Franchise Applicant', hint: 'Franchise intake + status flow' },
+  { value: 'life_only', label: 'Life Only', hint: 'Life dashboard only account' },
+  { value: 'business_manager', label: 'Business Manager', hint: 'Granted business management workspace' },
+  { value: 'business_representative', label: 'Business Representative', hint: 'Granted business representative workspace' },
+  { value: 'business_employee', label: 'Business Employee', hint: 'Granted employee workspace' },
+  { value: 'business_support_agent', label: 'Business Support Agent', hint: 'Granted support-agent workspace' },
+  { value: 'admin', label: 'Admin', hint: 'Internal admin portal account' },
+  { value: 'super_admin', label: 'Super Admin', hint: 'Full internal platform access' },
 ];
 
 // Must match the Postgres enum subscription_status defined in
@@ -44,7 +56,7 @@ const INITIAL = {
   city: '',
   state: '',
   zip_code: '',
-  role: 'customer',
+  account_type: 'customer',
   membership_tier: '',
   subscription_status: 'none',
   email_verified: false,
@@ -265,17 +277,22 @@ export default function CreateUserForm({ onCreated, onCancel }) {
         <h3 className="text-sm font-semibold text-gray-200 mb-3">Account</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className={labelCls}>Role *</label>
+            <label className={labelCls}>Account type *</label>
             <select
               className={inputCls}
-              value={form.role}
-              onChange={e => setField('role', e.target.value)}
+              value={form.account_type}
+              onChange={e => setField('account_type', e.target.value)}
             >
-              {ROLES.map(r => (
-                <option key={r.value} value={r.value}>{r.label}</option>
+              {ACCOUNT_TYPES.map((accountType) => (
+                <option key={accountType.value} value={accountType.value}>
+                  {accountType.label}
+                </option>
               ))}
             </select>
             {fieldErr('role')}
+            <p className="text-xs text-gray-500 mt-2">
+              {ACCOUNT_TYPES.find((accountType) => accountType.value === form.account_type)?.hint}
+            </p>
           </div>
           <div>
             <label className={labelCls}>Membership tier</label>
