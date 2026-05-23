@@ -7,6 +7,7 @@ import ThemeToggle from './ThemeToggle';
 import LanguageSelector from './LanguageSelector';
 import BusinessSwitcher from './BusinessSwitcher';
 import ModeSwitcher from './ModeSwitcher';
+import { routeForMode } from '../utils/modeRouter';
 import '../styles/BusinessSwitcher.css';
 
 /** The OxSteed brand icon (4-arrow clockwise ring with inner circle) */
@@ -43,6 +44,8 @@ export default function Navbar() {
   const [showSupportWorkspaceNav, setShowSupportWorkspaceNav] = useState(false);
   const joinMenuRef = useRef(null);
   const resourcesMenuRef = useRef(null);
+  const currentMode = user?.default_mode || (isHelper ? 'helper' : 'customer');
+  const dashboardPath = routeForMode(currentMode);
 
   useEffect(() => {
     if (!user) return;
@@ -127,6 +130,8 @@ export default function Navbar() {
   }, [resourcesMenuOpen]);
 
   const isActive = (path) => location.pathname === path;
+  const isDashboardActive = location.pathname === dashboardPath
+    || (currentMode === 'logistics' && location.pathname.startsWith('/logistics'));
 
   return (
     <nav
@@ -194,7 +199,7 @@ export default function Navbar() {
                   )}
                 </NavLink>
                 <Divider />
-                <NavLink to="/dashboard" active={isActive('/dashboard')}>{t('nav.dashboard')}</NavLink>
+                <NavLink to={dashboardPath} active={isDashboardActive}>{t('nav.dashboard')}</NavLink>
                 {showSupportWorkspaceNav && (
                   <NavLink to="/support/agent" active={isActive('/support/agent')}>{t('nav.supportWorkspace')}</NavLink>
                 )}
@@ -371,7 +376,7 @@ export default function Navbar() {
           }}>
             {user ? (
               <>
-                <MobileNavLink to="/dashboard" onClick={() => setMobileOpen(false)}>{t('nav.dashboard')}</MobileNavLink>
+                <MobileNavLink to={dashboardPath} onClick={() => setMobileOpen(false)}>{t('nav.dashboard')}</MobileNavLink>
                 {showSupportWorkspaceNav && (
                   <MobileNavLink to="/support/agent" onClick={() => setMobileOpen(false)}>{t('nav.supportWorkspace')}</MobileNavLink>
                 )}
