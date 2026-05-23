@@ -26,7 +26,7 @@
   /* ── Text ── */
   --color-text:          #f1f5f9;
   --color-text-muted:    #94a3b8;
-  --color-text-faint:    #64748b;
+  --color-text-faint:    #7c8da3;
 
   /* ── Brand / Primary ── */
   --color-primary:       #f97316;
@@ -142,7 +142,7 @@ html:not(.dark),
 
   --color-text:          #0f172a;
   --color-text-muted:    #475569;
-  --color-text-faint:    #94a3b8;
+  --color-text-faint:    #64748b;
 
   --color-primary:       #ea580c;
   --color-primary-hover: #c2410c;
