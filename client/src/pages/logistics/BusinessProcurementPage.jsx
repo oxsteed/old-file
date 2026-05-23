@@ -1,16 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { listSourcingRequests, listRecurringPrograms, createRecurringProgram, updateRecurringProgramStatus, listLanes } from '../../api/logistics';
+import { listSourcingRequests, listRecurringPrograms, createRecurringProgram, updateRecurringProgramStatus, listLanes, getBusinessProcurementAccess } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
+import { useAuth } from '../../context/AuthContext';
+import { canAccessBusinessProcurementWorkspace, isBusinessProcurementEligibleMembership } from '../../utils/logisticsWorkspaces';
+import LogisticsWorkspaceSwitcher from '../../components/logistics/LogisticsWorkspaceSwitcher';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const CADENCE_OPTIONS = ['weekly', 'biweekly', 'monthly', 'quarterly', 'custom'];
 
 export default function BusinessProcurementPage() {
+  const { user } = useAuth();
   const [requests, setRequests] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [lanes, setLanes] = useState([]);
+  const [businessAccess, setBusinessAccess] = useState({ businesses: [], eligibleBusinesses: [] });
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -35,11 +40,17 @@ export default function BusinessProcurementPage() {
       listSourcingRequests({ limit: 50 }),
       listRecurringPrograms(),
       listLanes(),
+      getBusinessProcurementAccess(),
     ])
-      .then(([requestRes, programRes, laneRes]) => {
+      .then(([requestRes, programRes, laneRes, businessAccessRes]) => {
         setRequests(requestRes.requests || []);
         setPrograms(programRes.data || []);
         setLanes(laneRes.data || []);
+        const businesses = Array.isArray(businessAccessRes?.businesses) ? businessAccessRes.businesses : [];
+        setBusinessAccess({
+          businesses,
+          eligibleBusinesses: businesses.filter(isBusinessProcurementEligibleMembership),
+        });
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -47,9 +58,15 @@ export default function BusinessProcurementPage() {
 
   useEffect(() => { load(); }, []);
 
+  const hasAccess = canAccessBusinessProcurementWorkspace(user, businessAccess);
+  const eligibleBusinessIds = useMemo(
+    () => new Set(businessAccess.eligibleBusinesses.map((entry) => entry.business_id)),
+    [businessAccess]
+  );
+
   const procurementEligible = useMemo(
-    () => requests.filter((row) => row.business_id || row.converted_to === 'procurement'),
-    [requests]
+    () => requests.filter((row) => (row.business_id && eligibleBusinessIds.has(row.business_id)) || row.converted_to === 'procurement'),
+    [requests, eligibleBusinessIds]
   );
 
   const createProgramFromForm = async () => {
@@ -95,6 +112,29 @@ export default function BusinessProcurementPage() {
   return (
     <PageShell>
       <div className="lx-page">
+      {!loading && !hasAccess && (
+        <div className="lx-card" style={{ marginBottom:'1.5rem', border:'1px solid #f97316' }}>
+          <h2 style={{ marginTop:0 }}>Business Procurement is not enabled for this account</h2>
+          <p style={{ color:'#64748b', lineHeight:1.7 }}>
+            This workspace is reserved for users who can act on behalf of a business in procurement and operations. Right now, OxSteed enables it for business owners, active managers, and memberships that hold operations-style permissions.
+          </p>
+          <div style={{ display:'grid', gap:'.5rem', color:'#475569', fontSize:'.9rem' }}>
+            <div><strong>Your eligible business workspaces:</strong> {businessAccess.eligibleBusinesses.length}</div>
+            <div><strong>How access is determined:</strong> ownership, active manager membership, or a non-owner membership with operations/procurement-style permissions.</div>
+          </div>
+          <div style={{ display:'flex', gap:'.75rem', marginTop:'1rem', flexWrap:'wrap' }}>
+            <Link to="/logistics" className="lx-btn-secondary">Back to Logistics</Link>
+            <Link to="/business-hub" className="lx-btn-primary">Open Business Hub</Link>
+          </div>
+        </div>
+      )}
+
+      {hasAccess && (
+        <>
+      <LogisticsWorkspaceSwitcher
+        currentKey="business_procurement"
+        availability={{ buyer: true, organizer: true, business_procurement: hasAccess, distributor: true }}
+      />
       <div className="lx-page-header">
         <div style={{ display:'flex', justifyContent:'space-between', gap:'1rem', flexWrap:'wrap' }}>
           <div>
@@ -112,6 +152,7 @@ export default function BusinessProcurementPage() {
           ['Recurring programs', programs.length, '🔁'],
           ['Business-linked requests', procurementEligible.length, '🏢'],
           ['Active programs', programs.filter((row) => row.status === 'active').length, '✅'],
+          ['Eligible businesses', businessAccess.eligibleBusinesses.length, '🏬'],
         ].map(([label, value, icon]) => (
           <div key={label} className="lx-card" style={{ textAlign:'center' }}>
             <div style={{ fontSize:'1.4rem' }}>{icon}</div>
@@ -192,6 +233,8 @@ export default function BusinessProcurementPage() {
           </table>
         </div>
       </div>
+        </>
+      )}
       </div>
     </PageShell>
   );

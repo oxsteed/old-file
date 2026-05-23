@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listSourcingRequests, listOrders, listShipments, listAllocations, listDeliveries, listMyClaims, listRefundCases } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
+import LogisticsWorkspaceSwitcher from '../../components/logistics/LogisticsWorkspaceSwitcher';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const STATUS_COLOR = {
@@ -53,6 +54,11 @@ export default function BuyerDashboardPage() {
         <h1 className="lx-page-title">Buyer Dashboard</h1>
         <p className="lx-page-sub">Run sourcing requests, monitor shipments, and track fulfillment issues from one buyer workspace.</p>
       </div>
+
+      <LogisticsWorkspaceSwitcher
+        currentKey="buyer"
+        availability={{ buyer: true, organizer: true, business_procurement: true, distributor: true }}
+      />
 
       <div className="lx-nav-grid" style={{ marginBottom:'1.5rem' }}>
         <Link to="/logistics/requests/new" className="lx-nav-tile"><span className="lx-nav-icon">➕</span><span className="lx-nav-label">New Request</span></Link>

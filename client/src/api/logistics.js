@@ -1,4 +1,5 @@
 import axios from './axios';
+import { getMyBusinesses, getMyMembership } from './vortex';
 
 // ─── Lanes ────────────────────────────────────────────────────
 
@@ -148,6 +149,37 @@ export const createRefundCase = (data) =>
 
 export const listRefundCases = () =>
   axios.get('/logistics/refund-cases').then(r => r.data);
+
+export const getBusinessProcurementAccess = async () => {
+  const businessPayload = await getMyBusinesses();
+  const items = Array.isArray(businessPayload?.items) ? businessPayload.items : [];
+  const activeItems = items.filter((item) => item.status === 'active');
+
+  const businesses = await Promise.all(
+    activeItems.map(async (item) => {
+      if (item.is_owner) {
+        return { ...item, permissions: ['owner'] };
+      }
+      try {
+        const membership = await getMyMembership(item.business_id);
+        return {
+          ...item,
+          role: membership?.role || item.role,
+          is_owner: !!membership?.is_owner,
+          membership_id: membership?.membership_id ?? item.membership_id,
+          permissions: Array.isArray(membership?.permissions) ? membership.permissions : [],
+        };
+      } catch {
+        return {
+          ...item,
+          permissions: [],
+        };
+      }
+    })
+  );
+
+  return { businesses };
+};
 
 // ─── Compliance ───────────────────────────────────────────────
 

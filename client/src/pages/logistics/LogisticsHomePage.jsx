@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
-import { listCampaigns, listOrders, getMyParticipation, listSourcingRequests, listShipments, listAllocations, listDeliveries, listMyClaims, listRefundCases } from '../../api/logistics';
+import { listCampaigns, listOrders, getMyParticipation, listSourcingRequests, listShipments, listAllocations, listDeliveries, listMyClaims, listRefundCases, getBusinessProcurementAccess } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
-import { LOGISTICS_WORKSPACES, recommendedLogisticsWorkspace, workspaceAvailabilityForUser } from '../../utils/logisticsWorkspaces';
+import { LOGISTICS_WORKSPACES, recommendedLogisticsWorkspace, workspaceAvailabilityForUser, isBusinessProcurementEligibleMembership } from '../../utils/logisticsWorkspaces';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const MENU_ITEMS = [
@@ -32,12 +32,14 @@ export default function LogisticsHomePage() {
   const [myClaims, setMyClaims]             = useState([]);
   const [myRefunds, setMyRefunds]           = useState([]);
   const [organizerCampaigns, setOrganizerCampaigns] = useState([]);
+  const [businessAccess, setBusinessAccess] = useState({ eligibleBusinesses: [], businesses: [] });
   const [loading, setLoading]               = useState(true);
-  const workspaceAvailability = useMemo(() => workspaceAvailabilityForUser(user), [user]);
-  const recommendedWorkspace = useMemo(() => recommendedLogisticsWorkspace(user), [user]);
+  const workspaceAvailability = useMemo(() => workspaceAvailabilityForUser(user, businessAccess), [user, businessAccess]);
+  const recommendedWorkspace = useMemo(() => recommendedLogisticsWorkspace(user, businessAccess), [user, businessAccess]);
 
   useEffect(() => {
     if (!user) {
+      setBusinessAccess({ eligibleBusinesses: [], businesses: [] });
       listCampaigns({ open: true, limit: 6 })
         .then((cRes) => setOpenCampaigns(cRes.orders || []))
         .catch(() => {})
@@ -55,8 +57,9 @@ export default function LogisticsHomePage() {
       listMyClaims(),
       listRefundCases(),
       listCampaigns({ limit: 100 }),
+      getBusinessProcurementAccess(),
     ])
-      .then(([cRes, oRes, pRes, rRes, sRes, aRes, dRes, claimRes, refundRes, campaignRes]) => {
+      .then(([cRes, oRes, pRes, rRes, sRes, aRes, dRes, claimRes, refundRes, campaignRes, businessAccessRes]) => {
         setOpenCampaigns(cRes.orders || []);
         setMyOrders(oRes.orders || []);
         setMyParticipation(pRes.data || []);
@@ -67,6 +70,11 @@ export default function LogisticsHomePage() {
         setMyClaims(claimRes.data || []);
         setMyRefunds(refundRes.data || []);
         setOrganizerCampaigns((campaignRes.orders || []).filter((campaign) => campaign.organizer_user_id === user.id));
+        const businesses = Array.isArray(businessAccessRes?.businesses) ? businessAccessRes.businesses : [];
+        setBusinessAccess({
+          businesses,
+          eligibleBusinesses: businesses.filter(isBusinessProcurementEligibleMembership),
+        });
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -386,7 +394,7 @@ export default function LogisticsHomePage() {
         </section>
       )}
 
-      {user && (myRequests.some((r) => r.business_id) || myOrders.some((o) => o.business_name)) && (
+      {user && workspaceAvailability.business_procurement && (myRequests.some((r) => r.business_id) || myOrders.some((o) => o.business_name) || businessAccess.eligibleBusinesses.length > 0) && (
         <section className="lx-section">
           <div className="lx-section-header">
             <h2>Business Procurement Workspace</h2>
@@ -413,6 +421,7 @@ export default function LogisticsHomePage() {
                 <div><strong>Allocations:</strong> {myAllocations.length}</div>
                 <div><strong>Delivery orders:</strong> {myDeliveries.length}</div>
                 <div><strong>Orders with expected arrival dates:</strong> {myOrders.filter((o) => o.expected_arrival_date).length}</div>
+                <div><strong>Eligible business workspaces:</strong> {businessAccess.eligibleBusinesses.length}</div>
                 <div><strong>Lane restrictions surface:</strong> Use Compliance to review country and product restrictions before restocking.</div>
                 <div style={{ marginTop:'.5rem' }}><Link to="/logistics/distribution" className="lx-link">Open distribution workspace →</Link></div>
               </div>

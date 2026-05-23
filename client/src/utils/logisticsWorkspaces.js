@@ -1,5 +1,3 @@
-import { canManageBusinesses } from './modeAccess';
-
 export const LOGISTICS_WORKSPACES = [
   {
     key: 'buyer',
@@ -52,12 +50,75 @@ export const LOGISTICS_WORKSPACES = [
   },
 ];
 
+export const LOGISTICS_END_USER_WORKSPACE_KEYS = [
+  'buyer',
+  'organizer',
+  'business_procurement',
+  'distributor',
+];
+
+export const LOGISTICS_FAVORITE_STORAGE_KEY = 'oxsteed.logistics.favoriteWorkspace';
+
+export function getLogisticsWorkspaceByKey(key) {
+  return LOGISTICS_WORKSPACES.find((workspace) => workspace.key === key) || null;
+}
+
+export function getLogisticsEndUserWorkspaces() {
+  return LOGISTICS_WORKSPACES.filter((workspace) => LOGISTICS_END_USER_WORKSPACE_KEYS.includes(workspace.key));
+}
+
+export function getFavoriteLogisticsWorkspaceKey() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const value = window.localStorage.getItem(LOGISTICS_FAVORITE_STORAGE_KEY);
+    return LOGISTICS_END_USER_WORKSPACE_KEYS.includes(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function getFavoriteLogisticsWorkspacePath() {
+  const key = getFavoriteLogisticsWorkspaceKey();
+  return getLogisticsWorkspaceByKey(key)?.path || null;
+}
+
+export function setFavoriteLogisticsWorkspaceKey(key) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (!key || !LOGISTICS_END_USER_WORKSPACE_KEYS.includes(key)) {
+      window.localStorage.removeItem(LOGISTICS_FAVORITE_STORAGE_KEY);
+      return;
+    }
+    window.localStorage.setItem(LOGISTICS_FAVORITE_STORAGE_KEY, key);
+  } catch {
+    // ignore localStorage failures
+  }
+}
+
 export function isLogisticsOperator(user) {
   return user?.role === 'admin' || user?.role === 'super_admin';
 }
 
-export function canAccessBusinessProcurementWorkspace(user) {
-  return !!user && canManageBusinesses(user);
+const PROCUREMENT_PERMISSION_CODES = new Set([
+  'analytics.view_ops',
+  'products.manage',
+  'settings.general',
+  'team.assign_permissions',
+]);
+
+export function isBusinessProcurementEligibleMembership(entry) {
+  if (!entry || entry.status !== 'active') return false;
+  if (entry.is_owner) return true;
+  if (entry.role === 'manager') return true;
+  const permissions = Array.isArray(entry.permissions) ? entry.permissions : [];
+  return permissions.some((code) => PROCUREMENT_PERMISSION_CODES.has(code));
+}
+
+export function canAccessBusinessProcurementWorkspace(user, businessAccess = null) {
+  if (isLogisticsOperator(user)) return true;
+  if (!user) return false;
+  const eligibleBusinesses = businessAccess?.eligibleBusinesses;
+  return Array.isArray(eligibleBusinesses) && eligibleBusinesses.length > 0;
 }
 
 export function canAccessOperationsWorkspace(user) {
@@ -72,11 +133,11 @@ export function canAccessAdminControlWorkspace(user) {
   return isLogisticsOperator(user);
 }
 
-export function workspaceAvailabilityForUser(user) {
+export function workspaceAvailabilityForUser(user, businessAccess = null) {
   return {
     buyer: true,
     organizer: !!user,
-    business_procurement: canAccessBusinessProcurementWorkspace(user),
+    business_procurement: canAccessBusinessProcurementWorkspace(user, businessAccess),
     distributor: !!user,
     operations: canAccessOperationsWorkspace(user),
     compliance: canAccessComplianceWorkspace(user),
@@ -84,10 +145,11 @@ export function workspaceAvailabilityForUser(user) {
   };
 }
 
-export function recommendedLogisticsWorkspace(user) {
+export function recommendedLogisticsWorkspace(user, businessAccess = null) {
   if (!user) return '/logistics/buyer';
+  const favoritePath = getFavoriteLogisticsWorkspacePath();
+  if (favoritePath) return favoritePath;
   if (canAccessOperationsWorkspace(user)) return '/logistics/operations';
-  if (canAccessBusinessProcurementWorkspace(user)) return '/logistics/business-procurement';
+  if (canAccessBusinessProcurementWorkspace(user, businessAccess)) return '/logistics/business-procurement';
   return '/logistics/buyer';
 }
-

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PageShell from '../../components/PageShell';
 import { listAllocations, listDeliveries, listOrders } from '../../api/logistics';
+import LogisticsWorkspaceSwitcher from '../../components/logistics/LogisticsWorkspaceSwitcher';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const DELIVERY_COLOR = {
@@ -49,6 +50,11 @@ export default function DistributorResellerPage() {
           <h1 className="lx-page-title">Distributor / Reseller Workspace</h1>
           <p className="lx-page-sub">Track assigned stock, release methods, and outbound delivery execution for resale and community distribution.</p>
         </div>
+
+        <LogisticsWorkspaceSwitcher
+          currentKey="distributor"
+          availability={{ buyer: true, organizer: true, business_procurement: true, distributor: true }}
+        />
 
         <div className="lx-nav-grid" style={{ marginBottom: '1.5rem' }}>
           <Link to="/logistics/distribution" className="lx-nav-tile"><span className="lx-nav-icon">🚚</span><span className="lx-nav-label">Distribution board</span></Link>
@@ -124,4 +130,3 @@ export default function DistributorResellerPage() {
     </PageShell>
   );
 }
-

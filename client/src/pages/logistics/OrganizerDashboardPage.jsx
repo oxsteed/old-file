@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { listCampaigns, getMyParticipation, listShipments, listDeliveries } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
+import LogisticsWorkspaceSwitcher from '../../components/logistics/LogisticsWorkspaceSwitcher';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const STATUS_COLOR = {
@@ -44,6 +45,11 @@ export default function OrganizerDashboardPage() {
         <h1 className="lx-page-title">Organizer Dashboard</h1>
         <p className="lx-page-sub">Launch pooled orders, monitor MOQ momentum, and coordinate downstream distribution for your communities and buyer groups.</p>
       </div>
+
+      <LogisticsWorkspaceSwitcher
+        currentKey="organizer"
+        availability={{ buyer: true, organizer: true, business_procurement: true, distributor: true }}
+      />
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(190px, 1fr))', gap:'1rem', marginBottom:'1.5rem' }}>
         {[

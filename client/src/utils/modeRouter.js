@@ -44,7 +44,7 @@ export const ALL_MODES = [...SELF_SELECTABLE_MODES, ...GRANTED_MODES, 'admin'];
 const ROUTE_BY_MODE = {
   customer:                 '/dashboard',
   helper:                   '/helper-dashboard',
-  logistics:                '/logistics',
+  logistics:                '/logistics/buyer',
   business_owner:           '/dashboard',
   consultant:               '/dashboard',
   tool_owner:               '/dashboard',
@@ -72,6 +72,9 @@ const POST_SIGNUP_ROUTE_BY_MODE = {
 
 export function routeForMode(mode) {
   if (!mode) return '/dashboard';
+  if (mode === 'logistics') {
+    return getFavoriteLogisticsWorkspacePath() || '/logistics/buyer';
+  }
   return ROUTE_BY_MODE[mode] || '/dashboard';
 }
 
@@ -218,3 +221,4 @@ export default {
   postSignupRouteForMode,
   getAvailableModesForUser,
 };
+import { getFavoriteLogisticsWorkspacePath } from './logisticsWorkspaces';
