@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Work+Sans:wght@300..700&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
 <style>
 /* ============================================================
    ART DIRECTION: OxSteed - local trades marketplace
@@ -36,9 +35,8 @@
   --color-border:          #d1cdc6;
 
   --color-text:            #26231c;
-  --color-text-muted:      #6e6c66;
-  --color-text-faint:      #b0ae a9;
-  --color-text-faint:      #b0aea9;
+  --color-text-muted:      #ece7de;
+  --color-text-faint:      #d8d2c7;
   --color-text-inverse:    #f9f8f4;
 
   --color-primary:         #01696f;
@@ -77,8 +75,8 @@
   --color-divider:         #2a2923;
   --color-border:          #383630;
   --color-text:            #d0cec8;
-  --color-text-muted:      #7a7870;
-  --color-text-faint:      #545249;
+  --color-text-muted:      #2f2c26;
+  --color-text-faint:      #4a463f;
   --color-text-inverse:    #26231c;
   --color-primary:         #4fa8b0;
   --color-primary-hover:   #2d8f98;
@@ -428,13 +426,13 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
 
         <div class="field">
           <label for="job-title">Job Title <span class="req" aria-label="required">*</span></label>
-          <input type="text" id="job-title" class="input" placeholder="e.g. Full kitchen rewire - breakers keep tripping" maxlength="80" oninput="updateSummary()">
+          <input type="text" id="job-title" class="input" placeholder="e.g. Full kitchen rewire - breakers keep tripping" maxlength="80">
           <div class="char-count"><span id="title-count">0</span>/80</div>
         </div>
 
         <div class="field">
           <label for="job-category">Category <span class="req" aria-label="required">*</span></label>
-          <select id="job-category" class="select" onchange="updateSummary()">
+          <select id="job-category" class="select">
             <option value="">Select a category…</option>
             <optgroup label="Electrical">
               <option value="electrical-full">Electrical - Full Rewire</option>
@@ -465,14 +463,14 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
           <label for="job-desc">Describe the Work <span class="req" aria-label="required">*</span>
             <span class="hint">Be specific - what's broken, what outcome you want</span>
           </label>
-          <textarea id="job-desc" class="textarea" rows="5" maxlength="1000" placeholder="e.g. Kitchen keeps tripping the 20A breaker. Need a licensed electrician to inspect the panel, replace outdated wiring in the kitchen circuit (approx. 18 ft run), install 2 new dedicated circuits for appliances, and ensure work passes inspection." oninput="updateSummary()"></textarea>
+          <textarea id="job-desc" class="textarea" rows="5" maxlength="1000" placeholder="e.g. Kitchen keeps tripping the 20A breaker. Need a licensed electrician to inspect the panel, replace outdated wiring in the kitchen circuit (approx. 18 ft run), install 2 new dedicated circuits for appliances, and ensure work passes inspection."></textarea>
           <div class="char-count"><span id="desc-count">0</span>/1000</div>
         </div>
 
         <div class="field-row">
           <div class="field" style="margin-bottom:0">
             <label for="job-location">Location <span class="req" aria-label="required">*</span></label>
-            <input type="text" id="job-location" class="input" placeholder="Springfield, OH" oninput="updateSummary()">
+            <input type="text" id="job-location" class="input" placeholder="Springfield, OH">
           </div>
           <div class="field" style="margin-bottom:0">
             <label for="job-access">Site Access</label>
@@ -502,8 +500,8 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
         <div class="req-grid" role="group" aria-label="Job requirements">
 
           <!-- LICENSE -->
-          <label class="req-toggle" id="toggle-license" onclick="toggleReq(this,'detail-license')">
-            <input type="checkbox" id="req-license" name="requirements" value="license" onchange="updateSummary()">
+          <label class="req-toggle" id="toggle-license" data-detail-target="detail-license">
+            <input type="checkbox" id="req-license" name="requirements" value="license">
             <div class="req-toggle-header">
               <div style="display:flex;align-items:flex-start;gap:var(--space-2)">
                 <svg class="req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
@@ -518,7 +516,7 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
             </div>
             <div class="req-detail" id="detail-license" aria-hidden="true">
               <div class="req-detail-label">License type required</div>
-              <select class="select" onclick="e=>e.stopPropagation()" onchange="updateSummary()">
+              <select class="select" data-stop-toggle>
                 <option value="">Specify license type…</option>
                 <option value="oh-electrician">OH Electrician (OCILB)</option>
                 <option value="oh-plumber">OH Plumber</option>
@@ -530,8 +528,8 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
           </label>
 
           <!-- INSURANCE -->
-          <label class="req-toggle" id="toggle-insurance" onclick="toggleReq(this,'detail-insurance')">
-            <input type="checkbox" id="req-insurance" name="requirements" value="insurance" onchange="updateSummary()">
+          <label class="req-toggle" id="toggle-insurance" data-detail-target="detail-insurance">
+            <input type="checkbox" id="req-insurance" name="requirements" value="insurance">
             <div class="req-toggle-header">
               <div style="display:flex;align-items:flex-start;gap:var(--space-2)">
                 <svg class="req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -546,7 +544,7 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
             </div>
             <div class="req-detail" id="detail-insurance" aria-hidden="true">
               <div class="req-detail-label">Minimum coverage amount</div>
-              <select class="select" onclick="e=>e.stopPropagation()" onchange="updateSummary()">
+              <select class="select" data-stop-toggle>
                 <option value="">Select minimum…</option>
                 <option value="300k">$300,000</option>
                 <option value="500k">$500,000</option>
@@ -557,8 +555,8 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
           </label>
 
           <!-- SKILLS -->
-          <label class="req-toggle" id="toggle-skills" onclick="toggleReq(this,'detail-skills')">
-            <input type="checkbox" id="req-skills" name="requirements" value="skills" onchange="updateSummary()">
+          <label class="req-toggle" id="toggle-skills" data-detail-target="detail-skills">
+            <input type="checkbox" id="req-skills" name="requirements" value="skills">
             <div class="req-toggle-header">
               <div style="display:flex;align-items:flex-start;gap:var(--space-2)">
                 <svg class="req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
@@ -573,7 +571,7 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
             </div>
             <div class="req-detail" id="detail-skills" aria-hidden="true">
               <div class="req-detail-label">Minimum skill level</div>
-              <select class="select" onclick="e=>e.stopPropagation()" onchange="updateSummary()">
+              <select class="select" data-stop-toggle>
                 <option value="">Select level…</option>
                 <option value="beginner">Beginner - basic tasks</option>
                 <option value="intermediate">Intermediate - 2+ years</option>
@@ -584,8 +582,8 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
           </label>
 
           <!-- TOOLS -->
-          <label class="req-toggle" id="toggle-tools" onclick="toggleReq(this,'detail-tools')">
-            <input type="checkbox" id="req-tools" name="requirements" value="tools" onchange="updateSummary()">
+          <label class="req-toggle" id="toggle-tools" data-detail-target="detail-tools">
+            <input type="checkbox" id="req-tools" name="requirements" value="tools">
             <div class="req-toggle-header">
               <div style="display:flex;align-items:flex-start;gap:var(--space-2)">
                 <svg class="req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
@@ -600,13 +598,13 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
             </div>
             <div class="req-detail" id="detail-tools" aria-hidden="true">
               <div class="req-detail-label">Specific tools needed (optional)</div>
-              <input type="text" class="input" placeholder="e.g. Wire tester, fish tape, panel tools" onclick="e=>e.stopPropagation()" oninput="updateSummary()">
+              <input type="text" class="input" placeholder="e.g. Wire tester, fish tape, panel tools" data-stop-toggle>
             </div>
           </label>
 
           <!-- CREW -->
-          <label class="req-toggle" id="toggle-crew" onclick="toggleReq(this,'detail-crew')">
-            <input type="checkbox" id="req-crew" name="requirements" value="crew" onchange="updateSummary()">
+          <label class="req-toggle" id="toggle-crew" data-detail-target="detail-crew">
+            <input type="checkbox" id="req-crew" name="requirements" value="crew">
             <div class="req-toggle-header">
               <div style="display:flex;align-items:flex-start;gap:var(--space-2)">
                 <svg class="req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -621,7 +619,7 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
             </div>
             <div class="req-detail" id="detail-crew" aria-hidden="true">
               <div class="req-detail-label">Minimum crew size</div>
-              <select class="select" onclick="e=>e.stopPropagation()" onchange="updateSummary()">
+              <select class="select" data-stop-toggle>
                 <option value="1">Solo (1 person)</option>
                 <option value="2" selected>2 people</option>
                 <option value="3">3 people</option>
@@ -631,8 +629,8 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
           </label>
 
           <!-- BACKGROUND CHECK -->
-          <label class="req-toggle" id="toggle-bgcheck" onclick="toggleReq(this,null)">
-            <input type="checkbox" id="req-bgcheck" name="requirements" value="bgcheck" onchange="updateSummary()">
+          <label class="req-toggle" id="toggle-bgcheck">
+            <input type="checkbox" id="req-bgcheck" name="requirements" value="bgcheck">
             <div class="req-toggle-header">
               <div style="display:flex;align-items:flex-start;gap:var(--space-2)">
                 <svg class="req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -658,9 +656,9 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
         </div>
 
         <div class="budget-type-tabs" role="group" aria-label="Budget type">
-          <button class="tab-btn active" onclick="setBudgetType('fixed',this)">Fixed Price</button>
-          <button class="tab-btn" onclick="setBudgetType('hourly',this)">Hourly Rate</button>
-          <button class="tab-btn" onclick="setBudgetType('open',this)">Open to Bids</button>
+          <button class="tab-btn active" type="button" data-budget-type="fixed">Fixed Price</button>
+          <button class="tab-btn" type="button" data-budget-type="hourly">Hourly Rate</button>
+          <button class="tab-btn" type="button" data-budget-type="open">Open to Bids</button>
         </div>
 
         <div id="budget-slider-section">
@@ -668,7 +666,7 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
             <label for="budget-range">Your Budget <span class="req" aria-label="required">*</span></label>
             <div class="budget-row">
               <div class="budget-display" id="budget-display">$800</div>
-              <input type="range" id="budget-range" min="100" max="10000" step="50" value="800" oninput="updateBudget(this.value)" aria-label="Budget amount" style="flex:1">
+              <input type="range" id="budget-range" min="100" max="10000" step="50" value="800" aria-label="Budget amount" style="flex:1">
             </div>
             <div style="display:flex;justify-content:space-between;font-size:var(--text-xs);color:var(--color-text-faint);margin-top:var(--space-1)"><span>$100</span><span>$10,000</span></div>
           </div>
@@ -686,10 +684,10 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
         <div class="field">
           <label>Urgency</label>
           <div class="pill-group" role="group" aria-label="Job urgency">
-            <button class="pill" onclick="selectPill(this,'urgency')" data-val="asap">ASAP</button>
-            <button class="pill active" onclick="selectPill(this,'urgency')" data-val="this-week">This week</button>
-            <button class="pill" onclick="selectPill(this,'urgency')" data-val="next-week">Next week</button>
-            <button class="pill" onclick="selectPill(this,'urgency')" data-val="flexible">Flexible</button>
+            <button class="pill" type="button" data-val="asap">ASAP</button>
+            <button class="pill active" type="button" data-val="this-week">This week</button>
+            <button class="pill" type="button" data-val="next-week">Next week</button>
+            <button class="pill" type="button" data-val="flexible">Flexible</button>
           </div>
         </div>
 
@@ -705,7 +703,7 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
           Save Draft
         </button>
-        <button class="btn btn-primary" type="button" onclick="submitJob()">
+        <button class="btn btn-primary" type="button" data-submit-job>
           Post Job &amp; Invite Bids
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
@@ -715,7 +713,7 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
 
     <!-- SIDEBAR SUMMARY -->
     <aside class="sidebar" id="sidebar" aria-label="Job posting summary">
-      <button class="mobile-summary-toggle" onclick="document.getElementById('sidebar').classList.toggle('collapsed')" aria-expanded="true" aria-controls="sidebar">
+      <button class="mobile-summary-toggle" type="button" id="mobile-summary-toggle" aria-expanded="true" aria-controls="sidebar">
         <span>Job Summary</span>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
@@ -753,7 +751,7 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
           <div style="font-size:var(--text-xs);color:var(--color-text-muted);line-height:1.6">
             Helpers must confirm <strong id="sum-req-count">0</strong> requirement(s) before they can bid on this job.
           </div>
-          <button class="btn btn-primary btn-full" onclick="submitJob()">
+          <button class="btn btn-primary btn-full" type="button" data-submit-job>
             Post Job
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
@@ -776,46 +774,126 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
     <p class="success-sub">Your job is live. Qualified helpers in Springfield can now see it and submit bids.</p>
     <div class="job-id" id="job-id-display">JOB-#0000</div>
     <div style="display:flex;flex-direction:column;gap:var(--space-3)">
-      <button class="btn btn-primary btn-full" onclick="document.getElementById('success-overlay').classList.remove('show')">View Bids</button>
-      <button class="btn btn-secondary btn-full" onclick="document.getElementById('success-overlay').classList.remove('show')">Post Another Job</button>
+      <button class="btn btn-primary btn-full" type="button" data-close-success>View Bids</button>
+      <button class="btn btn-secondary btn-full" type="button" data-close-success>Post Another Job</button>
     </div>
   </div>
 </div>
 
 <script>
+function createThemeIconSvg(theme) {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('width', '18');
+  svg.setAttribute('height', '18');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+
+  if (theme === 'dark') {
+    const circle = document.createElementNS(svgNS, 'circle');
+    circle.setAttribute('cx', '12');
+    circle.setAttribute('cy', '12');
+    circle.setAttribute('r', '5');
+    svg.appendChild(circle);
+
+    [
+      ['path', { d: 'M12 1v2' }],
+      ['path', { d: 'M12 21v2' }],
+      ['path', { d: 'M4.22 4.22l1.42 1.42' }],
+      ['path', { d: 'M18.36 18.36l1.42 1.42' }],
+      ['path', { d: 'M1 12h2' }],
+      ['path', { d: 'M21 12h2' }],
+      ['path', { d: 'M4.22 19.78l1.42-1.42' }],
+      ['path', { d: 'M18.36 5.64l1.42-1.42' }],
+    ].forEach(([tag, attrs]) => {
+      const node = document.createElementNS(svgNS, tag);
+      Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, value));
+      svg.appendChild(node);
+    });
+    return svg;
+  }
+
+  const moonPath = document.createElementNS(svgNS, 'path');
+  moonPath.setAttribute('d', 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z');
+  svg.appendChild(moonPath);
+  return svg;
+}
+
+function createRequirementBadge(label) {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const badge = document.createElement('span');
+  badge.className = 'summary-badge';
+
+  const icon = document.createElementNS(svgNS, 'svg');
+  icon.setAttribute('width', '10');
+  icon.setAttribute('height', '10');
+  icon.setAttribute('viewBox', '0 0 24 24');
+  icon.setAttribute('fill', 'none');
+  icon.setAttribute('stroke', 'currentColor');
+  icon.setAttribute('stroke-width', '3');
+  icon.setAttribute('aria-hidden', 'true');
+
+  const polyline = document.createElementNS(svgNS, 'polyline');
+  polyline.setAttribute('points', '20 6 9 17 4 12');
+  icon.appendChild(polyline);
+
+  badge.appendChild(icon);
+  badge.appendChild(document.createTextNode(label));
+  return badge;
+}
+
+function renderRequirementBadges(container, checked) {
+  container.replaceChildren();
+  if (checked.length === 0) {
+    const empty = document.createElement('span');
+    empty.className = 'summary-badge empty';
+    empty.textContent = 'None selected';
+    container.appendChild(empty);
+    return;
+  }
+
+  checked.forEach((input) => {
+    container.appendChild(createRequirementBadge(reqLabels[input.value] || input.value));
+  });
+}
+
 // Theme toggle
 (function(){
   const t = document.querySelector('[data-theme-toggle]');
   const r = document.documentElement;
   let d = matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
   r.setAttribute('data-theme', d);
+  if (t) t.replaceChildren(createThemeIconSvg(d));
   if(t) t.addEventListener('click', () => {
     d = d === 'dark' ? 'light' : 'dark';
     r.setAttribute('data-theme', d);
     t.setAttribute('aria-label', 'Switch to ' + (d==='dark'?'light':'dark') + ' mode');
-    t.innerHTML = d === 'dark'
-      ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
-      : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+    t.replaceChildren(createThemeIconSvg(d));
   });
 })();
 
-// Lucide icons init
-document.addEventListener('DOMContentLoaded', () => { if(window.lucide) lucide.createIcons(); });
-
 // Requirement toggles
-function toggleReq(el, detailId) {
+function syncReqToggleState(el) {
   const cb = el.querySelector('input[type=checkbox]');
   const checkMark = el.querySelector('.req-check svg');
-  cb.checked = !cb.checked;
+  const detailId = el.dataset.detailTarget;
   el.classList.toggle('selected', cb.checked);
-  if(checkMark) checkMark.style.display = cb.checked ? 'block' : 'none';
-  if(detailId) {
+  if (checkMark) checkMark.style.display = cb.checked ? 'block' : 'none';
+  if (detailId) {
     const detail = document.getElementById(detailId);
-    if(detail) {
+    if (detail) {
       detail.classList.toggle('open', cb.checked);
       detail.setAttribute('aria-hidden', String(!cb.checked));
     }
   }
+}
+
+function toggleReq(el, detailId) {
+  const cb = el.querySelector('input[type=checkbox]');
+  cb.checked = !cb.checked;
+  syncReqToggleState(el);
   updateSummary();
 }
 
@@ -845,14 +923,6 @@ function selectPill(el, group) {
 }
 
 // Char counters
-document.getElementById('job-title').addEventListener('input', function() {
-  document.getElementById('title-count').textContent = this.value.length;
-});
-document.getElementById('job-desc').addEventListener('input', function() {
-  document.getElementById('desc-count').textContent = this.value.length;
-});
-
-// Summary update
 const reqLabels = { license:'License', insurance:'Insurance', skills:'Skill Level', tools:'Own Tools', crew:'Crew Size', bgcheck:'Background Check' };
 
 function updateSummary() {
@@ -890,14 +960,7 @@ function updateSummary() {
   const sumReqs = document.getElementById('sum-reqs');
   const sumCount = document.getElementById('sum-req-count');
   sumCount.textContent = checked.length;
-
-  if(checked.length === 0) {
-    sumReqs.innerHTML = '<span class="summary-badge empty">None selected</span>';
-  } else {
-    sumReqs.innerHTML = checked.map(c =>
-      `<span class="summary-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>${reqLabels[c.value]||c.value}</span>`
-    ).join('');
-  }
+  renderRequirementBadges(sumReqs, checked);
 
   // Status
   const filled = title && catEl.value && loc;
@@ -905,9 +968,6 @@ function updateSummary() {
   document.getElementById('summary-status').style.background = filled ? 'var(--color-green-bg)' : 'var(--color-amber-bg)';
   document.getElementById('summary-status').style.color = filled ? 'var(--color-green)' : 'var(--color-amber)';
 }
-
-// Init budget range pct
-updateBudget(800);
 
 // Submit
 function submitJob() {
@@ -918,10 +978,89 @@ function submitJob() {
   document.getElementById('success-overlay').classList.add('show');
 }
 
-// Close overlay on backdrop click
-document.getElementById('success-overlay').addEventListener('click', function(e) {
-  if(e.target === this) this.classList.remove('show');
-});
+function closeSuccessOverlay() {
+  document.getElementById('success-overlay').classList.remove('show');
+}
+
+function bindPostJobPage() {
+  document.querySelectorAll('.req-toggle').forEach((toggle) => {
+    toggle.addEventListener('click', (event) => {
+      if (event.target.closest('[data-stop-toggle]')) return;
+      if (event.target.tagName === 'INPUT' && event.target.type === 'checkbox') return;
+      toggleReq(toggle, toggle.dataset.detailTarget || null);
+    });
+  });
+
+  document.querySelectorAll('[data-stop-toggle]').forEach((node) => {
+    node.addEventListener('click', (event) => event.stopPropagation());
+    node.addEventListener('input', updateSummary);
+    node.addEventListener('change', updateSummary);
+  });
+
+  ['job-title', 'job-desc'].forEach((id) => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.addEventListener('input', function() {
+      const counterId = id === 'job-title' ? 'title-count' : 'desc-count';
+      document.getElementById(counterId).textContent = this.value.length;
+      updateSummary();
+    });
+  });
+
+  ['job-category', 'job-location'].forEach((id) => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    const eventName = input.tagName === 'SELECT' ? 'change' : 'input';
+    input.addEventListener(eventName, updateSummary);
+  });
+
+  document.querySelectorAll('input[name=requirements]').forEach((input) => {
+    input.addEventListener('change', () => {
+      syncReqToggleState(input.closest('.req-toggle'));
+      updateSummary();
+    });
+  });
+
+  document.querySelectorAll('[data-budget-type]').forEach((button) => {
+    button.addEventListener('click', () => setBudgetType(button.dataset.budgetType, button));
+  });
+
+  const budgetRange = document.getElementById('budget-range');
+  if (budgetRange) {
+    budgetRange.addEventListener('input', () => updateBudget(budgetRange.value));
+  }
+
+  document.querySelectorAll('.pill-group .pill').forEach((pill) => {
+    pill.addEventListener('click', () => selectPill(pill, 'urgency'));
+  });
+
+  document.querySelectorAll('[data-submit-job]').forEach((button) => {
+    button.addEventListener('click', submitJob);
+  });
+
+  const mobileSummaryToggle = document.getElementById('mobile-summary-toggle');
+  if (mobileSummaryToggle) {
+    mobileSummaryToggle.addEventListener('click', () => {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.classList.toggle('collapsed');
+      const expanded = !sidebar.classList.contains('collapsed');
+      mobileSummaryToggle.setAttribute('aria-expanded', String(expanded));
+    });
+  }
+
+  document.querySelectorAll('[data-close-success]').forEach((button) => {
+    button.addEventListener('click', closeSuccessOverlay);
+  });
+
+  document.getElementById('success-overlay').addEventListener('click', function(e) {
+    if(e.target === this) closeSuccessOverlay();
+  });
+
+  document.querySelectorAll('.req-toggle').forEach((toggle) => syncReqToggleState(toggle));
+  updateBudget(800);
+}
+
+bindPostJobPage();
 </script>
 </body>
 </html>
