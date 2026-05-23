@@ -95,8 +95,25 @@ export function setFavoriteLogisticsWorkspaceKey(key) {
   }
 }
 
-export function isLogisticsOperator(user) {
-  return user?.role === 'admin' || user?.role === 'super_admin';
+export function isLogisticsOperator(user, workspace = null) {
+  if (!user) return false;
+  if (user.role === 'admin' || user.role === 'super_admin') {
+    if (!workspace) return true;
+    if (workspace === 'admin_control') return true;
+    return user.internal_access_route === workspace || user.internal_access_route === 'admin_portal';
+  }
+  if (user.role !== 'employee') return false;
+  if (!workspace) return false;
+  if (workspace === 'operations') {
+    return (
+      user.internal_access_route === 'operations' &&
+      ['sourcing_operator', 'logistics_coordinator', 'warehouse_operator'].includes(user.logistics_role)
+    );
+  }
+  if (workspace === 'compliance') {
+    return user.internal_access_route === 'compliance' && user.logistics_role === 'compliance_reviewer';
+  }
+  return false;
 }
 
 const PROCUREMENT_PERMISSION_CODES = new Set([
@@ -115,22 +132,22 @@ export function isBusinessProcurementEligibleMembership(entry) {
 }
 
 export function canAccessBusinessProcurementWorkspace(user, businessAccess = null) {
-  if (isLogisticsOperator(user)) return true;
+  if (user?.role === 'admin' || user?.role === 'super_admin') return true;
   if (!user) return false;
   const eligibleBusinesses = businessAccess?.eligibleBusinesses;
   return Array.isArray(eligibleBusinesses) && eligibleBusinesses.length > 0;
 }
 
 export function canAccessOperationsWorkspace(user) {
-  return isLogisticsOperator(user);
+  return isLogisticsOperator(user, 'operations');
 }
 
 export function canAccessComplianceWorkspace(user) {
-  return isLogisticsOperator(user);
+  return isLogisticsOperator(user, 'compliance');
 }
 
 export function canAccessAdminControlWorkspace(user) {
-  return isLogisticsOperator(user);
+  return isLogisticsOperator(user, 'admin_control');
 }
 
 export function workspaceAvailabilityForUser(user, businessAccess = null) {

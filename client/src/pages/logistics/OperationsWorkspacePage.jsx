@@ -3,20 +3,22 @@ import { Link } from 'react-router-dom';
 import PageShell from '../../components/PageShell';
 import { useAuth } from '../../context/AuthContext';
 import { adminGetStats } from '../../api/logistics';
+import { canAccessOperationsWorkspace } from '../../utils/logisticsWorkspaces';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const OPS_LINKS = [
-  { label: 'Sourcing Ops', path: '/admin/logistics/sourcing-ops', icon: '🔍' },
-  { label: 'Organizer Approvals', path: '/admin/logistics/organizer-approvals', icon: '🧭' },
-  { label: 'Shipment Ops', path: '/admin/logistics/shipment-ops', icon: '🚦' },
-  { label: 'Warehouse Ops', path: '/admin/logistics/warehouse-ops', icon: '🏬' },
-  { label: 'Allocations', path: '/admin/logistics/allocations', icon: '📊' },
-  { label: 'Disputes', path: '/admin/logistics/disputes', icon: '⚖️' },
+  { label: 'Sourcing Ops', path: '/logistics/operations/sourcing-ops', icon: '🔍' },
+  { label: 'Organizer Approvals', path: '/logistics/operations/organizer-approvals', icon: '🧭' },
+  { label: 'Shipment Ops', path: '/logistics/operations/shipment-ops', icon: '🚦' },
+  { label: 'Warehouse Ops', path: '/logistics/operations/warehouse-ops', icon: '🏬' },
+  { label: 'Allocations', path: '/logistics/operations/allocations', icon: '📊' },
+  { label: 'Disputes', path: '/logistics/operations/disputes', icon: '⚖️' },
 ];
 
 export default function OperationsWorkspacePage() {
   const { user } = useAuth();
-  const isOperator = user?.role === 'admin' || user?.role === 'super_admin';
+  const isOperator = canAccessOperationsWorkspace(user);
+  const isAdminOperator = user?.role === 'admin' || user?.role === 'super_admin';
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(isOperator);
 
@@ -87,7 +89,7 @@ export default function OperationsWorkspacePage() {
             <div className="lx-card">
               <div className="lx-section-header">
                 <h2>Operations priorities</h2>
-                <Link to="/admin/logistics">Full admin dashboard</Link>
+                {isAdminOperator ? <Link to="/admin/logistics">Full admin dashboard</Link> : null}
               </div>
               {loading && <div className="lx-loading">Loading operations metrics…</div>}
               {!loading && (
@@ -103,10 +105,10 @@ export default function OperationsWorkspacePage() {
                   <div>
                     <h3 style={{ marginTop: 0, fontWeight: 700 }}>Operator routes</h3>
                     <div style={{ display: 'grid', gap: '.65rem' }}>
-                      <Link to="/admin/logistics/sourcing-ops" className="lx-link">Open sourcing intake queue →</Link>
-                      <Link to="/admin/logistics/shipment-ops" className="lx-link">Open freight and milestone queue →</Link>
-                      <Link to="/admin/logistics/warehouse-ops" className="lx-link">Open warehouse receipt queue →</Link>
-                      <Link to="/admin/logistics/disputes" className="lx-link">Open disputes and refund review →</Link>
+                      <Link to="/logistics/operations/sourcing-ops" className="lx-link">Open sourcing intake queue →</Link>
+                      <Link to="/logistics/operations/shipment-ops" className="lx-link">Open freight and milestone queue →</Link>
+                      <Link to="/logistics/operations/warehouse-ops" className="lx-link">Open warehouse receipt queue →</Link>
+                      <Link to="/logistics/operations/disputes" className="lx-link">Open disputes and refund review →</Link>
                     </div>
                   </div>
                 </div>
@@ -118,4 +120,3 @@ export default function OperationsWorkspacePage() {
     </PageShell>
   );
 }
-

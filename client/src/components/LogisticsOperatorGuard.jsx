@@ -1,6 +1,10 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { isLogisticsOperator } from '../utils/logisticsWorkspaces';
+import {
+  canAccessAdminControlWorkspace,
+  canAccessComplianceWorkspace,
+  canAccessOperationsWorkspace,
+} from '../utils/logisticsWorkspaces';
 
 function loginRouteForPath(pathname) {
   if (pathname.startsWith('/logistics/compliance-workspace')) {
@@ -29,7 +33,14 @@ export default function LogisticsOperatorGuard({ children }) {
     return <Navigate to={`${loginRouteForPath(location.pathname)}?next=${next}`} replace />;
   }
 
-  if (!isLogisticsOperator(user)) {
+  const pathname = location.pathname;
+  const hasAccess = pathname.startsWith('/logistics/compliance-workspace')
+    ? canAccessComplianceWorkspace(user)
+    : pathname.startsWith('/logistics/admin-control')
+      ? canAccessAdminControlWorkspace(user)
+      : canAccessOperationsWorkspace(user);
+
+  if (!hasAccess) {
     return <Navigate to={loginRouteForPath(location.pathname)} replace />;
   }
 

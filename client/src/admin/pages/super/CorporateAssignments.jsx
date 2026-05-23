@@ -61,9 +61,9 @@ function AssignModal({ catalog, regions, initial, onClose, onSaved }) {
   const [error,  setError]  = useState(null);
 
   useEffect(() => {
-    adminApi.get('/admin/super/admin-accounts')
+    adminApi.get('/admin/super/internal-staff')
       .then(({ data }) => {
-        const list = (data.admins || data.accounts || [])
+        const list = (data.accounts || data.admins || [])
           .filter(a => a.is_active !== false);
         setAdmins(list);
       })
@@ -123,14 +123,14 @@ function AssignModal({ catalog, regions, initial, onClose, onSaved }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* user */}
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Admin user *</label>
+            <label className="block text-sm text-gray-400 mb-1">Internal user *</label>
             <select
               value={form.user_id}
               onChange={(e) => setF('user_id', e.target.value)}
               disabled={isEdit}
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white"
             >
-              <option value="">- Select an admin -</option>
+              <option value="">- Select an internal staff member -</option>
               {admins.map(a => (
                 <option key={a.id} value={a.id}>
                   {(a.first_name || '') + ' ' + (a.last_name || '')} - {a.email} ({a.role})
@@ -138,7 +138,7 @@ function AssignModal({ catalog, regions, initial, onClose, onSaved }) {
               ))}
             </select>
             <p className="text-xs text-gray-500 mt-1">
-              Corporate titles can only be held by admin or super_admin users.
+              Corporate titles can be held by employees, admins, and super-admins.
             </p>
           </div>
 

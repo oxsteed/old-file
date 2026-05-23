@@ -137,6 +137,7 @@ const vortexAccessRoutes   = require('./routes/vortex');
 const meWorkspaceRoutes    = require('./routes/meWorkspace');
 // OxSteed corporate hierarchy (migration 246)
 const corporateRolesRoutes = require('./routes/corporateRoles');
+const internalWorkspaceRoutes = require('./routes/internalWorkspaces');
 // OxSteed Logistics branch (migration 247)
 const logisticsRoutes      = require('./routes/logistics');
 const logisticsAdminRoutes = require('./routes/logisticsAdmin');
@@ -549,9 +550,10 @@ app.use('/api/businesses', businessTeamRoutes);
 app.use('/api/vortex',     vortexAccessRoutes);
 app.use('/api/me',         meWorkspaceRoutes);
 app.use('/api/admin/corporate', corporateRolesRoutes);
+app.use('/api/internal/workspaces', internalWorkspaceRoutes);
 // OxSteed Logistics branch
 app.use('/api/logistics',       logisticsRoutes);
-app.use('/api/admin/logistics', authenticate, requireRole('admin', 'super_admin'), logisticsAdminRoutes);
+app.use('/api/admin/logistics', authenticate, logisticsAdminRoutes);
 // Per-mode platform approval gates — user-facing + admin queues.
 app.use('/api/mode-approvals', modePlatformApprovalRoutes.userRouter);
 app.use('/api/admin',          modePlatformApprovalRoutes.adminRouter);

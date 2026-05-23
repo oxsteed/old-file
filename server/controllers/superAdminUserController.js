@@ -29,6 +29,19 @@ const { sendNotification } = require('../services/notificationService');
 const { withTransaction }  = require('../utils/transaction');
 const { userMatchesAnyRegion } = require('../middleware/regionAuth');
 const modeRoleUtil = require('../utils/modeRole');
+const LOGISTICS_ROLE_VALUES = Object.freeze([
+  'individual_buyer',
+  'business_buyer',
+  'organizer',
+  'reseller',
+  'franchise_buyer',
+  'sourcing_operator',
+  'logistics_coordinator',
+  'warehouse_operator',
+  'compliance_reviewer',
+  'admin',
+  'super_admin',
+]);
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
@@ -47,6 +60,9 @@ const ACCOUNT_TYPE_CONFIG = Object.freeze({
   business_representative: { role: 'helper',      default_mode: 'business_representative', helperTier: 'tier1' },
   business_employee:       { role: 'helper',      default_mode: 'business_employee',       helperTier: 'tier1' },
   business_support_agent:  { role: 'helper',      default_mode: 'business_support_agent',  helperTier: 'tier1' },
+  employee:                { role: 'employee',    default_mode: 'life_only',               helperTier: null, logisticsRole: null },
+  operations_employee:     { role: 'employee',    default_mode: 'life_only',               helperTier: null, logisticsRole: 'logistics_coordinator' },
+  compliance_employee:     { role: 'employee',    default_mode: 'life_only',               helperTier: null, logisticsRole: 'compliance_reviewer' },
   admin:                   { role: 'admin',       default_mode: 'admin',                   helperTier: null },
   super_admin:             { role: 'super_admin', default_mode: 'admin',                   helperTier: null },
 });
@@ -66,7 +82,7 @@ const EDITABLE_FIELDS = [
   { key: 'country',                 column: 'country',                 type: 'country' },
   { key: 'membership_tier',         column: 'membership_tier',         type: 'string' },
   { key: 'subscription_status',     column: 'subscription_status',     type: 'string' },
-  { key: 'role',                    column: 'role',                    type: 'enum', enumValues: ['customer', 'helper', 'helper_pro', 'broker', 'admin', 'super_admin'] },
+  { key: 'role',                    column: 'role',                    type: 'enum', enumValues: ['customer', 'helper', 'helper_pro', 'broker', 'employee', 'admin', 'super_admin'] },
   { key: 'email_verified',          column: 'email_verified',          type: 'boolean' },
   { key: 'is_verified',             column: 'is_verified',             type: 'boolean' },
   { key: 'background_check_passed', column: 'background_check_passed', type: 'boolean' },
@@ -114,6 +130,7 @@ async function getUserSnapshot(client, userId) {
   const { rows } = await client.query(
     `SELECT id, email, first_name, last_name, phone, role,
             city, state, zip_code, country, latitude, longitude,
+            logistics_role,
             membership_tier, subscription_status,
             email_verified, is_verified, background_check_passed,
             is_active
@@ -122,6 +139,14 @@ async function getUserSnapshot(client, userId) {
     [userId]
   );
   return rows[0] || null;
+}
+
+function normalizeLogisticsRole(raw, fallback = null) {
+  if (raw === undefined) return fallback;
+  if (raw === null) return null;
+  const value = String(raw).trim().toLowerCase();
+  if (!value) return null;
+  return LOGISTICS_ROLE_VALUES.includes(value) ? value : '__invalid__';
 }
 
 async function regionAccessOrFail(req, targetUser) {
@@ -156,6 +181,7 @@ exports.createUserFull = async (req, res) => {
       email_verified = false,
       is_verified = false,
       background_check_passed = false,
+      logistics_role: rawLogisticsRole = undefined,
       business_name = null,
       notes = null,
     } = body;
@@ -189,6 +215,16 @@ exports.createUserFull = async (req, res) => {
     const resolvedAccountType = resolveAccountTypeConfig(effectiveAccountType);
     const resolvedRole = resolvedAccountType.role;
     const resolvedDefaultMode = resolvedAccountType.default_mode;
+    const resolvedLogisticsRole = normalizeLogisticsRole(
+      rawLogisticsRole,
+      resolvedAccountType.logisticsRole ?? null,
+    );
+    if (resolvedLogisticsRole === '__invalid__') {
+      return res.status(400).json({
+        error: 'Validation failed',
+        fields: { logistics_role: `logistics_role must be one of: ${LOGISTICS_ROLE_VALUES.join(', ')}` },
+      });
+    }
 
     // Email uniqueness
     const { rows: dup } = await db.query(
@@ -219,7 +255,7 @@ exports.createUserFull = async (req, res) => {
         INSERT INTO users (
           first_name, last_name, email, password_hash,
           phone, city, state, zip_code, country, preferred_currency,
-          default_mode,
+          default_mode, logistics_role,
           role, membership_tier, subscription_status,
           email_verified, is_verified, background_check_passed,
           is_active,
@@ -229,22 +265,22 @@ exports.createUserFull = async (req, res) => {
         ) VALUES (
           $1, $2, $3, $4,
           $5, $6, $7, $8, $9, $10,
-          $11,
-          $12, $13, $14,
-          $15, $16, $17,
+          $11, $12,
+          $13, $14, $15,
+          $16, $17, $18,
           TRUE,
           TRUE, 'onboarding_complete',
           TRUE, TRUE, TRUE,
           NOW(), NOW()
         )
         RETURNING id, first_name, last_name, email, role,
-                  default_mode, membership_tier, subscription_status, is_active,
+                  default_mode, logistics_role, membership_tier, subscription_status, is_active,
                   country, preferred_currency,
                   created_at
       `, [
         first_name.trim(), last_name.trim(), normalizedEmail, passwordHash,
         phone || null, city || null, normalizedState, zip_code || null, country, preferredCurrency,
-        resolvedDefaultMode, resolvedRole, tier, subscription_status,
+        resolvedDefaultMode, resolvedLogisticsRole, resolvedRole, tier, subscription_status,
         coerceBoolean(email_verified), coerceBoolean(is_verified), coerceBoolean(background_check_passed),
       ]);
 
@@ -279,7 +315,7 @@ exports.createUserFull = async (req, res) => {
       targetType: 'user',
       targetId: result.id,
       description: `Created ${effectiveAccountType} account for ${normalizedEmail}`,
-      after: { account_type: effectiveAccountType, role: resolvedRole, default_mode: resolvedDefaultMode, email: normalizedEmail, membership_tier: tier },
+      after: { account_type: effectiveAccountType, role: resolvedRole, default_mode: resolvedDefaultMode, logistics_role: resolvedLogisticsRole, email: normalizedEmail, membership_tier: tier },
       req,
     }).catch(() => {});
 

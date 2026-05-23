@@ -107,6 +107,8 @@ function formatAuthUser(user) {
     is_listed:             user.is_listed !== undefined ? !!user.is_listed : true,
     allow_guest_contact:   user.allow_guest_contact !== undefined ? !!user.allow_guest_contact : true,
     default_mode:          user.default_mode || null,
+    logistics_role:        user.logistics_role || null,
+    internal_access_route: user.internal_access_route || null,
   };
 }
 
@@ -188,7 +190,15 @@ async function register(req, res, next) {
       logger.error('Template free trial grant failed on registration', { userId: user.id, err: err.message })
     );
 
-    const tokens = generateTokens(user);
+    const tokens = generateTokens(
+      user,
+      req.internalAccessRoute
+        ? {
+            internalAccessId: req.internalAccessId,
+            internalAccessRoute: req.internalAccessRoute,
+          }
+        : {}
+    );
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     await pool.query(
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
@@ -473,10 +483,14 @@ async function loginWith2FA(req, res) {
        tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
        background_check_passed, city, state, zip_code,
        trial_started_at, trial_ends_at, didit_status, didit_verified_at,
-       COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required
+       COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required,
+       logistics_role
        FROM users WHERE id = $1`,
       [user.id]
     );
+    if (fullRows[0] && req.internalAccessRoute) {
+      fullRows[0].internal_access_route = req.internalAccessRoute;
+    }
     res.json({
       success: true,
       message: 'Login successful',

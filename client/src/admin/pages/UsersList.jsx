@@ -30,6 +30,9 @@ const QUICK_CREATE_ACCOUNT_TYPES = [
   { value: 'business_representative', label: 'Business Representative' },
   { value: 'business_employee', label: 'Business Employee' },
   { value: 'business_support_agent', label: 'Business Support Agent' },
+  { value: 'employee', label: 'Employee' },
+  { value: 'operations_employee', label: 'Operations Employee' },
+  { value: 'compliance_employee', label: 'Compliance Employee' },
   { value: 'admin', label: 'Admin' },
   { value: 'super_admin', label: 'Super Admin' },
 ];

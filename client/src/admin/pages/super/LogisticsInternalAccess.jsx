@@ -82,7 +82,7 @@ export default function LogisticsInternalAccess() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!selectedRecord) {
-      toast.error('Choose an admin account first.');
+      toast.error('Choose an internal staff account first.');
       return;
     }
 
@@ -105,7 +105,7 @@ export default function LogisticsInternalAccess() {
         <p className="text-sm text-gray-400 mt-1 max-w-4xl">
           Super-admins issue the internal name and security key pairs required before anyone can reach
           Operations, Compliance Workspace, or the Admin Portal password login. Each approved pair is bound
-          to one specific OxSteed admin account.
+          to one specific OxSteed internal staff account.
         </p>
       </header>
 
@@ -116,8 +116,8 @@ export default function LogisticsInternalAccess() {
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(320px,420px)_1fr] gap-6">
             <div className="rounded-xl border border-gray-800 bg-gray-950/40 overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-800">
-                <h2 className="text-sm font-semibold text-white">Admin Accounts</h2>
-                <p className="text-xs text-gray-500 mt-1">Choose the account that should own the internal access identity.</p>
+                <h2 className="text-sm font-semibold text-white">Internal Staff Accounts</h2>
+                <p className="text-xs text-gray-500 mt-1">Choose the employee, admin, or super-admin account that should own the internal access identity.</p>
               </div>
               <div className="divide-y divide-gray-800">
                 {records.map((record) => {
@@ -162,7 +162,7 @@ export default function LogisticsInternalAccess() {
 
             <section className="rounded-xl border border-gray-800 bg-gray-950/40 p-5">
               {!selectedRecord ? (
-                <div className="text-sm text-gray-400">Select an admin account to manage its internal access.</div>
+                <div className="text-sm text-gray-400">Select an internal staff account to manage its internal access.</div>
               ) : (
                 <form className="space-y-5" onSubmit={handleSubmit}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -216,6 +216,7 @@ export default function LogisticsInternalAccess() {
                         type="checkbox"
                         checked={form.admin_portal_enabled}
                         onChange={(event) => updateField('admin_portal_enabled', event.target.checked)}
+                        disabled={selectedRecord.role === 'employee'}
                         className="mt-1"
                       />
                       <div>
@@ -223,6 +224,11 @@ export default function LogisticsInternalAccess() {
                         <div className="text-xs text-gray-500 mt-1">
                           Requires this internal name + key before `/admin/login` can continue to password login for this account.
                         </div>
+                        {selectedRecord.role === 'employee' && (
+                          <div className="text-xs text-amber-400 mt-2">
+                            Employee accounts cannot use the Admin Portal gate. This toggle is ignored for non-admin staff.
+                          </div>
+                        )}
                       </div>
                     </label>
 
@@ -272,6 +278,11 @@ export default function LogisticsInternalAccess() {
                         </div>
                       </div>
                     </label>
+                  </div>
+
+                  <div className="rounded-lg border border-blue-900/40 bg-blue-950/20 px-4 py-3 text-sm text-blue-100">
+                    Corporate department dashboards now live on routes like <span className="font-semibold text-white">`/internal/finance`</span>, <span className="font-semibold text-white">`/internal/hr`</span>, and <span className="font-semibold text-white">`/internal/corporate-ops`</span>.
+                    Employees do not need a separate per-department toggle here: once they have an active internal-access record and an active corporate assignment in that department, they can use the matching <span className="font-semibold text-white">`/internal/:workspace/login`</span> route.
                   </div>
 
                   {selectedRecord.has_record && (

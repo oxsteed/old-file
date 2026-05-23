@@ -127,6 +127,7 @@ router.post('/super/conversations/:id/status', requireSuperAdmin, convAdminCtrl.
 
 // Admin account management - delegatable via manage_admin_accounts grant
 router.get('/super/admin-accounts',             requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.getAdminAccounts);
+router.get('/super/internal-staff',             requireAdmin, superCtrl.getInternalStaffAccounts);
 router.post('/super/admin-accounts',            requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.createAdminAccount);
 router.put('/super/admin-accounts/:id/status',  requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.toggleAdminAccountStatus);
 router.get('/super/admin-activity/:adminId',    requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.getAdminActivity);

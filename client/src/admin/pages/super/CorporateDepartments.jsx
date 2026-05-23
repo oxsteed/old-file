@@ -24,75 +24,7 @@ import {
   upsertCorporateDepartment,
   upsertCorporateTitle,
 } from '../../../api/corporateRoles';
-
-const DEPARTMENT_PLAYBOOKS = {
-  executive: {
-    mission: 'Sets country strategy, governance, budget, and launch sequencing.',
-    launchObjective: 'Make the market-entry plan real: local partnerships, operating model, and executive accountability.',
-    owns: ['Country entry decision-making', 'Executive escalation and risk calls', 'Budget approval and cross-team coordination'],
-    firstHireCodes: ['vp_strategy_bizdev', 'vp_operations', 'general_counsel'],
-  },
-  technology: {
-    mission: 'Keeps the product stable while localizing workflows, tooling, and support operations.',
-    launchObjective: 'Ship country-specific configuration, payments, compliance hooks, and operational tooling without slowing the core platform.',
-    owns: ['Platform reliability and security', 'Localization and internal tools', 'Technical delivery for launch-critical work'],
-    firstHireCodes: ['vp_engineering', 'devops_sre', 'senior_fullstack_developer'],
-  },
-  operations: {
-    mission: 'Turns launch plans into repeatable marketplace operations and customer outcomes.',
-    launchObjective: 'Stand up onboarding, support, verification, and day-to-day execution for the new country team.',
-    owns: ['Marketplace operations and SLAs', 'Customer and helper onboarding', 'Escalations, verification, and payments operations'],
-    firstHireCodes: ['director_operations', 'customer_success_manager', 'verification_compliance'],
-  },
-  marketing: {
-    mission: 'Drives demand, partnerships, and local market awareness.',
-    launchObjective: 'Create the launch story, demand engine, and channel partnerships that bring in customers and providers fast.',
-    owns: ['Go-to-market strategy', 'Brand, performance, and content', 'Partnerships and pipeline building'],
-    firstHireCodes: ['director_marketing', 'growth_marketing_manager', 'partnerships_manager'],
-  },
-  finance: {
-    mission: 'Protects the business with solid controls, licensing, and financial visibility.',
-    launchObjective: 'Set up local compliance, payment controls, reporting, and licensing so launch can scale safely.',
-    owns: ['Compliance and licensing', 'Financial controls and treasury', 'Contracts, risk, and insurance readiness'],
-    firstHireCodes: ['controller', 'compliance_officer', 'insurance_licensing_coord'],
-  },
-  people: {
-    mission: 'Builds the local team, hiring engine, and administrative backbone.',
-    launchObjective: 'Recruit the country team, define HR process, and make the office/admin side dependable from day one.',
-    owns: ['Hiring and org design', 'HR operations and employee experience', 'Office, admin, and people systems'],
-    firstHireCodes: ['vp_people', 'talent_acquisition', 'office_facilities_manager'],
-  },
-  data: {
-    mission: 'Creates the measurement loop that shows whether the launch is healthy or drifting.',
-    launchObjective: 'Instrument the country launch so leadership can spot traction, fraud, unit economics, and product gaps early.',
-    owns: ['KPIs and launch dashboards', 'Research and experimentation', 'Analytics for growth, quality, and fraud prevention'],
-    firstHireCodes: ['data_science_manager', 'bi_analyst', 'innovation_lead'],
-  },
-};
-
-const ROLE_FOCUS = {
-  vp_strategy_bizdev: 'Owns market-entry strategy, local partnerships, and expansion pacing.',
-  vp_operations: 'Builds the local execution system and clears cross-functional blockers.',
-  general_counsel: 'Owns legal structure, contracts, and regulatory interpretation.',
-  vp_engineering: 'Leads technical delivery for launch-critical platform changes.',
-  devops_sre: 'Keeps uptime, deployments, monitoring, and incident response healthy.',
-  senior_fullstack_developer: 'Ships customer-facing and internal workflows needed for launch.',
-  director_operations: 'Runs the daily operating rhythm for the new country.',
-  customer_success_manager: 'Owns service quality, retention, and issue resolution.',
-  verification_compliance: 'Protects marketplace trust with checks, reviews, and controls.',
-  director_marketing: 'Owns launch narrative, positioning, and channel mix.',
-  growth_marketing_manager: 'Builds repeatable acquisition loops and campaign measurement.',
-  partnerships_manager: 'Opens local business channels and strategic relationships.',
-  controller: 'Owns reporting discipline, controls, and close processes.',
-  compliance_officer: 'Keeps the operation aligned with rules and internal policies.',
-  insurance_licensing_coord: 'Tracks local registrations, permits, and coverage.',
-  vp_people: 'Designs the org, hiring plan, and people policies.',
-  talent_acquisition: 'Sources and closes the critical early hires.',
-  office_facilities_manager: 'Keeps the local office and admin setup running cleanly.',
-  data_science_manager: 'Leads measurement, forecasting, and decision support.',
-  bi_analyst: 'Builds the dashboards leadership will rely on each week.',
-  innovation_lead: 'Turns new market learnings into product and process experiments.',
-};
+import { INTERNAL_ROLE_FOCUS as ROLE_FOCUS, INTERNAL_WORKSPACE_PLAYBOOKS as DEPARTMENT_PLAYBOOKS } from '../../../utils/internalWorkspaces';
 
 function formatCodeLabel(code) {
   return String(code || '')

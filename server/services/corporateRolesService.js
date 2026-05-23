@@ -54,7 +54,7 @@ function writeCached(key, value) {
  *
  * @param {object} ctx
  * @param {string} ctx.userId                 - users.id (UUID)
- * @param {string} [ctx.role]                 - 'admin' | 'super_admin' (others get empty set)
+ * @param {string} [ctx.role]                 - 'employee' | 'admin' | 'super_admin' (others get empty set)
  * @param {string} [ctx.country]              - ISO-3166 alpha-2; filters assignments to that country
  *                                              and globals; omit for "any active assignment".
  * @returns {Promise<{ permissions: Set<string>, raw: object, assignments: object[] }>}
@@ -69,7 +69,7 @@ async function getEffectiveCorporatePermissions(ctx) {
   }
 
   // Only internal staff (admin / super_admin) get a corporate permission set.
-  if (role && !['admin', 'super_admin'].includes(role)) {
+  if (role && !['employee', 'admin', 'super_admin'].includes(role)) {
     return { permissions: new Set(), raw: { reason: 'not_internal_staff' }, assignments: [] };
   }
 

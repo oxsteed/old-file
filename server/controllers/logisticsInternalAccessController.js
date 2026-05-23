@@ -6,20 +6,16 @@ const logger = require('../utils/logger');
 const { generateTokens } = require('../middleware/auth');
 const { formatAuthUser } = require('./authController');
 const rateLimit = require('../services/accessGateRateLimitService');
+const {
+  LOGISTICS_INTERNAL_ROUTE_COLUMNS,
+  normalizeInternalAccessRoute,
+  canUseInternalAccessRoute,
+  canHoldAnyInternalAccess,
+} = require('../utils/internalWorkspaces');
 
 const SALT_ROUNDS = 12;
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
-const INTERNAL_ACCESS_ROUTES = Object.freeze({
-  operations: 'operations_enabled',
-  compliance: 'compliance_enabled',
-  admin_portal: 'admin_portal_enabled',
-});
-
-function normalizeRoute(rawRoute) {
-  if (!rawRoute) return null;
-  const route = String(rawRoute).trim().toLowerCase();
-  return Object.prototype.hasOwnProperty.call(INTERNAL_ACCESS_ROUTES, route) ? route : null;
-}
+const INTERNAL_ACCESS_USER_ROLES = Object.freeze(['employee', 'admin', 'super_admin']);
 
 function normalizeInternalName(value) {
   return String(value || '').trim();
@@ -41,6 +37,7 @@ async function loadAccessRecordByName(internalName) {
       u.id AS linked_user_id,
       u.email,
       u.role,
+      u.logistics_role,
       u.is_active AS user_is_active
     FROM logistics_internal_access_credentials liac
     JOIN users u ON u.id = liac.user_id
@@ -75,7 +72,7 @@ async function loadAccessRecordByUserId(userId) {
 
 async function loadInternalAccessUser(userId) {
   const { rows } = await pool.query(
-    `SELECT id, first_name, last_name, email, role, is_active
+    `SELECT id, first_name, last_name, email, role, logistics_role, is_active
      FROM users
      WHERE id = $1
      LIMIT 1`,
@@ -95,11 +92,15 @@ async function saveAccessRecord({
   isActive,
 }) {
   const targetUser = await loadInternalAccessUser(targetUserId);
-  if (!targetUser || !['admin', 'super_admin'].includes(targetUser.role)) {
-    return { error: { status: 404, message: 'Eligible admin account not found.' } };
+  if (
+    !targetUser
+    || !INTERNAL_ACCESS_USER_ROLES.includes(targetUser.role)
+    || !(await canHoldAnyInternalAccess(targetUser))
+  ) {
+    return { error: { status: 404, message: 'Eligible internal staff account not found.' } };
   }
   if (!targetUser.is_active) {
-    return { error: { status: 400, message: 'The linked admin account is inactive.' } };
+    return { error: { status: 400, message: 'The linked internal staff account is inactive.' } };
   }
 
   const normalizedName = normalizeInternalName(internalName);
@@ -135,6 +136,10 @@ async function saveAccessRecord({
     return { error: { status: 400, message: 'Security key is required.' } };
   }
 
+  const normalizedOperationsEnabled = !!operationsEnabled && await canUseInternalAccessRoute(targetUser, 'operations');
+  const normalizedComplianceEnabled = !!complianceEnabled && await canUseInternalAccessRoute(targetUser, 'compliance');
+  const normalizedAdminPortalEnabled = !!adminPortalEnabled && ['admin', 'super_admin'].includes(targetUser.role);
+
   const sql = existing
     ? `
       UPDATE logistics_internal_access_credentials
@@ -161,9 +166,9 @@ async function saveAccessRecord({
     targetUserId,
     normalizedName,
     hash,
-    !!operationsEnabled,
-    !!complianceEnabled,
-    !!adminPortalEnabled,
+    normalizedOperationsEnabled,
+    normalizedComplianceEnabled,
+    normalizedAdminPortalEnabled,
     typeof isActive === 'boolean' ? isActive : true,
   ]);
 
@@ -172,6 +177,7 @@ async function saveAccessRecord({
       ...rows[0],
       email: targetUser.email,
       role: targetUser.role,
+      logistics_role: targetUser.logistics_role || null,
       first_name: targetUser.first_name,
       last_name: targetUser.last_name,
       updated_by_user_id: actorUserId,
@@ -195,8 +201,8 @@ function verifyInternalAccessToken(token) {
   return decoded;
 }
 
-async function issueSessionForUser(req, user, rememberMe = false) {
-  const tokens = generateTokens(user);
+async function issueSessionForUser(req, user, rememberMe = false, extraClaims = {}) {
+  const tokens = generateTokens(user, extraClaims);
   const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
   const sessionSql = rememberMe
     ? "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '30 days')"
@@ -281,6 +287,7 @@ exports.listInternalAccessRecords = async (req, res) => {
          u.last_name,
          u.email,
          u.role,
+         u.logistics_role,
          u.is_active AS user_is_active,
          liac.id,
          liac.internal_name,
@@ -294,8 +301,24 @@ exports.listInternalAccessRecords = async (req, res) => {
        FROM users u
        LEFT JOIN logistics_internal_access_credentials liac ON liac.user_id = u.id
        WHERE u.role IN ('admin', 'super_admin')
+          OR (
+            u.role = 'employee'
+            AND (
+              u.logistics_role IN ('sourcing_operator', 'logistics_coordinator', 'warehouse_operator', 'compliance_reviewer')
+              OR EXISTS (
+                SELECT 1
+                  FROM corporate_assignments ca
+                 WHERE ca.user_id = u.id
+                   AND ca.is_active = TRUE
+              )
+            )
+          )
        ORDER BY
-         CASE WHEN u.role = 'super_admin' THEN 0 ELSE 1 END,
+         CASE
+           WHEN u.role = 'super_admin' THEN 0
+           WHEN u.role = 'admin' THEN 1
+           ELSE 2
+         END,
          LOWER(u.first_name),
          LOWER(u.last_name),
          LOWER(u.email)`
@@ -310,6 +333,7 @@ exports.listInternalAccessRecords = async (req, res) => {
         admin_portal_enabled: !!row.admin_portal_enabled,
         is_active: row.id ? !!row.is_active : false,
         has_record: !!row.id,
+        logistics_role: row.logistics_role || null,
       })),
     });
   } catch (error) {
@@ -356,7 +380,7 @@ exports.upsertInternalAccessForUser = async (req, res) => {
 
 exports.getRouteConfig = async (req, res) => {
   try {
-    const route = normalizeRoute(req.query.route);
+    const route = normalizeInternalAccessRoute(req.query.route);
     if (!route) {
       return res.status(400).json({ error: 'Valid route is required.' });
     }
@@ -394,7 +418,7 @@ function reqMeta(req) {
 
 exports.verifyInternalAccess = async (req, res) => {
   const { ip, userAgent } = reqMeta(req);
-  const route = normalizeRoute(req.body.route);
+  const route = normalizeInternalAccessRoute(req.body.route);
   const internalName = normalizeInternalName(req.body.internal_name);
   const securityKey = String(req.body.security_key || '').trim();
 
@@ -425,8 +449,8 @@ exports.verifyInternalAccess = async (req, res) => {
       !record ||
       !record.is_active ||
       !record.user_is_active ||
-      !['admin', 'super_admin'].includes(record.role) ||
-      !record[INTERNAL_ACCESS_ROUTES[route]];
+      !(await canUseInternalAccessRoute(record, route)) ||
+      (LOGISTICS_INTERNAL_ROUTE_COLUMNS[route] ? !record[LOGISTICS_INTERNAL_ROUTE_COLUMNS[route]] : false);
 
     if (baseInvalid) {
       const result = await rateLimit.recordFailure({
@@ -490,6 +514,7 @@ exports.verifyInternalAccess = async (req, res) => {
         email_masked: maskEmail(record.email),
         internal_name: record.internal_name,
         role: record.role,
+        logistics_role: record.logistics_role || null,
       },
     });
   } catch (error) {
@@ -512,7 +537,7 @@ exports.loginWithInternalAccess = async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid or expired internal access session.' });
     }
 
-    const route = normalizeRoute(decoded.route);
+    const route = normalizeInternalAccessRoute(decoded.route);
     if (!route) {
       return res.status(401).json({ error: 'Invalid internal access session.' });
     }
@@ -527,7 +552,7 @@ exports.loginWithInternalAccess = async (req, res, next) => {
          u.membership_tier, u.id_verified, u.background_check_passed,
          u.city, u.state, u.zip_code, u.totp_enabled,
          u.trial_started_at, u.trial_ends_at, u.didit_status, u.didit_verified_at,
-         u.default_mode,
+         u.default_mode, u.logistics_role,
          COALESCE(u.didit_enforcement_required, FALSE) AS didit_enforcement_required,
          liac.id AS internal_access_id,
          liac.operations_enabled,
@@ -547,7 +572,7 @@ exports.loginWithInternalAccess = async (req, res, next) => {
       !user ||
       !user.is_active ||
       !user.internal_access_active ||
-      !['admin', 'super_admin'].includes(user.role) ||
+      !(await canUseInternalAccessRoute(user, route)) ||
       (route === 'operations' && !user.operations_enabled) ||
       (route === 'compliance' && !user.compliance_enabled) ||
       (route === 'admin_portal' && !user.admin_portal_enabled)
@@ -583,7 +608,11 @@ exports.loginWithInternalAccess = async (req, res, next) => {
       });
     }
 
-    const tokens = await issueSessionForUser(req, user, !!rememberMe);
+    user.internal_access_route = route;
+    const tokens = await issueSessionForUser(req, user, !!rememberMe, {
+      internalAccessId: decoded.internalAccessId,
+      internalAccessRoute: route,
+    });
     return res.json({
       success: true,
       message: 'Login successful',

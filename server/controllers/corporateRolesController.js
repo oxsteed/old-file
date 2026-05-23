@@ -399,7 +399,7 @@ exports.createAssignment = async (req, res, next) => {
 
     await client.query('BEGIN');
 
-    // Verify target user exists AND is admin/super_admin (corporate titles are
+    // Verify target user exists AND is internal staff (corporate titles are
     // for internal staff only).
     const userRes = await client.query(
       'SELECT id, role, is_active FROM users WHERE id = $1',
@@ -414,11 +414,11 @@ exports.createAssignment = async (req, res, next) => {
       await client.query('ROLLBACK');
       return badRequest(res, 'Target user is inactive.', 'user_inactive');
     }
-    if (!['admin', 'super_admin'].includes(target.role)) {
+    if (!['employee', 'admin', 'super_admin'].includes(target.role)) {
       await client.query('ROLLBACK');
       return badRequest(
         res,
-        'Corporate titles can only be assigned to admin or super_admin users.',
+        'Corporate titles can only be assigned to employee, admin, or super_admin users.',
         'target_not_staff',
       );
     }

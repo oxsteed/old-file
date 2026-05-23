@@ -58,6 +58,14 @@ const ROLES = {
   HELPER_BROKER: 'broker',
 
   /**
+   * EMPLOYEE
+   * Internal OxSteed employee or contractor who is part of the company
+   * org chart but does not automatically receive platform-admin access.
+   * Workspace/tool access is granted separately.
+   */
+  EMPLOYEE: 'employee',
+
+  /**
    * ADMIN (Regular)
    * OxSteed employee or contractor with operational moderation
    * access. Can view jobs, users, and basic reports.
@@ -83,8 +91,9 @@ const ROLE_HIERARCHY = {
   [ROLES.HELPER_FREE]:   1,
   [ROLES.HELPER_PRO]:    2,
   [ROLES.HELPER_BROKER]: 3,
-  [ROLES.ADMIN]:         4,
-  [ROLES.SUPER_ADMIN]:   5,
+  [ROLES.EMPLOYEE]:      4,
+  [ROLES.ADMIN]:         5,
+  [ROLES.SUPER_ADMIN]:   6,
 };
 
 // ─── Role Groups (for middleware) ─────────────────────────────
@@ -96,6 +105,7 @@ const ROLE_GROUPS = {
     ROLES.HELPER_FREE,
     ROLES.HELPER_PRO,
     ROLES.HELPER_BROKER,
+    ROLES.EMPLOYEE,
     ROLES.ADMIN,
     ROLES.SUPER_ADMIN,
   ],

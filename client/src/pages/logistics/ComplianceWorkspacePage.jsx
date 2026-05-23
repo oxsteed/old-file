@@ -3,13 +3,14 @@ import { Link } from 'react-router-dom';
 import PageShell from '../../components/PageShell';
 import { useAuth } from '../../context/AuthContext';
 import { listLanes, listTradeRules, adminListRestrictions, adminListShipments } from '../../api/logistics';
+import { canAccessComplianceWorkspace } from '../../utils/logisticsWorkspaces';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const RISK_COLOR = { low: '#22c55e', managed: '#f59e0b', restricted: '#ef4444', prohibited: '#7f1d1d' };
 
 export default function ComplianceWorkspacePage() {
   const { user } = useAuth();
-  const isOperator = user?.role === 'admin' || user?.role === 'super_admin';
+  const isOperator = canAccessComplianceWorkspace(user);
   const [lanes, setLanes] = useState([]);
   const [rules, setRules] = useState([]);
   const [restrictions, setRestrictions] = useState([]);
@@ -49,9 +50,9 @@ export default function ComplianceWorkspacePage() {
 
         <div className="lx-nav-grid" style={{ marginBottom: '1.5rem' }}>
           <Link to="/logistics/compliance" className="lx-nav-tile"><span className="lx-nav-icon">📋</span><span className="lx-nav-label">Trade rules</span></Link>
-          {isOperator && <Link to="/admin/logistics/compliance-review" className="lx-nav-tile"><span className="lx-nav-icon">🧪</span><span className="lx-nav-label">Review queue</span></Link>}
-          {isOperator && <Link to="/admin/logistics/customs" className="lx-nav-tile"><span className="lx-nav-icon">🛃</span><span className="lx-nav-label">Customs ops</span></Link>}
-          {isOperator && <Link to="/admin/logistics/restrictions" className="lx-nav-tile"><span className="lx-nav-icon">⛔</span><span className="lx-nav-label">Restrictions</span></Link>}
+          {isOperator && <Link to="/logistics/compliance-workspace/review" className="lx-nav-tile"><span className="lx-nav-icon">🧪</span><span className="lx-nav-label">Review queue</span></Link>}
+          {isOperator && <Link to="/logistics/compliance-workspace/customs" className="lx-nav-tile"><span className="lx-nav-icon">🛃</span><span className="lx-nav-label">Customs ops</span></Link>}
+          {isOperator && <Link to="/logistics/compliance-workspace/restrictions" className="lx-nav-tile"><span className="lx-nav-icon">⛔</span><span className="lx-nav-label">Restrictions</span></Link>}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -128,4 +129,3 @@ export default function ComplianceWorkspacePage() {
     </PageShell>
   );
 }
-

@@ -7,6 +7,7 @@ import { CookieConsentProvider } from './context/CookieConsentContext';
 import './i18n'; // initialise i18next before any component renders
 import ProtectedRoute from './components/ProtectedRoute';
 import LogisticsOperatorGuard from './components/LogisticsOperatorGuard';
+import InternalWorkspaceGuard from './components/InternalWorkspaceGuard';
 import ErrorBoundary, { RouterAwareErrorBoundary } from './components/ErrorBoundary';
 import RouteErrorBoundary from './components/RouteErrorBoundary';
 import ScrollToTop from './components/ScrollToTop';
@@ -73,7 +74,18 @@ import DistributorResellerPage from './pages/logistics/DistributorResellerPage';
 import OperationsWorkspacePage from './pages/logistics/OperationsWorkspacePage';
 import ComplianceWorkspacePage from './pages/logistics/ComplianceWorkspacePage';
 import AdminControlWorkspacePage from './pages/logistics/AdminControlWorkspacePage';
+import SourcingOpsAdmin from './admin/pages/logistics/SourcingOpsAdmin';
+import OrganizerApprovalsAdmin from './admin/pages/logistics/OrganizerApprovalsAdmin';
+import ShipmentOpsAdmin from './admin/pages/logistics/ShipmentOpsAdmin';
+import WarehouseOpsDashboard from './admin/pages/logistics/WarehouseOpsDashboard';
+import AllocationsAdmin from './admin/pages/logistics/AllocationsAdmin';
+import DisputesAdmin from './admin/pages/logistics/DisputesAdmin';
+import ComplianceReviewAdmin from './admin/pages/logistics/ComplianceReviewAdmin';
+import CustomsAdmin from './admin/pages/logistics/CustomsAdmin';
+import RestrictionsAdmin from './admin/pages/logistics/RestrictionsAdmin';
 import LogisticsOperatorLoginPage from './pages/logistics/LogisticsOperatorLoginPage';
+import InternalWorkspaceLoginPage from './pages/internal/InternalWorkspaceLoginPage';
+import InternalDepartmentWorkspacePage from './pages/internal/InternalDepartmentWorkspacePage';
 import CampaignsPage        from './pages/logistics/CampaignsPage';
 import CampaignDetailPage   from './pages/logistics/CampaignDetailPage';
 import SourcingPage         from './pages/logistics/SourcingPage';
@@ -300,12 +312,23 @@ export default function App() {
                     <Route path="/logistics/operations/login" element={<Guarded><LogisticsOperatorLoginPage /></Guarded>} />
                     <Route path="/logistics/compliance-workspace/login" element={<Guarded><LogisticsOperatorLoginPage /></Guarded>} />
                     <Route path="/logistics/admin-control/login" element={<Guarded><LogisticsOperatorLoginPage /></Guarded>} />
+                    <Route path="/internal/:workspace/login" element={<Guarded><InternalWorkspaceLoginPage /></Guarded>} />
+                    <Route path="/internal/:workspace" element={<Guarded><InternalWorkspaceGuard><RouteErrorBoundary><InternalDepartmentWorkspacePage /></RouteErrorBoundary></InternalWorkspaceGuard></Guarded>} />
                     <Route path="/logistics/buyer"            element={<Guarded><ProtectedRoute><RouteErrorBoundary><BuyerDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/organizer"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><OrganizerDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/business-procurement" element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessProcurementPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/distributor"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><DistributorResellerPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/operations"       element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><OperationsWorkspacePage /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
+                    <Route path="/logistics/operations/sourcing-ops" element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><SourcingOpsAdmin /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
+                    <Route path="/logistics/operations/organizer-approvals" element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><OrganizerApprovalsAdmin /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
+                    <Route path="/logistics/operations/shipment-ops" element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><ShipmentOpsAdmin /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
+                    <Route path="/logistics/operations/warehouse-ops" element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><WarehouseOpsDashboard /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
+                    <Route path="/logistics/operations/allocations" element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><AllocationsAdmin /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
+                    <Route path="/logistics/operations/disputes" element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><DisputesAdmin /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
                     <Route path="/logistics/compliance-workspace" element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><ComplianceWorkspacePage /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
+                    <Route path="/logistics/compliance-workspace/review" element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><ComplianceReviewAdmin /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
+                    <Route path="/logistics/compliance-workspace/customs" element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><CustomsAdmin /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
+                    <Route path="/logistics/compliance-workspace/restrictions" element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><RestrictionsAdmin /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
                     <Route path="/logistics/admin-control"    element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><AdminControlWorkspacePage /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
                     <Route path="/logistics/campaigns"        element={<Guarded><RouteErrorBoundary><CampaignsPage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/logistics/campaigns/:id"    element={<Guarded><RouteErrorBoundary><CampaignDetailPage /></RouteErrorBoundary></Guarded>} />

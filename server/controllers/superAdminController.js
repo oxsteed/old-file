@@ -2475,6 +2475,30 @@ exports.getAdminAccounts = async (req, res) => {
   }
 };
 
+// GET /admin/super/internal-staff
+exports.getInternalStaffAccounts = async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT
+        u.id, u.first_name, u.last_name, u.email, u.role, u.logistics_role,
+        u.is_active, u.created_at, u.last_login_at
+      FROM users u
+      WHERE u.role IN ('employee', 'admin', 'super_admin')
+      ORDER BY
+        CASE
+          WHEN u.role = 'super_admin' THEN 0
+          WHEN u.role = 'admin' THEN 1
+          ELSE 2
+        END,
+        u.created_at ASC
+    `);
+    res.json({ accounts: rows });
+  } catch (err) {
+    logger.error('getInternalStaffAccounts error', { err });
+    res.status(500).json({ error: 'Failed to fetch internal staff accounts.' });
+  }
+};
+
 // POST /admin/super/admin-accounts  - create a new admin account
 exports.createAdminAccount = async (req, res) => {
   try {

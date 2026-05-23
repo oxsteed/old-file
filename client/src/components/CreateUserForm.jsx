@@ -29,6 +29,9 @@ const ACCOUNT_TYPES = [
   { value: 'business_representative', label: 'Business Representative', hint: 'Granted business representative workspace' },
   { value: 'business_employee', label: 'Business Employee', hint: 'Granted employee workspace' },
   { value: 'business_support_agent', label: 'Business Support Agent', hint: 'Granted support-agent workspace' },
+  { value: 'employee', label: 'Employee', hint: 'Internal employee without admin portal access' },
+  { value: 'operations_employee', label: 'Operations Employee', hint: 'Internal employee for logistics operations workspace' },
+  { value: 'compliance_employee', label: 'Compliance Employee', hint: 'Internal employee for logistics compliance workspace' },
   { value: 'admin', label: 'Admin', hint: 'Internal admin portal account' },
   { value: 'super_admin', label: 'Super Admin', hint: 'Full internal platform access' },
 ];
@@ -62,6 +65,7 @@ const INITIAL = {
   email_verified: false,
   is_verified: false,
   background_check_passed: false,
+  logistics_role: '',
   business_name: '',
   notes: '',
 };
@@ -86,7 +90,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
       const payload = { ...form };
       // Strip empty strings on optional fields so backend defaults apply
       ['membership_tier', 'business_name', 'notes', 'phone',
-       'city', 'state', 'zip_code'].forEach(k => {
+       'city', 'state', 'zip_code', 'logistics_role'].forEach(k => {
         if (payload[k] === '') payload[k] = null;
       });
       // country always sent (backend defaults to 'US' but be explicit)
@@ -123,6 +127,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
     'focus:border-orange-500 focus:ring-1 focus:ring-orange-500';
 
   const labelCls = 'block text-xs font-medium text-gray-400 mb-1';
+  const isLogisticsEmployeeType = ['employee', 'operations_employee', 'compliance_employee'].includes(form.account_type);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -271,6 +276,32 @@ export default function CreateUserForm({ onCreated, onCancel }) {
           </div>
         </div>
       </section>
+
+      {isLogisticsEmployeeType && (
+        <section>
+          <h3 className="text-sm font-semibold text-gray-200 mb-3">Internal Workspace</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Logistics role</label>
+              <select
+                className={inputCls}
+                value={form.logistics_role}
+                onChange={e => setField('logistics_role', e.target.value)}
+              >
+                <option value="">Use account-type default</option>
+                <option value="logistics_coordinator">Logistics Coordinator</option>
+                <option value="sourcing_operator">Sourcing Operator</option>
+                <option value="warehouse_operator">Warehouse Operator</option>
+                <option value="compliance_reviewer">Compliance Reviewer</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-2">
+                This controls which internal logistics workspace the employee can be provisioned into later.
+              </p>
+              {fieldErr('logistics_role')}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Account */}
       <section>

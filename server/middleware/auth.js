@@ -12,9 +12,9 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
 const REFRESH_EXPIRES_IN = process.env.REFRESH_EXPIRES_IN || '7d';
 
-function generateTokens(user) {
+function generateTokens(user, extraClaims = {}) {
   const accessToken = jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    { id: user.id, email: user.email, role: user.role, ...extraClaims },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN, algorithm: 'HS256' }
   );
@@ -99,7 +99,7 @@ async function authenticate(req, res, next) {
          u.didit_status, u.didit_verified_at,
          COALESCE(u.didit_enforcement_required, FALSE) AS didit_enforcement_required,
          u.trial_started_at, u.trial_ends_at,
-         u.default_mode,
+         u.default_mode, u.logistics_role,
          b.business_name,
          hp.is_listed,
          COALESCE(hp.allow_guest_contact, TRUE) AS allow_guest_contact
@@ -120,6 +120,8 @@ async function authenticate(req, res, next) {
 
     // Compute consistent onboarding_step matching authController.formatAuthUser
     user.onboarding_step = computeOnboardingStep(user);
+    user.internal_access_route = decoded.internalAccessRoute || null;
+    user.internal_access_id = decoded.internalAccessId || null;
 
     // Identity (Didit): block API access when email is verified but identity gate not met
     const DIDIT_EXEMPT_PATH_PREFIXES = [
@@ -230,12 +232,14 @@ const optionalAuth = async (req, res, next) => {
     }
 
     const { rows } = await pool.query(
-      `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.default_mode
+      `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.default_mode, u.logistics_role
          FROM users u WHERE u.id = $1`,
       [decoded.id]
     );
     const user = rows[0];
     if (user && user.is_active) {
+      user.internal_access_route = decoded.internalAccessRoute || null;
+      user.internal_access_id = decoded.internalAccessId || null;
       req.user = user;
       req.isAdmin = ['admin', 'super_admin'].includes(user.role);
       req.isSuperAdmin = user.role === 'super_admin';
