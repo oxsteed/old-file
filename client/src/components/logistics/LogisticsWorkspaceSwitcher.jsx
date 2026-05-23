@@ -24,12 +24,15 @@ export default function LogisticsWorkspaceSwitcher({
   };
 
   return (
-    <div className="lx-card" style={{ marginBottom: '1.5rem' }}>
-      <div className="lx-section-header">
-        <h2 style={{ margin: 0 }}>Logistics End-User Dashboards</h2>
+    <div className="lx-card lx-workspace-switcher" style={{ marginBottom: '1.5rem' }}>
+      <div className="lx-section-header" style={{ marginBottom: '.85rem' }}>
+        <div>
+          <h2 style={{ margin: 0 }}>Logistics End-User Dashboards</h2>
+          <p className="lx-workspace-switcher-sub">Choose the workspace that matches how you use Logistics mode day to day.</p>
+        </div>
         <Link to="/logistics" className="lx-link">Open logistics hub</Link>
       </div>
-      <div className="lx-nav-grid">
+      <div className="lx-workspace-switcher-grid">
         {workspaces.map((workspace) => {
           const enabled = availability[workspace.key] !== false;
           const isCurrent = workspace.key === currentKey;
@@ -37,35 +40,37 @@ export default function LogisticsWorkspaceSwitcher({
           return (
             <div
               key={workspace.key}
-              className="lx-nav-tile"
+              className="lx-workspace-switcher-tile"
               style={{
-                alignItems: 'flex-start',
-                textAlign: 'left',
                 border: isCurrent ? '1px solid #f97316' : undefined,
                 boxShadow: isCurrent ? '0 0 0 1px rgba(249,115,22,0.18) inset' : undefined,
               }}
             >
-              <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', gap: '.75rem', alignItems: 'flex-start' }}>
-                <div>
-                  <div className="lx-nav-icon">{workspace.icon}</div>
-                  <div className="lx-nav-label" style={{ marginTop: '.35rem' }}>{workspace.label}</div>
+              <div className="lx-workspace-switcher-top">
+                <div className="lx-workspace-switcher-heading">
+                  <div className="lx-workspace-switcher-icon">{workspace.icon}</div>
+                  <div>
+                    <div className="lx-workspace-switcher-label">{workspace.label}</div>
+                    {isCurrent && <div className="lx-workspace-switcher-badge">Current</div>}
+                    {!isCurrent && isFavorite && <div className="lx-workspace-switcher-badge">Favorite</div>}
+                  </div>
                 </div>
                 {enabled && (
                   <button
                     type="button"
                     onClick={() => handleFavorite(workspace.key)}
                     className="lx-btn-secondary"
-                    style={{ padding: '.35rem .55rem', minWidth: 'unset' }}
+                    style={{ padding: '.3rem .5rem', minWidth: 'unset' }}
                     title={isFavorite ? 'Unset favorite workspace' : 'Set as favorite workspace'}
                   >
                     <Star size={14} fill={isFavorite ? 'currentColor' : 'none'} />
                   </button>
                 )}
               </div>
-              <div style={{ fontSize: '.82rem', color: '#64748b', lineHeight: 1.6 }}>
+              <div className="lx-workspace-switcher-copy">
                 {workspace.description}
               </div>
-              <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', marginTop: '.5rem' }}>
+              <div className="lx-workspace-switcher-actions">
                 {enabled ? (
                   <Link to={workspace.path} className="lx-link">
                     {isCurrent ? 'Current dashboard' : 'Open dashboard'}
@@ -75,9 +80,9 @@ export default function LogisticsWorkspaceSwitcher({
                     Not enabled for this account
                   </span>
                 )}
-                {isFavorite && (
+                {isFavorite && !isCurrent && (
                   <span style={{ fontSize: '.74rem', fontWeight: 700, color: '#f97316' }}>
-                    Favorite for Logistics mode
+                    Opens first in Logistics mode
                   </span>
                 )}
               </div>

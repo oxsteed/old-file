@@ -455,6 +455,95 @@ html.dark .lx-key-metric-label {
   line-height: 1.65;
 }
 
+.lx-workspace-switcher {
+  padding: 1.1rem 1.15rem 1.15rem;
+}
+
+.lx-workspace-switcher-sub {
+  margin: .2rem 0 0;
+  font-size: .82rem;
+  color: #64748b;
+}
+
+.lx-workspace-switcher-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .85rem;
+}
+
+.lx-workspace-switcher-tile {
+  display: grid;
+  gap: .7rem;
+  padding: .95rem;
+  border-radius: 1rem;
+  background: var(--card-bg,#fff);
+  border: 1px solid var(--border-color,#e2e8f0);
+}
+
+.lx-workspace-switcher-top {
+  display: flex;
+  justify-content: space-between;
+  gap: .75rem;
+  align-items: flex-start;
+}
+
+.lx-workspace-switcher-heading {
+  display: flex;
+  gap: .7rem;
+  align-items: flex-start;
+}
+
+.lx-workspace-switcher-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+  margin-top: .12rem;
+}
+
+.lx-workspace-switcher-label {
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.lx-workspace-switcher-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-top: .3rem;
+  padding: .2rem .5rem;
+  border-radius: 999px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #c2410c;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+html.dark .lx-workspace-switcher-badge {
+  background: rgba(249,115,22,.12);
+  border-color: rgba(249,115,22,.24);
+  color: #fdba74;
+}
+
+.lx-workspace-switcher-copy {
+  color: #64748b;
+  font-size: .84rem;
+  line-height: 1.52;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 5.1rem;
+}
+
+.lx-workspace-switcher-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem .65rem;
+  align-items: center;
+}
+
 /* Filter bar */
 .lx-filter-bar {
   display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 1.5rem;
@@ -493,5 +582,19 @@ html.dark .lx-key-metric-label {
   .lx-dashboard-hero,
   .lx-dashboard-grid {
     grid-template-columns: 1fr;
+  }
+
+  .lx-workspace-switcher-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .lx-workspace-switcher-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lx-workspace-switcher {
+    padding: 1rem;
   }
 }
