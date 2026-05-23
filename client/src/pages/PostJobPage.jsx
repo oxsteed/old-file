@@ -1104,6 +1104,29 @@ export default function PostJobPage() {
   const locationDisplay = getLocationDisplay(form);
   const isReady = !!(form.title.trim().length >= 10 && form.categoryId && form.locationCity.trim() && form.locationCountry.trim());
   const activeReqs = activeRequirements(form.requirements);
+  const stepMeta = {
+    1: {
+      eyebrow: 'Scope the work',
+      title: 'Tell OxSteed what needs to get done.',
+      body: 'A stronger title, clearer location, and useful media help the right helpers self-select faster.',
+    },
+    2: {
+      eyebrow: 'Set the bar',
+      title: 'Define who is qualified to bid.',
+      body: 'Use requirements to filter for the kind of helper, team, tools, and trust signals this job really needs.',
+    },
+    3: {
+      eyebrow: 'Budget and timing',
+      title: 'Make the timeline feel real.',
+      body: 'Set a budget style, urgency, schedule preferences, and private notes so bids arrive with better context.',
+    },
+    4: {
+      eyebrow: 'Final review',
+      title: 'Check the post before it goes live.',
+      body: 'This is the last pass before your job starts attracting bids from helpers who match the request.',
+    },
+  }[form.step];
+  const helperFitCount = activeReqs.length + (form.requiredSkills.length ? 1 : 0);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -1129,14 +1152,36 @@ export default function PostJobPage() {
       <main className="pjw-main-wrap">
 
         {/* ── Page header ────────────────────────────────────────────────── */}
-        <header>
+        <header className="pjw-hero">
           <nav className="pjw-breadcrumb" aria-label="Breadcrumb">
             <Link to="/">Home</Link><span>›</span>
             <Link to="/jobs">Jobs</Link><span>›</span>
             <span aria-current="page">Post a Job</span>
           </nav>
-          <h1 className="pjw-page-title">{t('postJob.title')}</h1>
-          <p className="pjw-page-sub">Describe what needs doing and set your own requirements. Helpers who meet your bar will bid.</p>
+          <div className="pjw-hero-grid">
+            <div className="pjw-hero-copy">
+              <div className="pjw-hero-kicker">Customer job post</div>
+              <h1 className="pjw-page-title">{t('postJob.title')}</h1>
+              <p className="pjw-page-sub">Describe what needs doing, set the bar for who can bid, and turn one messy task into a clear request helpers can price quickly.</p>
+
+              <div className="pjw-hero-trust">
+                <span className="pjw-hero-pill">Free to post</span>
+                <span className="pjw-hero-pill">Set your own requirements</span>
+                <span className="pjw-hero-pill">Invite competitive bids</span>
+              </div>
+            </div>
+
+            <div className="pjw-hero-panel">
+              <div className="pjw-hero-panel-card">
+                <div className="pjw-hero-panel-label">What makes bids better</div>
+                <ul className="pjw-hero-panel-list">
+                  <li>Specific scope beats broad descriptions.</li>
+                  <li>Photos or video reduce back-and-forth questions.</li>
+                  <li>Requirements prevent low-fit helpers from wasting your time.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
           {directHelperId && (
             <div style={{ display:'flex', alignItems:'center', gap:'10px', marginTop:'12px', padding:'12px 16px', background:'rgba(249,115,22,0.08)', border:'1px solid rgba(249,115,22,0.25)', borderRadius:'12px', fontSize:'13px', color:'#fb923c' }}>
               <span>⚡</span>
@@ -1174,6 +1219,28 @@ export default function PostJobPage() {
             );
           })}
         </div>
+
+        <section className="pjw-step-intro">
+          <div className="pjw-step-intro-copy">
+            <span className="pjw-step-intro-eyebrow">{stepMeta.eyebrow}</span>
+            <h2>{stepMeta.title}</h2>
+            <p>{stepMeta.body}</p>
+          </div>
+          <div className="pjw-step-intro-stats">
+            <div className="pjw-step-stat">
+              <span className="pjw-step-stat-label">Current step</span>
+              <strong>{form.step} / 4</strong>
+            </div>
+            <div className="pjw-step-stat">
+              <span className="pjw-step-stat-label">Helper filters</span>
+              <strong>{helperFitCount}</strong>
+            </div>
+            <div className="pjw-step-stat">
+              <span className="pjw-step-stat-label">Media added</span>
+              <strong>{form.mediaFiles.length}</strong>
+            </div>
+          </div>
+        </section>
 
         <div className="pjw-two-col">
           {/* ── Steps column ──────────────────────────────────────────────── */}
@@ -1982,6 +2049,23 @@ export default function PostJobPage() {
                 </button>
                 {form.draftSaving && <p className="pjw-draft-saving">{t('postJob.savingDraft')}</p>}
               </div>
+            </div>
+
+            <div className="pjw-side-note-card">
+              <div className="pjw-side-note-kicker">Before you post</div>
+              <h4>Make the job easier to price.</h4>
+              <ul className="pjw-side-note-list">
+                <li>Include exact problem details, not just the category.</li>
+                <li>Add preferred dates if access depends on your schedule.</li>
+                <li>List any special tools, permits, or materials helpers should expect.</li>
+              </ul>
+            </div>
+
+            <div className="pjw-side-note-card">
+              <div className="pjw-side-note-kicker">What happens next</div>
+              <p className="pjw-side-note-copy">
+                Once your job is live, helpers who match the location, category, and requirements can send bids. You can compare offers, ask follow-up questions, and hire when you are ready.
+              </p>
             </div>
           </aside>
 

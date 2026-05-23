@@ -75,6 +75,11 @@
 - **Details experience:** The request modal is now a fuller launch workspace with phase timeline, structured business fields, setup-item chips, clearer timeline metadata, stronger next-steps guidance, and direct links back into consulting/support flows.
 - **Verification:** `client/src/pages/BusinessLaunchStatusPage.jsx` bundles successfully in isolation via `esbuild`.
 
+**Post Job page experience upgrade at `/post-job` (2026-05-22):** COMPLETE
+- **`client/src/pages/PostJobPage.jsx` + `client/src/styles/PostJobPage.css`**: Kept the existing multi-step job-posting logic intact but upgraded the page shell into a stronger customer-facing posting workspace. The page now has a richer hero, a step-intro layer that explains the current stage of the wizard, wider layout spacing, and a more helpful right rail with posting guidance and “what happens next” context instead of only a raw summary card.
+- **UX framing:** The goal of the pass was to make the form feel more guided and premium without risking regressions in the existing category search, media capture/upload, requirements logic, or review/post flow.
+- **Verification:** `client/src/pages/PostJobPage.jsx` bundles successfully in isolation via `esbuild`.
+
 **Expo React Native mobile Phase 1 foundation (2026-05-19):** COMPLETE
 - **`mobile/package.json`, `mobile/app.json`, `mobile/App.tsx`, `mobile/tsconfig.json`, `mobile/babel.config.js`, `mobile/src/**`**: Restarted the mobile client as an Expo React Native + TypeScript companion app instead of continuing the SwiftUI-only pass. The shell now uses React Navigation tabs, TanStack Query, Zustand auth state, SecureStore sessions, Expo Notifications, shared native UI primitives, and feature flags for staged rollout. App bootstrap lives in `mobile/src/bootstrap` so Expo does not confuse the project with an Expo Router app directory.
 - **Mobile cleanup:** Removed stale Capacitor/Vite entry files, the SwiftUI iOS project, old mobile screenshots, and the obsolete lockfile so `mobile/` now represents the Expo app source instead of multiple competing mobile shells.
