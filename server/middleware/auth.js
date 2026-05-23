@@ -148,6 +148,8 @@ async function authenticate(req, res, next) {
     }
 
     req.user = user;
+    req.isAdmin = ['admin', 'super_admin'].includes(user.role);
+    req.isSuperAdmin = user.role === 'super_admin';
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
@@ -233,7 +235,11 @@ const optionalAuth = async (req, res, next) => {
       [decoded.id]
     );
     const user = rows[0];
-    if (user && user.is_active) req.user = user;
+    if (user && user.is_active) {
+      req.user = user;
+      req.isAdmin = ['admin', 'super_admin'].includes(user.role);
+      req.isSuperAdmin = user.role === 'super_admin';
+    }
   } catch {
     // Expired, invalid, or DB error - continue as unauthenticated
   }

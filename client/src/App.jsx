@@ -63,6 +63,24 @@ import HelperConversationPage from './pages/HelperConversationPage';
 import HelperGuestInquiryPage from './pages/HelperGuestInquiryPage';
 import PlannedNeedsPage from './pages/PlannedNeedsPage';
 import CarCarePage from './pages/CarCarePage';
+// OxSteed Logistics branch
+import LogisticsHomePage    from './pages/logistics/LogisticsHomePage';
+import BuyerDashboardPage   from './pages/logistics/BuyerDashboardPage';
+import OrganizerDashboardPage from './pages/logistics/OrganizerDashboardPage';
+import BusinessProcurementPage from './pages/logistics/BusinessProcurementPage';
+import CampaignsPage        from './pages/logistics/CampaignsPage';
+import CampaignDetailPage   from './pages/logistics/CampaignDetailPage';
+import SourcingPage         from './pages/logistics/SourcingPage';
+import NewRequestPage       from './pages/logistics/NewRequestPage';
+import RequestDetailPage    from './pages/logistics/RequestDetailPage';
+import OrdersPage           from './pages/logistics/OrdersPage';
+import OrderDetailPage      from './pages/logistics/OrderDetailPage';
+import ShipmentsPage        from './pages/logistics/ShipmentsPage';
+import ShipmentDetailPage   from './pages/logistics/ShipmentDetailPage';
+import WarehousingPage      from './pages/logistics/WarehousingPage';
+import DistributionPage     from './pages/logistics/DistributionPage';
+import CompliancePage       from './pages/logistics/CompliancePage';
+import LogisticsFinancePage from './pages/logistics/LogisticsFinancePage';
 import BusinessHubPage from './pages/BusinessHubPage';
 import VortexPage from './pages/VortexPage';
 import VerifyIdentityPage from './pages/VerifyIdentityPage';
@@ -266,6 +284,26 @@ export default function App() {
                     {/* Financial planning: wrapped in RouteErrorBoundary to isolate crashes */}
                     <Route path="/planned-needs" element={<Guarded><ProtectedRoute><RouteErrorBoundary><PlannedNeedsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/car-care"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><CarCarePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+
+                    {/* OxSteed Logistics branch (migration 247) */}
+                    <Route path="/logistics"                  element={<Guarded><RouteErrorBoundary><LogisticsHomePage /></RouteErrorBoundary></Guarded>} />
+                    <Route path="/logistics/buyer"            element={<Guarded><ProtectedRoute><RouteErrorBoundary><BuyerDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/organizer"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><OrganizerDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/business-procurement" element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessProcurementPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/campaigns"        element={<Guarded><RouteErrorBoundary><CampaignsPage /></RouteErrorBoundary></Guarded>} />
+                    <Route path="/logistics/campaigns/:id"    element={<Guarded><RouteErrorBoundary><CampaignDetailPage /></RouteErrorBoundary></Guarded>} />
+                    <Route path="/logistics/sourcing"         element={<Guarded><ProtectedRoute><RouteErrorBoundary><SourcingPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/sourcing/new"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><NewRequestPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/requests/new"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><NewRequestPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/requests/:id"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><RequestDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/orders"           element={<Guarded><ProtectedRoute><RouteErrorBoundary><OrdersPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/orders/:id"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><OrderDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/shipments"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><ShipmentsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/shipments/:id"    element={<Guarded><ProtectedRoute><RouteErrorBoundary><ShipmentDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/warehousing"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><WarehousingPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/distribution"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><DistributionPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/compliance"       element={<Guarded><RouteErrorBoundary><CompliancePage /></RouteErrorBoundary></Guarded>} />
+                    <Route path="/logistics/finance"          element={<Guarded><ProtectedRoute><RouteErrorBoundary><LogisticsFinancePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* Vortex - unified workspace + access-code entry point (team-role spec) */}
                     <Route path="/vortex"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><VortexPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

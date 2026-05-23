@@ -39,6 +39,27 @@ import CorporateAssignments from './pages/super/CorporateAssignments';
 import CorporateDepartments from './pages/super/CorporateDepartments';
 import FranchiseHQPage      from './pages/super/FranchiseHQPage';
 
+// OxSteed Logistics admin pages (migration 247)
+import LogisticsAdminDashboard from './pages/logistics/LogisticsAdminDashboard';
+import LanesManagement         from './pages/logistics/LanesManagement';
+import SuppliersManagement     from './pages/logistics/SuppliersManagement';
+import QuotesManagement        from './pages/logistics/QuotesManagement';
+import CampaignsAdmin          from './pages/logistics/CampaignsAdmin';
+import PurchaseOrdersAdmin     from './pages/logistics/PurchaseOrdersAdmin';
+import ShipmentsAdmin          from './pages/logistics/ShipmentsAdmin';
+import CustomsAdmin            from './pages/logistics/CustomsAdmin';
+import WarehousesAdmin         from './pages/logistics/WarehousesAdmin';
+import AllocationsAdmin        from './pages/logistics/AllocationsAdmin';
+import PricingAdmin            from './pages/logistics/PricingAdmin';
+import RestrictionsAdmin       from './pages/logistics/RestrictionsAdmin';
+import DisputesAdmin           from './pages/logistics/DisputesAdmin';
+import SourcingOpsAdmin        from './pages/logistics/SourcingOpsAdmin';
+import OrganizerApprovalsAdmin from './pages/logistics/OrganizerApprovalsAdmin';
+import ShipmentOpsAdmin        from './pages/logistics/ShipmentOpsAdmin';
+import WarehouseOpsDashboard   from './pages/logistics/WarehouseOpsDashboard';
+import ComplianceReviewAdmin   from './pages/logistics/ComplianceReviewAdmin';
+import SuperAdminLogisticsControl from './pages/logistics/SuperAdminLogisticsControl';
+
 // Shared admin pages
 import UsersList            from './pages/UsersList';
 import ReportsList          from './pages/ReportsList';
@@ -263,6 +284,27 @@ export default function AdminApp() {
           <Route path="super/corporate/departments" element={
             <AdminGuard superOnly><CorporateDepartments /></AdminGuard>
           } />
+
+          {/* OxSteed Logistics branch (migration 247) */}
+          <Route path="logistics"                    element={<LogisticsAdminDashboard />} />
+          <Route path="logistics/sourcing-ops"       element={<SourcingOpsAdmin />} />
+          <Route path="logistics/organizer-approvals" element={<OrganizerApprovalsAdmin />} />
+          <Route path="logistics/lanes"              element={<LanesManagement />} />
+          <Route path="logistics/suppliers"          element={<SuppliersManagement />} />
+          <Route path="logistics/quotes"             element={<QuotesManagement />} />
+          <Route path="logistics/campaigns"          element={<CampaignsAdmin />} />
+          <Route path="logistics/purchase-orders"   element={<PurchaseOrdersAdmin />} />
+          <Route path="logistics/shipment-ops"       element={<ShipmentOpsAdmin />} />
+          <Route path="logistics/shipments"          element={<ShipmentsAdmin />} />
+          <Route path="logistics/compliance-review"  element={<ComplianceReviewAdmin />} />
+          <Route path="logistics/customs"            element={<CustomsAdmin />} />
+          <Route path="logistics/warehouse-ops"      element={<WarehouseOpsDashboard />} />
+          <Route path="logistics/warehouses"         element={<WarehousesAdmin />} />
+          <Route path="logistics/allocations"        element={<AllocationsAdmin />} />
+          <Route path="logistics/pricing"            element={<PricingAdmin />} />
+          <Route path="logistics/restrictions"       element={<RestrictionsAdmin />} />
+          <Route path="logistics/disputes"           element={<DisputesAdmin />} />
+          <Route path="logistics/control"            element={<AdminGuard superOnly><SuperAdminLogisticsControl /></AdminGuard>} />
         </Route>
 
         {/* Catch-all */}
