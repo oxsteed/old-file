@@ -15,7 +15,7 @@ import PaymentMethodSettings from '../components/PaymentMethodSettings';
 import CountrySelect from '../components/CountrySelect';
 import RegionInput from '../components/RegionInput';
 import PostalCodeInput from '../components/PostalCodeInput';
-import { SELF_SELECTABLE_MODES, MODE_CATALOG } from '../utils/modeRouter';
+import { SELF_SELECTABLE_MODES, MODE_CATALOG, routeForMode } from '../utils/modeRouter';
 import '../styles/SettingsPage.css';
 
 const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
@@ -114,7 +114,7 @@ export default function SettingsPage() {
         defaultValue: 'Account type switched.',
       }));
       // Hard reload so every part of the app (nav, sidebars, role gates) re-reads from the fresh user state.
-      navigate('/dashboard', { replace: true });
+      navigate(routeForMode(targetMode), { replace: true });
       window.location.reload();
     } catch (err) {
       toast.error(err?.response?.data?.error || t('settings.roleSwitchFailed'));

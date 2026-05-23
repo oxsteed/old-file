@@ -51,12 +51,9 @@ export function dashboardKeyForMode(mode) {
     case 'tool_owner':              return 'tool_owner';
     case 'franchise_applicant':     return 'franchise_applicant';
     case 'life_only':               return 'life';
-    // Granted modes use the workspace they're attached to — fall back to the
-    // business hub of the most-recent membership.
-    case 'business_manager':
-    case 'business_representative':
-    case 'business_employee':
-      return 'business_workspace';
+    case 'business_manager':        return 'business_manager';
+    case 'business_representative': return 'business_representative';
+    case 'business_employee':       return 'business_employee';
     case 'business_support_agent':  return 'support_agent';
     case 'admin':                   return 'admin';
     case 'customer':

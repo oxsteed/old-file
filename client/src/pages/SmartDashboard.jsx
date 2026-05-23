@@ -17,6 +17,9 @@ import ToolOwnerDashboard from './ToolOwnerDashboard';
 import FranchiseApplicantDashboard from './FranchiseApplicantDashboard';
 import BusinessOwnerDashboard from './BusinessOwnerDashboard';
 import ConsultantContractorDashboard from './ConsultantContractorDashboard';
+import BusinessManagerDashboard from './BusinessManagerDashboard';
+import BusinessRepresentativeDashboard from './BusinessRepresentativeDashboard';
+import BusinessEmployeeDashboard from './BusinessEmployeeDashboard';
 import { dashboardKeyForMode } from '../utils/modeAccess';
 
 function Spinner() {
@@ -31,14 +34,10 @@ export default function SmartDashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
-  // Granted-business modes have no in-app dashboard of their own — they
-  // operate inside a specific workspace. Route them there.
   useEffect(() => {
     if (loading || !user) return;
     const key = dashboardKeyForMode(user.default_mode || user.role);
-    if (key === 'business_workspace') {
-      navigate('/business-hub', { replace: true });
-    } else if (key === 'support_agent') {
+    if (key === 'support_agent') {
       navigate('/support/agent', { replace: true });
     } else if (key === 'admin') {
       navigate('/admin', { replace: true });
@@ -59,7 +58,9 @@ export default function SmartDashboard() {
     case 'tool_owner':          return <ToolOwnerDashboard />;
     case 'franchise_applicant': return <FranchiseApplicantDashboard />;
     case 'life':                return <LifeDashboard />;
-    case 'business_workspace':
+    case 'business_manager':    return <BusinessManagerDashboard />;
+    case 'business_representative': return <BusinessRepresentativeDashboard />;
+    case 'business_employee':   return <BusinessEmployeeDashboard />;
     case 'support_agent':
     case 'admin':
       // Effect above handles navigation; render spinner while it happens.
