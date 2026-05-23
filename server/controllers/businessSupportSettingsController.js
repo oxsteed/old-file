@@ -6,6 +6,16 @@ const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
 
+function isSupportAgentHiringSchemaMissing(err) {
+  if (!err) return false;
+  if (err.code === '42P01') {
+    const msg = String(err.message || '');
+    return msg.includes('support_agent_hiring_profiles') || msg.includes('does not exist');
+  }
+  const msg = String(err.message || '');
+  return msg.includes('support_agent_hiring_profiles') && msg.includes('does not exist');
+}
+
 function normalizeLanguages(value) {
   if (!Array.isArray(value)) return [];
   return value
@@ -318,6 +328,28 @@ async function getHiringProfile(req, res) {
       }
     });
   } catch (err) {
+    if (isSupportAgentHiringSchemaMissing(err)) {
+      logger.warn('getHiringProfile: hiring profile schema not migrated; returning defaults', {
+        code: err.code,
+        message: err.message,
+      });
+      return res.json({
+        success: true,
+        data: {
+          business_id: Number(req.params.businessId),
+          is_accepting_applications: false,
+          hiring_title: null,
+          hiring_description: null,
+          desired_languages: [],
+          desired_shift_coverage: null,
+          remote_allowed: true,
+          compensation_summary: null,
+          response_time_expectation: null,
+        },
+        degraded: true,
+        degradedReason: 'support_agent_hiring_profiles_migration_pending',
+      });
+    }
     logger.error('getHiringProfile error', { error: err.message });
     sendError(res, 500, 'Failed to load support-agent hiring profile');
   }
@@ -404,6 +436,18 @@ async function upsertHiringProfile(req, res) {
 
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
+    if (isSupportAgentHiringSchemaMissing(err)) {
+      logger.warn('upsertHiringProfile: hiring profile schema not migrated; rejecting gracefully', {
+        code: err.code,
+        message: err.message,
+      });
+      return sendError(
+        res,
+        503,
+        'Support-agent hiring profiles are not available yet on this environment. Please run migration 273 first.',
+        'support_agent_hiring_profiles_migration_pending'
+      );
+    }
     logger.error('upsertHiringProfile error', { error: err.message });
     sendError(res, 500, 'Failed to update support-agent hiring profile');
   }
@@ -451,6 +495,18 @@ async function listMyHiringProfiles(req, res) {
 
     res.json({ success: true, data: result.rows });
   } catch (err) {
+    if (isSupportAgentHiringSchemaMissing(err)) {
+      logger.warn('listMyHiringProfiles: hiring profile schema not migrated; returning empty list', {
+        code: err.code,
+        message: err.message,
+      });
+      return res.json({
+        success: true,
+        data: [],
+        degraded: true,
+        degradedReason: 'support_agent_hiring_profiles_migration_pending',
+      });
+    }
     logger.error('listMyHiringProfiles error', { error: err.message });
     sendError(res, 500, 'Failed to load business hiring profiles');
   }

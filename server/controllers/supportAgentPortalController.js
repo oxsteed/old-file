@@ -15,6 +15,16 @@ function isSupportEmployersSchemaMissing(err) {
   return msg.includes('support_employers') && msg.includes('does not exist');
 }
 
+function isSupportAgentHiringSchemaMissing(err) {
+  if (!err) return false;
+  if (err.code === '42P01') {
+    const msg = String(err.message || '');
+    return msg.includes('support_agent_hiring_profiles') || msg.includes('does not exist');
+  }
+  const msg = String(err.message || '');
+  return msg.includes('support_agent_hiring_profiles') && msg.includes('does not exist');
+}
+
 function employerLabel(row) {
   if (row.employer_kind === 'platform') {
     return row.employer_display_name || 'OxSteed Platform';
@@ -231,6 +241,83 @@ async function getMyApplications(req, res) {
 
     res.json({ success: true, data: applications });
   } catch (err) {
+    if (isSupportAgentHiringSchemaMissing(err)) {
+      logger.warn('getMyApplications: hiring profile schema not migrated; returning applications without hiring metadata', {
+        code: err.code,
+        message: err.message,
+      });
+      try {
+        const fallback = await query(
+          `SELECT
+             aa.id,
+             aa.business_id,
+             aa.employer_id,
+             aa.job_title,
+             aa.experience_level,
+             aa.languages,
+             aa.availability,
+             aa.resume_url,
+             aa.cover_letter,
+             aa.status,
+             aa.review_notes,
+             aa.reviewed_at,
+             aa.created_at,
+             b.business_name,
+             b.business_type,
+             b.description,
+             b.address_city,
+             b.address_state,
+             b.website,
+             b.phone,
+             b.logo_url,
+             COALESCE(b.is_business_verified, false) AS is_business_verified
+           FROM agent_applications aa
+           JOIN businesses b ON b.id = aa.business_id
+           WHERE aa.user_id = $1
+           ORDER BY aa.created_at DESC`,
+          [req.user.id]
+        );
+
+        return res.json({
+          success: true,
+          data: fallback.rows.map((row) => ({
+            id: row.id,
+            business_id: row.business_id,
+            employer_id: row.employer_id,
+            business_name: row.business_name,
+            business_type: formatBusinessType(row.business_type),
+            description: row.description,
+            address_city: row.address_city,
+            address_state: row.address_state,
+            website: row.website,
+            phone: row.phone,
+            logo_url: row.logo_url,
+            is_business_verified: row.is_business_verified,
+            hiring_title: null,
+            hiring_description: null,
+            desired_languages: [],
+            desired_shift_coverage: null,
+            remote_allowed: true,
+            compensation_summary: null,
+            response_time_expectation: null,
+            job_title: row.job_title,
+            experience_level: row.experience_level,
+            languages: Array.isArray(row.languages) ? row.languages : [],
+            availability: row.availability,
+            resume_url: row.resume_url,
+            cover_letter: row.cover_letter,
+            status: row.status,
+            review_notes: row.review_notes,
+            reviewed_at: row.reviewed_at,
+            created_at: row.created_at,
+          })),
+          degraded: true,
+          degradedReason: 'support_agent_hiring_profiles_migration_pending',
+        });
+      } catch (fallbackErr) {
+        logger.error('getMyApplications fallback error', { error: fallbackErr.message });
+      }
+    }
     logger.error('getMyApplications error', { error: err.message });
     sendError(res, 500, 'Failed to load support-agent applications');
   }
@@ -341,6 +428,18 @@ async function getAgentOpportunities(req, res) {
 
     res.json({ success: true, data: opportunities });
   } catch (err) {
+    if (isSupportAgentHiringSchemaMissing(err)) {
+      logger.warn('getAgentOpportunities: hiring profile schema not migrated; returning empty list', {
+        code: err.code,
+        message: err.message,
+      });
+      return res.json({
+        success: true,
+        data: [],
+        degraded: true,
+        degradedReason: 'support_agent_hiring_profiles_migration_pending',
+      });
+    }
     if (isSupportEmployersSchemaMissing(err)) {
       logger.warn('getAgentOpportunities: support employers schema not migrated; returning empty list', {
         code: err.code,
