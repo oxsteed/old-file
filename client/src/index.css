@@ -126,6 +126,12 @@
   --primary-color:    var(--color-primary);
   --border-color:     var(--color-border);
   --muted-text:       var(--color-text-muted);
+
+  /* ── Readability overrides for legacy gray text utilities ── */
+  --readable-gray-300: #e7eef7;
+  --readable-gray-400: #dbe4ef;
+  --readable-gray-500: #c0cedd;
+  --readable-gray-600: #aab7c6;
 }
 
 /* ── Light Mode ── */
@@ -173,6 +179,11 @@ html:not(.dark),
   --shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-md:  0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
   --shadow-lg:  0 12px 32px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
+
+  --readable-gray-300: #1f2937;
+  --readable-gray-400: #374151;
+  --readable-gray-500: #475569;
+  --readable-gray-600: #64748b;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -977,3 +988,55 @@ html:not(.dark) .theme-toggle-track { background: #f97316; }
   box-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
 html:not(.dark) .theme-toggle-thumb { transform: translateX(20px); }
+
+/* Legacy gray text utility hardening
+   Keep this text-only so backgrounds/borders are unaffected. */
+@layer utilities {
+  .text-gray-300,
+  .text-slate-300 {
+    color: var(--readable-gray-300) !important;
+  }
+
+  .text-gray-400,
+  .text-slate-400 {
+    color: var(--readable-gray-400) !important;
+  }
+
+  .text-gray-500,
+  .text-slate-500 {
+    color: var(--readable-gray-500) !important;
+  }
+
+  .text-gray-600,
+  .text-slate-600 {
+    color: var(--readable-gray-600) !important;
+  }
+
+  html.dark .dark\:text-gray-300,
+  html.dark .dark\:text-slate-300,
+  [data-theme="dark"] .dark\:text-gray-300,
+  [data-theme="dark"] .dark\:text-slate-300 {
+    color: var(--readable-gray-300) !important;
+  }
+
+  html.dark .dark\:text-gray-400,
+  html.dark .dark\:text-slate-400,
+  [data-theme="dark"] .dark\:text-gray-400,
+  [data-theme="dark"] .dark\:text-slate-400 {
+    color: var(--readable-gray-400) !important;
+  }
+
+  html.dark .dark\:text-gray-500,
+  html.dark .dark\:text-slate-500,
+  [data-theme="dark"] .dark\:text-gray-500,
+  [data-theme="dark"] .dark\:text-slate-500 {
+    color: var(--readable-gray-500) !important;
+  }
+
+  html.dark .dark\:text-gray-600,
+  html.dark .dark\:text-slate-600,
+  [data-theme="dark"] .dark\:text-gray-600,
+  [data-theme="dark"] .dark\:text-slate-600 {
+    color: var(--readable-gray-600) !important;
+  }
+}
