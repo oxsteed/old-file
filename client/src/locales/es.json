@@ -8823,6 +8823,70 @@
       "delivered": "Entregado",
       "failed": "Fallido",
       "accepted": "Aceptado"
+    },
+    "sections": {
+      "sourcing": "Abastecimiento",
+      "procurement": "Procurement",
+      "shipments": "Envíos",
+      "warehousing": "Almacenamiento",
+      "distribution": "Distribución",
+      "compliance": "Cumplimiento",
+      "finance": "Finanzas",
+      "operations": "Operaciones"
+    },
+    "lanes": {
+      "title": "Rutas logísticas",
+      "subtitle": "Todo producto, campaña y pedido vive en una ruta. Una ruta define origen, destino, países y roles de compradores permitidos, categorías restringidas, requisitos documentales, márgenes y tarifas por defecto, opciones de carga, complejidad aduanera, nivel de riesgo y modelo de cumplimiento.",
+      "originLabel": "Origen",
+      "destLabel": "Destino",
+      "riskLabel": "Nivel de riesgo",
+      "freightLabel": "Opciones de carga",
+      "customsLabel": "Complejidad aduanera",
+      "approvalRequired": "Requiere aprobación manual",
+      "businessVerifRequired": "Requiere verificación de negocio",
+      "resellerApprovalRequired": "Requiere aprobación de revendedor",
+      "noLanes": "No hay rutas activas publicadas todavía."
+    },
+    "distribution": {
+      "title": "Distribución",
+      "subtitle": "Asigna el inventario recibido y ejecuta la última milla: recogida local, envío al comprador, transmisión al organizador, liberación al distribuidor, división por región o ruta de reabastecimiento recurrente.",
+      "allocations": "Asignaciones",
+      "deliveries": "Órdenes de entrega",
+      "release": "Liberar",
+      "method": "Método",
+      "recipient": "Destinatario",
+      "methodOptions": {
+        "local_pickup": "Recogida local",
+        "ship_to_buyer": "Envío al comprador",
+        "freight_forward": "Reenvío de carga",
+        "distributor": "Liberar al distribuidor",
+        "bulk_handoff": "Entrega a granel",
+        "restock_route": "Ruta de reabastecimiento"
+      }
+    },
+    "buyerTypes": {
+      "individual_buyer": "Comprador individual",
+      "business_buyer": "Comprador empresarial",
+      "organizer": "Organizador",
+      "reseller": "Revendedor / distribuidor",
+      "franchise_buyer": "Comprador de franquicia / red",
+      "sourcing_operator": "Operador de abastecimiento",
+      "logistics_coordinator": "Coordinador logístico",
+      "warehouse_operator": "Operador de almacén",
+      "compliance_reviewer": "Revisor de cumplimiento",
+      "admin": "Admin",
+      "super_admin": "Super admin"
+    },
+    "claims": {
+      "title": "Reclamos",
+      "subtitle": "Reporta faltantes, daños, retrasos, productos incorrectos, rechazos aduaneros o fraude. OxSteed revisa y puede emitir reembolsos.",
+      "newClaim": "Presentar reclamo",
+      "claimType": "Tipo de reclamo",
+      "description": "Descripción",
+      "claimedAmount": "Monto reclamado (USD)",
+      "evidence": "Evidencia",
+      "status": "Estado",
+      "noClaims": "Sin reclamos presentados."
     }
   }
 }

@@ -8823,6 +8823,70 @@
       "delivered": "Livre",
       "failed": "Echwe",
       "accepted": "Aksepte"
+    },
+    "sections": {
+      "sourcing": "Soufri",
+      "procurement": "Achte",
+      "shipments": "Ekspedisyon",
+      "warehousing": "Depo",
+      "distribution": "Distribisyon",
+      "compliance": "Konfòmite",
+      "finance": "Finans",
+      "operations": "Operasyon"
+    },
+    "lanes": {
+      "title": "Liy lojistik",
+      "subtitle": "Chak pwodwi, kanpay ak kòmand la viv sou yon liy. Yon liy defini orijin, destinasyon, peyi yo otorize achte ak wòl, kategori restriksyon, dokiman ki obligatwa, maj ak frè default, opsyon transpò, konpleksite douan, nivo risk ak modèl egzekisyon.",
+      "originLabel": "Orijin",
+      "destLabel": "Destinasyon",
+      "riskLabel": "Nivo risk",
+      "freightLabel": "Opsyon transpò",
+      "customsLabel": "Konpleksite douan",
+      "approvalRequired": "Apwobasyon manyèl obligatwa",
+      "businessVerifRequired": "Verifikasyon biznis obligatwa",
+      "resellerApprovalRequired": "Apwobasyon revandè obligatwa",
+      "noLanes": "Pa gen okenn liy aktif piblike pou kounye a."
+    },
+    "distribution": {
+      "title": "Distribisyon",
+      "subtitle": "Asiyen envantè ki resevwa epi egzekite dènye kilomèt: ranmase lokal, voye bay achtè a, voye bay òganizatè, libere bay distribitè, divize pa rejyon, oswa wout reproviznament repete.",
+      "allocations": "Asiyasyon",
+      "deliveries": "Bon livrezon",
+      "release": "Libere",
+      "method": "Metòd",
+      "recipient": "Destinatè",
+      "methodOptions": {
+        "local_pickup": "Ranmase lokal",
+        "ship_to_buyer": "Voye bay achtè",
+        "freight_forward": "Voye an avans",
+        "distributor": "Libere bay distribitè",
+        "bulk_handoff": "Remèt an gwo",
+        "restock_route": "Wout reproviznament"
+      }
+    },
+    "buyerTypes": {
+      "individual_buyer": "Achtè endividyèl",
+      "business_buyer": "Achtè biznis",
+      "organizer": "Òganizatè",
+      "reseller": "Revandè / distribitè",
+      "franchise_buyer": "Achtè franchiz / rezo",
+      "sourcing_operator": "Operatè soufri",
+      "logistics_coordinator": "Kowòdonatè lojistik",
+      "warehouse_operator": "Operatè depo",
+      "compliance_reviewer": "Revizè konfòmite",
+      "admin": "Admin",
+      "super_admin": "Super admin"
+    },
+    "claims": {
+      "title": "Reklamasyon",
+      "subtitle": "Rapòte sa ki manke, dega, reta, atik mal, refi nan douan oswa fwòd. OxSteed revize epi kapab bay ranbousman.",
+      "newClaim": "Depoze reklamasyon",
+      "claimType": "Tip reklamasyon",
+      "description": "Deskripsyon",
+      "claimedAmount": "Montan reklame (USD)",
+      "evidence": "Prèv",
+      "status": "Estati",
+      "noClaims": "Pa gen okenn reklamasyon."
     }
   }
 }

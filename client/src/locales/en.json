@@ -8823,6 +8823,70 @@
       "delivered": "Delivered",
       "failed": "Failed",
       "accepted": "Accepted"
+    },
+    "sections": {
+      "sourcing": "Sourcing",
+      "procurement": "Procurement",
+      "shipments": "Shipments",
+      "warehousing": "Warehousing",
+      "distribution": "Distribution",
+      "compliance": "Compliance",
+      "finance": "Finance",
+      "operations": "Operations"
+    },
+    "lanes": {
+      "title": "Logistics lanes",
+      "subtitle": "Every product, campaign, and order lives on a lane. A lane defines origin, destination, allowed buyer countries and roles, restricted categories, document requirements, default markup, fees, freight options, customs complexity, risk tier, and fulfillment model.",
+      "originLabel": "Origin",
+      "destLabel": "Destination",
+      "riskLabel": "Risk tier",
+      "freightLabel": "Freight options",
+      "customsLabel": "Customs complexity",
+      "approvalRequired": "Manual approval required",
+      "businessVerifRequired": "Business verification required",
+      "resellerApprovalRequired": "Reseller approval required",
+      "noLanes": "No active lanes published yet."
+    },
+    "distribution": {
+      "title": "Distribution",
+      "subtitle": "Allocate received inventory and execute final-mile delivery: local pickup, ship to buyer, freight forward to organizer, release to distributor, split by region, or recurring restock route.",
+      "allocations": "Allocations",
+      "deliveries": "Delivery orders",
+      "release": "Release",
+      "method": "Method",
+      "recipient": "Recipient",
+      "methodOptions": {
+        "local_pickup": "Local pickup",
+        "ship_to_buyer": "Ship to buyer",
+        "freight_forward": "Freight forward",
+        "distributor": "Release to distributor",
+        "bulk_handoff": "Bulk handoff",
+        "restock_route": "Restock route"
+      }
+    },
+    "buyerTypes": {
+      "individual_buyer": "Individual buyer",
+      "business_buyer": "Business buyer",
+      "organizer": "Organizer",
+      "reseller": "Reseller / distributor",
+      "franchise_buyer": "Franchise / network buyer",
+      "sourcing_operator": "Sourcing operator",
+      "logistics_coordinator": "Logistics coordinator",
+      "warehouse_operator": "Warehouse operator",
+      "compliance_reviewer": "Compliance reviewer",
+      "admin": "Admin",
+      "super_admin": "Super admin"
+    },
+    "claims": {
+      "title": "Claims",
+      "subtitle": "Report shortages, damage, delays, wrong items, customs rejections, or fraud. OxSteed reviews and may issue refunds.",
+      "newClaim": "File a claim",
+      "claimType": "Claim type",
+      "description": "Description",
+      "claimedAmount": "Claimed amount (USD)",
+      "evidence": "Evidence",
+      "status": "Status",
+      "noClaims": "No claims filed yet."
     }
   }
 }

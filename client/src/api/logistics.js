@@ -149,6 +149,34 @@ export const createRefundCase = (data) =>
 export const listRefundCases = () =>
   axios.get('/logistics/refund-cases').then(r => r.data);
 
+// ─── Compliance ───────────────────────────────────────────────
+
+export const evaluateAccess = (params = {}) =>
+  axios.get('/logistics/compliance/access', { params }).then(r => r.data);
+
+export const getMyRestrictions = (params = {}) =>
+  axios.get('/logistics/compliance/restrictions', { params }).then(r => r.data);
+
+export const getComplianceReviewQueue = () =>
+  axios.get('/logistics/compliance/review-queue').then(r => r.data);
+
+export const approveRestrictedPO = (id, decision, notes) =>
+  axios.post(`/logistics/compliance/approve-po/${id}`, { decision, notes }).then(r => r.data);
+
+export const getShipmentDocChecklist = (id) =>
+  axios.get(`/logistics/compliance/shipments/${id}/docs`).then(r => r.data);
+
+// ─── Finance ──────────────────────────────────────────────────
+
+export const getMyPaymentSchedule = () =>
+  axios.get('/logistics/finance/my-schedule').then(r => r.data);
+
+export const getPoLandedCostBreakdown = (id) =>
+  axios.get(`/logistics/finance/po/${id}/breakdown`).then(r => r.data);
+
+export const getProfitabilitySummary = () =>
+  axios.get('/logistics/finance/profitability').then(r => r.data);
+
 // ─── Admin ────────────────────────────────────────────────────
 
 export const adminGetStats = () =>

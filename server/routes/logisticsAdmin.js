@@ -111,6 +111,15 @@ router.put('/markup-rules/:id',              adminCtrl.updateMarkupRule);
 router.get('/fee-rules',                     adminCtrl.listFeeRules);
 router.put('/fee-rules/:id',                 adminCtrl.updateFeeRule);
 
+// ─── Compliance + Finance (admin) ─────────────────────────────
+
+const complianceCtrl = require('../controllers/logisticsComplianceController');
+const financeCtrl    = require('../controllers/logisticsFinanceController');
+router.get('/compliance/review-queue',       complianceCtrl.listReviewQueue);
+router.post('/compliance/approve-po/:id',    complianceCtrl.approveRestrictedPO);
+router.get('/finance/profitability',         financeCtrl.getProfitabilitySummary);
+router.get('/finance/po/:id/breakdown',      financeCtrl.getPoLandedCostBreakdown);
+
 // ─── Audit ────────────────────────────────────────────────────
 
 router.get('/audit',                         adminCtrl.getAudit);

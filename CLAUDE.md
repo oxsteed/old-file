@@ -1,6 +1,56 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-17
+**Last updated:** 2026-05-23
+
+## OxSteed Logistics — full branch hardening (2026-05-23) — LANDED
+
+Migration 247 (`server/migrations/247_oxsteed_logistics.sql`) already created the full logistics schema in a prior session — 22 tables (logistics_lanes, trade_rules, country_access_rules, supplier_profiles, supplier_products, sourcing_requests, supplier_quotes, markup_rules, fee_rules, pooled_orders, pooled_order_participants, purchase_orders, shipment_records, shipment_milestones, shipment_documents, warehouses, inventory_receipts, inventory_allocations, delivery_orders, logistics_claims, logistics_refund_cases, logistics_audit_log), 12 enums (risk_tier, fulfillment_model, user_role, sourcing_request_status, purchase_order_status, shipment_status, pooled_order_status, participant_status, inventory_receipt_status, delivery_order_status, claim_status, freight_option), seed data for 8 lanes (CN→US, CN→HT, US→HT, US domestic, CN→CA, US→MX, CN→GB, US→Caribbean) and global default fee rules. Migration 269 already added the recurring procurement table.
+
+**This session added the missing pieces of the architecture:**
+
+**Services (new):**
+- `server/services/logisticsAccessService.js` — Single resolver for "can this user buy this product on this lane in this country?" Walks lane allowed_buyer_countries / allowed_buyer_roles / restricted_categories / requires_business_verification, then `trade_rules` (severity prohibited→block, restricted→warn+approval, business_only→block non-verified, manual_review→approval), then `country_access_rules` (per-category-per-country is_visible / is_purchasable / allowed_buyer_types / requires_approval / risk_tier bump), then product `restricted_markets` + `compliance_flags`. Returns `{ allowed, blockers, warnings, requiresApproval, requiresBusinessVerification, requiresResellerApproval, riskTier }`. 60-second in-process cache. Plus `annotateProductsForBuyer()` for filtered catalog rendering.
+- `server/services/logisticsStateMachine.js` — Formal transition validators for `purchaseOrder`, `shipment`, `pooled`, `participant`, `receipt`, `delivery`. Each exposes `canTransition(from,to)`, `assertTransition(from,to)` (throws `illegal_state_transition` + 409), `allowedFrom(from)`. PO graph: draft→quoted→approved→awaiting_deposit→deposit_collected→placed_with_supplier→in_production→production_complete→ready_for_pickup→in_transit→customs_review→cleared→warehoused→allocated→fulfilled→closed (+cancelled branches). Shipment graph: planned→booked→origin_received→consolidating→departed_origin→transshipment→arrived_destination→customs_hold/cleared→delivered_to_warehouse→receiving→allocation_ready→distributed→completed (+exception with recovery paths).
+
+**Middleware (new):**
+- `server/middleware/requireLogisticsAccess.js` — Exports `resolveLogisticsRole(user)` (derives from `users.logistics_role` if present, else super_admin/admin/business_buyer/individual_buyer from base role + active business), `requireLogisticsRole(...roles)` (admin+super_admin always pass), `requireLaneAccess(getLaneId)` (attaches `req.lane` + `req.laneAccess`, 403 on blockers, admins bypass), `enforceCountryRestriction()` (per-category country gate, fails open on errors so it doesn't block unrelated routes).
+
+**Controllers (new):**
+- `server/controllers/logisticsComplianceController.js` — `GET /api/logistics/compliance/access`, `GET /compliance/restrictions`, `GET /compliance/review-queue` (admin/super_admin/compliance_reviewer), `POST /compliance/approve-po/:id` (approve|deny gate on restricted POs), `GET /compliance/shipments/:id/docs` (required vs uploaded docs).
+- `server/controllers/logisticsFinanceController.js` — `GET /api/logistics/finance/my-schedule` (computes payment schedule across POs + pooled participations + refund cases), `GET /finance/po/:id/breakdown` (stackable cost breakdown), `GET /finance/profitability` (admin rollup by lane / supplier / campaign).
+
+**Route wiring:**
+- `server/routes/logistics.js` — mounts compliance + finance (5 + 3 endpoints)
+- `server/routes/logisticsAdmin.js` — mounts admin compliance review-queue + approve-po, finance profitability + breakdown
+- `server/index.js` already mounts `/api/logistics` and `/api/admin/logistics`
+
+**Client API helper:**
+- `client/src/api/logistics.js` — added `evaluateAccess`, `getMyRestrictions`, `getComplianceReviewQueue`, `approveRestrictedPO`, `getShipmentDocChecklist`, `getMyPaymentSchedule`, `getPoLandedCostBreakdown`, `getProfitabilitySummary`.
+
+**Navigation:**
+- `client/src/components/Navbar.jsx` — Resources dropdown + mobile menu expose `/logistics` as "OxSteed Logistics" (i18n key `logistics.nav.entry`). Admin sidebar already had `/admin/logistics`.
+
+**i18n:**
+- New top-level `logistics.*` namespace in **en/es/fr/ht** with 263 leaf keys each (verified parity). Sub-namespaces: `nav`, `home`, `sections`, `lanes`, `sourcing`, `campaigns`, `orders`, `shipments`, `warehousing`, `distribution`, `compliance`, `finance`, `buyerTypes`, `claims`. Includes all status enums (sourcing, PO, shipment, pooled order, participant) for the 5 lifecycles.
+
+**Existing scaffolding that was already in place** (audit only this session, no changes): migration 247 (22 tables, 12 enums, lane + fee seeds), `logisticsLaneService` (lane CRUD + access check), `logisticsPricingService` (full stackable 10-layer landed cost + 7-layer markup priority resolver, 60s cache, fail-safe fallback), `logisticsAuditService` (fire-and-forget audit), `purchaseOrderService` / `pooledOrdersService` / `sourcingService` / `supplierService` / `warehouseService` / `shipmentsService` (referenced from controllers), 8 user controllers + admin controller, 17 user-facing pages under `client/src/pages/logistics/` (LogisticsHome / BuyerDashboard / OrganizerDashboard / BusinessProcurement / Campaigns + Detail / Sourcing / NewRequest / RequestDetail / Orders + Detail / Shipments + Detail / Warehousing / Distribution / Compliance / LogisticsFinance), 19 admin pages under `client/src/admin/pages/logistics/` (LogisticsAdminDashboard / Lanes / Suppliers / Quotes / Campaigns / PurchaseOrders / Shipments / ShipmentOps / Customs / Warehouses / WarehouseOps / Allocations / Pricing / Restrictions / Disputes / SourcingOps / OrganizerApprovals / ComplianceReview / SuperAdminLogisticsControl), routes registered at `/logistics/*` (App.jsx lines 288+) and `/admin/logistics/*` (AdminApp.jsx lines 288+).
+
+**Files this session — new:**
+`server/services/logisticsAccessService.js`, `server/services/logisticsStateMachine.js`, `server/middleware/requireLogisticsAccess.js`, `server/controllers/logisticsComplianceController.js`, `server/controllers/logisticsFinanceController.js`.
+
+**Files this session — modified:**
+`server/routes/logistics.js` (compliance + finance mounts), `server/routes/logisticsAdmin.js` (compliance + finance admin mounts), `client/src/api/logistics.js` (compliance + finance helpers), `client/src/components/Navbar.jsx` (Resources dropdown + mobile menu entry), `client/src/locales/{en,es,fr,ht}.json` (logistics namespace, 263 keys × 4).
+
+**Verified locally:** `node --check` passes on every new and modified server file (18 logistics-related files). JSON parity check: all 4 locale files load cleanly and `logistics.*` flattens to 263 identical key paths. Postgres + Jest are not available in the agent sandbox; before deploy, run `node server/migrate.js` on a non-prod DB (migrations 247 + 269 expected to apply cleanly — they coexist with 246 corporate hierarchy) and run the regression suite.
+
+**Outstanding (deliberate):**
+1. Recurring procurement frontend page exists (`logisticsRecurringProcurementController` is wired) but is thin; expand if needed.
+2. `requireLogisticsRole` / `requireLaneAccess` are built but not yet wired onto specific user routes (purely additive). Apply selectively, e.g. `requireLaneAccess(req => req.body.lane_id)` on `POST /campaigns` and `POST /orders` when ready.
+3. State-machine assertions (`stateMachine.purchaseOrder.assertTransition`) are not yet enforced inside `purchaseOrderService.transitionStatus`; the service has its own VALID_TRANSITIONS map which is a subset of the canonical one in `logisticsStateMachine.js`. Reconcile in a follow-up.
+4. The thin admin pages (`ShipmentOpsAdmin`, `OrganizerApprovalsAdmin`, `WarehouseOpsDashboard`, `ComplianceReviewAdmin`) are intentionally operational consoles — they pull from existing list endpoints and render summary tables. Extend with bulk actions / inline editors as the operational team's workflow matures.
+5. `users.logistics_role` column referenced by `resolveLogisticsRole` is read defensively — if the column is added in a future migration, it takes precedence; otherwise the function derives a sensible default.
+
+---
 
 ## Corporate Hierarchy (departments, titles, country-scoped assignments) (2026-05-17) — LANDED
 

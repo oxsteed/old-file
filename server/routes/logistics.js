@@ -8,13 +8,16 @@ const { requireAuth } = require('../middleware/auth');
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
-const lanesCtrl   = require('../controllers/logisticsLanesController');
-const sourcingCtrl = require('../controllers/logisticsSourcingController');
-const pooledCtrl  = require('../controllers/logisticsPooledOrdersController');
-const poCtrl      = require('../controllers/logisticsPurchaseOrdersController');
-const shipCtrl    = require('../controllers/logisticsShipmentsController');
-const whCtrl      = require('../controllers/logisticsWarehouseController');
+const lanesCtrl     = require('../controllers/logisticsLanesController');
+const sourcingCtrl  = require('../controllers/logisticsSourcingController');
+const pooledCtrl    = require('../controllers/logisticsPooledOrdersController');
+const poCtrl        = require('../controllers/logisticsPurchaseOrdersController');
+const shipCtrl      = require('../controllers/logisticsShipmentsController');
+const whCtrl        = require('../controllers/logisticsWarehouseController');
 const recurringCtrl = require('../controllers/logisticsRecurringProcurementController');
+const complianceCtrl= require('../controllers/logisticsComplianceController');
+const financeCtrl   = require('../controllers/logisticsFinanceController');
+const { requireLogisticsRole, requireLaneAccess } = require('../middleware/requireLogisticsAccess');
 
 // ─── Lanes (public read, admin write) ────────────────────────
 
@@ -138,6 +141,20 @@ router.post('/refund-cases', requireAuth, async (req, res, next) => {
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) { next(err); }
 });
+
+// ─── Compliance / Restrictions ───────────────────────────────
+
+router.get('/compliance/access',        requireAuth, complianceCtrl.evaluateAccess);
+router.get('/compliance/restrictions',  requireAuth, complianceCtrl.getRestrictionsForUser);
+router.get('/compliance/review-queue',  requireAuth, complianceCtrl.listReviewQueue);
+router.post('/compliance/approve-po/:id', requireAuth, complianceCtrl.approveRestrictedPO);
+router.get('/compliance/shipments/:id/docs', requireAuth, complianceCtrl.getShipmentDocChecklist);
+
+// ─── Finance / Profitability ─────────────────────────────────
+
+router.get('/finance/my-schedule',         requireAuth, financeCtrl.getMyPaymentSchedule);
+router.get('/finance/po/:id/breakdown',    requireAuth, financeCtrl.getPoLandedCostBreakdown);
+router.get('/finance/profitability',       requireAuth, financeCtrl.getProfitabilitySummary);
 
 router.get('/refund-cases', requireAuth, async (req, res, next) => {
   try {

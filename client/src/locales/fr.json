@@ -8823,6 +8823,70 @@
       "delivered": "Livre",
       "failed": "Echoue",
       "accepted": "Accepte"
+    },
+    "sections": {
+      "sourcing": "Sourcing",
+      "procurement": "Achats",
+      "shipments": "Expéditions",
+      "warehousing": "Entreposage",
+      "distribution": "Distribution",
+      "compliance": "Conformité",
+      "finance": "Finance",
+      "operations": "Opérations"
+    },
+    "lanes": {
+      "title": "Voies logistiques",
+      "subtitle": "Chaque produit, campagne et commande vit sur une voie. Une voie définit l'origine, la destination, les pays et rôles d'acheteurs autorisés, les catégories restreintes, les documents requis, la marge et les frais par défaut, les options de fret, la complexité douanière, le niveau de risque et le modèle d'exécution.",
+      "originLabel": "Origine",
+      "destLabel": "Destination",
+      "riskLabel": "Niveau de risque",
+      "freightLabel": "Options de fret",
+      "customsLabel": "Complexité douanière",
+      "approvalRequired": "Approbation manuelle requise",
+      "businessVerifRequired": "Vérification d'entreprise requise",
+      "resellerApprovalRequired": "Approbation de revendeur requise",
+      "noLanes": "Aucune voie active publiée pour le moment."
+    },
+    "distribution": {
+      "title": "Distribution",
+      "subtitle": "Allouez l'inventaire reçu et exécutez le dernier kilomètre : retrait local, expédition vers l'acheteur, réacheminement vers l'organisateur, remise au distributeur, division par région ou route de réapprovisionnement récurrente.",
+      "allocations": "Allocations",
+      "deliveries": "Bons de livraison",
+      "release": "Libérer",
+      "method": "Méthode",
+      "recipient": "Destinataire",
+      "methodOptions": {
+        "local_pickup": "Retrait local",
+        "ship_to_buyer": "Expédition à l'acheteur",
+        "freight_forward": "Réacheminement",
+        "distributor": "Remise au distributeur",
+        "bulk_handoff": "Remise en vrac",
+        "restock_route": "Route de réapprovisionnement"
+      }
+    },
+    "buyerTypes": {
+      "individual_buyer": "Acheteur individuel",
+      "business_buyer": "Acheteur entreprise",
+      "organizer": "Organisateur",
+      "reseller": "Revendeur / distributeur",
+      "franchise_buyer": "Acheteur franchise / réseau",
+      "sourcing_operator": "Opérateur de sourcing",
+      "logistics_coordinator": "Coordinateur logistique",
+      "warehouse_operator": "Opérateur d'entrepôt",
+      "compliance_reviewer": "Examinateur de conformité",
+      "admin": "Admin",
+      "super_admin": "Super admin"
+    },
+    "claims": {
+      "title": "Réclamations",
+      "subtitle": "Signalez des manquants, dommages, retards, mauvais articles, rejets douaniers ou fraudes. OxSteed examine et peut émettre des remboursements.",
+      "newClaim": "Déposer une réclamation",
+      "claimType": "Type de réclamation",
+      "description": "Description",
+      "claimedAmount": "Montant réclamé (USD)",
+      "evidence": "Preuves",
+      "status": "Statut",
+      "noClaims": "Aucune réclamation déposée."
     }
   }
 }
