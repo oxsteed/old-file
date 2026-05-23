@@ -46,18 +46,18 @@ export default function Footer() {
     marginBottom: '0.95rem',
   };
 
-  const actionPillStyle = {
+  const utilityPillStyle = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '0.4rem',
     textDecoration: 'none',
-    background: 'rgba(249,115,22,0.08)',
-    border: '1px solid rgba(249,115,22,0.28)',
+    background: 'rgba(148,163,184,0.08)',
+    border: '1px solid var(--color-border)',
     borderRadius: '999px',
-    padding: '0.42rem 0.85rem',
-    fontSize: '0.78rem',
-    fontWeight: 700,
-    color: 'var(--color-primary)',
+    padding: '0.4rem 0.8rem',
+    fontSize: '0.76rem',
+    fontWeight: 600,
+    color: 'var(--color-text-muted)',
     cursor: 'pointer',
     letterSpacing: '0.02em',
     transition: 'background var(--transition-fast), transform var(--transition-fast)',
@@ -86,8 +86,7 @@ export default function Footer() {
             border: '1px solid var(--color-border)',
             borderRadius: '1.25rem',
             padding: '1.35rem',
-            background: 'linear-gradient(135deg, rgba(15,23,42,0.96) 0%, rgba(30,41,59,0.96) 55%, rgba(249,115,22,0.16) 100%)',
-            boxShadow: '0 18px 40px rgba(2,6,23,0.16)',
+            background: 'linear-gradient(180deg, rgba(148,163,184,0.04) 0%, rgba(148,163,184,0.02) 100%)',
           }}>
             <div style={{
               display: 'inline-flex',
@@ -95,9 +94,9 @@ export default function Footer() {
               gap: '0.55rem',
               padding: '0.3rem 0.7rem',
               borderRadius: '999px',
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              color: '#f8fafc',
+              background: 'rgba(249,115,22,0.08)',
+              border: '1px solid rgba(249,115,22,0.22)',
+              color: 'var(--color-primary)',
               fontSize: '0.72rem',
               fontWeight: 700,
               letterSpacing: '0.08em',
@@ -114,10 +113,10 @@ export default function Footer() {
                 alignItems: 'center',
                 gap: 'var(--space-2)',
                 textDecoration: 'none',
-                fontSize: '1.9rem',
+                fontSize: '1.55rem',
                 fontWeight: 800,
-                color: '#fff',
-                marginBottom: '0.85rem',
+                color: 'var(--color-text)',
+                marginBottom: '0.7rem',
               }}
             >
               <svg width="26" height="26" viewBox="0 0 512 512" aria-hidden="true">
@@ -132,13 +131,19 @@ export default function Footer() {
               </svg>
               OxSteed
             </Link>
-            <p style={{ fontSize: '0.97rem', color: 'rgba(226,232,240,0.82)', maxWidth: '34ch', lineHeight: 1.7, margin: '0 0 1.1rem' }}>
+            <p style={{ fontSize: '0.94rem', color: 'var(--color-text-muted)', maxWidth: '34ch', lineHeight: 1.7, margin: '0 0 1rem' }}>
               {t('footer.tagline')}
             </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.65rem' }}>
-              <Link to={dashboardPath} style={actionPillStyle}>{t('nav.dashboard')}</Link>
-              <Link to="/logistics" style={actionPillStyle}>{t('logistics.nav.entry', 'OxSteed Logistics')}</Link>
-              <Link to="/how-it-works" style={actionPillStyle}>{t('footer.howOxsteedWorks')}</Link>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.9rem 1.15rem', fontSize: '0.84rem' }}>
+              <Link to={dashboardPath} style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontWeight: 600 }}>
+                {t('nav.dashboard')}
+              </Link>
+              <Link to="/how-it-works" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontWeight: 600 }}>
+                {t('footer.howOxsteedWorks')}
+              </Link>
+              <Link to="/logistics" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontWeight: 600 }}>
+                {t('logistics.nav.entry', 'OxSteed Logistics')}
+              </Link>
             </div>
           </div>
 
@@ -183,16 +188,16 @@ export default function Footer() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
               <span style={footerSectionTitleStyle}>
-                Access
+                Resources
               </span>
               <FooterLink to="/tool-rentals">{t('toolRentals.browsePage')}</FooterLink>
-              <FooterLink to="/settings">{t('nav.settings')}</FooterLink>
               <FooterLink to="/consulting-intake">{t('footer.consulting')}</FooterLink>
+              <FooterLink to="/settings">{t('nav.settings')}</FooterLink>
               {user && <FooterLink to="/support/agent">{t('nav.supportWorkspace')}</FooterLink>}
               {isHelper && (
                 <>
                   <span style={{ ...footerSectionTitleStyle, marginTop: '0.6rem', marginBottom: '0.1rem' }}>
-                  {t('footer.resource')}
+                    {t('footer.resource')}
                   </span>
                   <FooterLink to="/qr-generator">{t('footer.qrGenerator')}</FooterLink>
                 </>
@@ -208,7 +213,7 @@ export default function Footer() {
           gap: 'var(--space-4)',
           marginBottom: 'var(--space-4)',
           alignItems: 'center',
-          padding: '1rem 1.1rem',
+          padding: '0.9rem 1rem',
           border: '1px solid var(--color-border)',
           borderRadius: '1rem',
           background: 'rgba(148,163,184,0.04)',
@@ -243,21 +248,21 @@ export default function Footer() {
             <button
               type="button"
               onClick={() => navigate('/vortex')}
-              style={actionPillStyle}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.14)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(249,115,22,0.08)'}
+              style={utilityPillStyle}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(148,163,184,0.14)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(148,163,184,0.08)'}
             >
               {t('footer.vortex')}
             </button>
             {user && (
               <Link
                 to="/support/agent"
-                style={actionPillStyle}
+                style={utilityPillStyle}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(249,115,22,0.14)';
+                  e.currentTarget.style.background = 'rgba(148,163,184,0.14)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(249,115,22,0.08)';
+                  e.currentTarget.style.background = 'rgba(148,163,184,0.08)';
                 }}
               >
                 {t('nav.supportWorkspace')}
@@ -266,9 +271,9 @@ export default function Footer() {
             <button
               type="button"
               onClick={() => navigate('/consulting-intake')}
-              style={actionPillStyle}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.14)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(249,115,22,0.08)'}
+              style={utilityPillStyle}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(148,163,184,0.14)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(148,163,184,0.08)'}
               title={t('footer.consultingTooltip')}
             >
               {t('footer.consulting')}
