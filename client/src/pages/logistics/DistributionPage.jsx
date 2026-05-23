@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listAllocations, listDeliveries } from '../../api/logistics';
+import PageShell from '../../components/PageShell';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 export default function DistributionPage() {
@@ -26,7 +27,8 @@ export default function DistributionPage() {
   }), [allocations, deliveries]);
 
   return (
-    <div className="lx-page">
+    <PageShell>
+      <div className="lx-page">
       <div className="lx-page-header">
         <h1 className="lx-page-title">Distribution</h1>
         <p className="lx-page-sub">Final-mile visibility across allocations, delivery orders, release methods, and recipient fulfillment.</p>
@@ -98,6 +100,7 @@ export default function DistributionPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </PageShell>
   );
 }

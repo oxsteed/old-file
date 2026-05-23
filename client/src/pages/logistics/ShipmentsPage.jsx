@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { listShipments } from '../../api/logistics';
+import PageShell from '../../components/PageShell';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const STATUS_COLOR = {
@@ -35,7 +36,8 @@ export default function ShipmentsPage() {
   }, [status]);
 
   return (
-    <div className="lx-page">
+    <PageShell>
+      <div className="lx-page">
       <div className="lx-page-header">
         <h1 className="lx-page-title">{t('logistics.shipments.title','Shipments')}</h1>
         <p className="lx-page-sub">{t('logistics.shipments.subtitle','Track shipments from origin through customs to warehouse receipt.')}</p>
@@ -103,6 +105,7 @@ export default function ShipmentsPage() {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </PageShell>
   );
 }

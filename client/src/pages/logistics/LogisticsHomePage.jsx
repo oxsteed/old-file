@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { listCampaigns, listOrders, getMyParticipation, listSourcingRequests, listShipments, listAllocations, listDeliveries, listMyClaims, listRefundCases } from '../../api/logistics';
+import PageShell from '../../components/PageShell';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const MENU_ITEMS = [
@@ -74,7 +75,8 @@ export default function LogisticsHomePage() {
   };
 
   return (
-    <div className="lx-home">
+    <PageShell>
+      <div className="lx-home">
       {/* Hero */}
       <div className="lx-hero">
         <div className="lx-hero-inner">
@@ -366,6 +368,7 @@ export default function LogisticsHomePage() {
           <Link to="/register" className="lx-btn-primary">{t('common.getStarted','Get Started')}</Link>
         </div>
       )}
-    </div>
+      </div>
+    </PageShell>
   );
 }

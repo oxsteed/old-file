@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { listCampaigns, getMyParticipation, listShipments, listDeliveries } from '../../api/logistics';
+import PageShell from '../../components/PageShell';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const STATUS_COLOR = {
@@ -37,7 +38,8 @@ export default function OrganizerDashboardPage() {
   const committedUnits = campaigns.reduce((sum, row) => sum + Number(row.current_committed_qty || 0), 0);
 
   return (
-    <div className="lx-page">
+    <PageShell>
+      <div className="lx-page">
       <div className="lx-page-header">
         <h1 className="lx-page-title">Organizer Dashboard</h1>
         <p className="lx-page-sub">Launch pooled orders, monitor MOQ momentum, and coordinate downstream distribution for your communities and buyer groups.</p>
@@ -107,6 +109,7 @@ export default function OrganizerDashboardPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </PageShell>
   );
 }

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { listSourcingRequests, listRecurringPrograms, createRecurringProgram, updateRecurringProgramStatus, listLanes } from '../../api/logistics';
+import PageShell from '../../components/PageShell';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const CADENCE_OPTIONS = ['weekly', 'biweekly', 'monthly', 'quarterly', 'custom'];
@@ -92,7 +93,8 @@ export default function BusinessProcurementPage() {
   };
 
   return (
-    <div className="lx-page">
+    <PageShell>
+      <div className="lx-page">
       <div className="lx-page-header">
         <div style={{ display:'flex', justifyContent:'space-between', gap:'1rem', flexWrap:'wrap' }}>
           <div>
@@ -190,6 +192,7 @@ export default function BusinessProcurementPage() {
           </table>
         </div>
       </div>
-    </div>
+      </div>
+    </PageShell>
   );
 }

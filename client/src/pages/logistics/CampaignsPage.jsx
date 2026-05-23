@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { listCampaigns, listLanes } from '../../api/logistics';
+import PageShell from '../../components/PageShell';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const STATUS_COLOR = {
@@ -49,7 +50,8 @@ export default function CampaignsPage() {
   const totalPages = Math.ceil(total / limit);
 
   return (
-    <div className="lx-page">
+    <PageShell>
+      <div className="lx-page">
       <div className="lx-page-header">
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:'1rem' }}>
           <div>
@@ -160,6 +162,7 @@ export default function CampaignsPage() {
         .lx-empty-icon { font-size:3rem; margin-bottom:1rem; }
         .lx-pagination { display:flex; gap:1rem; align-items:center; justify-content:center; margin-top:2rem; }
       `}</style>
-    </div>
+      </div>
+    </PageShell>
   );
 }

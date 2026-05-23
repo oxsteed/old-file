@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { listSourcingRequests, listSuppliers } from '../../api/logistics';
+import PageShell from '../../components/PageShell';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const STATUS_COLOR = {
@@ -29,7 +30,8 @@ export default function SourcingPage() {
   }, []);
 
   return (
-    <div className="lx-page">
+    <PageShell>
+      <div className="lx-page">
       <div className="lx-page-header">
         <div style={{ display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem' }}>
           <div>
@@ -139,6 +141,7 @@ export default function SourcingPage() {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </PageShell>
   );
 }

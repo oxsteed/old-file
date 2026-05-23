@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listSourcingRequests, listOrders, listShipments, listAllocations, listDeliveries, listMyClaims, listRefundCases } from '../../api/logistics';
+import PageShell from '../../components/PageShell';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const STATUS_COLOR = {
@@ -46,7 +47,8 @@ export default function BuyerDashboardPage() {
   ];
 
   return (
-    <div className="lx-page">
+    <PageShell>
+      <div className="lx-page">
       <div className="lx-page-header">
         <h1 className="lx-page-title">Buyer Dashboard</h1>
         <p className="lx-page-sub">Run sourcing requests, monitor shipments, and track fulfillment issues from one buyer workspace.</p>
@@ -134,6 +136,7 @@ export default function BuyerDashboardPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </PageShell>
   );
 }

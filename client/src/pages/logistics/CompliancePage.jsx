@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { listLanes, listTradeRules } from '../../api/logistics';
+import PageShell from '../../components/PageShell';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const RISK_COLOR = { low:'#22c55e', managed:'#f59e0b', restricted:'#dc2626', prohibited:'#7f1d1d' };
@@ -30,7 +31,8 @@ export default function CompliancePage() {
   });
 
   return (
-    <div className="lx-page">
+    <PageShell>
+      <div className="lx-page">
       <div className="lx-page-header">
         <h1 className="lx-page-title">{t('logistics.compliance.title','Compliance & Trade Rules')}</h1>
         <p className="lx-page-sub">{t('logistics.compliance.subtitle','Import restrictions, category bans, country rules, document requirements, and risk tiers by lane.')}</p>
@@ -152,6 +154,7 @@ export default function CompliancePage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </PageShell>
   );
 }

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { createSourcingRequest } from '../../api/logistics';
 import { listLanes, checkLaneAccess } from '../../api/logistics';
+import PageShell from '../../components/PageShell';
 import toast from 'react-hot-toast';
 import '../../styles/logistics/LogisticsHomePage.css';
 
@@ -67,14 +68,15 @@ export default function NewRequestPage() {
   };
 
   return (
-    <div className="lx-page" style={{ maxWidth: 720 }}>
-      <div style={{ marginBottom:'1rem' }}>
-        <Link to="/logistics/sourcing" className="lx-link">← {t('logistics.requests.back','Back to Sourcing')}</Link>
-      </div>
-      <div className="lx-page-header">
-        <h1 className="lx-page-title">{t('logistics.requests.newTitle','New Sourcing Request')}</h1>
-        <p className="lx-page-sub">{t('logistics.requests.newSub','Tell us what you need. OxSteed will find suppliers and return quotes.')}</p>
-      </div>
+    <PageShell>
+      <div className="lx-page" style={{ maxWidth: 720 }}>
+        <div style={{ marginBottom:'1rem' }}>
+          <Link to="/logistics/sourcing" className="lx-link">← {t('logistics.requests.back','Back to Sourcing')}</Link>
+        </div>
+        <div className="lx-page-header">
+          <h1 className="lx-page-title">{t('logistics.requests.newTitle','New Sourcing Request')}</h1>
+          <p className="lx-page-sub">{t('logistics.requests.newSub','Tell us what you need. OxSteed will find suppliers and return quotes.')}</p>
+        </div>
 
       {/* Step indicator */}
       <div style={{ display:'flex', gap:'.5rem', marginBottom:'1.75rem' }}>
@@ -258,6 +260,7 @@ export default function NewRequestPage() {
           </>
         )}
       </div>
-    </div>
+      </div>
+    </PageShell>
   );
 }

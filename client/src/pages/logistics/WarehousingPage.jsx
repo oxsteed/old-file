@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { listWarehouses, listInventoryReceipts, listAllocations, listDeliveries } from '../../api/logistics';
+import PageShell from '../../components/PageShell';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const RECEIPT_COLOR = {
@@ -39,7 +40,8 @@ export default function WarehousingPage() {
   ];
 
   return (
-    <div className="lx-page">
+    <PageShell>
+      <div className="lx-page">
       <div className="lx-page-header">
         <h1 className="lx-page-title">{t('logistics.warehousing.title','Warehousing & Distribution')}</h1>
         <p className="lx-page-sub">{t('logistics.warehousing.subtitle','Receive, reconcile, allocate, and release inventory to buyers.')}</p>
@@ -188,6 +190,7 @@ export default function WarehousingPage() {
           )}
         </div>
       )}
-    </div>
+      </div>
+    </PageShell>
   );
 }

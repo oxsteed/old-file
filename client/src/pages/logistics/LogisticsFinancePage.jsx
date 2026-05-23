@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { listOrders, previewLandedCost, listLanes, listRefundCases, createRefundCase } from '../../api/logistics';
+import PageShell from '../../components/PageShell';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 export default function LogisticsFinancePage() {
@@ -65,7 +66,8 @@ export default function LogisticsFinancePage() {
   };
 
   return (
-    <div className="lx-page">
+    <PageShell>
+      <div className="lx-page">
       <div className="lx-page-header">
         <h1 className="lx-page-title">{t('logistics.finance.title','Logistics Finance')}</h1>
         <p className="lx-page-sub">{t('logistics.finance.subtitle','Landed cost breakdown, deposit tracking, and profitability overview.')}</p>
@@ -242,6 +244,7 @@ export default function LogisticsFinancePage() {
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </PageShell>
   );
 }

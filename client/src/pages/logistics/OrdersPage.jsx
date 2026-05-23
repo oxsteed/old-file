@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { listOrders } from '../../api/logistics';
+import PageShell from '../../components/PageShell';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const STATUS_COLOR = {
@@ -33,7 +34,8 @@ export default function OrdersPage() {
   const STATUSES = Object.keys(STATUS_COLOR);
 
   return (
-    <div className="lx-page">
+    <PageShell>
+      <div className="lx-page">
       <div className="lx-page-header">
         <h1 className="lx-page-title">{t('logistics.orders.title','Purchase Orders')}</h1>
         <p className="lx-page-sub">{t('logistics.orders.subtitle','Track your orders from placement through customs, warehousing, and delivery.')}</p>
@@ -99,6 +101,7 @@ export default function OrdersPage() {
           <button className="lx-btn-secondary" disabled={page>=Math.ceil(total/limit)} onClick={() => setPage(p=>p+1)}>Next →</button>
         </div>
       )}
-    </div>
+      </div>
+    </PageShell>
   );
 }
