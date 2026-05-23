@@ -80,6 +80,11 @@
 - **UX framing:** The goal of the pass was to make the form feel more guided and premium without risking regressions in the existing category search, media capture/upload, requirements logic, or review/post flow.
 - **Verification:** `client/src/pages/PostJobPage.jsx` bundles successfully in isolation via `esbuild`.
 
+**Support escalation page redesign at `/support/escalation` (2026-05-22):** COMPLETE
+- **`client/src/pages/SupportEscalationPage.jsx`**: Rebuilt the escalation page from a functional but sparse support fallback into a more intentional escalation workspace. The new page preserves the existing live-chat/ticket-routing logic but adds stronger phase-specific hero sections, clearer live-chat framing, a more serious ticket-fallback experience, success-state reinforcement, and side panels that explain when to escalate and what information helps the support team respond faster.
+- **Behavior preserved:** Live specialist routing, socket chat flow, ticket submission, saved visitor name/email behavior, and close/navigation behavior remain intact.
+- **Verification:** `client/src/pages/SupportEscalationPage.jsx` bundles successfully in isolation via `esbuild`.
+
 **Expo React Native mobile Phase 1 foundation (2026-05-19):** COMPLETE
 - **`mobile/package.json`, `mobile/app.json`, `mobile/App.tsx`, `mobile/tsconfig.json`, `mobile/babel.config.js`, `mobile/src/**`**: Restarted the mobile client as an Expo React Native + TypeScript companion app instead of continuing the SwiftUI-only pass. The shell now uses React Navigation tabs, TanStack Query, Zustand auth state, SecureStore sessions, Expo Notifications, shared native UI primitives, and feature flags for staged rollout. App bootstrap lives in `mobile/src/bootstrap` so Expo does not confuse the project with an Expo Router app directory.
 - **Mobile cleanup:** Removed stale Capacitor/Vite entry files, the SwiftUI iOS project, old mobile screenshots, and the obsolete lockfile so `mobile/` now represents the Expo app source instead of multiple competing mobile shells.
