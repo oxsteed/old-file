@@ -56,7 +56,7 @@ export default function Footer() {
     padding: '0.4rem 0.8rem',
     fontSize: '0.76rem',
     fontWeight: 600,
-    color: 'var(--color-text-muted)',
+    color: 'var(--color-text)',
     cursor: 'pointer',
     letterSpacing: '0.02em',
     transition: 'background var(--transition-fast), transform var(--transition-fast)',
@@ -68,7 +68,7 @@ export default function Footer() {
       style={{
         borderTop: '1px solid var(--color-border)',
         background: 'linear-gradient(180deg, var(--color-bg) 0%, var(--color-surface) 18%, var(--color-surface) 100%)',
-        color: 'var(--color-text-muted)',
+        color: 'var(--color-text)',
         padding: 'var(--space-10) 0 var(--space-8)',
       }}
     >
@@ -132,10 +132,10 @@ export default function Footer() {
               </svg>
               OxSteed
             </Link>
-            <p style={{ fontSize: '0.94rem', color: 'var(--color-text-muted)', maxWidth: '34ch', lineHeight: 1.7, margin: '0 0 1rem' }}>
+            <p style={{ fontSize: '0.94rem', color: 'var(--color-text)', maxWidth: '34ch', lineHeight: 1.7, margin: '0 0 1rem' }}>
               {t('footer.tagline')}
             </p>
-            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text-faint)', lineHeight: 1.6 }}>
+            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text)', lineHeight: 1.6 }}>
               Built for hiring, logistics, and trusted local business operations.
             </p>
           </div>
@@ -217,12 +217,12 @@ export default function Footer() {
                 border: 'none',
                 padding: 0,
                 fontSize: '0.78rem',
-                color: 'var(--color-text-faint)',
+                color: 'var(--color-text)',
                 cursor: 'pointer',
                 transition: 'color var(--transition-fast)',
               }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text-muted)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-faint)')}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-primary)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text)')}
             >
               Manage Cookies
             </button>
@@ -274,7 +274,7 @@ export default function Footer() {
           paddingTop: 'var(--space-4)',
           borderTop: '1px solid var(--color-border)',
           fontSize: 'var(--text-xs)',
-          color: 'var(--color-text-faint)',
+          color: 'var(--color-text)',
         }}>
           <p>&copy; {year} OxSteed LLC</p>
           <p>
@@ -312,16 +312,16 @@ function FooterLink({ to, children }) {
       to={to}
       style={{
         fontSize: '0.96rem',
-        color: 'var(--color-text-muted)',
+        color: 'var(--color-text)',
         textDecoration: 'none',
         transition: 'color var(--transition-fast), transform var(--transition-fast)',
       }}
       onMouseEnter={e => {
-        e.currentTarget.style.color = 'var(--color-text)';
+        e.currentTarget.style.color = 'var(--color-primary)';
         e.currentTarget.style.transform = 'translateX(2px)';
       }}
       onMouseLeave={e => {
-        e.currentTarget.style.color = 'var(--color-text-muted)';
+        e.currentTarget.style.color = 'var(--color-text)';
         e.currentTarget.style.transform = 'translateX(0)';
       }}
     >
@@ -336,12 +336,12 @@ function LegalLink({ to, children }) {
       to={to}
       style={{
         fontSize: '0.78rem',
-        color: 'var(--color-text-faint)',
+        color: 'var(--color-text)',
         textDecoration: 'none',
         transition: 'color var(--transition-fast)',
       }}
-      onMouseEnter={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
-      onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-faint)'}
+      onMouseEnter={e => e.currentTarget.style.color = 'var(--color-primary)'}
+      onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text)'}
     >
       {children}
     </Link>
