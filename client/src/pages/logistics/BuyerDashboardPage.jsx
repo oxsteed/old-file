@@ -40,41 +40,126 @@ export default function BuyerDashboardPage() {
       .catch(() => setState((s) => ({ ...s, loading: false })));
   }, []);
 
-  const stats = [
-    ['Requests', state.requests.length, '🔍'],
-    ['Orders', state.orders.length, '📦'],
-    ['Shipments', state.shipments.length, '🚢'],
-    ['Deliveries', state.deliveries.length, '🚚'],
+  const activeRequests = state.requests.filter((request) => !['fulfilled', 'closed', 'cancelled'].includes(request.status)).length;
+  const atRiskShipments = state.shipments.filter((shipment) => ['customs_review', 'exception', 'customs_hold'].includes(shipment.status)).length;
+  const pendingAllocations = state.allocations.filter((allocation) => allocation.status !== 'released').length;
+  const openIssues = state.claims.length + state.refunds.length;
+  const latestDeliveryDate = state.deliveries
+    .map((delivery) => delivery.scheduled_date || delivery.created_at)
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+
+  const metrics = [
+    ['Active requests', activeRequests, '🔍', `${state.requests.length} total buyer requests in motion`],
+    ['Watch shipments', state.shipments.length, '🚢', atRiskShipments ? `${atRiskShipments} need exception follow-up` : 'No shipment exceptions flagged right now'],
+    ['Pending allocations', pendingAllocations, '📦', pendingAllocations ? 'Stock is assigned but not fully released yet' : 'Allocation queue is clear'],
+    ['Claims & refunds', openIssues, '🛟', openIssues ? 'Operator review may be needed on open issues' : 'No active buyer issues'],
   ];
 
   return (
     <PageShell>
       <div className="lx-page">
-      <div className="lx-page-header">
-        <h1 className="lx-page-title">Buyer Dashboard</h1>
-        <p className="lx-page-sub">Run sourcing requests, monitor shipments, and track fulfillment issues from one buyer workspace.</p>
-      </div>
-
       <LogisticsWorkspaceSwitcher
         currentKey="buyer"
         availability={{ buyer: true, organizer: true, business_procurement: true, distributor: true }}
       />
+
+      <div className="lx-dashboard-hero">
+        <div className="lx-card lx-dashboard-hero-main">
+          <div className="lx-dashboard-kicker">Buyer workspace</div>
+          <h1 className="lx-page-title">Buyer Dashboard</h1>
+          <p className="lx-page-sub">Source product demand, watch freight movement, and stay ahead of claims, refunds, and delivery release risk from one buyer control center.</p>
+          <div className="lx-dashboard-actions">
+            <Link to="/logistics/requests/new" className="lx-btn-primary">Start a sourcing request</Link>
+            <Link to="/logistics/shipments" className="lx-btn-ghost">Watch shipment timeline</Link>
+          </div>
+          <div className="lx-dashboard-stat-grid">
+            <div className="lx-dashboard-stat">
+              <div className="lx-dashboard-stat-value">{activeRequests}</div>
+              <div className="lx-dashboard-stat-label">Open buyer requests</div>
+              <div className="lx-dashboard-stat-meta">Across sourcing, quoting, and procurement conversion.</div>
+            </div>
+            <div className="lx-dashboard-stat">
+              <div className="lx-dashboard-stat-value">{atRiskShipments}</div>
+              <div className="lx-dashboard-stat-label">Shipments needing attention</div>
+              <div className="lx-dashboard-stat-meta">Customs or exception-stage movement to review.</div>
+            </div>
+            <div className="lx-dashboard-stat">
+              <div className="lx-dashboard-stat-value">{openIssues}</div>
+              <div className="lx-dashboard-stat-label">Claims / refunds open</div>
+              <div className="lx-dashboard-stat-meta">Keep buyer protection and resolution posture visible.</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="lx-dashboard-side">
+          <div className="lx-card">
+            <h2 className="lx-dashboard-panel-title">Attention now</h2>
+            <p className="lx-dashboard-panel-copy">Use this queue to decide whether to push new sourcing, chase delivery release, or escalate a finance issue.</p>
+            <div className="lx-alert-list">
+              <div className="lx-alert-item">
+                <div>
+                  <strong>Shipment risk</strong>
+                  <span>Customs review, exception states, or delayed freight should get buyer follow-up first.</span>
+                </div>
+                <div className="lx-alert-count">{atRiskShipments}</div>
+              </div>
+              <div className="lx-alert-item">
+                <div>
+                  <strong>Allocation release</strong>
+                  <span>Assigned stock still needs pickup, forwarder handoff, or final release planning.</span>
+                </div>
+                <div className="lx-alert-count">{pendingAllocations}</div>
+              </div>
+              <div className="lx-alert-item">
+                <div>
+                  <strong>Issue posture</strong>
+                  <span>Claims and refund cases tell you where buyer trust or fulfillment quality is slipping.</span>
+                </div>
+                <div className="lx-alert-count">{openIssues}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="lx-card">
+            <h2 className="lx-dashboard-panel-title">Buyer rhythm</h2>
+            <div className="lx-checklist">
+              <div className="lx-checklist-item">
+                <div>
+                  <strong>Latest delivery signal</strong>
+                  <span>{latestDeliveryDate ? `Most recent delivery activity is scheduled around ${new Date(latestDeliveryDate).toLocaleDateString()}.` : 'No delivery dates have been scheduled yet.'}</span>
+                </div>
+              </div>
+              <div className="lx-checklist-item">
+                <div>
+                  <strong>Best next move</strong>
+                  <span>{activeRequests === 0 ? 'Open a sourcing request to get supplier quoting started.' : 'Review quote and shipment posture before opening more demand.'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="lx-key-metrics">
+        {metrics.map(([label, value, icon, note]) => (
+          <div key={label} className="lx-key-metric-card">
+            <div className="lx-key-metric-top">
+              <div className="lx-key-metric-value">{value}</div>
+              <div className="lx-key-metric-icon">{icon}</div>
+            </div>
+            <div className="lx-key-metric-label">{label}</div>
+            <div className="lx-key-metric-note">{note}</div>
+          </div>
+        ))}
+      </div>
 
       <div className="lx-nav-grid" style={{ marginBottom:'1.5rem' }}>
         <Link to="/logistics/requests/new" className="lx-nav-tile"><span className="lx-nav-icon">➕</span><span className="lx-nav-label">New Request</span></Link>
         <Link to="/logistics/orders" className="lx-nav-tile"><span className="lx-nav-icon">📦</span><span className="lx-nav-label">Orders</span></Link>
         <Link to="/logistics/shipments" className="lx-nav-tile"><span className="lx-nav-icon">🚢</span><span className="lx-nav-label">Shipments</span></Link>
         <Link to="/logistics/finance" className="lx-nav-tile"><span className="lx-nav-icon">💰</span><span className="lx-nav-label">Claims & Refunds</span></Link>
-      </div>
-
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:'1rem', marginBottom:'1.5rem' }}>
-        {stats.map(([label, value, icon]) => (
-          <div key={label} className="lx-card" style={{ textAlign:'center' }}>
-            <div style={{ fontSize:'1.4rem' }}>{icon}</div>
-            <div style={{ fontSize:'1.4rem', fontWeight:800, color:'#f97316' }}>{value}</div>
-            <div style={{ color:'#64748b', fontSize:'.8rem', fontWeight:600 }}>{label}</div>
-          </div>
-        ))}
       </div>
 
       <div className="lx-card" style={{ marginBottom:'1.5rem' }}>
@@ -98,7 +183,7 @@ export default function BuyerDashboardPage() {
         </div>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1.1fr .9fr', gap:'1.5rem' }}>
+      <div className="lx-dashboard-grid">
         <div className="lx-card">
           <div className="lx-section-header"><h2>Shipment and allocation flow</h2><Link to="/logistics/distribution">Distribution</Link></div>
           <div className="lx-table-wrap">
@@ -126,19 +211,25 @@ export default function BuyerDashboardPage() {
         </div>
 
         <div className="lx-card">
-          <h2 style={{ marginTop:0 }}>Claims and refund posture</h2>
-          <div style={{ display:'grid', gap:'.75rem' }}>
-            <div style={{ padding:'1rem', border:'1px solid #e2e8f0', borderRadius:'.75rem' }}>
-              <div style={{ color:'#64748b', fontSize:'.8rem', fontWeight:700 }}>Claims</div>
-              <div style={{ fontSize:'1.6rem', fontWeight:800, color:'#f97316' }}>{state.claims.length}</div>
+          <div className="lx-section-header"><h2>Claims and resolution posture</h2><Link to="/logistics/finance">Finance workspace</Link></div>
+          <div className="lx-compact-stack">
+            <div className="lx-mini-list-item">
+              <strong>{state.claims.length} active claims</strong>
+              <span>Use claims when a shipment, order, or inventory outcome needs operator intervention or evidence review.</span>
             </div>
-            <div style={{ padding:'1rem', border:'1px solid #e2e8f0', borderRadius:'.75rem' }}>
-              <div style={{ color:'#64748b', fontSize:'.8rem', fontWeight:700 }}>Refund cases</div>
-              <div style={{ fontSize:'1.6rem', fontWeight:800, color:'#f97316' }}>{state.refunds.length}</div>
+            <div className="lx-mini-list-item">
+              <strong>{state.refunds.length} refund cases</strong>
+              <span>Refund queues show where buyer recovery is still waiting on finance or operations confirmation.</span>
             </div>
-            <div style={{ fontSize:'.85rem', color:'#64748b', lineHeight:1.7 }}>
-              Buyers can open disputes and refund cases from the finance workspace whenever a pooled order, purchase order, or shipment exception needs operator review.
+            <div className="lx-mini-list-item">
+              <strong>{state.deliveries.length} delivery records tracked</strong>
+              <span>Keep delivery status close to claims so you can connect failed fulfillment with actual release history.</span>
             </div>
+          </div>
+          <div className="lx-insight-chip-row">
+            <span className="lx-insight-chip">Buyer-first workspace</span>
+            <span className="lx-insight-chip">Claims tied to shipment outcomes</span>
+            <span className="lx-insight-chip">Refund posture stays visible</span>
           </div>
         </div>
       </div>

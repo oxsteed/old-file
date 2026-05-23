@@ -37,31 +37,110 @@ export default function OrganizerDashboardPage() {
   }, [user?.id]);
 
   const committedUnits = campaigns.reduce((sum, row) => sum + Number(row.current_committed_qty || 0), 0);
+  const activeCampaigns = campaigns.filter((row) => ['open', 'pledging', 'deposit_phase', 'locked', 'placed'].includes(row.status)).length;
+  const campaignsNeedingMomentum = campaigns.filter((row) => Number(row.moq_pct || 0) < 50 && row.status === 'open').length;
+  const handoffDeliveries = deliveries.filter((row) => ['pending', 'scheduled', 'in_transit'].includes(row.status)).length;
+  const participantCommitments = participation.filter((row) => row.status !== 'fulfilled').length;
 
   return (
     <PageShell>
       <div className="lx-page">
-      <div className="lx-page-header">
-        <h1 className="lx-page-title">Organizer Dashboard</h1>
-        <p className="lx-page-sub">Launch pooled orders, monitor MOQ momentum, and coordinate downstream distribution for your communities and buyer groups.</p>
-      </div>
-
       <LogisticsWorkspaceSwitcher
         currentKey="organizer"
         availability={{ buyer: true, organizer: true, business_procurement: true, distributor: true }}
       />
 
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(190px, 1fr))', gap:'1rem', marginBottom:'1.5rem' }}>
+      <div className="lx-dashboard-hero">
+        <div className="lx-card lx-dashboard-hero-main">
+          <div className="lx-dashboard-kicker">Organizer workspace</div>
+          <h1 className="lx-page-title">Organizer Dashboard</h1>
+          <p className="lx-page-sub">Run pooled campaigns like a coordinator, keep MOQ momentum visible, and move locked orders cleanly into shipping and community handoff.</p>
+          <div className="lx-dashboard-actions">
+            <Link to="/logistics/campaigns" className="lx-btn-primary">Open campaign board</Link>
+            <Link to="/logistics/distribution" className="lx-btn-ghost">Coordinate handoffs</Link>
+          </div>
+          <div className="lx-dashboard-stat-grid">
+            <div className="lx-dashboard-stat">
+              <div className="lx-dashboard-stat-value">{activeCampaigns}</div>
+              <div className="lx-dashboard-stat-label">Campaigns still in motion</div>
+              <div className="lx-dashboard-stat-meta">Across open, deposit, lock, and placement phases.</div>
+            </div>
+            <div className="lx-dashboard-stat">
+              <div className="lx-dashboard-stat-value">{committedUnits}</div>
+              <div className="lx-dashboard-stat-label">Committed units</div>
+              <div className="lx-dashboard-stat-meta">Demand already captured from your pooled network.</div>
+            </div>
+            <div className="lx-dashboard-stat">
+              <div className="lx-dashboard-stat-value">{handoffDeliveries}</div>
+              <div className="lx-dashboard-stat-label">Handoffs to coordinate</div>
+              <div className="lx-dashboard-stat-meta">Delivery legs still moving toward community recipients.</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="lx-dashboard-side">
+          <div className="lx-card">
+            <h2 className="lx-dashboard-panel-title">Organizer pressure points</h2>
+            <p className="lx-dashboard-panel-copy">This is the fast read on where organizer energy should go next: recruiting, deposits, or handoff execution.</p>
+            <div className="lx-alert-list">
+              <div className="lx-alert-item">
+                <div>
+                  <strong>MOQ momentum gaps</strong>
+                  <span>Campaigns below halfway to MOQ usually need another recruitment push or a lane/pricing rethink.</span>
+                </div>
+                <div className="lx-alert-count">{campaignsNeedingMomentum}</div>
+              </div>
+              <div className="lx-alert-item">
+                <div>
+                  <strong>Participant commitments open</strong>
+                  <span>These are your own live commitments inside pooled orders that still need watching.</span>
+                </div>
+                <div className="lx-alert-count">{participantCommitments}</div>
+              </div>
+              <div className="lx-alert-item">
+                <div>
+                  <strong>Shipments tied to campaigns</strong>
+                  <span>Keep organizer messaging aligned with freight movement so downstream buyers know what’s next.</span>
+                </div>
+                <div className="lx-alert-count">{shipments.length}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="lx-card">
+            <h2 className="lx-dashboard-panel-title">Organizer operating rhythm</h2>
+            <div className="lx-checklist">
+              <div className="lx-checklist-item">
+                <div>
+                  <strong>Recruit before lock</strong>
+                  <span>If MOQ is low, spend time recruiting participants before pushing operational complexity downstream.</span>
+                </div>
+              </div>
+              <div className="lx-checklist-item">
+                <div>
+                  <strong>Communicate after placement</strong>
+                  <span>Once orders place, switch from demand building to shipment visibility and delivery expectations.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="lx-key-metrics">
         {[
-          ['Campaigns', campaigns.length, '🤝'],
-          ['Committed units', committedUnits, '📦'],
-          ['Tracked shipments', shipments.length, '🚢'],
-          ['Delivery handoffs', deliveries.length, '🚚'],
-        ].map(([label, value, icon]) => (
-          <div key={label} className="lx-card" style={{ textAlign:'center' }}>
-            <div style={{ fontSize:'1.4rem' }}>{icon}</div>
-            <div style={{ fontSize:'1.4rem', fontWeight:800, color:'#f97316' }}>{value}</div>
-            <div style={{ color:'#64748b', fontSize:'.8rem', fontWeight:600 }}>{label}</div>
+          ['Organizer campaigns', campaigns.length, '🤝', 'Total campaigns you currently own or coordinate.'],
+          ['Committed units', committedUnits, '📦', 'Useful for judging network buying power across all campaigns.'],
+          ['Tracked shipments', shipments.length, '🚢', 'Movement that now affects organizer updates and handoffs.'],
+          ['Delivery handoffs', deliveries.length, '🚚', 'Final-mile coordination you may need to message around.'],
+        ].map(([label, value, icon, note]) => (
+          <div key={label} className="lx-key-metric-card">
+            <div className="lx-key-metric-top">
+              <div className="lx-key-metric-value">{value}</div>
+              <div className="lx-key-metric-icon">{icon}</div>
+            </div>
+            <div className="lx-key-metric-label">{label}</div>
+            <div className="lx-key-metric-note">{note}</div>
           </div>
         ))}
       </div>
@@ -84,7 +163,7 @@ export default function OrganizerDashboardPage() {
         </div>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem' }}>
+      <div className="lx-dashboard-grid">
         <div className="lx-card">
           <div className="lx-section-header"><h2>My commitments as participant</h2><Link to="/logistics/campaigns">Open participation</Link></div>
           <div className="lx-table-wrap">
@@ -105,11 +184,18 @@ export default function OrganizerDashboardPage() {
         </div>
 
         <div className="lx-card">
-          <h2 style={{ marginTop:0 }}>Distribution readiness</h2>
-          <p style={{ color:'#64748b', fontSize:'.9rem', lineHeight:1.7 }}>
-            Once a campaign locks, organizers can coordinate warehouse pickup, freight forward handoff, and final distribution from the shipment and distribution workspaces. OxSteed operators can also step in for customs, receiving, and split allocation.
-          </p>
-          <div style={{ display:'grid', gap:'.75rem' }}>
+          <div className="lx-section-header"><h2>Distribution readiness</h2><Link to="/logistics/shipments">Shipment timeline</Link></div>
+          <div className="lx-mini-list">
+            <div className="lx-mini-list-item">
+              <strong>{activeCampaigns} campaigns can still change participant posture</strong>
+              <span>Use this to decide whether to keep recruiting demand or start preparing buyer-facing distribution expectations.</span>
+            </div>
+            <div className="lx-mini-list-item">
+              <strong>{handoffDeliveries} delivery handoffs are still active</strong>
+              <span>These are the legs where organizer communication often matters most to avoid confusion at pickup or last-mile release.</span>
+            </div>
+          </div>
+          <div style={{ display:'grid', gap:'.75rem', marginTop:'1rem' }}>
             <Link to="/logistics/shipments" className="lx-btn-secondary" style={{ textAlign:'center' }}>Open shipment timeline</Link>
             <Link to="/logistics/distribution" className="lx-btn-secondary" style={{ textAlign:'center' }}>Open distribution workspace</Link>
           </div>

@@ -68,6 +68,16 @@ export default function BusinessProcurementPage() {
     () => requests.filter((row) => (row.business_id && eligibleBusinessIds.has(row.business_id)) || row.converted_to === 'procurement'),
     [requests, eligibleBusinessIds]
   );
+  const activePrograms = programs.filter((program) => program.status === 'active').length;
+  const upcomingRuns = programs.filter((program) => {
+    if (!program.next_run_date) return false;
+    const nextRun = new Date(program.next_run_date);
+    const now = new Date();
+    const horizon = new Date();
+    horizon.setDate(now.getDate() + 21);
+    return nextRun >= now && nextRun <= horizon;
+  }).length;
+  const laneBoundPrograms = programs.filter((program) => !!program.lane_id).length;
 
   const createProgramFromForm = async () => {
     if (!form.title) {
@@ -135,29 +145,97 @@ export default function BusinessProcurementPage() {
         currentKey="business_procurement"
         availability={{ buyer: true, organizer: true, business_procurement: hasAccess, distributor: true }}
       />
-      <div className="lx-page-header">
-        <div style={{ display:'flex', justifyContent:'space-between', gap:'1rem', flexWrap:'wrap' }}>
-          <div>
-            <h1 className="lx-page-title">Business Procurement Dashboard</h1>
-            <p className="lx-page-sub">Manage restock programs, procurement cadence, and business-linked sourcing demand from one logistics workspace.</p>
+      <div className="lx-dashboard-hero">
+        <div className="lx-card lx-dashboard-hero-main">
+          <div className="lx-dashboard-kicker">Business procurement</div>
+          <h1 className="lx-page-title">Business Procurement Dashboard</h1>
+          <p className="lx-page-sub">Manage restock rhythm, recurring sourcing lanes, and business-approved demand without losing sight of which company the order is for.</p>
+          <div className="lx-dashboard-actions">
+            <button className="lx-btn-primary" onClick={() => setShowForm((current) => !current)}>
+              {showForm ? 'Close planner' : 'New recurring program'}
+            </button>
+            <Link to="/logistics/requests/new" className="lx-btn-ghost">Open business-linked request</Link>
           </div>
-          <button className="lx-btn-primary" onClick={() => setShowForm((current) => !current)}>
-            {showForm ? 'Close planner' : 'New recurring program'}
-          </button>
+          <div className="lx-dashboard-stat-grid">
+            <div className="lx-dashboard-stat">
+              <div className="lx-dashboard-stat-value">{activePrograms}</div>
+              <div className="lx-dashboard-stat-label">Active restock programs</div>
+              <div className="lx-dashboard-stat-meta">Cadences already driving repeat sourcing demand.</div>
+            </div>
+            <div className="lx-dashboard-stat">
+              <div className="lx-dashboard-stat-value">{businessAccess.eligibleBusinesses.length}</div>
+              <div className="lx-dashboard-stat-label">Eligible businesses</div>
+              <div className="lx-dashboard-stat-meta">Companies this account can legitimately buy for.</div>
+            </div>
+            <div className="lx-dashboard-stat">
+              <div className="lx-dashboard-stat-value">{upcomingRuns}</div>
+              <div className="lx-dashboard-stat-label">Runs within 21 days</div>
+              <div className="lx-dashboard-stat-meta">Upcoming procurement cycles that need readiness checks.</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="lx-dashboard-side">
+          <div className="lx-card">
+            <h2 className="lx-dashboard-panel-title">Procurement pressure points</h2>
+            <p className="lx-dashboard-panel-copy">This workspace is strongest when it tells you what to reorder, what to lane-match, and which business needs action first.</p>
+            <div className="lx-alert-list">
+              <div className="lx-alert-item">
+                <div>
+                  <strong>Upcoming runs</strong>
+                  <span>Programs that execute soon should be checked for quantity, lane fit, and destination readiness.</span>
+                </div>
+                <div className="lx-alert-count">{upcomingRuns}</div>
+              </div>
+              <div className="lx-alert-item">
+                <div>
+                  <strong>Lane-bound programs</strong>
+                  <span>These already have a defined lane, so pricing and compliance planning can be more deliberate.</span>
+                </div>
+                <div className="lx-alert-count">{laneBoundPrograms}</div>
+              </div>
+              <div className="lx-alert-item">
+                <div>
+                  <strong>Business-linked requests</strong>
+                  <span>Demand already tied to a qualified business should be prioritized before generic sourcing.</span>
+                </div>
+                <div className="lx-alert-count">{procurementEligible.length}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="lx-card">
+            <h2 className="lx-dashboard-panel-title">Eligible business lanes</h2>
+            {businessAccess.eligibleBusinesses.length > 0 ? (
+              <div className="lx-mini-list">
+                {businessAccess.eligibleBusinesses.slice(0, 3).map((entry) => (
+                  <div key={entry.business_id} className="lx-mini-list-item">
+                    <strong>{entry.business_name}</strong>
+                    <span>{entry.is_owner ? 'Owner access' : `${entry.role} access`} with procurement-style authority.</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="lx-empty-state">No eligible businesses are attached to this account yet.</div>
+            )}
+          </div>
         </div>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'1rem', marginBottom:'1.5rem' }}>
+      <div className="lx-key-metrics">
         {[
-          ['Recurring programs', programs.length, '🔁'],
-          ['Business-linked requests', procurementEligible.length, '🏢'],
-          ['Active programs', programs.filter((row) => row.status === 'active').length, '✅'],
-          ['Eligible businesses', businessAccess.eligibleBusinesses.length, '🏬'],
-        ].map(([label, value, icon]) => (
-          <div key={label} className="lx-card" style={{ textAlign:'center' }}>
-            <div style={{ fontSize:'1.4rem' }}>{icon}</div>
-            <div style={{ fontSize:'1.4rem', fontWeight:800, color:'#f97316' }}>{value}</div>
-            <div style={{ color:'#64748b', fontSize:'.8rem', fontWeight:600 }}>{label}</div>
+          ['Recurring programs', programs.length, '🔁', 'Saved cadences for repeat inventory and supply demand.'],
+          ['Business-linked requests', procurementEligible.length, '🏢', 'Requests already tied to a qualified business context.'],
+          ['Active programs', activePrograms, '✅', 'Programs that should currently influence sourcing planning.'],
+          ['Eligible businesses', businessAccess.eligibleBusinesses.length, '🏬', 'Separate business contexts you can operate procurement for.'],
+        ].map(([label, value, icon, note]) => (
+          <div key={label} className="lx-key-metric-card">
+            <div className="lx-key-metric-top">
+              <div className="lx-key-metric-value">{value}</div>
+              <div className="lx-key-metric-icon">{icon}</div>
+            </div>
+            <div className="lx-key-metric-label">{label}</div>
+            <div className="lx-key-metric-note">{note}</div>
           </div>
         ))}
       </div>
@@ -214,23 +292,48 @@ export default function BusinessProcurementPage() {
         </div>
       </div>
 
-      <div className="lx-card">
-        <div className="lx-section-header"><h2>Business-linked sourcing requests</h2><Link to="/logistics/requests/new">New request</Link></div>
-        <div className="lx-table-wrap">
-          <table className="lx-table">
-            <thead><tr><th>Reference</th><th>Request</th><th>Status</th><th>Converted</th></tr></thead>
-            <tbody>
-              {procurementEligible.slice(0, 10).map((request) => (
-                <tr key={request.id}>
-                  <td><Link to={`/logistics/requests/${request.id}`} className="lx-link">{request.reference}</Link></td>
-                  <td>{request.title}</td>
-                  <td><span className="lx-status-pill" style={{ background:'#64748b' }}>{request.status}</span></td>
-                  <td>{request.converted_to || '—'}</td>
-                </tr>
-              ))}
-              {!loading && procurementEligible.length === 0 && <tr><td colSpan={4} style={{ textAlign:'center', color:'#94a3b8' }}>No business-linked procurement requests yet.</td></tr>}
-            </tbody>
-          </table>
+      <div className="lx-dashboard-grid">
+        <div className="lx-card">
+          <div className="lx-section-header"><h2>Business-linked sourcing requests</h2><Link to="/logistics/requests/new">New request</Link></div>
+          <div className="lx-table-wrap">
+            <table className="lx-table">
+              <thead><tr><th>Reference</th><th>Request</th><th>Status</th><th>Converted</th></tr></thead>
+              <tbody>
+                {procurementEligible.slice(0, 10).map((request) => (
+                  <tr key={request.id}>
+                    <td><Link to={`/logistics/requests/${request.id}`} className="lx-link">{request.reference}</Link></td>
+                    <td>{request.title}</td>
+                    <td><span className="lx-status-pill" style={{ background:'#64748b' }}>{request.status}</span></td>
+                    <td>{request.converted_to || '—'}</td>
+                  </tr>
+                ))}
+                {!loading && procurementEligible.length === 0 && <tr><td colSpan={4} style={{ textAlign:'center', color:'#94a3b8' }}>No business-linked procurement requests yet.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="lx-card">
+          <div className="lx-section-header"><h2>Procurement operating guidance</h2><Link to="/business-hub">Business Hub</Link></div>
+          <div className="lx-mini-list">
+            <div className="lx-mini-list-item">
+              <strong>Build around real business authority</strong>
+              <span>This workspace only works when demand is tied to an actual business you can act for, not just a personal sourcing idea.</span>
+            </div>
+            <div className="lx-mini-list-item">
+              <strong>Use lane-aware planning</strong>
+              <span>Choose lanes early for recurring programs when pricing, compliance, and destination restrictions materially affect landed cost.</span>
+            </div>
+            <div className="lx-mini-list-item">
+              <strong>Restock before the rush</strong>
+              <span>Programs with soon-coming run dates should be checked before warehouses, teams, or field crews feel the shortage.</span>
+            </div>
+          </div>
+          <div className="lx-insight-chip-row">
+            <span className="lx-insight-chip">Recurring demand planning</span>
+            <span className="lx-insight-chip">Business-scoped sourcing only</span>
+            <span className="lx-insight-chip">Lane-aware purchasing</span>
+          </div>
         </div>
       </div>
         </>
