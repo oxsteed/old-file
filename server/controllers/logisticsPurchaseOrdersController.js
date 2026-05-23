@@ -1,5 +1,5 @@
 'use strict';
-const AppError = require('../utils/AppError');
+const AppError = require('../utils/appError');
 const poService = require('../services/purchaseOrderService');
 const { calculateLandedCost } = require('../services/logisticsPricingService');
 

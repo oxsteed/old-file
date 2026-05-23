@@ -94,7 +94,7 @@ router.post('/claims', requireAuth, async (req, res, next) => {
     const pool = require('../db');
     const { claim_type, description, purchase_order_id, shipment_id, pooled_order_id, claimed_amount_usd } = req.body;
     if (!claim_type || !description) {
-      return next(require('../utils/AppError')('claim_type and description required', 400, 'validation_failed'));
+      return next(new (require('../utils/appError'))('claim_type and description required', 400, 'validation_failed'));
     }
     const year = new Date().getFullYear();
     const countRes = await pool.query('SELECT COUNT(*) FROM logistics_claims');
@@ -125,7 +125,7 @@ router.post('/refund-cases', requireAuth, async (req, res, next) => {
     const pool = require('../db');
     const { claim_id, purchase_order_id, pooled_order_id, participant_id, refund_reason, requested_amount_usd, notes } = req.body;
     if (!refund_reason || !requested_amount_usd) {
-      return next(new (require('../utils/AppError'))('refund_reason and requested_amount_usd required', 400, 'validation_failed'));
+      return next(new (require('../utils/appError'))('refund_reason and requested_amount_usd required', 400, 'validation_failed'));
     }
     const year = new Date().getFullYear();
     const countRes = await pool.query('SELECT COUNT(*) FROM logistics_refund_cases');

@@ -18,6 +18,11 @@ CREATE TABLE IF NOT EXISTS business_daily_metrics (
   UNIQUE(business_id, date)
 );
 
+ALTER TABLE business_daily_metrics
+  ADD COLUMN IF NOT EXISTS "date" DATE,
+  ADD COLUMN IF NOT EXISTS business_id INTEGER,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+
 CREATE INDEX IF NOT EXISTS idx_business_daily_metrics_business_id ON business_daily_metrics(business_id);
 CREATE INDEX IF NOT EXISTS idx_business_daily_metrics_date ON business_daily_metrics("date" DESC);
 
@@ -36,6 +41,12 @@ CREATE TABLE IF NOT EXISTS business_service_metrics (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(business_id, service_id, date)
 );
+
+ALTER TABLE business_service_metrics
+  ADD COLUMN IF NOT EXISTS "date" DATE,
+  ADD COLUMN IF NOT EXISTS business_id INTEGER,
+  ADD COLUMN IF NOT EXISTS service_id INTEGER,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
 
 CREATE INDEX IF NOT EXISTS idx_business_service_metrics_business_id ON business_service_metrics(business_id);
 CREATE INDEX IF NOT EXISTS idx_business_service_metrics_service_id ON business_service_metrics(service_id);
@@ -75,6 +86,12 @@ CREATE TABLE IF NOT EXISTS staff_performance_metrics (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(business_id, staff_id, date)
 );
+
+ALTER TABLE staff_performance_metrics
+  ADD COLUMN IF NOT EXISTS "date" DATE,
+  ADD COLUMN IF NOT EXISTS business_id INTEGER,
+  ADD COLUMN IF NOT EXISTS staff_id UUID,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
 
 CREATE INDEX IF NOT EXISTS idx_staff_performance_metrics_business_id ON staff_performance_metrics(business_id);
 CREATE INDEX IF NOT EXISTS idx_staff_performance_metrics_staff_id ON staff_performance_metrics(staff_id);

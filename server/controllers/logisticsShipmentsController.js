@@ -1,5 +1,5 @@
 'use strict';
-const AppError = require('../utils/AppError');
+const AppError = require('../utils/appError');
 const shipmentService = require('../services/shipmentService');
 const storage = require('../utils/storage');
 

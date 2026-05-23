@@ -5,7 +5,7 @@
  * and the per-buyer "what can I see / buy" evaluator.
  */
 const pool    = require('../db');
-const AppError = require('../utils/AppError');
+const AppError = require('../utils/appError');
 const accessService = require('../services/logisticsAccessService');
 const { logLogisticsAction } = require('../services/logisticsAuditService');
 const { resolveLogisticsRole } = require('../middleware/requireLogisticsAccess');

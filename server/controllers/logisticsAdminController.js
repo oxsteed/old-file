@@ -1,5 +1,5 @@
 'use strict';
-const AppError = require('../utils/AppError');
+const AppError = require('../utils/appError');
 const pool = require('../db');
 const supplierService = require('../services/supplierService');
 const sourcingService = require('../services/sourcingService');

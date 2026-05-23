@@ -5,7 +5,7 @@
  * Admin/super-admin: profitability across lanes, suppliers, campaigns; margin auditing.
  */
 const pool = require('../db');
-const AppError = require('../utils/AppError');
+const AppError = require('../utils/appError');
 const { resolveLogisticsRole } = require('../middleware/requireLogisticsAccess');
 
 // ─── Buyer payment schedule + outstanding balances ────────────

@@ -1,6 +1,6 @@
 'use strict';
 
-const AppError = require('../utils/AppError');
+const AppError = require('../utils/appError');
 const recurringService = require('../services/recurringProcurementService');
 
 exports.listPrograms = async (req, res, next) => {
