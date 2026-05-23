@@ -392,6 +392,8 @@ async function loginWith2FA(req, res) {
         ? 'operations_enabled'
         : req.internalAccessRoute === 'compliance'
           ? 'compliance_enabled'
+          : req.internalAccessRoute === 'admin_portal'
+            ? 'admin_portal_enabled'
           : null;
       if (!routeField) {
         return res.status(401).json({ error: 'Invalid internal-access MFA session' });

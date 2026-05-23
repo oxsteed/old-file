@@ -11,6 +11,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 const INTERNAL_ACCESS_ROUTES = Object.freeze({
   operations: 'operations_enabled',
   compliance: 'compliance_enabled',
+  admin_portal: 'admin_portal_enabled',
 });
 
 function normalizeRoute(rawRoute) {
@@ -58,6 +59,7 @@ async function loadAccessRecordByUserId(userId) {
       liac.security_key_hash,
       liac.operations_enabled,
       liac.compliance_enabled,
+      liac.admin_portal_enabled,
       liac.is_active,
       liac.updated_at,
       u.email
@@ -68,6 +70,112 @@ async function loadAccessRecordByUserId(userId) {
   `;
   const { rows } = await pool.query(sql, [userId]);
   return rows[0] || null;
+}
+
+async function loadInternalAccessUser(userId) {
+  const { rows } = await pool.query(
+    `SELECT id, first_name, last_name, email, role, is_active
+     FROM users
+     WHERE id = $1
+     LIMIT 1`,
+    [userId]
+  );
+  return rows[0] || null;
+}
+
+async function saveAccessRecord({
+  actorUserId,
+  targetUserId,
+  internalName,
+  securityKey,
+  operationsEnabled,
+  complianceEnabled,
+  adminPortalEnabled,
+  isActive,
+}) {
+  const targetUser = await loadInternalAccessUser(targetUserId);
+  if (!targetUser || !['admin', 'super_admin'].includes(targetUser.role)) {
+    return { error: { status: 404, message: 'Eligible admin account not found.' } };
+  }
+  if (!targetUser.is_active) {
+    return { error: { status: 400, message: 'The linked admin account is inactive.' } };
+  }
+
+  const normalizedName = normalizeInternalName(internalName);
+  const normalizedSecurityKey = String(securityKey || '');
+  if (!normalizedName || normalizedName.length < 3) {
+    return { error: { status: 400, message: 'Internal name must be at least 3 characters.' } };
+  }
+
+  const existing = await loadAccessRecordByUserId(targetUserId);
+  if (!existing && normalizedSecurityKey.trim().length < 8) {
+    return { error: { status: 400, message: 'Security key must be at least 8 characters when creating access.' } };
+  }
+  if (normalizedSecurityKey && normalizedSecurityKey.trim().length > 0 && normalizedSecurityKey.trim().length < 8) {
+    return { error: { status: 400, message: 'Security key must be at least 8 characters.' } };
+  }
+
+  const duplicate = await pool.query(
+    `SELECT id, user_id
+     FROM logistics_internal_access_credentials
+     WHERE LOWER(internal_name) = LOWER($1)
+       AND user_id <> $2
+     LIMIT 1`,
+    [normalizedName, targetUserId]
+  );
+  if (duplicate.rows.length > 0) {
+    return { error: { status: 409, message: 'That internal name is already in use.' } };
+  }
+
+  const hash = normalizedSecurityKey.trim().length > 0
+    ? await bcrypt.hash(normalizedSecurityKey.trim(), SALT_ROUNDS)
+    : existing?.security_key_hash || null;
+  if (!hash) {
+    return { error: { status: 400, message: 'Security key is required.' } };
+  }
+
+  const sql = existing
+    ? `
+      UPDATE logistics_internal_access_credentials
+      SET
+        internal_name = $2,
+        security_key_hash = $3,
+        operations_enabled = $4,
+        compliance_enabled = $5,
+        admin_portal_enabled = $6,
+        is_active = $7,
+        updated_at = NOW()
+      WHERE user_id = $1
+      RETURNING id, user_id, internal_name, operations_enabled, compliance_enabled, admin_portal_enabled, is_active, updated_at
+    `
+    : `
+      INSERT INTO logistics_internal_access_credentials (
+        user_id, internal_name, security_key_hash, operations_enabled, compliance_enabled, admin_portal_enabled, is_active
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id, user_id, internal_name, operations_enabled, compliance_enabled, admin_portal_enabled, is_active, updated_at
+    `;
+
+  const { rows } = await pool.query(sql, [
+    targetUserId,
+    normalizedName,
+    hash,
+    !!operationsEnabled,
+    !!complianceEnabled,
+    !!adminPortalEnabled,
+    typeof isActive === 'boolean' ? isActive : true,
+  ]);
+
+  return {
+    record: {
+      ...rows[0],
+      email: targetUser.email,
+      role: targetUser.role,
+      first_name: targetUser.first_name,
+      last_name: targetUser.last_name,
+      updated_by_user_id: actorUserId,
+    },
+  };
 }
 
 function signInternalAccessToken(payload) {
@@ -124,6 +232,7 @@ exports.getMyInternalAccess = async (req, res) => {
             internal_name: record.internal_name,
             operations_enabled: !!record.operations_enabled,
             compliance_enabled: !!record.compliance_enabled,
+            admin_portal_enabled: !!record.admin_portal_enabled,
             is_active: !!record.is_active,
             updated_at: record.updated_at,
           }
@@ -137,79 +246,139 @@ exports.getMyInternalAccess = async (req, res) => {
 
 exports.upsertMyInternalAccess = async (req, res) => {
   try {
-    const internalName = normalizeInternalName(req.body.internal_name);
-    const securityKey = String(req.body.security_key || '');
-    const operationsEnabled = !!req.body.operations_enabled;
-    const complianceEnabled = !!req.body.compliance_enabled;
+    const result = await saveAccessRecord({
+      actorUserId: req.user.id,
+      targetUserId: req.user.id,
+      internalName: req.body.internal_name,
+      securityKey: req.body.security_key,
+      operationsEnabled: !!req.body.operations_enabled,
+      complianceEnabled: !!req.body.compliance_enabled,
+      adminPortalEnabled: !!req.body.admin_portal_enabled,
+      isActive: true,
+    });
 
-    if (!internalName || internalName.length < 3) {
-      return res.status(400).json({ error: 'Internal name must be at least 3 characters.' });
+    if (result.error) {
+      return res.status(result.error.status).json({ error: result.error.message });
     }
-
-    const existing = await loadAccessRecordByUserId(req.user.id);
-    if (!existing && securityKey.trim().length < 8) {
-      return res.status(400).json({ error: 'Security key must be at least 8 characters when creating access.' });
-    }
-    if (securityKey && securityKey.trim().length > 0 && securityKey.trim().length < 8) {
-      return res.status(400).json({ error: 'Security key must be at least 8 characters.' });
-    }
-
-    const duplicate = await pool.query(
-      `SELECT id, user_id
-       FROM logistics_internal_access_credentials
-       WHERE LOWER(internal_name) = LOWER($1)
-         AND user_id <> $2
-       LIMIT 1`,
-      [internalName, req.user.id]
-    );
-    if (duplicate.rows.length > 0) {
-      return res.status(409).json({ error: 'That internal name is already in use.' });
-    }
-
-    const hash = securityKey.trim().length > 0
-      ? await bcrypt.hash(securityKey.trim(), SALT_ROUNDS)
-      : existing?.security_key_hash || null;
-
-    if (!hash) {
-      return res.status(400).json({ error: 'Security key is required.' });
-    }
-
-    const sql = existing
-      ? `
-        UPDATE logistics_internal_access_credentials
-        SET
-          internal_name = $2,
-          security_key_hash = $3,
-          operations_enabled = $4,
-          compliance_enabled = $5,
-          is_active = TRUE,
-          updated_at = NOW()
-        WHERE user_id = $1
-        RETURNING id, user_id, internal_name, operations_enabled, compliance_enabled, is_active, updated_at
-      `
-      : `
-        INSERT INTO logistics_internal_access_credentials (
-          user_id, internal_name, security_key_hash, operations_enabled, compliance_enabled, is_active
-        )
-        VALUES ($1, $2, $3, $4, $5, TRUE)
-        RETURNING id, user_id, internal_name, operations_enabled, compliance_enabled, is_active, updated_at
-      `;
-
-    const { rows } = await pool.query(sql, [
-      req.user.id,
-      internalName,
-      hash,
-      operationsEnabled,
-      complianceEnabled,
-    ]);
 
     return res.json({
       success: true,
-      record: rows[0],
+      record: result.record,
     });
   } catch (error) {
     logger.error('Failed to save logistics internal access record', { userId: req.user?.id, error: error.message });
     return res.status(500).json({ error: 'Failed to save internal access settings' });
+  }
+};
+
+exports.listInternalAccessRecords = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+         u.id AS user_id,
+         u.first_name,
+         u.last_name,
+         u.email,
+         u.role,
+         u.is_active AS user_is_active,
+         liac.id,
+         liac.internal_name,
+         liac.operations_enabled,
+         liac.compliance_enabled,
+         liac.admin_portal_enabled,
+         liac.is_active,
+         liac.last_verified_at,
+         liac.last_verified_route,
+         liac.updated_at
+       FROM users u
+       LEFT JOIN logistics_internal_access_credentials liac ON liac.user_id = u.id
+       WHERE u.role IN ('admin', 'super_admin')
+       ORDER BY
+         CASE WHEN u.role = 'super_admin' THEN 0 ELSE 1 END,
+         LOWER(u.first_name),
+         LOWER(u.last_name),
+         LOWER(u.email)`
+    );
+
+    return res.json({
+      success: true,
+      records: rows.map((row) => ({
+        ...row,
+        operations_enabled: !!row.operations_enabled,
+        compliance_enabled: !!row.compliance_enabled,
+        admin_portal_enabled: !!row.admin_portal_enabled,
+        is_active: row.id ? !!row.is_active : false,
+        has_record: !!row.id,
+      })),
+    });
+  } catch (error) {
+    logger.error('Failed to list internal access records', { error: error.message });
+    return res.status(500).json({ error: 'Failed to load internal access records.' });
+  }
+};
+
+exports.upsertInternalAccessForUser = async (req, res) => {
+  try {
+    const targetUserId = Number(req.params.userId);
+    if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
+      return res.status(400).json({ error: 'Valid target user is required.' });
+    }
+
+    const result = await saveAccessRecord({
+      actorUserId: req.user.id,
+      targetUserId,
+      internalName: req.body.internal_name,
+      securityKey: req.body.security_key,
+      operationsEnabled: !!req.body.operations_enabled,
+      complianceEnabled: !!req.body.compliance_enabled,
+      adminPortalEnabled: !!req.body.admin_portal_enabled,
+      isActive: typeof req.body.is_active === 'boolean' ? req.body.is_active : true,
+    });
+
+    if (result.error) {
+      return res.status(result.error.status).json({ error: result.error.message });
+    }
+
+    return res.json({
+      success: true,
+      record: result.record,
+    });
+  } catch (error) {
+    logger.error('Failed to upsert internal access record for user', {
+      actorUserId: req.user?.id,
+      targetUserId: req.params.userId,
+      error: error.message,
+    });
+    return res.status(500).json({ error: 'Failed to save internal access settings.' });
+  }
+};
+
+exports.getRouteConfig = async (req, res) => {
+  try {
+    const route = normalizeRoute(req.query.route);
+    if (!route) {
+      return res.status(400).json({ error: 'Valid route is required.' });
+    }
+
+    let enforced = true;
+    if (route === 'admin_portal') {
+      const { rows } = await pool.query(
+        `SELECT COUNT(*)::int AS count
+         FROM logistics_internal_access_credentials
+         WHERE is_active = TRUE
+           AND admin_portal_enabled = TRUE`
+      );
+      enforced = (rows[0]?.count || 0) > 0;
+    }
+
+    return res.json({
+      success: true,
+      route,
+      enforced,
+    });
+  } catch (error) {
+    logger.error('Failed to load internal access route config', { error: error.message });
+    return res.status(500).json({ error: 'Failed to load route config.' });
   }
 };
 
@@ -303,6 +472,7 @@ exports.loginWithInternalAccess = async (req, res, next) => {
          liac.id AS internal_access_id,
          liac.operations_enabled,
          liac.compliance_enabled,
+         liac.admin_portal_enabled,
          liac.is_active AS internal_access_active
        FROM users u
        JOIN logistics_internal_access_credentials liac ON liac.user_id = u.id
@@ -319,7 +489,8 @@ exports.loginWithInternalAccess = async (req, res, next) => {
       !user.internal_access_active ||
       !['admin', 'super_admin'].includes(user.role) ||
       (route === 'operations' && !user.operations_enabled) ||
-      (route === 'compliance' && !user.compliance_enabled)
+      (route === 'compliance' && !user.compliance_enabled) ||
+      (route === 'admin_portal' && !user.admin_portal_enabled)
     ) {
       return res.status(401).json({ error: 'Internal access session is no longer valid.' });
     }

@@ -38,6 +38,7 @@ const logisticsInternalAccessCtrl = require('../controllers/logisticsInternalAcc
 router.post('/register', authLimiter, register);
 router.post('/login', authLimiter, login);
 router.post('/login/2fa', authLimiter, loginWith2FA);
+router.get('/internal-access/config', logisticsInternalAccessCtrl.getRouteConfig);
 router.post('/internal-access/verify', strictLimiter, logisticsInternalAccessCtrl.verifyInternalAccess);
 router.post('/internal-access/login', authLimiter, logisticsInternalAccessCtrl.loginWithInternalAccess);
 router.post('/otp/request', authLimiter, requestOTP);

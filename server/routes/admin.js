@@ -134,6 +134,8 @@ router.get('/super/admin-activity/:adminId',    requireAdmin, requirePermission(
 // Logistics internal access bootstrap (super-admin self-setup)
 router.get('/super/logistics-internal-access/me', requireSuperAdmin, logisticsInternalAccessCtrl.getMyInternalAccess);
 router.put('/super/logistics-internal-access/me', requireSuperAdmin, logisticsInternalAccessCtrl.upsertMyInternalAccess);
+router.get('/super/logistics-internal-access', requireSuperAdmin, logisticsInternalAccessCtrl.listInternalAccessRecords);
+router.put('/super/logistics-internal-access/:userId', requireSuperAdmin, logisticsInternalAccessCtrl.upsertInternalAccessForUser);
 
 // Financials - super-admin direct, or admin with view_financials grant
 router.get('/financials',            requireAdmin, requirePermission('view_financials'), superCtrl.getFinancials);
