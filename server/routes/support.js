@@ -30,6 +30,9 @@ router.use(requireAuth);
 // ============================================
 router.get('/agent/me', supportAgentPortalController.getMyEmployments);
 router.patch('/agent/me/availability', supportAgentPortalController.patchMyAvailability);
+router.get('/agent/opportunities', supportAgentPortalController.getAgentOpportunities);
+router.get('/agent/applications', supportAgentPortalController.getMyApplications);
+router.get('/hiring/my-businesses', businessSupportSettingsController.listMyHiringProfiles);
 
 // ============================================
 // SUPPORT EMPLOYERS (multi-tenant hiring scope)
@@ -181,6 +184,8 @@ router.get('/:businessId/queue/analytics', queueController.getQueueAnalytics);
 
 // Get support settings for business
 router.get('/:businessId/settings', businessSupportSettingsController.getSupportSettings);
+router.get('/:businessId/settings/hiring', businessSupportSettingsController.getHiringProfile);
+router.put('/:businessId/settings/hiring', businessSupportSettingsController.upsertHiringProfile);
 
 // Set SLA target
 router.post('/:businessId/settings/sla', businessSupportSettingsController.setSLATarget);

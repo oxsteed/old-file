@@ -6,6 +6,14 @@ const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
 
+function normalizeLanguages(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => String(item || '').trim())
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
 // Get support settings for a business
 async function getSupportSettings(req, res) {
   try {
@@ -271,6 +279,183 @@ async function getSupportStatistics(req, res) {
   }
 }
 
+async function getHiringProfile(req, res) {
+  try {
+    const { businessId } = req.params;
+    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    if (!can) return sendError(res, 403, 'Access denied');
+
+    const result = await query(
+      `SELECT
+         business_id,
+         is_accepting_applications,
+         hiring_title,
+         hiring_description,
+         desired_languages,
+         desired_shift_coverage,
+         remote_allowed,
+         compensation_summary,
+         response_time_expectation,
+         created_at,
+         updated_at
+       FROM support_agent_hiring_profiles
+       WHERE business_id = $1`,
+      [businessId]
+    );
+
+    res.json({
+      success: true,
+      data: result.rows[0] || {
+        business_id: Number(businessId),
+        is_accepting_applications: false,
+        hiring_title: null,
+        hiring_description: null,
+        desired_languages: [],
+        desired_shift_coverage: null,
+        remote_allowed: true,
+        compensation_summary: null,
+        response_time_expectation: null,
+      }
+    });
+  } catch (err) {
+    logger.error('getHiringProfile error', { error: err.message });
+    sendError(res, 500, 'Failed to load support-agent hiring profile');
+  }
+}
+
+async function upsertHiringProfile(req, res) {
+  try {
+    const { businessId } = req.params;
+    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    if (!can) return sendError(res, 403, 'Access denied');
+
+    const {
+      is_accepting_applications: isAcceptingApplications,
+      hiring_title: hiringTitle,
+      hiring_description: hiringDescription,
+      desired_languages: desiredLanguages,
+      desired_shift_coverage: desiredShiftCoverage,
+      remote_allowed: remoteAllowed,
+      compensation_summary: compensationSummary,
+      response_time_expectation: responseTimeExpectation,
+    } = req.body || {};
+
+    if (typeof isAcceptingApplications !== 'boolean') {
+      return sendValidationError(res, { is_accepting_applications: 'Must be a boolean' });
+    }
+
+    const result = await query(
+      `INSERT INTO support_agent_hiring_profiles (
+         business_id,
+         is_accepting_applications,
+         hiring_title,
+         hiring_description,
+         desired_languages,
+         desired_shift_coverage,
+         remote_allowed,
+         compensation_summary,
+         response_time_expectation,
+         created_by,
+         updated_by
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
+       ON CONFLICT (business_id) DO UPDATE SET
+         is_accepting_applications = EXCLUDED.is_accepting_applications,
+         hiring_title = EXCLUDED.hiring_title,
+         hiring_description = EXCLUDED.hiring_description,
+         desired_languages = EXCLUDED.desired_languages,
+         desired_shift_coverage = EXCLUDED.desired_shift_coverage,
+         remote_allowed = EXCLUDED.remote_allowed,
+         compensation_summary = EXCLUDED.compensation_summary,
+         response_time_expectation = EXCLUDED.response_time_expectation,
+         updated_by = EXCLUDED.updated_by,
+         updated_at = CURRENT_TIMESTAMP
+       RETURNING
+         business_id,
+         is_accepting_applications,
+         hiring_title,
+         hiring_description,
+         desired_languages,
+         desired_shift_coverage,
+         remote_allowed,
+         compensation_summary,
+         response_time_expectation,
+         created_at,
+         updated_at`,
+      [
+        businessId,
+        isAcceptingApplications,
+        hiringTitle ? String(hiringTitle).trim().slice(0, 200) : null,
+        hiringDescription ? String(hiringDescription).trim().slice(0, 3000) : null,
+        normalizeLanguages(desiredLanguages),
+        desiredShiftCoverage ? String(desiredShiftCoverage).trim().slice(0, 500) : null,
+        remoteAllowed !== false,
+        compensationSummary ? String(compensationSummary).trim().slice(0, 800) : null,
+        responseTimeExpectation ? String(responseTimeExpectation).trim().slice(0, 200) : null,
+        req.user.id
+      ]
+    );
+
+    logger.info('Support-agent hiring profile updated', {
+      businessId,
+      userId: req.user.id,
+      isAcceptingApplications,
+    });
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    logger.error('upsertHiringProfile error', { error: err.message });
+    sendError(res, 500, 'Failed to update support-agent hiring profile');
+  }
+}
+
+async function listMyHiringProfiles(req, res) {
+  try {
+    const result = await query(
+      `SELECT
+         b.id AS business_id,
+         b.business_name,
+         b.business_type,
+         b.address_city,
+         b.address_state,
+         b.logo_url,
+         COALESCE(h.is_accepting_applications, false) AS is_accepting_applications,
+         h.hiring_title,
+         h.hiring_description,
+         h.desired_languages,
+         h.desired_shift_coverage,
+         COALESCE(h.remote_allowed, true) AS remote_allowed,
+         h.compensation_summary,
+         h.response_time_expectation,
+         h.updated_at
+       FROM businesses b
+       LEFT JOIN support_agent_hiring_profiles h ON h.business_id = b.id
+       WHERE b.deleted_at IS NULL
+         AND b.is_active != FALSE
+         AND (
+           b.user_id = $1::uuid
+           OR b.owner_id = $1::uuid
+           OR (b.admin_user_ids IS NOT NULL AND b.admin_user_ids @> $2::jsonb)
+           OR EXISTS (
+             SELECT 1
+             FROM business_members bm
+             WHERE bm.business_id = b.id
+               AND bm.member_id = $1::uuid
+               AND bm.status = 'active'
+               AND bm.role IN ('manager', 'representative')
+           )
+         )
+       ORDER BY COALESCE(h.is_accepting_applications, false) DESC, b.business_name ASC`,
+      [req.user.id, JSON.stringify([req.user.id])]
+    );
+
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    logger.error('listMyHiringProfiles error', { error: err.message });
+    sendError(res, 500, 'Failed to load business hiring profiles');
+  }
+}
+
 module.exports = {
   getSupportSettings,
   setSLATarget,
@@ -278,5 +463,8 @@ module.exports = {
   createRoutingRule,
   updateRoutingRule,
   deleteRoutingRule,
-  getSupportStatistics
+  getSupportStatistics,
+  getHiringProfile,
+  upsertHiringProfile,
+  listMyHiringProfiles
 };

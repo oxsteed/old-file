@@ -10,7 +10,7 @@ const logger = require('../utils/logger');
 
 const BUSINESS_ACCESS_SQL = `
   SELECT b.id FROM businesses b
-  WHERE b.id = $1::uuid
+  WHERE b.id = $1::integer
     AND (
       b.user_id = $2::uuid
       OR b.owner_id = $2::uuid

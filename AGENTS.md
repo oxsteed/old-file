@@ -18,8 +18,15 @@
 **Codebase metrics:**
 - 410 React JSX/TSX files (includes `AIKnowledgeTab`, `AIPreviewPage` for profile AI)
 - 169 backend controllers
-- 268 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
+- 269 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
+
+**Support-agent portal hiring marketplace + employer-controlled publishing (2026-05-22):** COMPLETE
+- **`client/src/pages/SupportAgentPortalPage.jsx`**: Rebuilt `/support/agent` from a simple “current employments” list into a fuller agent marketplace portal with a premium hero, support-role metrics, a process strip, active-role cards, a dedicated “My applications” section, a searchable/filterable business-opportunity board, an in-page application modal, and a new business-side publishing section where managed businesses can explicitly turn support-agent hiring on or off and edit the public opening details.
+- **Explicit hiring-profile model:** **Migration `273_support_agent_hiring_profiles.sql`** adds `support_agent_hiring_profiles` so support-agent discovery is driven by an employer-owned hiring profile instead of inferred support activity. The profile stores `is_accepting_applications`, title/description, desired languages, shift coverage, remote allowance, compensation summary, and response-time expectations.
+- **New support hiring APIs:** **`server/controllers/supportAgentPortalController.js`, `server/controllers/businessSupportSettingsController.js`, `server/routes/support.js`** now add authenticated `GET /api/support/agent/opportunities`, `GET /api/support/agent/applications`, `GET /api/support/hiring/my-businesses`, and business-scoped `GET/PUT /api/support/:businessId/settings/hiring`. The opportunity board now only lists businesses with a published hiring profile where `is_accepting_applications = true`.
+- **Support business-access fix:** **`server/services/supportEmployerService.js`** now treats `businesses.id` as `INTEGER` in the support business-access SQL instead of incorrectly casting it as a UUID, which aligns the support hiring/settings permission checks with the real business schema.
+- **Verification:** `node --check server/controllers/supportAgentPortalController.js server/controllers/businessSupportSettingsController.js server/routes/support.js server/services/supportEmployerService.js` passes. `client/node_modules/.bin/esbuild client/src/pages/SupportAgentPortalPage.jsx --bundle --format=esm --platform=browser --outfile=/tmp/support-agent-portal.js` passes.
 
 **Franchise intake / business-launch separation fix (2026-05-22):** COMPLETE
 - **Dedicated franchise applicant flow:** **`client/src/pages/FranchiseIntakePage.jsx`, `client/src/pages/FranchiseApplicantDashboard.jsx`, `client/src/App.jsx`, `client/src/utils/modeRouter.js`** now give franchise applicants their own public intake at `/franchise/apply` and their own protected status/dashboard at `/franchise/status` instead of reusing the business-launch status surface.
