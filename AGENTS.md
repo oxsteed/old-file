@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-21
+**Last updated:** 2026-05-22
 
 ## Instructions for Every Session
 
@@ -20,6 +20,12 @@
 - 169 backend controllers
 - 268 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
+
+**Franchise intake / business-launch separation fix (2026-05-22):** COMPLETE
+- **Dedicated franchise applicant flow:** **`client/src/pages/FranchiseIntakePage.jsx`, `client/src/pages/FranchiseApplicantDashboard.jsx`, `client/src/App.jsx`, `client/src/utils/modeRouter.js`** now give franchise applicants their own public intake at `/franchise/apply` and their own protected status/dashboard at `/franchise/status` instead of reusing the business-launch status surface.
+- **Frontend untangled from business launch:** **`client/src/pages/FranchiseApplicantDashboard.jsx`** no longer merges `/consulting/business-launch/my-requests` with franchise data or points franchise users into business-launch pages; **`client/src/pages/BusinessOwnerDashboard.jsx`** now sends “Create/Add a business” CTAs to `/consulting-intake` instead of the business-launch status page.
+- **Backend self-serve franchise status endpoint:** **`server/controllers/franchiseController.js` + `server/routes/franchise.js`** add authenticated `GET /api/franchise/my-applications` so franchise applicants can view only their own applications without relying on the admin-only listing route.
+- **Verification:** `node --check server/controllers/franchiseController.js server/routes/franchise.js` passes. `client/node_modules/.bin/esbuild` bundles `client/src/pages/FranchiseIntakePage.jsx`, `client/src/pages/FranchiseApplicantDashboard.jsx`, and `client/src/pages/BusinessOwnerDashboard.jsx` successfully. A top-level `App.jsx` esbuild pass still hits pre-existing unrelated asset-loader warnings/errors from `leaflet.css` PNG imports plus duplicate object keys in `client/src/components/profileTemplates/templateFeaturePacks.js`.
 
 **Expo React Native TestFlight black-screen hotfix (2026-05-20):** COMPLETE
 - **`mobile/babel.config.js`**: Added the required `react-native-worklets/plugin` Babel transform for the Reanimated 4 / Worklets native stack so release bundles do not start without transformed worklet metadata.

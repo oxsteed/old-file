@@ -302,6 +302,63 @@ async function createFranchiseApplication(req, res) {
   }
 }
 
+async function listMyFranchiseApplications(req, res) {
+  if (!req.user?.id) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+
+  try {
+    const result = await db.query(
+      `SELECT
+          fa.id,
+          fa.first_name,
+          fa.last_name,
+          fa.email,
+          fa.phone,
+          fa.lead_source,
+          fa.current_company_name,
+          fa.desired_brand_name,
+          fa.desired_country,
+          fa.desired_region,
+          fa.desired_city,
+          fa.territory_summary,
+          fa.timeline_window,
+          fa.preferred_store_count,
+          fa.status,
+          fa.agreement_status,
+          fa.training_status,
+          fa.launch_readiness_status,
+          fa.available_capital_cents,
+          fa.liquid_capital_cents,
+          fa.linked_business_id,
+          fa.linked_consulting_request_id,
+          fa.submitted_at,
+          fa.updated_at,
+          b.business_name AS linked_business_name,
+          COALESCE(progress.completed_count, 0)::int AS checklist_completed,
+          COALESCE(progress.total_count, 0)::int AS checklist_total
+        FROM franchise_applications fa
+        LEFT JOIN businesses b ON b.id = fa.linked_business_id
+        LEFT JOIN (
+          SELECT
+            application_id,
+            COUNT(*) AS total_count,
+            COUNT(*) FILTER (WHERE status IN ('completed', 'waived')) AS completed_count
+          FROM franchise_application_checklist_items
+          GROUP BY application_id
+        ) progress ON progress.application_id = fa.id
+        WHERE fa.applicant_user_id = $1 OR fa.owner_user_id = $1
+        ORDER BY fa.submitted_at DESC, fa.id DESC`,
+      [req.user.id]
+    );
+
+    return res.json({ applications: result.rows });
+  } catch (err) {
+    logger.error('Error listing my franchise applications', { userId: req.user.id, err: err.message });
+    return res.status(500).json({ error: 'Failed to fetch your franchise applications.' });
+  }
+}
+
 async function listFranchiseApplications(req, res) {
   const { page = 1, limit = 20, status, country, agreement_status, training_status, launch_status, search } = req.query;
   const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
@@ -926,6 +983,7 @@ async function activateFranchiseStore(req, res) {
 
 module.exports = {
   createFranchiseApplication,
+  listMyFranchiseApplications,
   listFranchiseApplications,
   getFranchiseApplication,
   updateFranchiseApplication,

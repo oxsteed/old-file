@@ -19,6 +19,8 @@ import JoinPage from './pages/JoinPage';
 import ConsultingIntakePage from './pages/ConsultingIntakePage';
 import ConsultingFeedbackPage from './pages/ConsultingFeedbackPage';
 import BusinessLaunchStatusPage from './pages/BusinessLaunchStatusPage';
+import FranchiseIntakePage from './pages/FranchiseIntakePage';
+import FranchiseApplicantDashboard from './pages/FranchiseApplicantDashboard';
 import SmartDashboard from './pages/SmartDashboard';
 import UpgradePage from './pages/UpgradePage';
 import JobListPage from './pages/JobListPage';
@@ -174,6 +176,8 @@ export default function App() {
                     <Route path="/consulting-intake"       element={<Guarded><ConsultingIntakePage /></Guarded>} />
                     <Route path="/consulting/feedback/:sessionId" element={<Guarded><ConsultingFeedbackPage /></Guarded>} />
                     <Route path="/business-launch-status"  element={<Guarded><BusinessLaunchStatusPage /></Guarded>} />
+                    <Route path="/franchise/apply"         element={<Guarded><FranchiseIntakePage /></Guarded>} />
+                    <Route path="/franchise/status"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><FranchiseApplicantDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
                     <Route path="/book/:id"                element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookHelperPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/book/business/:id"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookBusinessPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

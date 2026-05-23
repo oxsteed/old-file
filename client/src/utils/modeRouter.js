@@ -46,7 +46,7 @@ const ROUTE_BY_MODE = {
   business_owner:           '/business-hub',
   consultant:               '/consulting/portal',
   tool_owner:               '/profile/tool-rentals',
-  franchise_applicant:      '/business-launch-status',
+  franchise_applicant:      '/franchise/status',
   life_only:                '/dashboard',
   business_manager:         '/business-hub',
   business_representative:  '/business-hub',
@@ -61,10 +61,10 @@ const ROUTE_BY_MODE = {
 const POST_SIGNUP_ROUTE_BY_MODE = {
   // Helpers must still pass identity verification before they can list/bid.
   helper:                   '/verify-identity',
-  business_owner:           '/business-launch-status',
+  business_owner:           '/consulting-intake',
   consultant:               '/consulting/portal',
   tool_owner:               '/profile/tool-rentals',
-  franchise_applicant:      '/business-launch-status',
+  franchise_applicant:      '/franchise/status',
   // customer + life_only land straight on the dashboard.
 };
 

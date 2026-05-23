@@ -5,6 +5,7 @@ const { requireAdmin } = require('../middleware/adminAuth');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const {
   createFranchiseApplication,
+  listMyFranchiseApplications,
   listFranchiseApplications,
   getFranchiseApplication,
   updateFranchiseApplication,
@@ -15,6 +16,7 @@ const {
 } = require('../controllers/franchiseController');
 
 router.post('/applications', generalLimiter, createFranchiseApplication);
+router.get('/my-applications', authenticate, listMyFranchiseApplications);
 
 router.get('/applications', authenticate, requireAdmin, listFranchiseApplications);
 router.get('/applications/:id', authenticate, requireAdmin, getFranchiseApplication);

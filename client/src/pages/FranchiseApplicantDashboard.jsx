@@ -1,144 +1,151 @@
-// client/src/pages/FranchiseApplicantDashboard.jsx
-//
-// First-screen experience for users in the `franchise_applicant` mode.
-//
-// Combines:
-//   GET /consulting/business-launch/my-requests   (the "I want to launch / franchise" intake)
-//   GET /franchise/applications?mine=true         (formal franchise applications, if any)
-//
-// Behavior:
-//   * Zero applications  → hero CTA to start one.
-//   * One or more        → status card for the most recent, plus a list of
-//                          past requests, with quick links into messages
-//                          and the consultant.
-
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import {
+  ArrowRight,
+  Briefcase,
+  CheckCircle2,
+  Clock3,
+  Compass,
+  FileText,
+  Flag,
+  MapPin,
+  Rocket,
+  ShieldCheck,
+} from 'lucide-react';
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import {
-  Flag, CheckCircle2, Clock, MessageSquare, FileText,
-  ArrowRight, User, AlertCircle,
-} from 'lucide-react';
+import { ALL_COUNTRIES } from '../lib/countries';
 
 const STATUS_PROGRESS = {
-  pending:           10,
-  contacted:         30,
-  kickoff_scheduled: 50,
-  in_progress:       75,
-  completed:         100,
-  cancelled:         0,
+  inquiry: 12,
+  screening: 24,
+  application_review: 40,
+  diligence: 58,
+  agreement_pending: 76,
+  approved: 88,
+  launched: 100,
+  rejected: 0,
+  archived: 0,
+};
+
+const READINESS_LABELS = {
+  not_started: 'Not started',
+  scheduled: 'Scheduled',
+  in_progress: 'In progress',
+  completed: 'Completed',
+  draft: 'Draft',
+  sent: 'Sent',
+  signed: 'Signed',
+  waived: 'Waived',
+  not_ready: 'Not ready',
+  planning: 'Planning',
+  ready: 'Ready',
+  launched: 'Launched',
 };
 
 const STATUS_LABELS = (t) => ({
-  pending:            t('dashboards.franchise.statusPending', { defaultValue: 'Awaiting review' }),
-  contacted:          t('dashboards.franchise.statusContacted', { defaultValue: 'Consultant contacted you' }),
-  kickoff_scheduled:  t('dashboards.franchise.statusKickoff', { defaultValue: 'Kickoff scheduled' }),
-  in_progress:        t('dashboards.franchise.statusInProgress', { defaultValue: 'In progress' }),
-  completed:          t('dashboards.franchise.statusCompleted', { defaultValue: 'Launched' }),
-  cancelled:          t('dashboards.franchise.statusCancelled', { defaultValue: 'Cancelled' }),
+  inquiry: t('dashboards.franchise.statusInquiry', { defaultValue: 'Inquiry received' }),
+  screening: t('dashboards.franchise.statusScreening', { defaultValue: 'Screening' }),
+  application_review: t('dashboards.franchise.statusApplicationReview', { defaultValue: 'Application review' }),
+  diligence: t('dashboards.franchise.statusDiligence', { defaultValue: 'Diligence' }),
+  agreement_pending: t('dashboards.franchise.statusAgreementPending', { defaultValue: 'Agreement pending' }),
+  approved: t('dashboards.franchise.statusApproved', { defaultValue: 'Approved' }),
+  rejected: t('dashboards.franchise.statusRejected', { defaultValue: 'Not approved' }),
+  archived: t('dashboards.franchise.statusArchived', { defaultValue: 'Archived' }),
+  launched: t('dashboards.franchise.statusLaunched', { defaultValue: 'Launched' }),
 });
 
+function formatDate(value) {
+  if (!value) return '—';
+  return new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function formatMoney(cents) {
+  if (cents == null || Number.isNaN(Number(cents))) return '—';
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(cents) / 100);
+}
+
 function ProgressRing({ pct }) {
-  const radius = 38;
-  const stroke = 6;
-  const c = 2 * Math.PI * radius;
-  const offset = c - (Math.max(0, Math.min(100, pct)) / 100) * c;
+  const radius = 42;
+  const stroke = 7;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (Math.max(0, Math.min(100, pct)) / 100) * circumference;
+
   return (
-    <div className="relative" style={{ width: 100, height: 100 }}>
-      <svg width="100" height="100" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r={radius} stroke="rgba(148,163,184,0.2)" strokeWidth={stroke} fill="none" />
+    <div className="relative" style={{ width: 112, height: 112 }}>
+      <svg width="112" height="112" viewBox="0 0 112 112">
+        <circle cx="56" cy="56" r={radius} stroke="rgba(148,163,184,0.18)" strokeWidth={stroke} fill="none" />
         <circle
-          cx="50" cy="50" r={radius}
-          stroke="#F97316" strokeWidth={stroke} fill="none"
-          strokeDasharray={c} strokeDashoffset={offset}
+          cx="56"
+          cy="56"
+          r={radius}
+          stroke="#f97316"
+          strokeWidth={stroke}
+          fill="none"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
           strokeLinecap="round"
-          transform="rotate(-90 50 50)"
+          transform="rotate(-90 56 56)"
         />
       </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-xl font-bold">{Math.round(pct)}%</span>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <div className="text-2xl font-bold">{Math.round(pct)}%</div>
+        <div className="text-[11px] uppercase tracking-[0.2em]" style={{ color: 'var(--color-text-muted)' }}>
+          Progress
+        </div>
       </div>
+    </div>
+  );
+}
+
+function MiniMetric({ icon: Icon, label, value, accent = '#93c5fd' }) {
+  return (
+    <div className="rounded-2xl border p-4" style={{ borderColor: 'rgba(148,163,184,0.14)', background: 'rgba(255,255,255,0.03)' }}>
+      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em]" style={{ color: 'var(--color-text-muted)' }}>
+        <Icon size={13} style={{ color: accent }} />
+        {label}
+      </div>
+      <div className="text-base font-semibold mt-2">{value || '—'}</div>
     </div>
   );
 }
 
 export default function FranchiseApplicantDashboard() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-
-  const [launches, setLaunches] = useState([]);
-  const [franchises, setFranchises] = useState([]);
+  const [applications, setApplications] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    const safe = (url) => api.get(url).then(r => r.data).catch(() => null);
-    Promise.all([
-      safe('/consulting/business-launch/my-requests'),
-      safe('/franchise/applications?mine=true'),
-    ]).then(([l, f]) => {
-      if (cancelled) return;
-      setLaunches(Array.isArray(l?.requests) ? l.requests : (Array.isArray(l) ? l : []));
-      setFranchises(Array.isArray(f?.applications) ? f.applications : (Array.isArray(f) ? f : []));
-      setLoaded(true);
-    });
-    return () => { cancelled = true; };
+    api.get('/franchise/my-applications')
+      .then((response) => {
+        if (cancelled) return;
+        setApplications(Array.isArray(response.data?.applications) ? response.data.applications : []);
+        setLoaded(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setApplications([]);
+        setLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const all = useMemo(() => {
-    // Merge + tag for unified display, newest first.
-    const tagged = [
-      ...launches.map(x => ({ ...x, _kind: 'launch' })),
-      ...franchises.map(x => ({ ...x, _kind: 'franchise' })),
-    ];
-    return tagged.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-  }, [launches, franchises]);
+  const sortedApplications = useMemo(
+    () => [...applications].sort((a, b) => new Date(b.submitted_at || b.updated_at || 0) - new Date(a.submitted_at || a.updated_at || 0)),
+    [applications]
+  );
 
-  const primary = all[0] || null;
+  const primary = sortedApplications[0] || null;
   const labels = STATUS_LABELS(t);
 
-  // Empty state
-  if (loaded && all.length === 0) {
+  if (!loaded) {
     return (
-      <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-bg, #030712)', color: 'var(--color-text, #f3f4f6)' }}>
-        <Navbar />
-        <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-16 flex flex-col gap-6 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mx-auto" style={{ background: 'rgba(249,115,22,0.12)' }}>
-            <Flag size={32} className="text-orange-500" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            {t('dashboards.franchise.heroTitle', { defaultValue: 'Start your OxSteed franchise application' })}
-          </h1>
-          <p className="text-base" style={{ color: 'var(--color-text-muted, #9ca3af)' }}>
-            {t('dashboards.franchise.heroSubtitle', { defaultValue: 'Tell us about your background, capital, and target territory. A consultant will review your application and walk you through the next steps.' })}
-          </p>
-          <div className="flex justify-center gap-3 flex-wrap">
-            <Link
-              to="/consulting"
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition"
-            >
-              {t('dashboards.franchise.startApp', { defaultValue: 'Start application' })} <ArrowRight size={16} />
-            </Link>
-            <Link
-              to="/business-launch-status"
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-lg border text-sm font-semibold transition hover:bg-orange-500/5"
-              style={{ borderColor: 'var(--color-border)' }}
-            >
-              {t('dashboards.franchise.learnMore', { defaultValue: 'Learn more' })}
-            </Link>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  if (!loaded || !primary) {
-    return (
-      <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-bg, #030712)' }}>
+      <div className="min-h-screen flex flex-col" style={{ background: '#020617' }}>
         <Navbar />
         <main className="flex-1 flex items-center justify-center">
           <div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
@@ -148,138 +155,172 @@ export default function FranchiseApplicantDashboard() {
     );
   }
 
-  const pct = STATUS_PROGRESS[primary.status] ?? 0;
+  if (!primary) {
+    return (
+      <div className="min-h-screen flex flex-col" style={{ background: '#020617', color: 'var(--color-text, #f8fafc)' }}>
+        <Navbar />
+        <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-16">
+          <section className="rounded-[28px] border p-8 text-center" style={{ borderColor: 'rgba(148,163,184,0.14)', background: 'linear-gradient(180deg, rgba(15,23,42,0.96), rgba(15,23,42,0.86))' }}>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={{ background: 'rgba(249,115,22,0.14)', color: '#fdba74' }}>
+              <Flag size={15} />
+              Franchise mode
+            </div>
+            <h1 className="text-4xl font-bold tracking-tight mt-5">
+              {t('dashboards.franchise.heroTitle', { defaultValue: 'Start your OxSteed franchise application' })}
+            </h1>
+            <p className="text-base mt-4 max-w-2xl mx-auto" style={{ color: 'var(--color-text-muted, #94a3b8)', lineHeight: 1.75 }}>
+              {t('dashboards.franchise.heroSubtitle', { defaultValue: 'Apply for franchise expansion with your own territory, capital plan, and launch timeline. This path is separate from the business-launch consulting intake.' })}
+            </p>
+            <div className="flex justify-center gap-3 flex-wrap mt-8">
+              <Link to="/franchise/apply" className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition">
+                {t('dashboards.franchise.startApp', { defaultValue: 'Start franchise intake' })} <ArrowRight size={16} />
+              </Link>
+              <Link to="/consulting" className="inline-flex items-center gap-2 px-5 py-3 rounded-full border text-sm font-semibold transition hover:bg-white/5" style={{ borderColor: 'rgba(148,163,184,0.16)' }}>
+                {t('dashboards.franchise.bookCall', { defaultValue: 'Book a strategy call' })}
+              </Link>
+            </div>
+          </section>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  const progress = STATUS_PROGRESS[primary.status] ?? 0;
+  const checklistValue = primary.checklist_total ? `${primary.checklist_completed || 0}/${primary.checklist_total}` : 'Pending';
+  const territory = [primary.desired_city, primary.desired_region, primary.desired_country ? ALL_COUNTRIES[primary.desired_country] || primary.desired_country : null]
+    .filter(Boolean)
+    .join(', ');
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-bg, #030712)', color: 'var(--color-text, #f3f4f6)' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: 'radial-gradient(circle at top left, rgba(249,115,22,0.14), transparent 30%), #020617', color: 'var(--color-text, #f8fafc)' }}>
       <Navbar />
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-8 flex flex-col gap-6">
-        <section>
-          <h1 className="text-3xl font-bold tracking-tight">
-            {t('dashboards.franchise.title', { defaultValue: 'Your franchise journey' })}
-          </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted, #9ca3af)' }}>
-            {t('dashboards.franchise.subtitle', { defaultValue: 'Track your application, talk to your consultant, complete your checklist.' })}
-          </p>
-        </section>
-
-        <section
-          className="rounded-xl border p-6 flex gap-6 items-center flex-wrap"
-          style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
-        >
-          <ProgressRing pct={pct} />
-          <div className="flex-1 min-w-[240px]">
-            <div className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
-              {primary._kind === 'franchise' ? 'Franchise application' : 'Business launch'}
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8 flex flex-col gap-6">
+        <section className="rounded-[30px] border p-6 lg:p-8" style={{ borderColor: 'rgba(148,163,184,0.14)', background: 'linear-gradient(180deg, rgba(15,23,42,0.96), rgba(15,23,42,0.88))' }}>
+          <div className="flex flex-wrap items-start justify-between gap-6">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-[0.2em]" style={{ background: 'rgba(59,130,246,0.12)', color: '#93c5fd' }}>
+                <ShieldCheck size={14} />
+                Franchise applicant
+              </div>
+              <h1 className="text-4xl font-bold tracking-tight mt-4">
+                {t('dashboards.franchise.title', { defaultValue: 'Your franchise journey' })}
+              </h1>
+              <p className="text-sm mt-3 max-w-2xl" style={{ color: 'var(--color-text-muted, #94a3b8)', lineHeight: 1.7 }}>
+                {t('dashboards.franchise.subtitle', { defaultValue: 'Track application review, diligence, agreement progress, and launch readiness without mixing in business-launch consulting requests.' })}
+              </p>
+              <div className="flex flex-wrap gap-3 mt-6">
+                <Link to="/franchise/apply" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition">
+                  Submit another territory <ArrowRight size={15} />
+                </Link>
+                <Link to="/support/escalation" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-semibold transition hover:bg-white/5" style={{ borderColor: 'rgba(148,163,184,0.16)' }}>
+                  Contact support
+                </Link>
+              </div>
             </div>
-            <div className="text-xl font-bold mt-0.5">
-              {primary.desired_brand_name || primary.business_idea || primary.preferred_package || 'Application'}
-            </div>
-            <div className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
-              {labels[primary.status] || primary.status}
-              {primary.created_at && ` · ${t('dashboards.franchise.submitted', { defaultValue: 'submitted' })} ${new Date(primary.created_at).toLocaleDateString()}`}
-            </div>
-            <div className="flex gap-2 mt-4 flex-wrap">
-              <Link
-                to={`/consulting/portal`}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-md bg-orange-500 hover:bg-orange-600 text-white font-semibold"
-              >
-                <MessageSquare size={13} /> {t('dashboards.franchise.openPortal', { defaultValue: 'Open portal' })}
-              </Link>
-              <Link
-                to="/business-launch-status"
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-md border font-semibold hover:bg-orange-500/5"
-                style={{ borderColor: 'var(--color-border)' }}
-              >
-                <FileText size={13} /> {t('dashboards.franchise.viewDetails', { defaultValue: 'View details' })}
-              </Link>
-            </div>
+            <ProgressRing pct={progress} />
           </div>
         </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <section className="rounded-xl border p-5" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}>
-            <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
-              <CheckCircle2 size={16} className="text-orange-500" />
-              {t('dashboards.franchise.nextSteps', { defaultValue: 'What happens next' })}
-            </h3>
-            <ol className="flex flex-col gap-2 text-sm">
-              <li className="flex items-start gap-2">
-                <span className="text-orange-400">1.</span>
-                <span style={{ color: pct >= 30 ? 'var(--color-text-muted)' : 'var(--color-text)' }}>
-                  {t('dashboards.franchise.step1', { defaultValue: 'A consultant reviews your application and reaches out.' })}
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-orange-400">2.</span>
-                <span style={{ color: pct >= 50 ? 'var(--color-text-muted)' : 'var(--color-text)' }}>
-                  {t('dashboards.franchise.step2', { defaultValue: 'You meet for a kickoff call to plan the launch.' })}
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-orange-400">3.</span>
-                <span style={{ color: pct >= 75 ? 'var(--color-text-muted)' : 'var(--color-text)' }}>
-                  {t('dashboards.franchise.step3', { defaultValue: 'Work through the launch checklist together.' })}
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-orange-400">4.</span>
-                <span style={{ color: pct >= 100 ? 'var(--color-text-muted)' : 'var(--color-text)' }}>
-                  {t('dashboards.franchise.step4', { defaultValue: 'Your store goes live on OxSteed.' })}
-                </span>
-              </li>
-            </ol>
-          </section>
+        <section className="grid grid-cols-1 lg:grid-cols-[1.3fr,0.7fr] gap-4">
+          <article className="rounded-[28px] border p-6" style={{ borderColor: 'rgba(148,163,184,0.14)', background: 'rgba(15,23,42,0.88)' }}>
+            <div className="text-[11px] uppercase tracking-[0.18em]" style={{ color: '#fdba74' }}>
+              Current application
+            </div>
+            <div className="text-2xl font-bold mt-2">
+              {primary.desired_brand_name || primary.current_company_name || 'OxSteed franchise application'}
+            </div>
+            <div className="text-sm mt-2" style={{ color: 'var(--color-text-muted, #94a3b8)' }}>
+              {labels[primary.status] || primary.status} · submitted {formatDate(primary.submitted_at)}
+            </div>
 
-          <section className="rounded-xl border p-5" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}>
-            <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
-              <User size={16} className="text-orange-500" />
-              {t('dashboards.franchise.consultant', { defaultValue: 'Your consultant' })}
-            </h3>
-            {primary.consultant_name ? (
-              <div>
-                <div className="text-base font-semibold">{primary.consultant_name}</div>
-                {primary.consultant_email && (
-                  <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>{primary.consultant_email}</div>
-                )}
-                <Link
-                  to="/consulting/portal"
-                  className="inline-flex items-center gap-1.5 text-xs mt-3 text-orange-400 hover:text-orange-300"
-                >
-                  <MessageSquare size={12} /> {t('dashboards.franchise.message', { defaultValue: 'Open conversation' })}
-                </Link>
-              </div>
-            ) : (
-              <div className="text-xs flex items-start gap-2" style={{ color: 'var(--color-text-muted)' }}>
-                <Clock size={14} className="text-orange-400 mt-0.5" />
-                <span>{t('dashboards.franchise.consultantPending', { defaultValue: 'A consultant will be assigned shortly. You\'ll get an email when they reach out.' })}</span>
-              </div>
-            )}
-          </section>
-        </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mt-6">
+              <MiniMetric icon={MapPin} label="Territory" value={territory} accent="#93c5fd" />
+              <MiniMetric icon={CheckCircle2} label="Checklist" value={checklistValue} accent="#34d399" />
+              <MiniMetric icon={FileText} label="Agreement" value={READINESS_LABELS[primary.agreement_status] || primary.agreement_status || 'Pending'} accent="#fca5a5" />
+              <MiniMetric icon={Rocket} label="Launch readiness" value={READINESS_LABELS[primary.launch_readiness_status] || primary.launch_readiness_status || 'Pending'} accent="#c4b5fd" />
+            </div>
 
-        {all.length > 1 && (
-          <section className="rounded-xl border" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}>
-            <header className="px-5 pt-4 pb-2">
-              <h3 className="text-sm font-semibold">{t('dashboards.franchise.allApplications', { defaultValue: 'All applications' })}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+              <div className="rounded-2xl border p-4" style={{ borderColor: 'rgba(148,163,184,0.12)', background: 'rgba(255,255,255,0.03)' }}>
+                <div className="text-sm font-semibold flex items-center gap-2">
+                  <Briefcase size={15} className="text-orange-400" />
+                  Capital profile
+                </div>
+                <div className="mt-3 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                  Available capital: <strong style={{ color: 'var(--color-text)' }}>{formatMoney(primary.available_capital_cents)}</strong>
+                </div>
+                <div className="mt-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                  Liquid capital: <strong style={{ color: 'var(--color-text)' }}>{formatMoney(primary.liquid_capital_cents)}</strong>
+                </div>
+                <div className="mt-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                  Store goal: <strong style={{ color: 'var(--color-text)' }}>{primary.preferred_store_count || 1}</strong>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border p-4" style={{ borderColor: 'rgba(148,163,184,0.12)', background: 'rgba(255,255,255,0.03)' }}>
+                <div className="text-sm font-semibold flex items-center gap-2">
+                  <Compass size={15} className="text-orange-400" />
+                  Next milestone
+                </div>
+                <p className="mt-3 text-sm" style={{ color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
+                  {primary.status === 'inquiry' && 'We are reviewing your territory and initial fit.'}
+                  {primary.status === 'screening' && 'Expect screening questions about your background and capital readiness.'}
+                  {primary.status === 'application_review' && 'Your formal application is under review by the franchise team.'}
+                  {primary.status === 'diligence' && 'We are working through diligence, validation, and operating readiness.'}
+                  {primary.status === 'agreement_pending' && 'Agreement documents and signing steps are now the main blocker.'}
+                  {primary.status === 'approved' && 'You are approved. Training and launch-readiness work remain.'}
+                  {primary.status === 'launched' && 'This franchise has moved into launch mode.'}
+                  {primary.status === 'rejected' && 'This application is closed. Contact support if you believe more context is needed.'}
+                  {primary.status === 'archived' && 'This application is archived.'}
+                </p>
+              </div>
+            </div>
+          </article>
+
+          <aside className="rounded-[28px] border p-6" style={{ borderColor: 'rgba(148,163,184,0.14)', background: 'rgba(15,23,42,0.88)' }}>
+            <div className="text-sm font-semibold flex items-center gap-2">
+              <Clock3 size={15} className="text-orange-400" />
+              Timeline
+            </div>
+            <div className="mt-4 grid gap-3">
+              {[
+                ['Submitted', formatDate(primary.submitted_at)],
+                ['Last updated', formatDate(primary.updated_at)],
+                ['Launch target', primary.timeline_window || 'Not specified'],
+                ['Training', READINESS_LABELS[primary.training_status] || primary.training_status || 'Pending'],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-2xl border p-3" style={{ borderColor: 'rgba(148,163,184,0.12)', background: 'rgba(255,255,255,0.03)' }}>
+                  <div className="text-[11px] uppercase tracking-[0.18em]" style={{ color: 'var(--color-text-muted)' }}>{label}</div>
+                  <div className="text-sm font-semibold mt-1">{value}</div>
+                </div>
+              ))}
+            </div>
+          </aside>
+        </section>
+
+        {sortedApplications.length > 1 && (
+          <section className="rounded-[28px] border overflow-hidden" style={{ borderColor: 'rgba(148,163,184,0.14)', background: 'rgba(15,23,42,0.88)' }}>
+            <header className="px-6 py-4 border-b" style={{ borderColor: 'rgba(148,163,184,0.12)' }}>
+              <h2 className="text-lg font-semibold">All franchise applications</h2>
             </header>
-            <ul className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
-              {all.slice(1).map((x) => (
-                <li key={`${x._kind}-${x.id}`} className="px-5 py-3 flex items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium truncate">
-                      {x.desired_brand_name || x.business_idea || 'Application'}
+            <div className="divide-y" style={{ borderColor: 'rgba(148,163,184,0.12)' }}>
+              {sortedApplications.map((application) => (
+                <div key={application.id} className="px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <div className="font-semibold">
+                      {application.desired_brand_name || application.current_company_name || `Application #${application.id}`}
                     </div>
-                    <div className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-                      {labels[x.status] || x.status} · {x.created_at ? new Date(x.created_at).toLocaleDateString() : ''}
+                    <div className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                      {(labels[application.status] || application.status)} · {formatDate(application.submitted_at)}
                     </div>
                   </div>
-                  <Link to="/business-launch-status" className="text-xs text-orange-400 hover:text-orange-300">
-                    {t('common.view', { defaultValue: 'View' })}
-                  </Link>
-                </li>
+                  <div className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                    {application.desired_country ? ALL_COUNTRIES[application.desired_country] || application.desired_country : '—'}
+                  </div>
+                </div>
               ))}
-            </ul>
+            </div>
           </section>
         )}
       </main>

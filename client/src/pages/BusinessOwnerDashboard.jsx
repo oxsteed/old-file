@@ -222,7 +222,7 @@ export default function BusinessOwnerDashboard() {
           </p>
           <div className="flex justify-center gap-3 flex-wrap">
             <Link
-              to="/business-launch-status"
+              to="/consulting-intake"
               className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition"
             >
               {t('dashboards.businessOwner.createFirst', { defaultValue: 'Create a business' })} <ArrowRight size={16} />
@@ -257,7 +257,7 @@ export default function BusinessOwnerDashboard() {
             </p>
           </div>
           <Link
-            to="/business-launch-status"
+            to="/consulting-intake"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition"
           >
             <Plus size={16} /> {t('dashboards.businessOwner.addBusiness', { defaultValue: 'Add a business' })}
