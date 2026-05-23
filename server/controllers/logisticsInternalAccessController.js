@@ -297,9 +297,21 @@ exports.listInternalAccessRecords = async (req, res) => {
          liac.is_active,
          liac.last_verified_at,
          liac.last_verified_route,
-         liac.updated_at
+         liac.updated_at,
+         COALESCE(corp.department_codes, ARRAY[]::text[]) AS department_codes,
+         COALESCE(corp.department_names, ARRAY[]::text[]) AS department_names
        FROM users u
        LEFT JOIN logistics_internal_access_credentials liac ON liac.user_id = u.id
+       LEFT JOIN (
+         SELECT
+           ca.user_id,
+           ARRAY_AGG(DISTINCT d.code ORDER BY d.code) AS department_codes,
+           ARRAY_AGG(DISTINCT d.name ORDER BY d.name) AS department_names
+         FROM corporate_assignments ca
+         JOIN corporate_departments d ON d.id = ca.department_id
+         WHERE ca.is_active = TRUE
+         GROUP BY ca.user_id
+       ) corp ON corp.user_id = u.id
        WHERE u.role IN ('admin', 'super_admin')
           OR (
             u.role = 'employee'
@@ -326,15 +338,35 @@ exports.listInternalAccessRecords = async (req, res) => {
 
     return res.json({
       success: true,
-      records: rows.map((row) => ({
-        ...row,
-        operations_enabled: !!row.operations_enabled,
-        compliance_enabled: !!row.compliance_enabled,
-        admin_portal_enabled: !!row.admin_portal_enabled,
-        is_active: row.id ? !!row.is_active : false,
-        has_record: !!row.id,
-        logistics_role: row.logistics_role || null,
-      })),
+      records: rows.map((row) => {
+        const departmentCodes = Array.isArray(row.department_codes) ? row.department_codes.filter(Boolean) : [];
+        const eligibleRoutes = [];
+        if (row.role === 'admin' || row.role === 'super_admin') {
+          eligibleRoutes.push('admin_portal');
+        }
+        if (['admin', 'super_admin'].includes(row.role) || ['sourcing_operator', 'logistics_coordinator', 'warehouse_operator'].includes(row.logistics_role)) {
+          eligibleRoutes.push('operations');
+        }
+        if (['admin', 'super_admin'].includes(row.role) || row.logistics_role === 'compliance_reviewer') {
+          eligibleRoutes.push('compliance');
+        }
+        for (const code of departmentCodes) {
+          if (!eligibleRoutes.includes(code)) eligibleRoutes.push(code);
+        }
+
+        return {
+          ...row,
+          operations_enabled: !!row.operations_enabled,
+          compliance_enabled: !!row.compliance_enabled,
+          admin_portal_enabled: !!row.admin_portal_enabled,
+          is_active: row.id ? !!row.is_active : false,
+          has_record: !!row.id,
+          logistics_role: row.logistics_role || null,
+          department_codes: departmentCodes,
+          department_names: Array.isArray(row.department_names) ? row.department_names.filter(Boolean) : [],
+          eligible_routes: eligibleRoutes,
+        };
+      }),
     });
   } catch (error) {
     logger.error('Failed to list internal access records', { error: error.message });
