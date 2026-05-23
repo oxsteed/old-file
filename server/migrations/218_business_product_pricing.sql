@@ -33,7 +33,7 @@ CREATE INDEX IF NOT EXISTS idx_product_pricing_rules_applies_to ON product_prici
 -- Product Promotions (time-limited sales)
 CREATE TABLE IF NOT EXISTS product_promotions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   promotion_name VARCHAR(200) NOT NULL,
   description TEXT,
   discount_type VARCHAR(50) NOT NULL CHECK (discount_type IN ('percentage', 'fixed', 'bogo')),
@@ -57,7 +57,7 @@ CREATE INDEX IF NOT EXISTS idx_product_promotions_dates ON product_promotions(st
 -- Product Bundles (multi-product deals)
 CREATE TABLE IF NOT EXISTS product_bundles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   bundle_name VARCHAR(200) NOT NULL,
   description TEXT,
   bundle_price_cents BIGINT,
@@ -101,7 +101,7 @@ CREATE INDEX IF NOT EXISTS idx_product_bulk_tiers_min_qty ON product_bulk_tiers(
 -- Promotional Codes
 CREATE TABLE IF NOT EXISTS product_promo_codes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   code VARCHAR(50) NOT NULL UNIQUE,
   description TEXT,
   discount_type VARCHAR(50) NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),

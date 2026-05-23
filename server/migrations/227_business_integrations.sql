@@ -30,14 +30,14 @@ CREATE TABLE IF NOT EXISTS business_integrations (
   UNIQUE(business_id, integration_type)
 );
 
-CREATE INDEX idx_business_integrations_business_id ON business_integrations(business_id);
-CREATE INDEX idx_business_integrations_integration_type ON business_integrations(integration_type);
-CREATE INDEX idx_business_integrations_is_connected ON business_integrations(is_connected);
-CREATE INDEX idx_business_integrations_is_enabled ON business_integrations(is_enabled);
+CREATE INDEX IF NOT EXISTS idx_business_integrations_business_id ON business_integrations(business_id);
+CREATE INDEX IF NOT EXISTS idx_business_integrations_integration_type ON business_integrations(integration_type);
+CREATE INDEX IF NOT EXISTS idx_business_integrations_is_connected ON business_integrations(is_connected);
+CREATE INDEX IF NOT EXISTS idx_business_integrations_is_enabled ON business_integrations(is_enabled);
 
 CREATE TABLE IF NOT EXISTS business_webhooks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   webhook_url VARCHAR(2048) NOT NULL,
   webhook_secret VARCHAR(500),
   event_types VARCHAR(100)[] NOT NULL,
@@ -50,8 +50,8 @@ CREATE TABLE IF NOT EXISTS business_webhooks (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_business_webhooks_business_id ON business_webhooks(business_id);
-CREATE INDEX idx_business_webhooks_is_active ON business_webhooks(is_active);
+CREATE INDEX IF NOT EXISTS idx_business_webhooks_business_id ON business_webhooks(business_id);
+CREATE INDEX IF NOT EXISTS idx_business_webhooks_is_active ON business_webhooks(is_active);
 
 CREATE TABLE IF NOT EXISTS webhook_delivery_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -67,13 +67,13 @@ CREATE TABLE IF NOT EXISTS webhook_delivery_log (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_webhook_delivery_log_webhook_id ON webhook_delivery_log(webhook_id);
-CREATE INDEX idx_webhook_delivery_log_event_type ON webhook_delivery_log(event_type);
-CREATE INDEX idx_webhook_delivery_log_created_at ON webhook_delivery_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_webhook_delivery_log_webhook_id ON webhook_delivery_log(webhook_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_delivery_log_event_type ON webhook_delivery_log(event_type);
+CREATE INDEX IF NOT EXISTS idx_webhook_delivery_log_created_at ON webhook_delivery_log(created_at DESC);
 
 CREATE TABLE IF NOT EXISTS business_payment_methods (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   payment_provider VARCHAR(100) NOT NULL CHECK (payment_provider IN ('stripe', 'square', 'paypal')),
   provider_account_id VARCHAR(500),
   display_name VARCHAR(255),
@@ -85,6 +85,6 @@ CREATE TABLE IF NOT EXISTS business_payment_methods (
   UNIQUE(business_id, payment_provider, provider_account_id)
 );
 
-CREATE INDEX idx_business_payment_methods_business_id ON business_payment_methods(business_id);
-CREATE INDEX idx_business_payment_methods_is_primary ON business_payment_methods(is_primary);
-CREATE INDEX idx_business_payment_methods_is_enabled ON business_payment_methods(is_enabled);
+CREATE INDEX IF NOT EXISTS idx_business_payment_methods_business_id ON business_payment_methods(business_id);
+CREATE INDEX IF NOT EXISTS idx_business_payment_methods_is_primary ON business_payment_methods(is_primary);
+CREATE INDEX IF NOT EXISTS idx_business_payment_methods_is_enabled ON business_payment_methods(is_enabled);

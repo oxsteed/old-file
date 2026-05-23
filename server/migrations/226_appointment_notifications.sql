@@ -27,13 +27,13 @@ CREATE TABLE IF NOT EXISTS appointment_notification_templates (
   UNIQUE(business_id, notification_type, trigger_event, channel)
 );
 
-CREATE INDEX idx_appointment_notification_templates_business_id ON appointment_notification_templates(business_id);
-CREATE INDEX idx_appointment_notification_templates_trigger_event ON appointment_notification_templates(trigger_event);
-CREATE INDEX idx_appointment_notification_templates_is_enabled ON appointment_notification_templates(is_enabled);
+CREATE INDEX IF NOT EXISTS idx_appointment_notification_templates_business_id ON appointment_notification_templates(business_id);
+CREATE INDEX IF NOT EXISTS idx_appointment_notification_templates_trigger_event ON appointment_notification_templates(trigger_event);
+CREATE INDEX IF NOT EXISTS idx_appointment_notification_templates_is_enabled ON appointment_notification_templates(is_enabled);
 
 CREATE TABLE IF NOT EXISTS appointment_notification_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   send_confirmation_email BOOLEAN DEFAULT TRUE,
   send_confirmation_sms BOOLEAN DEFAULT FALSE,
   reminder_24h_enabled BOOLEAN DEFAULT TRUE,
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS appointment_notification_settings (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_appointment_notification_settings_business_id ON appointment_notification_settings(business_id);
+CREATE INDEX IF NOT EXISTS idx_appointment_notification_settings_business_id ON appointment_notification_settings(business_id);
 
 CREATE TABLE IF NOT EXISTS notification_delivery_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -70,6 +70,6 @@ CREATE TABLE IF NOT EXISTS notification_delivery_log (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_notification_delivery_log_appointment_id ON notification_delivery_log(appointment_id);
-CREATE INDEX idx_notification_delivery_log_status ON notification_delivery_log(status);
-CREATE INDEX idx_notification_delivery_log_created_at ON notification_delivery_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notification_delivery_log_appointment_id ON notification_delivery_log(appointment_id);
+CREATE INDEX IF NOT EXISTS idx_notification_delivery_log_status ON notification_delivery_log(status);
+CREATE INDEX IF NOT EXISTS idx_notification_delivery_log_created_at ON notification_delivery_log(created_at DESC);

@@ -25,14 +25,14 @@ CREATE TABLE IF NOT EXISTS business_services (
   deleted_at TIMESTAMP WITH TIME ZONE
 );
 
-CREATE INDEX idx_business_services_business_id ON business_services(business_id);
-CREATE INDEX idx_business_services_is_active ON business_services(is_active);
-CREATE INDEX idx_business_services_created_at ON business_services(created_at DESC);
-CREATE INDEX idx_business_services_deleted_at ON business_services(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_business_services_business_id ON business_services(business_id);
+CREATE INDEX IF NOT EXISTS idx_business_services_is_active ON business_services(is_active);
+CREATE INDEX IF NOT EXISTS idx_business_services_created_at ON business_services(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_business_services_deleted_at ON business_services(deleted_at) WHERE deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS business_service_staff (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  service_id UUID NOT NULL REFERENCES business_services(id) ON DELETE CASCADE,
+  service_id INTEGER NOT NULL REFERENCES business_services(id) ON DELETE CASCADE,
   staff_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   is_available BOOLEAN DEFAULT TRUE,
   service_price_override_cents BIGINT,
@@ -41,12 +41,12 @@ CREATE TABLE IF NOT EXISTS business_service_staff (
   UNIQUE(service_id, staff_id)
 );
 
-CREATE INDEX idx_business_service_staff_service_id ON business_service_staff(service_id);
-CREATE INDEX idx_business_service_staff_staff_id ON business_service_staff(staff_id);
+CREATE INDEX IF NOT EXISTS idx_business_service_staff_service_id ON business_service_staff(service_id);
+CREATE INDEX IF NOT EXISTS idx_business_service_staff_staff_id ON business_service_staff(staff_id);
 
 CREATE TABLE IF NOT EXISTS business_service_availability (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  service_id UUID NOT NULL REFERENCES business_services(id) ON DELETE CASCADE,
+  service_id INTEGER NOT NULL REFERENCES business_services(id) ON DELETE CASCADE,
   staff_id UUID REFERENCES users(id) ON DELETE CASCADE,
   day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
   start_time TIME NOT NULL,
@@ -54,18 +54,22 @@ CREATE TABLE IF NOT EXISTS business_service_availability (
   is_available BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT valid_time_range CHECK (start_time < end_time),
-  CONSTRAINT unique_staff_service_day UNIQUE (staff_id, service_id, day_of_week) WHERE staff_id IS NOT NULL,
-  CONSTRAINT unique_service_day UNIQUE (service_id, day_of_week) WHERE staff_id IS NULL
+  CONSTRAINT valid_time_range CHECK (start_time < end_time)
 );
 
-CREATE INDEX idx_business_service_availability_service_id ON business_service_availability(service_id);
-CREATE INDEX idx_business_service_availability_staff_id ON business_service_availability(staff_id);
-CREATE INDEX idx_business_service_availability_day_of_week ON business_service_availability(day_of_week);
+CREATE INDEX IF NOT EXISTS idx_business_service_availability_service_id ON business_service_availability(service_id);
+CREATE INDEX IF NOT EXISTS idx_business_service_availability_staff_id ON business_service_availability(staff_id);
+CREATE INDEX IF NOT EXISTS idx_business_service_availability_day_of_week ON business_service_availability(day_of_week);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_business_service_availability_staff_service_day
+  ON business_service_availability(staff_id, service_id, day_of_week)
+  WHERE staff_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_business_service_availability_service_day
+  ON business_service_availability(service_id, day_of_week)
+  WHERE staff_id IS NULL;
 
 CREATE TABLE IF NOT EXISTS business_service_blocked_times (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  service_id UUID REFERENCES business_services(id) ON DELETE CASCADE,
+  service_id INTEGER REFERENCES business_services(id) ON DELETE CASCADE,
   staff_id UUID REFERENCES users(id) ON DELETE CASCADE,
   business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   start_time TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -77,10 +81,10 @@ CREATE TABLE IF NOT EXISTS business_service_blocked_times (
   CONSTRAINT block_requires_service_or_staff CHECK (service_id IS NOT NULL OR staff_id IS NOT NULL)
 );
 
-CREATE INDEX idx_business_service_blocked_times_service_id ON business_service_blocked_times(service_id);
-CREATE INDEX idx_business_service_blocked_times_staff_id ON business_service_blocked_times(staff_id);
-CREATE INDEX idx_business_service_blocked_times_business_id ON business_service_blocked_times(business_id);
-CREATE INDEX idx_business_service_blocked_times_time_range ON business_service_blocked_times(start_time, end_time);
+CREATE INDEX IF NOT EXISTS idx_business_service_blocked_times_service_id ON business_service_blocked_times(service_id);
+CREATE INDEX IF NOT EXISTS idx_business_service_blocked_times_staff_id ON business_service_blocked_times(staff_id);
+CREATE INDEX IF NOT EXISTS idx_business_service_blocked_times_business_id ON business_service_blocked_times(business_id);
+CREATE INDEX IF NOT EXISTS idx_business_service_blocked_times_time_range ON business_service_blocked_times(start_time, end_time);
 
 CREATE TABLE IF NOT EXISTS business_booking_rules (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -96,6 +100,6 @@ CREATE TABLE IF NOT EXISTS business_booking_rules (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_business_booking_rules_business_id ON business_booking_rules(business_id);
+CREATE INDEX IF NOT EXISTS idx_business_booking_rules_business_id ON business_booking_rules(business_id);
 
 COMMIT;

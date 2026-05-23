@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS business_service_policies (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
-  service_id UUID REFERENCES business_services(id) ON DELETE CASCADE,
+  service_id INTEGER REFERENCES business_services(id) ON DELETE CASCADE,
   policy_type VARCHAR(50) NOT NULL CHECK (policy_type IN (
     'cancellation',
     'refund',
@@ -26,10 +26,10 @@ CREATE TABLE IF NOT EXISTS business_service_policies (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_business_service_policies_business_id ON business_service_policies(business_id);
-CREATE INDEX idx_business_service_policies_service_id ON business_service_policies(service_id);
-CREATE INDEX idx_business_service_policies_policy_type ON business_service_policies(policy_type);
-CREATE INDEX idx_business_service_policies_is_active ON business_service_policies(is_active);
+CREATE INDEX IF NOT EXISTS idx_business_service_policies_business_id ON business_service_policies(business_id);
+CREATE INDEX IF NOT EXISTS idx_business_service_policies_service_id ON business_service_policies(service_id);
+CREATE INDEX IF NOT EXISTS idx_business_service_policies_policy_type ON business_service_policies(policy_type);
+CREATE INDEX IF NOT EXISTS idx_business_service_policies_is_active ON business_service_policies(is_active);
 
 CREATE TABLE IF NOT EXISTS customer_policy_acceptance (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -42,13 +42,13 @@ CREATE TABLE IF NOT EXISTS customer_policy_acceptance (
   UNIQUE(customer_id, policy_id)
 );
 
-CREATE INDEX idx_customer_policy_acceptance_customer_id ON customer_policy_acceptance(customer_id);
-CREATE INDEX idx_customer_policy_acceptance_policy_id ON customer_policy_acceptance(policy_id);
+CREATE INDEX IF NOT EXISTS idx_customer_policy_acceptance_customer_id ON customer_policy_acceptance(customer_id);
+CREATE INDEX IF NOT EXISTS idx_customer_policy_acceptance_policy_id ON customer_policy_acceptance(policy_id);
 
 -- Specific policy: Cancellation
 CREATE TABLE IF NOT EXISTS service_cancellation_policy (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  service_id UUID NOT NULL REFERENCES business_services(id) ON DELETE CASCADE,
+  service_id INTEGER NOT NULL REFERENCES business_services(id) ON DELETE CASCADE,
   cancellation_window_hours INTEGER NOT NULL DEFAULT 24,
   cancellation_fee_percent INTEGER CHECK (cancellation_fee_percent BETWEEN 0 AND 100),
   cancellation_fee_fixed_cents BIGINT,
@@ -60,12 +60,12 @@ CREATE TABLE IF NOT EXISTS service_cancellation_policy (
   UNIQUE(service_id)
 );
 
-CREATE INDEX idx_service_cancellation_policy_service_id ON service_cancellation_policy(service_id);
+CREATE INDEX IF NOT EXISTS idx_service_cancellation_policy_service_id ON service_cancellation_policy(service_id);
 
 -- Specific policy: No-show handling
 CREATE TABLE IF NOT EXISTS service_no_show_policy (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  service_id UUID NOT NULL REFERENCES business_services(id) ON DELETE CASCADE,
+  service_id INTEGER NOT NULL REFERENCES business_services(id) ON DELETE CASCADE,
   grace_period_minutes INTEGER DEFAULT 15,
   fee_percent INTEGER,
   fee_fixed_cents BIGINT,
@@ -75,4 +75,4 @@ CREATE TABLE IF NOT EXISTS service_no_show_policy (
   UNIQUE(service_id)
 );
 
-CREATE INDEX idx_service_no_show_policy_service_id ON service_no_show_policy(service_id);
+CREATE INDEX IF NOT EXISTS idx_service_no_show_policy_service_id ON service_no_show_policy(service_id);

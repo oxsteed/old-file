@@ -5,7 +5,7 @@ BEGIN;
 
 CREATE TABLE IF NOT EXISTS appointment_waitlist (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  service_id UUID NOT NULL REFERENCES business_services(id) ON DELETE CASCADE,
+  service_id INTEGER NOT NULL REFERENCES business_services(id) ON DELETE CASCADE,
   customer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   preferred_date_start DATE,
   preferred_date_end DATE,
@@ -19,14 +19,16 @@ CREATE TABLE IF NOT EXISTS appointment_waitlist (
   offer_accepted_at TIMESTAMP WITH TIME ZONE,
   resulting_appointment_id UUID REFERENCES business_appointments(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(customer_id, service_id) WHERE status = 'waiting'
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_appointment_waitlist_service_id ON appointment_waitlist(service_id);
-CREATE INDEX idx_appointment_waitlist_customer_id ON appointment_waitlist(customer_id);
-CREATE INDEX idx_appointment_waitlist_status ON appointment_waitlist(status);
-CREATE INDEX idx_appointment_waitlist_position_in_queue ON appointment_waitlist(position_in_queue) WHERE status = 'waiting';
+CREATE INDEX IF NOT EXISTS idx_appointment_waitlist_service_id ON appointment_waitlist(service_id);
+CREATE INDEX IF NOT EXISTS idx_appointment_waitlist_customer_id ON appointment_waitlist(customer_id);
+CREATE INDEX IF NOT EXISTS idx_appointment_waitlist_status ON appointment_waitlist(status);
+CREATE INDEX IF NOT EXISTS idx_appointment_waitlist_position_in_queue ON appointment_waitlist(position_in_queue) WHERE status = 'waiting';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_appointment_waitlist_unique_waiting
+  ON appointment_waitlist(customer_id, service_id)
+  WHERE status = 'waiting';
 
 CREATE TABLE IF NOT EXISTS waitlist_notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -37,7 +39,7 @@ CREATE TABLE IF NOT EXISTS waitlist_notifications (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_waitlist_notifications_waitlist_id ON waitlist_notifications(waitlist_id);
-CREATE INDEX idx_waitlist_notifications_notification_type ON waitlist_notifications(notification_type);
+CREATE INDEX IF NOT EXISTS idx_waitlist_notifications_waitlist_id ON waitlist_notifications(waitlist_id);
+CREATE INDEX IF NOT EXISTS idx_waitlist_notifications_notification_type ON waitlist_notifications(notification_type);
 
 COMMIT;
