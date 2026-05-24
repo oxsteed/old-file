@@ -1,0 +1,10 @@
+/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/App/OxSteedCommandApp.swift
+/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Models/CommandCenterModels.swift
+/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Services/ExternalNavigator.swift
+/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Stores/CommandCenterStore.swift
+/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Support/StrategicSnapshot.swift
+/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/ContentView.swift
+/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/DetailSurfaceView.swift
+/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/InitiativeCard.swift
+/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/SettingsView.swift
+/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/SidebarView.swift

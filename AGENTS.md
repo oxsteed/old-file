@@ -21,6 +21,12 @@
 - 281 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
 
+**Native macOS super-admin command center foundation (2026-05-23):** COMPLETE
+- **New desktop workspace:** **`macos/OxSteedCommand/Package.swift`, `macos/OxSteedCommand/Sources/App/OxSteedCommandApp.swift`, `macos/OxSteedCommand/Sources/Views/*`, `macos/OxSteedCommand/Sources/Models/CommandCenterModels.swift`, `macos/OxSteedCommand/Sources/Stores/CommandCenterStore.swift`, `macos/OxSteedCommand/Sources/Support/StrategicSnapshot.swift`, `macos/OxSteedCommand/Sources/Services/ExternalNavigator.swift`** now add a native SwiftUI macOS app workspace for an OxSteed executive/super-admin desk instead of forcing desktop ops through the browser only.
+- **Leadership-first desktop surface:** The app ships a native `NavigationSplitView` control plane with sections for **Command Center**, **Internal Workspaces**, **Logistics Branch**, **Translation Platform**, and **Mobile 3**, each seeded from the real initiative state already documented in this file so the first desktop app reflects actual company priorities instead of placeholder demo copy.
+- **Codex-native run loop:** **`script/build_and_run.sh`, `.codex/environments/environment.toml`** now provide a deterministic SwiftPM macOS build/launch path, stage the `.app` bundle into `dist/OxSteedCommand.app`, support `--debug` / `--logs` / `--telemetry` / `--verify`, and wire the Codex desktop Run button to that script.
+- **Verification:** `swift build --package-path macos/OxSteedCommand` and `./script/build_and_run.sh --verify` pass.
+
 **Company-wide internal workspace framework pass (2026-05-23):** COMPLETE
 - **Corporate departments now have independent login/dashboard routes outside the logistics branch:** **`server/utils/internalWorkspaces.js`, `server/controllers/internalWorkspacesController.js`, `server/routes/internalWorkspaces.js`, `server/index.js`, `client/src/utils/internalWorkspaces.js`, `client/src/api/internalWorkspaces.js`, `client/src/components/InternalWorkspaceGuard.jsx`, `client/src/pages/internal/InternalWorkspaceLoginPage.jsx`, `client/src/pages/internal/InternalDepartmentWorkspacePage.jsx`, `client/src/App.jsx`** now add company-wide `/internal/:workspace/login` and `/internal/:workspace` routes so Finance, HR, Legal, Technology, Executive, Data, Marketing, and Corporate Operations can use department-specific internal dashboards instead of being forced under `/admin` or `/logistics`.
 - **Department catalog renamed to the cleaner route model:** **`server/migrations/279_corporate_department_route_alignment.sql`, `server/utils/internalWorkspaces.js`, `client/src/utils/internalWorkspaces.js`** now rename the legacy corporate department codes from `people` to `hr` and from `operations` to `corporate_ops`, add a standalone `legal` department with seed titles/default permissions, and expose the preferred public route slugs like `/internal/hr`, `/internal/legal`, and `/internal/corporate-ops`.
@@ -1593,6 +1599,12 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 - [ ] Confirm TestFlight build `1.0 (104)` opens on-device without the black-screen regression once Apple finishes processing.
 - [ ] Confirm whether the `AppDelegate.swift` fallback bundle lookup resolves the Release launch failure locally, then ship a new TestFlight candidate if build `1.0 (105)` still black-screens.
 - [ ] Add final crash-reporting org/project config, fresh App Store / Play Store screenshots, and production push-provider verification before launch review.
+
+### NATIVE MACOS APP FOLLOW-THROUGH
+
+- [x] Create a separate native macOS super-admin workspace with a real SwiftPM app structure and Codex Run integration. (2026-05-23, `macos/OxSteedCommand/`, `script/build_and_run.sh`, `.codex/environments/environment.toml`)
+- [ ] Replace the current curated strategic snapshot in `macos/OxSteedCommand/Sources/Support/StrategicSnapshot.swift` with live authenticated API-backed data for super-admin health, internal workspace access, logistics ops, and mobile release readiness.
+- [ ] Add the first real desktop write actions (provisioning, workspace launch shortcuts, release checklists, or incident controls) once the exact backend contracts for those flows are settled.
 
 ### POST-LAUNCH FEATURES (Customer Support & Analytics)
 

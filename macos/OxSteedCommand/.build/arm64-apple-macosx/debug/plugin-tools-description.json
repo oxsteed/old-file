@@ -1,0 +1,422 @@
+{
+  "builtTestProducts" : [
+
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.OxSteedCommand-arm64-apple-macosx-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/sources",
+      "importPath" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/App/OxSteedCommandApp.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Models/CommandCenterModels.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Services/ExternalNavigator.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Stores/CommandCenterStore.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Support/StrategicSnapshot.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/ContentView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/DetailSurfaceView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/InitiativeCard.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/SettingsView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/SidebarView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/sources"
+        }
+      ],
+      "isLibrary" : false,
+      "moduleName" : "OxSteedCommand",
+      "moduleOutputPath" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/Modules/OxSteedCommand.swiftmodule",
+      "objects" : [
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/OxSteedCommandApp.swift.o",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/CommandCenterModels.swift.o",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/ExternalNavigator.swift.o",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/CommandCenterStore.swift.o",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/StrategicSnapshot.swift.o",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/ContentView.swift.o",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/DetailSurfaceView.swift.o",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/InitiativeCard.swift.o",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/SettingsView.swift.o",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/SidebarView.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j8",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-Xfrontend",
+        "-entry-point-function-name",
+        "-Xfrontend",
+        "OxSteedCommand_main",
+        "-swift-version",
+        "5",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "oxsteedcommand"
+      ],
+      "outputFileMapPath" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/OxSteedCommandApp.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/CommandCenterModels.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/ExternalNavigator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/CommandCenterStore.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/StrategicSnapshot.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/ContentView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/DetailSurfaceView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/InitiativeCard.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/SettingsView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/SidebarView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/Modules/OxSteedCommand.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/App/OxSteedCommandApp.swift",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Models/CommandCenterModels.swift",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Services/ExternalNavigator.swift",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Stores/CommandCenterStore.swift",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Support/StrategicSnapshot.swift",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/ContentView.swift",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/DetailSurfaceView.swift",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/InitiativeCard.swift",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/SettingsView.swift",
+        "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/SidebarView.swift"
+      ],
+      "tempsPath" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "OxSteedCommand" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "OxSteedCommand",
+      "-package-name",
+      "oxsteedcommand",
+      "-c",
+      "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/App/OxSteedCommandApp.swift",
+      "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Models/CommandCenterModels.swift",
+      "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Services/ExternalNavigator.swift",
+      "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Stores/CommandCenterStore.swift",
+      "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Support/StrategicSnapshot.swift",
+      "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/ContentView.swift",
+      "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/DetailSurfaceView.swift",
+      "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/InitiativeCard.swift",
+      "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/SettingsView.swift",
+      "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/SidebarView.swift",
+      "-I",
+      "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j8",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-Xfrontend",
+      "-entry-point-function-name",
+      "-Xfrontend",
+      "OxSteedCommand_main",
+      "-swift-version",
+      "5",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "oxsteedcommand",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "OxSteedCommand" : [
+
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand-entitlement.plist" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<entitlement-plist>"
+        },
+        {
+          "kind" : "virtual",
+          "name" : "<com.apple.security.get-task-allow>"
+        }
+      ],
+      "outputFilePath" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand-entitlement.plist"
+    },
+    "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/App/OxSteedCommandApp.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Models/CommandCenterModels.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Services/ExternalNavigator.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Stores/CommandCenterStore.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Support/StrategicSnapshot.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/ContentView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/DetailSurfaceView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/InitiativeCard.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/SettingsView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/Sources/Views/SidebarView.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/sources"
+    },
+    "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/CommandCenterModels.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/CommandCenterStore.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/ContentView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/DetailSurfaceView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/ExternalNavigator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/InitiativeCard.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/OxSteedCommandApp.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/SettingsView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/SidebarView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.build/StrategicSnapshot.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/OxSteedCommand.product/Objects.LinkFileList"
+    },
+    "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/oxsteed/Documents/GitHub/4/macos/OxSteedCommand/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}
