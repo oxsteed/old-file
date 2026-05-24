@@ -152,8 +152,6 @@ export default function Footer() {
               </span>
               <FooterLink to="/how-it-works">{t('footer.howOxsteedWorks')}</FooterLink>
               <FooterLink to="/about">{t('footer.about')}</FooterLink>
-              <FooterLink to="/helpers">{t('footer.findHelpers')}</FooterLink>
-              <FooterLink to="/products">{t('footer.browseProducts')}</FooterLink>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
               <span style={footerSectionTitleStyle}>
@@ -178,6 +176,8 @@ export default function Footer() {
               <FooterLink to="/jobs">{t('footer.browseJobs')}</FooterLink>
               <FooterLink to={user?.role === 'customer' ? '/post-job' : '/register/customer'}>{t('footer.postJob')}</FooterLink>
               <FooterLink to={isHelper ? routeForMode(currentMode) : '/register/helper'}>{t('footer.listSkills')}</FooterLink>
+              <FooterLink to="/helpers">{t('footer.findHelpers')}</FooterLink>
+              <FooterLink to="/products">{t('footer.browseProducts')}</FooterLink>
               {isHelper && (
                 <>
                   <span style={{ ...footerSectionTitleStyle, marginTop: '0.6rem', marginBottom: '0.1rem' }}>

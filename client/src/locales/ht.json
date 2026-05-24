@@ -1724,6 +1724,8 @@
     "guestInquiryMessageLabel": "Mesaj yo",
     "guestInquiryForbidden": "Ou pa gen aksè nan demann sa a.",
     "guestInquirySignIn": "Tanpri konekte pou wè demann sa a.",
+    "translateOn": "Tradui",
+    "translateOff": "Tradiksyon aktive",
     "translating": "Ap tradui…",
     "showOriginalMessage": "Montre orijinal la",
     "showTranslationMessage": "Montre tradiksyon an",

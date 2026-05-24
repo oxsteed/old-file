@@ -1639,6 +1639,8 @@
     "guestInquiryMessageLabel": "Their message",
     "guestInquiryForbidden": "You don't have access to this inquiry.",
     "guestInquirySignIn": "Please sign in to view this inquiry.",
+    "translateOn": "Translate",
+    "translateOff": "Translating on",
     "translating": "Translating…",
     "showOriginalMessage": "Show original",
     "showTranslationMessage": "Show translation",

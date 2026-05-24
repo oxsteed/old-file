@@ -1639,6 +1639,8 @@
     "guestInquiryMessageLabel": "Su mensaje",
     "guestInquiryForbidden": "No tienes acceso a esta consulta.",
     "guestInquirySignIn": "Inicia sesión para ver esta consulta.",
+    "translateOn": "Traducir",
+    "translateOff": "Traducción activa",
     "translating": "Traduciendo…",
     "showOriginalMessage": "Mostrar original",
     "showTranslationMessage": "Mostrar traducción",

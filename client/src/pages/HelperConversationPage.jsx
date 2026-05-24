@@ -8,6 +8,7 @@ import AutoTranslatedMessage from '../components/AutoTranslatedMessage';
 import MessageReactions from '../components/MessageReactions';
 import FinancialAdvisorPanel from '../components/FinancialAdvisorPanel';
 import api from '../api/axios';
+import { Globe } from 'lucide-react';
 
 function formatTime(ts) {
   if (!ts) return '';
@@ -21,6 +22,16 @@ export default function HelperConversationPage() {
   const [editingId, setEditingId] = React.useState(null);
   const [editText, setEditText] = React.useState('');
   const [showAdvisor, setShowAdvisor] = React.useState(false);
+  const [translateEnabled, setTranslateEnabled] = React.useState(() => {
+    try { return localStorage.getItem('oxs:msg-translate') !== 'off'; } catch { return true; }
+  });
+  const toggleTranslate = () => {
+    setTranslateEnabled((v) => {
+      const next = !v;
+      try { localStorage.setItem('oxs:msg-translate', next ? 'on' : 'off'); } catch {}
+      return next;
+    });
+  };
 
   const {
     messages, otherName, helperBusiness, jobTitle,
@@ -122,6 +133,22 @@ export default function HelperConversationPage() {
               )}
             </div>
           </div>
+          {/* Translate toggle */}
+          <button
+            onClick={toggleTranslate}
+            aria-pressed={translateEnabled}
+            title={translateEnabled ? t('messages.translateOff') : t('messages.translateOn')}
+            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+              translateEnabled
+                ? 'bg-blue-900/40 text-blue-300'
+                : 'bg-gray-700/60 text-gray-500'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="hidden sm:inline">
+              {translateEnabled ? t('messages.translateOff') : t('messages.translateOn')}
+            </span>
+          </button>
           {/* Financial Advisor button */}
           <button
             onClick={() => setShowAdvisor(v => !v)}
@@ -184,6 +211,7 @@ export default function HelperConversationPage() {
                       }`}>
                         <AutoTranslatedMessage
                           text={msg.content}
+                          enabled={translateEnabled}
                           incomingOnly
                           isOwnMessage={isMe}
                         />

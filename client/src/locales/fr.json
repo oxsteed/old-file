@@ -1639,6 +1639,8 @@
     "guestInquiryMessageLabel": "Son message",
     "guestInquiryForbidden": "Vous n’avez pas accès à cette demande.",
     "guestInquirySignIn": "Connectez-vous pour voir cette demande.",
+    "translateOn": "Traduire",
+    "translateOff": "Traduction activée",
     "translating": "Traduction…",
     "showOriginalMessage": "Afficher l’original",
     "showTranslationMessage": "Afficher la traduction",
