@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { listCampaigns, listOrders, getMyParticipation, listSourcingRequests, listShipments, listAllocations, listDeliveries, listMyClaims, listRefundCases, getBusinessProcurementAccess } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
-import { LOGISTICS_WORKSPACES, recommendedLogisticsWorkspace, workspaceAvailabilityForUser, isBusinessProcurementEligibleMembership } from '../../utils/logisticsWorkspaces';
+import { LOGISTICS_WORKSPACES, getLogisticsEndUserWorkspaces, recommendedLogisticsWorkspace, workspaceAvailabilityForUser, isBusinessProcurementEligibleMembership } from '../../utils/logisticsWorkspaces';
 import '../../styles/logistics/LogisticsHomePage.css';
 
 const MENU_ITEMS = [
@@ -36,6 +36,41 @@ export default function LogisticsHomePage() {
   const [loading, setLoading]               = useState(true);
   const workspaceAvailability = useMemo(() => workspaceAvailabilityForUser(user, businessAccess), [user, businessAccess]);
   const recommendedWorkspace = useMemo(() => recommendedLogisticsWorkspace(user, businessAccess), [user, businessAccess]);
+  const hasOrganizerContext = useMemo(() => {
+    if (!user) return false;
+    return ['organizer', 'admin', 'super_admin'].includes(user.logistics_role) || organizerCampaigns.length > 0;
+  }, [user, organizerCampaigns]);
+  const hasDistributorContext = useMemo(() => {
+    if (!user) return false;
+    return ['reseller', 'admin', 'super_admin'].includes(user.logistics_role) || myDeliveries.length > 0 || myAllocations.length > 0;
+  }, [user, myDeliveries, myAllocations]);
+  const visibleWorkspaces = useMemo(() => {
+    const endUserWorkspaces = getLogisticsEndUserWorkspaces().filter((workspace) => {
+      if (workspace.key === 'organizer') return hasOrganizerContext;
+      if (workspace.key === 'distributor') return hasDistributorContext;
+      if (workspace.key === 'business_procurement') return workspaceAvailability.business_procurement;
+      return true;
+    });
+    const internalWorkspaces = LOGISTICS_WORKSPACES.filter((workspace) =>
+      ['operations', 'compliance', 'admin_control'].includes(workspace.key)
+    );
+
+    if (!user) return endUserWorkspaces;
+
+    const allowedInternal = internalWorkspaces.filter((workspace) => workspaceAvailability[workspace.key]);
+    return [...endUserWorkspaces, ...allowedInternal];
+  }, [user, workspaceAvailability, hasOrganizerContext, hasDistributorContext]);
+  const visibleMenuItems = useMemo(() => {
+    return MENU_ITEMS.filter((item) => {
+      if (item.key === 'compliance') {
+        return workspaceAvailability.compliance || workspaceAvailability.admin_control;
+      }
+      if (item.key === 'finance') {
+        return workspaceAvailability.admin_control;
+      }
+      return true;
+    });
+  }, [workspaceAvailability]);
 
   useEffect(() => {
     if (!user) {
@@ -132,7 +167,7 @@ export default function LogisticsHomePage() {
           {user && <Link to={recommendedWorkspace}>Open recommended workspace</Link>}
         </div>
         <div className="lx-nav-grid">
-          {LOGISTICS_WORKSPACES.map((workspace) => {
+          {visibleWorkspaces.map((workspace) => {
             const available = workspaceAvailability[workspace.key];
             return (
               <Link
@@ -159,7 +194,7 @@ export default function LogisticsHomePage() {
 
       {/* Navigation tiles */}
       <div className="lx-nav-grid">
-        {MENU_ITEMS.map(item => (
+        {visibleMenuItems.map(item => (
           <Link key={item.key} to={item.path} className="lx-nav-tile">
             <span className="lx-nav-icon">{item.icon}</span>
             <span className="lx-nav-label">{t(`logistics.nav.${item.key}`, item.key)}</span>
@@ -171,18 +206,24 @@ export default function LogisticsHomePage() {
               <span className="lx-nav-icon">🧾</span>
               <span className="lx-nav-label">Buyer Dashboard</span>
             </Link>
-            <Link to="/logistics/organizer" className="lx-nav-tile">
-              <span className="lx-nav-icon">🧭</span>
-              <span className="lx-nav-label">Organizer Dashboard</span>
-            </Link>
-            <Link to="/logistics/business-procurement" className="lx-nav-tile">
-              <span className="lx-nav-icon">🏢</span>
-              <span className="lx-nav-label">Business Procurement</span>
-            </Link>
-            <Link to="/logistics/distributor" className="lx-nav-tile">
-              <span className="lx-nav-icon">📤</span>
-              <span className="lx-nav-label">Distributor / Reseller</span>
-            </Link>
+            {hasOrganizerContext && (
+              <Link to="/logistics/organizer" className="lx-nav-tile">
+                <span className="lx-nav-icon">🧭</span>
+                <span className="lx-nav-label">Organizer Dashboard</span>
+              </Link>
+            )}
+            {workspaceAvailability.business_procurement && (
+              <Link to="/logistics/business-procurement" className="lx-nav-tile">
+                <span className="lx-nav-icon">🏢</span>
+                <span className="lx-nav-label">Business Procurement</span>
+              </Link>
+            )}
+            {hasDistributorContext && (
+              <Link to="/logistics/distributor" className="lx-nav-tile">
+                <span className="lx-nav-icon">📤</span>
+                <span className="lx-nav-label">Distributor / Reseller</span>
+              </Link>
+            )}
             {workspaceAvailability.operations && (
               <Link to="/logistics/operations" className="lx-nav-tile">
                 <span className="lx-nav-icon">⚙️</span>
