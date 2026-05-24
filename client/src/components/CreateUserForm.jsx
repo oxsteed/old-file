@@ -16,6 +16,7 @@ import { detectCountryFromLocale } from '../lib/countries';
  */
 const ACCOUNT_TYPES = [
   { value: 'customer', label: 'Customer', hint: 'Standard customer account' },
+  { value: 'investor', label: 'Investor', hint: 'Investor mode account with dedicated dashboard flow' },
   { value: 'helper', label: 'Helper', hint: 'Base helper account' },
   { value: 'helper_pro', label: 'Helper Pro', hint: 'Paid helper tier' },
   { value: 'broker', label: 'Broker', hint: 'Tier 3 helper / broker account' },

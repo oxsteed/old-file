@@ -33,7 +33,7 @@ xcodebuild archive \
   -allowProvisioningUpdates \
   DEVELOPMENT_TEAM=ZBRGSDRRU7 \
   CODE_SIGN_STYLE=Automatic \
-  CURRENT_PROJECT_VERSION=106 \
+  CURRENT_PROJECT_VERSION=107 \
   MARKETING_VERSION=1.0 \
   2>&1 | tee "$LOG_ARCHIVE"
 

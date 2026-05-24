@@ -30,6 +30,7 @@ const TERMS_IP_HASH_MAX_LEN = 45;
 // Mirrors the CHECK constraint on pending_registrations.default_mode (mig 270).
 const SELF_SELECTABLE_MODES = Object.freeze([
   'customer',
+  'investor',
   'helper',
   'logistics',
   'business_owner',

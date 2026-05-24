@@ -4,11 +4,11 @@
 
 ## App Shape
 
-- `Today`: mode-aware home with fast actions, live dashboard refresh, metrics, offline queue status, and attention queue.
-- `Hire`: richer native job draft/post flow with location, budget, urgency, skill, schedule, preferred-helper, and media-note fields.
-- `Shop`: skill-aware shopping and tool/supply recommendations backed by marketplace browse/search loading.
-- `Inbox`: unified conversation preview for jobs, support, bids, business, and logistics conversations.
-- `Me`: auth/session, profile, mode switcher, checklist, notification/deep-link queue, customer/helper/business/logistics panels, and API target.
+- `Home`: dark OxSteed-native dashboard with branded logo, search/filter controls, help hero, active mode cards, metrics, and recent activity.
+- `Learn`: richer native job draft/post flow with location, budget, urgency, skill, schedule, preferred-helper, and media-note fields.
+- `Tools`: skill-aware shopping and tool/supply recommendations backed by marketplace browse/search loading.
+- `Pro`: unified conversation preview for jobs, support, bids, business, and logistics conversations.
+- `Account`: mode-management screen, auth/session, language/translation settings, checklist, and customer/helper/business/logistics panels.
 
 ## Website-Reduction Pass
 
@@ -57,6 +57,8 @@ xcrun simctl launch B3145305-585E-4A45-BE2E-FEDBBE8AC2CC com.oxsteed.app
 xcrun simctl io B3145305-585E-4A45-BE2E-FEDBBE8AC2CC screenshot artifacts/previews/oxsteed-go-simulator.png
 ```
 
+The latest design preview is captured at `artifacts/previews/oxsteed-go-home-redesign.png`. It moves OxSteed Go toward the dark, orange-accented mode-based concept with the real OxSteed logo asset, a slimmer branded bottom navigation, premium match hero, horizontal active-mode cards, and richer Home/Account surfaces.
+
 ## TestFlight
 
 The project now includes a TestFlight upload path:
@@ -65,9 +67,9 @@ The project now includes a TestFlight upload path:
 ios/OxSteedGo/build_testflight.command
 ```
 
-The app archives under team `ZBRGSDRRU7` with bundle id `com.oxsteed.app`, version `1.0`, build `106`, and uses `ExportOptions.testflight.plist` for App Store Connect upload. This bundle id is the existing OxSteed iOS app record, so upload attempts target the current TestFlight app instead of creating a separate `OxSteed Go` listing.
+The app archives under team `ZBRGSDRRU7` with bundle id `com.oxsteed.app`, version `1.0`, build `107`, and uses `ExportOptions.testflight.plist` for App Store Connect upload. This bundle id is the existing OxSteed iOS app record, so upload attempts target the current TestFlight app instead of creating a separate `OxSteed Go` listing.
 
-Build `106` uploaded successfully to App Store Connect and is processing. After Apple finishes processing, add tester `emilejeanphilippefr@gmail.com` in TestFlight. Local App Store Connect API credentials were not available, so tester assignment could not be automated from this machine.
+Build `107` uploaded successfully to App Store Connect and is processing. After Apple finishes processing, add tester `emilejeanphilippefr@gmail.com` in TestFlight. Local App Store Connect API credentials were not available, so tester assignment could not be automated from this machine.
 
 ## Product Direction
 

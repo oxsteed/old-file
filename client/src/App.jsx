@@ -15,6 +15,7 @@ import ImpersonationBanner from './components/ImpersonationBanner';
 import ImpersonatePage     from './pages/ImpersonatePage';
 import HomePage from './pages/HomePage';
 import Login from './pages/Login';
+import InvestorLoginPage from './pages/InvestorLoginPage';
 import CustomerRegister from './pages/CustomerRegister';
 import HelperRegister from './pages/HelperRegister';
 import JoinPage from './pages/JoinPage';
@@ -140,6 +141,7 @@ import CreativeIntakeRequestPage from './pages/CreativeIntakeRequestPage';
 import ProfessionalIntakeRequestPage from './pages/ProfessionalIntakeRequestPage';
 import ContinuityIntakeRequestPage from './pages/ContinuityIntakeRequestPage';
 import TranslatorWorkspacePage from './pages/TranslatorWorkspacePage';
+import InvestorDashboardPage from './pages/InvestorDashboardPage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -194,6 +196,7 @@ export default function App() {
                     {/* ── Public routes ────────────────────────────────────── */}
                     <Route path="/"                        element={<Guarded><HomePage /></Guarded>} />
                     <Route path="/login"                   element={<Guarded><Login /></Guarded>} />
+                    <Route path="/investor/login"          element={<Guarded><InvestorLoginPage /></Guarded>} />
                     <Route path="/register/customer"       element={<Guarded><CustomerRegister /></Guarded>} />
                     <Route path="/register/helper"         element={<Guarded><HelperRegister /></Guarded>} />
                     {/* ── Unified signup (post-2026-05). Replaces the navbar's */}
@@ -268,6 +271,7 @@ export default function App() {
 
                     {/* Critical routes: wrapped in RouteErrorBoundary to isolate crashes */}
                     <Route path="/dashboard"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><SmartDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/investor/dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestorDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helper-dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><SmartDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/upgrade"        element={<Guarded><ProtectedRoute><UpgradePage /></ProtectedRoute></Guarded>} />
                     <Route path="/templates"      element={<Guarded><ProtectedRoute><TemplatePicker /></ProtectedRoute></Guarded>} />

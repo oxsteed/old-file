@@ -23,6 +23,7 @@ const crypto = require('crypto');
 // or promotes an admin's RBAC role.
 const MODE_ROLE_MAP = Object.freeze({
   customer:                 'customer',
+  investor:                 'customer',
   helper:                   'helper',
   logistics:                'customer',
   business_owner:           'helper',
@@ -44,6 +45,7 @@ const MODE_ROLE_MAP = Object.freeze({
 
 const SELF_SELECTABLE_MODES = Object.freeze([
   'customer',
+  'investor',
   'helper',
   'logistics',
   'business_owner',

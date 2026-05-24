@@ -17,6 +17,7 @@
 // and the CHECK constraint in migration 270.
 export const SELF_SELECTABLE_MODES = [
   'customer',
+  'investor',
   'helper',
   'logistics',
   'business_owner',
@@ -43,6 +44,7 @@ export const ALL_MODES = [...SELF_SELECTABLE_MODES, ...GRANTED_MODES, 'admin'];
 // doesn't exist yet, fall back to /dashboard and surface the right tab there.
 const ROUTE_BY_MODE = {
   customer:                 '/dashboard',
+  investor:                 '/investor/dashboard',
   helper:                   '/helper-dashboard',
   logistics:                '/logistics/buyer',
   business_owner:           '/dashboard',
@@ -90,6 +92,12 @@ export const MODE_CATALOG = {
     labelKey: 'modes.customer.label',
     hintKey:  'modes.customer.hint',
     icon: 'shopping-bag',
+    selfSelectable: true,
+  },
+  investor: {
+    labelKey: 'modes.investor.label',
+    hintKey:  'modes.investor.hint',
+    icon: 'line-chart',
     selfSelectable: true,
   },
   helper: {

@@ -25,6 +25,7 @@ const HELPER_CLASS_MODES = new Set([
 // surfaces shown.
 const CUSTOMER_CLASS_MODES = new Set([
   'customer',
+  'investor',
   'logistics',
   'franchise_applicant',
   'life_only',
@@ -47,6 +48,7 @@ export function isCustomerClassMode(user) {
 export function dashboardKeyForMode(mode) {
   switch (mode) {
     case 'helper':                  return 'helper';
+    case 'investor':                return 'investor';
     case 'logistics':               return 'logistics';
     case 'business_owner':          return 'business_owner';
     case 'consultant':              return 'consultant';
@@ -71,7 +73,7 @@ export function canPostJobs(user) {
   // Customers + helpers (who sometimes need help themselves) + life mode all
   // can post jobs. Franchise applicants can too — they often need vendors.
   const m = getMode(user);
-  return ['customer', 'helper', 'business_owner', 'tool_owner', 'consultant', 'life_only', 'franchise_applicant'].includes(m);
+  return ['customer', 'investor', 'helper', 'business_owner', 'tool_owner', 'consultant', 'life_only', 'franchise_applicant'].includes(m);
 }
 
 export function canBidOnJobs(user) {

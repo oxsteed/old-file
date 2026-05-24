@@ -47,6 +47,7 @@ const LOGISTICS_ROLE_VALUES = Object.freeze([
 
 const ACCOUNT_TYPE_CONFIG = Object.freeze({
   customer:                { role: 'customer',    default_mode: 'customer',                helperTier: null },
+  investor:                { role: 'customer',    default_mode: 'investor',                helperTier: null },
   helper:                  { role: 'helper',      default_mode: 'helper',                  helperTier: 'tier1' },
   helper_pro:              { role: 'helper_pro',  default_mode: 'helper',                  helperTier: 'tier2' },
   broker:                  { role: 'broker',      default_mode: 'helper',                  helperTier: 'tier3' },

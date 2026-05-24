@@ -16,20 +16,20 @@ enum GoTab: String, CaseIterable, Identifiable {
 
     func localizedTitle(_ language: GoLanguage) -> String {
         switch self {
-        case .today: GoLocalization.text(.today, language: language)
-        case .hire: GoLocalization.text(.hire, language: language)
-        case .shop: GoLocalization.text(.shop, language: language)
-        case .inbox: GoLocalization.text(.inbox, language: language)
-        case .profile: GoLocalization.text(.me, language: language)
+        case .today: "Home"
+        case .hire: "Learn"
+        case .shop: "Tools"
+        case .inbox: "Pro"
+        case .profile: "Account"
         }
     }
 
     var symbolName: String {
         switch self {
-        case .today: "sparkle.magnifyingglass"
-        case .hire: "hammer.circle"
-        case .shop: "bag.circle"
-        case .inbox: "bubble.left.and.bubble.right"
+        case .today: "house.fill"
+        case .hire: "graduationcap"
+        case .shop: "wrench.and.screwdriver"
+        case .inbox: "chart.line.uptrend.xyaxis"
         case .profile: "person.crop.circle"
         }
     }
