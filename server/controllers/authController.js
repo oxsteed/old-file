@@ -241,12 +241,20 @@ async function login(req, res, next) {
         { termsAgreed: 'Required' }
       );
     }
-    if (!isAdminUser && (!agreementName || !String(agreementName).trim())) {
-      throw new AppError(
-        'Full name signature is required to confirm your agreement',
-        400, 'validation_failed',
-        { agreementName: 'Required' }
-      );
+    if (!isAdminUser) {
+      const nameTrimmed = String(agreementName || '').trim();
+      const nameWords   = nameTrimmed.split(/\s+/).filter(Boolean);
+      const nameValid   =
+        nameTrimmed.length >= 5 &&
+        nameWords.length >= 2 &&
+        nameWords.every((w) => /^[A-Za-zÀ-ÖØ-öø-ÿ''-]+$/.test(w));
+      if (!nameValid) {
+        throw new AppError(
+          'Please enter your full name (first and last name) as your digital signature',
+          400, 'validation_failed',
+          { agreementName: 'Full name required (first and last name)' }
+        );
+      }
     }
 
     const { rows } = await pool.query(
@@ -276,6 +284,21 @@ async function login(req, res, next) {
     if (!valid) {
       throw new AppError('Invalid email or password', 401, 'auth_failed');
     }
+
+    // Signature must match the name on the account (case- and whitespace-insensitive)
+    if (!isAdminUser) {
+      const normalize = (s) => (s || '').trim().replace(/\s+/g, ' ').toLowerCase();
+      const accountName = normalize(`${user.first_name} ${user.last_name}`);
+      const enteredName = normalize(agreementName);
+      if (!accountName || enteredName !== accountName) {
+        throw new AppError(
+          'The name you entered does not match the name on your account. Please use your full name exactly as registered.',
+          400, 'signature_name_mismatch',
+          { agreementName: 'Name does not match account' }
+        );
+      }
+    }
+
     if (user.totp_enabled) {
       const mfaToken = jwt.sign(
         { id: user.id, isMfaToken: true },

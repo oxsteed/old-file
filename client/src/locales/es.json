@@ -252,7 +252,9 @@
     "signaturePlaceholder": "Escribe tu nombre completo como firma digital",
     "signatureHint": "Esto sirve como tu firma digital confirmando tu acuerdo con nuestros términos",
     "agreementRequired": "Debes aceptar los Términos de Servicio y la Política de Privacidad para iniciar sesión",
-    "signatureRequired": "Por favor ingresa tu nombre completo como firma digital para continuar"
+    "signatureRequired": "Por favor ingresa tu nombre completo como firma digital para continuar",
+    "signatureFullNameRequired": "Por favor ingresa tu nombre y apellido (ej. Juan García)",
+    "signatureNameMismatch": "El nombre que ingresaste no coincide con el nombre de tu cuenta. Por favor usa el nombre exacto con el que te registraste."
   },
   "forgotPassword": {
     "title": "Restablecer tu contraseña",

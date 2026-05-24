@@ -252,7 +252,9 @@
     "signaturePlaceholder": "Type your full name as your digital signature",
     "signatureHint": "This serves as your digital signature confirming your agreement to our terms",
     "agreementRequired": "You must agree to the Terms of Service and Privacy Policy to sign in",
-    "signatureRequired": "Please enter your full name as your digital signature to continue"
+    "signatureRequired": "Please enter your full name as your digital signature to continue",
+    "signatureFullNameRequired": "Please enter your first and last name (e.g. Jane Smith)",
+    "signatureNameMismatch": "The name you entered doesn't match the name on your account. Please use the exact name you registered with."
   },
   "forgotPassword": {
     "title": "Reset your password",

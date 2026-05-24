@@ -337,7 +337,9 @@
     "signaturePlaceholder": "Tape non konplè ou kòm siyati nimerik ou",
     "signatureHint": "Sa a sèvi kòm siyati nimerik ou ki konfime akò ou ak kondisyon nou yo",
     "agreementRequired": "Ou dwe dakò ak Kondisyon Sèvis ak Règ Konfidansyalite pou konekte",
-    "signatureRequired": "Tanpri antre non konplè ou kòm siyati nimerik pou kontinye"
+    "signatureRequired": "Tanpri antre non konplè ou kòm siyati nimerik pou kontinye",
+    "signatureFullNameRequired": "Tanpri antre prenon ak siyati ou (egzanp: Marie Jean)",
+    "signatureNameMismatch": "Non ou antre a pa koresponn ak non ki nan kont ou. Tanpri itilize non egzak ou te itilize lè ou te enskri."
   },
   "forgotPassword": {
     "title": "Reyinisyalize modpas ou",

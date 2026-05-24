@@ -252,7 +252,9 @@
     "signaturePlaceholder": "Tapez votre nom complet comme signature numérique",
     "signatureHint": "Cela sert de signature numérique confirmant votre accord avec nos conditions",
     "agreementRequired": "Vous devez accepter les Conditions d'utilisation et la Politique de confidentialité pour vous connecter",
-    "signatureRequired": "Veuillez entrer votre nom complet comme signature numérique pour continuer"
+    "signatureRequired": "Veuillez entrer votre nom complet comme signature numérique pour continuer",
+    "signatureFullNameRequired": "Veuillez saisir votre prénom et nom de famille (ex. Marie Dupont)",
+    "signatureNameMismatch": "Le nom saisi ne correspond pas au nom de votre compte. Veuillez utiliser le nom exact avec lequel vous vous êtes inscrit(e)."
   },
   "forgotPassword": {
     "title": "Réinitialiser votre mot de passe",

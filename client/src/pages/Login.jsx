@@ -13,6 +13,19 @@ function diditGateSatisfied(user) {
   return ds === 'verified' || ds === 'skipped';
 }
 
+/**
+ * Returns true when `name` looks like a real full name:
+ * at least 2 words (first + last), minimum 5 total characters,
+ * only letters, spaces, hyphens, and apostrophes.
+ */
+function isValidFullName(name) {
+  const trimmed = (name || '').trim();
+  if (trimmed.length < 5) return false;
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length < 2) return false;
+  return words.every((w) => /^[A-Za-zÀ-ÖØ-öø-ÿ''-]+$/.test(w));
+}
+
 // ── Left-panel feature data ────────────────────────────────────────────────────
 function FeatureItem({ icon, title, sub }) {
   return (
@@ -46,8 +59,8 @@ export default function Login() {
 
   const from = location.state?.from?.pathname || '/dashboard';
 
-  // Button is only enabled when all three conditions are met
-  const canSubmit = email.trim() && password && termsAgreed && signatureName.trim();
+  // Button is only enabled when all conditions are met — full name required (≥2 words)
+  const canSubmit = email.trim() && password && termsAgreed && isValidFullName(signatureName);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -55,8 +68,8 @@ export default function Login() {
       toast.error(t('login.agreementRequired'));
       return;
     }
-    if (!signatureName.trim()) {
-      toast.error(t('login.signatureRequired'));
+    if (!isValidFullName(signatureName)) {
+      toast.error(t('login.signatureFullNameRequired'));
       return;
     }
 
@@ -79,7 +92,13 @@ export default function Login() {
       toast.success(t('login.welcomeBackToast'));
       navigate(from, { replace: true });
     } catch (err) {
-      toast.error(err.response?.data?.error || t('errors.loginFailed'));
+      const code = err.response?.data?.error;
+      if (code === 'signature_name_mismatch') {
+        toast.error(t('login.signatureNameMismatch'));
+      } else {
+        // Prefer the server's human-readable message over the raw error code
+        toast.error(err.response?.data?.message || t('errors.loginFailed'));
+      }
     } finally {
       setLoading(false);
     }
@@ -311,9 +330,15 @@ export default function Login() {
                     spellCheck={false}
                     aria-describedby="signature-hint"
                   />
-                  <p id="signature-hint" className="mt-1.5 text-xs text-gray-500 leading-relaxed">
-                    {t('login.signatureHint')}
-                  </p>
+                  {signatureName.trim().length > 0 && !isValidFullName(signatureName) ? (
+                    <p id="signature-hint" className="mt-1.5 text-xs text-orange-400 leading-relaxed" role="alert">
+                      {t('login.signatureFullNameRequired')}
+                    </p>
+                  ) : (
+                    <p id="signature-hint" className="mt-1.5 text-xs text-gray-500 leading-relaxed">
+                      {t('login.signatureHint')}
+                    </p>
+                  )}
                 </div>
               </div>
 
