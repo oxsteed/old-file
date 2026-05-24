@@ -111,14 +111,11 @@ export default function Login() {
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="text-2xl font-bold text-orange-500">OxSteed</Link>
           <div className="flex items-center gap-3">
-            <Link to="/register/customer" className="text-sm text-gray-400 hover:text-white transition">
-              {t('login.postJob')}
-            </Link>
             <Link
-              to="/register/helper"
+              to="/join"
               className="text-sm px-3 py-1.5 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg transition-all duration-300"
             >
-              {t('login.listSkills')}
+              {t('login.joinOxSteed', { defaultValue: 'Join OxSteed' })}
             </Link>
           </div>
         </div>
@@ -372,20 +369,13 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Sign-up links */}
-            <div className="flex gap-3 justify-center">
+            {/* Sign-up link */}
+            <div className="flex justify-center">
               <Link
-                to="/register/customer"
-                className="flex-1 flex items-center justify-center gap-1 py-2.5 px-4 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white font-medium rounded-xl transition-all duration-200"
+                to="/join"
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white font-medium rounded-xl transition-all duration-200"
               >
-                {t('login.signUpCustomer')}
-                <ArrowRight size={16} />
-              </Link>
-              <Link
-                to="/register/helper"
-                className="flex-1 flex items-center justify-center gap-1 py-2.5 px-4 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white font-medium rounded-xl transition-all duration-200"
-              >
-                {t('login.signUpHelper')}
+                {t('login.joinOxSteed', { defaultValue: 'Join OxSteed' })}
                 <ArrowRight size={16} />
               </Link>
             </div>

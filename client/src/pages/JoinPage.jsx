@@ -360,6 +360,7 @@ export default function JoinPage() {
                   <CountrySelect
                     value={form.country}
                     onChange={(v) => { set('country', v); set('state', ''); set('zipCode', ''); }}
+                    className={`${inputBase} px-3 ${errors.country ? 'border-red-500 bg-red-900/20' : ''}`}
                   />
                   <FieldError msg={errors.country} />
                 </div>
@@ -399,6 +400,7 @@ export default function JoinPage() {
                       country={form.country}
                       value={form.state}
                       onChange={(v) => set('state', v)}
+                      className={`${inputBase} px-3 ${errors.state ? 'border-red-500 bg-red-900/20' : ''}`}
                     />
                     <FieldError msg={errors.state} />
                   </div>
@@ -411,6 +413,7 @@ export default function JoinPage() {
                       country={form.country}
                       value={form.zipCode}
                       onChange={(v) => set('zipCode', v)}
+                      className={`${inputBase} px-3 ${errors.zipCode ? 'border-red-500 bg-red-900/20' : ''}`}
                     />
                     <FieldError msg={errors.zipCode} />
                   </div>

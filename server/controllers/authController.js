@@ -334,6 +334,27 @@ async function login(req, res, next) {
       logger.warn('Failed to record login agreement', { userId: user.id, error: logErr.message });
     }
 
+    // Record user_consents so TermsGate only re-triggers when versions are
+    // bumped, not on every login. The status query uses DISTINCT ON ordered
+    // by accepted_at DESC, so a new row per login is the correct pattern.
+    try {
+      const consentIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+        || req.socket?.remoteAddress || req.ip || null;
+      const consentUa = req.headers['user-agent'] || null;
+      const ipHash = hashIP(consentIp);
+      for (const type of ['terms_of_service', 'privacy_policy']) {
+        const version = TERMS_CONFIG[type]?.version;
+        if (!version) continue;
+        await pool.query(
+          `INSERT INTO user_consents (user_id, consent_type, version, ip_hash, user_agent)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [user.id, type, version, ipHash, consentUa]
+        );
+      }
+    } catch (consentErr) {
+      logger.warn('Failed to record login consent', { userId: user.id, error: consentErr.message });
+    }
+
     // Record login history and update last_login_at (non-fatal)
     try {
       const loginIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
@@ -1034,6 +1055,27 @@ async function verifyRegistrationOTP(req, res) {
     grantFreeTrialToUser(user.id).catch(err =>
       logger.error('Template free trial grant failed on registration', { userId: user.id, err: err.message })
     );
+
+    // Seed user_consents so TermsGate doesn't fire immediately after signup.
+    // We already recorded terms acceptance in pending_registrations; mirror it
+    // here so the version-comparison logic in TermsGate is satisfied.
+    try {
+      const regIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+        || req.socket?.remoteAddress || req.ip || null;
+      const regUa = req.headers['user-agent'] || null;
+      const regIpHash = hashIP(regIp);
+      for (const type of ['terms_of_service', 'privacy_policy']) {
+        const version = TERMS_CONFIG[type]?.version;
+        if (!version) continue;
+        await pool.query(
+          `INSERT INTO user_consents (user_id, consent_type, version, ip_hash, user_agent)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [user.id, type, version, regIpHash, regUa]
+        );
+      }
+    } catch (consentErr) {
+      logger.warn('Failed to seed registration consent', { userId: user.id, error: consentErr.message });
+    }
 
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
