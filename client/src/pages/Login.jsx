@@ -92,12 +92,11 @@ export default function Login() {
       toast.success(t('login.welcomeBackToast'));
       navigate(from, { replace: true });
     } catch (err) {
-      const code = err.response?.data?.error;
+      const code = err.response?.data?.code;
       if (code === 'signature_name_mismatch') {
         toast.error(t('login.signatureNameMismatch'));
       } else {
-        // Prefer the server's human-readable message over the raw error code
-        toast.error(err.response?.data?.message || t('errors.loginFailed'));
+        toast.error(err.response?.data?.error || t('errors.loginFailed'));
       }
     } finally {
       setLoading(false);
