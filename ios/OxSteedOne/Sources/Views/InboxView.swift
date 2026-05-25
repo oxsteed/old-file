@@ -5,6 +5,7 @@ struct InboxView: View {
     @State private var newUploadTitle = ""
 
     var body: some View {
+        NavigationStack {
         GoScreen(title: "Learn", showsTitle: true) {
             GoCard {
                 HStack {
@@ -98,26 +99,47 @@ struct InboxView: View {
                 }
                 .buttonStyle(.bordered)
 
-                ForEach(store.translatedOrOriginalThreads) { thread in
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack {
-                            Text(thread.title)
-                                .font(.subheadline.weight(.semibold))
-                            Spacer()
-                            Text("\(thread.unreadCount)")
-                                .font(.caption.weight(.bold))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(OneTheme.amber.opacity(0.2), in: Capsule())
-                        }
-                        Text(thread.lastMessage)
+                // Phase 1: show a loading row while the initial inbox fetch is in progress.
+                if store.translatedOrOriginalThreads.isEmpty {
+                    HStack {
+                        ProgressView()
+                            .padding(.trailing, 6)
+                        Text("Loading conversations…")
                             .font(.caption)
-                            .foregroundStyle(OneTheme.muted)
-                        Text("Persona: \(thread.personaSource)")
-                            .font(.caption2)
                             .foregroundStyle(OneTheme.muted)
                     }
                     .padding(.vertical, 4)
+                }
+                ForEach(store.translatedOrOriginalThreads) { thread in
+                    NavigationLink(destination: InboxThreadView(thread: thread)) {
+                        HStack(alignment: .center, spacing: 10) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(thread.title)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(OneTheme.ink)
+                                Text(thread.lastMessage)
+                                    .font(.caption)
+                                    .foregroundStyle(OneTheme.muted)
+                                    .lineLimit(2)
+                                Text("Persona: \(thread.personaSource)")
+                                    .font(.caption2)
+                                    .foregroundStyle(OneTheme.muted)
+                            }
+                            Spacer()
+                            if thread.unreadCount > 0 {
+                                Text("\(thread.unreadCount)")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.white)
+                                    .frame(minWidth: 22, minHeight: 22)
+                                    .background(.red, in: Circle())
+                            }
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(OneTheme.muted)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
 
@@ -132,12 +154,26 @@ struct InboxView: View {
                 TextField("Upload title", text: $newUploadTitle)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                Button("Submit Upload") {
-                    store.addCreatorUpload(title: newUploadTitle)
-                    newUploadTitle = ""
+                Button {
+                    Task {
+                        await store.addCreatorUpload(title: newUploadTitle)
+                        newUploadTitle = ""
+                    }
+                } label: {
+                    if store.isSubmittingCustomerJob {
+                        ProgressView().frame(maxWidth: .infinity)
+                    } else {
+                        Text("Submit Upload").frame(maxWidth: .infinity)
+                    }
                 }
                 .buttonStyle(GoAccentButtonStyle())
-                .disabled(!store.canUploadCreatorContent)
+                .disabled(!store.canUploadCreatorContent || store.isSubmittingCustomerJob)
+                if let msg = store.customerJobFlowMessage {
+                    Text(msg).font(.caption).foregroundStyle(.green)
+                }
+                if let err = store.lastJobError {
+                    Text(err).font(.caption).foregroundStyle(.red)
+                }
 
                 ForEach(store.creatorUploads) { item in
                     VStack(alignment: .leading, spacing: 4) {
@@ -167,6 +203,7 @@ struct InboxView: View {
                 }
             }
         }
+        } // NavigationStack
     }
 
     private func learnItem(_ title: String, _ detail: String, _ icon: String) -> some View {

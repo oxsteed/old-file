@@ -53,14 +53,33 @@ struct ShopView: View {
                 TextField("Target license/business", text: $ascensionLicense)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                Button("Submit Ascension Application") {
-                    store.submitAscensionApplication(fullName: ascensionName, skill: ascensionSkill, targetLicense: ascensionLicense)
-                    ascensionName = ""
+                Button {
+                    Task {
+                        await store.submitAscensionApplication(fullName: ascensionName, skill: ascensionSkill, targetLicense: ascensionLicense)
+                        ascensionName = ""
+                    }
+                } label: {
+                    if store.isSubmittingCustomerJob {
+                        ProgressView().frame(maxWidth: .infinity)
+                    } else {
+                        Text("Submit Ascension Application").frame(maxWidth: .infinity)
+                    }
                 }
+                .disabled(store.isSubmittingCustomerJob)
                 .buttonStyle(GoAccentButtonStyle())
                 Text("Status: \(store.ascensionApplication.status)")
                     .font(.caption)
                     .foregroundStyle(OneTheme.muted)
+                if let msg = store.customerJobFlowMessage {
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                }
+                if let err = store.lastJobError {
+                    Text(err)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
             }
 
             GoCard {
@@ -77,8 +96,9 @@ struct ShopView: View {
                         }
                         Spacer()
                         Button(group.joined ? "Joined" : "Join") {
-                            store.toggleWholesaleGroupJoin(group.id)
+                            Task { await store.toggleWholesaleGroupJoin(group.id) }
                         }
+                        .disabled(store.isSubmittingCustomerJob)
                         .buttonStyle(.borderedProminent)
                     }
                 }
@@ -101,14 +121,23 @@ struct ShopView: View {
                     Text("Good").tag("Good")
                     Text("Very Good").tag("Very Good")
                 }
-                Button("Submit Pre-Qualification") {
-                    store.submitFinancingPrequal(
-                        requestedAmount: Double(financingAmount) ?? 0,
-                        purpose: financingPurpose,
-                        monthlyRevenue: Double(financingRevenue) ?? 0,
-                        creditBand: financingCredit
-                    )
+                Button {
+                    Task {
+                        await store.submitFinancingPrequal(
+                            requestedAmount: Double(financingAmount) ?? 0,
+                            purpose: financingPurpose,
+                            monthlyRevenue: Double(financingRevenue) ?? 0,
+                            creditBand: financingCredit
+                        )
+                    }
+                } label: {
+                    if store.isSubmittingCustomerJob {
+                        ProgressView().frame(maxWidth: .infinity)
+                    } else {
+                        Text("Submit Pre-Qualification").frame(maxWidth: .infinity)
+                    }
                 }
+                .disabled(store.isSubmittingCustomerJob)
                 .buttonStyle(GoAccentButtonStyle())
                 Text("Status: \(store.financingPrequal.status)")
                     .font(.caption)
@@ -119,12 +148,20 @@ struct ShopView: View {
                 Text("Grants & Subsidies")
                     .font(.headline)
                 ForEach(store.grantOpportunities) { grant in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(grant.title)
-                            .font(.subheadline.weight(.semibold))
-                        Text("\(grant.region) · \(grant.dueText)")
-                            .font(.caption)
-                            .foregroundStyle(OneTheme.muted)
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(grant.title)
+                                .font(.subheadline.weight(.semibold))
+                            Text("\(grant.region) · \(grant.dueText)")
+                                .font(.caption)
+                                .foregroundStyle(OneTheme.muted)
+                        }
+                        Spacer()
+                        Button("Apply") {
+                            Task { await store.applyForGrant(grant.id) }
+                        }
+                        .disabled(store.isSubmittingCustomerJob)
+                        .buttonStyle(.bordered)
                     }
                     .padding(.vertical, 2)
                 }

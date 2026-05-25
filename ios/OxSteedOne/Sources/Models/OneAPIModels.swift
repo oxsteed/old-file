@@ -249,3 +249,262 @@ struct OneCreateConversationRequest: Encodable {
 struct OneSendMessageRequest: Encodable {
     let content: String
 }
+
+// MARK: - Phase 1: Data Fetching DTOs
+
+// User profile
+struct OneUserProfile: Decodable {
+    let id: String?
+    let email: String?
+    let firstName: String?
+    let lastName: String?
+    let role: String?
+    let defaultMode: String?
+    let businesses: [BusinessRef]?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case email
+        case firstName = "first_name"
+        case lastName = "last_name"
+        case role
+        case defaultMode = "default_mode"
+        case businesses
+    }
+}
+
+// Job list (public feed + my-jobs)
+struct OneJobListResponse: Decodable {
+    let jobs: [OneJobDTO]?
+    let data: [OneJobDTO]?
+    let total: Int?
+    let hasMore: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case jobs
+        case data
+        case total
+        case hasMore = "has_more"
+    }
+}
+
+// Bid list for a specific job
+struct OneBidListResponse: Decodable {
+    let bids: [OneBidDTO]?
+    let data: [OneBidDTO]?
+    let total: Int?
+}
+
+// Tool browse (public listings, not my-rentals)
+struct OneToolBrowseResponse: Decodable {
+    let tools: [OneToolBrowseDTO]?
+    let data: [OneToolBrowseDTO]?
+    let total: Int?
+}
+
+struct OneToolBrowseDTO: Decodable {
+    let id: String?
+    let title: String?
+    let ownerName: String?
+    let city: String?
+    let dailyRateCents: Int?
+    let depositCents: Int?
+    let terms: String?
+    let availableSlots: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case ownerName = "owner_name"
+        case city
+        case dailyRateCents = "daily_rate_cents"
+        case depositCents = "deposit_cents"
+        case terms
+        case availableSlots = "available_slots"
+    }
+}
+
+// Life log history
+struct OneLifeLogListResponse: Decodable {
+    let entries: [OneLifeLogEntryDTO]?
+    let data: [OneLifeLogEntryDTO]?
+}
+
+struct OneLifeLogEntryDTO: Decodable {
+    let id: String?
+    let pillarId: String?
+    let title: String?
+    let detail: String?
+    let createdAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case pillarId = "pillar_id"
+        case title
+        case detail
+        case createdAt = "created_at"
+    }
+}
+
+// Sinking funds list
+struct OneSinkingFundListResponse: Decodable {
+    let funds: [OneSinkingFundDTO]?
+    let data: [OneSinkingFundDTO]?
+}
+
+struct OneSinkingFundDTO: Decodable {
+    let id: String?
+    let title: String?
+    let targetAmountCents: Int?
+    let currentAmountCents: Int?
+    let targetDate: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case targetAmountCents = "target_amount_cents"
+        case currentAmountCents = "current_amount_cents"
+        case targetDate = "target_date"
+    }
+}
+
+// Unified inbox threads
+struct OneInboxListResponse: Decodable {
+    let conversations: [OneInboxThreadDTO]?
+    let data: [OneInboxThreadDTO]?
+}
+
+struct OneInboxThreadDTO: Decodable {
+    let id: Int?
+    let participantName: String?
+    let lastMessage: String?
+    let personaSource: String?
+    let unreadCount: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case participantName = "participant_name"
+        case lastMessage = "last_message"
+        case personaSource = "persona_source"
+        case unreadCount = "unread_count"
+    }
+}
+
+// MARK: - Phase 2: Form Submission Request/Response Models
+
+struct OneJoinWholesaleRequest: Encodable {
+    let groupId: String
+    let persona: String
+
+    enum CodingKeys: String, CodingKey {
+        case groupId = "group_id"
+        case persona
+    }
+}
+
+struct OneGrantApplicationRequest: Encodable {
+    let grantId: String
+    let persona: String
+
+    enum CodingKeys: String, CodingKey {
+        case grantId = "grant_id"
+        case persona
+    }
+}
+
+struct OneCreatorUploadRequest: Encodable {
+    let title: String
+    let language: String
+}
+
+struct OneSubmitReviewRequest: Encodable {
+    let targetUserId: String
+    let rating: Int
+    let comment: String
+    let fromRole: String
+    let toRole: String
+
+    enum CodingKeys: String, CodingKey {
+        case targetUserId = "target_user_id"
+        case rating
+        case comment
+        case fromRole = "from_role"
+        case toRole = "to_role"
+    }
+}
+
+// MARK: - Phase 3: Image / Media Upload
+
+struct OnePresignedURLRequest: Encodable {
+    let fileName: String
+    let contentType: String
+
+    enum CodingKeys: String, CodingKey {
+        case fileName = "file_name"
+        case contentType = "content_type"
+    }
+}
+
+struct OnePresignedURLResponse: Decodable {
+    let presignedUrl: String
+    let publicUrl: String
+
+    enum CodingKeys: String, CodingKey {
+        case presignedUrl = "presigned_url"
+        case publicUrl = "public_url"
+    }
+}
+
+// MARK: - Phase 4: Messaging
+
+struct OneMessage: Decodable, Identifiable, Hashable {
+    let id: String
+    let threadID: Int
+    let senderID: String
+    let senderName: String
+    let content: String
+    let personaSource: String
+    let createdAt: String
+    let isRead: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case threadID = "thread_id"
+        case senderID = "sender_id"
+        case senderName = "sender_name"
+        case content
+        case personaSource = "persona_source"
+        case createdAt = "created_at"
+        case isRead = "is_read"
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
+    static func == (lhs: OneMessage, rhs: OneMessage) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
+struct OneMessageListResponse: Decodable {
+    let messages: [OneMessage]
+    let total: Int?
+    let hasMore: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case messages
+        case total
+        case hasMore = "has_more"
+    }
+}
+
+struct OneDeviceTokenRequest: Encodable {
+    let deviceToken: String
+    let platform: String
+
+    enum CodingKeys: String, CodingKey {
+        case deviceToken = "device_token"
+        case platform
+    }
+}

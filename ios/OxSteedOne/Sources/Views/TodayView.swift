@@ -14,7 +14,8 @@ struct TodayView: View {
     @State private var postLocation = ""
     @State private var postAddress = ""
     @State private var postDetails = ""
-    @State private var postPhotos = ""
+    @State private var selectedJobPhotos: [UIImage] = []
+    @State private var showJobPhotoPicker = false
     @State private var selectedJobID: UUID?
     @State private var bidMessageByID: [UUID: String] = [:]
     @State private var bidSort = "price_asc"
@@ -144,10 +145,50 @@ struct TodayView: View {
                         .font(.caption)
                         .foregroundStyle(OneTheme.muted)
                 }
-                customerJobPostingCard
-                customerBidsCard
-                customerServiceBookingCard
-                customerToolRentalCard
+                // Phase 1: show spinner on first-ever fetch; once cached data exists render immediately.
+                if store.isFetchingJobs && store.customerJobs.isEmpty {
+                    GoCard {
+                        HStack {
+                            ProgressView()
+                                .padding(.trailing, 6)
+                            Text("Loading your jobs…")
+                                .font(.subheadline)
+                                .foregroundStyle(OneTheme.muted)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                } else {
+                    customerJobPostingCard
+                    customerBidsCard
+                }
+                if store.isCreatingBooking && store.customerServiceBookings.isEmpty {
+                    GoCard {
+                        HStack {
+                            ProgressView()
+                                .padding(.trailing, 6)
+                            Text("Loading bookings…")
+                                .font(.subheadline)
+                                .foregroundStyle(OneTheme.muted)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                } else {
+                    customerServiceBookingCard
+                }
+                if store.isReservingTool && store.rentalTools.isEmpty {
+                    GoCard {
+                        HStack {
+                            ProgressView()
+                                .padding(.trailing, 6)
+                            Text("Loading rental tools…")
+                                .font(.subheadline)
+                                .foregroundStyle(OneTheme.muted)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                } else {
+                    customerToolRentalCard
+                }
             }
 
             GoCard {
@@ -264,6 +305,20 @@ struct TodayView: View {
                             .foregroundStyle(OneTheme.muted)
                     }
                     .padding(.vertical, 3)
+                }
+            }
+
+            // Phase 1: show a loading indicator on the helper job feed while the first fetch runs.
+            if store.activePersona == .helper && store.isFetchingJobs && store.customerJobs.isEmpty {
+                GoCard {
+                    HStack {
+                        ProgressView()
+                            .padding(.trailing, 6)
+                        Text("Loading jobs near you…")
+                            .font(.subheadline)
+                            .foregroundStyle(OneTheme.muted)
+                    }
+                    .padding(.vertical, 4)
                 }
             }
 
@@ -419,51 +474,72 @@ struct TodayView: View {
                 .lineLimit(2...4)
                 .padding(10)
                 .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            TextField("Photo file names (comma separated)", text: $postPhotos)
-                .padding(10)
-                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            Text("Photos preview: \(postPhotos.isEmpty ? "none" : postPhotos)")
-                .font(.caption)
-                .foregroundStyle(OneTheme.muted)
+            // Photo picker
+            if selectedJobPhotos.isEmpty {
+                Button {
+                    showJobPhotoPicker = true
+                } label: {
+                    Label("Add Photos (up to 5)", systemImage: "photo.badge.plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            } else {
+                PhotoThumbnailStrip(images: $selectedJobPhotos) {
+                    showJobPhotoPicker = true
+                }
+            }
+            .sheet(isPresented: $showJobPhotoPicker) {
+                PhotoPicker(selectedImages: $selectedJobPhotos, maxSelection: 5)
+            }
             HStack {
                 Button(store.localized("home.save_draft", fallback: "Save Draft")) {
-                    let photos = postPhotos.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
                     store.saveCustomerJobDraft(
                         title: postTitle,
                         category: postCategory,
                         locationQuery: postLocation,
                         address: postAddress,
                         details: postDetails,
-                        photos: photos
+                        photos: []
                     )
                 }
                 .buttonStyle(.bordered)
                 Spacer()
             }
-            Button(store.localized("home.publish_job", fallback: "Publish Job + Notify Helpers")) {
-                let photos = postPhotos.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+            Button {
                 Task {
+                    // Upload photos first, then publish the job with their CDN URLs
+                    let photoURLs = await store.uploadPhotosAndGetURLs(selectedJobPhotos)
                     await store.postCustomerJobServerFirst(
                         title: postTitle,
                         category: postCategory,
                         locationQuery: postLocation,
                         address: postAddress,
                         details: postDetails,
-                        photos: photos
+                        photos: photoURLs
                     )
+                    postTitle = ""
+                    postDetails = ""
+                    selectedJobPhotos = []
+                    if let first = store.customerJobs.first {
+                        selectedJobID = first.id
+                    }
                 }
-                postTitle = ""
-                postDetails = ""
-                postPhotos = ""
-                if let first = store.customerJobs.first {
-                    selectedJobID = first.id
+            } label: {
+                if store.isUploadingImages {
+                    Label("Uploading photos…", systemImage: "arrow.up.circle")
+                        .frame(maxWidth: .infinity)
+                } else if store.isSubmittingCustomerJob {
+                    ProgressView("Publishing job…").frame(maxWidth: .infinity)
+                } else {
+                    Text(store.localized("home.publish_job", fallback: "Publish Job + Notify Helpers"))
+                        .frame(maxWidth: .infinity)
                 }
             }
-            .disabled(store.isSubmittingCustomerJob)
+            .disabled(store.isSubmittingCustomerJob || store.isUploadingImages)
             .buttonStyle(GoAccentButtonStyle())
-            if store.isSubmittingCustomerJob {
-                ProgressView("Publishing job...")
-                    .font(.caption)
+            if store.isUploadingImages && store.uploadProgress > 0 {
+                ProgressView(value: store.uploadProgress)
+                    .tint(OneTheme.amber)
             }
             if let message = store.customerJobFlowMessage {
                 Text(message)
@@ -477,15 +553,15 @@ struct TodayView: View {
                         .foregroundStyle(.red)
                     Spacer()
                     Button("Retry") {
-                        let photos = postPhotos.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
                         Task {
+                            let photoURLs = await store.uploadPhotosAndGetURLs(selectedJobPhotos)
                             await store.postCustomerJobServerFirst(
                                 title: postTitle,
                                 category: postCategory,
                                 locationQuery: postLocation,
                                 address: postAddress,
                                 details: postDetails,
-                                photos: photos
+                                photos: photoURLs
                             )
                         }
                     }
@@ -496,28 +572,54 @@ struct TodayView: View {
             if !store.customerJobs.isEmpty {
                 Divider().padding(.vertical, 4)
                 ForEach(store.customerJobs.prefix(5)) { job in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(job.title).font(.caption.weight(.semibold))
-                            Text("\(job.category) · \(job.status.rawValue)")
-                                .font(.caption2)
-                                .foregroundStyle(OneTheme.muted)
-                        }
-                        Spacer()
-                        if job.status == .draft {
-                            Button("Publish") { store.publishCustomerJob(job.id) }
-                                .buttonStyle(.bordered)
-                        } else {
-                            Button("Start") { Task { await store.startCustomerJobServerFirst(job.id) } }
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(job.title).font(.caption.weight(.semibold))
+                                Text("\(job.category) · \(job.status.rawValue)")
+                                    .font(.caption2)
+                                    .foregroundStyle(OneTheme.muted)
+                            }
+                            Spacer()
+                            if job.status == .draft {
+                                Button("Publish") { store.publishCustomerJob(job.id) }
+                                    .buttonStyle(.bordered)
+                            } else {
+                                Button("Start") { Task { await store.startCustomerJobServerFirst(job.id) } }
+                                    .disabled(store.isUpdatingJob)
+                                    .buttonStyle(.bordered)
+                                Button("Complete") { Task { await store.completeCustomerJobServerFirst(job.id) } }
+                                    .disabled(store.isUpdatingJob)
+                                    .buttonStyle(.bordered)
+                            }
+                            Button("Cancel") { Task { await store.cancelCustomerJobServerFirst(job.id) } }
                                 .disabled(store.isUpdatingJob)
                                 .buttonStyle(.bordered)
-                            Button("Complete") { Task { await store.completeCustomerJobServerFirst(job.id) } }
-                                .disabled(store.isUpdatingJob)
-                                .buttonStyle(.bordered)
                         }
-                        Button("Cancel") { Task { await store.cancelCustomerJobServerFirst(job.id) } }
-                            .disabled(store.isUpdatingJob)
-                            .buttonStyle(.bordered)
+                        // Photo thumbnails for jobs that have uploaded photos
+                        if !job.photos.isEmpty {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 6) {
+                                    ForEach(job.photos, id: \.self) { photoURL in
+                                        AsyncImage(url: URL(string: photoURL)) { phase in
+                                            switch phase {
+                                            case .success(let image):
+                                                image.resizable().scaledToFill()
+                                            case .failure:
+                                                Image(systemName: "photo").foregroundStyle(OneTheme.muted)
+                                            case .empty:
+                                                ProgressView()
+                                            @unknown default:
+                                                EmptyView()
+                                            }
+                                        }
+                                        .frame(width: 56, height: 56)
+                                        .clipped()
+                                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 if store.hasMoreJobs {

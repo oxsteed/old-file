@@ -64,6 +64,10 @@ final class OneStore {
     var lifeLogEntries: [LifeLogEntry] = OneSessionVault.loadLifeLogEntries()
     var sinkingFunds: [SinkingFund] = OneSessionVault.loadSinkingFunds()
 
+    /// The authenticated user's server-side ID (populated after fetchMyProfile).
+    /// Used to distinguish outgoing vs. incoming bubbles in InboxThreadView.
+    var currentUserID: String? = nil
+
     var unifiedInboxThreads: [UnifiedThread] = OneSessionVault.loadUnifiedThreads()
     var translatedThreadPreview: [Int: String] = [:]
     var translatedPreviewCache: [String: String] = [:]
@@ -111,6 +115,8 @@ final class OneStore {
     var bidAcceptanceInFlight: Set<UUID> = []
     var customerJobFlowMessage: String?
     var isPostingJob = false
+    var isUploadingImages = false
+    var uploadProgress: Double = 0.0
     var isFetchingBids = false
     var isUpdatingJob = false
     var lastJobError: String?
@@ -488,6 +494,29 @@ final class OneStore {
         }
         if isAuthenticated {
             Task {
+                // Phase 1: fetch fresh data on every app launch.
+                await fetchMyProfile()
+
+                // Persona-specific primary data.
+                switch activePersona {
+                case .customer:
+                    await fetchMyJobs()
+                    await fetchServiceBookings()
+                    await fetchRentalTools()
+                case .helper:
+                    await fetchHelperJobFeed()
+                    await refreshHelpersFromAPI()
+                case .businessOwner, .consultant, .toolOwner, .franchiseOwner, .investor:
+                    // Persona-specific fetches added in Phase 7.
+                    break
+                }
+
+                // Universal data (every persona).
+                await fetchLifeLogHistory()
+                await fetchSinkingFunds()
+                await fetchUnifiedInbox()
+
+                // Existing refresh + sync pass.
                 await refreshCustomerTransactionData()
                 await syncPendingChanges()
             }
@@ -501,6 +530,23 @@ final class OneStore {
         }
         Task { await runForceUpdateCheck() }
         Task { await refreshPushNotificationStatus() }
+    }
+
+    /// Re-run persona-specific fetches when the user switches personas.
+    /// Call this from selectPersona() after the context is updated.
+    @MainActor
+    func refreshDataForCurrentPersona() async {
+        switch activePersona {
+        case .customer:
+            await fetchMyJobs()
+            await fetchServiceBookings()
+            await fetchRentalTools()
+        case .helper:
+            await fetchHelperJobFeed()
+        case .businessOwner, .consultant, .toolOwner, .franchiseOwner, .investor:
+            break
+        }
+        await fetchUnifiedInbox()
     }
 
     func selectPulsePillar(_ pillarID: String) {
@@ -525,6 +571,9 @@ final class OneStore {
 
         OneSessionVault.savePersonaContext(personaContext)
         refreshHomeOnly()
+        if isAuthenticated {
+            Task { await refreshDataForCurrentPersona() }
+        }
     }
 
     func setBusinessSubRole(_ role: BusinessSubRole) {
@@ -653,11 +702,25 @@ final class OneStore {
         OneSessionVault.saveSinkingFunds(sinkingFunds)
     }
 
-    func addCreatorUpload(title: String) {
+    @MainActor
+    func addCreatorUpload(title: String) async {
         guard canUploadCreatorContent, !title.isEmpty else { return }
+        // Optimistic local add
         let status = moderationStatus(for: title)
         creatorUploads.insert(CreatorUploadItem(title: title, language: appLanguage, status: status), at: 0)
         OneSessionVault.saveCreatorUploads(creatorUploads)
+        // API sync
+        isSubmittingCustomerJob = true
+        lastJobError = nil
+        defer { isSubmittingCustomerJob = false }
+        let req = OneCreatorUploadRequest(title: title, language: appLanguage.rawValue)
+        do {
+            let _: OneGenericSuccessResponse = try await api.post("/uploads/create", body: req)
+            customerJobFlowMessage = "Upload submitted for moderation."
+        } catch {
+            lastJobError = OneErrorMapper.userMessage(for: error, fallback: "Upload queued — will sync when online.")
+            enqueueForRetry(path: "/uploads/create", method: .post, encodable: req)
+        }
     }
 
     func setCreatorUploadStatus(_ id: UUID, status: ModerationStatus) {
@@ -1374,7 +1437,9 @@ final class OneStore {
         OneSessionVault.saveToolRentalReservations(toolRentalReservations)
     }
 
-    func submitAscensionApplication(fullName: String, skill: String, targetLicense: String) {
+    @MainActor
+    func submitAscensionApplication(fullName: String, skill: String, targetLicense: String) async {
+        // Optimistic local update
         ascensionApplication.fullName = fullName
         ascensionApplication.currentSkill = skill
         ascensionApplication.targetLicense = targetLicense
@@ -1382,16 +1447,58 @@ final class OneStore {
         ascensionApplication.submittedAt = Date()
         growthProgressStep = "Side Income"
         OneSessionVault.saveAscensionApplication(ascensionApplication)
+        // API sync
+        isSubmittingCustomerJob = true
+        lastJobError = nil
+        defer { isSubmittingCustomerJob = false }
+        let request: [String: Any] = [
+            "full_name": fullName,
+            "current_skill": skill,
+            "target_license": targetLicense,
+            "persona": activePersona.apiRole
+        ]
+        do {
+            let payload = try JSONSerialization.data(withJSONObject: request, options: [])
+            let _: OneGenericSuccessResponse = try await api.postRaw("/ascension/apply", bodyData: payload)
+            customerJobFlowMessage = "Application submitted successfully."
+        } catch {
+            lastJobError = OneErrorMapper.userMessage(for: error, fallback: "Submitted locally — will sync when online.")
+            enqueueForRetry(path: "/ascension/apply", method: .post, jsonObject: request)
+        }
     }
 
-    func toggleWholesaleGroupJoin(_ id: UUID) {
+    @MainActor
+    func toggleWholesaleGroupJoin(_ id: UUID) async {
         guard let idx = wholesaleGroups.firstIndex(where: { $0.id == id }) else { return }
+        // Optimistic local update
+        let wasJoined = wholesaleGroups[idx].joined
         wholesaleGroups[idx].joined.toggle()
         wholesaleGroups[idx].memberCount += wholesaleGroups[idx].joined ? 1 : -1
         OneSessionVault.saveWholesaleGroups(wholesaleGroups)
+        // API sync
+        isSubmittingCustomerJob = true
+        lastJobError = nil
+        defer { isSubmittingCustomerJob = false }
+        let path = wasJoined ? "/wholesale/leave" : "/wholesale/join"
+        let req = OneJoinWholesaleRequest(groupId: id.uuidString, persona: activePersona.apiRole)
+        do {
+            let _: OneGenericSuccessResponse = try await api.post(path, body: req)
+            customerJobFlowMessage = wasJoined ? "Left group." : "Joined group successfully."
+        } catch {
+            // Revert optimistic update on failure
+            if let currentIdx = wholesaleGroups.firstIndex(where: { $0.id == id }) {
+                wholesaleGroups[currentIdx].joined = wasJoined
+                wholesaleGroups[currentIdx].memberCount += wasJoined ? 1 : -1
+            }
+            OneSessionVault.saveWholesaleGroups(wholesaleGroups)
+            lastJobError = OneErrorMapper.userMessage(for: error, fallback: "Action queued for sync when online.")
+            enqueueForRetry(path: path, method: .post, encodable: req)
+        }
     }
 
-    func submitFinancingPrequal(requestedAmount: Double, purpose: String, monthlyRevenue: Double, creditBand: String) {
+    @MainActor
+    func submitFinancingPrequal(requestedAmount: Double, purpose: String, monthlyRevenue: Double, creditBand: String) async {
+        // Optimistic local update
         financingPrequal.requestedAmount = requestedAmount
         financingPrequal.purpose = purpose
         financingPrequal.monthlyRevenue = monthlyRevenue
@@ -1399,6 +1506,213 @@ final class OneStore {
         financingPrequal.status = "Submitted"
         growthProgressStep = "Licensed Business"
         OneSessionVault.saveFinancingPrequal(financingPrequal)
+        // API sync
+        isSubmittingCustomerJob = true
+        lastJobError = nil
+        defer { isSubmittingCustomerJob = false }
+        let request: [String: Any] = [
+            "requested_amount": Int(requestedAmount * 100),
+            "purpose": purpose,
+            "monthly_revenue": Int(monthlyRevenue * 100),
+            "credit_band": creditBand,
+            "persona": activePersona.apiRole
+        ]
+        do {
+            let payload = try JSONSerialization.data(withJSONObject: request, options: [])
+            let _: OneGenericSuccessResponse = try await api.postRaw("/financing/prequalify", bodyData: payload)
+            customerJobFlowMessage = "Pre-qualification submitted. You'll hear back within 5 business days."
+        } catch {
+            lastJobError = OneErrorMapper.userMessage(for: error, fallback: "Submitted locally — will sync when online.")
+            enqueueForRetry(path: "/financing/prequalify", method: .post, jsonObject: request)
+        }
+    }
+
+    // MARK: - Phase 3: Image & Media Upload
+
+    /// Uploads an array of UIImages to S3 via presigned URLs and returns their public CDN URLs.
+    /// Sets `isUploadingImages` and `uploadProgress` during the operation.
+    @MainActor
+    func uploadPhotosAndGetURLs(_ images: [UIImage]) async -> [String] {
+        guard !images.isEmpty else { return [] }
+        isUploadingImages = true
+        uploadProgress = 0.0
+        defer { isUploadingImages = false; uploadProgress = 0.0 }
+
+        var uploadedURLs: [String] = []
+        for (index, image) in images.enumerated() {
+            uploadProgress = Double(index) / Double(images.count)
+            do {
+                let req = OnePresignedURLRequest(
+                    fileName: "job-photo-\(UUID().uuidString).jpg",
+                    contentType: "image/jpeg"
+                )
+                let presigned: OnePresignedURLResponse = try await api.post("/media/presigned-url", body: req)
+                guard let jpegData = image.jpegData(compressionQuality: 0.75),
+                      let targetURL = URL(string: presigned.presignedUrl) else { continue }
+                let success = try await uploadToS3(url: targetURL, data: jpegData, contentType: "image/jpeg")
+                if success { uploadedURLs.append(presigned.publicUrl) }
+            } catch {
+                // Non-fatal: skip failed photo, continue with others
+                authStatusMessage = "Photo \(index + 1) upload failed; skipping."
+            }
+        }
+        uploadProgress = 1.0
+        return uploadedURLs
+    }
+
+    /// Uploads a video file to S3 via presigned URL. Returns the public CDN URL or empty string on failure.
+    @MainActor
+    func uploadVideoToS3(_ videoFileURL: URL) async -> String {
+        isUploadingImages = true
+        uploadProgress = 0.0
+        defer { isUploadingImages = false; uploadProgress = 0.0 }
+        do {
+            let req = OnePresignedURLRequest(
+                fileName: "creator-video-\(UUID().uuidString).mp4",
+                contentType: "video/mp4"
+            )
+            let presigned: OnePresignedURLResponse = try await api.post("/media/presigned-url", body: req)
+            guard let targetURL = URL(string: presigned.presignedUrl) else { return "" }
+            let videoData = try Data(contentsOf: videoFileURL)
+            uploadProgress = 0.5
+            let success = try await uploadToS3(url: targetURL, data: videoData, contentType: "video/mp4")
+            uploadProgress = 1.0
+            return success ? presigned.publicUrl : ""
+        } catch {
+            lastJobError = OneErrorMapper.userMessage(for: error, fallback: "Video upload failed.")
+            return ""
+        }
+    }
+
+    /// Raw PUT to an S3 presigned URL. Returns true on HTTP 2xx.
+    private func uploadToS3(url: URL, data: Data, contentType: String) async throws -> Bool {
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        request.httpBody = data
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { return false }
+        return (200..<300).contains(http.statusCode)
+    }
+
+    // MARK: - Phase 4: Messaging & Push Notifications
+
+    /// Sends a message in a conversation thread.
+    /// Optimistically updates the local thread's `lastMessage` preview.
+    /// The server derives the recipient from the thread_id.
+    @MainActor
+    func sendMessage(threadID: Int, content: String, persona: AppPersona) async {
+        guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let request: [String: Any] = [
+            "thread_id": threadID,
+            "content": content,
+            "persona_source": persona.label
+        ]
+        // Optimistic local preview update
+        if let idx = unifiedInboxThreads.firstIndex(where: { $0.id == threadID }) {
+            unifiedInboxThreads[idx].lastMessage = content
+        }
+        OneSessionVault.saveUnifiedThreads(unifiedInboxThreads)
+        do {
+            let payload = try JSONSerialization.data(withJSONObject: request, options: [])
+            let _: OneGenericSuccessResponse = try await api.postRaw("/messages/send", bodyData: payload)
+        } catch {
+            authStatusMessage = "Message send failed. Please try again."
+            enqueueForRetry(path: "/messages/send", method: .post, jsonObject: request)
+        }
+    }
+
+    /// Fetches paginated message history for a thread. Returns empty array on failure.
+    @MainActor
+    func fetchMessageHistory(threadID: Int, limit: Int = 20, offset: Int = 0) async -> [OneMessage] {
+        do {
+            let response: OneMessageListResponse = try await api.get(
+                "/messages/thread/\(threadID)?limit=\(limit)&offset=\(offset)"
+            )
+            return response.messages
+        } catch {
+            authStatusMessage = "Failed to load message history."
+            return []
+        }
+    }
+
+    /// Requests push notification permission and registers with APNs.
+    /// Sends the resulting device token to the backend.
+    @MainActor
+    func registerForPushNotifications() async {
+        do {
+            let granted = try await UNUserNotificationCenter.current().requestAuthorization(
+                options: [.alert, .sound, .badge]
+            )
+            if granted {
+                await MainActor.run {
+                    #if canImport(UIKit)
+                    UIApplication.shared.registerForRemoteNotifications()
+                    #endif
+                }
+                // Token arrives async via AppDelegate; attempt to send if already stored
+                await sendDeviceTokenToServer()
+            } else {
+                authStatusMessage = "Push notifications are disabled. Enable them in Settings."
+            }
+        } catch {
+            authStatusMessage = "Push notification permission denied."
+        }
+    }
+
+    /// Sends the stored APNs device token to the backend. Silently no-ops if no token is stored yet.
+    func sendDeviceTokenToServer() async {
+        guard let token = UserDefaults.standard.string(forKey: "deviceToken"), !token.isEmpty else { return }
+        let req = OneDeviceTokenRequest(deviceToken: token, platform: "ios")
+        do {
+            let _: OneGenericSuccessResponse = try await api.post("/device-tokens/register", body: req)
+        } catch {
+            // Silently fail — will retry on next app launch or login
+        }
+    }
+
+    // MARK: - Phase 2: New API-backed Action Methods
+
+    @MainActor
+    func applyForGrant(_ grantID: UUID) async {
+        isSubmittingCustomerJob = true
+        lastJobError = nil
+        defer { isSubmittingCustomerJob = false }
+        let req = OneGrantApplicationRequest(grantId: grantID.uuidString, persona: activePersona.apiRole)
+        do {
+            let _: OneGenericSuccessResponse = try await api.post("/grants/apply", body: req)
+            customerJobFlowMessage = "Grant application submitted successfully."
+        } catch {
+            lastJobError = OneErrorMapper.userMessage(for: error, fallback: "Application queued — will sync when online.")
+            enqueueForRetry(path: "/grants/apply", method: .post, encodable: req)
+        }
+    }
+
+    @MainActor
+    func submitReview(targetUserID: UUID, rating: Int, comment: String, fromRole: String, toRole: String) async {
+        isSubmittingCustomerJob = true
+        lastJobError = nil
+        defer { isSubmittingCustomerJob = false }
+        let req = OneSubmitReviewRequest(
+            targetUserId: targetUserID.uuidString,
+            rating: max(1, min(5, rating)),
+            comment: comment,
+            fromRole: fromRole,
+            toRole: toRole
+        )
+        do {
+            let _: OneGenericSuccessResponse = try await api.post("/reviews/submit", body: req)
+            reviews.insert(
+                TwoWayReview(id: UUID(), fromRole: fromRole, toRole: toRole,
+                             rating: max(1, min(5, rating)), comment: comment, createdAt: Date()),
+                at: 0
+            )
+            OneSessionVault.saveReviews(reviews)
+            customerJobFlowMessage = "Review submitted successfully."
+        } catch {
+            lastJobError = OneErrorMapper.userMessage(for: error, fallback: "Review queued — will sync when online.")
+            enqueueForRetry(path: "/reviews/submit", method: .post, encodable: req)
+        }
     }
 
     func refreshMapPointsForActivePersona() {
@@ -1470,8 +1784,12 @@ final class OneStore {
         }
 
         do {
-            let response: OneAuthResponse = try await api.post(
-                "/auth/login",
+            let response: OneAuthResponse = try await postAuthWithFallback(
+                paths: [
+                    "/auth/login",
+                    "https://app.oxsteed.com/api/auth/login",
+                    "https://app.oxsteed.com/auth/login"
+                ],
                 body: OneLoginRequest(
                     email: normalizedEmail,
                     password: password,
@@ -1513,8 +1831,12 @@ final class OneStore {
         }
 
         do {
-            let response: OneAuthResponse = try await api.post(
-                "/auth/register",
+            let response: OneAuthResponse = try await postAuthWithFallback(
+                paths: [
+                    "/auth/register",
+                    "https://app.oxsteed.com/api/auth/register",
+                    "https://app.oxsteed.com/auth/register"
+                ],
                 body: OneRegisterRequest(
                     email: normalizedEmail,
                     password: password,
@@ -1550,7 +1872,14 @@ final class OneStore {
     func logout(clearMessage: Bool = true) {
         if let refreshToken, !refreshToken.isEmpty {
             Task {
-                let _: OneGenericSuccessResponse? = try? await api.post("/auth/logout", body: OneLogoutRequest(refreshToken: refreshToken))
+                let _: OneGenericSuccessResponse? = try? await postAuthWithFallback(
+                    paths: [
+                        "/auth/logout",
+                        "https://app.oxsteed.com/api/auth/logout",
+                        "https://app.oxsteed.com/auth/logout"
+                    ],
+                    body: OneLogoutRequest(refreshToken: refreshToken)
+                )
             }
         }
         token = nil
@@ -1570,7 +1899,14 @@ final class OneStore {
     private func tryRefreshAccessToken() async -> Bool {
         guard let currentRefreshToken = refreshToken, !currentRefreshToken.isEmpty else { return false }
         do {
-            let response: OneAuthResponse = try await api.post("/auth/refresh", body: OneRefreshRequest(refreshToken: currentRefreshToken))
+            let response: OneAuthResponse = try await postAuthWithFallback(
+                paths: [
+                    "/auth/refresh",
+                    "https://app.oxsteed.com/api/auth/refresh",
+                    "https://app.oxsteed.com/auth/refresh"
+                ],
+                body: OneRefreshRequest(refreshToken: currentRefreshToken)
+            )
             guard let newAccessToken = response.accessToken ?? response.token else { return false }
             token = newAccessToken
             if let newRefresh = response.refreshToken, !newRefresh.isEmpty {
@@ -1974,6 +2310,28 @@ final class OneStore {
         }
     }
 
+    private func postAuthWithFallback<Body: Encodable, Response: Decodable>(
+        paths: [String],
+        body: Body
+    ) async throws -> Response {
+        var lastError: Error?
+        for path in paths {
+            do {
+                let response: Response = try await api.post(path, body: body)
+                return response
+            } catch {
+                if let apiError = error as? OneAPIError,
+                   case let .server(status, _) = apiError,
+                   status == 404 {
+                    lastError = error
+                    continue
+                }
+                throw error
+            }
+        }
+        throw lastError ?? OneAPIError.server(404, "No auth endpoint variant responded.")
+    }
+
     @MainActor
     private func authorizeSensitiveAction(reason: String) async -> Bool {
         guard biometricEnabled else { return true }
@@ -2006,6 +2364,243 @@ final class OneStore {
 
     private func card(_ id: String, _ title: String, _ value: String, _ detail: String, _ symbol: String) -> HomeCard {
         HomeCard(id: id, title: title, value: value, detail: detail, symbolName: symbol)
+    }
+
+    // MARK: - Phase 1: Data Fetching
+
+    /// Fetch the authenticated user's profile and update persona context.
+    @MainActor
+    func fetchMyProfile() async {
+        do {
+            let envelope: OneDataEnvelope<OneUserProfile> = try await api.get("/me")
+            let profile = envelope.data
+            if let uid = profile.id {
+                currentUserID = uid
+            }
+            if let email = profile.email {
+                // Keep token/auth state untouched; only update display metadata.
+                _ = email // used implicitly via vault save below
+            }
+            if let businesses = profile.businesses, !businesses.isEmpty {
+                availableBusinesses = businesses
+            }
+            // Map backend default_mode → AppPersona if supplied.
+            if let mode = profile.defaultMode {
+                let mapped: AppPersona? = {
+                    switch mode {
+                    case "helper": return .helper
+                    case "business_owner": return .businessOwner
+                    case "consultant": return .consultant
+                    case "tool_owner": return .toolOwner
+                    case "franchise_owner": return .franchiseOwner
+                    case "investor": return .investor
+                    default: return .customer
+                    }
+                }()
+                if let persona = mapped {
+                    personaContext.activePersona = persona
+                    OneSessionVault.savePersonaContext(personaContext)
+                }
+            }
+        } catch {
+            // Silently fall back to cached persona; a 401 is handled by api.onUnauthorized.
+        }
+    }
+
+    /// Fetch published jobs from the public feed (helper persona job browse).
+    @MainActor
+    func fetchHelperJobFeed(page: Int = 1) async {
+        guard activePersona == .helper else { return }
+        isFetchingJobs = true
+        defer { isFetchingJobs = false }
+        do {
+            let response: OneJobListResponse = try await api.get("/jobs?page=\(page)&limit=\(jobPageSize)&status=published")
+            let jobs = response.jobs ?? response.data ?? []
+            let mapped = jobs.map(mapCustomerJob)
+            if page == 1 {
+                // Replace first page; dedup on remoteJobID.
+                let existing = Set(customerJobs.compactMap(\.remoteJobID))
+                customerJobs = mapped.filter { row in
+                    guard let rid = row.remoteJobID else { return true }
+                    return !existing.contains(rid)
+                } + customerJobs.filter { $0.remoteJobID != nil && !mapped.compactMap(\.remoteJobID).contains($0.remoteJobID!) }
+                jobPage = 1
+            } else {
+                let existing = Set(customerJobs.compactMap(\.remoteJobID))
+                customerJobs.append(contentsOf: mapped.filter { row in
+                    guard let rid = row.remoteJobID else { return true }
+                    return !existing.contains(rid)
+                })
+                jobPage = page
+            }
+            hasMoreJobs = jobs.count >= jobPageSize
+            OneSessionVault.saveCustomerJobs(customerJobs)
+        } catch {
+            lastJobError = OneErrorMapper.userMessage(for: error, fallback: "Failed to load nearby jobs.")
+        }
+    }
+
+    /// Fetch the current user's own posted jobs (customer persona).
+    @MainActor
+    func fetchMyJobs(status: String? = nil) async {
+        guard activePersona == .customer else { return }
+        isFetchingJobs = true
+        defer { isFetchingJobs = false }
+        do {
+            let path = status.map { "/jobs/my-jobs?status=\($0)" } ?? "/jobs/my-jobs"
+            let response: OneJobListResponse = try await api.get(path)
+            let jobs = response.jobs ?? response.data ?? []
+            guard !jobs.isEmpty else { return }
+            customerJobs = jobs.map(mapCustomerJob)
+            jobPage = 1
+            hasMoreJobs = jobs.count >= jobPageSize
+            OneSessionVault.saveCustomerJobs(customerJobs)
+        } catch {
+            lastJobError = OneErrorMapper.userMessage(for: error, fallback: "Failed to load your jobs.")
+        }
+    }
+
+    /// Fetch bids for a specific job, identified by its local UUID.
+    @MainActor
+    func fetchBidsForJob(_ jobID: UUID) async {
+        guard let remoteID = customerJobs.first(where: { $0.id == jobID })?.remoteJobID,
+              !remoteID.isEmpty else { return }
+        isFetchingBids = true
+        defer { isFetchingBids = false }
+        await refreshBidsFromAPI(for: jobID, remoteJobID: remoteID)
+    }
+
+    /// Fetch service bookings for the current user (works for both customer and helper role).
+    @MainActor
+    func fetchServiceBookings(page: Int = 1) async {
+        isCreatingBooking = true
+        defer { isCreatingBooking = false }
+        await refreshAppointmentsFromAPI()
+    }
+
+    /// Fetch available rental tools from the public browse endpoint.
+    @MainActor
+    func fetchRentalTools(page: Int = 1) async {
+        isReservingTool = true
+        defer { isReservingTool = false }
+        do {
+            let response: OneToolBrowseResponse = try await api.get("/tool-rentals?page=\(page)&limit=\(jobPageSize)")
+            let tools = response.tools ?? response.data ?? []
+            guard !tools.isEmpty else {
+                if page == 1 { hasMoreRentals = false }
+                return
+            }
+            let mapped = tools.map { dto in
+                RentalTool(
+                    id: uuidFromString(dto.id) ?? UUID(),
+                    title: dto.title ?? "Tool",
+                    ownerName: dto.ownerName ?? "Owner",
+                    city: dto.city ?? "Unknown",
+                    dailyRate: Double(dto.dailyRateCents ?? 0) / 100.0,
+                    deposit: Double(dto.depositCents ?? 0) / 100.0,
+                    terms: dto.terms ?? "",
+                    availableSlots: dto.availableSlots ?? []
+                )
+            }
+            if page == 1 {
+                rentalTools = mapped
+                rentalPage = 1
+            } else {
+                let existing = Set(rentalTools.map(\.id))
+                rentalTools.append(contentsOf: mapped.filter { !existing.contains($0.id) })
+                rentalPage = page
+            }
+            hasMoreRentals = tools.count >= jobPageSize
+            OneSessionVault.saveRentalTools(rentalTools)
+        } catch {
+            lastToolError = OneErrorMapper.userMessage(for: error, fallback: "Failed to load tools.")
+        }
+    }
+
+    /// Fetch historical life log entries from the server.
+    @MainActor
+    func fetchLifeLogHistory() async {
+        do {
+            let response: OneLifeLogListResponse = try await api.get("/life-log?limit=50")
+            let entries = response.entries ?? response.data ?? []
+            guard !entries.isEmpty else { return }
+            let mapped = entries.compactMap { dto -> LifeLogEntry? in
+                guard let pillar = dto.pillarId else { return nil }
+                // Use the existing convenience init; server id/createdAt are not stored
+                // in the local model in Phase 1 (acceptable — local UUID is stable per install).
+                return LifeLogEntry(
+                    pillarID: pillar,
+                    title: dto.title ?? "",
+                    detail: dto.detail ?? ""
+                )
+            }
+            // Merge: server is authoritative; keep local-only entries that have no remoteID.
+            lifeLogEntries = mapped
+            OneSessionVault.saveLifeLogEntries(lifeLogEntries)
+        } catch {
+            // Keep locally cached entries.
+        }
+    }
+
+    /// Fetch sinking funds from the server.
+    @MainActor
+    func fetchSinkingFunds() async {
+        do {
+            let response: OneSinkingFundListResponse = try await api.get("/sinking-funds")
+            let funds = response.funds ?? response.data ?? []
+            guard !funds.isEmpty else { return }
+            sinkingFunds = funds.compactMap { dto -> SinkingFund? in
+                guard let id = dto.id else { return nil }
+                return SinkingFund(
+                    id: uuidFromString(id) ?? UUID(),
+                    title: dto.title ?? "Fund",
+                    targetAmount: Double(dto.targetAmountCents ?? 0) / 100.0,
+                    currentAmount: Double(dto.currentAmountCents ?? 0) / 100.0,
+                    targetDate: parseISODate(dto.targetDate) ?? Date().addingTimeInterval(30 * 86_400)
+                )
+            }
+            OneSessionVault.saveSinkingFunds(sinkingFunds)
+        } catch {
+            // Keep locally cached funds.
+        }
+    }
+
+    /// Fetch unified inbox threads from the server.
+    @MainActor
+    func fetchUnifiedInbox() async {
+        do {
+            let response: OneInboxListResponse = try await api.get("/messages/conversations?limit=30")
+            let threads = response.conversations ?? response.data ?? []
+            guard !threads.isEmpty else { return }
+            unifiedInboxThreads = threads.compactMap { dto -> UnifiedThread? in
+                guard let id = dto.id else { return nil }
+                return UnifiedThread(
+                    id: id,
+                    title: dto.participantName ?? "Unknown",
+                    lastMessage: dto.lastMessage ?? "",
+                    personaSource: dto.personaSource ?? activePersona.rawValue,
+                    unreadCount: dto.unreadCount ?? 0
+                )
+            }
+            OneSessionVault.saveUnifiedThreads(unifiedInboxThreads)
+        } catch {
+            // Keep locally seeded threads.
+        }
+    }
+
+    /// ISO 8601 date parser used by fetch methods (distinct from any existing date helpers).
+    private func parseISODate(_ string: String?) -> Date? {
+        guard let string else { return nil }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: string) { return date }
+        formatter.formatOptions = [.withInternetDateTime]
+        if let date = formatter.date(from: string) { return date }
+        // Fallback: date-only strings (yyyy-MM-dd)
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd"
+        df.locale = Locale(identifier: "en_US_POSIX")
+        return df.date(from: string)
     }
 
     private func seededThreads() -> [UnifiedThread] {

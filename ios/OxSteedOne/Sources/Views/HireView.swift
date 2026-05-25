@@ -125,6 +125,12 @@ struct HireView: View {
                 }
                 .buttonStyle(GoAccentButtonStyle())
 
+                // Phase 1: guard the list while the first fetch runs.
+                if store.lifeLogEntries.isEmpty {
+                    Text("No life log entries yet. Add one above or they'll load from the server.")
+                        .font(.caption)
+                        .foregroundStyle(OneTheme.muted)
+                }
                 ForEach(store.lifeLogEntries.prefix(5)) { entry in
                     VStack(alignment: .leading, spacing: 2) {
                         Text(entry.title)

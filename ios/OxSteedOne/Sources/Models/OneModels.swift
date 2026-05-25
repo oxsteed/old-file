@@ -192,7 +192,7 @@ struct SinkingFund: Identifiable, Codable, Hashable {
 struct UnifiedThread: Identifiable, Codable, Hashable {
     let id: Int
     let title: String
-    let lastMessage: String
+    var lastMessage: String      // mutable for optimistic send preview
     let personaSource: String
     let unreadCount: Int
 }
