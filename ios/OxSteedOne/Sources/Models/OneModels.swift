@@ -294,6 +294,22 @@ struct WalletSnapshot: Codable, Hashable {
     var payoutMethod: String
 }
 
+struct OneConsultantProfile: Codable, Hashable {
+    var id: String
+    var displayName: String
+    var servicePackages: [String]
+    var appointmentCount: Int
+    var notesCount: Int
+}
+
+struct OneToolInventoryItem: Identifiable, Codable, Hashable {
+    var id: String
+    var title: String
+    var availableUnits: Int
+    var pendingReturns: Int
+    var condition: String
+}
+
 struct WalletTransaction: Identifiable, Codable, Hashable {
     let id: UUID
     var title: String
@@ -477,6 +493,8 @@ struct CustomerServiceBooking: Identifiable, Codable, Hashable {
     var scheduledDate: Date
     var scheduledSlot: String
     var paymentAuthorized: Bool
+    var paymentStatus: String?
+    var paymentIntentID: String?
     var preMessage: String
     var postMessage: String
     var reminderEnabled: Bool
@@ -505,6 +523,8 @@ struct ToolRentalReservation: Identifiable, Codable, Hashable {
     var ownerName: String
     var slot: String
     var paymentAuthorized: Bool
+    var paymentStatus: String?
+    var paymentIntentID: String?
     var pickupConfirmed: Bool
     var returnConfirmed: Bool
     var damageNotes: String

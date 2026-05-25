@@ -755,6 +755,11 @@ struct TodayView: View {
                 .padding(10)
                 .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             Toggle("Payment authorization", isOn: $bookingPaymentAuthorized)
+            if let paymentMessage = store.mobilePaymentStatusMessage {
+                Text(paymentMessage)
+                    .font(.caption)
+                    .foregroundStyle(store.mobilePaymentsAvailable ? OneTheme.muted : .orange)
+            }
             TextField("Pre-appointment message", text: $bookingPreMessage)
                 .padding(10)
                 .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -787,6 +792,9 @@ struct TodayView: View {
                     Text("\(booking.scheduledSlot) · \(booking.status)")
                         .font(.caption)
                         .foregroundStyle(OneTheme.muted)
+                    Text("Payment: \(booking.paymentStatus ?? (booking.paymentAuthorized ? "authorized" : "pending"))")
+                        .font(.caption2)
+                        .foregroundStyle(OneTheme.muted)
                     TextField("Post-appointment message", text: Binding(
                         get: { booking.postMessage },
                         set: { store.setBookingPostMessage(booking.id, message: $0) }
@@ -794,6 +802,13 @@ struct TodayView: View {
                     .padding(8)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     HStack {
+                        if (booking.paymentStatus ?? "") == "requires_payment" && booking.paymentIntentID != nil {
+                            Button("Confirm Payment") {
+                                Task { await store.confirmBookingPaymentServerFirst(booking.id) }
+                            }
+                            .disabled(store.isUpdatingBooking || !store.mobilePaymentsAvailable)
+                            .buttonStyle(.borderedProminent)
+                        }
                         Button("Send Update") {
                             Task {
                                 await store.sendBookingMessageServerFirst(booking.id, content: booking.postMessage)
@@ -894,6 +909,9 @@ struct TodayView: View {
                         .font(.subheadline.weight(.semibold))
                     Text("Deposit: \(reservation.depositStatus) · Dispute: \(reservation.disputeStatus)")
                         .font(.caption)
+                        .foregroundStyle(OneTheme.muted)
+                    Text("Payment: \(reservation.paymentStatus ?? (reservation.paymentAuthorized ? "authorized" : "pending"))")
+                        .font(.caption2)
                         .foregroundStyle(OneTheme.muted)
                     HStack {
                         Button("Pickup") { store.confirmToolPickup(reservation.id) }.buttonStyle(.bordered)

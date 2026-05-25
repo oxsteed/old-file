@@ -195,7 +195,16 @@ struct ProfileView: View {
                         }
                         .buttonStyle(.bordered)
                     }
+                    Button("Probe Auth Endpoints") {
+                        Task { await store.probeAuthEndpoints() }
+                    }
+                    .buttonStyle(.bordered)
                     if let message = store.apiConnectivityMessage {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let message = store.authEndpointProbeMessage {
                         Text(message)
                             .font(.caption)
                             .foregroundStyle(.secondary)

@@ -43,6 +43,7 @@ final class OneStore {
     var isAuthenticating = false
     var apiBaseURLString: String = OneSessionVault.loadAPIBaseURL() ?? OneStore.defaultAPIBaseURLString
     var apiConnectivityMessage: String?
+    var authEndpointProbeMessage: String?
     @ObservationIgnored private(set) var token: String? = OneSessionVault.loadToken() {
         didSet {
             OneSessionVault.saveToken(token)
@@ -81,6 +82,8 @@ final class OneStore {
     var quoteDrafts: [QuoteDraft] = OneSessionVault.loadQuoteDrafts()
     var recurringPlans: [RecurringServicePlan] = OneSessionVault.loadRecurringPlans()
     var walletSnapshot: WalletSnapshot = OneSessionVault.loadWallet()
+    var consultantProfile: OneConsultantProfile?
+    var toolOwnerInventory: [OneToolInventoryItem] = []
     var verificationBadges: [VerificationBadge] = OneSessionVault.loadVerificationBadges()
     var reviews: [TwoWayReview] = OneSessionVault.loadReviews()
     var safetyTimerRunning = false
@@ -113,6 +116,7 @@ final class OneStore {
     var appPreferences: AppPreferences = OneSessionVault.loadAppPreferences()
     var accountDeletionRequested = false
     var isRefreshingCustomerData = false
+    var isRefreshingGrowthData = false
     var lastCustomerSyncAt: Date?
     var isSubmittingCustomerJob = false
     var bidAcceptanceInFlight: Set<UUID> = []
@@ -132,6 +136,8 @@ final class OneStore {
     var isUpdatingTool = false
     var lastToolError: String?
     var isNetworkAvailable = true
+    var mobilePaymentsAvailable = true
+    var mobilePaymentStatusMessage: String?
     var pushAuthorizationStatus: String = "unknown"
     var jobPage = 1
     var jobPageSize = 20
@@ -503,6 +509,8 @@ final class OneStore {
         }
         if isAuthenticated {
             Task {
+                await healAPIBaseURLIfNeeded()
+
                 // Phase 1: fetch fresh data on every app launch.
                 await fetchMyProfile()
 
@@ -524,6 +532,7 @@ final class OneStore {
                 await fetchLifeLogHistory()
                 await fetchSinkingFunds()
                 await fetchUnifiedInbox()
+                await refreshMobilePaymentConfig()
 
                 // Existing refresh + sync pass.
                 await refreshCustomerTransactionData()
@@ -855,6 +864,67 @@ final class OneStore {
         OneSessionVault.saveWalletTransactions(walletTransactions)
     }
 
+    @MainActor
+    func fetchWalletBalance() async -> WalletSnapshot? {
+        do {
+            let response: OneWalletResponse = try await api.get("/wallet/balance")
+            let snapshot = WalletSnapshot(
+                availableBalance: response.availableBalance ?? walletSnapshot.availableBalance,
+                pendingEscrow: response.pendingEscrow ?? walletSnapshot.pendingEscrow,
+                payoutMethod: response.payoutMethod ?? walletSnapshot.payoutMethod
+            )
+            walletSnapshot = snapshot
+            OneSessionVault.saveWallet(walletSnapshot)
+            return snapshot
+        } catch {
+            lastJobError = OneErrorMapper.userMessage(for: error, fallback: "Unable to load wallet balance right now.")
+            return nil
+        }
+    }
+
+    @MainActor
+    func fetchConsultantProfile(id: String) async -> OneConsultantProfile? {
+        guard !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        do {
+            let dto: OneConsultantProfileResponse = try await api.get("/consultants/\(id)")
+            let profile = OneConsultantProfile(
+                id: dto.id ?? id,
+                displayName: dto.displayName ?? "Consultant",
+                servicePackages: dto.servicePackages ?? [],
+                appointmentCount: dto.appointmentCount ?? 0,
+                notesCount: dto.notesCount ?? 0
+            )
+            consultantProfile = profile
+            return profile
+        } catch {
+            lastJobError = OneErrorMapper.userMessage(for: error, fallback: "Unable to load consultant profile.")
+            return nil
+        }
+    }
+
+    @MainActor
+    func fetchToolOwnerInventory() async -> [OneToolInventoryItem]? {
+        do {
+            let envelope: OneToolInventoryEnvelope = try await api.get("/tool-rentals/inventory")
+            let source = envelope.data ?? envelope.tools ?? []
+            let mapped = source.compactMap { dto -> OneToolInventoryItem? in
+                guard let id = dto.id else { return nil }
+                return OneToolInventoryItem(
+                    id: id,
+                    title: dto.title ?? "Tool",
+                    availableUnits: dto.availableUnits ?? 0,
+                    pendingReturns: dto.pendingReturns ?? 0,
+                    condition: dto.condition ?? "good"
+                )
+            }
+            toolOwnerInventory = mapped
+            return mapped
+        } catch {
+            lastToolError = OneErrorMapper.userMessage(for: error, fallback: "Unable to load tool inventory.")
+            return nil
+        }
+    }
+
     func requestAccountDeletion() {
         accountDeletionRequested = true
     }
@@ -1126,12 +1196,15 @@ final class OneStore {
         let accepted = jobBids[bidIndex]
         let appointment = CustomerServiceBooking(
             id: UUID(),
+            remoteBookingID: nil,
             helperID: UUID(),
             helperName: accepted.helperName,
             serviceType: customerJobs.first(where: { $0.id == jobID })?.category ?? "Service",
             scheduledDate: Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date(),
             scheduledSlot: accepted.etaText,
             paymentAuthorized: true,
+            paymentStatus: "paid",
+            paymentIntentID: nil,
             preMessage: "Looking forward to the appointment.",
             postMessage: "",
             reminderEnabled: true,
@@ -1183,6 +1256,8 @@ final class OneStore {
                 scheduledDate: scheduledDate,
                 scheduledSlot: slot,
                 paymentAuthorized: paymentAuthorized,
+                paymentStatus: paymentAuthorized ? "requested" : "not_requested",
+                paymentIntentID: nil,
                 preMessage: preMessage,
                 postMessage: "",
                 reminderEnabled: true,
@@ -1210,6 +1285,11 @@ final class OneStore {
         let dateText = formatter.string(from: scheduledDate)
         let start = slot.isEmpty ? "10:00" : slot
         let end = "12:00"
+        let shouldRequestPayment = paymentAuthorized && mobilePaymentsAvailable
+        if paymentAuthorized && !mobilePaymentsAvailable {
+            lastBookingError = mobilePaymentStatusMessage ?? "Mobile payments are not configured yet."
+        }
+
         let req = OneCreateBookingRequest(
             helperID: helperID.uuidString,
             serviceName: serviceType,
@@ -1222,16 +1302,19 @@ final class OneStore {
         do {
             let response: OneBookingCreateResponse = try await api.post("/bookings", body: req)
             guard let helper = serviceHelpers.first(where: { $0.id == helperID }) else { return }
+            let localBookingID = UUID()
             customerServiceBookings.insert(
                 CustomerServiceBooking(
-                    id: UUID(),
+                    id: localBookingID,
                     remoteBookingID: response.data?.id,
                     helperID: helperID,
                     helperName: helper.name,
                     serviceType: serviceType,
                     scheduledDate: scheduledDate,
                     scheduledSlot: slot,
-                    paymentAuthorized: paymentAuthorized,
+                    paymentAuthorized: false,
+                    paymentStatus: shouldRequestPayment ? "requires_payment" : "not_requested",
+                    paymentIntentID: nil,
                     preMessage: preMessage,
                     postMessage: "",
                     reminderEnabled: true,
@@ -1241,6 +1324,15 @@ final class OneStore {
                 ),
                 at: 0
             )
+
+            if shouldRequestPayment, let remoteBookingID = response.data?.id {
+                await requestBookingPaymentIntent(
+                    localBookingID: localBookingID,
+                    remoteBookingID: remoteBookingID,
+                    helperID: helperID
+                )
+            }
+
             OneSessionVault.saveCustomerServiceBookings(customerServiceBookings)
         } catch {
             createServiceBooking(helperID: helperID, serviceType: serviceType, scheduledDate: scheduledDate, slot: slot, paymentAuthorized: paymentAuthorized, preMessage: preMessage)
@@ -1312,6 +1404,57 @@ final class OneStore {
         OneSessionVault.saveCustomerServiceBookings(customerServiceBookings)
     }
 
+    @MainActor
+    private func requestBookingPaymentIntent(localBookingID: UUID, remoteBookingID: String, helperID: UUID) async {
+        let hourly = serviceHelpers.first(where: { $0.id == helperID })?.hourlyRate ?? 40
+        let estimatedAmount = max(50, Int((hourly * 2.0 * 100).rounded()))
+        let paymentReq = OneBookingPaymentIntentRequest(amountCents: estimatedAmount, paymentRequirement: "deposit")
+        do {
+            let response: OneBookingPaymentIntentResponse = try await api.post("/mobile/bookings/\(remoteBookingID)/payment-intent", body: paymentReq)
+            if let idx = customerServiceBookings.firstIndex(where: { $0.id == localBookingID }) {
+                customerServiceBookings[idx].paymentStatus = response.data?.paymentRequirement ?? "requires_payment"
+                customerServiceBookings[idx].paymentIntentID = response.data?.paymentIntentId
+                customerServiceBookings[idx].paymentAuthorized = false
+            }
+            OneSessionVault.saveCustomerServiceBookings(customerServiceBookings)
+            lastBookingError = "Payment setup created. Complete authorization in the checkout step."
+        } catch {
+            if let idx = customerServiceBookings.firstIndex(where: { $0.id == localBookingID }) {
+                customerServiceBookings[idx].paymentStatus = "payment_setup_failed"
+                customerServiceBookings[idx].paymentAuthorized = false
+            }
+            OneSessionVault.saveCustomerServiceBookings(customerServiceBookings)
+            lastBookingError = OneErrorMapper.userMessage(for: error, fallback: "Payment setup failed. Booking is still saved.")
+        }
+    }
+
+    @MainActor
+    func confirmBookingPaymentServerFirst(_ bookingID: UUID) async {
+        guard let idx = customerServiceBookings.firstIndex(where: { $0.id == bookingID }) else { return }
+        guard let remoteBookingID = customerServiceBookings[idx].remoteBookingID,
+              let paymentIntentID = customerServiceBookings[idx].paymentIntentID,
+              !paymentIntentID.isEmpty else {
+            lastBookingError = "Missing payment setup for this booking."
+            return
+        }
+
+        isUpdatingBooking = true
+        defer { isUpdatingBooking = false }
+        lastBookingError = nil
+
+        do {
+            let req = OneBookingConfirmPaymentRequest(paymentIntentId: paymentIntentID)
+            let response: OneBookingConfirmPaymentResponse = try await api.post("/mobile/bookings/\(remoteBookingID)/confirm-payment", body: req)
+            customerServiceBookings[idx].paymentAuthorized = true
+            customerServiceBookings[idx].paymentStatus = response.data?.status ?? "paid"
+            customerServiceBookings[idx].status = customerServiceBookings[idx].status == "Scheduled" ? "Confirmed" : customerServiceBookings[idx].status
+            OneSessionVault.saveCustomerServiceBookings(customerServiceBookings)
+            customerJobFlowMessage = "Booking payment confirmed."
+        } catch {
+            lastBookingError = OneErrorMapper.userMessage(for: error, fallback: "Payment confirmation failed. Please retry.")
+        }
+    }
+
     func reserveTool(toolID: UUID, slot: String, paymentAuthorized: Bool) {
         guard let tool = rentalTools.first(where: { $0.id == toolID }) else { return }
         toolRentalReservations.insert(
@@ -1324,6 +1467,8 @@ final class OneStore {
                 ownerName: tool.ownerName,
                 slot: slot,
                 paymentAuthorized: paymentAuthorized,
+                paymentStatus: paymentAuthorized ? "requested" : "not_requested",
+                paymentIntentID: nil,
                 pickupConfirmed: false,
                 returnConfirmed: false,
                 damageNotes: "",
@@ -1368,6 +1513,8 @@ final class OneStore {
                     ownerName: tool.ownerName,
                     slot: slot,
                     paymentAuthorized: paymentAuthorized,
+                    paymentStatus: paymentAuthorized ? "authorized" : "not_requested",
+                    paymentIntentID: nil,
                     pickupConfirmed: false,
                     returnConfirmed: false,
                     damageNotes: "",
@@ -1707,13 +1854,36 @@ final class OneStore {
     func sendDeviceTokenToServer() async {
         guard let token = OneSessionVault.loadDeviceToken(), !token.isEmpty else { return }
         let candidatePaths = ["/mobile/push-token", "/device-tokens/register", "/notifications/register-device", "/notifications/register", "/notifications/push-token"]
+        let appVersion = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.0"
+        #if canImport(UIKit)
+        let (deviceID, deviceName, osVersion): (String?, String, String) = await MainActor.run {
+            (UIDevice.current.identifierForVendor?.uuidString, UIDevice.current.name, UIDevice.current.systemVersion)
+        }
+        #else
+        let deviceID: String? = nil
+        let deviceName = "ios"
+        let osVersion = "unknown"
+        #endif
+
         for path in candidatePaths {
             do {
                 if path == "/mobile/push-token" {
-                    let mobileReq = OneMobilePushTokenRequest(token: token, provider: "apns", platform: "ios")
-                    let _: OneGenericSuccessResponse = try await runWithRetry {
-                        try await self.api.post(path, body: mobileReq)
-                    }
+                    var request: [String: Any] = [
+                        "token": token,
+                        "provider": "apns",
+                        "platform": "ios",
+                        "app_version": appVersion,
+                        "device": [
+                            "name": deviceName,
+                            "os_version": osVersion
+                        ]
+                    ]
+                    if let deviceID, !deviceID.isEmpty { request["device_id"] = deviceID }
+                    let payload = try JSONSerialization.data(withJSONObject: request, options: [])
+                    let _: OneGenericSuccessResponse = try await runWithRetry { try await self.api.postRaw(path, bodyData: payload) }
+                } else if path == "/notifications/push-token" {
+                    let payload = try JSONSerialization.data(withJSONObject: ["token": token], options: [])
+                    let _: OneGenericSuccessResponse = try await runWithRetry { try await self.api.postRaw(path, bodyData: payload) }
                 } else {
                     let req = OneDeviceTokenRequest(deviceToken: token, platform: "ios")
                     let _: OneGenericSuccessResponse = try await runWithRetry {
@@ -1789,7 +1959,21 @@ final class OneStore {
         await refreshHelpersFromAPI()
         await refreshAppointmentsFromAPI()
         await refreshRentalsFromAPI()
+        _ = await fetchWalletBalance()
         lastCustomerSyncAt = Date()
+    }
+
+    @MainActor
+    func refreshGrowthData() async {
+        isRefreshingGrowthData = true
+        defer { isRefreshingGrowthData = false }
+        _ = await fetchWalletBalance()
+        if activePersona == .consultant, let id = currentUserID {
+            _ = await fetchConsultantProfile(id: id)
+        }
+        if activePersona == .toolOwner {
+            _ = await fetchToolOwnerInventory()
+        }
     }
 
     @MainActor
@@ -1922,6 +2106,15 @@ final class OneStore {
 
     @MainActor
     func logout(clearMessage: Bool = true) {
+        if let deviceToken = OneSessionVault.loadDeviceToken(), !deviceToken.isEmpty {
+            Task {
+                let payload = try? JSONSerialization.data(withJSONObject: ["token": deviceToken], options: [])
+                if let payload {
+                    try? await api.sendRaw(path: "/mobile/push-token", method: "DELETE", bodyData: payload)
+                }
+            }
+        }
+
         if let refreshToken, !refreshToken.isEmpty {
             Task {
                 let _: OneGenericSuccessResponse? = try? await postAuthWithFallback(
@@ -2148,7 +2341,9 @@ final class OneStore {
                     serviceType: dto.serviceName ?? "Service",
                     scheduledDate: Date(),
                     scheduledSlot: dto.requestedStartTime ?? "TBD",
-                    paymentAuthorized: true,
+                    paymentAuthorized: (dto.paymentStatus ?? "") == "paid",
+                    paymentStatus: dto.paymentStatus,
+                    paymentIntentID: nil,
                     preMessage: "",
                     postMessage: "",
                     reminderEnabled: true,
@@ -2162,6 +2357,18 @@ final class OneStore {
             OneSessionVault.saveCustomerServiceBookings(customerServiceBookings)
         } catch {
             // Keep local fallback.
+        }
+    }
+
+    @MainActor
+    func refreshMobilePaymentConfig() async {
+        do {
+            let _: OneGenericSuccessResponse = try await api.get("/mobile/payment-config")
+            mobilePaymentsAvailable = true
+            mobilePaymentStatusMessage = nil
+        } catch {
+            mobilePaymentsAvailable = false
+            mobilePaymentStatusMessage = "Mobile payments unavailable in this environment."
         }
     }
 
@@ -2186,6 +2393,8 @@ final class OneStore {
                     ownerName: dto.ownerName ?? "Owner",
                     slot: "\(dto.rentalStartDate ?? "") - \(dto.rentalEndDate ?? "")",
                     paymentAuthorized: true,
+                    paymentStatus: "authorized",
+                    paymentIntentID: nil,
                     pickupConfirmed: active || returned,
                     returnConfirmed: returned,
                     damageNotes: "",
@@ -2223,7 +2432,9 @@ final class OneStore {
                     serviceType: dto.serviceName ?? "Service",
                     scheduledDate: Date(),
                     scheduledSlot: dto.requestedStartTime ?? "TBD",
-                    paymentAuthorized: true,
+                    paymentAuthorized: (dto.paymentStatus ?? "") == "paid",
+                    paymentStatus: dto.paymentStatus,
+                    paymentIntentID: nil,
                     preMessage: "",
                     postMessage: "",
                     reminderEnabled: true,
@@ -2270,6 +2481,8 @@ final class OneStore {
                     ownerName: dto.ownerName ?? "Owner",
                     slot: "\(dto.rentalStartDate ?? "") - \(dto.rentalEndDate ?? "")",
                     paymentAuthorized: true,
+                    paymentStatus: "authorized",
+                    paymentIntentID: nil,
                     pickupConfirmed: active || returned,
                     returnConfirmed: returned,
                     damageNotes: "",
@@ -2354,6 +2567,28 @@ final class OneStore {
         }
     }
 
+    @MainActor
+    private func healAPIBaseURLIfNeeded() async {
+        guard let host = api.baseURL.host?.lowercased(),
+              host.contains("app.oxsteed.com") else { return }
+
+        let probes = ["/health", "/translate/locales", "/mobile/version-policy"]
+        let emptyBody = Data("{}".utf8)
+        for probe in probes {
+            do {
+                try await api.sendRaw(path: probe, method: "GET", bodyData: emptyBody)
+                return
+            } catch {
+                continue
+            }
+        }
+
+        apiBaseURLString = OneStore.defaultAPIBaseURLString
+        OneSessionVault.saveAPIBaseURL(OneStore.defaultAPIBaseURLString)
+        applyAPIBaseURL(OneStore.defaultAPIBaseURLString)
+        apiConnectivityMessage = "API host adjusted to live endpoint."
+    }
+
     private func postAuthWithFallback<Body: Encodable, Response: Decodable>(
         paths: [String],
         body: Body
@@ -2403,6 +2638,40 @@ final class OneStore {
             }
         }
         apiConnectivityMessage = "Unable to reach API at \(resolvedAPIBaseURLString)."
+    }
+
+    @MainActor
+    func probeAuthEndpoints() async {
+        let probeBody = OneLoginRequest(
+            email: "probe@oxsteed.invalid",
+            password: "invalid",
+            termsAgreed: true,
+            agreementName: "Probe User"
+        )
+        var attempts: [String] = []
+        for path in authEndpointCandidates("login") {
+            do {
+                let _: OneAuthResponse = try await api.post(path, body: probeBody)
+                authEndpointProbeMessage = "Auth endpoint reachable at \(path)"
+                return
+            } catch {
+                if let apiError = error as? OneAPIError {
+                    switch apiError {
+                    case .server(let status, _):
+                        attempts.append("\(path)=\(status)")
+                        if status == 400 || status == 401 || status == 403 || status == 422 {
+                            authEndpointProbeMessage = "Auth endpoint reachable at \(path) (HTTP \(status), credentials rejected as expected)."
+                            return
+                        }
+                    default:
+                        attempts.append("\(path)=error")
+                    }
+                } else {
+                    attempts.append("\(path)=error")
+                }
+            }
+        }
+        authEndpointProbeMessage = "Auth probe failed. Tried: \(attempts.joined(separator: ", "))"
     }
 
     private func authEndpointCandidates(_ action: String) -> [String] {

@@ -84,8 +84,20 @@ struct InboxView: View {
             }
 
             GoCard {
-                Text("Unified Inbox")
-                    .font(.headline)
+                HStack {
+                    Text("Unified Inbox")
+                        .font(.headline)
+                    Spacer()
+                    Button("Sync Live Data") {
+                        Task {
+                            await store.fetchUnifiedInbox()
+                            if store.autoTranslateEnabled {
+                                await store.refreshTranslatedPreviews()
+                            }
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                }
                 Text("Threads remain unified across persona switching.")
                     .font(.caption)
                     .foregroundStyle(OneTheme.muted)

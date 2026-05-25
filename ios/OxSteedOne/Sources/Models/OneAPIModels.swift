@@ -55,6 +55,33 @@ struct OneTranslateResponse: Decodable {
     let translation: String?
 }
 
+struct OneWalletResponse: Decodable {
+    let availableBalance: Double?
+    let pendingEscrow: Double?
+    let payoutMethod: String?
+}
+
+struct OneToolInventoryEnvelope: Decodable {
+    let data: [OneToolInventoryDTO]?
+    let tools: [OneToolInventoryDTO]?
+}
+
+struct OneToolInventoryDTO: Decodable {
+    let id: String?
+    let title: String?
+    let availableUnits: Int?
+    let pendingReturns: Int?
+    let condition: String?
+}
+
+struct OneConsultantProfileResponse: Decodable {
+    let id: String?
+    let displayName: String?
+    let servicePackages: [String]?
+    let appointmentCount: Int?
+    let notesCount: Int?
+}
+
 struct OneVersionPolicyResponse: Decodable {
     let minimumVersion: String?
     let minVersion: String?
@@ -208,6 +235,42 @@ struct OneBookingListItem: Decodable {
     let serviceName: String?
     let requestedDate: String?
     let requestedStartTime: String?
+    let status: String?
+    let paymentStatus: String?
+    let paymentAmountCents: Int?
+}
+
+struct OneBookingPaymentIntentRequest: Encodable {
+    let amountCents: Int
+    let paymentRequirement: String
+}
+
+struct OneBookingPaymentIntentResponse: Decodable {
+    let success: Bool?
+    let data: OneBookingPaymentIntentData?
+}
+
+struct OneBookingPaymentIntentData: Decodable {
+    let bookingId: String?
+    let clientSecret: String?
+    let paymentIntentId: String?
+    let amountCents: Int?
+    let paymentRequirement: String?
+    let publishableKey: String?
+}
+
+struct OneBookingConfirmPaymentRequest: Encodable {
+    let paymentIntentId: String
+}
+
+struct OneBookingConfirmPaymentResponse: Decodable {
+    let success: Bool?
+    let data: OneBookingConfirmPaymentData?
+}
+
+struct OneBookingConfirmPaymentData: Decodable {
+    let booking: OneBookingListItem?
+    let paymentIntentId: String?
     let status: String?
 }
 

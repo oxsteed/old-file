@@ -219,6 +219,30 @@ struct ShopView: View {
             }
 
             GoCard {
+                HStack {
+                    Text("Live Growth Data")
+                        .font(.headline)
+                    Spacer()
+                    Button {
+                        Task { await store.refreshGrowthData() }
+                    } label: {
+                        if store.isRefreshingGrowthData {
+                            ProgressView()
+                        } else {
+                            Text("Sync Live Data")
+                        }
+                    }
+                    .disabled(store.isRefreshingGrowthData)
+                    .buttonStyle(.bordered)
+                }
+                if let err = store.lastJobError {
+                    Text(err)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+
+            GoCard {
                 Text("Wallet")
                     .font(.headline)
                 Text("Available: \(currency(store.walletSnapshot.availableBalance))")
@@ -271,6 +295,52 @@ struct ShopView: View {
                         Text("\(tx.isCredit ? "+" : "-")\(currency(tx.amount))")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(tx.isCredit ? .green : .red)
+                    }
+                }
+            }
+
+            if store.activePersona == .consultant {
+                GoCard {
+                    Text("Consultant Profile Snapshot")
+                        .font(.headline)
+                    if let profile = store.consultantProfile {
+                        Text(profile.displayName)
+                            .font(.subheadline.weight(.semibold))
+                        Text("Packages: \(profile.servicePackages.count) · Appointments: \(profile.appointmentCount) · Notes: \(profile.notesCount)")
+                            .font(.caption)
+                            .foregroundStyle(OneTheme.muted)
+                    } else {
+                        Text("Sync Live Data to load consultant profile.")
+                            .font(.caption)
+                            .foregroundStyle(OneTheme.muted)
+                    }
+                }
+            }
+
+            if store.activePersona == .toolOwner {
+                GoCard {
+                    Text("Tool Owner Inventory")
+                        .font(.headline)
+                    if store.toolOwnerInventory.isEmpty {
+                        Text("Sync Live Data to load inventory.")
+                            .font(.caption)
+                            .foregroundStyle(OneTheme.muted)
+                    } else {
+                        ForEach(store.toolOwnerInventory) { item in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.title)
+                                        .font(.subheadline.weight(.semibold))
+                                    Text("Available: \(item.availableUnits) · Pending returns: \(item.pendingReturns)")
+                                        .font(.caption)
+                                        .foregroundStyle(OneTheme.muted)
+                                }
+                                Spacer()
+                                Text(item.condition.capitalized)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(OneTheme.amber)
+                            }
+                        }
                     }
                 }
             }
