@@ -2024,14 +2024,16 @@ final class OneStore {
         }
 
         do {
-            let response: OneAuthResponse = try await postAuthWithFallback(
+            let response: OneAuthResponse = try await postAuthJSONWithFallback(
                 paths: authEndpointCandidates("login"),
-                body: OneLoginRequest(
-                    email: normalizedEmail,
-                    password: password,
-                    termsAgreed: acceptedTerms,
-                    agreementName: cleanAgreementName
-                )
+                jsonObject: [
+                    "email": normalizedEmail,
+                    "password": password,
+                    "termsAgreed": acceptedTerms,
+                    "terms_agreed": acceptedTerms,
+                    "agreementName": cleanAgreementName,
+                    "agreement_name": cleanAgreementName
+                ]
             )
             guard let newAccessToken = response.accessToken ?? response.token else {
                 authStatusMessage = "No access token returned by OxSteed."
@@ -2069,15 +2071,17 @@ final class OneStore {
         }
 
         do {
-            let response: OneAuthResponse = try await postAuthWithFallback(
+            let response: OneAuthResponse = try await postAuthJSONWithFallback(
                 paths: authEndpointCandidates("register"),
-                body: OneRegisterRequest(
-                    email: normalizedEmail,
-                    password: password,
-                    firstName: cleanFirst,
-                    lastName: cleanLast,
-                    role: primaryPersona.apiRole
-                )
+                jsonObject: [
+                    "email": normalizedEmail,
+                    "password": password,
+                    "firstName": cleanFirst,
+                    "first_name": cleanFirst,
+                    "lastName": cleanLast,
+                    "last_name": cleanLast,
+                    "role": primaryPersona.apiRole
+                ]
             )
 
             guard let newAccessToken = response.accessToken ?? response.token else {
@@ -2600,10 +2604,43 @@ final class OneStore {
                 return response
             } catch {
                 if let apiError = error as? OneAPIError,
-                   case let .server(status, _) = apiError,
-                   status == 404 {
-                    lastError = error
-                    continue
+                   case let .server(status, _) = apiError {
+                    // Endpoint mismatch (404/405) should continue to next candidate.
+                    // Auth-relevant responses should stop and surface to user.
+                    if status == 404 || status == 405 {
+                        lastError = error
+                        continue
+                    }
+                    if status == 400 || status == 401 || status == 403 || status == 422 || status == 429 {
+                        throw error
+                    }
+                }
+                throw error
+            }
+        }
+        throw lastError ?? OneAPIError.server(404, "No auth endpoint variant responded.")
+    }
+
+    private func postAuthJSONWithFallback<Response: Decodable>(
+        paths: [String],
+        jsonObject: [String: Any]
+    ) async throws -> Response {
+        let bodyData = try JSONSerialization.data(withJSONObject: jsonObject, options: [])
+        var lastError: Error?
+        for path in paths {
+            do {
+                let response: Response = try await api.postRaw(path, bodyData: bodyData)
+                return response
+            } catch {
+                if let apiError = error as? OneAPIError,
+                   case let .server(status, _) = apiError {
+                    if status == 404 || status == 405 {
+                        lastError = error
+                        continue
+                    }
+                    if status == 400 || status == 401 || status == 403 || status == 422 || status == 429 {
+                        throw error
+                    }
                 }
                 throw error
             }
@@ -2642,16 +2679,19 @@ final class OneStore {
 
     @MainActor
     func probeAuthEndpoints() async {
-        let probeBody = OneLoginRequest(
-            email: "probe@oxsteed.invalid",
-            password: "invalid",
-            termsAgreed: true,
-            agreementName: "Probe User"
-        )
+        let probeBody: [String: Any] = [
+            "email": "probe@oxsteed.invalid",
+            "password": "invalid",
+            "termsAgreed": true,
+            "terms_agreed": true,
+            "agreementName": "Probe User",
+            "agreement_name": "Probe User"
+        ]
         var attempts: [String] = []
         for path in authEndpointCandidates("login") {
             do {
-                let _: OneAuthResponse = try await api.post(path, body: probeBody)
+                let payload = try JSONSerialization.data(withJSONObject: probeBody, options: [])
+                let _: OneAuthResponse = try await api.postRaw(path, bodyData: payload)
                 authEndpointProbeMessage = "Auth endpoint reachable at \(path)"
                 return
             } catch {
@@ -2681,6 +2721,7 @@ final class OneStore {
             : configuredBase
 
         var candidates: [String] = [
+            "https://oxsteed.com/api/auth/\(action)",
             "/auth/\(action)",
             "\(configuredBase)/auth/\(action)",
             "\(configuredRoot)/api/auth/\(action)",
@@ -2688,7 +2729,6 @@ final class OneStore {
         ]
 
         let hostFallbacks = [
-            "https://oxsteed.com/api/auth/\(action)",
             "https://app.oxsteed.com/api/auth/\(action)",
             "https://api.oxsteed.com/api/auth/\(action)",
             "http://127.0.0.1:5000/api/auth/\(action)",
