@@ -103,6 +103,12 @@ final class OneStore {
     var isUpdatingJob = false
     var lastJobError: String?
     var lastBidError: String?
+    var isCreatingBooking = false
+    var isUpdatingBooking = false
+    var lastBookingError: String?
+    var isReservingTool = false
+    var isUpdatingTool = false
+    var lastToolError: String?
 
     var growthNextStep: String {
         if ascensionApplication.status == "Not Started" {
@@ -449,6 +455,9 @@ final class OneStore {
         }
         if autoTranslateEnabled {
             Task { await refreshTranslatedPreviews() }
+        }
+        if isAuthenticated {
+            Task { await refreshCustomerTransactionData() }
         }
         if biometricEnabled && isAuthenticated {
             isLocked = true
@@ -1008,6 +1017,9 @@ final class OneStore {
 
     @MainActor
     func createServiceBookingServerFirst(helperID: UUID, serviceType: String, scheduledDate: Date, slot: String, paymentAuthorized: Bool, preMessage: String) async {
+        lastBookingError = nil
+        isCreatingBooking = true
+        defer { isCreatingBooking = false }
         do {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
@@ -1048,12 +1060,16 @@ final class OneStore {
         } catch {
             createServiceBooking(helperID: helperID, serviceType: serviceType, scheduledDate: scheduledDate, slot: slot, paymentAuthorized: paymentAuthorized, preMessage: preMessage)
             authStatusMessage = "Booking saved locally (API unavailable/auth required)."
+            lastBookingError = error.localizedDescription
         }
     }
 
     @MainActor
     func cancelServiceBookingServerFirst(_ bookingID: UUID) async {
         guard let booking = customerServiceBookings.first(where: { $0.id == bookingID }) else { return }
+        lastBookingError = nil
+        isUpdatingBooking = true
+        defer { isUpdatingBooking = false }
         guard let remoteID = booking.remoteBookingID else {
             if let idx = customerServiceBookings.firstIndex(where: { $0.id == bookingID }) {
                 customerServiceBookings[idx].status = "Cancelled"
@@ -1069,12 +1085,16 @@ final class OneStore {
             OneSessionVault.saveCustomerServiceBookings(customerServiceBookings)
         } catch {
             authStatusMessage = "Live cancel failed; booking kept local."
+            lastBookingError = error.localizedDescription
         }
     }
 
     @MainActor
     func sendBookingMessageServerFirst(_ bookingID: UUID, content: String) async {
         guard let booking = customerServiceBookings.first(where: { $0.id == bookingID }) else { return }
+        lastBookingError = nil
+        isUpdatingBooking = true
+        defer { isUpdatingBooking = false }
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         do {
@@ -1087,6 +1107,7 @@ final class OneStore {
         } catch {
             setBookingPostMessage(bookingID, message: trimmed)
             authStatusMessage = "Message stored locally (API unavailable/auth required)."
+            lastBookingError = error.localizedDescription
         }
     }
 
@@ -1129,6 +1150,9 @@ final class OneStore {
 
     @MainActor
     func reserveToolServerFirst(toolID: UUID, slot: String, paymentAuthorized: Bool) async {
+        lastToolError = nil
+        isReservingTool = true
+        defer { isReservingTool = false }
         do {
             let start = Date()
             let end = Calendar.current.date(byAdding: .day, value: 2, to: start) ?? start
@@ -1164,12 +1188,16 @@ final class OneStore {
         } catch {
             reserveTool(toolID: toolID, slot: slot, paymentAuthorized: paymentAuthorized)
             authStatusMessage = "Rental reserved locally (API unavailable/auth required)."
+            lastToolError = error.localizedDescription
         }
     }
 
     @MainActor
     func cancelToolReservationServerFirst(_ reservationID: UUID) async {
         guard let reservation = toolRentalReservations.first(where: { $0.id == reservationID }) else { return }
+        lastToolError = nil
+        isUpdatingTool = true
+        defer { isUpdatingTool = false }
         guard let remoteID = reservation.remoteBookingID else {
             setToolDispute(reservationID, open: false)
             return
@@ -1184,12 +1212,16 @@ final class OneStore {
             OneSessionVault.saveToolRentalReservations(toolRentalReservations)
         } catch {
             authStatusMessage = "Live cancel failed; reservation kept local."
+            lastToolError = error.localizedDescription
         }
     }
 
     @MainActor
     func openToolDamageDisputeServerFirst(_ reservationID: UUID, description: String) async {
         guard let reservation = toolRentalReservations.first(where: { $0.id == reservationID }) else { return }
+        lastToolError = nil
+        isUpdatingTool = true
+        defer { isUpdatingTool = false }
         guard let remoteID = reservation.remoteBookingID,
               let ownerID = reservation.ownerUserID,
               !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -1208,6 +1240,7 @@ final class OneStore {
         } catch {
             setToolDispute(reservationID, open: true)
             authStatusMessage = "Dispute saved locally (API unavailable/auth required)."
+            lastToolError = error.localizedDescription
         }
     }
 

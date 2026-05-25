@@ -634,7 +634,12 @@ struct TodayView: View {
                     bookingPreMessage = ""
                 }
             }
+            .disabled(store.isCreatingBooking)
             .buttonStyle(GoAccentButtonStyle())
+            if store.isCreatingBooking {
+                ProgressView("Creating booking...")
+                    .font(.caption)
+            }
 
             ForEach(store.customerServiceBookings.prefix(3)) { booking in
                 VStack(alignment: .leading, spacing: 4) {
@@ -655,10 +660,12 @@ struct TodayView: View {
                                 await store.sendBookingMessageServerFirst(booking.id, content: booking.postMessage)
                             }
                         }
+                        .disabled(store.isUpdatingBooking)
                         .buttonStyle(.bordered)
                         Button("Cancel Booking") {
                             Task { await store.cancelServiceBookingServerFirst(booking.id) }
                         }
+                        .disabled(store.isUpdatingBooking)
                         .buttonStyle(.bordered)
                         Stepper("Rating \(bookingReviewRating)", value: $bookingReviewRating, in: 1...5)
                         Button("Submit Review") {
@@ -671,6 +678,18 @@ struct TodayView: View {
                         .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
                 .padding(.vertical, 4)
+            }
+            if let error = store.lastBookingError {
+                HStack {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                    Spacer()
+                    Button("Retry Booking Sync") {
+                        Task { await store.refreshCustomerTransactionData() }
+                    }
+                    .buttonStyle(.bordered)
+                }
             }
         }
     }
@@ -716,7 +735,12 @@ struct TodayView: View {
                     toolSlot = ""
                 }
             }
+            .disabled(store.isReservingTool)
             .buttonStyle(GoAccentButtonStyle())
+            if store.isReservingTool {
+                ProgressView("Reserving tool...")
+                    .font(.caption)
+            }
 
             ForEach(store.toolRentalReservations.prefix(3)) { reservation in
                 VStack(alignment: .leading, spacing: 4) {
@@ -731,6 +755,7 @@ struct TodayView: View {
                         Button("Cancel") {
                             Task { await store.cancelToolReservationServerFirst(reservation.id) }
                         }
+                        .disabled(store.isUpdatingTool)
                         .buttonStyle(.bordered)
                         Button(reservation.disputeStatus == "Open" ? "Resolve Dispute" : "Open Dispute") {
                             if reservation.disputeStatus == "Open" {
@@ -740,6 +765,7 @@ struct TodayView: View {
                                 Task { await store.openToolDamageDisputeServerFirst(reservation.id, description: detail.isEmpty ? "Customer opened a rental dispute." : detail) }
                             }
                         }
+                        .disabled(store.isUpdatingTool)
                         .buttonStyle(.bordered)
                     }
                     TextField("Damage assessment", text: Binding(
@@ -754,6 +780,18 @@ struct TodayView: View {
                     .buttonStyle(.bordered)
                 }
                 .padding(.vertical, 4)
+            }
+            if let error = store.lastToolError {
+                HStack {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                    Spacer()
+                    Button("Retry Rental Sync") {
+                        Task { await store.refreshCustomerTransactionData() }
+                    }
+                    .buttonStyle(.bordered)
+                }
             }
         }
     }
