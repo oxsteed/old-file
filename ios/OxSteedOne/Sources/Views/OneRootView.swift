@@ -207,11 +207,21 @@ private struct LoginView: View {
                     .textContentType(.username)
                 SecureField("Password", text: $store.authPassword)
                     .textContentType(.password)
+                TextField("Full legal name", text: $store.authAgreementName)
+                    .textContentType(.name)
+                Toggle("I agree to Terms of Service and Privacy Policy", isOn: $store.authAcceptedTerms)
             }
 
             Section {
                 Button {
-                    Task { await store.login(email: store.authEmail, password: store.authPassword) }
+                    Task {
+                        await store.login(
+                            email: store.authEmail,
+                            password: store.authPassword,
+                            agreementName: store.authAgreementName,
+                            acceptedTerms: store.authAcceptedTerms
+                        )
+                    }
                 } label: {
                     if store.isAuthenticating {
                         ProgressView()
@@ -223,6 +233,14 @@ private struct LoginView: View {
                 }
                 .disabled(store.isAuthenticating)
                 .buttonStyle(GoAccentButtonStyle())
+            }
+
+            if let message = store.authStatusMessage {
+                Section {
+                    Text(message)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
             }
         }
         .navigationTitle("Sign In")

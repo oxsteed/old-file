@@ -28,6 +28,8 @@ final class OneStore {
     var authStatusMessage: String?
     var authFirstName = ""
     var authLastName = ""
+    var authAgreementName = ""
+    var authAcceptedTerms = false
     var isAuthenticating = false
     @ObservationIgnored private(set) var token: String? = OneSessionVault.loadToken() {
         didSet {
@@ -92,6 +94,10 @@ final class OneStore {
     var voiceInputEnabled = true
     var appPreferences: AppPreferences = OneSessionVault.loadAppPreferences()
     var accountDeletionRequested = false
+    var isRefreshingCustomerData = false
+    var isSubmittingCustomerJob = false
+    var bidAcceptanceInFlight: Set<UUID> = []
+    var customerJobFlowMessage: String?
 
     var growthNextStep: String {
         if ascensionApplication.status == "Not Started" {
@@ -741,6 +747,9 @@ final class OneStore {
 
     @MainActor
     func postCustomerJobServerFirst(title: String, category: String, locationQuery: String, address: String, details: String, photos: [String]) async {
+        customerJobFlowMessage = nil
+        isSubmittingCustomerJob = true
+        defer { isSubmittingCustomerJob = false }
         let normalizedDetail = details.count < 50 ? details + String(repeating: " details", count: max(0, (50 - details.count) / 8)) : details
         let budgetMax = 50000
         let budgetMin = 20000
@@ -779,9 +788,11 @@ final class OneStore {
             )
             OneSessionVault.saveCustomerJobs(customerJobs)
             await refreshBidsFromAPI(for: localID, remoteJobID: created.id ?? localID.uuidString)
+            customerJobFlowMessage = "Job published successfully."
         } catch {
             postCustomerJob(title: title, category: category, locationQuery: locationQuery, address: address, details: details, photos: photos)
             authStatusMessage = "Job posted locally (API unavailable/auth required)."
+            customerJobFlowMessage = "Live publish failed; saved locally."
         }
     }
 
@@ -930,13 +941,19 @@ final class OneStore {
     @MainActor
     func acceptBidServerFirst(_ bidID: UUID) async {
         guard jobBids.contains(where: { $0.id == bidID }) else { return }
+        if bidAcceptanceInFlight.contains(bidID) { return }
+        customerJobFlowMessage = nil
+        bidAcceptanceInFlight.insert(bidID)
+        defer { bidAcceptanceInFlight.remove(bidID) }
         do {
             let request = OneAssignBidRequest(bidID: bidID.uuidString, paymentMethod: "oxsteed")
             let _: OneGenericSuccessResponse = try await api.post("/jobs/assign", body: request)
             acceptBid(bidID)
+            customerJobFlowMessage = "Bid accepted and appointment created."
         } catch {
             acceptBid(bidID)
             authStatusMessage = "Bid accepted locally (API unavailable/auth required)."
+            customerJobFlowMessage = "Live accept failed; applied locally."
         }
     }
 
@@ -1251,6 +1268,8 @@ final class OneStore {
 
     @MainActor
     func refreshCustomerTransactionData() async {
+        isRefreshingCustomerData = true
+        defer { isRefreshingCustomerData = false }
         await refreshCustomerJobsFromAPI()
         await refreshHelpersFromAPI()
         await refreshAppointmentsFromAPI()
@@ -1277,14 +1296,24 @@ final class OneStore {
     }
 
     @MainActor
-    func login(email: String, password: String) async {
+    func login(email: String, password: String, agreementName: String, acceptedTerms: Bool) async {
         authStatusMessage = nil
         isAuthenticating = true
         defer { isAuthenticating = false }
 
         let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanAgreementName = agreementName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedEmail.isEmpty, !password.isEmpty else {
             authStatusMessage = "Enter email and password."
+            return
+        }
+        guard acceptedTerms else {
+            authStatusMessage = "You must accept Terms and Privacy to sign in."
+            return
+        }
+        let nameParts = cleanAgreementName.split(separator: " ").filter { !$0.isEmpty }
+        guard cleanAgreementName.count >= 5, nameParts.count >= 2 else {
+            authStatusMessage = "Enter your full legal name (first and last)."
             return
         }
 
@@ -1294,8 +1323,8 @@ final class OneStore {
                 body: OneLoginRequest(
                     email: normalizedEmail,
                     password: password,
-                    termsAgreed: true,
-                    agreementName: defaultAgreementName()
+                    termsAgreed: acceptedTerms,
+                    agreementName: cleanAgreementName
                 )
             )
             guard let newAccessToken = response.accessToken ?? response.token else {
@@ -1307,6 +1336,8 @@ final class OneStore {
             OneSessionVault.saveSession(OneSavedSession(token: newAccessToken, user: response.user))
             authEmail = normalizedEmail
             authPassword = ""
+            authAgreementName = cleanAgreementName
+            authAcceptedTerms = acceptedTerms
             if biometricEnabled {
                 isLocked = true
             }
@@ -1356,6 +1387,8 @@ final class OneStore {
             authPassword = ""
             authFirstName = cleanFirst
             authLastName = cleanLast
+            authAgreementName = "\(cleanFirst) \(cleanLast)"
+            authAcceptedTerms = true
         } catch {
             authStatusMessage = error.localizedDescription
         }
@@ -1372,6 +1405,8 @@ final class OneStore {
         refreshToken = nil
         OneSessionVault.clearSession()
         authPassword = ""
+        authAgreementName = ""
+        authAcceptedTerms = false
         isLocked = false
         if clearMessage {
             authStatusMessage = nil
@@ -1392,11 +1427,6 @@ final class OneStore {
         } catch {
             return false
         }
-    }
-
-    private func defaultAgreementName() -> String {
-        let combined = "\(authFirstName.trimmingCharacters(in: .whitespacesAndNewlines)) \(authLastName.trimmingCharacters(in: .whitespacesAndNewlines))".trimmingCharacters(in: .whitespacesAndNewlines)
-        return combined.isEmpty ? "Alex Johnson" : combined
     }
 
     @MainActor
