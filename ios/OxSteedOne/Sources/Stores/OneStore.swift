@@ -3,8 +3,14 @@ import Observation
 #if canImport(Network)
 import Network
 #endif
+#if canImport(UserNotifications)
+import UserNotifications
+#endif
 #if canImport(LocalAuthentication)
 import LocalAuthentication
+#endif
+#if canImport(UIKit)
+import UIKit
 #endif
 
 @Observable
@@ -114,6 +120,7 @@ final class OneStore {
     var isUpdatingTool = false
     var lastToolError: String?
     var isNetworkAvailable = true
+    var pushAuthorizationStatus: String = "unknown"
 
     var growthNextStep: String {
         if ascensionApplication.status == "Not Started" {
@@ -476,6 +483,7 @@ final class OneStore {
             isLocked = true
         }
         Task { await runForceUpdateCheck() }
+        Task { await refreshPushNotificationStatus() }
     }
 
     func selectPulsePillar(_ pillarID: String) {
@@ -523,6 +531,10 @@ final class OneStore {
     func setLanguage(_ language: AppLanguage) {
         appLanguage = language
         OneSessionVault.saveLanguage(language)
+    }
+
+    func localized(_ key: String, fallback: String) -> String {
+        OneLocalization.localized(key, language: appLanguage, fallback: fallback)
     }
 
     func setAutoTranslate(_ enabled: Bool) {
@@ -1824,6 +1836,46 @@ final class OneStore {
             }
         }
         networkMonitor.start(queue: networkMonitorQueue)
+        #endif
+    }
+
+    @MainActor
+    func refreshPushNotificationStatus() async {
+        #if canImport(UserNotifications)
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        pushAuthorizationStatus = {
+            switch settings.authorizationStatus {
+            case .authorized, .provisional, .ephemeral:
+                return "authorized"
+            case .denied:
+                return "denied"
+            case .notDetermined:
+                return "not_determined"
+            @unknown default:
+                return "unknown"
+            }
+        }()
+        #else
+        pushAuthorizationStatus = "unknown"
+        #endif
+    }
+
+    @MainActor
+    func requestPushNotificationAuthorization() async {
+        #if canImport(UserNotifications)
+        do {
+            let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
+            if granted {
+                #if canImport(UIKit)
+                UIApplication.shared.registerForRemoteNotifications()
+                #endif
+            }
+            await refreshPushNotificationStatus()
+        } catch {
+            authStatusMessage = "Push notification permission request failed."
+        }
+        #else
+        pushAuthorizationStatus = "unknown"
         #endif
     }
 

@@ -44,17 +44,19 @@ struct TodayView: View {
                         Image(systemName: store.isNetworkAvailable ? "arrow.triangle.2.circlepath.circle.fill" : "wifi.slash")
                             .foregroundStyle(store.isNetworkAvailable ? OneTheme.amber : .red)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(store.isNetworkAvailable ? "Sync Queue Pending" : "Offline Mode")
+                            Text(store.isNetworkAvailable
+                                 ? store.localized("sync.pending", fallback: "Sync Queue Pending")
+                                 : store.localized("sync.offline", fallback: "Offline Mode"))
                                 .font(.subheadline.weight(.semibold))
                             Text(store.isNetworkAvailable
                                  ? "\(store.pendingSyncChanges.count) change(s) waiting to sync."
-                                 : "Changes are saved locally and will sync when connection returns.")
+                                 : store.localized("sync.offline_detail", fallback: "Changes are saved locally and will sync when connection returns."))
                                 .font(.caption)
                                 .foregroundStyle(OneTheme.muted)
                         }
                         Spacer()
                         if store.isNetworkAvailable && !store.pendingSyncChanges.isEmpty {
-                            Button("Sync") {
+                            Button(store.localized("sync.button", fallback: "Sync")) {
                                 Task { await store.syncPendingChanges() }
                             }
                             .buttonStyle(.bordered)

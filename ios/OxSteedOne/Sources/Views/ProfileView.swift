@@ -87,17 +87,29 @@ struct ProfileView: View {
                 }
 
                 Section("Security") {
-                    Toggle("Biometric lock", isOn: Binding(
+                    Toggle(store.localized("profile.security", fallback: "Security") + " · Biometric lock", isOn: Binding(
                         get: { store.biometricEnabled },
                         set: { store.setBiometricEnabled($0) }
                     ))
                 }
 
-                Section("Communication") {
+                Section(store.localized("profile.communication", fallback: "Communication")) {
                     Toggle("Auto-translate inbox previews", isOn: Binding(
                         get: { store.autoTranslateEnabled },
                         set: { store.setAutoTranslate($0) }
                     ))
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(store.localized("profile.push_title", fallback: "Push Notifications"))
+                            .font(.subheadline.weight(.semibold))
+                        Text(pushStatusLabel)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button(store.localized("profile.push_enable", fallback: "Enable Push Notifications")) {
+                            Task { await store.requestPushNotificationAuthorization() }
+                        }
+                        .buttonStyle(.bordered)
+                    }
                 }
 
                 Section("Notification Preferences by Persona") {
@@ -169,12 +181,28 @@ struct ProfileView: View {
                 }
 
                 Section {
-                    Button("Sign Out", role: .destructive) {
+                    Button(store.localized("profile.sign_out", fallback: "Sign Out"), role: .destructive) {
                         store.logout()
                     }
                 }
             }
-            .navigationTitle("Settings")
+            .navigationTitle(store.localized("profile.settings", fallback: "Settings"))
+            .task {
+                await store.refreshPushNotificationStatus()
+            }
+        }
+    }
+
+    private var pushStatusLabel: String {
+        switch store.pushAuthorizationStatus {
+        case "authorized":
+            return store.localized("profile.push_authorized", fallback: "Authorized")
+        case "denied":
+            return store.localized("profile.push_denied", fallback: "Denied in system settings")
+        case "not_determined":
+            return store.localized("profile.push_not_determined", fallback: "Not requested yet")
+        default:
+            return store.localized("profile.push_unknown", fallback: "Unknown")
         }
     }
 }

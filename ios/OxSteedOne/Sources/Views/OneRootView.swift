@@ -76,18 +76,18 @@ struct OneRootView: View {
         NavigationStack {
             VStack(spacing: 16) {
                 OxSteedOneMark(size: 72)
-                Text("One Account. Many Roles.")
+                Text(store.localized("auth.title", fallback: "One Account. Many Roles."))
                     .font(.title3.bold())
                     .foregroundStyle(OneTheme.ink)
-                Text("Sign in to load your personas, messages, and transactions.")
+                Text(store.localized("auth.subtitle", fallback: "Sign in to load your personas, messages, and transactions."))
                     .font(.footnote)
                     .foregroundStyle(OneTheme.muted)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
 
-                NavigationLink("Sign In") { LoginView() }
+                NavigationLink(store.localized("auth.sign_in", fallback: "Sign In")) { LoginView() }
                     .buttonStyle(GoAccentButtonStyle())
-                NavigationLink("Create Account") { SignupView() }
+                NavigationLink(store.localized("auth.create_account", fallback: "Create Account")) { SignupView() }
                     .buttonStyle(.bordered)
 
                 if let message = store.authStatusMessage {
@@ -108,10 +108,10 @@ struct OneRootView: View {
             OneTheme.background.ignoresSafeArea()
             VStack(spacing: 16) {
                 OxSteedOneMark(size: 72)
-                Text("Update Required")
+                Text(store.localized("force_update.title", fallback: "Update Required"))
                     .font(.title.bold())
                     .foregroundStyle(OneTheme.ink)
-                Text("Please update OxSteed One to continue.")
+                Text(store.localized("force_update.body", fallback: "Please update OxSteed One to continue."))
                     .font(.footnote)
                     .foregroundStyle(OneTheme.muted)
                 Text("Minimum version: \(store.minimumRequiredVersion)")
@@ -127,10 +127,10 @@ struct OneRootView: View {
             OneTheme.background.ignoresSafeArea()
             VStack(spacing: 16) {
                 OxSteedOneMark(size: 72)
-                Text("OxSteed One Locked")
+                Text(store.localized("lock.title", fallback: "OxSteed One Locked"))
                     .font(.title3.bold())
                     .foregroundStyle(OneTheme.ink)
-                Button("Unlock with Face ID / Touch ID") {
+                Button(store.localized("lock.button", fallback: "Unlock with Face ID / Touch ID")) {
                     Task { await store.unlockWithBiometrics() }
                 }
                 .buttonStyle(GoAccentButtonStyle())
@@ -202,14 +202,14 @@ private struct LoginView: View {
     var body: some View {
         @Bindable var store = store
         Form {
-            Section("Welcome Back") {
+            Section(store.localized("auth.welcome_back", fallback: "Welcome Back")) {
                 TextField("Email", text: $store.authEmail)
                     .textContentType(.username)
                 SecureField("Password", text: $store.authPassword)
                     .textContentType(.password)
-                TextField("Full legal name", text: $store.authAgreementName)
+                TextField(store.localized("auth.full_legal_name", fallback: "Full legal name"), text: $store.authAgreementName)
                     .textContentType(.name)
-                Toggle("I agree to Terms of Service and Privacy Policy", isOn: $store.authAcceptedTerms)
+                Toggle(store.localized("auth.accept_terms", fallback: "I agree to Terms of Service and Privacy Policy"), isOn: $store.authAcceptedTerms)
             }
 
             Section {
@@ -227,7 +227,7 @@ private struct LoginView: View {
                         ProgressView()
                             .frame(maxWidth: .infinity)
                     } else {
-                        Text("Sign In")
+                        Text(store.localized("auth.sign_in", fallback: "Sign In"))
                             .frame(maxWidth: .infinity)
                     }
                 }
@@ -243,7 +243,7 @@ private struct LoginView: View {
                 }
             }
         }
-        .navigationTitle("Sign In")
+        .navigationTitle(store.localized("auth.sign_in", fallback: "Sign In"))
     }
 }
 
@@ -253,7 +253,7 @@ private struct SignupView: View {
     var body: some View {
         @Bindable var store = store
         Form {
-            Section("Create Account") {
+            Section(store.localized("auth.create_account_title", fallback: "Create Account")) {
                 TextField("First name", text: $store.authFirstName)
                     .textContentType(.givenName)
                 TextField("Last name", text: $store.authLastName)
@@ -264,7 +264,7 @@ private struct SignupView: View {
                     .textContentType(.newPassword)
             }
 
-            Section("Primary Persona") {
+            Section(store.localized("auth.primary_persona", fallback: "Primary Persona")) {
                 Picker("Persona", selection: $store.onboardingState.selectedPrimaryPersona) {
                     ForEach(store.personaOptions) { persona in
                         Text(persona.label).tag(persona)
@@ -289,7 +289,7 @@ private struct SignupView: View {
                         ProgressView()
                             .frame(maxWidth: .infinity)
                     } else {
-                        Text("Create Account")
+                        Text(store.localized("auth.create_account", fallback: "Create Account"))
                             .frame(maxWidth: .infinity)
                     }
                 }
@@ -297,6 +297,6 @@ private struct SignupView: View {
                 .buttonStyle(GoAccentButtonStyle())
             }
         }
-        .navigationTitle("Sign Up")
+        .navigationTitle(store.localized("auth.create_account", fallback: "Create Account"))
     }
 }
