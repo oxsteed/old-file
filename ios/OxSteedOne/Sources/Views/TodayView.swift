@@ -439,6 +439,28 @@ struct TodayView: View {
                     .font(.caption)
                     .foregroundStyle(OneTheme.muted)
             }
+            if let error = store.lastJobError {
+                HStack {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                    Spacer()
+                    Button("Retry") {
+                        let photos = postPhotos.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+                        Task {
+                            await store.postCustomerJobServerFirst(
+                                title: postTitle,
+                                category: postCategory,
+                                locationQuery: postLocation,
+                                address: postAddress,
+                                details: postDetails,
+                                photos: photos
+                            )
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
 
             if !store.customerJobs.isEmpty {
                 Divider().padding(.vertical, 4)
@@ -456,11 +478,14 @@ struct TodayView: View {
                                 .buttonStyle(.bordered)
                         } else {
                             Button("Start") { Task { await store.startCustomerJobServerFirst(job.id) } }
+                                .disabled(store.isUpdatingJob)
                                 .buttonStyle(.bordered)
                             Button("Complete") { Task { await store.completeCustomerJobServerFirst(job.id) } }
+                                .disabled(store.isUpdatingJob)
                                 .buttonStyle(.bordered)
                         }
                         Button("Cancel") { Task { await store.cancelCustomerJobServerFirst(job.id) } }
+                            .disabled(store.isUpdatingJob)
                             .buttonStyle(.bordered)
                     }
                 }
@@ -515,15 +540,15 @@ struct TodayView: View {
                                 .disabled(store.bidAcceptanceInFlight.contains(bid.id))
                                 .buttonStyle(.borderedProminent)
                             }
-                            Button("Message") {
-                                Task {
-                                    await store.messageHelperForBidServerFirst(
-                                        bid.id,
-                                        content: bidMessageByID[bid.id] ?? "Can you confirm scope and timeline?"
-                                    )
+                                Button("Message") {
+                                    Task {
+                                        await store.messageHelperForBidServerFirst(
+                                            bid.id,
+                                            content: bidMessageByID[bid.id] ?? "Can you confirm scope and timeline?"
+                                        )
+                                    }
                                 }
-                            }
-                            .buttonStyle(.bordered)
+                                .buttonStyle(.bordered)
                         }
                         TextField("Message helper", text: Binding(
                             get: { bidMessageByID[bid.id] ?? "" },
@@ -533,6 +558,22 @@ struct TodayView: View {
                         .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     }
                     .padding(.vertical, 4)
+                }
+                if store.isFetchingBids {
+                    ProgressView("Refreshing bids...")
+                        .font(.caption)
+                }
+                if let error = store.lastBidError {
+                    HStack {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                        Spacer()
+                        Button("Retry Bid Sync") {
+                            Task { await store.refreshCustomerTransactionData() }
+                        }
+                        .buttonStyle(.bordered)
+                    }
                 }
             }
         }

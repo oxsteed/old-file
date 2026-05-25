@@ -98,6 +98,11 @@ final class OneStore {
     var isSubmittingCustomerJob = false
     var bidAcceptanceInFlight: Set<UUID> = []
     var customerJobFlowMessage: String?
+    var isPostingJob = false
+    var isFetchingBids = false
+    var isUpdatingJob = false
+    var lastJobError: String?
+    var lastBidError: String?
 
     var growthNextStep: String {
         if ascensionApplication.status == "Not Started" {
@@ -748,8 +753,11 @@ final class OneStore {
     @MainActor
     func postCustomerJobServerFirst(title: String, category: String, locationQuery: String, address: String, details: String, photos: [String]) async {
         customerJobFlowMessage = nil
+        lastJobError = nil
         isSubmittingCustomerJob = true
+        isPostingJob = true
         defer { isSubmittingCustomerJob = false }
+        defer { isPostingJob = false }
         let normalizedDetail = details.count < 50 ? details + String(repeating: " details", count: max(0, (50 - details.count) / 8)) : details
         let budgetMax = 50000
         let budgetMin = 20000
@@ -793,6 +801,7 @@ final class OneStore {
             postCustomerJob(title: title, category: category, locationQuery: locationQuery, address: address, details: details, photos: photos)
             authStatusMessage = "Job posted locally (API unavailable/auth required)."
             customerJobFlowMessage = "Live publish failed; saved locally."
+            lastJobError = error.localizedDescription
         }
     }
 
@@ -832,6 +841,9 @@ final class OneStore {
     @MainActor
     func cancelCustomerJobServerFirst(_ jobID: UUID) async {
         guard let job = customerJobs.first(where: { $0.id == jobID }) else { return }
+        lastJobError = nil
+        isUpdatingJob = true
+        defer { isUpdatingJob = false }
         let remoteID = job.id.uuidString
         do {
             let _: OneJobStatusResponse = try await api.post("/jobs/\(remoteID)/cancel", body: [String: String]())
@@ -839,12 +851,16 @@ final class OneStore {
         } catch {
             cancelCustomerJob(jobID)
             authStatusMessage = "Job cancelled locally (API unavailable/auth required)."
+            lastJobError = error.localizedDescription
         }
     }
 
     @MainActor
     func startCustomerJobServerFirst(_ jobID: UUID) async {
         guard let idx = customerJobs.firstIndex(where: { $0.id == jobID }) else { return }
+        lastJobError = nil
+        isUpdatingJob = true
+        defer { isUpdatingJob = false }
         let remoteID = customerJobs[idx].id.uuidString
         do {
             let _: OneJobStatusResponse = try await api.post("/jobs/\(remoteID)/start", body: [String: String]())
@@ -854,12 +870,16 @@ final class OneStore {
             customerJobs[idx].status = .inProgress
             OneSessionVault.saveCustomerJobs(customerJobs)
             authStatusMessage = "Job marked in progress locally (API unavailable/auth required)."
+            lastJobError = error.localizedDescription
         }
     }
 
     @MainActor
     func completeCustomerJobServerFirst(_ jobID: UUID) async {
         guard let idx = customerJobs.firstIndex(where: { $0.id == jobID }) else { return }
+        lastJobError = nil
+        isUpdatingJob = true
+        defer { isUpdatingJob = false }
         let remoteID = customerJobs[idx].id.uuidString
         do {
             let _: OneJobStatusResponse = try await api.post("/jobs/\(remoteID)/complete", body: [String: String]())
@@ -869,6 +889,7 @@ final class OneStore {
             customerJobs[idx].status = .completed
             OneSessionVault.saveCustomerJobs(customerJobs)
             authStatusMessage = "Job completed locally (API unavailable/auth required)."
+            lastJobError = error.localizedDescription
         }
     }
 
@@ -891,6 +912,7 @@ final class OneStore {
     @MainActor
     func messageHelperForBidServerFirst(_ bidID: UUID, content: String) async {
         guard let bid = jobBids.first(where: { $0.id == bidID }) else { return }
+        lastBidError = nil
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         do {
@@ -904,6 +926,7 @@ final class OneStore {
             let _: OneGenericSuccessResponse = try await api.post("/messages/conversations/\(convID)", body: msgReq)
         } catch {
             authStatusMessage = "Message send failed (API unavailable/auth required)."
+            lastBidError = error.localizedDescription
         }
     }
 
@@ -943,6 +966,7 @@ final class OneStore {
         guard jobBids.contains(where: { $0.id == bidID }) else { return }
         if bidAcceptanceInFlight.contains(bidID) { return }
         customerJobFlowMessage = nil
+        lastBidError = nil
         bidAcceptanceInFlight.insert(bidID)
         defer { bidAcceptanceInFlight.remove(bidID) }
         do {
@@ -954,6 +978,7 @@ final class OneStore {
             acceptBid(bidID)
             authStatusMessage = "Bid accepted locally (API unavailable/auth required)."
             customerJobFlowMessage = "Live accept failed; applied locally."
+            lastBidError = error.localizedDescription
         }
     }
 
@@ -1269,7 +1294,9 @@ final class OneStore {
     @MainActor
     func refreshCustomerTransactionData() async {
         isRefreshingCustomerData = true
+        isFetchingBids = true
         defer { isRefreshingCustomerData = false }
+        defer { isFetchingBids = false }
         await refreshCustomerJobsFromAPI()
         await refreshHelpersFromAPI()
         await refreshAppointmentsFromAPI()
