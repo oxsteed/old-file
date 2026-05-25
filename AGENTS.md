@@ -36,6 +36,11 @@
 - **Live job actions now prefer server ids:** Customer job cancel/start/complete and job-bid refresh now resolve and use server `remoteJobID` instead of blindly using local UUID strings, reducing 404/invalid-resource failures after sync/rehydration.
 - **Verification:** `swift build --package-path ios/OxSteedOne` and `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'id=B3145305-585E-4A45-BE2E-FEDBBE8AC2CC' -derivedDataPath /tmp/OxSteedOneDerived build` pass.
 
+**OxSteed One iOS offline replay robustness pass (2026-05-25):** IN PROGRESS
+- **HTTP-status based queued replay:** **`ios/OxSteedOne/Sources/Services/OneAPIClient.swift`, `ios/OxSteedOne/Sources/Stores/OneStore.swift`** now replay pending writes through a raw send path that validates success by HTTP status instead of assuming one specific response JSON shape across all endpoints.
+- **Queue dedupe guard:** Pending sync enqueue now ignores duplicate path/method/payload entries to reduce retry storms and repeated duplicate writes after intermittent outages.
+- **Verification:** `swift build --package-path ios/OxSteedOne` and `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'id=B3145305-585E-4A45-BE2E-FEDBBE8AC2CC' -derivedDataPath /tmp/OxSteedOneDerived build` pass.
+
 **OxSteed One native iOS app foundation (2026-05-24):** COMPLETE
 - **New greenfield iOS workspace and simulator wrapper:** **`ios/OxSteedOne/Package.swift`, `ios/OxSteedOne/OxSteedOne.xcodeproj/project.pbxproj`, `ios/OxSteedOne/OxSteedOne.xcodeproj/xcshareddata/xcschemes/OxSteedOne.xcscheme`** now add a separate native app target with display name `OxSteed One` and bundle id `com.oxsteed.one`.
 - **Strict-native 4-tab shell with OxSteed branding:** **`ios/OxSteedOne/Sources/Views/OneRootView.swift`, `ios/OxSteedOne/Sources/Views/OneTheme.swift`, `ios/OxSteedOne/Assets/Images.xcassets/OxSteedLogo.imageset/*`** now provide a stable `Home/Life/Growth/Learn` tab architecture and reuse the OxSteed logo in the new app shell.

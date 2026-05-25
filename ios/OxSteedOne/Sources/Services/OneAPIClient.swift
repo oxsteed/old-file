@@ -53,6 +53,10 @@ final class OxSteedOneAPIClient {
         try await request(path, method: "PUT", body: bodyData)
     }
 
+    func sendRaw(path: String, method: String, bodyData: Data) async throws {
+        _ = try await sendRawWithRetry(path: path, method: method, body: bodyData, didRetry: false)
+    }
+
     private func request<Response: Decodable>(_ path: String, method: String, body: Data?) async throws -> Response {
         try await performRequest(path, method: method, body: body, didRetry: false)
     }
@@ -104,5 +108,50 @@ final class OxSteedOneAPIClient {
         }
 
         return try decoder.decode(Response.self, from: data)
+    }
+
+    private func sendRawWithRetry(
+        path: String,
+        method: String,
+        body: Data?,
+        didRetry: Bool
+    ) async throws -> Data {
+        guard let url = URL(string: path, relativeTo: baseURL) else {
+            throw OneAPIError.invalidURL(path)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let body {
+            request.httpBody = body
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+        if let resolvedToken = tokenProvider?() ?? token {
+            request.setValue("Bearer \(resolvedToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw OneAPIError.invalidResponse
+        }
+
+        if http.statusCode == 401 {
+            if didRetry {
+                onUnauthorized?()
+                throw OneAPIError.unauthorized
+            }
+            if let refreshTokenHandler, await refreshTokenHandler() {
+                return try await sendRawWithRetry(path: path, method: method, body: body, didRetry: true)
+            }
+            onUnauthorized?()
+            throw OneAPIError.unauthorized
+        }
+
+        guard (200..<300).contains(http.statusCode) else {
+            throw OneAPIError.server(http.statusCode, String(data: data, encoding: .utf8) ?? "No body")
+        }
+
+        return data
     }
 }

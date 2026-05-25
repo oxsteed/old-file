@@ -1806,9 +1806,9 @@ final class OneStore {
             do {
                 switch change.method {
                 case .post:
-                    let _: OneGenericSuccessResponse = try await api.postRaw(change.path, bodyData: payload)
+                    try await api.sendRaw(path: change.path, method: change.method.rawValue, bodyData: payload)
                 case .put:
-                    let _: OneGenericSuccessResponse = try await api.putRaw(change.path, bodyData: payload)
+                    try await api.sendRaw(path: change.path, method: change.method.rawValue, bodyData: payload)
                 }
             } catch {
                 remaining.append(change)
@@ -1912,6 +1912,9 @@ final class OneStore {
     }
 
     private func enqueuePendingChange(path: String, method: PendingSyncMethod, payloadData: Data) {
+        if pendingSyncChanges.contains(where: { $0.path == path && $0.method == method && $0.payloadBase64 == payloadData.base64EncodedString() }) {
+            return
+        }
         let change = PendingSyncChange(path: path, method: method, payloadData: payloadData)
         pendingSyncChanges.append(change)
         OneSessionVault.savePendingSyncChanges(pendingSyncChanges)
