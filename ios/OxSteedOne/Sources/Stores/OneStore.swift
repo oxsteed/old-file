@@ -44,6 +44,7 @@ final class OneStore {
     var apiBaseURLString: String = OneSessionVault.loadAPIBaseURL() ?? OneStore.defaultAPIBaseURLString
     var apiConnectivityMessage: String?
     var authEndpointProbeMessage: String?
+    var authRequestDiagnostics: [String] = []
     @ObservationIgnored private(set) var token: String? = OneSessionVault.loadToken() {
         didSet {
             OneSessionVault.saveToken(token)
@@ -188,6 +189,16 @@ final class OneStore {
             Task { @MainActor [weak self] in
                 self?.logout(clearMessage: false)
                 self?.authStatusMessage = "Session expired. Please sign in again."
+            }
+        }
+        api.onRequestBuilt = { [weak self] path, hasAuthorization in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let marker = hasAuthorization ? "auth=attached" : "auth=missing"
+                self.authRequestDiagnostics.append("\(path) [\(marker)]")
+                if self.authRequestDiagnostics.count > 12 {
+                    self.authRequestDiagnostics.removeFirst(self.authRequestDiagnostics.count - 12)
+                }
             }
         }
         setupConnectivityMonitoring()
@@ -2004,6 +2015,7 @@ final class OneStore {
     @MainActor
     func login(email: String, password: String, agreementName: String, acceptedTerms: Bool) async {
         authStatusMessage = nil
+        authRequestDiagnostics.removeAll()
         isAuthenticating = true
         defer { isAuthenticating = false }
 
@@ -2052,7 +2064,11 @@ final class OneStore {
                 isLocked = true
             }
         } catch {
-            authStatusMessage = OneErrorMapper.userMessage(for: error, fallback: "Sign in failed. Please check your credentials and retry.")
+            if error is DecodingError {
+                authStatusMessage = "Sign in response format was not recognized. Check API auth response contract."
+            } else {
+                authStatusMessage = OneErrorMapper.userMessage(for: error, fallback: "Sign in failed. Please check your credentials and retry.")
+            }
         }
     }
 

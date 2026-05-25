@@ -22,6 +22,7 @@ final class OxSteedOneAPIClient {
     var tokenProvider: (() -> String?)?
     var refreshTokenHandler: (() async -> Bool)?
     var onUnauthorized: (() -> Void)?
+    var onRequestBuilt: ((_ path: String, _ hasAuthorization: Bool) -> Void)?
 
     private let session: URLSession
     private let encoder = JSONEncoder()
@@ -93,6 +94,7 @@ final class OxSteedOneAPIClient {
         if let resolvedToken = tokenProvider?() ?? token {
             request.setValue("Bearer \(resolvedToken)", forHTTPHeaderField: "Authorization")
         }
+        onRequestBuilt?(path, request.value(forHTTPHeaderField: "Authorization") != nil)
 
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else {
@@ -140,6 +142,7 @@ final class OxSteedOneAPIClient {
         if let resolvedToken = tokenProvider?() ?? token {
             request.setValue("Bearer \(resolvedToken)", forHTTPHeaderField: "Authorization")
         }
+        onRequestBuilt?(path, request.value(forHTTPHeaderField: "Authorization") != nil)
 
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else {
@@ -185,6 +188,7 @@ final class OxSteedOneAPIClient {
         if let resolvedToken = tokenProvider?() ?? token {
             request.setValue("Bearer \(resolvedToken)", forHTTPHeaderField: "Authorization")
         }
+        onRequestBuilt?(path, request.value(forHTTPHeaderField: "Authorization") != nil)
 
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else {
@@ -260,6 +264,21 @@ struct OneMultipartFile {
 }
 
 enum OneErrorMapper {
+    private static func backendErrorMessage(from body: String) -> String? {
+        guard let data = body.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data, options: []),
+              let dict = object as? [String: Any] else {
+            return nil
+        }
+        if let message = dict["error"] as? String, !message.isEmpty {
+            return message
+        }
+        if let message = dict["message"] as? String, !message.isEmpty {
+            return message
+        }
+        return nil
+    }
+
     static func userMessage(for error: Error, fallback: String) -> String {
         if let apiError = error as? OneAPIError {
             switch apiError {
@@ -269,7 +288,11 @@ enum OneErrorMapper {
                 return "App configuration error. Please update OxSteed One."
             case .invalidResponse:
                 return "OxSteed returned an unreadable response. Try again."
-            case .server(let status, _):
+            case .server(let status, let body):
+                if let backendMessage = backendErrorMessage(from: body),
+                   (400...499).contains(status) {
+                    return backendMessage
+                }
                 if status == 429 {
                     return "Too many requests. Please wait a moment and retry."
                 }

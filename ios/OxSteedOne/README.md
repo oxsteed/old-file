@@ -21,7 +21,7 @@
 ## Branding / Identity
 
 - App display name: `OxSteed One`
-- Bundle id: `com.oxsteed.one`
+- Bundle id: `com.oxsteed.app`
 - OxSteed logo reused in `Assets/Images.xcassets/OxSteedLogo.imageset`.
 
 ## Verification
@@ -30,6 +30,6 @@
 swift build --package-path ios/OxSteedOne
 xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'id=B3145305-585E-4A45-BE2E-FEDBBE8AC2CC' -derivedDataPath /tmp/OxSteedOneDerived build
 xcrun simctl install B3145305-585E-4A45-BE2E-FEDBBE8AC2CC /tmp/OxSteedOneDerived/Build/Products/Debug-iphonesimulator/OxSteedOne.app
-xcrun simctl launch B3145305-585E-4A45-BE2E-FEDBBE8AC2CC com.oxsteed.one
+xcrun simctl launch B3145305-585E-4A45-BE2E-FEDBBE8AC2CC com.oxsteed.app
 xcrun simctl io B3145305-585E-4A45-BE2E-FEDBBE8AC2CC screenshot artifacts/previews/oxsteed-one-initial.png
 ```

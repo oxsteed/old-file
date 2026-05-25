@@ -34,7 +34,7 @@ struct OxSteedOneApp: App {
 // MARK: - AppDelegate
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    private let logger = Logger(subsystem: "com.oxsteed.one", category: "push")
+    private let logger = Logger(subsystem: "com.oxsteed.app", category: "push")
     /// Weak reference set by OxSteedOneApp.onAppear so the delegate can relay
     /// the device token without creating a retain cycle.
     weak var store: OneStore?

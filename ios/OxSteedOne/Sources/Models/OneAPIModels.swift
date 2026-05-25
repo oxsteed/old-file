@@ -23,6 +23,44 @@ struct OneAuthResponse: Decodable {
     let refreshToken: String?
     let token: String?
     let user: OneAuthUser?
+
+    private enum CodingKeys: String, CodingKey {
+        case accessToken
+        case refreshToken
+        case token
+        case user
+        case access_token
+        case refresh_token
+        case data
+        case result
+    }
+
+    private struct AuthPayload: Decodable {
+        let accessToken: String?
+        let refreshToken: String?
+        let token: String?
+        let user: OneAuthUser?
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // Some auth endpoints return tokens directly; others wrap them in data/result.
+        let directAccess = try container.decodeIfPresent(String.self, forKey: .accessToken)
+            ?? container.decodeIfPresent(String.self, forKey: .access_token)
+        let directRefresh = try container.decodeIfPresent(String.self, forKey: .refreshToken)
+            ?? container.decodeIfPresent(String.self, forKey: .refresh_token)
+        let directToken = try container.decodeIfPresent(String.self, forKey: .token)
+        let directUser = try container.decodeIfPresent(OneAuthUser.self, forKey: .user)
+
+        let wrappedData = try container.decodeIfPresent(AuthPayload.self, forKey: .data)
+        let wrappedResult = try container.decodeIfPresent(AuthPayload.self, forKey: .result)
+
+        accessToken = directAccess ?? wrappedData?.accessToken ?? wrappedResult?.accessToken
+        refreshToken = directRefresh ?? wrappedData?.refreshToken ?? wrappedResult?.refreshToken
+        token = directToken ?? wrappedData?.token ?? wrappedResult?.token
+        user = directUser ?? wrappedData?.user ?? wrappedResult?.user
+    }
 }
 
 struct OneRegisterRequest: Encodable {
