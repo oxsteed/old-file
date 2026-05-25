@@ -528,6 +528,7 @@ final class OneStore {
                 // Existing refresh + sync pass.
                 await refreshCustomerTransactionData()
                 await syncPendingChanges()
+                await sendDeviceTokenToServer()
             }
             startPeriodicSyncIfNeeded()
         } else {
@@ -1665,18 +1666,28 @@ final class OneStore {
                 authStatusMessage = "Push notifications are disabled. Enable them in Settings."
             }
         } catch {
-            authStatusMessage = "Push notification permission denied."
+            authStatusMessage = "Push notification permission request failed."
         }
     }
 
     /// Sends the stored APNs device token to the backend. Silently no-ops if no token is stored yet.
     func sendDeviceTokenToServer() async {
-        guard let token = UserDefaults.standard.string(forKey: "deviceToken"), !token.isEmpty else { return }
+        guard let token = OneSessionVault.loadDeviceToken(), !token.isEmpty else { return }
         let req = OneDeviceTokenRequest(deviceToken: token, platform: "ios")
-        do {
-            let _: OneGenericSuccessResponse = try await api.post("/device-tokens/register", body: req)
-        } catch {
-            // Silently fail — will retry on next app launch or login
+        let candidatePaths = [
+            "/device-tokens/register",
+            "/notifications/register-device",
+            "/notifications/register"
+        ]
+        for path in candidatePaths {
+            do {
+                let _: OneGenericSuccessResponse = try await runWithRetry {
+                    try await self.api.post(path, body: req)
+                }
+                return
+            } catch {
+                continue
+            }
         }
     }
 
@@ -1813,6 +1824,8 @@ final class OneStore {
             authPassword = ""
             authAgreementName = cleanAgreementName
             authAcceptedTerms = acceptedTerms
+            await fetchMyProfile()
+            await sendDeviceTokenToServer()
             if biometricEnabled {
                 isLocked = true
             }
@@ -1864,6 +1877,8 @@ final class OneStore {
             authLastName = cleanLast
             authAgreementName = "\(cleanFirst) \(cleanLast)"
             authAcceptedTerms = true
+            await fetchMyProfile()
+            await sendDeviceTokenToServer()
         } catch {
             authStatusMessage = OneErrorMapper.userMessage(for: error, fallback: "Account creation failed. Please verify your details and retry.")
         }
@@ -2340,12 +2355,18 @@ final class OneStore {
 
     @MainActor
     func testAPIConnection() async {
-        do {
-            let _: OneVersionPolicyResponse = try await api.get("/mobile/version-policy")
-            apiConnectivityMessage = "Connected to \(resolvedAPIBaseURLString)"
-        } catch {
-            apiConnectivityMessage = OneErrorMapper.userMessage(for: error, fallback: "Unable to reach API.")
+        let probes = ["/mobile/version-policy", "/health", "/translate/locales"]
+        let emptyBody = Data("{}".utf8)
+        for probe in probes {
+            do {
+                try await api.sendRaw(path: probe, method: "GET", bodyData: emptyBody)
+                apiConnectivityMessage = "Connected to \(resolvedAPIBaseURLString)"
+                return
+            } catch {
+                continue
+            }
         }
+        apiConnectivityMessage = "Unable to reach API at \(resolvedAPIBaseURLString)."
     }
 
     private func authEndpointCandidates(_ action: String) -> [String] {
@@ -2442,7 +2463,9 @@ final class OneStore {
     @MainActor
     func fetchMyProfile() async {
         do {
-            let envelope: OneDataEnvelope<OneUserProfile> = try await api.get("/me")
+            let envelope: OneDataEnvelope<OneUserProfile> = try await runWithRetry {
+                try await self.api.get("/me")
+            }
             let profile = envelope.data
             if let uid = profile.id {
                 currentUserID = uid
@@ -2484,7 +2507,9 @@ final class OneStore {
         isFetchingJobs = true
         defer { isFetchingJobs = false }
         do {
-            let response: OneJobListResponse = try await api.get("/jobs?page=\(page)&limit=\(jobPageSize)&status=published")
+            let response: OneJobListResponse = try await runWithRetry {
+                try await self.api.get("/jobs?page=\(page)&limit=\(self.jobPageSize)&status=published")
+            }
             let jobs = response.jobs ?? response.data ?? []
             let mapped = jobs.map(mapCustomerJob)
             if page == 1 {
@@ -2518,7 +2543,9 @@ final class OneStore {
         defer { isFetchingJobs = false }
         do {
             let path = status.map { "/jobs/my-jobs?status=\($0)" } ?? "/jobs/my-jobs"
-            let response: OneJobListResponse = try await api.get(path)
+            let response: OneJobListResponse = try await runWithRetry {
+                try await self.api.get(path)
+            }
             let jobs = response.jobs ?? response.data ?? []
             guard !jobs.isEmpty else { return }
             customerJobs = jobs.map(mapCustomerJob)
@@ -2639,7 +2666,9 @@ final class OneStore {
     @MainActor
     func fetchUnifiedInbox() async {
         do {
-            let response: OneInboxListResponse = try await api.get("/messages/conversations?limit=30")
+            let response: OneInboxListResponse = try await runWithRetry {
+                try await self.api.get("/messages/conversations?limit=30")
+            }
             let threads = response.conversations ?? response.data ?? []
             guard !threads.isEmpty else { return }
             unifiedInboxThreads = threads.compactMap { dto -> UnifiedThread? in
@@ -2802,6 +2831,30 @@ final class OneStore {
         let change = PendingSyncChange(path: path, method: method, payloadData: payloadData)
         pendingSyncChanges.append(change)
         OneSessionVault.savePendingSyncChanges(pendingSyncChanges)
+    }
+
+    private func runWithRetry<T>(
+        maxAttempts: Int = 3,
+        initialDelayNanoseconds: UInt64 = 250_000_000,
+        operation: @escaping () async throws -> T
+    ) async throws -> T {
+        var attempts = 0
+        var delay = initialDelayNanoseconds
+        var lastError: Error?
+
+        while attempts < maxAttempts {
+            do {
+                return try await operation()
+            } catch {
+                lastError = error
+                attempts += 1
+                guard attempts < maxAttempts else { break }
+                try? await Task.sleep(nanoseconds: delay)
+                delay *= 2
+            }
+        }
+
+        throw lastError ?? OneAPIError.invalidResponse
     }
 
     private func businessOwnerSections(for role: BusinessSubRole) -> [HomeSection] {

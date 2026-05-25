@@ -1,5 +1,6 @@
 import SwiftUI
 import UserNotifications
+import os
 
 @main
 struct OxSteedOneApp: App {
@@ -19,6 +20,13 @@ struct OxSteedOneApp: App {
                         Task { await store.registerForPushNotifications() }
                     }
                 }
+                .onChange(of: store.isAuthenticated) { _, isAuthenticated in
+                    guard isAuthenticated else { return }
+                    Task {
+                        await store.registerForPushNotifications()
+                        await store.sendDeviceTokenToServer()
+                    }
+                }
         }
     }
 }
@@ -26,6 +34,7 @@ struct OxSteedOneApp: App {
 // MARK: - AppDelegate
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
+    private let logger = Logger(subsystem: "com.oxsteed.one", category: "push")
     /// Weak reference set by OxSteedOneApp.onAppear so the delegate can relay
     /// the device token without creating a retain cycle.
     weak var store: OneStore?
@@ -44,7 +53,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     ) {
         // Hex-encode the binary token and persist it for OneStore to read.
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-        UserDefaults.standard.set(tokenString, forKey: "deviceToken")
+        OneSessionVault.saveDeviceToken(tokenString)
 
         // Push token to backend now that it's available.
         Task { await store?.sendDeviceTokenToServer() }
@@ -55,7 +64,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
         // Non-fatal; the app works without push — log and move on.
-        print("[AppDelegate] APNs registration failed: \(error.localizedDescription)")
+        logger.error("APNs registration failed: \(error.localizedDescription)")
     }
 }
 

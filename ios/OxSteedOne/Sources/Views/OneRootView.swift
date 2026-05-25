@@ -199,6 +199,14 @@ struct OneRootView: View {
 private struct LoginView: View {
     @Environment(OneStore.self) private var store
 
+    private var canSubmit: Bool {
+        let email = store.authEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        let password = store.authPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        let agreementName = store.authAgreementName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasTwoNameParts = agreementName.split(separator: " ").count >= 2
+        return !email.isEmpty && !password.isEmpty && store.authAcceptedTerms && hasTwoNameParts
+    }
+
     var body: some View {
         @Bindable var store = store
         Form {
@@ -231,7 +239,7 @@ private struct LoginView: View {
                             .frame(maxWidth: .infinity)
                     }
                 }
-                .disabled(store.isAuthenticating)
+                .disabled(store.isAuthenticating || !canSubmit)
                 .buttonStyle(GoAccentButtonStyle())
             }
 
