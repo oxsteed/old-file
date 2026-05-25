@@ -45,6 +45,14 @@ final class OxSteedOneAPIClient {
         try await request(path, method: "PUT", body: encoder.encode(body))
     }
 
+    func postRaw<Response: Decodable>(_ path: String, bodyData: Data) async throws -> Response {
+        try await request(path, method: "POST", body: bodyData)
+    }
+
+    func putRaw<Response: Decodable>(_ path: String, bodyData: Data) async throws -> Response {
+        try await request(path, method: "PUT", body: bodyData)
+    }
+
     private func request<Response: Decodable>(_ path: String, method: String, body: Data?) async throws -> Response {
         try await performRequest(path, method: method, body: body, didRetry: false)
     }

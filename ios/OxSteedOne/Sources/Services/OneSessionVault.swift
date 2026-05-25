@@ -39,6 +39,7 @@ enum OneSessionVault {
     private static let customerBookingsKey = "oxsteed.one.customerBookings"
     private static let rentalToolsKey = "oxsteed.one.rentalTools"
     private static let rentalReservationsKey = "oxsteed.one.rentalReservations"
+    private static let pendingSyncChangesKey = "oxsteed.one.pendingSyncChanges"
     private static let accessTokenKey = "oxsteed_access_token"
     private static let refreshTokenKey = "oxsteed_refresh_token"
 
@@ -56,6 +57,19 @@ enum OneSessionVault {
 
     static func loadRefreshToken() -> String? {
         loadSecureValue(for: refreshTokenKey)
+    }
+
+    static func savePendingSyncChanges(_ changes: [PendingSyncChange]) {
+        guard let data = try? JSONEncoder().encode(changes) else { return }
+        UserDefaults.standard.set(data, forKey: pendingSyncChangesKey)
+    }
+
+    static func loadPendingSyncChanges() -> [PendingSyncChange] {
+        guard let data = UserDefaults.standard.data(forKey: pendingSyncChangesKey),
+              let changes = try? JSONDecoder().decode([PendingSyncChange].self, from: data) else {
+            return []
+        }
+        return changes
     }
 
     static func saveSession(_ session: OneSavedSession) {

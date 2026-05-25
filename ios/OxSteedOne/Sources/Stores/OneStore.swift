@@ -1,5 +1,8 @@
 import Foundation
 import Observation
+#if canImport(Network)
+import Network
+#endif
 #if canImport(LocalAuthentication)
 import LocalAuthentication
 #endif
@@ -89,6 +92,7 @@ final class OneStore {
     var customerServiceBookings: [CustomerServiceBooking] = OneSessionVault.loadCustomerServiceBookings()
     var rentalTools: [RentalTool] = OneSessionVault.loadRentalTools()
     var toolRentalReservations: [ToolRentalReservation] = OneSessionVault.loadToolRentalReservations()
+    var pendingSyncChanges: [PendingSyncChange] = OneSessionVault.loadPendingSyncChanges()
 
     var growthProgressStep = "Skill"
     var voiceInputEnabled = true
@@ -109,6 +113,7 @@ final class OneStore {
     var isReservingTool = false
     var isUpdatingTool = false
     var lastToolError: String?
+    var isNetworkAvailable = true
 
     var growthNextStep: String {
         if ascensionApplication.status == "Not Started" {
@@ -130,6 +135,10 @@ final class OneStore {
     }
 
     private let api = OxSteedOneAPIClient()
+    #if canImport(Network)
+    @ObservationIgnored private let networkMonitor = NWPathMonitor()
+    @ObservationIgnored private let networkMonitorQueue = DispatchQueue(label: "app.oxsteed.one.networkMonitor")
+    #endif
 
     init() {
         api.token = token
@@ -144,6 +153,7 @@ final class OneStore {
                 self?.authStatusMessage = "Session expired. Please sign in again."
             }
         }
+        setupConnectivityMonitoring()
     }
 
     var activePersona: AppPersona {
@@ -457,7 +467,10 @@ final class OneStore {
             Task { await refreshTranslatedPreviews() }
         }
         if isAuthenticated {
-            Task { await refreshCustomerTransactionData() }
+            Task {
+                await refreshCustomerTransactionData()
+                await syncPendingChanges()
+            }
         }
         if biometricEnabled && isAuthenticated {
             isLocked = true
@@ -591,14 +604,18 @@ final class OneStore {
 
     func addLifeLogEntry(pillarID: String, title: String, detail: String) {
         guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        lifeLogEntries.insert(LifeLogEntry(pillarID: pillarID, title: title, detail: detail), at: 0)
+        let entry = LifeLogEntry(pillarID: pillarID, title: title, detail: detail)
+        lifeLogEntries.insert(entry, at: 0)
         OneSessionVault.saveLifeLogEntries(lifeLogEntries)
+        Task { await syncLifeLogEntry(entry) }
     }
 
     func addSinkingFund(title: String, targetAmount: Double, currentAmount: Double, targetDate: Date) {
         guard !title.isEmpty, targetAmount > 0 else { return }
-        sinkingFunds.append(SinkingFund(title: title, targetAmount: targetAmount, currentAmount: currentAmount, targetDate: targetDate))
+        let fund = SinkingFund(title: title, targetAmount: targetAmount, currentAmount: currentAmount, targetDate: targetDate)
+        sinkingFunds.append(fund)
         OneSessionVault.saveSinkingFunds(sinkingFunds)
+        Task { await syncSinkingFund(fund) }
     }
 
     func addToSinkingFund(_ fundID: UUID, amount: Double) {
@@ -770,23 +787,23 @@ final class OneStore {
         let normalizedDetail = details.count < 50 ? details + String(repeating: " details", count: max(0, (50 - details.count) / 8)) : details
         let budgetMax = 50000
         let budgetMin = 20000
+        let request = OneCreateJobRequest(
+            title: title,
+            description: normalizedDetail,
+            categoryName: category,
+            locationCity: locationQuery.isEmpty ? "Springfield" : locationQuery,
+            locationState: "MA",
+            locationAddress: address,
+            locationZip: "01103",
+            locationCountry: "US",
+            urgency: "flexible",
+            budgetType: "range",
+            budgetMin: budgetMin,
+            budgetMax: budgetMax,
+            mediaUrls: photos
+        )
 
         do {
-            let request = OneCreateJobRequest(
-                title: title,
-                description: normalizedDetail,
-                categoryName: category,
-                locationCity: locationQuery.isEmpty ? "Springfield" : locationQuery,
-                locationState: "MA",
-                locationAddress: address,
-                locationZip: "01103",
-                locationCountry: "US",
-                urgency: "flexible",
-                budgetType: "range",
-                budgetMin: budgetMin,
-                budgetMax: budgetMax,
-                mediaUrls: photos
-            )
             let created: OneJobDTO = try await api.post("/jobs", body: request)
             let localID = uuidFromString(created.id) ?? UUID()
             customerJobs.insert(
@@ -811,6 +828,7 @@ final class OneStore {
             authStatusMessage = "Job posted locally (API unavailable/auth required)."
             customerJobFlowMessage = "Live publish failed; saved locally."
             lastJobError = error.localizedDescription
+            enqueueForRetry(path: "/jobs", method: .post, encodable: request)
         }
     }
 
@@ -861,6 +879,7 @@ final class OneStore {
             cancelCustomerJob(jobID)
             authStatusMessage = "Job cancelled locally (API unavailable/auth required)."
             lastJobError = error.localizedDescription
+            enqueueForRetry(path: "/jobs/\(remoteID)/cancel", method: .post, jsonObject: [String: String]())
         }
     }
 
@@ -880,6 +899,7 @@ final class OneStore {
             OneSessionVault.saveCustomerJobs(customerJobs)
             authStatusMessage = "Job marked in progress locally (API unavailable/auth required)."
             lastJobError = error.localizedDescription
+            enqueueForRetry(path: "/jobs/\(remoteID)/start", method: .post, jsonObject: [String: String]())
         }
     }
 
@@ -899,6 +919,7 @@ final class OneStore {
             OneSessionVault.saveCustomerJobs(customerJobs)
             authStatusMessage = "Job completed locally (API unavailable/auth required)."
             lastJobError = error.localizedDescription
+            enqueueForRetry(path: "/jobs/\(remoteID)/complete", method: .post, jsonObject: [String: String]())
         }
     }
 
@@ -978,8 +999,8 @@ final class OneStore {
         lastBidError = nil
         bidAcceptanceInFlight.insert(bidID)
         defer { bidAcceptanceInFlight.remove(bidID) }
+        let request = OneAssignBidRequest(bidID: bidID.uuidString, paymentMethod: "oxsteed")
         do {
-            let request = OneAssignBidRequest(bidID: bidID.uuidString, paymentMethod: "oxsteed")
             let _: OneGenericSuccessResponse = try await api.post("/jobs/assign", body: request)
             acceptBid(bidID)
             customerJobFlowMessage = "Bid accepted and appointment created."
@@ -988,6 +1009,7 @@ final class OneStore {
             authStatusMessage = "Bid accepted locally (API unavailable/auth required)."
             customerJobFlowMessage = "Live accept failed; applied locally."
             lastBidError = error.localizedDescription
+            enqueueForRetry(path: "/jobs/assign", method: .post, encodable: request)
         }
     }
 
@@ -1020,21 +1042,21 @@ final class OneStore {
         lastBookingError = nil
         isCreatingBooking = true
         defer { isCreatingBooking = false }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dateText = formatter.string(from: scheduledDate)
+        let start = slot.isEmpty ? "10:00" : slot
+        let end = "12:00"
+        let req = OneCreateBookingRequest(
+            helperID: helperID.uuidString,
+            serviceName: serviceType,
+            requestedDate: dateText,
+            requestedStartTime: start,
+            requestedEndTime: end,
+            serviceLocation: "Customer location",
+            description: preMessage
+        )
         do {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            let dateText = formatter.string(from: scheduledDate)
-            let start = slot.isEmpty ? "10:00" : slot
-            let end = "12:00"
-            let req = OneCreateBookingRequest(
-                helperID: helperID.uuidString,
-                serviceName: serviceType,
-                requestedDate: dateText,
-                requestedStartTime: start,
-                requestedEndTime: end,
-                serviceLocation: "Customer location",
-                description: preMessage
-            )
             let response: OneBookingCreateResponse = try await api.post("/bookings", body: req)
             guard let helper = serviceHelpers.first(where: { $0.id == helperID }) else { return }
             customerServiceBookings.insert(
@@ -1061,6 +1083,7 @@ final class OneStore {
             createServiceBooking(helperID: helperID, serviceType: serviceType, scheduledDate: scheduledDate, slot: slot, paymentAuthorized: paymentAuthorized, preMessage: preMessage)
             authStatusMessage = "Booking saved locally (API unavailable/auth required)."
             lastBookingError = error.localizedDescription
+            enqueueForRetry(path: "/bookings", method: .post, encodable: req)
         }
     }
 
@@ -1086,6 +1109,7 @@ final class OneStore {
         } catch {
             authStatusMessage = "Live cancel failed; booking kept local."
             lastBookingError = error.localizedDescription
+            enqueueForRetry(path: "/bookings/\(remoteID)/cancel", method: .post, jsonObject: [String: String]())
         }
     }
 
@@ -1153,17 +1177,17 @@ final class OneStore {
         lastToolError = nil
         isReservingTool = true
         defer { isReservingTool = false }
+        let start = Date()
+        let end = Calendar.current.date(byAdding: .day, value: 2, to: start) ?? start
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let req = OneCreateToolReservationRequest(
+            toolID: toolID.uuidString,
+            startDate: formatter.string(from: start),
+            endDate: formatter.string(from: end),
+            renterAgreementAccepted: true
+        )
         do {
-            let start = Date()
-            let end = Calendar.current.date(byAdding: .day, value: 2, to: start) ?? start
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            let req = OneCreateToolReservationRequest(
-                toolID: toolID.uuidString,
-                startDate: formatter.string(from: start),
-                endDate: formatter.string(from: end),
-                renterAgreementAccepted: true
-            )
             let remote: OneToolBookingResponse = try await api.post("/tool-rentals/bookings", body: req)
             guard let tool = rentalTools.first(where: { $0.id == toolID }) else { return }
             toolRentalReservations.insert(
@@ -1189,6 +1213,7 @@ final class OneStore {
             reserveTool(toolID: toolID, slot: slot, paymentAuthorized: paymentAuthorized)
             authStatusMessage = "Rental reserved locally (API unavailable/auth required)."
             lastToolError = error.localizedDescription
+            enqueueForRetry(path: "/tool-rentals/bookings", method: .post, encodable: req)
         }
     }
 
@@ -1202,8 +1227,8 @@ final class OneStore {
             setToolDispute(reservationID, open: false)
             return
         }
+        let req = OneToolBookingStatusUpdateRequest(status: "cancelled")
         do {
-            let req = OneToolBookingStatusUpdateRequest(status: "cancelled")
             let _: OneToolBookingResponse = try await api.put("/tool-rentals/bookings/\(remoteID)", body: req)
             if let idx = toolRentalReservations.firstIndex(where: { $0.id == reservationID }) {
                 toolRentalReservations[idx].disputeStatus = "Cancelled"
@@ -1213,6 +1238,7 @@ final class OneStore {
         } catch {
             authStatusMessage = "Live cancel failed; reservation kept local."
             lastToolError = error.localizedDescription
+            enqueueForRetry(path: "/tool-rentals/bookings/\(remoteID)", method: .put, encodable: req)
         }
     }
 
@@ -1228,19 +1254,20 @@ final class OneStore {
             setToolDispute(reservationID, open: true)
             return
         }
+        let req = OneToolReportRequest(
+            reportedUserID: ownerID,
+            bookingID: remoteID,
+            reportType: "tool_damage",
+            description: description
+        )
         do {
-            let req = OneToolReportRequest(
-                reportedUserID: ownerID,
-                bookingID: remoteID,
-                reportType: "tool_damage",
-                description: description
-            )
             let _: OneToolReportResponse = try await api.post("/tool-rentals/reports", body: req)
             setToolDispute(reservationID, open: true)
         } catch {
             setToolDispute(reservationID, open: true)
             authStatusMessage = "Dispute saved locally (API unavailable/auth required)."
             lastToolError = error.localizedDescription
+            enqueueForRetry(path: "/tool-rentals/reports", method: .post, encodable: req)
         }
     }
 
@@ -1735,6 +1762,86 @@ final class OneStore {
             UnifiedThread(id: 102, title: "Team dispatch #442", lastMessage: "Dave checked in at 1:57 PM.", personaSource: "business_owner", unreadCount: 1),
             UnifiedThread(id: 103, title: "Helper lead follow-up", lastMessage: "Can you confirm material budget?", personaSource: "helper", unreadCount: 3)
         ]
+    }
+
+    @MainActor
+    func syncPendingChanges() async {
+        guard isAuthenticated, isNetworkAvailable, !pendingSyncChanges.isEmpty else { return }
+        var remaining: [PendingSyncChange] = []
+        for change in pendingSyncChanges {
+            guard let payload = change.payloadData else { continue }
+            do {
+                switch change.method {
+                case .post:
+                    let _: OneGenericSuccessResponse = try await api.postRaw(change.path, bodyData: payload)
+                case .put:
+                    let _: OneGenericSuccessResponse = try await api.putRaw(change.path, bodyData: payload)
+                }
+            } catch {
+                remaining.append(change)
+            }
+        }
+        pendingSyncChanges = remaining
+        OneSessionVault.savePendingSyncChanges(pendingSyncChanges)
+    }
+
+    @MainActor
+    private func syncLifeLogEntry(_ entry: LifeLogEntry) async {
+        let request = ["pillar_id": entry.pillarID, "title": entry.title, "detail": entry.detail]
+        do {
+            let _: OneGenericSuccessResponse = try await api.post("/life-log", body: request)
+        } catch {
+            enqueueForRetry(path: "/life-log", method: .post, jsonObject: request)
+        }
+    }
+
+    @MainActor
+    private func syncSinkingFund(_ fund: SinkingFund) async {
+        let dateText = ISO8601DateFormatter().string(from: fund.targetDate)
+        let request: [String: Any] = [
+            "title": fund.title,
+            "target_amount": fund.targetAmount,
+            "current_amount": fund.currentAmount,
+            "target_date": dateText
+        ]
+        do {
+            let payload = try JSONSerialization.data(withJSONObject: request, options: [])
+            let _: OneGenericSuccessResponse = try await api.postRaw("/sinking-funds", bodyData: payload)
+        } catch {
+            enqueueForRetry(path: "/sinking-funds", method: .post, jsonObject: request)
+        }
+    }
+
+    private func setupConnectivityMonitoring() {
+        #if canImport(Network)
+        networkMonitor.pathUpdateHandler = { [weak self] path in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.isNetworkAvailable = path.status == .satisfied
+                if self.isNetworkAvailable {
+                    await self.syncPendingChanges()
+                }
+            }
+        }
+        networkMonitor.start(queue: networkMonitorQueue)
+        #endif
+    }
+
+    private func enqueueForRetry<Body: Encodable>(path: String, method: PendingSyncMethod, encodable: Body) {
+        guard let data = try? JSONEncoder().encode(encodable) else { return }
+        enqueuePendingChange(path: path, method: method, payloadData: data)
+    }
+
+    private func enqueueForRetry(path: String, method: PendingSyncMethod, jsonObject: Any) {
+        guard JSONSerialization.isValidJSONObject(jsonObject),
+              let data = try? JSONSerialization.data(withJSONObject: jsonObject, options: []) else { return }
+        enqueuePendingChange(path: path, method: method, payloadData: data)
+    }
+
+    private func enqueuePendingChange(path: String, method: PendingSyncMethod, payloadData: Data) {
+        let change = PendingSyncChange(path: path, method: method, payloadData: payloadData)
+        pendingSyncChanges.append(change)
+        OneSessionVault.savePendingSyncChanges(pendingSyncChanges)
     }
 
     private func businessOwnerSections(for role: BusinessSubRole) -> [HomeSection] {

@@ -38,6 +38,30 @@ struct TodayView: View {
     var body: some View {
         GoScreen(title: "Home", showsTitle: false) {
             header
+            if !store.isNetworkAvailable || !store.pendingSyncChanges.isEmpty {
+                GoCard {
+                    HStack(spacing: 10) {
+                        Image(systemName: store.isNetworkAvailable ? "arrow.triangle.2.circlepath.circle.fill" : "wifi.slash")
+                            .foregroundStyle(store.isNetworkAvailable ? OneTheme.amber : .red)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(store.isNetworkAvailable ? "Sync Queue Pending" : "Offline Mode")
+                                .font(.subheadline.weight(.semibold))
+                            Text(store.isNetworkAvailable
+                                 ? "\(store.pendingSyncChanges.count) change(s) waiting to sync."
+                                 : "Changes are saved locally and will sync when connection returns.")
+                                .font(.caption)
+                                .foregroundStyle(OneTheme.muted)
+                        }
+                        Spacer()
+                        if store.isNetworkAvailable && !store.pendingSyncChanges.isEmpty {
+                            Button("Sync") {
+                                Task { await store.syncPendingChanges() }
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                }
+            }
 
             GoCard {
                 Text("Universal Search")

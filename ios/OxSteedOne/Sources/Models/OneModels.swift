@@ -502,3 +502,28 @@ struct ToolRentalReservation: Identifiable, Codable, Hashable {
     var depositStatus: String
     var disputeStatus: String
 }
+
+enum PendingSyncMethod: String, Codable, Hashable {
+    case post = "POST"
+    case put = "PUT"
+}
+
+struct PendingSyncChange: Identifiable, Codable, Hashable {
+    let id: UUID
+    let path: String
+    let method: PendingSyncMethod
+    let payloadBase64: String
+    let createdAt: Date
+
+    init(path: String, method: PendingSyncMethod, payloadData: Data) {
+        self.id = UUID()
+        self.path = path
+        self.method = method
+        self.payloadBase64 = payloadData.base64EncodedString()
+        self.createdAt = Date()
+    }
+
+    var payloadData: Data? {
+        Data(base64Encoded: payloadBase64)
+    }
+}
