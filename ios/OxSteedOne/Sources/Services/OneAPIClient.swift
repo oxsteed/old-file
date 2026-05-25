@@ -67,7 +67,7 @@ final class OxSteedOneAPIClient {
         body: Data?,
         didRetry: Bool
     ) async throws -> Response {
-        guard let url = URL(string: path, relativeTo: baseURL) else {
+        guard let url = resolvedURL(for: path) else {
             throw OneAPIError.invalidURL(path)
         }
 
@@ -116,7 +116,7 @@ final class OxSteedOneAPIClient {
         body: Data?,
         didRetry: Bool
     ) async throws -> Data {
-        guard let url = URL(string: path, relativeTo: baseURL) else {
+        guard let url = resolvedURL(for: path) else {
             throw OneAPIError.invalidURL(path)
         }
 
@@ -153,6 +153,23 @@ final class OxSteedOneAPIClient {
         }
 
         return data
+    }
+
+    private func resolvedURL(for path: String) -> URL? {
+        if let absolute = URL(string: path), absolute.scheme != nil {
+            return absolute
+        }
+
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        var normalizedBase = baseURL
+        if !normalizedBase.absoluteString.hasSuffix("/") {
+            normalizedBase = normalizedBase.appendingPathComponent("")
+        }
+
+        let relativePath = trimmed.hasPrefix("/") ? String(trimmed.dropFirst()) : trimmed
+        return URL(string: relativePath, relativeTo: normalizedBase)
     }
 }
 

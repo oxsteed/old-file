@@ -68,6 +68,10 @@
 - **Auth flows now use mapped messages:** **`ios/OxSteedOne/Sources/Stores/OneStore.swift`** login/register error paths now avoid raw backend text and show actionable fallback copy.
 - **Verification:** `swift build --package-path ios/OxSteedOne` and `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'id=B3145305-585E-4A45-BE2E-FEDBBE8AC2CC' -derivedDataPath /tmp/OxSteedOneDerived build` pass.
 
+**OxSteed One iOS auth base-path fix (2026-05-25):** IN PROGRESS
+- **`/api` path preservation in API client:** **`ios/OxSteedOne/Sources/Services/OneAPIClient.swift`** now resolves relative endpoints with a normalized base URL helper so request paths like `/auth/login` correctly target `/api/auth/login` instead of accidentally dropping the `/api` prefix via `URL(string:relativeTo:)` semantics.
+- **Verification:** `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath /tmp/OxSteedOneDerived build` passes.
+
 **OxSteed One native iOS app foundation (2026-05-24):** COMPLETE
 - **New greenfield iOS workspace and simulator wrapper:** **`ios/OxSteedOne/Package.swift`, `ios/OxSteedOne/OxSteedOne.xcodeproj/project.pbxproj`, `ios/OxSteedOne/OxSteedOne.xcodeproj/xcshareddata/xcschemes/OxSteedOne.xcscheme`** now add a separate native app target with display name `OxSteed One` and bundle id `com.oxsteed.one`.
 - **Strict-native 4-tab shell with OxSteed branding:** **`ios/OxSteedOne/Sources/Views/OneRootView.swift`, `ios/OxSteedOne/Sources/Views/OneTheme.swift`, `ios/OxSteedOne/Assets/Images.xcassets/OxSteedLogo.imageset/*`** now provide a stable `Home/Life/Growth/Learn` tab architecture and reuse the OxSteed logo in the new app shell.
