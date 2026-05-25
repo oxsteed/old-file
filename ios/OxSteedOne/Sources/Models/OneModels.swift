@@ -52,6 +52,10 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable {
         case .haitianCreole: return "ht_HT"
         }
     }
+
+    var layoutDirection: Locale.LanguageDirection {
+        Locale.Language(identifier: rawValue).characterDirection
+    }
 }
 
 enum AppPersona: String, CaseIterable, Identifiable, Codable {
@@ -233,6 +237,88 @@ struct CreatorUploadItem: Identifiable, Codable, Hashable {
     }
 }
 
+struct VerificationBadge: Identifiable, Codable, Hashable {
+    let id: UUID
+    var title: String
+    var verified: Bool
+}
+
+struct AvailabilityBlock: Identifiable, Codable, Hashable {
+    let id: UUID
+    var label: String
+    var days: String
+    var startHour: Int
+    var endHour: Int
+    var enabled: Bool
+}
+
+struct QuoteDraft: Identifiable, Codable, Hashable {
+    let id: UUID
+    var customerName: String
+    var laborAmount: Double
+    var materialAmount: Double
+    var notes: String
+}
+
+struct RecurringServicePlan: Identifiable, Codable, Hashable {
+    let id: UUID
+    var title: String
+    var frequency: String
+    var nextDate: Date
+    var active: Bool
+}
+
+struct WalletSnapshot: Codable, Hashable {
+    var availableBalance: Double
+    var pendingEscrow: Double
+    var payoutMethod: String
+}
+
+struct WalletTransaction: Identifiable, Codable, Hashable {
+    let id: UUID
+    var title: String
+    var amount: Double
+    var timestamp: Date
+    var isCredit: Bool
+}
+
+struct TwoWayReview: Identifiable, Codable, Hashable {
+    let id: UUID
+    var fromRole: String
+    var toRole: String
+    var rating: Int
+    var comment: String
+    var createdAt: Date
+}
+
+struct BookingRequestDraft: Identifiable, Codable, Hashable {
+    let id: UUID
+    var customerName: String
+    var proposedDate: Date
+    var customerProposedTime: String
+    var helperCounterProposalTime: String?
+    var status: String
+}
+
+struct DispatchBufferSettings: Codable, Hashable {
+    var enabled: Bool
+    var minutesBetweenJobs: Int
+}
+
+struct SavedSearchAlert: Identifiable, Codable, Hashable {
+    let id: UUID
+    var query: String
+    var persona: AppPersona
+    var enabled: Bool
+}
+
+struct MapPoint: Identifiable, Codable, Hashable {
+    let id: UUID
+    var title: String
+    var latitude: Double
+    var longitude: Double
+}
+
 struct OnboardingState: Codable, Hashable {
     var didComplete = false
     var selectedPrimaryPersona: AppPersona = .customer
@@ -242,4 +328,26 @@ struct OnboardingState: Codable, Hashable {
     var hasPersonalCare = true
     var hasGoals = true
     var hasPlannedNeeds = true
+}
+
+enum AppAppearance: String, CaseIterable, Identifiable, Codable {
+    case system
+    case light
+    case dark
+
+    var id: String { rawValue }
+}
+
+struct AppPreferences: Codable, Hashable {
+    var appearance: AppAppearance = .system
+    var largeTextEnabled = false
+    var privacyMode = false
+    var allowAnalytics = true
+}
+
+struct GlobalSearchResult: Identifiable, Hashable {
+    let id: String
+    let category: String
+    let title: String
+    let detail: String
 }

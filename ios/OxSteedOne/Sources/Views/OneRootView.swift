@@ -18,6 +18,9 @@ struct OneRootView: View {
         .task {
             store.restoreSession()
         }
+        .environment(\.layoutDirection, store.appLanguage.layoutDirection == .rightToLeft ? .rightToLeft : .leftToRight)
+        .environment(\.dynamicTypeSize, store.appPreferences.largeTextEnabled ? .accessibility2 : .large)
+        .preferredColorScheme(preferredColorScheme)
     }
 
     private var mainAppView: some View {
@@ -135,6 +138,14 @@ struct OneRootView: View {
                 }
             }
             .navigationTitle("Get Started")
+        }
+    }
+
+    private var preferredColorScheme: ColorScheme? {
+        switch store.appPreferences.appearance {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
         }
     }
 }

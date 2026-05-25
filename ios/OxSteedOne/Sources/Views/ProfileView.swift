@@ -55,6 +55,32 @@ struct ProfileView: View {
                     Text("Locale: \(store.activeLocale.identifier)")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                    Text("Layout direction: \(store.appLanguage.layoutDirection == .rightToLeft ? "RTL" : "LTR")")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Display & Privacy") {
+                    Picker("Appearance", selection: Binding(
+                        get: { store.appPreferences.appearance },
+                        set: { store.setAppearance($0) }
+                    )) {
+                        ForEach(AppAppearance.allCases) { appearance in
+                            Text(appearance.rawValue.capitalized).tag(appearance)
+                        }
+                    }
+                    Toggle("Large text mode", isOn: Binding(
+                        get: { store.appPreferences.largeTextEnabled },
+                        set: { store.setLargeTextEnabled($0) }
+                    ))
+                    Toggle("Privacy mode (mask sensitive values)", isOn: Binding(
+                        get: { store.appPreferences.privacyMode },
+                        set: { store.setPrivacyMode($0) }
+                    ))
+                    Toggle("Allow analytics signals", isOn: Binding(
+                        get: { store.appPreferences.allowAnalytics },
+                        set: { store.setAnalyticsEnabled($0) }
+                    ))
                 }
 
                 Section("Security") {
@@ -87,6 +113,49 @@ struct ProfileView: View {
                                 .foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 4)
+                    }
+                }
+
+                Section("Availability Manager") {
+                    ForEach(store.availabilityBlocks) { block in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(block.label)
+                                    .font(.subheadline.weight(.semibold))
+                                Text("\(block.days) · \(block.startHour):00-\(block.endHour):00")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Toggle("", isOn: Binding(
+                                get: { block.enabled },
+                                set: { _ in store.toggleAvailability(block.id) }
+                            ))
+                            .labelsHidden()
+                        }
+                    }
+                }
+
+                Section("Account Recovery & Export") {
+                    Text(store.accountRecoveryReady ? "Recovery snapshot ready for restore on new device." : "Recovery snapshot not ready.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Button("Request Data Export") {
+                        store.requestDataExport()
+                    }
+                    if store.dataExportRequested {
+                        Text("Export request queued.")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                    }
+                    Button("Request Account Deletion") {
+                        store.requestAccountDeletion()
+                    }
+                    .foregroundStyle(.red)
+                    if store.accountDeletionRequested {
+                        Text("Account deletion request submitted.")
+                            .font(.caption)
+                            .foregroundStyle(.red)
                     }
                 }
 

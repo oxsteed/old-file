@@ -13,6 +13,18 @@ enum OneSessionVault {
     private static let notificationPrefsKey = "oxsteed.one.notificationPrefs"
     private static let taxDocsKey = "oxsteed.one.taxDocs"
     private static let creatorUploadsKey = "oxsteed.one.creatorUploads"
+    private static let availabilityBlocksKey = "oxsteed.one.availabilityBlocks"
+    private static let quoteDraftsKey = "oxsteed.one.quoteDrafts"
+    private static let recurringPlansKey = "oxsteed.one.recurringPlans"
+    private static let walletKey = "oxsteed.one.wallet"
+    private static let badgesKey = "oxsteed.one.badges"
+    private static let savedAlertsKey = "oxsteed.one.savedAlerts"
+    private static let mapPointsKey = "oxsteed.one.mapPoints"
+    private static let appPreferencesKey = "oxsteed.one.appPreferences"
+    private static let reviewsKey = "oxsteed.one.reviews"
+    private static let bookingDraftsKey = "oxsteed.one.bookingDrafts"
+    private static let dispatchBufferKey = "oxsteed.one.dispatchBuffer"
+    private static let walletTransactionsKey = "oxsteed.one.walletTransactions"
 
     static func saveSession(_ session: OneSavedSession) {
         guard let data = try? JSONEncoder().encode(session) else { return }
@@ -169,5 +181,183 @@ enum OneSessionVault {
             ]
         }
         return uploads
+    }
+
+    static func saveAvailabilityBlocks(_ blocks: [AvailabilityBlock]) {
+        guard let data = try? JSONEncoder().encode(blocks) else { return }
+        UserDefaults.standard.set(data, forKey: availabilityBlocksKey)
+    }
+
+    static func loadAvailabilityBlocks() -> [AvailabilityBlock] {
+        guard let data = UserDefaults.standard.data(forKey: availabilityBlocksKey),
+              let blocks = try? JSONDecoder().decode([AvailabilityBlock].self, from: data) else {
+            return [
+                AvailabilityBlock(id: UUID(), label: "Weekday Evenings", days: "Mon-Fri", startHour: 18, endHour: 21, enabled: true),
+                AvailabilityBlock(id: UUID(), label: "Saturday Morning", days: "Sat", startHour: 9, endHour: 13, enabled: true)
+            ]
+        }
+        return blocks
+    }
+
+    static func saveQuoteDrafts(_ drafts: [QuoteDraft]) {
+        guard let data = try? JSONEncoder().encode(drafts) else { return }
+        UserDefaults.standard.set(data, forKey: quoteDraftsKey)
+    }
+
+    static func loadQuoteDrafts() -> [QuoteDraft] {
+        guard let data = UserDefaults.standard.data(forKey: quoteDraftsKey),
+              let drafts = try? JSONDecoder().decode([QuoteDraft].self, from: data) else {
+            return []
+        }
+        return drafts
+    }
+
+    static func saveRecurringPlans(_ plans: [RecurringServicePlan]) {
+        guard let data = try? JSONEncoder().encode(plans) else { return }
+        UserDefaults.standard.set(data, forKey: recurringPlansKey)
+    }
+
+    static func loadRecurringPlans() -> [RecurringServicePlan] {
+        guard let data = UserDefaults.standard.data(forKey: recurringPlansKey),
+              let plans = try? JSONDecoder().decode([RecurringServicePlan].self, from: data) else {
+            return [
+                RecurringServicePlan(id: UUID(), title: "Weekly Lawn Care", frequency: "Weekly", nextDate: Calendar.current.date(byAdding: .day, value: 6, to: Date()) ?? Date(), active: true)
+            ]
+        }
+        return plans
+    }
+
+    static func saveWallet(_ wallet: WalletSnapshot) {
+        guard let data = try? JSONEncoder().encode(wallet) else { return }
+        UserDefaults.standard.set(data, forKey: walletKey)
+    }
+
+    static func loadWallet() -> WalletSnapshot {
+        guard let data = UserDefaults.standard.data(forKey: walletKey),
+              let wallet = try? JSONDecoder().decode(WalletSnapshot.self, from: data) else {
+            return WalletSnapshot(availableBalance: 1840, pendingEscrow: 620, payoutMethod: "Cash App")
+        }
+        return wallet
+    }
+
+    static func saveVerificationBadges(_ badges: [VerificationBadge]) {
+        guard let data = try? JSONEncoder().encode(badges) else { return }
+        UserDefaults.standard.set(data, forKey: badgesKey)
+    }
+
+    static func loadVerificationBadges() -> [VerificationBadge] {
+        guard let data = UserDefaults.standard.data(forKey: badgesKey),
+              let badges = try? JSONDecoder().decode([VerificationBadge].self, from: data) else {
+            return [
+                VerificationBadge(id: UUID(), title: "ID Verified", verified: true),
+                VerificationBadge(id: UUID(), title: "License Verified", verified: true),
+                VerificationBadge(id: UUID(), title: "Insurance Verified", verified: false)
+            ]
+        }
+        return badges
+    }
+
+    static func saveSavedAlerts(_ alerts: [SavedSearchAlert]) {
+        guard let data = try? JSONEncoder().encode(alerts) else { return }
+        UserDefaults.standard.set(data, forKey: savedAlertsKey)
+    }
+
+    static func loadSavedAlerts() -> [SavedSearchAlert] {
+        guard let data = UserDefaults.standard.data(forKey: savedAlertsKey),
+              let alerts = try? JSONDecoder().decode([SavedSearchAlert].self, from: data) else {
+            return [
+                SavedSearchAlert(id: UUID(), query: "Plumber under $150 in Springfield", persona: .customer, enabled: true),
+                SavedSearchAlert(id: UUID(), query: "Drywall jobs within 5 miles", persona: .helper, enabled: true)
+            ]
+        }
+        return alerts
+    }
+
+    static func saveMapPoints(_ points: [MapPoint]) {
+        guard let data = try? JSONEncoder().encode(points) else { return }
+        UserDefaults.standard.set(data, forKey: mapPointsKey)
+    }
+
+    static func loadMapPoints() -> [MapPoint] {
+        guard let data = UserDefaults.standard.data(forKey: mapPointsKey),
+              let points = try? JSONDecoder().decode([MapPoint].self, from: data) else {
+            return [
+                MapPoint(id: UUID(), title: "Job: Sink repair", latitude: 42.1015, longitude: -72.5898),
+                MapPoint(id: UUID(), title: "Helper: Carter Plumbing", latitude: 42.1091, longitude: -72.5759),
+                MapPoint(id: UUID(), title: "Tool pickup: North Depot", latitude: 42.0896, longitude: -72.6012)
+            ]
+        }
+        return points
+    }
+
+    static func saveAppPreferences(_ preferences: AppPreferences) {
+        guard let data = try? JSONEncoder().encode(preferences) else { return }
+        UserDefaults.standard.set(data, forKey: appPreferencesKey)
+    }
+
+    static func loadAppPreferences() -> AppPreferences {
+        guard let data = UserDefaults.standard.data(forKey: appPreferencesKey),
+              let preferences = try? JSONDecoder().decode(AppPreferences.self, from: data) else {
+            return AppPreferences()
+        }
+        return preferences
+    }
+
+    static func saveReviews(_ reviews: [TwoWayReview]) {
+        guard let data = try? JSONEncoder().encode(reviews) else { return }
+        UserDefaults.standard.set(data, forKey: reviewsKey)
+    }
+
+    static func loadReviews() -> [TwoWayReview] {
+        guard let data = UserDefaults.standard.data(forKey: reviewsKey),
+              let reviews = try? JSONDecoder().decode([TwoWayReview].self, from: data) else {
+            return [
+                TwoWayReview(id: UUID(), fromRole: "Helper", toRole: "Customer", rating: 5, comment: "Great communication and clear scope.", createdAt: Date()),
+                TwoWayReview(id: UUID(), fromRole: "Customer", toRole: "Helper", rating: 4, comment: "Arrived on time and fixed quickly.", createdAt: Date())
+            ]
+        }
+        return reviews
+    }
+
+    static func saveBookingDrafts(_ drafts: [BookingRequestDraft]) {
+        guard let data = try? JSONEncoder().encode(drafts) else { return }
+        UserDefaults.standard.set(data, forKey: bookingDraftsKey)
+    }
+
+    static func loadBookingDrafts() -> [BookingRequestDraft] {
+        guard let data = UserDefaults.standard.data(forKey: bookingDraftsKey),
+              let drafts = try? JSONDecoder().decode([BookingRequestDraft].self, from: data) else {
+            return []
+        }
+        return drafts
+    }
+
+    static func saveDispatchBuffer(_ settings: DispatchBufferSettings) {
+        guard let data = try? JSONEncoder().encode(settings) else { return }
+        UserDefaults.standard.set(data, forKey: dispatchBufferKey)
+    }
+
+    static func loadDispatchBuffer() -> DispatchBufferSettings {
+        guard let data = UserDefaults.standard.data(forKey: dispatchBufferKey),
+              let settings = try? JSONDecoder().decode(DispatchBufferSettings.self, from: data) else {
+            return DispatchBufferSettings(enabled: true, minutesBetweenJobs: 30)
+        }
+        return settings
+    }
+
+    static func saveWalletTransactions(_ transactions: [WalletTransaction]) {
+        guard let data = try? JSONEncoder().encode(transactions) else { return }
+        UserDefaults.standard.set(data, forKey: walletTransactionsKey)
+    }
+
+    static func loadWalletTransactions() -> [WalletTransaction] {
+        guard let data = UserDefaults.standard.data(forKey: walletTransactionsKey),
+              let transactions = try? JSONDecoder().decode([WalletTransaction].self, from: data) else {
+            return [
+                WalletTransaction(id: UUID(), title: "Completed repair payout", amount: 240, timestamp: Date(), isCredit: true),
+                WalletTransaction(id: UUID(), title: "Escrow release to helper", amount: 120, timestamp: Date().addingTimeInterval(-86_400), isCredit: false)
+            ]
+        }
+        return transactions
     }
 }

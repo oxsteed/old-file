@@ -24,3 +24,19 @@ struct OneAuthResponse: Decodable {
 struct OneDataEnvelope<T: Decodable>: Decodable {
     let data: T
 }
+
+struct OneTranslateRequest: Encodable {
+    let text: String
+    let targetLang: String
+}
+
+struct OneTranslateResponse: Decodable {
+    let translatedText: String?
+    let translation: String?
+}
+
+struct OneVersionPolicyResponse: Decodable {
+    let minimumVersion: String?
+    let minVersion: String?
+    let required: Bool?
+}

@@ -38,8 +38,12 @@ struct InboxView: View {
                     get: { store.autoTranslateEnabled },
                     set: { store.setAutoTranslate($0) }
                 ))
+                Button("Refresh Translations") {
+                    Task { await store.refreshTranslatedPreviews() }
+                }
+                .buttonStyle(.bordered)
 
-                ForEach(store.filteredUnifiedThreads) { thread in
+                ForEach(store.translatedOrOriginalThreads) { thread in
                     VStack(alignment: .leading, spacing: 2) {
                         HStack {
                             Text(thread.title)

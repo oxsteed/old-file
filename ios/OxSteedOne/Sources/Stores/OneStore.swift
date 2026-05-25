@@ -41,9 +41,27 @@ final class OneStore {
     var notificationPreferences: [PersonaNotificationPreference] = OneSessionVault.loadNotificationPreferences()
     var taxDocuments: [TaxDocumentSummary] = OneSessionVault.loadTaxDocuments()
     var creatorUploads: [CreatorUploadItem] = OneSessionVault.loadCreatorUploads()
+    var availabilityBlocks: [AvailabilityBlock] = OneSessionVault.loadAvailabilityBlocks()
+    var quoteDrafts: [QuoteDraft] = OneSessionVault.loadQuoteDrafts()
+    var recurringPlans: [RecurringServicePlan] = OneSessionVault.loadRecurringPlans()
+    var walletSnapshot: WalletSnapshot = OneSessionVault.loadWallet()
+    var verificationBadges: [VerificationBadge] = OneSessionVault.loadVerificationBadges()
+    var reviews: [TwoWayReview] = OneSessionVault.loadReviews()
+    var safetyTimerRunning = false
+    var safetyTimerSeconds = 0
+    var sosTriggered = false
+    var dataExportRequested = false
+    var accountRecoveryReady = true
+    var savedSearchAlerts: [SavedSearchAlert] = OneSessionVault.loadSavedAlerts()
+    var mapPoints: [MapPoint] = OneSessionVault.loadMapPoints()
+    var bookingDrafts: [BookingRequestDraft] = OneSessionVault.loadBookingDrafts()
+    var dispatchBufferSettings: DispatchBufferSettings = OneSessionVault.loadDispatchBuffer()
+    var walletTransactions: [WalletTransaction] = OneSessionVault.loadWalletTransactions()
 
     var growthProgressStep = "Skill"
     var voiceInputEnabled = true
+    var appPreferences: AppPreferences = OneSessionVault.loadAppPreferences()
+    var accountDeletionRequested = false
 
     private let api = OxSteedOneAPIClient()
 
@@ -177,6 +195,83 @@ final class OneStore {
         }
     }
 
+    var translatedOrOriginalThreads: [UnifiedThread] {
+        filteredUnifiedThreads.map { thread in
+            let translated = translatedThreadPreview[thread.id] ?? thread.lastMessage
+            return UnifiedThread(
+                id: thread.id,
+                title: thread.title,
+                lastMessage: translated,
+                personaSource: thread.personaSource,
+                unreadCount: thread.unreadCount
+            )
+        }
+    }
+
+    var globalSearchResults: [GlobalSearchResult] {
+        let query = universalSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return [] }
+
+        var results: [GlobalSearchResult] = []
+
+        for section in homeSections {
+            for card in section.cards {
+                let haystack = "\(section.title) \(card.title) \(card.detail)".lowercased()
+                if haystack.contains(query) {
+                    results.append(
+                        GlobalSearchResult(
+                            id: "home-\(section.id)-\(card.id)",
+                            category: "Home",
+                            title: card.title,
+                            detail: card.detail
+                        )
+                    )
+                }
+            }
+        }
+
+        for item in urgencyQueue where "\(item.pillar) \(item.title)".lowercased().contains(query) {
+            results.append(
+                GlobalSearchResult(
+                    id: "life-\(item.id)",
+                    category: "Life",
+                    title: item.title,
+                    detail: "\(item.pillar) · Due \(item.dueText)"
+                )
+            )
+        }
+
+        for thread in translatedOrOriginalThreads where "\(thread.title) \(thread.lastMessage)".lowercased().contains(query) {
+            results.append(
+                GlobalSearchResult(
+                    id: "learn-thread-\(thread.id)",
+                    category: "Learn",
+                    title: thread.title,
+                    detail: thread.lastMessage
+                )
+            )
+        }
+
+        let growthItems = [
+            "Business Ascension Application",
+            "Community Wholesale Groups",
+            "Financing Pre-Qualification",
+            "Grants and Subsidies"
+        ]
+        for item in growthItems where item.lowercased().contains(query) {
+            results.append(
+                GlobalSearchResult(
+                    id: "growth-\(item.lowercased().replacingOccurrences(of: " ", with: "-"))",
+                    category: "Growth",
+                    title: item,
+                    detail: "Available in Growth tab"
+                )
+            )
+        }
+
+        return Array(results.prefix(12))
+    }
+
     var shouldRequireUnlock: Bool {
         biometricEnabled && isLocked
     }
@@ -202,7 +297,10 @@ final class OneStore {
         if unifiedInboxThreads.isEmpty {
             unifiedInboxThreads = seededThreads()
         }
-        runForceUpdateCheck()
+        if autoTranslateEnabled {
+            Task { await refreshTranslatedPreviews() }
+        }
+        Task { await runForceUpdateCheck() }
     }
 
     func selectPulsePillar(_ pillarID: String) {
@@ -248,6 +346,24 @@ final class OneStore {
     func setAutoTranslate(_ enabled: Bool) {
         autoTranslateEnabled = enabled
         OneSessionVault.saveAutoTranslateEnabled(enabled)
+        if enabled {
+            Task { await refreshTranslatedPreviews() }
+        } else {
+            translatedThreadPreview = [:]
+        }
+    }
+
+    func addSavedAlert(_ query: String) {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        savedSearchAlerts.insert(SavedSearchAlert(id: UUID(), query: trimmed, persona: activePersona, enabled: true), at: 0)
+        OneSessionVault.saveSavedAlerts(savedSearchAlerts)
+    }
+
+    func toggleSavedAlert(_ id: UUID) {
+        guard let idx = savedSearchAlerts.firstIndex(where: { $0.id == id }) else { return }
+        savedSearchAlerts[idx].enabled.toggle()
+        OneSessionVault.saveSavedAlerts(savedSearchAlerts)
     }
 
     func setNotificationEnabled(for persona: AppPersona, enabled: Bool) {
@@ -326,7 +442,8 @@ final class OneStore {
 
     func addCreatorUpload(title: String) {
         guard !title.isEmpty else { return }
-        creatorUploads.insert(CreatorUploadItem(title: title, language: appLanguage, status: .pending), at: 0)
+        let status = moderationStatus(for: title)
+        creatorUploads.insert(CreatorUploadItem(title: title, language: appLanguage, status: status), at: 0)
         OneSessionVault.saveCreatorUploads(creatorUploads)
     }
 
@@ -334,6 +451,153 @@ final class OneStore {
         guard let idx = creatorUploads.firstIndex(where: { $0.id == id }) else { return }
         creatorUploads[idx].status = status
         OneSessionVault.saveCreatorUploads(creatorUploads)
+    }
+
+    func toggleAvailability(_ id: UUID) {
+        guard let idx = availabilityBlocks.firstIndex(where: { $0.id == id }) else { return }
+        availabilityBlocks[idx].enabled.toggle()
+        OneSessionVault.saveAvailabilityBlocks(availabilityBlocks)
+    }
+
+    func addQuoteDraft(customerName: String, labor: Double, materials: Double, notes: String) {
+        guard !customerName.isEmpty else { return }
+        quoteDrafts.insert(QuoteDraft(id: UUID(), customerName: customerName, laborAmount: labor, materialAmount: materials, notes: notes), at: 0)
+        OneSessionVault.saveQuoteDrafts(quoteDrafts)
+    }
+
+    func addRecurringPlan(title: String, frequency: String, nextDate: Date) {
+        guard !title.isEmpty else { return }
+        recurringPlans.insert(RecurringServicePlan(id: UUID(), title: title, frequency: frequency, nextDate: nextDate, active: true), at: 0)
+        OneSessionVault.saveRecurringPlans(recurringPlans)
+    }
+
+    func toggleRecurringPlan(_ id: UUID) {
+        guard let idx = recurringPlans.firstIndex(where: { $0.id == id }) else { return }
+        recurringPlans[idx].active.toggle()
+        OneSessionVault.saveRecurringPlans(recurringPlans)
+    }
+
+    func startSafetyTimer() {
+        safetyTimerRunning = true
+        safetyTimerSeconds = 0
+    }
+
+    func stopSafetyTimer() {
+        safetyTimerRunning = false
+    }
+
+    func triggerSOS() {
+        sosTriggered = true
+    }
+
+    func requestDataExport() {
+        dataExportRequested = true
+    }
+
+    func setAppearance(_ appearance: AppAppearance) {
+        appPreferences.appearance = appearance
+        OneSessionVault.saveAppPreferences(appPreferences)
+    }
+
+    func setLargeTextEnabled(_ enabled: Bool) {
+        appPreferences.largeTextEnabled = enabled
+        OneSessionVault.saveAppPreferences(appPreferences)
+    }
+
+    func setPrivacyMode(_ enabled: Bool) {
+        appPreferences.privacyMode = enabled
+        OneSessionVault.saveAppPreferences(appPreferences)
+    }
+
+    func setAnalyticsEnabled(_ enabled: Bool) {
+        appPreferences.allowAnalytics = enabled
+        OneSessionVault.saveAppPreferences(appPreferences)
+    }
+
+    func addReview(fromRole: String, toRole: String, rating: Int, comment: String) {
+        guard !comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let normalized = max(1, min(5, rating))
+        reviews.insert(
+            TwoWayReview(id: UUID(), fromRole: fromRole, toRole: toRole, rating: normalized, comment: comment, createdAt: Date()),
+            at: 0
+        )
+        OneSessionVault.saveReviews(reviews)
+    }
+
+    func createBookingDraft(customerName: String, proposedDate: Date, customerTime: String) {
+        guard !customerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        bookingDrafts.insert(
+            BookingRequestDraft(
+                id: UUID(),
+                customerName: customerName,
+                proposedDate: proposedDate,
+                customerProposedTime: customerTime,
+                helperCounterProposalTime: nil,
+                status: "Pending"
+            ),
+            at: 0
+        )
+        OneSessionVault.saveBookingDrafts(bookingDrafts)
+    }
+
+    func counterProposeBooking(_ id: UUID, newTime: String) {
+        guard let idx = bookingDrafts.firstIndex(where: { $0.id == id }),
+              !newTime.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        bookingDrafts[idx].helperCounterProposalTime = newTime
+        bookingDrafts[idx].status = "Counter-proposed"
+        OneSessionVault.saveBookingDrafts(bookingDrafts)
+    }
+
+    func setDispatchBuffer(enabled: Bool) {
+        dispatchBufferSettings.enabled = enabled
+        OneSessionVault.saveDispatchBuffer(dispatchBufferSettings)
+    }
+
+    func setDispatchBufferMinutes(_ minutes: Int) {
+        dispatchBufferSettings.minutesBetweenJobs = max(0, minutes)
+        OneSessionVault.saveDispatchBuffer(dispatchBufferSettings)
+    }
+
+    func setPayoutMethod(_ method: String) {
+        walletSnapshot.payoutMethod = method
+        OneSessionVault.saveWallet(walletSnapshot)
+    }
+
+    func addWalletTransaction(title: String, amount: Double, isCredit: Bool) {
+        guard !title.isEmpty, amount > 0 else { return }
+        walletTransactions.insert(WalletTransaction(id: UUID(), title: title, amount: amount, timestamp: Date(), isCredit: isCredit), at: 0)
+        OneSessionVault.saveWalletTransactions(walletTransactions)
+    }
+
+    func requestAccountDeletion() {
+        accountDeletionRequested = true
+    }
+
+    func refreshMapPointsForActivePersona() {
+        mapPoints = OneSessionVault.loadMapPoints().map { point in
+            var next = point
+            next.title = "[\(activePersona.label)] \(point.title)"
+            return next
+        }
+    }
+
+    @MainActor
+    func refreshTranslatedPreviews() async {
+        guard autoTranslateEnabled else { return }
+        translatedThreadPreview = [:]
+        for thread in unifiedInboxThreads {
+            do {
+                let response: OneTranslateResponse = try await api.post(
+                    "/translate",
+                    body: OneTranslateRequest(text: thread.lastMessage, targetLang: appLanguage.rawValue)
+                )
+                if let text = response.translatedText ?? response.translation {
+                    translatedThreadPreview[thread.id] = text
+                }
+            } catch {
+                translatedThreadPreview[thread.id] = thread.lastMessage
+            }
+        }
     }
 
     func signIn() async {
@@ -359,9 +623,33 @@ final class OneStore {
         }
     }
 
-    private func runForceUpdateCheck() {
+    @MainActor
+    private func runForceUpdateCheck() async {
+        do {
+            let response: OneVersionPolicyResponse = try await api.get("/mobile/version-policy")
+            if let minimum = response.minimumVersion ?? response.minVersion {
+                minimumRequiredVersion = minimum
+            }
+            if response.required == true {
+                forceUpdateRequired = true
+                return
+            }
+        } catch {
+            // Fallback to local minimum when policy endpoint is unavailable.
+        }
         let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
         forceUpdateRequired = compareVersions(current, minimumRequiredVersion) == .orderedAscending
+    }
+
+    private func moderationStatus(for title: String) -> ModerationStatus {
+        let bannedTokens = [
+            "hate", "slur", "threat", "violence", "fraud",
+            "odio", "amenaza", "violencia",
+            "haine", "menace", "violence",
+            "rayi", "menas"
+        ]
+        let lowered = title.lowercased()
+        return bannedTokens.contains(where: { lowered.contains($0) }) ? .rejected : .pending
     }
 
     private func compareVersions(_ lhs: String, _ rhs: String) -> ComparisonResult {

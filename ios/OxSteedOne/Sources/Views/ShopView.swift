@@ -2,6 +2,17 @@ import SwiftUI
 
 struct ShopView: View {
     @Environment(OneStore.self) private var store
+    @State private var quoteCustomer = ""
+    @State private var quoteLabor = ""
+    @State private var quoteMaterials = ""
+    @State private var quoteNotes = ""
+    @State private var recurringTitle = ""
+    @State private var recurringFrequency = "Weekly"
+    @State private var recurringDate = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
+    @State private var payoutMethod = ""
+    @State private var transactionTitle = ""
+    @State private var transactionAmount = ""
+    @State private var transactionIsCredit = true
 
     var body: some View {
         GoScreen(title: "Growth", showsTitle: true) {
@@ -69,6 +80,133 @@ struct ShopView: View {
                 Text("Language-aware dictation path follows selected app language.")
                     .font(.caption)
                     .foregroundStyle(OneTheme.muted)
+            }
+
+            GoCard {
+                Text("Wallet")
+                    .font(.headline)
+                Text("Available: \(currency(store.walletSnapshot.availableBalance))")
+                    .font(.subheadline.weight(.semibold))
+                Text("Pending escrow: \(currency(store.walletSnapshot.pendingEscrow))")
+                    .font(.caption)
+                    .foregroundStyle(OneTheme.muted)
+                Text("Payout method: \(store.walletSnapshot.payoutMethod)")
+                    .font(.caption)
+                    .foregroundStyle(OneTheme.muted)
+                TextField("Update payout method", text: $payoutMethod)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                Button("Save Payout Method") {
+                    store.setPayoutMethod(payoutMethod)
+                    payoutMethod = ""
+                }
+                .buttonStyle(.bordered)
+                Divider()
+                Text("Transaction History")
+                    .font(.subheadline.weight(.semibold))
+                TextField("Transaction title", text: $transactionTitle)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                TextField("Amount", text: $transactionAmount)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                Toggle("Credit", isOn: $transactionIsCredit)
+                Button("Add Transaction") {
+                    store.addWalletTransaction(
+                        title: transactionTitle,
+                        amount: Double(transactionAmount) ?? 0,
+                        isCredit: transactionIsCredit
+                    )
+                    transactionTitle = ""
+                    transactionAmount = ""
+                    transactionIsCredit = true
+                }
+                .buttonStyle(GoAccentButtonStyle())
+                ForEach(store.walletTransactions.prefix(5)) { tx in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(tx.title)
+                                .font(.caption.weight(.semibold))
+                            Text(tx.timestamp.formatted(date: .abbreviated, time: .shortened))
+                                .font(.caption2)
+                                .foregroundStyle(OneTheme.muted)
+                        }
+                        Spacer()
+                        Text("\(tx.isCredit ? "+" : "-")\(currency(tx.amount))")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(tx.isCredit ? .green : .red)
+                    }
+                }
+            }
+
+            GoCard {
+                Text("Quote Builder")
+                    .font(.headline)
+                TextField("Customer name", text: $quoteCustomer)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                TextField("Labor amount", text: $quoteLabor)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                TextField("Material amount", text: $quoteMaterials)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                TextField("Notes", text: $quoteNotes)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                Button("Save Quote Draft") {
+                    store.addQuoteDraft(
+                        customerName: quoteCustomer,
+                        labor: Double(quoteLabor) ?? 0,
+                        materials: Double(quoteMaterials) ?? 0,
+                        notes: quoteNotes
+                    )
+                    quoteCustomer = ""
+                    quoteLabor = ""
+                    quoteMaterials = ""
+                    quoteNotes = ""
+                }
+                .buttonStyle(GoAccentButtonStyle())
+                ForEach(store.quoteDrafts.prefix(3)) { draft in
+                    Text("\(draft.customerName): \(currency(draft.laborAmount + draft.materialAmount))")
+                        .font(.caption)
+                        .foregroundStyle(OneTheme.muted)
+                }
+            }
+
+            GoCard {
+                Text("Recurring Services")
+                    .font(.headline)
+                TextField("Service title", text: $recurringTitle)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                Picker("Frequency", selection: $recurringFrequency) {
+                    Text("Weekly").tag("Weekly")
+                    Text("Bi-weekly").tag("Bi-weekly")
+                    Text("Monthly").tag("Monthly")
+                }
+                DatePicker("Next date", selection: $recurringDate, displayedComponents: .date)
+                Button("Create Plan") {
+                    store.addRecurringPlan(title: recurringTitle, frequency: recurringFrequency, nextDate: recurringDate)
+                    recurringTitle = ""
+                }
+                .buttonStyle(GoAccentButtonStyle())
+                ForEach(store.recurringPlans) { plan in
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(plan.title)
+                                .font(.subheadline.weight(.semibold))
+                            Text("\(plan.frequency) · \(plan.active ? "Active" : "Paused")")
+                                .font(.caption)
+                                .foregroundStyle(OneTheme.muted)
+                        }
+                        Spacer()
+                        Button(plan.active ? "Pause" : "Resume") {
+                            store.toggleRecurringPlan(plan.id)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
             }
         }
     }

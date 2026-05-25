@@ -13,6 +13,10 @@ struct HireView: View {
     @State private var fundTargetDate = Calendar.current.date(byAdding: .month, value: 6, to: Date()) ?? Date()
 
     @State private var addAmountByFundID: [UUID: String] = [:]
+    @State private var bookingCustomer = ""
+    @State private var bookingTime = ""
+    @State private var bookingDate = Date()
+    @State private var counterByBookingID: [UUID: String] = [:]
 
     var body: some View {
         GoScreen(title: "Life", showsTitle: true) {
@@ -185,6 +189,66 @@ struct HireView: View {
                             .foregroundStyle(OneTheme.muted)
                     }
                 }
+            }
+
+            GoCard {
+                Text("Booking Requests + Counter-Propose")
+                    .font(.headline)
+                TextField("Customer name", text: $bookingCustomer)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                DatePicker("Requested date", selection: $bookingDate, displayedComponents: .date)
+                TextField("Requested time", text: $bookingTime)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                Button("Create Booking Request") {
+                    store.createBookingDraft(customerName: bookingCustomer, proposedDate: bookingDate, customerTime: bookingTime)
+                    bookingCustomer = ""
+                    bookingTime = ""
+                }
+                .buttonStyle(GoAccentButtonStyle())
+
+                ForEach(store.bookingDrafts) { draft in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(draft.customerName) · \(draft.customerProposedTime)")
+                            .font(.subheadline.weight(.semibold))
+                        Text("Status: \(draft.status)")
+                            .font(.caption)
+                            .foregroundStyle(OneTheme.muted)
+                        if let counter = draft.helperCounterProposalTime {
+                            Text("Counter: \(counter)")
+                                .font(.caption2)
+                                .foregroundStyle(OneTheme.amber)
+                        }
+                        HStack {
+                            TextField("Counter-propose time", text: Binding(
+                                get: { counterByBookingID[draft.id] ?? "" },
+                                set: { counterByBookingID[draft.id] = $0 }
+                            ))
+                            .padding(8)
+                            .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            Button("Send") {
+                                store.counterProposeBooking(draft.id, newTime: counterByBookingID[draft.id] ?? "")
+                                counterByBookingID[draft.id] = ""
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                    .padding(.vertical, 3)
+                }
+            }
+
+            GoCard {
+                Text("Buffer Time Between Jobs")
+                    .font(.headline)
+                Toggle("Enable dispatch buffer", isOn: Binding(
+                    get: { store.dispatchBufferSettings.enabled },
+                    set: { store.setDispatchBuffer(enabled: $0) }
+                ))
+                Stepper("Minutes between jobs: \(store.dispatchBufferSettings.minutesBetweenJobs)", value: Binding(
+                    get: { store.dispatchBufferSettings.minutesBetweenJobs },
+                    set: { store.setDispatchBufferMinutes($0) }
+                ), in: 0...120, step: 5)
             }
         }
     }
