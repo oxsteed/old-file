@@ -178,6 +178,14 @@ struct ProfileView: View {
                     Text("Base URL: https://app.oxsteed.com/api")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                    Button(store.isRefreshingCustomerData ? "Syncing..." : "Sync Now") {
+                        Task {
+                            await store.refreshCustomerTransactionData()
+                            await store.syncPendingChanges()
+                        }
+                    }
+                    .disabled(store.isRefreshingCustomerData)
+                    .buttonStyle(.bordered)
                 }
 
                 Section {

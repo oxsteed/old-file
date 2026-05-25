@@ -135,6 +135,11 @@ struct TodayView: View {
                         ProgressView("Syncing...")
                             .font(.caption)
                     }
+                    if let last = store.lastCustomerSyncAt {
+                        Text("Last sync: \(last.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.caption2)
+                            .foregroundStyle(OneTheme.muted)
+                    }
                     Text("Refreshes jobs, bids, helpers, appointments, and rentals from app.oxsteed.com.")
                         .font(.caption)
                         .foregroundStyle(OneTheme.muted)
@@ -712,6 +717,13 @@ struct TodayView: View {
                 }
                 .padding(.vertical, 4)
             }
+            if store.hasMoreBookings {
+                Button(store.isLoadingMoreBookings ? "Loading..." : "Load More Bookings") {
+                    Task { await store.loadMoreBookings() }
+                }
+                .disabled(store.isLoadingMoreBookings)
+                .buttonStyle(.bordered)
+            }
             if let error = store.lastBookingError {
                 HStack {
                     Text(error)
@@ -813,6 +825,13 @@ struct TodayView: View {
                     .buttonStyle(.bordered)
                 }
                 .padding(.vertical, 4)
+            }
+            if store.hasMoreRentals {
+                Button(store.isLoadingMoreRentals ? "Loading..." : "Load More Rentals") {
+                    Task { await store.loadMoreRentals() }
+                }
+                .disabled(store.isLoadingMoreRentals)
+                .buttonStyle(.bordered)
             }
             if let error = store.lastToolError {
                 HStack {

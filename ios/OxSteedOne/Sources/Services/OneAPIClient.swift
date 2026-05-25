@@ -155,3 +155,27 @@ final class OxSteedOneAPIClient {
         return data
     }
 }
+
+enum OneErrorMapper {
+    static func userMessage(for error: Error, fallback: String) -> String {
+        if let apiError = error as? OneAPIError {
+            switch apiError {
+            case .unauthorized:
+                return "Your session expired. Please sign in again."
+            case .invalidURL:
+                return "App configuration error. Please update OxSteed One."
+            case .invalidResponse:
+                return "OxSteed returned an unreadable response. Try again."
+            case .server(let status, _):
+                if status == 429 {
+                    return "Too many requests. Please wait a moment and retry."
+                }
+                if (500...599).contains(status) {
+                    return "OxSteed server is temporarily unavailable. Please retry."
+                }
+                return fallback
+            }
+        }
+        return fallback
+    }
+}

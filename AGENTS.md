@@ -56,6 +56,18 @@
 - **High-traffic screens wired to localization keys:** **`ios/OxSteedOne/Sources/Views/{Today,Profile}View.swift`** now use localized labels for customer job/bid/booking/rental headers and core Settings sections/actions instead of hardcoded English text.
 - **Verification:** `swift build --package-path ios/OxSteedOne` and `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'id=B3145305-585E-4A45-BE2E-FEDBBE8AC2CC' -derivedDataPath /tmp/OxSteedOneDerived build` pass.
 
+**OxSteed One iOS multi-pass production hardening batch (2026-05-25):** IN PROGRESS
+- **Passes 1-3 (error UX hardening):** **`ios/OxSteedOne/Sources/Services/OneAPIClient.swift`, `ios/OxSteedOne/Sources/Stores/OneStore.swift`** now provide centralized error-message mapping and apply it across auth, job, bid, booking, and rental failure paths so users get stable actionable messages instead of raw backend errors.
+- **Passes 4-6 (sync visibility + transaction pagination):** **`ios/OxSteedOne/Sources/Stores/OneStore.swift`, `ios/OxSteedOne/Sources/Views/TodayView.swift`** now add `lastCustomerSyncAt` display, bookings/rentals pagination state + load-more actions, and an explicit `Sync Now` control in Settings.
+- **Passes 7-8 (translation/cache + sync conflict safety):** **`ios/OxSteedOne/Sources/Stores/OneStore.swift`** now cache translated inbox previews by thread/language/source-text key to reduce repeat translate calls and preserve local draft/unsynced jobs when remote job refresh runs.
+- **Passes 9-10 (operational readiness):** **`ios/OxSteedOne/Sources/Stores/OneStore.swift`** now add stronger background sync/replay behavior and sensitive-action biometric gates integrated with mapped, user-visible error states for booking/reservation/accept flows.
+- **Verification:** `swift build --package-path ios/OxSteedOne` and `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'id=B3145305-585E-4A45-BE2E-FEDBBE8AC2CC' -derivedDataPath /tmp/OxSteedOneDerived build` pass.
+
+**OxSteed One iOS auth error-mapping pass (2026-05-25):** IN PROGRESS
+- **Centralized user-facing API error mapping:** **`ios/OxSteedOne/Sources/Services/OneErrorMapper.swift`** now maps transport/server/auth failures into stable, user-safe messages for production UX.
+- **Auth flows now use mapped messages:** **`ios/OxSteedOne/Sources/Stores/OneStore.swift`** login/register error paths now avoid raw backend text and show actionable fallback copy.
+- **Verification:** `swift build --package-path ios/OxSteedOne` and `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'id=B3145305-585E-4A45-BE2E-FEDBBE8AC2CC' -derivedDataPath /tmp/OxSteedOneDerived build` pass.
+
 **OxSteed One native iOS app foundation (2026-05-24):** COMPLETE
 - **New greenfield iOS workspace and simulator wrapper:** **`ios/OxSteedOne/Package.swift`, `ios/OxSteedOne/OxSteedOne.xcodeproj/project.pbxproj`, `ios/OxSteedOne/OxSteedOne.xcodeproj/xcshareddata/xcschemes/OxSteedOne.xcscheme`** now add a separate native app target with display name `OxSteed One` and bundle id `com.oxsteed.one`.
 - **Strict-native 4-tab shell with OxSteed branding:** **`ios/OxSteedOne/Sources/Views/OneRootView.swift`, `ios/OxSteedOne/Sources/Views/OneTheme.swift`, `ios/OxSteedOne/Assets/Images.xcassets/OxSteedLogo.imageset/*`** now provide a stable `Home/Life/Growth/Learn` tab architecture and reuse the OxSteed logo in the new app shell.

@@ -66,6 +66,7 @@ final class OneStore {
 
     var unifiedInboxThreads: [UnifiedThread] = OneSessionVault.loadUnifiedThreads()
     var translatedThreadPreview: [Int: String] = [:]
+    var translatedPreviewCache: [String: String] = [:]
     var notificationPreferences: [PersonaNotificationPreference] = OneSessionVault.loadNotificationPreferences()
     var taxDocuments: [TaxDocumentSummary] = OneSessionVault.loadTaxDocuments()
     var creatorUploads: [CreatorUploadItem] = OneSessionVault.loadCreatorUploads()
@@ -105,6 +106,7 @@ final class OneStore {
     var appPreferences: AppPreferences = OneSessionVault.loadAppPreferences()
     var accountDeletionRequested = false
     var isRefreshingCustomerData = false
+    var lastCustomerSyncAt: Date?
     var isSubmittingCustomerJob = false
     var bidAcceptanceInFlight: Set<UUID> = []
     var customerJobFlowMessage: String?
@@ -125,6 +127,12 @@ final class OneStore {
     var jobPageSize = 20
     var hasMoreJobs = true
     var isLoadingMoreJobs = false
+    var bookingPage = 1
+    var hasMoreBookings = true
+    var isLoadingMoreBookings = false
+    var rentalPage = 1
+    var hasMoreRentals = true
+    var isLoadingMoreRentals = false
 
     var growthNextStep: String {
         if ascensionApplication.status == "Not Started" {
@@ -850,7 +858,7 @@ final class OneStore {
             postCustomerJob(title: title, category: category, locationQuery: locationQuery, address: address, details: details, photos: photos)
             authStatusMessage = "Job posted locally (API unavailable/auth required)."
             customerJobFlowMessage = "Live publish failed; saved locally."
-            lastJobError = error.localizedDescription
+            lastJobError = OneErrorMapper.userMessage(for: error, fallback: "Job publish failed. Retry when you are online.")
             enqueueForRetry(path: "/jobs", method: .post, encodable: request)
         }
     }
@@ -905,7 +913,7 @@ final class OneStore {
         } catch {
             cancelCustomerJob(jobID)
             authStatusMessage = "Job cancelled locally (API unavailable/auth required)."
-            lastJobError = error.localizedDescription
+            lastJobError = OneErrorMapper.userMessage(for: error, fallback: "Cancel failed on server. Local state updated.")
             enqueueForRetry(path: "/jobs/\(remoteID)/cancel", method: .post, jsonObject: [String: String]())
         }
     }
@@ -929,7 +937,7 @@ final class OneStore {
             customerJobs[idx].status = .inProgress
             OneSessionVault.saveCustomerJobs(customerJobs)
             authStatusMessage = "Job marked in progress locally (API unavailable/auth required)."
-            lastJobError = error.localizedDescription
+            lastJobError = OneErrorMapper.userMessage(for: error, fallback: "Start failed on server. Local state updated.")
             enqueueForRetry(path: "/jobs/\(remoteID)/start", method: .post, jsonObject: [String: String]())
         }
     }
@@ -953,7 +961,7 @@ final class OneStore {
             customerJobs[idx].status = .completed
             OneSessionVault.saveCustomerJobs(customerJobs)
             authStatusMessage = "Job completed locally (API unavailable/auth required)."
-            lastJobError = error.localizedDescription
+            lastJobError = OneErrorMapper.userMessage(for: error, fallback: "Completion failed on server. Local state updated.")
             enqueueForRetry(path: "/jobs/\(remoteID)/complete", method: .post, jsonObject: [String: String]())
         }
     }
@@ -991,7 +999,7 @@ final class OneStore {
             let _: OneGenericSuccessResponse = try await api.post("/messages/conversations/\(convID)", body: msgReq)
         } catch {
             authStatusMessage = "Message send failed (API unavailable/auth required)."
-            lastBidError = error.localizedDescription
+            lastBidError = OneErrorMapper.userMessage(for: error, fallback: "Message failed to send. Please retry.")
         }
     }
 
@@ -1048,7 +1056,7 @@ final class OneStore {
             acceptBid(bidID)
             authStatusMessage = "Bid accepted locally (API unavailable/auth required)."
             customerJobFlowMessage = "Live accept failed; applied locally."
-            lastBidError = error.localizedDescription
+            lastBidError = OneErrorMapper.userMessage(for: error, fallback: "Bid acceptance failed on server. Local state updated.")
             enqueueForRetry(path: "/jobs/assign", method: .post, encodable: request)
         }
     }
@@ -1127,7 +1135,7 @@ final class OneStore {
         } catch {
             createServiceBooking(helperID: helperID, serviceType: serviceType, scheduledDate: scheduledDate, slot: slot, paymentAuthorized: paymentAuthorized, preMessage: preMessage)
             authStatusMessage = "Booking saved locally (API unavailable/auth required)."
-            lastBookingError = error.localizedDescription
+            lastBookingError = OneErrorMapper.userMessage(for: error, fallback: "Booking failed on server. Saved locally for retry.")
             enqueueForRetry(path: "/bookings", method: .post, encodable: req)
         }
     }
@@ -1153,7 +1161,7 @@ final class OneStore {
             OneSessionVault.saveCustomerServiceBookings(customerServiceBookings)
         } catch {
             authStatusMessage = "Live cancel failed; booking kept local."
-            lastBookingError = error.localizedDescription
+            lastBookingError = OneErrorMapper.userMessage(for: error, fallback: "Cancel failed on server. Please retry.")
             enqueueForRetry(path: "/bookings/\(remoteID)/cancel", method: .post, jsonObject: [String: String]())
         }
     }
@@ -1176,7 +1184,7 @@ final class OneStore {
         } catch {
             setBookingPostMessage(bookingID, message: trimmed)
             authStatusMessage = "Message stored locally (API unavailable/auth required)."
-            lastBookingError = error.localizedDescription
+            lastBookingError = OneErrorMapper.userMessage(for: error, fallback: "Send failed on server. Message saved locally.")
         }
     }
 
@@ -1262,7 +1270,7 @@ final class OneStore {
         } catch {
             reserveTool(toolID: toolID, slot: slot, paymentAuthorized: paymentAuthorized)
             authStatusMessage = "Rental reserved locally (API unavailable/auth required)."
-            lastToolError = error.localizedDescription
+            lastToolError = OneErrorMapper.userMessage(for: error, fallback: "Reservation failed on server. Saved locally for retry.")
             enqueueForRetry(path: "/tool-rentals/bookings", method: .post, encodable: req)
         }
     }
@@ -1287,7 +1295,7 @@ final class OneStore {
             OneSessionVault.saveToolRentalReservations(toolRentalReservations)
         } catch {
             authStatusMessage = "Live cancel failed; reservation kept local."
-            lastToolError = error.localizedDescription
+            lastToolError = OneErrorMapper.userMessage(for: error, fallback: "Cancel failed on server. Please retry.")
             enqueueForRetry(path: "/tool-rentals/bookings/\(remoteID)", method: .put, encodable: req)
         }
     }
@@ -1316,7 +1324,7 @@ final class OneStore {
         } catch {
             setToolDispute(reservationID, open: true)
             authStatusMessage = "Dispute saved locally (API unavailable/auth required)."
-            lastToolError = error.localizedDescription
+            lastToolError = OneErrorMapper.userMessage(for: error, fallback: "Dispute failed on server. Saved locally for retry.")
             enqueueForRetry(path: "/tool-rentals/reports", method: .post, encodable: req)
         }
     }
@@ -1411,6 +1419,7 @@ final class OneStore {
         await refreshHelpersFromAPI()
         await refreshAppointmentsFromAPI()
         await refreshRentalsFromAPI()
+        lastCustomerSyncAt = Date()
     }
 
     @MainActor
@@ -1418,6 +1427,11 @@ final class OneStore {
         guard autoTranslateEnabled else { return }
         translatedThreadPreview = [:]
         for thread in unifiedInboxThreads {
+            let cacheKey = "\(thread.id)|\(appLanguage.rawValue)|\(thread.lastMessage)"
+            if let cached = translatedPreviewCache[cacheKey] {
+                translatedThreadPreview[thread.id] = cached
+                continue
+            }
             do {
                 let response: OneTranslateResponse = try await api.post(
                     "/translate",
@@ -1425,6 +1439,7 @@ final class OneStore {
                 )
                 if let text = response.translatedText ?? response.translation {
                     translatedThreadPreview[thread.id] = text
+                    translatedPreviewCache[cacheKey] = text
                 }
             } catch {
                 translatedThreadPreview[thread.id] = thread.lastMessage
@@ -1479,7 +1494,7 @@ final class OneStore {
                 isLocked = true
             }
         } catch {
-            authStatusMessage = error.localizedDescription
+            authStatusMessage = OneErrorMapper.userMessage(for: error, fallback: "Sign in failed. Please check your credentials and retry.")
         }
     }
 
@@ -1527,7 +1542,7 @@ final class OneStore {
             authAgreementName = "\(cleanFirst) \(cleanLast)"
             authAcceptedTerms = true
         } catch {
-            authStatusMessage = error.localizedDescription
+            authStatusMessage = OneErrorMapper.userMessage(for: error, fallback: "Account creation failed. Please verify your details and retry.")
         }
     }
 
@@ -1641,7 +1656,11 @@ final class OneStore {
                 mappedJobs.append(mapCustomerJob(dto))
             }
 
-            customerJobs = mappedJobs
+            let remoteIDs = Set(mappedJobs.compactMap(\.remoteJobID))
+            let localDraftsAndUnsynced = customerJobs.filter { job in
+                job.status == .draft || job.remoteJobID == nil || !(remoteIDs.contains(job.remoteJobID ?? ""))
+            }
+            customerJobs = (localDraftsAndUnsynced + mappedJobs)
             jobPage = 1
             hasMoreJobs = jobs.count >= jobPageSize
             OneSessionVault.saveCustomerJobs(customerJobs)
@@ -1679,7 +1698,7 @@ final class OneStore {
             hasMoreJobs = jobs.count >= jobPageSize
             OneSessionVault.saveCustomerJobs(customerJobs)
         } catch {
-            lastJobError = error.localizedDescription
+            lastJobError = OneErrorMapper.userMessage(for: error, fallback: "Unable to load more jobs. Please retry.")
         }
     }
 
@@ -1734,9 +1753,12 @@ final class OneStore {
     @MainActor
     private func refreshAppointmentsFromAPI() async {
         do {
-            let response: OneBookingListResponse = try await api.get("/bookings")
+            let response: OneBookingListResponse = try await api.get("/bookings?page=1&limit=\(jobPageSize)")
             let rows = response.data ?? []
-            guard !rows.isEmpty else { return }
+            if rows.isEmpty {
+                hasMoreBookings = false
+                return
+            }
             customerServiceBookings = rows.map { dto in
                 CustomerServiceBooking(
                     id: uuidFromString(dto.id) ?? UUID(),
@@ -1755,6 +1777,8 @@ final class OneStore {
                     reviewComment: nil
                 )
             }
+            bookingPage = 1
+            hasMoreBookings = rows.count >= jobPageSize
             OneSessionVault.saveCustomerServiceBookings(customerServiceBookings)
         } catch {
             // Keep local fallback.
@@ -1764,9 +1788,12 @@ final class OneStore {
     @MainActor
     private func refreshRentalsFromAPI() async {
         do {
-            let response: OneRentalListEnvelope = try await api.get("/tool-rentals/my-rentals")
+            let response: OneRentalListEnvelope = try await api.get("/tool-rentals/my-rentals?page=1&limit=\(jobPageSize)")
             let rows = response.rentals ?? response.data ?? []
-            guard !rows.isEmpty else { return }
+            if rows.isEmpty {
+                hasMoreRentals = false
+                return
+            }
             toolRentalReservations = rows.map { dto in
                 let active = (dto.status ?? "").lowercased() == "in_progress"
                 let returned = (dto.status ?? "").lowercased() == "returned"
@@ -1786,9 +1813,100 @@ final class OneStore {
                     disputeStatus: "None"
                 )
             }
+            rentalPage = 1
+            hasMoreRentals = rows.count >= jobPageSize
             OneSessionVault.saveToolRentalReservations(toolRentalReservations)
         } catch {
             // Keep local fallback.
+        }
+    }
+
+    @MainActor
+    func loadMoreBookings() async {
+        guard !isLoadingMoreBookings, hasMoreBookings else { return }
+        isLoadingMoreBookings = true
+        defer { isLoadingMoreBookings = false }
+        let next = bookingPage + 1
+        do {
+            let response: OneBookingListResponse = try await api.get("/bookings?page=\(next)&limit=\(jobPageSize)")
+            let rows = response.data ?? []
+            if rows.isEmpty {
+                hasMoreBookings = false
+                return
+            }
+            let mapped = rows.map { dto in
+                CustomerServiceBooking(
+                    id: uuidFromString(dto.id) ?? UUID(),
+                    remoteBookingID: dto.id,
+                    helperID: uuidFromString(dto.helperId) ?? UUID(),
+                    helperName: "Helper",
+                    serviceType: dto.serviceName ?? "Service",
+                    scheduledDate: Date(),
+                    scheduledSlot: dto.requestedStartTime ?? "TBD",
+                    paymentAuthorized: true,
+                    preMessage: "",
+                    postMessage: "",
+                    reminderEnabled: true,
+                    status: dto.status ?? "Scheduled",
+                    reviewRating: nil,
+                    reviewComment: nil
+                )
+            }
+            let existing = Set(customerServiceBookings.compactMap(\.remoteBookingID))
+            customerServiceBookings.append(contentsOf: mapped.filter { row in
+                guard let id = row.remoteBookingID else { return true }
+                return !existing.contains(id)
+            })
+            bookingPage = next
+            hasMoreBookings = rows.count >= jobPageSize
+            OneSessionVault.saveCustomerServiceBookings(customerServiceBookings)
+        } catch {
+            lastBookingError = OneErrorMapper.userMessage(for: error, fallback: "Unable to load more bookings.")
+        }
+    }
+
+    @MainActor
+    func loadMoreRentals() async {
+        guard !isLoadingMoreRentals, hasMoreRentals else { return }
+        isLoadingMoreRentals = true
+        defer { isLoadingMoreRentals = false }
+        let next = rentalPage + 1
+        do {
+            let response: OneRentalListEnvelope = try await api.get("/tool-rentals/my-rentals?page=\(next)&limit=\(jobPageSize)")
+            let rows = response.rentals ?? response.data ?? []
+            if rows.isEmpty {
+                hasMoreRentals = false
+                return
+            }
+            let mapped = rows.map { dto in
+                let active = (dto.status ?? "").lowercased() == "in_progress"
+                let returned = (dto.status ?? "").lowercased() == "returned"
+                return ToolRentalReservation(
+                    id: uuidFromString(dto.id) ?? UUID(),
+                    remoteBookingID: dto.id,
+                    toolID: uuidFromString(dto.toolId) ?? UUID(),
+                    ownerUserID: dto.ownerId,
+                    toolTitle: dto.toolTitle ?? "Tool",
+                    ownerName: dto.ownerName ?? "Owner",
+                    slot: "\(dto.rentalStartDate ?? "") - \(dto.rentalEndDate ?? "")",
+                    paymentAuthorized: true,
+                    pickupConfirmed: active || returned,
+                    returnConfirmed: returned,
+                    damageNotes: "",
+                    depositStatus: returned ? "Refunded" : "Held",
+                    disputeStatus: "None"
+                )
+            }
+            let existing = Set(toolRentalReservations.compactMap(\.remoteBookingID))
+            toolRentalReservations.append(contentsOf: mapped.filter { row in
+                guard let id = row.remoteBookingID else { return true }
+                return !existing.contains(id)
+            })
+            rentalPage = next
+            hasMoreRentals = rows.count >= jobPageSize
+            OneSessionVault.saveToolRentalReservations(toolRentalReservations)
+        } catch {
+            lastToolError = OneErrorMapper.userMessage(for: error, fallback: "Unable to load more rentals.")
         }
     }
 
