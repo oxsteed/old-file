@@ -1,0 +1,238 @@
+import SwiftUI
+
+struct HireView: View {
+    @Environment(OneStore.self) private var store
+
+    @State private var lifeTitle = ""
+    @State private var lifeDetail = ""
+    @State private var selectedLifePillar = "money"
+
+    @State private var fundTitle = ""
+    @State private var fundTargetAmount = ""
+    @State private var fundCurrentAmount = ""
+    @State private var fundTargetDate = Calendar.current.date(byAdding: .month, value: 6, to: Date()) ?? Date()
+
+    @State private var addAmountByFundID: [UUID: String] = [:]
+
+    var body: some View {
+        GoScreen(title: "Life", showsTitle: true) {
+            GoCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Pulse Score")
+                                .font(.headline)
+                            Text("Life stability across six pillars")
+                                .font(.footnote)
+                                .foregroundStyle(OneTheme.muted)
+                        }
+                        Spacer()
+                        pulseRing
+                    }
+                    if let selected = store.selectedPulsePillar {
+                        Text("Selected: \(selected.title) · \(selected.score)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(OneTheme.amber)
+                        Text(selected.summary)
+                            .font(.caption)
+                            .foregroundStyle(OneTheme.muted)
+                    }
+                }
+            }
+
+            GoCard {
+                Text("Six Pillars")
+                    .font(.headline)
+                ForEach(store.pulsePillars) { pillar in
+                    Button {
+                        store.selectPulsePillar(pillar.id)
+                    } label: {
+                        HStack {
+                            Circle()
+                                .fill(color(from: pillar.tintHex))
+                                .frame(width: 10, height: 10)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(pillar.title) (\(pillar.weight)%)")
+                                    .font(.subheadline.weight(.semibold))
+                                Text(pillar.summary)
+                                    .font(.caption)
+                                    .foregroundStyle(OneTheme.muted)
+                            }
+                            Spacer()
+                            Text("\(pillar.score)")
+                                .font(.headline.weight(.bold))
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            GoCard {
+                Text("Urgency Queue")
+                    .font(.headline)
+                Text("One critical item per pillar, sorted by urgency.")
+                    .font(.caption)
+                    .foregroundStyle(OneTheme.muted)
+                ForEach(store.urgencyQueue) { item in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.title)
+                                .font(.subheadline.weight(.semibold))
+                            Text("\(item.pillar) · \(item.dueText)")
+                                .font(.caption)
+                                .foregroundStyle(OneTheme.muted)
+                        }
+                        Spacer()
+                        Text(item.urgency.capitalized)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(item.urgency == "critical" ? .red : OneTheme.amber)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
+            GoCard {
+                Text("Life Log (Offline Resilient)")
+                    .font(.headline)
+                Picker("Pillar", selection: $selectedLifePillar) {
+                    ForEach(store.pulsePillars, id: \.id) { pillar in
+                        Text(pillar.title).tag(pillar.id)
+                    }
+                }
+                TextField("Entry title", text: $lifeTitle)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                TextField("Detail", text: $lifeDetail)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                Button("Save Life Entry") {
+                    store.addLifeLogEntry(pillarID: selectedLifePillar, title: lifeTitle, detail: lifeDetail)
+                    lifeTitle = ""
+                    lifeDetail = ""
+                }
+                .buttonStyle(GoAccentButtonStyle())
+
+                ForEach(store.lifeLogEntries.prefix(5)) { entry in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.title)
+                            .font(.subheadline.weight(.semibold))
+                        Text("\(entry.pillarID.uppercased()) · \(entry.detail)")
+                            .font(.caption)
+                            .foregroundStyle(OneTheme.muted)
+                    }
+                }
+            }
+
+            GoCard {
+                Text("Planned Needs / Sinking Funds")
+                    .font(.headline)
+                TextField("Fund title", text: $fundTitle)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                TextField("Target amount", text: $fundTargetAmount)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                TextField("Current amount", text: $fundCurrentAmount)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                DatePicker("Target date", selection: $fundTargetDate, displayedComponents: .date)
+                Button("Create Sinking Fund") {
+                    store.addSinkingFund(
+                        title: fundTitle,
+                        targetAmount: Double(fundTargetAmount) ?? 0,
+                        currentAmount: Double(fundCurrentAmount) ?? 0,
+                        targetDate: fundTargetDate
+                    )
+                    fundTitle = ""
+                    fundTargetAmount = ""
+                    fundCurrentAmount = ""
+                }
+                .buttonStyle(GoAccentButtonStyle())
+
+                ForEach(store.sinkingFunds) { fund in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(fund.title)
+                            .font(.subheadline.weight(.semibold))
+                        Text("Target: \(currency(fund.targetAmount)) · Current: \(currency(fund.currentAmount))")
+                            .font(.caption)
+                            .foregroundStyle(OneTheme.muted)
+
+                        HStack {
+                            TextField("Add", text: Binding(
+                                get: { addAmountByFundID[fund.id] ?? "" },
+                                set: { addAmountByFundID[fund.id] = $0 }
+                            ))
+                            .padding(8)
+                            .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                            Button("Add") {
+                                let amount = Double(addAmountByFundID[fund.id] ?? "") ?? 0
+                                store.addToSinkingFund(fund.id, amount: amount)
+                                addAmountByFundID[fund.id] = ""
+                            }
+                            .buttonStyle(GoAccentButtonStyle())
+                        }
+                    }
+                }
+
+                if !store.weeklyContributionSummaries.isEmpty {
+                    Text("Weekly Contributions")
+                        .font(.subheadline.weight(.semibold))
+                    ForEach(store.weeklyContributionSummaries, id: \.self) { summary in
+                        Text(summary)
+                            .font(.caption)
+                            .foregroundStyle(OneTheme.muted)
+                    }
+                }
+            }
+        }
+    }
+
+    private var pulseRing: some View {
+        ZStack {
+            ForEach(Array(store.pulsePillars.enumerated()), id: \.element.id) { index, pillar in
+                Circle()
+                    .trim(from: startTrim(for: index), to: endTrim(for: index))
+                    .stroke(
+                        color(from: pillar.tintHex),
+                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+            }
+            Text("\(store.pulseScore)")
+                .font(.system(size: 24, weight: .heavy, design: .rounded))
+                .foregroundStyle(OneTheme.ink)
+        }
+        .frame(width: 86, height: 86)
+    }
+
+    private func startTrim(for index: Int) -> CGFloat {
+        let count = CGFloat(store.pulsePillars.count)
+        let segment = 1.0 / count
+        return CGFloat(index) * segment + 0.008
+    }
+
+    private func endTrim(for index: Int) -> CGFloat {
+        let count = CGFloat(store.pulsePillars.count)
+        let segment = 1.0 / count
+        return CGFloat(index + 1) * segment - 0.008
+    }
+
+    private func color(from hex: String) -> Color {
+        let cleaned = hex.replacingOccurrences(of: "#", with: "")
+        var value: UInt64 = 0
+        Scanner(string: cleaned).scanHexInt64(&value)
+        let r = Double((value & 0xFF0000) >> 16) / 255
+        let g = Double((value & 0x00FF00) >> 8) / 255
+        let b = Double(value & 0x0000FF) / 255
+        return Color(red: r, green: g, blue: b)
+    }
+
+    private func currency(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.locale = store.activeLocale
+        return formatter.string(from: NSNumber(value: value)) ?? "$0"
+    }
+}
