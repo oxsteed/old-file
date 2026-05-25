@@ -146,14 +146,14 @@ export default function Footer() {
             gap: 'var(--space-6)',
             alignContent: 'start',
           }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
+            <div style={{ display: 'none', flexDirection: 'column', gap: '0.7rem' }}>
               <span style={footerSectionTitleStyle}>
                 Company
               </span>
               <FooterLink to="/how-it-works">{t('footer.howOxsteedWorks')}</FooterLink>
               <FooterLink to="/about">{t('footer.about')}</FooterLink>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
+            <div style={{ display: 'none', flexDirection: 'column', gap: '0.7rem' }}>
               <span style={footerSectionTitleStyle}>
                 {t('footer.legal')}
               </span>
@@ -164,7 +164,7 @@ export default function Footer() {
               <FooterLink to="/legal/dispute-resolution">{t('footer.disputeResolution')}</FooterLink>
               <FooterLink to="/legal/independent-contractor">{t('footer.independentContractor')}</FooterLink>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
+            <div style={{ display: 'none', flexDirection: 'column', gap: '0.7rem' }}>
               <span style={footerSectionTitleStyle}>
                 Platform
               </span>
