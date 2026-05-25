@@ -175,9 +175,31 @@ struct ProfileView: View {
                 }
 
                 Section(store.localized("settings.app_api", fallback: "App API")) {
-                    Text("Base URL: https://app.oxsteed.com/api")
+                    TextField("API Base URL", text: Binding(
+                        get: { store.apiBaseURLString },
+                        set: { store.apiBaseURLString = $0 }
+                    ))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled(true)
+                    Text("Active: \(store.resolvedAPIBaseURLString)")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                    HStack {
+                        Button("Save API URL") {
+                            store.saveAPIBaseURL(store.apiBaseURLString)
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button("Test Connection") {
+                            Task { await store.testAPIConnection() }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    if let message = store.apiConnectivityMessage {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                     Button(store.isRefreshingCustomerData ? "Syncing..." : "Sync Now") {
                         Task {
                             await store.refreshCustomerTransactionData()

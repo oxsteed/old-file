@@ -21,6 +21,8 @@
 		00200000000000000000010C /* ShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00200000000000000000000C /* ShopView.swift */; };
 		00200000000000000000010D /* InboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00200000000000000000000D /* InboxView.swift */; };
 		00200000000000000000010E /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00200000000000000000000E /* ProfileView.swift */; };
+		002000000000000000000110 /* PhotoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000000000000000000010 /* PhotoPicker.swift */; };
+		002000000000000000000111 /* InboxThreadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002000000000000000000011 /* InboxThreadView.swift */; };
 		00200000000000000000010F /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 00200000000000000000000F /* Images.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -39,6 +41,8 @@
 		00200000000000000000000C /* ShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ShopView.swift; sourceTree = "<group>"; };
 		00200000000000000000000D /* InboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/InboxView.swift; sourceTree = "<group>"; };
 		00200000000000000000000E /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ProfileView.swift; sourceTree = "<group>"; };
+		002000000000000000000010 /* PhotoPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/PhotoPicker.swift; sourceTree = "<group>"; };
+		002000000000000000000011 /* InboxThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/InboxThreadView.swift; sourceTree = "<group>"; };
 		00200000000000000000000F /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets/Images.xcassets; sourceTree = "<group>"; };
 		002000000000000000000201 /* OxSteedOne.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OxSteedOne.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -80,6 +84,8 @@
 				00200000000000000000000C /* ShopView.swift */,
 				00200000000000000000000D /* InboxView.swift */,
 				00200000000000000000000E /* ProfileView.swift */,
+				002000000000000000000010 /* PhotoPicker.swift */,
+				002000000000000000000011 /* InboxThreadView.swift */,
 			);
 			name = Sources;
 			path = Sources;
@@ -184,6 +190,8 @@
 				00200000000000000000010C /* ShopView.swift in Sources */,
 				00200000000000000000010D /* InboxView.swift in Sources */,
 				00200000000000000000010E /* ProfileView.swift in Sources */,
+				002000000000000000000110 /* PhotoPicker.swift in Sources */,
+				002000000000000000000111 /* InboxThreadView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

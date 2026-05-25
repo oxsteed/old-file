@@ -127,7 +127,7 @@ struct InboxThreadView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(OneTheme.cardBackground)
+        .background(OneTheme.card)
     }
 
     // MARK: - Actions

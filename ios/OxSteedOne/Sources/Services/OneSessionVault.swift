@@ -40,6 +40,7 @@ enum OneSessionVault {
     private static let rentalToolsKey = "oxsteed.one.rentalTools"
     private static let rentalReservationsKey = "oxsteed.one.rentalReservations"
     private static let pendingSyncChangesKey = "oxsteed.one.pendingSyncChanges"
+    private static let apiBaseURLKey = "oxsteed.one.apiBaseURL"
     private static let accessTokenKey = "oxsteed_access_token"
     private static let refreshTokenKey = "oxsteed_refresh_token"
 
@@ -57,6 +58,14 @@ enum OneSessionVault {
 
     static func loadRefreshToken() -> String? {
         loadSecureValue(for: refreshTokenKey)
+    }
+
+    static func saveAPIBaseURL(_ value: String) {
+        UserDefaults.standard.set(value, forKey: apiBaseURLKey)
+    }
+
+    static func loadAPIBaseURL() -> String? {
+        UserDefaults.standard.string(forKey: apiBaseURLKey)
     }
 
     static func savePendingSyncChanges(_ changes: [PendingSyncChange]) {

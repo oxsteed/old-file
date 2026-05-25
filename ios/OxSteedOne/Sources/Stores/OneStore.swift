@@ -15,6 +15,7 @@ import UIKit
 
 @Observable
 final class OneStore {
+    private static let defaultAPIBaseURLString = "https://oxsteed.com/api"
     var selectedTab: AppTab = .home
     var personaContext: PersonaContext = OneSessionVault.loadPersonaContext() ?? PersonaContext()
     var personaOptions: [AppPersona] = AppPersona.allCases
@@ -40,6 +41,8 @@ final class OneStore {
     var authAgreementName = ""
     var authAcceptedTerms = false
     var isAuthenticating = false
+    var apiBaseURLString: String = OneSessionVault.loadAPIBaseURL() ?? OneStore.defaultAPIBaseURLString
+    var apiConnectivityMessage: String?
     @ObservationIgnored private(set) var token: String? = OneSessionVault.loadToken() {
         didSet {
             OneSessionVault.saveToken(token)
@@ -115,6 +118,7 @@ final class OneStore {
     var bidAcceptanceInFlight: Set<UUID> = []
     var customerJobFlowMessage: String?
     var isPostingJob = false
+    var isFetchingJobs = false
     var isUploadingImages = false
     var uploadProgress: Double = 0.0
     var isFetchingBids = false
@@ -167,6 +171,7 @@ final class OneStore {
     @ObservationIgnored private var periodicSyncTask: Task<Void, Never>?
 
     init() {
+        applyAPIBaseURL(apiBaseURLString)
         api.token = token
         api.tokenProvider = { [weak self] in self?.token }
         api.refreshTokenHandler = { [weak self] in
@@ -180,6 +185,10 @@ final class OneStore {
             }
         }
         setupConnectivityMonitoring()
+    }
+
+    var resolvedAPIBaseURLString: String {
+        api.baseURL.absoluteString
     }
 
     var activePersona: AppPersona {
@@ -1785,11 +1794,7 @@ final class OneStore {
 
         do {
             let response: OneAuthResponse = try await postAuthWithFallback(
-                paths: [
-                    "/auth/login",
-                    "https://app.oxsteed.com/api/auth/login",
-                    "https://app.oxsteed.com/auth/login"
-                ],
+                paths: authEndpointCandidates("login"),
                 body: OneLoginRequest(
                     email: normalizedEmail,
                     password: password,
@@ -1832,11 +1837,7 @@ final class OneStore {
 
         do {
             let response: OneAuthResponse = try await postAuthWithFallback(
-                paths: [
-                    "/auth/register",
-                    "https://app.oxsteed.com/api/auth/register",
-                    "https://app.oxsteed.com/auth/register"
-                ],
+                paths: authEndpointCandidates("register"),
                 body: OneRegisterRequest(
                     email: normalizedEmail,
                     password: password,
@@ -1873,11 +1874,7 @@ final class OneStore {
         if let refreshToken, !refreshToken.isEmpty {
             Task {
                 let _: OneGenericSuccessResponse? = try? await postAuthWithFallback(
-                    paths: [
-                        "/auth/logout",
-                        "https://app.oxsteed.com/api/auth/logout",
-                        "https://app.oxsteed.com/auth/logout"
-                    ],
+                    paths: authEndpointCandidates("logout"),
                     body: OneLogoutRequest(refreshToken: refreshToken)
                 )
             }
@@ -1900,11 +1897,7 @@ final class OneStore {
         guard let currentRefreshToken = refreshToken, !currentRefreshToken.isEmpty else { return false }
         do {
             let response: OneAuthResponse = try await postAuthWithFallback(
-                paths: [
-                    "/auth/refresh",
-                    "https://app.oxsteed.com/api/auth/refresh",
-                    "https://app.oxsteed.com/auth/refresh"
-                ],
+                paths: authEndpointCandidates("refresh"),
                 body: OneRefreshRequest(refreshToken: currentRefreshToken)
             )
             guard let newAccessToken = response.accessToken ?? response.token else { return false }
@@ -2330,6 +2323,83 @@ final class OneStore {
             }
         }
         throw lastError ?? OneAPIError.server(404, "No auth endpoint variant responded.")
+    }
+
+    @MainActor
+    func saveAPIBaseURL(_ value: String) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let normalized = normalizedAPIBaseURL(trimmed) else {
+            apiConnectivityMessage = "Invalid API URL. Example: https://oxsteed.com/api"
+            return
+        }
+        apiBaseURLString = normalized
+        OneSessionVault.saveAPIBaseURL(normalized)
+        applyAPIBaseURL(normalized)
+        apiConnectivityMessage = "API URL updated."
+    }
+
+    @MainActor
+    func testAPIConnection() async {
+        do {
+            let _: OneVersionPolicyResponse = try await api.get("/mobile/version-policy")
+            apiConnectivityMessage = "Connected to \(resolvedAPIBaseURLString)"
+        } catch {
+            apiConnectivityMessage = OneErrorMapper.userMessage(for: error, fallback: "Unable to reach API.")
+        }
+    }
+
+    private func authEndpointCandidates(_ action: String) -> [String] {
+        let configuredBase = api.baseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let configuredRoot = configuredBase.hasSuffix("/api")
+            ? String(configuredBase.dropLast(4))
+            : configuredBase
+
+        var candidates: [String] = [
+            "/auth/\(action)",
+            "\(configuredBase)/auth/\(action)",
+            "\(configuredRoot)/api/auth/\(action)",
+            "\(configuredRoot)/auth/\(action)"
+        ]
+
+        let hostFallbacks = [
+            "https://oxsteed.com/api/auth/\(action)",
+            "https://app.oxsteed.com/api/auth/\(action)",
+            "https://api.oxsteed.com/api/auth/\(action)",
+            "http://127.0.0.1:5000/api/auth/\(action)",
+            "http://localhost:5000/api/auth/\(action)"
+        ]
+        candidates.append(contentsOf: hostFallbacks)
+
+        var deduped: [String] = []
+        for candidate in candidates where !deduped.contains(candidate) {
+            deduped.append(candidate)
+        }
+        return deduped
+    }
+
+    private func applyAPIBaseURL(_ value: String) {
+        guard let normalized = normalizedAPIBaseURL(value), let url = URL(string: normalized) else { return }
+        api.baseURL = url
+    }
+
+    private func normalizedAPIBaseURL(_ rawValue: String) -> String? {
+        var value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return nil }
+        if !value.lowercased().hasPrefix("http://") && !value.lowercased().hasPrefix("https://") {
+            value = "https://\(value)"
+        }
+        guard var components = URLComponents(string: value),
+              let scheme = components.scheme?.lowercased(),
+              ["http", "https"].contains(scheme),
+              components.host != nil else {
+            return nil
+        }
+        let path = components.path.isEmpty ? "/api" : components.path
+        components.path = path.hasSuffix("/") ? String(path.dropLast()) : path
+        if components.path != "/api" && !components.path.hasSuffix("/api") {
+            components.path = components.path + "/api"
+        }
+        return components.url?.absoluteString
     }
 
     @MainActor

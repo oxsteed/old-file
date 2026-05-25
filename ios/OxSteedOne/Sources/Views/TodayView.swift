@@ -141,7 +141,7 @@ struct TodayView: View {
                             .font(.caption2)
                             .foregroundStyle(OneTheme.muted)
                     }
-                    Text("Refreshes jobs, bids, helpers, appointments, and rentals from app.oxsteed.com.")
+                    Text("Refreshes jobs, bids, helpers, appointments, and rentals from \(store.resolvedAPIBaseURLString).")
                         .font(.caption)
                         .foregroundStyle(OneTheme.muted)
                 }
@@ -488,9 +488,6 @@ struct TodayView: View {
                     showJobPhotoPicker = true
                 }
             }
-            .sheet(isPresented: $showJobPhotoPicker) {
-                PhotoPicker(selectedImages: $selectedJobPhotos, maxSelection: 5)
-            }
             HStack {
                 Button(store.localized("home.save_draft", fallback: "Save Draft")) {
                     store.saveCustomerJobDraft(
@@ -630,6 +627,9 @@ struct TodayView: View {
                     .buttonStyle(.bordered)
                 }
             }
+        }
+        .sheet(isPresented: $showJobPhotoPicker) {
+            PhotoPicker(selectedImages: $selectedJobPhotos, maxSelection: 5)
         }
     }
 

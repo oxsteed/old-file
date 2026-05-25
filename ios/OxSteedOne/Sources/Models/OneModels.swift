@@ -187,6 +187,14 @@ struct SinkingFund: Identifiable, Codable, Hashable {
         self.currentAmount = currentAmount
         self.targetDate = targetDate
     }
+
+    init(id: UUID, title: String, targetAmount: Double, currentAmount: Double, targetDate: Date) {
+        self.id = id
+        self.title = title
+        self.targetAmount = targetAmount
+        self.currentAmount = currentAmount
+        self.targetDate = targetDate
+    }
 }
 
 struct UnifiedThread: Identifiable, Codable, Hashable {
