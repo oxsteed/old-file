@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ProfileView: View {
     @Environment(OneStore.self) private var store
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
@@ -21,13 +20,17 @@ struct ProfileView: View {
 
                 if store.activePersona == .businessOwner {
                     Section("Business") {
-                        Picker("Sub-role", selection: Binding(
-                            get: { store.personaContext.businessSubRole },
-                            set: { store.setBusinessSubRole($0) }
-                        )) {
-                            ForEach(BusinessSubRole.allCases) { role in
-                                Text(role.label).tag(role)
+                        if store.canOverrideBusinessSubRole {
+                            Picker("Sub-role", selection: Binding(
+                                get: { store.personaContext.businessSubRole },
+                                set: { store.setBusinessSubRole($0) }
+                            )) {
+                                ForEach(BusinessSubRole.allCases) { role in
+                                    Text(role.label).tag(role)
+                                }
                             }
+                        } else {
+                            LabeledContent("Assigned Role", value: store.resolvedBusinessSubRole.label)
                         }
 
                         if let selected = store.personaContext.selectedBusinessName {
@@ -164,13 +167,14 @@ struct ProfileView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-            }
-            .navigationTitle("Settings")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+
+                Section {
+                    Button("Sign Out", role: .destructive) {
+                        store.logout()
+                    }
                 }
             }
+            .navigationTitle("Settings")
         }
     }
 }

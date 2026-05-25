@@ -3,12 +3,14 @@ import Foundation
 enum OneAPIError: Error, LocalizedError {
     case invalidURL(String)
     case invalidResponse
+    case unauthorized
     case server(Int, String)
 
     var errorDescription: String? {
         switch self {
         case .invalidURL(let path): return "Invalid API path: \(path)"
         case .invalidResponse: return "OxSteed returned an unreadable response."
+        case .unauthorized: return "Your session expired. Please sign in again."
         case .server(let status, let body): return "Server \(status): \(body)"
         }
     }
@@ -17,6 +19,9 @@ enum OneAPIError: Error, LocalizedError {
 final class OxSteedOneAPIClient {
     var baseURL = URL(string: "https://app.oxsteed.com/api")!
     var token: String?
+    var tokenProvider: (() -> String?)?
+    var refreshTokenHandler: (() async -> Bool)?
+    var onUnauthorized: (() -> Void)?
 
     private let session: URLSession
     private let encoder = JSONEncoder()
@@ -36,7 +41,20 @@ final class OxSteedOneAPIClient {
         try await request(path, method: "POST", body: encoder.encode(body))
     }
 
+    func put<Body: Encodable, Response: Decodable>(_ path: String, body: Body) async throws -> Response {
+        try await request(path, method: "PUT", body: encoder.encode(body))
+    }
+
     private func request<Response: Decodable>(_ path: String, method: String, body: Data?) async throws -> Response {
+        try await performRequest(path, method: method, body: body, didRetry: false)
+    }
+
+    private func performRequest<Response: Decodable>(
+        _ path: String,
+        method: String,
+        body: Data?,
+        didRetry: Bool
+    ) async throws -> Response {
         guard let url = URL(string: path, relativeTo: baseURL) else {
             throw OneAPIError.invalidURL(path)
         }
@@ -50,13 +68,27 @@ final class OxSteedOneAPIClient {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
 
-        if let token {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        if let resolvedToken = tokenProvider?() ?? token {
+            request.setValue("Bearer \(resolvedToken)", forHTTPHeaderField: "Authorization")
         }
 
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else {
             throw OneAPIError.invalidResponse
+        }
+
+        if http.statusCode == 401 {
+            if didRetry {
+                onUnauthorized?()
+                throw OneAPIError.unauthorized
+            }
+
+            if let refreshTokenHandler, await refreshTokenHandler() {
+                return try await performRequest(path, method: method, body: body, didRetry: true)
+            }
+
+            onUnauthorized?()
+            throw OneAPIError.unauthorized
         }
 
         guard (200..<300).contains(http.statusCode) else {

@@ -1,4 +1,5 @@
 import Foundation
+import Security
 
 enum OneSessionVault {
     private static let sessionKey = "oxsteed.one.saved.session"
@@ -25,6 +26,37 @@ enum OneSessionVault {
     private static let bookingDraftsKey = "oxsteed.one.bookingDrafts"
     private static let dispatchBufferKey = "oxsteed.one.dispatchBuffer"
     private static let walletTransactionsKey = "oxsteed.one.walletTransactions"
+    private static let ascensionKey = "oxsteed.one.ascension"
+    private static let wholesaleGroupsKey = "oxsteed.one.wholesaleGroups"
+    private static let financingPrequalKey = "oxsteed.one.financingPrequal"
+    private static let grantsKey = "oxsteed.one.grants"
+    private static let academyLessonsKey = "oxsteed.one.academyLessons"
+    private static let toolkitBundlesKey = "oxsteed.one.toolkits"
+    private static let trendingSkillsKey = "oxsteed.one.trendingSkills"
+    private static let customerJobsKey = "oxsteed.one.customerJobs"
+    private static let jobBidsKey = "oxsteed.one.jobBids"
+    private static let serviceHelpersKey = "oxsteed.one.serviceHelpers"
+    private static let customerBookingsKey = "oxsteed.one.customerBookings"
+    private static let rentalToolsKey = "oxsteed.one.rentalTools"
+    private static let rentalReservationsKey = "oxsteed.one.rentalReservations"
+    private static let accessTokenKey = "oxsteed_access_token"
+    private static let refreshTokenKey = "oxsteed_refresh_token"
+
+    static func saveToken(_ token: String?) {
+        saveSecureValue(token, for: accessTokenKey)
+    }
+
+    static func loadToken() -> String? {
+        loadSecureValue(for: accessTokenKey)
+    }
+
+    static func saveRefreshToken(_ token: String?) {
+        saveSecureValue(token, for: refreshTokenKey)
+    }
+
+    static func loadRefreshToken() -> String? {
+        loadSecureValue(for: refreshTokenKey)
+    }
 
     static func saveSession(_ session: OneSavedSession) {
         guard let data = try? JSONEncoder().encode(session) else { return }
@@ -38,6 +70,40 @@ enum OneSessionVault {
 
     static func clearSession() {
         UserDefaults.standard.removeObject(forKey: sessionKey)
+        saveToken(nil)
+        saveRefreshToken(nil)
+    }
+
+    private static func keychainQuery(for key: String) -> [String: Any] {
+        [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "app.oxsteed.one",
+            kSecAttrAccount as String: key
+        ]
+    }
+
+    private static func saveSecureValue(_ value: String?, for key: String) {
+        var query = keychainQuery(for: key)
+        SecItemDelete(query as CFDictionary)
+
+        guard let value, let data = value.data(using: .utf8) else { return }
+        query[kSecValueData as String] = data
+        SecItemAdd(query as CFDictionary, nil)
+    }
+
+    private static func loadSecureValue(for key: String) -> String? {
+        var query = keychainQuery(for: key)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        guard status == errSecSuccess,
+              let data = result as? Data,
+              let value = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+        return value
     }
 
     static func savePersonaContext(_ context: PersonaContext) {
@@ -359,5 +425,213 @@ enum OneSessionVault {
             ]
         }
         return transactions
+    }
+
+    static func saveAscensionApplication(_ application: AscensionApplication) {
+        guard let data = try? JSONEncoder().encode(application) else { return }
+        UserDefaults.standard.set(data, forKey: ascensionKey)
+    }
+
+    static func loadAscensionApplication() -> AscensionApplication {
+        guard let data = UserDefaults.standard.data(forKey: ascensionKey),
+              let application = try? JSONDecoder().decode(AscensionApplication.self, from: data) else {
+            return AscensionApplication(
+                fullName: "",
+                currentSkill: "General Home Services",
+                targetLicense: "HVAC Contractor",
+                status: "Not Started",
+                submittedAt: nil
+            )
+        }
+        return application
+    }
+
+    static func saveWholesaleGroups(_ groups: [WholesaleGroup]) {
+        guard let data = try? JSONEncoder().encode(groups) else { return }
+        UserDefaults.standard.set(data, forKey: wholesaleGroupsKey)
+    }
+
+    static func loadWholesaleGroups() -> [WholesaleGroup] {
+        guard let data = UserDefaults.standard.data(forKey: wholesaleGroupsKey),
+              let groups = try? JSONDecoder().decode([WholesaleGroup].self, from: data) else {
+            return [
+                WholesaleGroup(id: UUID(), name: "Springfield Tool Co-op", city: "Springfield", category: "Tools", memberCount: 32, joined: false),
+                WholesaleGroup(id: UUID(), name: "River North Materials Pool", city: "River North", category: "Materials", memberCount: 21, joined: false)
+            ]
+        }
+        return groups
+    }
+
+    static func saveFinancingPrequal(_ prequal: FinancingPrequalForm) {
+        guard let data = try? JSONEncoder().encode(prequal) else { return }
+        UserDefaults.standard.set(data, forKey: financingPrequalKey)
+    }
+
+    static func loadFinancingPrequal() -> FinancingPrequalForm {
+        guard let data = UserDefaults.standard.data(forKey: financingPrequalKey),
+              let prequal = try? JSONDecoder().decode(FinancingPrequalForm.self, from: data) else {
+            return FinancingPrequalForm(
+                requestedAmount: 5000,
+                purpose: "Equipment",
+                monthlyRevenue: 2800,
+                creditBand: "Fair",
+                status: "Not Started"
+            )
+        }
+        return prequal
+    }
+
+    static func saveGrantOpportunities(_ opportunities: [GrantOpportunity]) {
+        guard let data = try? JSONEncoder().encode(opportunities) else { return }
+        UserDefaults.standard.set(data, forKey: grantsKey)
+    }
+
+    static func loadGrantOpportunities() -> [GrantOpportunity] {
+        guard let data = UserDefaults.standard.data(forKey: grantsKey),
+              let grants = try? JSONDecoder().decode([GrantOpportunity].self, from: data) else {
+            return [
+                GrantOpportunity(id: UUID(), title: "Small Trade Equipment Grant", region: "Massachusetts", dueText: "Due in 19 days"),
+                GrantOpportunity(id: UUID(), title: "Local Workforce Upskill Subsidy", region: "Springfield Metro", dueText: "Due in 12 days")
+            ]
+        }
+        return grants
+    }
+
+    static func saveAcademyLessons(_ lessons: [AcademyLesson]) {
+        guard let data = try? JSONEncoder().encode(lessons) else { return }
+        UserDefaults.standard.set(data, forKey: academyLessonsKey)
+    }
+
+    static func loadAcademyLessons() -> [AcademyLesson] {
+        guard let data = UserDefaults.standard.data(forKey: academyLessonsKey),
+              let lessons = try? JSONDecoder().decode([AcademyLesson].self, from: data) else {
+            let drainBundle = UUID()
+            let washBundle = UUID()
+            return [
+                AcademyLesson(id: UUID(), title: "Unclog a Drain in 10 Minutes", durationMinutes: 10, category: "Plumbing", toolkitBundleID: drainBundle),
+                AcademyLesson(id: UUID(), title: "Basic Bookkeeping for Service Pros", durationMinutes: 12, category: "Business", toolkitBundleID: nil),
+                AcademyLesson(id: UUID(), title: "Pressure-Washing Starter Workflow", durationMinutes: 9, category: "Exterior Care", toolkitBundleID: washBundle)
+            ]
+        }
+        return lessons
+    }
+
+    static func saveToolkitBundles(_ bundles: [ToolkitBundle]) {
+        guard let data = try? JSONEncoder().encode(bundles) else { return }
+        UserDefaults.standard.set(data, forKey: toolkitBundlesKey)
+    }
+
+    static func loadToolkitBundles() -> [ToolkitBundle] {
+        guard let data = UserDefaults.standard.data(forKey: toolkitBundlesKey),
+              let bundles = try? JSONDecoder().decode([ToolkitBundle].self, from: data) else {
+            return [
+                ToolkitBundle(id: UUID(), title: "Drain-Clean Starter Kit", lessonTitle: "Unclog a Drain in 10 Minutes", affiliateURL: "https://www.amazon.com", estimatedCost: 89),
+                ToolkitBundle(id: UUID(), title: "Pressure-Washing Starter Kit", lessonTitle: "Pressure-Washing Starter Workflow", affiliateURL: "https://www.amazon.com", estimatedCost: 420)
+            ]
+        }
+        return bundles
+    }
+
+    static func saveTrendingSkills(_ skills: [TrendingSkill]) {
+        guard let data = try? JSONEncoder().encode(skills) else { return }
+        UserDefaults.standard.set(data, forKey: trendingSkillsKey)
+    }
+
+    static func loadTrendingSkills() -> [TrendingSkill] {
+        guard let data = UserDefaults.standard.data(forKey: trendingSkillsKey),
+              let skills = try? JSONDecoder().decode([TrendingSkill].self, from: data) else {
+            return [
+                TrendingSkill(id: UUID(), name: "Drain Snaking", city: "Springfield", learnerCount: 46),
+                TrendingSkill(id: UUID(), name: "QuickBooks Setup", city: "Springfield", learnerCount: 28),
+                TrendingSkill(id: UUID(), name: "Drywall Patch Repair", city: "River North", learnerCount: 35)
+            ]
+        }
+        return skills
+    }
+
+    static func saveCustomerJobs(_ jobs: [CustomerJobPost]) {
+        guard let data = try? JSONEncoder().encode(jobs) else { return }
+        UserDefaults.standard.set(data, forKey: customerJobsKey)
+    }
+
+    static func loadCustomerJobs() -> [CustomerJobPost] {
+        guard let data = UserDefaults.standard.data(forKey: customerJobsKey),
+              let jobs = try? JSONDecoder().decode([CustomerJobPost].self, from: data) else {
+            return [
+                CustomerJobPost(id: UUID(), title: "Fix kitchen sink leak", category: "Plumbing", locationQuery: "Springfield", address: "123 Oak St, Springfield", details: "Slow drip under sink", photos: [], status: .published, createdAt: Date())
+            ]
+        }
+        return jobs
+    }
+
+    static func saveJobBids(_ bids: [JobBid]) {
+        guard let data = try? JSONEncoder().encode(bids) else { return }
+        UserDefaults.standard.set(data, forKey: jobBidsKey)
+    }
+
+    static func loadJobBids() -> [JobBid] {
+        guard let data = UserDefaults.standard.data(forKey: jobBidsKey),
+              let bids = try? JSONDecoder().decode([JobBid].self, from: data) else {
+            return []
+        }
+        return bids
+    }
+
+    static func saveServiceHelpers(_ helpers: [ServiceHelperProfile]) {
+        guard let data = try? JSONEncoder().encode(helpers) else { return }
+        UserDefaults.standard.set(data, forKey: serviceHelpersKey)
+    }
+
+    static func loadServiceHelpers() -> [ServiceHelperProfile] {
+        guard let data = UserDefaults.standard.data(forKey: serviceHelpersKey),
+              let helpers = try? JSONDecoder().decode([ServiceHelperProfile].self, from: data) else {
+            return [
+                ServiceHelperProfile(id: UUID(), name: "Carter Plumbing", specialty: "Plumbing", city: "Springfield", rating: 4.8, hourlyRate: 95, availableSlots: ["Tue 2:00 PM", "Wed 10:00 AM"]),
+                ServiceHelperProfile(id: UUID(), name: "Nova Electric", specialty: "Electrical", city: "Springfield", rating: 4.7, hourlyRate: 110, availableSlots: ["Thu 9:00 AM", "Fri 1:00 PM"])
+            ]
+        }
+        return helpers
+    }
+
+    static func saveCustomerServiceBookings(_ bookings: [CustomerServiceBooking]) {
+        guard let data = try? JSONEncoder().encode(bookings) else { return }
+        UserDefaults.standard.set(data, forKey: customerBookingsKey)
+    }
+
+    static func loadCustomerServiceBookings() -> [CustomerServiceBooking] {
+        guard let data = UserDefaults.standard.data(forKey: customerBookingsKey),
+              let bookings = try? JSONDecoder().decode([CustomerServiceBooking].self, from: data) else {
+            return []
+        }
+        return bookings
+    }
+
+    static func saveRentalTools(_ tools: [RentalTool]) {
+        guard let data = try? JSONEncoder().encode(tools) else { return }
+        UserDefaults.standard.set(data, forKey: rentalToolsKey)
+    }
+
+    static func loadRentalTools() -> [RentalTool] {
+        guard let data = UserDefaults.standard.data(forKey: rentalToolsKey),
+              let tools = try? JSONDecoder().decode([RentalTool].self, from: data) else {
+            return [
+                RentalTool(id: UUID(), title: "Pressure Washer 3200 PSI", ownerName: "M. Reyes", city: "Springfield", dailyRate: 45, deposit: 120, terms: "Fuel full on return.", availableSlots: ["Sat Morning", "Sun Afternoon"]),
+                RentalTool(id: UUID(), title: "Tile Saw", ownerName: "ToolHub North", city: "River North", dailyRate: 38, deposit: 100, terms: "Blade wear billed if damaged.", availableSlots: ["Mon Evening", "Tue Evening"])
+            ]
+        }
+        return tools
+    }
+
+    static func saveToolRentalReservations(_ reservations: [ToolRentalReservation]) {
+        guard let data = try? JSONEncoder().encode(reservations) else { return }
+        UserDefaults.standard.set(data, forKey: rentalReservationsKey)
+    }
+
+    static func loadToolRentalReservations() -> [ToolRentalReservation] {
+        guard let data = UserDefaults.standard.data(forKey: rentalReservationsKey),
+              let reservations = try? JSONDecoder().decode([ToolRentalReservation].self, from: data) else {
+            return []
+        }
+        return reservations
     }
 }

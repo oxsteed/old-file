@@ -7,6 +7,8 @@ struct OneRootView: View {
         Group {
             if store.forceUpdateRequired {
                 forceUpdateView
+            } else if !store.isAuthenticated {
+                authView
             } else if store.showOnboarding {
                 onboardingView
             } else if store.shouldRequireUnlock {
@@ -57,9 +59,48 @@ struct OneRootView: View {
                 Label(AppTab.learn.title, systemImage: AppTab.learn.symbolName)
             }
             .tag(AppTab.learn)
+
+            NavigationStack {
+                ProfileView()
+            }
+            .tabItem {
+                Label(AppTab.profile.title, systemImage: AppTab.profile.symbolName)
+            }
+            .tag(AppTab.profile)
         }
         .tint(OneTheme.amber)
         .background(OneTheme.background.ignoresSafeArea())
+    }
+
+    private var authView: some View {
+        NavigationStack {
+            VStack(spacing: 16) {
+                OxSteedOneMark(size: 72)
+                Text("One Account. Many Roles.")
+                    .font(.title3.bold())
+                    .foregroundStyle(OneTheme.ink)
+                Text("Sign in to load your personas, messages, and transactions.")
+                    .font(.footnote)
+                    .foregroundStyle(OneTheme.muted)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+
+                NavigationLink("Sign In") { LoginView() }
+                    .buttonStyle(GoAccentButtonStyle())
+                NavigationLink("Create Account") { SignupView() }
+                    .buttonStyle(.bordered)
+
+                if let message = store.authStatusMessage {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .padding(.top, 8)
+                }
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(OneTheme.background.ignoresSafeArea())
+        }
     }
 
     private var forceUpdateView: some View {
@@ -153,4 +194,91 @@ struct OneRootView: View {
 #Preview {
     OneRootView()
         .environment(OneStore())
+}
+
+private struct LoginView: View {
+    @Environment(OneStore.self) private var store
+
+    var body: some View {
+        @Bindable var store = store
+        Form {
+            Section("Welcome Back") {
+                TextField("Email", text: $store.authEmail)
+                    .textContentType(.username)
+                SecureField("Password", text: $store.authPassword)
+                    .textContentType(.password)
+            }
+
+            Section {
+                Button {
+                    Task { await store.login(email: store.authEmail, password: store.authPassword) }
+                } label: {
+                    if store.isAuthenticating {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Text("Sign In")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .disabled(store.isAuthenticating)
+                .buttonStyle(GoAccentButtonStyle())
+            }
+        }
+        .navigationTitle("Sign In")
+    }
+}
+
+private struct SignupView: View {
+    @Environment(OneStore.self) private var store
+
+    var body: some View {
+        @Bindable var store = store
+        Form {
+            Section("Create Account") {
+                TextField("First name", text: $store.authFirstName)
+                    .textContentType(.givenName)
+                TextField("Last name", text: $store.authLastName)
+                    .textContentType(.familyName)
+                TextField("Email", text: $store.authEmail)
+                    .textContentType(.username)
+                SecureField("Password", text: $store.authPassword)
+                    .textContentType(.newPassword)
+            }
+
+            Section("Primary Persona") {
+                Picker("Persona", selection: $store.onboardingState.selectedPrimaryPersona) {
+                    ForEach(store.personaOptions) { persona in
+                        Text(persona.label).tag(persona)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            Section {
+                Button {
+                    Task {
+                        await store.register(
+                            email: store.authEmail,
+                            password: store.authPassword,
+                            firstName: store.authFirstName,
+                            lastName: store.authLastName,
+                            primaryPersona: store.onboardingState.selectedPrimaryPersona
+                        )
+                    }
+                } label: {
+                    if store.isAuthenticating {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Text("Create Account")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .disabled(store.isAuthenticating)
+                .buttonStyle(GoAccentButtonStyle())
+            }
+        }
+        .navigationTitle("Sign Up")
+    }
 }

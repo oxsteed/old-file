@@ -13,9 +13,12 @@ final class OneStore {
         BusinessRef(id: "abc123", name: "OxSteed Services - Springfield"),
         BusinessRef(id: "def456", name: "OxSteed Mechanical - River North")
     ]
+    var businessRoleMemberships: [BusinessRoleMembership] = [
+        BusinessRoleMembership(id: UUID(), businessID: "abc123", role: .owner, isActive: true, permissions: [:]),
+        BusinessRoleMembership(id: UUID(), businessID: "def456", role: .manager, isActive: true, permissions: [:])
+    ]
 
     var homeReloadToken = UUID()
-    var showPersonaSheet = false
     var showBusinessPicker = false
     var selectedPulsePillarID: String = "money"
     var universalSearchQuery = ""
@@ -23,6 +26,20 @@ final class OneStore {
     var authEmail = ""
     var authPassword = ""
     var authStatusMessage: String?
+    var authFirstName = ""
+    var authLastName = ""
+    var isAuthenticating = false
+    @ObservationIgnored private(set) var token: String? = OneSessionVault.loadToken() {
+        didSet {
+            OneSessionVault.saveToken(token)
+            api.token = token
+        }
+    }
+    @ObservationIgnored private(set) var refreshToken: String? = OneSessionVault.loadRefreshToken() {
+        didSet {
+            OneSessionVault.saveRefreshToken(refreshToken)
+        }
+    }
 
     var appLanguage: AppLanguage = OneSessionVault.loadLanguage()
     var autoTranslateEnabled: Bool = OneSessionVault.loadAutoTranslateEnabled()
@@ -57,13 +74,60 @@ final class OneStore {
     var bookingDrafts: [BookingRequestDraft] = OneSessionVault.loadBookingDrafts()
     var dispatchBufferSettings: DispatchBufferSettings = OneSessionVault.loadDispatchBuffer()
     var walletTransactions: [WalletTransaction] = OneSessionVault.loadWalletTransactions()
+    var ascensionApplication: AscensionApplication = OneSessionVault.loadAscensionApplication()
+    var wholesaleGroups: [WholesaleGroup] = OneSessionVault.loadWholesaleGroups()
+    var financingPrequal: FinancingPrequalForm = OneSessionVault.loadFinancingPrequal()
+    var grantOpportunities: [GrantOpportunity] = OneSessionVault.loadGrantOpportunities()
+    var academyLessons: [AcademyLesson] = OneSessionVault.loadAcademyLessons()
+    var toolkitBundles: [ToolkitBundle] = OneSessionVault.loadToolkitBundles()
+    var trendingSkills: [TrendingSkill] = OneSessionVault.loadTrendingSkills()
+    var customerJobs: [CustomerJobPost] = OneSessionVault.loadCustomerJobs()
+    var jobBids: [JobBid] = OneSessionVault.loadJobBids()
+    var serviceHelpers: [ServiceHelperProfile] = OneSessionVault.loadServiceHelpers()
+    var customerServiceBookings: [CustomerServiceBooking] = OneSessionVault.loadCustomerServiceBookings()
+    var rentalTools: [RentalTool] = OneSessionVault.loadRentalTools()
+    var toolRentalReservations: [ToolRentalReservation] = OneSessionVault.loadToolRentalReservations()
 
     var growthProgressStep = "Skill"
     var voiceInputEnabled = true
     var appPreferences: AppPreferences = OneSessionVault.loadAppPreferences()
     var accountDeletionRequested = false
 
+    var growthNextStep: String {
+        if ascensionApplication.status == "Not Started" {
+            return "Start Business Ascension application"
+        }
+        if ascensionApplication.status == "Submitted" {
+            return "Complete Learning tab courses for your license track"
+        }
+        if financingPrequal.status != "Submitted" {
+            return "Submit financing pre-qualification"
+        }
+        return "Join a wholesale group and execute first scaled operation"
+    }
+
+    var canUploadCreatorContent: Bool {
+        let isRoleEligible = activePersona == .helper || activePersona == .businessOwner
+        let hasVerification = verificationBadges.contains(where: { $0.title == "ID Verified" && $0.verified })
+        return isRoleEligible && hasVerification
+    }
+
     private let api = OxSteedOneAPIClient()
+
+    init() {
+        api.token = token
+        api.tokenProvider = { [weak self] in self?.token }
+        api.refreshTokenHandler = { [weak self] in
+            guard let self else { return false }
+            return await self.tryRefreshAccessToken()
+        }
+        api.onUnauthorized = { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.logout(clearMessage: false)
+                self?.authStatusMessage = "Session expired. Please sign in again."
+            }
+        }
+    }
 
     var activePersona: AppPersona {
         personaContext.activePersona
@@ -73,6 +137,10 @@ final class OneStore {
         !onboardingState.didComplete
     }
 
+    var isAuthenticated: Bool {
+        token != nil
+    }
+
     var activeLocale: Locale {
         Locale(identifier: appLanguage.localeIdentifier)
     }
@@ -80,20 +148,42 @@ final class OneStore {
     var activePersonaLabel: String {
         if activePersona == .businessOwner {
             let business = personaContext.selectedBusinessName ?? "No business"
-            return "\(activePersona.label) · \(personaContext.businessSubRole.label) · \(business)"
+            return "\(activePersona.label) · \(resolvedBusinessSubRole.label) · \(business)"
         }
         return activePersona.label
+    }
+
+    var resolvedBusinessSubRole: BusinessSubRole {
+        guard activePersona == .businessOwner,
+              let businessID = personaContext.selectedBusinessID,
+              let membership = businessRoleMemberships.first(where: { $0.businessID == businessID && $0.isActive }) else {
+            return personaContext.businessSubRole
+        }
+        if membership.role == .owner {
+            return personaContext.businessSubRole
+        }
+        return membership.role
+    }
+
+    var canOverrideBusinessSubRole: Bool {
+        guard let businessID = personaContext.selectedBusinessID else { return false }
+        return businessRoleMemberships.contains(where: { $0.businessID == businessID && $0.isActive && $0.role == .owner })
     }
 
     var homeSections: [HomeSection] {
         switch activePersona {
         case .customer:
+            let publishedJobs = customerJobs.filter { $0.status == .published || $0.status == .matched || $0.status == .inProgress }.count
+            let pendingBids = customerJobs.reduce(0) { $0 + bids(for: $1.id).filter { !$0.accepted }.count }
+            let upcomingBookings = customerServiceBookings.filter { $0.status == "Scheduled" || $0.status == "Confirmed" }.count
+            let activeRentals = toolRentalReservations.filter { $0.pickupConfirmed && !$0.returnConfirmed }.count
             return [
                 section("Customer Workflow", cards: [
-                    card("jobs", "Jobs Posted", "4", "1 open · 1 matched · 2 in-progress", "hammer.fill"),
+                    card("jobs", "Jobs Posted", "\(publishedJobs)", "Draft + published transaction pipeline", "hammer.fill"),
                     card("messages", "Messages with Helpers", "6 unread", "Unified inbox threads", "bubble.left.and.bubble.right.fill"),
-                    card("quotes", "Quotes & Payment", "3 pending", "2 awaiting deposit", "creditcard.fill"),
-                    card("bookings", "Upcoming Bookings", "2", "HVAC check tomorrow", "calendar.badge.clock")
+                    card("quotes", "Pending Quotes", "\(pendingBids)", "Bid comparison and acceptance flow", "creditcard.fill"),
+                    card("bookings", "Upcoming Bookings", "\(upcomingBookings)", "Service booking confirmations", "calendar.badge.clock"),
+                    card("rentals", "Active Rentals", "\(activeRentals)", "Pickup/return and deposit lifecycle", "wrench.adjustable.fill")
                 ])
             ]
         case .helper:
@@ -107,7 +197,7 @@ final class OneStore {
                 ])
             ]
         case .businessOwner:
-            return businessOwnerSections(for: personaContext.businessSubRole)
+            return businessOwnerSections(for: resolvedBusinessSubRole)
         case .consultant:
             return [
                 section("Consulting Desk", cards: [
@@ -164,20 +254,62 @@ final class OneStore {
     }
 
     var urgencyQueue: [UrgencyItem] {
+        let cal = Calendar.current
+        let now = Date()
         let items = [
-            UrgencyItem(id: "u1", pillar: "Money", title: "Projected shortfall", dueText: "June 3", urgency: "critical"),
-            UrgencyItem(id: "u2", pillar: "Home Care", title: "Replace HVAC filter", dueText: "In 5 days", urgency: "high"),
-            UrgencyItem(id: "u5", pillar: "Goals", title: "Link tire savings goal", dueText: "In 7 days", urgency: "high"),
-            UrgencyItem(id: "u3", pillar: "Car Care", title: "Schedule oil change", dueText: "In 12 days", urgency: "medium"),
-            UrgencyItem(id: "u4", pillar: "Personal Care", title: "Dental checkup booking", dueText: "In 14 days", urgency: "medium"),
-            UrgencyItem(id: "u6", pillar: "Planned Needs", title: "Fund holiday gifts", dueText: "Weekly", urgency: "medium")
+            UrgencyItem(
+                id: "u1",
+                pillar: "Money",
+                title: "Projected shortfall",
+                dueText: "June 3",
+                urgency: "critical",
+                dueDate: cal.date(bySettingHour: 9, minute: 0, second: 0, of: now.addingTimeInterval(9 * 86_400)) ?? now
+            ),
+            UrgencyItem(
+                id: "u2",
+                pillar: "Home Care",
+                title: "Replace HVAC filter",
+                dueText: "In 5 days",
+                urgency: "high",
+                dueDate: cal.date(byAdding: .day, value: 5, to: now) ?? now
+            ),
+            UrgencyItem(
+                id: "u5",
+                pillar: "Goals",
+                title: "Link tire savings goal",
+                dueText: "In 7 days",
+                urgency: "high",
+                dueDate: cal.date(byAdding: .day, value: 7, to: now) ?? now
+            ),
+            UrgencyItem(
+                id: "u3",
+                pillar: "Car Care",
+                title: "Schedule oil change",
+                dueText: "In 12 days",
+                urgency: "medium",
+                dueDate: cal.date(byAdding: .day, value: 12, to: now) ?? now
+            ),
+            UrgencyItem(
+                id: "u4",
+                pillar: "Personal Care",
+                title: "Dental checkup booking",
+                dueText: "In 14 days",
+                urgency: "medium",
+                dueDate: cal.date(byAdding: .day, value: 14, to: now) ?? now
+            ),
+            UrgencyItem(
+                id: "u6",
+                pillar: "Planned Needs",
+                title: "Fund holiday gifts",
+                dueText: "Weekly",
+                urgency: "medium",
+                dueDate: cal.date(byAdding: .day, value: 6, to: now) ?? now
+            )
         ]
-        let urgencyRank = ["critical": 0, "high": 1, "medium": 2, "low": 3]
         return items.sorted { lhs, rhs in
-            let left = urgencyRank[lhs.urgency, default: 9]
-            let right = urgencyRank[rhs.urgency, default: 9]
-            if left != right { return left < right }
-            return lhs.title < rhs.title
+            if lhs.dueDate != rhs.dueDate { return lhs.dueDate < rhs.dueDate }
+            let urgencyRank = ["critical": 0, "high": 1, "medium": 2, "low": 3]
+            return urgencyRank[lhs.urgency, default: 9] < urgencyRank[rhs.urgency, default: 9]
         }
     }
 
@@ -290,15 +422,25 @@ final class OneStore {
         }
     }
 
+    func sinkingFundStatus(for fund: SinkingFund) -> String {
+        let progress = fund.targetAmount > 0 ? fund.currentAmount / fund.targetAmount : 0
+        if progress >= 0.85 { return "on-track" }
+        if progress >= 0.45 { return "behind" }
+        return "critical"
+    }
+
     func restoreSession() {
-        if let saved = OneSessionVault.loadSession() {
-            api.token = saved.token
+        if token == nil, let saved = OneSessionVault.loadSession() {
+            token = saved.token
         }
         if unifiedInboxThreads.isEmpty {
             unifiedInboxThreads = seededThreads()
         }
         if autoTranslateEnabled {
             Task { await refreshTranslatedPreviews() }
+        }
+        if biometricEnabled && isAuthenticated {
+            isLocked = true
         }
         Task { await runForceUpdateCheck() }
     }
@@ -318,6 +460,9 @@ final class OneStore {
         } else if let first = availableBusinesses.first, personaContext.selectedBusinessID == nil {
             personaContext.selectedBusinessID = first.id
             personaContext.selectedBusinessName = first.name
+            if let membership = businessRoleMemberships.first(where: { $0.businessID == first.id && $0.isActive }) {
+                personaContext.businessSubRole = membership.role
+            }
         }
 
         OneSessionVault.savePersonaContext(personaContext)
@@ -325,6 +470,7 @@ final class OneStore {
     }
 
     func setBusinessSubRole(_ role: BusinessSubRole) {
+        guard canOverrideBusinessSubRole else { return }
         personaContext.businessSubRole = role
         OneSessionVault.savePersonaContext(personaContext)
         refreshHomeOnly()
@@ -333,6 +479,9 @@ final class OneStore {
     func selectBusiness(_ business: BusinessRef) {
         personaContext.selectedBusinessID = business.id
         personaContext.selectedBusinessName = business.name
+        if let membership = businessRoleMemberships.first(where: { $0.businessID == business.id && $0.isActive }) {
+            personaContext.businessSubRole = membership.role
+        }
         showBusinessPicker = false
         OneSessionVault.savePersonaContext(personaContext)
         refreshHomeOnly()
@@ -388,9 +537,7 @@ final class OneStore {
     func setBiometricEnabled(_ enabled: Bool) {
         biometricEnabled = enabled
         OneSessionVault.saveBiometricEnabled(enabled)
-        if enabled {
-            isLocked = true
-        }
+        isLocked = enabled && isAuthenticated
     }
 
     func unlockWithBiometrics() async {
@@ -441,7 +588,7 @@ final class OneStore {
     }
 
     func addCreatorUpload(title: String) {
-        guard !title.isEmpty else { return }
+        guard canUploadCreatorContent, !title.isEmpty else { return }
         let status = moderationStatus(for: title)
         creatorUploads.insert(CreatorUploadItem(title: title, language: appLanguage, status: status), at: 0)
         OneSessionVault.saveCreatorUploads(creatorUploads)
@@ -573,12 +720,541 @@ final class OneStore {
         accountDeletionRequested = true
     }
 
+    func postCustomerJob(title: String, category: String, locationQuery: String, address: String, details: String, photos: [String]) {
+        guard !title.isEmpty, !category.isEmpty, !address.isEmpty else { return }
+        let job = CustomerJobPost(
+            id: UUID(),
+            title: title,
+            category: category,
+            locationQuery: locationQuery,
+            address: address,
+            details: details,
+            photos: photos,
+            status: .published,
+            createdAt: Date()
+        )
+        customerJobs.insert(job, at: 0)
+        customerJobs.sort { $0.createdAt > $1.createdAt }
+        OneSessionVault.saveCustomerJobs(customerJobs)
+        seedBidsIfNeeded(for: job.id)
+    }
+
+    @MainActor
+    func postCustomerJobServerFirst(title: String, category: String, locationQuery: String, address: String, details: String, photos: [String]) async {
+        let normalizedDetail = details.count < 50 ? details + String(repeating: " details", count: max(0, (50 - details.count) / 8)) : details
+        let budgetMax = 50000
+        let budgetMin = 20000
+
+        do {
+            let request = OneCreateJobRequest(
+                title: title,
+                description: normalizedDetail,
+                categoryName: category,
+                locationCity: locationQuery.isEmpty ? "Springfield" : locationQuery,
+                locationState: "MA",
+                locationAddress: address,
+                locationZip: "01103",
+                locationCountry: "US",
+                urgency: "flexible",
+                budgetType: "range",
+                budgetMin: budgetMin,
+                budgetMax: budgetMax,
+                mediaUrls: photos
+            )
+            let created: OneJobDTO = try await api.post("/jobs", body: request)
+            let localID = uuidFromString(created.id) ?? UUID()
+            customerJobs.insert(
+                CustomerJobPost(
+                    id: localID,
+                    title: created.title ?? title,
+                    category: created.category ?? category,
+                    locationQuery: created.locationCity ?? locationQuery,
+                    address: address,
+                    details: created.description ?? details,
+                    photos: photos,
+                    status: mapJobStatus(created.status),
+                    createdAt: Date()
+                ),
+                at: 0
+            )
+            OneSessionVault.saveCustomerJobs(customerJobs)
+            await refreshBidsFromAPI(for: localID, remoteJobID: created.id ?? localID.uuidString)
+        } catch {
+            postCustomerJob(title: title, category: category, locationQuery: locationQuery, address: address, details: details, photos: photos)
+            authStatusMessage = "Job posted locally (API unavailable/auth required)."
+        }
+    }
+
+    func saveCustomerJobDraft(title: String, category: String, locationQuery: String, address: String, details: String, photos: [String]) {
+        guard !title.isEmpty, !category.isEmpty else { return }
+        customerJobs.insert(
+            CustomerJobPost(
+                id: UUID(),
+                title: title,
+                category: category,
+                locationQuery: locationQuery,
+                address: address,
+                details: details,
+                photos: photos,
+                status: .draft,
+                createdAt: Date()
+            ),
+            at: 0
+        )
+        OneSessionVault.saveCustomerJobs(customerJobs)
+    }
+
+    func publishCustomerJob(_ jobID: UUID) {
+        guard let idx = customerJobs.firstIndex(where: { $0.id == jobID }) else { return }
+        customerJobs[idx].status = .published
+        OneSessionVault.saveCustomerJobs(customerJobs)
+        seedBidsIfNeeded(for: jobID)
+    }
+
+    func cancelCustomerJob(_ jobID: UUID) {
+        customerJobs.removeAll { $0.id == jobID }
+        jobBids.removeAll { $0.jobID == jobID }
+        OneSessionVault.saveCustomerJobs(customerJobs)
+        OneSessionVault.saveJobBids(jobBids)
+    }
+
+    @MainActor
+    func cancelCustomerJobServerFirst(_ jobID: UUID) async {
+        guard let job = customerJobs.first(where: { $0.id == jobID }) else { return }
+        let remoteID = job.id.uuidString
+        do {
+            let _: OneJobStatusResponse = try await api.post("/jobs/\(remoteID)/cancel", body: [String: String]())
+            cancelCustomerJob(jobID)
+        } catch {
+            cancelCustomerJob(jobID)
+            authStatusMessage = "Job cancelled locally (API unavailable/auth required)."
+        }
+    }
+
+    @MainActor
+    func startCustomerJobServerFirst(_ jobID: UUID) async {
+        guard let idx = customerJobs.firstIndex(where: { $0.id == jobID }) else { return }
+        let remoteID = customerJobs[idx].id.uuidString
+        do {
+            let _: OneJobStatusResponse = try await api.post("/jobs/\(remoteID)/start", body: [String: String]())
+            customerJobs[idx].status = .inProgress
+            OneSessionVault.saveCustomerJobs(customerJobs)
+        } catch {
+            customerJobs[idx].status = .inProgress
+            OneSessionVault.saveCustomerJobs(customerJobs)
+            authStatusMessage = "Job marked in progress locally (API unavailable/auth required)."
+        }
+    }
+
+    @MainActor
+    func completeCustomerJobServerFirst(_ jobID: UUID) async {
+        guard let idx = customerJobs.firstIndex(where: { $0.id == jobID }) else { return }
+        let remoteID = customerJobs[idx].id.uuidString
+        do {
+            let _: OneJobStatusResponse = try await api.post("/jobs/\(remoteID)/complete", body: [String: String]())
+            customerJobs[idx].status = .completed
+            OneSessionVault.saveCustomerJobs(customerJobs)
+        } catch {
+            customerJobs[idx].status = .completed
+            OneSessionVault.saveCustomerJobs(customerJobs)
+            authStatusMessage = "Job completed locally (API unavailable/auth required)."
+        }
+    }
+
+    func bids(for jobID: UUID) -> [JobBid] {
+        jobBids.filter { $0.jobID == jobID }.sorted { $0.amount < $1.amount }
+    }
+
+    func sortedBids(for jobID: UUID, sort: String) -> [JobBid] {
+        let source = jobBids.filter { $0.jobID == jobID }
+        switch sort {
+        case "price_desc":
+            return source.sorted { $0.amount > $1.amount }
+        case "helper_asc":
+            return source.sorted { $0.helperName < $1.helperName }
+        default:
+            return source.sorted { $0.amount < $1.amount }
+        }
+    }
+
+    @MainActor
+    func messageHelperForBidServerFirst(_ bidID: UUID, content: String) async {
+        guard let bid = jobBids.first(where: { $0.id == bidID }) else { return }
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        do {
+            guard let helper = serviceHelpers.first(where: { $0.name == bid.helperName }) ?? serviceHelpers.first else {
+                throw OneAPIError.invalidResponse
+            }
+            let convReq = OneCreateConversationRequest(helperID: helper.id.uuidString)
+            let conv: OneConversationDTO = try await api.post("/messages/conversations", body: convReq)
+            guard let convID = conv.id else { throw OneAPIError.invalidResponse }
+            let msgReq = OneSendMessageRequest(content: trimmed)
+            let _: OneGenericSuccessResponse = try await api.post("/messages/conversations/\(convID)", body: msgReq)
+        } catch {
+            authStatusMessage = "Message send failed (API unavailable/auth required)."
+        }
+    }
+
+    func acceptBid(_ bidID: UUID) {
+        guard let bidIndex = jobBids.firstIndex(where: { $0.id == bidID }) else { return }
+        let jobID = jobBids[bidIndex].jobID
+        for idx in jobBids.indices where jobBids[idx].jobID == jobID {
+            jobBids[idx].accepted = (jobBids[idx].id == bidID)
+        }
+        if let jobIndex = customerJobs.firstIndex(where: { $0.id == jobID }) {
+            customerJobs[jobIndex].status = .matched
+            OneSessionVault.saveCustomerJobs(customerJobs)
+        }
+        let accepted = jobBids[bidIndex]
+        let appointment = CustomerServiceBooking(
+            id: UUID(),
+            helperID: UUID(),
+            helperName: accepted.helperName,
+            serviceType: customerJobs.first(where: { $0.id == jobID })?.category ?? "Service",
+            scheduledDate: Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date(),
+            scheduledSlot: accepted.etaText,
+            paymentAuthorized: true,
+            preMessage: "Looking forward to the appointment.",
+            postMessage: "",
+            reminderEnabled: true,
+            status: "Confirmed",
+            reviewRating: nil,
+            reviewComment: nil
+        )
+        customerServiceBookings.insert(appointment, at: 0)
+        OneSessionVault.saveJobBids(jobBids)
+        OneSessionVault.saveCustomerServiceBookings(customerServiceBookings)
+    }
+
+    @MainActor
+    func acceptBidServerFirst(_ bidID: UUID) async {
+        guard jobBids.contains(where: { $0.id == bidID }) else { return }
+        do {
+            let request = OneAssignBidRequest(bidID: bidID.uuidString, paymentMethod: "oxsteed")
+            let _: OneGenericSuccessResponse = try await api.post("/jobs/assign", body: request)
+            acceptBid(bidID)
+        } catch {
+            acceptBid(bidID)
+            authStatusMessage = "Bid accepted locally (API unavailable/auth required)."
+        }
+    }
+
+    func createServiceBooking(helperID: UUID, serviceType: String, scheduledDate: Date, slot: String, paymentAuthorized: Bool, preMessage: String) {
+        guard let helper = serviceHelpers.first(where: { $0.id == helperID }) else { return }
+        customerServiceBookings.insert(
+            CustomerServiceBooking(
+                id: UUID(),
+                remoteBookingID: nil,
+                helperID: helperID,
+                helperName: helper.name,
+                serviceType: serviceType,
+                scheduledDate: scheduledDate,
+                scheduledSlot: slot,
+                paymentAuthorized: paymentAuthorized,
+                preMessage: preMessage,
+                postMessage: "",
+                reminderEnabled: true,
+                status: "Scheduled",
+                reviewRating: nil,
+                reviewComment: nil
+            ),
+            at: 0
+        )
+        OneSessionVault.saveCustomerServiceBookings(customerServiceBookings)
+    }
+
+    @MainActor
+    func createServiceBookingServerFirst(helperID: UUID, serviceType: String, scheduledDate: Date, slot: String, paymentAuthorized: Bool, preMessage: String) async {
+        do {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            let dateText = formatter.string(from: scheduledDate)
+            let start = slot.isEmpty ? "10:00" : slot
+            let end = "12:00"
+            let req = OneCreateBookingRequest(
+                helperID: helperID.uuidString,
+                serviceName: serviceType,
+                requestedDate: dateText,
+                requestedStartTime: start,
+                requestedEndTime: end,
+                serviceLocation: "Customer location",
+                description: preMessage
+            )
+            let response: OneBookingCreateResponse = try await api.post("/bookings", body: req)
+            guard let helper = serviceHelpers.first(where: { $0.id == helperID }) else { return }
+            customerServiceBookings.insert(
+                CustomerServiceBooking(
+                    id: UUID(),
+                    remoteBookingID: response.data?.id,
+                    helperID: helperID,
+                    helperName: helper.name,
+                    serviceType: serviceType,
+                    scheduledDate: scheduledDate,
+                    scheduledSlot: slot,
+                    paymentAuthorized: paymentAuthorized,
+                    preMessage: preMessage,
+                    postMessage: "",
+                    reminderEnabled: true,
+                    status: "Scheduled",
+                    reviewRating: nil,
+                    reviewComment: nil
+                ),
+                at: 0
+            )
+            OneSessionVault.saveCustomerServiceBookings(customerServiceBookings)
+        } catch {
+            createServiceBooking(helperID: helperID, serviceType: serviceType, scheduledDate: scheduledDate, slot: slot, paymentAuthorized: paymentAuthorized, preMessage: preMessage)
+            authStatusMessage = "Booking saved locally (API unavailable/auth required)."
+        }
+    }
+
+    @MainActor
+    func cancelServiceBookingServerFirst(_ bookingID: UUID) async {
+        guard let booking = customerServiceBookings.first(where: { $0.id == bookingID }) else { return }
+        guard let remoteID = booking.remoteBookingID else {
+            if let idx = customerServiceBookings.firstIndex(where: { $0.id == bookingID }) {
+                customerServiceBookings[idx].status = "Cancelled"
+                OneSessionVault.saveCustomerServiceBookings(customerServiceBookings)
+            }
+            return
+        }
+        do {
+            let _: OneCancelBookingResponse = try await api.post("/bookings/\(remoteID)/cancel", body: [String: String]())
+            if let idx = customerServiceBookings.firstIndex(where: { $0.id == bookingID }) {
+                customerServiceBookings[idx].status = "Cancelled"
+            }
+            OneSessionVault.saveCustomerServiceBookings(customerServiceBookings)
+        } catch {
+            authStatusMessage = "Live cancel failed; booking kept local."
+        }
+    }
+
+    @MainActor
+    func sendBookingMessageServerFirst(_ bookingID: UUID, content: String) async {
+        guard let booking = customerServiceBookings.first(where: { $0.id == bookingID }) else { return }
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        do {
+            let convReq = OneCreateConversationRequest(helperID: booking.helperID.uuidString)
+            let conv: OneConversationDTO = try await api.post("/messages/conversations", body: convReq)
+            guard let convID = conv.id else { throw OneAPIError.invalidResponse }
+            let msgReq = OneSendMessageRequest(content: trimmed)
+            let _: OneGenericSuccessResponse = try await api.post("/messages/conversations/\(convID)", body: msgReq)
+            setBookingPostMessage(bookingID, message: trimmed)
+        } catch {
+            setBookingPostMessage(bookingID, message: trimmed)
+            authStatusMessage = "Message stored locally (API unavailable/auth required)."
+        }
+    }
+
+    func setBookingPostMessage(_ bookingID: UUID, message: String) {
+        guard let idx = customerServiceBookings.firstIndex(where: { $0.id == bookingID }) else { return }
+        customerServiceBookings[idx].postMessage = message
+        OneSessionVault.saveCustomerServiceBookings(customerServiceBookings)
+    }
+
+    func submitBookingReview(_ bookingID: UUID, rating: Int, comment: String) {
+        guard let idx = customerServiceBookings.firstIndex(where: { $0.id == bookingID }) else { return }
+        customerServiceBookings[idx].reviewRating = max(1, min(5, rating))
+        customerServiceBookings[idx].reviewComment = comment
+        customerServiceBookings[idx].status = "Reviewed"
+        OneSessionVault.saveCustomerServiceBookings(customerServiceBookings)
+    }
+
+    func reserveTool(toolID: UUID, slot: String, paymentAuthorized: Bool) {
+        guard let tool = rentalTools.first(where: { $0.id == toolID }) else { return }
+        toolRentalReservations.insert(
+            ToolRentalReservation(
+                id: UUID(),
+                remoteBookingID: nil,
+                toolID: toolID,
+                ownerUserID: nil,
+                toolTitle: tool.title,
+                ownerName: tool.ownerName,
+                slot: slot,
+                paymentAuthorized: paymentAuthorized,
+                pickupConfirmed: false,
+                returnConfirmed: false,
+                damageNotes: "",
+                depositStatus: "Held",
+                disputeStatus: "None"
+            ),
+            at: 0
+        )
+        OneSessionVault.saveToolRentalReservations(toolRentalReservations)
+    }
+
+    @MainActor
+    func reserveToolServerFirst(toolID: UUID, slot: String, paymentAuthorized: Bool) async {
+        do {
+            let start = Date()
+            let end = Calendar.current.date(byAdding: .day, value: 2, to: start) ?? start
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            let req = OneCreateToolReservationRequest(
+                toolID: toolID.uuidString,
+                startDate: formatter.string(from: start),
+                endDate: formatter.string(from: end),
+                renterAgreementAccepted: true
+            )
+            let remote: OneToolBookingResponse = try await api.post("/tool-rentals/bookings", body: req)
+            guard let tool = rentalTools.first(where: { $0.id == toolID }) else { return }
+            toolRentalReservations.insert(
+                ToolRentalReservation(
+                    id: uuidFromString(remote.id) ?? UUID(),
+                    remoteBookingID: remote.id,
+                    toolID: toolID,
+                    ownerUserID: remote.ownerId,
+                    toolTitle: tool.title,
+                    ownerName: tool.ownerName,
+                    slot: slot,
+                    paymentAuthorized: paymentAuthorized,
+                    pickupConfirmed: false,
+                    returnConfirmed: false,
+                    damageNotes: "",
+                    depositStatus: "Held",
+                    disputeStatus: "None"
+                ),
+                at: 0
+            )
+            OneSessionVault.saveToolRentalReservations(toolRentalReservations)
+        } catch {
+            reserveTool(toolID: toolID, slot: slot, paymentAuthorized: paymentAuthorized)
+            authStatusMessage = "Rental reserved locally (API unavailable/auth required)."
+        }
+    }
+
+    @MainActor
+    func cancelToolReservationServerFirst(_ reservationID: UUID) async {
+        guard let reservation = toolRentalReservations.first(where: { $0.id == reservationID }) else { return }
+        guard let remoteID = reservation.remoteBookingID else {
+            setToolDispute(reservationID, open: false)
+            return
+        }
+        do {
+            let req = OneToolBookingStatusUpdateRequest(status: "cancelled")
+            let _: OneToolBookingResponse = try await api.put("/tool-rentals/bookings/\(remoteID)", body: req)
+            if let idx = toolRentalReservations.firstIndex(where: { $0.id == reservationID }) {
+                toolRentalReservations[idx].disputeStatus = "Cancelled"
+                toolRentalReservations[idx].depositStatus = "Released"
+            }
+            OneSessionVault.saveToolRentalReservations(toolRentalReservations)
+        } catch {
+            authStatusMessage = "Live cancel failed; reservation kept local."
+        }
+    }
+
+    @MainActor
+    func openToolDamageDisputeServerFirst(_ reservationID: UUID, description: String) async {
+        guard let reservation = toolRentalReservations.first(where: { $0.id == reservationID }) else { return }
+        guard let remoteID = reservation.remoteBookingID,
+              let ownerID = reservation.ownerUserID,
+              !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            setToolDispute(reservationID, open: true)
+            return
+        }
+        do {
+            let req = OneToolReportRequest(
+                reportedUserID: ownerID,
+                bookingID: remoteID,
+                reportType: "tool_damage",
+                description: description
+            )
+            let _: OneToolReportResponse = try await api.post("/tool-rentals/reports", body: req)
+            setToolDispute(reservationID, open: true)
+        } catch {
+            setToolDispute(reservationID, open: true)
+            authStatusMessage = "Dispute saved locally (API unavailable/auth required)."
+        }
+    }
+
+    func filteredHelpers(query: String, minRating: Double) -> [ServiceHelperProfile] {
+        serviceHelpers.filter {
+            (query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) || $0.specialty.localizedCaseInsensitiveContains(query) || $0.city.localizedCaseInsensitiveContains(query))
+            && $0.rating >= minRating
+        }
+    }
+
+    func filteredTools(query: String, maxDailyRate: Double?) -> [RentalTool] {
+        rentalTools.filter {
+            (query.isEmpty || $0.title.localizedCaseInsensitiveContains(query) || $0.city.localizedCaseInsensitiveContains(query) || $0.ownerName.localizedCaseInsensitiveContains(query))
+            && (maxDailyRate == nil || $0.dailyRate <= (maxDailyRate ?? 0))
+        }
+    }
+
+    func confirmToolPickup(_ reservationID: UUID) {
+        guard let idx = toolRentalReservations.firstIndex(where: { $0.id == reservationID }) else { return }
+        toolRentalReservations[idx].pickupConfirmed = true
+        OneSessionVault.saveToolRentalReservations(toolRentalReservations)
+    }
+
+    func confirmToolReturn(_ reservationID: UUID) {
+        guard let idx = toolRentalReservations.firstIndex(where: { $0.id == reservationID }) else { return }
+        toolRentalReservations[idx].returnConfirmed = true
+        if toolRentalReservations[idx].damageNotes.isEmpty {
+            toolRentalReservations[idx].depositStatus = "Refunded"
+        }
+        OneSessionVault.saveToolRentalReservations(toolRentalReservations)
+    }
+
+    func assessToolDamage(_ reservationID: UUID, notes: String) {
+        guard let idx = toolRentalReservations.firstIndex(where: { $0.id == reservationID }) else { return }
+        toolRentalReservations[idx].damageNotes = notes
+        toolRentalReservations[idx].depositStatus = notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Refunded" : "Under Review"
+        OneSessionVault.saveToolRentalReservations(toolRentalReservations)
+    }
+
+    func setToolDispute(_ reservationID: UUID, open: Bool) {
+        guard let idx = toolRentalReservations.firstIndex(where: { $0.id == reservationID }) else { return }
+        toolRentalReservations[idx].disputeStatus = open ? "Open" : "Resolved"
+        if !open, toolRentalReservations[idx].returnConfirmed {
+            toolRentalReservations[idx].depositStatus = "Refunded"
+        }
+        OneSessionVault.saveToolRentalReservations(toolRentalReservations)
+    }
+
+    func submitAscensionApplication(fullName: String, skill: String, targetLicense: String) {
+        ascensionApplication.fullName = fullName
+        ascensionApplication.currentSkill = skill
+        ascensionApplication.targetLicense = targetLicense
+        ascensionApplication.status = "Submitted"
+        ascensionApplication.submittedAt = Date()
+        growthProgressStep = "Side Income"
+        OneSessionVault.saveAscensionApplication(ascensionApplication)
+    }
+
+    func toggleWholesaleGroupJoin(_ id: UUID) {
+        guard let idx = wholesaleGroups.firstIndex(where: { $0.id == id }) else { return }
+        wholesaleGroups[idx].joined.toggle()
+        wholesaleGroups[idx].memberCount += wholesaleGroups[idx].joined ? 1 : -1
+        OneSessionVault.saveWholesaleGroups(wholesaleGroups)
+    }
+
+    func submitFinancingPrequal(requestedAmount: Double, purpose: String, monthlyRevenue: Double, creditBand: String) {
+        financingPrequal.requestedAmount = requestedAmount
+        financingPrequal.purpose = purpose
+        financingPrequal.monthlyRevenue = monthlyRevenue
+        financingPrequal.creditBand = creditBand
+        financingPrequal.status = "Submitted"
+        growthProgressStep = "Licensed Business"
+        OneSessionVault.saveFinancingPrequal(financingPrequal)
+    }
+
     func refreshMapPointsForActivePersona() {
         mapPoints = OneSessionVault.loadMapPoints().map { point in
             var next = point
             next.title = "[\(activePersona.label)] \(point.title)"
             return next
         }
+    }
+
+    @MainActor
+    func refreshCustomerTransactionData() async {
+        await refreshCustomerJobsFromAPI()
+        await refreshHelpersFromAPI()
+        await refreshAppointmentsFromAPI()
+        await refreshRentalsFromAPI()
     }
 
     @MainActor
@@ -600,27 +1276,127 @@ final class OneStore {
         }
     }
 
-    func signIn() async {
+    @MainActor
+    func login(email: String, password: String) async {
         authStatusMessage = nil
-        guard !authEmail.isEmpty, !authPassword.isEmpty else {
+        isAuthenticating = true
+        defer { isAuthenticating = false }
+
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalizedEmail.isEmpty, !password.isEmpty else {
             authStatusMessage = "Enter email and password."
             return
         }
 
         do {
-            let response: OneAuthResponse = try await api.post("/auth/login", body: OneLoginRequest(email: authEmail, password: authPassword))
-            guard let token = response.token else {
-                authStatusMessage = "No session token returned by OxSteed."
+            let response: OneAuthResponse = try await api.post(
+                "/auth/login",
+                body: OneLoginRequest(
+                    email: normalizedEmail,
+                    password: password,
+                    termsAgreed: true,
+                    agreementName: defaultAgreementName()
+                )
+            )
+            guard let newAccessToken = response.accessToken ?? response.token else {
+                authStatusMessage = "No access token returned by OxSteed."
                 return
             }
-            api.token = token
-            OneSessionVault.saveSession(OneSavedSession(token: token, user: response.user))
-            authStatusMessage = "Signed in to app.oxsteed.com"
-            unifiedInboxThreads = seededThreads()
-            OneSessionVault.saveUnifiedThreads(unifiedInboxThreads)
+            token = newAccessToken
+            refreshToken = response.refreshToken
+            OneSessionVault.saveSession(OneSavedSession(token: newAccessToken, user: response.user))
+            authEmail = normalizedEmail
+            authPassword = ""
+            if biometricEnabled {
+                isLocked = true
+            }
         } catch {
             authStatusMessage = error.localizedDescription
         }
+    }
+
+    @MainActor
+    func register(email: String, password: String, firstName: String, lastName: String, primaryPersona: AppPersona) async {
+        authStatusMessage = nil
+        isAuthenticating = true
+        defer { isAuthenticating = false }
+
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanFirst = firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanLast = lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedEmail.isEmpty, !password.isEmpty, !cleanFirst.isEmpty, !cleanLast.isEmpty else {
+            authStatusMessage = "Fill all required fields."
+            return
+        }
+
+        do {
+            let response: OneAuthResponse = try await api.post(
+                "/auth/register",
+                body: OneRegisterRequest(
+                    email: normalizedEmail,
+                    password: password,
+                    firstName: cleanFirst,
+                    lastName: cleanLast,
+                    role: primaryPersona.apiRole
+                )
+            )
+
+            guard let newAccessToken = response.accessToken ?? response.token else {
+                authStatusMessage = "No access token returned by OxSteed."
+                return
+            }
+            token = newAccessToken
+            refreshToken = response.refreshToken
+            OneSessionVault.saveSession(OneSavedSession(token: newAccessToken, user: response.user))
+            personaContext.activePersona = primaryPersona
+            onboardingState.didComplete = false
+            OneSessionVault.savePersonaContext(personaContext)
+            OneSessionVault.saveOnboardingState(onboardingState)
+            authEmail = normalizedEmail
+            authPassword = ""
+            authFirstName = cleanFirst
+            authLastName = cleanLast
+        } catch {
+            authStatusMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    func logout(clearMessage: Bool = true) {
+        if let refreshToken, !refreshToken.isEmpty {
+            Task {
+                let _: OneGenericSuccessResponse? = try? await api.post("/auth/logout", body: OneLogoutRequest(refreshToken: refreshToken))
+            }
+        }
+        token = nil
+        refreshToken = nil
+        OneSessionVault.clearSession()
+        authPassword = ""
+        isLocked = false
+        if clearMessage {
+            authStatusMessage = nil
+        }
+    }
+
+    private func tryRefreshAccessToken() async -> Bool {
+        guard let currentRefreshToken = refreshToken, !currentRefreshToken.isEmpty else { return false }
+        do {
+            let response: OneAuthResponse = try await api.post("/auth/refresh", body: OneRefreshRequest(refreshToken: currentRefreshToken))
+            guard let newAccessToken = response.accessToken ?? response.token else { return false }
+            token = newAccessToken
+            if let newRefresh = response.refreshToken, !newRefresh.isEmpty {
+                refreshToken = newRefresh
+            }
+            OneSessionVault.saveSession(OneSavedSession(token: newAccessToken, user: response.user))
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    private func defaultAgreementName() -> String {
+        let combined = "\(authFirstName.trimmingCharacters(in: .whitespacesAndNewlines)) \(authLastName.trimmingCharacters(in: .whitespacesAndNewlines))".trimmingCharacters(in: .whitespacesAndNewlines)
+        return combined.isEmpty ? "Alex Johnson" : combined
     }
 
     @MainActor
@@ -639,6 +1415,18 @@ final class OneStore {
         }
         let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
         forceUpdateRequired = compareVersions(current, minimumRequiredVersion) == .orderedAscending
+    }
+
+    private func seedBidsIfNeeded(for jobID: UUID) {
+        let existing = jobBids.contains(where: { $0.jobID == jobID })
+        guard !existing else { return }
+        let seeded = [
+            JobBid(id: UUID(), jobID: jobID, helperName: "Carter Plumbing", amount: 145, etaText: "Tomorrow 10:00 AM", note: "Parts included up to $30.", accepted: false),
+            JobBid(id: UUID(), jobID: jobID, helperName: "River North Handyman", amount: 132, etaText: "Today 4:30 PM", note: "Can start same day.", accepted: false),
+            JobBid(id: UUID(), jobID: jobID, helperName: "SteadyFix Pro", amount: 158, etaText: "Tomorrow 8:00 AM", note: "Licensed and insured.", accepted: false)
+        ]
+        jobBids.insert(contentsOf: seeded, at: 0)
+        OneSessionVault.saveJobBids(jobBids)
     }
 
     private func moderationStatus(for title: String) -> ModerationStatus {
@@ -669,6 +1457,180 @@ final class OneStore {
         homeReloadToken = UUID()
     }
 
+    @MainActor
+    private func refreshCustomerJobsFromAPI() async {
+        do {
+            let response: OneJobListEnvelope = try await api.get("/jobs")
+            let jobs = response.jobs ?? response.data ?? []
+            guard !jobs.isEmpty else { return }
+
+            var mappedJobs: [CustomerJobPost] = []
+            for dto in jobs {
+                let id = uuidFromString(dto.id) ?? UUID()
+                let status = mapJobStatus(dto.status)
+                let city = dto.locationCity ?? ""
+                let state = dto.locationState ?? ""
+                let address = [dto.locationStreet, city, state, dto.locationZip]
+                    .compactMap { $0 }
+                    .filter { !$0.isEmpty }
+                    .joined(separator: ", ")
+                mappedJobs.append(
+                    CustomerJobPost(
+                        id: id,
+                        title: dto.title ?? "Untitled Job",
+                        category: dto.category ?? "General",
+                        locationQuery: city,
+                        address: address,
+                        details: dto.description ?? "",
+                        photos: [],
+                        status: status,
+                        createdAt: Date()
+                    )
+                )
+            }
+
+            customerJobs = mappedJobs
+            OneSessionVault.saveCustomerJobs(customerJobs)
+
+            for job in customerJobs {
+                await refreshBidsFromAPI(for: job.id, remoteJobID: job.id.uuidString)
+            }
+        } catch {
+            // Keep local data when endpoint unavailable.
+        }
+    }
+
+    @MainActor
+    private func refreshBidsFromAPI(for localJobID: UUID, remoteJobID: String) async {
+        do {
+            let response: OneBidListEnvelope = try await api.get("/bids/job/\(remoteJobID)")
+            let rows = response.bids ?? response.data ?? []
+            guard !rows.isEmpty else { return }
+            jobBids.removeAll { $0.jobID == localJobID }
+            let mapped = rows.map { dto in
+                JobBid(
+                    id: uuidFromString(dto.id) ?? UUID(),
+                    jobID: localJobID,
+                    helperName: dto.helperName ?? "Helper",
+                    amount: Double(dto.amountCents ?? 0) / 100.0,
+                    etaText: dto.availabilityStart ?? "TBD",
+                    note: dto.message ?? "",
+                    accepted: false
+                )
+            }
+            jobBids.insert(contentsOf: mapped, at: 0)
+            OneSessionVault.saveJobBids(jobBids)
+        } catch {
+            // Leave local seeded bids.
+        }
+    }
+
+    @MainActor
+    private func refreshHelpersFromAPI() async {
+        do {
+            let response: OneHelperListEnvelope = try await api.get("/helpers")
+            let rows = response.helpers ?? response.data ?? []
+            guard !rows.isEmpty else { return }
+            serviceHelpers = rows.map { dto in
+                ServiceHelperProfile(
+                    id: uuidFromString(dto.id) ?? UUID(),
+                    name: dto.name ?? "Helper",
+                    specialty: dto.category ?? "General",
+                    city: dto.city ?? "Unknown",
+                    rating: dto.avgRating ?? 4.5,
+                    hourlyRate: Double(dto.hourlyRateCents ?? 0) / 100.0,
+                    availableSlots: ["Availability from profile"]
+                )
+            }
+            OneSessionVault.saveServiceHelpers(serviceHelpers)
+        } catch {
+            // Keep local fallback.
+        }
+    }
+
+    @MainActor
+    private func refreshAppointmentsFromAPI() async {
+        do {
+            let response: OneBookingListResponse = try await api.get("/bookings")
+            let rows = response.data ?? []
+            guard !rows.isEmpty else { return }
+            customerServiceBookings = rows.map { dto in
+                CustomerServiceBooking(
+                    id: uuidFromString(dto.id) ?? UUID(),
+                    remoteBookingID: dto.id,
+                    helperID: uuidFromString(dto.helperId) ?? UUID(),
+                    helperName: "Helper",
+                    serviceType: dto.serviceName ?? "Service",
+                    scheduledDate: Date(),
+                    scheduledSlot: dto.requestedStartTime ?? "TBD",
+                    paymentAuthorized: true,
+                    preMessage: "",
+                    postMessage: "",
+                    reminderEnabled: true,
+                    status: dto.status ?? "Scheduled",
+                    reviewRating: nil,
+                    reviewComment: nil
+                )
+            }
+            OneSessionVault.saveCustomerServiceBookings(customerServiceBookings)
+        } catch {
+            // Keep local fallback.
+        }
+    }
+
+    @MainActor
+    private func refreshRentalsFromAPI() async {
+        do {
+            let response: OneRentalListEnvelope = try await api.get("/tool-rentals/my-rentals")
+            let rows = response.rentals ?? response.data ?? []
+            guard !rows.isEmpty else { return }
+            toolRentalReservations = rows.map { dto in
+                let active = (dto.status ?? "").lowercased() == "in_progress"
+                let returned = (dto.status ?? "").lowercased() == "returned"
+                return ToolRentalReservation(
+                    id: uuidFromString(dto.id) ?? UUID(),
+                    remoteBookingID: dto.id,
+                    toolID: uuidFromString(dto.toolId) ?? UUID(),
+                    ownerUserID: dto.ownerId,
+                    toolTitle: dto.toolTitle ?? "Tool",
+                    ownerName: dto.ownerName ?? "Owner",
+                    slot: "\(dto.rentalStartDate ?? "") - \(dto.rentalEndDate ?? "")",
+                    paymentAuthorized: true,
+                    pickupConfirmed: active || returned,
+                    returnConfirmed: returned,
+                    damageNotes: "",
+                    depositStatus: returned ? "Refunded" : "Held",
+                    disputeStatus: "None"
+                )
+            }
+            OneSessionVault.saveToolRentalReservations(toolRentalReservations)
+        } catch {
+            // Keep local fallback.
+        }
+    }
+
+    private func mapJobStatus(_ value: String?) -> CustomerJobStatus {
+        switch value?.lowercased() {
+        case "draft":
+            return .draft
+        case "published", "open":
+            return .published
+        case "matched":
+            return .matched
+        case "in_progress":
+            return .inProgress
+        case "completed":
+            return .completed
+        default:
+            return .published
+        }
+    }
+
+    private func uuidFromString(_ value: String?) -> UUID? {
+        guard let value, !value.isEmpty else { return nil }
+        return UUID(uuidString: value)
+    }
+
     private func section(_ title: String, cards: [HomeCard]) -> HomeSection {
         HomeSection(id: title.lowercased().replacingOccurrences(of: " ", with: "-"), title: title, cards: cards)
     }
@@ -691,10 +1653,10 @@ final class OneStore {
         case .owner:
             return [
                 section("\(businessName) · Owner View", cards: [
-                    card("revenue", "Revenue", "$12,460", "This week snapshot", "chart.line.uptrend.xyaxis.circle.fill"),
-                    card("team", "Team Status", "17 online", "Roster + availability", "person.3.fill"),
-                    card("jobs", "Active Jobs", "12", "3 in-progress · 1 completed today", "list.bullet.clipboard.fill"),
-                    card("invoices", "Invoices", "3 pending", "1 paid today", "doc.richtext.fill"),
+                    card("revenue", "Revenue Snapshot", "$12,460", "Week/month trend and today total", "chart.line.uptrend.xyaxis.circle.fill"),
+                    card("team", "Team Members + Status", "17 online", "Roster with availability and performance", "person.3.fill"),
+                    card("jobs", "Jobs Dispatched to Team", "12", "3 in-progress · 1 completed today", "list.bullet.clipboard.fill"),
+                    card("invoices", "Invoices Sent + Pending", "3 pending", "1 paid today", "doc.richtext.fill"),
                     card("payroll", "Payroll Preview", "$6,240", "Next payout run this Friday", "dollarsign.square.fill"),
                     card("cashapp", "Cash App QR Payouts", "Enabled", "Quick field payouts available", "qrcode")
                 ])
@@ -702,10 +1664,11 @@ final class OneStore {
         case .manager:
             return [
                 section("\(businessName) · Manager View", cards: [
-                    card("roster", "Team Roster", "24", "Assign and approve time off", "person.3.sequence.fill"),
-                    card("dispatch", "Dispatch Board", "12", "Reassign and close jobs", "point.topleft.down.curvedto.point.bottomright.up.fill"),
-                    card("performance", "Team Performance", "92%", "Completion rate this month", "gauge.with.needle.fill"),
-                    card("permissions", "Restricted Access", "No pricing/billing", "Financial settings hidden by role", "lock.shield.fill")
+                    card("roster", "Team Roster", "24", "Employees, reps, and support agents", "person.3.sequence.fill"),
+                    card("dispatch", "Jobs Dispatched + Status", "12", "Assign, reassign, close, and approve time off", "point.topleft.down.curvedto.point.bottomright.up.fill"),
+                    card("performance", "Team Performance", "92%", "Jobs completed, ratings, and earnings", "gauge.with.needle.fill"),
+                    card("payroll", "Payroll Queue", "9 due", "Who gets paid this week", "dollarsign.square.fill"),
+                    card("permissions", "Restricted Access", "No pricing/billing", "Cannot change financial settings", "lock.shield.fill")
                 ])
             ]
         case .representative:
@@ -713,28 +1676,39 @@ final class OneStore {
                 section("\(businessName) · Representative View", cards: [
                     card("leads", "Lead Queue", "14", "Customer estimate requests", "person.crop.rectangle.badge.plus"),
                     card("quotes", "Sent Quotes", "9", "4 awaiting response", "doc.text.fill"),
-                    card("jobs", "Jobs Created", "5", "Ready for dispatch handoff", "square.and.pencil"),
-                    card("permissions", "Restricted Access", "No payroll/dispatch", "Team finances and dispatch board hidden", "lock.shield.fill")
+                    card("jobs", "New Jobs Created", "5", "Sales funnel handoff to manager dispatch", "square.and.pencil"),
+                    card("permissions", "Restricted Access", "No payroll/dispatch", "No team financials or dispatch board access", "lock.shield.fill")
                 ])
             ]
         case .chatSupportAgent:
             return [
                 section("\(businessName) · Support View", cards: [
-                    card("threads", "Assigned Threads", "21", "Customer updates and handoffs", "bubble.left.and.text.bubble.right.fill"),
-                    card("sla", "Response SLA", "18 min", "Average first response", "timer"),
-                    card("tickets", "Unresolved Tickets", "6", "Escalate blocked cases", "exclamationmark.bubble.fill"),
+                    card("threads", "Assigned Conversations", "21", "Only assigned customer threads", "bubble.left.and.text.bubble.right.fill"),
+                    card("tickets", "Unresolved Tickets", "6", "Inquiry queue with handoff/escalation", "exclamationmark.bubble.fill"),
+                    card("sla", "Response SLA", "18 min", "Time remaining before overdue", "timer"),
                     card("permissions", "Restricted Access", "No quotes/financials", "Conversation-only scope by assignment", "lock.shield.fill")
                 ])
             ]
         case .employee:
             return [
                 section("\(businessName) · Employee View", cards: [
-                    card("myjobs", "My Jobs Today", "3", "Only assigned jobs", "figure.run"),
-                    card("time", "Time Tracking", "5h 10m", "Check-in / check-out", "clock.fill"),
-                    card("mileage", "Mileage", "22.4 mi", "Job-linked travel log", "car.fill"),
-                    card("permissions", "Restricted Access", "No team or payroll data", "Business finances hidden", "lock.shield.fill")
+                    card("myjobs", "My Assigned Jobs", "3", "Location, schedule, and status for each", "figure.run"),
+                    card("time", "Time Tracking", "5h 10m", "Check-in / check-out and time log", "clock.fill"),
+                    card("mileage", "Mileage + Photos", "22.4 mi", "Job mileage with before/after upload", "car.fill"),
+                    card("permissions", "Restricted Access", "No team or payroll data", "No other jobs, quotes, or business financials", "lock.shield.fill")
                 ])
             ]
+        }
+    }
+}
+
+private extension AppPersona {
+    var apiRole: String {
+        switch self {
+        case .helper, .businessOwner, .consultant, .toolOwner:
+            return "helper"
+        default:
+            return "customer"
         }
     }
 }
