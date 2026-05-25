@@ -41,6 +41,11 @@
 - **Queue dedupe guard:** Pending sync enqueue now ignores duplicate path/method/payload entries to reduce retry storms and repeated duplicate writes after intermittent outages.
 - **Verification:** `swift build --package-path ios/OxSteedOne` and `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'id=B3145305-585E-4A45-BE2E-FEDBBE8AC2CC' -derivedDataPath /tmp/OxSteedOneDerived build` pass.
 
+**OxSteed One iOS periodic sync + pagination pass (2026-05-25):** IN PROGRESS
+- **Background refresh while authenticated:** **`ios/OxSteedOne/Sources/Stores/OneStore.swift`** now starts a background periodic sync loop (5-minute cadence) when authenticated and online, calling live transaction refresh + pending offline replay; it is cancelled on logout.
+- **Customer jobs pagination:** **`ios/OxSteedOne/Sources/Stores/OneStore.swift`, `ios/OxSteedOne/Sources/Views/TodayView.swift`** now fetch jobs with `page/limit`, track `jobPage`/`hasMoreJobs`/`isLoadingMoreJobs`, and expose a `Load More Jobs` action in Home so customer job history is no longer capped to the first few items.
+- **Verification:** `swift build --package-path ios/OxSteedOne` and `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'id=B3145305-585E-4A45-BE2E-FEDBBE8AC2CC' -derivedDataPath /tmp/OxSteedOneDerived build` pass.
+
 **OxSteed One native iOS app foundation (2026-05-24):** COMPLETE
 - **New greenfield iOS workspace and simulator wrapper:** **`ios/OxSteedOne/Package.swift`, `ios/OxSteedOne/OxSteedOne.xcodeproj/project.pbxproj`, `ios/OxSteedOne/OxSteedOne.xcodeproj/xcshareddata/xcschemes/OxSteedOne.xcscheme`** now add a separate native app target with display name `OxSteed One` and bundle id `com.oxsteed.one`.
 - **Strict-native 4-tab shell with OxSteed branding:** **`ios/OxSteedOne/Sources/Views/OneRootView.swift`, `ios/OxSteedOne/Sources/Views/OneTheme.swift`, `ios/OxSteedOne/Assets/Images.xcassets/OxSteedLogo.imageset/*`** now provide a stable `Home/Life/Growth/Learn` tab architecture and reuse the OxSteed logo in the new app shell.

@@ -490,7 +490,7 @@ struct TodayView: View {
 
             if !store.customerJobs.isEmpty {
                 Divider().padding(.vertical, 4)
-                ForEach(store.customerJobs.prefix(3)) { job in
+                ForEach(store.customerJobs.prefix(5)) { job in
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(job.title).font(.caption.weight(.semibold))
@@ -514,6 +514,13 @@ struct TodayView: View {
                             .disabled(store.isUpdatingJob)
                             .buttonStyle(.bordered)
                     }
+                }
+                if store.hasMoreJobs {
+                    Button(store.isLoadingMoreJobs ? "Loading..." : "Load More Jobs") {
+                        Task { await store.loadMoreCustomerJobs() }
+                    }
+                    .disabled(store.isLoadingMoreJobs)
+                    .buttonStyle(.bordered)
                 }
             }
         }

@@ -121,6 +121,10 @@ final class OneStore {
     var lastToolError: String?
     var isNetworkAvailable = true
     var pushAuthorizationStatus: String = "unknown"
+    var jobPage = 1
+    var jobPageSize = 20
+    var hasMoreJobs = true
+    var isLoadingMoreJobs = false
 
     var growthNextStep: String {
         if ascensionApplication.status == "Not Started" {
@@ -146,6 +150,7 @@ final class OneStore {
     @ObservationIgnored private let networkMonitor = NWPathMonitor()
     @ObservationIgnored private let networkMonitorQueue = DispatchQueue(label: "app.oxsteed.one.networkMonitor")
     #endif
+    @ObservationIgnored private var periodicSyncTask: Task<Void, Never>?
 
     init() {
         api.token = token
@@ -478,6 +483,10 @@ final class OneStore {
                 await refreshCustomerTransactionData()
                 await syncPendingChanges()
             }
+            startPeriodicSyncIfNeeded()
+        } else {
+            periodicSyncTask?.cancel()
+            periodicSyncTask = nil
         }
         if biometricEnabled && isAuthenticated {
             isLocked = true
@@ -1516,6 +1525,8 @@ final class OneStore {
         }
         token = nil
         refreshToken = nil
+        periodicSyncTask?.cancel()
+        periodicSyncTask = nil
         OneSessionVault.clearSession()
         authPassword = ""
         authAgreementName = ""
@@ -1603,37 +1614,21 @@ final class OneStore {
     @MainActor
     private func refreshCustomerJobsFromAPI() async {
         do {
-            let response: OneJobListEnvelope = try await api.get("/jobs")
+            let response: OneJobListEnvelope = try await api.get("/jobs?page=1&limit=\(jobPageSize)")
             let jobs = response.jobs ?? response.data ?? []
-            guard !jobs.isEmpty else { return }
+            if jobs.isEmpty {
+                hasMoreJobs = false
+                return
+            }
 
             var mappedJobs: [CustomerJobPost] = []
             for dto in jobs {
-                let id = uuidFromString(dto.id) ?? UUID()
-                let status = mapJobStatus(dto.status)
-                let city = dto.locationCity ?? ""
-                let state = dto.locationState ?? ""
-                let address = [dto.locationStreet, city, state, dto.locationZip]
-                    .compactMap { $0 }
-                    .filter { !$0.isEmpty }
-                    .joined(separator: ", ")
-                mappedJobs.append(
-                    CustomerJobPost(
-                        id: id,
-                        remoteJobID: dto.id,
-                        title: dto.title ?? "Untitled Job",
-                        category: dto.category ?? "General",
-                        locationQuery: city,
-                        address: address,
-                        details: dto.description ?? "",
-                        photos: [],
-                        status: status,
-                        createdAt: Date()
-                    )
-                )
+                mappedJobs.append(mapCustomerJob(dto))
             }
 
             customerJobs = mappedJobs
+            jobPage = 1
+            hasMoreJobs = jobs.count >= jobPageSize
             OneSessionVault.saveCustomerJobs(customerJobs)
 
             for job in customerJobs {
@@ -1642,6 +1637,34 @@ final class OneStore {
             }
         } catch {
             // Keep local data when endpoint unavailable.
+        }
+    }
+
+    @MainActor
+    func loadMoreCustomerJobs() async {
+        guard !isLoadingMoreJobs, hasMoreJobs else { return }
+        isLoadingMoreJobs = true
+        defer { isLoadingMoreJobs = false }
+        let nextPage = jobPage + 1
+        do {
+            let response: OneJobListEnvelope = try await api.get("/jobs?page=\(nextPage)&limit=\(jobPageSize)")
+            let jobs = response.jobs ?? response.data ?? []
+            if jobs.isEmpty {
+                hasMoreJobs = false
+                return
+            }
+            let mapped = jobs.map(mapCustomerJob)
+            let existing = Set(customerJobs.compactMap(\.remoteJobID))
+            let newRows = mapped.filter { row in
+                guard let rid = row.remoteJobID else { return true }
+                return !existing.contains(rid)
+            }
+            customerJobs.append(contentsOf: newRows)
+            jobPage = nextPage
+            hasMoreJobs = jobs.count >= jobPageSize
+            OneSessionVault.saveCustomerJobs(customerJobs)
+        } catch {
+            lastJobError = error.localizedDescription
         }
     }
 
@@ -1774,6 +1797,48 @@ final class OneStore {
     private func uuidFromString(_ value: String?) -> UUID? {
         guard let value, !value.isEmpty else { return nil }
         return UUID(uuidString: value)
+    }
+
+    private func mapCustomerJob(_ dto: OneJobDTO) -> CustomerJobPost {
+        let id = uuidFromString(dto.id) ?? UUID()
+        let status = mapJobStatus(dto.status)
+        let city = dto.locationCity ?? ""
+        let state = dto.locationState ?? ""
+        let address = [dto.locationStreet, city, state, dto.locationZip]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+            .joined(separator: ", ")
+        return CustomerJobPost(
+            id: id,
+            remoteJobID: dto.id,
+            title: dto.title ?? "Untitled Job",
+            category: dto.category ?? "General",
+            locationQuery: city,
+            address: address,
+            details: dto.description ?? "",
+            photos: [],
+            status: status,
+            createdAt: Date()
+        )
+    }
+
+    private func startPeriodicSyncIfNeeded() {
+        guard periodicSyncTask == nil else { return }
+        periodicSyncTask = Task.detached(priority: .background) { [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 5 * 60 * 1_000_000_000)
+                if Task.isCancelled { break }
+                guard await MainActor.run(body: { self.isAuthenticated && self.isNetworkAvailable }) else { continue }
+                await MainActor.run {
+                    Task {
+                        await self.refreshCustomerTransactionData()
+                        await self.syncPendingChanges()
+                    }
+                    return ()
+                }
+            }
+        }
     }
 
     private func remoteJobIdentifier(for job: CustomerJobPost) -> String? {
