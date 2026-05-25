@@ -429,6 +429,7 @@ enum CustomerJobStatus: String, CaseIterable, Codable, Hashable {
 
 struct CustomerJobPost: Identifiable, Codable, Hashable {
     let id: UUID
+    var remoteJobID: String?
     var title: String
     var category: String
     var locationQuery: String

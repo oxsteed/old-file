@@ -572,7 +572,7 @@ enum OneSessionVault {
         guard let data = UserDefaults.standard.data(forKey: customerJobsKey),
               let jobs = try? JSONDecoder().decode([CustomerJobPost].self, from: data) else {
             return [
-                CustomerJobPost(id: UUID(), title: "Fix kitchen sink leak", category: "Plumbing", locationQuery: "Springfield", address: "123 Oak St, Springfield", details: "Slow drip under sink", photos: [], status: .published, createdAt: Date())
+                CustomerJobPost(id: UUID(), remoteJobID: nil, title: "Fix kitchen sink leak", category: "Plumbing", locationQuery: "Springfield", address: "123 Oak St, Springfield", details: "Slow drip under sink", photos: [], status: .published, createdAt: Date())
             ]
         }
         return jobs

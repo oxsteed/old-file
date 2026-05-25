@@ -773,6 +773,7 @@ final class OneStore {
         guard !title.isEmpty, !category.isEmpty, !address.isEmpty else { return }
         let job = CustomerJobPost(
             id: UUID(),
+            remoteJobID: nil,
             title: title,
             category: category,
             locationQuery: locationQuery,
@@ -821,6 +822,7 @@ final class OneStore {
             customerJobs.insert(
                 CustomerJobPost(
                     id: localID,
+                    remoteJobID: created.id,
                     title: created.title ?? title,
                     category: created.category ?? category,
                     locationQuery: created.locationCity ?? locationQuery,
@@ -849,6 +851,7 @@ final class OneStore {
         customerJobs.insert(
             CustomerJobPost(
                 id: UUID(),
+                remoteJobID: nil,
                 title: title,
                 category: category,
                 locationQuery: locationQuery,
@@ -880,10 +883,13 @@ final class OneStore {
     @MainActor
     func cancelCustomerJobServerFirst(_ jobID: UUID) async {
         guard let job = customerJobs.first(where: { $0.id == jobID }) else { return }
+        guard let remoteID = remoteJobIdentifier(for: job) else {
+            cancelCustomerJob(jobID)
+            return
+        }
         lastJobError = nil
         isUpdatingJob = true
         defer { isUpdatingJob = false }
-        let remoteID = job.id.uuidString
         do {
             let _: OneJobStatusResponse = try await api.post("/jobs/\(remoteID)/cancel", body: [String: String]())
             cancelCustomerJob(jobID)
@@ -898,10 +904,14 @@ final class OneStore {
     @MainActor
     func startCustomerJobServerFirst(_ jobID: UUID) async {
         guard let idx = customerJobs.firstIndex(where: { $0.id == jobID }) else { return }
+        guard let remoteID = remoteJobIdentifier(for: customerJobs[idx]) else {
+            customerJobs[idx].status = .inProgress
+            OneSessionVault.saveCustomerJobs(customerJobs)
+            return
+        }
         lastJobError = nil
         isUpdatingJob = true
         defer { isUpdatingJob = false }
-        let remoteID = customerJobs[idx].id.uuidString
         do {
             let _: OneJobStatusResponse = try await api.post("/jobs/\(remoteID)/start", body: [String: String]())
             customerJobs[idx].status = .inProgress
@@ -918,10 +928,14 @@ final class OneStore {
     @MainActor
     func completeCustomerJobServerFirst(_ jobID: UUID) async {
         guard let idx = customerJobs.firstIndex(where: { $0.id == jobID }) else { return }
+        guard let remoteID = remoteJobIdentifier(for: customerJobs[idx]) else {
+            customerJobs[idx].status = .completed
+            OneSessionVault.saveCustomerJobs(customerJobs)
+            return
+        }
         lastJobError = nil
         isUpdatingJob = true
         defer { isUpdatingJob = false }
-        let remoteID = customerJobs[idx].id.uuidString
         do {
             let _: OneJobStatusResponse = try await api.post("/jobs/\(remoteID)/complete", body: [String: String]())
             customerJobs[idx].status = .completed
@@ -1606,6 +1620,7 @@ final class OneStore {
                 mappedJobs.append(
                     CustomerJobPost(
                         id: id,
+                        remoteJobID: dto.id,
                         title: dto.title ?? "Untitled Job",
                         category: dto.category ?? "General",
                         locationQuery: city,
@@ -1622,7 +1637,8 @@ final class OneStore {
             OneSessionVault.saveCustomerJobs(customerJobs)
 
             for job in customerJobs {
-                await refreshBidsFromAPI(for: job.id, remoteJobID: job.id.uuidString)
+                guard let remoteID = remoteJobIdentifier(for: job) else { continue }
+                await refreshBidsFromAPI(for: job.id, remoteJobID: remoteID)
             }
         } catch {
             // Keep local data when endpoint unavailable.
@@ -1758,6 +1774,11 @@ final class OneStore {
     private func uuidFromString(_ value: String?) -> UUID? {
         guard let value, !value.isEmpty else { return nil }
         return UUID(uuidString: value)
+    }
+
+    private func remoteJobIdentifier(for job: CustomerJobPost) -> String? {
+        let remote = job.remoteJobID?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return remote.isEmpty ? nil : remote
     }
 
     private func section(_ title: String, cards: [HomeCard]) -> HomeSection {
