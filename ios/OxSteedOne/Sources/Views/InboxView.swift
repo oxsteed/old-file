@@ -28,6 +28,61 @@ struct InboxView: View {
             }
 
             GoCard {
+                Text("OxSteed Academy")
+                    .font(.headline)
+                ForEach(store.academyLessons) { lesson in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(lesson.title)
+                            .font(.subheadline.weight(.semibold))
+                        Text("\(lesson.durationMinutes) min · \(lesson.category)")
+                            .font(.caption)
+                            .foregroundStyle(OneTheme.muted)
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+
+            GoCard {
+                Text("Tool Kit Store")
+                    .font(.headline)
+                ForEach(store.toolkitBundles) { bundle in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(bundle.title)
+                            .font(.subheadline.weight(.semibold))
+                        Text("Linked lesson: \(bundle.lessonTitle)")
+                            .font(.caption)
+                            .foregroundStyle(OneTheme.muted)
+                        Text("Estimated cost: \(currency(bundle.estimatedCost))")
+                            .font(.caption2)
+                            .foregroundStyle(OneTheme.muted)
+                        Link("Open affiliate bundle", destination: URL(string: bundle.affiliateURL) ?? URL(string: "https://www.amazon.com")!)
+                            .font(.caption.weight(.semibold))
+                    }
+                    .padding(.vertical, 3)
+                }
+            }
+
+            GoCard {
+                Text("Trending Skills Near You")
+                    .font(.headline)
+                ForEach(store.trendingSkills) { skill in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(skill.name)
+                                .font(.subheadline.weight(.semibold))
+                            Text(skill.city)
+                                .font(.caption2)
+                                .foregroundStyle(OneTheme.muted)
+                        }
+                        Spacer()
+                        Text("\(skill.learnerCount) learning")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(OneTheme.amber)
+                    }
+                }
+            }
+
+            GoCard {
                 Text("Unified Inbox")
                     .font(.headline)
                 Text("Threads remain unified across persona switching.")
@@ -67,21 +122,13 @@ struct InboxView: View {
             }
 
             GoCard {
-                Text("Persona + Role Settings")
-                    .font(.headline)
-                Text("Manage persona and business sub-role from settings.")
-                    .font(.footnote)
-                    .foregroundStyle(OneTheme.muted)
-
-                Button("Open Persona Settings") {
-                    store.showPersonaSheet = true
-                }
-                .buttonStyle(GoAccentButtonStyle())
-            }
-
-            GoCard {
                 Text("Creator Upload + Moderation")
                     .font(.headline)
+                Text(store.canUploadCreatorContent
+                     ? "Verified helper/business owner upload is enabled."
+                     : "Upload requires verified Helper or Business Owner role.")
+                    .font(.caption)
+                    .foregroundStyle(store.canUploadCreatorContent ? .green : OneTheme.muted)
                 TextField("Upload title", text: $newUploadTitle)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -90,6 +137,7 @@ struct InboxView: View {
                     newUploadTitle = ""
                 }
                 .buttonStyle(GoAccentButtonStyle())
+                .disabled(!store.canUploadCreatorContent)
 
                 ForEach(store.creatorUploads) { item in
                     VStack(alignment: .leading, spacing: 4) {
@@ -119,13 +167,6 @@ struct InboxView: View {
                 }
             }
         }
-        .sheet(isPresented: Binding(
-            get: { store.showPersonaSheet },
-            set: { store.showPersonaSheet = $0 }
-        )) {
-            ProfileView()
-                .environment(store)
-        }
     }
 
     private func learnItem(_ title: String, _ detail: String, _ icon: String) -> some View {
@@ -142,5 +183,12 @@ struct InboxView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private func currency(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.locale = store.activeLocale
+        return formatter.string(from: NSNumber(value: value)) ?? "$0"
     }
 }

@@ -13,6 +13,13 @@ struct ShopView: View {
     @State private var transactionTitle = ""
     @State private var transactionAmount = ""
     @State private var transactionIsCredit = true
+    @State private var ascensionName = ""
+    @State private var ascensionSkill = "General Home Services"
+    @State private var ascensionLicense = "HVAC Contractor"
+    @State private var financingAmount = "5000"
+    @State private var financingPurpose = "Equipment"
+    @State private var financingRevenue = "2800"
+    @State private var financingCredit = "Fair"
 
     var body: some View {
         GoScreen(title: "Growth", showsTitle: true) {
@@ -22,6 +29,9 @@ struct ShopView: View {
                 Text("Skill → Side Income → Licensed Business → Scaled Operation")
                     .font(.footnote)
                     .foregroundStyle(OneTheme.muted)
+                Text("Next Step: \(store.growthNextStep)")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(OneTheme.amber)
             }
 
             GoCard {
@@ -29,6 +39,95 @@ struct ShopView: View {
                 growthItem("Community Wholesale Groups", "Join neighborhood bulk-buy campaigns.", "person.3.fill")
                 growthItem("Financing Pre-Qualification", "Micro-loans, equipment, and startup financing pathways.", "banknote.fill")
                 growthItem("Grants & Subsidies", "Location-aware opportunities for your trade.", "doc.badge.gearshape.fill")
+            }
+
+            GoCard {
+                Text("Business Ascension Application")
+                    .font(.headline)
+                TextField("Full name", text: $ascensionName)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                TextField("Current skill", text: $ascensionSkill)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                TextField("Target license/business", text: $ascensionLicense)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                Button("Submit Ascension Application") {
+                    store.submitAscensionApplication(fullName: ascensionName, skill: ascensionSkill, targetLicense: ascensionLicense)
+                    ascensionName = ""
+                }
+                .buttonStyle(GoAccentButtonStyle())
+                Text("Status: \(store.ascensionApplication.status)")
+                    .font(.caption)
+                    .foregroundStyle(OneTheme.muted)
+            }
+
+            GoCard {
+                Text("Community Wholesale Groups")
+                    .font(.headline)
+                ForEach(store.wholesaleGroups) { group in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(group.name)
+                                .font(.subheadline.weight(.semibold))
+                            Text("\(group.city) · \(group.category) · \(group.memberCount) members")
+                                .font(.caption)
+                                .foregroundStyle(OneTheme.muted)
+                        }
+                        Spacer()
+                        Button(group.joined ? "Joined" : "Join") {
+                            store.toggleWholesaleGroupJoin(group.id)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
+            }
+
+            GoCard {
+                Text("Financing Pre-Qualification")
+                    .font(.headline)
+                TextField("Requested amount", text: $financingAmount)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                TextField("Purpose", text: $financingPurpose)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                TextField("Monthly revenue", text: $financingRevenue)
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                Picker("Credit band", selection: $financingCredit) {
+                    Text("Fair").tag("Fair")
+                    Text("Good").tag("Good")
+                    Text("Very Good").tag("Very Good")
+                }
+                Button("Submit Pre-Qualification") {
+                    store.submitFinancingPrequal(
+                        requestedAmount: Double(financingAmount) ?? 0,
+                        purpose: financingPurpose,
+                        monthlyRevenue: Double(financingRevenue) ?? 0,
+                        creditBand: financingCredit
+                    )
+                }
+                .buttonStyle(GoAccentButtonStyle())
+                Text("Status: \(store.financingPrequal.status)")
+                    .font(.caption)
+                    .foregroundStyle(OneTheme.muted)
+            }
+
+            GoCard {
+                Text("Grants & Subsidies")
+                    .font(.headline)
+                ForEach(store.grantOpportunities) { grant in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(grant.title)
+                            .font(.subheadline.weight(.semibold))
+                        Text("\(grant.region) · \(grant.dueText)")
+                            .font(.caption)
+                            .foregroundStyle(OneTheme.muted)
+                    }
+                    .padding(.vertical, 2)
+                }
             }
 
             GoCard {

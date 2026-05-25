@@ -5,6 +5,7 @@ enum AppTab: String, CaseIterable, Identifiable {
     case life
     case growth
     case learn
+    case profile
 
     var id: String { rawValue }
 
@@ -14,6 +15,7 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .life: return "Life"
         case .growth: return "Growth"
         case .learn: return "Learn"
+        case .profile: return "Profile"
         }
     }
 
@@ -23,6 +25,7 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .life: return "heart.text.square.fill"
         case .growth: return "chart.line.uptrend.xyaxis"
         case .learn: return "graduationcap.fill"
+        case .profile: return "person.crop.circle.fill"
         }
     }
 }
@@ -107,6 +110,14 @@ struct BusinessRef: Identifiable, Codable, Hashable {
     let name: String
 }
 
+struct BusinessRoleMembership: Identifiable, Codable, Hashable {
+    let id: UUID
+    let businessID: String
+    let role: BusinessSubRole
+    let isActive: Bool
+    let permissions: [String: Bool]
+}
+
 struct PersonaContext: Codable, Hashable {
     var activePersona: AppPersona = .customer
     var selectedBusinessID: String?
@@ -143,6 +154,7 @@ struct UrgencyItem: Identifiable, Hashable {
     let title: String
     let dueText: String
     let urgency: String
+    let dueDate: Date
 }
 
 struct LifeLogEntry: Identifiable, Codable, Hashable {
@@ -305,6 +317,61 @@ struct DispatchBufferSettings: Codable, Hashable {
     var minutesBetweenJobs: Int
 }
 
+struct AscensionApplication: Codable, Hashable {
+    var fullName: String
+    var currentSkill: String
+    var targetLicense: String
+    var status: String
+    var submittedAt: Date?
+}
+
+struct WholesaleGroup: Identifiable, Codable, Hashable {
+    let id: UUID
+    var name: String
+    var city: String
+    var category: String
+    var memberCount: Int
+    var joined: Bool
+}
+
+struct FinancingPrequalForm: Codable, Hashable {
+    var requestedAmount: Double
+    var purpose: String
+    var monthlyRevenue: Double
+    var creditBand: String
+    var status: String
+}
+
+struct GrantOpportunity: Identifiable, Codable, Hashable {
+    let id: UUID
+    var title: String
+    var region: String
+    var dueText: String
+}
+
+struct AcademyLesson: Identifiable, Codable, Hashable {
+    let id: UUID
+    var title: String
+    var durationMinutes: Int
+    var category: String
+    var toolkitBundleID: UUID?
+}
+
+struct ToolkitBundle: Identifiable, Codable, Hashable {
+    let id: UUID
+    var title: String
+    var lessonTitle: String
+    var affiliateURL: String
+    var estimatedCost: Double
+}
+
+struct TrendingSkill: Identifiable, Codable, Hashable {
+    let id: UUID
+    var name: String
+    var city: String
+    var learnerCount: Int
+}
+
 struct SavedSearchAlert: Identifiable, Codable, Hashable {
     let id: UUID
     var query: String
@@ -350,4 +417,88 @@ struct GlobalSearchResult: Identifiable, Hashable {
     let category: String
     let title: String
     let detail: String
+}
+
+enum CustomerJobStatus: String, CaseIterable, Codable, Hashable {
+    case draft
+    case published
+    case matched
+    case inProgress = "in_progress"
+    case completed
+}
+
+struct CustomerJobPost: Identifiable, Codable, Hashable {
+    let id: UUID
+    var title: String
+    var category: String
+    var locationQuery: String
+    var address: String
+    var details: String
+    var photos: [String]
+    var status: CustomerJobStatus
+    var createdAt: Date
+}
+
+struct JobBid: Identifiable, Codable, Hashable {
+    let id: UUID
+    let jobID: UUID
+    var helperName: String
+    var amount: Double
+    var etaText: String
+    var note: String
+    var accepted: Bool
+}
+
+struct ServiceHelperProfile: Identifiable, Codable, Hashable {
+    let id: UUID
+    var name: String
+    var specialty: String
+    var city: String
+    var rating: Double
+    var hourlyRate: Double
+    var availableSlots: [String]
+}
+
+struct CustomerServiceBooking: Identifiable, Codable, Hashable {
+    let id: UUID
+    var remoteBookingID: String?
+    let helperID: UUID
+    var helperName: String
+    var serviceType: String
+    var scheduledDate: Date
+    var scheduledSlot: String
+    var paymentAuthorized: Bool
+    var preMessage: String
+    var postMessage: String
+    var reminderEnabled: Bool
+    var status: String
+    var reviewRating: Int?
+    var reviewComment: String?
+}
+
+struct RentalTool: Identifiable, Codable, Hashable {
+    let id: UUID
+    var title: String
+    var ownerName: String
+    var city: String
+    var dailyRate: Double
+    var deposit: Double
+    var terms: String
+    var availableSlots: [String]
+}
+
+struct ToolRentalReservation: Identifiable, Codable, Hashable {
+    let id: UUID
+    var remoteBookingID: String?
+    let toolID: UUID
+    var ownerUserID: String?
+    var toolTitle: String
+    var ownerName: String
+    var slot: String
+    var paymentAuthorized: Bool
+    var pickupConfirmed: Bool
+    var returnConfirmed: Bool
+    var damageNotes: String
+    var depositStatus: String
+    var disputeStatus: String
 }
