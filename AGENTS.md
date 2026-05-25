@@ -51,6 +51,11 @@
 - **Failure-path UX wiring:** Biometric failures now set user-visible error state (`lastBidError` / `lastBookingError` / `lastToolError`) so actions are blocked with clear feedback instead of silently failing.
 - **Verification:** `swift build --package-path ios/OxSteedOne` and `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'id=B3145305-585E-4A45-BE2E-FEDBBE8AC2CC' -derivedDataPath /tmp/OxSteedOneDerived build` pass.
 
+**OxSteed One iOS localization coverage expansion pass (2026-05-25):** IN PROGRESS
+- **Expanded multilingual key catalog:** **`ios/OxSteedOne/Sources/Services/GoLocalization.swift`** now adds additional EN/ES/FR/HT keys for Home customer flow headings/actions and Settings section/action labels.
+- **High-traffic screens wired to localization keys:** **`ios/OxSteedOne/Sources/Views/{Today,Profile}View.swift`** now use localized labels for customer job/bid/booking/rental headers and core Settings sections/actions instead of hardcoded English text.
+- **Verification:** `swift build --package-path ios/OxSteedOne` and `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'id=B3145305-585E-4A45-BE2E-FEDBBE8AC2CC' -derivedDataPath /tmp/OxSteedOneDerived build` pass.
+
 **OxSteed One native iOS app foundation (2026-05-24):** COMPLETE
 - **New greenfield iOS workspace and simulator wrapper:** **`ios/OxSteedOne/Package.swift`, `ios/OxSteedOne/OxSteedOne.xcodeproj/project.pbxproj`, `ios/OxSteedOne/OxSteedOne.xcodeproj/xcshareddata/xcschemes/OxSteedOne.xcscheme`** now add a separate native app target with display name `OxSteed One` and bundle id `com.oxsteed.one`.
 - **Strict-native 4-tab shell with OxSteed branding:** **`ios/OxSteedOne/Sources/Views/OneRootView.swift`, `ios/OxSteedOne/Sources/Views/OneTheme.swift`, `ios/OxSteedOne/Assets/Images.xcassets/OxSteedLogo.imageset/*`** now provide a stable `Home/Life/Growth/Learn` tab architecture and reuse the OxSteed logo in the new app shell.

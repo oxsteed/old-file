@@ -6,8 +6,8 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Active Persona") {
-                    Picker("Persona", selection: Binding(
+                Section(store.localized("settings.active_persona", fallback: "Active Persona")) {
+                    Picker(store.localized("settings.persona", fallback: "Persona"), selection: Binding(
                         get: { store.activePersona },
                         set: { store.selectPersona($0) }
                     )) {
@@ -19,7 +19,7 @@ struct ProfileView: View {
                 }
 
                 if store.activePersona == .businessOwner {
-                    Section("Business") {
+                    Section(store.localized("settings.business", fallback: "Business")) {
                         if store.canOverrideBusinessSubRole {
                             Picker("Sub-role", selection: Binding(
                                 get: { store.personaContext.businessSubRole },
@@ -40,13 +40,13 @@ struct ProfileView: View {
                                 .foregroundStyle(.secondary)
                         }
 
-                        Button("Choose Business") {
+                        Button(store.localized("settings.choose_business", fallback: "Choose Business")) {
                             store.showBusinessPicker = true
                         }
                     }
                 }
 
-                Section("Language & Localization") {
+                Section(store.localized("settings.language_localization", fallback: "Language & Localization")) {
                     Picker("Language", selection: Binding(
                         get: { store.appLanguage },
                         set: { store.setLanguage($0) }
@@ -63,7 +63,7 @@ struct ProfileView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Section("Display & Privacy") {
+                Section(store.localized("settings.display_privacy", fallback: "Display & Privacy")) {
                     Picker("Appearance", selection: Binding(
                         get: { store.appPreferences.appearance },
                         set: { store.setAppearance($0) }
@@ -112,7 +112,7 @@ struct ProfileView: View {
                     }
                 }
 
-                Section("Notification Preferences by Persona") {
+                Section(store.localized("settings.notification_preferences_persona", fallback: "Notification Preferences by Persona")) {
                     ForEach(store.notificationPreferences) { pref in
                         VStack(alignment: .leading, spacing: 8) {
                             Toggle("\(pref.persona.label) alerts", isOn: Binding(
@@ -131,7 +131,7 @@ struct ProfileView: View {
                     }
                 }
 
-                Section("Availability Manager") {
+                Section(store.localized("settings.availability_manager", fallback: "Availability Manager")) {
                     ForEach(store.availabilityBlocks) { block in
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
@@ -151,11 +151,11 @@ struct ProfileView: View {
                     }
                 }
 
-                Section("Account Recovery & Export") {
+                Section(store.localized("settings.account_recovery_export", fallback: "Account Recovery & Export")) {
                     Text(store.accountRecoveryReady ? "Recovery snapshot ready for restore on new device." : "Recovery snapshot not ready.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    Button("Request Data Export") {
+                    Button(store.localized("settings.request_data_export", fallback: "Request Data Export")) {
                         store.requestDataExport()
                     }
                     if store.dataExportRequested {
@@ -163,7 +163,7 @@ struct ProfileView: View {
                             .font(.caption)
                             .foregroundStyle(.green)
                     }
-                    Button("Request Account Deletion") {
+                    Button(store.localized("settings.request_account_deletion", fallback: "Request Account Deletion")) {
                         store.requestAccountDeletion()
                     }
                     .foregroundStyle(.red)
@@ -174,7 +174,7 @@ struct ProfileView: View {
                     }
                 }
 
-                Section("App API") {
+                Section(store.localized("settings.app_api", fallback: "App API")) {
                     Text("Base URL: https://app.oxsteed.com/api")
                         .font(.footnote)
                         .foregroundStyle(.secondary)

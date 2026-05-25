@@ -389,7 +389,7 @@ struct TodayView: View {
 
     private var customerJobPostingCard: some View {
         GoCard {
-            Text("Customer Job Posting")
+            Text(store.localized("home.customer_job_posting", fallback: "Customer Job Posting"))
                 .font(.headline)
             TextField("Job title", text: $postTitle)
                 .padding(10)
@@ -421,7 +421,7 @@ struct TodayView: View {
                 .font(.caption)
                 .foregroundStyle(OneTheme.muted)
             HStack {
-                Button("Save Draft") {
+                Button(store.localized("home.save_draft", fallback: "Save Draft")) {
                     let photos = postPhotos.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
                     store.saveCustomerJobDraft(
                         title: postTitle,
@@ -435,7 +435,7 @@ struct TodayView: View {
                 .buttonStyle(.bordered)
                 Spacer()
             }
-            Button("Publish Job + Notify Helpers") {
+            Button(store.localized("home.publish_job", fallback: "Publish Job + Notify Helpers")) {
                 let photos = postPhotos.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
                 Task {
                     await store.postCustomerJobServerFirst(
@@ -516,7 +516,7 @@ struct TodayView: View {
                     }
                 }
                 if store.hasMoreJobs {
-                    Button(store.isLoadingMoreJobs ? "Loading..." : "Load More Jobs") {
+                    Button(store.isLoadingMoreJobs ? "Loading..." : store.localized("home.load_more_jobs", fallback: "Load More Jobs")) {
                         Task { await store.loadMoreCustomerJobs() }
                     }
                     .disabled(store.isLoadingMoreJobs)
@@ -528,7 +528,7 @@ struct TodayView: View {
 
     private var customerBidsCard: some View {
         GoCard {
-            Text("Bids + Comparison")
+            Text(store.localized("home.bids_comparison", fallback: "Bids + Comparison"))
                 .font(.headline)
             if store.customerJobs.isEmpty {
                 Text("Post a job to start receiving bids.")
@@ -614,7 +614,7 @@ struct TodayView: View {
 
     private var customerServiceBookingCard: some View {
         GoCard {
-            Text("Customer Service Booking")
+            Text(store.localized("home.customer_service_booking", fallback: "Customer Service Booking"))
                 .font(.headline)
             TextField("Search helpers", text: $helperSearch)
                 .padding(10)
@@ -729,7 +729,7 @@ struct TodayView: View {
 
     private var customerToolRentalCard: some View {
         GoCard {
-            Text("Tool Rental Flow")
+            Text(store.localized("home.tool_rental_flow", fallback: "Tool Rental Flow"))
                 .font(.headline)
             TextField("Search tool rentals", text: $toolSearch)
                 .padding(10)
