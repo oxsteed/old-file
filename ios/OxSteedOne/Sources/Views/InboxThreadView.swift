@@ -20,6 +20,14 @@ struct InboxThreadView: View {
         .navigationTitle(thread.title)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { loadHistory() }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 5 * 1_000_000_000)
+                if Task.isCancelled { break }
+                messages = await store.fetchMessageHistory(threadID: thread.id)
+                await store.fetchUnifiedInbox()
+            }
+        }
     }
 
     // MARK: - Message list with auto-scroll
@@ -165,6 +173,8 @@ struct InboxThreadView: View {
                 content: trimmed,
                 persona: store.activePersona
             )
+            messages = await store.fetchMessageHistory(threadID: thread.id)
+            await store.fetchUnifiedInbox()
             isSending = false
         }
     }

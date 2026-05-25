@@ -86,6 +86,26 @@
 - **Auth UX validation guard:** **`ios/OxSteedOne/Sources/Views/OneRootView.swift`** sign-in CTA is now disabled until required fields and consent are valid, reducing avoidable bad requests during user testing.
 - **Verification:** `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath /tmp/OxSteedOneDerived build` passes.
 
+**OxSteed One iOS auth/profile endpoint reliability pass (2026-05-25):** IN PROGRESS
+- **Simulator login/profile hydration reliability improvements:** **`ios/OxSteedOne/Sources/Stores/OneStore.swift`** now defaults API base URL to `https://oxsteed.com/api` (live auth host), uses profile endpoint fallback order `/auth/me` then `/me` for session hydration, and expands push-token registration endpoint fallbacks to include `/mobile/push-token`.
+- **Verification:** `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath /tmp/OxSteedOneDerived build` passes.
+
+**OxSteed One iOS push-token payload compatibility + inbox near-real-time refresh pass (2026-05-25):** IN PROGRESS
+- **Mobile push-token contract compatibility:** **`ios/OxSteedOne/Sources/Models/OneAPIModels.swift`, `ios/OxSteedOne/Sources/Stores/OneStore.swift`** now add a mobile-specific push payload (`token`, `provider`, `platform`) for `/api/mobile/push-token` while preserving existing `device_token` payload fallback paths for other notification endpoints.
+- **Inbox near-real-time updates without full socket client:** **`ios/OxSteedOne/Sources/Views/InboxView.swift`** now performs immediate inbox fetch on view load and background 15-second refresh cycles (plus translation refresh when enabled) so message previews update continuously during active Learn/Inbox usage while full Socket.IO client integration is still pending.
+- **Verification:** `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath /tmp/OxSteedOneDerived build` passes.
+
+**OxSteed One iOS auth-host and thread-message endpoint alignment pass (2026-05-25):** IN PROGRESS
+- **Live auth host default fix for simulator sign-in:** **`ios/OxSteedOne/Sources/Services/OneAPIClient.swift`, `ios/OxSteedOne/Sources/Stores/OneStore.swift`** now default to `https://oxsteed.com/api` so auth targets a live route (`/api/auth/login`) instead of `app.oxsteed.com` 404ing at sign-in time.
+- **Conversation message write/read endpoint alignment:** **`ios/OxSteedOne/Sources/Stores/OneStore.swift`** now sends thread messages via `POST /api/messages/conversations/:conversationId` and fetches thread history via `GET /api/messages/conversations/:conversationId`, matching the backend route contract and the existing conversation-creation flow.
+- **Thread-level near-real-time updates:** **`ios/OxSteedOne/Sources/Views/InboxThreadView.swift`** now keeps message history fresh with a 5-second active-thread refresh loop while the full socket client remains pending.
+- **Verification:** `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath /tmp/OxSteedOneDerived build` passes.
+
+**OxSteed One iOS customer job photo upload contract pass (2026-05-25):** IN PROGRESS
+- **Direct multipart job publish with native images:** **`ios/OxSteedOne/Sources/Services/OneAPIClient.swift`, `ios/OxSteedOne/Sources/Stores/OneStore.swift`, `ios/OxSteedOne/Sources/Views/TodayView.swift`** now publish customer jobs with selected photos as `media` multipart files directly to `POST /api/jobs`, matching the backend upload contract instead of relying on the missing `/api/media/presigned-url` endpoint.
+- **Multipart transport added to API client:** **`ios/OxSteedOne/Sources/Services/OneAPIClient.swift`** now includes reusable multipart request support with auth-header + 401 refresh retry behavior, so additional file-upload flows can reuse the same transport path.
+- **Verification:** `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath /tmp/OxSteedOneDerived build` passes.
+
 **OxSteed One native iOS app foundation (2026-05-24):** COMPLETE
 - **New greenfield iOS workspace and simulator wrapper:** **`ios/OxSteedOne/Package.swift`, `ios/OxSteedOne/OxSteedOne.xcodeproj/project.pbxproj`, `ios/OxSteedOne/OxSteedOne.xcodeproj/xcshareddata/xcschemes/OxSteedOne.xcscheme`** now add a separate native app target with display name `OxSteed One` and bundle id `com.oxsteed.one`.
 - **Strict-native 4-tab shell with OxSteed branding:** **`ios/OxSteedOne/Sources/Views/OneRootView.swift`, `ios/OxSteedOne/Sources/Views/OneTheme.swift`, `ios/OxSteedOne/Assets/Images.xcassets/OxSteedLogo.imageset/*`** now provide a stable `Home/Life/Growth/Learn` tab architecture and reuse the OxSteed logo in the new app shell.

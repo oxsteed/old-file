@@ -204,6 +204,22 @@ struct InboxView: View {
             }
         }
         } // NavigationStack
+        .task {
+            await store.fetchUnifiedInbox()
+            if store.autoTranslateEnabled {
+                await store.refreshTranslatedPreviews()
+            }
+        }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 15 * 1_000_000_000)
+                if Task.isCancelled { break }
+                await store.fetchUnifiedInbox()
+                if store.autoTranslateEnabled {
+                    await store.refreshTranslatedPreviews()
+                }
+            }
+        }
     }
 
     private func learnItem(_ title: String, _ detail: String, _ icon: String) -> some View {

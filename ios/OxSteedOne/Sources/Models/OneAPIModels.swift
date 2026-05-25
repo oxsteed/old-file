@@ -508,3 +508,9 @@ struct OneDeviceTokenRequest: Encodable {
         case platform
     }
 }
+
+struct OneMobilePushTokenRequest: Encodable {
+    let token: String
+    let provider: String
+    let platform: String
+}

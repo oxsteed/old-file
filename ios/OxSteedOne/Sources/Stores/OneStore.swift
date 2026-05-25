@@ -880,7 +880,15 @@ final class OneStore {
     }
 
     @MainActor
-    func postCustomerJobServerFirst(title: String, category: String, locationQuery: String, address: String, details: String, photos: [String]) async {
+    func postCustomerJobServerFirst(
+        title: String,
+        category: String,
+        locationQuery: String,
+        address: String,
+        details: String,
+        photos: [String],
+        localImages: [UIImage] = []
+    ) async {
         customerJobFlowMessage = nil
         lastJobError = nil
         isSubmittingCustomerJob = true
@@ -907,7 +915,36 @@ final class OneStore {
         )
 
         do {
-            let created: OneJobDTO = try await api.post("/jobs", body: request)
+            let created: OneJobDTO
+            if !localImages.isEmpty {
+                let files: [OneMultipartFile] = localImages.compactMap { image in
+                    guard let jpeg = image.jpegData(compressionQuality: 0.82) else { return nil }
+                    return OneMultipartFile(
+                        fieldName: "media",
+                        fileName: "job-photo-\(UUID().uuidString).jpg",
+                        mimeType: "image/jpeg",
+                        data: jpeg
+                    )
+                }
+
+                let fields: [String: String] = [
+                    "title": title,
+                    "description": normalizedDetail,
+                    "category_name": category,
+                    "location_city": locationQuery.isEmpty ? "Springfield" : locationQuery,
+                    "location_state": "MA",
+                    "location_address": address,
+                    "location_zip": "01103",
+                    "location_country": "US",
+                    "urgency": "flexible",
+                    "budget_type": "range",
+                    "budget_min": String(budgetMin),
+                    "budget_max": String(budgetMax)
+                ]
+                created = try await api.postMultipart("/jobs", fields: fields, files: files)
+            } else {
+                created = try await api.post("/jobs", body: request)
+            }
             let localID = uuidFromString(created.id) ?? UUID()
             customerJobs.insert(
                 CustomerJobPost(
@@ -1613,11 +1650,7 @@ final class OneStore {
     @MainActor
     func sendMessage(threadID: Int, content: String, persona: AppPersona) async {
         guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        let request: [String: Any] = [
-            "thread_id": threadID,
-            "content": content,
-            "persona_source": persona.label
-        ]
+        let request: [String: Any] = ["content": content]
         // Optimistic local preview update
         if let idx = unifiedInboxThreads.firstIndex(where: { $0.id == threadID }) {
             unifiedInboxThreads[idx].lastMessage = content
@@ -1625,10 +1658,10 @@ final class OneStore {
         OneSessionVault.saveUnifiedThreads(unifiedInboxThreads)
         do {
             let payload = try JSONSerialization.data(withJSONObject: request, options: [])
-            let _: OneGenericSuccessResponse = try await api.postRaw("/messages/send", bodyData: payload)
+            let _: OneGenericSuccessResponse = try await api.postRaw("/messages/conversations/\(threadID)", bodyData: payload)
         } catch {
             authStatusMessage = "Message send failed. Please try again."
-            enqueueForRetry(path: "/messages/send", method: .post, jsonObject: request)
+            enqueueForRetry(path: "/messages/conversations/\(threadID)", method: .post, jsonObject: request)
         }
     }
 
@@ -1637,7 +1670,7 @@ final class OneStore {
     func fetchMessageHistory(threadID: Int, limit: Int = 20, offset: Int = 0) async -> [OneMessage] {
         do {
             let response: OneMessageListResponse = try await api.get(
-                "/messages/thread/\(threadID)?limit=\(limit)&offset=\(offset)"
+                "/messages/conversations/\(threadID)?limit=\(limit)&offset=\(offset)"
             )
             return response.messages
         } catch {
@@ -1673,16 +1706,19 @@ final class OneStore {
     /// Sends the stored APNs device token to the backend. Silently no-ops if no token is stored yet.
     func sendDeviceTokenToServer() async {
         guard let token = OneSessionVault.loadDeviceToken(), !token.isEmpty else { return }
-        let req = OneDeviceTokenRequest(deviceToken: token, platform: "ios")
-        let candidatePaths = [
-            "/device-tokens/register",
-            "/notifications/register-device",
-            "/notifications/register"
-        ]
+        let candidatePaths = ["/mobile/push-token", "/device-tokens/register", "/notifications/register-device", "/notifications/register", "/notifications/push-token"]
         for path in candidatePaths {
             do {
-                let _: OneGenericSuccessResponse = try await runWithRetry {
-                    try await self.api.post(path, body: req)
+                if path == "/mobile/push-token" {
+                    let mobileReq = OneMobilePushTokenRequest(token: token, provider: "apns", platform: "ios")
+                    let _: OneGenericSuccessResponse = try await runWithRetry {
+                        try await self.api.post(path, body: mobileReq)
+                    }
+                } else {
+                    let req = OneDeviceTokenRequest(deviceToken: token, platform: "ios")
+                    let _: OneGenericSuccessResponse = try await runWithRetry {
+                        try await self.api.post(path, body: req)
+                    }
                 }
                 return
             } catch {
@@ -2463,9 +2499,8 @@ final class OneStore {
     @MainActor
     func fetchMyProfile() async {
         do {
-            let envelope: OneDataEnvelope<OneUserProfile> = try await runWithRetry {
-                try await self.api.get("/me")
-            }
+            let profilePaths = ["/auth/me", "/me"]
+            let envelope: OneDataEnvelope<OneUserProfile> = try await getWithPathFallback(paths: profilePaths)
             let profile = envelope.data
             if let uid = profile.id {
                 currentUserID = uid
@@ -2855,6 +2890,26 @@ final class OneStore {
         }
 
         throw lastError ?? OneAPIError.invalidResponse
+    }
+
+    private func getWithPathFallback<Response: Decodable>(paths: [String]) async throws -> Response {
+        var lastError: Error?
+        for path in paths {
+            do {
+                return try await runWithRetry {
+                    try await self.api.get(path)
+                }
+            } catch {
+                if let apiError = error as? OneAPIError,
+                   case let .server(status, _) = apiError,
+                   status == 404 {
+                    lastError = error
+                    continue
+                }
+                throw error
+            }
+        }
+        throw lastError ?? OneAPIError.server(404, "No endpoint variant responded.")
     }
 
     private func businessOwnerSections(for role: BusinessSubRole) -> [HomeSection] {

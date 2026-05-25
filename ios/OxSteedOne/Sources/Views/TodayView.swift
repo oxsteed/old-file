@@ -504,15 +504,14 @@ struct TodayView: View {
             }
             Button {
                 Task {
-                    // Upload photos first, then publish the job with their CDN URLs
-                    let photoURLs = await store.uploadPhotosAndGetURLs(selectedJobPhotos)
                     await store.postCustomerJobServerFirst(
                         title: postTitle,
                         category: postCategory,
                         locationQuery: postLocation,
                         address: postAddress,
                         details: postDetails,
-                        photos: photoURLs
+                        photos: [],
+                        localImages: selectedJobPhotos
                     )
                     postTitle = ""
                     postDetails = ""
@@ -551,14 +550,14 @@ struct TodayView: View {
                     Spacer()
                     Button("Retry") {
                         Task {
-                            let photoURLs = await store.uploadPhotosAndGetURLs(selectedJobPhotos)
                             await store.postCustomerJobServerFirst(
                                 title: postTitle,
                                 category: postCategory,
                                 locationQuery: postLocation,
                                 address: postAddress,
                                 details: postDetails,
-                                photos: photoURLs
+                                photos: [],
+                                localImages: selectedJobPhotos
                             )
                         }
                     }

@@ -17,7 +17,7 @@ enum OneAPIError: Error, LocalizedError {
 }
 
 final class OxSteedOneAPIClient {
-    var baseURL = URL(string: "https://app.oxsteed.com/api")!
+    var baseURL = URL(string: "https://oxsteed.com/api")!
     var token: String?
     var tokenProvider: (() -> String?)?
     var refreshTokenHandler: (() async -> Bool)?
@@ -47,6 +47,16 @@ final class OxSteedOneAPIClient {
 
     func postRaw<Response: Decodable>(_ path: String, bodyData: Data) async throws -> Response {
         try await request(path, method: "POST", body: bodyData)
+    }
+
+    func postMultipart<Response: Decodable>(
+        _ path: String,
+        fields: [String: String],
+        files: [OneMultipartFile]
+    ) async throws -> Response {
+        let boundary = "Boundary-\(UUID().uuidString)"
+        let body = makeMultipartBody(boundary: boundary, fields: fields, files: files)
+        return try await performMultipartRequest(path, method: "POST", body: body, boundary: boundary, didRetry: false)
     }
 
     func putRaw<Response: Decodable>(_ path: String, bodyData: Data) async throws -> Response {
@@ -155,6 +165,75 @@ final class OxSteedOneAPIClient {
         return data
     }
 
+    private func performMultipartRequest<Response: Decodable>(
+        _ path: String,
+        method: String,
+        body: Data,
+        boundary: String,
+        didRetry: Bool
+    ) async throws -> Response {
+        guard let url = resolvedURL(for: path) else {
+            throw OneAPIError.invalidURL(path)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.httpBody = body
+
+        if let resolvedToken = tokenProvider?() ?? token {
+            request.setValue("Bearer \(resolvedToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw OneAPIError.invalidResponse
+        }
+
+        if http.statusCode == 401 {
+            if didRetry {
+                onUnauthorized?()
+                throw OneAPIError.unauthorized
+            }
+
+            if let refreshTokenHandler, await refreshTokenHandler() {
+                return try await performMultipartRequest(path, method: method, body: body, boundary: boundary, didRetry: true)
+            }
+
+            onUnauthorized?()
+            throw OneAPIError.unauthorized
+        }
+
+        guard (200..<300).contains(http.statusCode) else {
+            throw OneAPIError.server(http.statusCode, String(data: data, encoding: .utf8) ?? "No body")
+        }
+
+        return try decoder.decode(Response.self, from: data)
+    }
+
+    private func makeMultipartBody(boundary: String, fields: [String: String], files: [OneMultipartFile]) -> Data {
+        var body = Data()
+        let lineBreak = "\r\n"
+
+        for (key, value) in fields {
+            body.append("--\(boundary)\(lineBreak)".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(key)\"\(lineBreak)\(lineBreak)".data(using: .utf8)!)
+            body.append("\(value)\(lineBreak)".data(using: .utf8)!)
+        }
+
+        for file in files {
+            body.append("--\(boundary)\(lineBreak)".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(file.fieldName)\"; filename=\"\(file.fileName)\"\(lineBreak)".data(using: .utf8)!)
+            body.append("Content-Type: \(file.mimeType)\(lineBreak)\(lineBreak)".data(using: .utf8)!)
+            body.append(file.data)
+            body.append(lineBreak.data(using: .utf8)!)
+        }
+
+        body.append("--\(boundary)--\(lineBreak)".data(using: .utf8)!)
+        return body
+    }
+
     private func resolvedURL(for path: String) -> URL? {
         if let absolute = URL(string: path), absolute.scheme != nil {
             return absolute
@@ -171,6 +250,13 @@ final class OxSteedOneAPIClient {
         let relativePath = trimmed.hasPrefix("/") ? String(trimmed.dropFirst()) : trimmed
         return URL(string: relativePath, relativeTo: normalizedBase)
     }
+}
+
+struct OneMultipartFile {
+    let fieldName: String
+    let fileName: String
+    let mimeType: String
+    let data: Data
 }
 
 enum OneErrorMapper {
