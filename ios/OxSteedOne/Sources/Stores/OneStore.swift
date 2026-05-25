@@ -1030,6 +1030,11 @@ final class OneStore {
     func acceptBidServerFirst(_ bidID: UUID) async {
         guard jobBids.contains(where: { $0.id == bidID }) else { return }
         if bidAcceptanceInFlight.contains(bidID) { return }
+        let canProceed = await authorizeSensitiveAction(reason: "Authorize bid acceptance and appointment creation")
+        guard canProceed else {
+            lastBidError = "Biometric confirmation required."
+            return
+        }
         customerJobFlowMessage = nil
         lastBidError = nil
         bidAcceptanceInFlight.insert(bidID)
@@ -1074,6 +1079,11 @@ final class OneStore {
 
     @MainActor
     func createServiceBookingServerFirst(helperID: UUID, serviceType: String, scheduledDate: Date, slot: String, paymentAuthorized: Bool, preMessage: String) async {
+        let canProceed = await authorizeSensitiveAction(reason: "Authorize service booking payment")
+        guard canProceed else {
+            lastBookingError = "Biometric confirmation required."
+            return
+        }
         lastBookingError = nil
         isCreatingBooking = true
         defer { isCreatingBooking = false }
@@ -1209,6 +1219,11 @@ final class OneStore {
 
     @MainActor
     func reserveToolServerFirst(toolID: UUID, slot: String, paymentAuthorized: Bool) async {
+        let canProceed = await authorizeSensitiveAction(reason: "Authorize tool rental reservation payment")
+        guard canProceed else {
+            lastToolError = "Biometric confirmation required."
+            return
+        }
         lastToolError = nil
         isReservingTool = true
         defer { isReservingTool = false }
@@ -1839,6 +1854,27 @@ final class OneStore {
                 }
             }
         }
+    }
+
+    @MainActor
+    private func authorizeSensitiveAction(reason: String) async -> Bool {
+        guard biometricEnabled else { return true }
+        #if canImport(LocalAuthentication)
+        let context = LAContext()
+        var error: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
+            authStatusMessage = "Biometrics unavailable on this device."
+            return false
+        }
+        do {
+            return try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)
+        } catch {
+            authStatusMessage = "Biometric authentication failed."
+            return false
+        }
+        #else
+        return true
+        #endif
     }
 
     private func remoteJobIdentifier(for job: CustomerJobPost) -> String? {

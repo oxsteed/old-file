@@ -46,6 +46,11 @@
 - **Customer jobs pagination:** **`ios/OxSteedOne/Sources/Stores/OneStore.swift`, `ios/OxSteedOne/Sources/Views/TodayView.swift`** now fetch jobs with `page/limit`, track `jobPage`/`hasMoreJobs`/`isLoadingMoreJobs`, and expose a `Load More Jobs` action in Home so customer job history is no longer capped to the first few items.
 - **Verification:** `swift build --package-path ios/OxSteedOne` and `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'id=B3145305-585E-4A45-BE2E-FEDBBE8AC2CC' -derivedDataPath /tmp/OxSteedOneDerived build` pass.
 
+**OxSteed One iOS biometric-sensitive action gate pass (2026-05-25):** IN PROGRESS
+- **Biometric confirmation for sensitive transaction actions:** **`ios/OxSteedOne/Sources/Stores/OneStore.swift`** now requires biometric confirmation (when biometric lock is enabled) before accepting bids, creating service bookings, or reserving tools, matching the requirement to protect payment-sensitive actions.
+- **Failure-path UX wiring:** Biometric failures now set user-visible error state (`lastBidError` / `lastBookingError` / `lastToolError`) so actions are blocked with clear feedback instead of silently failing.
+- **Verification:** `swift build --package-path ios/OxSteedOne` and `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'id=B3145305-585E-4A45-BE2E-FEDBBE8AC2CC' -derivedDataPath /tmp/OxSteedOneDerived build` pass.
+
 **OxSteed One native iOS app foundation (2026-05-24):** COMPLETE
 - **New greenfield iOS workspace and simulator wrapper:** **`ios/OxSteedOne/Package.swift`, `ios/OxSteedOne/OxSteedOne.xcodeproj/project.pbxproj`, `ios/OxSteedOne/OxSteedOne.xcodeproj/xcshareddata/xcschemes/OxSteedOne.xcscheme`** now add a separate native app target with display name `OxSteed One` and bundle id `com.oxsteed.one`.
 - **Strict-native 4-tab shell with OxSteed branding:** **`ios/OxSteedOne/Sources/Views/OneRootView.swift`, `ios/OxSteedOne/Sources/Views/OneTheme.swift`, `ios/OxSteedOne/Assets/Images.xcassets/OxSteedLogo.imageset/*`** now provide a stable `Home/Life/Growth/Learn` tab architecture and reuse the OxSteed logo in the new app shell.
