@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS access_gate_attempts (
     CHECK (scope IN ('operations', 'compliance', 'admin_portal')),
   success BOOLEAN NOT NULL,
   error_code VARCHAR(48) NULL,
-  matched_user_id INTEGER NULL REFERENCES users(id) ON DELETE SET NULL,
+  matched_user_id UUID NULL REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS access_gate_lockouts (
   locked_until TIMESTAMPTZ NULL,
   -- Lift state:
   lifted_at TIMESTAMPTZ NULL,
-  lifted_by_user_id INTEGER NULL REFERENCES users(id) ON DELETE SET NULL,
+  lifted_by_user_id UUID NULL REFERENCES users(id) ON DELETE SET NULL,
   lift_reason TEXT NULL,
   lift_source VARCHAR(24) NULL
     CHECK (lift_source IS NULL OR lift_source IN ('super_admin_ui', 'recovery_email', 'cli', 'auto_window_expired')),

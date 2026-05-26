@@ -4,7 +4,7 @@
  */
 
 const pool = require('../db');
-const AppError = require('../utils/AppError');
+const AppError = require('../utils/appError');
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

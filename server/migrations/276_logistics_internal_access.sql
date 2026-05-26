@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS logistics_internal_access_credentials (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   internal_name VARCHAR(80) NOT NULL,
   security_key_hash TEXT NOT NULL,
   operations_enabled BOOLEAN NOT NULL DEFAULT FALSE,
