@@ -1,6 +1,53 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-23
+**Last updated:** 2026-05-26
+
+## Learn Mode — full feature build (2026-05-26) — LANDED
+
+Complete implementation of the Learn Mode guide browser at `/learn`. Builds on the existing static `GUIDES` dataset (15 guides across 8 categories).
+
+**Migrations:**
+- `281_user_guide_completions.sql` — `user_guide_completions` table (user_id UUID FK, guide_id VARCHAR, unique constraint, 3 indexes). Tracks per-user completion state server-side.
+- `282_guide_submissions.sql` — `guide_submissions` table (full UGC fields: title, category, difficulty, estimated_minutes, intro, steps/skills/tools JSONB, video_url, license_note, status pending/approved/rejected, reviewer_id, reviewer_note, updated_at trigger). 4 indexes.
+
+**Backend (`server/controllers/learnController.js`, `server/routes/learn.js`):**
+- `GET  /api/learn/completions` — returns authenticated user's completed guide IDs.
+- `POST /api/learn/completions` — idempotent completion record; awards XP to `pulse_score_events` (fail-open if table absent). XP: Easy=10, Medium=25, Hard=50. Guards against unknown guide IDs via `KNOWN_GUIDE_IDS` set.
+- `POST /api/learn/submissions` — Helpers/consultants submit a guide for review. Validates all fields, sanitizes arrays (steps ≤20, skills ≤10, tools ≤12), stores JSONB.
+- `GET  /api/learn/submissions/mine` — caller's own submissions.
+- `GET  /api/learn/admin/submissions` — paginated admin list, filterable by status (pending/approved/rejected/all), joins submitter + reviewer user rows.
+- `GET  /api/learn/admin/submissions/:id` — full submission detail.
+- `PATCH /api/learn/admin/submissions/:id` — approve or reject with optional reviewer_note.
+- Routes mounted at `/api/learn` in `server/index.js` (already present from prior session).
+
+**Frontend (`client/src/pages/LearnModePage.jsx`, `LearnModePage.css`):**
+- **Priority 7 — AI in-guide context:** "Ask AI" button per step dispatches `oxsteed:open-support` custom event with `{ prefill, guide_id, step }` so the existing SupportWidget opens pre-filled to that step's context.
+- **Priority 9 — Pulse score backend:** `handleComplete` fires `api.post('/api/learn/completions', { guide_id, difficulty })` after updating localStorage; fail-silent so guests are unaffected.
+- **Priority 10 — SEO structured data:** `useEffect` injects `<script type="application/ld+json">` with schema.org/HowTo for all 15 guides on mount; cleaned up on unmount.
+- **Priority 11 — UGC submission modal:** Full controlled form with dynamic step/skill arrays, tools section, video URL, license note. Visible only to helpers and consultants. Calls `POST /api/learn/submissions`. Success state replaces form with confirmation.
+- **Priority 13 — Mobile app cross-promo banner:** Dismissible banner shown only on `window.innerWidth < 768`, dismissed state persisted in `localStorage` key `oxs:learn:app-banner-dismissed`.
+- **CSS:** All new `lrn-*` classes added — app banner, hero-actions row, submit button, ask-AI button, step-body layout, complete modal overlay/form/footer/error/success system (dark mode throughout, responsive at 700px + 480px).
+
+**Admin (`client/src/admin/pages/LearnSubmissionsAdmin.jsx`):**
+- Route `/admin/learn/submissions`, sidebar entry "Learn Submissions" (BookOpen icon) in `REGULAR_NAV`.
+- Status filter tabs (pending / approved / rejected / all), paginated table (25/page), expandable row detail showing all submission fields including parsed JSONB steps/skills/tools.
+- Inline approve/reject form with optional reviewer note. Only shown for pending submissions.
+- Wired into `AdminApp.jsx` (import + `<Route path="learn/submissions" />`).
+- `AdminLayout.jsx`: added `BookOpen` import, new nav entry.
+
+**Verified:** `node --check` passes on `routes/learn.js` and `controllers/learnController.js`. All 15 guide IDs present in both `KNOWN_GUIDE_IDS` (controller) and the JSX `GUIDES` array. Migration numbers 281/282 confirmed unique (279 and 280 were already taken by other migrations).
+
+**Outstanding (deliberate):**
+1. Approved submissions are stored in DB but not yet surfaced in the public guide browser — the `GUIDES` array is still static. When ready, replace the static array with a `GET /api/learn/guides` endpoint that merges static + approved rows.
+2. No email notification to the submitter on approve/reject — wire `notificationService` in `adminReviewSubmission` when desired.
+3. No XP leaderboard UI — `pulse_score_events` rows with `event_type='learn_guide_completion'` are being written; a leaderboard page can query them.
+4. Admin submissions page uses the `/api/learn/admin/submissions` path (not `/api/admin/learn/...`) — keep this in mind when adding auth middleware or rate-limiting specifically to admin paths.
+
+**Files — new:**
+`server/migrations/281_user_guide_completions.sql`, `server/migrations/282_guide_submissions.sql`, `server/controllers/learnController.js`, `server/routes/learn.js`, `client/src/admin/pages/LearnSubmissionsAdmin.jsx`.
+
+**Files — modified:**
+`client/src/pages/LearnModePage.jsx` (complete rewrite — all gap priorities), `client/src/pages/LearnModePage.css` (complete rewrite + new modal/banner/AI-button sections), `client/src/admin/AdminApp.jsx` (import + route), `client/src/admin/layouts/AdminLayout.jsx` (BookOpen import + nav entry). `server/index.js` already had the `learnRoutes` require + mount from a prior session — no change needed.
 
 ## Access-gate rate limit + lockouts + recovery (2026-05-23) — LANDED
 

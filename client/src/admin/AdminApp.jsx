@@ -113,6 +113,7 @@ import AdminComplianceMetricsPage from './pages/AdminComplianceMetricsPage';
 import AdminCCPARequestsPage from './pages/AdminCCPARequestsPage';
 import AdminReportsDashboard from './pages/AdminReportsDashboard';
 import AdminEnforcementDashboard from './pages/AdminEnforcementDashboard';
+import LearnSubmissionsAdmin    from './pages/LearnSubmissionsAdmin';
 
 function AdminGuard({ children, superOnly = false }) {
   const { user, loading } = useAuth();
@@ -203,6 +204,9 @@ export default function AdminApp() {
           <Route path="support/team-hierarchy" element={<SupportTeamHierarchy />} />
           <Route path="support/settings" element={<SupportSettingsPage />} />
           <Route path="support/audit" element={<SupportAuditLog />} />
+
+          {/* Learn Mode */}
+          <Route path="learn/submissions" element={<LearnSubmissionsAdmin />} />
 
           {/* Reputation & Enforcement */}
           <Route path="reports" element={<AdminReportsDashboard />} />
