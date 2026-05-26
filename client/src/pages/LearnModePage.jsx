@@ -36,6 +36,8 @@ import './LearnModePage.css';
 const COMPLETIONS_KEY  = 'oxs:learn:completions';
 const APP_BANNER_KEY   = 'oxs:learn:app-banner-dismissed';
 const AFFILIATE_TAG    = 'oxsteed-20';
+
+const fmtCount = (n) => n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
 const amz = (q) => `https://www.amazon.com/s?k=${encodeURIComponent(q)}&tag=${AFFILIATE_TAG}`;
 
 // ── Categories ────────────────────────────────────────────────────────────────
@@ -565,7 +567,11 @@ export default function LearnModePage() {
   const [submitSuccess, setSubmitSuccess]   = useState(false);
   const [submitError, setSubmitError]       = useState('');
 
-  const listRef = useRef(null);
+  // Social proof stats (Priority 8)
+  const [guideStats, setGuideStats] = useState({});  // { [guide_id]: { completions, views } }
+
+  const listRef    = useRef(null);
+  const viewedRef  = useRef(new Set()); // guides already view-tracked this session
 
   const persona    = useMemo(() => getPersona(user), [user]);
   const hero       = HERO[persona] || HERO.guest;
@@ -586,6 +592,13 @@ export default function LearnModePage() {
   useEffect(() => {
     const dismissed = localStorage.getItem(APP_BANNER_KEY);
     if (!dismissed && window.innerWidth < 768) setShowAppBanner(true);
+  }, []);
+
+  // Fetch guide stats for social proof (Priority 8) — public, no auth needed
+  useEffect(() => {
+    api.get('/api/learn/stats')
+      .then(({ data }) => { if (data.stats) setGuideStats(data.stats); })
+      .catch(() => {});
   }, []);
 
   // Load completions: localStorage first, then server if authenticated
@@ -624,7 +637,16 @@ export default function LearnModePage() {
     });
   }, [query, activeCategory]);
 
-  const featuredGuides = useMemo(() => GUIDES.filter((g) => g.featured), []);
+  // Dynamic featured: top-3 by DB completion count, fallback to static featured flag
+  const featuredGuides = useMemo(() => {
+    const hasStats = Object.keys(guideStats).length > 0;
+    if (hasStats) {
+      return [...GUIDES]
+        .sort((a, b) => (guideStats[b.id]?.completions ?? 0) - (guideStats[a.id]?.completions ?? 0))
+        .slice(0, 3);
+    }
+    return GUIDES.filter((g) => g.featured);
+  }, [guideStats]);
   const showFeatured   = !query && activeCategory === 'all';
   const completedCount = Object.keys(completions).length;
   const totalGuides    = GUIDES.length;
@@ -664,7 +686,14 @@ export default function LearnModePage() {
     setExpandedId(null);
   };
 
-  const toggleGuide = (id) => setExpandedId((prev) => (prev === id ? null : id));
+  const toggleGuide = (id) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+    // Fire view event once per guide per session (Priority 8)
+    if (!viewedRef.current.has(id)) {
+      viewedRef.current.add(id);
+      api.post('/api/learn/views', { guide_id: id }).catch(() => {});
+    }
+  };
 
   // AI step prompt (Priority 7) — opens the Ask AI widget with guide context
   const handleAskAI = useCallback((guide, stepIndex, stepText) => {
@@ -859,6 +888,14 @@ export default function LearnModePage() {
                       <span>·</span>
                       <Clock size={12} aria-hidden="true" />
                       <span>{guide.minutes} min</span>
+                      {(guideStats[guide.id]?.completions ?? 0) > 0 && (
+                        <>
+                          <span>·</span>
+                          <span className="lrn-stat-count">
+                            {fmtCount(guideStats[guide.id].completions)} done
+                          </span>
+                        </>
+                      )}
                     </span>
                   </button>
                 );
@@ -951,6 +988,12 @@ export default function LearnModePage() {
                         <span className="lrn-meta-sep" aria-hidden="true" />
                         <Clock size={12} aria-hidden="true" />
                         <span>{guide.minutes} min</span>
+                        {(guideStats[guide.id]?.completions ?? 0) > 0 && (
+                          <>
+                            <span className="lrn-meta-sep" aria-hidden="true" />
+                            <span className="lrn-stat-count">{fmtCount(guideStats[guide.id].completions)} done</span>
+                          </>
+                        )}
                       </span>
                     </div>
                   </button>
@@ -988,6 +1031,9 @@ export default function LearnModePage() {
                           <span className="lrn-meta-sep" aria-hidden="true" />
                           <Clock size={13} aria-hidden="true" />
                           <span>{guide.minutes} min</span>
+                          {(guideStats[guide.id]?.completions ?? 0) > 0 && (
+                            <span className="lrn-stat-count">{fmtCount(guideStats[guide.id].completions)} done</span>
+                          )}
                           {done && (
                             <span className="lrn-done-chip" aria-label="Completed">
                               <CheckCircle size={12} /> Done

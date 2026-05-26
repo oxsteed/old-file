@@ -702,6 +702,17 @@ html.dark .lrn-done-chip {
   color: #4ade80;
 }
 
+.lrn-stat-count {
+  font-size: .7rem;
+  font-weight: 700;
+  color: #16a34a;
+  flex-shrink: 0;
+}
+
+html.dark .lrn-stat-count {
+  color: #4ade80;
+}
+
 .lrn-video-badge {
   color: #f97316;
   flex-shrink: 0;

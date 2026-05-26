@@ -25,6 +25,68 @@ const KNOWN_GUIDE_IDS = new Set([
   'mulch-garden-bed', 'caulk-bathtub',
 ]);
 
+// ── Public stats ──────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/learn/stats
+ * Public — no auth required.
+ * Returns per-guide completion and view counts for social-proof display.
+ * Fails open on missing tables (guide_view_events may not exist yet).
+ */
+exports.getGuideStats = async (req, res, next) => {
+  try {
+    const { rows: completionRows } = await pool.query(
+      `SELECT guide_id, COUNT(*)::int AS completion_count
+       FROM user_guide_completions
+       GROUP BY guide_id`,
+    );
+
+    // guide_view_events may not exist yet — fail open
+    let viewRows = [];
+    try {
+      ({ rows: viewRows } = await pool.query(
+        `SELECT guide_id, COUNT(*)::int AS view_count
+         FROM guide_view_events
+         GROUP BY guide_id`,
+      ));
+    } catch (_) { /* table absent — views default to 0 */ }
+
+    const stats = {};
+    completionRows.forEach((r) => {
+      stats[r.guide_id] = { completions: r.completion_count, views: 0 };
+    });
+    viewRows.forEach((r) => {
+      if (!stats[r.guide_id]) stats[r.guide_id] = { completions: 0, views: 0 };
+      stats[r.guide_id].views = r.view_count;
+    });
+
+    res.json({ stats });
+  } catch (err) {
+    next(new AppError('Failed to fetch guide stats', 500, 'fetch_stats_failed'));
+  }
+};
+
+/**
+ * POST /api/learn/views
+ * Body: { guide_id }
+ * Anonymous-friendly — records a guide view. Always returns 200 so the
+ * client fire-and-forget call never surfaces an error to the user.
+ * Unknown guide_ids are silently ignored.
+ */
+exports.recordView = async (req, res) => {
+  const { guide_id } = req.body;
+  if (!guide_id || !KNOWN_GUIDE_IDS.has(String(guide_id))) {
+    return res.json({ success: true });
+  }
+  const userId = req.user?.id ?? null;
+  // Fire-and-forget — guide_view_events may not exist yet
+  pool.query(
+    `INSERT INTO guide_view_events (guide_id, user_id) VALUES ($1, $2)`,
+    [guide_id, userId],
+  ).catch(() => {});
+  res.json({ success: true });
+};
+
 // ── Completions ────────────────────────────────────────────────────────────────
 
 /**
