@@ -956,6 +956,39 @@ html.dark .lrn-detail-panel {
   border-color: #1e293b;
 }
 
+/* ── Persona tips panel ───────────────────────────────────────────────────────── */
+
+.lrn-tips-panel {
+  padding: .875rem 1rem;
+  border-radius: .75rem;
+  background: linear-gradient(135deg, #fff7ed, #fffbf5);
+  border: 1.5px solid #fed7aa;
+}
+
+html.dark .lrn-tips-panel {
+  background: rgba(249,115,22,.08);
+  border-color: rgba(249,115,22,.25);
+}
+
+.lrn-tips-panel .lrn-detail-heading {
+  color: #ea580c;
+}
+
+html.dark .lrn-tips-panel .lrn-detail-heading {
+  color: #fb923c;
+}
+
+.lrn-tips-text {
+  font-size: .83rem;
+  line-height: 1.6;
+  color: var(--app-text, #1e293b);
+  margin: 0;
+}
+
+html.dark .lrn-tips-text {
+  color: #cbd5e1;
+}
+
 .lrn-skill-chips {
   display: flex;
   flex-wrap: wrap;

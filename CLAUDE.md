@@ -2,6 +2,36 @@
 
 **Last updated:** 2026-05-26
 
+## Learn Mode — persona-aware guide expansion (2026-05-26) — LANDED
+
+Expanded the static `GUIDES` dataset from 15 to 51 guides, all with full 4-persona tips (`customer`, `helper`, `consultant`, `business`). Added a persona-aware tips panel to the guide detail view.
+
+**Frontend (`client/src/pages/LearnModePage.jsx`):**
+- `PERSONA_TIP_META` constant maps each persona to a label and lucide icon for the tips panel header.
+- Guide detail side column now renders a `.lrn-tips-panel` showing the tip for the current user's persona (falls back to `customer` tip for guests or unknown personas).
+- Expanded all 39 pre-existing guides: added `customer` and `consultant` tip keys to every guide that previously only had `helper` and `business`.
+- Added 12 new guides (2 per category for 6 categories) with full 4-persona tips:
+  - **Plumbing:** `install-water-shutoff-valve` (Medium, 60 min), `fix-toilet-wax-ring` (Hard, 90 min)
+  - **Electrical:** `install-smart-switch` (Medium, 45 min), `install-usb-outlet` (Easy, 30 min)
+  - **Carpentry:** `install-baseboards` (Medium, 120 min), `repair-wood-fence` (Medium, 90 min)
+  - **Painting:** `apply-exterior-caulk` (Easy, 60 min), `paint-cabinets` (Hard, 240 min)
+  - **Landscaping:** `sharpen-mower-blade` (Easy, 30 min), `lay-sod` (Medium, 180 min)
+  - **Maintenance:** `re-grout-tile` (Medium, 120 min), `fix-sticking-door` (Easy, 30 min)
+- Total: 51 guides across 8 categories (plumbing×8, electrical×8, hvac×5, carpentry×7, painting×6, car-care×5, landscaping×6, maintenance×6).
+
+**CSS (`client/src/pages/LearnModePage.css`):**
+- `.lrn-tips-panel` — orange-tinted card (gradient `#fff7ed → #fffbf5`, border `#fed7aa`). Dark mode: `rgba(249,115,22,.08)` background.
+- `.lrn-tips-text` — 0.83rem, `line-height:1.6`, dark mode aware.
+
+**Backend (`server/controllers/learnController.js`):**
+- `KNOWN_GUIDE_IDS` Set expanded from 15 → 51 entries.
+- `GUIDE_CATEGORY` map expanded to cover all 51 guides, grouped by category comment.
+
+**Files — modified:**
+`client/src/pages/LearnModePage.jsx` (51 guides, PERSONA_TIP_META, tips panel), `client/src/pages/LearnModePage.css` (tips panel styles), `server/controllers/learnController.js` (KNOWN_GUIDE_IDS + GUIDE_CATEGORY expanded to 51 guides).
+
+---
+
 ## Learn Mode — gap-fill pass (2026-05-26) — LANDED
 
 Filled remaining gaps against the Learn Mode vision document. Builds on the full feature build landed earlier this session.

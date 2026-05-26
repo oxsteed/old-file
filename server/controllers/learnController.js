@@ -17,31 +17,96 @@ const VALID_DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 
 // Guide IDs that exist in the static dataset — prevents spurious completions.
 const KNOWN_GUIDE_IDS = new Set([
+  // Plumbing
   'fix-leaky-faucet', 'unclog-drain', 'fix-running-toilet',
+  'install-shower-head', 'replace-toilet-fill-valve', 'fix-burst-pipe-temporary',
+  'install-water-shutoff-valve', 'fix-toilet-wax-ring',
+  // Electrical
   'replace-light-switch', 'install-ceiling-fan', 'reset-gfci',
+  'replace-outlet', 'install-dimmer-switch', 'install-light-fixture',
+  'install-smart-switch', 'install-usb-outlet',
+  // HVAC
   'replace-hvac-filter', 'clean-condensate-drain',
-  'patch-drywall', 'install-door-handle',
-  'paint-a-wall', 'change-oil', 'replace-wipers',
-  'mulch-garden-bed', 'caulk-bathtub',
+  'seal-hvac-ducts', 'clean-dryer-vent', 'insulate-hot-water-pipes',
+  // Carpentry
+  'patch-drywall', 'install-door-handle', 'hang-floating-shelves',
+  'fix-squeaky-floor', 'install-window-screen',
+  'install-baseboards', 'repair-wood-fence',
+  // Painting
+  'paint-a-wall', 'prep-and-prime-wall', 'paint-trim-and-baseboards',
+  'touch-up-and-color-match', 'apply-exterior-caulk', 'paint-cabinets',
+  // Car Care
+  'change-oil', 'replace-wipers', 'rotate-tires',
+  'replace-cabin-air-filter', 'check-and-top-fluids',
+  // Landscaping
+  'mulch-garden-bed', 'plant-a-tree', 'install-drip-irrigation',
+  'build-raised-garden-bed', 'sharpen-mower-blade', 'lay-sod',
+  // Maintenance
+  'caulk-bathtub', 'clean-gutters', 'weatherstrip-exterior-door',
+  'power-wash-driveway', 're-grout-tile', 'fix-sticking-door',
 ]);
 
 // Category membership — used to check badge eligibility after completion.
 const GUIDE_CATEGORY = {
-  'fix-leaky-faucet':      'plumbing',
-  'unclog-drain':          'plumbing',
-  'fix-running-toilet':    'plumbing',
-  'replace-light-switch':  'electrical',
-  'install-ceiling-fan':   'electrical',
-  'reset-gfci':            'electrical',
-  'replace-hvac-filter':   'hvac',
-  'clean-condensate-drain':'hvac',
-  'patch-drywall':         'carpentry',
-  'install-door-handle':   'carpentry',
-  'paint-a-wall':          'painting',
-  'change-oil':            'car-care',
-  'replace-wipers':        'car-care',
-  'mulch-garden-bed':      'landscaping',
-  'caulk-bathtub':         'maintenance',
+  // Plumbing
+  'fix-leaky-faucet':              'plumbing',
+  'unclog-drain':                  'plumbing',
+  'fix-running-toilet':            'plumbing',
+  'install-shower-head':           'plumbing',
+  'replace-toilet-fill-valve':     'plumbing',
+  'fix-burst-pipe-temporary':      'plumbing',
+  'install-water-shutoff-valve':   'plumbing',
+  'fix-toilet-wax-ring':           'plumbing',
+  // Electrical
+  'replace-light-switch':          'electrical',
+  'install-ceiling-fan':           'electrical',
+  'reset-gfci':                    'electrical',
+  'replace-outlet':                'electrical',
+  'install-dimmer-switch':         'electrical',
+  'install-light-fixture':         'electrical',
+  'install-smart-switch':          'electrical',
+  'install-usb-outlet':            'electrical',
+  // HVAC
+  'replace-hvac-filter':           'hvac',
+  'clean-condensate-drain':        'hvac',
+  'seal-hvac-ducts':               'hvac',
+  'clean-dryer-vent':              'hvac',
+  'insulate-hot-water-pipes':      'hvac',
+  // Carpentry
+  'patch-drywall':                 'carpentry',
+  'install-door-handle':           'carpentry',
+  'hang-floating-shelves':         'carpentry',
+  'fix-squeaky-floor':             'carpentry',
+  'install-window-screen':         'carpentry',
+  'install-baseboards':            'carpentry',
+  'repair-wood-fence':             'carpentry',
+  // Painting
+  'paint-a-wall':                  'painting',
+  'prep-and-prime-wall':           'painting',
+  'paint-trim-and-baseboards':     'painting',
+  'touch-up-and-color-match':      'painting',
+  'apply-exterior-caulk':          'painting',
+  'paint-cabinets':                'painting',
+  // Car Care
+  'change-oil':                    'car-care',
+  'replace-wipers':                'car-care',
+  'rotate-tires':                  'car-care',
+  'replace-cabin-air-filter':      'car-care',
+  'check-and-top-fluids':          'car-care',
+  // Landscaping
+  'mulch-garden-bed':              'landscaping',
+  'plant-a-tree':                  'landscaping',
+  'install-drip-irrigation':       'landscaping',
+  'build-raised-garden-bed':       'landscaping',
+  'sharpen-mower-blade':           'landscaping',
+  'lay-sod':                       'landscaping',
+  // Maintenance
+  'caulk-bathtub':                 'maintenance',
+  'clean-gutters':                 'maintenance',
+  'weatherstrip-exterior-door':    'maintenance',
+  'power-wash-driveway':           'maintenance',
+  're-grout-tile':                 'maintenance',
+  'fix-sticking-door':             'maintenance',
 };
 
 // Invert: category → [guide_ids]
