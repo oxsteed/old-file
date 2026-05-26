@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-25
+**Last updated:** 2026-05-26
 
 ## Instructions for Every Session
 
@@ -20,6 +20,10 @@
 - 170 backend controllers
 - 281 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
+
+**OxSteed One iOS auth response decoder fix (2026-05-26):** COMPLETE
+- **Login response contract tolerance:** **`ios/OxSteedOne/Sources/Models/OneAPIModels.swift`** now decodes auth user ids as either server numeric ids or string/UUID ids and keeps optional user decoding from blocking top-level `accessToken`/`refreshToken` extraction, fixing the "Sign in response format was not recognized" failure when the backend returns a valid login envelope.
+- **Verification:** `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath /tmp/OxSteedOneDerived build` passes. `swift build --package-path ios/OxSteedOne` still fails on existing non-iOS package incompatibilities around UIKit/UIApplication/UIImage symbols.
 
 **OxSteed One iOS offline sync/retry hardening pass (2026-05-25):** IN PROGRESS
 - **Persisted offline write queue + replay foundation:** **`ios/OxSteedOne/Sources/Models/OneModels.swift`, `ios/OxSteedOne/Sources/Services/OneSessionVault.swift`, `ios/OxSteedOne/Sources/Stores/OneStore.swift`, `ios/OxSteedOne/Sources/Services/OneAPIClient.swift`** now add `PendingSyncChange` persistence, raw JSON API methods, automatic enqueue-on-failure for core customer writes (jobs/bids/bookings/rentals plus life-log/sinking-fund writes), startup replay, and connectivity-triggered replay.

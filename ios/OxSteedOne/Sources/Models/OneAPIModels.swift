@@ -1,9 +1,32 @@
 import Foundation
 
 struct OneAuthUser: Codable {
-    let id: Int?
+    let id: String?
     let email: String?
     let defaultMode: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case email
+        case defaultMode
+    }
+
+    init(id: String?, email: String?, defaultMode: String?) {
+        self.id = id
+        self.email = email
+        self.defaultMode = defaultMode
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let intID = try container.decodeIfPresent(Int.self, forKey: .id) {
+            id = String(intID)
+        } else {
+            id = try container.decodeIfPresent(String.self, forKey: .id)
+        }
+        email = try container.decodeIfPresent(String.self, forKey: .email)
+        defaultMode = try container.decodeIfPresent(String.self, forKey: .defaultMode)
+    }
 }
 
 struct OneSavedSession: Codable {
@@ -51,10 +74,10 @@ struct OneAuthResponse: Decodable {
         let directRefresh = try container.decodeIfPresent(String.self, forKey: .refreshToken)
             ?? container.decodeIfPresent(String.self, forKey: .refresh_token)
         let directToken = try container.decodeIfPresent(String.self, forKey: .token)
-        let directUser = try container.decodeIfPresent(OneAuthUser.self, forKey: .user)
+        let directUser = try? container.decodeIfPresent(OneAuthUser.self, forKey: .user)
 
-        let wrappedData = try container.decodeIfPresent(AuthPayload.self, forKey: .data)
-        let wrappedResult = try container.decodeIfPresent(AuthPayload.self, forKey: .result)
+        let wrappedData = try? container.decodeIfPresent(AuthPayload.self, forKey: .data)
+        let wrappedResult = try? container.decodeIfPresent(AuthPayload.self, forKey: .result)
 
         accessToken = directAccess ?? wrappedData?.accessToken ?? wrappedResult?.accessToken
         refreshToken = directRefresh ?? wrappedData?.refreshToken ?? wrappedResult?.refreshToken
