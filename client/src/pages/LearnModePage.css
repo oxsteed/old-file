@@ -1871,3 +1871,162 @@ html.dark .lrn-modal-footer {
     align-self: flex-start;
   }
 }
+
+/* ── Badges row ───────────────────────────────────────────────────────────────── */
+
+.lrn-badges-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .4rem .5rem;
+  padding: .5rem 1.25rem;
+  background: linear-gradient(90deg, rgba(249,115,22,.06), transparent);
+  border-bottom: 1px solid rgba(249,115,22,.12);
+}
+
+html.dark .lrn-badges-row {
+  background: linear-gradient(90deg, rgba(249,115,22,.1), transparent);
+  border-bottom-color: rgba(249,115,22,.18);
+}
+
+.lrn-badges-icon {
+  color: #f97316;
+  flex-shrink: 0;
+}
+
+.lrn-badges-label {
+  font-size: .75rem;
+  font-weight: 700;
+  color: #f97316;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.lrn-badge-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .2rem .55rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--badge-color) 14%, transparent);
+  color: var(--badge-color);
+  border: 1px solid color-mix(in srgb, var(--badge-color) 30%, transparent);
+  font-size: .7rem;
+  font-weight: 700;
+}
+
+html.dark .lrn-badge-chip {
+  background: color-mix(in srgb, var(--badge-color) 20%, transparent);
+}
+
+/* ── Helper post-completion prompt ────────────────────────────────────────────── */
+
+.lrn-helper-prompt {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .65rem 1.25rem;
+  background: #f0fdf4;
+  border-bottom: 1px solid #bbf7d0;
+  color: #166534;
+  font-size: .82rem;
+  flex-wrap: wrap;
+}
+
+html.dark .lrn-helper-prompt {
+  background: rgba(34,197,94,.1);
+  border-bottom-color: rgba(34,197,94,.2);
+  color: #4ade80;
+}
+
+.lrn-helper-prompt > svg {
+  flex-shrink: 0;
+  color: #22c55e;
+}
+
+.lrn-helper-prompt-cta {
+  margin-left: auto;
+  font-weight: 700;
+  color: #16a34a;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.lrn-helper-prompt-cta:hover { text-decoration: underline; }
+
+html.dark .lrn-helper-prompt-cta { color: #4ade80; }
+
+.lrn-helper-prompt-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: .15rem;
+  color: inherit;
+  opacity: .6;
+  line-height: 0;
+  flex-shrink: 0;
+}
+
+.lrn-helper-prompt-close:hover { opacity: 1; }
+
+/* ── XP toast ─────────────────────────────────────────────────────────────────── */
+
+.lrn-xp-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .7rem 1.25rem;
+  background: #1e293b;
+  color: #f1f5f9;
+  border-radius: 999px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.3);
+  font-size: .85rem;
+  font-weight: 600;
+  z-index: 9999;
+  white-space: nowrap;
+  animation: lrn-toast-in .25s ease;
+}
+
+html:not(.dark) .lrn-xp-toast {
+  background: #1e293b;
+}
+
+@keyframes lrn-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.lrn-xp-toast > svg { color: #22c55e; flex-shrink: 0; }
+
+.lrn-xp-toast-sep {
+  opacity: .4;
+  margin: 0 .1rem;
+}
+
+.lrn-xp-toast-badge {
+  color: #fb923c;
+}
+
+/* ── Coming soon card ─────────────────────────────────────────────────────────── */
+
+.lrn-coming-soon-card {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .85rem 1.1rem;
+  border: 2px dashed #e2e8f0;
+  border-radius: .75rem;
+  color: #94a3b8;
+  font-size: .82rem;
+  font-style: italic;
+  list-style: none;
+}
+
+html.dark .lrn-coming-soon-card {
+  border-color: #334155;
+  color: #64748b;
+}

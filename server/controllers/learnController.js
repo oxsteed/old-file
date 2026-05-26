@@ -25,6 +25,32 @@ const KNOWN_GUIDE_IDS = new Set([
   'mulch-garden-bed', 'caulk-bathtub',
 ]);
 
+// Category membership — used to check badge eligibility after completion.
+const GUIDE_CATEGORY = {
+  'fix-leaky-faucet':      'plumbing',
+  'unclog-drain':          'plumbing',
+  'fix-running-toilet':    'plumbing',
+  'replace-light-switch':  'electrical',
+  'install-ceiling-fan':   'electrical',
+  'reset-gfci':            'electrical',
+  'replace-hvac-filter':   'hvac',
+  'clean-condensate-drain':'hvac',
+  'patch-drywall':         'carpentry',
+  'install-door-handle':   'carpentry',
+  'paint-a-wall':          'painting',
+  'change-oil':            'car-care',
+  'replace-wipers':        'car-care',
+  'mulch-garden-bed':      'landscaping',
+  'caulk-bathtub':         'maintenance',
+};
+
+// Invert: category → [guide_ids]
+const GUIDES_BY_CATEGORY = {};
+for (const [id, cat] of Object.entries(GUIDE_CATEGORY)) {
+  if (!GUIDES_BY_CATEGORY[cat]) GUIDES_BY_CATEGORY[cat] = [];
+  GUIDES_BY_CATEGORY[cat].push(id);
+}
+
 // ── Public stats ──────────────────────────────────────────────────────────────
 
 /**
@@ -141,6 +167,8 @@ exports.recordCompletion = async (req, res, next) => {
 
     const isNew = result.rows.length > 0;
 
+    let badgeAwarded = null;
+
     if (isNew) {
       // Award XP to pulse score (learn_guide category)
       // pulse_score_events table may not exist yet — fail open so completions
@@ -157,10 +185,36 @@ exports.recordCompletion = async (req, res, next) => {
           JSON.stringify({ guide_id, difficulty: difficulty || 'Easy' }),
         ],
       ).catch(() => {}); // fail open if table absent
+
+      // Check for category badge — all guides in the category now complete?
+      const category = GUIDE_CATEGORY[guide_id];
+      const categoryGuides = category ? GUIDES_BY_CATEGORY[category] : null;
+      if (categoryGuides) {
+        const { rows: completedRows } = await client.query(
+          `SELECT guide_id FROM user_guide_completions
+           WHERE user_id = $1 AND guide_id = ANY($2)`,
+          [req.user.id, categoryGuides],
+        );
+        if (completedRows.length === categoryGuides.length) {
+          // All guides in this category done — award badge (fail open)
+          await client.query(
+            `INSERT INTO skill_badges (user_id, category)
+             VALUES ($1, $2)
+             ON CONFLICT DO NOTHING`,
+            [req.user.id, category],
+          ).catch(() => {});
+          badgeAwarded = category;
+        }
+      }
     }
 
     await client.query('COMMIT');
-    res.json({ success: true, xp_awarded: isNew ? xp : 0, already_completed: !isNew });
+    res.json({
+      success: true,
+      xp_awarded: isNew ? xp : 0,
+      already_completed: !isNew,
+      badge_awarded: badgeAwarded,
+    });
   } catch (err) {
     await client.query('ROLLBACK');
     next(new AppError('Failed to record completion', 500, 'record_completion_failed'));
@@ -353,5 +407,25 @@ exports.adminReviewSubmission = async (req, res, next) => {
     res.json({ success: true, submission: rows[0] });
   } catch (err) {
     next(new AppError('Failed to review submission', 500, 'review_failed'));
+  }
+};
+
+// ── Badges ─────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/learn/badges
+ * Returns the authenticated user's earned skill badges.
+ * Fails open if skill_badges table is absent (migration 284 not yet applied).
+ */
+exports.getBadges = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT category, awarded_at FROM skill_badges WHERE user_id = $1 ORDER BY awarded_at DESC`,
+      [req.user.id],
+    );
+    res.json({ badges: rows });
+  } catch (err) {
+    // Table may not exist yet — return empty array so the client degrades gracefully
+    res.json({ badges: [] });
   }
 };

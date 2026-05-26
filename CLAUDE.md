@@ -2,6 +2,56 @@
 
 **Last updated:** 2026-05-26
 
+## Learn Mode — gap-fill pass (2026-05-26) — LANDED
+
+Filled remaining gaps against the Learn Mode vision document. Builds on the full feature build landed earlier this session.
+
+**Migration:**
+- `284_skill_badges.sql` — `skill_badges(id SERIAL, user_id UUID FK, category VARCHAR(50), awarded_at TIMESTAMPTZ, UNIQUE(user_id,category))`. Awarded when a user completes every guide in a category.
+
+**Backend (`server/controllers/learnController.js`):**
+- Added `GUIDE_CATEGORY` map (guide_id → category) and `GUIDES_BY_CATEGORY` inversion (category → [guide_ids]).
+- `recordCompletion` now checks, after awarding XP, whether the user has completed all guides in the category. If yes: `INSERT INTO skill_badges … ON CONFLICT DO NOTHING`. Returns `badge_awarded: category | null` in the JSON response.
+- New export `getBadges` — `GET /api/learn/badges` (authenticated). Returns `{ badges: [{ category, awarded_at }] }`. Fails open if migration 284 not yet applied (returns empty array).
+
+**Routes (`server/routes/learn.js`):**
+- Added `router.get('/badges', authenticate, getBadges)`.
+
+**Frontend (`client/src/pages/LearnModePage.jsx`):**
+- **Personas expanded:** `getPersona` now detects `consultant` (role='consultant') and `business` (is_business_owner/has_business). New `HERO` entries: consultant → "Share what you know." with CTA that opens the submit modal directly (href: null pattern); business → "Train your team." with link to business hub.
+- **Hero CTA fix:** CTA now conditionally renders `<Link>` when `href` is set or `<button>` that opens the submit modal when `href` is null — so consultant CTA works without a dead link.
+- **XP toast:** `fireXpToast(xp, badge)` fires on every new completion with a 4-second auto-dismiss toast at the bottom of the screen. Shows "+X XP earned!" and, if a badge was awarded, "· [Category] badge unlocked!".
+- **Badge fetch:** `useEffect` calls `GET /api/learn/badges` on mount (authenticated). Sets `badges` state (array of category strings).
+- **Badge display:** New `lrn-badges-row` strip below the progress strip, showing one `lrn-badge-chip` per earned category with the category icon and colour.
+- **Helper post-completion prompt:** After `handleComplete`, if `persona === 'helper'`, fires `setHelperPrompt({ guideTitle, skill })` which renders a green dismissible banner: "Guide completed! Add [skill] to your Helper profile?" with a link to `/helper-profile/skills`.
+- **`handleComplete` refactored:** Now awaits the API response and reads `data.badge_awarded` to update local badge state and fire the toast with badge info. Removed the silent `.catch(() => {})` — wrapped in `try/catch` so XP toast still fires even if the API call fails.
+- **"Coming soon" cards:** When `activeCategory !== 'all'` and the filtered category has fewer than 3 guides (and no search query), a dashed placeholder list item "More [Category] guides coming soon" is prepended to the list.
+
+**CSS (`client/src/pages/LearnModePage.css`):**
+- `.lrn-badges-row` — orange-tinted strip, flex-wrap, `lrn-badge-chip` with CSS `color-mix()` for per-category tint.
+- `.lrn-helper-prompt` — green dismissible banner, dark mode aware.
+- `.lrn-xp-toast` — fixed-position bottom-center pill, slide-in animation, dark background.
+- `.lrn-coming-soon-card` — dashed border list item, italic muted text.
+
+**Bug fixes (same session):**
+- `learnController.js`: `require('../utils/AppError')` → `require('../utils/appError')` (Linux case-sensitive FS crash on boot).
+- `migrations/276_logistics_internal_access.sql`: `user_id INTEGER` → `user_id UUID` (FK type mismatch against `users.id`).
+- `migrations/278_access_gate_rate_limit.sql`: `matched_user_id INTEGER` → `UUID`, `lifted_by_user_id INTEGER` → `UUID`.
+
+**Outstanding (deliberate):**
+1. Video URLs: `video_url` field exists on all guides; conditional rendering shows a player when set. No real YouTube URLs are populated yet — content to fill in separately.
+2. Approved UGC submissions are not yet merged into the public `GUIDES` array — the static array is still the source of truth. Wire `GET /api/learn/guides` when ready.
+3. Badge display on public Helper profile — `skill_badges` rows are being written; a "Certifications" section on the profile page can query them.
+4. Business-owner persona uses `user.is_business_owner || user.has_business` — exact field name depends on the `AuthContext` shape. Adjust if the field is named differently.
+
+**Files — new:**
+`server/migrations/284_skill_badges.sql`.
+
+**Files — modified:**
+`server/controllers/learnController.js` (GUIDE_CATEGORY map + badge awarding + getBadges export), `server/routes/learn.js` (getBadges import + route), `client/src/pages/LearnModePage.jsx` (personas, XP toast, badges, helper prompt, coming-soon cards), `client/src/pages/LearnModePage.css` (4 new sections), `server/migrations/276_logistics_internal_access.sql` (UUID fix), `server/migrations/278_access_gate_rate_limit.sql` (UUID fixes).
+
+---
+
 ## Learn Mode — full feature build (2026-05-26) — LANDED
 
 Complete implementation of the Learn Mode guide browser at `/learn`. Builds on the existing static `GUIDES` dataset (15 guides across 8 categories).

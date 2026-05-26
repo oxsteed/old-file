@@ -14,6 +14,7 @@ const {
   recordCompletion,
   submitGuide,
   getMySubmissions,
+  getBadges,
   adminListSubmissions,
   adminGetSubmission,
   adminReviewSubmission,
@@ -26,6 +27,7 @@ router.post('/views',                recordView);          // auth optional — 
 // ── Authenticated user routes ──────────────────────────────────
 router.get('/completions',           authenticate, getCompletions);
 router.post('/completions',          authenticate, recordCompletion);
+router.get('/badges',                authenticate, getBadges);
 router.post('/submissions',          authenticate, submitGuide);
 router.get('/submissions/mine',      authenticate, getMySubmissions);
 

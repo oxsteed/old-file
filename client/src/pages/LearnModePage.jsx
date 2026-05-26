@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
+  Award,
   BookOpen,
   Car,
   CheckCircle,
@@ -500,6 +501,8 @@ function normalize(str) { return String(str || '').toLowerCase(); }
 
 function getPersona(user) {
   if (!user) return 'guest';
+  if (user.role === 'consultant') return 'consultant';
+  if (user.is_business_owner || user.has_business) return 'business';
   if (user.is_helper) return 'helper';
   return 'customer';
 }
@@ -519,6 +522,16 @@ const HERO = {
     title: 'Upskill. Grow. Earn more.',
     sub: 'Every guide you complete can be added to your Helper profile as a verified skill. More skills means more jobs, more reviews, and a higher Pulse score.',
     cta: { label: 'View your skill profile', href: '/helper-profile/skills' },
+  },
+  consultant: {
+    title: 'Share what you know.',
+    sub: 'Your expertise has real value. Submit a guide, build your reputation, and earn attribution when your content helps others succeed.',
+    cta: { label: 'Submit a Guide', href: null }, // null → opens submit modal
+  },
+  business: {
+    title: 'Train your team.',
+    sub: 'Use these guides to onboard new hires, set skills standards for your crew, and build a library of trade knowledge your business depends on.',
+    cta: { label: 'Manage your team', href: '/business-hub' },
   },
 };
 
@@ -570,6 +583,12 @@ export default function LearnModePage() {
   // Social proof stats (Priority 8)
   const [guideStats, setGuideStats] = useState({});  // { [guide_id]: { completions, views } }
 
+  // Badges + XP toast + helper prompt
+  const [badges, setBadges]           = useState([]);          // ['plumbing', 'electrical', ...]
+  const [xpToast, setXpToast]         = useState(null);        // { xp, badge } | null
+  const [helperPrompt, setHelperPrompt] = useState(null);      // { guideTitle, skill } | null
+  const xpToastTimer = useRef(null);
+
   const listRef    = useRef(null);
   const viewedRef  = useRef(new Set()); // guides already view-tracked this session
 
@@ -600,6 +619,17 @@ export default function LearnModePage() {
       .then(({ data }) => { if (data.stats) setGuideStats(data.stats); })
       .catch(() => {});
   }, []);
+
+  // Fetch earned badges (authenticated only)
+  useEffect(() => {
+    if (!user) return;
+    api.get('/api/learn/badges')
+      .then(({ data }) => { if (Array.isArray(data.badges)) setBadges(data.badges.map((b) => b.category)); })
+      .catch(() => {});
+  }, [user]);
+
+  // Cleanup XP toast timer on unmount
+  useEffect(() => () => { if (xpToastTimer.current) clearTimeout(xpToastTimer.current); }, []);
 
   // Load completions: localStorage first, then server if authenticated
   useEffect(() => {
@@ -653,24 +683,45 @@ export default function LearnModePage() {
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
+  const fireXpToast = useCallback((xp, badge) => {
+    if (xpToastTimer.current) clearTimeout(xpToastTimer.current);
+    setXpToast({ xp, badge });
+    xpToastTimer.current = setTimeout(() => setXpToast(null), 4000);
+  }, []);
+
   const handleComplete = useCallback(async (guideId) => {
     if (completions[guideId]) return;
     setCompleting(guideId);
 
     const guide = GUIDES.find((g) => g.id === guideId);
+    const xp    = DIFFICULTY_XP[guide?.difficulty] ?? 10;
     const next  = { ...completions, [guideId]: Date.now() };
     setCompletions(next);
     localStorage.setItem(COMPLETIONS_KEY, JSON.stringify(next));
 
+    let badgeAwarded = null;
     if (user) {
-      api.post('/api/learn/completions', {
-        guide_id: guideId,
-        difficulty: guide?.difficulty ?? 'Easy',
-      }).catch(() => {});
+      try {
+        const { data } = await api.post('/api/learn/completions', {
+          guide_id: guideId,
+          difficulty: guide?.difficulty ?? 'Easy',
+        });
+        if (data.badge_awarded) {
+          badgeAwarded = data.badge_awarded;
+          setBadges((prev) => prev.includes(badgeAwarded) ? prev : [...prev, badgeAwarded]);
+        }
+      } catch {}
+    }
+
+    fireXpToast(xp, badgeAwarded);
+
+    // Helper post-completion prompt — suggest adding skill to profile
+    if (persona === 'helper' && guide?.skills?.length) {
+      setHelperPrompt({ guideTitle: guide.title, skill: guide.skills[0] });
     }
 
     setCompleting(null);
-  }, [completions, user]);
+  }, [completions, user, persona, fireXpToast]);
 
   const handleCategoryClick = (id) => {
     setActiveCategory(id);
@@ -791,7 +842,17 @@ export default function LearnModePage() {
             <p className="lrn-hero-sub">{hero.sub}</p>
             <div className="lrn-hero-actions">
               {hero.cta && (
-                <Link to={hero.cta.href} className="lrn-hero-cta">{hero.cta.label} →</Link>
+                hero.cta.href ? (
+                  <Link to={hero.cta.href} className="lrn-hero-cta">{hero.cta.label} →</Link>
+                ) : (
+                  <button
+                    type="button"
+                    className="lrn-hero-cta"
+                    onClick={() => { setSubmitForm(EMPTY_SUBMISSION); setSubmitSuccess(false); setShowSubmitModal(true); }}
+                  >
+                    {hero.cta.label} →
+                  </button>
+                )
               )}
               {/* UGC submit button — helpers and consultants only (Priority 11) */}
               {user && (user.is_helper || user.role === 'consultant') && (
@@ -831,6 +892,43 @@ export default function LearnModePage() {
                 return sum + (g ? DIFFICULTY_XP[g.difficulty] ?? 0 : 0);
               }, 0)} XP earned
             </span>
+          </div>
+        )}
+
+        {/* ── Earned badges ─────────────────────────────────────────────────── */}
+        {badges.length > 0 && (
+          <div className="lrn-badges-row" aria-label="Earned skill badges">
+            <Award size={14} className="lrn-badges-icon" aria-hidden="true" />
+            <span className="lrn-badges-label">Badges:</span>
+            {badges.map((cat) => {
+              const c = CATEGORIES.find((x) => x.id === cat);
+              return (
+                <span key={cat} className="lrn-badge-chip" style={{ '--badge-color': c?.color ?? '#f97316' }}>
+                  {c && <c.Icon size={11} aria-hidden="true" />}
+                  {c?.label ?? cat}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Helper post-completion prompt ──────────────────────────────────── */}
+        {helperPrompt && (
+          <div className="lrn-helper-prompt" role="status">
+            <CheckCircle size={16} aria-hidden="true" />
+            <span>
+              <strong>{helperPrompt.guideTitle}</strong> completed!
+              Add <em>{helperPrompt.skill}</em> to your Helper profile?
+            </span>
+            <Link to="/helper-profile/skills" className="lrn-helper-prompt-cta">Add skill →</Link>
+            <button
+              type="button"
+              className="lrn-helper-prompt-close"
+              onClick={() => setHelperPrompt(null)}
+              aria-label="Dismiss"
+            >
+              <X size={14} />
+            </button>
           </div>
         )}
 
@@ -1002,6 +1100,16 @@ export default function LearnModePage() {
             </div>
           ) : (
             <ul className="lrn-guide-list">
+              {/* "Coming soon" card for thin categories */}
+              {activeCategory !== 'all' && filteredGuides.length < 3 && !query && (() => {
+                const cat = categoryMap[activeCategory];
+                return (
+                  <li key="coming-soon" className="lrn-coming-soon-card" aria-hidden="true">
+                    {cat && <cat.Icon size={20} style={{ color: cat.color }} aria-hidden="true" />}
+                    <span>More {cat?.label ?? activeCategory} guides coming soon</span>
+                  </li>
+                );
+              })()}
               {filteredGuides.map((guide) => {
                 const cat        = categoryMap[guide.category];
                 const isExpanded = expandedId === guide.id;
@@ -1194,6 +1302,23 @@ export default function LearnModePage() {
         </section>
 
       </div>
+
+      {/* ── XP toast ──────────────────────────────────────────────────────── */}
+      {xpToast && (
+        <div className="lrn-xp-toast" role="status" aria-live="polite">
+          <CheckCircle size={16} aria-hidden="true" />
+          <span>+{xpToast.xp} XP earned!</span>
+          {xpToast.badge && (
+            <>
+              <span className="lrn-xp-toast-sep">·</span>
+              <Award size={14} aria-hidden="true" />
+              <span className="lrn-xp-toast-badge">
+                {CATEGORIES.find((c) => c.id === xpToast.badge)?.label ?? xpToast.badge} badge unlocked!
+              </span>
+            </>
+          )}
+        </div>
+      )}
 
       {/* ── UGC Submit Modal (Priority 11) ─────────────────────────────────── */}
       {showSubmitModal && (
