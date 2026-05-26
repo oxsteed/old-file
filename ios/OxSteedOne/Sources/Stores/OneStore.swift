@@ -2025,16 +2025,6 @@ final class OneStore {
             authStatusMessage = "Enter email and password."
             return
         }
-        guard acceptedTerms else {
-            authStatusMessage = "You must accept Terms and Privacy to sign in."
-            return
-        }
-        let nameParts = cleanAgreementName.split(separator: " ").filter { !$0.isEmpty }
-        guard cleanAgreementName.count >= 5, nameParts.count >= 2 else {
-            authStatusMessage = "Enter your full legal name (first and last)."
-            return
-        }
-
         do {
             let response: OneAuthResponse = try await postAuthJSONWithFallback(
                 paths: authEndpointCandidates("login"),
