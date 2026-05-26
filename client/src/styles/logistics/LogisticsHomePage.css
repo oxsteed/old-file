@@ -598,3 +598,248 @@ html.dark .lx-workspace-switcher-badge {
     padding: 1rem;
   }
 }
+
+
+/* ── LogisticsHomePage redesign — lxh-* scoped ──────────────────────────── */
+
+/* Hero */
+.lxh-hero {
+  padding: 5rem 2rem 4.5rem;
+  text-align: center;
+  max-width: 780px;
+  margin: 0 auto 4rem;
+}
+
+.lxh-eyebrow {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: #f97316;
+  margin: 0 0 1.25rem;
+}
+
+.lxh-title {
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 800;
+  line-height: 1.15;
+  margin: 0 0 1.25rem;
+  color: var(--app-text, #0f172a);
+  letter-spacing: -.02em;
+}
+
+html.dark .lxh-title {
+  color: #f1f5f9;
+}
+
+.lxh-sub {
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: var(--app-text-faint, #64748b);
+  margin: 0 0 2.25rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.lxh-actions {
+  display: flex;
+  gap: .75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Why cards */
+.lxh-why {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 4rem;
+}
+
+.lxh-why-card {
+  position: relative;
+  padding: 1.75rem 1.5rem 1.75rem 2rem;
+  border-radius: 1rem;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  overflow: hidden;
+}
+
+html.dark .lxh-why-card {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+.lxh-why-accent {
+  position: absolute;
+  left: 0;
+  top: 1.5rem;
+  bottom: 1.5rem;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+}
+
+.lxh-why-heading {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 .75rem;
+  color: var(--app-text, #0f172a);
+  line-height: 1.3;
+}
+
+html.dark .lxh-why-heading {
+  color: #f1f5f9;
+}
+
+.lxh-why-body {
+  font-size: .9rem;
+  line-height: 1.7;
+  color: var(--app-text-faint, #64748b);
+  margin: 0;
+}
+
+/* Open campaigns */
+.lxh-campaigns {
+  margin-bottom: 4rem;
+}
+
+.lxh-campaigns-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.lxh-campaigns-label {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--app-text-muted, #475569);
+}
+
+.lxh-campaigns-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.lxh-campaign-tile {
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+  padding: 1.25rem;
+  border-radius: .875rem;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow .2s, transform .15s;
+}
+
+.lxh-campaign-tile:hover {
+  box-shadow: 0 4px 18px rgba(0, 0, 0, .08);
+  transform: translateY(-2px);
+}
+
+html.dark .lxh-campaign-tile {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+.lxh-campaign-route {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--app-text-faint, #64748b);
+}
+
+.lxh-campaign-name {
+  font-size: .95rem;
+  font-weight: 700;
+  color: var(--app-text, #0f172a);
+  line-height: 1.3;
+}
+
+html.dark .lxh-campaign-name {
+  color: #f1f5f9;
+}
+
+.lxh-campaign-bar-wrap {
+  height: 5px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+  margin: .35rem 0;
+}
+
+html.dark .lxh-campaign-bar-wrap {
+  background: #1e293b;
+}
+
+.lxh-campaign-bar {
+  height: 100%;
+  background: #f97316;
+  border-radius: 999px;
+  transition: width .4s;
+}
+
+.lxh-campaign-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: .78rem;
+  color: var(--app-text-faint, #64748b);
+}
+
+/* CTA */
+.lxh-cta {
+  text-align: center;
+  padding: 4rem 2rem;
+  border-radius: 1.25rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: var(--card-bg, #fff);
+  margin-bottom: 2rem;
+}
+
+html.dark .lxh-cta {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+.lxh-cta-heading {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin: 0 0 .75rem;
+  color: var(--app-text, #0f172a);
+  letter-spacing: -.02em;
+}
+
+html.dark .lxh-cta-heading {
+  color: #f1f5f9;
+}
+
+.lxh-cta-body {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--app-text-faint, #64748b);
+  max-width: 520px;
+  margin: 0 auto 2rem;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .lxh-why {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .lxh-hero {
+    padding: 3rem 1.25rem 2.5rem;
+  }
+
+  .lxh-campaigns-grid {
+    grid-template-columns: 1fr;
+  }
+}

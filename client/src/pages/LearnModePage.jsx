@@ -1,643 +1,675 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  ArrowRight,
-  BookOpen,
-  Bot,
-  Flame,
-  Heart,
-  Lightbulb,
-  PlayCircle,
+  Car,
+  ChevronRight,
+  Clock,
+  Droplet,
+  Hammer,
+  Leaf,
+  LayoutGrid,
+  Paintbrush,
   Search,
   ShoppingBag,
-  Sparkles,
+  Thermometer,
+  User,
   Wrench,
+  X,
+  Zap,
 } from 'lucide-react';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import './LearnModePage.css';
 
-const LESSONS = [
+// ── Categories ────────────────────────────────────────────────────────────────
+
+const CATEGORIES = [
+  { id: 'all',         label: 'All',         Icon: LayoutGrid,  color: '#f97316' },
+  { id: 'plumbing',    label: 'Plumbing',    Icon: Droplet,     color: '#0ea5e9' },
+  { id: 'electrical',  label: 'Electrical',  Icon: Zap,         color: '#eab308' },
+  { id: 'carpentry',   label: 'Carpentry',   Icon: Hammer,      color: '#8b5cf6' },
+  { id: 'hvac',        label: 'HVAC',        Icon: Thermometer, color: '#14b8a6' },
+  { id: 'painting',    label: 'Painting',    Icon: Paintbrush,  color: '#ec4899' },
+  { id: 'car-care',    label: 'Car Care',    Icon: Car,         color: '#6366f1' },
+  { id: 'landscaping', label: 'Landscaping', Icon: Leaf,        color: '#22c55e' },
+  { id: 'general',     label: 'General',     Icon: Wrench,      color: '#94a3b8' },
+];
+
+// ── Guide data ────────────────────────────────────────────────────────────────
+
+const GUIDES = [
+  // Plumbing
   {
-    id: 'brake-pad-replacement',
-    title: 'Change front brake pads without guessing the next step',
-    creator: 'Mike from OxSteed Garage',
-    handle: '@garage.mike',
-    duration: '9 min',
-    level: 'Intermediate',
-    category: 'Auto repair',
-    problem: 'Squeaking brakes and worn pads',
-    summary:
-      'A clean vertical walkthrough that shows the safe lift, caliper removal, pad swap, and final torque check before the test drive.',
-    hook: 'You should see exactly which bolts move, which tools matter, and what not to skip before the wheel goes back on.',
-    metrics: {
-      likes: '24.8K',
-      saves: '9.3K',
-      itemClicks: '3.2K',
-      completions: '68%',
-    },
-    chapters: ['Lift and secure the car', 'Remove wheel and caliper', 'Compress and swap pads', 'Torque and test'],
-    problemTags: ['change brakes', 'change brake pads', 'replace front brake pads', 'brake service'],
-    skills: ['Brake service', 'Wheel removal', 'Torque safety', 'Jack-stand safety'],
-    items: [
-      {
-        name: 'Front brake pad set',
-        purpose: 'The replacement part matched to the lesson.',
-        sourceLabel: 'AI matched part',
-        href: '/products?q=front+brake+pad+set',
-      },
-      {
-        name: 'Floor jack and jack stands',
-        purpose: 'Needed to lift and hold the vehicle safely.',
-        sourceLabel: 'Rent this setup',
-        href: '/tool-rentals?category=automotive',
-      },
-      {
-        name: 'Socket set and breaker bar',
-        purpose: 'Used to remove lugs and caliper hardware.',
-        sourceLabel: 'Shop tools',
-        href: '/products?q=socket+set',
-      },
-      {
-        name: 'Torque wrench',
-        purpose: 'Used for the final lug torque before driving.',
-        sourceLabel: 'Rent a torque wrench',
-        href: '/tool-rentals?category=hand-tools',
-      },
+    id: 'fix-leaky-faucet',
+    title: 'Fix a Leaky Faucet',
+    category: 'plumbing',
+    difficulty: 'Easy',
+    minutes: 30,
+    intro: 'A dripping faucet wastes gallons a day and usually comes down to a worn washer or O-ring — both cost under a dollar.',
+    steps: [
+      'Turn off water supply valves under the sink. Turn on the faucet to release remaining pressure.',
+      'Remove the handle by unscrewing the decorative cap and the screw underneath.',
+      'Unscrew the packing nut and pull out the stem.',
+      'Inspect the rubber washer and O-ring at the bottom of the stem. Replace both.',
+      'Reassemble in reverse order. Turn the supply valves back on and test.',
     ],
-    theme: 'sunrise-garage',
-    crossMode: {
-      hireHref: '/post-job',
-      toolsHref: '/tool-rentals?category=automotive',
-    },
+    skills: ['Shutoff valve operation', 'Basic disassembly', 'Washer replacement'],
+    tools: [
+      { name: 'Adjustable wrench', href: '/tool-rentals?category=hand-tools' },
+      { name: 'Flathead + Phillips screwdrivers', href: '/products?q=screwdriver+set' },
+      { name: 'Replacement washers and O-rings', href: '/products?q=faucet+repair+kit' },
+    ],
+    hireHref: '/post-job?category=plumbing',
+    toolsHref: '/tool-rentals?category=plumbing',
   },
   {
-    id: 'patch-drywall',
-    title: 'Patch a drywall hole so it disappears after paint',
-    creator: 'Nia Builds',
-    handle: '@niabuilds',
-    duration: '6 min',
-    level: 'Beginner',
-    category: 'Home repair',
-    problem: 'Fist-sized wall damage',
-    summary:
-      'A fast repair lesson that covers prep, patch placement, mud feathering, sanding, and paint-ready finishing.',
-    hook: 'This is the kind of clip you save once and use every time a wall gets dinged.',
-    metrics: {
-      likes: '18.1K',
-      saves: '12.4K',
-      itemClicks: '2.9K',
-      completions: '74%',
-    },
-    chapters: ['Clean the opening', 'Apply the patch', 'Feather the mud', 'Sand and prime'],
-    problemTags: ['patch drywall', 'repair drywall hole', 'fix wall hole'],
-    skills: ['Drywall patching', 'Mud application', 'Surface prep', 'Paint prep'],
-    items: [
-      {
-        name: 'Drywall repair patch',
-        purpose: 'Creates the backing over the damaged area.',
-        sourceLabel: 'AI picked material',
-        href: '/products?q=drywall+repair+patch',
-      },
-      {
-        name: 'Joint compound',
-        purpose: 'Used to build and feather the finish.',
-        sourceLabel: 'Shop compound',
-        href: '/products?q=joint+compound',
-      },
-      {
-        name: 'Putty knife set',
-        purpose: 'Gives you the right blade width for smooth coats.',
-        sourceLabel: 'Rent or buy tools',
-        href: '/tool-rentals?category=painting',
-      },
+    id: 'unclog-drain',
+    title: 'Unclog a Drain',
+    category: 'plumbing',
+    difficulty: 'Easy',
+    minutes: 20,
+    intro: 'Most slow drains are a hair-and-soap buildup in the trap — no chemicals needed, just the right tool and a little patience.',
+    steps: [
+      'Remove the drain stopper (usually just lifts out or unscrews).',
+      'Use a drain snake or zip-it tool to pull out debris. Go at least 12 inches deep.',
+      'Run hot water for 30 seconds to flush loosened buildup.',
+      'If still slow, place a bucket under the P-trap and unscrew the slip-joint nuts. Clean the trap and reinstall.',
+      'Test the drain and check the trap connections for leaks.',
     ],
-    theme: 'plaster-cloud',
-    crossMode: {
-      hireHref: '/post-job',
-      toolsHref: '/tool-rentals?category=painting',
-    },
+    skills: ['Drain snake use', 'P-trap removal', 'Slip-joint fittings'],
+    tools: [
+      { name: 'Drain snake or zip-it tool', href: '/products?q=drain+snake' },
+      { name: 'Bucket', href: '/products?q=utility+bucket' },
+      { name: 'Tongue-and-groove pliers', href: '/tool-rentals?category=hand-tools' },
+    ],
+    hireHref: '/post-job?category=plumbing',
+    toolsHref: '/tool-rentals?category=plumbing',
+  },
+  {
+    id: 'fix-running-toilet',
+    title: 'Fix a Running Toilet',
+    category: 'plumbing',
+    difficulty: 'Medium',
+    minutes: 45,
+    intro: 'A toilet that keeps running after flushing is almost always the flapper or fill valve — both are inexpensive and beginner-friendly.',
+    steps: [
+      'Lift the tank lid and listen. Hissing = fill valve. Water running into bowl = flapper.',
+      'To fix the flapper: turn off the shutoff, flush to empty, unhook the old flapper, snap on the new one.',
+      'To fix the fill valve: turn off the shutoff, flush to empty, unscrew the lock nut at the base of the old valve, and twist in the new one.',
+      'Set the water level to about 1 inch below the overflow tube.',
+      'Turn the water back on. Let the tank fill and verify the running has stopped.',
+    ],
+    skills: ['Toilet tank anatomy', 'Flapper replacement', 'Fill valve replacement'],
+    tools: [
+      { name: 'Universal flapper', href: '/products?q=toilet+flapper' },
+      { name: 'Fill valve kit', href: '/products?q=toilet+fill+valve' },
+      { name: 'Adjustable wrench', href: '/tool-rentals?category=hand-tools' },
+    ],
+    hireHref: '/post-job?category=plumbing',
+    toolsHref: '/tool-rentals?category=plumbing',
+  },
+
+  // Electrical
+  {
+    id: 'replace-light-switch',
+    title: 'Replace a Light Switch',
+    category: 'electrical',
+    difficulty: 'Easy',
+    minutes: 15,
+    intro: 'Swapping a standard single-pole switch is one of the safest electrical tasks — as long as you confirm the circuit is off first.',
+    steps: [
+      'Turn off the circuit breaker. Confirm power is off with a non-contact voltage tester.',
+      'Unscrew the cover plate and pull the switch out from the box.',
+      'Photograph the existing wiring before disconnecting anything.',
+      'Unscrew the terminals and transfer the wires to the new switch: black to brass, white (marked) to brass, bare copper to green.',
+      'Push the switch back in, screw it down, reinstall the cover plate, and restore power.',
+    ],
+    skills: ['Breaker shutoff', 'Voltage testing', 'Basic wiring connections'],
+    tools: [
+      { name: 'Non-contact voltage tester', href: '/products?q=voltage+tester' },
+      { name: 'Flathead + Phillips screwdrivers', href: '/products?q=screwdriver+set' },
+      { name: 'Replacement switch', href: '/products?q=light+switch' },
+    ],
+    hireHref: '/post-job?category=electrical',
+    toolsHref: '/tool-rentals?category=electrical',
+  },
+  {
+    id: 'install-ceiling-fan',
+    title: 'Install a Ceiling Fan',
+    category: 'electrical',
+    difficulty: 'Medium',
+    minutes: 90,
+    intro: 'Installing a fan is manageable if the existing box is fan-rated. If you\'re replacing a light fixture, check the box first.',
+    steps: [
+      'Turn off the circuit breaker. Confirm the existing box is fan-rated (it must support dynamic load).',
+      'Install the mounting bracket over the box according to the fan\'s instructions.',
+      'Assemble the motor and canopy on the ground. Then lift and hang it on the bracket hook.',
+      'Connect wiring: black to black, white to white, bare to bare. If there\'s a blue wire (light kit), connect it to black or a separate switch.',
+      'Attach the blades and light kit if included. Restore power, test both speeds and the light.',
+    ],
+    skills: ['Fan-rated box identification', 'Wire connections', 'Blade balancing'],
+    tools: [
+      { name: 'Non-contact voltage tester', href: '/products?q=voltage+tester' },
+      { name: 'Drill + bits', href: '/tool-rentals?category=power-tools' },
+      { name: 'Ladder', href: '/tool-rentals?category=access' },
+      { name: 'Wire connectors (supplied or separately)', href: '/products?q=wire+nuts' },
+    ],
+    hireHref: '/post-job?category=electrical',
+    toolsHref: '/tool-rentals?category=electrical',
   },
   {
     id: 'reset-gfci',
-    title: 'Reset a GFCI outlet and know when to stop',
-    creator: 'Trade School Quickfix',
-    handle: '@trades.quickfix',
-    duration: '5 min',
-    level: 'Beginner',
-    category: 'Electrical',
-    problem: 'Bathroom or kitchen outlet stopped working',
-    summary:
-      'A safety-first clip on finding the tripped outlet, checking for moisture, and testing whether it is safe to reset.',
-    hook: 'Useful videos should save you from both panic and overconfidence.',
-    metrics: {
-      likes: '11.6K',
-      saves: '8.7K',
-      itemClicks: '1.8K',
-      completions: '71%',
-    },
-    chapters: ['Cut the risk first', 'Locate the right GFCI', 'Reset and test', 'Call a pro if it repeats'],
-    problemTags: ['reset gfci', 'outlet keeps tripping', 'bathroom outlet not working'],
-    skills: ['Basic electrical safety', 'Outlet troubleshooting', 'Moisture checks'],
-    items: [
-      {
-        name: 'Non-contact voltage tester',
-        purpose: 'Checks whether the circuit is live before touching anything.',
-        sourceLabel: 'AI safety match',
-        href: '/products?q=non-contact+voltage+tester',
-      },
-      {
-        name: 'Outlet tester',
-        purpose: 'Helps verify the outlet after the reset.',
-        sourceLabel: 'Shop tester',
-        href: '/products?q=outlet+tester',
-      },
+    title: 'Reset a GFCI Outlet',
+    category: 'electrical',
+    difficulty: 'Easy',
+    minutes: 5,
+    intro: 'GFCI outlets protect against shock in wet areas. When one trips, it can kill power to several outlets downstream — here\'s how to find and reset it.',
+    steps: [
+      'Look for the outlet with TEST and RESET buttons — it may not be in the same room as the dead outlet.',
+      'Check for moisture or damage around the outlet before touching anything.',
+      'Press the RESET button firmly until it clicks. Power should restore immediately.',
+      'Plug in a lamp or use an outlet tester to confirm.',
+      'If the outlet trips again immediately, stop and call an electrician — there\'s an underlying fault.',
     ],
-    theme: 'night-current',
-    crossMode: {
-      hireHref: '/post-job',
-      toolsHref: '/tool-rentals?category=electrical',
-    },
+    skills: ['GFCI identification', 'Circuit tracing', 'When to stop'],
+    tools: [
+      { name: 'Outlet tester', href: '/products?q=outlet+tester' },
+    ],
+    hireHref: '/post-job?category=electrical',
+    toolsHref: '/tool-rentals?category=electrical',
+  },
+
+  // HVAC
+  {
+    id: 'replace-hvac-filter',
+    title: 'Replace Your HVAC Filter',
+    category: 'hvac',
+    difficulty: 'Easy',
+    minutes: 10,
+    intro: 'A clogged filter makes your system work harder, raises your energy bill, and shortens the unit\'s life. Replace it every 1–3 months.',
+    steps: [
+      'Find the filter slot — typically on the return air vent or at the air handler unit.',
+      'Note the size printed on the existing filter frame before buying a replacement.',
+      'Turn off the thermostat. Slide out the old filter and note the airflow direction arrow.',
+      'Slide in the new filter with the arrow pointing toward the unit (away from the return duct).',
+      'Write the install date on the frame with a marker. Turn the thermostat back on.',
+    ],
+    skills: ['Filter sizing', 'Airflow direction', 'Replacement schedule'],
+    tools: [
+      { name: 'Replacement pleated filter (match your size)', href: '/products?q=hvac+filter' },
+      { name: 'Permanent marker', href: '/products?q=permanent+marker' },
+    ],
+    hireHref: '/post-job?category=hvac',
+    toolsHref: '/tool-rentals?category=hvac',
   },
   {
-    id: 'replace-air-filter',
-    title: 'Change your HVAC filter in under five minutes',
-    creator: 'Airflow with Sam',
-    handle: '@airflow.sam',
-    duration: '4 min',
-    level: 'Beginner',
-    category: 'HVAC',
-    problem: 'Weak airflow or overdue maintenance',
-    summary:
-      'A quick lesson on checking filter size, reading airflow direction, and setting the next replacement reminder.',
-    hook: 'Small maintenance clips keep expensive systems alive longer, and that is what makes this feed worth opening.',
-    metrics: {
-      likes: '9.4K',
-      saves: '6.8K',
-      itemClicks: '1.5K',
-      completions: '79%',
-    },
-    chapters: ['Check the old filter size', 'Power down the system', 'Install with airflow arrow', 'Set the next reminder'],
-    problemTags: ['change hvac filter', 'replace air filter', 'furnace filter'],
-    skills: ['Routine maintenance', 'Filter sizing', 'Airflow direction'],
-    items: [
-      {
-        name: 'Pleated HVAC filter',
-        purpose: 'Replacement filter matched to the cabinet size.',
-        sourceLabel: 'AI matched filter',
-        href: '/products?q=hvac+filter',
-      },
-      {
-        name: 'Permanent marker',
-        purpose: 'Useful for writing the install date on the frame.',
-        sourceLabel: 'Add-on item',
-        href: '/products?q=permanent+marker',
-      },
-    ],
-    theme: 'cool-breeze',
-    crossMode: {
-      hireHref: '/post-job',
-      toolsHref: '/tool-rentals?category=hvac',
-    },
-  },
-];
-
-const CATEGORY_PILLS = [
-  'For You',
-  'Plumbing',
-  'Electrical',
-  'Auto',
-  'Walls',
-  'HVAC',
-  'Appliances',
-];
-
-const WRITTEN_GUIDES = {
-  sink: {
-    title: 'No sink video yet, so here is the written repair path',
-    intro:
-      'Learn Mode should still solve the problem when the video library has a gap. This guide focuses on the most common sink issues: a leak under the basin or a slow drain.',
+    id: 'clean-condensate-drain',
+    title: 'Clear Your AC Condensate Drain',
+    category: 'hvac',
+    difficulty: 'Easy',
+    minutes: 20,
+    intro: 'A clogged condensate drain causes water to back up and can shut down your AC or cause ceiling damage. It\'s a quick flush.',
     steps: [
-      'Put a bucket and towel under the sink before loosening anything so you can catch standing water.',
-      'Identify the problem first: supply-line drip, drain-trap leak, or slow drain with no visible leak.',
-      'If the leak is from the drain trap, tighten the slip nuts by hand first and check whether the washers are seated evenly.',
-      'If the sink drains slowly, remove debris near the stopper, then disconnect and rinse the P-trap completely.',
-      'If the leak is from the supply line, shut off both valves, dry the line, and confirm whether the water returns at the nut, valve, or hose body.',
-      'Turn the water back on slowly and use a dry paper towel to detect tiny drips at every connection.',
-      'If a shutoff valve is frozen, a pipe is cracked, or water appears behind the wall, stop and book a licensed plumber.',
+      'Turn off the AC at the thermostat.',
+      'Find the condensate drain line — a white PVC pipe near the air handler, usually leading outside.',
+      'Locate the clean-out cap on the line and remove it.',
+      'Pour 1 cup of distilled white vinegar into the opening. Wait 30 minutes.',
+      'Flush with water. Restore power and confirm no water is backing up at the drain pan.',
     ],
-    skills: ['Sink troubleshooting', 'Drain cleaning', 'Slip-joint fitting checks', 'Basic plumbing safety'],
-    items: [
-      'Bucket and absorbent towels',
-      'Tongue-and-groove pliers',
-      'Replacement slip-joint washers',
-      'Drain snake or zip tool',
-      'Plumber’s tape',
+    skills: ['Condensate system basics', 'Preventive maintenance'],
+    tools: [
+      { name: 'Distilled white vinegar', href: '/products?q=white+vinegar' },
+      { name: 'Wet/dry vacuum (optional, for severe clogs)', href: '/tool-rentals?category=cleaning' },
     ],
+    hireHref: '/post-job?category=hvac',
+    toolsHref: '/tool-rentals?category=hvac',
   },
+
+  // Carpentry
+  {
+    id: 'patch-drywall',
+    title: 'Patch a Drywall Hole',
+    category: 'carpentry',
+    difficulty: 'Medium',
+    minutes: 60,
+    intro: 'A fist-sized hole can be made invisible with the right patch and two thin coats of compound — the key is feathering the edges, not building them up.',
+    steps: [
+      'Cut the damaged area into a clean square using a drywall saw.',
+      'Cut a patch from scrap drywall slightly larger than the hole, score it to create a paper backing flap.',
+      'Apply joint compound around the hole, press the patch in place using the paper flap as a bond.',
+      'Apply a thin first coat of compound over the patch, feathering 4–6 inches beyond the edges.',
+      'Sand lightly when dry. Apply a second thin coat, feathering even wider. Sand, prime, and paint.',
+    ],
+    skills: ['Drywall cutting', 'Mud application', 'Feathering', 'Surface prep'],
+    tools: [
+      { name: 'Drywall patch (or scrap drywall)', href: '/products?q=drywall+patch' },
+      { name: 'Joint compound', href: '/products?q=joint+compound' },
+      { name: 'Putty knives (4" and 8")', href: '/tool-rentals?category=painting' },
+      { name: 'Sanding sponge', href: '/products?q=sanding+sponge' },
+    ],
+    hireHref: '/post-job?category=carpentry',
+    toolsHref: '/tool-rentals?category=painting',
+  },
+  {
+    id: 'install-door-handle',
+    title: 'Replace a Door Handle',
+    category: 'carpentry',
+    difficulty: 'Easy',
+    minutes: 30,
+    intro: 'Most door handles use standard sizing — the new set will come with a template that makes this a straightforward swap.',
+    steps: [
+      'Remove the existing handle by unscrewing the mounting screws on the interior rose plate.',
+      'Pull both sides of the handle out and unscrew the latch from the edge of the door.',
+      'Use the template included with the new handle to confirm hole sizing matches.',
+      'Insert the new latch and secure with the edge screws.',
+      'Thread the exterior handle through the latch and align the interior handle. Tighten the mounting screws.',
+    ],
+    skills: ['Door hardware sizing', 'Latch alignment'],
+    tools: [
+      { name: 'Phillips screwdriver or drill', href: '/tool-rentals?category=power-tools' },
+      { name: 'Replacement door handle set', href: '/products?q=door+handle+set' },
+    ],
+    hireHref: '/post-job?category=carpentry',
+    toolsHref: '/tool-rentals?category=carpentry',
+  },
+
+  // Painting
+  {
+    id: 'paint-a-wall',
+    title: 'Prep and Paint a Room Wall',
+    category: 'painting',
+    difficulty: 'Medium',
+    minutes: 180,
+    intro: 'Good prep determines the result — patching, sanding, and taping matter more than the paint itself.',
+    steps: [
+      'Patch any nail holes or dings with spackling compound. Sand smooth when dry.',
+      'Wipe the wall down with a damp cloth to remove dust and grease. Let dry.',
+      'Tape trim, outlets, and edges with painter\'s tape. Lay a drop cloth on the floor.',
+      'Cut in edges with a brush: around the tape lines, corners, and ceiling edge.',
+      'Roll the field (main wall area) in a W pattern with a 3/8" nap roller. Apply two coats, letting the first dry fully between coats.',
+    ],
+    skills: ['Surface prep', 'Cutting in', 'Rolling technique', 'Two-coat application'],
+    tools: [
+      { name: 'Paint roller and tray', href: '/tool-rentals?category=painting' },
+      { name: '2" angled brush (for cutting in)', href: '/products?q=paint+brush' },
+      { name: 'Painter\'s tape', href: '/products?q=painters+tape' },
+      { name: 'Drop cloth', href: '/products?q=drop+cloth' },
+    ],
+    hireHref: '/post-job?category=painting',
+    toolsHref: '/tool-rentals?category=painting',
+  },
+
+  // Car Care
+  {
+    id: 'change-oil',
+    title: 'Change Your Engine Oil',
+    category: 'car-care',
+    difficulty: 'Medium',
+    minutes: 45,
+    intro: 'An oil change is the highest-leverage maintenance task you can do — wrong intervals cost engines. Getting comfortable doing it yourself saves money every 5,000 miles.',
+    steps: [
+      'Look up the correct oil type (e.g., 5W-30) and filter for your car year/make/model.',
+      'Warm the engine for 2 minutes, then turn it off. Jack up the car and set it on jack stands.',
+      'Place a drain pan under the drain plug. Remove the plug with a wrench and let the oil drain fully (5–10 min).',
+      'Remove the old oil filter with a filter wrench. Lightly coat the new filter gasket with fresh oil and hand-tighten.',
+      'Reinstall the drain plug. Fill with new oil from the top. Check level with the dipstick. Run the engine briefly and check for leaks.',
+    ],
+    skills: ['Jack and jack stand safety', 'Oil spec lookup', 'Filter replacement', 'Drain plug torque'],
+    tools: [
+      { name: 'Floor jack and jack stands', href: '/tool-rentals?category=automotive' },
+      { name: 'Oil filter wrench', href: '/tool-rentals?category=automotive' },
+      { name: 'Drain pan', href: '/products?q=oil+drain+pan' },
+      { name: 'Correct oil and filter for your vehicle', href: '/products?q=motor+oil' },
+    ],
+    hireHref: '/post-job?category=car-care',
+    toolsHref: '/tool-rentals?category=automotive',
+  },
+  {
+    id: 'replace-wipers',
+    title: 'Replace Windshield Wipers',
+    category: 'car-care',
+    difficulty: 'Easy',
+    minutes: 10,
+    intro: 'Wipers that streak or skip are a safety issue. Replacing them takes 10 minutes and no tools — just the right size for your car.',
+    steps: [
+      'Look up the correct blade size for your driver and passenger sides (they\'re often different).',
+      'Lift the wiper arm away from the windshield until it locks in the raised position.',
+      'Press the tab where the blade meets the arm and slide the old blade off.',
+      'Hook the new blade onto the arm and press until it clicks.',
+      'Gently lower the arm back to the glass. Repeat for the other side.',
+    ],
+    skills: ['Blade sizing', 'Hook-style connector', 'Safe arm handling'],
+    tools: [
+      { name: 'Replacement wiper blades (check your vehicle size)', href: '/products?q=wiper+blades' },
+    ],
+    hireHref: '/post-job?category=car-care',
+    toolsHref: '/tool-rentals?category=automotive',
+  },
+
+  // Landscaping
+  {
+    id: 'mulch-garden-bed',
+    title: 'Mulch a Garden Bed',
+    category: 'landscaping',
+    difficulty: 'Easy',
+    minutes: 120,
+    intro: 'Mulch suppresses weeds, retains moisture, and regulates soil temperature — three to four inches is the sweet spot.',
+    steps: [
+      'Clear the bed of weeds, pulling from the root. Don\'t just cut them — they\'ll regrow.',
+      'Edge the bed with a flat spade to create a clean border.',
+      'Lay cardboard or landscape fabric over the soil for extra weed suppression (optional).',
+      'Pour or wheelbarrow mulch into the bed. Spread with a rake to an even 3–4 inch depth.',
+      'Keep mulch 2–3 inches away from plant stems and tree trunks to prevent rot.',
+    ],
+    skills: ['Weed removal', 'Edging', 'Mulch depth control'],
+    tools: [
+      { name: 'Flat spade for edging', href: '/tool-rentals?category=landscaping' },
+      { name: 'Garden rake', href: '/tool-rentals?category=landscaping' },
+      { name: 'Wheelbarrow', href: '/tool-rentals?category=landscaping' },
+      { name: 'Bagged or bulk mulch', href: '/products?q=mulch' },
+    ],
+    hireHref: '/post-job?category=landscaping',
+    toolsHref: '/tool-rentals?category=landscaping',
+  },
+
+  // General
+  {
+    id: 'caulk-bathtub',
+    title: 'Recaulk a Bathtub',
+    category: 'general',
+    difficulty: 'Easy',
+    minutes: 30,
+    intro: 'Cracked or moldy caulk lets water into the wall. Removing the old bead and applying a fresh one is straightforward and worth doing every few years.',
+    steps: [
+      'Use a caulk remover tool or utility knife to cut and pull out all the old caulk.',
+      'Clean the joint thoroughly with rubbing alcohol and let it dry completely (even overnight).',
+      'Fill the tub with water before caulking — this pre-stresses the joint so it won\'t crack when in use.',
+      'Apply a thin, continuous bead of tub-and-tile caulk along the joint.',
+      'Wet your finger and smooth the bead in one pass. Remove the tape immediately. Let cure 24–48 hours before using the tub.',
+    ],
+    skills: ['Caulk removal', 'Surface prep', 'Bead application', 'Wet smoothing'],
+    tools: [
+      { name: 'Caulk remover tool', href: '/products?q=caulk+remover' },
+      { name: 'Tub-and-tile silicone caulk', href: '/products?q=bathtub+caulk' },
+      { name: 'Rubbing alcohol', href: '/products?q=isopropyl+alcohol' },
+    ],
+    hireHref: '/post-job?category=general',
+    toolsHref: '/tool-rentals',
+  },
+];
+
+// ── Difficulty config ─────────────────────────────────────────────────────────
+
+const DIFFICULTY_COLOR = {
+  Easy:   '#22c55e',
+  Medium: '#f97316',
+  Hard:   '#ef4444',
 };
 
-function normalize(value) {
-  return String(value || '').trim().toLowerCase();
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function normalize(str) {
+  return String(str || '').toLowerCase();
 }
 
-function buildSearchTerms(query) {
-  const text = normalize(query);
-  if (!text) return [];
-  const terms = new Set([text]);
-  text.split(/\s+/).forEach((token) => terms.add(token));
-  if (text.includes('brake')) {
-    terms.add('brake pads');
-    terms.add('brake service');
-    terms.add('auto repair');
-  }
-  if (text.includes('drywall') || text.includes('wall')) {
-    terms.add('wall repair');
-    terms.add('home repair');
-  }
-  if (text.includes('gfci') || text.includes('outlet')) {
-    terms.add('electrical');
-  }
-  if (text.includes('filter') || text.includes('hvac')) {
-    terms.add('air filter');
-    terms.add('maintenance');
-  }
-  if (text.includes('sink') || text.includes('fix sink')) {
-    terms.add('sink');
-    terms.add('plumbing');
-  }
-  return [...terms];
-}
-
-function getWrittenGuide(query) {
-  const text = normalize(query);
-  if (!text) return null;
-  if (text.includes('sink')) {
-    return WRITTEN_GUIDES.sink;
-  }
-  return null;
-}
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function LearnModePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState(searchParams.get('q') || '');
-  const [activeLessonId, setActiveLessonId] = useState(LESSONS[0].id);
-  const searchTerms = useMemo(() => buildSearchTerms(query), [query]);
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [expandedId, setExpandedId] = useState(null);
 
-  useEffect(() => {
-    const next = searchParams.get('q') || '';
-    if (next !== query) {
-      setQuery(next);
-    }
-  }, [searchParams, query]);
-
-  const results = useMemo(() => {
-    if (!searchTerms.length) {
-      return LESSONS;
-    }
-
-    return LESSONS.filter((lesson) => {
-      const haystack = [
-        lesson.title,
-        lesson.problem,
-        lesson.summary,
-        lesson.hook,
-        lesson.category,
-        ...lesson.problemTags,
-        ...lesson.skills,
-        ...lesson.items.map((item) => item.name),
-      ]
-        .join(' ')
-        .toLowerCase();
-
-      return searchTerms.some((term) => haystack.includes(term));
+  const filteredGuides = useMemo(() => {
+    const q = normalize(query);
+    return GUIDES.filter((g) => {
+      const matchesCategory = activeCategory === 'all' || g.category === activeCategory;
+      if (!matchesCategory) return false;
+      if (!q) return true;
+      return (
+        normalize(g.title).includes(q) ||
+        normalize(g.intro).includes(q) ||
+        normalize(g.category).includes(q) ||
+        g.skills.some((s) => normalize(s).includes(q)) ||
+        g.steps.some((s) => normalize(s).includes(q))
+      );
     });
-  }, [searchTerms]);
+  }, [query, activeCategory]);
 
-  useEffect(() => {
-    if (!results.length) return;
-    if (!results.some((lesson) => lesson.id === activeLessonId)) {
-      setActiveLessonId(results[0].id);
-    }
-  }, [results, activeLessonId]);
-
-  const activeLesson = useMemo(
-    () => results.find((lesson) => lesson.id === activeLessonId) || results[0] || null,
-    [results, activeLessonId],
+  const categoryMap = useMemo(
+    () => Object.fromEntries(CATEGORIES.map((c) => [c.id, c])),
+    [],
   );
 
-  const fallbackGuide = useMemo(() => {
-    if (results.length > 0) return null;
-    return getWrittenGuide(query);
-  }, [query, results.length]);
-
-  const highlightedSearch = query.trim() || 'change brakes';
-
-  const handleSearchSubmit = (event) => {
-    event.preventDefault();
+  const handleSearch = (e) => {
+    e.preventDefault();
     const trimmed = query.trim();
-    if (!trimmed) {
-      setSearchParams({}, { replace: true });
-      return;
-    }
-    setSearchParams({ q: trimmed }, { replace: true });
+    setSearchParams(trimmed ? { q: trimmed } : {}, { replace: true });
+    setExpandedId(null);
   };
 
+  const handleCategoryClick = (id) => {
+    setActiveCategory(id);
+    setExpandedId(null);
+    setQuery('');
+    setSearchParams({}, { replace: true });
+  };
+
+  const toggleGuide = (id) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  };
+
+  const activeCategoryLabel =
+    activeCategory === 'all'
+      ? 'All'
+      : (categoryMap[activeCategory]?.label ?? activeCategory);
+
   return (
-    <PageShell hideFooter>
+    <PageShell>
       <PageMeta
-        title="Learn Mode | OxSteed"
-        description="A short-form, skills-first learning feed where every useful fix can turn into action, shopping, or a hire."
+        title="Learn to DIY | OxSteed"
+        description="Step-by-step guides for home repair, car care, and everyday fixes — with tools, kits, and a hire path when you need one."
       />
 
-      <div className="learn-feed-page">
-        <header className="learn-feed-topbar">
-          <div className="learn-feed-wordmark">
-            <span className="learn-feed-wordmark-badge">OS</span>
-            <div>
-              <strong>Learn Mode</strong>
-              <span>Useful fixes, useful tools, useful outcomes.</span>
-            </div>
+      <div className="lrn-page">
+
+        {/* ── Header ──────────────────────────────────────────── */}
+        <div className="lrn-header">
+          <div>
+            <h1 className="lrn-title">Learn to DIY</h1>
+            <p className="lrn-subtitle">Step-by-step guides for home &amp; car</p>
           </div>
-
-          <form className="learn-feed-searchbar" onSubmit={handleSearchSubmit}>
-            <Search size={18} aria-hidden="true" />
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search real jobs like fix sink, change brakes, patch drywall"
-              aria-label="Search Learn Mode"
-            />
-            <button type="submit">AI Search</button>
-          </form>
-
-          <div className="learn-feed-actions">
-            <Link to="/join">Post a lesson</Link>
-            <Link to="/products">Shop</Link>
+          <div className="lrn-header-icon" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+            </svg>
           </div>
-        </header>
-
-        <div className="learn-feed-shell">
-          <aside className="learn-feed-left-rail">
-            <div className="learn-feed-left-card">
-              <span className="learn-feed-section-kicker">
-                <Sparkles size={15} aria-hidden="true" />
-                Learn feed
-              </span>
-              <h1>Compete on usefulness, not noise.</h1>
-              <p>
-                This feed is for real repairs, real tasks, and real skills. Every clip should help someone finish a job or know when to call a pro.
-              </p>
-            </div>
-
-            <div className="learn-feed-left-card">
-              <h2>Browse</h2>
-              <div className="learn-feed-pill-grid">
-                {CATEGORY_PILLS.map((pill) => (
-                  <button
-                    key={pill}
-                    type="button"
-                    onClick={() => {
-                      setQuery(pill === 'For You' ? '' : pill);
-                      if (pill === 'For You') {
-                        setSearchParams({}, { replace: true });
-                      } else {
-                        setSearchParams({ q: pill }, { replace: true });
-                      }
-                    }}
-                  >
-                    {pill}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="learn-feed-left-card">
-              <h2>How ranking works</h2>
-              <ul className="learn-feed-bullet-list">
-                <li>Search is weighted by the repair being solved, not random popularity.</li>
-                <li>Skill tags and item lists help the AI understand what the clip actually teaches.</li>
-                <li>If there is no clip yet, Learn Mode should still give a written repair path.</li>
-              </ul>
-            </div>
-          </aside>
-
-          <main className="learn-feed-main-stage">
-            {fallbackGuide ? (
-              <section className="learn-feed-guide-mode">
-                <div className="learn-feed-guide-header">
-                  <span className="learn-feed-section-kicker">
-                    <BookOpen size={15} aria-hidden="true" />
-                    Guide mode
-                  </span>
-                  <h2>{fallbackGuide.title}</h2>
-                  <p>{fallbackGuide.intro}</p>
-                </div>
-
-                <div className="learn-feed-guide-grid">
-                  <div className="learn-feed-guide-steps">
-                    <h3>Step-by-step</h3>
-                    <ol>
-                      {fallbackGuide.steps.map((step) => (
-                        <li key={step}>{step}</li>
-                      ))}
-                    </ol>
-                  </div>
-
-                  <div className="learn-feed-guide-side">
-                    <div className="learn-feed-side-panel">
-                      <h3>Skills covered</h3>
-                      <div className="learn-feed-chip-row">
-                        {fallbackGuide.skills.map((skill) => (
-                          <span key={skill}>{skill}</span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="learn-feed-side-panel">
-                      <h3>Likely items needed</h3>
-                      <ul className="learn-feed-bullet-list">
-                        {fallbackGuide.items.map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div className="learn-feed-guide-cta">
-                      <p>There is no video for this task yet. Be the first person to post it and attach the exact items used.</p>
-                      <div className="learn-feed-guide-actions">
-                        <Link to="/join">Become a creator</Link>
-                        <Link to="/post-job">Hire a pro instead</Link>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            ) : null}
-
-            {activeLesson ? (
-              <section className="learn-feed-stage">
-                <div className={`learn-feed-video-frame theme-${activeLesson.theme}`}>
-                  <div className="learn-feed-video-topline">
-                    <span>
-                      <PlayCircle size={15} aria-hidden="true" />
-                      {activeLesson.category}
-                    </span>
-                    <span>{activeLesson.duration}</span>
-                  </div>
-
-                  <div className="learn-feed-video-body">
-                    <div className="learn-feed-video-callout">
-                      <span>{activeLesson.problem}</span>
-                      <strong>{activeLesson.level}</strong>
-                    </div>
-
-                    <div className="learn-feed-video-moment">
-                      <div className="learn-feed-moment-chip">Real-use-case lesson</div>
-                      <h2>{activeLesson.title}</h2>
-                      <p>{activeLesson.hook}</p>
-                    </div>
-
-                    <div className="learn-feed-video-overlay">
-                      <div className="learn-feed-overlay-copy">
-                        <strong>{activeLesson.handle}</strong>
-                        <span>{activeLesson.creator}</span>
-                        <p>{activeLesson.summary}</p>
-                      </div>
-
-                      <div className="learn-feed-overlay-tags">
-                        {activeLesson.skills.slice(0, 3).map((skill) => (
-                          <span key={skill}>#{skill.replace(/\s+/g, '')}</span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="learn-feed-video-metrics">
-                    <div>
-                      <Heart size={16} aria-hidden="true" />
-                      <span>{activeLesson.metrics.likes}</span>
-                    </div>
-                    <div>
-                      <BookOpen size={16} aria-hidden="true" />
-                      <span>{activeLesson.metrics.saves}</span>
-                    </div>
-                    <div>
-                      <ShoppingBag size={16} aria-hidden="true" />
-                      <span>{activeLesson.metrics.itemClicks}</span>
-                    </div>
-                    <div>
-                      <Flame size={16} aria-hidden="true" />
-                      <span>{activeLesson.metrics.completions} complete</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="learn-feed-reel-queue">
-                  {(results.length ? results : LESSONS).map((lesson) => {
-                    const isActive = lesson.id === activeLesson.id;
-                    return (
-                      <button
-                        key={lesson.id}
-                        type="button"
-                        className={isActive ? 'is-active' : ''}
-                        onClick={() => setActiveLessonId(lesson.id)}
-                      >
-                        <span className={`learn-feed-queue-thumb theme-${lesson.theme}`} aria-hidden="true" />
-                        <span className="learn-feed-queue-copy">
-                          <strong>{lesson.title}</strong>
-                          <small>{lesson.category}</small>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-            ) : null}
-          </main>
-
-          <aside className="learn-feed-right-rail">
-            <div className="learn-feed-right-card">
-              <span className="learn-feed-section-kicker">
-                <Bot size={15} aria-hidden="true" />
-                AI interpretation
-              </span>
-              <h2>{highlightedSearch}</h2>
-              <p>
-                {searchTerms.length
-                  ? `The search expands this request into related skills, item names, and repair intent so useful clips surface even when titles differ.`
-                  : 'Every result here is intended to teach a task someone can actually complete, not just keep them scrolling.'}
-              </p>
-              <div className="learn-feed-chip-row">
-                {(searchTerms.length ? searchTerms : ['repair intent', 'skill tags', 'item links']).slice(0, 6).map((term) => (
-                  <span key={term}>{term}</span>
-                ))}
-              </div>
-            </div>
-
-            {activeLesson ? (
-              <>
-                <div className="learn-feed-right-card">
-                  <span className="learn-feed-section-kicker">
-                    <Wrench size={15} aria-hidden="true" />
-                    Skills in this lesson
-                  </span>
-                  <div className="learn-feed-chip-row">
-                    {activeLesson.skills.map((skill) => (
-                      <span key={skill}>{skill}</span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="learn-feed-right-card">
-                  <span className="learn-feed-section-kicker">
-                    <ShoppingBag size={15} aria-hidden="true" />
-                    Shoppable setup
-                  </span>
-                  <div className="learn-feed-shop-list">
-                    {activeLesson.items.map((item) => (
-                      <div key={item.name} className="learn-feed-shop-item">
-                        <div>
-                          <strong>{item.name}</strong>
-                          <p>{item.purpose}</p>
-                        </div>
-                        <Link to={item.href}>
-                          {item.sourceLabel}
-                          <ArrowRight size={15} aria-hidden="true" />
-                        </Link>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="learn-feed-right-card">
-                  <span className="learn-feed-section-kicker">
-                    <Lightbulb size={15} aria-hidden="true" />
-                    If they do not want to DIY
-                  </span>
-                  <div className="learn-feed-cta-stack">
-                    <Link to={activeLesson.crossMode.hireHref}>Post this as a job</Link>
-                    <Link to={activeLesson.crossMode.toolsHref}>Rent the tools for this lesson</Link>
-                  </div>
-                </div>
-              </>
-            ) : null}
-
-            <div className="learn-feed-right-card">
-              <span className="learn-feed-section-kicker">
-                <PlayCircle size={15} aria-hidden="true" />
-                Creator rules
-              </span>
-              <ul className="learn-feed-bullet-list">
-                <li>Every video should solve one real use case from start to finish.</li>
-                <li>The creator must tag the actual skills involved in the task.</li>
-                <li>The creator must list the items used so AI can attach buy or rental links.</li>
-                <li>Safety boundaries matter just as much as the steps themselves.</li>
-              </ul>
-            </div>
-          </aside>
         </div>
+
+        {/* ── Search ──────────────────────────────────────────── */}
+        <form className="lrn-search" onSubmit={handleSearch}>
+          <Search size={18} className="lrn-search-icon" aria-hidden="true" />
+          <input
+            type="search"
+            className="lrn-search-input"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search guides… (faucet, drywall, oil change)"
+            aria-label="Search guides"
+          />
+          {query && (
+            <button
+              type="button"
+              className="lrn-search-clear"
+              onClick={() => {
+                setQuery('');
+                setSearchParams({}, { replace: true });
+              }}
+              aria-label="Clear search"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </form>
+
+        {/* ── Category grid ───────────────────────────────────── */}
+        <section className="lrn-section">
+          <h2 className="lrn-section-label">Browse by Category</h2>
+          <div className="lrn-categories">
+            {CATEGORIES.map(({ id, label, Icon, color }) => {
+              const isActive = activeCategory === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  className={`lrn-cat-btn${isActive ? ' is-active' : ''}`}
+                  style={isActive ? { background: color, borderColor: color, color: '#fff' } : { '--cat-color': color }}
+                  onClick={() => handleCategoryClick(id)}
+                  aria-pressed={isActive}
+                >
+                  <Icon size={20} aria-hidden="true" />
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ── Guide list ──────────────────────────────────────── */}
+        <section className="lrn-section">
+          <h2 className="lrn-section-label">
+            {activeCategoryLabel} Guides
+            <span className="lrn-count">({filteredGuides.length})</span>
+          </h2>
+
+          {filteredGuides.length === 0 ? (
+            <div className="lrn-empty">
+              <p>No guides match "{query}" in this category.</p>
+              <button
+                type="button"
+                onClick={() => { setQuery(''); setActiveCategory('all'); setSearchParams({}, { replace: true }); }}
+              >
+                Clear filters
+              </button>
+            </div>
+          ) : (
+            <ul className="lrn-guide-list">
+              {filteredGuides.map((guide) => {
+                const cat = categoryMap[guide.category];
+                const isExpanded = expandedId === guide.id;
+                return (
+                  <li key={guide.id} className="lrn-guide-item">
+                    {/* Row */}
+                    <button
+                      type="button"
+                      className={`lrn-guide-row${isExpanded ? ' is-open' : ''}`}
+                      onClick={() => toggleGuide(guide.id)}
+                      aria-expanded={isExpanded}
+                    >
+                      {/* Icon */}
+                      <span
+                        className="lrn-guide-icon"
+                        style={{ background: cat ? `${cat.color}18` : '#f1f5f9', color: cat?.color ?? '#64748b' }}
+                        aria-hidden="true"
+                      >
+                        {cat && <cat.Icon size={18} />}
+                      </span>
+
+                      {/* Text */}
+                      <span className="lrn-guide-text">
+                        <span className="lrn-guide-name">{guide.title}</span>
+                        <span className="lrn-guide-meta">
+                          <span
+                            className="lrn-difficulty"
+                            style={{ color: DIFFICULTY_COLOR[guide.difficulty] ?? '#64748b' }}
+                          >
+                            {guide.difficulty}
+                          </span>
+                          <span className="lrn-meta-sep" aria-hidden="true" />
+                          <Clock size={13} aria-hidden="true" />
+                          <span>{guide.minutes} min</span>
+                        </span>
+                      </span>
+
+                      {/* Chevron */}
+                      <ChevronRight
+                        size={18}
+                        className={`lrn-chevron${isExpanded ? ' is-open' : ''}`}
+                        aria-hidden="true"
+                      />
+                    </button>
+
+                    {/* Expanded detail */}
+                    {isExpanded && (
+                      <div className="lrn-guide-detail">
+                        <p className="lrn-guide-intro">{guide.intro}</p>
+
+                        <div className="lrn-detail-grid">
+                          {/* Steps */}
+                          <div className="lrn-detail-steps">
+                            <h3 className="lrn-detail-heading">Steps</h3>
+                            <ol className="lrn-steps">
+                              {guide.steps.map((step, i) => (
+                                <li key={i}>
+                                  <span className="lrn-step-num">{i + 1}</span>
+                                  <span>{step}</span>
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+
+                          {/* Side: skills + tools + CTAs */}
+                          <div className="lrn-detail-side">
+                            <div className="lrn-detail-panel">
+                              <h3 className="lrn-detail-heading">Skills you'll learn</h3>
+                              <div className="lrn-skill-chips">
+                                {guide.skills.map((s) => (
+                                  <span key={s} className="lrn-chip">{s}</span>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="lrn-detail-panel">
+                              <h3 className="lrn-detail-heading">
+                                <ShoppingBag size={14} aria-hidden="true" />
+                                Tools &amp; materials
+                              </h3>
+                              <ul className="lrn-tool-list">
+                                {guide.tools.map((tool) => (
+                                  <li key={tool.name}>
+                                    <Link to={tool.href} className="lrn-tool-link">
+                                      {tool.name}
+                                      <ChevronRight size={14} aria-hidden="true" />
+                                    </Link>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            <div className="lrn-detail-ctas">
+                              <p className="lrn-cta-label">
+                                <User size={13} aria-hidden="true" />
+                                Rather hire someone?
+                              </p>
+                              <Link to={guide.hireHref} className="lrn-cta-hire">
+                                Post this as a job
+                              </Link>
+                              <Link to={guide.toolsHref} className="lrn-cta-tools">
+                                Rent the tools
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
       </div>
     </PageShell>
   );

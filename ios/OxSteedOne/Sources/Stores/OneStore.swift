@@ -150,6 +150,12 @@ final class OneStore {
     var rentalPage = 1
     var hasMoreRentals = true
     var isLoadingMoreRentals = false
+    var isGuestDiscoveryLoading = false
+    var guestDiscoveryError: String?
+    var guestDiscoveryLastUpdatedAt: Date?
+    @ObservationIgnored private var lastInteractiveAuthAt: Date?
+    @ObservationIgnored private var isSessionBootstrapInProgress = false
+    @ObservationIgnored private var hasLoadedGuestDiscovery = false
 
     var growthNextStep: String {
         if ascensionApplication.status == "Not Started" {
@@ -187,8 +193,21 @@ final class OneStore {
         }
         api.onUnauthorized = { [weak self] in
             Task { @MainActor [weak self] in
-                self?.logout(clearMessage: false)
-                self?.authStatusMessage = "Session expired. Please sign in again."
+                guard let self else { return }
+                // Ignore stale unauthorized callbacks while interactive auth is in-flight
+                // or immediately after success to prevent bounce-back to login.
+                if self.isAuthenticating {
+                    return
+                }
+                if self.isSessionBootstrapInProgress {
+                    return
+                }
+                if let authAt = self.lastInteractiveAuthAt,
+                   Date().timeIntervalSince(authAt) < 8 {
+                    return
+                }
+                self.logout(clearMessage: false)
+                self.authStatusMessage = "Session expired. Please sign in again."
             }
         }
         api.onRequestBuilt = { [weak self] path, hasAuthorization in
@@ -520,35 +539,19 @@ final class OneStore {
         }
         if isAuthenticated {
             Task {
+                isSessionBootstrapInProgress = true
+                defer { isSessionBootstrapInProgress = false }
                 await healAPIBaseURLIfNeeded()
-
-                // Phase 1: fetch fresh data on every app launch.
+                // Web-parity bootstrap: establish user/profile context first.
                 await fetchMyProfile()
-
-                // Persona-specific primary data.
-                switch activePersona {
-                case .customer:
-                    await fetchMyJobs()
-                    await fetchServiceBookings()
-                    await fetchRentalTools()
-                case .helper:
-                    await fetchHelperJobFeed()
-                    await refreshHelpersFromAPI()
-                case .businessOwner, .consultant, .toolOwner, .franchiseOwner, .investor:
-                    // Persona-specific fetches added in Phase 7.
-                    break
-                }
-
-                // Universal data (every persona).
-                await fetchLifeLogHistory()
-                await fetchSinkingFunds()
-                await fetchUnifiedInbox()
-                await refreshMobilePaymentConfig()
-
-                // Existing refresh + sync pass.
-                await refreshCustomerTransactionData()
-                await syncPendingChanges()
                 await sendDeviceTokenToServer()
+
+                // Defer heavy fan-out work until after authenticated shell is stable.
+                Task {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    guard await MainActor.run(body: { self.isAuthenticated }) else { return }
+                    await self.runDeferredPostAuthRefreshes()
+                }
             }
             startPeriodicSyncIfNeeded()
         } else {
@@ -560,6 +563,28 @@ final class OneStore {
         }
         Task { await runForceUpdateCheck() }
         Task { await refreshPushNotificationStatus() }
+    }
+
+    @MainActor
+    private func runDeferredPostAuthRefreshes() async {
+        switch activePersona {
+        case .customer:
+            await fetchMyJobs()
+            await fetchServiceBookings()
+            await fetchRentalTools()
+        case .helper:
+            await fetchHelperJobFeed()
+            await refreshHelpersFromAPI()
+        case .businessOwner, .consultant, .toolOwner, .franchiseOwner, .investor:
+            break
+        }
+
+        await fetchLifeLogHistory()
+        await fetchSinkingFunds()
+        await fetchUnifiedInbox()
+        await refreshMobilePaymentConfig()
+        await refreshCustomerTransactionData()
+        await syncPendingChanges()
     }
 
     /// Re-run persona-specific fetches when the user switches personas.
@@ -2014,6 +2039,7 @@ final class OneStore {
 
     @MainActor
     func login(email: String, password: String, agreementName: String, acceptedTerms: Bool) async {
+        lastInteractiveAuthAt = Date()
         authStatusMessage = nil
         authRequestDiagnostics.removeAll()
         isAuthenticating = true
@@ -2058,6 +2084,7 @@ final class OneStore {
             authAcceptedTerms = acceptedTerms
             await fetchMyProfile()
             await sendDeviceTokenToServer()
+            lastInteractiveAuthAt = Date()
             if biometricEnabled {
                 isLocked = true
             }
@@ -2072,6 +2099,7 @@ final class OneStore {
 
     @MainActor
     func register(email: String, password: String, firstName: String, lastName: String, primaryPersona: AppPersona) async {
+        lastInteractiveAuthAt = Date()
         authStatusMessage = nil
         isAuthenticating = true
         defer { isAuthenticating = false }
@@ -2115,6 +2143,7 @@ final class OneStore {
             authAcceptedTerms = true
             await fetchMyProfile()
             await sendDeviceTokenToServer()
+            lastInteractiveAuthAt = Date()
         } catch {
             authStatusMessage = OneErrorMapper.userMessage(for: error, fallback: "Account creation failed. Please verify your details and retry.")
         }
@@ -2815,6 +2844,75 @@ final class OneStore {
     }
 
     // MARK: - Phase 1: Data Fetching
+
+    /// Public pre-login discovery data so guests can browse real marketplace content
+    /// before creating an account.
+    @MainActor
+    func loadGuestDiscovery(force: Bool = false) async {
+        guard force || !hasLoadedGuestDiscovery else { return }
+        isGuestDiscoveryLoading = true
+        guestDiscoveryError = nil
+        defer { isGuestDiscoveryLoading = false }
+
+        var hadFailure = false
+
+        do {
+            let jobsResponse: OneJobListResponse = try await api.get("/jobs?page=1&limit=6&status=published")
+            let jobs = jobsResponse.jobs ?? jobsResponse.data ?? []
+            if !jobs.isEmpty {
+                customerJobs = jobs.map(mapCustomerJob)
+            }
+        } catch {
+            hadFailure = true
+        }
+
+        do {
+            let helpersResponse: OneHelperListEnvelope = try await api.get("/helpers?limit=6")
+            let helpers = helpersResponse.helpers ?? helpersResponse.data ?? []
+            if !helpers.isEmpty {
+                serviceHelpers = helpers.map { dto in
+                    ServiceHelperProfile(
+                        id: uuidFromString(dto.id) ?? UUID(),
+                        name: dto.name ?? "Helper",
+                        specialty: dto.category ?? "General",
+                        city: dto.city ?? "Unknown",
+                        rating: dto.avgRating ?? 4.5,
+                        hourlyRate: Double(dto.hourlyRateCents ?? 0) / 100.0,
+                        availableSlots: ["View profile for live availability"]
+                    )
+                }
+            }
+        } catch {
+            hadFailure = true
+        }
+
+        do {
+            let toolsResponse: OneToolBrowseResponse = try await api.get("/tool-rentals?page=1&limit=6")
+            let tools = toolsResponse.tools ?? toolsResponse.data ?? []
+            if !tools.isEmpty {
+                rentalTools = tools.map { dto in
+                    RentalTool(
+                        id: uuidFromString(dto.id) ?? UUID(),
+                        title: dto.title ?? "Tool",
+                        ownerName: dto.ownerName ?? "Owner",
+                        city: dto.city ?? "Unknown",
+                        dailyRate: Double(dto.dailyRateCents ?? 0) / 100.0,
+                        deposit: Double(dto.depositCents ?? 0) / 100.0,
+                        terms: dto.terms ?? "",
+                        availableSlots: dto.availableSlots ?? []
+                    )
+                }
+            }
+        } catch {
+            hadFailure = true
+        }
+
+        if hadFailure, customerJobs.isEmpty, serviceHelpers.isEmpty, rentalTools.isEmpty {
+            guestDiscoveryError = "Some public data is unavailable right now. You can still sign in or create an account."
+        }
+        guestDiscoveryLastUpdatedAt = Date()
+        hasLoadedGuestDiscovery = true
+    }
 
     /// Fetch the authenticated user's profile and update persona context.
     @MainActor
