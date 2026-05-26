@@ -11,7 +11,7 @@ const AppError = require('../utils/appError');
 const XP_BY_DIFFICULTY = { Easy: 10, Medium: 25, Hard: 50 };
 const VALID_CATEGORIES = [
   'plumbing', 'electrical', 'carpentry', 'hvac',
-  'painting', 'car-care', 'landscaping', 'maintenance',
+  'painting', 'car-care', 'landscaping', 'maintenance', 'management',
 ];
 const VALID_DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 
@@ -44,6 +44,11 @@ const KNOWN_GUIDE_IDS = new Set([
   // Maintenance
   'caulk-bathtub', 'clean-gutters', 'weatherstrip-exterior-door',
   'power-wash-driveway', 're-grout-tile', 'fix-sticking-door',
+  // Management / Investment
+  'inspect-investment-property', 'estimate-repair-costs',
+  'build-preventive-maintenance-schedule', 'write-a-work-order',
+  // Diagnosis guides (plumbing + electrical categories)
+  'diagnose-plumbing-remotely', 'diagnose-electrical-remotely',
 ]);
 
 // Category membership — used to check badge eligibility after completion.
@@ -107,6 +112,14 @@ const GUIDE_CATEGORY = {
   'power-wash-driveway':           'maintenance',
   're-grout-tile':                 'maintenance',
   'fix-sticking-door':             'maintenance',
+  // Management / Investment
+  'inspect-investment-property':          'management',
+  'estimate-repair-costs':               'management',
+  'build-preventive-maintenance-schedule': 'management',
+  'write-a-work-order':                  'management',
+  // Diagnosis guides
+  'diagnose-plumbing-remotely':          'plumbing',
+  'diagnose-electrical-remotely':        'electrical',
 };
 
 // Invert: category → [guide_ids]

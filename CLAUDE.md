@@ -2,6 +2,31 @@
 
 **Last updated:** 2026-05-26
 
+## Learn Mode — 7-persona expansion + 6 management/diagnosis guides (2026-05-26) — LANDED
+
+Expanded the persona system from 4 to 7 personas (`investor`, `manager`, `support_agent` added). All 51 existing guides received `investor`, `manager`, and `support_agent` tip keys. Added 6 new guides for a total of **57 guides** across 9 categories (added `management` category).
+
+**Frontend (`client/src/pages/LearnModePage.jsx`):**
+- `PERSONA_TIP_META` updated with 3 new entries: `investor` (Investor Lens / TrendingUp), `manager` (Facilities Manager View / ShoppingBag), `support_agent` (Support Agent Playbook / BookOpen).
+- `getPersona(user)` detection updated: `user.role === 'support_agent'` → `support_agent`; `user.role === 'investor' || user.is_investor` → `investor`; `user.role === 'manager' || user.is_facilities_manager` → `manager`.
+- `HERO` constant updated with entries for all 3 new personas (investor: "Know what you're buying." → `/marketplace`; manager: "Own every system in your building." → `/post-job`; support_agent: "Resolve faster. Escalate smarter." → `/learn`).
+- All 51 existing guides updated with `investor`, `manager`, and `support_agent` tips covering: property investment ROI, CapEx decisions, maintenance cost implications (investor); PM scheduling, work order documentation, property inspection protocols (manager); remote triage scripts, escalation criteria, dispatch vs. self-serve judgment (support_agent).
+- **6 new guides added** (all with full 7-persona tips):
+  - **Management:** `inspect-investment-property` (Medium, 90 min), `estimate-repair-costs` (Medium, 60 min), `build-preventive-maintenance-schedule` (Easy, 45 min), `write-a-work-order` (Easy, 20 min)
+  - **Plumbing (diagnosis):** `diagnose-plumbing-remotely` (Easy, 20 min)
+  - **Electrical (diagnosis):** `diagnose-electrical-remotely` (Easy, 20 min)
+- Total: **57 guides** across 9 categories (new: management×4; plumbing grows to 9; electrical grows to 9).
+
+**Backend (`server/controllers/learnController.js`):**
+- `VALID_CATEGORIES` expanded to include `'management'`.
+- `KNOWN_GUIDE_IDS` Set expanded from 51 → 57 entries.
+- `GUIDE_CATEGORY` map expanded to cover all 57 guides; management guides map to `'management'`; diagnosis guides map to their respective category (`plumbing` / `electrical`).
+
+**Files — modified:**
+`client/src/pages/LearnModePage.jsx` (57 guides, 7-persona tips on all guides, PERSONA_TIP_META + getPersona + HERO updated), `server/controllers/learnController.js` (KNOWN_GUIDE_IDS + GUIDE_CATEGORY + VALID_CATEGORIES expanded to 57 guides).
+
+---
+
 ## Learn Mode — persona-aware guide expansion (2026-05-26) — LANDED
 
 Expanded the static `GUIDES` dataset from 15 to 51 guides, all with full 4-persona tips (`customer`, `helper`, `consultant`, `business`). Added a persona-aware tips panel to the guide detail view.
