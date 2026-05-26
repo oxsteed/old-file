@@ -202,9 +202,7 @@ private struct LoginView: View {
     private var canSubmit: Bool {
         let email = store.authEmail.trimmingCharacters(in: .whitespacesAndNewlines)
         let password = store.authPassword.trimmingCharacters(in: .whitespacesAndNewlines)
-        let agreementName = store.authAgreementName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let hasTwoNameParts = agreementName.split(separator: " ").count >= 2
-        return !email.isEmpty && !password.isEmpty && store.authAcceptedTerms && hasTwoNameParts
+        return !email.isEmpty && !password.isEmpty
     }
 
     var body: some View {
@@ -215,11 +213,7 @@ private struct LoginView: View {
                     .textContentType(.username)
                 SecureField("Password", text: $store.authPassword)
                     .textContentType(.password)
-                TextField(store.localized("auth.full_legal_name", fallback: "Full legal name"), text: $store.authAgreementName)
-                    .textContentType(.name)
-                Toggle(store.localized("auth.accept_terms", fallback: "I agree to Terms of Service and Privacy Policy"), isOn: $store.authAcceptedTerms)
-            }
-
+                            }
             Section {
                 Button {
                     Task {
