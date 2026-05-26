@@ -2042,9 +2042,7 @@ final class OneStore {
                     "email": normalizedEmail,
                     "password": password,
                     "termsAgreed": acceptedTerms,
-                    "terms_agreed": acceptedTerms,
-                    "agreementName": cleanAgreementName,
-                    "agreement_name": cleanAgreementName
+                    "agreementName": cleanAgreementName
                 ]
             )
             guard let newAccessToken = response.accessToken ?? response.token else {
@@ -2093,9 +2091,7 @@ final class OneStore {
                     "email": normalizedEmail,
                     "password": password,
                     "firstName": cleanFirst,
-                    "first_name": cleanFirst,
                     "lastName": cleanLast,
-                    "last_name": cleanLast,
                     "role": primaryPersona.apiRole
                 ]
             )
