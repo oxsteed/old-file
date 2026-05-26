@@ -73,10 +73,12 @@ struct OneRegisterRequest: Encodable {
 
 struct OneRefreshRequest: Encodable {
     let refreshToken: String
+    private enum CodingKeys: String, CodingKey { case refreshToken }
 }
 
 struct OneLogoutRequest: Encodable {
     let refreshToken: String
+    private enum CodingKeys: String, CodingKey { case refreshToken }
 }
 
 struct OneDataEnvelope<T: Decodable>: Decodable {
@@ -372,6 +374,26 @@ struct OneUserProfile: Decodable {
         case defaultMode = "default_mode"
         case businesses
     }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        if let intID = try c.decodeIfPresent(Int.self, forKey: .id) {
+            id = String(intID)
+        } else {
+            id = try c.decodeIfPresent(String.self, forKey: .id)
+        }
+        email = try c.decodeIfPresent(String.self, forKey: .email)
+        firstName = try c.decodeIfPresent(String.self, forKey: .firstName)
+        lastName = try c.decodeIfPresent(String.self, forKey: .lastName)
+        role = try c.decodeIfPresent(String.self, forKey: .role)
+        defaultMode = try c.decodeIfPresent(String.self, forKey: .defaultMode)
+        businesses = try c.decodeIfPresent([BusinessRef].self, forKey: .businesses)
+    }
+}
+
+struct OneMeResponse: Decodable {
+    let success: Bool?
+    let user: OneUserProfile?
 }
 
 // Job list (public feed + my-jobs)

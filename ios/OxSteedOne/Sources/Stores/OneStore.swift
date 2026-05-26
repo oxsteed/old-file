@@ -2824,9 +2824,9 @@ final class OneStore {
     @MainActor
     func fetchMyProfile() async {
         do {
-            let profilePaths = ["/auth/me", "/me"]
-            let envelope: OneDataEnvelope<OneUserProfile> = try await getWithPathFallback(paths: profilePaths)
-            let profile = envelope.data
+            let profilePaths = ["/auth/me"]
+            let response: OneMeResponse = try await getWithPathFallback(paths: profilePaths)
+            guard let profile = response.user else { return }
             if let uid = profile.id {
                 currentUserID = uid
             }
