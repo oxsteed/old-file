@@ -58,6 +58,13 @@
     "swift-dependencies": "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/.build/arm64-apple-macosx/debug/OxSteedOne.build/HireView.swiftdeps",
     "diagnostics": "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/.build/arm64-apple-macosx/debug/OxSteedOne.build/HireView.dia"
   },
+  "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/Sources/Views/InboxThreadView.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/.build/arm64-apple-macosx/debug/OxSteedOne.build/InboxThreadView.d",
+    "object": "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/.build/arm64-apple-macosx/debug/OxSteedOne.build/InboxThreadView.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/.build/arm64-apple-macosx/debug/OxSteedOne.build/InboxThreadView~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/.build/arm64-apple-macosx/debug/OxSteedOne.build/InboxThreadView.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/.build/arm64-apple-macosx/debug/OxSteedOne.build/InboxThreadView.dia"
+  },
   "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/Sources/Views/InboxView.swift": {
     "dependencies": "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/.build/arm64-apple-macosx/debug/OxSteedOne.build/InboxView.d",
     "object": "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/.build/arm64-apple-macosx/debug/OxSteedOne.build/InboxView.swift.o",
@@ -78,6 +85,13 @@
     "swiftmodule": "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/.build/arm64-apple-macosx/debug/OxSteedOne.build/OneTheme~partial.swiftmodule",
     "swift-dependencies": "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/.build/arm64-apple-macosx/debug/OxSteedOne.build/OneTheme.swiftdeps",
     "diagnostics": "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/.build/arm64-apple-macosx/debug/OxSteedOne.build/OneTheme.dia"
+  },
+  "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/Sources/Views/PhotoPicker.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/.build/arm64-apple-macosx/debug/OxSteedOne.build/PhotoPicker.d",
+    "object": "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/.build/arm64-apple-macosx/debug/OxSteedOne.build/PhotoPicker.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/.build/arm64-apple-macosx/debug/OxSteedOne.build/PhotoPicker~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/.build/arm64-apple-macosx/debug/OxSteedOne.build/PhotoPicker.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/.build/arm64-apple-macosx/debug/OxSteedOne.build/PhotoPicker.dia"
   },
   "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/Sources/Views/ProfileView.swift": {
     "dependencies": "/Users/oxsteed/Documents/GitHub/4/ios/OxSteedOne/.build/arm64-apple-macosx/debug/OxSteedOne.build/ProfileView.d",
