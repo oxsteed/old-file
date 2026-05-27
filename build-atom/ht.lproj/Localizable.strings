@@ -1,0 +1,42 @@
+/* OxSteed ME — Kreyòl Ayisyen */
+
+/* App */
+"app.name" = "OxSteed";
+"app.greeting.morning" = "Bonjou, Alex";
+"app.greeting.afternoon" = "Bon apremidi, Alex";
+"app.greeting.evening" = "Bonswa, Alex";
+
+/* Tabs */
+"tab.home" = "Akèy";
+"tab.life" = "Lavi";
+"tab.growth" = "Kwasans";
+"tab.learn" = "Aprann";
+
+/* Persona switcher */
+"persona.acting_as" = "W ap aji kòm";
+"persona.switch" = "Chanje";
+"persona.title" = "Chwazi wòl ou";
+"persona.subtitle" = "Yon sèl kont, plizyè fason pou parèt.";
+
+"persona.customer" = "Kliyan";
+"persona.helper" = "Asistan";
+"persona.business" = "Pwopriyetè Biznis";
+"persona.consultant" = "Konseye";
+"persona.tool_owner" = "Pwopriyetè Zouti";
+"persona.franchise" = "Pwopriyetè Franchiz";
+"persona.investor" = "Envestisè";
+
+/* Settings */
+"settings.title" = "Paramèt";
+"settings.language" = "Lang";
+"settings.language.subtitle" = "Chwazi kijan aplikasyon an pale avè w";
+"settings.done" = "Fini";
+"settings.appearance" = "Aparans";
+"settings.notifications" = "Notifikasyon";
+"settings.privacy" = "Konfidansyalite ak Sekirite";
+
+/* Common */
+"common.cancel" = "Anile";
+"common.save" = "Anrejistre";
+"common.see_all" = "Wè tout";
+"common.search" = "Chèche";

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		07CF32863C72FB5C2C6EF583 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 8093327178EF507D18BEF108 /* Localizable.strings */; };
 		098263F714A5503C34DCD837 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 9288B0FBF79B086C4C74130F /* Localizable.strings */; };
 		0C1D070A30497F77F18BE229 /* SettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5B40681CAAC2020909D2208 /* SettingsSheet.swift */; };
 		1250B009DEE968E135C1C4D2 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A1A074A05326F198CFE86F8B /* LaunchScreen.storyboard */; };
@@ -36,6 +37,7 @@
 		39405E38E9540F2917B87835 /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Localizable.strings; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		3FEE5BB463B4B1C7AD5E7FC4 /* PersonaHomes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaHomes.swift; sourceTree = "<group>"; };
 		63926029B6FB2EFF0D6D7689 /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Localizable.strings; path = fr.lproj/Localizable.strings; sourceTree = "<group>"; };
+		8093327178EF507D18BEF108 /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Localizable.strings; path = ht.lproj/Localizable.strings; sourceTree = "<group>"; };
 		822653373F6F347C052A3C83 /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
 		8DC8DD72F6BE755E975270B4 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		9288B0FBF79B086C4C74130F /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Localizable.strings; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -78,6 +80,7 @@
 				9288B0FBF79B086C4C74130F /* Localizable.strings */,
 				39405E38E9540F2917B87835 /* Localizable.strings */,
 				63926029B6FB2EFF0D6D7689 /* Localizable.strings */,
+				8093327178EF507D18BEF108 /* Localizable.strings */,
 				C34AA01FF653E3B7FE188CCD /* App */,
 				75B70B9D302C3E3F42DE3029 /* Design */,
 				D599565E15257AA8421A1BB1 /* Growth */,
@@ -222,6 +225,7 @@
 				en,
 				es,
 				fr,
+				ht,
 			);
 			mainGroup = 437A7FB4105D2BA8860F6DB0;
 			minimizedProjectReferenceProxies = 1;
@@ -245,6 +249,7 @@
 				098263F714A5503C34DCD837 /* Localizable.strings in Resources */,
 				49BB47D5B9055688B7894200 /* Localizable.strings in Resources */,
 				96548A808131C49448770879 /* Localizable.strings in Resources */,
+				07CF32863C72FB5C2C6EF583 /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
