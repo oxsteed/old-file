@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct StatTile: View {
-    let label: String
+    let label: LocalizedStringKey
     let value: String
     let trend: String?
     let icon: String
@@ -35,8 +35,8 @@ struct StatTile: View {
 }
 
 struct SectionHeader: View {
-    let title: String
-    var actionLabel: String? = "See all"
+    let title: LocalizedStringKey
+    var actionLabel: LocalizedStringKey? = L10n.CommonKey.seeAll
     var action: (() -> Void)? = nil
 
     var body: some View {
@@ -137,7 +137,7 @@ struct AvailableJobRow: View {
                         .foregroundStyle(Theme.textSecondary)
                 }
                 Spacer()
-                Text("Bid")
+                Text(L10n.CommonKey.bid)
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 14).padding(.vertical, 6)
@@ -152,9 +152,9 @@ struct AvailableJobRow: View {
 
 struct EmptyStateCard: View {
     let icon: String
-    let title: String
-    let message: String
-    let cta: String
+    let title: LocalizedStringKey
+    let message: LocalizedStringKey
+    let cta: LocalizedStringKey
 
     var body: some View {
         VStack(spacing: 12) {

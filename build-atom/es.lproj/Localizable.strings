@@ -40,3 +40,104 @@
 "common.save" = "Guardar";
 "common.see_all" = "Ver todo";
 "common.search" = "Buscar";
+"common.bid" = "Ofertar";
+
+/* Section headers */
+"section.your_jobs" = "Tus trabajos";
+"section.messages" = "Mensajes";
+"section.available_near_you" = "Disponibles cerca de ti";
+"section.your_team" = "Tu equipo";
+"section.urgency_queue" = "Cola de urgencias";
+"section.six_pillars" = "Seis pilares";
+"section.your_ladder" = "Tu escalera";
+"section.programs_for_you" = "Programas para ti";
+"section.community_wholesale" = "Compra comunitaria";
+"section.start_here" = "Empieza aquí";
+"section.trending_area" = "Tendencias en tu zona";
+
+/* Customer hero */
+"customer.eyebrow" = "DIRECTORIO LOCAL DE OFICIOS";
+"customer.headline" = "Ayuda local,\ncuando la necesites";
+"customer.subhead" = "Publica un trabajo en minutos. Recibe ofertas de ayudantes locales calificados.";
+"customer.post_job" = "Publicar Trabajo";
+"customer.browse_helpers" = "Ver Ayudantes";
+
+/* Stat tile labels */
+"stat.active_jobs" = "Trabajos activos";
+"stat.open_quotes" = "Presupuestos abiertos";
+"stat.earned_this_month" = "Ganado este mes";
+"stat.jobs_nearby" = "Trabajos cercanos";
+"stat.active_bids" = "Ofertas activas";
+"stat.rating" = "Calificación";
+"stat.team_online" = "Equipo en línea";
+"stat.invoices_pending" = "Facturas pendientes";
+"stat.in_intake" = "En recepción";
+"stat.this_week" = "Esta semana";
+"stat.tools_out" = "Herramientas fuera";
+"stat.deposits_held" = "Depósitos retenidos";
+"stat.subfranchisees" = "Sub-franquiciados";
+"stat.compliance" = "Cumplimiento";
+"stat.portfolio" = "Cartera";
+"stat.helpers_funded" = "Ayudantes financiados";
+
+/* Business */
+"business.revenue_week" = "Ingresos esta semana";
+"business.week_range" = "Lun–Dom";
+"business.cashapp_title" = "Pagos por Cash App";
+"business.cashapp_share" = "Comparte QR con clientes";
+
+/* Empty states */
+"consultant.empty.title" = "La cola de recepción está tranquila";
+"consultant.empty.message" = "Tu próxima sesión es el jueves con Priya R. Toca para abrir las notas del cliente.";
+"consultant.empty.cta" = "Abrir calendario";
+
+"toolowner.empty.title" = "Escanea para registrar entradas o salidas";
+"toolowner.empty.message" = "Los depósitos por daños se liberan automáticamente cuando una herramienta regresa limpia.";
+"toolowner.empty.cta" = "Abrir escáner";
+
+"franchise.empty.title" = "Tu territorio de un vistazo";
+"franchise.empty.message" = "Ve ubicaciones de sub-franquiciados, reparto de ingresos y pipeline de onboarding en el mapa.";
+"franchise.empty.cta" = "Abrir mapa de territorio";
+
+"investor.empty.title" = "Nuevas oportunidades en Springfield";
+"investor.empty.message" = "Tres negocios de ayudantes cerca de ti están listos para financiación inicial.";
+"investor.empty.cta" = "Ver oportunidades";
+
+/* Life tab */
+"life.eyebrow" = "VIDA";
+"life.title" = "Tu pulso personal";
+"life.pulse_label" = "Pulso";
+"life.legend.ontrack" = "En curso";
+"life.legend.slipping" = "Resbalando";
+"life.legend.critical" = "Crítico";
+
+/* Growth tab */
+"growth.eyebrow" = "CRECIMIENTO";
+"growth.title" = "Sube de nivel económicamente";
+"growth.program.ascension.title" = "Ascensión de Negocio";
+"growth.program.ascension.subtitle" = "Ingreso extra → negocio con licencia en 6 semanas";
+"growth.program.ascension.cta" = "Aplicar";
+"growth.program.loan.title" = "Pre-calificar micro-préstamo";
+"growth.program.loan.subtitle" = "Hasta $5,000 para herramientas y equipo";
+"growth.program.loan.cta" = "Revisar";
+"growth.program.grants.title" = "Subvenciones locales en Springfield";
+"growth.program.grants.subtitle" = "3 subvenciones activas para tu oficio";
+"growth.program.grants.cta" = "Ver";
+"growth.wholesale.washer.title" = "Paquete de hidrolavadora";
+"growth.wholesale.washer.saving" = "Ahorra 22%";
+"growth.wholesale.washer.joined" = "14 unidos";
+"growth.wholesale.cleaning.title" = "Suministros de limpieza comercial";
+"growth.wholesale.cleaning.saving" = "Ahorra 18%";
+"growth.wholesale.cleaning.joined" = "9 unidos";
+
+/* Learn tab */
+"learn.eyebrow" = "APRENDER";
+"learn.title" = "Aprende. Hazlo. Gana.";
+"learn.hero.eyebrow" = "MODO APRENDIZAJE";
+"learn.hero.title" = "Habilidad → kit → ingreso";
+"learn.hero.subtitle" = "Mira una guía corta, ve el kit de herramientas, luego ofrécelo como servicio o hazlo tú mismo.";
+"learn.step.1" = "Aprende una habilidad";
+"learn.step.2" = "Hazlo tú mismo";
+"learn.step.3" = "Ofrécelo como servicio";
+"learn.step.4" = "Crece tu negocio";
+"learn.search.placeholder" = "Buscar guías… (grifo, drywall, cambio de aceite)";

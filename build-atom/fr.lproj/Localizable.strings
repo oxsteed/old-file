@@ -40,3 +40,104 @@
 "common.save" = "Enregistrer";
 "common.see_all" = "Voir tout";
 "common.search" = "Rechercher";
+"common.bid" = "Proposer";
+
+/* Section headers */
+"section.your_jobs" = "Vos missions";
+"section.messages" = "Messages";
+"section.available_near_you" = "Disponibles près de vous";
+"section.your_team" = "Votre équipe";
+"section.urgency_queue" = "File d'urgences";
+"section.six_pillars" = "Six piliers";
+"section.your_ladder" = "Votre échelle";
+"section.programs_for_you" = "Programmes pour vous";
+"section.community_wholesale" = "Achat groupé";
+"section.start_here" = "Commencez ici";
+"section.trending_area" = "Tendances dans votre zone";
+
+/* Customer hero */
+"customer.eyebrow" = "ANNUAIRE LOCAL DES MÉTIERS";
+"customer.headline" = "De l'aide locale,\nquand vous en avez besoin";
+"customer.subhead" = "Publiez une mission en quelques minutes. Recevez des offres d'aides locales qualifiées.";
+"customer.post_job" = "Publier une mission";
+"customer.browse_helpers" = "Parcourir les aides";
+
+/* Stat tile labels */
+"stat.active_jobs" = "Missions actives";
+"stat.open_quotes" = "Devis ouverts";
+"stat.earned_this_month" = "Gagné ce mois-ci";
+"stat.jobs_nearby" = "Missions à proximité";
+"stat.active_bids" = "Offres actives";
+"stat.rating" = "Note";
+"stat.team_online" = "Équipe en ligne";
+"stat.invoices_pending" = "Factures en attente";
+"stat.in_intake" = "En accueil";
+"stat.this_week" = "Cette semaine";
+"stat.tools_out" = "Outils sortis";
+"stat.deposits_held" = "Cautions retenues";
+"stat.subfranchisees" = "Sous-franchisés";
+"stat.compliance" = "Conformité";
+"stat.portfolio" = "Portefeuille";
+"stat.helpers_funded" = "Aides financées";
+
+/* Business */
+"business.revenue_week" = "Revenus cette semaine";
+"business.week_range" = "Lun–Dim";
+"business.cashapp_title" = "Paiements Cash App";
+"business.cashapp_share" = "Partagez le QR avec vos clients";
+
+/* Empty states */
+"consultant.empty.title" = "La file d'accueil est calme";
+"consultant.empty.message" = "Votre prochaine séance est jeudi avec Priya R. Appuyez pour ouvrir les notes du client.";
+"consultant.empty.cta" = "Ouvrir le calendrier";
+
+"toolowner.empty.title" = "Scannez pour entrer ou sortir des outils";
+"toolowner.empty.message" = "Les cautions de dommages se libèrent automatiquement quand un outil revient propre.";
+"toolowner.empty.cta" = "Ouvrir le scanner";
+
+"franchise.empty.title" = "Votre territoire en un coup d'œil";
+"franchise.empty.message" = "Voyez les emplacements des sous-franchisés, le partage des revenus et le pipeline d'intégration sur la carte.";
+"franchise.empty.cta" = "Ouvrir la carte du territoire";
+
+"investor.empty.title" = "Nouvelles opportunités à Springfield";
+"investor.empty.message" = "Trois entreprises d'aides près de vous sont prêtes pour un financement initial.";
+"investor.empty.cta" = "Voir les offres";
+
+/* Life tab */
+"life.eyebrow" = "VIE";
+"life.title" = "Votre pouls personnel";
+"life.pulse_label" = "Pouls";
+"life.legend.ontrack" = "En bonne voie";
+"life.legend.slipping" = "En glissement";
+"life.legend.critical" = "Critique";
+
+/* Growth tab */
+"growth.eyebrow" = "CROISSANCE";
+"growth.title" = "Montez économiquement";
+"growth.program.ascension.title" = "Ascension d'Entreprise";
+"growth.program.ascension.subtitle" = "Revenu d'appoint → entreprise enregistrée en 6 semaines";
+"growth.program.ascension.cta" = "Postuler";
+"growth.program.loan.title" = "Pré-qualification micro-prêt";
+"growth.program.loan.subtitle" = "Jusqu'à 5 000 $ pour outils et équipement";
+"growth.program.loan.cta" = "Vérifier";
+"growth.program.grants.title" = "Subventions locales à Springfield";
+"growth.program.grants.subtitle" = "3 subventions actives liées à votre métier";
+"growth.program.grants.cta" = "Voir";
+"growth.wholesale.washer.title" = "Pack nettoyeur haute pression";
+"growth.wholesale.washer.saving" = "Économisez 22%";
+"growth.wholesale.washer.joined" = "14 inscrits";
+"growth.wholesale.cleaning.title" = "Fournitures de nettoyage pro";
+"growth.wholesale.cleaning.saving" = "Économisez 18%";
+"growth.wholesale.cleaning.joined" = "9 inscrits";
+
+/* Learn tab */
+"learn.eyebrow" = "APPRENDRE";
+"learn.title" = "Apprendre. Faire. Gagner.";
+"learn.hero.eyebrow" = "MODE APPRENTISSAGE";
+"learn.hero.title" = "Compétence → kit → revenu";
+"learn.hero.subtitle" = "Regardez un guide court, voyez le kit d'outils, puis proposez-le en service ou faites-le vous-même.";
+"learn.step.1" = "Apprenez une compétence";
+"learn.step.2" = "Faites-le vous-même";
+"learn.step.3" = "Proposez en service";
+"learn.step.4" = "Développez votre activité";
+"learn.search.placeholder" = "Rechercher des guides… (robinet, placo, vidange)";

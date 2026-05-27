@@ -11,14 +11,14 @@ struct LearnTabView: View {
                 searchBar
 
                 VStack(alignment: .leading, spacing: 12) {
-                    SectionHeader(title: "Start here", actionLabel: nil)
+                    SectionHeader(title: L10n.SectionKey.startHere, actionLabel: nil)
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(Samples.courses.prefix(4)) { CourseCard(course: $0) }
                     }
                 }
 
                 VStack(alignment: .leading, spacing: 12) {
-                    SectionHeader(title: "Trending in your area", actionLabel: "See all")
+                    SectionHeader(title: L10n.SectionKey.trendingArea, actionLabel: L10n.CommonKey.seeAll)
                     VStack(spacing: 10) {
                         ForEach(Samples.courses.suffix(3)) { CourseRow(course: $0) }
                     }
@@ -34,8 +34,8 @@ struct LearnTabView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("LEARN").sectionTitle()
-                Text("Learn. Do. Earn.")
+                Text(L10n.LearnKey.eyebrow).sectionTitle()
+                Text(L10n.LearnKey.title)
                     .font(.system(size: 22, weight: .heavy))
                     .foregroundStyle(Theme.textPrimary)
             }
@@ -46,20 +46,20 @@ struct LearnTabView: View {
     private var heroCard: some View {
         HStack(alignment: .top, spacing: 14) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("LEARN MODE").sectionTitle()
-                Text("Skill → kit → income")
+                Text(L10n.LearnKey.heroEyebrow).sectionTitle()
+                Text(L10n.LearnKey.heroTitle)
                     .font(.system(size: 18, weight: .heavy))
                     .foregroundStyle(Theme.textPrimary)
-                Text("Watch a short guide, see the tool kit, then list as a service or do it yourself.")
+                Text(L10n.LearnKey.heroSubtitle)
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.textSecondary)
             }
             Spacer(minLength: 0)
             VStack(alignment: .leading, spacing: 6) {
-                step(1, "Learn a skill")
-                step(2, "Do it yourself")
-                step(3, "List as service")
-                step(4, "Grow your business")
+                step(1, L10n.LearnKey.step1)
+                step(2, L10n.LearnKey.step2)
+                step(3, L10n.LearnKey.step3)
+                step(4, L10n.LearnKey.step4)
             }
         }
         .padding(18)
@@ -71,7 +71,7 @@ struct LearnTabView: View {
         .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(Theme.stroke, lineWidth: 1))
     }
 
-    private func step(_ n: Int, _ s: String) -> some View {
+    private func step(_ n: Int, _ s: LocalizedStringKey) -> some View {
         HStack(spacing: 8) {
             Text("\(n)")
                 .font(.system(size: 11, weight: .bold))
@@ -85,7 +85,7 @@ struct LearnTabView: View {
     private var searchBar: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass").foregroundStyle(Theme.textTertiary)
-            Text("Search guides… (faucet, drywall, oil change)")
+            Text(L10n.LearnKey.searchPlaceholder)
                 .font(.system(size: 13))
                 .foregroundStyle(Theme.textTertiary)
             Spacer()

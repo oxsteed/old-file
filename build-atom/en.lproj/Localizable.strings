@@ -40,3 +40,104 @@
 "common.save" = "Save";
 "common.see_all" = "See all";
 "common.search" = "Search";
+"common.bid" = "Bid";
+
+/* Section headers */
+"section.your_jobs" = "Your jobs";
+"section.messages" = "Messages";
+"section.available_near_you" = "Available near you";
+"section.your_team" = "Your team";
+"section.urgency_queue" = "Urgency queue";
+"section.six_pillars" = "Six pillars";
+"section.your_ladder" = "Your ladder";
+"section.programs_for_you" = "Programs for you";
+"section.community_wholesale" = "Community wholesale";
+"section.start_here" = "Start here";
+"section.trending_area" = "Trending in your area";
+
+/* Customer hero */
+"customer.eyebrow" = "LOCAL SKILLS DIRECTORY";
+"customer.headline" = "Local help,\nwhen you need it";
+"customer.subhead" = "Post a job in minutes. Get bids from skilled local helpers.";
+"customer.post_job" = "Post a Job";
+"customer.browse_helpers" = "Browse Helpers";
+
+/* Stat tile labels */
+"stat.active_jobs" = "Active jobs";
+"stat.open_quotes" = "Open quotes";
+"stat.earned_this_month" = "Earned this month";
+"stat.jobs_nearby" = "Jobs nearby";
+"stat.active_bids" = "Active bids";
+"stat.rating" = "Rating";
+"stat.team_online" = "Team online";
+"stat.invoices_pending" = "Invoices pending";
+"stat.in_intake" = "In intake";
+"stat.this_week" = "This week";
+"stat.tools_out" = "Tools out";
+"stat.deposits_held" = "Deposits held";
+"stat.subfranchisees" = "Sub-franchisees";
+"stat.compliance" = "Compliance";
+"stat.portfolio" = "Portfolio";
+"stat.helpers_funded" = "Helpers funded";
+
+/* Business */
+"business.revenue_week" = "Revenue this week";
+"business.week_range" = "Mon–Sun";
+"business.cashapp_title" = "Cash App payouts";
+"business.cashapp_share" = "Share QR with customers";
+
+/* Empty states (other personas) */
+"consultant.empty.title" = "Intake queue is calm";
+"consultant.empty.message" = "Your next session is Thursday with Priya R. Tap to open client notes.";
+"consultant.empty.cta" = "Open calendar";
+
+"toolowner.empty.title" = "Scan to check tools in or out";
+"toolowner.empty.message" = "Damage deposits release automatically when a tool returns clean.";
+"toolowner.empty.cta" = "Open scanner";
+
+"franchise.empty.title" = "Territory at a glance";
+"franchise.empty.message" = "View sub-franchisee locations, revenue share, and onboarding pipeline on the map.";
+"franchise.empty.cta" = "Open territory map";
+
+"investor.empty.title" = "New opportunities in Springfield";
+"investor.empty.message" = "Three helper-businesses near you are ready for early-stage funding.";
+"investor.empty.cta" = "View deals";
+
+/* Life tab */
+"life.eyebrow" = "LIFE";
+"life.title" = "Your personal pulse";
+"life.pulse_label" = "Pulse";
+"life.legend.ontrack" = "On track";
+"life.legend.slipping" = "Slipping";
+"life.legend.critical" = "Critical";
+
+/* Growth tab */
+"growth.eyebrow" = "GROWTH";
+"growth.title" = "Move up economically";
+"growth.program.ascension.title" = "Business Ascension";
+"growth.program.ascension.subtitle" = "Side income → licensed business in 6 weeks";
+"growth.program.ascension.cta" = "Apply";
+"growth.program.loan.title" = "Micro-loan pre-qualify";
+"growth.program.loan.subtitle" = "Up to $5,000 for tools and equipment";
+"growth.program.loan.cta" = "Check";
+"growth.program.grants.title" = "Local grants in Springfield";
+"growth.program.grants.subtitle" = "3 active grants matched to your trade";
+"growth.program.grants.cta" = "View";
+"growth.wholesale.washer.title" = "Pressure washer bundle";
+"growth.wholesale.washer.saving" = "Save 22%";
+"growth.wholesale.washer.joined" = "14 joined";
+"growth.wholesale.cleaning.title" = "Commercial cleaning supplies";
+"growth.wholesale.cleaning.saving" = "Save 18%";
+"growth.wholesale.cleaning.joined" = "9 joined";
+
+/* Learn tab */
+"learn.eyebrow" = "LEARN";
+"learn.title" = "Learn. Do. Earn.";
+"learn.hero.eyebrow" = "LEARN MODE";
+"learn.hero.title" = "Skill → kit → income";
+"learn.hero.subtitle" = "Watch a short guide, see the tool kit, then list as a service or do it yourself.";
+"learn.step.1" = "Learn a skill";
+"learn.step.2" = "Do it yourself";
+"learn.step.3" = "List as service";
+"learn.step.4" = "Grow your business";
+"learn.search.placeholder" = "Search guides… (faucet, drywall, oil change)";

@@ -8,17 +8,17 @@ struct CustomerHome: View {
             heroCTA
 
             HStack(spacing: 12) {
-                StatTile(label: "Active jobs", value: "3", trend: nil, icon: "hammer.fill", color: Theme.accent)
-                StatTile(label: "Open quotes", value: "2", trend: "+1", icon: "doc.text.fill", color: Theme.pillarHome)
+                StatTile(label: L10n.StatKey.activeJobs, value: "3", trend: nil, icon: "hammer.fill", color: Theme.accent)
+                StatTile(label: L10n.StatKey.openQuotes, value: "2", trend: "+1", icon: "doc.text.fill", color: Theme.pillarHome)
             }
 
             VStack(spacing: 10) {
-                SectionHeader(title: "Your jobs")
+                SectionHeader(title: L10n.SectionKey.yourJobs)
                 ForEach(Samples.customerJobs) { JobRow(job: $0) }
             }
 
             VStack(spacing: 10) {
-                SectionHeader(title: "Messages")
+                SectionHeader(title: L10n.SectionKey.messages)
                 ForEach(Samples.messages) { MessageRow(thread: $0) }
             }
         }
@@ -26,20 +26,20 @@ struct CustomerHome: View {
 
     private var heroCTA: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("LOCAL SKILLS DIRECTORY")
+            Text(L10n.CustomerKey.eyebrow)
                 .font(.system(size: 11, weight: .bold))
                 .tracking(1.4)
                 .foregroundStyle(Theme.accent)
-            Text("Local help,\nwhen you need it")
+            Text(L10n.CustomerKey.headline)
                 .font(.system(size: 26, weight: .heavy))
                 .foregroundStyle(Theme.textPrimary)
                 .lineSpacing(2)
-            Text("Post a job in minutes. Get bids from skilled local helpers.")
+            Text(L10n.CustomerKey.subhead)
                 .font(.system(size: 13))
                 .foregroundStyle(Theme.textSecondary)
             HStack(spacing: 10) {
-                primaryButton("Post a Job", icon: "plus")
-                secondaryButton("Browse Helpers")
+                primaryButton(L10n.CustomerKey.postJob, icon: "plus")
+                secondaryButton(L10n.CustomerKey.browseHelpers)
             }
             .padding(.top, 4)
         }
@@ -54,7 +54,7 @@ struct CustomerHome: View {
         .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(Theme.stroke, lineWidth: 1))
     }
 
-    private func primaryButton(_ title: String, icon: String) -> some View {
+    private func primaryButton(_ title: LocalizedStringKey, icon: String) -> some View {
         HStack(spacing: 6) {
             Image(systemName: icon).font(.system(size: 12, weight: .bold))
             Text(title).font(.system(size: 13, weight: .bold))
@@ -64,7 +64,7 @@ struct CustomerHome: View {
         .background(Theme.accent, in: Capsule())
     }
 
-    private func secondaryButton(_ title: String) -> some View {
+    private func secondaryButton(_ title: LocalizedStringKey) -> some View {
         Text(title)
             .font(.system(size: 13, weight: .bold))
             .foregroundStyle(Theme.accent)
@@ -117,16 +117,16 @@ struct HelperHome: View {
     var body: some View {
         VStack(spacing: 18) {
             HStack(spacing: 12) {
-                StatTile(label: "Earned this month", value: "$1,847", trend: "+12%", icon: "dollarsign.circle.fill", color: Theme.success)
-                StatTile(label: "Jobs nearby", value: "14", trend: nil, icon: "location.fill", color: Theme.accent)
+                StatTile(label: L10n.StatKey.earnedThisMonth, value: "$1,847", trend: "+12%", icon: "dollarsign.circle.fill", color: Theme.success)
+                StatTile(label: L10n.StatKey.jobsNearby, value: "14", trend: nil, icon: "location.fill", color: Theme.accent)
             }
             HStack(spacing: 12) {
-                StatTile(label: "Active bids", value: "5", trend: nil, icon: "hand.raised.fill", color: Theme.pillarGoals)
-                StatTile(label: "Rating", value: "4.9", trend: "★", icon: "star.fill", color: Theme.pillarCar)
+                StatTile(label: L10n.StatKey.activeBids, value: "5", trend: nil, icon: "hand.raised.fill", color: Theme.pillarGoals)
+                StatTile(label: L10n.StatKey.rating, value: "4.9", trend: "★", icon: "star.fill", color: Theme.pillarCar)
             }
 
             VStack(spacing: 10) {
-                SectionHeader(title: "Available near you")
+                SectionHeader(title: L10n.SectionKey.availableNearYou)
                 ForEach(Samples.helperJobs) { AvailableJobRow(job: $0) }
             }
         }
@@ -141,12 +141,12 @@ struct BusinessHome: View {
             RevenueCard()
 
             HStack(spacing: 12) {
-                StatTile(label: "Team online", value: "3/4", trend: nil, icon: "person.3.fill", color: Theme.success)
-                StatTile(label: "Invoices pending", value: "$2,140", trend: nil, icon: "doc.plaintext.fill", color: Theme.warning)
+                StatTile(label: L10n.StatKey.teamOnline, value: "3/4", trend: nil, icon: "person.3.fill", color: Theme.success)
+                StatTile(label: L10n.StatKey.invoicesPending, value: "$2,140", trend: nil, icon: "doc.plaintext.fill", color: Theme.warning)
             }
 
             VStack(spacing: 10) {
-                SectionHeader(title: "Your team")
+                SectionHeader(title: L10n.SectionKey.yourTeam)
                 ForEach(Samples.team) { TeamRow(member: $0) }
             }
 
@@ -159,9 +159,9 @@ private struct RevenueCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Revenue this week").sectionTitle()
+                Text(L10n.BusinessKey.revenueWeek).sectionTitle()
                 Spacer()
-                Text("Mon–Sun").font(.system(size: 11)).foregroundStyle(Theme.textTertiary)
+                Text(L10n.BusinessKey.weekRange).font(.system(size: 11)).foregroundStyle(Theme.textTertiary)
             }
             Text("$4,820")
                 .font(.system(size: 32, weight: .heavy))
@@ -225,9 +225,9 @@ private struct CashAppCard: View {
             }
             .frame(width: 64, height: 64)
             VStack(alignment: .leading, spacing: 4) {
-                Text("Cash App payouts").font(.system(size: 14, weight: .bold)).foregroundStyle(Theme.textPrimary)
+                Text(L10n.BusinessKey.cashappTitle).font(.system(size: 14, weight: .bold)).foregroundStyle(Theme.textPrimary)
                 Text("$OxSteedCo").font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
-                Text("Share QR with customers")
+                Text(L10n.BusinessKey.cashappShare)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Theme.accent)
             }
@@ -239,19 +239,19 @@ private struct CashAppCard: View {
     }
 }
 
-// MARK: - Other personas (rich placeholders)
+// MARK: - Other personas
 
 struct ConsultantHome: View {
     var body: some View {
         VStack(spacing: 18) {
             HStack(spacing: 12) {
-                StatTile(label: "In intake", value: "6", trend: nil, icon: "person.crop.circle.badge.plus", color: Theme.pillarPersonal)
-                StatTile(label: "This week", value: "11 appts", trend: nil, icon: "calendar", color: Theme.accent)
+                StatTile(label: L10n.StatKey.inIntake, value: "6", trend: nil, icon: "person.crop.circle.badge.plus", color: Theme.pillarPersonal)
+                StatTile(label: L10n.StatKey.thisWeek, value: "11", trend: nil, icon: "calendar", color: Theme.accent)
             }
             EmptyStateCard(icon: "person.bubble.fill",
-                           title: "Intake queue is calm",
-                           message: "Your next session is Thursday with Priya R. Tap to open client notes.",
-                           cta: "Open calendar")
+                           title: L10n.ConsultantKey.emptyTitle,
+                           message: L10n.ConsultantKey.emptyMessage,
+                           cta: L10n.ConsultantKey.emptyCta)
         }
     }
 }
@@ -260,13 +260,13 @@ struct ToolOwnerHome: View {
     var body: some View {
         VStack(spacing: 18) {
             HStack(spacing: 12) {
-                StatTile(label: "Tools out", value: "7", trend: nil, icon: "hammer.fill", color: Theme.pillarCar)
-                StatTile(label: "Deposits held", value: "$640", trend: nil, icon: "lock.fill", color: Theme.warning)
+                StatTile(label: L10n.StatKey.toolsOut, value: "7", trend: nil, icon: "hammer.fill", color: Theme.pillarCar)
+                StatTile(label: L10n.StatKey.depositsHeld, value: "$640", trend: nil, icon: "lock.fill", color: Theme.warning)
             }
             EmptyStateCard(icon: "qrcode.viewfinder",
-                           title: "Scan to check tools in or out",
-                           message: "Damage deposits release automatically when a tool returns clean.",
-                           cta: "Open scanner")
+                           title: L10n.ToolOwnerKey.emptyTitle,
+                           message: L10n.ToolOwnerKey.emptyMessage,
+                           cta: L10n.ToolOwnerKey.emptyCta)
         }
     }
 }
@@ -275,13 +275,13 @@ struct FranchiseHome: View {
     var body: some View {
         VStack(spacing: 18) {
             HStack(spacing: 12) {
-                StatTile(label: "Sub-franchisees", value: "9", trend: "+2", icon: "building.2.fill", color: Theme.pillarSinking)
-                StatTile(label: "Compliance", value: "92%", trend: nil, icon: "checkmark.seal.fill", color: Theme.success)
+                StatTile(label: L10n.StatKey.subfranchisees, value: "9", trend: "+2", icon: "building.2.fill", color: Theme.pillarSinking)
+                StatTile(label: L10n.StatKey.compliance, value: "92%", trend: nil, icon: "checkmark.seal.fill", color: Theme.success)
             }
             EmptyStateCard(icon: "map.fill",
-                           title: "Territory at a glance",
-                           message: "View sub-franchisee locations, revenue share, and onboarding pipeline on the map.",
-                           cta: "Open territory map")
+                           title: L10n.FranchiseKey.emptyTitle,
+                           message: L10n.FranchiseKey.emptyMessage,
+                           cta: L10n.FranchiseKey.emptyCta)
         }
     }
 }
@@ -290,13 +290,13 @@ struct InvestorHome: View {
     var body: some View {
         VStack(spacing: 18) {
             HStack(spacing: 12) {
-                StatTile(label: "Portfolio", value: "$24.8k", trend: "+5.2%", icon: "chart.line.uptrend.xyaxis", color: Theme.success)
-                StatTile(label: "Helpers funded", value: "12", trend: nil, icon: "person.2.fill", color: Theme.accent)
+                StatTile(label: L10n.StatKey.portfolio, value: "$24.8k", trend: "+5.2%", icon: "chart.line.uptrend.xyaxis", color: Theme.success)
+                StatTile(label: L10n.StatKey.helpersFunded, value: "12", trend: nil, icon: "person.2.fill", color: Theme.accent)
             }
             EmptyStateCard(icon: "sparkles",
-                           title: "New opportunities in Springfield",
-                           message: "Three helper-businesses near you are ready for early-stage funding.",
-                           cta: "View deals")
+                           title: L10n.InvestorKey.emptyTitle,
+                           message: L10n.InvestorKey.emptyMessage,
+                           cta: L10n.InvestorKey.emptyCta)
         }
     }
 }

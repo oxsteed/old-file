@@ -40,3 +40,104 @@
 "common.save" = "Anrejistre";
 "common.see_all" = "Wè tout";
 "common.search" = "Chèche";
+"common.bid" = "Ofri";
+
+/* Section headers */
+"section.your_jobs" = "Travay ou yo";
+"section.messages" = "Mesaj";
+"section.available_near_you" = "Disponib toupre w";
+"section.your_team" = "Ekip ou";
+"section.urgency_queue" = "Liy ijans";
+"section.six_pillars" = "Sis pilye";
+"section.your_ladder" = "Echèl ou";
+"section.programs_for_you" = "Pwogram pou ou";
+"section.community_wholesale" = "Acha kominote";
+"section.start_here" = "Kòmanse la";
+"section.trending_area" = "Popilè nan zòn ou";
+
+/* Customer hero */
+"customer.eyebrow" = "ANYÈ METYE LOKAL";
+"customer.headline" = "Èd lokal,\nlè w bezwen li";
+"customer.subhead" = "Pibliye yon travay nan kèk minit. Resevwa ofri nan men asistan lokal kalifye.";
+"customer.post_job" = "Pibliye Travay";
+"customer.browse_helpers" = "Gade Asistan";
+
+/* Stat tile labels */
+"stat.active_jobs" = "Travay aktif";
+"stat.open_quotes" = "Devi ouvè";
+"stat.earned_this_month" = "Genyen mwa sa a";
+"stat.jobs_nearby" = "Travay toupre";
+"stat.active_bids" = "Ofri aktif";
+"stat.rating" = "Nòt";
+"stat.team_online" = "Ekip an liy";
+"stat.invoices_pending" = "Fakti annatant";
+"stat.in_intake" = "Nan resepsyon";
+"stat.this_week" = "Semèn sa a";
+"stat.tools_out" = "Zouti deyò";
+"stat.deposits_held" = "Depo kenbe";
+"stat.subfranchisees" = "Sou-franchize";
+"stat.compliance" = "Konfòmite";
+"stat.portfolio" = "Pòtfolyo";
+"stat.helpers_funded" = "Asistan finanse";
+
+/* Business */
+"business.revenue_week" = "Revni semèn sa a";
+"business.week_range" = "Lin–Dim";
+"business.cashapp_title" = "Peman Cash App";
+"business.cashapp_share" = "Pataje QR ak kliyan";
+
+/* Empty states */
+"consultant.empty.title" = "Liy resepsyon an kalm";
+"consultant.empty.message" = "Sesyon w pwochen jedi ak Priya R. Tape pou ouvri nòt kliyan.";
+"consultant.empty.cta" = "Ouvri kalandriye";
+
+"toolowner.empty.title" = "Eskane pou antre oswa soti zouti";
+"toolowner.empty.message" = "Depo domaj lage otomatikman lè yon zouti retounen pwòp.";
+"toolowner.empty.cta" = "Ouvri eskanè";
+
+"franchise.empty.title" = "Teritwa ou nan yon koudèy";
+"franchise.empty.message" = "Wè kote sou-franchize yo, pataj revni, ak pipeline entegrasyon sou kat la.";
+"franchise.empty.cta" = "Ouvri kat teritwa";
+
+"investor.empty.title" = "Nouvo opòtinite nan Springfield";
+"investor.empty.message" = "Twa biznis asistan toupre w pare pou finansman kòmansman.";
+"investor.empty.cta" = "Wè opòtinite";
+
+/* Life tab */
+"life.eyebrow" = "LAVI";
+"life.title" = "Pou ou pèsonèl";
+"life.pulse_label" = "Pou";
+"life.legend.ontrack" = "Sou wout";
+"life.legend.slipping" = "Glise";
+"life.legend.critical" = "Kritik";
+
+/* Growth tab */
+"growth.eyebrow" = "KWASANS";
+"growth.title" = "Monte ekonomikman";
+"growth.program.ascension.title" = "Asansyon Biznis";
+"growth.program.ascension.subtitle" = "Revni anplis → biznis ki gen lisans nan 6 semèn";
+"growth.program.ascension.cta" = "Aplike";
+"growth.program.loan.title" = "Pre-kalifye mikwo-prè";
+"growth.program.loan.subtitle" = "Jiska $5,000 pou zouti ak ekipman";
+"growth.program.loan.cta" = "Verifye";
+"growth.program.grants.title" = "Sibvansyon lokal nan Springfield";
+"growth.program.grants.subtitle" = "3 sibvansyon aktif ki matche metye w";
+"growth.program.grants.cta" = "Wè";
+"growth.wholesale.washer.title" = "Pakèt machin pou lave";
+"growth.wholesale.washer.saving" = "Sove 22%";
+"growth.wholesale.washer.joined" = "14 rantre";
+"growth.wholesale.cleaning.title" = "Pwodwi pwopte komèsyal";
+"growth.wholesale.cleaning.saving" = "Sove 18%";
+"growth.wholesale.cleaning.joined" = "9 rantre";
+
+/* Learn tab */
+"learn.eyebrow" = "APRANN";
+"learn.title" = "Aprann. Fè. Genyen.";
+"learn.hero.eyebrow" = "MOD APRANTISAJ";
+"learn.hero.title" = "Konpetans → kit → revni";
+"learn.hero.subtitle" = "Gade yon ti gid, wè kit zouti yo, epi mete l kòm sèvis oswa fè l ou menm.";
+"learn.step.1" = "Aprann yon konpetans";
+"learn.step.2" = "Fè l ou menm";
+"learn.step.3" = "Mete kòm sèvis";
+"learn.step.4" = "Devlope biznis ou";
+"learn.search.placeholder" = "Chèche gid… (tiyo, drywall, chanjman lwil)";

@@ -29,8 +29,8 @@ private struct LifeHeader: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("LIFE").sectionTitle()
-                Text("Your personal pulse")
+                Text(L10n.LifeKey.eyebrow).sectionTitle()
+                Text(L10n.LifeKey.title)
                     .font(.system(size: 22, weight: .heavy))
                     .foregroundStyle(Theme.textPrimary)
             }
@@ -55,7 +55,7 @@ private struct PulseCard: View {
                     Text("\(score)")
                         .font(.system(size: 52, weight: .heavy))
                         .foregroundStyle(Theme.textPrimary)
-                    Text("Pulse")
+                    Text(L10n.LifeKey.pulseLabel)
                         .font(.system(size: 12, weight: .semibold))
                         .tracking(2)
                         .foregroundStyle(Theme.textTertiary)
@@ -64,9 +64,9 @@ private struct PulseCard: View {
             .padding(.top, 4)
 
             HStack(spacing: 16) {
-                legend(color: Theme.success, label: "On track")
-                legend(color: Theme.warning, label: "Slipping")
-                legend(color: Theme.danger, label: "Critical")
+                legend(color: Theme.success, label: L10n.LifeKey.onTrack)
+                legend(color: Theme.warning, label: L10n.LifeKey.slipping)
+                legend(color: Theme.danger, label: L10n.LifeKey.critical)
             }
         }
         .frame(maxWidth: .infinity)
@@ -74,7 +74,7 @@ private struct PulseCard: View {
         .cardStyle()
     }
 
-    private func legend(color: Color, label: String) -> some View {
+    private func legend(color: Color, label: LocalizedStringKey) -> some View {
         HStack(spacing: 6) {
             Circle().fill(color).frame(width: 7, height: 7)
             Text(label).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.textSecondary)
@@ -125,7 +125,7 @@ private struct UrgencyQueue: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionHeader(title: "Urgency queue", actionLabel: nil)
+            SectionHeader(title: L10n.SectionKey.urgencyQueue, actionLabel: nil)
             VStack(spacing: 8) {
                 ForEach(pillars.prefix(4)) { p in
                     HStack(spacing: 12) {
@@ -162,7 +162,7 @@ private struct PillarGrid: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionHeader(title: "Six pillars", actionLabel: nil)
+            SectionHeader(title: L10n.SectionKey.sixPillars, actionLabel: nil)
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(pillars) { p in
                     VStack(alignment: .leading, spacing: 10) {

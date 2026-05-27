@@ -19,8 +19,8 @@ struct GrowthTabView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("GROWTH").sectionTitle()
-                Text("Move up economically")
+                Text(L10n.GrowthKey.eyebrow).sectionTitle()
+                Text(L10n.GrowthKey.title)
                     .font(.system(size: 22, weight: .heavy))
                     .foregroundStyle(Theme.textPrimary)
             }
@@ -30,7 +30,7 @@ struct GrowthTabView: View {
 
     private var ladderCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Your ladder")
+            Text(L10n.SectionKey.yourLadder)
                 .font(.system(size: 15, weight: .bold))
                 .foregroundStyle(Theme.textPrimary)
             VStack(spacing: 10) {
@@ -44,31 +44,35 @@ struct GrowthTabView: View {
 
     private var programsSection: some View {
         VStack(spacing: 10) {
-            SectionHeader(title: "Programs for you", actionLabel: nil)
+            SectionHeader(title: L10n.SectionKey.programsForYou, actionLabel: nil)
             ProgramCard(icon: "checkmark.seal.fill",
-                        title: "Business Ascension",
-                        subtitle: "Side income → licensed business in 6 weeks",
-                        cta: "Apply",
+                        title: L10n.GrowthKey.ascensionTitle,
+                        subtitle: L10n.GrowthKey.ascensionSubtitle,
+                        cta: L10n.GrowthKey.ascensionCta,
                         color: Theme.accent)
             ProgramCard(icon: "creditcard.fill",
-                        title: "Micro-loan pre-qualify",
-                        subtitle: "Up to $5,000 for tools and equipment",
-                        cta: "Check",
+                        title: L10n.GrowthKey.loanTitle,
+                        subtitle: L10n.GrowthKey.loanSubtitle,
+                        cta: L10n.GrowthKey.loanCta,
                         color: Theme.pillarMoney)
             ProgramCard(icon: "gift.fill",
-                        title: "Local grants in Springfield",
-                        subtitle: "3 active grants matched to your trade",
-                        cta: "View",
+                        title: L10n.GrowthKey.grantsTitle,
+                        subtitle: L10n.GrowthKey.grantsSubtitle,
+                        cta: L10n.GrowthKey.grantsCta,
                         color: Theme.pillarGoals)
         }
     }
 
     private var wholesaleSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionHeader(title: "Community wholesale", actionLabel: "See all")
+            SectionHeader(title: L10n.SectionKey.communityWholesale, actionLabel: L10n.CommonKey.seeAll)
             HStack(spacing: 12) {
-                WholesaleCard(title: "Pressure washer bundle", saving: "Save 22%", joined: "14 joined")
-                WholesaleCard(title: "Commercial cleaning supplies", saving: "Save 18%", joined: "9 joined")
+                WholesaleCard(title: L10n.GrowthKey.washerTitle,
+                              saving: L10n.GrowthKey.washerSaving,
+                              joined: L10n.GrowthKey.washerJoined)
+                WholesaleCard(title: L10n.GrowthKey.cleaningTitle,
+                              saving: L10n.GrowthKey.cleaningSaving,
+                              joined: L10n.GrowthKey.cleaningJoined)
             }
         }
     }
@@ -100,7 +104,11 @@ private struct GrowthRow: View {
 }
 
 private struct ProgramCard: View {
-    let icon: String, title: String, subtitle: String, cta: String, color: Color
+    let icon: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
+    let cta: LocalizedStringKey
+    let color: Color
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
@@ -124,7 +132,9 @@ private struct ProgramCard: View {
 }
 
 private struct WholesaleCard: View {
-    let title: String, saving: String, joined: String
+    let title: LocalizedStringKey
+    let saving: LocalizedStringKey
+    let joined: LocalizedStringKey
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Image(systemName: "shippingbox.fill")

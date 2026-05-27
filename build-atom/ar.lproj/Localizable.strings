@@ -40,3 +40,104 @@
 "common.save" = "حفظ";
 "common.see_all" = "عرض الكل";
 "common.search" = "بحث";
+"common.bid" = "عرض";
+
+/* Section headers */
+"section.your_jobs" = "أعمالك";
+"section.messages" = "الرسائل";
+"section.available_near_you" = "متوفرة بالقرب منك";
+"section.your_team" = "فريقك";
+"section.urgency_queue" = "طابور العاجل";
+"section.six_pillars" = "الركائز الستة";
+"section.your_ladder" = "سلّمك";
+"section.programs_for_you" = "برامج لك";
+"section.community_wholesale" = "شراء جماعي";
+"section.start_here" = "ابدأ هنا";
+"section.trending_area" = "الرائج في منطقتك";
+
+/* Customer hero */
+"customer.eyebrow" = "دليل المهن المحلية";
+"customer.headline" = "مساعدة محلية،\nعند الحاجة";
+"customer.subhead" = "انشر مهمة في دقائق. استقبل عروضًا من مساعدين محليين مهرة.";
+"customer.post_job" = "انشر مهمة";
+"customer.browse_helpers" = "تصفّح المساعدين";
+
+/* Stat tile labels */
+"stat.active_jobs" = "مهام نشطة";
+"stat.open_quotes" = "عروض مفتوحة";
+"stat.earned_this_month" = "أرباح هذا الشهر";
+"stat.jobs_nearby" = "مهام قريبة";
+"stat.active_bids" = "عروض نشطة";
+"stat.rating" = "التقييم";
+"stat.team_online" = "الفريق متصل";
+"stat.invoices_pending" = "فواتير معلقة";
+"stat.in_intake" = "في الاستقبال";
+"stat.this_week" = "هذا الأسبوع";
+"stat.tools_out" = "أدوات خارجة";
+"stat.deposits_held" = "ودائع محتفظ بها";
+"stat.subfranchisees" = "امتيازات فرعية";
+"stat.compliance" = "الامتثال";
+"stat.portfolio" = "المحفظة";
+"stat.helpers_funded" = "مساعدون مموَّلون";
+
+/* Business */
+"business.revenue_week" = "إيرادات هذا الأسبوع";
+"business.week_range" = "الإثنين–الأحد";
+"business.cashapp_title" = "مدفوعات Cash App";
+"business.cashapp_share" = "شارك رمز QR مع العملاء";
+
+/* Empty states */
+"consultant.empty.title" = "طابور الاستقبال هادئ";
+"consultant.empty.message" = "جلستك القادمة يوم الخميس مع بريا ر. اضغط لفتح ملاحظات العميل.";
+"consultant.empty.cta" = "فتح التقويم";
+
+"toolowner.empty.title" = "امسح لتسجيل دخول أو خروج الأدوات";
+"toolowner.empty.message" = "تتحرر ودائع الأضرار تلقائيًا عند عودة الأداة نظيفة.";
+"toolowner.empty.cta" = "فتح الماسح";
+
+"franchise.empty.title" = "نظرة على إقليمك";
+"franchise.empty.message" = "اعرض مواقع الامتيازات الفرعية، حصص الإيرادات، ومسار الإعداد على الخريطة.";
+"franchise.empty.cta" = "فتح خريطة الإقليم";
+
+"investor.empty.title" = "فرص جديدة في سبرينغفيلد";
+"investor.empty.message" = "ثلاث أعمال مساعدين قربك جاهزة للتمويل المبكر.";
+"investor.empty.cta" = "عرض الصفقات";
+
+/* Life tab */
+"life.eyebrow" = "الحياة";
+"life.title" = "نبضك الشخصي";
+"life.pulse_label" = "النبض";
+"life.legend.ontrack" = "على المسار";
+"life.legend.slipping" = "ينزلق";
+"life.legend.critical" = "حرج";
+
+/* Growth tab */
+"growth.eyebrow" = "النمو";
+"growth.title" = "ارتقِ اقتصاديًا";
+"growth.program.ascension.title" = "ارتقاء الأعمال";
+"growth.program.ascension.subtitle" = "دخل جانبي → عمل مرخّص في 6 أسابيع";
+"growth.program.ascension.cta" = "تقدّم";
+"growth.program.loan.title" = "تأهيل مبدئي لقرض صغير";
+"growth.program.loan.subtitle" = "حتى 5000 $ للأدوات والمعدات";
+"growth.program.loan.cta" = "تحقّق";
+"growth.program.grants.title" = "منح محلية في سبرينغفيلد";
+"growth.program.grants.subtitle" = "3 منح نشطة تناسب مهنتك";
+"growth.program.grants.cta" = "عرض";
+"growth.wholesale.washer.title" = "حزمة غسّالة ضغط";
+"growth.wholesale.washer.saving" = "وفّر 22%";
+"growth.wholesale.washer.joined" = "14 منضمًا";
+"growth.wholesale.cleaning.title" = "مستلزمات تنظيف تجارية";
+"growth.wholesale.cleaning.saving" = "وفّر 18%";
+"growth.wholesale.cleaning.joined" = "9 منضمين";
+
+/* Learn tab */
+"learn.eyebrow" = "تعلّم";
+"learn.title" = "تعلّم. افعل. اكسب.";
+"learn.hero.eyebrow" = "وضع التعلّم";
+"learn.hero.title" = "مهارة → عُدة → دخل";
+"learn.hero.subtitle" = "شاهد دليلًا قصيرًا، انظر عُدة الأدوات، ثم اعرضها كخدمة أو افعلها بنفسك.";
+"learn.step.1" = "تعلّم مهارة";
+"learn.step.2" = "افعلها بنفسك";
+"learn.step.3" = "اعرضها كخدمة";
+"learn.step.4" = "نمِّ عملك";
+"learn.search.placeholder" = "ابحث في الأدلة… (صنبور، جبس، تغيير زيت)";
