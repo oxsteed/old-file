@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PersonaSwitcherSheet: View {
     @EnvironmentObject var personaStore: PersonaStore
+    @EnvironmentObject var auth: AuthStore
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -23,6 +24,7 @@ struct PersonaSwitcherSheet: View {
                     ForEach(Persona.allCases) { persona in
                         Button {
                             personaStore.active = persona
+                            Task { await auth.switchPersona(persona) }
                             dismiss()
                         } label: {
                             row(for: persona)

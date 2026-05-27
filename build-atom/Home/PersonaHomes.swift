@@ -3,173 +3,238 @@ import SwiftUI
 // MARK: - Customer
 
 struct CustomerHome: View {
+    @EnvironmentObject var jobs: JobsStore
+    @EnvironmentObject var messages: MessagesStore
+    @State private var showPostJob = false
+    @State private var showInbox = false
+
     var body: some View {
         VStack(spacing: 18) {
             heroCTA
 
             HStack(spacing: 12) {
-                StatTile(label: L10n.StatKey.activeJobs, value: "3", trend: nil, icon: "hammer.fill", color: Theme.accent)
-                StatTile(label: L10n.StatKey.openQuotes, value: "2", trend: "+1", icon: "doc.text.fill", color: Theme.pillarHome)
+                StatTile(label: L10n.StatKey.activeJobs,
+                         value: "\(jobs.myJobs.filter { ($0.status ?? "") != "completed" && ($0.status ?? "") != "cancelled" }.count)",
+                         trend: nil, icon: "hammer.fill", color: Theme.accent)
+                StatTile(label: L10n.StatKey.openQuotes,
+                         value: "\(jobs.myJobs.reduce(0) { $0 + ($1.bid_count ?? 0) })",
+                         trend: nil, icon: "doc.text.fill", color: Theme.pillarHome)
             }
 
             VStack(spacing: 10) {
                 SectionHeader(title: L10n.SectionKey.yourJobs)
-                ForEach(Samples.customerJobs) { JobRow(job: $0) }
+                if jobs.myJobs.isEmpty {
+                    Text("No jobs yet — tap Post a Job to get started.")
+                        .font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8)
+                } else {
+                    ForEach(jobs.myJobs.prefix(4)) { job in
+                        NavigationLink {
+                            JobDetailView(job: job)
+                        } label: { realJobRow(job) }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
 
-            VStack(spacing: 10) {
-                SectionHeader(title: L10n.SectionKey.messages)
-                ForEach(Samples.messages) { MessageRow(thread: $0) }
+            Button { showInbox = true } label: {
+                HStack {
+                    Image(systemName: "envelope.fill").foregroundStyle(Theme.accent)
+                    Text(L10n.SectionKey.messages).font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Spacer()
+                    if !messages.conversations.isEmpty {
+                        Text("\(messages.conversations.count)").font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                    Image(systemName: "chevron.right").foregroundStyle(Theme.textTertiary)
+                }
+                .cardStyle()
             }
+            .buttonStyle(.plain)
         }
+        .task {
+            await jobs.loadMyJobs()
+            await messages.loadConversations()
+        }
+        .sheet(isPresented: $showPostJob) { PostJobView() }
+        .sheet(isPresented: $showInbox) { InboxView() }
+    }
+
+    private func realJobRow(_ job: APIJob) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(job.statusColor.opacity(0.18))
+                .frame(width: 44, height: 44)
+                .overlay(Image(systemName: "hammer.fill").font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(job.statusColor))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(job.title).font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary).lineLimit(1)
+                Text(job.category ?? "").font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
+                Text(job.statusDisplay).font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(job.statusColor)
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(job.statusColor.opacity(0.14), in: Capsule())
+            }
+            Spacer()
+            Text(job.budgetDisplay).font(.system(size: 14, weight: .bold)).foregroundStyle(Theme.textPrimary)
+        }
+        .padding(14)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.stroke, lineWidth: 1))
     }
 
     private var heroCTA: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.CustomerKey.eyebrow)
-                .font(.system(size: 11, weight: .bold))
-                .tracking(1.4)
-                .foregroundStyle(Theme.accent)
-            Text(L10n.CustomerKey.headline)
-                .font(.system(size: 26, weight: .heavy))
-                .foregroundStyle(Theme.textPrimary)
-                .lineSpacing(2)
-            Text(L10n.CustomerKey.subhead)
-                .font(.system(size: 13))
-                .foregroundStyle(Theme.textSecondary)
+            Text(L10n.CustomerKey.eyebrow).font(.system(size: 11, weight: .bold)).tracking(1.4).foregroundStyle(Theme.accent)
+            Text(L10n.CustomerKey.headline).font(.system(size: 26, weight: .heavy)).foregroundStyle(Theme.textPrimary).lineSpacing(2)
+            Text(L10n.CustomerKey.subhead).font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
             HStack(spacing: 10) {
-                primaryButton(L10n.CustomerKey.postJob, icon: "plus")
-                secondaryButton(L10n.CustomerKey.browseHelpers)
+                Button { showPostJob = true } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "plus").font(.system(size: 12, weight: .bold))
+                        Text(L10n.CustomerKey.postJob).font(.system(size: 13, weight: .bold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16).padding(.vertical, 11)
+                    .background(Theme.accent, in: Capsule())
+                }
+                Text(L10n.CustomerKey.browseHelpers)
+                    .font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 16).padding(.vertical, 11)
+                    .background(Capsule().strokeBorder(Theme.accent, lineWidth: 1.2))
             }
             .padding(.top, 4)
         }
         .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(LinearGradient(
-                    colors: [Theme.surface, Theme.surface.opacity(0.6), Theme.accentSoft],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
-                ))
-        )
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous)
+            .fill(LinearGradient(colors: [Theme.surface, Theme.surface.opacity(0.6), Theme.accentSoft],
+                                 startPoint: .topLeading, endPoint: .bottomTrailing)))
         .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(Theme.stroke, lineWidth: 1))
-    }
-
-    private func primaryButton(_ title: LocalizedStringKey, icon: String) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon).font(.system(size: 12, weight: .bold))
-            Text(title).font(.system(size: 13, weight: .bold))
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 16).padding(.vertical, 11)
-        .background(Theme.accent, in: Capsule())
-    }
-
-    private func secondaryButton(_ title: LocalizedStringKey) -> some View {
-        Text(title)
-            .font(.system(size: 13, weight: .bold))
-            .foregroundStyle(Theme.accent)
-            .padding(.horizontal, 16).padding(.vertical, 11)
-            .background(Capsule().strokeBorder(Theme.accent, lineWidth: 1.2))
-    }
-}
-
-struct MessageRow: View {
-    let thread: MessageThread
-    var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle().fill(thread.tint.opacity(0.2))
-                Text(thread.initials)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(thread.tint)
-            }
-            .frame(width: 40, height: 40)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(thread.name)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Theme.textPrimary)
-                Text(thread.preview)
-                    .font(.system(size: 12))
-                    .foregroundStyle(Theme.textSecondary)
-                    .lineLimit(1)
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(thread.timeAgo).font(.system(size: 11)).foregroundStyle(Theme.textTertiary)
-                if thread.unread > 0 {
-                    Text("\(thread.unread)")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(minWidth: 18, minHeight: 18)
-                        .background(Theme.accent, in: Circle())
-                }
-            }
-        }
-        .padding(12)
-        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.stroke, lineWidth: 1))
     }
 }
 
 // MARK: - Helper
 
 struct HelperHome: View {
+    @EnvironmentObject var jobs: JobsStore
+    @EnvironmentObject var bids: BidsStore
+    @EnvironmentObject var payments: PaymentsStore
+    @State private var selectedJob: APIJob?
+
     var body: some View {
         VStack(spacing: 18) {
             HStack(spacing: 12) {
-                StatTile(label: L10n.StatKey.earnedThisMonth, value: "$1,847", trend: "+12%", icon: "dollarsign.circle.fill", color: Theme.success)
-                StatTile(label: L10n.StatKey.jobsNearby, value: "14", trend: nil, icon: "location.fill", color: Theme.accent)
+                StatTile(label: L10n.StatKey.earnedThisMonth,
+                         value: "$\(payments.payments.reduce(0) { $0 + $1.amount } / 100)",
+                         trend: nil, icon: "dollarsign.circle.fill", color: Theme.success)
+                StatTile(label: L10n.StatKey.jobsNearby, value: "\(jobs.availableJobs.count)",
+                         trend: nil, icon: "location.fill", color: Theme.accent)
             }
             HStack(spacing: 12) {
-                StatTile(label: L10n.StatKey.activeBids, value: "5", trend: nil, icon: "hand.raised.fill", color: Theme.pillarGoals)
-                StatTile(label: L10n.StatKey.rating, value: "4.9", trend: "★", icon: "star.fill", color: Theme.pillarCar)
+                StatTile(label: L10n.StatKey.activeBids, value: "\(bids.myBids.count)",
+                         trend: nil, icon: "hand.raised.fill", color: Theme.pillarGoals)
+                StatTile(label: L10n.StatKey.rating, value: "—", trend: "★",
+                         icon: "star.fill", color: Theme.pillarCar)
             }
 
             VStack(spacing: 10) {
                 SectionHeader(title: L10n.SectionKey.availableNearYou)
-                ForEach(Samples.helperJobs) { AvailableJobRow(job: $0) }
+                if jobs.availableJobs.isEmpty {
+                    Text("No jobs available in your area yet.")
+                        .font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8)
+                }
+                ForEach(jobs.availableJobs.prefix(10)) { job in
+                    Button { selectedJob = job } label: { availableRow(job) }
+                        .buttonStyle(.plain)
+                }
             }
         }
+        .task {
+            await jobs.loadAvailable()
+            await bids.loadMine()
+            await payments.loadPayments()
+        }
+        .sheet(item: $selectedJob) { job in
+            NavigationStack { JobDetailView(job: job) }
+        }
+    }
+
+    private func availableRow(_ job: APIJob) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(job.title).font(.system(size: 15, weight: .bold)).foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Text(job.budgetDisplay).font(.system(size: 16, weight: .heavy)).foregroundStyle(Theme.accent)
+            }
+            HStack(spacing: 8) {
+                if let d = job.distance_miles {
+                    Label(String(format: "%.1f mi", d), systemImage: "location.fill")
+                } else if !job.locationDisplay.isEmpty {
+                    Label(job.locationDisplay, systemImage: "location.fill")
+                }
+            }
+            .font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.textSecondary)
+            HStack {
+                Text(job.category ?? "").font(.system(size: 10, weight: .semibold))
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(Theme.surfaceElevated, in: Capsule()).foregroundStyle(Theme.textSecondary)
+                Spacer()
+                Text(L10n.CommonKey.bid).font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
+                    .padding(.horizontal, 14).padding(.vertical, 6).background(Theme.accent, in: Capsule())
+            }
+        }
+        .padding(14)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.stroke, lineWidth: 1))
     }
 }
 
 // MARK: - Business
 
 struct BusinessHome: View {
+    @EnvironmentObject var payments: PaymentsStore
+    @EnvironmentObject var jobs: JobsStore
+
     var body: some View {
         VStack(spacing: 18) {
-            RevenueCard()
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Text(L10n.BusinessKey.revenueWeek).sectionTitle()
+                    Spacer()
+                    Text(L10n.BusinessKey.weekRange).font(.system(size: 11)).foregroundStyle(Theme.textTertiary)
+                }
+                Text("$\(payments.payments.reduce(0) { $0 + $1.amount } / 100)")
+                    .font(.system(size: 32, weight: .heavy)).foregroundStyle(Theme.textPrimary)
+                MiniBarChart(values: [0.4, 0.6, 0.45, 0.8, 0.7, 0.95, 0.55]).frame(height: 64)
+            }
+            .cardStyle()
 
             HStack(spacing: 12) {
-                StatTile(label: L10n.StatKey.teamOnline, value: "3/4", trend: nil, icon: "person.3.fill", color: Theme.success)
-                StatTile(label: L10n.StatKey.invoicesPending, value: "$2,140", trend: nil, icon: "doc.plaintext.fill", color: Theme.warning)
+                StatTile(label: L10n.StatKey.teamOnline, value: "—", trend: nil,
+                         icon: "person.3.fill", color: Theme.success)
+                StatTile(label: L10n.StatKey.invoicesPending, value: "\(jobs.myJobs.count)",
+                         trend: nil, icon: "doc.plaintext.fill", color: Theme.warning)
             }
 
-            VStack(spacing: 10) {
-                SectionHeader(title: L10n.SectionKey.yourTeam)
-                ForEach(Samples.team) { TeamRow(member: $0) }
+            NavigationLink { PaymentsView() } label: {
+                HStack {
+                    Image(systemName: "creditcard.fill").foregroundStyle(Theme.accent)
+                    Text("Wallet & Payouts").font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Spacer()
+                    Image(systemName: "chevron.right").foregroundStyle(Theme.textTertiary)
+                }
+                .cardStyle()
             }
-
-            CashAppCard()
+            .buttonStyle(.plain)
         }
-    }
-}
-
-private struct RevenueCard: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text(L10n.BusinessKey.revenueWeek).sectionTitle()
-                Spacer()
-                Text(L10n.BusinessKey.weekRange).font(.system(size: 11)).foregroundStyle(Theme.textTertiary)
-            }
-            Text("$4,820")
-                .font(.system(size: 32, weight: .heavy))
-                .foregroundStyle(Theme.textPrimary)
-            MiniBarChart(values: [0.4, 0.6, 0.45, 0.8, 0.7, 0.95, 0.55])
-                .frame(height: 64)
+        .task {
+            await payments.loadPayments()
+            await jobs.loadMyJobs()
         }
-        .cardStyle()
     }
 }
 
@@ -189,69 +254,29 @@ private struct MiniBarChart: View {
     }
 }
 
-private struct TeamRow: View {
-    let member: TeamMember
-    var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle().fill(member.statusColor.opacity(0.2))
-                Text(member.initials).font(.system(size: 12, weight: .bold)).foregroundStyle(member.statusColor)
-            }
-            .frame(width: 38, height: 38)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(member.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.textPrimary)
-                Text(member.role).font(.system(size: 11)).foregroundStyle(Theme.textTertiary)
-            }
-            Spacer()
-            HStack(spacing: 6) {
-                Circle().fill(member.statusColor).frame(width: 7, height: 7)
-                Text(member.status).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.textSecondary)
-            }
-        }
-        .padding(12)
-        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.stroke, lineWidth: 1))
-    }
-}
-
-private struct CashAppCard: View {
-    var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12).fill(Color.white)
-                Image(systemName: "qrcode")
-                    .font(.system(size: 36, weight: .light))
-                    .foregroundStyle(.black)
-            }
-            .frame(width: 64, height: 64)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(L10n.BusinessKey.cashappTitle).font(.system(size: 14, weight: .bold)).foregroundStyle(Theme.textPrimary)
-                Text("$OxSteedCo").font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
-                Text(L10n.BusinessKey.cashappShare)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Theme.accent)
-            }
-            Spacer()
-            Image(systemName: "square.and.arrow.up")
-                .foregroundStyle(Theme.accent)
-        }
-        .cardStyle()
-    }
-}
-
 // MARK: - Other personas
 
 struct ConsultantHome: View {
+    @EnvironmentObject var cal: CalendarStore
     var body: some View {
         VStack(spacing: 18) {
             HStack(spacing: 12) {
-                StatTile(label: L10n.StatKey.inIntake, value: "6", trend: nil, icon: "person.crop.circle.badge.plus", color: Theme.pillarPersonal)
-                StatTile(label: L10n.StatKey.thisWeek, value: "11", trend: nil, icon: "calendar", color: Theme.accent)
+                StatTile(label: L10n.StatKey.inIntake, value: "\(cal.bookingsIncoming.count)",
+                         trend: nil, icon: "person.crop.circle.badge.plus", color: Theme.pillarPersonal)
+                StatTile(label: L10n.StatKey.thisWeek, value: "\(cal.appointments.count)",
+                         trend: nil, icon: "calendar", color: Theme.accent)
             }
-            EmptyStateCard(icon: "person.bubble.fill",
-                           title: L10n.ConsultantKey.emptyTitle,
-                           message: L10n.ConsultantKey.emptyMessage,
-                           cta: L10n.ConsultantKey.emptyCta)
+            NavigationLink { CalendarView() } label: {
+                EmptyStateCard(icon: "calendar",
+                               title: L10n.ConsultantKey.emptyTitle,
+                               message: L10n.ConsultantKey.emptyMessage,
+                               cta: L10n.ConsultantKey.emptyCta)
+            }
+            .buttonStyle(.plain)
+        }
+        .task {
+            await cal.loadAppointments()
+            await cal.loadBookings(asHelper: true)
         }
     }
 }
@@ -260,8 +285,10 @@ struct ToolOwnerHome: View {
     var body: some View {
         VStack(spacing: 18) {
             HStack(spacing: 12) {
-                StatTile(label: L10n.StatKey.toolsOut, value: "7", trend: nil, icon: "hammer.fill", color: Theme.pillarCar)
-                StatTile(label: L10n.StatKey.depositsHeld, value: "$640", trend: nil, icon: "lock.fill", color: Theme.warning)
+                StatTile(label: L10n.StatKey.toolsOut, value: "—", trend: nil,
+                         icon: "hammer.fill", color: Theme.pillarCar)
+                StatTile(label: L10n.StatKey.depositsHeld, value: "—", trend: nil,
+                         icon: "lock.fill", color: Theme.warning)
             }
             EmptyStateCard(icon: "qrcode.viewfinder",
                            title: L10n.ToolOwnerKey.emptyTitle,
@@ -275,8 +302,10 @@ struct FranchiseHome: View {
     var body: some View {
         VStack(spacing: 18) {
             HStack(spacing: 12) {
-                StatTile(label: L10n.StatKey.subfranchisees, value: "9", trend: "+2", icon: "building.2.fill", color: Theme.pillarSinking)
-                StatTile(label: L10n.StatKey.compliance, value: "92%", trend: nil, icon: "checkmark.seal.fill", color: Theme.success)
+                StatTile(label: L10n.StatKey.subfranchisees, value: "—", trend: nil,
+                         icon: "building.2.fill", color: Theme.pillarSinking)
+                StatTile(label: L10n.StatKey.compliance, value: "—", trend: nil,
+                         icon: "checkmark.seal.fill", color: Theme.success)
             }
             EmptyStateCard(icon: "map.fill",
                            title: L10n.FranchiseKey.emptyTitle,
@@ -287,16 +316,24 @@ struct FranchiseHome: View {
 }
 
 struct InvestorHome: View {
+    @EnvironmentObject var payments: PaymentsStore
     var body: some View {
         VStack(spacing: 18) {
             HStack(spacing: 12) {
-                StatTile(label: L10n.StatKey.portfolio, value: "$24.8k", trend: "+5.2%", icon: "chart.line.uptrend.xyaxis", color: Theme.success)
-                StatTile(label: L10n.StatKey.helpersFunded, value: "12", trend: nil, icon: "person.2.fill", color: Theme.accent)
+                StatTile(label: L10n.StatKey.portfolio,
+                         value: "$\(payments.payments.reduce(0) { $0 + $1.amount } / 100)",
+                         trend: nil, icon: "chart.line.uptrend.xyaxis", color: Theme.success)
+                StatTile(label: L10n.StatKey.helpersFunded, value: "—", trend: nil,
+                         icon: "person.2.fill", color: Theme.accent)
             }
-            EmptyStateCard(icon: "sparkles",
-                           title: L10n.InvestorKey.emptyTitle,
-                           message: L10n.InvestorKey.emptyMessage,
-                           cta: L10n.InvestorKey.emptyCta)
+            NavigationLink { PaymentsView() } label: {
+                EmptyStateCard(icon: "sparkles",
+                               title: L10n.InvestorKey.emptyTitle,
+                               message: L10n.InvestorKey.emptyMessage,
+                               cta: L10n.InvestorKey.emptyCta)
+            }
+            .buttonStyle(.plain)
         }
+        .task { await payments.loadPayments() }
     }
 }

@@ -2,28 +2,34 @@ import SwiftUI
 
 struct HomeTabView: View {
     @EnvironmentObject var personaStore: PersonaStore
+    @EnvironmentObject var notifications: NotificationsStore
     @State private var showPersonaSheet = false
     @State private var showSettingsSheet = false
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                HomeHeader(
-                    persona: personaStore.active,
-                    onTapPersona: { showPersonaSheet = true },
-                    onTapSettings: { showSettingsSheet = true }
-                )
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-
-                HomeContent(persona: personaStore.active)
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    HomeHeader(
+                        persona: personaStore.active,
+                        unread: notifications.unreadCount,
+                        onTapPersona: { showPersonaSheet = true },
+                        onTapSettings: { showSettingsSheet = true }
+                    )
                     .padding(.horizontal, 20)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    .id(personaStore.active) // re-build only this section on switch
+                    .padding(.top, 8)
+
+                    HomeContent(persona: personaStore.active)
+                        .padding(.horizontal, 20)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        .id(personaStore.active)
+                }
+                .padding(.bottom, 24)
             }
-            .padding(.bottom, 24)
+            .background(Theme.background.ignoresSafeArea())
+            .toolbar(.hidden, for: .navigationBar)
         }
-        .background(Theme.background.ignoresSafeArea())
+        .task { await notifications.load() }
         .sheet(isPresented: $showPersonaSheet) {
             PersonaSwitcherSheet()
                 .presentationDetents([.large])
@@ -40,10 +46,9 @@ struct HomeTabView: View {
     }
 }
 
-// MARK: - Header
-
 private struct HomeHeader: View {
     let persona: Persona
+    let unread: Int
     let onTapPersona: () -> Void
     let onTapSettings: () -> Void
 
@@ -60,7 +65,7 @@ private struct HomeHeader: View {
                         .foregroundStyle(Theme.textSecondary)
                 }
                 Spacer()
-                IconChip(systemName: "bell.fill", badge: 3)
+                IconChip(systemName: "bell.fill", badge: unread > 0 ? unread : nil)
                 Button(action: onTapSettings) {
                     IconChip(systemName: "gearshape.fill")
                 }
@@ -124,9 +129,7 @@ private struct IconChip: View {
                 .foregroundStyle(Theme.textPrimary)
                 .frame(width: 38, height: 38)
                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1)
-                )
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
             if let badge, badge > 0 {
                 Text("\(badge)")
                     .font(.system(size: 10, weight: .bold))
@@ -139,11 +142,8 @@ private struct IconChip: View {
     }
 }
 
-// MARK: - Persona-specific content
-
 private struct HomeContent: View {
     let persona: Persona
-
     var body: some View {
         switch persona {
         case .customer: CustomerHome()
