@@ -1,0 +1,317 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1250B009DEE968E135C1C4D2 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A1A074A05326F198CFE86F8B /* LaunchScreen.storyboard */; };
+		16AB1B0C7F975FAB7962FC22 /* LifeTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF780DCCE3C3E48A963E8881 /* LifeTabView.swift */; };
+		3CEA01F469314302139CCCD1 /* OxSteedApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB061BA0E9DAAA38B260BFF0 /* OxSteedApp.swift */; };
+		50F83CA6A0031A2C35BC668E /* Persona.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABACAF22ED3E2B78F1D0367 /* Persona.swift */; };
+		568B56BA8B7368C5122CF08F /* PersonaHomes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FEE5BB463B4B1C7AD5E7FC4 /* PersonaHomes.swift */; };
+		572302F1511D345728742AE1 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DC8DD72F6BE755E975270B4 /* Theme.swift */; };
+		5FAF5C57D421B8941E78F5CB /* PersonaSwitcherSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 036B307EF4E6469B02421276 /* PersonaSwitcherSheet.swift */; };
+		70F328A759FCAE9BBECE2A7C /* HomeComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11C26B1EFCAFE62CF3C70BCA /* HomeComponents.swift */; };
+		8961842BC7F92B30A351EBEF /* HomeTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97A95AC363A6FF42585A2490 /* HomeTabView.swift */; };
+		8AE0AB06C920CABA51399A7B /* LearnTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE03E2098ED0F72324D8923E /* LearnTabView.swift */; };
+		9FB7539807988EE6390994A2 /* GrowthTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CA158A0AD01B89A7D18D454 /* GrowthTabView.swift */; };
+		9FBA91454A60DF080807308B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CBE51D841A03B830AB47D76D /* Assets.xcassets */; };
+		D213AA4A73A087CAE1C1BB8E /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 822653373F6F347C052A3C83 /* SampleData.swift */; };
+		DCDD009DD26347F2F3461193 /* RootShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2002E77BD1AB1BE7179335E /* RootShellView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		036B307EF4E6469B02421276 /* PersonaSwitcherSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaSwitcherSheet.swift; sourceTree = "<group>"; };
+		11C26B1EFCAFE62CF3C70BCA /* HomeComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeComponents.swift; sourceTree = "<group>"; };
+		3FEE5BB463B4B1C7AD5E7FC4 /* PersonaHomes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaHomes.swift; sourceTree = "<group>"; };
+		822653373F6F347C052A3C83 /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
+		8DC8DD72F6BE755E975270B4 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		97A95AC363A6FF42585A2490 /* HomeTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeTabView.swift; sourceTree = "<group>"; };
+		9CA158A0AD01B89A7D18D454 /* GrowthTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrowthTabView.swift; sourceTree = "<group>"; };
+		A10236F026D336DCBF4BDDCF /* build-atom.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "build-atom.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AABACAF22ED3E2B78F1D0367 /* Persona.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persona.swift; sourceTree = "<group>"; };
+		B2002E77BD1AB1BE7179335E /* RootShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootShellView.swift; sourceTree = "<group>"; };
+		BB061BA0E9DAAA38B260BFF0 /* OxSteedApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OxSteedApp.swift; sourceTree = "<group>"; };
+		BF780DCCE3C3E48A963E8881 /* LifeTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeTabView.swift; sourceTree = "<group>"; };
+		CBE51D841A03B830AB47D76D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		CE03E2098ED0F72324D8923E /* LearnTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearnTabView.swift; sourceTree = "<group>"; };
+		F84BC8145BC66B8D99275B17 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		FF6B0CD7655445979A7C9D66 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		029B269D9A92DD5464D4B6EB /* Home */ = {
+			isa = PBXGroup;
+			children = (
+				11C26B1EFCAFE62CF3C70BCA /* HomeComponents.swift */,
+				97A95AC363A6FF42585A2490 /* HomeTabView.swift */,
+				3FEE5BB463B4B1C7AD5E7FC4 /* PersonaHomes.swift */,
+				036B307EF4E6469B02421276 /* PersonaSwitcherSheet.swift */,
+			);
+			path = Home;
+			sourceTree = "<group>";
+		};
+		19045CAF4042574EFF1A34B1 /* build-atom */ = {
+			isa = PBXGroup;
+			children = (
+				CBE51D841A03B830AB47D76D /* Assets.xcassets */,
+				FF6B0CD7655445979A7C9D66 /* Info.plist */,
+				A1A074A05326F198CFE86F8B /* LaunchScreen.storyboard */,
+				C34AA01FF653E3B7FE188CCD /* App */,
+				75B70B9D302C3E3F42DE3029 /* Design */,
+				D599565E15257AA8421A1BB1 /* Growth */,
+				029B269D9A92DD5464D4B6EB /* Home */,
+				C8595FB16D532C7D43DA4049 /* Learn */,
+				81093D660BDA3BBF95C031FE /* Life */,
+				57971E9896771DD0536F282B /* Models */,
+				58CBA847F13BDEABB881F239 /* Shell */,
+			);
+			path = "build-atom";
+			sourceTree = "<group>";
+		};
+		437A7FB4105D2BA8860F6DB0 = {
+			isa = PBXGroup;
+			children = (
+				19045CAF4042574EFF1A34B1 /* build-atom */,
+				A6B3DC3A6193BBA523FE5275 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		57971E9896771DD0536F282B /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				AABACAF22ED3E2B78F1D0367 /* Persona.swift */,
+				822653373F6F347C052A3C83 /* SampleData.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		58CBA847F13BDEABB881F239 /* Shell */ = {
+			isa = PBXGroup;
+			children = (
+				B2002E77BD1AB1BE7179335E /* RootShellView.swift */,
+			);
+			path = Shell;
+			sourceTree = "<group>";
+		};
+		75B70B9D302C3E3F42DE3029 /* Design */ = {
+			isa = PBXGroup;
+			children = (
+				8DC8DD72F6BE755E975270B4 /* Theme.swift */,
+			);
+			path = Design;
+			sourceTree = "<group>";
+		};
+		81093D660BDA3BBF95C031FE /* Life */ = {
+			isa = PBXGroup;
+			children = (
+				BF780DCCE3C3E48A963E8881 /* LifeTabView.swift */,
+			);
+			path = Life;
+			sourceTree = "<group>";
+		};
+		A6B3DC3A6193BBA523FE5275 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A10236F026D336DCBF4BDDCF /* build-atom.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C34AA01FF653E3B7FE188CCD /* App */ = {
+			isa = PBXGroup;
+			children = (
+				BB061BA0E9DAAA38B260BFF0 /* OxSteedApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		C8595FB16D532C7D43DA4049 /* Learn */ = {
+			isa = PBXGroup;
+			children = (
+				CE03E2098ED0F72324D8923E /* LearnTabView.swift */,
+			);
+			path = Learn;
+			sourceTree = "<group>";
+		};
+		D599565E15257AA8421A1BB1 /* Growth */ = {
+			isa = PBXGroup;
+			children = (
+				9CA158A0AD01B89A7D18D454 /* GrowthTabView.swift */,
+			);
+			path = Growth;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A011E3B5D1E5DAF0583218F5 /* build-atom */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1A571EFD68199AC0B273BF3A /* Build configuration list for PBXNativeTarget "build-atom" */;
+			buildPhases = (
+				75CB567A03315FA55BCD3099 /* Sources */,
+				77059A3418226DAE621C691F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "build-atom";
+			packageProductDependencies = (
+			);
+			productName = "build-atom";
+			productReference = A10236F026D336DCBF4BDDCF /* build-atom.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		ECF3640D8BAF1CFAE7C631CA /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+			};
+			buildConfigurationList = 7BB94B05DF8F7905F2CDD949 /* Build configuration list for PBXProject "build-atom" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 437A7FB4105D2BA8860F6DB0;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A011E3B5D1E5DAF0583218F5 /* build-atom */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		77059A3418226DAE621C691F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9FBA91454A60DF080807308B /* Assets.xcassets in Resources */,
+				1250B009DEE968E135C1C4D2 /* LaunchScreen.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		75CB567A03315FA55BCD3099 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9FB7539807988EE6390994A2 /* GrowthTabView.swift in Sources */,
+				70F328A759FCAE9BBECE2A7C /* HomeComponents.swift in Sources */,
+				8961842BC7F92B30A351EBEF /* HomeTabView.swift in Sources */,
+				8AE0AB06C920CABA51399A7B /* LearnTabView.swift in Sources */,
+				16AB1B0C7F975FAB7962FC22 /* LifeTabView.swift in Sources */,
+				3CEA01F469314302139CCCD1 /* OxSteedApp.swift in Sources */,
+				50F83CA6A0031A2C35BC668E /* Persona.swift in Sources */,
+				568B56BA8B7368C5122CF08F /* PersonaHomes.swift in Sources */,
+				5FAF5C57D421B8941E78F5CB /* PersonaSwitcherSheet.swift in Sources */,
+				DCDD009DD26347F2F3461193 /* RootShellView.swift in Sources */,
+				D213AA4A73A087CAE1C1BB8E /* SampleData.swift in Sources */,
+				572302F1511D345728742AE1 /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		A1A074A05326F198CFE86F8B /* LaunchScreen.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				F84BC8145BC66B8D99275B17 /* Base */,
+			);
+			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		0CFDA8403160FA21BF13B48A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CURRENT_PROJECT_VERSION = 1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_NAME = "build-atom";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		9E39747579B07CFC7D5E5B6C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				INFOPLIST_FILE = "build-atom/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.superapp.buildatom;
+			};
+			name = Release;
+		};
+		B36F168D7ABAF0D2EBC1EC7D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				INFOPLIST_FILE = "build-atom/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.superapp.buildatom;
+			};
+			name = Debug;
+		};
+		CF60DFFC246D8D2D9B3A40A5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CURRENT_PROJECT_VERSION = 1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_NAME = "build-atom";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1A571EFD68199AC0B273BF3A /* Build configuration list for PBXNativeTarget "build-atom" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B36F168D7ABAF0D2EBC1EC7D /* Debug */,
+				9E39747579B07CFC7D5E5B6C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		7BB94B05DF8F7905F2CDD949 /* Build configuration list for PBXProject "build-atom" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CF60DFFC246D8D2D9B3A40A5 /* Debug */,
+				0CFDA8403160FA21BF13B48A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = ECF3640D8BAF1CFAE7C631CA /* Project object */;
+}
