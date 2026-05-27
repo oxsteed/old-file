@@ -1,0 +1,42 @@
+/* OxSteed ME — English */
+
+/* App */
+"app.name" = "OxSteed";
+"app.greeting.morning" = "Good morning, Alex";
+"app.greeting.afternoon" = "Good afternoon, Alex";
+"app.greeting.evening" = "Good evening, Alex";
+
+/* Tabs */
+"tab.home" = "Home";
+"tab.life" = "Life";
+"tab.growth" = "Growth";
+"tab.learn" = "Learn";
+
+/* Persona switcher */
+"persona.acting_as" = "Acting as";
+"persona.switch" = "Switch";
+"persona.title" = "Choose your role";
+"persona.subtitle" = "One account, many ways to show up.";
+
+"persona.customer" = "Customer";
+"persona.helper" = "Helper";
+"persona.business" = "Business Owner";
+"persona.consultant" = "Consultant";
+"persona.tool_owner" = "Tool Owner";
+"persona.franchise" = "Franchise Owner";
+"persona.investor" = "Investor";
+
+/* Settings */
+"settings.title" = "Settings";
+"settings.language" = "Language";
+"settings.language.subtitle" = "Choose how the app speaks to you";
+"settings.done" = "Done";
+"settings.appearance" = "Appearance";
+"settings.notifications" = "Notifications";
+"settings.privacy" = "Privacy & Safety";
+
+/* Common */
+"common.cancel" = "Cancel";
+"common.save" = "Save";
+"common.see_all" = "See all";
+"common.search" = "Search";

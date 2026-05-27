@@ -8,10 +8,10 @@ struct PersonaSwitcherSheet: View {
         ScrollView {
             VStack(spacing: 16) {
                 VStack(spacing: 6) {
-                    Text("Switch persona")
+                    Text(L10n.PersonaKey.title)
                         .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(Theme.textPrimary)
-                    Text("Only the Home tab reloads. Life, Growth and Learn stay put.")
+                    Text(L10n.PersonaKey.subtitle)
                         .font(.system(size: 13))
                         .foregroundStyle(Theme.textSecondary)
                         .multilineTextAlignment(.center)
@@ -46,7 +46,7 @@ struct PersonaSwitcherSheet: View {
                 .frame(width: 44, height: 44)
                 .background(persona.color.opacity(0.16), in: RoundedRectangle(cornerRadius: 12))
             VStack(alignment: .leading, spacing: 3) {
-                Text(persona.rawValue)
+                Text(L10n.PersonaKey.name(for: persona))
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(Theme.textPrimary)
                 Text(persona.tagline)

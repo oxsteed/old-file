@@ -3,6 +3,13 @@ options:
   bundleIdPrefix: com.superapp
   developmentLanguage: en
 
+knownRegions:
+  - en
+  - es
+  - fr
+  - ar
+  - Base
+
 settings:
   base:
     PRODUCT_NAME: build-atom

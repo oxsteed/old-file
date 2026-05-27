@@ -1,0 +1,42 @@
+/* OxSteed ME — العربية */
+
+/* App */
+"app.name" = "أوكس‑ستيد";
+"app.greeting.morning" = "صباح الخير، أليكس";
+"app.greeting.afternoon" = "مساء الخير، أليكس";
+"app.greeting.evening" = "مساء الخير، أليكس";
+
+/* Tabs */
+"tab.home" = "الرئيسية";
+"tab.life" = "الحياة";
+"tab.growth" = "النمو";
+"tab.learn" = "تعلّم";
+
+/* Persona switcher */
+"persona.acting_as" = "تعمل كـ";
+"persona.switch" = "تبديل";
+"persona.title" = "اختر دورك";
+"persona.subtitle" = "حساب واحد، طرق متعددة للظهور.";
+
+"persona.customer" = "عميل";
+"persona.helper" = "مساعد";
+"persona.business" = "صاحب عمل";
+"persona.consultant" = "مستشار";
+"persona.tool_owner" = "مالك أدوات";
+"persona.franchise" = "صاحب امتياز";
+"persona.investor" = "مستثمر";
+
+/* Settings */
+"settings.title" = "الإعدادات";
+"settings.language" = "اللغة";
+"settings.language.subtitle" = "اختر كيف يخاطبك التطبيق";
+"settings.done" = "تم";
+"settings.appearance" = "المظهر";
+"settings.notifications" = "الإشعارات";
+"settings.privacy" = "الخصوصية والأمان";
+
+/* Common */
+"common.cancel" = "إلغاء";
+"common.save" = "حفظ";
+"common.see_all" = "عرض الكل";
+"common.search" = "بحث";

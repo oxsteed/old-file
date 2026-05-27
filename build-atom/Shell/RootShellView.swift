@@ -32,10 +32,10 @@ private struct OxTabBar: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            tabButton(.home, label: "Home", icon: "square.grid.2x2.fill")
-            tabButton(.life, label: "Life", icon: "heart.text.square.fill")
-            tabButton(.growth, label: "Growth", icon: "arrow.up.right.circle.fill")
-            tabButton(.learn, label: "Learn", icon: "graduationcap.fill")
+            tabButton(.home, label: L10n.tab(.home), icon: "square.grid.2x2.fill")
+            tabButton(.life, label: L10n.tab(.life), icon: "heart.text.square.fill")
+            tabButton(.growth, label: L10n.tab(.growth), icon: "arrow.up.right.circle.fill")
+            tabButton(.learn, label: L10n.tab(.learn), icon: "graduationcap.fill")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 10)
@@ -52,7 +52,7 @@ private struct OxTabBar: View {
         .padding(.bottom, 8)
     }
 
-    private func tabButton(_ value: AppTab, label: String, icon: String) -> some View {
+    private func tabButton(_ value: AppTab, label: LocalizedStringKey, icon: String) -> some View {
         let isSelected = selection == value
         return Button {
             withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {

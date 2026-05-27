@@ -3,13 +3,18 @@ import SwiftUI
 struct HomeTabView: View {
     @EnvironmentObject var personaStore: PersonaStore
     @State private var showPersonaSheet = false
+    @State private var showSettingsSheet = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                HomeHeader(persona: personaStore.active) { showPersonaSheet = true }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
+                HomeHeader(
+                    persona: personaStore.active,
+                    onTapPersona: { showPersonaSheet = true },
+                    onTapSettings: { showSettingsSheet = true }
+                )
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
 
                 HomeContent(persona: personaStore.active)
                     .padding(.horizontal, 20)
@@ -25,6 +30,12 @@ struct HomeTabView: View {
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Theme.background)
         }
+        .sheet(isPresented: $showSettingsSheet) {
+            SettingsSheet()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Theme.background)
+        }
         .animation(.spring(response: 0.35, dampingFraction: 0.86), value: personaStore.active)
     }
 }
@@ -34,22 +45,26 @@ struct HomeTabView: View {
 private struct HomeHeader: View {
     let persona: Persona
     let onTapPersona: () -> Void
+    let onTapSettings: () -> Void
 
     var body: some View {
         VStack(spacing: 14) {
             HStack(spacing: 12) {
                 LogoMark()
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("OxSteed")
+                    Text(L10n.appName)
                         .font(.system(size: 22, weight: .heavy))
                         .foregroundStyle(Theme.textPrimary)
-                    Text("Good morning, Alex")
+                    Text(L10n.greeting)
                         .font(.system(size: 13))
                         .foregroundStyle(Theme.textSecondary)
                 }
                 Spacer()
-                IconChip(systemName: "magnifyingglass")
                 IconChip(systemName: "bell.fill", badge: 3)
+                Button(action: onTapSettings) {
+                    IconChip(systemName: "gearshape.fill")
+                }
+                .buttonStyle(.plain)
             }
 
             Button(action: onTapPersona) {
@@ -60,17 +75,17 @@ private struct HomeHeader: View {
                         .frame(width: 36, height: 36)
                         .background(persona.color.opacity(0.16), in: RoundedRectangle(cornerRadius: 10))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Acting as")
+                        Text(L10n.PersonaKey.actingAs)
                             .font(.system(size: 11, weight: .semibold))
                             .tracking(1.2)
                             .foregroundStyle(Theme.textTertiary)
                             .textCase(.uppercase)
-                        Text(persona.rawValue)
+                        Text(L10n.PersonaKey.name(for: persona))
                             .font(.system(size: 16, weight: .bold))
                             .foregroundStyle(Theme.textPrimary)
                     }
                     Spacer()
-                    Text("Switch")
+                    Text(L10n.PersonaKey.switchAction)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Theme.accent)
                     Image(systemName: "chevron.right")
