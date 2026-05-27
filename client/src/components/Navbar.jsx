@@ -519,7 +519,6 @@ function NavLink({ to, children, active }) {
         transition: 'color var(--transition-fast), background var(--transition-fast)',
         display: 'inline-flex',
         alignItems: 'center',
-                whiteSpace: 'nowrap',
       }}
       onMouseEnter={e => {
         if (!active) {
