@@ -4,6 +4,8 @@ struct SettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var localization: LocalizationManager
     @EnvironmentObject var auth: AuthStore
+    @EnvironmentObject var socket: OxSocketManager
+    @State private var showNotifPrefs = false
 
     var body: some View {
         NavigationStack {
@@ -12,8 +14,23 @@ struct SettingsSheet: View {
                     if let user = auth.user {
                         accountCard(user: user)
                     }
+
+                    // Socket status indicator
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(socket.isConnected ? Theme.success : Theme.danger)
+                            .frame(width: 8, height: 8)
+                        Text(socket.isConnected ? "Live updates connected" : "Live updates offline")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                    .padding(.horizontal, 4)
+
                     languageCard
-                    placeholderCard(icon: "bell.fill", title: L10n.SettingsKey.notifications, color: Theme.pillarHome)
+                    Button { showNotifPrefs = true } label: {
+                        placeholderCard(icon: "bell.fill", title: L10n.SettingsKey.notifications, color: Theme.pillarHome)
+                    }
+                    .buttonStyle(.plain)
                     placeholderCard(icon: "lock.shield.fill", title: L10n.SettingsKey.privacy, color: Theme.pillarMoney)
                     placeholderCard(icon: "paintbrush.fill", title: L10n.SettingsKey.appearance, color: Theme.pillarPersonal)
 
@@ -52,6 +69,11 @@ struct SettingsSheet: View {
             .toolbarBackground(Theme.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
+        }
+        .sheet(isPresented: $showNotifPrefs) {
+            NotificationPrefsView()
+                .presentationDetents([.medium])
+                .presentationBackground(Theme.background)
         }
     }
 
@@ -170,5 +192,72 @@ struct SettingsSheet: View {
     SettingsSheet()
         .environmentObject(LocalizationManager())
         .environmentObject(AuthStore())
+        .environmentObject(OxSocketManager.shared)
         .preferredColorScheme(.dark)
+}
+
+// MARK: - Notification Preferences
+
+struct NotificationPrefsView: View {
+    @EnvironmentObject var notifs: NotificationsStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var prefs: NotificationPreferences = NotificationPreferences()
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 16) {
+                Toggle("Email Notifications", isOn: Binding(
+                    get: { prefs.email_enabled ?? true },
+                    set: { prefs.email_enabled = $0 }
+                ))
+                .foregroundStyle(Theme.textPrimary)
+                Toggle("Push Notifications", isOn: Binding(
+                    get: { prefs.push_enabled ?? true },
+                    set: { prefs.push_enabled = $0 }
+                ))
+                .foregroundStyle(Theme.textPrimary)
+                Toggle("SMS Notifications", isOn: Binding(
+                    get: { prefs.sms_enabled ?? false },
+                    set: { prefs.sms_enabled = $0 }
+                ))
+                .foregroundStyle(Theme.textPrimary)
+
+                Picker("Frequency", selection: Binding(
+                    get: { prefs.frequency ?? "real_time" },
+                    set: { prefs.frequency = $0 }
+                )) {
+                    Text("Real-time").tag("real_time")
+                    Text("Daily digest").tag("daily")
+                    Text("Weekly").tag("weekly")
+                }
+                .pickerStyle(.segmented)
+
+                Button {
+                    Task {
+                        let updated = try? await NotificationsService.updatePreferences(prefs)
+                        if let updated { notifs.preferences = updated }
+                        dismiss()
+                    }
+                } label: {
+                    Text("Save Preferences")
+                        .font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
+                        .frame(maxWidth: .infinity).padding(.vertical, 14)
+                        .background(Theme.accent, in: RoundedRectangle(cornerRadius: 14))
+                }
+            }
+            .padding(20)
+            .background(Theme.background.ignoresSafeArea())
+            .navigationTitle("Notifications")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .topBarTrailing) {
+                Button("Done") { dismiss() }.foregroundStyle(Theme.accent)
+            }}
+            .toolbarBackground(Theme.background, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+        }
+        .task {
+            if notifs.preferences == nil { await notifs.loadPreferences() }
+            if let p = notifs.preferences { prefs = p }
+        }
+    }
 }

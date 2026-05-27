@@ -26,6 +26,10 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>OxSteed uses your camera to capture job photos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>OxSteed uses your photo library to attach images to jobs and messages.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

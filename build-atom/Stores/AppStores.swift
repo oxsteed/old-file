@@ -185,9 +185,9 @@ final class MessagesStore: ObservableObject {
         catch { lastError = (error as? APIError)?.errorDescription }
     }
 
-    func send(_ conversationId: String, content: String) async {
+    func send(_ conversationId: String, content: String, attachments: [APIAttachment]? = nil) async {
         do {
-            let msg = try await MessagesService.send(conversationId, content: content)
+            let msg = try await MessagesService.send(conversationId, content: content, attachments: attachments)
             messagesByConversation[conversationId, default: []].append(msg)
         } catch {
             lastError = (error as? APIError)?.errorDescription

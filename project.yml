@@ -50,7 +50,9 @@ targets:
         LSRequiresIPhoneOS: true
         UIApplicationSupportsIndirectInputEvents: true
         UILaunchStoryboardName: LaunchScreen
-        UIRequiredDeviceCapabilities: [arm64]
+        UIRequiredDeviceCapabilities: [ arm64 ]
+        NSPhotoLibraryUsageDescription: "OxSteed uses your photo library to attach images to jobs and messages."
+        NSCameraUsageDescription: "OxSteed uses your camera to capture job photos."
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
@@ -60,6 +62,9 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+    dependencies:
+      - package: socket.io-client-swift
+        product: SocketIO
 
 schemes:
   build-atom:
@@ -70,3 +75,7 @@ schemes:
       config: Debug
     archive:
       config: Release
+packages:
+  socket.io-client-swift:
+    url: https://github.com/socketio/socket.io-client-swift
+    from: 16.0.1

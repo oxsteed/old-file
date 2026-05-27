@@ -15,6 +15,8 @@ struct PostJobView: View {
     @State private var city = ""
     @State private var state = ""
     @State private var zip = ""
+    @State private var uploadedMediaURLs: [String] = []
+    @State private var isUploading = false
 
     private let categories = ["Plumbing","Electrical","Cleaning","Moving","Handyman","Yard Work","HVAC","Painting"]
     private let urgencies = ["low","medium","high"]
@@ -50,6 +52,10 @@ struct PostJobView: View {
                         OxTextField(title: "ZIP", text: $zip, keyboard: .numberPad)
                     }
 
+                    ImagePickerButton(label: "Add Photos", purpose: "job_media",
+                                      uploadedURLs: $uploadedMediaURLs,
+                                      isUploading: $isUploading)
+
                     if let err = jobs.lastError {
                         Text(err).font(.system(size: 12)).foregroundStyle(Theme.danger)
                     }
@@ -75,7 +81,7 @@ struct PostJobView: View {
                             .frame(maxWidth: .infinity).padding(.vertical, 14)
                             .background(Theme.accent, in: RoundedRectangle(cornerRadius: 14))
                     }
-                    .disabled(title.count < 10 || description.count < 50 || city.isEmpty)
+                    .disabled(title.count < 10 || description.count < 50 || city.isEmpty || isUploading)
                 }
                 .padding(20)
             }
@@ -308,6 +314,8 @@ struct ChatThreadView: View {
     @EnvironmentObject var messages: MessagesStore
     @EnvironmentObject var auth: AuthStore
     @State private var draft = ""
+    @State private var attachmentURLs: [String] = []
+    @State private var isUploadingAttachment = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -327,20 +335,44 @@ struct ChatThreadView: View {
                     }
                 }
             }
-            HStack(spacing: 10) {
-                TextField("Message", text: $draft, axis: .vertical)
-                    .padding(10).background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 18))
-                    .foregroundStyle(Theme.textPrimary)
-                Button {
-                    let text = draft; draft = ""
-                    Task { await messages.send(conversation.id, content: text) }
-                } label: {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 30)).foregroundStyle(Theme.accent)
+
+            // Input toolbar
+            VStack(spacing: 0) {
+                if !attachmentURLs.isEmpty {
+                    HStack(spacing: 6) {
+                        ForEach(attachmentURLs, id: \.self) { _ in
+                            RoundedRectangle(cornerRadius: 8).fill(Theme.surfaceElevated)
+                                .frame(width: 44, height: 44)
+                                .overlay(Image(systemName: "photo.fill").foregroundStyle(Theme.textTertiary))
+                        }
+                    }
+                    .padding(.horizontal, 12).padding(.top, 8)
                 }
-                .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                HStack(spacing: 10) {
+                    // Photo attach button
+                    ImagePickerButton(label: "", purpose: "message_attachment",
+                                      uploadedURLs: $attachmentURLs,
+                                      isUploading: $isUploadingAttachment)
+                    .frame(width: 38)
+
+                    TextField("Message", text: $draft, axis: .vertical)
+                        .padding(10).background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 18))
+                        .foregroundStyle(Theme.textPrimary)
+
+                    Button {
+                        let text = draft; let urls = attachmentURLs
+                        draft = ""; attachmentURLs = []
+                        let attachments = urls.isEmpty ? nil : urls.map { APIAttachment(url: $0, type: "image/jpeg", filename: nil) }
+                        Task { await messages.send(conversation.id, content: text, attachments: attachments) }
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.system(size: 30)).foregroundStyle(Theme.accent)
+                    }
+                    .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty && attachmentURLs.isEmpty)
+                }
+                .padding(12)
             }
-            .padding(12)
             .background(Theme.surface)
         }
         .background(Theme.background.ignoresSafeArea())
@@ -353,14 +385,29 @@ struct ChatThreadView: View {
 
     private func messageBubble(_ m: APIMessage) -> some View {
         let mine = m.sender_id == auth.user?.id
-        return HStack {
-            if mine { Spacer(minLength: 40) }
-            Text(m.content)
-                .font(.system(size: 14)).foregroundStyle(mine ? .white : Theme.textPrimary)
-                .padding(.horizontal, 12).padding(.vertical, 9)
-                .background(mine ? Theme.accent : Theme.surfaceElevated,
-                            in: RoundedRectangle(cornerRadius: 16))
-            if !mine { Spacer(minLength: 40) }
+        return VStack(alignment: mine ? .trailing : .leading, spacing: 4) {
+            HStack {
+                if mine { Spacer(minLength: 40) }
+                Text(m.content)
+                    .font(.system(size: 14)).foregroundStyle(mine ? .white : Theme.textPrimary)
+                    .padding(.horizontal, 12).padding(.vertical, 9)
+                    .background(mine ? Theme.accent : Theme.surfaceElevated,
+                                in: RoundedRectangle(cornerRadius: 16))
+                if !mine { Spacer(minLength: 40) }
+            }
+            if let attachments = m.attachments, !attachments.isEmpty {
+                HStack {
+                    if mine { Spacer() }
+                    HStack(spacing: 6) {
+                        ForEach(attachments, id: \.url) { _ in
+                            RoundedRectangle(cornerRadius: 8).fill(Theme.surfaceElevated)
+                                .frame(width: 80, height: 80)
+                                .overlay(Image(systemName: "photo").foregroundStyle(Theme.textTertiary))
+                        }
+                    }
+                    if !mine { Spacer() }
+                }
+            }
         }
     }
 }
