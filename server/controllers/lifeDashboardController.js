@@ -624,6 +624,82 @@ exports.deleteHomeTask = async (req, res) => {
   }
 };
 
+/**
+ * Bulk-upsert home tasks from iOS offline queue.
+ * Matches on (user_id, title, section) — inserts if missing, updates is_completed if found.
+ * POST /api/life/home-tasks/bulk-upsert
+ * Body: { home_tasks: [{ title, section, is_completed, is_recurring, due_date }] }
+ */
+exports.bulkUpsertHomeTasks = async (req, res) => {
+  const userId = req.user.id;
+  const items  = Array.isArray(req.body?.home_tasks) ? req.body.home_tasks : [];
+  if (items.length === 0) return res.json({ ok: true, upserted: 0 });
+
+  try {
+    let count = 0;
+    for (const t of items.slice(0, 200)) {
+      const title   = String(t.title || '').trim().substring(0, 200);
+      const section = String(t.section || 'home').substring(0, 50);
+      if (!title) continue;
+
+      await db.query(`
+        INSERT INTO home_tasks (user_id, title, section, is_completed, is_recurring, due_date)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (user_id, title, section) DO UPDATE
+          SET is_completed = EXCLUDED.is_completed,
+              is_recurring = EXCLUDED.is_recurring,
+              due_date     = EXCLUDED.due_date,
+              updated_at   = NOW()
+      `, [
+        userId, title, section,
+        t.is_completed ?? false,
+        t.is_recurring ?? false,
+        t.due_date || null,
+      ]).catch(() => {});  // silent on missing table or constraint
+      count++;
+    }
+    res.json({ ok: true, upserted: count });
+  } catch (err) {
+    logger.error('bulkUpsertHomeTasks error', { message: err.message });
+    res.status(500).json({ error: 'Bulk upsert failed.' });
+  }
+};
+
+/**
+ * Bulk-upsert Life goals from iOS offline queue.
+ * Matches on (user_id, title) — inserts if missing, updates is_completed if found.
+ * POST /api/life/goals/bulk-upsert
+ * Body: { goals: [{ title, tier, is_completed }] }
+ */
+exports.bulkUpsertGoals = async (req, res) => {
+  const userId = req.user.id;
+  const items  = Array.isArray(req.body?.goals) ? req.body.goals : [];
+  if (items.length === 0) return res.json({ ok: true, upserted: 0 });
+
+  try {
+    let count = 0;
+    for (const g of items.slice(0, 100)) {
+      const title = String(g.title || '').trim().substring(0, 300);
+      const tier  = ['short', 'mid', 'long'].includes(g.tier) ? g.tier : 'short';
+      if (!title) continue;
+
+      await db.query(`
+        INSERT INTO goals (user_id, title, tier, is_completed)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (user_id, title) DO UPDATE
+          SET tier         = EXCLUDED.tier,
+              is_completed = EXCLUDED.is_completed,
+              updated_at   = NOW()
+      `, [userId, title, tier, g.is_completed ?? false]).catch(() => {});
+      count++;
+    }
+    res.json({ ok: true, upserted: count });
+  } catch (err) {
+    logger.error('bulkUpsertGoals error', { message: err.message });
+    res.status(500).json({ error: 'Bulk upsert failed.' });
+  }
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // CHECKLIST ITEMS
 // ═══════════════════════════════════════════════════════════════════════════

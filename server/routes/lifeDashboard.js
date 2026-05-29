@@ -33,10 +33,11 @@ router.post('/budgets',          authenticate, ctrl.upsertBudget);
 router.delete('/budgets/:id',    authenticate, ctrl.deleteBudget);
 
 // ── Goals ────────────────────────────────────────────────────────────────
-router.get('/goals',             authenticate, ctrl.getGoals);
-router.post('/goals',            authenticate, ctrl.createGoal);
-router.put('/goals/:id',         authenticate, ctrl.updateGoal);
-router.delete('/goals/:id',      authenticate, ctrl.deleteGoal);
+router.get('/goals',                   authenticate, ctrl.getGoals);
+router.post('/goals',                  authenticate, ctrl.createGoal);
+router.put('/goals/:id',               authenticate, ctrl.updateGoal);
+router.delete('/goals/:id',            authenticate, ctrl.deleteGoal);
+router.post('/goals/bulk-upsert',      authenticate, ctrl.bulkUpsertGoals);
 
 // ── Saved Helpers ────────────────────────────────────────────────────────
 router.get('/saved-helpers',     authenticate, ctrl.getSavedHelpers);
@@ -44,10 +45,11 @@ router.post('/saved-helpers',    authenticate, ctrl.saveHelper);
 router.delete('/saved-helpers/:id', authenticate, ctrl.removeSavedHelper);
 
 // ── Home Tasks ───────────────────────────────────────────────────────────
-router.get('/home-tasks',        authenticate, ctrl.getHomeTasks);
-router.post('/home-tasks',       authenticate, ctrl.createHomeTask);
-router.put('/home-tasks/:id',    authenticate, ctrl.updateHomeTask);
-router.delete('/home-tasks/:id', authenticate, ctrl.deleteHomeTask);
+router.get('/home-tasks',              authenticate, ctrl.getHomeTasks);
+router.post('/home-tasks',             authenticate, ctrl.createHomeTask);
+router.put('/home-tasks/:id',          authenticate, ctrl.updateHomeTask);
+router.delete('/home-tasks/:id',       authenticate, ctrl.deleteHomeTask);
+router.post('/home-tasks/bulk-upsert', authenticate, ctrl.bulkUpsertHomeTasks);
 
 // ── Checklist ────────────────────────────────────────────────────────────
 router.get('/checklist',         authenticate, ctrl.getChecklist);

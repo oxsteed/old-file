@@ -6,6 +6,9 @@ const { fuzzCoords } = require('../models/jobModel');
 const { withTransaction, withJobTransaction } = require('../utils/transaction');
 const { captureAuthorizedPaymentWithClient } = require('../services/paymentCaptureService');
 const { AppError } = require('../middleware/errorHandler');
+let { notifyMatchingSavedSearches } = (() => {
+  try { return require('../routes/savedSearches'); } catch (_) { return {}; }
+})();
 
 function isTier3EscrowJob(jobRow) {
   const label = String(jobRow?.job_type_label || '').toLowerCase();
@@ -200,6 +203,11 @@ exports.createJob = async (req, res, next) => {
         [req.user.id]
       );
     } catch (_) { /* non-fatal */ }
+
+    // ── Fan out push alerts to helpers with matching saved searches ──────────────────────────────────────
+    if (typeof notifyMatchingSavedSearches === 'function') {
+      notifyMatchingSavedSearches(rows[0]).catch(() => {});
+    }
 
     return res.status(201).json({
       ...safeJob,
