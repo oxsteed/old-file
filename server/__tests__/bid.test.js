@@ -81,7 +81,7 @@ describe('POST /api/bids', () => {
     const res = await auth(
       request(buildApp()).post('/api/bids').send({ job_id: 10, amount: 150, message: 'Already bid' })
     );
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(409);
     expect(res.body.error).toMatch(/already/i);
   });
 
@@ -104,7 +104,10 @@ describe('POST /api/bids', () => {
 // ── GET /api/bids/me ──────────────────────────────────────────────────────────
 describe('GET /api/bids/me', () => {
   test('returns helper\'s bids', async () => {
-    mockAuth({ rows: [{ id: 20, job_id: 10, status: 'pending' }] });
+    mockAuth(
+      { rows: [{ id: 20, job_id: 10, status: 'pending' }] }, // list
+      { rows: [{ count: '1' }] } // count for X-Total-Count
+    );
     const res = await auth(request(buildApp()).get('/api/bids/me'));
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);

@@ -1,0 +1,2246 @@
+{
+  "guides": [
+    {
+      "id": "fix-leaky-faucet",
+      "title": "Fix a Leaky Faucet",
+      "category": "plumbing",
+      "difficulty": "Easy",
+      "minutes": 30,
+      "featured": true,
+      "intro": "A dripping faucet wastes gallons a day and usually comes down to a worn washer or O-ring \u2014 both cost under a dollar.",
+      "steps": [
+        "Turn off the water supply valves under the sink, then open the faucet to release remaining pressure.",
+        "Remove the handle by unscrewing the decorative cap and the screw underneath it.",
+        "Unscrew the packing nut and pull out the stem.",
+        "Inspect the rubber washer and O-ring at the bottom of the stem \u2014 replace both.",
+        "Reassemble in reverse order, turn the supply valves back on, and test for drips."
+      ],
+      "skills": [
+        "Shutoff valve operation",
+        "Basic disassembly",
+        "Washer replacement"
+      ],
+      "tools": [
+        {
+          "name": "Adjustable wrench",
+          "rent": "/tool-rentals?category=hand-tools",
+          "buy": "https://www.amazon.com/s?k=adjustable%20wrench&tag=oxsteed-20"
+        },
+        {
+          "name": "Flathead + Phillips screwdrivers",
+          "rent": "/tool-rentals?category=hand-tools",
+          "buy": "https://www.amazon.com/s?k=screwdriver%20set&tag=oxsteed-20"
+        },
+        {
+          "name": "Faucet repair kit (washers + O-rings)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=faucet%20repair%20kit%20washers%20o-rings&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "unclog-drain",
+      "title": "Unclog a Drain",
+      "category": "plumbing",
+      "difficulty": "Easy",
+      "minutes": 20,
+      "featured": false,
+      "intro": "Most slow drains are a hair-and-soap buildup in the trap \u2014 no chemicals needed, just the right tool and a little patience.",
+      "steps": [
+        "Remove the drain stopper (usually lifts out or unscrews).",
+        "Insert a drain snake or zip-it tool at least 12 inches and pull out debris.",
+        "Run hot water for 30 seconds to flush loosened buildup.",
+        "If still slow, place a bucket under the P-trap, unscrew the slip-joint nuts, clean the trap, and reinstall.",
+        "Test the drain and inspect all trap connections for leaks."
+      ],
+      "skills": [
+        "Drain snake use",
+        "P-trap removal",
+        "Slip-joint fittings"
+      ],
+      "tools": [
+        {
+          "name": "Drain snake or zip-it tool",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=drain%20snake%20clog%20remover&tag=oxsteed-20"
+        },
+        {
+          "name": "Bucket",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=utility%20bucket&tag=oxsteed-20"
+        },
+        {
+          "name": "Tongue-and-groove pliers",
+          "rent": "/tool-rentals?category=hand-tools",
+          "buy": "https://www.amazon.com/s?k=tongue%20groove%20pliers&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "fix-running-toilet",
+      "title": "Fix a Running Toilet",
+      "category": "plumbing",
+      "difficulty": "Medium",
+      "minutes": 45,
+      "featured": false,
+      "intro": "A toilet that runs after flushing is almost always the flapper or fill valve \u2014 both are cheap and beginner-friendly to replace.",
+      "steps": [
+        "Lift the tank lid and listen: hissing = fill valve issue; water running into bowl = flapper.",
+        "To fix the flapper: shut off the supply, flush to empty, unhook the old flapper, snap on the new one.",
+        "To fix the fill valve: shut off the supply, flush to empty, unscrew the lock nut at the base, twist in the new valve.",
+        "Set the water level to about 1 inch below the overflow tube.",
+        "Turn the water back on, let the tank fill, and confirm the running has stopped."
+      ],
+      "skills": [
+        "Toilet tank anatomy",
+        "Flapper replacement",
+        "Fill valve replacement"
+      ],
+      "tools": [
+        {
+          "name": "Universal flapper",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=universal%20toilet%20flapper&tag=oxsteed-20"
+        },
+        {
+          "name": "Fill valve kit",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=toilet%20fill%20valve%20replacement&tag=oxsteed-20"
+        },
+        {
+          "name": "Adjustable wrench",
+          "rent": "/tool-rentals?category=hand-tools",
+          "buy": "https://www.amazon.com/s?k=adjustable%20wrench&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "install-shower-head",
+      "title": "Install a New Shower Head",
+      "category": "plumbing",
+      "difficulty": "Easy",
+      "minutes": 15,
+      "featured": false,
+      "intro": "Upgrading a shower head is a 15-minute job that makes a noticeable daily difference \u2014 and no tools other than a wrench.",
+      "steps": [
+        "Turn off the water supply to the shower (or the main shutoff).",
+        "Wrap the shower arm threads with 2\u20133 layers of plumber's tape (clockwise direction).",
+        "Hand-thread the new shower head onto the arm. Tighten with a wrench one quarter-turn past hand-tight \u2014 avoid over-tightening.",
+        "Turn the water on and check for leaks at the connection.",
+        "If it drips, add one more layer of plumber's tape and retighten."
+      ],
+      "skills": [
+        "Thread sealing",
+        "Wrench use",
+        "Leak testing"
+      ],
+      "tools": [
+        {
+          "name": "Adjustable wrench or channel-lock pliers",
+          "rent": "/tool-rentals?category=hand-tools",
+          "buy": "https://www.amazon.com/s?k=adjustable%20wrench&tag=oxsteed-20"
+        },
+        {
+          "name": "Plumber's tape (PTFE)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=plumber's%20tape%20PTFE%20teflon&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "replace-toilet-fill-valve",
+      "title": "Replace a Toilet Fill Valve",
+      "category": "plumbing",
+      "difficulty": "Medium",
+      "minutes": 45,
+      "featured": false,
+      "intro": "A hissing or slow-filling toilet usually means the fill valve is worn. A universal replacement takes under an hour and costs less than $15.",
+      "steps": [
+        "Turn off the supply valve behind the toilet. Flush to empty the tank.",
+        "Sponge out remaining water from the tank.",
+        "Disconnect the supply line from the bottom of the tank. Unscrew the locknut holding the old fill valve and lift it out.",
+        "Adjust the new fill valve height to match your tank depth. Insert it and hand-tighten the locknut from below.",
+        "Reconnect the supply line. Turn on the water, set the float to fill 1 inch below the overflow tube, and flush to test."
+      ],
+      "skills": [
+        "Supply valve shutoff",
+        "Fill valve anatomy",
+        "Float adjustment"
+      ],
+      "tools": [
+        {
+          "name": "Universal fill valve kit",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=toilet%20fill%20valve%20universal&tag=oxsteed-20"
+        },
+        {
+          "name": "Adjustable wrench",
+          "rent": "/tool-rentals?category=hand-tools",
+          "buy": "https://www.amazon.com/s?k=adjustable%20wrench&tag=oxsteed-20"
+        },
+        {
+          "name": "Sponge or small towel",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=utility%20sponge&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "fix-burst-pipe-temporary",
+      "title": "Temporarily Stop a Burst Pipe",
+      "category": "plumbing",
+      "difficulty": "Hard",
+      "minutes": 30,
+      "featured": false,
+      "intro": "A burst pipe can release hundreds of gallons an hour. Knowing how to stop the flow buys time until a plumber arrives and limits damage.",
+      "steps": [
+        "Immediately shut off the main water supply valve \u2014 usually near the water meter or where the main enters the house.",
+        "Open the lowest faucet in the house to drain remaining pressure from the pipes.",
+        "Locate the burst or cracked section. Dry it as thoroughly as possible with rags.",
+        "Apply a pipe repair clamp or silicone repair tape tightly over the damaged section \u2014 overlap by at least 2 inches on each side.",
+        "Slowly restore the water supply and monitor the patch. Call a licensed plumber to make a permanent repair."
+      ],
+      "skills": [
+        "Main shutoff valve location",
+        "Emergency pipe clamp application",
+        "Water damage mitigation"
+      ],
+      "tools": [
+        {
+          "name": "Pipe repair clamp (sized to pipe diameter)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=pipe%20repair%20clamp%20emergency&tag=oxsteed-20"
+        },
+        {
+          "name": "Silicone self-fusing repair tape",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=silicone%20self%20fusing%20repair%20tape&tag=oxsteed-20"
+        },
+        {
+          "name": "Towels and mop",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=mop%20and%20bucket%20set&tag=oxsteed-20"
+        }
+      ],
+      "xp": 50
+    },
+    {
+      "id": "install-water-shutoff-valve",
+      "title": "Replace a Water Supply Shutoff Valve",
+      "category": "plumbing",
+      "difficulty": "Medium",
+      "minutes": 60,
+      "featured": false,
+      "intro": "A shutoff valve that won't fully close \u2014 or one that drips when open \u2014 leaves you unable to make any downstream repair. Replacing it takes an hour and requires only basic plumbing skills.",
+      "steps": [
+        "Turn off the main water supply. Open a faucet downstream to drain remaining pressure from the line.",
+        "Use an adjustable wrench to unscrew the old valve's compression nuts. Note the pipe diameter (usually 1/2\" or 3/4\") before removing.",
+        "Cut back the pipe by 1/2\" with a pipe cutter to expose clean metal. Deburr the cut edge with the reamer on the pipe cutter.",
+        "Slide on the new compression nut and ring. Push the new ball valve onto the pipe and tighten the nut hand-tight plus one full turn with a wrench.",
+        "Restore the main supply, close the new valve, then slowly open it. Check the compression fitting for drips. One additional quarter-turn will stop a slow drip."
+      ],
+      "skills": [
+        "Main shutoff operation",
+        "Pipe cutting",
+        "Compression fitting assembly",
+        "Leak testing"
+      ],
+      "tools": [
+        {
+          "name": "Pipe cutter (1/2\" or 3/4\")",
+          "rent": "/tool-rentals?category=plumbing",
+          "buy": "https://www.amazon.com/s?k=pipe%20cutter%20tubing%20cutter&tag=oxsteed-20"
+        },
+        {
+          "name": "Adjustable wrench",
+          "rent": "/tool-rentals?category=hand-tools",
+          "buy": "https://www.amazon.com/s?k=adjustable%20wrench&tag=oxsteed-20"
+        },
+        {
+          "name": "Ball valve with compression fittings (match pipe size)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=ball%20valve%20compression%20fitting%201%2F2%20inch&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "fix-toilet-wax-ring",
+      "title": "Replace a Toilet Wax Ring",
+      "category": "plumbing",
+      "difficulty": "Hard",
+      "minutes": 90,
+      "featured": false,
+      "intro": "A toilet that wobbles or leaves water on the floor at the base has a failed wax ring. It's a messy job, but straightforward \u2014 and ignoring it leads to subfloor damage.",
+      "steps": [
+        "Turn off the supply valve. Flush to empty the tank. Use a sponge and bucket to remove remaining water from the tank and bowl.",
+        "Disconnect the supply line. Unscrew the two closet bolts at the toilet base. Lift the toilet straight up and set it on its side on a tarp.",
+        "Scrape the old wax off the floor flange and the toilet horn using a putty knife. Clean both surfaces thoroughly.",
+        "Press the new wax ring onto the toilet horn (wax side down) or onto the floor flange. Align the toilet over the flange bolts and lower it straight down \u2014 don't shift side to side once wax contacts the flange.",
+        "Press down firmly and evenly to seat the wax. Hand-tighten the nuts alternately; snug but not over-tight (cracks the toilet base). Reconnect supply, restore water, flush, and check for leaks."
+      ],
+      "skills": [
+        "Toilet removal and reinstall",
+        "Wax ring seating",
+        "Closet bolt and flange anatomy"
+      ],
+      "tools": [
+        {
+          "name": "Wax ring (with or without horn extension \u2014 check flange height)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=toilet%20wax%20ring%20with%20horn&tag=oxsteed-20"
+        },
+        {
+          "name": "Putty knife",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=putty%20knife%20set&tag=oxsteed-20"
+        },
+        {
+          "name": "Adjustable wrench",
+          "rent": "/tool-rentals?category=hand-tools",
+          "buy": "https://www.amazon.com/s?k=adjustable%20wrench&tag=oxsteed-20"
+        },
+        {
+          "name": "Bucket and sponge",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=utility%20bucket&tag=oxsteed-20"
+        },
+        {
+          "name": "Tarp or old drop cloth",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=canvas%20drop%20cloth&tag=oxsteed-20"
+        }
+      ],
+      "xp": 50
+    },
+    {
+      "id": "replace-light-switch",
+      "title": "Replace a Light Switch",
+      "category": "electrical",
+      "difficulty": "Easy",
+      "minutes": 15,
+      "featured": false,
+      "intro": "Swapping a standard single-pole switch is one of the safest electrical tasks \u2014 as long as you confirm the circuit is off first.",
+      "steps": [
+        "Turn off the circuit breaker that controls the switch. Confirm power is off with a non-contact voltage tester.",
+        "Unscrew the cover plate and pull the switch out of the box.",
+        "Photograph the wiring before disconnecting anything.",
+        "Transfer wires to the new switch: black to brass, marked-white to brass, bare copper to green.",
+        "Push the switch back in, screw it down, replace the cover plate, and restore power."
+      ],
+      "skills": [
+        "Breaker shutoff",
+        "Voltage testing",
+        "Basic wiring connections"
+      ],
+      "tools": [
+        {
+          "name": "Non-contact voltage tester",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=non%20contact%20voltage%20tester&tag=oxsteed-20"
+        },
+        {
+          "name": "Flathead + Phillips screwdrivers",
+          "rent": "/tool-rentals?category=hand-tools",
+          "buy": "https://www.amazon.com/s?k=screwdriver%20set&tag=oxsteed-20"
+        },
+        {
+          "name": "Replacement light switch",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=single%20pole%20light%20switch&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "install-ceiling-fan",
+      "title": "Install a Ceiling Fan",
+      "category": "electrical",
+      "difficulty": "Medium",
+      "minutes": 90,
+      "featured": false,
+      "intro": "Installing a fan is manageable if the existing box is fan-rated. If you're replacing a light fixture, verify the box before lifting anything.",
+      "steps": [
+        "Turn off the circuit breaker. Confirm no power with a voltage tester. Verify the ceiling box is fan-rated.",
+        "Install the mounting bracket over the box per the fan's instructions.",
+        "Assemble the motor and canopy on the ground, then hang from the bracket hook.",
+        "Connect wiring: black to black, white to white, bare to bare. Blue wire (if present) connects to the light kit or a separate switch.",
+        "Attach blades and the light kit. Restore power and test all speeds and the light."
+      ],
+      "skills": [
+        "Fan-rated box identification",
+        "Wire connections",
+        "Blade installation"
+      ],
+      "tools": [
+        {
+          "name": "Non-contact voltage tester",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=non%20contact%20voltage%20tester&tag=oxsteed-20"
+        },
+        {
+          "name": "Drill + bits",
+          "rent": "/tool-rentals?category=power-tools",
+          "buy": null
+        },
+        {
+          "name": "Ladder (6 ft minimum)",
+          "rent": "/tool-rentals?category=access",
+          "buy": null
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "reset-gfci",
+      "title": "Reset a GFCI Outlet",
+      "category": "electrical",
+      "difficulty": "Easy",
+      "minutes": 5,
+      "featured": true,
+      "intro": "GFCI outlets protect against shock in wet areas. When one trips, it can cut power to several outlets downstream \u2014 the tripped outlet is often in a different room.",
+      "steps": [
+        "Find the outlet with TEST and RESET buttons \u2014 it may not be in the same room as the dead outlet.",
+        "Check for moisture or visible damage before touching anything.",
+        "Press the RESET button firmly until it clicks. Power should restore immediately.",
+        "Test with a lamp or outlet tester to confirm.",
+        "If the outlet trips again right away, stop and call an electrician \u2014 there's an underlying fault."
+      ],
+      "skills": [
+        "GFCI identification",
+        "Circuit tracing",
+        "Knowing when to stop"
+      ],
+      "tools": [
+        {
+          "name": "Outlet tester",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=outlet%20circuit%20tester&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "replace-outlet",
+      "title": "Replace an Electrical Outlet",
+      "category": "electrical",
+      "difficulty": "Medium",
+      "minutes": 30,
+      "featured": false,
+      "intro": "A cracked or sparking outlet is a fire hazard. Replacing it is a straightforward job with the right safety steps.",
+      "steps": [
+        "Turn off the circuit breaker for that outlet. Use a non-contact voltage tester to confirm no power.",
+        "Unscrew the cover plate, then the outlet screws. Pull the outlet out of the box carefully.",
+        "Photograph the existing wire connections. Disconnect wires from the old outlet.",
+        "Connect wires to the new outlet: black to brass (hot), white to silver (neutral), bare/green to green (ground).",
+        "Fold wires neatly into the box. Secure the outlet, replace the cover plate, restore power, and test with an outlet tester."
+      ],
+      "skills": [
+        "Breaker shutoff",
+        "Voltage testing",
+        "Wire terminal connections",
+        "Hot/neutral/ground identification"
+      ],
+      "tools": [
+        {
+          "name": "Non-contact voltage tester",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=non%20contact%20voltage%20tester&tag=oxsteed-20"
+        },
+        {
+          "name": "Flathead + Phillips screwdrivers",
+          "rent": "/tool-rentals?category=hand-tools",
+          "buy": "https://www.amazon.com/s?k=screwdriver%20set&tag=oxsteed-20"
+        },
+        {
+          "name": "Replacement outlet (duplex receptacle)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=duplex%20electrical%20outlet%2015%20amp&tag=oxsteed-20"
+        },
+        {
+          "name": "Outlet tester",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=outlet%20circuit%20tester&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "install-dimmer-switch",
+      "title": "Install a Dimmer Switch",
+      "category": "electrical",
+      "difficulty": "Medium",
+      "minutes": 30,
+      "featured": false,
+      "intro": "A dimmer gives a room mood control and can cut lighting energy use by up to 20%. Match the dimmer to your bulb type or it will hum or flicker.",
+      "steps": [
+        "Turn off the circuit breaker. Verify no power at the switch with a voltage tester.",
+        "Remove the cover plate and pull out the switch. Photograph wiring.",
+        "Note the dimmer's load capacity (usually 150W\u2013600W) and verify it fits your bulb total.",
+        "Connect the dimmer leads to the house wires: typically two black leads to hot wires, green/bare to ground. Consult the included diagram.",
+        "Fold wires into the box, seat the dimmer, attach the cover, restore power, and test the full range."
+      ],
+      "skills": [
+        "Load calculation",
+        "Multi-wire dimmer wiring",
+        "Bulb compatibility check"
+      ],
+      "tools": [
+        {
+          "name": "Non-contact voltage tester",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=non%20contact%20voltage%20tester&tag=oxsteed-20"
+        },
+        {
+          "name": "Flathead + Phillips screwdrivers",
+          "rent": "/tool-rentals?category=hand-tools",
+          "buy": "https://www.amazon.com/s?k=screwdriver%20set&tag=oxsteed-20"
+        },
+        {
+          "name": "LED-compatible dimmer switch",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=LED%20dimmer%20switch%20single%20pole&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "install-light-fixture",
+      "title": "Replace a Light Fixture",
+      "category": "electrical",
+      "difficulty": "Medium",
+      "minutes": 60,
+      "featured": false,
+      "intro": "Swapping a fixture is mostly mechanical \u2014 the wiring is the same three connections every time. The challenge is weight and working overhead.",
+      "steps": [
+        "Turn off the breaker. Confirm no power with a voltage tester at the fixture wires.",
+        "Support the old fixture while you unscrew the mounting screws. Don't let it hang by its wires.",
+        "Disconnect the three wire connections: black to black (hot), white to white (neutral), bare/green to green (ground).",
+        "Attach the new fixture's mounting bracket to the ceiling box. Connect the matching wires with wire nuts.",
+        "Tuck wires into the canopy, attach to the mounting bracket, install bulbs, restore power, and test."
+      ],
+      "skills": [
+        "Overhead work safety",
+        "Wire nut connections",
+        "Fixture support during install"
+      ],
+      "tools": [
+        {
+          "name": "Non-contact voltage tester",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=non%20contact%20voltage%20tester&tag=oxsteed-20"
+        },
+        {
+          "name": "Ladder (6 ft minimum)",
+          "rent": "/tool-rentals?category=access",
+          "buy": null
+        },
+        {
+          "name": "Phillips screwdriver + wire nuts",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=wire%20nuts%20assorted%20electrical&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "install-smart-switch",
+      "title": "Install a Smart Light Switch",
+      "category": "electrical",
+      "difficulty": "Medium",
+      "minutes": 45,
+      "featured": false,
+      "intro": "Smart switches let you control lights by voice, schedule, or app \u2014 without replacing every bulb. Most require a neutral wire; this guide shows you how to identify it and wire the switch safely.",
+      "steps": [
+        "Turn off the breaker for the circuit. Confirm power is off with a non-contact voltage tester before touching any wires.",
+        "Remove the old switch. Photograph the existing wiring before disconnecting anything.",
+        "Identify the wires: black (hot), white (neutral), bare or green (ground). Smart switches need all three \u2014 if you only have two, check for a neutral wire bundled in the back of the box.",
+        "Connect wires per the smart switch diagram: hot to LINE, neutral to NEUTRAL, ground to GROUND. Use the included wire nuts or push-in connectors.",
+        "Push the switch into the box and secure with screws. Restore power. Follow the manufacturer app to pair the switch to your Wi-Fi."
+      ],
+      "skills": [
+        "Voltage testing",
+        "Wire identification",
+        "App pairing"
+      ],
+      "tools": [
+        {
+          "name": "Non-contact voltage tester",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=non%20contact%20voltage%20tester%20electrical&tag=oxsteed-20"
+        },
+        {
+          "name": "Flathead and Phillips screwdrivers",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=screwdriver%20set%20flathead%20phillips&tag=oxsteed-20"
+        },
+        {
+          "name": "Smart switch (e.g. Kasa, Leviton, Lutron)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=smart%20light%20switch%20wifi%20neutral%20wire&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "install-usb-outlet",
+      "title": "Replace an Outlet with a USB Charging Outlet",
+      "category": "electrical",
+      "difficulty": "Easy",
+      "minutes": 30,
+      "featured": false,
+      "intro": "USB outlets replace a standard wall outlet and add built-in USB-A or USB-C ports \u2014 no adapter block needed. It is one of the safest DIY electrical swaps because the wiring is identical to a regular outlet.",
+      "steps": [
+        "Turn off the breaker and verify power is off with a voltage tester.",
+        "Remove the cover plate and unscrew the old outlet from the box. Pull the outlet out \u2014 note which wires go to which screw terminals.",
+        "Disconnect the old outlet: black wire from brass (hot) screw, white wire from silver (neutral) screw, bare/green from green (ground) screw.",
+        "Connect wires to the new USB outlet in the same positions. Tighten each screw firmly \u2014 a loose connection causes heat and fire risk.",
+        "Push the outlet back into the box, secure with screws, and attach the cover plate. Restore power and test with a phone."
+      ],
+      "skills": [
+        "Outlet wiring",
+        "Voltage testing",
+        "Wire termination"
+      ],
+      "tools": [
+        {
+          "name": "Non-contact voltage tester",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=non%20contact%20voltage%20tester%20electrical&tag=oxsteed-20"
+        },
+        {
+          "name": "Flathead screwdriver",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=flathead%20screwdriver&tag=oxsteed-20"
+        },
+        {
+          "name": "USB outlet (USB-A+C combo)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=usb%20outlet%20wall%20charger%20built%20in%20usb-c&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "replace-hvac-filter",
+      "title": "Replace Your HVAC Filter",
+      "category": "hvac",
+      "difficulty": "Easy",
+      "minutes": 10,
+      "featured": true,
+      "intro": "A clogged filter makes your system work harder, raises your energy bill, and shortens the unit's life. Replace it every 1\u20133 months.",
+      "steps": [
+        "Find the filter slot \u2014 typically on the return air vent or at the air handler unit.",
+        "Note the size printed on the old filter frame before buying a replacement.",
+        "Turn off the thermostat. Slide out the old filter and note the airflow direction arrow.",
+        "Slide in the new filter with the arrow pointing toward the unit (away from the return duct).",
+        "Write the install date on the frame with a marker, then turn the thermostat back on."
+      ],
+      "skills": [
+        "Filter sizing",
+        "Airflow direction",
+        "Maintenance schedule"
+      ],
+      "tools": [
+        {
+          "name": "Pleated HVAC filter (match your size)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=HVAC%20air%20filter%20pleated&tag=oxsteed-20"
+        },
+        {
+          "name": "Permanent marker",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=permanent%20marker%20sharpie&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "clean-condensate-drain",
+      "title": "Clear Your AC Condensate Drain",
+      "category": "hvac",
+      "difficulty": "Easy",
+      "minutes": 20,
+      "featured": false,
+      "intro": "A clogged condensate drain causes water to back up into the drain pan and can shut down your AC or cause ceiling damage. Takes 5 minutes to prevent.",
+      "steps": [
+        "Turn off the AC at the thermostat.",
+        "Find the condensate drain line \u2014 usually a white PVC pipe near the air handler leading outside.",
+        "Locate the clean-out cap and remove it.",
+        "Pour 1 cup of distilled white vinegar into the opening. Wait 30 minutes.",
+        "Flush with water, then restore power and confirm no water backs up at the drain pan."
+      ],
+      "skills": [
+        "Condensate system basics",
+        "Preventive AC maintenance"
+      ],
+      "tools": [
+        {
+          "name": "Distilled white vinegar",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=distilled%20white%20vinegar%20gallon&tag=oxsteed-20"
+        },
+        {
+          "name": "Wet/dry vacuum (for severe clogs)",
+          "rent": "/tool-rentals?category=cleaning",
+          "buy": null
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "seal-hvac-ducts",
+      "title": "Seal Leaky HVAC Ducts",
+      "category": "hvac",
+      "difficulty": "Medium",
+      "minutes": 60,
+      "featured": false,
+      "intro": "Leaky ducts can account for 20\u201330% of conditioned air loss. Sealing them with mastic or foil tape pays back in lower energy bills within a year.",
+      "steps": [
+        "Turn off the HVAC system. Use a flashlight to inspect accessible ducts in the attic, basement, or crawl space for gaps, disconnections, and holes.",
+        "Mark all leaks with a marker. For small gaps, apply HVAC-rated foil tape \u2014 stretch it flat and press firmly from the center out.",
+        "For larger gaps or joints, brush water-based mastic sealant onto the duct surface 2 inches beyond the leak. Let it dry fully.",
+        "Wrap duct insulation back over any sections you had to peel back. Secure with tape.",
+        "Turn the system back on and hold your hand near sealed areas to feel for airflow \u2014 properly sealed ducts produce no draft."
+      ],
+      "skills": [
+        "Duct system navigation",
+        "Mastic application",
+        "Foil tape technique"
+      ],
+      "tools": [
+        {
+          "name": "HVAC mastic sealant",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=HVAC%20duct%20mastic%20sealant&tag=oxsteed-20"
+        },
+        {
+          "name": "HVAC foil tape",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=HVAC%20foil%20tape%20metal%20duct&tag=oxsteed-20"
+        },
+        {
+          "name": "Paintbrush (for mastic)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=chip%20brush%20set&tag=oxsteed-20"
+        },
+        {
+          "name": "Flashlight or headlamp",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=headlamp%20flashlight&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "clean-dryer-vent",
+      "title": "Clean Your Dryer Vent",
+      "category": "hvac",
+      "difficulty": "Easy",
+      "minutes": 30,
+      "featured": false,
+      "intro": "Lint buildup in the dryer vent is the leading cause of residential dryer fires. Clean it once a year \u2014 or more often if you notice clothes taking longer to dry.",
+      "steps": [
+        "Unplug the dryer. If gas, turn off the gas supply valve.",
+        "Pull the dryer away from the wall and disconnect the vent duct from the back of the unit.",
+        "Insert a dryer vent brush kit into the duct and rotate it through the full length, dislodging lint.",
+        "Vacuum up all lint from inside the duct, behind the dryer, and at the exterior vent cap.",
+        "Reattach the duct with foil tape (not plastic tape). Push the dryer back, restore power, and run a 10-minute heat cycle to confirm airflow."
+      ],
+      "skills": [
+        "Vent duct disassembly",
+        "Brush kit use",
+        "Airflow testing"
+      ],
+      "tools": [
+        {
+          "name": "Dryer vent cleaning brush kit",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=dryer%20vent%20cleaning%20brush%20kit&tag=oxsteed-20"
+        },
+        {
+          "name": "Vacuum with hose attachment",
+          "rent": "/tool-rentals?category=cleaning",
+          "buy": null
+        },
+        {
+          "name": "HVAC foil tape",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=HVAC%20foil%20tape&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "insulate-hot-water-pipes",
+      "title": "Insulate Hot Water Pipes",
+      "category": "hvac",
+      "difficulty": "Easy",
+      "minutes": 45,
+      "featured": false,
+      "intro": "Insulating accessible hot water pipes reduces heat loss, lowers water heating costs, and means you get hot water at the tap faster.",
+      "steps": [
+        "Measure the diameter of your pipes \u2014 most residential supply lines are 1/2\" or 3/4\".",
+        "Purchase foam pipe insulation sleeves that match the pipe diameter.",
+        "Starting from the water heater, slide the foam sleeves over the pipes. The sleeves are pre-slit \u2014 pinch them open and press onto the pipe.",
+        "Butt sleeve joints tightly together. At elbows, cut the foam at 45 degrees so the joints meet cleanly.",
+        "Secure all seams and joints with foil HVAC tape or specialty pipe insulation tape."
+      ],
+      "skills": [
+        "Pipe diameter measurement",
+        "Foam sleeve fitting",
+        "Elbow cutting technique"
+      ],
+      "tools": [
+        {
+          "name": "Foam pipe insulation sleeves",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=foam%20pipe%20insulation%20sleeves&tag=oxsteed-20"
+        },
+        {
+          "name": "Utility knife",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=utility%20knife%20box%20cutter&tag=oxsteed-20"
+        },
+        {
+          "name": "Pipe insulation tape or foil tape",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=pipe%20insulation%20tape&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "patch-drywall",
+      "title": "Patch a Drywall Hole",
+      "category": "carpentry",
+      "difficulty": "Medium",
+      "minutes": 60,
+      "featured": false,
+      "intro": "A fist-sized hole can be made invisible with the right patch and two thin coats of compound \u2014 the key is feathering the edges, not building them up.",
+      "steps": [
+        "Cut the damaged area into a clean square with a drywall saw.",
+        "Cut a drywall patch slightly larger than the hole; score it to leave a paper-backing flap for bonding.",
+        "Apply joint compound around the hole, press the patch in place using the paper flap.",
+        "Apply a thin first coat feathered 4\u20136 inches beyond the patch edges. Let dry completely.",
+        "Sand lightly, apply a second thin coat feathered even wider, sand again, then prime and paint."
+      ],
+      "skills": [
+        "Drywall cutting",
+        "Mud application",
+        "Feathering technique",
+        "Surface prep"
+      ],
+      "tools": [
+        {
+          "name": "Drywall repair patch",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=drywall%20repair%20patch%20kit&tag=oxsteed-20"
+        },
+        {
+          "name": "Joint compound (pre-mixed)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=joint%20compound%20pre%20mixed&tag=oxsteed-20"
+        },
+        {
+          "name": "4\" and 8\" putty knives",
+          "rent": "/tool-rentals?category=painting",
+          "buy": "https://www.amazon.com/s?k=putty%20knife%20set%20drywall&tag=oxsteed-20"
+        },
+        {
+          "name": "Sanding sponge",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=drywall%20sanding%20sponge&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "install-door-handle",
+      "title": "Replace a Door Handle",
+      "category": "carpentry",
+      "difficulty": "Easy",
+      "minutes": 30,
+      "featured": false,
+      "intro": "Most door handles use standard sizing \u2014 the new set includes a template that makes this a clean swap with no measuring.",
+      "steps": [
+        "Remove the existing handle by unscrewing the mounting screws on the interior rose plate.",
+        "Pull both sides out and unscrew the latch from the door edge.",
+        "Use the included template to confirm the hole sizing matches your door.",
+        "Insert the new latch and secure with edge screws.",
+        "Thread the exterior handle through and align the interior handle. Tighten the mounting screws."
+      ],
+      "skills": [
+        "Door hardware sizing",
+        "Latch alignment",
+        "Rose plate mounting"
+      ],
+      "tools": [
+        {
+          "name": "Phillips screwdriver or drill",
+          "rent": "/tool-rentals?category=power-tools",
+          "buy": "https://www.amazon.com/s?k=cordless%20screwdriver&tag=oxsteed-20"
+        },
+        {
+          "name": "Replacement door handle set",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=interior%20door%20handle%20set&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "hang-floating-shelves",
+      "title": "Hang Floating Shelves",
+      "category": "carpentry",
+      "difficulty": "Easy",
+      "minutes": 45,
+      "featured": false,
+      "intro": "Floating shelves are one of the most-requested handyperson jobs. The whole project hinges on hitting studs and keeping things level.",
+      "steps": [
+        "Use a stud finder to locate studs behind the wall. Mark them with a light pencil mark.",
+        "Hold the shelf bracket against the wall at your desired height. Use a level to confirm horizontal, then mark the mounting holes.",
+        "Drill pilot holes into the studs at your marks. If no stud is available at all mounting points, use toggle bolts for the drywall-only holes.",
+        "Screw the brackets into the wall securely. Slide the shelf onto the brackets or attach per manufacturer instructions.",
+        "Load the shelf evenly and test for wobble. Tighten any loose screws."
+      ],
+      "skills": [
+        "Stud finding",
+        "Leveling",
+        "Wall anchor selection"
+      ],
+      "tools": [
+        {
+          "name": "Stud finder",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=stud%20finder%20wall%20scanner&tag=oxsteed-20"
+        },
+        {
+          "name": "Level (24\" or torpedo)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=24%20inch%20level%20torpedo%20level&tag=oxsteed-20"
+        },
+        {
+          "name": "Drill + bits",
+          "rent": "/tool-rentals?category=power-tools",
+          "buy": null
+        },
+        {
+          "name": "Floating shelf with mounting hardware",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=floating%20shelf%20with%20brackets&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "fix-squeaky-floor",
+      "title": "Fix a Squeaky Floor",
+      "category": "carpentry",
+      "difficulty": "Medium",
+      "minutes": 60,
+      "featured": false,
+      "intro": "Most floor squeaks happen where the subfloor has separated from a joist. A few well-placed screws from below \u2014 or a squeak-specific kit from above \u2014 silences them permanently.",
+      "steps": [
+        "Walk the floor to identify the exact squeak location. Mark it with tape.",
+        "If you have basement or crawl access below: have a helper stand on the spot while you push up from below to feel the flex. Drive a short screw up through the subfloor into the joist \u2014 don't penetrate the finished floor.",
+        "If access is from above: use a squeak-eliminator kit that drives a special screw through the finish floor, then snaps the head off flush.",
+        "For hardwood over joist: drill a pilot hole at a slight angle and drive a trim-head screw into the joist below. Countersink and fill with a color-matched filler.",
+        "Test by walking over the area. If the squeak persists, repeat 2\u20133 inches away along the joist line."
+      ],
+      "skills": [
+        "Subfloor joist location",
+        "Below-floor screw driving",
+        "Squeak-kit method"
+      ],
+      "tools": [
+        {
+          "name": "Squeak-Ender or Squeeeeek No More kit",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=squeeeeek%20no%20more%20floor%20repair%20kit&tag=oxsteed-20"
+        },
+        {
+          "name": "Drill + bits",
+          "rent": "/tool-rentals?category=power-tools",
+          "buy": null
+        },
+        {
+          "name": "Color-matched wood filler",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=wood%20filler%20color%20match&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "install-window-screen",
+      "title": "Install or Replace a Window Screen",
+      "category": "carpentry",
+      "difficulty": "Easy",
+      "minutes": 30,
+      "featured": false,
+      "intro": "A torn window screen is easy to re-screen with a roll of mesh and a spline tool. It's also the same process for installing a screen in a frame.",
+      "steps": [
+        "Remove the old spline (the rubber cord that holds the mesh) using a flathead screwdriver.",
+        "Pull out the torn mesh. Clean the channel in the frame.",
+        "Cut new mesh slightly larger than the frame on all sides.",
+        "Lay the mesh over the frame. Starting from a corner, press the spline and mesh into the channel using the convex wheel of the spline roller.",
+        "Work around all four sides, keeping the mesh taut (not stretched). Trim excess mesh with a utility knife."
+      ],
+      "skills": [
+        "Spline removal and installation",
+        "Mesh tensioning",
+        "Knife trimming"
+      ],
+      "tools": [
+        {
+          "name": "Screen spline roller tool",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=screen%20spline%20roller%20tool&tag=oxsteed-20"
+        },
+        {
+          "name": "Replacement fiberglass mesh roll",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=window%20screen%20mesh%20replacement%20roll&tag=oxsteed-20"
+        },
+        {
+          "name": "Screen spline (match your frame groove)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=window%20screen%20spline%20replacement&tag=oxsteed-20"
+        },
+        {
+          "name": "Utility knife",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=utility%20knife%20box%20cutter&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "install-baseboards",
+      "title": "Install Baseboard Trim",
+      "category": "carpentry",
+      "difficulty": "Medium",
+      "minutes": 120,
+      "featured": false,
+      "intro": "Baseboards hide the gap between flooring and drywall and give a room a finished look. Good results come from accurate miter cuts at corners and tight caulk at the top edge \u2014 not from luck.",
+      "steps": [
+        "Measure each wall section and add 10% for waste. Mark stud locations with a stud finder \u2014 you need to nail into studs.",
+        "Cut outside corners at 45 degrees with a miter saw. For inside corners, cope the second piece (cut the profile with a coping saw) rather than mitering both \u2014 cope joints stay tight when wood expands.",
+        "Dry-fit all pieces before nailing. Trim and adjust until joints close cleanly.",
+        "Nail each piece into studs using a finish nailer or hand-nail with 2\" finish nails. Keep nails 6\" from ends to prevent splitting.",
+        "Fill nail holes with wood filler, let dry, sand flush. Caulk the top edge against the wall. Prime and paint the trim."
+      ],
+      "skills": [
+        "Miter cuts",
+        "Coping joints",
+        "Finish nailing",
+        "Caulking"
+      ],
+      "tools": [
+        {
+          "name": "Miter saw",
+          "rent": "/tool-rentals?category=carpentry",
+          "buy": null
+        },
+        {
+          "name": "Finish nailer + compressor",
+          "rent": "/tool-rentals?category=carpentry",
+          "buy": null
+        },
+        {
+          "name": "Coping saw",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=coping%20saw%20for%20trim%20work&tag=oxsteed-20"
+        },
+        {
+          "name": "Stud finder",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=stud%20finder%20wall%20scanner&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "repair-wood-fence",
+      "title": "Replace a Damaged Wood Fence Board",
+      "category": "carpentry",
+      "difficulty": "Medium",
+      "minutes": 90,
+      "featured": false,
+      "intro": "Individual fence boards rot or break long before the posts give out. Swapping them one at a time is far cheaper than a full fence replacement and keeps the fence looking maintained.",
+      "steps": [
+        "Identify all damaged boards. Check for rot by poking with a screwdriver \u2014 rot is soft and the tip sinks in easily.",
+        "Remove damaged boards by prying off with a flat bar. Start at the nails and work the board loose to avoid damaging adjacent boards.",
+        "Measure the opening: width, height, and thickness of the existing boards. Buy matching cedar or pressure-treated boards.",
+        "Cut new boards to length. Pre-drill nail holes near the ends to prevent splitting. For cedar, leave a 1/8\" gap between boards for expansion.",
+        "Nail each board to the rails using 1-5/8\" galvanized or stainless deck screws (not nails \u2014 screws hold longer outdoors). Apply wood preservative to the cut ends."
+      ],
+      "skills": [
+        "Rot detection",
+        "Pry bar technique",
+        "Galvanized fasteners",
+        "Expansion gaps"
+      ],
+      "tools": [
+        {
+          "name": "Flat pry bar",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=flat%20pry%20bar%20demolition%20bar&tag=oxsteed-20"
+        },
+        {
+          "name": "Drill/driver",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=cordless%20drill%20driver&tag=oxsteed-20"
+        },
+        {
+          "name": "Circular saw or handsaw",
+          "rent": "/tool-rentals?category=carpentry",
+          "buy": null
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "paint-a-wall",
+      "title": "Prep and Paint a Room Wall",
+      "category": "painting",
+      "difficulty": "Medium",
+      "minutes": 180,
+      "featured": false,
+      "intro": "Good prep determines the result \u2014 patching, sanding, and taping matter more than the paint itself.",
+      "steps": [
+        "Patch nail holes and dings with spackling. Sand smooth when dry.",
+        "Wipe walls with a damp cloth to remove dust and grease. Let dry fully.",
+        "Apply painter's tape along trim, outlets, and edges. Lay a drop cloth.",
+        "Cut in edges with an angled brush: corners, tape lines, ceiling edge.",
+        "Roll the main wall area in a W pattern with a 3/8\" nap roller. Apply two coats, letting the first dry between coats."
+      ],
+      "skills": [
+        "Surface prep",
+        "Cutting in",
+        "Rolling technique",
+        "Two-coat application"
+      ],
+      "tools": [
+        {
+          "name": "Paint roller and tray",
+          "rent": "/tool-rentals?category=painting",
+          "buy": "https://www.amazon.com/s?k=paint%20roller%20tray%20set&tag=oxsteed-20"
+        },
+        {
+          "name": "2\" angled brush",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=angled%20paint%20brush%202%20inch&tag=oxsteed-20"
+        },
+        {
+          "name": "Painter's tape",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=painter's%20tape%20blue&tag=oxsteed-20"
+        },
+        {
+          "name": "Drop cloth",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=canvas%20drop%20cloth&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "prep-and-prime-wall",
+      "title": "Prep and Prime a Wall Before Painting",
+      "category": "painting",
+      "difficulty": "Easy",
+      "minutes": 60,
+      "featured": false,
+      "intro": "Skipping primer over fresh patches, stains, or new drywall leads to visible bleed-through that shows even after two topcoats. Primer is insurance.",
+      "steps": [
+        "Fill all holes with spackling or lightweight compound. Let dry, then sand flush.",
+        "Lightly sand glossy surfaces with 220-grit paper so primer adheres \u2014 wipe off dust with a tack cloth.",
+        "Mask trim, outlets, and the ceiling edge with painter's tape.",
+        "Roll primer onto the wall using a 3/8\" nap roller, cutting in the edges first with a brush.",
+        "Let primer dry fully per the can instructions (typically 1\u20132 hours). Inspect for any remaining stains \u2014 apply a second prime coat if needed."
+      ],
+      "skills": [
+        "Hole filling",
+        "Surface sanding",
+        "Primer application"
+      ],
+      "tools": [
+        {
+          "name": "Spackling compound",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=spackling%20compound%20paste&tag=oxsteed-20"
+        },
+        {
+          "name": "Drywall primer (PVA for new drywall, stain-blocking for water stains)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=drywall%20primer%20PVA&tag=oxsteed-20"
+        },
+        {
+          "name": "Paint roller + tray",
+          "rent": "/tool-rentals?category=painting",
+          "buy": "https://www.amazon.com/s?k=paint%20roller%20tray%20set&tag=oxsteed-20"
+        },
+        {
+          "name": "Painter's tape",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=painter's%20tape%20blue&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "paint-trim-and-baseboards",
+      "title": "Paint Trim and Baseboards",
+      "category": "painting",
+      "difficulty": "Medium",
+      "minutes": 90,
+      "featured": false,
+      "intro": "Crisp trim paint is what separates an amateur paint job from a professional one. The secret is tight masking, thin coats, and patience at the brush.",
+      "steps": [
+        "Apply painter's tape along the floor edge and any wall surface adjacent to trim.",
+        "Lightly sand the trim with 220-grit to degloss the existing paint. Wipe clean.",
+        "Load a 1.5\" angled brush sparingly and apply a thin first coat \u2014 trim paint sags easily.",
+        "Let the first coat dry fully (follow the can label). Lightly scuff with fine-grit paper, then apply a second coat.",
+        "Remove tape while the paint is still slightly tacky (not wet, not bone dry) to avoid peeling the edge."
+      ],
+      "skills": [
+        "Masking for trim",
+        "Thin-coat brush technique",
+        "Tape removal timing"
+      ],
+      "tools": [
+        {
+          "name": "1.5\" angled sash brush",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=angled%20sash%20brush%201.5%20inch&tag=oxsteed-20"
+        },
+        {
+          "name": "Painter's tape (thin profile)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=painter's%20tape%20fine%20edge&tag=oxsteed-20"
+        },
+        {
+          "name": "Semi-gloss or gloss trim paint",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=semi%20gloss%20trim%20paint%20white&tag=oxsteed-20"
+        },
+        {
+          "name": "220-grit sanding sponge",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=220%20grit%20sanding%20sponge&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "touch-up-and-color-match",
+      "title": "Touch Up Paint and Match Colors",
+      "category": "painting",
+      "difficulty": "Medium",
+      "minutes": 30,
+      "featured": false,
+      "intro": "Touch-ups that don't match are worse than the original damage. The challenge is sheen and color drift \u2014 here's how to make them invisible.",
+      "steps": [
+        "Identify the original paint if possible \u2014 check closets, garages, or the utility room for leftover cans.",
+        "If no leftover paint: take a paint chip (a quarter-size peeled section) to a paint store for spectrophotometer matching.",
+        "Sand the damaged area lightly and apply primer if it's bare drywall.",
+        "Apply the touch-up paint in thin coats, feathering 4\u20136 inches around the damage. Match the application texture \u2014 roller for rolled walls, brush strokes for brushed areas.",
+        "Let dry and assess in natural light. A fresh small patch will look slightly different until it cures fully (1\u20132 weeks) \u2014 inform the client."
+      ],
+      "skills": [
+        "Color matching process",
+        "Feathered touch-up technique",
+        "Sheen matching"
+      ],
+      "tools": [
+        {
+          "name": "Paint chip (for store matching)",
+          "rent": null,
+          "buy": null
+        },
+        {
+          "name": "3\" foam mini roller",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=mini%20foam%20roller%20set&tag=oxsteed-20"
+        },
+        {
+          "name": "1\" chip brush",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=chip%20brush%20set&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "apply-exterior-caulk",
+      "title": "Caulk Exterior Gaps and Trim",
+      "category": "painting",
+      "difficulty": "Easy",
+      "minutes": 60,
+      "featured": false,
+      "intro": "Exterior caulk seals gaps around windows, doors, and trim that let drafts, water, and insects in. Applied before painting, it gives a professional finish. Applied alone, it adds years to paint life by preventing moisture infiltration.",
+      "steps": [
+        "Inspect all exterior joints: where trim meets siding, where window frames meet the wall, around door frames. Mark gaps wider than 1/4\" \u2014 those need backer rod before caulk.",
+        "Remove old cracked caulk with a caulk removal tool or utility knife. Clean the surface with a stiff brush and let it dry completely.",
+        "Load a paintable siliconized acrylic caulk into the gun. Cut the tip at a 45-degree angle \u2014 a smaller hole gives you more control.",
+        "Apply in a steady bead, moving the gun at a consistent pace. Don't stop mid-joint. For wide gaps, use two thin passes rather than one thick one.",
+        "Smooth with a wet finger or caulk smoothing tool within 30 seconds. Remove excess with a damp cloth. Let cure per label before painting (usually 2\u20134 hours)."
+      ],
+      "skills": [
+        "Caulk gun control",
+        "Surface prep",
+        "Smoothing technique",
+        "Backer rod use"
+      ],
+      "tools": [
+        {
+          "name": "Caulk gun",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=caulk%20gun%20exterior%20smooth%20rod&tag=oxsteed-20"
+        },
+        {
+          "name": "Exterior paintable siliconized acrylic caulk",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=exterior%20paintable%20caulk%20siliconized%20acrylic&tag=oxsteed-20"
+        },
+        {
+          "name": "Caulk removal tool",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=caulk%20remover%20tool%20scraper&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "paint-cabinets",
+      "title": "Paint Kitchen Cabinets",
+      "category": "painting",
+      "difficulty": "Hard",
+      "minutes": 240,
+      "featured": false,
+      "intro": "Cabinet painting transforms a kitchen at a fraction of replacement cost \u2014 but it requires careful prep, the right primer, and patience between coats. Shortcuts here are always visible.",
+      "steps": [
+        "Remove all doors and drawer fronts. Label each with painter's tape and a marker so they go back in the right position.",
+        "Clean all surfaces with TSP substitute or a degreaser. Grease and cooking film prevent adhesion \u2014 this step determines whether paint lasts 3 years or 10.",
+        "Lightly sand all surfaces with 120-grit, then 180-grit. Sand with the grain. Wipe dust with a tack cloth.",
+        "Apply a shellac-based or bonding primer \u2014 not latex. This is non-negotiable on laminate, melamine, or previously varnished cabinets. Let dry fully, sand lightly with 220-grit.",
+        "Apply two coats of cabinet-specific alkyd or waterborne alkyd paint with a foam roller (boxes) and a small brush (profiles). Let each coat cure fully \u2014 24 hours minimum \u2014 before rehanging doors."
+      ],
+      "skills": [
+        "Surface degreasing",
+        "Bonding primer selection",
+        "Foam roller technique",
+        "Cure time discipline"
+      ],
+      "tools": [
+        {
+          "name": "TSP substitute cleaner",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=tsp%20substitute%20heavy%20duty%20cleaner%20degreaser&tag=oxsteed-20"
+        },
+        {
+          "name": "Shellac-based primer (e.g. BIN)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=shellac%20based%20primer%20BIN%20Zinsser%20cabinet&tag=oxsteed-20"
+        },
+        {
+          "name": "Cabinet paint (waterborne alkyd)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=waterborne%20alkyd%20cabinet%20paint%20trim&tag=oxsteed-20"
+        },
+        {
+          "name": "Foam rollers (4\") + trim brush set",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=4%20inch%20foam%20roller%20cabinet%20painting%20set&tag=oxsteed-20"
+        }
+      ],
+      "xp": 50
+    },
+    {
+      "id": "change-oil",
+      "title": "Change Your Engine Oil",
+      "category": "car-care",
+      "difficulty": "Medium",
+      "minutes": 45,
+      "featured": false,
+      "intro": "An oil change is the highest-leverage maintenance task you own \u2014 wrong intervals cost engines. Getting comfortable doing it yourself saves money every 5,000 miles.",
+      "steps": [
+        "Look up the correct oil spec (e.g. 5W-30) and filter for your year/make/model.",
+        "Warm the engine 2 minutes, turn it off. Jack up the car and set it on jack stands.",
+        "Place a drain pan under the drain plug, remove the plug, and let the oil drain fully (5\u201310 min).",
+        "Remove the old oil filter with a filter wrench. Lightly coat the new filter gasket with fresh oil, hand-tighten.",
+        "Reinstall the drain plug, fill from the top, check level with the dipstick, run the engine briefly, and check for leaks."
+      ],
+      "skills": [
+        "Jack and stand safety",
+        "Oil spec lookup",
+        "Filter replacement",
+        "Drain plug torque"
+      ],
+      "tools": [
+        {
+          "name": "Floor jack and jack stands",
+          "rent": "/tool-rentals?category=automotive",
+          "buy": null
+        },
+        {
+          "name": "Oil filter wrench",
+          "rent": "/tool-rentals?category=automotive",
+          "buy": "https://www.amazon.com/s?k=oil%20filter%20wrench&tag=oxsteed-20"
+        },
+        {
+          "name": "Drain pan",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=oil%20drain%20pan&tag=oxsteed-20"
+        },
+        {
+          "name": "Correct oil + filter for your vehicle",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=motor%20oil%205w30&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "replace-wipers",
+      "title": "Replace Windshield Wipers",
+      "category": "car-care",
+      "difficulty": "Easy",
+      "minutes": 10,
+      "featured": false,
+      "intro": "Streaking wipers are a safety issue. Replacing them takes 10 minutes and no tools \u2014 just the right size for your car.",
+      "steps": [
+        "Look up the correct blade size for your driver and passenger sides (they're often different).",
+        "Lift the wiper arm away from the windshield until it locks raised.",
+        "Press the tab where the blade meets the arm and slide the old blade off.",
+        "Hook the new blade onto the arm and press until it clicks.",
+        "Gently lower the arm back to the glass. Repeat for the other side."
+      ],
+      "skills": [
+        "Blade sizing",
+        "Hook-style connector",
+        "Safe arm handling"
+      ],
+      "tools": [
+        {
+          "name": "Replacement wiper blades (check your vehicle size)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=windshield%20wiper%20blades&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "rotate-tires",
+      "title": "Rotate Your Tires",
+      "category": "car-care",
+      "difficulty": "Medium",
+      "minutes": 30,
+      "featured": false,
+      "intro": "Rotating tires every 5,000\u20137,500 miles evens out wear and extends their life by tens of thousands of miles. It requires jack stands and a torque wrench \u2014 but no special skills.",
+      "steps": [
+        "Loosen all lug nuts on all four wheels while the car is still on the ground (break torque only \u2014 don't remove).",
+        "Jack up one end of the car and set securely on two jack stands. Remove both wheels.",
+        "Move wheels in the correct rotation pattern for your vehicle (front-to-back same side for non-directional; X-pattern for non-directional all-season). Check your owner's manual.",
+        "Repeat on the other end. Torque all lug nuts to spec in a star pattern (typically 80\u2013100 ft-lb for passenger cars).",
+        "Lower the car and check tire pressure on all four tires before driving."
+      ],
+      "skills": [
+        "Jack and stand safety",
+        "Rotation pattern identification",
+        "Torque wrench use"
+      ],
+      "tools": [
+        {
+          "name": "Floor jack and four jack stands",
+          "rent": "/tool-rentals?category=automotive",
+          "buy": null
+        },
+        {
+          "name": "Torque wrench (0\u2013150 ft-lb)",
+          "rent": "/tool-rentals?category=automotive",
+          "buy": "https://www.amazon.com/s?k=torque%20wrench%20150%20ft%20lb&tag=oxsteed-20"
+        },
+        {
+          "name": "Breaker bar or impact wrench",
+          "rent": "/tool-rentals?category=automotive",
+          "buy": "https://www.amazon.com/s?k=breaker%20bar%201%2F2%20inch%20drive&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "replace-cabin-air-filter",
+      "title": "Replace Your Cabin Air Filter",
+      "category": "car-care",
+      "difficulty": "Easy",
+      "minutes": 10,
+      "featured": false,
+      "intro": "A clogged cabin air filter reduces AC airflow and fills your car with allergens. It's a 10-minute job that dealers charge $50+ for in labor alone.",
+      "steps": [
+        "Look up the cabin air filter location for your specific vehicle \u2014 most are behind the glove box, but some are under the hood.",
+        "For glove-box style: open the glove box, press the sides inward to release it, then lower it fully to expose the filter housing.",
+        "Slide out the old filter \u2014 note the airflow direction arrow before removing it.",
+        "Insert the new filter with the arrow pointing in the same direction.",
+        "Close the housing and reinstall the glove box. Run the fan to confirm improved airflow."
+      ],
+      "skills": [
+        "Vehicle-specific filter location",
+        "Glove box removal",
+        "Airflow direction"
+      ],
+      "tools": [
+        {
+          "name": "Cabin air filter (model-specific)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=cabin%20air%20filter%20replacement&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "check-and-top-fluids",
+      "title": "Check and Top Off Vehicle Fluids",
+      "category": "car-care",
+      "difficulty": "Easy",
+      "minutes": 20,
+      "featured": false,
+      "intro": "Checking five fluids every month takes 20 minutes and catches problems before they become expensive repairs. Here's the standard walkaround.",
+      "steps": [
+        "Park on a level surface. Turn off the engine and wait 10 minutes for fluids to settle.",
+        "Engine oil: Pull the dipstick, wipe clean, reinsert fully, pull again. Oil should be between the MIN and MAX marks.",
+        "Coolant: Check the translucent overflow reservoir level (never open the radiator cap on a hot engine). Top up with 50/50 pre-mixed coolant if low.",
+        "Brake fluid: Check the reservoir on top of the master cylinder. Should be between MIN and MAX. If consistently low, suspect a leak.",
+        "Windshield washer fluid: Top off as needed. Power steering fluid (if not electric): check the reservoir under the hood and top to MAX."
+      ],
+      "skills": [
+        "Dipstick reading",
+        "Reservoir identification",
+        "When to escalate to a mechanic"
+      ],
+      "tools": [
+        {
+          "name": "Funnel",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=funnel%20set%20automotive&tag=oxsteed-20"
+        },
+        {
+          "name": "50/50 pre-mixed coolant",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=50%2050%20premixed%20coolant%20antifreeze&tag=oxsteed-20"
+        },
+        {
+          "name": "Windshield washer fluid",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=windshield%20washer%20fluid&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "mulch-garden-bed",
+      "title": "Mulch a Garden Bed",
+      "category": "landscaping",
+      "difficulty": "Easy",
+      "minutes": 120,
+      "featured": false,
+      "intro": "Mulch suppresses weeds, retains moisture, and regulates soil temperature \u2014 3 to 4 inches is the sweet spot.",
+      "steps": [
+        "Clear the bed of weeds, pulling from the root. Cutting them leaves regrowth.",
+        "Edge the bed with a flat spade to create a clean border.",
+        "Optionally lay cardboard or landscape fabric for extra weed suppression.",
+        "Spread mulch to a 3\u20134 inch even depth using a rake.",
+        "Keep mulch 2\u20133 inches away from plant stems and tree trunks to prevent rot."
+      ],
+      "skills": [
+        "Weed removal",
+        "Bed edging",
+        "Mulch depth control"
+      ],
+      "tools": [
+        {
+          "name": "Flat spade for edging",
+          "rent": "/tool-rentals?category=landscaping",
+          "buy": "https://www.amazon.com/s?k=flat%20spade%20edger&tag=oxsteed-20"
+        },
+        {
+          "name": "Garden rake",
+          "rent": "/tool-rentals?category=landscaping",
+          "buy": "https://www.amazon.com/s?k=garden%20rake&tag=oxsteed-20"
+        },
+        {
+          "name": "Wheelbarrow",
+          "rent": "/tool-rentals?category=landscaping",
+          "buy": null
+        },
+        {
+          "name": "Bagged or bulk mulch",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=garden%20mulch%20bag&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "plant-a-tree",
+      "title": "Plant a Tree Properly",
+      "category": "landscaping",
+      "difficulty": "Medium",
+      "minutes": 90,
+      "featured": false,
+      "intro": "Most trees die within 3 years of planting from one mistake: being planted too deep. Here's how to give a tree the best possible start.",
+      "steps": [
+        "Call 811 (US) or your local utility service before digging to mark underground lines.",
+        "Dig the hole 2\u20133\u00d7 as wide as the root ball but no deeper than the root ball height. Planting too deep is the #1 cause of tree failure.",
+        "Place the tree so the root flare (where the trunk widens at the base) sits at or slightly above grade.",
+        "Backfill with native soil (no amendments needed for most trees). Tamp gently to eliminate air pockets.",
+        "Build a 3\u20134\" mulch ring extending to the drip line \u2014 keep mulch away from the trunk. Water deeply at planting and weekly for the first year."
+      ],
+      "skills": [
+        "Utility line awareness",
+        "Root flare identification",
+        "Proper hole depth",
+        "Post-plant watering schedule"
+      ],
+      "tools": [
+        {
+          "name": "Digging spade",
+          "rent": "/tool-rentals?category=landscaping",
+          "buy": "https://www.amazon.com/s?k=digging%20spade%20shovel&tag=oxsteed-20"
+        },
+        {
+          "name": "Wheelbarrow",
+          "rent": "/tool-rentals?category=landscaping",
+          "buy": null
+        },
+        {
+          "name": "Garden hose + soaker",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=soaker%20hose%20garden&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "install-drip-irrigation",
+      "title": "Install a Simple Drip Irrigation System",
+      "category": "landscaping",
+      "difficulty": "Medium",
+      "minutes": 120,
+      "featured": false,
+      "intro": "Drip irrigation delivers water directly to roots, cutting outdoor water use by 30\u201350%. A basic system for a garden bed takes an afternoon and uses standard hose fittings.",
+      "steps": [
+        "Sketch the bed layout and count the number of plants to be irrigated. Choose emitter flow rates (0.5\u20131 GPH for most plants).",
+        "Install a hose-thread timer and backflow preventer at the spigot. Add a pressure regulator and filter.",
+        "Run the main 1/2\" poly tubing from the spigot to the bed using stakes.",
+        "Punch holes in the main line with a hole punch. Insert barbed fittings and connect 1/4\" drip lines to each plant.",
+        "Run the system and check all emitters for flow. Adjust timer to run 30\u201360 minutes per zone every 1\u20132 days."
+      ],
+      "skills": [
+        "Drip system layout",
+        "Emitter selection",
+        "Timer programming"
+      ],
+      "tools": [
+        {
+          "name": "Drip irrigation starter kit",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=drip%20irrigation%20system%20starter%20kit&tag=oxsteed-20"
+        },
+        {
+          "name": "Hole punch for poly tubing",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=drip%20irrigation%20hole%20punch%20tool&tag=oxsteed-20"
+        },
+        {
+          "name": "Hose timer",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=hose%20timer%20programmable&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "build-raised-garden-bed",
+      "title": "Build a Raised Garden Bed",
+      "category": "landscaping",
+      "difficulty": "Medium",
+      "minutes": 180,
+      "featured": false,
+      "intro": "A 4\u00d78 raised bed can produce more food per square foot than a ground garden, while solving drainage, soil quality, and back-strain problems at once.",
+      "steps": [
+        "Choose a spot with 6\u20138 hours of direct sun. Mark the outline: 4 ft \u00d7 8 ft is the standard size (reachable from all sides).",
+        "Cut 2\u00d710 or 2\u00d712 cedar or redwood boards to length (two 8-ft and two 4-ft pieces). Assemble the frame with 3\" wood screws at each corner.",
+        "Set the frame in place on level ground. Staple hardware cloth to the bottom of the frame to block burrowing pests (optional but recommended).",
+        "Fill the bed with a 60/40 mixture of topsoil and compost to within 1\u20132 inches of the top.",
+        "Water thoroughly and let the soil settle for 24 hours before planting."
+      ],
+      "skills": [
+        "Lumber cutting",
+        "Frame assembly",
+        "Soil mix preparation"
+      ],
+      "tools": [
+        {
+          "name": "Circular saw or miter saw",
+          "rent": "/tool-rentals?category=power-tools",
+          "buy": null
+        },
+        {
+          "name": "Drill + 3\" deck screws",
+          "rent": "/tool-rentals?category=power-tools",
+          "buy": "https://www.amazon.com/s?k=3%20inch%20deck%20screws%20box&tag=oxsteed-20"
+        },
+        {
+          "name": "Level",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=24%20inch%20level&tag=oxsteed-20"
+        },
+        {
+          "name": "Hardware cloth + staple gun (optional)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=hardware%20cloth%201%2F4%20inch%20roll&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "sharpen-mower-blade",
+      "title": "Sharpen a Lawn Mower Blade",
+      "category": "landscaping",
+      "difficulty": "Easy",
+      "minutes": 30,
+      "featured": false,
+      "intro": "A dull mower blade tears grass instead of cutting it, leaving a ragged brown edge that stresses the lawn. Sharpening once a season (or every 25 hours of use) keeps cuts clean and the lawn healthy.",
+      "steps": [
+        "Disconnect the spark plug wire before working near the blade. Tilt the mower on its side with the carburetor facing up \u2014 if the carburetor faces down, oil enters the air filter.",
+        "Use a wrench to remove the blade bolt (it's reverse-threaded on some models \u2014 check your manual). Mark the bottom face of the blade with chalk so you remount it the right way.",
+        "Clamp the blade in a vise. Use a metal file or angle grinder to sharpen along the existing bevel angle (usually 30\u201345 degrees). Remove an equal amount from both ends to keep the blade balanced.",
+        "Test balance: hang the blade on a nail through the center hole. If one end dips, remove a little more metal from that end. An unbalanced blade causes vibration that damages the engine bearings.",
+        "Reinstall the blade \u2014 torque the bolt to spec (usually 35\u201350 ft-lbs for residential mowers). Reconnect the spark plug wire."
+      ],
+      "skills": [
+        "Spark plug safety",
+        "Blade balancing",
+        "Bevel angle maintenance"
+      ],
+      "tools": [
+        {
+          "name": "Wrench set or socket set",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=combination%20wrench%20set%20metric%20standard&tag=oxsteed-20"
+        },
+        {
+          "name": "Metal file or angle grinder",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=metal%20file%20set%20flat%20bastard&tag=oxsteed-20"
+        },
+        {
+          "name": "Blade balancing tool",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=lawn%20mower%20blade%20balancer%20cone&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "lay-sod",
+      "title": "Lay Sod for Instant Lawn",
+      "category": "landscaping",
+      "difficulty": "Medium",
+      "minutes": 180,
+      "featured": false,
+      "intro": "Sod gives you an instant lawn rather than waiting for seed to germinate. The work is physical, but the technique is straightforward: prepare soil properly, lay tightly, water immediately and consistently for two weeks.",
+      "steps": [
+        "Measure the area in square feet. Order 5\u201310% more sod than your measurement to account for cuts around edges.",
+        "Till or loosen the soil 4\u20136 inches deep. Remove rocks, old roots, and debris. Grade the area so it slopes slightly away from the house (1\" per 10 feet).",
+        "Apply starter fertilizer per package directions and rake it in. Lightly water the soil before laying \u2014 it should be moist, not muddy.",
+        "Lay the first row along a straight edge (a driveway or walkway). Stagger joints like brick \u2014 start every other row with a half piece. Butt pieces tightly together with no gaps and no overlaps.",
+        "Water the sod immediately after laying. For the first two weeks, keep the sod consistently moist \u2014 twice daily in hot weather. After roots establish (lift a corner to check for resistance), reduce to deep infrequent watering."
+      ],
+      "skills": [
+        "Soil grading",
+        "Staggered joint layout",
+        "Sod establishment watering"
+      ],
+      "tools": [
+        {
+          "name": "Sod cutter or sharp spade",
+          "rent": "/tool-rentals?category=landscaping",
+          "buy": null
+        },
+        {
+          "name": "Lawn roller",
+          "rent": "/tool-rentals?category=landscaping",
+          "buy": null
+        },
+        {
+          "name": "Landscape rake",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=landscape%20rake%20soil%20leveling&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "caulk-bathtub",
+      "title": "Recaulk a Bathtub",
+      "category": "maintenance",
+      "difficulty": "Easy",
+      "minutes": 30,
+      "featured": false,
+      "intro": "Cracked or moldy caulk lets water into the wall. Removing the old bead and applying a fresh one is quick and worth doing every few years.",
+      "steps": [
+        "Use a caulk remover tool or utility knife to cut and pull out all the old caulk.",
+        "Clean the joint thoroughly with rubbing alcohol. Let it dry completely \u2014 even overnight.",
+        "Fill the tub with water before caulking; this pre-stresses the joint so it won't crack in use.",
+        "Apply a thin, continuous bead of tub-and-tile silicone caulk along the joint.",
+        "Wet your finger and smooth the bead in one pass. Remove tape immediately. Let cure 24\u201348 hours before use."
+      ],
+      "skills": [
+        "Caulk removal",
+        "Surface prep",
+        "Bead application",
+        "Wet smoothing"
+      ],
+      "tools": [
+        {
+          "name": "Caulk remover tool",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=caulk%20remover%20tool&tag=oxsteed-20"
+        },
+        {
+          "name": "Tub-and-tile silicone caulk",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=tub%20tile%20silicone%20caulk%20white&tag=oxsteed-20"
+        },
+        {
+          "name": "Rubbing alcohol",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=isopropyl%20alcohol%2091%25&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "clean-gutters",
+      "title": "Clean Your Gutters",
+      "category": "maintenance",
+      "difficulty": "Easy",
+      "minutes": 60,
+      "featured": false,
+      "intro": "Clogged gutters cause fascia rot, foundation water intrusion, and ice dams. A once-a-year clean takes an hour and prevents thousands in repairs.",
+      "steps": [
+        "Set up a stable ladder at the corner of the house. Never lean a ladder against a gutter.",
+        "Starting at the downspout end, scoop out debris by hand into a bucket. Work toward the high end.",
+        "Flush the gutter with a garden hose, directing water toward the downspout.",
+        "Check that the downspout flows freely \u2014 feed the hose into the top. If clogged, use a plumber's snake or a downspout cleaning wand.",
+        "Check for low spots or sagging gutters where water pools. Re-fasten any loose hanger brackets."
+      ],
+      "skills": [
+        "Ladder safety",
+        "Downspout clearing",
+        "Gutter slope assessment"
+      ],
+      "tools": [
+        {
+          "name": "Extension ladder",
+          "rent": "/tool-rentals?category=access",
+          "buy": null
+        },
+        {
+          "name": "Garden hose with spray nozzle",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=garden%20hose%20spray%20nozzle&tag=oxsteed-20"
+        },
+        {
+          "name": "Bucket and hooks",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=bucket%20hook%20ladder&tag=oxsteed-20"
+        },
+        {
+          "name": "Gutter scoop",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=gutter%20cleaning%20scoop&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "weatherstrip-exterior-door",
+      "title": "Weatherstrip an Exterior Door",
+      "category": "maintenance",
+      "difficulty": "Easy",
+      "minutes": 45,
+      "featured": false,
+      "intro": "A drafty door can be responsible for 10\u201320% of a home's heating and cooling loss. Replacing weatherstripping costs under $20 and takes less than an hour.",
+      "steps": [
+        "Close the door and hold a lit stick of incense along all edges \u2014 smoke wavering indicates air infiltration.",
+        "Remove the old weatherstripping by pulling it off or unscrewing it. Note the type: V-strip, foam tape, or door sweep.",
+        "Cut the new weatherstrip to length with scissors or a utility knife.",
+        "For V-strip: nail or peel-and-stick along the door stop with the open end of the V facing outward.",
+        "For the door sweep: cut to door width, align it so it just contacts the threshold, and screw in place."
+      ],
+      "skills": [
+        "Air infiltration testing",
+        "Weatherstrip type identification",
+        "Door sweep installation"
+      ],
+      "tools": [
+        {
+          "name": "Door weatherstrip kit (includes V-strip and door sweep)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=door%20weatherstripping%20kit&tag=oxsteed-20"
+        },
+        {
+          "name": "Scissors or utility knife",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=utility%20knife&tag=oxsteed-20"
+        },
+        {
+          "name": "Phillips screwdriver",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=screwdriver%20set&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "power-wash-driveway",
+      "title": "Power Wash a Driveway or Patio",
+      "category": "maintenance",
+      "difficulty": "Easy",
+      "minutes": 90,
+      "featured": false,
+      "intro": "Power washing removes years of tire marks, oil stains, mildew, and grime in one pass. The key is using the right nozzle \u2014 the wrong one etches concrete.",
+      "steps": [
+        "Clear the area of furniture, cars, and potted plants. Sweep off loose debris first.",
+        "Connect the pressure washer to a water supply and turn on before starting the engine/motor.",
+        "For concrete driveways, start with a 25-degree (green) nozzle at 2,500\u20133,000 PSI. For wood decks, use a 40-degree (white) nozzle.",
+        "Work in overlapping passes moving away from the house. Hold the nozzle 12\u201318 inches from the surface.",
+        "For oil stains: apply a degreaser, let it dwell 5 minutes, then wash with the 25-degree nozzle."
+      ],
+      "skills": [
+        "Nozzle selection",
+        "PSI safety",
+        "Dwell time for degreasers"
+      ],
+      "tools": [
+        {
+          "name": "Pressure washer (2,500\u20133,000 PSI)",
+          "rent": "/tool-rentals?category=cleaning",
+          "buy": null
+        },
+        {
+          "name": "Concrete/driveway degreaser",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=concrete%20driveway%20degreaser%20cleaner&tag=oxsteed-20"
+        },
+        {
+          "name": "Safety goggles",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=safety%20goggles%20protective%20eyewear&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "re-grout-tile",
+      "title": "Remove and Re-Grout Tile",
+      "category": "maintenance",
+      "difficulty": "Medium",
+      "minutes": 120,
+      "featured": false,
+      "intro": "Cracked or stained grout lets water into the substrate, eventually damaging the wall or subfloor. Removing old grout and applying fresh grout is straightforward with an oscillating tool and the right grout type.",
+      "steps": [
+        "Use a grout saw or oscillating multi-tool with a grout removal blade to cut out the old grout. Cut to at least half the grout joint depth. Vacuum out all debris.",
+        "Clean the joint area with a stiff brush and a tile cleaner. Let dry completely \u2014 new grout will not bond to wet or dirty joints.",
+        "Mix the grout to a peanut butter consistency (for sanded grout) or a thick paste (unsanded for joints under 1/8\"). Let it slake for 10 minutes before using.",
+        "Apply grout with a rubber float, pressing diagonally across the joints to pack them fully. Remove excess from the tile surface immediately with the float edge.",
+        "After 15\u201320 minutes, clean the haze with a damp sponge in circular motions, rinsing frequently. After 24 hours, apply grout sealer to protect from staining."
+      ],
+      "skills": [
+        "Oscillating tool use",
+        "Grout mixing",
+        "Float technique",
+        "Sponge haze removal"
+      ],
+      "tools": [
+        {
+          "name": "Oscillating multi-tool + grout blade",
+          "rent": "/tool-rentals?category=maintenance",
+          "buy": null
+        },
+        {
+          "name": "Rubber grout float",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=rubber%20grout%20float%20tile&tag=oxsteed-20"
+        },
+        {
+          "name": "Sanded grout (for joints 1/8\"+ wide)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=sanded%20tile%20grout%20unsanded%20grout&tag=oxsteed-20"
+        },
+        {
+          "name": "Grout sealer",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=tile%20grout%20sealer%20penetrating&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "fix-sticking-door",
+      "title": "Fix a Sticking or Binding Door",
+      "category": "maintenance",
+      "difficulty": "Easy",
+      "minutes": 30,
+      "featured": false,
+      "intro": "A door that sticks or rubs is usually caused by swelling wood, a shifted frame, or loose hinges. Identifying which one is causing the problem takes 3 minutes and determines whether the fix is a screwdriver or a plane.",
+      "steps": [
+        "Watch where the door binds: does it rub at the top corner (opposite hinge side), along the latch edge, or at the bottom? The location tells you the cause.",
+        "Check the hinges first \u2014 tighten all screws. If a screw spins freely, the hole is stripped. Fill with a wooden toothpick and wood glue, let dry, then re-drive the screw.",
+        "Close the door and look for gaps: a gap at the top-hinge corner with rubbing at the bottom-latch corner means the top hinge needs shimming. Cardboard under the hinge leaf shifts the door.",
+        "If the door rubs along its full latch edge, it has swollen with humidity. Mark the binding point with a pencil on a closed door. Open the door and use a hand plane or belt sander to remove material from the marked area.",
+        "Prime and paint any bare wood immediately after planing \u2014 raw wood absorbs moisture and the problem returns."
+      ],
+      "skills": [
+        "Hinge diagnosis",
+        "Screw hole repair",
+        "Planing technique",
+        "Shimming"
+      ],
+      "tools": [
+        {
+          "name": "Screwdrivers",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=screwdriver%20set%20flathead%20phillips&tag=oxsteed-20"
+        },
+        {
+          "name": "Hand plane or belt sander",
+          "rent": "/tool-rentals?category=carpentry",
+          "buy": null
+        },
+        {
+          "name": "Toothpicks + wood glue (for stripped holes)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=wood%20glue%20carpenter%20wood%20filler&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "inspect-investment-property",
+      "title": "How to Inspect an Investment Property",
+      "category": "management",
+      "difficulty": "Medium",
+      "minutes": 90,
+      "featured": true,
+      "intro": "A thorough walkthrough before you close identifies deferred maintenance, hidden defects, and real repair costs \u2014 the numbers that determine whether a deal works. Here's how to walk a property like a professional.",
+      "steps": [
+        "Bring a checklist, a flashlight, a screwdriver, and a phone for photos. Start outside: roof condition, gutters, grading (slope away from foundation?), caulk at windows and doors.",
+        "Check the foundation for cracks. Hairline vertical cracks are common; horizontal cracks or stair-step cracks in brick indicate structural movement \u2014 flag for an engineer.",
+        "Inside: test every outlet (bring a plug-in tester), every faucet (run hot and cold, check under the sink for leak evidence), every door and window (should operate and latch freely).",
+        "In kitchens and baths: look under sinks for water stains, soft cabinet floors, and drain odor. Run the dishwasher if possible. Check grout and caulk in showers.",
+        "In the mechanical room: note HVAC age, water heater age, and electrical panel brand. Zinsco and Federal Pacific panels are known fire hazards \u2014 flag for replacement in your budget.",
+        "Write down every issue with a photo. Group findings into: immediate safety issues, code violations, cosmetic items, and deferred maintenance. Translate to a cost estimate before finalizing your offer."
+      ],
+      "skills": [
+        "Structural assessment",
+        "Mechanical system age estimation",
+        "Repair cost categorization"
+      ],
+      "tools": [
+        {
+          "name": "Outlet plug tester",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=outlet%20receptacle%20tester%20circuit&tag=oxsteed-20"
+        },
+        {
+          "name": "Flashlight",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=led%20flashlight%20bright%20inspection&tag=oxsteed-20"
+        },
+        {
+          "name": "Moisture meter",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=moisture%20meter%20wood%20drywall&tag=oxsteed-20"
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "estimate-repair-costs",
+      "title": "How to Estimate Repair and Renovation Costs",
+      "category": "management",
+      "difficulty": "Medium",
+      "minutes": 60,
+      "featured": false,
+      "intro": "Accurate repair cost estimates are the difference between a profitable deal and an expensive mistake. This guide covers the mental model and reference benchmarks that experienced investors use before committing to a number.",
+      "steps": [
+        "Categorize repairs into three buckets: cosmetic (paint, carpet, fixtures), functional (HVAC, roof, plumbing, electrical), and structural (foundation, load-bearing walls). Each bucket has a different cost range and timeline.",
+        "Use cost-per-square-foot benchmarks as starting points: full gut renovation $80\u2013150/sqft, kitchen remodel $15,000\u201340,000, bathroom $6,000\u201315,000, roof replacement $8,000\u201318,000, HVAC system $4,000\u201310,000.",
+        "Get at least three contractor quotes for any item over $2,000. Always ask for a written scope of work \u2014 \"I'll fix the plumbing\" is not a scope. \"Replace all galvanized supply lines with PEX, includes shutoffs\" is.",
+        "Add a 20% contingency on every estimate. First-time renovators consistently underestimate by 25\u201340% because they miss scope creep, permit costs, and post-opening surprises.",
+        "Track actual spend versus estimate on every project and build your own local benchmark database over time. Your estimates improve with every project \u2014 and local costs matter more than national averages."
+      ],
+      "skills": [
+        "Cost categorization",
+        "Contractor scope vetting",
+        "Contingency budgeting"
+      ],
+      "tools": [
+        {
+          "name": "HomeAdvisor or Angi cost guides (free online)",
+          "rent": null,
+          "buy": null
+        },
+        {
+          "name": "Renovation cost estimating software (optional)",
+          "rent": null,
+          "buy": null
+        }
+      ],
+      "xp": 25
+    },
+    {
+      "id": "build-preventive-maintenance-schedule",
+      "title": "Build a Property Preventive Maintenance Schedule",
+      "category": "management",
+      "difficulty": "Easy",
+      "minutes": 45,
+      "featured": false,
+      "intro": "Preventive maintenance costs cents on the dollar compared to reactive repair. A simple annual schedule for each property turns chaos into a predictable rhythm \u2014 and protects asset value.",
+      "steps": [
+        "List every major system in each property: HVAC, water heater, roof, gutters, exterior caulk, smoke detectors, fire extinguishers, plumbing shutoffs, appliances.",
+        "Assign a maintenance interval to each item based on manufacturer recommendations and local climate. HVAC filter: monthly or quarterly. Gutters: twice/year. Water heater flush: annually. Roof inspection: annually.",
+        "Build a 12-month calendar. Group items by season: spring (HVAC service, gutter cleaning, exterior caulk inspection), summer (pest inspection, AC checkup), fall (weatherstripping, dryer vent clean), winter (pipe insulation check, smoke detector test).",
+        "Assign each task to a responsible party: self, on-site manager, or contracted vendor. Confirm the vendor in advance so you're not scrambling when the task is due.",
+        "Document completion with a date and any findings. This record is your maintenance history \u2014 it supports warranty claims, insurance disputes, and eventually, sale documentation."
+      ],
+      "skills": [
+        "Maintenance scheduling",
+        "Vendor management",
+        "Documentation practices"
+      ],
+      "tools": [
+        {
+          "name": "Spreadsheet or property management software",
+          "rent": null,
+          "buy": null
+        },
+        {
+          "name": "Shared calendar (Google Calendar, Notion, etc.)",
+          "rent": null,
+          "buy": null
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "write-a-work-order",
+      "title": "Write a Clear Maintenance Work Order",
+      "category": "management",
+      "difficulty": "Easy",
+      "minutes": 20,
+      "featured": false,
+      "intro": "A clear work order protects both the property owner and the contractor. Vague instructions produce vague results \u2014 and disputes. Here's the anatomy of a work order that gets the job done right.",
+      "steps": [
+        "Property and location: full address, unit number, and point-of-contact name and phone number.",
+        "Problem description: describe the issue in observable terms, not your diagnosis. \"Dripping sound under kitchen sink since Monday, water stains on cabinet floor\" \u2014 not \"leaky pipe.\"",
+        "Scope of work: if you know what you want done, say it. If you don't, say \"assess and provide a written quote before proceeding.\" Don't leave the scope open-ended if you're authorizing work.",
+        "Access instructions: who has the key, when can the contractor enter, is the tenant home, are there pets.",
+        "Authorization limit: the maximum dollar amount the contractor is authorized to spend without calling you first. This prevents a $300 job becoming a $1,200 invoice.",
+        "Document completion: require a brief written summary of what was done and any follow-up items, plus photos if applicable."
+      ],
+      "skills": [
+        "Problem description",
+        "Scope definition",
+        "Authorization limits"
+      ],
+      "tools": [
+        {
+          "name": "Work order template (spreadsheet, Word doc, or property management software)",
+          "rent": null,
+          "buy": null
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "diagnose-plumbing-remotely",
+      "title": "Diagnose Common Plumbing Problems Remotely",
+      "category": "plumbing",
+      "difficulty": "Easy",
+      "minutes": 20,
+      "featured": false,
+      "intro": "Most plumbing calls fall into a small set of recurring categories. Knowing which questions to ask \u2014 before you dispatch or pick up a wrench \u2014 saves time, money, and unnecessary service calls.",
+      "steps": [
+        "Symptom: dripping sound. Ask: dripping from a faucet, from a pipe, or from under the sink? Faucet drip \u2192 worn washer or cartridge. Under-sink drip \u2192 drain connection or supply shut-off valve. Pipe drip \u2192 locate the pipe section and shut off water.",
+        "Symptom: slow drain. Ask: one drain or multiple? One drain \u2192 likely clog local to that fixture. Multiple drains slow \u2192 main line blockage. Drain completely stopped + toilet bubbling \u2192 call a plumber.",
+        "Symptom: toilet running. Ask: does it stop eventually, or run continuously? Running that stops \u2192 fill valve or flapper. Continuous running with water audible in bowl \u2192 flush valve. Try jiggling the handle \u2014 if it helps, flapper chain is the issue.",
+        "Symptom: no hot water. Ask: gas or electric? When did it stop? Any pilot light visible? If electric: check the breaker first. If gas with pilot out: relight per the label. If pilot is lit but no hot water after 30 min \u2192 thermostat or element.",
+        "Symptom: low water pressure. Ask: one fixture or whole house? One fixture \u2192 aerator clog (unscrew and clean). Multiple fixtures \u2192 pressure regulator or municipal supply issue. Sudden whole-house drop \u2192 check your main shutoff."
+      ],
+      "skills": [
+        "Symptom-to-cause mapping",
+        "Triage questioning",
+        "Escalation criteria"
+      ],
+      "tools": [
+        {
+          "name": "Flashlight (for under-sink inspection)",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=led%20flashlight%20bright%20inspection&tag=oxsteed-20"
+        },
+        {
+          "name": "Phone camera (for documenting and sharing the problem)",
+          "rent": null,
+          "buy": null
+        }
+      ],
+      "xp": 10
+    },
+    {
+      "id": "diagnose-electrical-remotely",
+      "title": "Diagnose Common Electrical Problems Remotely",
+      "category": "electrical",
+      "difficulty": "Easy",
+      "minutes": 20,
+      "featured": false,
+      "intro": "Electrical symptoms that seem mysterious usually have a logical cause. Knowing what questions to ask \u2014 and when to stop troubleshooting and call an electrician \u2014 is the most valuable electrical skill most people never learn.",
+      "steps": [
+        "Symptom: outlet not working. First check: is it a GFCI outlet? Press the RESET button (common in bathrooms, kitchens, garages). Still dead \u2192 check the breaker panel. Breaker tripped \u2192 reset it. Still dead \u2192 outlet may need replacement (call a helper).",
+        "Symptom: breaker keeps tripping. Ask: which circuits? A single circuit that trips repeatedly under load \u2192 overloaded circuit (too many devices). A breaker that trips immediately when reset \u2192 short circuit or faulty device. Unplug everything on the circuit and reset \u2014 if it holds, add devices back one at a time.",
+        "Symptom: lights flickering. Ask: one light or the whole house? One light \u2192 loose bulb or failing fixture. One room \u2192 loose wire at the switch or fixture. Whole house \u2192 contact the utility company first (not an electrician). Flickering with buzzing \u2192 call an electrician.",
+        "Symptom: burning smell near an outlet or panel. Action: turn off the circuit at the panel immediately and call a licensed electrician. Do not troubleshoot a burning smell \u2014 this is a fire risk.",
+        "Symptom: no power in part of the house. Check: is it an outage or is it the panel? Look at the panel \u2014 any tripped breakers (middle position)? Reset them. Still no power \u2192 check with neighbors and call the utility."
+      ],
+      "skills": [
+        "GFCI reset procedure",
+        "Breaker identification",
+        "Escalation criteria for safety"
+      ],
+      "tools": [
+        {
+          "name": "Outlet plug tester",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=outlet%20receptacle%20tester%20circuit&tag=oxsteed-20"
+        },
+        {
+          "name": "Flashlight",
+          "rent": null,
+          "buy": "https://www.amazon.com/s?k=led%20flashlight%20bright%20inspection&tag=oxsteed-20"
+        }
+      ],
+      "xp": 10
+    }
+  ]
+}

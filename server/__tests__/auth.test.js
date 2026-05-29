@@ -143,8 +143,7 @@ describe('POST /api/auth/register/start', () => {
   test('normalizes and stores trimmed registration fields', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // check existing email
-      .mockResolvedValueOnce({ rows: [] }) // delete old pending registration
-      .mockResolvedValueOnce({ rows: [] }); // insert pending registration
+      .mockResolvedValueOnce({ rows: [{ id: 123 }] }); // insert/update pending registration
 
     const res = await request(buildApp())
       .post('/api/auth/register/start')
@@ -162,7 +161,7 @@ describe('POST /api/auth/register/start', () => {
       });
 
     expect(res.status).toBe(200);
-    const insertArgs = mockQuery.mock.calls[2][1];
+    const insertArgs = mockQuery.mock.calls[1][1];
     expect(insertArgs[1]).toBe('customer@example.com');
     expect(insertArgs[3]).toBe('Customer');
     expect(insertArgs[4]).toBe('User');
@@ -174,7 +173,6 @@ describe('POST /api/auth/register/start', () => {
   test('returns 400 for DB field length overflow instead of 500', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // check existing email
-      .mockResolvedValueOnce({ rows: [] }) // delete old pending registration
       .mockRejectedValueOnce({ code: '22001' }); // insert pending registration
 
     const res = await request(buildApp())
@@ -207,23 +205,38 @@ describe('POST /api/auth/login', () => {
   });
 
   test('returns 401 when user not found', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // pre-check role
+      .mockResolvedValueOnce({ rows: [] }); // user lookup
     const res = await request(buildApp())
       .post('/api/auth/login')
-      .send({ email: 'nobody@example.com', password: 'SomePass123' });
+      .send({
+        email: 'nobody@example.com',
+        password: 'SomePass123',
+        termsAgreed: true,
+        agreementName: 'Jane Doe',
+      });
     expect(res.status).toBe(401);
   });
 
   test('returns 401 when password is wrong', async () => {
     // bcrypt.compare will fail because the stored hash won't match
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 1, email: 'test@example.com',
-      password_hash: '$2b$12$invalid_hash_that_never_matches',
-      is_active: true, totp_enabled: false, role: 'customer',
-    }] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ role: 'customer' }] }) // pre-check role
+      .mockResolvedValueOnce({ rows: [{
+        id: 1, email: 'test@example.com',
+        password_hash: '$2b$12$invalid_hash_that_never_matches',
+        is_active: true, totp_enabled: false, role: 'customer',
+      }] });
 
     const res = await request(buildApp())
       .post('/api/auth/login')
-      .send({ email: 'test@example.com', password: 'WrongPassword!' });
+      .send({
+        email: 'test@example.com',
+        password: 'WrongPassword!',
+        termsAgreed: true,
+        agreementName: 'Jane Doe',
+      });
     expect(res.status).toBe(401);
   });
 });

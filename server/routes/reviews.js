@@ -1,6 +1,7 @@
 const router      = require('express').Router();
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/adminAuth');
+const { errorHandler } = require('../middleware/errorHandler');
 const reviewCtrl = require('../controllers/reviewController');
 
 // Public
@@ -28,5 +29,9 @@ router.put('/:id/hide',
   requireAdmin,
   reviewCtrl.adminHideReview
 );
+
+// Route-local JSON error handler for consistent API responses when this router
+// is mounted without the global server error handler (tests, serverless, etc.).
+router.use(errorHandler);
 
 module.exports = router;

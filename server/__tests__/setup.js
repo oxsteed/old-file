@@ -59,6 +59,12 @@ jest.mock('../services/tokenRevocationService', () => ({
   revokeAllUserTokens: jest.fn().mockResolvedValue(undefined),
 }));
 
+// Avoid fire-and-forget DB work inside authController.register() from consuming
+// the pg mock call queue unpredictably in tests.
+jest.mock('../controllers/templateController', () => ({
+  grantFreeTrialToUser: jest.fn().mockResolvedValue(true),
+}));
+
 // withTransaction uses pool.connect(); the pg mock has no real connections.
 // Run the operation callback with pool.query bound as the client so tests queue mocks linearly.
 jest.mock('../utils/transaction', () => {
@@ -112,6 +118,10 @@ const mockQuery = Pool.mockQuery;
  */
 function resetMocks() {
   mockQuery.mockReset();
+  // Default empty result so tests only need to mock the DB calls they care about.
+  // This prevents incidental extra queries (BEGIN/COMMIT, optional lookups, etc.)
+  // from turning into TypeErrors due to `undefined.rows`.
+  mockQuery.mockImplementation(async () => ({ rows: [], rowCount: 0 }));
 }
 
 module.exports = { mockQuery, resetMocks };

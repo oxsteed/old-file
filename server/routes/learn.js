@@ -8,6 +8,7 @@ const router   = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin }  = require('../middleware/adminAuth');
 const {
+  getGuides,
   getGuideStats,
   recordView,
   getCompletions,
@@ -21,6 +22,7 @@ const {
 } = require('../controllers/learnController');
 
 // ── Public routes (no auth) ────────────────────────────────────
+router.get('/guides',                getGuides);
 router.get('/stats',                 getGuideStats);
 router.post('/views',                recordView);          // auth optional — req.user may be null
 

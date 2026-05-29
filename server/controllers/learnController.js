@@ -9,118 +9,16 @@ const AppError = require('../utils/appError');
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const XP_BY_DIFFICULTY = { Easy: 10, Medium: 25, Hard: 50 };
-const VALID_CATEGORIES = [
-  'plumbing', 'electrical', 'carpentry', 'hvac',
-  'painting', 'car-care', 'landscaping', 'maintenance', 'management',
-];
 const VALID_DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 
-// Guide IDs that exist in the static dataset — prevents spurious completions.
-const KNOWN_GUIDE_IDS = new Set([
-  // Plumbing
-  'fix-leaky-faucet', 'unclog-drain', 'fix-running-toilet',
-  'install-shower-head', 'replace-toilet-fill-valve', 'fix-burst-pipe-temporary',
-  'install-water-shutoff-valve', 'fix-toilet-wax-ring',
-  // Electrical
-  'replace-light-switch', 'install-ceiling-fan', 'reset-gfci',
-  'replace-outlet', 'install-dimmer-switch', 'install-light-fixture',
-  'install-smart-switch', 'install-usb-outlet',
-  // HVAC
-  'replace-hvac-filter', 'clean-condensate-drain',
-  'seal-hvac-ducts', 'clean-dryer-vent', 'insulate-hot-water-pipes',
-  // Carpentry
-  'patch-drywall', 'install-door-handle', 'hang-floating-shelves',
-  'fix-squeaky-floor', 'install-window-screen',
-  'install-baseboards', 'repair-wood-fence',
-  // Painting
-  'paint-a-wall', 'prep-and-prime-wall', 'paint-trim-and-baseboards',
-  'touch-up-and-color-match', 'apply-exterior-caulk', 'paint-cabinets',
-  // Car Care
-  'change-oil', 'replace-wipers', 'rotate-tires',
-  'replace-cabin-air-filter', 'check-and-top-fluids',
-  // Landscaping
-  'mulch-garden-bed', 'plant-a-tree', 'install-drip-irrigation',
-  'build-raised-garden-bed', 'sharpen-mower-blade', 'lay-sod',
-  // Maintenance
-  'caulk-bathtub', 'clean-gutters', 'weatherstrip-exterior-door',
-  'power-wash-driveway', 're-grout-tile', 'fix-sticking-door',
-  // Management / Investment
-  'inspect-investment-property', 'estimate-repair-costs',
-  'build-preventive-maintenance-schedule', 'write-a-work-order',
-  // Diagnosis guides (plumbing + electrical categories)
-  'diagnose-plumbing-remotely', 'diagnose-electrical-remotely',
-]);
+// Single source of truth for guide IDs/categories across web + API.
+// This file is also used to generate the iOS Learn catalog.
+const LearnGuidesData = require('../data/learnGuides.json');
+const GUIDES = Array.isArray(LearnGuidesData?.guides) ? LearnGuidesData.guides : [];
 
-// Category membership — used to check badge eligibility after completion.
-const GUIDE_CATEGORY = {
-  // Plumbing
-  'fix-leaky-faucet':              'plumbing',
-  'unclog-drain':                  'plumbing',
-  'fix-running-toilet':            'plumbing',
-  'install-shower-head':           'plumbing',
-  'replace-toilet-fill-valve':     'plumbing',
-  'fix-burst-pipe-temporary':      'plumbing',
-  'install-water-shutoff-valve':   'plumbing',
-  'fix-toilet-wax-ring':           'plumbing',
-  // Electrical
-  'replace-light-switch':          'electrical',
-  'install-ceiling-fan':           'electrical',
-  'reset-gfci':                    'electrical',
-  'replace-outlet':                'electrical',
-  'install-dimmer-switch':         'electrical',
-  'install-light-fixture':         'electrical',
-  'install-smart-switch':          'electrical',
-  'install-usb-outlet':            'electrical',
-  // HVAC
-  'replace-hvac-filter':           'hvac',
-  'clean-condensate-drain':        'hvac',
-  'seal-hvac-ducts':               'hvac',
-  'clean-dryer-vent':              'hvac',
-  'insulate-hot-water-pipes':      'hvac',
-  // Carpentry
-  'patch-drywall':                 'carpentry',
-  'install-door-handle':           'carpentry',
-  'hang-floating-shelves':         'carpentry',
-  'fix-squeaky-floor':             'carpentry',
-  'install-window-screen':         'carpentry',
-  'install-baseboards':            'carpentry',
-  'repair-wood-fence':             'carpentry',
-  // Painting
-  'paint-a-wall':                  'painting',
-  'prep-and-prime-wall':           'painting',
-  'paint-trim-and-baseboards':     'painting',
-  'touch-up-and-color-match':      'painting',
-  'apply-exterior-caulk':          'painting',
-  'paint-cabinets':                'painting',
-  // Car Care
-  'change-oil':                    'car-care',
-  'replace-wipers':                'car-care',
-  'rotate-tires':                  'car-care',
-  'replace-cabin-air-filter':      'car-care',
-  'check-and-top-fluids':          'car-care',
-  // Landscaping
-  'mulch-garden-bed':              'landscaping',
-  'plant-a-tree':                  'landscaping',
-  'install-drip-irrigation':       'landscaping',
-  'build-raised-garden-bed':       'landscaping',
-  'sharpen-mower-blade':           'landscaping',
-  'lay-sod':                       'landscaping',
-  // Maintenance
-  'caulk-bathtub':                 'maintenance',
-  'clean-gutters':                 'maintenance',
-  'weatherstrip-exterior-door':    'maintenance',
-  'power-wash-driveway':           'maintenance',
-  're-grout-tile':                 'maintenance',
-  'fix-sticking-door':             'maintenance',
-  // Management / Investment
-  'inspect-investment-property':          'management',
-  'estimate-repair-costs':               'management',
-  'build-preventive-maintenance-schedule': 'management',
-  'write-a-work-order':                  'management',
-  // Diagnosis guides
-  'diagnose-plumbing-remotely':          'plumbing',
-  'diagnose-electrical-remotely':        'electrical',
-};
+const KNOWN_GUIDE_IDS = new Set(GUIDES.map((g) => String(g.id)));
+const GUIDE_CATEGORY = Object.fromEntries(GUIDES.map((g) => [String(g.id), String(g.category)]));
+const VALID_CATEGORIES = [...new Set(GUIDES.map((g) => String(g.category)))];
 
 // Invert: category → [guide_ids]
 const GUIDES_BY_CATEGORY = {};
@@ -128,6 +26,17 @@ for (const [id, cat] of Object.entries(GUIDE_CATEGORY)) {
   if (!GUIDES_BY_CATEGORY[cat]) GUIDES_BY_CATEGORY[cat] = [];
   GUIDES_BY_CATEGORY[cat].push(id);
 }
+
+// ── Guide catalog ─────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/learn/guides
+ * Public — no auth required.
+ * Returns the Learn guide catalog so web + native stay in sync.
+ */
+exports.getGuides = async (_req, res) => {
+  res.json({ guides: GUIDES });
+};
 
 // ── Public stats ──────────────────────────────────────────────────────────────
 

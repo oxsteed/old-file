@@ -13,14 +13,14 @@ const { sendError, sendSuccess } = require('../utils/apiError');
 const { logBusinessAction } = require('../services/businessAuditLog');
 
 // List / create products
-router.get ('/:businessId/products',                                                                                ctrl.listProducts);
+router.get ('/:businessId/products',                          requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.listProducts);
 router.post('/:businessId/products',                          requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.createProduct);
 
 // Low-stock alerts (specific path before :productId to avoid shadowing)
 router.get ('/:businessId/products/alerts/low-stock',         requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.getLowStockAlerts);
 
 // Single product
-router.get ('/:businessId/products/:productId',                                                                     ctrl.getProduct);
+router.get ('/:businessId/products/:productId',               requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.getProduct);
 router.put ('/:businessId/products/:productId',               requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.updateProduct);
 router.delete('/:businessId/products/:productId',             requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.deleteProduct);
 

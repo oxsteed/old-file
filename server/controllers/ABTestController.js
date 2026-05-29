@@ -1,6 +1,6 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
-const { v4: uuidv4 } = require('uuid');
+const { uuidv4 } = require('../utils/uuid');
 
 class ABTestController {
   // Create a new A/B test

@@ -1,7 +1,7 @@
 const pool = require('../db');
 const { sendValidationError, sendError } = require('../utils/apiError');
 const logger = require('../utils/logger');
-const { v4: uuidv4 } = require('uuid');
+const { uuidv4 } = require('../utils/uuid');
 const { sendNotification } = require('../services/notificationService');
 const { broadcastToUser } = require('../services/socketService');
 

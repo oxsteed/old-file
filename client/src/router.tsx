@@ -1,8 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import HelperProfileEditPage from './pages/HelperProfileEditPage';
-import HelperPublicProfilePage from './pages/HelperPublicProfilePage';
-import BusinessProfileEditPage from './pages/BusinessProfileEditPage';
+import HelperProfileEditPage    from './pages/HelperProfileEditPage';
+import HelperPublicProfilePage  from './pages/HelperPublicProfilePage';
+import BusinessProfileEditPage  from './pages/BusinessProfileEditPage';
 import BusinessPublicProfilePage from './pages/BusinessPublicProfilePage';
+import DiscoverPage             from './pages/DiscoverPage';
+import JobPublicPage            from './pages/JobPublicPage';
 
 export default function Router() {
   return (
@@ -10,11 +12,15 @@ export default function Router() {
       <Routes>
         {/* Helper Profile Routes */}
         <Route path="/dashboard/edit-profile" element={<HelperProfileEditPage />} />
-        <Route path="/helpers/:helperId" element={<HelperPublicProfilePage />} />
+        <Route path="/helpers/:helperId"       element={<HelperPublicProfilePage />} />
 
         {/* Business Profile Routes */}
-        <Route path="/business/edit-profile" element={<BusinessProfileEditPage />} />
-        <Route path="/business/:businessId" element={<BusinessPublicProfilePage />} />
+        <Route path="/business/edit-profile"   element={<BusinessProfileEditPage />} />
+        <Route path="/business/:businessId"    element={<BusinessPublicProfilePage />} />
+
+        {/* Discover + Growth */}
+        <Route path="/discover"        element={<DiscoverPage />} />
+        <Route path="/jobs/:jobId"     element={<JobPublicPage />} />
 
         {/* Default */}
         <Route path="/" element={<Navigate to="/dashboard" />} />

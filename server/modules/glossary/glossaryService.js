@@ -1,4 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
+const { uuidv4 } = require('../../utils/uuid');
 const pool = require('../../db');
 const { normalizeLanguageCode } = require('../localization/localeService');
 

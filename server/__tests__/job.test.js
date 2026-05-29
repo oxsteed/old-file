@@ -91,6 +91,7 @@ describe('POST /api/jobs', () => {
     title:        'Replace broken fence panel on north side of property',
     description:  'The fence panel on the north side fell over in the storm. Need it replaced with same cedar wood. About 8 feet wide.',
     location_city: 'Austin',
+    location_country: 'US',
   };
 
   test('returns 400 when title is too short', async () => {

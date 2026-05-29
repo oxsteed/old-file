@@ -724,7 +724,7 @@ exports.listAttempts = async (req, res) => {
 // from any IP, and also any active lockout for the requesting IP.
 
 const recoveryEmail = require('../utils/email');
-const { v4: uuidv4 } = require('uuid');
+const { uuidv4 } = require('../utils/uuid');
 
 function recoveryEmailAllowlist() {
   return String(process.env.ACCESS_GATE_RECOVERY_EMAILS || '')

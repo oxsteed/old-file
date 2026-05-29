@@ -33,6 +33,7 @@ const {
   switchRole,
 } = require('../controllers/authController');
 const logisticsInternalAccessCtrl = require('../controllers/logisticsInternalAccessController');
+const { errorHandler } = require('../middleware/errorHandler');
 
 // Original routes
 router.post('/register', authLimiter, register);
@@ -71,5 +72,10 @@ router.post('/resend-verification', authenticate, resendVerification);
 
 // Role switching (customer ↔ helper)
 router.post('/switch-role', authenticate, switchRole);
+
+// Route-local error handler so this router returns JSON errors even when mounted
+// in isolation (tests, serverless handlers, etc.). In the full server, this also
+// prevents falling through to a generic HTML error response.
+router.use(errorHandler);
 
 module.exports = router;

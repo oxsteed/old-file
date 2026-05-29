@@ -1,5 +1,5 @@
 const db = require('../db');
-const { v4: uuidv4 } = require('uuid');
+const { uuidv4 } = require('../utils/uuid');
 const { withChatTransaction, updateSessionStatus, logChatEvent, queueMessageIfTransitioning, drainMessageQueue } = require('../services/chatTransactionService');
 const { broadcastNewGuestSession, broadcastGuestSessionUpdate, broadcastGuestChatMessage } = require('../services/socketService');
 const logger = require('../utils/logger');

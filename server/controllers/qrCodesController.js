@@ -3,7 +3,7 @@
 
 const db = require('../db');
 const logger = require('../utils/logger');
-const { v4: uuidv4 } = require('uuid');
+const { uuidv4 } = require('../utils/uuid');
 const path = require('path');
 const fs = require('fs').promises;
 const crypto = require('crypto');

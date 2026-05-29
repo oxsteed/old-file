@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
-const { conversationMessageLimiter, userChatLimiter } = require('../middleware/rateLimiter');
+const { conversationMessageLimiter, userChatLimiter, strictLimiter } = require('../middleware/rateLimiter');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
+const pool = require('../db');
+const logger = require('../utils/logger');
 const {
   getConversations,
   getGuestInquiries,
@@ -81,5 +83,107 @@ router.post('/conversations/:conversationId/restore', restoreConversation);
 // POST /api/messages/conversations/:conversationId/attachments - Upload a file/image attachment
 // Accepts a single file under the field name "file" (max 10 MB, images + docs)
 router.post('/conversations/:conversationId/attachments', upload.single('file'), validateFileUpload, uploadAttachment);
+
+// ── User blocking (Guideline 1.2) ────────────────────────────────────────────
+
+// POST /api/messages/users/:userId/block - Block a user
+router.post('/users/:userId/block', strictLimiter, async (req, res) => {
+  const blockerId  = req.user.id;
+  const blockedId  = parseInt(req.params.userId, 10);
+  if (!blockedId || blockerId === blockedId) {
+    return res.status(400).json({ error: 'Invalid user ID' });
+  }
+  try {
+    await pool.query(
+      `INSERT INTO user_blocks (blocker_id, blocked_id)
+       VALUES ($1, $2)
+       ON CONFLICT (blocker_id, blocked_id) DO NOTHING`,
+      [blockerId, blockedId]
+    );
+    logger.info('User blocked', { blockerId, blockedId });
+    res.json({ success: true });
+  } catch (err) {
+    logger.error('Block user error', { message: err.message });
+    res.status(500).json({ error: 'Failed to block user' });
+  }
+});
+
+// DELETE /api/messages/users/:userId/block - Unblock a user
+router.delete('/users/:userId/block', async (req, res) => {
+  const blockerId = req.user.id;
+  const blockedId = parseInt(req.params.userId, 10);
+  try {
+    await pool.query(
+      'DELETE FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2',
+      [blockerId, blockedId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    logger.error('Unblock user error', { message: err.message });
+    res.status(500).json({ error: 'Failed to unblock user' });
+  }
+});
+
+// GET /api/messages/users/blocked - List blocked users
+router.get('/users/blocked', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT ub.blocked_id AS id, u.first_name, u.last_name, u.email, ub.created_at AS blocked_at
+       FROM user_blocks ub
+       JOIN users u ON u.id = ub.blocked_id
+       WHERE ub.blocker_id = $1
+       ORDER BY ub.created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ blockedUsers: rows });
+  } catch (err) {
+    logger.error('Get blocked users error', { message: err.message });
+    res.status(500).json({ error: 'Failed to load blocked users' });
+  }
+});
+
+// ── General content reporting (Guideline 1.2) ────────────────────────────────
+
+// POST /api/messages/report - Report a user or piece of content
+// contentType: 'user' | 'message' | 'job' | 'review' | 'profile'
+// reason: 'spam' | 'harassment' | 'fraud' | 'inappropriate' | 'other'
+router.post('/report', strictLimiter, async (req, res) => {
+  const reporterId = req.user.id;
+  const { reportedUserId, contentType, contentId, reason, description } = req.body;
+
+  const validTypes   = ['user', 'message', 'job', 'review', 'profile'];
+  const validReasons = ['spam', 'harassment', 'fraud', 'inappropriate', 'other'];
+
+  if (!validTypes.includes(contentType)) {
+    return res.status(400).json({ error: 'Invalid content type', validTypes });
+  }
+  if (!validReasons.includes(reason)) {
+    return res.status(400).json({ error: 'Invalid reason', validReasons });
+  }
+  if (reportedUserId && reporterId === parseInt(reportedUserId, 10)) {
+    return res.status(400).json({ error: 'Cannot report yourself' });
+  }
+
+  try {
+    await pool.query(
+      `INSERT INTO content_reports
+         (reporter_id, reported_user_id, content_type, content_id, reason, description)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        reporterId,
+        reportedUserId || null,
+        contentType,
+        contentId || null,
+        reason,
+        description || null,
+      ]
+    );
+    logger.info('Content reported', { reporterId, reportedUserId, contentType, reason });
+    res.json({ success: true, message: 'Report submitted. Our team will review it.' });
+  } catch (err) {
+    logger.error('Content report error', { message: err.message });
+    res.status(500).json({ error: 'Failed to submit report' });
+  }
+});
 
 module.exports = router;

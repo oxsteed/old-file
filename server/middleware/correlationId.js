@@ -1,4 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
+const { uuidv4 } = require('../utils/uuid');
 
 // Middleware to assign a unique correlation ID to each request for tracing
 // and logging purposes across all services and database operations.

@@ -5,6 +5,7 @@ const upload  = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const checkRestrictions = require('../middleware/checkRestrictions');
+const { errorHandler } = require('../middleware/errorHandler');
 
 const {
   createJob, getJobs, getJob, updateJob,
@@ -34,5 +35,9 @@ router.post('/:id/cancel',    authenticate, cancelJob);
 router.post('/:id/start',    authenticate, startJob);
 router.post('/:id/complete', authenticate, completeJob);
 router.post('/:id/close',    authenticate, closeJob);
+
+// Route-local JSON error handler for consistent API responses when this router
+// is mounted without the global server error handler (tests, serverless, etc.).
+router.use(errorHandler);
 
 module.exports = router;

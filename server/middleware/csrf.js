@@ -1,94 +1,119 @@
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
 // CSRF token middleware for protecting against Cross-Site Request Forgery attacks
 //
 // For SPA applications:
-// - CSRF tokens are stored in memory per session
+// - CSRF tokens are stored in Redis (with in-memory fallback for single-instance dev)
 // - Tokens are validated on all state-changing operations (POST/PUT/DELETE)
 // - SameSite cookies provide an additional layer of protection
 //
 // The CSRF token is generated once per session and reused for all requests.
-// Tokens are stored in a Map keyed by user ID to allow fast lookup.
+// Redis key: csrf:<userId>  (TTL = TOKEN_EXPIRY_SECS)
 
-const tokenMap = new Map(); // userId -> token
-const TOKEN_LENGTH = 32;
-const TOKEN_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
+const TOKEN_LENGTH      = 32;
+const TOKEN_EXPIRY_SECS = 24 * 60 * 60; // 24 hours
+const REDIS_PREFIX      = 'csrf:';
 
-// Generate a new CSRF token
+// ── Redis client (optional) ──────────────────────────────────────────────────
+// Shared client from utils/redis.js; null when Redis is not configured.
+const redisClient = require('../utils/redis');
+if (!redisClient) {
+  logger.warn('CSRF: Redis unavailable — falling back to in-memory store. Not suitable for multi-instance deployments.');
+}
+
+// In-memory fallback (single-instance only)
+const tokenMap = new Map(); // userId -> { token, expiresAt }
+
+// ── Storage helpers ──────────────────────────────────────────────────────────
+
+async function storeToken(userId, token) {
+  if (redisClient) {
+    await redisClient.set(
+      `${REDIS_PREFIX}${userId}`,
+      token,
+      'EX',
+      TOKEN_EXPIRY_SECS
+    );
+  } else {
+    tokenMap.set(userId, { token, expiresAt: Date.now() + TOKEN_EXPIRY_SECS * 1000 });
+  }
+}
+
+async function fetchToken(userId) {
+  if (redisClient) {
+    return redisClient.get(`${REDIS_PREFIX}${userId}`);
+  }
+  const entry = tokenMap.get(userId);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) { tokenMap.delete(userId); return null; }
+  return entry.token;
+}
+
+async function deleteToken(userId) {
+  if (redisClient) {
+    await redisClient.del(`${REDIS_PREFIX}${userId}`);
+  } else {
+    tokenMap.delete(userId);
+  }
+}
+
+// ── Core logic ───────────────────────────────────────────────────────────────
+
 function generateToken() {
   return crypto.randomBytes(TOKEN_LENGTH).toString('hex');
 }
 
-// Get or generate a token for a user session
-function getOrGenerateToken(userId) {
-  if (!tokenMap.has(userId)) {
-    const token = generateToken();
-    tokenMap.set(userId, {
-      token,
-      createdAt: Date.now(),
-    });
-  }
-  return tokenMap.get(userId).token;
+async function getOrGenerateToken(userId) {
+  const existing = await fetchToken(userId);
+  if (existing) return existing;
+  const token = generateToken();
+  await storeToken(userId, token);
+  return token;
 }
 
-// Validate a CSRF token
-function validateToken(userId, token) {
-  if (!tokenMap.has(userId)) return false;
-
-  const stored = tokenMap.get(userId);
-
-  // Check expiry
-  if (Date.now() - stored.createdAt > TOKEN_EXPIRY) {
-    tokenMap.delete(userId);
+async function validateToken(userId, token) {
+  const stored = await fetchToken(userId);
+  if (!stored) return false;
+  try {
+    // Constant-time comparison to prevent timing attacks.
+    // Both buffers must be equal length; timingSafeEqual throws otherwise.
+    return crypto.timingSafeEqual(
+      Buffer.from(stored),
+      Buffer.from(token)
+    );
+  } catch {
     return false;
   }
-
-  // Constant-time comparison to prevent timing attacks
-  return crypto.timingSafeEqual(
-    Buffer.from(stored.token),
-    Buffer.from(token)
-  );
 }
 
-// Invalidate a token (e.g., on logout)
-function invalidateToken(userId) {
-  tokenMap.delete(userId);
-}
+// ── Middleware ───────────────────────────────────────────────────────────────
 
-// Middleware to attach CSRF token to request
-// Token is generated on first access and reused for the session
-function attachCsrfToken(req, res, next) {
-  if (!req.user || !req.user.id) {
-    return next();
+// Attach CSRF token to every authenticated response so the client can read it.
+async function attachCsrfToken(req, res, next) {
+  if (!req.user?.id) return next();
+  try {
+    const token = await getOrGenerateToken(req.user.id);
+    res.set('X-CSRF-Token', token);
+    req.csrfToken = token;
+  } catch (err) {
+    logger.error('CSRF attachCsrfToken error', { message: err.message });
   }
-
-  const token = getOrGenerateToken(req.user.id);
-  res.set('X-CSRF-Token', token);
-  req.csrfToken = token;
-
   next();
 }
 
-// Middleware to validate CSRF token on state-changing requests
-// Safe methods (GET, HEAD, OPTIONS) are not protected
-// All other methods require a valid CSRF token in the X-CSRF-Token header
-function validateCsrfToken(req, res, next) {
-  // Skip validation in test mode
-  if (process.env.NODE_ENV === 'test') {
-    return next();
-  }
+// Validate CSRF token on all state-changing requests.
+async function validateCsrfToken(req, res, next) {
+  // Skip in test environment
+  if (process.env.NODE_ENV === 'test') return next();
 
-  // Skip validation for safe HTTP methods
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-    return next();
-  }
+  // Safe methods are exempt
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
 
-  // Skip validation for public endpoints (non-authenticated)
-  if (!req.user || !req.user.id) {
-    return next();
-  }
+  // Unauthenticated requests have no session token to validate against
+  if (!req.user?.id) return next();
 
-  const token = req.headers['x-csrf-token'] || req.body._csrf;
+  const token = req.headers['x-csrf-token'] || req.body?._csrf;
 
   if (!token) {
     return res.status(403).json({
@@ -98,14 +123,15 @@ function validateCsrfToken(req, res, next) {
   }
 
   try {
-    if (!validateToken(req.user.id, token)) {
+    const valid = await validateToken(req.user.id, token);
+    if (!valid) {
       return res.status(403).json({
         error: 'CSRF token invalid',
         message: 'Token is invalid or expired',
       });
     }
   } catch (err) {
-    // timingSafeEqual can throw if lengths don't match
+    logger.error('CSRF validateCsrfToken error', { message: err.message });
     return res.status(403).json({
       error: 'CSRF token invalid',
       message: 'Token format is invalid',
@@ -113,6 +139,10 @@ function validateCsrfToken(req, res, next) {
   }
 
   next();
+}
+
+async function invalidateToken(userId) {
+  await deleteToken(userId);
 }
 
 module.exports = {

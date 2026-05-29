@@ -2264,20 +2264,21 @@ const HERO = {
   },
 };
 
-// schema.org/HowTo structured data for all guides (SEO — Priority 10)
-const HOWTO_LD = GUIDES.map((g) => ({
-  '@context': 'https://schema.org',
-  '@type': 'HowTo',
-  name: g.title,
-  description: g.intro,
-  totalTime: `PT${g.minutes}M`,
-  step: g.steps.map((text, i) => ({
-    '@type': 'HowToStep',
-    position: i + 1,
-    text,
-  })),
-  tool: g.tools.map((t) => ({ '@type': 'HowToTool', name: t.name })),
-}));
+function buildHowToLd(guides) {
+  return (guides || []).map((g) => ({
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name: g.title,
+    description: g.intro,
+    totalTime: `PT${g.minutes}M`,
+    step: (g.steps || []).map((text, i) => ({
+      '@type': 'HowToStep',
+      position: i + 1,
+      text,
+    })),
+    tool: (g.tools || []).map((t) => ({ '@type': 'HowToTool', name: t.name })),
+  }));
+}
 
 // ── UGC submit form state ─────────────────────────────────────────────────────
 
@@ -2298,6 +2299,7 @@ export default function LearnModePage() {
   const [viewMode, setViewMode]           = useState('list');
   const [completions, setCompletions]     = useState({});
   const [completing, setCompleting]       = useState(null);
+  const [remoteCatalog, setRemoteCatalog] = useState(null); // { guides: [...] } from /api/learn/guides
 
   // App banner (Priority 13)
   const [showAppBanner, setShowAppBanner] = useState(false);
@@ -2327,15 +2329,6 @@ export default function LearnModePage() {
 
   // ── Effects ──────────────────────────────────────────────────────────────────
 
-  // Inject HowTo JSON-LD (Priority 10)
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.type = 'application/ld+json';
-    script.textContent = JSON.stringify(HOWTO_LD);
-    document.head.appendChild(script);
-    return () => { try { document.head.removeChild(script); } catch {} };
-  }, []);
-
   // App banner — show on mobile, once per session (Priority 13)
   useEffect(() => {
     const dismissed = localStorage.getItem(APP_BANNER_KEY);
@@ -2344,15 +2337,26 @@ export default function LearnModePage() {
 
   // Fetch guide stats for social proof (Priority 8) — public, no auth needed
   useEffect(() => {
-    api.get('/api/learn/stats')
+    api.get('/learn/stats')
       .then(({ data }) => { if (data.stats) setGuideStats(data.stats); })
+      .catch(() => {});
+  }, []);
+
+  // Fetch canonical guide catalog so web + native stay in sync.
+  // We merge it into the local GUIDES dataset to preserve web-only fields
+  // like tips, gradients, and deep links.
+  useEffect(() => {
+    api.get('/learn/guides')
+      .then(({ data }) => {
+        if (Array.isArray(data.guides) && data.guides.length) setRemoteCatalog(data.guides);
+      })
       .catch(() => {});
   }, []);
 
   // Fetch earned badges (authenticated only)
   useEffect(() => {
     if (!user) return;
-    api.get('/api/learn/badges')
+    api.get('/learn/badges')
       .then(({ data }) => { if (Array.isArray(data.badges)) setBadges(data.badges.map((b) => b.category)); })
       .catch(() => {});
   }, [user]);
@@ -2368,7 +2372,7 @@ export default function LearnModePage() {
     } catch {}
 
     if (user) {
-      api.get('/api/learn/completions')
+      api.get('/learn/completions')
         .then(({ data }) => {
           const serverMap = {};
           (data.completions || []).forEach((c) => { serverMap[c.guide_id] = c.completed_at; });
@@ -2380,9 +2384,92 @@ export default function LearnModePage() {
 
   // ── Derived state ────────────────────────────────────────────────────────────
 
+  const activeGuides = useMemo(() => {
+    const remote = Array.isArray(remoteCatalog) ? remoteCatalog : [];
+    if (!remote.length) return GUIDES;
+
+    const byId = new Map(remote.map((g) => [g.id, g]));
+    const baseIds = new Set(GUIDES.map((g) => g.id));
+
+    const mergeTools = (baseTools, rTools) => {
+      if (!Array.isArray(rTools) || !rTools.length) return baseTools;
+      return rTools.map((t) => ({
+        name: t?.name || '',
+        rent: t?.rent || t?.rent_url || t?.rentURL || null,
+        buy: t?.buy || t?.buy_url || t?.buyURL || null,
+      }));
+    };
+
+    const merged = GUIDES.map((g) => {
+      const r = byId.get(g.id);
+      if (!r) return g;
+      return {
+        ...g,
+        title: r.title || g.title,
+        category: r.category || g.category,
+        difficulty: r.difficulty || g.difficulty,
+        minutes: r.minutes ?? g.minutes,
+        featured: r.featured ?? g.featured,
+        intro: r.intro || g.intro,
+        steps: Array.isArray(r.steps) && r.steps.length ? r.steps : g.steps,
+        skills: Array.isArray(r.skills) && r.skills.length ? r.skills : g.skills,
+        tools: mergeTools(g.tools, r.tools),
+        xp: r.xp ?? g.xp,
+      };
+    });
+
+    // Include any remote-only guides (so the website stays in sync without redeploys).
+    const extras = remote
+      .filter((r) => r?.id && !baseIds.has(r.id))
+      .map((r) => ({
+        id: r.id,
+        title: r.title || 'Untitled guide',
+        category: r.category || 'maintenance',
+        difficulty: r.difficulty || 'Easy',
+        minutes: r.minutes ?? 30,
+        featured: !!r.featured,
+        video_url: null,
+        license_note: null,
+        gradient: 'linear-gradient(135deg, #0b1220, #111827)',
+        intro: r.intro || '',
+        steps: Array.isArray(r.steps) ? r.steps : [],
+        skills: Array.isArray(r.skills) ? r.skills : [],
+        tools: mergeTools([], r.tools),
+        hireHref: `/post-job?category=${encodeURIComponent(r.category || 'maintenance')}`,
+        toolsHref: `/tool-rentals?category=${encodeURIComponent(r.category || 'maintenance')}`,
+        xp: r.xp ?? null,
+        tips: {},
+      }));
+
+    return [...merged, ...extras];
+  }, [remoteCatalog]);
+
+  // Inject HowTo JSON-LD (SEO — Priority 10) from the merged guide catalog.
+  // Keep the <script> node stable; just update its contents as the catalog updates.
+  useEffect(() => {
+    const id = 'ox-learn-howto-jsonld';
+    let script = document.getElementById(id);
+    if (!script) {
+      script = document.createElement('script');
+      script.id = id;
+      script.type = 'application/ld+json';
+      document.head.appendChild(script);
+    }
+    return () => {
+      try { document.getElementById(id)?.remove(); } catch {}
+    };
+  }, []);
+
+  useEffect(() => {
+    const id = 'ox-learn-howto-jsonld';
+    const script = document.getElementById(id);
+    if (!script) return;
+    script.textContent = JSON.stringify(buildHowToLd(activeGuides));
+  }, [activeGuides]);
+
   const filteredGuides = useMemo(() => {
     const q = normalize(query);
-    return GUIDES.filter((g) => {
+    return activeGuides.filter((g) => {
       const matchesCat = activeCategory === 'all' || g.category === activeCategory;
       if (!matchesCat) return false;
       if (!q) return true;
@@ -2394,21 +2481,21 @@ export default function LearnModePage() {
         g.steps.some((s) => normalize(s).includes(q))
       );
     });
-  }, [query, activeCategory]);
+  }, [query, activeCategory, activeGuides]);
 
   // Dynamic featured: top-3 by DB completion count, fallback to static featured flag
   const featuredGuides = useMemo(() => {
     const hasStats = Object.keys(guideStats).length > 0;
     if (hasStats) {
-      return [...GUIDES]
+      return [...activeGuides]
         .sort((a, b) => (guideStats[b.id]?.completions ?? 0) - (guideStats[a.id]?.completions ?? 0))
         .slice(0, 3);
     }
-    return GUIDES.filter((g) => g.featured);
-  }, [guideStats]);
+    return activeGuides.filter((g) => g.featured);
+  }, [guideStats, activeGuides]);
   const showFeatured   = !query && activeCategory === 'all';
   const completedCount = Object.keys(completions).length;
-  const totalGuides    = GUIDES.length;
+  const totalGuides    = activeGuides.length;
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
@@ -2422,7 +2509,7 @@ export default function LearnModePage() {
     if (completions[guideId]) return;
     setCompleting(guideId);
 
-    const guide = GUIDES.find((g) => g.id === guideId);
+    const guide = activeGuides.find((g) => g.id === guideId);
     const xp    = DIFFICULTY_XP[guide?.difficulty] ?? 10;
     const next  = { ...completions, [guideId]: Date.now() };
     setCompletions(next);
@@ -2431,7 +2518,7 @@ export default function LearnModePage() {
     let badgeAwarded = null;
     if (user) {
       try {
-        const { data } = await api.post('/api/learn/completions', {
+        const { data } = await api.post('/learn/completions', {
           guide_id: guideId,
           difficulty: guide?.difficulty ?? 'Easy',
         });
@@ -2450,7 +2537,7 @@ export default function LearnModePage() {
     }
 
     setCompleting(null);
-  }, [completions, user, persona, fireXpToast]);
+  }, [completions, user, persona, fireXpToast, activeGuides]);
 
   const handleCategoryClick = (id) => {
     setActiveCategory(id);
@@ -2471,7 +2558,7 @@ export default function LearnModePage() {
     // Fire view event once per guide per session (Priority 8)
     if (!viewedRef.current.has(id)) {
       viewedRef.current.add(id);
-      api.post('/api/learn/views', { guide_id: id }).catch(() => {});
+      api.post('/learn/views', { guide_id: id }).catch(() => {});
     }
   };
 
@@ -2509,7 +2596,7 @@ export default function LearnModePage() {
     setSubmitting(true);
     setSubmitError('');
     try {
-      await api.post('/api/learn/submissions', {
+      await api.post('/learn/submissions', {
         ...submitForm,
         estimated_minutes: parseInt(submitForm.estimated_minutes, 10),
         steps:  submitForm.steps.filter(Boolean),
@@ -2617,7 +2704,7 @@ export default function LearnModePage() {
             </div>
             <span className="lrn-progress-xp">
               +{Object.keys(completions).reduce((sum, id) => {
-                const g = GUIDES.find((g) => g.id === id);
+                const g = activeGuides.find((g) => g.id === id);
                 return sum + (g ? DIFFICULTY_XP[g.difficulty] ?? 0 : 0);
               }, 0)} XP earned
             </span>

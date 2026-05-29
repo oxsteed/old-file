@@ -689,6 +689,7 @@ async function logout(req, res) {
     const { refreshToken: token } = req.body;
     let didInvalidateSession = false;
     let userId = null;
+    const hadRefreshToken = !!token;
 
     if (token) {
       const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
@@ -705,6 +706,7 @@ async function logout(req, res) {
     }
 
     const authHeader = req.headers.authorization || '';
+    const hadAccessTokenHeader = authHeader.startsWith('Bearer ');
     if (authHeader.startsWith('Bearer ')) {
       const accessToken = authHeader.slice(7);
       try {
@@ -727,8 +729,10 @@ async function logout(req, res) {
       }
     }
 
-    if (!didInvalidateSession) {
-      return res.status(400).json({ error: 'Refresh token or valid access token required' });
+    // Require at least one credential (refresh token OR access-token header),
+    // but make logout idempotent once a credential is provided.
+    if (!hadRefreshToken && !hadAccessTokenHeader) {
+      return res.status(400).json({ error: 'Refresh token or access token required' });
     }
 
     // Revoke all user tokens on logout

@@ -104,7 +104,8 @@ describe('POST /api/payments/intent', () => {
     mockAuth(
       { rows: [{ id: 10, client_id: 1, job_value: 100, assigned_helper_id: 2, title: 'Job' }] }, // job
       { rows: [{ stripe_account_id: 'acct_x', charges_enabled: true }] },                         // connect
-      { rows: [] }                                                                                  // INSERT payment
+      { rows: [] },                                                                                // existing payment check
+      { rows: [{ id: 1 }] }                                                                          // INSERT payment RETURNING id
     );
     const res = await auth(
       request(buildApp()).post('/api/payments/intent').send({ job_id: 10 })
@@ -144,8 +145,10 @@ describe('POST /api/payments/capture', () => {
     });
     mockAuth(
       { rows: [{ id: 10, status: 'completed', assigned_helper_id: 2, title: 'Fence repair', client_id: 1 }] }, // job
+      { rows: [] }, // BEGIN (tx)
       { rows: [{ id: 5, stripe_payment_intent_id: 'pi_test123', stripe_account_id: 'acct_x', amount: 100, status: 'authorized' }] }, // payment (controller)
       { rows: [] }, // dispute check
+      { rows: [] }, // COMMIT (tx)
       { rows: [{ id: 5, stripe_payment_intent_id: 'pi_test123', stripe_account_id: 'acct_x', amount: 100, status: 'authorized' }] }, // payment (capture service)
       { rows: [] }, // UPDATE inside withTransaction mock
     );
@@ -163,8 +166,10 @@ describe('POST /api/payments/capture', () => {
     process.env.PAYMENT_CAPTURE_ASYNC = 'true';
     mockAuth(
       { rows: [{ id: 10, status: 'completed', assigned_helper_id: 2, title: 'Fence repair', client_id: 1 }] },
+      { rows: [] }, // BEGIN (tx)
       { rows: [{ id: 5, stripe_payment_intent_id: 'pi_test123', stripe_account_id: 'acct_x', amount: 100, status: 'authorized' }] },
       { rows: [] },
+      { rows: [] }, // COMMIT (tx)
     );
     const res = await auth(
       request(buildApp()).post('/api/payments/capture').send({ job_id: 10 })

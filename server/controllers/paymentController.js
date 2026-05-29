@@ -448,7 +448,7 @@ exports.getMyPayments = async (req, res, next) => {
     );
     res.json({
       payments: result.rows,
-      total: parseInt(countRows[0].count, 10),
+      total: parseInt(countRows?.[0]?.count ?? '0', 10),
       limit,
       offset,
     });
@@ -457,4 +457,3 @@ exports.getMyPayments = async (req, res, next) => {
     next(new AppError('Failed to fetch payments', 500, 'fetch_payments_failed'));
   }
 };
-
