@@ -32,7 +32,13 @@ exports.getPrograms = async (req, res) => {
 
     return res.json({ programs: rows });
   } catch (err) {
-    logger.error('[growth] getPrograms', { err: err.message });
+    // If migrations haven't been applied yet, return an empty list so the app/web UI
+    // can render (other sections still work) instead of hard-failing.
+    if (err && err.code === '42P01') {
+      logger.warn('[growth] growth_programs table missing (migration 286 not applied yet)');
+      return res.json({ programs: [] });
+    }
+    logger.error('[growth] getPrograms', { err: err.message, code: err.code });
     return res.status(500).json({ error: 'Failed to load programs' });
   }
 };
@@ -57,7 +63,11 @@ exports.getWholesale = async (req, res) => {
 
     return res.json({ listings: rows });
   } catch (err) {
-    logger.error('[growth] getWholesale', { err: err.message });
+    if (err && err.code === '42P01') {
+      logger.warn('[growth] wholesale_listings table missing (migration 286 not applied yet)');
+      return res.json({ listings: [] });
+    }
+    logger.error('[growth] getWholesale', { err: err.message, code: err.code });
     return res.status(500).json({ error: 'Failed to load wholesale listings' });
   }
 };
@@ -95,7 +105,11 @@ exports.joinWholesale = async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Listing not found' });
     return res.json({ listing: rows[0] });
   } catch (err) {
-    logger.error('[growth] joinWholesale', { err: err.message });
+    if (err && err.code === '42P01') {
+      logger.warn('[growth] wholesale join tables missing (migration 286 not applied yet)');
+      return res.status(503).json({ error: 'Wholesale is temporarily unavailable' });
+    }
+    logger.error('[growth] joinWholesale', { err: err.message, code: err.code });
     return res.status(500).json({ error: 'Failed to join listing' });
   }
 };
