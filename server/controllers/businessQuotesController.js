@@ -18,7 +18,7 @@ exports.listQuotes = async (req, res, next) => {
 };
 
 exports.getQuote = async (req, res, next) => {
-  const { businessId, quoteId } = req.params;
+  const { businessId, id: quoteId } = req.params;
   try {
     const row = await pool.query(
       'SELECT * FROM business_quotes WHERE id=$1 AND business_id=$2', [quoteId, businessId]
@@ -58,7 +58,7 @@ exports.createQuote = async (req, res, next) => {
 };
 
 exports.updateQuote = async (req, res, next) => {
-  const { businessId, quoteId } = req.params;
+  const { businessId, id: quoteId } = req.params;
   const { client_name, client_email, title, line_items, tax_rate, valid_until, status } = req.body;
   try {
     const subtotal = (line_items || []).reduce((s, i) => s + (i.quantity * i.unit_price_cents), 0);
@@ -76,7 +76,7 @@ exports.updateQuote = async (req, res, next) => {
 };
 
 exports.sendQuote = async (req, res, next) => {
-  const { businessId, quoteId } = req.params;
+  const { businessId, id: quoteId } = req.params;
   try {
     const row = await pool.query(
       `UPDATE business_quotes SET status='sent', updated_at=NOW() WHERE id=$1 AND business_id=$2 AND status='draft' RETURNING *`,
@@ -104,9 +104,42 @@ exports.respondToQuote = async (req, res, next) => {
 };
 
 exports.deleteQuote = async (req, res, next) => {
-  const { businessId, quoteId } = req.params;
+  const { businessId, id: quoteId } = req.params;
   try {
     await pool.query('DELETE FROM business_quotes WHERE id=$1 AND business_id=$2', [quoteId, businessId]);
     res.json({ success: true });
+  } catch (err) { next(err); }
+};
+
+exports.convertToInvoice = async (req, res, next) => {
+  const { businessId, id: quoteId } = req.params;
+  try {
+    const quoteRow = await pool.query(
+      'SELECT * FROM business_quotes WHERE id=$1 AND business_id=$2',
+      [quoteId, businessId]
+    );
+    if (!quoteRow.rows.length) return res.status(404).json({ error: 'Quote not found' });
+    const quote = quoteRow.rows[0];
+    if (!['approved', 'sent'].includes(quote.status)) {
+      return res.status(400).json({ error: 'Only approved or sent quotes can be converted to invoices' });
+    }
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 30);
+    const invoiceRow = await pool.query(
+      `INSERT INTO business_invoices
+         (business_id, client_name, client_email, title, line_items,
+          subtotal_cents, tax_rate, total_cents, due_date, status, quote_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft',$10) RETURNING *`,
+      [
+        businessId, quote.client_name, quote.client_email, quote.title,
+        quote.line_items, quote.subtotal_cents, quote.tax_rate,
+        quote.total_cents, dueDate, quoteId,
+      ]
+    );
+    await pool.query(
+      "UPDATE business_quotes SET status='converted', updated_at=NOW() WHERE id=$1",
+      [quoteId]
+    );
+    res.status(201).json(invoiceRow.rows[0]);
   } catch (err) { next(err); }
 };

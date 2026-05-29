@@ -40,7 +40,7 @@ exports.createExpense = async (req, res, next) => {
 };
 
 exports.updateExpense = async (req, res, next) => {
-  const { businessId, expenseId } = req.params;
+  const { businessId, id: expenseId } = req.params;
   const { category, description, amount_cents, expense_date, receipt_url, notes } = req.body;
   try {
     const row = await pool.query(
@@ -55,7 +55,7 @@ exports.updateExpense = async (req, res, next) => {
 };
 
 exports.deleteExpense = async (req, res, next) => {
-  const { businessId, expenseId } = req.params;
+  const { businessId, id: expenseId } = req.params;
   try {
     await pool.query('DELETE FROM business_expenses WHERE id=$1 AND business_id=$2', [expenseId, businessId]);
     res.json({ success: true });
