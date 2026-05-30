@@ -310,6 +310,38 @@ const userChatLimiter = rateLimit({
   },
 });
 
+// Payments limiter: 20 per hour per user
+// Protects PaymentIntent creation/capture from abuse and accidental retries.
+const paymentsLimiter = rateLimit({
+  ...createStoreOption('rl:payments:'),
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 20,
+  skip: (req) => !req.user,
+  keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many payment attempts. Please try again later.',
+    retryAfter: '1 hour',
+  },
+});
+
+// Stripe Connect account-link limiter: 5 per day per user
+// Prevents repeated account link creation and reduces support load.
+const connectAccountLimiter = rateLimit({
+  ...createStoreOption('rl:connect_account:'),
+  windowMs: 24 * 60 * 60 * 1000, // 24 hours
+  max: 5,
+  skip: (req) => !req.user,
+  keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many Connect onboarding attempts. Please try again later.',
+    retryAfter: '24 hours',
+  },
+});
+
 module.exports = {
   generalLimiter,
   authenticatedLimiter,
@@ -327,4 +359,6 @@ module.exports = {
   invoiceLimiter,
   reportLimiter,
   termsLimiter,
+  paymentsLimiter,
+  connectAccountLimiter,
 };

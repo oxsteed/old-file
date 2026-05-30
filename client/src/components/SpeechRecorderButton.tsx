@@ -7,6 +7,8 @@
 import React, { useRef, useState } from 'react';
 import { Mic, Square } from 'lucide-react';
 
+type MediaRecorderErrorEvent = Event & { error?: unknown };
+
 interface SpeechRecorderButtonProps {
   onRecordingStart?: () => void;
   onRecordingStop?: (audioBlob: Blob, duration: number) => void;

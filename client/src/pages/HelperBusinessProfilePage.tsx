@@ -636,9 +636,10 @@ const HelperBusinessProfilePage: React.FC = () => {
 
       {reportModalOpen && (
         <ReportModal
-          reportedUserId={helper.id}
-          reportedName={helper.businessName}
+          userId={helper.id}
+          userName={helper.businessName}
           onClose={() => setReportModalOpen(false)}
+          onSuccess={() => setReportModalOpen(false)}
         />
       )}
 

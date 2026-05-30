@@ -12,7 +12,7 @@
  *   logger.info('User logged in', { userId: 42 });
  */
 
-const IS_PROD = process.env.NODE_ENV === 'production';
+const IS_PROD = import.meta.env.PROD;
 
 const LEVELS = {
   debug: 1,
@@ -21,7 +21,7 @@ const LEVELS = {
   error: 4,
 };
 
-const MIN_LEVEL = LEVELS[process.env.REACT_APP_LOG_LEVEL] || (IS_PROD ? LEVELS.info : LEVELS.debug);
+const MIN_LEVEL = LEVELS[import.meta.env.VITE_LOG_LEVEL] || (IS_PROD ? LEVELS.info : LEVELS.debug);
 
 /**
  * Serialize error for logging

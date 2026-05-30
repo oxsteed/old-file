@@ -25,7 +25,10 @@ export default function HelperCard({ helper }: HelperCardProps) {
     <Link
       to={`/helpers/${helper.id}`}
       className="group block bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 h-full border border-gray-200 dark:border-gray-700 hover:border-teal-400 dark:hover:border-teal-500"
-      aria-label={t('helpers.viewProfileAria', { name: displayName }, `View ${displayName}'s profile`)}
+      aria-label={t('helpers.viewProfileAria', {
+        name: displayName,
+        defaultValue: `View ${displayName}'s profile`,
+      })}
     >
       {/* Image Container */}
       <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 overflow-hidden">

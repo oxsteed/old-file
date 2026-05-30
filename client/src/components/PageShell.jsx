@@ -11,8 +11,7 @@ import Footer from './Footer';
  *     <YourPageContent />
  *   </PageShell>
  *
- * @param {boolean} hideNav  - hide the navbar (e.g. for pages with custom nav)
- * @param {boolean} hideFooter - hide the footer
+ * @param {{ children: any, hideNav?: boolean, hideFooter?: boolean }} props
  */
 export default function PageShell({ children, hideNav = false, hideFooter = false }) {
   return (

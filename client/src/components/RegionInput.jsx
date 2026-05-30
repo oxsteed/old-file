@@ -26,7 +26,7 @@ export default function RegionInput({
   id,
   name = 'state',
   className = '',
-  placeholder,
+  placeholder = '',
   required = false,
   disabled = false,
   ...rest

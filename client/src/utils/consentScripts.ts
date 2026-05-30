@@ -34,8 +34,7 @@ function injectInlineScript(id: string, code: string): void {
 // Google Analytics 4 - replace GA_MEASUREMENT_ID with your real ID via env var.
 // If the env var is absent the function is a no-op (safe in all environments).
 export function initAnalytics(): void {
-  const gaId = (import.meta as Record<string, unknown> & { env: Record<string, string> })
-    .env?.VITE_GA_MEASUREMENT_ID;
+  const gaId = import.meta.env.VITE_GA_MEASUREMENT_ID;
   if (!gaId) return;
 
   injectScript({
@@ -52,8 +51,7 @@ export function initAnalytics(): void {
 }
 
 export function disableAnalytics(): void {
-  const gaId = (import.meta as Record<string, unknown> & { env: Record<string, string> })
-    .env?.VITE_GA_MEASUREMENT_ID;
+  const gaId = import.meta.env.VITE_GA_MEASUREMENT_ID;
   if (!gaId) return;
   // GA consent mode: tell GA not to store cookies
   if (typeof (window as Window & { gtag?: (...args: unknown[]) => void }).gtag === 'function') {
@@ -66,8 +64,7 @@ export function disableAnalytics(): void {
 // ─── Marketing ────────────────────────────────────────────────────────────────
 // Meta Pixel - replace with VITE_META_PIXEL_ID env var.
 export function initMarketing(): void {
-  const pixelId = (import.meta as Record<string, unknown> & { env: Record<string, string> })
-    .env?.VITE_META_PIXEL_ID;
+  const pixelId = import.meta.env.VITE_META_PIXEL_ID;
   if (!pixelId) return;
 
   injectInlineScript('meta-pixel-init', `

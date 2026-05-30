@@ -28,6 +28,8 @@ interface ToolDetailModalProps {
     last_name?: string;
     avatar_url?: string;
     owner_rating?: number;
+    avg_rating?: number;
+    review_count?: number;
     owner_id?: number;
   };
   isOpen: boolean;

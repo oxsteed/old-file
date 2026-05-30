@@ -54,7 +54,7 @@ class OrderErrorBoundary extends Component {
               </p>
             </div>
 
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <details className="mb-6 bg-gray-100 p-4 rounded text-xs font-mono text-red-700 overflow-auto max-h-40">
                 <summary className="cursor-pointer font-semibold mb-2">Error Details</summary>
                 <p>{this.state.error.toString()}</p>

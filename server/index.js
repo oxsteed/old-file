@@ -162,8 +162,22 @@ app.set('trust proxy', 1); // Required for Render reverse proxy
 const PORT = process.env.PORT || 5000;
 
 // ── ALLOWED ORIGINS (shared by Express CORS and Socket.IO) ────
-const allowedOrigins = (process.env.CORS_ORIGINS || process.env.CLIENT_URL || 'http://localhost:3000')
-  .split(',').map(o => o.trim());
+const rawAllowedOrigins = (process.env.CORS_ORIGINS || process.env.CLIENT_URL || 'http://localhost:3000')
+  .split(',').map(o => o.trim()).filter(Boolean);
+
+// Safety: strip localhost origins in production to avoid accidental exposure.
+const isProduction = (process.env.NODE_ENV || 'production') === 'production';
+const allowedOrigins = isProduction
+  ? rawAllowedOrigins.filter((origin) => !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin))
+  : rawAllowedOrigins;
+
+if (isProduction && rawAllowedOrigins.length !== allowedOrigins.length) {
+  logger.warn('CORS: stripped localhost origins in production', { rawAllowedOrigins, allowedOrigins });
+}
+
+if (allowedOrigins.length === 0) {
+  logger.error('CORS: no allowed origins configured', { rawAllowedOrigins, allowedOrigins });
+}
 
 // ── SOCKET.IO ─────────────────────────────────────────────────
 const io = new Server(httpServer, {
@@ -464,6 +478,55 @@ app.get('/api/health', async (req, res) => {
     logger.error('Health DB check failed', { message: err.message });
     res.status(503).json({ status: 'degraded', error: 'database unreachable' });
   }
+});
+
+// Deep health check for uptime monitors (DB + optional Redis).
+// Does not include 3rd party calls (Stripe) to keep it fast/reliable.
+app.get('/api/health/deep', async (req, res) => {
+  const startedAt = Date.now();
+  const result = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    checks: {
+      database: { ok: false },
+      redis: { ok: true, enabled: false },
+    },
+    latencyMs: 0,
+  };
+
+  try {
+    await pool.query('SELECT 1');
+    result.checks.database.ok = true;
+  } catch (err) {
+    result.status = 'degraded';
+    result.checks.database.ok = false;
+    result.checks.database.error = 'database unreachable';
+    logger.error('Deep health DB check failed', { message: err.message });
+  }
+
+  try {
+    const redis = require('./utils/redis');
+    if (redis) {
+      result.checks.redis.enabled = true;
+      const pong = await redis.ping();
+      result.checks.redis.ok = pong === 'PONG';
+      if (!result.checks.redis.ok) {
+        result.status = 'degraded';
+        result.checks.redis.error = 'redis ping failed';
+      }
+    }
+  } catch (err) {
+    // Redis is optional; treat ping failures as degraded but keep response.
+    result.status = 'degraded';
+    result.checks.redis.enabled = true;
+    result.checks.redis.ok = false;
+    result.checks.redis.error = 'redis exception';
+    logger.warn('Deep health Redis check failed', { message: err.message });
+  }
+
+  result.latencyMs = Date.now() - startedAt;
+  const statusCode = result.status === 'ok' ? 200 : 503;
+  res.status(statusCode).json(result);
 });
 
 // Apple App Site Association – Universal Links

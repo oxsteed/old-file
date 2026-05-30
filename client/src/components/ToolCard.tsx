@@ -21,6 +21,7 @@ interface ToolCardProps {
     last_name?: string;
     avatar_url?: string;
     owner_rating?: number;
+    avg_response_time_hours?: number;
     owner_id?: number;
   };
   onViewDetails: (tool: any) => void;

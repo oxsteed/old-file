@@ -66,7 +66,7 @@ const ToolFiltersPanel: React.FC<ToolFiltersPanelProps> = ({ categories, onFilte
   };
 
   const handleReset = () => {
-    const newFilters = {
+    const newFilters: FilterState = {
       category: '',
       city: '',
       name: '',

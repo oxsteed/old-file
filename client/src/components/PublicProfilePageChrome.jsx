@@ -26,7 +26,7 @@ export function ProfileSkeleton() {
   );
 }
 
-export function ProfileError({ message, onRetry, headline }) {
+export function ProfileError({ message, onRetry, headline = undefined }) {
   const { t } = useTranslation();
   const resolvedHeadline = headline ?? t('helperProfile.chrome.unableToLoad');
   return (

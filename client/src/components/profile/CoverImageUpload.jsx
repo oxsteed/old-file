@@ -38,7 +38,7 @@ function safeOnError(onError, message) {
  * Allows helpers to upload or update their profile cover image.
  * Shows preview, upload progress, and error handling.
  */
-export default function CoverImageUpload({ currentCoverUrl, onUploadSuccess, onError, embedded }) {
+export default function CoverImageUpload({ currentCoverUrl, onUploadSuccess, onError, embedded = false }) {
   const { t } = useTranslation();
   const fileInputRef = useRef(null);
 

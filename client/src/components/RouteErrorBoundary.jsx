@@ -68,7 +68,7 @@ function RouteErrorFallback({ error, errorInfo, onReset }) {
           This page encountered an error. Your data is safe and the rest of the app is working normally.
         </p>
 
-        {process.env.NODE_ENV === 'development' && (
+        {import.meta.env.DEV && (
           <details style={styles.details}>
             <summary style={styles.summary}>Error details (development only)</summary>
             <pre style={styles.errorText}>

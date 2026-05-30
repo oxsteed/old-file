@@ -1,19 +1,23 @@
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/adminAuth');
+const { paymentsLimiter, connectAccountLimiter } = require('../middleware/rateLimiter');
+const { requireFeatureEnabled } = require('../middleware/featureFlags');
 const { createConnectAccount, getConnectStatus, createPaymentIntent, capturePayment, refundPayment, getJobPayment, getMyPayments } = require('../controllers/paymentController');
 const { errorHandler } = require('../middleware/errorHandler');
 
+const requirePaymentsEnabled = requireFeatureEnabled('Payments', 'FEATURE_PAYMENTS_ENABLED');
+
 // Connect account
-router.post('/connect', authenticate, createConnectAccount);
-router.get('/connect/status', authenticate, getConnectStatus);
+router.post('/connect', authenticate, requirePaymentsEnabled, connectAccountLimiter, createConnectAccount);
+router.get('/connect/status', authenticate, requirePaymentsEnabled, getConnectStatus);
 
 // Payments
-router.get('/me', authenticate, getMyPayments);
-router.post('/intent', authenticate, createPaymentIntent);
-router.post('/capture', authenticate, capturePayment);
-router.post('/refund', authenticate, requireAdmin, refundPayment);
-router.get('/job/:job_id', authenticate, getJobPayment);
+router.get('/me', authenticate, requirePaymentsEnabled, getMyPayments);
+router.post('/intent', authenticate, requirePaymentsEnabled, paymentsLimiter, createPaymentIntent);
+router.post('/capture', authenticate, requirePaymentsEnabled, paymentsLimiter, capturePayment);
+router.post('/refund', authenticate, requirePaymentsEnabled, paymentsLimiter, requireAdmin, refundPayment);
+router.get('/job/:job_id', authenticate, requirePaymentsEnabled, getJobPayment);
 
 // Route-local JSON error handler for consistent API responses when this router
 // is mounted without the global server error handler (tests, serverless, etc.).

@@ -145,7 +145,7 @@ export function useWebPush(): UseWebPushResult {
       if (!sub) {
         sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey),
+          applicationServerKey: urlBase64ToUint8Array(publicKey) as unknown as BufferSource,
         });
       }
 
@@ -153,7 +153,9 @@ export function useWebPush(): UseWebPushResult {
       await api.post('/notifications/webpush/subscribe', {
         ...payload,
         deviceLabel: deviceLabel || (typeof navigator !== 'undefined'
-          ? (navigator.userAgentData?.platform || navigator.userAgent.slice(0, 120) || null)
+          ? (((navigator as unknown as { userAgentData?: { platform?: string } }).userAgentData?.platform)
+              || navigator.userAgent.slice(0, 120)
+              || null)
           : null),
       });
 

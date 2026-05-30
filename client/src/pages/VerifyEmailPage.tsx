@@ -140,7 +140,7 @@ export default function VerifyEmailPage() {
                       value={otp}
                       onChange={(e) => setOtp(e.target.value.toUpperCase())}
                       placeholder="000000"
-                      maxLength="6"
+                      maxLength={6}
                       className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
                       disabled={loading}
                     />

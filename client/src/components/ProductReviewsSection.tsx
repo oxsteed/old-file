@@ -12,7 +12,7 @@ function getRelativeDate(dateString) {
   if (!dateString) return '';
   const date = new Date(dateString);
   const now = new Date();
-  const seconds = Math.floor((now - date) / 1000);
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
   if (seconds < 60) return 'Just now';
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;

@@ -34,7 +34,7 @@ export default function PostalCodeInput({
   className = '',
   required = false,
   showLabel = false,
-  onValidityChange,
+  onValidityChange = undefined,
   ...rest
 }) {
   const label    = getPostalLabel(country);

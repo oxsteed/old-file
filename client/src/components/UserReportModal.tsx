@@ -6,19 +6,26 @@ import api from '../api/axios';
 import './UserReportModal.css';
 
 interface UserReportModalProps {
-  reportedUserId: number | string;
+  // Canonical prop
+  reportedUserId?: number | string;
+  // Back-compat aliases used across the codebase
+  userId?: number | string;
+  reportedName?: string;
   bookingId?: number;
   isOpen: boolean;
   onClose: () => void;
   onReportSubmitted?: () => void;
+  onSuccess?: () => void;
 }
 
 const UserReportModal: React.FC<UserReportModalProps> = ({
   reportedUserId,
+  userId,
   bookingId,
   isOpen,
   onClose,
-  onReportSubmitted
+  onReportSubmitted,
+  onSuccess,
 }) => {
   const { t } = useTranslation();
   const [reportType, setReportType] = useState('non_payment');
@@ -43,8 +50,13 @@ const UserReportModal: React.FC<UserReportModalProps> = ({
 
     setLoading(true);
     try {
+      const resolvedUserId = reportedUserId ?? userId;
+      if (resolvedUserId === undefined || resolvedUserId === null) {
+        toast.error(t('common.error') || 'Missing user id');
+        return;
+      }
       await api.post('/tool-rentals/reports', {
-        reportedUserId,
+        reportedUserId: resolvedUserId,
         bookingId,
         reportType,
         description: description.trim()
@@ -52,6 +64,7 @@ const UserReportModal: React.FC<UserReportModalProps> = ({
 
       toast.success(t('toolRentals.reportSubmitted') || 'Report submitted. Our team will review it within 48 hours.');
       onReportSubmitted?.();
+      onSuccess?.();
       onClose();
     } catch (err) {
       toast.error(t('toolRentals.reportFailed') || 'Failed to submit report');

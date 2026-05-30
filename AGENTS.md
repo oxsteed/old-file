@@ -21,6 +21,9 @@
 - 281 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
 
+**Production readiness scaffolding (2026-05-30):** IN PROGRESS
+- Added env templates + runbook + deep health endpoint + payments kill switch/rate limits: `5/PRODUCTION_READINESS.md`, `5/RUNBOOK.md`, `5/server/.env.example`, `5/client/.env.production.example`.
+
 **OxSteed One iOS auth response decoder fix (2026-05-26):** COMPLETE
 - **Login response contract tolerance:** **`ios/OxSteedOne/Sources/Models/OneAPIModels.swift`** now decodes auth user ids as either server numeric ids or string/UUID ids and keeps optional user decoding from blocking top-level `accessToken`/`refreshToken` extraction, fixing the "Sign in response format was not recognized" failure when the backend returns a valid login envelope.
 - **Verification:** `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath /tmp/OxSteedOneDerived build` passes. `swift build --package-path ios/OxSteedOne` still fails on existing non-iOS package incompatibilities around UIKit/UIApplication/UIImage symbols.

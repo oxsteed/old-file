@@ -164,11 +164,11 @@ export default function BusinessPublicProfilePage() {
           <div className="sidebar-card">
             <h3>{t('businessPublicProfile.businessHours')}</h3>
             <div className="hours-list">
-              {business.hours && Object.entries(business.hours).map(([day, hours]) => (
+              {business.hours && Object.entries(business.hours as Record<string, any>).map(([day, hours]) => (
                 <div key={day} className="hour-item">
                   <span className="day">{day}</span>
                   <span className="time">
-                    {hours.closed ? t('businessPublicProfile.closed') : `${hours.open} - ${hours.close}`}
+                    {hours?.closed ? t('businessPublicProfile.closed') : `${hours?.open} - ${hours?.close}`}
                   </span>
                 </div>
               ))}

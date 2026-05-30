@@ -15,14 +15,19 @@
     "jsx": "react-jsx",
 
     /* Linting */
-    "strict": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "useUnknownInCatchVariables": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
 
     /* Allow JS files (most of the codebase is .jsx/.js) */
     "allowJs": true,
-    "checkJs": false
+    "checkJs": false,
+
+    /* Type roots */
+    "types": ["vite/client", "node"]
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

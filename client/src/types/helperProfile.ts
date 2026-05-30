@@ -202,6 +202,9 @@ export interface ChatMessage {
   content: string;
   /** ISO date string */
   timestamp: string;
+  /** Optional fields from legacy/alternate payloads */
+  sender_id?: string | number;
+  sender_name?: string;
   attachments?: Attachment[];
   isRead?: boolean;
   /** When message was read by recipient (ISO date string) */

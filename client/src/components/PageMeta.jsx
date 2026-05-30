@@ -15,8 +15,8 @@ const TWITTER_HANDLE = '@oxsteed';
 export default function PageMeta({
   title = DEFAULT_TITLE,
   description = DEFAULT_DESC,
-  image,
-  url,
+  image = undefined,
+  url = undefined,
   type = 'website',
   noIndex = false,
 }) {
