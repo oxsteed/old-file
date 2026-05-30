@@ -1,4 +1,4 @@
-const AppError = require('../utils/AppError');
+const AppError = require('../utils/appError');
 
 function envFlagEnabled(key, defaultEnabled = true) {
   const raw = process.env[key];
