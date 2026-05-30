@@ -43,6 +43,16 @@ exports.sendNotification = async ({
     const isBanned  = !!prefs.is_banned;
     const token     = pushToken || prefs.helper_push_token;
 
+    // ── Quiet-hours gate (blocks push only, in-app and email still proceed) ──
+    // quiet_hours_start / quiet_hours_end are stored as Postgres TIME (HH:MM:SS).
+    // Safety SOS always bypasses quiet hours regardless of user setting.
+    const isSOSType = type === 'safety_sos';
+    const inQuietHours = !isSOSType && isWithinQuietHours(
+      prefs.quiet_hours_start,
+      prefs.quiet_hours_end,
+      prefs.quiet_hours_enabled
+    );
+
     // ── 1. Save to DB (in-app) ────────────────────────────────
     const prefKey    = `in_app_${type.replace(':', '_')}`;
     const inAppEnabled = prefs[prefKey] !== false; // default true
@@ -65,7 +75,7 @@ exports.sendNotification = async ({
 
     // ── 3. Push notification (Expo - native mobile) ───────────
     const pushKey     = `push_${type.replace(':', '_')}`;
-    const pushEnabled = prefs[pushKey] !== false;
+    const pushEnabled = prefs[pushKey] !== false && !inQuietHours;
     if (token && pushEnabled && Expo.isExpoPushToken(token)) {
       await sendPushNotification(token, title, body, data, notifId);
       if (notifId) {
@@ -78,7 +88,7 @@ exports.sendNotification = async ({
 
     // ── 3b. Web Push (browser, VAPID) ─────────────────────────
     // Master toggle (web_push_enabled) + per-event `push_*` pref.
-    const webPushEnabled = prefs.web_push_enabled !== false;
+    const webPushEnabled = prefs.web_push_enabled !== false && !inQuietHours;
     if (pushEnabled && webPushEnabled && webPushService.isConfigured()) {
       try {
         const result = await webPushService.sendToUser(userId, {
@@ -103,7 +113,7 @@ exports.sendNotification = async ({
     }
 
     // ── 3c. Native Mobile Push (APNs / FCM) ───────────────────
-    if (pushEnabled && mobilePushService.isConfigured()) {
+    if (pushEnabled && !inQuietHours && mobilePushService.isConfigured()) {
       try {
         const result = await mobilePushService.sendToUser(userId, {
           notifId,
@@ -344,3 +354,29 @@ exports.sendBulkNotification = async ({ userIds, type, title, body, data = {} })
   }
   return { sent: userIds.length - failedIds.length, failed: failedIds.length };
 };
+
+// ─── QUIET HOURS HELPER ───────────────────────────────────────────────────────
+// quiet_hours_start / quiet_hours_end come from Postgres as strings like "22:00:00".
+// Returns true (suppress push) when the current UTC time falls inside the window.
+// Wraps across midnight: e.g. start=22:00, end=07:00 suppresses 22–07.
+function isWithinQuietHours(startTime, endTime, enabled) {
+  if (!enabled || !startTime || !endTime) return false;
+
+  const toMinutes = (timeStr) => {
+    const parts = String(timeStr).split(':').map(Number);
+    return (parts[0] || 0) * 60 + (parts[1] || 0);
+  };
+
+  const now      = new Date();
+  const nowMins  = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const startMin = toMinutes(startTime);
+  const endMin   = toMinutes(endTime);
+
+  if (startMin <= endMin) {
+    // Same-day window e.g. 09:00–17:00
+    return nowMins >= startMin && nowMins < endMin;
+  } else {
+    // Overnight window e.g. 22:00–07:00
+    return nowMins >= startMin || nowMins < endMin;
+  }
+}
