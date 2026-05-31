@@ -1102,6 +1102,41 @@ html.dark .lrn-tool-rent {
   color: #38bdf8;
 }
 
+/* Own-inventory variant — green accent, "Shop OxSteed" label */
+.lrn-tool-buy--own {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+.lrn-tool-buy--own:hover {
+  background: #dcfce7;
+}
+html.dark .lrn-tool-buy--own {
+  background: rgba(22,163,74,.12);
+  color: #4ade80;
+}
+
+/* "(paid link)" micro-label — FTC + Amazon Associates requirement */
+.lrn-tool-paid-label {
+  font-size: .65rem;
+  color: #a1a1aa;
+  margin-left: .15rem;
+  white-space: nowrap;
+}
+html.dark .lrn-tool-paid-label {
+  color: #71717a;
+}
+
+/* Amazon Associates site-wide disclosure */
+.lrn-affiliate-disclosure {
+  margin-top: .5rem;
+  font-size: .65rem;
+  color: #a1a1aa;
+  line-height: 1.4;
+}
+html.dark .lrn-affiliate-disclosure {
+  color: #71717a;
+}
+
 /* CTAs panel */
 .lrn-detail-ctas {
   padding: .875rem 1rem;

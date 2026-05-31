@@ -3885,6 +3885,7 @@ export default function LearnModePage() {
   const [completions, setCompletions]     = useState({});
   const [completing, setCompleting]       = useState(null);
   const [remoteCatalog, setRemoteCatalog] = useState(null); // { guides: [...] } from /api/learn/guides
+  const [productLinks,  setProductLinks]  = useState([]);   // admin-managed link overrides
 
   // App banner (Priority 13)
   const [showAppBanner, setShowAppBanner] = useState(false);
@@ -3934,6 +3935,16 @@ export default function LearnModePage() {
     api.get('/learn/guides')
       .then(({ data }) => {
         if (Array.isArray(data.guides) && data.guides.length) setRemoteCatalog(data.guides);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Fetch admin-managed product link overrides.
+  // Fails open (empty array) when the endpoint or table isn't yet deployed.
+  useEffect(() => {
+    api.get('/learn/product-links')
+      .then(({ data }) => {
+        if (Array.isArray(data.products) && data.products.length) setProductLinks(data.products);
       })
       .catch(() => {});
   }, []);
@@ -4026,8 +4037,32 @@ export default function LearnModePage() {
         tips: {},
       }));
 
-    return [...merged, ...extras];
-  }, [remoteCatalog]);
+    // Apply admin-managed product link overrides on top of the merged catalog.
+    // Guide-scoped rows (guide_id set) beat global rows (guide_id null) for the
+    // same tool name — same priority logic as the iOS app.
+    const activeOverrides = productLinks.filter((p) => p.is_active !== false);
+    if (!activeOverrides.length) return [...merged, ...extras];
+
+    const applyOverrides = (guides) =>
+      guides.map((guide) => {
+        const updatedTools = guide.tools.map((tool) => {
+          const nameLower = tool.name.toLowerCase();
+          const match =
+            activeOverrides.find((p) => p.tool_name.toLowerCase() === nameLower && p.guide_id === guide.id) ??
+            activeOverrides.find((p) => p.tool_name.toLowerCase() === nameLower && !p.guide_id);
+          if (!match) return tool;
+          return {
+            ...tool,
+            buy:       match.buy_url   ?? tool.buy,
+            rent:      match.rent_url  ?? tool.rent,
+            link_type: match.link_type ?? tool.link_type,
+          };
+        });
+        return updatedTools === guide.tools ? guide : { ...guide, tools: updatedTools };
+      });
+
+    return applyOverrides([...merged, ...extras]);
+  }, [remoteCatalog, productLinks]);
 
   // Inject HowTo JSON-LD (SEO — Priority 10) from the merged guide catalog.
   // Keep the <script> node stable; just update its contents as the catalog updates.
@@ -4656,11 +4691,31 @@ export default function LearnModePage() {
                                   <li key={tool.name} className="lrn-tool-row">
                                     <span className="lrn-tool-name">{tool.name}</span>
                                     <span className="lrn-tool-links">
-                                      {tool.buy && (
-                                        <a href={tool.buy} target="_blank" rel="noopener noreferrer" className="lrn-tool-buy" aria-label={`Buy ${tool.name} on Amazon`}>
-                                          Buy <ExternalLink size={11} aria-hidden="true" />
-                                        </a>
-                                      )}
+                                      {tool.buy && (() => {
+                                        const isOwn      = tool.link_type === 'own_inventory';
+                                        const isAffiliate = !isOwn && tool.link_type !== 'rental';
+                                        const label      = isOwn ? 'Shop OxSteed' : 'Buy';
+                                        const ariaLabel  = isOwn
+                                          ? `Shop ${tool.name} on OxSteed`
+                                          : `Buy ${tool.name}`;
+                                        return (
+                                          <>
+                                            <a
+                                              href={tool.buy}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className={isOwn ? 'lrn-tool-buy lrn-tool-buy--own' : 'lrn-tool-buy'}
+                                              aria-label={ariaLabel}
+                                            >
+                                              {label} <ExternalLink size={11} aria-hidden="true" />
+                                            </a>
+                                            {/* FTC + Amazon: "(paid link)" must appear near each affiliate link */}
+                                            {isAffiliate && (
+                                              <span className="lrn-tool-paid-label">(paid link)</span>
+                                            )}
+                                          </>
+                                        );
+                                      })()}
                                       {tool.rent && (
                                         <Link to={tool.rent} className="lrn-tool-rent">Rent</Link>
                                       )}
@@ -4668,6 +4723,12 @@ export default function LearnModePage() {
                                   </li>
                                 ))}
                               </ul>
+                              {/* Amazon Associates site-wide disclosure — required when any affiliate link is present */}
+                              {guide.tools.some((t) => t.buy && t.link_type !== 'own_inventory' && t.link_type !== 'rental') && (
+                                <p className="lrn-affiliate-disclosure">
+                                  As an Amazon Associate, OxSteed earns from qualifying purchases.
+                                </p>
+                              )}
                             </div>
 
                             {/* Persona CTA */}
