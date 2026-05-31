@@ -170,7 +170,7 @@ function buildCrossSells({ vehicles, homes, goals, expenses, summary }) {
       id: 'planned_needs',
       icon: <CalendarClock size={16} className="text-purple-400" />,
       title: 'Plan your home expenses',
-      subtitle: 'You've logged several home costs. Set up planned needs to stay ahead.',
+      subtitle: "You've logged several home costs. Set up planned needs to stay ahead.",
       href: '/planned-needs',
       cta: 'Set up a plan',
       color: 'purple',
