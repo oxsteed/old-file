@@ -12,8 +12,7 @@ const express  = require('express');
 const router   = express.Router();
 const pool     = require('../db');
 const { authenticate } = require('../middleware/auth');
-let mobilePush;
-try { mobilePush = require('../services/mobilePushService'); } catch (_) {}
+const { sendNotification } = require('../services/notificationService');
 
 // ── List saved searches ───────────────────────────────────────────────────────
 router.get('/', authenticate, async (req, res, next) => {
@@ -107,7 +106,6 @@ router.delete('/:id', authenticate, async (req, res, next) => {
 // ── Internal: fan out push alerts after a new job is posted ──────────────────
 // Called by jobs controller after INSERT; not exposed publicly.
 async function notifyMatchingSavedSearches(job) {
-  if (!mobilePush?.isConfigured()) return;
   try {
     const rows = await pool.query(`
       SELECT ss.user_id
@@ -129,9 +127,11 @@ async function notifyMatchingSavedSearches(job) {
     ]).catch(() => ({ rows: [] }));
 
     for (const { user_id } of rows.rows) {
-      mobilePush.sendToUser(user_id, {
+      await sendNotification({
+        userId: user_id,
+        type: 'job_alert',
         title: 'New Job Alert',
-        body:  job.title || 'A new job matches your saved search',
+        body: job.title || 'A new job matches your saved search',
         data:  { type: 'job_alert', job_id: String(job.id) },
         action_url: `/jobs/${job.id}`,
       }).catch(() => {});

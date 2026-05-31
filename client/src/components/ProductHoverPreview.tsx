@@ -1,5 +1,6 @@
 import { Star, ShoppingCart } from 'lucide-react';
 import '../styles/ProductHoverPreview.css';
+import { useTranslation } from 'react-i18next';
 
 interface Product {
   id: string | number;
@@ -21,6 +22,7 @@ export default function ProductHoverPreview({
   product,
   position = 'bottom-right'
 }: ProductHoverPreviewProps) {
+  const { t } = useTranslation('common');
   const rating = product.rating || 0;
   const ratingCount = product.rating_count || 0;
   const inCartsCount = product.in_carts_count || 0;
@@ -54,7 +56,9 @@ export default function ProductHoverPreview({
       <div className="php-rating-section">
         {renderStars(rating)}
         <span className="php-rating-text">
-          {rating > 0 ? `${rating.toFixed(1)} (${ratingCount})` : 'No ratings'}
+          {rating > 0
+            ? `${rating.toFixed(1)} (${ratingCount})`
+            : t('productPreview.noRatings')}
         </span>
       </div>
 
@@ -63,7 +67,9 @@ export default function ProductHoverPreview({
         <div className="php-carts-section">
           <ShoppingCart size={14} />
           <span className="php-carts-text">
-            {inCartsCount} {inCartsCount === 1 ? 'cart' : 'carts'}
+            {inCartsCount === 1
+              ? t('productPreview.inCarts.singular', { count: inCartsCount })
+              : t('productPreview.inCarts.plural', { count: inCartsCount })}
           </span>
         </div>
       )}
@@ -82,7 +88,9 @@ export default function ProductHoverPreview({
       {/* Availability Status */}
       {product.is_available !== undefined && (
         <div className={`php-availability ${product.is_available ? 'php-available' : 'php-unavailable'}`}>
-          {product.is_available ? 'Available' : 'Unavailable'}
+          {product.is_available
+            ? t('productPreview.available')
+            : t('productPreview.unavailable')}
         </div>
       )}
     </div>

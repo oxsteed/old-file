@@ -1,4 +1,5 @@
 import { hasRegions, getRegionsFor, getRegionLabel } from '../lib/countries';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Country-aware region/state input.
@@ -31,6 +32,7 @@ export default function RegionInput({
   disabled = false,
   ...rest
 }) {
+  const { t } = useTranslation('common');
   const isCountrySelected = !!country;
   const regions           = isCountrySelected ? getRegionsFor(country) : null;
   const label             = getRegionLabel(country);
@@ -45,7 +47,7 @@ export default function RegionInput({
         type="text"
         value={value || ''}
         disabled
-        placeholder="Select a country first"
+        placeholder={t('forms.region.selectCountryFirst')}
         className={className}
         {...rest}
       />
@@ -66,7 +68,7 @@ export default function RegionInput({
         autoComplete="address-level1"
         {...rest}
       >
-        <option value="">{placeholder || `Select ${label}`}</option>
+        <option value="">{placeholder || t('forms.region.selectByLabel', { label })}</option>
         {regions.map(r => (
           <option key={r} value={r}>{r}</option>
         ))}
@@ -76,16 +78,16 @@ export default function RegionInput({
 
   // Free-text fallback (city or region name)
   return (
-    <input
-      id={id}
-      name={name}
-      type="text"
-      value={value || ''}
-      onChange={handle}
-      placeholder={placeholder || `${label} (e.g. capital city)`}
-      required={required}
-      disabled={disabled}
-      className={className}
+      <input
+        id={id}
+        name={name}
+        type="text"
+        value={value || ''}
+        onChange={handle}
+        placeholder={placeholder || t('forms.region.placeholderWithExample', { label })}
+        required={required}
+        disabled={disabled}
+        className={className}
       autoComplete="address-level1"
       {...rest}
     />

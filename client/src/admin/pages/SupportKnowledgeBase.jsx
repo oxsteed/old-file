@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import {
   BookOpen,
@@ -24,6 +25,7 @@ import {
 const categories = ['general', 'billing', 'technical', 'account', 'shipping'];
 
 export default function SupportKnowledgeBase() {
+  const { t } = useTranslation();
   const { businessId } = useParams();
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -80,7 +82,7 @@ export default function SupportKnowledgeBase() {
   };
 
   const handleDelete = async (articleId) => {
-    if (!window.confirm('Delete this article?')) return;
+    if (!window.confirm(t('supportAdmin.knowledgeBase.confirmDeleteArticle'))) return;
     try {
       await adminApi.delete(`/support/kb/${articleId}`);
       loadArticles();

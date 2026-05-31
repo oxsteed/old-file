@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { axiosInstance } from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -12,25 +13,30 @@ import { AppointmentCalendarView } from './AppointmentCalendarView';
 import { BusinessProcurementTab } from './BusinessProcurementTab';
 import '../../styles/BusinessHubComplete.css';
 
-const TABS = [
-  { id: 'overview',     name: 'Overview',    icon: BarChart3 },
-  { id: 'services',     name: 'Services',    icon: Package },
-  { id: 'appointments', name: 'Appointments',icon: MessageSquare },
-  { id: 'pricing',      name: 'Pricing Rules',icon: DollarSign },
-  { id: 'analytics',    name: 'Analytics',   icon: TrendingUp },
-  { id: 'loyalty',      name: 'Loyalty',     icon: Users },
-  { id: 'integrations', name: 'Integrations',icon: Settings },
-  { id: 'procurement',  name: 'Procurement', icon: ShoppingCart },
-];
-
 export function BusinessHubComplete({ businessId }) {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') || 'overview';
   const [activeTab, setActiveTab] = useState(
-    TABS.some(t => t.id === initialTab) ? initialTab : 'overview',
+    initialTab,
   );
   const [businessData, setBusinessData] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const tabs = [
+    { id: 'overview',     name: t('businessHubComplete.tabs.overview'),    icon: BarChart3 },
+    { id: 'services',     name: t('businessHubComplete.tabs.services'),    icon: Package },
+    { id: 'appointments', name: t('businessHubComplete.tabs.appointments'),icon: MessageSquare },
+    { id: 'pricing',      name: t('businessHubComplete.tabs.pricingRules'),icon: DollarSign },
+    { id: 'analytics',    name: t('businessHubComplete.tabs.analytics'),   icon: TrendingUp },
+    { id: 'loyalty',      name: t('businessHubComplete.tabs.loyalty'),     icon: Users },
+    { id: 'integrations', name: t('businessHubComplete.tabs.integrations'),icon: Settings },
+    { id: 'procurement',  name: t('businessHubComplete.tabs.procurement'), icon: ShoppingCart },
+  ];
+
+  useEffect(() => {
+    setActiveTab(tabs.some(t => t.id === initialTab) ? initialTab : 'overview');
+  }, [initialTab, tabs]);
 
   useEffect(() => {
     loadBusinessData();
@@ -42,31 +48,34 @@ export function BusinessHubComplete({ businessId }) {
       const response = await axiosInstance.get(`/api/businesses/${businessId}`);
       setBusinessData(response.data);
     } catch (error) {
-      toast.error('Failed to load business data');
+      toast.error(t('businessHubComplete.loadError'));
     } finally {
       setLoading(false);
     }
   };
 
   if (loading) {
-    return <div className="bhc-loading">Loading business hub...</div>;
+    return <div className="bhc-loading">{t('businessHubComplete.loading')}</div>;
   }
 
   if (!businessData) {
-    return <div className="bhc-error">Failed to load business data</div>;
+    return <div className="bhc-error">{t('businessHubComplete.notFound')}</div>;
   }
+
+  const businessName = businessData.business_name || t('businessHubComplete.headerFallbackName');
+  const businessCategory = businessData.category || t('businessHubComplete.headerFallbackCategory');
 
   return (
     <div className="bhc-container">
       <div className="bhc-header">
         <div className="bhc-header-content">
-          <h1>{businessData.business_name || 'Business Hub'}</h1>
-          <p className="bhc-subtitle">{businessData.category || 'Service Business'}</p>
+          <h1>{businessName}</h1>
+          <p className="bhc-subtitle">{businessCategory}</p>
         </div>
       </div>
 
       <div className="bhc-nav-tabs">
-        {TABS.map(tab => {
+        {tabs.map(tab => {
           const Icon = tab.icon;
           return (
             <button
@@ -87,48 +96,54 @@ export function BusinessHubComplete({ businessId }) {
           <div className="bhc-overview-tab">
             <div className="bhc-overview-grid">
               <div className="bhc-overview-card">
-                <h3>Quick Stats</h3>
+                <h3>{t('businessHubComplete.overview.title')}</h3>
                 <div className="bhc-stat-row">
-                  <span>Services:</span>
+                  <span>{t('businessHubComplete.overview.servicesLabel')}</span>
                   <strong>{businessData.services_count || 0}</strong>
                 </div>
                 <div className="bhc-stat-row">
-                  <span>Rating:</span>
-                  <strong>{businessData.rating || 'N/A'}</strong>
+                  <span>{t('businessHubComplete.overview.ratingLabel')}</span>
+                  <strong>{businessData.rating || t('businessHubComplete.overview.na')}</strong>
                 </div>
                 <div className="bhc-stat-row">
-                  <span>Appointments:</span>
+                  <span>{t('businessHubComplete.overview.appointmentsLabel')}</span>
                   <strong>{businessData.appointment_count || 0}</strong>
                 </div>
               </div>
 
               <div className="bhc-overview-card">
-                <h3>Business Info</h3>
+                <h3>{t('businessHubComplete.overview.businessInfo')}</h3>
                 <div className="bhc-info-row">
-                  <span>Location:</span>
+                  <span>{t('businessHubComplete.overview.locationLabel')}</span>
                   <span>{businessData.location_city}, {businessData.location_state}</span>
                 </div>
                 <div className="bhc-info-row">
-                  <span>Phone:</span>
-                  <span>{businessData.phone || 'Not set'}</span>
+                  <span>{t('businessHubComplete.overview.phoneLabel')}</span>
+                  <span>{businessData.phone || t('businessHubComplete.overview.notSet')}</span>
                 </div>
                 <div className="bhc-info-row">
-                  <span>Status:</span>
+                  <span>{t('businessHubComplete.overview.statusLabel')}</span>
                   <span className={`bhc-status ${businessData.is_active ? 'active' : 'inactive'}`}>
-                    {businessData.is_active ? 'Active' : 'Inactive'}
+                    {businessData.is_active
+                      ? t('businessHubComplete.overview.statusActive')
+                      : t('businessHubComplete.overview.statusInactive')}
                   </span>
                 </div>
               </div>
 
               <div className="bhc-overview-card">
-                <h3>Recent Activity</h3>
+                <h3>{t('businessHubComplete.overview.recentActivity')}</h3>
                 <p className="bhc-no-data">
-                  Last appointment: {businessData.last_appointment_at
-                    ? new Date(businessData.last_appointment_at).toLocaleDateString()
-                    : 'No appointments yet'}
+                  {businessData.last_appointment_at
+                    ? t('businessHubComplete.overview.lastAppointment', {
+                      date: new Date(businessData.last_appointment_at).toLocaleDateString(),
+                    })
+                    : t('businessHubComplete.overview.noAppointments')}
                 </p>
                 <p className="bhc-no-data">
-                  Member since: {new Date(businessData.created_at).toLocaleDateString()}
+                  {t('businessHubComplete.overview.memberSince', {
+                    date: new Date(businessData.created_at).toLocaleDateString(),
+                  })}
                 </p>
               </div>
             </div>

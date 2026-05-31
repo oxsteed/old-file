@@ -12,6 +12,7 @@ import {
   Search, MapPin, User, Briefcase, Wrench, Building2,
   Star, ShieldCheck, Sparkles, AlertCircle, Loader2,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -78,7 +79,10 @@ function typeBg(type: string): string {
 // ── Result card ───────────────────────────────────────────────────────────────
 
 function ResultCard({ item }: { item: DiscoverItem }) {
+  const { t } = useTranslation();
   const href = itemHref(item);
+  const verifiedLabel = t('discoverPage.verified');
+  const typeLabel = t(`discoverPage.types.${item.type}`, { defaultValue: item.type });
 
   return (
     <Link
@@ -120,21 +124,21 @@ function ResultCard({ item }: { item: DiscoverItem }) {
           )}
           {item.verified && (
             <span className="flex items-center gap-1 text-xs text-emerald-400">
-              <ShieldCheck className="w-3 h-3" /> Verified
+              <ShieldCheck className="w-3 h-3" /> {verifiedLabel}
             </span>
           )}
           {item.priceHint && (
             <span className="text-xs font-semibold text-orange-400">{item.priceHint}</span>
           )}
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${typeBg(item.type)}`}>
-            {item.type}
+            {typeLabel}
           </span>
         </div>
       </div>
 
       {/* CTA hint */}
       <span className="flex-shrink-0 text-xs font-semibold text-orange-400 self-center">
-        {item.primaryAction ?? 'View'} →
+        {item.primaryAction ?? t('discoverPage.viewAction')} →
       </span>
     </Link>
   );
@@ -143,14 +147,15 @@ function ResultCard({ item }: { item: DiscoverItem }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 const FILTER_OPTIONS: { label: string; value: FilterType }[] = [
-  { label: 'All',        value: 'all' },
-  { label: 'Helpers',    value: 'helper' },
-  { label: 'Jobs',       value: 'job' },
-  { label: 'Tools',      value: 'tool' },
-  { label: 'Businesses', value: 'business' },
+  { label: 'discoverPage.filters.all',        value: 'all' },
+  { label: 'discoverPage.filters.helper',    value: 'helper' },
+  { label: 'discoverPage.filters.job',       value: 'job' },
+  { label: 'discoverPage.filters.tool',      value: 'tool' },
+  { label: 'discoverPage.filters.business',  value: 'business' },
 ];
 
 export default function DiscoverPage() {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
 
@@ -188,7 +193,7 @@ export default function DiscoverPage() {
       setResults(data.results ?? []);
       setTotal(data.total ?? (data.results?.length ?? 0));
     } catch {
-      setError('Search failed. Please try again.');
+      setError(t('discoverPage.searchFailed'));
     } finally {
       setLoading(false);
     }
@@ -227,9 +232,11 @@ export default function DiscoverPage() {
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-10">
         {/* Hero */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-black tracking-tight mb-2">Discover</h1>
+          <h1 className="text-3xl font-black tracking-tight mb-2">
+            {t('discoverPage.title')}
+          </h1>
           <p className="text-zinc-400 text-sm">
-            Search helpers, jobs, tools, and businesses near you.
+            {t('discoverPage.subtitle')}
           </p>
         </div>
 
@@ -240,7 +247,7 @@ export default function DiscoverPage() {
             type="search"
             value={inputValue}
             onChange={(e) => handleInput(e.target.value)}
-            placeholder="Search helpers, jobs, tools, businesses…"
+            placeholder={t('discoverPage.searchPlaceholder')}
             className="w-full pl-12 pr-4 py-4 rounded-2xl bg-zinc-900 border border-white/[0.08]
                        text-white placeholder-zinc-500 text-sm focus:outline-none
                        focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/30 transition"
@@ -266,8 +273,8 @@ export default function DiscoverPage() {
                       ? 'bg-orange-500 border-orange-500 text-white'
                       : 'border-white/[0.08] text-zinc-400 hover:border-orange-500/30 hover:text-white'
                     }`}
-                >
-                  {label} {count > 0 && <span className="opacity-60 ml-1">{count}</span>}
+              >
+                  {t(label)} {count > 0 && <span className="opacity-60 ml-1">{count}</span>}
                 </button>
               );
             })}
@@ -286,7 +293,10 @@ export default function DiscoverPage() {
         {filtered.length > 0 && (
           <div className="space-y-3">
             <p className="text-xs text-zinc-500 mb-1">
-              {total} result{total !== 1 ? 's' : ''} for <span className="text-zinc-300 font-medium">"{query}"</span>
+              {t('discoverPage.resultsSummary', {
+                count: total,
+                query,
+              })}
             </p>
             {filtered.map((item) => (
               <ResultCard key={`${item.type}-${item.id}`} item={item} />
@@ -298,8 +308,10 @@ export default function DiscoverPage() {
         {!loading && query && filtered.length === 0 && !error && (
           <div className="text-center py-16 text-zinc-500">
             <Search className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">No results for <span className="text-zinc-300">"{query}"</span></p>
-            <p className="text-xs mt-1">Try different keywords or expand your search.</p>
+            <p className="text-sm">
+              {t('discoverPage.noResults', { query })}
+            </p>
+            <p className="text-xs mt-1">{t('discoverPage.noResultsHint')}</p>
           </div>
         )}
 
@@ -307,7 +319,7 @@ export default function DiscoverPage() {
         {!loading && !query && (
           <div className="text-center py-16 text-zinc-500">
             <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">Start typing to discover helpers, jobs, tools, and businesses near you.</p>
+            <p className="text-sm">{t('discoverPage.startHint')}</p>
           </div>
         )}
       </main>

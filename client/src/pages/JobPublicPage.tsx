@@ -8,6 +8,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   MapPin, Tag, DollarSign, Calendar, Clock, ArrowLeft,
   Loader2, AlertCircle, CheckCircle2, XCircle, Hammer,
@@ -35,37 +36,51 @@ interface PublicJob {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function statusChip(status: string) {
+function statusChip(status: string, t) {
+  const statusMap = {
+    open: t('jobPublicPage.statusOpen', { defaultValue: 'Open' }),
+    published: t('jobPublicPage.statusPublished', { defaultValue: 'Open' }),
+    assigned: t('jobPublicPage.statusInProgress', { defaultValue: 'In progress' }),
+    in_progress: t('jobPublicPage.statusInProgress', { defaultValue: 'In progress' }),
+    completed: t('jobPublicPage.statusCompleted', { defaultValue: 'Completed' }),
+    cancelled: t('jobPublicPage.statusCancelled', { defaultValue: 'Cancelled' }),
+  };
   switch (status) {
     case 'published':
       return (
         <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400">
-          <CheckCircle2 className="w-3 h-3" /> Open
+          <CheckCircle2 className="w-3 h-3" /> {statusMap.published}
         </span>
       );
     case 'assigned':
     case 'in_progress':
       return (
         <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-blue-500/15 text-blue-400">
-          <Clock className="w-3 h-3" /> In progress
+          <Clock className="w-3 h-3" /> {statusMap.in_progress}
         </span>
       );
     case 'completed':
       return (
         <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-zinc-500/15 text-zinc-400">
-          <CheckCircle2 className="w-3 h-3" /> Completed
+          <CheckCircle2 className="w-3 h-3" /> {statusMap.completed}
+        </span>
+      );
+    case 'open':
+      return (
+        <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400">
+          <CheckCircle2 className="w-3 h-3" /> {statusMap.open}
         </span>
       );
     case 'cancelled':
       return (
         <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-red-500/15 text-red-400">
-          <XCircle className="w-3 h-3" /> Cancelled
+          <XCircle className="w-3 h-3" /> {statusMap.cancelled}
         </span>
       );
     default:
       return (
         <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-zinc-700 text-zinc-300 capitalize">
-          {status}
+{statusMap[status] || t('jobPublicPage.statusDefault', { defaultValue: status.charAt(0).toUpperCase() + status.slice(1) })}
         </span>
       );
   }
@@ -90,6 +105,7 @@ export default function JobPublicPage() {
 
   const [job, setJob]       = useState<PublicJob | null>(null);
   const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
   const [error, setError]   = useState('');
 
   useEffect(() => {
@@ -99,9 +115,9 @@ export default function JobPublicPage() {
       .then(({ data }) => setJob(data.job ?? data))
       .catch((err) => {
         if (err.response?.status === 404) {
-          setError('This job posting was not found or has been removed.');
+          setError(t('jobPublicPage.errors.notFound', { defaultValue: 'This job posting was not found or has been removed.' }));
         } else {
-          setError('Unable to load this job. Please try again.');
+          setError(t('jobPublicPage.errors.loadFailed', { defaultValue: 'Unable to load this job. Please try again.' }));
         }
       })
       .finally(() => setLoading(false));
@@ -126,14 +142,14 @@ export default function JobPublicPage() {
           onClick={() => navigate(-1)}
           className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white mb-6 transition"
         >
-          <ArrowLeft className="w-4 h-4" /> Back
+          <ArrowLeft className="w-4 h-4" /> {t('jobPublicPage.back', { defaultValue: 'Back' })}
         </button>
 
         {/* Loading */}
         {loading && (
           <div className="flex flex-col items-center gap-3 py-20 text-zinc-500">
             <Loader2 className="w-8 h-8 animate-spin" />
-            <span className="text-sm">Loading job…</span>
+            <span className="text-sm">{t('jobPublicPage.loading', { defaultValue: 'Loading job…' })}</span>
           </div>
         )}
 
@@ -162,7 +178,7 @@ export default function JobPublicPage() {
                     )}
                   </div>
                 </div>
-                {statusChip(job.status)}
+                {statusChip(job.status, t)}
               </div>
 
               {/* Meta row */}
@@ -188,7 +204,7 @@ export default function JobPublicPage() {
                 {job.created_at && (
                   <span className="flex items-center gap-1.5">
                     <Clock className="w-4 h-4 text-zinc-500" />
-                    Posted {formatDate(job.created_at)}
+                    {t('jobPublicPage.postedOn', { date: formatDate(job.created_at) })}
                   </span>
                 )}
               </div>
@@ -198,7 +214,7 @@ export default function JobPublicPage() {
             {job.description && (
               <div className="rounded-2xl bg-zinc-900 border border-white/[0.07] p-6">
                 <h2 className="text-sm font-bold text-zinc-300 uppercase tracking-widest mb-3">
-                  Description
+                  {t('jobPublicPage.description', { defaultValue: 'Description' })}
                 </h2>
                 <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
                   {job.description}
@@ -210,14 +226,14 @@ export default function JobPublicPage() {
             {job.media && job.media.length > 0 && (
               <div className="rounded-2xl bg-zinc-900 border border-white/[0.07] p-6">
                 <h2 className="text-sm font-bold text-zinc-300 uppercase tracking-widest mb-3">
-                  Photos
+                  {t('jobPublicPage.photos', { defaultValue: 'Photos' })}
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {job.media.filter((m) => m.type?.startsWith('image') || m.url?.match(/\.(jpg|jpeg|png|webp)/i)).map((m, i) => (
                     <a key={i} href={m.url} target="_blank" rel="noopener noreferrer">
                       <img
                         src={m.url}
-                        alt={`Job photo ${i + 1}`}
+                        alt={t('jobPublicPage.jobPhotoAlt', { index: i + 1, defaultValue: `Job photo ${i + 1}` })}
                         className="w-full aspect-square object-cover rounded-xl border border-white/[0.06] hover:opacity-80 transition"
                       />
                     </a>
@@ -233,13 +249,13 @@ export default function JobPublicPage() {
                 className="w-full py-4 rounded-2xl bg-orange-500 hover:bg-orange-400 text-white
                            font-bold text-base transition active:scale-[0.98]"
               >
-                Submit a Bid
+                {t('jobPublicPage.submitBid', { defaultValue: 'Submit a Bid' })}
               </button>
             )}
 
             {job.status !== 'published' && (
               <div className="text-center text-sm text-zinc-500 py-2">
-                This job is no longer accepting bids.
+                {t('jobPublicPage.bidsClosed', { defaultValue: 'This job is no longer accepting bids.' })}
               </div>
             )}
 
@@ -249,7 +265,7 @@ export default function JobPublicPage() {
                 to="/discover"
                 className="text-sm text-orange-400 hover:text-orange-300 transition"
               >
-                ← Browse more opportunities
+                {t('jobPublicPage.browseMore', { defaultValue: '← Browse more opportunities' })}
               </Link>
             </div>
           </div>

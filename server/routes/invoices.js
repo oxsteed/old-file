@@ -5,16 +5,19 @@ const { authenticate } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/adminAuth');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const logger = require('../utils/logger');
+const { tNotif } = require('../utils/i18n');
 
 // Helper: check invoice ownership or admin
 async function getInvoiceForUser(invoiceId, userId, role) {
   const isAdmin = ['admin', 'super_admin'].includes(role);
   const { rows } = await pool.query(
     `SELECT bi.*,
+            u.preferred_language,
             b.business_name,
             ROUND(bi.total * 100)::bigint AS amount_cents
      FROM business_invoices bi
      LEFT JOIN businesses b ON b.id = bi.business_id
+     LEFT JOIN users u ON u.id = bi.user_id
      WHERE bi.id = $1
        AND ($2 OR bi.user_id = $3)`,
     [invoiceId, isAdmin, userId]
@@ -114,10 +117,13 @@ router.post('/:id/resend-email', authenticate, generalLimiter, async (req, res) 
     try {
       const notificationService = require('../services/notificationService');
       if (notificationService && notificationService.sendEmail) {
+        const localized = tNotif('invoice_resend', inv.preferred_language || 'en');
+        const subject = `${localized.title || 'Invoice'} ${inv.invoice_number}`;
+        const message = `${localized.body || 'Your invoice'} ${inv.invoice_number}`;
         await notificationService.sendEmail({
           to: inv.client_email,
-          subject: 'Invoice ' + inv.invoice_number,
-          text: 'Please find your invoice ' + inv.invoice_number + ' attached.',
+          subject,
+          text: `${message}.`,
         });
       }
     } catch (_) {}

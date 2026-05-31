@@ -1,0 +1,283 @@
+{
+  "actions": {
+    "cancel": "إلغاء",
+    "create": "إنشاء",
+    "loading": "جارٍ التحميل",
+    "save": "حفظ",
+    "submit": "إرسال",
+    "translate": "ترجمة",
+    "translating": "جارٍ الترجمة...",
+    "switchToLightMode": "التبديل إلى الوضع الفاتح",
+    "switchToDarkMode": "التبديل إلى الوضع المظلم",
+    "startRecording": "بدء التسجيل",
+    "stopRecording": "إيقاف التسجيل",
+    "recording": "جارٍ التسجيل..."
+  },
+  "switching": "جارٍ التبديل...",
+  "forms": {
+    "country": {
+      "placeholder": "اختر دولة"
+    },
+    "region": {
+      "selectCountryFirst": "اختر دولة أولاً",
+      "selectByLabel": "اختر {{label}}",
+      "placeholderWithExample": "{{label}} (مثل عاصمة)"
+    }
+  },
+  "productPreview": {
+    "noRatings": "لا توجد تقييمات بعد",
+    "inCarts": {
+      "singular": "{{count}} في السلة",
+      "plural": "{{count}} في السلال"
+    },
+    "available": "متاح",
+    "unavailable": "غير متاح"
+  },
+  "speechToText": {
+    "placeholder": "تحدث برسالتك هنا...",
+    "clickToSpeak": "انقر للتحدث",
+    "listening": "جاري الاستماع...",
+    "errors": {
+      "unsupported": "ميزة التعرف على الكلام غير مدعومة في هذا المتصفح.",
+      "noSpeech": "لم يتم الكشف عن كلام. حاول مرة أخرى.",
+      "network": "حدث خطأ في الشبكة أثناء التعرف على الكلام.",
+      "generic": "فشل التعرف على الكلام: {{reason}}",
+      "emptyTranscript": "يرجى التحدث قبل الإرسال."
+    }
+  },
+  "productCard": {
+    "addToCartAriaLabel": "إضافة {{name}} إلى السلة"
+  },
+  "notificationCenter": {
+    "loading": "جارٍ تحميل الإشعارات...",
+    "title": "الإشعارات",
+    "emptyState": "لا توجد إشعارات حتى الآن",
+    "messageFallback": "إشعار جديد",
+    "time": {
+      "justNow": "الآن",
+      "minutesAgo": "منذ {{value}} دقيقة",
+      "hoursAgo": "منذ {{value}} ساعة",
+      "daysAgo": "منذ {{value}} يوم"
+    }
+  },
+  "navigation": {
+    "skipToMainContent": "انتقل إلى المحتوى الرئيسي"
+  },
+  "productReviews": {
+    "timeAgo": {
+      "justNow": "الآن",
+      "minutesAgo": "منذ {{value}} دقيقة",
+      "hoursAgo": "منذ {{value}} ساعة",
+      "daysAgo": "منذ {{value}} يوم",
+      "monthsAgo": "منذ {{value}} شهر",
+      "yearsAgo": "منذ {{value}} سنة"
+    },
+    "ratingStarsAria": "{{count}} نجوم"
+  },
+  "bookService": {
+    "loading": "جارٍ تحميل الخدمة...",
+    "notFound": "الخدمة غير موجودة",
+    "durationLabel": "المدة",
+    "basePriceLabel": "السعر الأساسي",
+    "sections": {
+      "details": "تفاصيل الخدمة",
+      "selectDate": "اختر التاريخ",
+      "selectTime": "اختر الوقت"
+    },
+    "noAvailableSlots": "لا توجد أوقات متاحة في هذا التاريخ",
+    "summary": {
+      "title": "ملخص الحجز",
+      "dateLabel": "التاريخ",
+      "timeLabel": "الوقت",
+      "basePriceLabel": "السعر الأساسي",
+      "totalPriceLabel": "السعر الإجمالي"
+    },
+    "form": {
+      "title": "معلوماتك",
+      "nameLabel": "الاسم",
+      "emailLabel": "البريد الإلكتروني",
+      "phoneLabel": "الهاتف",
+      "notesLabel": "ملاحظات",
+      "namePlaceholder": "اسمك الكامل",
+    "emailPlaceholder": "example@email.com",
+    "phonePlaceholder": "(123) 456-7890",
+      "notesPlaceholder": "أي طلبات أو ملاحظات خاصة...",
+      "termsText": "أوافق على الشروط وسياسة الإلغاء"
+    },
+    "buttons": {
+      "booking": "جارٍ الحجز...",
+      "bookNow": "احجز الآن - ${{price}}"
+    },
+    "errors": {
+      "loadServiceDetails": "تعذر تحميل تفاصيل الخدمة.",
+      "loadSlots": "تعذر تحميل المواعيد المتاحة.",
+      "calculatePrice": "تعذر حساب السعر.",
+      "agreeTerms": "يرجى الموافقة على الشروط وسياسة الإلغاء.",
+      "requiredFields": "يرجى ملء جميع الحقول المطلوبة.",
+      "selectDateTime": "يرجى اختيار التاريخ والوقت.",
+      "createBooking": "تعذر إنشاء الحجز."
+    },
+    "success": "تم تأكيد الحجز!"
+  },
+  "accessGateRecovery": {
+    "title": "استعادة الوصول",
+    "validating": "جارٍ التحقق من رابط الاستعادة...",
+    "missingToken": "رمز الاستعادة مفقود.",
+    "lifted": "تم إزالة {{count}} قفل، يمكنك تسجيل الدخول مرة أخرى.",
+    "lifted_plural": "تم إزالة {{count}} أقفال، يمكنك تسجيل الدخول مرة أخرى.",
+    "consumed": "لا يوجد قفل فعّال مطابق، لكن تم استخدام الرابط. يمكنك تسجيل الدخول مرة أخرى.",
+    "postClearHelp": "تمت إزالة الحظر. إذا استمر ظهور رسالة الحاجز، انتظر لحظة ثم أعد المحاولة أو استخدم اتصال شبكة مختلفًا.",
+    "cta": {
+      "adminLogin": "الذهاب إلى تسجيل دخول المسؤول",
+      "logisticsHome": "الرئيسية اللوجستية"
+    },
+    "errors": {
+      "alreadyUsed": "تم استخدام رابط الاستعادة بالفعل.",
+      "expired": "انتهت صلاحية رابط الاستعادة. اطلب رابطًا جديدًا من صفحة تسجيل الدخول.",
+      "failed": "تعذر استخدام رابط الاستعادة."
+    }
+  },
+  "impersonatePage": {
+    "title": "خطأ في التمثيل",
+    "loading": "جارٍ بدء جلسة التمثيل...",
+    "actions": {
+      "closeTab": "إغلاق علامة التبويب"
+    },
+    "errors": {
+      "noToken": "لم يتم العثور على رمز التمثيل في رابط URL.",
+      "invalidToken": "رمز غير صحيح أو غير خاص بالتمثيل.",
+      "expiredToken": "انتهت صلاحية رمز التمثيل. يرجى إنشاء رمز جديد."
+    }
+  },
+  "searchSuggestions": {
+    "popularSearches": "عمليات بحث شائعة"
+  },
+  "messageWithTranslation": {
+    "languageNames": {
+      "en": "الإنجليزية",
+      "es": "الإسبانية",
+      "fr": "الفرنسية",
+      "ht": "الكريولية الهايتية",
+      "de": "الألمانية",
+      "it": "الإيطالية",
+      "pt": "البرتغالية",
+      "nl": "الهولندية",
+      "pl": "البولندية",
+      "ja": "اليابانية",
+      "zh": "الصينية"
+    },
+    "showOriginal": "عرض الأصل ({{language}})",
+    "showTranslation": "عرض الترجمة ({{language}})"
+  },
+  "impersonation": {
+    "adminView": "عرض المسؤول: أنت تتصفح كـ",
+    "loggedAs": "الإجراءات التي تتخذها مسجلة كمحاكاة.",
+    "exitAria": "إنهاء جلسة المحاكاة",
+    "exitButton": "إنهاء المحاكاة"
+  },
+  "pageMeta": {
+    "defaults": {
+      "title": "OxSteed - وظّف مساعدة محلية اليوم",
+      "description": "انشر وظيفة، وقارن العروض من المساعدين المحليين الماهرين، وادفع عبر OxSteed. ابدأ مجانًا."
+    }
+  },
+  "orderErrorBoundary": {
+    "title": "حدث خطأ",
+    "unexpectedMessage": "حدث خطأ غير متوقع أثناء تحميل {{componentName}}.",
+    "defaultComponentName": "صفحة الطلبات",
+    "errorDetails": "تفاصيل الخطأ",
+    "tryAgain": "حاول مرة أخرى",
+    "backToOrders": "العودة إلى الطلبات",
+    "persistentErrors": "يتكرر هذا الخطأ بشكل متكرر. تم إخطار فريقنا."
+  },
+  "languages": {
+    "autoDetect": "تحديد تلقائي"
+  },
+  "admin": {
+    "emailChange": {
+      "emailChangeTitle": "تغيير البريد الإلكتروني",
+      "currentEmail": "البريد الإلكتروني الحالي",
+      "newEmail": "البريد الإلكتروني الجديد *",
+      "confirmNewEmail": "تأكيد البريد الإلكتروني الجديد",
+      "emailsMismatch": "لا تتطابق رسائل البريد الإلكتروني.",
+      "newEmailMatchesCurrent": "البريد الإلكتروني الجديد هو نفس الحالي.",
+      "markEmailVerified": "تعيين البريد الإلكتروني الجديد كمتحقق",
+      "notifyUserOnChange": "إشعار المستخدم بهذا التغيير",
+      "updating": "جارٍ التحديث…",
+      "updateEmail": "تحديث البريد الإلكتروني",
+      "updateFailedFallback": "تعذر تحديث البريد الإلكتروني."
+    },
+    "emailChangeTitle": "تغيير البريد الإلكتروني",
+    "currentEmail": "البريد الإلكتروني الحالي",
+    "newEmail": "البريد الإلكتروني الجديد *",
+    "confirmNewEmail": "تأكيد البريد الإلكتروني الجديد",
+    "emailsMismatch": "لا تتطابق رسائل البريد الإلكتروني.",
+    "newEmailMatchesCurrent": "البريد الإلكتروني الجديد هو نفس الحالي.",
+    "markEmailVerified": "تعيين البريد الإلكتروني الجديد كمتحقق",
+    "notifyUserOnChange": "إشعار المستخدم بهذا التغيير",
+    "updating": "جارٍ التحديث…",
+    "updateEmail": "تحديث البريد الإلكتروني",
+    "updateFailedFallback": "تعذر تحديث البريد الإلكتروني.",
+    "emailUpdatedTo": "تم تحديث البريد الإلكتروني إلى {{email}}.",
+    "confirmEmailPlaceholder": "أعد إدخال البريد الإلكتروني الجديد للتأكيد"
+  },
+  "supportWidget": {
+    "launcher": "الدعم",
+    "launcherAriaLabel": "فتح الدعم",
+    "panelTitle": "مركز المساعدة",
+    "howCanWeHelp": "كيف يمكننا المساعدة؟",
+    "helpText": "انقر أدناه لإنشاء طلب دعم أو عرض تذاكر الدعم الخاصة بك",
+    "newSupportRequest": "طلب دعم جديد",
+    "viewYourTickets": "عرض تذاكرك",
+    "back": "رجوع",
+    "yourName": "اسمك",
+    "yourEmail": "بريدك الإلكتروني",
+    "categoryLabel": "الفئة",
+    "categoryGeneral": "استفسار عام",
+    "categoryTechnical": "مشكلة فنية",
+    "categoryBilling": "الفواتير",
+    "categoryAccount": "الحساب",
+    "categoryShipping": "الشحن",
+    "messageLabel": "الرسالة",
+    "namePlaceholder": "محمد أحمد",
+    "emailPlaceholder": "mohamed@example.com",
+    "messagePlaceholder": "اوصف المشكلة...",
+    "submitRequest": "إرسال الطلب",
+    "submitCreating": "جارٍ الإنشاء...",
+    "noTickets": "لا توجد طلبات دعم حتى الآن",
+    "typeMessage": "اكتب رسالتك...",
+    "ticketAssigned": "{{name}} تم تعيينه لمساعدتك.",
+    "ticketQueued": "لقد تم وضع طلبك في قائمة الانتظار. سيتواصل معك أحد الوكلاء قريباً.",
+    "createTicketFailed": "فشل إنشاء طلب الدعم"
+  },
+  "hybridSupportWidget": {
+    "aiGreeting": "مرحبًا! أنا مساعد OxSteed الذكي. كيف يمكنني مساعدتك اليوم؟",
+    "titleAi": "دعم الذكاء الاصطناعي",
+    "titleEscalating": "جارٍ الاتصال...",
+    "titleLiveChat": "دردشة مباشرة{{agentName}}",
+    "titleQueue": "في انتظار وكيل",
+    "titleTicket": "إنشاء تذكرة دعم",
+    "talkToSomeone": "هل ترغب في التحدث إلى شخص؟",
+    "talkToAgentWithCount": "التحدث مع وكيل ({{count}} متاح)",
+    "talkToSupportTeam": "التواصل مع فريق الدعم",
+    "connectingText": "جاري توصيلك مع وكيل...",
+    "connectingSubtext": "قد يستغرق هذا بعض الوقت",
+    "connectedWith": "تم الاتصال بـ {{name}}!",
+    "queueTitle": "أنت في قائمة الانتظار",
+    "queuePosition": "الموضع: #{{position}}",
+    "queueWait": "الانتظار المتوقع: {{minutes}} دقيقة",
+    "queueMessage": "سيتم محادثتك فور توافر أي وكيل.",
+    "createTicketInstead": "إنشاء تذكرة بدلاً من ذلك",
+    "ticketQueueMessage": "كنت في قائمة الانتظار ولكن أفضّل إنشاء تذكرة بدلاً من ذلك.",
+    "ticketNameLabel": "اسمك",
+    "ticketEmailLabel": "بريدك الإلكتروني",
+    "ticketMessageLabel": "الرسالة",
+    "ticketMessagePlaceholder": "اكتب تفاصيل المشكلة...",
+    "submitTicket": "إرسال تذكرة",
+    "backToAi": "← العودة إلى الذكاء الاصطناعي",
+    "back": "← العودة",
+    "escalationFailed": "تعذر التصعيد. حاول مرة أخرى.",
+    "ticketFailed": "فشل إنشاء التذكرة",
+    "ticketSubmitFailed": "فشل إرسال التذكرة"
+  }
+}

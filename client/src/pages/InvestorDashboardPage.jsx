@@ -10,22 +10,36 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, Briefcase, DollarSign, TrendingUp, TrendingDown,
-  Activity, BarChart2, GitBranch, Zap, RefreshCw, Star,
-  CheckCircle, XCircle, Clock, ChevronUp, ChevronDown,
+  Users,
+  Briefcase,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Activity,
+  BarChart2,
+  GitBranch,
+  Zap,
+  RefreshCw,
+  Star,
+  CheckCircle,
+  XCircle,
+  Clock,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import PageShell from '../components/PageShell';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-const fmt  = (n) => (n ?? 0).toLocaleString();
+const fmt = (n) => (n ?? 0).toLocaleString();
 const fmtK = (cents) => {
   const d = (cents ?? 0) / 100;
   if (d >= 1_000_000) return `$${(d / 1_000_000).toFixed(1)}M`;
-  if (d >= 1_000)     return `$${(d / 1_000).toFixed(1)}K`;
+  if (d >= 1_000) return `$${(d / 1_000).toFixed(1)}K`;
   return `$${d.toFixed(0)}`;
 };
-const pct  = (v) => (v == null ? '—' : `${v}%`);
+const pct = (v) => (v == null ? '—' : `${v}%`);
 const delta = (cur, prev) => {
   if (!prev) return null;
   return Math.round(((cur - prev) / prev) * 100);
@@ -51,10 +65,10 @@ function DeltaBadge({ value }) {
 function KpiCard({ icon: Icon, label, value, sub, deltaPct, loading, accent = 'emerald' }) {
   const colors = {
     emerald: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-    orange:  'text-orange-400  bg-orange-500/10  border-orange-500/20',
-    blue:    'text-blue-400    bg-blue-500/10    border-blue-500/20',
-    purple:  'text-purple-400  bg-purple-500/10  border-purple-500/20',
-    rose:    'text-rose-400    bg-rose-500/10    border-rose-500/20',
+    orange: 'text-orange-400  bg-orange-500/10  border-orange-500/20',
+    blue: 'text-blue-400    bg-blue-500/10    border-blue-500/20',
+    purple: 'text-purple-400  bg-purple-500/10  border-purple-500/20',
+    rose: 'text-rose-400    bg-rose-500/10    border-rose-500/20',
   };
   const c = colors[accent] ?? colors.emerald;
   return (
@@ -78,8 +92,8 @@ function KpiCard({ icon: Icon, label, value, sub, deltaPct, loading, accent = 'e
 }
 
 // Simple SVG bar chart (no deps)
-function MiniBarChart({ data = [], height = 64 }) {
-  if (!data.length) return <p className="text-xs text-gray-600 text-center py-4">No data</p>;
+function MiniBarChart({ data = [], height = 64, emptyLabel }) {
+  if (!data.length) return <p className="text-xs text-gray-600 text-center py-4">{emptyLabel}</p>;
   const maxVal = Math.max(...data.map(d => d.value), 1);
   return (
     <svg viewBox={`0 0 ${data.length * 24} ${height}`} className="w-full" preserveAspectRatio="none">
@@ -88,8 +102,10 @@ function MiniBarChart({ data = [], height = 64 }) {
         return (
           <g key={i}>
             <rect
-              x={i * 24 + 2} y={height - barH}
-              width={20} height={barH}
+              x={i * 24 + 2}
+              y={height - barH}
+              width={20}
+              height={barH}
               rx={3}
               fill={d.color ?? '#10b981'}
               opacity={0.85}
@@ -102,13 +118,9 @@ function MiniBarChart({ data = [], height = 64 }) {
 }
 
 // Multi-series area chart (SVG, no deps)
-function AreaChart({ rows = [], height = 120 }) {
-  if (!rows.length) return <p className="text-xs text-gray-600 text-center py-4">No data</p>;
+function AreaChart({ rows = [], height = 120, noDataLabel, series }) {
+  if (!rows.length) return <p className="text-xs text-gray-600 text-center py-4">{noDataLabel}</p>;
   const w = 600; const h = height;
-  const series = [
-    { key: 'job_fee_cents',      color: '#f97316', label: 'Job fees' },
-    { key: 'subscription_cents', color: '#818cf8', label: 'Subscriptions' },
-  ];
   const maxVal = Math.max(...rows.flatMap(r => series.map(s => Number(r[s.key] ?? 0))), 1);
   const xStep = w / Math.max(rows.length - 1, 1);
   const toY = (v) => h - 8 - ((v / maxVal) * (h - 16));
@@ -129,7 +141,7 @@ function AreaChart({ rows = [], height = 120 }) {
     <div>
       <svg viewBox={`0 0 ${w} ${h}`} className="w-full" preserveAspectRatio="none">
         {/* grid */}
-        {[0.25, 0.5, 0.75, 1].map(f => (
+        {[0.25, 0.5, 0.75, 1].map((f) => (
           <line key={f} x1={0} x2={w} y1={toY(maxVal * f)} y2={toY(maxVal * f)}
             stroke="#374151" strokeWidth={0.5} strokeDasharray="4 4" />
         ))}
@@ -152,21 +164,23 @@ function AreaChart({ rows = [], height = 120 }) {
 }
 
 // Pipeline stage row
-function PipelineRow({ status, count, total }) {
+function PipelineRow({ status, count, total, labels }) {
   const cfg = {
-    pending:   { label: 'Pending',   color: 'bg-yellow-500', icon: Clock },
-    reviewing: { label: 'Reviewing', color: 'bg-blue-500',   icon: Activity },
-    approved:  { label: 'Approved',  color: 'bg-emerald-500', icon: CheckCircle },
-    activated: { label: 'Activated', color: 'bg-purple-500', icon: Zap },
-    rejected:  { label: 'Rejected',  color: 'bg-red-500',    icon: XCircle },
+    pending: { labelKey: 'pending', color: 'bg-yellow-500', icon: Clock },
+    reviewing: { labelKey: 'reviewing', color: 'bg-blue-500', icon: Activity },
+    approved: { labelKey: 'approved', color: 'bg-emerald-500', icon: CheckCircle },
+    activated: { labelKey: 'activated', color: 'bg-purple-500', icon: Zap },
+    rejected: { labelKey: 'rejected', color: 'bg-red-500', icon: XCircle },
   };
-  const c = cfg[status] ?? { label: status, color: 'bg-gray-600', icon: GitBranch };
+  const c = cfg[status] ?? { labelKey: status, color: 'bg-gray-600', icon: GitBranch };
   const Icon = c.icon;
   const barW = total > 0 ? Math.round((count / total) * 100) : 0;
+  const label = labels[c.labelKey] || c.labelKey;
+
   return (
     <div className="flex items-center gap-3">
       <Icon size={14} className="text-gray-400 shrink-0" />
-      <p className="text-sm text-gray-300 w-24 shrink-0">{c.label}</p>
+      <p className="text-sm text-gray-300 w-24 shrink-0">{label}</p>
       <div className="flex-1 h-1.5 rounded-full bg-gray-800">
         <div className={`h-full rounded-full ${c.color}`} style={{ width: `${barW}%` }} />
       </div>
@@ -176,24 +190,18 @@ function PipelineRow({ status, count, total }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-const PERIODS = [
-  { key: '7d',  label: '7 days'  },
-  { key: '30d', label: '30 days' },
-  { key: '90d', label: '90 days' },
-  { key: '1y',  label: '1 year'  },
-];
-
 export default function InvestorDashboardPage() {
   const { user, switchRole } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
-  const [period, setPeriod]       = useState('30d');
-  const [kpis, setKpis]           = useState(null);
-  const [chart, setChart]         = useState([]);
+  const [period, setPeriod] = useState('30d');
+  const [kpis, setKpis] = useState(null);
+  const [chart, setChart] = useState([]);
   const [franchise, setFranchise] = useState(null);
-  const [supDem, setSupDem]       = useState(null);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState(null);
+  const [supDem, setSupDem] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Ensure investor role
   useEffect(() => {
@@ -208,10 +216,10 @@ export default function InvestorDashboardPage() {
     setError(null);
     try {
       const [k, c, f, s] = await Promise.all([
-        fetch(`/api/investor/kpis?period=${p}`,          { credentials: 'include' }).then(r => r.json()),
+        fetch(`/api/investor/kpis?period=${p}`, { credentials: 'include' }).then(r => r.json()),
         fetch(`/api/investor/revenue-chart?period=${p}`, { credentials: 'include' }).then(r => r.json()),
-        fetch('/api/investor/franchise',                 { credentials: 'include' }).then(r => r.json()),
-        fetch('/api/investor/supply-demand',             { credentials: 'include' }).then(r => r.json()),
+        fetch('/api/investor/franchise', { credentials: 'include' }).then(r => r.json()),
+        fetch('/api/investor/supply-demand', { credentials: 'include' }).then(r => r.json()),
       ]);
       if (k.error) throw new Error(k.error);
       setKpis(k.kpis);
@@ -219,24 +227,44 @@ export default function InvestorDashboardPage() {
       setFranchise(f);
       setSupDem(s);
     } catch (e) {
-      setError(e.message ?? 'Failed to load investor data');
+      setError(e.message || t('investorDashboard.error.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, [period, t]);
 
-  useEffect(() => { load(period); }, [period]);
+  useEffect(() => { load(period); }, [period, load]);
+
+  const periods = [
+    { key: '7d', label: t('investorDashboard.periods.sevenDays') },
+    { key: '30d', label: t('investorDashboard.periods.thirtyDays') },
+    { key: '90d', label: t('investorDashboard.periods.ninetyDays') },
+    { key: '1y', label: t('investorDashboard.periods.oneYear') },
+  ];
+
+  const chartSeries = [
+    { key: 'job_fee_cents', color: '#f97316', label: t('investorDashboard.charts.series.jobFees') },
+    { key: 'subscription_cents', color: '#818cf8', label: t('investorDashboard.charts.series.subscriptions') },
+  ];
+
+  const pipelineLabels = {
+    pending: t('investorDashboard.pipelineStatuses.pending'),
+    reviewing: t('investorDashboard.pipelineStatuses.reviewing'),
+    approved: t('investorDashboard.pipelineStatuses.approved'),
+    activated: t('investorDashboard.pipelineStatuses.activated'),
+    rejected: t('investorDashboard.pipelineStatuses.rejected'),
+  };
 
   // Supply/demand weekly bar data
-  const weeklyBars = (supDem?.weekly ?? []).map(w => ({
+  const weeklyBars = (supDem?.weekly ?? []).map((w) => ({
     value: Number(w.jobs_posted ?? 0),
     color: '#f97316',
   }));
 
   const k = kpis ?? {};
-  const revDelta   = delta(k.revenue_cur_cents,  k.revenue_prev_cents);
-  const userDelta  = delta(k.new_users_cur,       k.new_users_prev);
-  const jobDelta   = delta(k.new_jobs_cur,        k.new_jobs_prev);
+  const revDelta = delta(k.revenue_cur_cents, k.revenue_prev_cents);
+  const userDelta = delta(k.new_users_cur, k.new_users_prev);
+  const jobDelta = delta(k.new_jobs_cur, k.new_jobs_prev);
 
   return (
     <PageShell>
@@ -246,13 +274,13 @@ export default function InvestorDashboardPage() {
           {/* ── Header ─────────────────────────────────────────────── */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <p className="text-xs uppercase tracking-widest text-emerald-400">Investor Mode</p>
-              <h1 className="text-2xl font-bold mt-0.5">Platform Overview</h1>
+              <p className="text-xs uppercase tracking-widest text-emerald-400">{t('investorDashboard.header.mode')}</p>
+              <h1 className="text-2xl font-bold mt-0.5">{t('investorDashboard.header.title')}</h1>
             </div>
             <div className="flex items-center gap-2">
               {/* Period selector */}
               <div className="flex rounded-xl bg-gray-900 border border-gray-800 overflow-hidden text-sm">
-                {PERIODS.map(p => (
+                {periods.map((p) => (
                   <button
                     key={p.key}
                     onClick={() => setPeriod(p.key)}
@@ -269,7 +297,7 @@ export default function InvestorDashboardPage() {
               <button
                 onClick={() => load(period)}
                 className="p-2 rounded-xl bg-gray-900 border border-gray-800 text-gray-400 hover:text-white"
-                title="Refresh"
+                title={t('investorDashboard.actions.refresh')}
               >
                 <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
               </button>
@@ -284,23 +312,29 @@ export default function InvestorDashboardPage() {
 
           {/* ── KPI grid ───────────────────────────────────────────── */}
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-            <KpiCard icon={DollarSign}  label="Revenue (period)"  loading={loading}
-              value={fmtK(k.revenue_cur_cents)}  sub={`MTD ${fmtK(k.revenue_mtd_cents)}`}
-              deltaPct={revDelta}  accent="emerald" />
-            <KpiCard icon={Users}       label="New users"         loading={loading}
-              value={fmt(k.new_users_cur)}        sub={`Total ${fmt(k.total_users)}`}
+            <KpiCard icon={DollarSign} label={t('investorDashboard.kpis.revenuePeriod')} loading={loading}
+              value={fmtK(k.revenue_cur_cents)}
+              sub={t('investorDashboard.kpis.mtd', { value: fmtK(k.revenue_mtd_cents) })}
+              deltaPct={revDelta} accent="emerald" />
+            <KpiCard icon={Users} label={t('investorDashboard.kpis.newUsers')} loading={loading}
+              value={fmt(k.new_users_cur)}
+              sub={t('investorDashboard.kpis.totalUsers', { value: fmt(k.total_users) })}
               deltaPct={userDelta} accent="blue" />
-            <KpiCard icon={Briefcase}   label="New jobs"          loading={loading}
-              value={fmt(k.new_jobs_cur)}         sub={`${pct(k.completion_rate)} completion`}
-              deltaPct={jobDelta}  accent="orange" />
-            <KpiCard icon={Activity}    label="Active subs"       loading={loading}
-              value={fmt(k.active_subscriptions)} sub={`Sub rev ${fmtK(k.sub_revenue_cur_cents)}`}
+            <KpiCard icon={Briefcase} label={t('investorDashboard.kpis.newJobs')} loading={loading}
+              value={fmt(k.new_jobs_cur)}
+              sub={t('investorDashboard.kpis.completionRate', { value: pct(k.completion_rate) })}
+              deltaPct={jobDelta} accent="orange" />
+            <KpiCard icon={Activity} label={t('investorDashboard.kpis.activeSubscriptions')} loading={loading}
+              value={fmt(k.active_subscriptions)}
+              sub={t('investorDashboard.kpis.subscriptionRevenue', { value: fmtK(k.sub_revenue_cur_cents) })}
               accent="purple" />
-            <KpiCard icon={Star}        label="Avg helper rating" loading={loading}
+            <KpiCard icon={Star} label={t('investorDashboard.kpis.avgHelperRating')} loading={loading}
               value={k.avg_helper_rating ? k.avg_helper_rating.toFixed(2) : '—'}
-              sub={`${fmt(k.verified_helpers)} verified`} accent="orange" />
-            <KpiCard icon={TrendingDown} label="Refunds (period)" loading={loading}
-              value={fmtK(k.refunds_cur_cents)}   sub={`Pending payouts ${fmtK(k.pending_payouts_cents)}`}
+              sub={t('investorDashboard.kpis.verifiedHelpers', { value: fmt(k.verified_helpers) })}
+              accent="orange" />
+            <KpiCard icon={TrendingDown} label={t('investorDashboard.kpis.refunds')} loading={loading}
+              value={fmtK(k.refunds_cur_cents)}
+              sub={t('investorDashboard.kpis.pendingPayouts', { value: fmtK(k.pending_payouts_cents) })}
               accent="rose" />
           </div>
 
@@ -310,23 +344,30 @@ export default function InvestorDashboardPage() {
             {/* Revenue chart */}
             <div className="lg:col-span-2 rounded-2xl border border-gray-800 bg-gray-900 p-5">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold text-sm text-gray-200">Revenue by source</h2>
+                <h2 className="font-semibold text-sm text-gray-200">{t('investorDashboard.charts.revenueBySource')}</h2>
                 <BarChart2 size={15} className="text-gray-500" />
               </div>
               {loading
                 ? <Skeleton className="h-28 w-full" />
-                : <AreaChart rows={chart} height={110} />
+                : (
+                  <AreaChart
+                    rows={chart}
+                    height={110}
+                    noDataLabel={t('investorDashboard.noData')}
+                    series={chartSeries}
+                  />
+                )
               }
             </div>
 
             {/* Franchise pipeline */}
             <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-semibold text-sm text-gray-200">Franchise pipeline</h2>
+                <h2 className="font-semibold text-sm text-gray-200">{t('investorDashboard.pipeline.title')}</h2>
                 <GitBranch size={15} className="text-gray-500" />
               </div>
               {loading
-                ? <div className="space-y-3">{[1,2,3,4].map(i => <Skeleton key={i} className="h-4" />)}</div>
+                ? <div className="space-y-3">{[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-4" />)}</div>
                 : franchise?.pipeline?.length
                   ? (
                     <div className="space-y-3">
@@ -336,12 +377,15 @@ export default function InvestorDashboardPage() {
                           status={row.status}
                           count={Number(row.count)}
                           total={franchise.total}
+                          labels={pipelineLabels}
                         />
                       ))}
-                      <p className="text-xs text-gray-500 pt-1">Total: {franchise.total} applications</p>
+                      <p className="text-xs text-gray-500 pt-1">
+                        {t('investorDashboard.pipeline.total', { count: fmt(franchise.total) })}
+                      </p>
                     </div>
                   )
-                  : <p className="text-xs text-gray-600">No franchise applications yet</p>
+                  : <p className="text-xs text-gray-600">{t('investorDashboard.pipeline.empty')}</p>
               }
             </div>
           </div>
@@ -352,17 +396,17 @@ export default function InvestorDashboardPage() {
             {/* Weekly job trend */}
             <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold text-sm text-gray-200">Weekly job postings</h2>
+                <h2 className="font-semibold text-sm text-gray-200">{t('investorDashboard.trends.weekly')}</h2>
                 <TrendingUp size={15} className="text-gray-500" />
               </div>
               {loading
                 ? <Skeleton className="h-16 w-full" />
-                : <MiniBarChart data={weeklyBars} height={64} />
+                : <MiniBarChart data={weeklyBars} height={64} emptyLabel={t('investorDashboard.noData')} />
               }
               {!loading && (
                 <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
-                  <span>{fmt(supDem?.helpers_available)} helpers available now</span>
-                  <span>{fmt(supDem?.helpers_listed)} listed</span>
+                  <span>{t('investorDashboard.trends.helpersAvailableNow', { count: fmt(supDem?.helpers_available) })}</span>
+                  <span>{t('investorDashboard.trends.listed', { count: fmt(supDem?.helpers_listed) })}</span>
                 </div>
               )}
             </div>
@@ -370,20 +414,20 @@ export default function InvestorDashboardPage() {
             {/* Top categories */}
             <div className="lg:col-span-2 rounded-2xl border border-gray-800 bg-gray-900 p-5">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold text-sm text-gray-200">Top job categories (90d)</h2>
+                <h2 className="font-semibold text-sm text-gray-200">{t('investorDashboard.charts.topCategories')}</h2>
                 <Zap size={15} className="text-gray-500" />
               </div>
               {loading
-                ? <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-4" />)}</div>
+                ? <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-4" />)}</div>
                 : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="text-xs text-gray-500 border-b border-gray-800">
-                          <th className="text-left pb-2 font-normal">Category</th>
-                          <th className="text-right pb-2 font-normal">Jobs</th>
-                          <th className="text-right pb-2 font-normal">Completed</th>
-                          <th className="text-right pb-2 font-normal">Avg bids</th>
+                          <th className="text-left pb-2 font-normal">{t('investorDashboard.charts.table.category')}</th>
+                          <th className="text-right pb-2 font-normal">{t('investorDashboard.charts.table.jobs')}</th>
+                          <th className="text-right pb-2 font-normal">{t('investorDashboard.charts.table.completed')}</th>
+                          <th className="text-right pb-2 font-normal">{t('investorDashboard.charts.table.avgBids')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -396,7 +440,9 @@ export default function InvestorDashboardPage() {
                           </tr>
                         ))}
                         {!(supDem?.categories?.length) && (
-                          <tr><td colSpan={4} className="py-4 text-center text-xs text-gray-600">No category data</td></tr>
+                          <tr>
+                            <td colSpan={4} className="py-4 text-center text-xs text-gray-600">{t('investorDashboard.charts.noCategoryData')}</td>
+                          </tr>
                         )}
                       </tbody>
                     </table>
@@ -408,16 +454,16 @@ export default function InvestorDashboardPage() {
 
           {/* ── User health summary ─────────────────────────────────── */}
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
-            <h2 className="font-semibold text-sm text-gray-200 mb-4">Platform user health</h2>
+            <h2 className="font-semibold text-sm text-gray-200 mb-4">{t('investorDashboard.users.title')}</h2>
             {loading
-              ? <div className="grid grid-cols-2 md:grid-cols-4 gap-3">{[1,2,3,4].map(i => <Skeleton key={i} className="h-12" />)}</div>
+              ? <div className="grid grid-cols-2 md:grid-cols-4 gap-3">{[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-12" />)}</div>
               : (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
                   {[
-                    { label: 'Total users',     value: fmt(k.total_users) },
-                    { label: 'Customers',        value: fmt(k.total_customers) },
-                    { label: 'Helpers',          value: fmt(k.total_helpers) },
-                    { label: 'Verified users',   value: fmt(k.verified_users) },
+                    { label: t('investorDashboard.users.totalUsers'), value: fmt(k.total_users) },
+                    { label: t('investorDashboard.users.customers'), value: fmt(k.total_customers) },
+                    { label: t('investorDashboard.users.helpers'), value: fmt(k.total_helpers) },
+                    { label: t('investorDashboard.users.verifiedUsers'), value: fmt(k.verified_users) },
                   ].map(item => (
                     <div key={item.label} className="rounded-xl bg-gray-800/50 p-3">
                       <p className="text-xs text-gray-500 mb-0.5">{item.label}</p>

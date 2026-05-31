@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, Send, Tag, Megaphone, ToggleLeft, ToggleRight } from 'lucide-react';
 
 export function MarketingTools({ businessId }) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState('broadcasts');
   const [broadcasts, setBroadcasts] = useState([]);
   const [promos, setPromos] = useState([]);
@@ -21,62 +23,62 @@ export function MarketingTools({ businessId }) {
   const loadBroadcasts = async () => {
     setLoading(true);
     try { const res = await api.get(`/businesses/${businessId}/broadcasts`); setBroadcasts(res.data || []); }
-    catch { toast.error('Failed to load broadcasts'); }
+    catch { toast.error(t('businessHub.marketing.toastLoadBroadcastsFail')); }
     finally { setLoading(false); }
   };
 
   const loadPromos = async () => {
     setLoading(true);
     try { const res = await api.get(`/businesses/${businessId}/promo-codes`); setPromos(res.data || []); }
-    catch { toast.error('Failed to load promo codes'); }
+    catch { toast.error(t('businessHub.marketing.toastLoadPromosFail')); }
     finally { setLoading(false); }
   };
 
   const createBroadcast = async () => {
-    if (!bf.subject || !bf.message) return toast.error('Subject and message required');
-    try { await api.post(`/businesses/${businessId}/broadcasts`, bf); toast.success('Broadcast created'); setShowBroadcastForm(false); setBf({ subject: '', message: '', channel: 'email', audience: 'all' }); loadBroadcasts(); }
-    catch { toast.error('Failed to create broadcast'); }
+    if (!bf.subject || !bf.message) return toast.error(t('businessHub.marketing.toastSubjectMessageRequired'));
+    try { await api.post(`/businesses/${businessId}/broadcasts`, bf); toast.success(t('businessHub.marketing.toastBroadcastCreated')); setShowBroadcastForm(false); setBf({ subject: '', message: '', channel: 'email', audience: 'all' }); loadBroadcasts(); }
+    catch { toast.error(t('businessHub.marketing.toastBroadcastCreateFail')); }
   };
 
   const sendBroadcast = async (id) => {
-    if (!window.confirm('Send this broadcast to all customers now?')) return;
-    try { await api.post(`/businesses/${businessId}/broadcasts/${id}/send`); toast.success('Broadcast sent!'); loadBroadcasts(); }
-    catch { toast.error('Failed to send'); }
+    if (!window.confirm(t('businessHub.marketing.confirmSendBroadcast'))) return;
+    try { await api.post(`/businesses/${businessId}/broadcasts/${id}/send`); toast.success(t('businessHub.marketing.toastBroadcastSent')); loadBroadcasts(); }
+    catch { toast.error(t('businessHub.marketing.toastSendFail')); }
   };
 
   const deleteBroadcast = async (id) => {
-    if (!window.confirm('Delete this broadcast?')) return;
-    try { await api.delete(`/businesses/${businessId}/broadcasts/${id}`); toast.success('Deleted'); loadBroadcasts(); }
-    catch { toast.error('Failed'); }
+    if (!window.confirm(t('businessHub.marketing.confirmDeleteBroadcast'))) return;
+    try { await api.delete(`/businesses/${businessId}/broadcasts/${id}`); toast.success(t('businessHub.marketing.toastDeleted')); loadBroadcasts(); }
+    catch { toast.error(t('common.failed')); }
   };
 
   const createPromo = async () => {
-    if (!pf.discount_type || pf.discount_value === '') return toast.error('Discount type and value required');
+    if (!pf.discount_type || pf.discount_value === '') return toast.error(t('businessHub.marketing.toastDiscountRequired'));
     const payload = { ...pf, discount_value: parseFloat(pf.discount_value), min_order_cents: pf.min_order_cents ? Math.round(parseFloat(pf.min_order_cents) * 100) : null, max_uses: pf.max_uses ? parseInt(pf.max_uses) : null };
-    try { await api.post(`/businesses/${businessId}/promo-codes`, payload); toast.success('Promo code created'); setShowPromoForm(false); setPf({ code: '', discount_type: 'percent', discount_value: '', min_order_cents: '', max_uses: '', expires_at: '', description: '' }); loadPromos(); }
-    catch (err) { toast.error(err?.response?.data?.error || 'Failed to create promo code'); }
+    try { await api.post(`/businesses/${businessId}/promo-codes`, payload); toast.success(t('businessHub.marketing.toastPromoCreated')); setShowPromoForm(false); setPf({ code: '', discount_type: 'percent', discount_value: '', min_order_cents: '', max_uses: '', expires_at: '', description: '' }); loadPromos(); }
+    catch (err) { toast.error(err?.response?.data?.error || t('businessHub.marketing.toastPromoCreateFail')); }
   };
 
   const togglePromo = async (id) => {
-    try { await api.post(`/businesses/${businessId}/promo-codes/${id}/toggle`); toast.success('Updated'); loadPromos(); }
-    catch { toast.error('Failed'); }
+    try { await api.post(`/businesses/${businessId}/promo-codes/${id}/toggle`); toast.success(t('businessHub.marketing.toastUpdated')); loadPromos(); }
+    catch { toast.error(t('common.failed')); }
   };
 
   const deletePromo = async (id) => {
-    if (!window.confirm('Delete this promo code?')) return;
-    try { await api.delete(`/businesses/${businessId}/promo-codes/${id}`); toast.success('Deleted'); loadPromos(); }
-    catch { toast.error('Failed'); }
+    if (!window.confirm(t('businessHub.marketing.confirmDeletePromo'))) return;
+    try { await api.delete(`/businesses/${businessId}/promo-codes/${id}`); toast.success(t('businessHub.marketing.toastDeleted')); loadPromos(); }
+    catch { toast.error(t('common.failed')); }
   };
 
   return (
     <div style={{ padding: '1.5rem' }}>
       <div style={{ marginBottom: '1.5rem' }}>
-        <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>Marketing Tools</h3>
-        <p style={{ margin: '0.25rem 0 0', color: 'var(--muted-text)', fontSize: '0.875rem' }}>Reach customers with broadcasts and promotions</p>
+        <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{t('businessHub.marketing.title')}</h3>
+        <p style={{ margin: '0.25rem 0 0', color: 'var(--muted-text)', fontSize: '0.875rem' }}>{t('businessHub.marketing.subtitle')}</p>
       </div>
 
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
-        {[['broadcasts', 'Broadcasts', <Megaphone size={14} />], ['promos', 'Promo Codes', <Tag size={14} />]].map(([id, label, icon]) => (
+        {[['broadcasts', t('businessHub.marketing.tabs.broadcasts'), <Megaphone size={14} />], ['promos', t('businessHub.marketing.tabs.promoCodes'), <Tag size={14} />]].map(([id, label, icon]) => (
           <button key={id} onClick={() => setTab(id)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem', border: 'none', background: 'transparent', cursor: 'pointer', color: tab === id ? '#f97316' : 'var(--muted-text)', borderBottom: tab === id ? '2px solid #f97316' : '2px solid transparent', fontWeight: tab === id ? 600 : 400, fontSize: '0.875rem' }}>
             {icon} {label}
           </button>

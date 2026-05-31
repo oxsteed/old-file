@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { authAPI, clearStoredSession } from '../api/auth';
 import api from '../api/axios';
+import { useLanguage } from './LanguageContext';
 
 export const AuthContext = createContext(null);
 
@@ -33,6 +34,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
+  const { syncLanguageFromServer } = useLanguage();
 
   const persistUser = useCallback((nextUser) => {
     setUser(nextUser || null);
@@ -46,9 +48,10 @@ export function AuthProvider({ children }) {
   const fetchMe = useCallback(async () => {
     const res = await api.get('/auth/me', { withCredentials: true });
     const fullUser = normalizeUserPayload(res.data);
+    syncLanguageFromServer?.(fullUser?.preferred_language);
     persistUser(fullUser);
     return fullUser;
-  }, [persistUser]);
+  }, [persistUser, syncLanguageFromServer]);
 
   useEffect(() => {
     let mounted = true;

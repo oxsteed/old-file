@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { MessageCircle, X, Send, PhoneOff, Clock, AlertCircle } from 'lucide-react';
 import io from 'socket.io-client';
 import api from '../../api/axios';
+import { useTranslation } from 'react-i18next';
 import './HybridSupportWidget.css';
 
 /**
@@ -9,12 +10,15 @@ import './HybridSupportWidget.css';
  * AI Chat → Escalate to Live Agent → Queue/Ticket Fallback
  */
 export default function HybridSupportWidget() {
+  const { t } = useTranslation('common');
   const [isOpen, setIsOpen] = useState(false);
   const [phase, setPhase] = useState('ai'); // 'ai' | 'escalating' | 'live-chat' | 'queue' | 'ticket'
   const [unreadCount, setUnreadCount] = useState(0);
 
   // AI Chat state
-  const [aiMessages, setAiMessages] = useState([{ role: 'assistant', content: "Hi! I'm OxSteed's AI assistant. How can I help you today?", ts: new Date().toISOString() }]);
+  const [aiMessages, setAiMessages] = useState([
+    { role: 'assistant', content: t('hybridSupportWidget.aiGreeting'), ts: new Date().toISOString() },
+  ]);
   const [aiInput, setAiInput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
 
@@ -75,7 +79,7 @@ export default function HybridSupportWidget() {
         setLiveMessages(prev => [...prev, {
           id: Date.now(),
           sender: { type: 'system' },
-          content: `Connected with ${agentName}!`,
+          content: t('hybridSupportWidget.connectedWith', { name: agentName }),
         }]);
       }
     });
@@ -161,7 +165,7 @@ export default function HybridSupportWidget() {
       console.error('AI error:', err);
       setAiMessages(prev => [...prev, {
         role: 'assistant',
-        content: "Sorry, I'm having trouble. Would you like to talk to a live agent?",
+        content: t('hybridSupportWidget.escalationFailed'),
         ts: new Date().toISOString(),
       }]);
     } finally {
@@ -207,7 +211,7 @@ export default function HybridSupportWidget() {
         setLiveMessages([{
           id: 1,
           sender: { type: 'system' },
-          content: `Connected with ${response.data.assignedAgent.name}!`,
+          content: t('hybridSupportWidget.connectedWith', { name: response.data.assignedAgent.name }),
         }]);
       } else if (response.data.routedTo === 'queue') {
         // Agents busy - show queue
@@ -217,7 +221,7 @@ export default function HybridSupportWidget() {
       }
     } catch (err) {
       console.error('Escalation error:', err);
-      alert('Failed to escalate. Please try again.');
+      alert(t('hybridSupportWidget.escalationFailed'));
       setPhase('ai');
     } finally {
       setEscalatingLoading(false);
@@ -245,7 +249,7 @@ export default function HybridSupportWidget() {
   // Submit ticket
   const handleSubmitTicket = async () => {
     if (!visitorName.trim() || !visitorEmail.trim() || !ticketMessage.trim()) {
-      alert('Please fill in all fields');
+      alert(t('hybridSupportWidget.ticketFailed'));
       return;
     }
 
@@ -265,10 +269,9 @@ export default function HybridSupportWidget() {
 
       setPhase('ai');
       setTicketMessage('');
-      alert(`Ticket #${response.data.ticketId} created. We'll get back to you soon!`);
     } catch (err) {
       console.error('Ticket error:', err);
-      alert('Failed to create ticket');
+      alert(t('hybridSupportWidget.ticketSubmitFailed'));
     }
   };
 
@@ -294,8 +297,8 @@ export default function HybridSupportWidget() {
       <button
         onClick={handleOpen}
         className="hybrid-support-launcher"
-        aria-label="Open support"
-        title="Support"
+        aria-label={t('hybridSupportWidget.launcherAriaLabel') || t('supportWidget.launcherAriaLabel')}
+        title={t('hybridSupportWidget.talkToSomeone') || t('supportWidget.launcher')}
       >
         <MessageCircle size={24} />
         {unreadCount > 0 && <span className="support-badge">{Math.min(unreadCount, 9)}</span>}
@@ -306,16 +309,19 @@ export default function HybridSupportWidget() {
         <div className="hybrid-support-panel">
           <div className="support-header">
             <h3>
-              {phase === 'ai' && 'AI Support'}
-              {phase === 'escalating' && 'Connecting...'}
-              {phase === 'live-chat' && `Live Chat${assignedAgent ? ` with ${assignedAgent.name}` : ''}`}
-              {phase === 'queue' && 'Waiting for Agent'}
-              {phase === 'ticket' && 'Create Support Ticket'}
+              {phase === 'ai' && t('hybridSupportWidget.titleAi')}
+              {phase === 'escalating' && t('hybridSupportWidget.titleEscalating')}
+              {phase === 'live-chat' &&
+                t('hybridSupportWidget.titleLiveChat', {
+                  agentName: assignedAgent ? ` ${assignedAgent.name}` : '',
+                })}
+              {phase === 'queue' && t('hybridSupportWidget.titleQueue')}
+              {phase === 'ticket' && t('hybridSupportWidget.titleTicket')}
             </h3>
             <button
               onClick={() => setIsOpen(false)}
               className="support-close-btn"
-              aria-label="Close"
+              aria-label={t('supportWidget.back')}
             >
               <X size={20} />
             </button>
@@ -349,7 +355,7 @@ export default function HybridSupportWidget() {
                     type="text"
                     value={aiInput}
                     onChange={e => setAiInput(e.target.value)}
-                    placeholder="Ask me anything..."
+                    placeholder={t('supportWidget.typeMessage')}
                     className="ai-input"
                     disabled={aiLoading}
                   />
@@ -359,13 +365,15 @@ export default function HybridSupportWidget() {
                 </form>
 
                 <div className="escalate-section">
-                  <p className="escalate-label">Need to talk to someone?</p>
+                  <p className="escalate-label">{t('hybridSupportWidget.talkToSomeone')}</p>
                   <button
                     onClick={handleEscalate}
                     disabled={escalatingLoading}
                     className="escalate-btn"
                   >
-                    {agentsOnline > 0 ? `Talk to Agent (${agentsOnline} available)` : 'Connect with Support Team'}
+                    {agentsOnline > 0
+                      ? t('hybridSupportWidget.talkToAgentWithCount', { count: agentsOnline })
+                      : t('hybridSupportWidget.talkToSupportTeam')}
                   </button>
                 </div>
               </div>
@@ -375,8 +383,8 @@ export default function HybridSupportWidget() {
             {phase === 'escalating' && (
               <div className="escalating-phase">
                 <div className="loading-spinner"></div>
-                <p>Connecting you with an agent...</p>
-                <small>This may take a moment</small>
+                <p>{t('hybridSupportWidget.connectingText')}</p>
+                <small>{t('hybridSupportWidget.connectingSubtext')}</small>
               </div>
             )}
 
@@ -399,21 +407,21 @@ export default function HybridSupportWidget() {
                 </div>
 
                 <form onSubmit={(e) => { e.preventDefault(); handleSendLiveMessage(); }} className="live-input-form">
-                  <input
-                    type="text"
-                    value={liveInput}
-                    onChange={e => setLiveInput(e.target.value)}
-                    placeholder="Type your message..."
-                    className="live-input"
-                    disabled={liveSending}
-                  />
+                    <input
+                      type="text"
+                      value={liveInput}
+                      onChange={e => setLiveInput(e.target.value)}
+                      placeholder={t('supportWidget.typeMessage')}
+                      className="live-input"
+                      disabled={liveSending}
+                    />
                   <button type="submit" disabled={liveSending} className="live-send-btn">
                     <Send size={16} />
                   </button>
                 </form>
 
                 <button onClick={handleBackToAI} className="back-to-ai-btn">
-                  ← Back to AI
+                  {t('hybridSupportWidget.backToAi')}
                 </button>
               </div>
             )}
@@ -422,21 +430,25 @@ export default function HybridSupportWidget() {
             {phase === 'queue' && (
               <div className="queue-phase">
                 <Clock size={48} className="queue-icon" />
-                <h4>You're in the Queue</h4>
-                <p className="queue-position">Position: #{queuePosition}</p>
-                <p className="queue-wait">Estimated wait: {queueWaitTime} minutes</p>
-                <p className="queue-message">An agent will chat with you as soon as one is available.</p>
+                <h4>{t('hybridSupportWidget.queueTitle')}</h4>
+                <p className="queue-position">
+                  {t('hybridSupportWidget.queuePosition', { position: queuePosition })}
+                </p>
+                <p className="queue-wait">
+                  {t('hybridSupportWidget.queueWait', { minutes: queueWaitTime })}
+                </p>
+                <p className="queue-message">{t('hybridSupportWidget.queueMessage')}</p>
 
                 <div className="queue-actions">
                   <button
                     onClick={() => {
                       setPhase('ticket');
-                      setTicketMessage(`I was waiting in queue but prefer to create a ticket instead.`);
+                      setTicketMessage(t('hybridSupportWidget.ticketQueueMessage'));
                     }}
                     className="queue-action-btn"
                   >
                     <AlertCircle size={16} />
-                    Create Ticket Instead
+                    {t('hybridSupportWidget.createTicketInstead')}
                   </button>
                 </div>
               </div>
@@ -447,7 +459,7 @@ export default function HybridSupportWidget() {
               <div className="ticket-phase">
                 <form onSubmit={(e) => { e.preventDefault(); handleSubmitTicket(); }} className="ticket-form">
                   <div className="form-group">
-                    <label>Your Name</label>
+                    <label>{t('hybridSupportWidget.ticketNameLabel')}</label>
                     <input
                       type="text"
                       value={visitorName}
@@ -455,14 +467,14 @@ export default function HybridSupportWidget() {
                         setVisitorName(e.target.value);
                         localStorage.setItem('oxs:visitorName', e.target.value);
                       }}
-                      placeholder="John Doe"
+                      placeholder={t('supportWidget.namePlaceholder')}
                       required
                       className="form-input"
                     />
                   </div>
 
                   <div className="form-group">
-                    <label>Your Email</label>
+                    <label>{t('hybridSupportWidget.ticketEmailLabel')}</label>
                     <input
                       type="email"
                       value={visitorEmail}
@@ -470,18 +482,18 @@ export default function HybridSupportWidget() {
                         setVisitorEmail(e.target.value);
                         localStorage.setItem('oxs:visitorEmail', e.target.value);
                       }}
-                      placeholder="john@example.com"
+                      placeholder={t('supportWidget.emailPlaceholder')}
                       required
                       className="form-input"
                     />
                   </div>
 
                   <div className="form-group">
-                    <label>Message</label>
+                    <label>{t('hybridSupportWidget.ticketMessageLabel')}</label>
                     <textarea
                       value={ticketMessage}
                       onChange={e => setTicketMessage(e.target.value)}
-                      placeholder="Describe your issue..."
+                      placeholder={t('hybridSupportWidget.ticketMessagePlaceholder')}
                       required
                       className="form-input"
                       rows={4}
@@ -489,12 +501,12 @@ export default function HybridSupportWidget() {
                   </div>
 
                   <button type="submit" className="ticket-submit-btn">
-                    Submit Ticket
+                    {t('hybridSupportWidget.submitTicket')}
                   </button>
                 </form>
 
                 <button onClick={handleBackToAI} className="back-to-ai-btn">
-                  ← Back
+                  {t('hybridSupportWidget.back')}
                 </button>
               </div>
             )}

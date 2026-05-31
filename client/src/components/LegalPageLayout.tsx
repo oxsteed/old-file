@@ -62,12 +62,12 @@ export default function LegalPageLayout({ title, effectiveDate, children }: Lega
             fontSize: 'var(--text-sm)',
           }} role="list">
             <li style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              <a
-                href="/"
-                style={{ color: 'var(--color-primary)', textDecoration: 'none' }}
-              >
-                {t('legalPage.home')}
-              </a>
+                <a
+                  href="/"
+                  style={{ color: 'var(--color-primary)', textDecoration: 'none' }}
+                >
+                  {t('legalPage.home')}
+                </a>
               <span aria-hidden="true" style={{ color: 'var(--color-text-faint)' }}>/</span>
             </li>
             <li aria-current="page">
@@ -111,7 +111,7 @@ export default function LegalPageLayout({ title, effectiveDate, children }: Lega
           </header>
 
           {/* Policy Content */}
-          <div
+            <div
             role="region"
             aria-label={t('legalPage.sectionsAria', { title })}
             style={{

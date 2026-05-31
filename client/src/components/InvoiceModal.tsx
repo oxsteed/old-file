@@ -36,11 +36,11 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
   const handleSend = async () => {
     if (deliveryMethod === 'email') {
       if (!recipientEmail.trim()) {
-        toast.error(t('toolRentals.emailRequired') || 'Email address required');
+        toast.error(t('toolRentals.emailRequired'));
         return;
       }
       if (!validateEmail(recipientEmail)) {
-        toast.error(t('toolRentals.invalidEmail') || 'Invalid email format');
+        toast.error(t('toolRentals.invalidEmail'));
         return;
       }
     }
@@ -63,11 +63,11 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
         }
       );
 
-      toast.success(t('toolRentals.invoiceSent') || 'Invoice sent successfully');
+      toast.success(t('toolRentals.invoiceSent'));
       onInvoiceSent?.();
       onClose();
     } catch (err) {
-      toast.error(t('toolRentals.invoiceSendFailed') || 'Failed to send invoice');
+      toast.error(t('toolRentals.invoiceSendFailed'));
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
     <div className="invoice-modal-overlay" onClick={onClose}>
       <div className="invoice-modal-content" onClick={e => e.stopPropagation()}>
         <div className="invoice-modal-header">
-          <h2>{t('toolRentals.sendInvoice') || 'Send Invoice'}</h2>
+          <h2>{t('toolRentals.sendInvoice')}</h2>
           <button onClick={onClose} className="invoice-modal-close">
             <X className="w-5 h-5" />
           </button>
@@ -85,7 +85,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
 
         <div className="invoice-modal-body">
           <p className="invoice-modal-subtitle">
-            {t('toolRentals.invoiceSubtitle') || 'Choose how to send the invoice to the customer'}
+            {t('toolRentals.invoiceSubtitle')}
           </p>
 
           <div className="invoice-delivery-options">
@@ -101,10 +101,10 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
               <div className="invoice-delivery-content">
                 <div className="invoice-delivery-title">
                   <SendIcon className="w-4 h-4" />
-                  {t('toolRentals.inPlatform') || 'In-Platform'}
+                  {t('toolRentals.inPlatform')}
                 </div>
                 <p className="invoice-delivery-desc">
-                  {t('toolRentals.inPlatformDesc') || 'Send via OxSteed with read receipts'}
+                  {t('toolRentals.inPlatformDesc')}
                 </p>
               </div>
             </label>
@@ -121,10 +121,10 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
               <div className="invoice-delivery-content">
                 <div className="invoice-delivery-title">
                   <Mail className="w-4 h-4" />
-                  {t('toolRentals.personalEmail') || 'Personal Email'}
+                  {t('toolRentals.personalEmail')}
                 </div>
                 <p className="invoice-delivery-desc">
-                  {t('toolRentals.personalEmailDesc') || 'Send from your own email account'}
+                  {t('toolRentals.personalEmailDesc')}
                 </p>
               </div>
             </label>
@@ -132,11 +132,11 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
 
           {deliveryMethod === 'email' && (
             <div className="invoice-email-input">
-              <label htmlFor="recipient-email">{t('toolRentals.recipientEmail') || 'Recipient Email'}</label>
+              <label htmlFor="recipient-email">{t('toolRentals.recipientEmail')}</label>
               <input
                 id="recipient-email"
                 type="email"
-                placeholder="customer@example.com"
+                placeholder={t('toolRentals.recipientEmailPlaceholder')}
                 value={recipientEmail}
                 onChange={e => setRecipientEmail(e.target.value)}
                 disabled={loading}
@@ -146,15 +146,14 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
 
           <div className="invoice-info-box">
             <p>
-              {t('toolRentals.invoiceInfo') ||
-                'The invoice will include your payment method and a QR code for easy payment.'}
+              {t('toolRentals.invoiceInfo')}
             </p>
           </div>
         </div>
 
         <div className="invoice-modal-footer">
           <button onClick={onClose} disabled={loading} className="invoice-btn-cancel">
-            {t('common.cancel') || 'Cancel'}
+            {t('common.cancel')}
           </button>
           <button onClick={handleSend} disabled={loading} className="invoice-btn-send">
             {loading ? t('common.sending') : t('toolRentals.sendInvoice')}

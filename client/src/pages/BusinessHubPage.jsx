@@ -1003,23 +1003,23 @@ function BusinessHubInner() {
   async function handleUpdateMaintenanceRequest(requestId, payload) {
     try {
       await updateMaintenanceRequest(requestId, payload);
-      toast.success('Maintenance request updated');
+      toast.success(t('businessHub.maintenance.toastUpdated'));
       await loadMaintenance();
     } catch (e) {
-      toast.error(e?.response?.data?.error || 'Could not update maintenance request');
+      toast.error(e?.response?.data?.error || t('businessHub.maintenance.toastUpdateFail'));
     }
   }
 
   async function handleConvertMaintenanceRequest(requestId) {
     try {
       const { job } = await convertMaintenanceRequestToJob(requestId);
-      toast.success('Maintenance request converted to a job');
+      toast.success(t('businessHub.maintenance.toastConverted'));
       await loadMaintenance();
-      if (job?.id && window.confirm('Open the new job now?')) {
+      if (job?.id && window.confirm(t('businessHub.maintenance.confirmOpenNewJob'))) {
         window.open(`/jobs/${job.id}`, '_blank', 'noopener,noreferrer');
       }
     } catch (e) {
-      toast.error(e?.response?.data?.error || 'Could not convert request to job');
+      toast.error(e?.response?.data?.error || t('businessHub.maintenance.toastConvertFail'));
     }
   }
 
@@ -3729,4 +3729,3 @@ function HoursTab({ hours, businessId, onEdit }) {
     </div>
   );
 }
-

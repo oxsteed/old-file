@@ -15,6 +15,7 @@ const cron = require('node-cron');
 const db   = require('../db');
 const { sendNotification } = require('../services/notificationService');
 const { sendEmail }        = require('../utils/email');
+const { tNotif, tNotifEmail } = require('../utils/i18n');
 const logger               = require('../utils/logger');
 
 const IDLE_DAYS = parseInt(process.env.REENGAGEMENT_IDLE_DAYS || '7',  10);
@@ -30,6 +31,7 @@ async function runCustomerReengagement() {
         u.id,
         u.first_name,
         u.email,
+        u.preferred_language,
         j.id        AS last_job_id,
         j.title     AS last_job_title,
         j.completed_at
@@ -66,13 +68,21 @@ async function runCustomerReengagement() {
     let failed = 0;
 
     for (const c of customers) {
+      const notificationLang = c.preferred_language || 'en';
+      const { title: reengagementTitle, body: reengagementBody } = tNotif('reengagement_nudge', notificationLang);
+      const emailTranslations = tNotifEmail('reengagement_nudge', notificationLang);
+      const reengagementBodyWithContext = `${reengagementBody}${c.last_job_title ? ` ("${c.last_job_title}")` : ''}`;
+      const ctaText = emailTranslations.buttonText || 'Post a New Job';
+      const manageNotificationsText = emailTranslations.manageNotificationsText || 'Manage notifications';
+      const footerPrefixText = emailTranslations.footerPrefix || 'You are receiving this because you have an OxSteed account.';
+      const footerFallbackText = emailTranslations.footerFallbackText || 'You received this notification from OxSteed.';
       try {
         // In-app push notification
         await sendNotification({
           userId:     c.id,
           type:       'reengagement_nudge',
-          title:      '👋 Need help again?',
-          body:       `It's been a while since "${c.last_job_title}". Post a new job and get bids in minutes.`,
+          title:      `👋 ${reengagementTitle}`,
+          body:       `${reengagementBody} ${c.last_job_title ? `("${c.last_job_title}")` : ''}`,
           data:       { last_job_id: c.last_job_id },
           action_url: '/post-job',
         });
@@ -81,33 +91,28 @@ async function runCustomerReengagement() {
         if (c.email) {
           await sendEmail({
             to:      c.email,
-            subject: `${c.first_name}, need a hand with something?`,
+            subject: `${c.first_name}, ${reengagementTitle}`,
             html: `
               <p>Hi ${c.first_name},</p>
-              <p>
-                It's been a little while since your last job on OxSteed
-                ("${c.last_job_title}"). Whether it's a repeat task or
-                something completely new, our helpers are ready.
-              </p>
-              <p>Posting takes under 2 minutes — and you'll start getting
-                bids from vetted local helpers right away.</p>
+              <p>${reengagementBodyWithContext}.</p>
               <div style="margin:24px 0;">
                 <a href="${APP_URL}/post-job"
                    style="display:inline-block;padding:12px 24px;background:#7c3aed;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">
-                  Post a New Job →
+                  ${ctaText} →
                 </a>
               </div>
               <p style="color:#6b7280;font-size:13px;">
-                Or <a href="${APP_URL}/helpers" style="color:#7c3aed;">browse helpers</a>
-                to find someone for the job.
+                ${footerPrefixText}
+                <a href="${APP_URL}/helpers" style="color:#7c3aed;">${APP_URL}/helpers</a>
               </p>
-              <p>See you soon,<br>The OxSteed Team</p>
+              <p>${footerFallbackText}</p>
               <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
               <p style="color:#9ca3af;font-size:11px;">
-                You're receiving this because you've used OxSteed before.
-                <a href="${APP_URL}/settings/notifications" style="color:#9ca3af;">Manage notifications</a>
+                ${manageNotificationsText}:
+                <a href="${APP_URL}/settings/notifications" style="color:#9ca3af;">${manageNotificationsText}</a>
               </p>
             `,
+            text: `${reengagementBodyWithContext} ${ctaText}: ${APP_URL}/post-job`,
           });
         }
 

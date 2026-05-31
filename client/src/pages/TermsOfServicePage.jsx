@@ -214,7 +214,7 @@ export default function TermsOfServicePage() {
       const lastName = user.last_name || '';
 
       if (!firstName || !lastName) {
-        alert('Please complete your profile before accepting terms.');
+        alert(t('termsPage.acceptAlerts.completeProfile'));
         return;
       }
 
@@ -230,10 +230,10 @@ export default function TermsOfServicePage() {
       });
 
       // Show confirmation
-      alert('Thank you for accepting our terms of service.');
+      alert(t('termsPage.acceptAlerts.thankYou'));
     } catch (err) {
       logger.error('Failed to accept terms', { err });
-      alert('Failed to accept terms. Please try again.');
+      alert(t('termsPage.acceptAlerts.failed'));
       e.target.checked = false;
     }
   };
@@ -255,7 +255,7 @@ export default function TermsOfServicePage() {
   if (loading) {
     return (
       <div className="terms-page terms-page-loading">
-        <div className="terms-spinner">Loading terms of service...</div>
+        <div className="terms-spinner">{t('termsPage.loading')}</div>
       </div>
     );
   }

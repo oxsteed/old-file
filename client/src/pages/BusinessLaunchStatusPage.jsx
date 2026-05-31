@@ -7,6 +7,7 @@ import {
   ArrowRight,
   AlertCircle,
   Briefcase,
+  BriefcaseBusiness,
   CalendarClock,
   CheckCircle2,
   Compass,
@@ -41,25 +42,25 @@ const STATUS_COLORS = {
 };
 
 const STATUS_COPY = {
-  pending: 'Submission received',
-  contacted: 'Consultant team reached out',
-  kickoff_scheduled: 'Kickoff locked in',
-  in_progress: 'Launch work in motion',
-  completed: 'Launch delivered',
-  cancelled: 'Request closed',
+  pending: 'desc_pending',
+  contacted: 'desc_contacted',
+  kickoff_scheduled: 'desc_kickoff_scheduled',
+  in_progress: 'desc_in_progress',
+  completed: 'desc_completed',
+  cancelled: 'desc_cancelled',
 };
 
 const PACKAGE_DISPLAY = {
-  initial: 'Initial Consultation ($100)',
-  foundation: 'Business Foundation ($750)',
-  launch: 'Business Launch ($1,500)',
-  accelerator: 'Business Accelerator ($3,000)',
+  initial: 'package_initial',
+  foundation: 'package_foundation',
+  launch: 'package_launch',
+  accelerator: 'package_accelerator',
 };
 
 const URGENCY_DISPLAY = {
-  exploring: 'Just exploring',
-  two_weeks: 'Within two weeks',
-  asap: 'As soon as possible',
+  exploring: 'urgency_exploring',
+  two_weeks: 'urgency_twoWeeks',
+  asap: 'urgency_asap',
 };
 
 function fmtDate(iso) {
@@ -269,11 +270,14 @@ function NextSteps({ status }) {
 
 function RequestCard({ request, onClick, featured = false }) {
   const { t } = useTranslation();
-  const packageName = PACKAGE_DISPLAY[request.package_selected] || request.package_selected;
+  const packageName = t(
+    `businessLaunchStatus.${PACKAGE_DISPLAY[request.package_selected] || 'selectedPackage'}`,
+    {
+      defaultValue: request.package_selected,
+    },
+  );
   const progress = STATUS_PROGRESS[request.status] ?? 0;
-  const summary = t(`businessLaunchStatus.desc_${request.status}`, {
-    defaultValue: STATUS_COPY[request.status] || '',
-  });
+  const summary = t(`businessLaunchStatus.${STATUS_COPY[request.status] || 'desc_pending'}`, { defaultValue: '' });
   const title = request.business_name || `${request.first_name} ${request.last_name}`;
 
   return (
@@ -318,7 +322,7 @@ function RequestCard({ request, onClick, featured = false }) {
           {featured && (
             <div style={{ marginBottom: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#A5B4FC', fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               <Rocket size={13} />
-              Active launch
+              {t('businessLaunchStatus.activeLaunch', { defaultValue: 'Active launch' })}
             </div>
           )}
           <h3 style={{ margin: '0 0 0.3rem', fontSize: featured ? '1.35rem' : '1.08rem', fontWeight: 700, color: 'var(--app-text)' }}>
@@ -381,9 +385,7 @@ function DetailField({ icon: Icon, label, value }) {
 function DetailModal({ request, onClose }) {
   const { t } = useTranslation();
   const items = safeItems(request.setup_items_selected);
-  const summary = t(`businessLaunchStatus.desc_${request.status}`, {
-    defaultValue: STATUS_COPY[request.status] || '',
-  });
+  const summary = t(`businessLaunchStatus.${STATUS_COPY[request.status] || 'desc_pending'}`, { defaultValue: '' });
 
   useEffect(() => {
     const handler = (event) => {
@@ -428,7 +430,7 @@ function DetailModal({ request, onClose }) {
           <div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', color: '#FBBF24', fontSize: '0.76rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>
               <Sparkles size={14} />
-              Business launch request
+              {t('businessLaunchStatus.businessLaunchRequest', { defaultValue: 'Business launch request' })}
             </div>
             <h2 style={{ margin: '0 0 0.55rem', fontSize: '1.7rem', fontWeight: 800, color: 'var(--app-text)' }}>
               {request.business_name || `${request.first_name} ${request.last_name}`}
@@ -436,7 +438,7 @@ function DetailModal({ request, onClose }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
               <StatusBadge status={request.status} />
               <span style={{ color: 'var(--muted-text)', fontSize: '0.9rem' }}>
-                {PACKAGE_DISPLAY[request.package_selected] || request.package_selected}
+                {packageName}
               </span>
             </div>
           </div>
@@ -509,7 +511,18 @@ function DetailModal({ request, onClose }) {
                 <DetailField icon={Rocket} label={t('businessLaunchStatus.businessName', { defaultValue: 'Business Name' })} value={request.business_name} />
                 <DetailField icon={MapPin} label={t('businessLaunchStatus.location', { defaultValue: 'Location' })} value={[request.operating_state, request.operating_country].filter(Boolean).join(', ') || null} />
                 <DetailField icon={CalendarClock} label={t('businessLaunchStatus.currentPhase', { defaultValue: 'Current Phase' })} value={request.current_phase ? `${request.current_phase} / 25` : null} />
-                <DetailField icon={AlertCircle} label={t('businessLaunchStatus.urgency', { defaultValue: 'Urgency' })} value={request.urgency ? (URGENCY_DISPLAY[request.urgency] || request.urgency) : null} />
+                <DetailField
+                  icon={AlertCircle}
+                  label={t('businessLaunchStatus.urgency', { defaultValue: 'Urgency' })}
+                  value={
+                    request.urgency
+                      ? t(
+                          `businessLaunchStatus.${URGENCY_DISPLAY[request.urgency] || `urgency_${request.urgency}`}`,
+                          { defaultValue: request.urgency },
+                        )
+                      : null
+                  }
+                />
               </div>
             </section>
 
@@ -598,7 +611,7 @@ function DetailModal({ request, onClose }) {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', marginBottom: '0.7rem', color: '#FDBA74', fontSize: '0.82rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 <ShieldCheck size={14} />
-                Support
+                {t('businessLaunchStatus.support', { defaultValue: 'Support' })}
               </div>
               <p style={{ margin: '0 0 0.8rem', color: 'var(--muted-text)', lineHeight: 1.6 }}>
                 {t('businessLaunchStatus.contactSupport', { defaultValue: 'Questions? Email us at' })}{' '}
@@ -773,7 +786,7 @@ export default function BusinessLaunchStatusPage() {
               <div>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', color: '#A5B4FC', fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.9rem' }}>
                   <Rocket size={15} />
-                  Launch command center
+                  {t('businessLaunchStatus.launchCommandCenter', { defaultValue: 'Launch command center' })}
                 </div>
                 <h1 style={{ margin: '0 0 0.6rem', fontSize: 'clamp(2.2rem, 4vw, 4rem)', lineHeight: 0.95, fontWeight: 800, letterSpacing: '-0.04em' }}>
                   {t('businessLaunchStatus.trackYourBusiness', { defaultValue: 'Track Your Business Launch' })}
@@ -880,25 +893,39 @@ export default function BusinessLaunchStatusPage() {
                 }}
               >
                 <div style={{ color: '#FBBF24', fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  What this page gives you
+                  {t('businessLaunchStatus.whatThisPageGivesYou', { defaultValue: 'What this page gives you' })}
                 </div>
                 <div style={{ display: 'grid', gap: '0.7rem' }}>
                   <div style={{ border: '1px solid rgba(148,163,184,0.12)', borderRadius: '18px', padding: '0.85rem', background: 'rgba(255,255,255,0.02)' }}>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 700, marginBottom: '0.25rem' }}>See the real launch stage</div>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+                      {t('businessLaunchStatus.featureOneTitle', { defaultValue: 'See the real launch stage' })}
+                    </div>
                     <div style={{ color: 'var(--muted-text)', fontSize: '0.84rem', lineHeight: 1.5 }}>
-                      Know whether you are waiting for contact, scheduled for kickoff, or already in execution.
+                      {t('businessLaunchStatus.featureOneBody', {
+                        defaultValue:
+                          'Know whether you are waiting for contact, scheduled for kickoff, or already in execution.',
+                      })}
                     </div>
                   </div>
                   <div style={{ border: '1px solid rgba(148,163,184,0.12)', borderRadius: '18px', padding: '0.85rem', background: 'rgba(255,255,255,0.02)' }}>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 700, marginBottom: '0.25rem' }}>Review intake details</div>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+                      {t('businessLaunchStatus.featureTwoTitle', { defaultValue: 'Review intake details' })}
+                    </div>
                     <div style={{ color: 'var(--muted-text)', fontSize: '0.84rem', lineHeight: 1.5 }}>
-                      Check your package, urgency, setup items, and business details without digging through old emails.
+                      {t('businessLaunchStatus.featureTwoBody', {
+                        defaultValue:
+                          'Check your package, urgency, setup items, and business details without digging through old emails.',
+                      })}
                     </div>
                   </div>
                   <div style={{ border: '1px solid rgba(148,163,184,0.12)', borderRadius: '18px', padding: '0.85rem', background: 'rgba(255,255,255,0.02)' }}>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 700, marginBottom: '0.25rem' }}>Know the next action</div>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+                      {t('businessLaunchStatus.featureThreeTitle', { defaultValue: 'Know the next action' })}
+                    </div>
                     <div style={{ color: 'var(--muted-text)', fontSize: '0.84rem', lineHeight: 1.5 }}>
-                      Every status includes a clearer next-steps checklist so the process feels less opaque.
+                      {t('businessLaunchStatus.featureThreeBody', {
+                        defaultValue: 'Every status includes a clearer next-steps checklist so the process feels less opaque.',
+                      })}
                     </div>
                   </div>
                 </div>
@@ -907,10 +934,10 @@ export default function BusinessLaunchStatusPage() {
           </section>
 
           <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '0.85rem', marginTop: '1rem' }}>
-            <StatCard icon={FileStack} label="Requests found" value={stats.total} tint="#A5B4FC" />
-            <StatCard icon={Rocket} label="In motion" value={stats.inMotion} tint="#38BDF8" />
-            <StatCard icon={CheckCircle2} label="Completed" value={stats.completed} tint="#34D399" />
-            <StatCard icon={Compass} label="Average progress" value={`${stats.avg}%`} tint="#FBBF24" />
+            <StatCard icon={FileStack} label={t('businessLaunchStatus.requestsFound', { defaultValue: 'Requests found' })} value={stats.total} tint="#A5B4FC" />
+            <StatCard icon={Rocket} label={t('businessLaunchStatus.inMotion', { defaultValue: 'In motion' })} value={stats.inMotion} tint="#38BDF8" />
+            <StatCard icon={CheckCircle2} label={t('businessLaunchStatus.completedLabel', { defaultValue: 'Completed' })} value={stats.completed} tint="#34D399" />
+            <StatCard icon={Compass} label={t('businessLaunchStatus.averageProgress', { defaultValue: 'Average progress' })} value={`${stats.avg}%`} tint="#FBBF24" />
           </section>
 
           {loading ? (
@@ -935,7 +962,10 @@ export default function BusinessLaunchStatusPage() {
                 {t('businessLaunchStatus.noRequests', { defaultValue: 'No intake forms found for this email' })}
               </h2>
               <p style={{ margin: '0 auto 1.2rem', maxWidth: '40rem', color: 'var(--muted-text)', lineHeight: 1.65 }}>
-                Start the business launch intake to get matched with the right package, planning steps, and launch support.
+                {t('businessLaunchStatus.noRequestsHelper', {
+                  defaultValue:
+                    'Start the business launch intake to get matched with the right package, planning steps, and launch support.',
+                })}
               </p>
               <Link
                 to="/consulting-intake"
@@ -980,10 +1010,13 @@ export default function BusinessLaunchStatusPage() {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: '#FBBF24', fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.85rem' }}>
                     <ShieldCheck size={14} />
-                    Need help?
+                    {t('businessLaunchStatus.needHelp', { defaultValue: 'Need help?' })}
                   </div>
                   <p style={{ margin: '0 0 0.9rem', color: 'var(--muted-text)', lineHeight: 1.65 }}>
-                    Questions about your launch request, package, or timeline can go through the consulting team.
+                    {t('businessLaunchStatus.needHelpBody', {
+                      defaultValue:
+                        'Questions about your launch request, package, or timeline can go through the consulting team.',
+                    })}
                   </p>
                   <a
                     href="mailto:support@oxsteed.com"
@@ -994,9 +1027,10 @@ export default function BusinessLaunchStatusPage() {
                       color: '#FDBA74',
                       fontWeight: 700,
                       textDecoration: 'none',
-                    }}
-                  >
-                    Email support@oxsteed.com <ArrowRight size={14} />
+                  }}
+                >
+                    {t('businessLaunchStatus.emailSupport', { defaultValue: 'Email support@oxsteed.com' })}{' '}
+                    <ArrowRight size={14} />
                   </a>
                 </div>
 
@@ -1010,14 +1044,14 @@ export default function BusinessLaunchStatusPage() {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: '#38BDF8', fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.85rem' }}>
                     <Briefcase size={14} />
-                    Related workspaces
+                    {t('businessLaunchStatus.relatedWorkspaces', { defaultValue: 'Related workspaces' })}
                   </div>
                   <div style={{ display: 'grid', gap: '0.7rem' }}>
                     <Link to="/consulting" style={{ color: 'var(--app-text)', fontWeight: 700, textDecoration: 'none' }}>
-                      Open consulting workspace →
+                      {t('businessLaunchStatus.openConsultingWorkspace', { defaultValue: 'Open consulting workspace' })} →
                     </Link>
                     <Link to="/consulting-intake" style={{ color: 'var(--app-text)', fontWeight: 700, textDecoration: 'none' }}>
-                      Submit a new intake form →
+                      {t('businessLaunchStatus.submitNewIntake', { defaultValue: 'Submit a new intake form' })} →
                     </Link>
                   </div>
                 </div>
@@ -1032,13 +1066,13 @@ export default function BusinessLaunchStatusPage() {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: '#A5B4FC', fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.85rem' }}>
                     <Compass size={14} />
-                    Process snapshot
+                    {t('businessLaunchStatus.processSnapshot', { defaultValue: 'Process snapshot' })}
                   </div>
                   <div style={{ display: 'grid', gap: '0.7rem', color: 'var(--muted-text)', fontSize: '0.9rem', lineHeight: 1.6 }}>
-                    <div>1. Intake review and package confirmation</div>
-                    <div>2. Kickoff scheduling and prep</div>
-                    <div>3. Setup execution and milestone updates</div>
-                    <div>4. Final handoff and launch readiness</div>
+                    <div>{t('businessLaunchStatus.processSnapshotStep1', { defaultValue: '1. Intake review and package confirmation' })}</div>
+                    <div>{t('businessLaunchStatus.processSnapshotStep2', { defaultValue: '2. Kickoff scheduling and prep' })}</div>
+                    <div>{t('businessLaunchStatus.processSnapshotStep3', { defaultValue: '3. Setup execution and milestone updates' })}</div>
+                    <div>{t('businessLaunchStatus.processSnapshotStep4', { defaultValue: '4. Final handoff and launch readiness' })}</div>
                   </div>
                 </div>
               </aside>

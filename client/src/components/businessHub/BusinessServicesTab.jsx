@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Edit2, Trash2, Plus, Clock, DollarSign } from 'lucide-react';
@@ -25,6 +26,7 @@ function normaliseService(s) {
 }
 
 export function BusinessServicesTab({ businessId }) {
+  const { t } = useTranslation();
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -53,7 +55,7 @@ export function BusinessServicesTab({ businessId }) {
         : (Array.isArray(response.data?.services) ? response.data.services : []);
       setServices(raw.map(normaliseService).filter(Boolean));
     } catch (error) {
-      toast.error('Failed to load services');
+      toast.error(t('businessServices.toastLoadFailed'));
       setServices([]);
     } finally {
       setLoading(false);
@@ -62,7 +64,7 @@ export function BusinessServicesTab({ businessId }) {
 
   const handleSaveService = async () => {
     if (!formData.name || formData.duration_minutes < 15) {
-      toast.error('Please fill in required fields correctly');
+      toast.error(t('businessServices.toastInvalidFields'));
       return;
     }
 
@@ -72,10 +74,10 @@ export function BusinessServicesTab({ businessId }) {
           `/api/businesses/${businessId}/services/${selectedService.id}`,
           formData
         );
-        toast.success('Service updated');
+        toast.success(t('businessServices.toastUpdated'));
       } else {
         await api.post(`/api/businesses/${businessId}/services`, formData);
-        toast.success('Service created');
+        toast.success(t('businessServices.toastCreated'));
       }
       setShowForm(false);
       setSelectedService(null);
@@ -91,20 +93,20 @@ export function BusinessServicesTab({ businessId }) {
       });
       loadServices();
     } catch (error) {
-      toast.error('Failed to save service');
+      toast.error(t('businessServices.toastSaveFailed'));
     }
   };
 
   const handleDeleteService = async (serviceId) => {
-    if (!window.confirm('Deactivate this service?')) return;
+    if (!window.confirm(t('businessServices.confirmDeactivate'))) return;
     try {
       await api.put(`/api/businesses/${businessId}/services/${serviceId}`, {
         is_active: false
       });
-      toast.success('Service deactivated');
+      toast.success(t('businessServices.toastDeactivated'));
       loadServices();
     } catch (error) {
-      toast.error('Failed to delete service');
+      toast.error(t('businessServices.toastDeleteFailed'));
     }
   };
 
@@ -141,47 +143,47 @@ export function BusinessServicesTab({ businessId }) {
   return (
     <div className="bst-services-container">
       <div className="bst-header">
-        <h3>Services</h3>
+        <h3>{t('businessServices.title')}</h3>
         <button onClick={resetForm} className="bst-btn-new">
-          <Plus size={18} /> New Service
+          <Plus size={18} /> {t('businessServices.btnNew')}
         </button>
       </div>
       {showForm ? (
         <div className="bst-form-container">
-          <h4>{selectedService ? 'Edit Service' : 'Create Service'}</h4>
+          <h4>{selectedService ? t('businessServices.formTitleEdit') : t('businessServices.formTitleCreate')}</h4>
           <div className="bst-form-row">
             <div className="bst-form-group">
-              <label>Service Name *</label>
+              <label>{t('businessServices.fieldServiceName')}</label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., 1-Hour Consultation"
+                placeholder={t('businessServices.placeholderServiceName')}
                 required
               />
             </div>
             <div className="bst-form-group">
-              <label>Category</label>
+              <label>{t('businessServices.fieldCategory')}</label>
               <input
                 type="text"
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                placeholder="e.g., Consulting"
+                placeholder={t('businessServices.placeholderCategory')}
               />
             </div>
           </div>
           <div className="bst-form-group">
-            <label>Description</label>
+            <label>{t('businessServices.fieldDescription')}</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Describe what this service includes..."
+              placeholder={t('businessServices.placeholderDescription')}
               rows="3"
             />
           </div>
           <div className="bst-form-row">
             <div className="bst-form-group">
-              <label>Duration (minutes) *</label>
+              <label>{t('businessServices.fieldDuration')}</label>
               <input
                 type="number"
                 min="15"
@@ -192,7 +194,7 @@ export function BusinessServicesTab({ businessId }) {
               />
             </div>
             <div className="bst-form-group">
-              <label>Base Price (cents)</label>
+              <label>{t('businessServices.fieldPrice')}</label>
               <input
                 type="number"
                 min="0"
@@ -204,7 +206,7 @@ export function BusinessServicesTab({ businessId }) {
           </div>
           <div className="bst-form-row">
             <div className="bst-form-group">
-              <label>Max Capacity</label>
+              <label>{t('businessServices.fieldCapacity')}</label>
               <input
                 type="number"
                 min="1"
@@ -213,7 +215,7 @@ export function BusinessServicesTab({ businessId }) {
               />
             </div>
             <div className="bst-form-group">
-              <label>Min Notice (hours)</label>
+              <label>{t('businessServices.fieldNotice')}</label>
               <input
                 type="number"
                 min="0"
@@ -223,19 +225,19 @@ export function BusinessServicesTab({ businessId }) {
             </div>
           </div>
           <div className="bst-form-buttons">
-            <button onClick={() => setShowForm(false)} className="bst-btn-cancel">Cancel</button>
-            <button onClick={handleSaveService} className="bst-btn-save">Save Service</button>
+            <button onClick={() => setShowForm(false)} className="bst-btn-cancel">{t('businessServices.btnCancel')}</button>
+            <button onClick={handleSaveService} className="bst-btn-save">{t('businessServices.btnSave')}</button>
           </div>
         </div>
       ) : (
         <div className="bst-services-grid">
           {loading ? (
-            <div className="bst-loading">Loading services...</div>
+            <div className="bst-loading">{t('businessServices.loading')}</div>
           ) : services.length === 0 ? (
             <div className="bst-empty">
-              <p>No services yet</p>
+              <p>{t('businessServices.emptyTitle')}</p>
               <button onClick={resetForm} className="bst-btn-new-large">
-                Create First Service
+                {t('businessServices.btnCreateFirst')}
               </button>
             </div>
           ) : (
@@ -250,14 +252,14 @@ export function BusinessServicesTab({ businessId }) {
                     <button
                       onClick={() => handleEditService(service)}
                       className="bst-btn-action"
-                      aria-label="Edit service"
+                      aria-label={t('businessServices.ariaEdit')}
                     >
                       <Edit2 size={16} />
                     </button>
                     <button
                       onClick={() => handleDeleteService(service.id)}
                       className="bst-btn-action delete"
-                      aria-label="Delete service"
+                      aria-label={t('businessServices.ariaDelete')}
                     >
                       <Trash2 size={16} />
                     </button>
@@ -277,12 +279,12 @@ export function BusinessServicesTab({ businessId }) {
                     <span>${(service.base_price_cents / 100).toFixed(2)}</span>
                   </div>
                   <div className="bst-detail">
-                    <span className="bst-capacity">Cap: {service.max_capacity}</span>
+                    <span className="bst-capacity">{t('businessServices.capacityPrefix')} {service.max_capacity}</span>
                   </div>
                 </div>
                 {service.staff_count > 0 ? (
                   <div className="bst-staff-info">
-                    {service.staff_count} staff assigned
+                    {service.staff_count} {t('businessServices.staffAssigned')}
                   </div>
                 ) : null}
               </div>

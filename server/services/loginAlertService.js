@@ -1,6 +1,7 @@
 // FIX #6: Login Alert Service - detect and alert on new/unfamiliar IPs
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { tNotif } = require('../utils/i18n');
 
 /**
  * Check if a login is from a new/unfamiliar IP and send alert email if so.
@@ -32,31 +33,35 @@ async function checkAndAlertNewLogin(userId, ipAddress, userAgent) {
       return;
     }
 
-    // New IP detected - fetch user for email and name
+    // New IP detected - fetch user language for localized alert.
     const { rows: userRows } = await pool.query(
-      `SELECT email, first_name FROM users WHERE id = $1`,
+      `SELECT email, first_name, preferred_language FROM users WHERE id = $1`,
       [userId]
     ).catch(() => ({ rows: [] }));
 
     if (!userRows[0]) return;
 
     const user = userRows[0];
-    const { sendEmail } = require('../utils/email');
+    const { sendSecurityAlertEmail } = require('../utils/email');
+    const notificationLanguage = user.preferred_language || 'en';
+    const safeIp = ipAddress || 'Unknown';
+    const safeUserAgent = userAgent ? userAgent.substring(0, 100) : 'Unknown';
+    const safeTime = new Date().toLocaleString();
+    const { title: alertType } = tNotif('new_login_detected', notificationLanguage);
+    const details = `IP: ${safeIp}\nUser agent: ${safeUserAgent}\nTime: ${safeTime}`;
 
     // Send alert email (fire-and-forget)
-    sendEmail({
-      to: user.email,
-      template: 'login_alert',
-      subject: 'New login detected on your OxSteed account',
-      data: {
-        name: user.first_name || 'there',
-        ip: ipAddress,
-        userAgent: userAgent ? userAgent.substring(0, 100) : 'Unknown',
-        time: new Date().toLocaleString(),
-        action_url: `${process.env.APP_URL || 'https://oxsteed.com'}/security/login-activity`
-      }
-    }).catch(emailErr => {
-      logger.warn('Failed to send login alert email', { userId, email: user.email, error: emailErr.message });
+    sendSecurityAlertEmail(
+      user.email,
+      alertType,
+      details,
+      notificationLanguage
+    ).catch(emailErr => {
+      logger.warn('Failed to send login alert email', {
+        userId,
+        email: user.email,
+        error: emailErr.message,
+      });
     });
 
   } catch (err) {

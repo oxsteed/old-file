@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, Edit2, Package, Gift, Minus } from 'lucide-react';
 
 export function ServicePackagesManager({ businessId }) {
+  const { t } = useTranslation();
   const [packages, setPackages] = useState([]);
   const [clientPkgs, setClientPkgs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -20,55 +22,55 @@ export function ServicePackagesManager({ businessId }) {
   const loadPackages = async () => {
     setLoading(true);
     try { const res = await api.get(`/businesses/${businessId}/packages`); setPackages(res.data || []); }
-    catch { toast.error('Failed to load packages'); }
+    catch { toast.error(t('businessHub.packages.toastLoadPackagesFail')); }
     finally { setLoading(false); }
   };
 
   const loadClientPkgs = async () => {
     setLoading(true);
     try { const res = await api.get(`/businesses/${businessId}/client-packages`); setClientPkgs(res.data || []); }
-    catch { toast.error('Failed to load client packages'); }
+    catch { toast.error(t('businessHub.packages.toastLoadClientPackagesFail')); }
     finally { setLoading(false); }
   };
 
   const save = async () => {
-    if (!form.name || !form.price_cents) return toast.error('Name and price are required');
+    if (!form.name || !form.price_cents) return toast.error(t('businessHub.packages.toastNamePriceRequired'));
     const payload = { ...form, price_cents: Math.round(parseFloat(form.price_cents) * 100) };
     try {
       if (editing) {
         await api.put(`/businesses/${businessId}/packages/${editing.id}`, payload);
-        toast.success('Package updated');
+        toast.success(t('businessHub.packages.toastUpdated'));
       } else {
         await api.post(`/businesses/${businessId}/packages`, payload);
-        toast.success('Package created');
+        toast.success(t('businessHub.packages.toastCreated'));
       }
       setShowForm(false); setEditing(null); setForm({ name: '', description: '', total_sessions: 1, price_cents: '', validity_days: 90 }); loadPackages();
-    } catch { toast.error('Failed to save'); }
+    } catch { toast.error(t('common.failedSave')); }
   };
 
   const deletePackage = async (id) => {
-    if (!window.confirm('Archive this package?')) return;
-    try { await api.delete(`/businesses/${businessId}/packages/${id}`); toast.success('Archived'); loadPackages(); }
-    catch { toast.error('Failed'); }
+    if (!window.confirm(t('businessHub.packages.confirmArchive'))) return;
+    try { await api.delete(`/businesses/${businessId}/packages/${id}`); toast.success(t('businessHub.packages.toastArchived')); loadPackages(); }
+    catch { toast.error(t('common.failed')); }
   };
 
   const redeem = async (cpId) => {
-    try { await api.post(`/businesses/${businessId}/client-packages/${cpId}/redeem`); toast.success('Session redeemed'); loadClientPkgs(); }
-    catch (err) { toast.error(err?.response?.data?.error || 'Failed to redeem'); }
+    try { await api.post(`/businesses/${businessId}/client-packages/${cpId}/redeem`); toast.success(t('businessHub.packages.toastRedeemed')); loadClientPkgs(); }
+    catch (err) { toast.error(err?.response?.data?.error || t('businessHub.packages.toastRedeemFail')); }
   };
 
   return (
     <div style={{ padding: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>Service Packages</h3>
-          <p style={{ margin: '0.25rem 0 0', color: 'var(--muted-text)', fontSize: '0.875rem' }}>Bundle services into packages for clients</p>
+          <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{t('businessHub.packages.title')}</h3>
+          <p style={{ margin: '0.25rem 0 0', color: 'var(--muted-text)', fontSize: '0.875rem' }}>{t('businessHub.packages.subtitle')}</p>
         </div>
-        {tab === 'packages' && <button onClick={() => { setEditing(null); setShowForm(true); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1.2rem', cursor: 'pointer', fontWeight: 600 }}><Plus size={16} /> New Package</button>}
+        {tab === 'packages' && <button onClick={() => { setEditing(null); setShowForm(true); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1.2rem', cursor: 'pointer', fontWeight: 600 }}><Plus size={16} /> {t('businessHub.packages.newPackage')}</button>}
       </div>
 
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
-        {[['packages','Packages',<Package size={14} />],['clients','Client Packages',<Gift size={14} />]].map(([id,label,icon]) => (
+        {[['packages', t('businessHub.packages.tabs.packages'), <Package size={14} />], ['clients', t('businessHub.packages.tabs.clientPackages'), <Gift size={14} />]].map(([id,label,icon]) => (
           <button key={id} onClick={() => setTab(id)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem', border: 'none', background: 'transparent', cursor: 'pointer', color: tab === id ? '#f97316' : 'var(--muted-text)', borderBottom: tab === id ? '2px solid #f97316' : '2px solid transparent', fontWeight: tab === id ? 600 : 400, fontSize: '0.875rem' }}>
             {icon} {label}
           </button>

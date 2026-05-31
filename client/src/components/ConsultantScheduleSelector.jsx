@@ -5,7 +5,7 @@ import axios from '../api/axios';
 import logger from '../utils/logger';
 
 export default function ConsultantScheduleSelector({ consultantId, sessionId, onScheduleConfirmed, onCancel }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [step, setStep] = useState('selectDate'); // selectDate, selectTime, confirm
   const [availableDates, setAvailableDates] = useState([]);
   const [availableSlots, setAvailableSlots] = useState([]);
@@ -26,7 +26,7 @@ export default function ConsultantScheduleSelector({ consultantId, sessionId, on
         });
         setAvailableDates(response.data);
       } catch (err) {
-        toast.error(t('common.errorLoading') || 'Failed to load available dates');
+        toast.error(t('common.errorLoading'));
         logger.error('Failed to load available dates', { error: err.message });
       } finally {
         setLoading(false);
@@ -53,7 +53,7 @@ export default function ConsultantScheduleSelector({ consultantId, sessionId, on
         );
         setAvailableSlots(response.data);
       } catch (err) {
-        toast.error(t('common.errorLoading') || 'Failed to load time slots');
+        toast.error(t('common.errorLoading'));
         logger.error('Failed to load time slots', { error: err.message });
       } finally {
         setLoading(false);
@@ -87,15 +87,15 @@ export default function ConsultantScheduleSelector({ consultantId, sessionId, on
         timezone
       });
 
-      toast.success(t('scheduling.sessionConfirmed') || 'Session scheduled successfully!');
+      toast.success(t('scheduling.sessionConfirmed'));
       if (onScheduleConfirmed) {
         onScheduleConfirmed(response.data);
       }
     } catch (err) {
       if (err.response?.status === 409) {
-        toast.error(t('scheduling.slotUnavailable') || 'This time slot is no longer available');
+        toast.error(t('scheduling.slotUnavailable'));
       } else {
-        toast.error(t('common.errorUpdating') || 'Failed to book session');
+        toast.error(t('common.errorUpdating'));
       }
       logger.error('Failed to book session', { error: err.message });
     } finally {
@@ -204,13 +204,23 @@ export default function ConsultantScheduleSelector({ consultantId, sessionId, on
     border: '1px solid var(--color-primary)',
   };
 
+  const timezoneOptions = [
+    { value: 'America/New_York', label: t('scheduling.timezones.eastern') },
+    { value: 'America/Chicago', label: t('scheduling.timezones.central') },
+    { value: 'America/Denver', label: t('scheduling.timezones.mountain') },
+    { value: 'America/Los_Angeles', label: t('scheduling.timezones.pacific') },
+    { value: 'Europe/London', label: t('scheduling.timezones.london') },
+    { value: 'Europe/Paris', label: t('scheduling.timezones.paris') },
+  ];
+  const dateLocale = i18n.language || 'en';
+
   return (
     <div style={containerStyle}>
-      <h2 style={titleStyle}>{t('scheduling.selectTime') || 'Choose Your Session Time'}</h2>
+      <h2 style={titleStyle}>{t('scheduling.selectTime')}</h2>
       <p style={stepStyle}>
-        {step === 'selectDate' && (t('scheduling.step1') || 'Step 1 of 3: Select a date')}
-        {step === 'selectTime' && (t('scheduling.step2') || 'Step 2 of 3: Select a time')}
-        {step === 'confirm' && (t('scheduling.step3') || 'Step 3 of 3: Confirm details')}
+        {step === 'selectDate' && t('scheduling.step1')}
+        {step === 'selectTime' && t('scheduling.step2')}
+        {step === 'confirm' && t('scheduling.step3')}
       </p>
 
       {step === 'selectDate' && (
@@ -227,14 +237,14 @@ export default function ConsultantScheduleSelector({ consultantId, sessionId, on
                   {dateObj.dayOfWeek}
                 </div>
                 <div style={{ fontWeight: 'bold', marginTop: '0.25rem' }}>
-                  {new Date(dateObj.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  {new Date(dateObj.date).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })}
                 </div>
               </button>
             ))}
           </div>
           {availableDates.length === 0 && !loading && (
             <p style={{ color: 'var(--color-text-muted)', textAlign: 'center' }}>
-              {t('scheduling.noAvailability') || 'No available dates found'}
+              {t('scheduling.noAvailability')}
             </p>
           )}
         </>
@@ -256,22 +266,22 @@ export default function ConsultantScheduleSelector({ consultantId, sessionId, on
           </div>
           {availableSlots.length === 0 && !loading && (
             <p style={{ color: 'var(--color-text-muted)', textAlign: 'center' }}>
-              {t('scheduling.noSlots') || 'No available times on this date'}
+              {t('scheduling.noSlots')}
             </p>
           )}
 
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-              {t('scheduling.duration') || 'Session Duration'}
+              {t('scheduling.duration')}
             </label>
             <select
               value={durationMinutes}
               onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
               style={inputStyle}
             >
-              <option value={60}>{t('scheduling.duration60') || '1 hour'}</option>
-              <option value={90}>{t('scheduling.duration90') || '1.5 hours'}</option>
-              <option value={120}>{t('scheduling.duration120') || '2 hours'}</option>
+              <option value={60}>{t('scheduling.duration60')}</option>
+              <option value={90}>{t('scheduling.duration90')}</option>
+              <option value={120}>{t('scheduling.duration120')}</option>
             </select>
           </div>
         </>
@@ -281,23 +291,23 @@ export default function ConsultantScheduleSelector({ consultantId, sessionId, on
         <>
           <div style={{ background: 'var(--color-bg)', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem' }}>
             <h3 style={{ margin: '0 0 1rem 0', color: 'var(--color-text)' }}>
-              {t('scheduling.reviewBooking') || 'Review Your Booking'}
+              {t('scheduling.reviewBooking')}
             </h3>
             <p style={{ margin: '0.5rem 0', color: 'var(--color-text-muted)' }}>
-              <strong>{t('scheduling.date') || 'Date'}:</strong>{' '}
-              {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              <strong>{t('scheduling.date')}:</strong>{' '}
+              {new Date(selectedDate).toLocaleDateString(dateLocale, { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
             <p style={{ margin: '0.5rem 0', color: 'var(--color-text-muted)' }}>
-              <strong>{t('scheduling.time') || 'Time'}:</strong> {selectedSlot}
+              <strong>{t('scheduling.time')}:</strong> {selectedSlot}
             </p>
             <p style={{ margin: '0.5rem 0', color: 'var(--color-text-muted)' }}>
-              <strong>{t('scheduling.duration') || 'Duration'}:</strong> {durationMinutes} {t('scheduling.minutes') || 'minutes'}
+              <strong>{t('scheduling.duration')}:</strong> {durationMinutes} {t('scheduling.minutes')}
             </p>
           </div>
 
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-              {t('scheduling.meetingLink') || 'Meeting Link (Optional)'}
+              {t('scheduling.meetingLink')}
             </label>
             <input
               type="url"
@@ -310,19 +320,18 @@ export default function ConsultantScheduleSelector({ consultantId, sessionId, on
 
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-              {t('scheduling.timezone') || 'Timezone'}
+              {t('scheduling.timezone')}
             </label>
             <select
               value={timezone}
               onChange={(e) => setTimezone(e.target.value)}
               style={inputStyle}
             >
-              <option value="America/New_York">Eastern Time</option>
-              <option value="America/Chicago">Central Time</option>
-              <option value="America/Denver">Mountain Time</option>
-              <option value="America/Los_Angeles">Pacific Time</option>
-              <option value="Europe/London">London</option>
-              <option value="Europe/Paris">Central European</option>
+              {timezoneOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </div>
         </>
@@ -343,7 +352,7 @@ export default function ConsultantScheduleSelector({ consultantId, sessionId, on
           }}
           disabled={loading}
         >
-          {step === 'selectDate' ? (t('common.cancel') || 'Cancel') : (t('common.back') || 'Back')}
+          {step === 'selectDate' ? t('common.cancel') : t('common.back')}
         </button>
         {step !== 'selectDate' && (
           <button
@@ -351,7 +360,7 @@ export default function ConsultantScheduleSelector({ consultantId, sessionId, on
             onClick={step === 'selectTime' ? handleConfirmSchedule : () => setStep('confirm')}
             disabled={!selectedSlot || loading}
           >
-            {step === 'selectTime' ? (loading ? t('common.loading') || 'Loading...' : t('common.next') || 'Next') : (t('scheduling.confirmBooking') || 'Confirm Booking')}
+            {step === 'selectTime' ? (loading ? t('common.loading') : t('common.next')) : t('scheduling.confirmBooking')}
           </button>
         )}
       </div>

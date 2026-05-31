@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Settings, Copy, RefreshCw, Link2, Trash2, Plus, Check, X } from 'lucide-react';
@@ -46,6 +47,7 @@ const WEBHOOK_EVENTS = [
 ];
 
 export function BusinessIntegrations({ businessId }) {
+  const { t } = useTranslation();
   const [integrations, setIntegrations] = useState({});
   const [loading, setLoading] = useState(false);
   const [webhooks, setWebhooks] = useState([]);
@@ -70,7 +72,7 @@ export function BusinessIntegrations({ businessId }) {
       setIntegrations(intRes.data);
       setWebhooks(webhookRes.data || []);
     } catch (error) {
-      toast.error('Failed to load integrations');
+      toast.error(t('businessHub.integrations.toastLoadFail'));
     } finally {
       setLoading(false);
     }
@@ -83,27 +85,27 @@ export function BusinessIntegrations({ businessId }) {
       );
       window.location.href = response.data.auth_url;
     } catch (error) {
-      toast.error('Failed to initiate Stripe connection');
+      toast.error(t('businessHub.integrations.toastStripeStartFail'));
     }
   };
 
   const handleDisconnectStripe = async () => {
-    if (!window.confirm('Disconnect Stripe? You will need to reconnect to accept payments.')) return;
+    if (!window.confirm(t('businessHub.integrations.confirmDisconnectStripe'))) return;
     
     try {
       await api.post(
         `/businesses/${businessId}/integrations/stripe/disconnect`
       );
-      toast.success('Stripe disconnected');
+      toast.success(t('businessHub.integrations.toastStripeDisconnected'));
       loadIntegrations();
     } catch (error) {
-      toast.error('Failed to disconnect Stripe');
+      toast.error(t('businessHub.integrations.toastStripeDisconnectFail'));
     }
   };
 
   const handleAddWebhook = async () => {
     if (!webhookForm.url || webhookForm.events.length === 0) {
-      toast.error('Please fill in all fields');
+      toast.error(t('businessHub.integrations.toastWebhookFieldsRequired'));
       return;
     }
 
@@ -112,26 +114,26 @@ export function BusinessIntegrations({ businessId }) {
         `/businesses/${businessId}/webhooks`,
         webhookForm
       );
-      toast.success('Webhook created');
+      toast.success(t('businessHub.integrations.toastWebhookCreated'));
       setShowWebhookForm(false);
       setWebhookForm({ url: '', events: [] });
       loadIntegrations();
     } catch (error) {
-      toast.error('Failed to create webhook');
+      toast.error(t('businessHub.integrations.toastWebhookCreateFail'));
     }
   };
 
   const handleDeleteWebhook = async (webhookId) => {
-    if (!window.confirm('Delete this webhook?')) return;
+    if (!window.confirm(t('businessHub.integrations.confirmDeleteWebhook'))) return;
 
     try {
       await api.delete(
         `/businesses/${businessId}/webhooks/${webhookId}`
       );
-      toast.success('Webhook deleted');
+      toast.success(t('businessHub.integrations.toastWebhookDeleted'));
       loadIntegrations();
     } catch (error) {
-      toast.error('Failed to delete webhook');
+      toast.error(t('businessHub.integrations.toastWebhookDeleteFail'));
     }
   };
 
@@ -146,17 +148,17 @@ export function BusinessIntegrations({ businessId }) {
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard');
+    toast.success(t('common.copied'));
   };
 
   if (loading) {
-    return <div className="bi-loading">Loading integrations...</div>;
+    return <div className="bi-loading">{t('businessHub.integrations.loading')}</div>;
   }
 
   return (
     <div className="bi-container">
       <div className="bi-header">
-        <h3>Integrations & Settings</h3>
+        <h3>{t('businessHub.integrations.title')}</h3>
       </div>
 
       <div className="bi-integrations-grid">
@@ -169,10 +171,10 @@ export function BusinessIntegrations({ businessId }) {
                 <h4>{integration.name}</h4>
                 <span className={`bi-status-badge ${isEnabled ? 'active' : 'inactive'}`}>
                   {isEnabled ? <Check size={14} /> : <X size={14} />}
-                  {isEnabled ? 'Connected' : 'Not Connected'}
+                  {isEnabled ? t('businessHub.integrations.connected') : t('businessHub.integrations.notConnected')}
                 </span>
               </div>
-              <p className="bi-integration-desc">{integration.description}</p>
+              <p className="bi-integration-desc">{t(`businessHub.integrations.cards.${integration.id}.description`, { defaultValue: integration.description })}</p>
 
               {integration.id === 'stripe' && (
                 <div className="bi-integration-actions">
@@ -180,14 +182,14 @@ export function BusinessIntegrations({ businessId }) {
                     <>
                       <div className="bi-stripe-info">
                         <p className="bi-connected-as">
-                          <strong>Account:</strong> {integrations.stripe_account_id}
+                          <strong>{t('businessHub.integrations.account')}:</strong> {integrations.stripe_account_id}
                         </p>
                       </div>
                       <button
                         onClick={handleDisconnectStripe}
                         className="bi-btn-danger"
                       >
-                        Disconnect Stripe
+                        {t('businessHub.integrations.disconnectStripe')}
                       </button>
                     </>
                   ) : (
@@ -195,7 +197,7 @@ export function BusinessIntegrations({ businessId }) {
                       onClick={handleStripeConnect}
                       className="bi-btn-primary"
                     >
-                      <Link2 size={16} /> Connect Stripe
+                      <Link2 size={16} /> {t('businessHub.integrations.connectStripe')}
                     </button>
                   )}
                 </div>

@@ -9,14 +9,15 @@ import {
   Clock,
 } from 'lucide-react';
 import type { TimelineEvent } from '../../../types/helperProfile';
+import { useTranslation } from 'react-i18next';
 
 interface TimelineEventItemProps {
   event: TimelineEvent;
 }
 
-function formatTimestamp(iso: string): string {
+function formatTimestamp(iso: string, locale: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return new Intl.DateTimeFormat(locale || undefined, { hour: 'numeric', minute: '2-digit' }).format(d);
 }
 
 interface EventStyle {
@@ -73,6 +74,7 @@ const SUB_TYPE_ICON: Record<string, React.ElementType> = {
 };
 
 const TimelineEventItem: React.FC<TimelineEventItemProps> = ({ event }) => {
+  const { t, i18n } = useTranslation();
   const guestOk = event.eventType === 'guest_delivered';
   const baseStyle = EVENT_STYLES[event.itemType] ?? EVENT_STYLES.system;
   const style = guestOk
@@ -90,7 +92,7 @@ const TimelineEventItem: React.FC<TimelineEventItemProps> = ({ event }) => {
     <div
       className="flex items-center gap-2 justify-center"
       role="status"
-      aria-label={`Event: ${event.content}`}
+      aria-label={t('timelineEvent.ariaLabel', { content: event.content })}
     >
       {/* Left rule */}
       <div className="flex-1 h-px bg-gray-800" aria-hidden="true" />
@@ -102,7 +104,7 @@ const TimelineEventItem: React.FC<TimelineEventItemProps> = ({ event }) => {
         <IconComponent className={`w-3.5 h-3.5 flex-shrink-0 ${style.iconColor}`} aria-hidden="true" />
         <span>{event.content}</span>
         <time dateTime={event.timestamp} className="text-xs opacity-60 ml-1">
-          {formatTimestamp(event.timestamp)}
+          {formatTimestamp(event.timestamp, i18n.resolvedLanguage || i18n.language || 'en')}
         </time>
       </div>
 

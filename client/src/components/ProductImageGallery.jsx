@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import '../styles/ProductImageGallery.css';
+import { useTranslation } from 'react-i18next';
 
 export default function ProductImageGallery({ images = [], productName = 'Product' }) {
+  const { t } = useTranslation();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
@@ -39,7 +41,7 @@ export default function ProductImageGallery({ images = [], productName = 'Produc
       <div className="pig-container">
         <div className="pig-main-placeholder">
           <div className="pig-placeholder-content">
-            <svg
+          <svg
               className="pig-placeholder-icon"
               fill="none"
               viewBox="0 0 24 24"
@@ -52,7 +54,7 @@ export default function ProductImageGallery({ images = [], productName = 'Produc
                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            <p className="pig-placeholder-text">No image available</p>
+            <p className="pig-placeholder-text">{t('productGallery.noImage')}</p>
           </div>
         </div>
       </div>
@@ -67,7 +69,7 @@ export default function ProductImageGallery({ images = [], productName = 'Produc
       <div className="pig-main-container">
         <img
           src={currentImage}
-          alt={`${productName} - image ${activeImageIndex + 1}`}
+          alt={t('productGallery.imageAlt', { productName, index: activeImageIndex + 1 })}
           className="pig-main-image"
           onClick={handleMainImageClick}
         />
@@ -76,14 +78,14 @@ export default function ProductImageGallery({ images = [], productName = 'Produc
             <button
               onClick={handlePrevious}
               className="pig-nav-button pig-nav-prev"
-              aria-label="Previous image"
+              aria-label={t('productGallery.previousImage')}
             >
               <ChevronLeft size={24} />
             </button>
             <button
               onClick={handleNext}
               className="pig-nav-button pig-nav-next"
-              aria-label="Next image"
+              aria-label={t('productGallery.nextImage')}
             >
               <ChevronRight size={24} />
             </button>
@@ -104,10 +106,10 @@ export default function ProductImageGallery({ images = [], productName = 'Produc
               className={`pig-thumbnail ${
                 index === activeImageIndex ? 'pig-thumbnail-active' : ''
               }`}
-              aria-label={`View image ${index + 1}`}
+              aria-label={t('productGallery.viewImage', { index: index + 1 })}
               aria-current={index === activeImageIndex}
             >
-              <img src={image} alt={`${productName} thumbnail ${index + 1}`} />
+              <img src={image} alt={t('productGallery.thumbnailAlt', { productName, index: index + 1 })} />
             </button>
           ))}
         </div>
@@ -120,28 +122,28 @@ export default function ProductImageGallery({ images = [], productName = 'Produc
             <button
               onClick={closeLightbox}
               className="pig-lightbox-close"
-              aria-label="Close lightbox"
+              aria-label={t('productGallery.closeLightbox')}
             >
               <X size={28} />
             </button>
             <img
               src={currentImage}
-              alt={`${productName} - fullscreen`}
+              alt={t('productGallery.fullscreenImageAlt', { productName, index: activeImageIndex + 1 })}
               className="pig-lightbox-image"
             />
             {validImages.length > 1 && (
               <>
                 <button
-                  onClick={handlePrevious}
+                onClick={handlePrevious}
                   className="pig-lightbox-nav pig-lightbox-prev"
-                  aria-label="Previous image"
+                  aria-label={t('productGallery.previousImage')}
                 >
                   <ChevronLeft size={32} />
                 </button>
                 <button
-                  onClick={handleNext}
+                onClick={handleNext}
                   className="pig-lightbox-nav pig-lightbox-next"
-                  aria-label="Next image"
+                  aria-label={t('productGallery.nextImage')}
                 >
                   <ChevronRight size={32} />
                 </button>

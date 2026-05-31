@@ -15,6 +15,7 @@
 import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import useRecommendations from '../hooks/useRecommendations';
+import { useTranslation } from 'react-i18next';
 
 // ── Icon set ─────────────────────────────────────────────────────────────
 
@@ -130,7 +131,7 @@ const BTN_ACCENT = {
 
 // ── Card ─────────────────────────────────────────────────────────────────
 
-function RecCard({ rec, onDismiss }) {
+function RecCard({ rec, onDismiss, dismissAria }) {
   const accent = ACCENT[rec.type] || ACCENT.guide;
   const btnAcc = BTN_ACCENT[rec.type] || BTN_ACCENT.guide;
   const icon   = icons[rec.icon_hint] || icons.zap;
@@ -149,7 +150,7 @@ function RecCard({ rec, onDismiss }) {
         </div>
         <button
           onClick={() => onDismiss(rec.id)}
-          aria-label="Dismiss"
+          aria-label={`${dismissAria}: ${rec.title}`}
           className="p-1 text-gray-600 hover:text-gray-400 transition rounded-lg hover:bg-gray-800"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -194,17 +195,22 @@ function RecCard({ rec, onDismiss }) {
 
 /**
  * @param {object}   props
- * @param {string}   [props.title='What to do next']  — section header text
+ * @param {string}   [props.title='recommendationFeed.titleDefault']  — section header text
  * @param {function} [props.onAction]                 — called after CTA click
  */
-export default function RecommendationFeed({ title = 'What to do next', onAction }) {
+export default function RecommendationFeed({ title, onAction }) {
   const { recommendations, loading, dismiss } = useRecommendations();
+  const { t } = useTranslation();
   const scrollRef = useRef(null);
+  const heading = title || t('recommendationFeed.titleDefault');
+  const dismissAria = t('recommendationFeed.dismiss');
+  const scrollLeftAria = t('recommendationFeed.scrollLeft');
+  const scrollRightAria = t('recommendationFeed.scrollRight');
 
   if (loading) {
     return (
       <div className="mb-6">
-        <p className="text-xs uppercase tracking-widest font-semibold text-gray-500 mb-3">{title}</p>
+        <p className="text-xs uppercase tracking-widest font-semibold text-gray-500 mb-3">{heading}</p>
         <div className="flex gap-3 overflow-hidden">
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex-shrink-0 w-64 h-40 bg-gray-800/60 rounded-2xl animate-pulse"/>
@@ -223,12 +229,12 @@ export default function RecommendationFeed({ title = 'What to do next', onAction
     <section className="mb-6">
       {/* header */}
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs uppercase tracking-widest font-semibold text-gray-500">{title}</p>
+        <p className="text-xs uppercase tracking-widest font-semibold text-gray-500">{heading}</p>
         {recommendations.length > 3 && (
           <div className="flex gap-1">
             <button
               onClick={scrollLeft}
-              aria-label="Scroll left"
+              aria-label={scrollLeftAria}
               className="p-1.5 text-gray-500 hover:text-white rounded-lg hover:bg-gray-800 transition"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -238,7 +244,7 @@ export default function RecommendationFeed({ title = 'What to do next', onAction
             </button>
             <button
               onClick={scrollRight}
-              aria-label="Scroll right"
+              aria-label={scrollRightAria}
               className="p-1.5 text-gray-500 hover:text-white rounded-lg hover:bg-gray-800 transition"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -261,6 +267,7 @@ export default function RecommendationFeed({ title = 'What to do next', onAction
             key={rec.id}
             rec={rec}
             onDismiss={dismiss}
+            dismissAria={dismissAria}
           />
         ))}
       </div>

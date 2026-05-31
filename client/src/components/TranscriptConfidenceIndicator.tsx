@@ -6,6 +6,7 @@
 
 import React from 'react';
 import { AlertCircle, Sparkles, CheckCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface TranscriptConfidenceIndicatorProps {
   confidence: number; // 0-1
@@ -25,6 +26,7 @@ export default function TranscriptConfidenceIndicator({
   const confidence_percent = Math.round(confidence * 100);
   const isLowConfidence = confidence < 0.85;
   const isHighConfidence = confidence >= 0.95;
+  const { t } = useTranslation();
 
   if (!transcript || confidence_percent < 0 || confidence_percent > 100) {
     return null;
@@ -45,7 +47,7 @@ export default function TranscriptConfidenceIndicator({
 
       {/* Confidence percentage */}
       <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-        {confidence_percent}% confident
+        {t('transcriptConfidence.label', { percent: confidence_percent })}
       </span>
 
       {/* "Improve with AI" button for low confidence */}
@@ -57,13 +59,13 @@ export default function TranscriptConfidenceIndicator({
           className="ml-auto flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <Sparkles className="w-3 h-3" />
-          {isImproving ? 'Improving...' : 'Improve'}
+          {isImproving ? t('transcriptConfidence.improving') : t('transcriptConfidence.improve')}
         </button>
       )}
 
       {isHighConfidence && (
         <span className="ml-auto text-xs text-green-600 dark:text-green-400 font-medium">
-          High accuracy
+          {t('transcriptConfidence.highAccuracy')}
         </span>
       )}
     </div>

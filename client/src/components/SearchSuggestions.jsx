@@ -1,14 +1,16 @@
 import { Search, TrendingUp } from 'lucide-react';
 import '../styles/SearchSuggestions.css';
+import { useTranslation } from 'react-i18next';
 
 export default function SearchSuggestions({ suggestions, onSelect }) {
+  const { t } = useTranslation('common');
   if (!suggestions || suggestions.length === 0) return null;
 
   return (
     <div className="ss-dropdown">
       <div className="ss-header">
         <TrendingUp size={14} />
-        <span>Popular searches</span>
+        <span>{t('searchSuggestions.popularSearches')}</span>
       </div>
 
       <ul className="ss-list">

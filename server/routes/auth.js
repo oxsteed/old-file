@@ -65,6 +65,7 @@ router.post('/register/resend-otp', authLimiter, resendRegistrationOTP);
 // Settings & Profile routes
 router.get('/me', authenticate, getMe);
 router.put('/profile', authenticate, updateProfile);
+router.patch('/me', authenticate, updateProfile);
 router.put('/change-password', authenticate, changePassword);
 router.post('/change-email', authenticate, changeEmail);
 router.post('/confirm-email-change', authenticate, confirmEmailChange);

@@ -6,6 +6,7 @@ const { Expo }          = require('expo-server-sdk');
 const escapeHtml        = require('../utils/escapeHtml');
 const webPushService    = require('./webPushService');
 const mobilePushService = require('./mobilePushService');
+const { tNotif, tNotifEmail } = require('../utils/i18n');
 
 const expo = new Expo({ accessToken: process.env.EXPO_ACCESS_TOKEN });
 
@@ -29,6 +30,7 @@ exports.sendNotification = async ({
     // Get user prefs
     const { rows: prefRows } = await db.query(`
       SELECT np.*, u.email, u.first_name, u.is_banned,
+             u.preferred_language,
              hp.push_token AS helper_push_token
       FROM users u
       LEFT JOIN notification_preferences np ON np.user_id = u.id
@@ -42,6 +44,13 @@ exports.sendNotification = async ({
     const firstName = prefs.first_name;
     const isBanned  = !!prefs.is_banned;
     const token     = pushToken || prefs.helper_push_token;
+    const language  = prefs.preferred_language || 'en';
+    const notificationText = tNotif(type, language);
+    const emailTranslations = tNotifEmail(type, language);
+    const finalTitle = notificationText.title || title;
+    const finalBody = notificationText.body
+      ? [notificationText.body, body].filter(Boolean).join(' ')
+      : (body || notificationText.body);
 
     // ── Quiet-hours gate (blocks push only, in-app and email still proceed) ──
     // quiet_hours_start / quiet_hours_end are stored as Postgres TIME (HH:MM:SS).
@@ -63,12 +72,12 @@ exports.sendNotification = async ({
           (user_id, type, title, body, data, action_url)
         VALUES ($1,$2,$3,$4,$5,$6)
         RETURNING id
-      `, [userId, type, title, body, JSON.stringify(data), action_url]);
+      `, [userId, type, finalTitle, finalBody, JSON.stringify(data), action_url]);
       notifId = rows[0].id;
 
       // ── 2. Real-time via Socket.IO ──────────────────────────
       broadcastToUser(userId, 'notification:new', {
-        id: notifId, type, title, body, data, action_url,
+        id: notifId, type, title: finalTitle, body: finalBody, data, action_url,
         created_at: new Date().toISOString()
       });
     }
@@ -77,7 +86,7 @@ exports.sendNotification = async ({
     const pushKey     = `push_${type.replace(':', '_')}`;
     const pushEnabled = prefs[pushKey] !== false && !inQuietHours;
     if (token && pushEnabled && Expo.isExpoPushToken(token)) {
-      await sendPushNotification(token, title, body, data, notifId);
+      await sendPushNotification(token, finalTitle, finalBody, data, notifId);
       if (notifId) {
         await db.query(
           `UPDATE notifications SET is_push_sent = true WHERE id = $1`,
@@ -94,8 +103,8 @@ exports.sendNotification = async ({
         const result = await webPushService.sendToUser(userId, {
           id: notifId,
           type,
-          title,
-          body,
+          title: finalTitle,
+          body: finalBody,
           data,
           action_url,
         });
@@ -118,8 +127,8 @@ exports.sendNotification = async ({
         const result = await mobilePushService.sendToUser(userId, {
           notifId,
           type,
-          title,
-          body,
+          title: finalTitle,
+          body: finalBody,
           data,
           action_url,
         });
@@ -169,10 +178,12 @@ exports.sendNotification = async ({
         to: userEmail,
         firstName,
         type,
-        title,
-        body,
+        title: finalTitle,
+        body: finalBody,
         action_url: safeActionUrl,
-        isBanned
+        isBanned,
+        language,
+        fallbackTranslations: emailTranslations,
       });
       if (notifId) {
         await db.query(
@@ -221,28 +232,22 @@ async function sendPushNotification(token, title, body, data, notifId) {
 }
 
 // ─── EMAIL NOTIFICATION (Resend via utils/email.js) ───────────
-async function sendEmailNotification({ to, firstName, type, title, body, action_url, isBanned }) {
+async function sendEmailNotification({
+  to,
+  firstName,
+  type,
+  title,
+  body,
+  action_url,
+  isBanned,
+  language = 'en',
+  fallbackTranslations = null,
+}) {
   try {
-    const buttonText = {
-      bid_accepted:           'View Job',
-      payment_released:       'View Earnings',
-      subscription_renewed:   'View Billing',
-      subscription_cancelled: 'Renew Plan',
-      subscription_past_due:  'Update Payment',
-      dispute_update:         'View Dispute',
-      payout_deposited:       'View Earnings',
-      account_banned:         'Contact Support',
-      account_restored:       'Sign In',
-      account_suspended:      'Contact Support',
-      account_restricted:     'Contact Support',
-      account_deletion_scheduled: 'Contact Support',
-      admin_warning:          'Contact Support',
-      booking_request_new:    'View Booking Request',
-      booking_accepted:       'View Calendar',
-      booking_declined:       'Post as Job',
-      booking_cancelled:      'View Bookings',
-      booking_auto_released:  'Post as Job',
-    }[type] || 'View Dashboard';
+    const translations = fallbackTranslations || tNotifEmail(type, language);
+    const buttonText = translations.buttonText
+      || tNotifEmail('default', language).buttonText
+      || 'View Dashboard';
 
     const html = buildEmailTemplate({
       firstName: firstName || 'there',
@@ -252,6 +257,10 @@ async function sendEmailNotification({ to, firstName, type, title, body, action_
       buttonText,
       isBanned,
       type,
+      footerPrefix: translations.footerPrefix,
+      manageNotificationsText: translations.manageNotificationsText,
+      unsubscribeText: translations.unsubscribeText,
+      footerFallbackText: translations.footerFallbackText,
     });
 
     await sendEmail({
@@ -268,7 +277,19 @@ async function sendEmailNotification({ to, firstName, type, title, body, action_
 
 
 // ─── EMAIL TEMPLATE BUILDER ───────────────────────────────────
-function buildEmailTemplate({ firstName, title, body, action_url, buttonText, isBanned, type = '' }) {
+function buildEmailTemplate({
+  firstName,
+  title,
+  body,
+  action_url,
+  buttonText,
+  isBanned,
+  type = '',
+  footerPrefix = 'You are receiving this because you have an OxSteed account.',
+  manageNotificationsText = 'Manage notifications',
+  unsubscribeText = 'Unsubscribe',
+  footerFallbackText = 'You received this notification from OxSteed.'
+}) {
   // action_url must be a relative path starting with '/' to prevent open redirect
   const safeActionUrl = (action_url && typeof action_url === 'string' && action_url.startsWith('/'))
     ? action_url
@@ -296,10 +317,10 @@ function buildEmailTemplate({ firstName, title, body, action_url, buttonText, is
   ` : '';
 
   const footerLinks = settingsUrl ? `
-    <a href="${settingsUrl}" style="color:#f97316;text-decoration:none;">Manage notifications</a>
+    <a href="${settingsUrl}" style="color:#f97316;text-decoration:none;">${escapeHtml(manageNotificationsText)}</a>
     &nbsp;·&nbsp;
-    <a href="${settingsUrl}" style="color:#f97316;text-decoration:none;">Unsubscribe</a>
-  ` : 'You received this notification from OxSteed.';
+    <a href="${settingsUrl}" style="color:#f97316;text-decoration:none;">${escapeHtml(unsubscribeText)}</a>
+  ` : escapeHtml(footerFallbackText);
 
   return `<!DOCTYPE html><html><head>
     <meta charset="utf-8">
@@ -321,7 +342,7 @@ function buildEmailTemplate({ firstName, title, body, action_url, buttonText, is
           </td></tr>
           <tr><td style="padding:20px 32px;border-top:1px solid #f3f4f6;">
             <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.6;">
-              You're receiving this because you have an OxSteed account.
+              ${escapeHtml(footerPrefix)}
               ${footerLinks}
             </p>
           </td></tr>

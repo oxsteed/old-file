@@ -25,6 +25,7 @@ const { logSecurityEvent, extractRequestDetails } = require('../services/auditLo
 const modeRoleUtil = require('../utils/modeRole');
 const SALT_ROUNDS = 12;
 const TERMS_IP_HASH_MAX_LEN = 45;
+const SUPPORTED_LANGUAGE_CODES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 
 // Modes a user may self-select when signing up through the unified /join flow.
 // Mirrors the CHECK constraint on pending_registrations.default_mode (mig 270).
@@ -53,6 +54,22 @@ function normalizeDefaultMode(raw) {
   if (raw === undefined || raw === null) return null;
   const s = String(raw).trim().toLowerCase();
   return SELF_SELECTABLE_MODES.includes(s) ? s : null;
+}
+
+function resolveRequestLanguage(req, fallback = 'en') {
+  const candidate =
+    req?.body?.language ||
+    req?.headers?.['x-preferred-language'] ||
+    req?.headers?.['accept-language'] ||
+    '';
+
+  const parsed = String(candidate || '')
+    .split(',')[0]
+    .trim()
+    .split('-')[0]
+    .toLowerCase();
+
+  return SUPPORTED_LANGUAGE_CODES.has(parsed) ? parsed : fallback;
 }
 
 function formatAuthUser(user) {
@@ -98,6 +115,7 @@ function formatAuthUser(user) {
     didit_status:          user.didit_status || 'pending',
     didit_verified_at:     user.didit_verified_at || null,
     didit_enforcement_required: !!user.didit_enforcement_required,
+    preferred_language:    user.preferred_language || 'en',
     id_verified:           !!user.id_verified,
     background_check_passed: !!user.background_check_passed,
     city:                  user.city,
@@ -212,6 +230,7 @@ async function register(req, res, next) {
    onboarding_status, onboarding_completed, contact_completed, profile_completed,
    tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
    background_check_passed, city, state, zip_code,
+   preferred_language,
    trial_started_at, trial_ends_at, didit_status, didit_verified_at,
    default_mode,
    COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required
@@ -525,10 +544,11 @@ async function loginWith2FA(req, res) {
     checkAndAlertNewLogin(user.id, req.ip, req.headers['user-agent']).catch(() => {});
 
     const { rows: fullRows } = await pool.query(
-      `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
+     `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
        onboarding_status, onboarding_completed, contact_completed, profile_completed,
        tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
        background_check_passed, city, state, zip_code,
+       preferred_language,
        trial_started_at, trial_ends_at, didit_status, didit_verified_at,
        COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required,
        logistics_role
@@ -557,7 +577,7 @@ async function requestOTP(req, res) {
     // Verify user exists before generating or sending anything.
     // Return the same response regardless to avoid email enumeration.
     const { rows: userRows } = await pool.query(
-      'SELECT id FROM users WHERE email = $1', [email.toLowerCase()]
+      'SELECT id, preferred_language FROM users WHERE email = $1', [email.toLowerCase()]
     );
     const otp = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -568,7 +588,7 @@ async function requestOTP(req, res) {
         [hashedOtp, expiresAt, email.toLowerCase()]
       );
       if (phone) await sendOTPSMS(phone, otp);
-      else await sendOTPEmail(email, otp);
+      else await sendOTPEmail(email, otp, userRows[0].preferred_language);
     }
     res.json({ message: 'OTP sent' });
   } catch (err) {
@@ -659,6 +679,7 @@ async function refreshToken(req, res, next) {
               tier_selected, w9_completed, terms_accepted,
               membership_tier, id_verified, background_check_passed,
               city, state, zip_code,
+              preferred_language,
               trial_started_at, trial_ends_at, didit_status, didit_verified_at,
               default_mode,
               COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required
@@ -931,7 +952,7 @@ async function acceptTerms(req, res) {
       'UPDATE pending_registrations SET terms_accepted_at = NOW(), terms_version = $2, terms_acceptance_ip = $3, terms_acceptance_ua = $4, otp_code = $5, otp_expires_at = $6, otp_attempts = 0 WHERE token = $1',
       [token, termsVersion, ip, userAgent, otpHash, otpExpires]
     );
-    await sendOTPEmail(pending.email, otp);
+    await sendOTPEmail(pending.email, otp, resolveRequestLanguage(req));
     res.json({ message: 'Terms accepted, OTP sent' });
   } catch (err) {
     logger.error('Accept terms error', { err });
@@ -1117,7 +1138,7 @@ async function resendRegistrationOTP(req, res) {
       'UPDATE pending_registrations SET otp_code = $2, otp_expires_at = $3, otp_attempts = 0 WHERE token = $1',
       [token, otpHash, otpExpires]
     );
-    await sendOTPEmail(pending.email, otp);
+    await sendOTPEmail(pending.email, otp, resolveRequestLanguage(req));
     res.json({ message: 'OTP resent' });
   } catch (err) {
     logger.error('Resend OTP error', { err });
@@ -1134,7 +1155,7 @@ async function forgotPassword(req, res) {
 
     const normalizedEmail = email.toLowerCase().trim();
     const { rows } = await pool.query(
-      'SELECT id, email FROM users WHERE email = $1 AND deleted_at IS NULL',
+      'SELECT id, email, preferred_language FROM users WHERE email = $1 AND deleted_at IS NULL',
       [normalizedEmail]
     );
 
@@ -1159,7 +1180,7 @@ async function forgotPassword(req, res) {
 
     const appUrl = process.env.APP_URL || process.env.CLIENT_URL || '';
     const resetUrl = `${appUrl.replace(/\/$/, '')}/reset-password/${resetToken}`;
-    await sendPasswordResetEmail(rows[0].email, resetUrl);
+    await sendPasswordResetEmail(rows[0].email, resetUrl, rows[0].preferred_language);
 
     return res.json(genericResponse);
   } catch (err) {
@@ -1231,11 +1252,12 @@ async function getMe(req, res) {
 async function updateProfile(req, res) {
   const client = await pool.connect();
   try {
-    const { phone, zip_code, zipcode, display_name_preference, default_mode } = req.body;
+    const { phone, zip_code, zipcode, display_name_preference, default_mode, preferred_language } = req.body;
     const finalZip = zip_code || zipcode;
 
     const VALID_PREFS = ['full_name', 'first_name', 'business_name'];
     const pref = VALID_PREFS.includes(display_name_preference) ? display_name_preference : undefined;
+    const preferredLang = SUPPORTED_LANGUAGE_CODES.has(preferred_language) ? preferred_language : undefined;
 
     // default_mode through updateProfile is a convenience for clients that
     // want to do everything in one PATCH. The actual switch goes through
@@ -1258,10 +1280,11 @@ async function updateProfile(req, res) {
        SET phone = COALESCE($1, phone),
            zip_code = COALESCE($2, zip_code),
            display_name_preference = COALESCE($3, display_name_preference),
+           preferred_language = COALESCE($4, preferred_language),
            updated_at = NOW()
-       WHERE id = $4
+       WHERE id = $5
        RETURNING *`,
-      [phone || null, finalZip || null, pref || null, req.user.id]
+      [phone || null, finalZip || null, pref || null, preferredLang || null, req.user.id]
     );
     if (didModeSwitch) {
       await modeRoleUtil.invalidateUserSessions(client, req.user.id);
@@ -1333,7 +1356,7 @@ async function changeEmail(req, res, next) {
 
     // Verify password
     const { rows: userRows } = await pool.query(
-      'SELECT id, email, password_hash FROM users WHERE id = $1',
+      'SELECT id, email, password_hash, preferred_language FROM users WHERE id = $1',
       [req.user.id]
     );
     if (!userRows[0]) {
@@ -1376,13 +1399,14 @@ async function changeEmail(req, res, next) {
     );
 
     // Send verification email to OLD email (prevent hijacking)
+    const preferredLanguage = userRows[0].preferred_language || 'en';
     try {
       await sendPasswordResetEmail(oldEmail, {
         type: 'email_change_confirmation',
         token: oldEmailToken,
         newEmail: newEmailLower,
         actionUrl: `${process.env.CLIENT_URL}/confirm-email-change?token=${oldEmailToken}&type=old`
-      });
+      }, preferredLanguage);
     } catch (emailErr) {
       logger.warn('Failed to send email change confirmation to old email', { userId: req.user.id, error: emailErr.message });
     }
@@ -1394,7 +1418,7 @@ async function changeEmail(req, res, next) {
         token: newEmailToken,
         oldEmail: oldEmail,
         actionUrl: `${process.env.CLIENT_URL}/confirm-email-change?token=${newEmailToken}&type=new`
-      });
+      }, preferredLanguage);
     } catch (emailErr) {
       logger.warn('Failed to send email change confirmation to new email', { userId: req.user.id, error: emailErr.message });
     }
@@ -1497,7 +1521,7 @@ async function getPublicProfile(req, res) {
 async function resendVerification(req, res) {
   try {
     const { rows } = await pool.query(
-      'SELECT id, email, email_verified FROM users WHERE id = $1',
+      'SELECT id, email, preferred_language, email_verified FROM users WHERE id = $1',
       [req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
@@ -1510,7 +1534,7 @@ async function resendVerification(req, res) {
       'UPDATE users SET otp_code = $1, otp_expires_at = $2 WHERE id = $3',
       [hashedOtp, expiresAt, req.user.id]
     );
-    await sendOTPEmail(rows[0].email, otp);
+    await sendOTPEmail(rows[0].email, otp, rows[0].preferred_language);
     res.json({ message: 'Verification email sent' });
   } catch (err) {
     logger.error('Resend verification error', { err });

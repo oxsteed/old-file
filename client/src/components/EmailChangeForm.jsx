@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Loader2, AlertCircle, CheckCircle2, Mail } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../lib/adminApi';
 
 /**
@@ -11,6 +12,7 @@ import adminApi from '../lib/adminApi';
  *   onSaved  – callback({email}) on success
  */
 export default function EmailChangeForm({ user, onSaved }) {
+  const { t } = useTranslation('common');
   const [email,           setEmail]           = useState(user.email || '');
   const [confirm,         setConfirm]         = useState('');
   const [verifyEmail,     setVerifyEmail]     = useState(false);
@@ -47,12 +49,12 @@ export default function EmailChangeForm({ user, onSaved }) {
         `/admin/super/users/${user.id}/edit-full`, payload
       );
 
-      setSuccess(`Email updated to ${payload.email}.`);
+      setSuccess(t('admin.emailUpdatedTo', { email: payload.email }));
       setConfirm('');
       if (onSaved) onSaved(data.user || { ...user, email: payload.email });
     } catch (err) {
       const resp = err.response?.data;
-      setServerError(resp?.error || 'Failed to update email.');
+      setServerError(resp?.error || t('admin.updateFailedFallback'));
     } finally {
       setSubmitting(false);
     }
@@ -68,7 +70,7 @@ export default function EmailChangeForm({ user, onSaved }) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="flex items-center gap-2">
         <Mail size={16} className="text-orange-400" />
-        <h3 className="text-sm font-semibold text-gray-200">Change email</h3>
+        <h3 className="text-sm font-semibold text-gray-200">{t('admin.emailChangeTitle')}</h3>
       </div>
 
       {serverError && (
@@ -85,7 +87,7 @@ export default function EmailChangeForm({ user, onSaved }) {
       )}
 
       <div>
-        <label className={labelCls}>Current email</label>
+        <label className={labelCls}>{t('admin.currentEmail')}</label>
         <input
           type="email"
           className={inputCls + ' opacity-60'}
@@ -96,7 +98,7 @@ export default function EmailChangeForm({ user, onSaved }) {
       </div>
 
       <div>
-        <label className={labelCls}>New email *</label>
+        <label className={labelCls}>{t('admin.newEmail')}</label>
         <input
           type="email"
           className={inputCls}
@@ -108,21 +110,21 @@ export default function EmailChangeForm({ user, onSaved }) {
       </div>
 
       <div>
-        <label className={labelCls}>Confirm new email</label>
+        <label className={labelCls}>{t('admin.confirmNewEmail')}</label>
         <input
           type="email"
           className={inputCls}
           value={confirm}
           onChange={e => setConfirm(e.target.value)}
           autoComplete="off"
-          placeholder="Re-enter new email to confirm"
+          placeholder={t('admin.confirmEmailPlaceholder')}
         />
         {emailMismatch && (
-          <p className="text-xs text-red-400 mt-1">Emails do not match.</p>
+          <p className="text-xs text-red-400 mt-1">{t('admin.emailsMismatch')}</p>
         )}
         {sameAsCurrent && email.length > 0 && (
           <p className="text-xs text-yellow-400 mt-1">
-            New email is the same as the current one.
+            {t('admin.newEmailMatchesCurrent')}
           </p>
         )}
       </div>
@@ -135,7 +137,7 @@ export default function EmailChangeForm({ user, onSaved }) {
             onChange={e => setVerifyEmail(e.target.checked)}
             className="rounded bg-gray-900 border-gray-700"
           />
-          Mark new email as verified
+          {t('admin.markEmailVerified')}
         </label>
         <label className="inline-flex items-center gap-2 text-sm text-gray-300">
           <input
@@ -144,7 +146,7 @@ export default function EmailChangeForm({ user, onSaved }) {
             onChange={e => setNotify(e.target.checked)}
             className="rounded bg-gray-900 border-gray-700"
           />
-          Notify the user of this change
+          {t('admin.notifyUserOnChange')}
         </label>
       </div>
 
@@ -155,7 +157,7 @@ export default function EmailChangeForm({ user, onSaved }) {
           className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-orange-600 hover:bg-orange-500 text-white disabled:opacity-50"
         >
           {submitting && <Loader2 size={16} className="animate-spin" />}
-          {submitting ? 'Updating…' : 'Update email'}
+          {submitting ? t('admin.updating') : t('admin.updateEmail')}
         </button>
       </div>
     </form>

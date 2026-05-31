@@ -5,9 +5,279 @@
     "loading": "Loading",
     "save": "Save",
     "submit": "Submit",
-    "translate": "Translate"
+    "translate": "Translate",
+    "translating": "Translating...",
+    "switchToLightMode": "Switch to light mode",
+    "switchToDarkMode": "Switch to dark mode",
+    "startRecording": "Start recording",
+    "stopRecording": "Stop recording",
+    "recording": "Recording..."
+  },
+  "switching": "Switching...",
+  "forms": {
+    "country": {
+      "placeholder": "Select a country"
+    },
+    "region": {
+      "selectCountryFirst": "Select a country first",
+      "selectByLabel": "Select {{label}}",
+      "placeholderWithExample": "{{label}} (e.g. capital city)"
+    }
+  },
+  "productPreview": {
+    "noRatings": "No ratings yet",
+    "inCarts": {
+      "singular": "{{count}} in cart",
+      "plural": "{{count}} in carts"
+    },
+    "available": "Available",
+    "unavailable": "Unavailable"
+  },
+  "speechToText": {
+    "placeholder": "Speak your message here...",
+    "clickToSpeak": "Click to speak",
+    "listening": "Listening...",
+    "errors": {
+      "unsupported": "Speech recognition is not supported in this browser.",
+      "noSpeech": "No speech detected. Please try again.",
+      "network": "Speech recognition had a network error.",
+      "generic": "Speech recognition failed: {{reason}}",
+      "emptyTranscript": "Please speak before submitting."
+    }
+  },
+  "productCard": {
+    "addToCartAriaLabel": "Add {{name}} to cart"
+  },
+  "notificationCenter": {
+    "loading": "Loading notifications...",
+    "title": "Notifications",
+    "emptyState": "No notifications yet",
+    "messageFallback": "New notification",
+    "time": {
+      "justNow": "Just now",
+      "minutesAgo": "{{value}}m ago",
+      "hoursAgo": "{{value}}h ago",
+      "daysAgo": "{{value}}d ago"
+    }
+  },
+  "navigation": {
+    "skipToMainContent": "Skip to main content"
+  },
+  "productReviews": {
+    "timeAgo": {
+      "justNow": "Just now",
+      "minutesAgo": "{{value}}m ago",
+      "hoursAgo": "{{value}}h ago",
+      "daysAgo": "{{value}}d ago",
+      "monthsAgo": "{{value}}mo ago",
+      "yearsAgo": "{{value}}y ago"
+    },
+    "ratingStarsAria": "{{count}} stars"
+  },
+  "bookService": {
+    "loading": "Loading service...",
+    "notFound": "Service not found",
+    "durationLabel": "Duration",
+    "basePriceLabel": "Base Price",
+    "sections": {
+      "details": "Service Details",
+      "selectDate": "Select Date",
+      "selectTime": "Select Time"
+    },
+    "noAvailableSlots": "No available times for this date",
+    "summary": {
+      "title": "Booking Summary",
+      "dateLabel": "Date",
+      "timeLabel": "Time",
+      "basePriceLabel": "Base Price",
+      "totalPriceLabel": "Total Price"
+    },
+    "form": {
+      "title": "Your Information",
+      "nameLabel": "Name",
+      "emailLabel": "Email",
+      "phoneLabel": "Phone",
+      "notesLabel": "Notes",
+      "namePlaceholder": "Your full name",
+      "emailPlaceholder": "your@email.com",
+      "phonePlaceholder": "(123) 456-7890",
+      "notesPlaceholder": "Any special requests or notes...",
+      "termsText": "I agree to the terms and cancellation policy"
+    },
+    "buttons": {
+      "booking": "Booking...",
+      "bookNow": "Book Now - ${{price}}"
+    },
+    "errors": {
+      "loadServiceDetails": "Failed to load service details",
+      "loadSlots": "Failed to load available slots",
+      "calculatePrice": "Failed to calculate price",
+      "agreeTerms": "Please agree to terms and conditions",
+      "requiredFields": "Please fill in all required fields",
+      "selectDateTime": "Please select a date and time",
+      "createBooking": "Failed to create booking"
+    },
+    "success": "Booking confirmed!"
+  },
+  "accessGateRecovery": {
+    "title": "Access gate recovery",
+    "validating": "Validating your recovery link...",
+    "missingToken": "Missing recovery token.",
+    "lifted": "{{count}} lockout cleared. You can sign in again.",
+    "lifted_plural": "{{count}} lockouts cleared. You can sign in again.",
+    "consumed": "No active lockout matched, but the token has been consumed. You can sign in again.",
+    "postClearHelp": "The lockout has been cleared. If you are still seeing the gate, wait a moment and try again, or use a different network connection.",
+    "cta": {
+      "adminLogin": "Go to admin login",
+      "logisticsHome": "Logistics home"
+    },
+    "errors": {
+      "alreadyUsed": "This recovery link has already been used.",
+      "expired": "This recovery link has expired. Request a new one from the login page.",
+      "failed": "Recovery link could not be used."
+    }
+  },
+  "impersonatePage": {
+    "title": "Impersonation Error",
+    "loading": "Starting impersonation session…",
+    "actions": {
+      "closeTab": "Close tab"
+    },
+    "errors": {
+      "noToken": "No impersonation token found in URL.",
+      "invalidToken": "Invalid or non-impersonation token.",
+      "expiredToken": "Impersonation token has expired. Please generate a new one."
+    }
+  },
+  "searchSuggestions": {
+    "popularSearches": "Popular searches"
+  },
+  "messageWithTranslation": {
+    "languageNames": {
+      "en": "English",
+      "es": "Spanish",
+      "fr": "French",
+      "ht": "Haitian Creole",
+      "de": "German",
+      "it": "Italian",
+      "pt": "Portuguese",
+      "nl": "Dutch",
+      "pl": "Polish",
+      "ja": "Japanese",
+      "zh": "Chinese"
+    },
+    "showOriginal": "Show original ({{language}})",
+    "showTranslation": "Show translation ({{language}})"
+  },
+  "impersonation": {
+    "adminView": "Admin View: you are browsing as",
+    "loggedAs": "Actions you take are logged as impersonation.",
+    "exitAria": "Exit impersonation session",
+    "exitButton": "Exit Impersonation"
+  },
+  "pageMeta": {
+    "defaults": {
+      "title": "OxSteed - Hire Local Help Today",
+      "description": "Post a job, compare bids from skills local helpers, and pay on OxSteed. Free to start."
+    }
+  },
+  "orderErrorBoundary": {
+    "title": "Something went wrong",
+    "unexpectedMessage": "Something unexpected happened while loading {{componentName}}.",
+    "defaultComponentName": "the order page",
+    "errorDetails": "Error details",
+    "tryAgain": "Try again",
+    "backToOrders": "Back to orders",
+    "persistentErrors": "This issue is happening repeatedly. Our team has been notified."
   },
   "languages": {
     "autoDetect": "Auto-detect"
+  },
+  "admin": {
+    "emailChange": {
+      "emailChangeTitle": "Change email",
+      "currentEmail": "Current email",
+      "newEmail": "New email *",
+      "confirmNewEmail": "Confirm new email",
+      "emailsMismatch": "Emails do not match.",
+      "newEmailMatchesCurrent": "New email is the same as the current one.",
+      "markEmailVerified": "Mark new email as verified",
+      "notifyUserOnChange": "Notify the user of this change",
+      "updating": "Updating…",
+      "updateEmail": "Update email",
+      "updateFailedFallback": "Failed to update email."
+    },
+    "emailChangeTitle": "Change email",
+    "currentEmail": "Current email",
+    "newEmail": "New email *",
+    "confirmNewEmail": "Confirm new email",
+    "emailsMismatch": "Emails do not match.",
+    "newEmailMatchesCurrent": "New email is the same as the current one.",
+    "markEmailVerified": "Mark new email as verified",
+    "notifyUserOnChange": "Notify the user of this change",
+    "updating": "Updating…",
+    "updateEmail": "Update email",
+    "updateFailedFallback": "Failed to update email.",
+    "emailUpdatedTo": "Email updated to {{email}}.",
+    "confirmEmailPlaceholder": "Re-enter new email to confirm"
+  },
+  "supportWidget": {
+    "launcher": "Support",
+    "launcherAriaLabel": "Open support",
+    "panelTitle": "Support Center",
+    "howCanWeHelp": "How can we help?",
+    "helpText": "Click below to create a support request or view your tickets",
+    "newSupportRequest": "New Support Request",
+    "viewYourTickets": "View Your Tickets",
+    "back": "Back",
+    "yourName": "Your Name",
+    "yourEmail": "Your Email",
+    "categoryLabel": "Category",
+    "categoryGeneral": "General Inquiry",
+    "categoryTechnical": "Technical Issue",
+    "categoryBilling": "Billing",
+    "categoryAccount": "Account",
+    "categoryShipping": "Shipping",
+    "messageLabel": "Message",
+    "namePlaceholder": "John Doe",
+    "emailPlaceholder": "john@example.com",
+    "messagePlaceholder": "Describe your issue...",
+    "submitRequest": "Submit Request",
+    "submitCreating": "Creating...",
+    "noTickets": "No support requests yet",
+    "typeMessage": "Type your message...",
+    "ticketAssigned": "{{name}} has been assigned to help you.",
+    "ticketQueued": "Your request has been queued. An agent will help you shortly.",
+    "createTicketFailed": "Failed to create support request"
+  },
+  "hybridSupportWidget": {
+    "aiGreeting": "Hi! I'm OxSteed's AI assistant. How can I help you today?",
+    "titleAi": "AI Support",
+    "titleEscalating": "Connecting...",
+    "titleLiveChat": "Live Chat{{agentName}}",
+    "titleQueue": "Waiting for Agent",
+    "titleTicket": "Create Support Ticket",
+    "talkToSomeone": "Need to talk to someone?",
+    "talkToAgentWithCount": "Talk to Agent ({{count}} available)",
+    "talkToSupportTeam": "Connect with Support Team",
+    "connectingText": "Connecting you with an agent...",
+    "connectingSubtext": "This may take a moment",
+    "connectedWith": "Connected with {{name}}!",
+    "queueTitle": "You're in the Queue",
+    "queuePosition": "Position: #{{position}}",
+    "queueWait": "Estimated wait: {{minutes}} minutes",
+    "queueMessage": "An agent will chat with you as soon as one is available.",
+    "createTicketInstead": "Create Ticket Instead",
+    "ticketQueueMessage": "I was waiting in queue but prefer to create a ticket instead.",
+    "ticketNameLabel": "Your Name",
+    "ticketEmailLabel": "Your Email",
+    "ticketMessageLabel": "Message",
+    "ticketMessagePlaceholder": "Describe your issue...",
+    "submitTicket": "Submit Ticket",
+    "backToAi": "← Back to AI",
+    "back": "← Back",
+    "escalationFailed": "Failed to escalate. Please try again.",
+    "ticketFailed": "Failed to create ticket",
+    "ticketSubmitFailed": "Failed to create ticket"
   }
 }

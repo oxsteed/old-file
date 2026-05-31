@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, Edit2, ChevronRight, DollarSign, Filter } from 'lucide-react';
@@ -13,6 +14,7 @@ const STAGES = [
 ];
 
 export function LeadPipeline({ businessId }) {
+  const { t } = useTranslation();
   const [leads, setLeads] = useState([]);
   const [summary, setSummary] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -30,37 +32,37 @@ export function LeadPipeline({ businessId }) {
       const res = await api.get(`/businesses/${businessId}/leads`, { params: filter ? { status: filter } : {} });
       setLeads(res.data.leads || []);
       setSummary(res.data.summary || []);
-    } catch { toast.error('Failed to load leads'); }
+    } catch { toast.error(t('businessHub.leads.toastLoadFail')); }
     finally { setLoading(false); }
   };
 
   const save = async () => {
-    if (!form.name) return toast.error('Name is required');
+    if (!form.name) return toast.error(t('businessHub.leads.toastNameRequired'));
     const payload = { ...form, budget_cents: form.budget_cents ? Math.round(parseFloat(form.budget_cents) * 100) : null };
     try {
       if (editing) {
         await api.put(`/businesses/${businessId}/leads/${editing.id}`, payload);
-        toast.success('Lead updated');
+        toast.success(t('businessHub.leads.toastUpdated'));
       } else {
         await api.post(`/businesses/${businessId}/leads`, payload);
-        toast.success('Lead added');
+        toast.success(t('businessHub.leads.toastAdded'));
       }
       setShowForm(false); setEditing(null); setForm({ name: '', email: '', phone: '', service_interest: '', budget_cents: '', notes: '', source: 'manual' }); load();
-    } catch { toast.error('Failed to save lead'); }
+    } catch { toast.error(t('businessHub.leads.toastSaveFail')); }
   };
 
   const moveStage = async (lead, newStatus) => {
     try {
       await api.put(`/businesses/${businessId}/leads/${lead.id}`, { ...lead, status: newStatus });
-      toast.success('Stage updated');
+      toast.success(t('businessHub.leads.toastStageUpdated'));
       load();
-    } catch { toast.error('Failed to update stage'); }
+    } catch { toast.error(t('businessHub.leads.toastStageUpdateFail')); }
   };
 
   const remove = async (id) => {
-    if (!window.confirm('Delete this lead?')) return;
-    try { await api.delete(`/businesses/${businessId}/leads/${id}`); toast.success('Deleted'); if (selected?.id === id) setSelected(null); load(); }
-    catch { toast.error('Failed'); }
+    if (!window.confirm(t('businessHub.leads.confirmDelete'))) return;
+    try { await api.delete(`/businesses/${businessId}/leads/${id}`); toast.success(t('businessHub.leads.toastDeleted')); if (selected?.id === id) setSelected(null); load(); }
+    catch { toast.error(t('common.failed')); }
   };
 
   const getStageCount = (stage) => (summary.find(s => s.status === stage.id)?.count) || 0;
@@ -76,11 +78,11 @@ export function LeadPipeline({ businessId }) {
     <div style={{ padding: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>Lead Pipeline</h3>
-          <p style={{ margin: '0.25rem 0 0', color: 'var(--muted-text)', fontSize: '0.875rem' }}>Track prospects from first contact to closed deal</p>
+          <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{t('businessHub.leads.title')}</h3>
+          <p style={{ margin: '0.25rem 0 0', color: 'var(--muted-text)', fontSize: '0.875rem' }}>{t('businessHub.leads.subtitle')}</p>
         </div>
         <button onClick={() => { setEditing(null); setShowForm(true); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.6rem 1.2rem', cursor: 'pointer', fontWeight: 600 }}>
-          <Plus size={16} /> Add Lead
+          <Plus size={16} /> {t('businessHub.leads.addLead')}
         </button>
       </div>
 

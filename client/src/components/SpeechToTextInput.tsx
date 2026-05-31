@@ -15,6 +15,7 @@
 import React, { useRef, useState, useCallback } from 'react';
 import TranscriptConfidenceIndicator from './TranscriptConfidenceIndicator';
 import { Mic, Square } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface SpeechToTextInputProps {
   language?: string; // User's language preference (en, es, fr, ht, etc)
@@ -38,7 +39,7 @@ type SpeechRecognitionEventType = Event & {
 
 export default function SpeechToTextInput({
   language = 'en',
-  placeholder = 'Click the microphone to speak...',
+  placeholder = 'speechToText.placeholder',
   onTranscriptReady,
   onError,
   className = '',
@@ -48,6 +49,8 @@ export default function SpeechToTextInput({
   const [isRecording, setIsRecording] = useState(false);
   const [hasRecorded, setHasRecorded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation('common');
+  const placeholderText = t(placeholder);
 
   const speechRecognitionRef = useRef<any>(null);
 
@@ -55,8 +58,9 @@ export default function SpeechToTextInput({
   React.useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      setError('Web Speech API not supported in this browser');
-      onError?.('Web Speech API not supported');
+      const msg = t('speechToText.errors.unsupported');
+      setError(msg);
+      onError?.(msg);
       return;
     }
 
@@ -100,10 +104,10 @@ export default function SpeechToTextInput({
 
     recognition.onerror = (event: any) => {
       const errorMsg = event.error === 'no-speech'
-        ? 'No speech detected. Please try again.'
+        ? t('speechToText.errors.noSpeech')
         : event.error === 'network'
-          ? 'Network error. Please check your connection.'
-          : `Speech recognition error: ${event.error}`;
+          ? t('speechToText.errors.network')
+          : t('speechToText.errors.generic', { reason: event.error });
       setError(errorMsg);
       onError?.(errorMsg);
       setIsRecording(false);
@@ -143,7 +147,7 @@ export default function SpeechToTextInput({
 
   const handleSubmit = () => {
     if (!transcript.trim()) {
-      setError('Please enter or speak a message');
+      setError(t('speechToText.errors.emptyTranscript'));
       return;
     }
     onTranscriptReady?.(transcript);
@@ -164,18 +168,18 @@ export default function SpeechToTextInput({
             : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white'
           }
         `}
-        title={isRecording ? 'Stop recording' : 'Start recording'}
-        aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+        title={isRecording ? t('actions.stopRecording') : t('actions.startRecording')}
+        aria-label={isRecording ? t('actions.stopRecording') : t('actions.startRecording')}
       >
         {isRecording ? (
           <>
             <Square className="w-4 h-4" />
-            <span>Stop Recording</span>
+            <span>{t('actions.stopRecording')}</span>
           </>
         ) : (
           <>
             <Mic className="w-4 h-4" />
-            <span>Click to Speak</span>
+            <span>{t('speechToText.clickToSpeak')}</span>
           </>
         )}
       </button>
@@ -184,7 +188,7 @@ export default function SpeechToTextInput({
       {isRecording && (
         <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
           <div className="w-2 h-2 bg-red-600 dark:bg-red-400 rounded-full animate-pulse" />
-          Listening... speak now
+          {t('speechToText.listening')}
         </div>
       )}
 
@@ -203,7 +207,7 @@ export default function SpeechToTextInput({
           <textarea
             value={transcript}
             onChange={(e) => setTranscript(e.target.value)}
-            placeholder={placeholder}
+            placeholder={placeholderText}
             className="w-full px-3 py-2 text-sm border rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 resize-none"
             rows={3}
           />
@@ -223,7 +227,7 @@ export default function SpeechToTextInput({
               disabled={!transcript.trim() || isRecording}
               className="flex-1 px-3 py-2 text-sm font-medium rounded-lg bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Submit
+              {t('actions.submit')}
             </button>
             <button
               type="button"
@@ -231,7 +235,7 @@ export default function SpeechToTextInput({
               disabled={isRecording}
               className="px-3 py-2 text-sm font-medium rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Clear
+              {t('actions.clear')}
             </button>
           </div>
         </div>

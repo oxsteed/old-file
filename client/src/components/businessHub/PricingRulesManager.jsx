@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Trash2, Plus, TrendingUp, Clock, Users, Zap, Calendar, ToggleLeft, ToggleRight } from 'lucide-react';
@@ -26,6 +27,7 @@ const DEFAULT_FORM = {
 };
 
 export function PricingRulesManager({ businessId }) {
+  const { t } = useTranslation();
   const [services, setServices]               = useState([]);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
   const [rules, setRules]                     = useState([]);
@@ -45,7 +47,7 @@ export function PricingRulesManager({ businessId }) {
         setServices(list);
         if (list.length > 0) setSelectedServiceId(list[0].id);
       })
-      .catch(() => toast.error('Failed to load services'))
+      .catch(() => toast.error(t('businessHub.pricingRules.toastLoadServicesFail')))
       .finally(() => setLoadingSvc(false));
   }, [businessId]);
 
@@ -64,7 +66,7 @@ export function PricingRulesManager({ businessId }) {
       );
       setRules(response.data?.rules || []);
     } catch (err) {
-      const msg = err.response?.data?.message || 'Failed to load pricing rules';
+      const msg = err.response?.data?.message || t('businessHub.pricingRules.toastLoadRulesFail');
       setError(msg);
       toast.error(msg);
     } finally {
@@ -84,12 +86,12 @@ export function PricingRulesManager({ businessId }) {
         `/businesses/${businessId}/pricing/service/${selectedServiceId}/rules`,
         payload
       );
-      toast.success('Pricing rule created');
+      toast.success(t('businessHub.pricingRules.toastCreated'));
       setShowForm(false);
       setFormData(DEFAULT_FORM);
       loadRules();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to save rule');
+      toast.error(err.response?.data?.message || t('businessHub.pricingRules.toastSaveFail'));
     }
   };
 
@@ -99,23 +101,23 @@ export function PricingRulesManager({ businessId }) {
         `/businesses/${businessId}/pricing/service/${selectedServiceId}/rules/${ruleId}/toggle`,
         { is_active: !currentlyActive }
       );
-      toast.success(currentlyActive ? 'Rule disabled' : 'Rule enabled');
+      toast.success(currentlyActive ? t('businessHub.pricingRules.toastDisabled') : t('businessHub.pricingRules.toastEnabled'));
       loadRules();
     } catch {
-      toast.error('Failed to toggle rule');
+      toast.error(t('businessHub.pricingRules.toastToggleFail'));
     }
   };
 
   const handleDeleteRule = async (ruleId) => {
-    if (!window.confirm('Delete this pricing rule?')) return;
+    if (!window.confirm(t('businessHub.pricingRules.confirmDeleteRule'))) return;
     try {
       await api.delete(
         `/businesses/${businessId}/pricing/service/${selectedServiceId}/rules/${ruleId}`
       );
-      toast.success('Rule deleted');
+      toast.success(t('businessHub.pricingRules.toastDeleted'));
       loadRules();
     } catch {
-      toast.error('Failed to delete rule');
+      toast.error(t('businessHub.pricingRules.toastDeleteFail'));
     }
   };
 

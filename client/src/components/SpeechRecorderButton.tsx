@@ -6,6 +6,7 @@
 
 import React, { useRef, useState } from 'react';
 import { Mic, Square } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 type MediaRecorderErrorEvent = Event & { error?: unknown };
 
@@ -24,6 +25,7 @@ export default function SpeechRecorderButton({
 }: SpeechRecorderButtonProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation('common');
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -117,6 +119,8 @@ export default function SpeechRecorderButton({
         type="button"
         onClick={handleToggle}
         disabled={isDisabled || !!error}
+        title={isRecording ? t('actions.stopRecording') : t('actions.startRecording')}
+        aria-label={isRecording ? t('actions.stopRecording') : t('actions.startRecording')}
         className={`
           p-2.5 rounded-lg transition-all
           ${isRecording
@@ -138,7 +142,7 @@ export default function SpeechRecorderButton({
       {isRecording && (
         <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
           <div className="w-2 h-2 bg-red-600 dark:bg-red-400 rounded-full animate-pulse" />
-          Recording...
+          {t('actions.recording')}
         </div>
       )}
 

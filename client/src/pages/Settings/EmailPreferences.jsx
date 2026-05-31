@@ -3,8 +3,10 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import axios from 'axios';
 import PageMeta from '../../components/PageMeta';
 import { useAuth } from '../../hooks/useAuth';
+import { useTranslation } from 'react-i18next';
 
 export default function EmailPreferences() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [showSuccess, setShowSuccess] = useState(false);
   const [frequency, setFrequency] = useState('real-time');
@@ -49,7 +51,7 @@ export default function EmailPreferences() {
       setTimeout(() => setShowSuccess(false), 3000);
     },
     onError: (error) => {
-      alert(`Error: ${error.response?.data?.error || error.message}`);
+      alert(`${t('common.error')}: ${error.response?.data?.error || error.message}`);
     },
   });
 
@@ -59,18 +61,18 @@ export default function EmailPreferences() {
       await axios.post('/api/notifications/email/unsubscribe-all');
     },
     onSuccess: () => {
-      alert('You have been unsubscribed from all emails');
+      alert(t('emailPreferences.unsubscribe.success'));
       window.location.reload();
     },
     onError: (error) => {
-      alert(`Error: ${error.response?.data?.error || error.message}`);
+      alert(`${t('common.error')}: ${error.response?.data?.error || error.message}`);
     },
   });
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
-        <PageMeta title="Email Preferences" description="Manage your email notifications" />
+        <PageMeta title={t('emailPreferences.metaTitle')} description={t('emailPreferences.metaDescription')} />
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-blue-600"></div>
         </div>
@@ -80,32 +82,32 @@ export default function EmailPreferences() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <PageMeta title="Email Preferences" description="Manage your email notifications" />
+      <PageMeta title={t('emailPreferences.metaTitle')} description={t('emailPreferences.metaDescription')} />
 
       <div className="mx-auto max-w-3xl px-4 py-12">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Email Preferences</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t('emailPreferences.title')}</h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Control how and when you receive email notifications from OxSteed
+            {t('emailPreferences.subtitle')}
           </p>
         </div>
 
         {/* Success Message */}
         {showSuccess && (
           <div className="mb-6 rounded-lg bg-green-50 p-4 text-green-800 dark:bg-green-900 dark:text-green-100">
-            <p className="font-medium">✓ Your preferences have been saved</p>
+            <p className="font-medium">{t('emailPreferences.saved')}</p>
           </div>
         )}
 
         {/* Email Frequency */}
-        <Card title="Email Frequency" description="Choose how frequently you want to receive notifications">
+        <Card title={t('emailPreferences.frequency.title')} description={t('emailPreferences.frequency.description')}>
           <div className="space-y-3">
             {[
-              { value: 'real-time', label: 'Real-time', description: 'Receive emails immediately' },
-              { value: 'daily', label: 'Daily Digest', description: 'Receive one email per day with all updates' },
-              { value: 'weekly', label: 'Weekly Digest', description: 'Receive one email per week' },
-              { value: 'off', label: 'Off', description: 'Disable all email notifications' },
+              { value: 'real-time', label: t('emailPreferences.frequency.realtime.label'), description: t('emailPreferences.frequency.realtime.desc') },
+              { value: 'daily', label: t('emailPreferences.frequency.daily.label'), description: t('emailPreferences.frequency.daily.desc') },
+              { value: 'weekly', label: t('emailPreferences.frequency.weekly.label'), description: t('emailPreferences.frequency.weekly.desc') },
+              { value: 'off', label: t('emailPreferences.frequency.off.label'), description: t('emailPreferences.frequency.off.desc') },
             ].map((option) => (
               <label key={option.value} className="flex items-start gap-3 p-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 cursor-pointer transition hover:bg-gray-100 dark:hover:bg-gray-800" style={{ borderColor: frequency === option.value ? '#3b82f6' : undefined, backgroundColor: frequency === option.value ? '#eff6ff' : undefined }}>
                 <input
@@ -126,29 +128,29 @@ export default function EmailPreferences() {
         </Card>
 
         {/* Notification Categories */}
-        <Card title="Notification Categories" description="Choose which types of emails you want to receive">
+        <Card title={t('emailPreferences.categories.title')} description={t('emailPreferences.categories.description')}>
           <div className="space-y-4">
             <ToggleOption
-              label="Order Updates"
-              description="Notifications about your orders, payments, and shipments"
+              label={t('emailPreferences.categories.orderUpdates.label')}
+              description={t('emailPreferences.categories.orderUpdates.desc')}
               checked={emailNotifications}
               onChange={setEmailNotifications}
             />
             <ToggleOption
-              label="Marketing Emails"
-              description="New products, promotions, and exclusive offers"
+              label={t('emailPreferences.categories.marketing.label')}
+              description={t('emailPreferences.categories.marketing.desc')}
               checked={marketingEmails}
               onChange={setMarketingEmails}
             />
             <ToggleOption
-              label="SMS Notifications"
-              description="Order and account updates via SMS (requires phone verification)"
+              label={t('emailPreferences.categories.sms.label')}
+              description={t('emailPreferences.categories.sms.desc')}
               checked={smsNotifications}
               onChange={setSmsNotifications}
             />
             <ToggleOption
-              label="Push Notifications"
-              description="Browser and app notifications"
+              label={t('emailPreferences.categories.push.label')}
+              description={t('emailPreferences.categories.push.desc')}
               checked={pushNotifications}
               onChange={setPushNotifications}
             />
@@ -156,20 +158,20 @@ export default function EmailPreferences() {
         </Card>
 
         {/* Danger Zone */}
-        <Card title="Unsubscribe" description="Unsubscribe from all emails" variant="danger">
+        <Card title={t('emailPreferences.unsubscribe.title')} description={t('emailPreferences.unsubscribe.description')} variant="danger">
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            This will unsubscribe you from all marketing and transactional emails. You can re-subscribe anytime.
+            {t('emailPreferences.unsubscribe.body')}
           </p>
           <button
             onClick={() => {
-              if (confirm('Are you sure you want to unsubscribe from all emails?')) {
+              if (confirm(t('emailPreferences.unsubscribe.confirm'))) {
                 unsubscribeMutation.mutate();
               }
             }}
             disabled={unsubscribeMutation.isPending}
             className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50 font-medium transition"
           >
-            {unsubscribeMutation.isPending ? 'Unsubscribing...' : 'Unsubscribe from All Emails'}
+            {unsubscribeMutation.isPending ? t('emailPreferences.unsubscribe.working') : t('emailPreferences.unsubscribe.cta')}
           </button>
         </Card>
 
@@ -180,14 +182,14 @@ export default function EmailPreferences() {
             disabled={updateMutation.isPending}
             className="w-full rounded-lg bg-blue-600 px-6 py-3 text-white hover:bg-blue-700 disabled:opacity-50 font-medium transition text-lg"
           >
-            {updateMutation.isPending ? 'Saving...' : 'Save Preferences'}
+            {updateMutation.isPending ? t('common.saving') : t('emailPreferences.save')}
           </button>
         </div>
 
         {/* Info */}
         <div className="mt-8 rounded-lg bg-blue-50 dark:bg-blue-900 p-4 text-sm text-blue-800 dark:text-blue-100">
           <p>
-            <strong>Note:</strong> Transactional emails (order confirmations, password resets, etc.) will always be sent regardless of your preferences.
+            <strong>{t('emailPreferences.notePrefix')}:</strong> {t('emailPreferences.note')}
           </p>
         </div>
       </div>

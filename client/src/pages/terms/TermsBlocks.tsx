@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { TermsBlock, TextSeg } from './termsTypes';
 
 function renderSegments(segments: TextSeg[]): ReactNode[] {
@@ -47,11 +48,13 @@ function renderUlItems(items: TextSeg[][]) {
 
 export function TermsBlocks({
   blocks,
-  emailLabel = 'Email:',
+  emailLabel,
 }: {
   blocks: TermsBlock[];
   emailLabel?: string;
 }) {
+  const { t } = useTranslation();
+  const resolvedEmailLabel = emailLabel ?? t('termsPage.emailLabel', 'Email:');
   return (
     <>
       {blocks.map((b, i) => {
@@ -148,7 +151,7 @@ export function TermsBlocks({
                   <p key={j}>{line}</p>
                 ))}
                 <p>
-                  {emailLabel}{' '}
+                  {resolvedEmailLabel}{' '}
                   <a
                     href={`mailto:${b.email}`}
                     className="text-orange-500 underline"

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { CreditCard, Search } from 'lucide-react';
+import { CreditCard } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 
 const PAYMENT_STATUSES = [
@@ -22,10 +23,15 @@ function statusBadge(status) {
 
 function fmt(dollars) {
   if (dollars == null) return '-';
-  return `$${Number(dollars).toFixed(2)}`;
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(Number(dollars));
+  } catch {
+    return `$${Number(dollars).toFixed(2)}`;
+  }
 }
 
 export default function PaymentsList() {
+  const { t } = useTranslation();
   const [payments,   setPayments]   = useState([]);
   const [total,      setTotal]      = useState(0);
   const [loading,    setLoading]    = useState(true);
@@ -69,11 +75,11 @@ export default function PaymentsList() {
       <div className="p-6 lg:p-8">
         <div className="flex items-center gap-3 mb-6">
           <CreditCard size={22} className="text-orange-400" />
-          <h1 className="text-2xl font-bold text-white">Payments</h1>
+          <h1 className="text-2xl font-bold text-white">{t('adminPaymentsList.title')}</h1>
         </div>
         <div className="bg-yellow-900/30 border border-yellow-700/40 rounded-xl p-6 text-center">
           <p className="text-yellow-300 text-sm">
-            View Financials permission required. Contact a super-admin to request access.
+            {t('adminPaymentsList.permissionRequired')}
           </p>
         </div>
       </div>
@@ -86,8 +92,8 @@ export default function PaymentsList() {
       <div className="flex items-center gap-3 mb-6">
         <CreditCard size={22} className="text-orange-400" />
         <div>
-          <h1 className="text-2xl font-bold text-white">Payments</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{total} payments</p>
+          <h1 className="text-2xl font-bold text-white">{t('adminPaymentsList.title')}</h1>
+          <p className="text-gray-400 text-sm mt-0.5">{t('adminPaymentsList.count', { count: total })}</p>
         </div>
       </div>
 
@@ -99,15 +105,15 @@ export default function PaymentsList() {
           className="bg-gray-800 border border-gray-700 rounded-lg text-white text-sm px-3 py-2
                      focus:border-orange-500 focus:outline-none"
         >
-          <option value="">All Statuses</option>
+          <option value="">{t('adminPaymentsList.allStatuses')}</option>
           {PAYMENT_STATUSES.filter(Boolean).map(s => (
             <option key={s} value={s}>
-              {s.charAt(0).toUpperCase() + s.slice(1)}
+              {t(`adminPaymentsList.status.${s}`, { defaultValue: s.charAt(0).toUpperCase() + s.slice(1) })}
             </option>
           ))}
         </select>
         <div className="flex items-center gap-2">
-          <label className="text-gray-400 text-xs">From</label>
+          <label className="text-gray-400 text-xs">{t('adminPaymentsList.from')}</label>
           <input
             type="date"
             value={filters.date_from}
@@ -117,7 +123,7 @@ export default function PaymentsList() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-gray-400 text-xs">To</label>
+          <label className="text-gray-400 text-xs">{t('adminPaymentsList.to')}</label>
           <input
             type="date"
             value={filters.date_to}
@@ -134,24 +140,24 @@ export default function PaymentsList() {
           <table className="w-full text-sm min-w-[1100px]">
             <thead>
               <tr className="border-b border-gray-700">
-                <th className="text-left text-gray-400 font-medium px-4 py-3">PAYER</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">PAYEE</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">JOB</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">AMOUNT</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">FEE</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">PAYOUT</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">STATUS</th>
-                <th className="text-left text-gray-400 font-medium px-4 py-3">CREATED</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminPaymentsList.columns.payer')}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminPaymentsList.columns.payee')}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminPaymentsList.columns.job')}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminPaymentsList.columns.amount')}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminPaymentsList.columns.fee')}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminPaymentsList.columns.payout')}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminPaymentsList.columns.status')}</th>
+                <th className="text-left text-gray-400 font-medium px-4 py-3">{t('adminPaymentsList.columns.created')}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="text-center text-gray-400 py-12">Loading…</td>
+                  <td colSpan={8} className="text-center text-gray-400 py-12">{t('adminPaymentsList.loading')}</td>
                 </tr>
               ) : payments.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center text-gray-400 py-12">No payments found.</td>
+                  <td colSpan={8} className="text-center text-gray-400 py-12">{t('adminPaymentsList.empty')}</td>
                 </tr>
               ) : payments.map(p => (
                 <tr key={p.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
@@ -172,7 +178,7 @@ export default function PaymentsList() {
                         {p.job_title || `Job #${p.job_id}`}
                       </Link>
                     ) : (
-                      <span className="text-gray-500 text-xs italic">No job</span>
+                      <span className="text-gray-500 text-xs italic">{t('adminPaymentsList.noJob')}</span>
                     )}
                   </td>
                   <td className={`${col} text-white font-medium`}>{fmt(p.amount)}</td>
@@ -196,7 +202,7 @@ export default function PaymentsList() {
       {/* Pagination */}
       {total > 25 && (
         <div className="flex items-center justify-between mt-4 text-sm text-gray-400">
-          <span>Page {filters.page} · {total} total</span>
+          <span>{t('adminPaymentsList.pageSummary', { page: filters.page, total })}</span>
           <div className="flex gap-2">
             <button
               onClick={() => setFilters(p => ({ ...p, page: Math.max(1, p.page - 1) }))}
@@ -204,7 +210,7 @@ export default function PaymentsList() {
               className="px-3 py-1 bg-gray-800 border border-gray-700 rounded-lg
                          disabled:opacity-40 hover:bg-gray-700 transition-colors"
             >
-              ← Prev
+              {t('adminPaymentsList.prev')}
             </button>
             <button
               onClick={() => setFilters(p => ({ ...p, page: p.page + 1 }))}
@@ -212,7 +218,7 @@ export default function PaymentsList() {
               className="px-3 py-1 bg-gray-800 border border-gray-700 rounded-lg
                          disabled:opacity-40 hover:bg-gray-700 transition-colors"
             >
-              Next →
+              {t('adminPaymentsList.next')}
             </button>
           </div>
         </div>

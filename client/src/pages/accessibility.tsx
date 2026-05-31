@@ -1,54 +1,57 @@
 import LegalPageLayout from '../components/LegalPageLayout';
+import { useTranslation } from 'react-i18next';
 
 export default function AccessibilityPage() {
+  const { t } = useTranslation();
+
+  const measures = [
+    t('accessibilityPage.measures.one'),
+    t('accessibilityPage.measures.two'),
+    t('accessibilityPage.measures.three'),
+    t('accessibilityPage.measures.four'),
+    t('accessibilityPage.measures.five'),
+  ];
+
   return (
-    <LegalPageLayout title="Accessibility Statement" effectiveDate="2026-03-23">
+    <LegalPageLayout title={t('accessibilityPage.title')} effectiveDate="2026-03-23">
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">
-          Our Commitment
+          {t('accessibilityPage.sections.commitment')}
         </h2>
         <p className="mb-3">
-          OxSteed is committed to ensuring digital accessibility for people with
-          disabilities. We continually work to improve the user experience for
-          everyone and apply the relevant accessibility standards.
+          {t('accessibilityPage.overview')}
         </p>
       </section>
 
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">
-          Conformance Status
+          {t('accessibilityPage.sections.conformance')}
         </h2>
         <p className="mb-3">
-          We aim to conform to the Web Content Accessibility Guidelines (WCAG)
-          2.1 at Level AA. These guidelines explain how to make web content more
-          accessible to people with a wide array of disabilities.
+          {t('accessibilityPage.conformance')}
         </p>
       </section>
 
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">
-          Measures Taken
+          {t('accessibilityPage.sections.measures')}
         </h2>
         <ul className="list-disc ml-5 space-y-2 mb-3">
-          <li>Semantic HTML markup throughout the application;</li>
-          <li>Sufficient color contrast ratios for text and interactive elements;</li>
-          <li>Keyboard navigable interface;</li>
-          <li>ARIA labels and roles where appropriate;</li>
-          <li>Responsive design that works across screen sizes and zoom levels.</li>
+          {measures.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
         </ul>
       </section>
 
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">
-          Feedback & Contact
+          {t('accessibilityPage.sections.feedback')}
         </h2>
         <p className="mb-3">
-          If you experience any accessibility issues or barriers while using
-          OxSteed, please contact us. We take accessibility feedback seriously
-          and will work to address any concerns promptly.
+          {t('accessibilityPage.feedback')}
         </p>
         <p className="mb-3">
-          Email:{' '}
+          {t('accessibilityPage.emailLabel')}
           <a
             href="mailto:support@oxsteed.com"
             className="text-orange-400 underline"
@@ -57,7 +60,7 @@ export default function AccessibilityPage() {
           </a>
         </p>
         <p className="mb-3">
-          We aim to respond to accessibility feedback within 2 business days.
+          {t('accessibilityPage.responseTime')}
         </p>
       </section>
     </LegalPageLayout>

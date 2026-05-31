@@ -172,7 +172,7 @@ export default function HelperDashboard() {
     } catch (err) { toast.error(err.response?.data?.error || t('helperDashboard.products.saveFailed')); }
   };
   const handleDeleteProduct = async (id) => {
-    if (!confirm('Remove this product listing?')) return;
+    if (!confirm(t('helperDashboard.products.removeConfirm'))) return;
     try {
       await api.delete(`/helper-products/${id}`);
       toast.success(t('helperDashboard.products.removed'));
@@ -440,7 +440,7 @@ export default function HelperDashboard() {
     } catch (err) { toast.error(err.response?.data?.error || t('helperDashboard.skills.saveFailed')); }
   };
   const handleDeleteSkill = async (id) => {
-    if (!confirm('Remove this skill listing?')) return;
+    if (!confirm(t('helperDashboard.skills.removeConfirm'))) return;
     try {
       await api.delete(`/user-skills/${id}`);
       toast.success(t('helperDashboard.skills.removed'));
@@ -547,7 +547,7 @@ export default function HelperDashboard() {
     } catch (err) { toast.error(err.response?.data?.error || t('helperDashboard.tools.saveFailed')); }
   };
   const handleDeleteTool = async (id) => {
-    if (!confirm('Remove this tool listing?')) return;
+    if (!confirm(t('helperDashboard.tools.removeConfirm'))) return;
     try {
       await api.delete(`/tool-rentals/${id}`);
       toast.success(t('helperDashboard.tools.removed'));

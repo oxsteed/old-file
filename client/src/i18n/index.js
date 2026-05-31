@@ -13,21 +13,27 @@ import enPrivacy from '../locales/privacy/en.content.json';
 import esPrivacy from '../locales/privacy/es.content.json';
 import frPrivacy from '../locales/privacy/fr.content.json';
 import htPrivacy from '../locales/privacy/ht.content.json';
+import arLegacy from '../locales/ar.json';
+import arTerms from '../locales/terms/ar.content.json';
+import arPrivacy from '../locales/privacy/ar.content.json';
 
 import enCommon from './locales/en/common.json';
 import esCommon from './locales/es/common.json';
 import frCommon from './locales/fr/common.json';
 import htCommon from './locales/ht/common.json';
+import arCommon from './locales/ar/common.json';
 import enTranslator from './locales/en/translator.json';
 import esTranslator from './locales/es/translator.json';
 import frTranslator from './locales/fr/translator.json';
 import htTranslator from './locales/ht/translator.json';
+import arTranslator from './locales/ar/translator.json';
 
 export const LANGUAGES = [
   { code: 'en', name: 'English', flag: '🇬🇧' },
   { code: 'es', name: 'Español', flag: '🇪🇸' },
   { code: 'fr', name: 'Français', flag: '🇫🇷' },
   { code: 'ht', name: 'Kreyòl', flag: '🇭🇹' },
+  { code: 'ar', name: 'العربية', flag: '🇸🇦' },
 ];
 
 const resources = {
@@ -66,6 +72,15 @@ const resources = {
     },
     common: htCommon,
     translator: htTranslator,
+  },
+  ar: {
+    translation: {
+      ...arLegacy,
+      termsContent: arTerms,
+      privacyContent: arPrivacy,
+    },
+    common: arCommon,
+    translator: arTranslator,
   },
 };
 

@@ -84,16 +84,16 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
     e.preventDefault();
 
     if (!startDate || !endDate) {
-      toast.error(t('toolRentals.selectDates') || 'Please select start and end dates');
+      toast.error(t('toolRentals.selectDates'));
       return;
     }
 
     if (new Date(startDate) >= new Date(endDate)) {
-      toast.error(t('toolRentals.invalidDateRange') || 'End date must be after start date');
+      toast.error(t('toolRentals.invalidDateRange'));
       return;
     }
     if (!agreementAccepted) {
-      toast.error(t('toolRentals.peerAgreementRequired') || 'Please accept the peer rental agreement before booking.');
+      toast.error(t('toolRentals.peerAgreementRequired'));
       return;
     }
 
@@ -104,7 +104,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
       const bookStart = new Date(booking.start_date);
       const bookEnd = new Date(booking.end_date);
       if (checkDate < bookEnd && endCheckDate > bookStart) {
-        toast.error(t('toolRentals.dateConflict') || 'Tool is already booked for these dates');
+        toast.error(t('toolRentals.dateConflict'));
         return;
       }
     }
@@ -113,13 +113,13 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
     try {
       await toolRentalsApi.createBooking(tool.id, startDate, endDate, totalPrice, agreementAccepted);
 
-      toast.success(t('toolRentals.bookingConfirmed') || 'Booking confirmed!');
+      toast.success(t('toolRentals.bookingConfirmed'));
       onClose();
     } catch (err: any) {
       if (err.response?.status === 409) {
-        toast.error(t('toolRentals.dateConflict') || 'Tool is already booked for these dates');
+        toast.error(t('toolRentals.dateConflict'));
       } else {
-        toast.error(t('toolRentals.bookingFailed') || 'Failed to create booking');
+        toast.error(t('toolRentals.bookingFailed'));
       }
     } finally {
       setLoading(false);
@@ -193,7 +193,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
                 </div>
                 {tool.requires_deposit && (
                   <div className="booking-price-row">
-                    <span>{t('toolRentals.depositLabel') || 'Deposit'}</span>
+                    <span>{t('toolRentals.depositLabel')}</span>
                     <span>${Number(tool.deposit_amount || 0).toFixed(2)}</span>
                   </div>
                 )}
@@ -203,27 +203,27 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
             <div className="booking-peer-agreement">
               <div className="booking-peer-agreement-title">
                 <ShieldAlert className="w-4 h-4" />
-                <span>{t('toolRentals.peerAgreementTitle') || 'Peer rental agreement'}</span>
+                <span>{t('toolRentals.peerAgreementTitle')}</span>
               </div>
               <ul>
-                <li>{t('toolRentals.peerAgreementOxSteedRole') || 'OxSteed helps document this rental but is not the tool owner, renter, inspector, insurer, or guarantor.'}</li>
-                <li>{t('toolRentals.peerAgreementInspect') || 'Inspect the tool before use and decide whether it is appropriate for your task.'}</li>
-                <li>{t('toolRentals.peerAgreementDamage') || 'You may be responsible for damage beyond normal wear, loss, theft, missing parts, late return, or returning the tool dirty or not working.'}</li>
-                <li>{t('toolRentals.peerAgreementReport') || 'You can report bad behavior or a dispute through OxSteed.'}</li>
+                <li>{t('toolRentals.peerAgreementOxSteedRole')}</li>
+                <li>{t('toolRentals.peerAgreementInspect')}</li>
+                <li>{t('toolRentals.peerAgreementDamage')}</li>
+                <li>{t('toolRentals.peerAgreementReport')}</li>
               </ul>
               {(tool.brand || tool.model || tool.condition || tool.replacement_value || tool.owner_rules) && (
                 <div className="booking-peer-tool-snapshot">
-                  {tool.brand || tool.model ? <p><strong>{t('toolRentals.makeModel') || 'Make/model'}:</strong> {[tool.brand, tool.model].filter(Boolean).join(' ')}</p> : null}
-                  {tool.condition ? <p><strong>{t('toolRentals.condition') || 'Condition'}:</strong> {tool.condition}</p> : null}
-                  {tool.replacement_value ? <p><strong>{t('toolRentals.replacementValue') || 'Replacement value'}:</strong> ${Number(tool.replacement_value).toFixed(2)}</p> : null}
-                  {tool.owner_rules ? <p><strong>{t('toolRentals.ownerRules') || 'Owner rules'}:</strong> {tool.owner_rules}</p> : null}
+                  {tool.brand || tool.model ? <p><strong>{t('toolRentals.makeModel')}:</strong> {[tool.brand, tool.model].filter(Boolean).join(' ')}</p> : null}
+                  {tool.condition ? <p><strong>{t('toolRentals.condition')}:</strong> {tool.condition}</p> : null}
+                  {tool.replacement_value ? <p><strong>{t('toolRentals.replacementValue')}:</strong> ${Number(tool.replacement_value).toFixed(2)}</p> : null}
+                  {tool.owner_rules ? <p><strong>{t('toolRentals.ownerRules')}:</strong> {tool.owner_rules}</p> : null}
                 </div>
               )}
               {tool.owner_custom_terms && (
                 <div className="booking-owner-terms">
-                  <p className="booking-owner-terms-label">{t('toolRentals.ownerProvidedTerms') || 'Owner-provided terms'}</p>
+                  <p className="booking-owner-terms-label">{t('toolRentals.ownerProvidedTerms')}</p>
                   <p>{tool.owner_custom_terms}</p>
-                  <small>{t('toolRentals.ownerTermsDisclaimer') || 'These terms were provided by the tool owner. OxSteed does not draft, review, validate, or guarantee them.'}</small>
+                  <small>{t('toolRentals.ownerTermsDisclaimer')}</small>
                 </div>
               )}
               <label className="booking-peer-checkbox">
@@ -233,7 +233,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
                   onChange={(e) => setAgreementAccepted(e.target.checked)}
                   disabled={loading}
                 />
-                <span>{t('toolRentals.peerAgreementAccept') || 'I understand this is a neighbor-to-neighbor rental, OxSteed has limited control over the tool, and I accept the responsibilities above.'}</span>
+                <span>{t('toolRentals.peerAgreementAccept')}</span>
               </label>
             </div>
 
@@ -247,7 +247,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
           </form>
 
           <p className="booking-disclaimer">
-            {t('toolRentals.bookingDisclaimer') || 'Your booking will be pending owner approval.'}
+            {t('toolRentals.bookingDisclaimer')}
           </p>
         </div>
       </div>

@@ -4,6 +4,7 @@ import {
   getPostalExample,
   isValidPostal,
 } from '../lib/countries';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Country-aware postal code input.
@@ -37,6 +38,7 @@ export default function PostalCodeInput({
   onValidityChange = undefined,
   ...rest
 }) {
+  const { t } = useTranslation();
   const label    = getPostalLabel(country);
   const example  = getPostalExample(country);
   const valid    = isValidPostal(country, value);
@@ -57,7 +59,7 @@ export default function PostalCodeInput({
         type="text"
         value={value || ''}
         disabled
-        placeholder="Select a country first"
+        placeholder={t('postalCode.selectCountryFirst')}
         className={className}
         {...rest}
       />

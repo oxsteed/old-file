@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { QrCode, Download, Share2 } from 'lucide-react';
 import './ProfileHeader.css';
+import { useTranslation } from 'react-i18next';
 
 /**
  * ProfileHeader Component
@@ -9,6 +10,7 @@ import './ProfileHeader.css';
  * Shows QR code on hover with download and share options.
  */
 export default function ProfileHeader({ helperId, helperName, coverImageUrl }) {
+  const { t } = useTranslation();
   const [showQRCode, setShowQRCode] = useState(false);
   const [qrCode, setQRCode] = useState(null);
   const [qrLoading, setQRLoading] = useState(false);
@@ -51,7 +53,7 @@ export default function ProfileHeader({ helperId, helperName, coverImageUrl }) {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `${helperName || 'profile'}-qr-code.png`;
+        link.download = `${helperName || t('profileHeader.profileFilenamePrefix')}-qr-code.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -68,8 +70,8 @@ export default function ProfileHeader({ helperId, helperName, coverImageUrl }) {
 
     if (navigator.share) {
       navigator.share({
-        title: `${helperName}'s Profile`,
-        text: 'Check out my profile on OxSteed',
+        title: t('profileHeader.shareTitle', { name: helperName || '' }),
+        text: t('profileHeader.shareText'),
         url: profileUrl
       }).catch(err => console.error('Share failed:', err));
     } else {
@@ -88,13 +90,13 @@ export default function ProfileHeader({ helperId, helperName, coverImageUrl }) {
       {coverImageUrl ? (
         <img
           src={coverImageUrl}
-          alt="Profile cover"
+          alt={t('profileHeader.profileCover')}
           className="profile-header-image"
         />
       ) : (
         <div className="profile-header-placeholder">
           <div className="placeholder-content">
-            <span>No cover image</span>
+            <span>{t('profileHeader.noCoverImage')}</span>
           </div>
         </div>
       )}
@@ -119,15 +121,15 @@ export default function ProfileHeader({ helperId, helperName, coverImageUrl }) {
               <button
                 onClick={handleQRDownload}
                 className="profile-qr-action-btn"
-                title="Download QR Code"
-              >
+              title={t('profileHeader.downloadQr')}
+            >
                 <Download size={16} />
               </button>
               <button
                 onClick={handleQRShare}
                 className="profile-qr-action-btn"
-                title="Share Profile"
-              >
+              title={t('profileHeader.shareProfile')}
+            >
                 <Share2 size={16} />
               </button>
             </div>

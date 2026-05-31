@@ -4,32 +4,37 @@
  */
 
 import { Helmet } from 'react-helmet-async';
+import { useTranslation } from 'react-i18next';
 import { getPublicSiteUrl, toAbsoluteUrl } from '../utils/seoDescription';
 
 const SITE_NAME = 'OxSteed';
-const DEFAULT_TITLE = 'OxSteed - Hire Local Help Today';
-const DEFAULT_DESC =
-  'Post a job, compare bids from skills local helpers, and pay on OxSteed. Free to start.';
 const TWITTER_HANDLE = '@oxsteed';
 
 export default function PageMeta({
-  title = DEFAULT_TITLE,
-  description = DEFAULT_DESC,
+  title,
+  description,
   image = undefined,
   url = undefined,
   type = 'website',
   noIndex = false,
 }) {
+  const { t } = useTranslation('common');
+  const defaultTitle = t('pageMeta.defaults.title');
+  const defaultDescription = t('pageMeta.defaults.description');
+  const resolvedTitle = title || defaultTitle;
+  const resolvedDescription = description || defaultDescription;
   const base = getPublicSiteUrl();
   const defaultUrl = base;
   const resolvedUrl = url || defaultUrl;
   const resolvedImage = toAbsoluteUrl(image || '/og-default.png');
-  const fullTitle = title.includes(SITE_NAME) ? title : `${title} | ${SITE_NAME}`;
+  const fullTitle = resolvedTitle.includes(SITE_NAME)
+    ? resolvedTitle
+    : `${resolvedTitle} | ${SITE_NAME}`;
 
   return (
     <Helmet>
       <title>{fullTitle}</title>
-      <meta name="description" content={description} />
+      <meta name="description" content={resolvedDescription} />
       {noIndex && <meta name="robots" content="noindex, nofollow" />}
 
       <link rel="canonical" href={resolvedUrl} />
@@ -37,14 +42,14 @@ export default function PageMeta({
       <meta property="og:site_name" content={SITE_NAME} />
       <meta property="og:type" content={type} />
       <meta property="og:title" content={fullTitle} />
-      <meta property="og:description" content={description} />
+      <meta property="og:description" content={resolvedDescription} />
       <meta property="og:image" content={resolvedImage} />
       <meta property="og:url" content={resolvedUrl} />
 
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:site" content={TWITTER_HANDLE} />
       <meta name="twitter:title" content={fullTitle} />
-      <meta name="twitter:description" content={description} />
+      <meta name="twitter:description" content={resolvedDescription} />
       <meta name="twitter:image" content={resolvedImage} />
     </Helmet>
   );

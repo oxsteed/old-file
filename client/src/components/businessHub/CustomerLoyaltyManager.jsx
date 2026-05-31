@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Edit2, Trash2, Plus, Gift, Zap, Crown } from 'lucide-react';
@@ -40,6 +41,7 @@ const TIER_CONFIGS = [
 ];
 
 export function CustomerLoyaltyManager({ businessId }) {
+  const { t } = useTranslation();
   const [tiers, setTiers] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -65,7 +67,7 @@ export function CustomerLoyaltyManager({ businessId }) {
       );
       setTiers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      toast.error('Failed to load loyalty tiers');
+      toast.error(t('businessHub.loyalty.toastLoadTiersFail'));
     } finally {
       setLoading(false);
     }
@@ -79,13 +81,13 @@ export function CustomerLoyaltyManager({ businessId }) {
       setCustomers(response.data || []);
       setShowCustomerList(true);
     } catch (error) {
-      toast.error('Failed to load customers');
+      toast.error(t('businessHub.loyalty.toastLoadCustomersFail'));
     }
   };
 
   const handleSaveTier = async () => {
     if (!formData.tier_name || formData.discount_percent < 0) {
-      toast.error('Please fill in required fields');
+      toast.error(t('businessHub.loyalty.toastFieldsRequired'));
       return;
     }
 
@@ -95,34 +97,34 @@ export function CustomerLoyaltyManager({ businessId }) {
           `/businesses/${businessId}/loyalty-tiers/${selectedTier.id}`,
           formData
         );
-        toast.success('Tier updated');
+        toast.success(t('businessHub.loyalty.toastTierUpdated'));
       } else {
         await api.post(
           `/businesses/${businessId}/loyalty-tiers`,
           formData
         );
-        toast.success('Tier created');
+        toast.success(t('businessHub.loyalty.toastTierCreated'));
       }
       setShowForm(false);
       setSelectedTier(null);
       resetForm();
       loadTiers();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to save tier');
+      toast.error(error.response?.data?.message || t('businessHub.loyalty.toastSaveFail'));
     }
   };
 
   const handleDeleteTier = async (tierId) => {
-    if (!window.confirm('Delete this loyalty tier?')) return;
+    if (!window.confirm(t('businessHub.loyalty.confirmDeleteTier'))) return;
 
     try {
       await api.delete(
         `/businesses/${businessId}/loyalty-tiers/${tierId}`
       );
-      toast.success('Tier deleted');
+      toast.success(t('businessHub.loyalty.toastTierDeleted'));
       loadTiers();
     } catch (error) {
-      toast.error('Failed to delete tier');
+      toast.error(t('businessHub.loyalty.toastDeleteFail'));
     }
   };
 
@@ -153,7 +155,7 @@ export function CustomerLoyaltyManager({ businessId }) {
   return (
     <div className="clm-container">
       <div className="clm-header">
-        <h3>Customer Loyalty Program</h3>
+        <h3>{t('businessHub.loyalty.title')}</h3>
         <button
           onClick={() => {
             resetForm();
@@ -162,13 +164,13 @@ export function CustomerLoyaltyManager({ businessId }) {
           }}
           className="clm-btn-new"
         >
-          <Plus size={18} /> New Tier
+          <Plus size={18} /> {t('businessHub.loyalty.newTier')}
         </button>
       </div>
 
       {showForm ? (
         <div className="clm-form-container">
-          <h4>{selectedTier ? 'Edit Loyalty Tier' : 'Create Loyalty Tier'}</h4>
+          <h4>{selectedTier ? t('businessHub.loyalty.editTier') : t('businessHub.loyalty.createTier')}</h4>
 
           <div className="clm-form-row">
             <div className="clm-form-group">

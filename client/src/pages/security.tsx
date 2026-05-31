@@ -1,120 +1,115 @@
 import LegalPageLayout from '../components/LegalPageLayout';
+import { useTranslation } from 'react-i18next';
 
 export default function SecurityPolicy() {
+  const { t } = useTranslation();
+
   return (
-    <LegalPageLayout title="Security Policy" effectiveDate="2026-03-22">
+    <LegalPageLayout title={t('securityPolicyPage.title')} effectiveDate="2026-03-22">
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">
-          1. Our Commitment to Security
+          {t('securityPolicyPage.section1Title')}
         </h2>
         <p className="mb-3">
-          OxSteed LLC takes the security of your personal information
-          seriously. We implement commercially reasonable administrative,
-          technical, and physical safeguards to protect your data against
-          unauthorized access, alteration, disclosure, or destruction.
+          {t('securityPolicyPage.section1Text')}
         </p>
       </section>
 
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">
-          2. Technical Security Measures
+          {t('securityPolicyPage.section2Title')}
         </h2>
         <ul className="list-disc ml-5 space-y-2 mb-3">
-          <li><strong>Encryption in transit:</strong> All data transmitted between your browser and OxSteed's servers is encrypted using TLS 1.2+ (HTTPS).</li>
-          <li><strong>Password security:</strong> Passwords are hashed using bcrypt with per-user salts. OxSteed staff cannot view your password.</li>
-          <li><strong>Authentication:</strong> JWT-based authentication with secure, HTTP-only cookies. Tokens expire and are refreshed automatically.</li>
-          <li><strong>Two-factor authentication:</strong> Optional TOTP-based 2FA via authenticator apps for account protection.</li>
-          <li><strong>Rate limiting:</strong> Authentication endpoints are rate-limited to prevent brute-force attacks.</li>
-          <li><strong>Role-based access control:</strong> Users can only access data and features appropriate to their role (Customer, Helper, Admin).</li>
-          <li><strong>Input validation:</strong> All user inputs are validated and sanitized server-side to prevent injection attacks.</li>
-          <li><strong>Security headers:</strong> Helmet.js is used to set secure HTTP headers including CSP, HSTS, X-Frame-Options, and X-Content-Type-Options.</li>
+          <li>{t('securityPolicyPage.section2List1')}</li>
+          <li>{t('securityPolicyPage.section2List2')}</li>
+          <li>{t('securityPolicyPage.section2List3')}</li>
+          <li>{t('securityPolicyPage.section2List4')}</li>
+          <li>{t('securityPolicyPage.section2List5')}</li>
+          <li>{t('securityPolicyPage.section2List6')}</li>
+          <li>{t('securityPolicyPage.section2List7')}</li>
+          <li>{t('securityPolicyPage.section2List8')}</li>
         </ul>
       </section>
 
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">
-          3. Third-Party Security
+          {t('securityPolicyPage.section3Title')}
         </h2>
         <ul className="list-disc ml-5 space-y-2 mb-3">
-          <li><strong>Stripe:</strong> All payment processing is handled by Stripe, Inc., which is PCI DSS Level 1 certified. OxSteed never stores credit card numbers.</li>
-          <li><strong>Checkr:</strong> Background check data is processed and stored by Checkr, Inc. under its own security and FCRA compliance policies.</li>
-          <li><strong>Render:</strong> Our servers are hosted on Render's infrastructure with automatic TLS, DDoS protection, and isolated environments.</li>
-          <li><strong>Resend:</strong> Transactional emails are delivered through Resend with TLS encryption.</li>
+          <li>{t('securityPolicyPage.section3List1')}</li>
+          <li>{t('securityPolicyPage.section3List2')}</li>
+          <li>{t('securityPolicyPage.section3List3')}</li>
+          <li>{t('securityPolicyPage.section3List4')}</li>
         </ul>
       </section>
 
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">
-          4. Responsible Disclosure
+          {t('securityPolicyPage.section4Title')}
         </h2>
         <p className="mb-3">
-          If you discover a security vulnerability on OxSteed, we ask that you
-          disclose it responsibly. Please report security issues to:
+          {t('securityPolicyPage.section4Text')}
         </p>
         <p className="mb-3">
-          <a href="mailto:security@oxsteed.com" className="text-orange-400 underline">security@oxsteed.com</a>
+          <a href="mailto:security@oxsteed.com" className="text-orange-400 underline">
+            security@oxsteed.com
+          </a>
         </p>
-        <p className="mb-3">Please include:</p>
+        <p className="mb-3">{t('securityPolicyPage.section4Include')}</p>
         <ul className="list-disc ml-5 space-y-2 mb-3">
-          <li>A description of the vulnerability and its potential impact;</li>
-          <li>Steps to reproduce the issue;</li>
-          <li>Any relevant screenshots or proof-of-concept code;</li>
-          <li>Your contact information for follow-up.</li>
+          <li>{t('securityPolicyPage.section4Include1')}</li>
+          <li>{t('securityPolicyPage.section4Include2')}</li>
+          <li>{t('securityPolicyPage.section4Include3')}</li>
+          <li>{t('securityPolicyPage.section4Include4')}</li>
         </ul>
         <p className="mb-3">
-          We will acknowledge your report within 48 hours and work to resolve
-          verified vulnerabilities as quickly as possible. We will not take
-          legal action against researchers who follow responsible disclosure
-          practices.
+          {t('securityPolicyPage.section4Response')}
         </p>
         <p className="mb-3">
-          <strong>Do not</strong> access other users' accounts or data, perform
-          denial-of-service attacks, or exploit vulnerabilities beyond what is
-          necessary to demonstrate the issue.
+          {t('securityPolicyPage.section4DoNot')}
         </p>
       </section>
 
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">
-          5. Your Security Responsibilities
+          {t('securityPolicyPage.section5Title')}
         </h2>
         <ul className="list-disc ml-5 space-y-2 mb-3">
-          <li>Use a strong, unique password for your OxSteed account;</li>
-          <li>Enable two-factor authentication for additional account protection;</li>
-          <li>Do not share your login credentials with anyone;</li>
-          <li>Log out of your account when using shared or public devices;</li>
-          <li>Notify us immediately at <a href="mailto:security@oxsteed.com" className="text-orange-400 underline">security@oxsteed.com</a> if you suspect unauthorized access to your account;</li>
-          <li>Keep your browser and operating system up to date.</li>
+          <li>{t('securityPolicyPage.section5List1')}</li>
+          <li>{t('securityPolicyPage.section5List2')}</li>
+          <li>{t('securityPolicyPage.section5List3')}</li>
+          <li>{t('securityPolicyPage.section5List4')}</li>
+          <li>{t('securityPolicyPage.section5List5')}</li>
+          <li>{t('securityPolicyPage.section5List6')}</li>
         </ul>
       </section>
 
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">
-          6. Incident Response
+          {t('securityPolicyPage.section6Title')}
         </h2>
         <p className="mb-3">
-          In the event of a security incident that compromises personal data,
-          OxSteed will:
+          {t('securityPolicyPage.section6Text')}
         </p>
         <ul className="list-disc ml-5 space-y-2 mb-3">
-          <li>Investigate and contain the incident immediately;</li>
-          <li>Notify affected users by email within 72 hours of discovery;</li>
-          <li>Notify applicable state attorneys general as required by law;</li>
-          <li>Provide details about what data was affected and steps users should take;</li>
-          <li>Implement measures to prevent recurrence.</li>
+          <li>{t('securityPolicyPage.section6List1')}</li>
+          <li>{t('securityPolicyPage.section6List2')}</li>
+          <li>{t('securityPolicyPage.section6List3')}</li>
+          <li>{t('securityPolicyPage.section6List4')}</li>
+          <li>{t('securityPolicyPage.section6List5')}</li>
         </ul>
       </section>
 
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">
-          7. DMCA Designated Agent
+          {t('securityPolicyPage.section7Title')}
         </h2>
         <p className="mb-3">
-          OxSteed's designated agent for DMCA takedown notices:
+          {t('securityPolicyPage.section7Text')}
         </p>
         <p className="mb-3">
           OxSteed LLC<br />
-          Attn: DMCA Agent<br />
+          {t('securityPolicyPage.section7Attention')}<br />
           Springfield, Ohio<br />
           <a href="mailto:legal@oxsteed.com" className="text-orange-400 underline">legal@oxsteed.com</a>
         </p>

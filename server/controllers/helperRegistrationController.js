@@ -13,6 +13,23 @@ const { validate, rules } = require('../utils/validate');
 const countriesUtil = require('../utils/countries');
 const logger = require('../utils/logger');
 const TERMS_IP_HASH_MAX_LEN = 45;
+const SUPPORTED_LANGUAGE_CODES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
+
+function resolveRequestLanguage(req, fallback = 'en') {
+  const candidate =
+    req?.body?.language ||
+    req?.headers?.['x-preferred-language'] ||
+    req?.headers?.['accept-language'] ||
+    '';
+
+  const parsed = String(candidate || '')
+    .split(',')[0]
+    .trim()
+    .split('-')[0]
+    .toLowerCase();
+
+  return SUPPORTED_LANGUAGE_CODES.has(parsed) ? parsed : fallback;
+}
 
 async function pendingRegistrationsHasRoleColumn() {
   const { rows } = await pool.query(
@@ -183,7 +200,7 @@ async function startRegistration(req, res) {
           otp_expires,
         ]);
 
-    await sendOTPEmail(normalized.email, otp);
+    await sendOTPEmail(normalized.email, otp, resolveRequestLanguage(req));
 
     res.status(201).json({
       message: 'OTP sent to email',
@@ -374,7 +391,7 @@ async function resendOTP(req, res) {
     if (!rows.length)
       return res.status(404).json({ error: 'No pending registration found' });
 
-    await sendOTPEmail(rows[0].email, otp);
+    await sendOTPEmail(rows[0].email, otp, resolveRequestLanguage(req));
     res.json({ message: 'New OTP sent' });
   } catch (err) {
     logger.error('resendOTP error:', { err });

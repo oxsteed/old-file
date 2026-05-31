@@ -8,20 +8,6 @@ import '../styles/ProductReviewsSection.css';
 
 const REVIEW_FORM_MODAL = 'review_form';
 
-function getRelativeDate(dateString) {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const now = new Date();
-  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (seconds < 60) return 'Just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 2592000) return `${Math.floor(seconds / 86400)}d ago`;
-  if (seconds < 31536000) return `${Math.floor(seconds / 2592000)}mo ago`;
-  return `${Math.floor(seconds / 31536000)}y ago`;
-}
-
 function renderStars(rating, size = 16) {
   const stars = [];
   const roundedRating = Math.round(rating * 2) / 2;
@@ -63,6 +49,28 @@ export default function ProductReviewsSection({
   onSubmitReview,
 }: ProductReviewsSectionProps) {
   const { t } = useTranslation();
+
+  const getRelativeDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (seconds < 60) return t('productReviews.timeAgo.justNow');
+    if (seconds < 3600) {
+      return t('productReviews.timeAgo.minutesAgo', { value: Math.floor(seconds / 60) });
+    }
+    if (seconds < 86400) {
+      return t('productReviews.timeAgo.hoursAgo', { value: Math.floor(seconds / 3600) });
+    }
+    if (seconds < 2592000) {
+      return t('productReviews.timeAgo.daysAgo', { value: Math.floor(seconds / 86400) });
+    }
+    if (seconds < 31536000) {
+      return t('productReviews.timeAgo.monthsAgo', { value: Math.floor(seconds / 2592000) });
+    }
+    return t('productReviews.timeAgo.yearsAgo', { value: Math.floor(seconds / 31536000) });
+  };
   const { user } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(false);
@@ -207,7 +215,7 @@ export default function ProductReviewsSection({
                       key={star}
                       onClick={() => handleRatingChange(star)}
                       className={`prs-rating-btn ${formData.rating >= star ? 'active' : ''}`}
-                      aria-label={`${star} stars`}
+                      aria-label={t('productReviews.ratingStarsAria', { count: star })}
                     >
                       <Star
                         size={28}

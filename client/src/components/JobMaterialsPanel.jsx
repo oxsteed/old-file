@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listCampaigns } from '../api/logistics';
+import { useTranslation } from 'react-i18next';
 
 /**
  * JobMaterialsPanel
@@ -15,6 +16,7 @@ import { listCampaigns } from '../api/logistics';
 export default function JobMaterialsPanel({ category, jobId }) {
   const [campaigns, setCampaigns] = useState([]);
   const [loading,   setLoading]   = useState(true);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!category) { setLoading(false); return; }
@@ -45,22 +47,23 @@ export default function JobMaterialsPanel({ category, jobId }) {
           <rect x="1" y="3" width="15" height="13" rx="2"/>
           <path d="M16 8h5l2 5v3h-7V8z"/>
           <circle cx="5.5" cy="18.5" r="1.5"/>
-          <circle cx="18.5" cy="18.5" r="1.5"/>
-        </svg>
-        Source materials
+        <circle cx="18.5" cy="18.5" r="1.5"/>
+      </svg>
+        {t('jobMaterialsPanel.title')}
       </h3>
 
       {/* Body */}
       <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0 0 0.875rem', lineHeight: 1.5 }}>
-        Need supplies for this {category ? `${category} ` : ''}job?
-        OxSteed Logistics can source them at volume pricing.
+        {t('jobMaterialsPanel.needSupplies', { categorySuffix: category ? `${category} ` : '' })}
       </p>
 
       {/* Matching campaigns */}
       {campaigns.length > 0 && (
         <div style={{ marginBottom: '0.875rem' }}>
           <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600, marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Open campaigns · {category}
+            {category
+              ? t('jobMaterialsPanel.openCampaignsWithCategory', { category })
+              : t('jobMaterialsPanel.openCampaigns')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
             {campaigns.map(c => (
@@ -78,7 +81,7 @@ export default function JobMaterialsPanel({ category, jobId }) {
                   {c.title || c.name}
                 </span>
                 <span style={{ fontSize: '0.72rem', color: '#f97316', fontWeight: 600, whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>
-                  Join →
+                  {`${t('jobMaterialsPanel.join')} \u2192`}
                 </span>
               </Link>
             ))}
@@ -99,7 +102,7 @@ export default function JobMaterialsPanel({ category, jobId }) {
         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(249,115,22,.08)'; }}
         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
       >
-        Open sourcing request
+        {t('jobMaterialsPanel.cta')}
       </Link>
     </div>
   );

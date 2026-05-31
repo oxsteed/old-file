@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import {
   Users,
@@ -22,6 +23,7 @@ import {
 } from '../components/support/SupportPageChrome';
 
 export default function SupportAgentManagement() {
+  const { t } = useTranslation();
   const { businessId } = useParams();
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,7 +59,7 @@ export default function SupportAgentManagement() {
   };
 
   const handleDelete = async (agentId) => {
-    if (!window.confirm('Delete this agent?')) return;
+    if (!window.confirm(t('supportAdmin.agentManagement.confirmDeleteAgent'))) return;
     try {
       await adminApi.delete(`/support/agents/${agentId}`);
       loadAgents();

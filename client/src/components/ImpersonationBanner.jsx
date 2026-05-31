@@ -10,6 +10,7 @@
  */
 import { useState, useEffect } from 'react';
 import { UserX, LogOut }       from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   IMPERSONATION_TOKEN_KEY,
   IMPERSONATION_USER_KEY,
@@ -18,6 +19,7 @@ import {
 
 export default function ImpersonationBanner() {
   const [impUser, setImpUser] = useState(null);
+  const { t } = useTranslation('common');
 
   useEffect(() => {
     const raw = sessionStorage.getItem(IMPERSONATION_USER_KEY);
@@ -75,12 +77,12 @@ export default function ImpersonationBanner() {
       <div className="flex items-center gap-2 min-w-0">
         <UserX size={16} className="shrink-0" />
         <span className="truncate">
-          Admin View: you are browsing as&nbsp;
+          {t('impersonation.adminView')}&nbsp;
           <strong>{displayName}</strong>
           &nbsp;({impUser.email})
           &nbsp;—&nbsp;
           <span className="font-normal opacity-80">
-            Actions you take are logged as impersonation.
+            {t('impersonation.loggedAs')}
           </span>
         </span>
       </div>
@@ -90,10 +92,10 @@ export default function ImpersonationBanner() {
         className="shrink-0 flex items-center gap-1.5 px-3 py-1
                    bg-white/20 hover:bg-white/30 rounded-lg
                    transition text-white text-xs font-bold whitespace-nowrap"
-        aria-label="Exit impersonation session"
+        aria-label={t('impersonation.exitAria')}
       >
         <LogOut size={13} />
-        Exit Impersonation
+        {t('impersonation.exitButton')}
       </button>
     </div>
   );

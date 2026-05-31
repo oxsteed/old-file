@@ -95,6 +95,7 @@ async function authenticate(req, res, next) {
          u.tier_selected, u.w9_completed, u.terms_accepted,
          u.membership_tier, u.id_verified, u.background_check_passed,
          u.city, u.state, u.zip_code,
+         u.preferred_language,
          u.display_name_preference, u.is_active,
          u.didit_status, u.didit_verified_at,
          COALESCE(u.didit_enforcement_required, FALSE) AS didit_enforcement_required,
@@ -232,7 +233,8 @@ const optionalAuth = async (req, res, next) => {
     }
 
     const { rows } = await pool.query(
-      `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.default_mode, u.logistics_role
+        `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active,
+                u.default_mode, u.logistics_role, u.preferred_language
          FROM users u WHERE u.id = $1`,
       [decoded.id]
     );

@@ -139,9 +139,9 @@ function HomeSearch() {
         setLocCoords({ lat, lng });
         try {
           const { data } = await api.get('/geo/reverse', { params: { lat, lng } });
-          if (!userHasTypedLoc.current) setLocInput(data.display || 'Near you');
+          if (!userHasTypedLoc.current) setLocInput(data.display || t('homePage.search.nearYou'));
         } catch {
-          if (!userHasTypedLoc.current) setLocInput('Near you');
+          if (!userHasTypedLoc.current) setLocInput(t('homePage.search.nearYou'));
         }
       },
       () => {},            // silently ignore denied / unavailable
@@ -383,7 +383,7 @@ function HomeSearch() {
               onChange={(e) => { userHasTypedLoc.current = true; setLocInput(e.target.value); setLocCoords({ lat: null, lng: null }); }}
               onFocus={() => locSugg.length > 0 && setLocOpen(true)}
               onKeyDown={(e) => { if (e.key === 'Escape') setLocOpen(false); }}
-              aria-label="Location"
+              aria-label={t('homePage.search.locationLabel')}
               aria-autocomplete="list"
               aria-expanded={locOpen}
             />
@@ -474,11 +474,7 @@ export default function HomePage() {
   return (
     <PageShell>
     <div className="hp-root">
-      <PageMeta
-        title="OxSteed - Hire Local Help Today"
-        description="Post a job, compare bids from verified local helpers, and pay securely via OxSteed. Free to start."
-        url="https://oxsteed.com"
-      />
+      <PageMeta url="https://oxsteed.com" />
 
 
 

@@ -30,7 +30,7 @@ export default function PlannedNeedHoldStatus({ need, onUpdate }) {
       await api.post(`/planned-needs/${need.id}/broadcast`);
       onUpdate?.();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed');
+      alert(err.response?.data?.error || t('common.failed'));
     } finally {
       setBusy(false);
     }
@@ -46,7 +46,7 @@ export default function PlannedNeedHoldStatus({ need, onUpdate }) {
       setShowFund(false);
       onUpdate?.();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed');
+      alert(err.response?.data?.error || t('common.failed'));
     } finally {
       setBusy(false);
     }

@@ -5,9 +5,279 @@
     "loading": "Loading",
     "save": "Save",
     "submit": "Submit",
-    "translate": "Translate"
+    "translate": "Translate",
+    "translating": "Ap chanje lang ...",
+    "switchToLightMode": "Chanje nan mòd limyè",
+    "switchToDarkMode": "Chanje nan mòd fènwa",
+    "startRecording": "Kòmanse anrejistreman",
+    "stopRecording": "Sispann anrejistreman",
+    "recording": "Ap anrejistre..."
+  },
+  "switching": "Ap chanje...",
+  "forms": {
+    "country": {
+      "placeholder": "Chwazi yon peyi"
+    },
+    "region": {
+      "selectCountryFirst": "Chwazi yon peyi anvan",
+      "selectByLabel": "Chwazi {{label}}",
+      "placeholderWithExample": "{{label}} (egzanp: kapital)"
+    }
+  },
+  "productPreview": {
+    "noRatings": "Pa gen evalyasyon ankò",
+    "inCarts": {
+      "singular": "{{count}} nan panyè a",
+      "plural": "{{count}} nan panyè yo"
+    },
+    "available": "Disponib",
+    "unavailable": "Pa disponib"
+  },
+  "speechToText": {
+    "placeholder": "Pale mesaj ou la...",
+    "clickToSpeak": "Klike pou pale",
+    "listening": "Nap koute...",
+    "errors": {
+      "unsupported": "Rekonesans vokal pa sipòte nan navigatè sa a.",
+      "noSpeech": "Pa gen vwa ki tande. Tanpri reeseye.",
+      "network": "Rekonesans vokal la te gen yon erè rezo.",
+      "generic": "Rekonesans vokal la echwe: {{reason}}",
+      "emptyTranscript": "Pale anvan ou soumèt."
+    }
+  },
+  "productCard": {
+    "addToCartAriaLabel": "Ajoute {{name}} nan panyè a"
+  },
+  "notificationCenter": {
+    "loading": "Chaje notifikasyon...",
+    "title": "Notifikasyon",
+    "emptyState": "Ou poko gen okenn notifikasyon ankò",
+    "messageFallback": "Nouvo notifikasyon",
+    "time": {
+      "justNow": "Kounye a menm",
+      "minutesAgo": "{{value}}m anvan",
+      "hoursAgo": "{{value}}h anvan",
+      "daysAgo": "{{value}}j anvan"
+    }
+  },
+  "navigation": {
+    "skipToMainContent": "Sote nan kontni prensipal"
+  },
+  "productReviews": {
+    "timeAgo": {
+      "justNow": "Kounye a menm",
+      "minutesAgo": "Gen {{value}}m anvan",
+      "hoursAgo": "Gen {{value}}h anvan",
+      "daysAgo": "Gen {{value}}j anvan",
+      "monthsAgo": "Gen {{value}} mwa anvan",
+      "yearsAgo": "Gen {{value}} ane anvan"
+    },
+    "ratingStarsAria": "{{count}} zetwal"
+  },
+  "bookService": {
+    "loading": "Ap chaje sèvis la...",
+    "notFound": "Sèvis la pa jwenn",
+    "durationLabel": "Dire",
+    "basePriceLabel": "Pri baz",
+    "sections": {
+      "details": "Detay sèvis",
+      "selectDate": "Chwazi dat",
+      "selectTime": "Chwazi lè"
+    },
+    "noAvailableSlots": "Pa gen orè ki disponib pou dat sa a",
+    "summary": {
+      "title": "Rezime rezèvasyon",
+      "dateLabel": "Dat",
+      "timeLabel": "Lè",
+      "basePriceLabel": "Pri baz",
+      "totalPriceLabel": "Pri total"
+    },
+    "form": {
+      "title": "Enfòmasyon ou",
+      "nameLabel": "Non",
+      "emailLabel": "Imèl",
+      "phoneLabel": "Telefòn",
+      "notesLabel": "Nòt",
+      "namePlaceholder": "Non konplè ou",
+      "emailPlaceholder": "imel ou a",
+      "phonePlaceholder": "(123) 456-7890",
+      "notesPlaceholder": "Nenpòt demann espesyal oswa nòt...",
+      "termsText": "Mwen dakò ak kondisyon yo ak règleman anilasyon an"
+    },
+    "buttons": {
+      "booking": "Ap fè rezèvasyon...",
+      "bookNow": "Rezève kounye a - ${{price}}"
+    },
+    "errors": {
+      "loadServiceDetails": "Pa t ' kapab chaje detay sèvis la.",
+      "loadSlots": "Pa t ' kapab chaje kote ki disponib yo.",
+      "calculatePrice": "Pa t ' kapab kalkile pri a.",
+      "agreeTerms": "Tanpri dakò ak kondisyon yo ak règleman anilasyon an.",
+      "requiredFields": "Tanpri ranpli tout chan ki obligatwa.",
+      "selectDateTime": "Tanpri chwazi yon dat ak yon lè.",
+      "createBooking": "Pa t ' kapab kreye rezèvasyon an."
+    },
+    "success": "Rezèvasyon konfime!"
+  },
+  "accessGateRecovery": {
+    "title": "Retablisman aksè",
+    "validating": "Ap verifye lyen rekiperasyon ou a...",
+    "missingToken": "Token rekiperasyon an manke.",
+    "lifted": "{{count}} blokis netwaye. Ou ka antre ankò.",
+    "lifted_plural": "{{count}} blokis netwaye. Ou ka antre ankò.",
+    "consumed": "Pa t gen blokis aktif ki matche, men token an te itilize. Ou ka antre ankò.",
+    "postClearHelp": "Blokis la fin klè. Si w ap toujou wè baryè a, tann yon ti tan epi eseye ankò, oswa sèvi ak yon lòt koneksyon rezo.",
+    "cta": {
+      "adminLogin": "Ale nan koneksyon admin",
+      "logisticsHome": "Paj lakay logistics"
+    },
+    "errors": {
+      "alreadyUsed": "Lyen rekiperasyon sa a deja itilize.",
+      "expired": "Lyen rekiperasyon sa a ekspire. Mande youn nouvo nan paj koneksyon an.",
+      "failed": "Pa t ' kapab itilize lyen rekiperasyon an."
+    }
+  },
+  "impersonatePage": {
+    "title": "Erè enplantasyon",
+    "loading": "Ap kòmanse sesyon enplantasyon…",
+    "actions": {
+      "closeTab": "Fèmen onglet"
+    },
+    "errors": {
+      "noToken": "Pa gen token enplantasyon nan URL la.",
+      "invalidToken": "Token enplantasyon an pa valab oswa li pa yon token enplantasyon.",
+      "expiredToken": "Token enplantasyon an ekspire. Tanpri jenere yon nouvo."
+    }
+  },
+  "searchSuggestions": {
+    "popularSearches": "Rechèch ki pi popilè"
+  },
+  "messageWithTranslation": {
+    "languageNames": {
+      "en": "Anglè",
+      "es": "Panyòl",
+      "fr": "Franse",
+      "ht": "Kreyòl Ayisyen",
+      "de": "Alman",
+      "it": "Italyen",
+      "pt": "Pòtigè",
+      "nl": "Olandè",
+      "pl": "Polonè",
+      "ja": "Japonè",
+      "zh": "Chinwa"
+    },
+    "showOriginal": "Montre orijinal ({{language}})",
+    "showTranslation": "Montre tradiksyon ({{language}})"
+  },
+  "impersonation": {
+    "adminView": "Vizyon Admin: ou ap navige kòm",
+    "loggedAs": "Aksyon ou fè yo anrejistre kòm imitasyon.",
+    "exitAria": "Soti nan sesyon imitasyon",
+    "exitButton": "Soti nan Imitasyon"
+  },
+  "pageMeta": {
+    "defaults": {
+      "title": "OxSteed - Chèche èd lokal jodi a",
+      "description": "Pibliye yon travay, konpare òf kòlèg lokal ki gen ladrès, epi peye sou OxSteed. Kòmanse gratis."
+    }
+  },
+  "orderErrorBoundary": {
+    "title": "Gen yon pwoblèm ki rive",
+    "unexpectedMessage": "Yon erè enprevu rive pandan chajman {{componentName}}.",
+    "defaultComponentName": "paj lòd yo",
+    "errorDetails": "Detay erè",
+    "tryAgain": "Eseye ankò",
+    "backToOrders": "Retounen nan lòd yo",
+    "persistentErrors": "Pwoblèm sa a ap repete. Ekip nou an deja resevwa notifikasyon."
   },
   "languages": {
     "autoDetect": "Auto-detect"
+  },
+  "admin": {
+    "emailChange": {
+      "emailChangeTitle": "Chanje adrès imèl",
+      "currentEmail": "Imèl aktyèl",
+      "newEmail": "Nouvo imèl *",
+      "confirmNewEmail": "Konfime nouvo imèl la",
+      "emailsMismatch": "Imèl yo pa mache.",
+      "newEmailMatchesCurrent": "Nouvo imèl la menm ak aktyèl la.",
+      "markEmailVerified": "Mete nouvo imèl la kòm verifye",
+      "notifyUserOnChange": "Avèti itilizatè a sou chanjman sa a",
+      "updating": "Ap mete ajou…",
+      "updateEmail": "Mete imèl la ajou",
+      "updateFailedFallback": "Nou pa t kapab mete imèl la ajou."
+    },
+    "emailChangeTitle": "Chanje adrès imèl",
+    "currentEmail": "Imèl aktyèl",
+    "newEmail": "Nouvo imèl *",
+    "confirmNewEmail": "Konfime nouvo imèl la",
+    "emailsMismatch": "Imèl yo pa mache.",
+    "newEmailMatchesCurrent": "Nouvo imèl la menm ak aktyèl la.",
+    "markEmailVerified": "Mete nouvo imèl la kòm verifye",
+    "notifyUserOnChange": "Avèti itilizatè a sou chanjman sa a",
+    "updating": "Ap mete ajou…",
+    "updateEmail": "Mete imèl la ajou",
+    "updateFailedFallback": "Nou pa t kapab mete imèl la ajou.",
+    "emailUpdatedTo": "Imèl la mete ajou pou {{email}}.",
+    "confirmEmailPlaceholder": "Re-ekri nouvo imèl la pou konfime"
+  },
+  "supportWidget": {
+    "launcher": "Sipò",
+    "launcherAriaLabel": "Louvri sipò",
+    "panelTitle": "Sant Sipò",
+    "howCanWeHelp": "Ki jan nou ka ede w?",
+    "helpText": "Klike anba a pou kreye yon demann sipò oswa wè tikè ou yo",
+    "newSupportRequest": "Nouvo Demann Sipò",
+    "viewYourTickets": "Gade Tikè Ou",
+    "back": "Retounen",
+    "yourName": "Non Ou",
+    "yourEmail": "Imèl Ou",
+    "categoryLabel": "Kategori",
+    "categoryGeneral": "Kesyon Jeneral",
+    "categoryTechnical": "Pwoblèm Teknik",
+    "categoryBilling": "Bòdwo",
+    "categoryAccount": "Kont",
+    "categoryShipping": "Livrezon",
+    "messageLabel": "Mesaj",
+    "namePlaceholder": "Jan Dey",
+    "emailPlaceholder": "jan@egzanp.com",
+    "messagePlaceholder": "Dekri pwoblèm ou a...",
+    "submitRequest": "Soumèt Demann",
+    "submitCreating": "K ap kreye...",
+    "noTickets": "Pa gen demann sipò ankò",
+    "typeMessage": "Tape mesaj ou...",
+    "ticketAssigned": "{{name}} te afekte pou ede w.",
+    "ticketQueued": "Demann ou a nan ke a. Yon ajan ap ede w touswit.",
+    "createTicketFailed": "Pa t kreye demann sipò a"
+  },
+  "hybridSupportWidget": {
+    "aiGreeting": "Bonjou! Mwen se asistan IA OxSteed la. Kijan mwen ka ede w jodi a?",
+    "titleAi": "Sipò IA",
+    "titleEscalating": "Konekte...",
+    "titleLiveChat": "Lanmèsaj dirèk{{agentName}}",
+    "titleQueue": "Nap tann yon ajan",
+    "titleTicket": "Kreye Tikè Sipò",
+    "talkToSomeone": "Ou bezwen pale ak yon moun?",
+    "talkToAgentWithCount": "Pale ak ajan ({{count}} disponib)",
+    "talkToSupportTeam": "Konekte ak ekip sipò a",
+    "connectingText": "Mwen konekte w ak yon ajan...",
+    "connectingSubtext": "Sa ka pran kèk moman",
+    "connectedWith": "Konekte ak {{name}}!",
+    "queueTitle": "Ou nan ke a",
+    "queuePosition": "Pozisyon: #{{position}}",
+    "queueWait": "Tan atant estime: {{minutes}} minit",
+    "queueMessage": "Yon ajan ap chat ak ou le yon disponib.",
+    "createTicketInstead": "Kreye Tikè Olye De Sa",
+    "ticketQueueMessage": "Mwen t ap tann nan ke a men mwen pito kreye yon tikè.",
+    "ticketNameLabel": "Non ou",
+    "ticketEmailLabel": "Imèl ou",
+    "ticketMessageLabel": "Mesaj",
+    "ticketMessagePlaceholder": "Dekri pwoblèm ou a...",
+    "submitTicket": "Soumèt Tikè",
+    "backToAi": "← Retounen nan IA",
+    "back": "← Retounen",
+    "escalationFailed": "Pa t ka eskale. Tanpri eseye ankò.",
+    "ticketFailed": "Pa t ka kreye tikè",
+    "ticketSubmitFailed": "Pa t ka soumèt tikè"
   }
 }

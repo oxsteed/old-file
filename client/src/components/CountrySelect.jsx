@@ -1,4 +1,5 @@
 import { ALL_COUNTRIES, COUNTRY_CODES_SORTED } from '../lib/countries';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Country dropdown driven by the shared `lib/countries.js` data.
@@ -17,13 +18,16 @@ export default function CountrySelect({
   onChange,
   id,
   className = '',
-  placeholder = 'Select a country',
+  placeholder,
   includeBlank = true,
   disabled = false,
   required = false,
   name = 'country',
   ...rest
 }) {
+  const { t } = useTranslation('common');
+  const resolvedPlaceholder = placeholder ?? t('forms.country.placeholder');
+
   return (
     <select
       id={id}
@@ -35,7 +39,7 @@ export default function CountrySelect({
       className={className}
       {...rest}
     >
-      {includeBlank && <option value="">{placeholder}</option>}
+      {includeBlank && <option value="">{resolvedPlaceholder}</option>}
       {COUNTRY_CODES_SORTED.map(code => (
         <option key={code} value={code}>{ALL_COUNTRIES[code]}</option>
       ))}

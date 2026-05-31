@@ -6,6 +6,7 @@
 
 import React, { useState } from 'react';
 import { Globe } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface MessageWithTranslationProps {
   original: string;
@@ -40,11 +41,15 @@ export default function MessageWithTranslation({
   className = '',
 }: MessageWithTranslationProps) {
   const [showTranslated, setShowTranslated] = useState(false);
+  const { t } = useTranslation('common');
 
   // If no translation available or same language, just show original
   const hasTranslation = translatedText && originalLanguage !== translatedLanguage;
   const displayText = showTranslated && hasTranslation ? translatedText : original;
   const displayLanguage = showTranslated && hasTranslation ? translatedLanguage : originalLanguage;
+  const languageName = (code) => t(`messageWithTranslation.languageNames.${code}`, {
+    defaultValue: (LANGUAGE_NAMES[code] || code.toUpperCase()),
+  });
 
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
@@ -58,7 +63,7 @@ export default function MessageWithTranslation({
         <div className="flex items-center gap-2 text-xs">
           <Globe className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
           <span className="text-slate-600 dark:text-slate-400">
-            {LANGUAGE_NAMES[displayLanguage] || displayLanguage.toUpperCase()}
+            {languageName(displayLanguage)}
           </span>
 
           <button
@@ -68,15 +73,19 @@ export default function MessageWithTranslation({
             className="ml-auto px-2 py-0.5 text-xs font-medium rounded text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {showTranslated
-              ? `Show original (${LANGUAGE_NAMES[originalLanguage] || originalLanguage.toUpperCase()})`
-              : `Show translation (${LANGUAGE_NAMES[translatedLanguage] || translatedLanguage.toUpperCase()})`}
+              ? t('messageWithTranslation.showOriginal', {
+                  language: languageName(originalLanguage),
+                })
+              : t('messageWithTranslation.showTranslation', {
+                  language: languageName(translatedLanguage),
+                })}
           </button>
         </div>
       )}
 
       {isLoading && (
         <div className="text-xs text-slate-500 dark:text-slate-400 animate-pulse">
-          Translating...
+          {t('actions.translating')}
         </div>
       )}
     </div>

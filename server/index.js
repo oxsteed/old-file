@@ -39,6 +39,7 @@ const prerenderHelperProfile = require('./middleware/prerenderHelperProfile');
 const sitemapRoutes = require('./routes/sitemap');
 const robotsRoutes = require('./routes/robots');
 const authRoutes = require('./routes/auth');
+const usersRoutes = require('./routes/users');
 const subscriptionRoutes = require('./routes/subscription');
 const webhookRoutes = require('./routes/webhook');
 const jobRoutes = require('./routes/jobs');
@@ -578,6 +579,7 @@ app.get(['/.well-known/apple-app-site-association', '/apple-app-site-association
 
 // ── API ROUTES ───────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
+app.use('/api/users', usersRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/bids', bidRoutes);

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { MessageCircle, X, Plus, ArrowLeft, Send } from 'lucide-react';
 import io from 'socket.io-client';
 import api from '../../api/axios';
+import { useTranslation } from 'react-i18next';
 import './CustomerSupportWidget.css';
 
 /**
@@ -10,6 +11,7 @@ import './CustomerSupportWidget.css';
  * Uses WebSocket for real-time messaging
  */
 export default function CustomerSupportWidget() {
+  const { t } = useTranslation('common');
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState('main'); // 'main' | 'tickets' | 'chat' | 'create'
   const [tickets, setTickets] = useState([]);
@@ -98,7 +100,7 @@ export default function CustomerSupportWidget() {
         setMessages(prev => [...prev, {
           id: Date.now(),
           sender: { type: 'system' },
-          content: `${agentName} has been assigned to help you.`,
+          content: t('supportWidget.ticketAssigned', { name: agentName }),
         }]);
       }
     });
@@ -203,12 +205,12 @@ export default function CustomerSupportWidget() {
         setMessages(prev => [...prev, {
           id: Date.now(),
           sender: { type: 'system' },
-          content: 'Your request has been queued. An agent will help you shortly.',
+          content: t('supportWidget.ticketQueued'),
         }]);
       }
     } catch (err) {
       console.error('Failed to create ticket:', err);
-      alert('Failed to create support request');
+      alert(t('supportWidget.createTicketFailed'));
     }
     setLoading(false);
   };
@@ -256,8 +258,8 @@ export default function CustomerSupportWidget() {
       <button
         onClick={handleOpen}
         className="customer-support-launcher"
-        aria-label="Open support"
-        title="Support"
+        aria-label={t('supportWidget.launcherAriaLabel')}
+        title={t('supportWidget.launcher')}
       >
         <MessageCircle size={24} />
         {unreadCount > 0 && (
@@ -269,11 +271,11 @@ export default function CustomerSupportWidget() {
       {isOpen && (
         <div className="customer-support-panel">
           <div className="support-header">
-            <h3>Support Center</h3>
+            <h3>{t('supportWidget.panelTitle')}</h3>
             <button
               onClick={() => setIsOpen(false)}
               className="support-close-btn"
-              aria-label="Close"
+              aria-label={t('supportWidget.back')}
             >
               <X size={20} />
             </button>
@@ -284,8 +286,8 @@ export default function CustomerSupportWidget() {
             {view === 'main' && (
               <div className="support-main">
                 <div className="support-welcome">
-                  <h4>How can we help?</h4>
-                  <p>Click below to create a support request or view your tickets</p>
+                  <h4>{t('supportWidget.howCanWeHelp')}</h4>
+                  <p>{t('supportWidget.helpText')}</p>
                 </div>
                 <div className="support-actions">
                   <button
@@ -293,7 +295,7 @@ export default function CustomerSupportWidget() {
                     className="support-action-btn primary"
                   >
                     <Plus size={18} />
-                    New Support Request
+                    {t('supportWidget.newSupportRequest')}
                   </button>
                   <button
                     onClick={() => {
@@ -302,7 +304,7 @@ export default function CustomerSupportWidget() {
                     }}
                     className="support-action-btn secondary"
                   >
-                    View Your Tickets
+                    {t('supportWidget.viewYourTickets')}
                   </button>
                 </div>
               </div>
@@ -316,11 +318,11 @@ export default function CustomerSupportWidget() {
                   onClick={() => setView('main')}
                   className="support-back-btn"
                 >
-                  <ArrowLeft size={16} /> Back
+                  <ArrowLeft size={16} /> {t('supportWidget.back')}
                 </button>
 
                 <div className="form-group">
-                  <label>Your Name</label>
+                  <label>{t('supportWidget.yourName')}</label>
                   <input
                     type="text"
                     required
@@ -329,13 +331,13 @@ export default function CustomerSupportWidget() {
                       setFormData(prev => ({ ...prev, visitorName: e.target.value }));
                       localStorage.setItem('oxs:visitorName', e.target.value);
                     }}
-                    placeholder="John Doe"
+                    placeholder={t('supportWidget.namePlaceholder')}
                     className="form-input"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Your Email</label>
+                  <label>{t('supportWidget.yourEmail')}</label>
                   <input
                     type="email"
                     required
@@ -344,33 +346,33 @@ export default function CustomerSupportWidget() {
                       setFormData(prev => ({ ...prev, visitorEmail: e.target.value }));
                       localStorage.setItem('oxs:visitorEmail', e.target.value);
                     }}
-                    placeholder="john@example.com"
+                    placeholder={t('supportWidget.emailPlaceholder')}
                     className="form-input"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Category</label>
+                  <label>{t('supportWidget.categoryLabel')}</label>
                   <select
                     value={formData.category}
                     onChange={e => setFormData(prev => ({ ...prev, category: e.target.value }))}
                     className="form-input"
                   >
-                    <option value="general">General Inquiry</option>
-                    <option value="technical">Technical Issue</option>
-                    <option value="billing">Billing</option>
-                    <option value="account">Account</option>
-                    <option value="shipping">Shipping</option>
+                    <option value="general">{t('supportWidget.categoryGeneral')}</option>
+                    <option value="technical">{t('supportWidget.categoryTechnical')}</option>
+                    <option value="billing">{t('supportWidget.categoryBilling')}</option>
+                    <option value="account">{t('supportWidget.categoryAccount')}</option>
+                    <option value="shipping">{t('supportWidget.categoryShipping')}</option>
                   </select>
                 </div>
 
                 <div className="form-group">
-                  <label>Message</label>
+                  <label>{t('supportWidget.messageLabel')}</label>
                   <textarea
                     required
                     value={formData.message}
                     onChange={e => setFormData(prev => ({ ...prev, message: e.target.value }))}
-                    placeholder="Describe your issue..."
+                    placeholder={t('supportWidget.messagePlaceholder')}
                     className="form-input"
                     rows={4}
                   />
@@ -381,7 +383,7 @@ export default function CustomerSupportWidget() {
                   disabled={loading}
                   className="support-submit-btn"
                 >
-                  {loading ? 'Creating...' : 'Submit Request'}
+                  {loading ? t('supportWidget.submitCreating') : t('supportWidget.submitRequest')}
                 </button>
               </form>
             )}
@@ -394,11 +396,11 @@ export default function CustomerSupportWidget() {
                   onClick={() => setView('main')}
                   className="support-back-btn"
                 >
-                  <ArrowLeft size={16} /> Back
+                  <ArrowLeft size={16} /> {t('supportWidget.back')}
                 </button>
 
                 {tickets.length === 0 ? (
-                  <p className="empty-state">No support requests yet</p>
+                  <p className="empty-state">{t('supportWidget.noTickets')}</p>
                 ) : (
                   <div className="tickets-grid">
                     {tickets.map(ticket => (
@@ -433,7 +435,7 @@ export default function CustomerSupportWidget() {
                   }}
                   className="support-back-btn"
                 >
-                  <ArrowLeft size={16} /> Back
+                  <ArrowLeft size={16} /> {t('supportWidget.back')}
                 </button>
 
                 <div className="chat-messages">
@@ -460,7 +462,7 @@ export default function CustomerSupportWidget() {
                     type="text"
                     value={formData.message}
                     onChange={e => setFormData(prev => ({ ...prev, message: e.target.value }))}
-                    placeholder="Type your message..."
+                    placeholder={t('supportWidget.typeMessage')}
                     className="chat-input"
                   />
                   <button type="submit" disabled={loading} className="chat-send-btn">

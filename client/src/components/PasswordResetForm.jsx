@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Loader2, AlertCircle, CheckCircle2, KeyRound, RefreshCw } from 'lucide-react';
 import adminApi from '../lib/adminApi';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Admin-driven password reset for an existing user.
@@ -34,6 +35,7 @@ function generatePassword(length = 14) {
 }
 
 export default function PasswordResetForm({ user, onSaved }) {
+  const { t } = useTranslation();
   const [password,    setPassword]    = useState('');
   const [confirm,     setConfirm]     = useState('');
   const [show,        setShow]        = useState(false);
@@ -66,14 +68,14 @@ export default function PasswordResetForm({ user, onSaved }) {
 
       await adminApi.put(`/admin/super/users/${user.id}/edit-full`, payload);
 
-      setSuccess('Password updated successfully.');
+      setSuccess(t('passwordResetForm.successMessage'));
       setPassword('');
       setConfirm('');
       setShow(false);
       if (onSaved) onSaved();
     } catch (err) {
       const resp = err.response?.data;
-      setServerError(resp?.error || 'Failed to update password.');
+      setServerError(resp?.error || t('passwordResetForm.updateFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -90,7 +92,7 @@ export default function PasswordResetForm({ user, onSaved }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <KeyRound size={16} className="text-orange-400" />
-          <h3 className="text-sm font-semibold text-gray-200">Reset password</h3>
+          <h3 className="text-sm font-semibold text-gray-200">{t('passwordResetForm.title')}</h3>
         </div>
         <button
           type="button"
@@ -98,7 +100,7 @@ export default function PasswordResetForm({ user, onSaved }) {
           className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-orange-400"
         >
           <RefreshCw size={12} />
-          Generate strong password
+          {t('passwordResetForm.generateStrongPassword')}
         </button>
       </div>
 
@@ -116,7 +118,7 @@ export default function PasswordResetForm({ user, onSaved }) {
       )}
 
       <div>
-        <label className={labelCls}>New password (min 8 characters) *</label>
+        <label className={labelCls}>{t('passwordResetForm.newPasswordLabel')}</label>
         <input
           type={show ? 'text' : 'password'}
           className={inputCls}
@@ -127,12 +129,12 @@ export default function PasswordResetForm({ user, onSaved }) {
           autoComplete="new-password"
         />
         {tooShort && (
-          <p className="text-xs text-red-400 mt-1">Must be at least 8 characters.</p>
+          <p className="text-xs text-red-400 mt-1">{t('passwordResetForm.passwordMinLength')}</p>
         )}
       </div>
 
       <div>
-        <label className={labelCls}>Confirm password *</label>
+        <label className={labelCls}>{t('passwordResetForm.confirmPasswordLabel')}</label>
         <input
           type={show ? 'text' : 'password'}
           className={inputCls}
@@ -142,7 +144,7 @@ export default function PasswordResetForm({ user, onSaved }) {
           autoComplete="new-password"
         />
         {mismatch && (
-          <p className="text-xs text-red-400 mt-1">Passwords do not match.</p>
+          <p className="text-xs text-red-400 mt-1">{t('passwordResetForm.passwordMismatch')}</p>
         )}
       </div>
 
@@ -154,7 +156,7 @@ export default function PasswordResetForm({ user, onSaved }) {
             onChange={e => setShow(e.target.checked)}
             className="rounded bg-gray-900 border-gray-700"
           />
-          Show password
+          {t('passwordResetForm.showPassword')}
         </label>
         <label className="inline-flex items-center gap-2 text-sm text-gray-300">
           <input
@@ -163,14 +165,12 @@ export default function PasswordResetForm({ user, onSaved }) {
             onChange={e => setNotify(e.target.checked)}
             className="rounded bg-gray-900 border-gray-700"
           />
-          Notify the user
+          {t('passwordResetForm.notifyUser')}
         </label>
       </div>
 
       <div className="rounded-md bg-yellow-950/50 border border-yellow-800 p-3 text-xs text-yellow-300">
-        <strong>Heads up:</strong> The password is hashed before storage. The
-        plaintext is never written to logs and will not be retrievable after this
-        action - share it with the user via a secure channel before leaving this page.
+        <strong>{t('passwordResetForm.warningTitle')}</strong> {t('passwordResetForm.warningBody')}
       </div>
 
       <div className="flex items-center justify-end pt-2 border-t border-gray-800">
@@ -180,7 +180,7 @@ export default function PasswordResetForm({ user, onSaved }) {
           className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-orange-600 hover:bg-orange-500 text-white disabled:opacity-50"
         >
           {submitting && <Loader2 size={16} className="animate-spin" />}
-          {submitting ? 'Updating…' : 'Update password'}
+          {submitting ? t('passwordResetForm.updating') : t('passwordResetForm.updatePassword')}
         </button>
       </div>
     </form>

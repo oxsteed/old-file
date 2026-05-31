@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 
 /**
@@ -13,15 +14,16 @@ import api from '../api/axios';
 export default function AccessGateRecoveryPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [status, setStatus] = useState('working'); // working | ok | error
-  const [message, setMessage] = useState('Validating your recovery link...');
+  const [message, setMessage] = useState(t('accessGateRecovery.validating'));
   const [liftedCount, setLiftedCount] = useState(0);
 
   useEffect(() => {
     const token = params.get('token');
     if (!token) {
       setStatus('error');
-      setMessage('Missing recovery token.');
+      setMessage(t('accessGateRecovery.missingToken'));
       return;
     }
     let cancelled = false;
@@ -33,27 +35,27 @@ export default function AccessGateRecoveryPage() {
         setLiftedCount(data.liftedCount || 0);
         setMessage(
           data.liftedCount
-            ? `Lifted ${data.liftedCount} lockout${data.liftedCount === 1 ? '' : 's'}. You can sign in again.`
-            : 'No active lockout matched, but the token has been consumed. You can sign in again.'
+            ? t('accessGateRecovery.lifted', { count: data.liftedCount })
+            : t('accessGateRecovery.consumed')
         );
       } catch (err) {
         if (cancelled) return;
         setStatus('error');
         const status = err.response?.status;
-        if (status === 409) setMessage('This recovery link has already been used.');
-        else if (status === 410) setMessage('This recovery link has expired. Request a new one from the login page.');
-        else setMessage(err.response?.data?.error || 'Recovery link could not be used.');
+        if (status === 409) setMessage(t('accessGateRecovery.errors.alreadyUsed'));
+        else if (status === 410) setMessage(t('accessGateRecovery.errors.expired'));
+        else setMessage(err.response?.data?.error || t('accessGateRecovery.errors.failed'));
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [params]);
+  }, [params, t]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 flex items-center justify-center px-4">
       <div className="max-w-md w-full bg-gray-900/80 border border-gray-800 rounded-xl p-6 shadow-xl">
-        <h1 className="text-xl font-semibold mb-3">Access gate recovery</h1>
+        <h1 className="text-xl font-semibold mb-3">{t('accessGateRecovery.title')}</h1>
         <div
           className={`px-3 py-2 rounded mb-4 text-sm ${
             status === 'ok'
@@ -67,24 +69,23 @@ export default function AccessGateRecoveryPage() {
         </div>
         {status === 'ok' && liftedCount > 0 && (
           <p className="text-xs text-gray-400 mb-4">
-            The lockout has been cleared. If you are still seeing the gate, wait a moment and try again, or use a different
-            network connection.
+            {t('accessGateRecovery.postClearHelp')}
           </p>
         )}
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => navigate('/admin/login')}
-            className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-lg"
-          >
-            Go to admin login
+          onClick={() => navigate('/admin/login')}
+          className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-lg"
+        >
+          {t('accessGateRecovery.cta.adminLogin')}
           </button>
           <button
             type="button"
             onClick={() => navigate('/logistics')}
             className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-100 font-semibold py-2 rounded-lg"
           >
-            Logistics home
+            {t('accessGateRecovery.cta.logisticsHome')}
           </button>
         </div>
       </div>

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Users, Check, X } from 'lucide-react';
 
 export function WaitlistManager({ businessId }) {
+  const { t } = useTranslation();
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('waiting');
@@ -15,22 +17,22 @@ export function WaitlistManager({ businessId }) {
     try {
       const res = await api.get(`/businesses/${businessId}/waitlist`, { params: { status: filter } });
       setEntries(res.data || []);
-    } catch { toast.error('Failed to load waitlist'); }
+    } catch { toast.error(t('businessHub.waitlist.toastLoadFail')); }
     finally { setLoading(false); }
   };
 
   const update = async (id, status) => {
     try {
       await api.put(`/businesses/${businessId}/waitlist/${id}`, { status });
-      toast.success(status === 'notified' ? 'Customer notified' : 'Status updated');
+      toast.success(status === 'notified' ? t('businessHub.waitlist.toastCustomerNotified') : t('businessHub.waitlist.toastStatusUpdated'));
       load();
-    } catch { toast.error('Failed to update'); }
+    } catch { toast.error(t('businessHub.waitlist.toastUpdateFail')); }
   };
 
   const remove = async (id) => {
-    if (!window.confirm('Remove from waitlist?')) return;
-    try { await api.delete(`/businesses/${businessId}/waitlist/${id}`); toast.success('Removed'); load(); }
-    catch { toast.error('Failed'); }
+    if (!window.confirm(t('businessHub.waitlist.confirmRemove'))) return;
+    try { await api.delete(`/businesses/${businessId}/waitlist/${id}`); toast.success(t('businessHub.waitlist.toastRemoved')); load(); }
+    catch { toast.error(t('common.failed')); }
   };
 
   const STATUS_LABEL = { waiting: 'Waiting', notified: 'Notified', booked: 'Booked', removed: 'Removed' };
@@ -40,11 +42,11 @@ export function WaitlistManager({ businessId }) {
     <div style={{ padding: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>Waitlist</h3>
-          <p style={{ margin: '0.25rem 0 0', color: 'var(--muted-text)', fontSize: '0.875rem' }}>Customers waiting for an opening</p>
+          <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{t('businessHub.waitlist.title')}</h3>
+          <p style={{ margin: '0.25rem 0 0', color: 'var(--muted-text)', fontSize: '0.875rem' }}>{t('businessHub.waitlist.subtitle')}</p>
         </div>
         <div style={{ background: '#f97316', color: '#fff', borderRadius: '999px', padding: '0.25rem 0.75rem', fontWeight: 700, fontSize: '0.875rem' }}>
-          {entries.filter(e => e.status === 'waiting').length} waiting
+          {t('businessHub.waitlist.waitingCount', { count: entries.filter(e => e.status === 'waiting').length })}
         </div>
       </div>
 
@@ -54,10 +56,10 @@ export function WaitlistManager({ businessId }) {
         ))}
       </div>
 
-      {loading ? <p style={{ color: 'var(--muted-text)' }}>Loading...</p> : entries.length === 0 ? (
+      {loading ? <p style={{ color: 'var(--muted-text)' }}>{t('common.loading')}</p> : entries.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--muted-text)' }}>
           <Users size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
-          <p>No customers in {STATUS_LABEL[filter].toLowerCase()} status.</p>
+          <p>{t('businessHub.waitlist.empty', { status: STATUS_LABEL[filter].toLowerCase() })}</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -65,10 +67,10 @@ export function WaitlistManager({ businessId }) {
             <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', padding: '0.75rem 1rem' }}>
               <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#f97316', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.75rem', flexShrink: 0 }}>#{idx + 1}</div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{e.customer_name || e.customer_email || 'Customer'}</div>
+                <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{e.customer_name || e.customer_email || t('businessHub.waitlist.customerFallback')}</div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--muted-text)' }}>
                   {e.service_name && `${e.service_name} · `}
-                  {e.preferred_date ? `Pref: ${new Date(e.preferred_date).toLocaleDateString()}` : 'Any date'}
+                  {e.preferred_date ? `${t('businessHub.waitlist.preferredPrefix')} ${new Date(e.preferred_date).toLocaleDateString()}` : t('businessHub.waitlist.anyDate')}
                   {e.preferred_time_range && ` · ${e.preferred_time_range}`}
                 </div>
               </div>

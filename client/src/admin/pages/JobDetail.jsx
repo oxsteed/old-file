@@ -4,21 +4,26 @@ import {
   ArrowLeft, Briefcase, User, MapPin, DollarSign,
   Calendar, Tag, Loader2, Trash2, AlertTriangle, RotateCcw,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import adminApi from '../../lib/adminApi';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function ts(d) {
+function ts(d, locale) {
   if (!d) return '-';
-  return new Date(d).toLocaleDateString('en-US', {
+  return new Date(d).toLocaleDateString(locale || undefined, {
     month: 'short', day: 'numeric', year: 'numeric',
   });
 }
 
-function money(val) {
+function money(val, locale) {
   if (val == null) return '-';
-  return `$${Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  try {
+    return new Intl.NumberFormat(locale || undefined, { style: 'currency', currency: 'USD' }).format(Number(val));
+  } catch {
+    return `$${Number(val).toFixed(2)}`;
+  }
 }
 
 const STATUS_COLOR = {
@@ -91,6 +96,7 @@ function ActionModal({ title, description, danger = false, confirmLabel, onConfi
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function JobDetail() {
+  const { t, i18n } = useTranslation();
   const { jobId } = useParams();
   const navigate  = useNavigate();
   const { user: me } = useAuth();
@@ -116,12 +122,12 @@ export default function JobDetail() {
         setBids(data.bids || []);
         setPayment(data.payment || null);
       } catch (err) {
-        setError(err.response?.data?.error || 'Failed to load job.');
+        setError(err.response?.data?.error || t('adminJobDetail.failedToLoad'));
       } finally {
         setLoading(false);
       }
     })();
-  }, [jobId]);
+  }, [jobId, t]);
 
   const openModal = (name) => {
     setModal(name);
@@ -171,12 +177,13 @@ export default function JobDetail() {
       <p className="text-red-400 text-sm mb-4">{error}</p>
       <button onClick={() => navigate('/admin/jobs')}
         className="text-sm text-orange-400 hover:text-orange-300">
-        ← Back to Jobs
+        {t('adminJobDetail.backToJobs')}
       </button>
     </div>
   );
 
   const isFlagged = job?.admin_flagged === true;
+  const locale = i18n.language;
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl">
@@ -184,7 +191,7 @@ export default function JobDetail() {
       {/* Back link */}
       <Link to="/admin/jobs"
         className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-white mb-6 transition">
-        <ArrowLeft size={14} /> Back to Jobs
+        <ArrowLeft size={14} /> {t('adminJobDetail.backToJobs')}
       </Link>
 
       {/* Header */}
@@ -196,8 +203,8 @@ export default function JobDetail() {
               text={(job.status || 'unknown').replace(/_/g, ' ')}
               colorClass={STATUS_COLOR[job.status] || 'bg-gray-700 text-gray-300'}
             />
-            {isFlagged && <Badge text="Flagged" colorClass="bg-yellow-900 text-yellow-300" />}
-            {job.dispute_status === 'open' && <Badge text="Disputed" colorClass="bg-purple-900 text-purple-300" />}
+            {isFlagged && <Badge text={t('adminJobDetail.flagged')} colorClass="bg-yellow-900 text-yellow-300" />}
+            {job.dispute_status === 'open' && <Badge text={t('adminJobDetail.disputed')} colorClass="bg-purple-900 text-purple-300" />}
           </div>
           <p className="text-gray-500 text-xs mt-1 font-mono">{job.id}</p>
         </div>
@@ -208,27 +215,27 @@ export default function JobDetail() {
             <button onClick={() => openModal('cancel')}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 border border-gray-700
                          text-gray-300 hover:border-red-600 hover:text-red-400 rounded-lg text-xs font-medium transition">
-              <AlertTriangle size={13} /> Cancel Job
+              <AlertTriangle size={13} /> {t('adminJobDetail.cancelJob')}
             </button>
           )}
           <button onClick={() => openModal(isFlagged ? 'unflag' : 'flag')}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 border border-gray-700
                        text-gray-300 hover:border-yellow-600 hover:text-yellow-400 rounded-lg text-xs font-medium transition">
             {isFlagged ? <RotateCcw size={13} /> : <AlertTriangle size={13} />}
-            {isFlagged ? 'Unflag' : 'Flag'}
+            {isFlagged ? t('adminJobDetail.unflag') : t('adminJobDetail.flag')}
           </button>
           {isSuper && payment?.status === 'captured' && (
             <button onClick={() => openModal('refund')}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 border border-gray-700
                          text-gray-300 hover:border-orange-500 hover:text-orange-400 rounded-lg text-xs font-medium transition">
-              <DollarSign size={13} /> Refund
+              <DollarSign size={13} /> {t('adminJobDetail.refund')}
             </button>
           )}
           {isSuper && (
             <button onClick={() => openModal('delete')}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-red-950 border border-red-900
                          text-red-400 hover:bg-red-900 rounded-lg text-xs font-medium transition">
-              <Trash2 size={13} /> Delete
+              <Trash2 size={13} /> {t('adminJobDetail.delete')}
             </button>
           )}
         </div>
@@ -242,7 +249,7 @@ export default function JobDetail() {
 
           {/* Description */}
           {job.description && (
-            <Section title="Description">
+            <Section title={t('adminJobDetail.sections.description')}>
               <p className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">
                 {job.description}
               </p>
@@ -250,9 +257,9 @@ export default function JobDetail() {
           )}
 
           {/* Bids */}
-          <Section title={`Bids (${bids.length})`}>
+          <Section title={t('adminJobDetail.sections.bids', { count: bids.length })}>
             {bids.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4">No bids yet.</p>
+              <p className="text-sm text-gray-500 text-center py-4">{t('adminJobDetail.noBids')}</p>
             ) : (
               <div className="divide-y divide-gray-800 -m-4">
                 {bids.map(b => (
@@ -271,14 +278,14 @@ export default function JobDetail() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-sm font-semibold text-white">{money(b.amount)}</span>
+                        <span className="text-sm font-semibold text-white">{money(b.amount, locale)}</span>
                         <Badge
                           text={b.status}
                           colorClass={BID_COLOR[b.status] || 'bg-gray-700 text-gray-300'}
                         />
                       </div>
                     </div>
-                    <p className="text-xs text-gray-600 mt-1">{ts(b.created_at)}</p>
+                    <p className="text-xs text-gray-600 mt-1">{ts(b.created_at, locale)}</p>
                   </div>
                 ))}
               </div>
@@ -287,15 +294,15 @@ export default function JobDetail() {
 
           {/* Payment */}
           {payment && (
-            <Section title="Payment">
+            <Section title={t('adminJobDetail.sections.payment')}>
               <dl className="grid grid-cols-2 gap-3 text-sm">
                 {[
-                  ['Status',        <Badge key="s" text={payment.status} colorClass={STATUS_COLOR[payment.status] || 'bg-gray-700 text-gray-300'} />],
-                  ['Total Amount',  money(payment.amount)],
-                  ['Helper Payout', money(payment.helper_payout)],
-                  ['Platform Fee',  payment.platform_fee != null ? money(payment.platform_fee) : '-'],
-                  ['Date',          ts(payment.created_at)],
-                  ['Stripe PI',     payment.stripe_payment_intent_id
+                  [t('adminJobDetail.paymentFields.status'), <Badge key="s" text={payment.status} colorClass={STATUS_COLOR[payment.status] || 'bg-gray-700 text-gray-300'} />],
+                  [t('adminJobDetail.paymentFields.totalAmount'), money(payment.amount, locale)],
+                  [t('adminJobDetail.paymentFields.helperPayout'), money(payment.helper_payout, locale)],
+                  [t('adminJobDetail.paymentFields.platformFee'), payment.platform_fee != null ? money(payment.platform_fee, locale) : '-'],
+                  [t('adminJobDetail.paymentFields.date'), ts(payment.created_at, locale)],
+                  [t('adminJobDetail.paymentFields.stripePI'), payment.stripe_payment_intent_id
                     ? <span key="pi" className="font-mono text-xs text-gray-400 truncate">{payment.stripe_payment_intent_id}</span>
                     : '-'],
                 ].map(([label, val]) => (
@@ -313,20 +320,20 @@ export default function JobDetail() {
         <div className="space-y-6">
 
           {/* Job details */}
-          <Section title="Details">
+          <Section title={t('adminJobDetail.sections.details')}>
             <dl className="space-y-3 text-sm">
               {[
-                [<MapPin key="loc" size={13} className="text-gray-500" />, 'Location',
+                [<MapPin key="loc" size={13} className="text-gray-500" />, t('adminJobDetail.detailFields.location'),
                   [job.location_city, job.location_state].filter(Boolean).join(', ') || '-'],
-                [<DollarSign key="bud" size={13} className="text-gray-500" />, 'Budget',
+                [<DollarSign key="bud" size={13} className="text-gray-500" />, t('adminJobDetail.detailFields.budget'),
                   job.budget_min != null
-                    ? `${money(job.budget_min)}${job.budget_max ? ` – ${money(job.budget_max)}` : ''}`
+                    ? `${money(job.budget_min, locale)}${job.budget_max ? ` – ${money(job.budget_max, locale)}` : ''}`
                     : '-'],
-                [<Tag key="cat" size={13} className="text-gray-500" />, 'Category', job.category_name || '-'],
-                [<Briefcase key="val" size={13} className="text-gray-500" />, 'Job Value',
-                  job.job_value != null ? money(job.job_value) : '-'],
-                [<Calendar key="cr" size={13} className="text-gray-500" />, 'Created', ts(job.created_at)],
-                [<Calendar key="up" size={13} className="text-gray-500" />, 'Updated', ts(job.updated_at)],
+                [<Tag key="cat" size={13} className="text-gray-500" />, t('adminJobDetail.detailFields.category'), job.category_name || '-'],
+                [<Briefcase key="val" size={13} className="text-gray-500" />, t('adminJobDetail.detailFields.jobValue'),
+                  job.job_value != null ? money(job.job_value, locale) : '-'],
+                [<Calendar key="cr" size={13} className="text-gray-500" />, t('adminJobDetail.detailFields.created'), ts(job.created_at, locale)],
+                [<Calendar key="up" size={13} className="text-gray-500" />, t('adminJobDetail.detailFields.updated'), ts(job.updated_at, locale)],
               ].map(([icon, label, val]) => (
                 <div key={label} className="flex items-start gap-2">
                   <span className="mt-0.5 shrink-0">{icon}</span>
@@ -340,7 +347,7 @@ export default function JobDetail() {
           </Section>
 
           {/* Client */}
-          <Section title="Client">
+          <Section title={t('adminJobDetail.sections.client')}>
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center shrink-0">
                 <User size={16} className="text-gray-400" />
@@ -356,7 +363,7 @@ export default function JobDetail() {
           </Section>
 
           {/* Helper */}
-          <Section title="Helper">
+          <Section title={t('adminJobDetail.sections.helper')}>
             {job.helper_user_id ? (
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center shrink-0">
@@ -371,7 +378,7 @@ export default function JobDetail() {
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-gray-500 italic">Unassigned</p>
+              <p className="text-sm text-gray-500 italic">{t('adminJobDetail.unassigned')}</p>
             )}
           </Section>
         </div>
@@ -381,9 +388,9 @@ export default function JobDetail() {
 
       {modal === 'cancel' && (
         <ActionModal
-          title="Cancel Job"
-          description="This will set the job status to cancelled."
-          confirmLabel="Cancel Job"
+          title={t('adminJobDetail.modals.cancel.title')}
+          description={t('adminJobDetail.modals.cancel.description')}
+          confirmLabel={t('adminJobDetail.modals.cancel.confirm')}
           danger
           loading={modalBusy}
           error={modalErr}
@@ -391,7 +398,7 @@ export default function JobDetail() {
           onConfirm={() => runAction('cancel')}
         >
           <textarea rows={3} value={modalReason} onChange={e => setModalReason(e.target.value)}
-            placeholder="Reason (optional)…"
+            placeholder={t('adminJobDetail.modals.reasonOptional')}
             className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-sm p-2.5
                        placeholder-gray-500 focus:border-orange-500 focus:outline-none resize-none" />
         </ActionModal>
@@ -399,16 +406,16 @@ export default function JobDetail() {
 
       {(modal === 'flag' || modal === 'unflag') && (
         <ActionModal
-          title={isFlagged ? 'Unflag Job' : 'Flag Job'}
-          description={isFlagged ? 'Remove the flag from this job.' : 'Mark this job as flagged for review.'}
-          confirmLabel={isFlagged ? 'Unflag' : 'Flag'}
+          title={isFlagged ? t('adminJobDetail.modals.unflag.title') : t('adminJobDetail.modals.flag.title')}
+          description={isFlagged ? t('adminJobDetail.modals.unflag.description') : t('adminJobDetail.modals.flag.description')}
+          confirmLabel={isFlagged ? t('adminJobDetail.unflag') : t('adminJobDetail.flag')}
           loading={modalBusy}
           error={modalErr}
           onClose={closeModal}
           onConfirm={() => runAction(isFlagged ? 'unflag' : 'flag')}
         >
           <textarea rows={3} value={modalReason} onChange={e => setModalReason(e.target.value)}
-            placeholder="Reason (optional)…"
+            placeholder={t('adminJobDetail.modals.reasonOptional')}
             className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-sm p-2.5
                        placeholder-gray-500 focus:border-orange-500 focus:outline-none resize-none" />
         </ActionModal>
@@ -416,9 +423,9 @@ export default function JobDetail() {
 
       {modal === 'refund' && (
         <ActionModal
-          title="Issue Manual Refund"
-          description="This will refund the payment to the client."
-          confirmLabel="Issue Refund"
+          title={t('adminJobDetail.modals.refund.title')}
+          description={t('adminJobDetail.modals.refund.description')}
+          confirmLabel={t('adminJobDetail.modals.refund.confirm')}
           danger
           loading={modalBusy}
           error={modalErr}
@@ -426,7 +433,7 @@ export default function JobDetail() {
           onConfirm={() => runAction('refund')}
         >
           <textarea rows={3} value={modalReason} onChange={e => setModalReason(e.target.value)}
-            placeholder="Reason for refund…"
+            placeholder={t('adminJobDetail.modals.refund.reasonPlaceholder')}
             className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-sm p-2.5
                        placeholder-gray-500 focus:border-orange-500 focus:outline-none resize-none" />
         </ActionModal>
@@ -434,9 +441,9 @@ export default function JobDetail() {
 
       {modal === 'delete' && (
         <ActionModal
-          title="Permanently Delete Job"
-          description="This cannot be undone. All associated bids and data will be removed."
-          confirmLabel="Delete Job"
+          title={t('adminJobDetail.modals.delete.title')}
+          description={t('adminJobDetail.modals.delete.description')}
+          confirmLabel={t('adminJobDetail.modals.delete.confirm')}
           danger
           loading={modalBusy}
           error={modalErr}
@@ -444,7 +451,7 @@ export default function JobDetail() {
           onConfirm={() => runAction('delete')}
         >
           <textarea rows={3} value={modalReason} onChange={e => { setModalReason(e.target.value); setModalErr(''); }}
-            placeholder="Reason for deletion (required)…"
+            placeholder={t('adminJobDetail.modals.delete.reasonPlaceholder')}
             className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-sm p-2.5
                        placeholder-gray-500 focus:border-red-500 focus:outline-none resize-none" />
         </ActionModal>

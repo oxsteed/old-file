@@ -104,7 +104,7 @@ export default function Footer() {
               textTransform: 'uppercase',
               marginBottom: '1rem',
             }}>
-              <span>OxSteed network</span>
+              <span>{t('footer.networkTagline')}</span>
             </div>
 
             <Link
@@ -136,7 +136,7 @@ export default function Footer() {
               {t('footer.tagline')}
             </p>
             <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text)', lineHeight: 1.6 }}>
-              Built for hiring, logistics, and trusted local business operations.
+              {t('footer.subtagline')}
             </p>
           </div>
 
@@ -148,7 +148,7 @@ export default function Footer() {
           }}>
             <div style={{ display: 'none', flexDirection: 'column', gap: '0.7rem' }}>
               <span style={footerSectionTitleStyle}>
-                Company
+                {t('footer.company')}
               </span>
               <FooterLink to="/how-it-works">{t('footer.howOxsteedWorks')}</FooterLink>
               <FooterLink to="/about">{t('footer.about')}</FooterLink>
@@ -166,7 +166,7 @@ export default function Footer() {
             </div>
             <div style={{ display: 'none', flexDirection: 'column', gap: '0.7rem' }}>
               <span style={footerSectionTitleStyle}>
-                Platform
+                {t('footer.platform')}
               </span>
               {user ? (
                 <FooterLink to={routeForMode(currentMode)}>{t('nav.dashboard')}</FooterLink>
@@ -211,7 +211,7 @@ export default function Footer() {
             <LegalLink to="/accessibility">{t('footer.accessibility')}</LegalLink>
             <button
               onClick={openSettings}
-              aria-label="Manage cookie preferences"
+              aria-label={t('footer.manageCookies')}
               style={{
                 background: 'none',
                 border: 'none',
@@ -224,7 +224,7 @@ export default function Footer() {
               onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-primary)')}
               onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text)')}
             >
-              Manage Cookies
+              {t('footer.manageCookies')}
             </button>
           </div>
 
@@ -498,7 +498,7 @@ function VortexModal({ onClose, initialToken = '' }) {
                 onClick={onClose}
                 style={{ background: 'var(--color-primary)', border: 'none', borderRadius: '8px', padding: '0.6rem 1.5rem', cursor: 'pointer', color: '#fff', fontWeight: 600, fontSize: '0.9rem' }}
               >
-                Continue
+                {t('footer.vortexContinue')}
               </button>
             </div>
           </>

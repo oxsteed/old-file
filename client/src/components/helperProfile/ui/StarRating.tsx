@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface StarRatingProps {
   rating: number;
@@ -22,11 +23,12 @@ const StarRating: React.FC<StarRatingProps> = ({
   className = '',
 }) => {
   const starSize = sizeMap[size];
+  const { t } = useTranslation();
 
   return (
     <span
       className={`inline-flex items-center gap-0.5 ${className}`}
-      aria-label={`${rating} out of ${max} stars`}
+      aria-label={t('starRating.ariaLabel', { rating, max })}
       role="img"
     >
       {Array.from({ length: max }, (_, i) => {

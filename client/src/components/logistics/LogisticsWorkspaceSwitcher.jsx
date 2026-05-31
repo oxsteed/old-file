@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Star } from 'lucide-react';
 import {
   getFavoriteLogisticsWorkspaceKey,
@@ -12,6 +13,7 @@ export default function LogisticsWorkspaceSwitcher({
   availability = {},
   onFavoriteChange,
 }) {
+  const { t } = useTranslation();
   const favoriteKey = useMemo(() => getFavoriteLogisticsWorkspaceKey(), [currentKey]);
   const workspaces = useMemo(() => getLogisticsEndUserWorkspaces(), []);
 
@@ -27,10 +29,10 @@ export default function LogisticsWorkspaceSwitcher({
     <div className="lx-card lx-workspace-switcher" style={{ marginBottom: '1.5rem' }}>
       <div className="lx-section-header" style={{ marginBottom: '.85rem' }}>
         <div>
-          <h2 style={{ margin: 0 }}>Logistics End-User Dashboards</h2>
-          <p className="lx-workspace-switcher-sub">Choose the workspace that matches how you use Logistics mode day to day.</p>
+          <h2 style={{ margin: 0 }}>{t('logisticsWorkspaceSwitcher.title')}</h2>
+          <p className="lx-workspace-switcher-sub">{t('logisticsWorkspaceSwitcher.subtitle')}</p>
         </div>
-        <Link to="/logistics" className="lx-link">Open logistics hub</Link>
+        <Link to="/logistics" className="lx-link">{t('logisticsWorkspaceSwitcher.openHub')}</Link>
       </div>
       <div className="lx-workspace-switcher-grid">
         {workspaces.map((workspace) => {
@@ -51,8 +53,10 @@ export default function LogisticsWorkspaceSwitcher({
                   <div className="lx-workspace-switcher-icon">{workspace.icon}</div>
                   <div>
                     <div className="lx-workspace-switcher-label">{workspace.label}</div>
-                    {isCurrent && <div className="lx-workspace-switcher-badge">Current</div>}
-                    {!isCurrent && isFavorite && <div className="lx-workspace-switcher-badge">Favorite</div>}
+                    {isCurrent && <div className="lx-workspace-switcher-badge">{t('logisticsWorkspaceSwitcher.current')}</div>}
+                    {!isCurrent && isFavorite && (
+                      <div className="lx-workspace-switcher-badge">{t('logisticsWorkspaceSwitcher.favorite')}</div>
+                    )}
                   </div>
                 </div>
                 {enabled && (
@@ -61,7 +65,11 @@ export default function LogisticsWorkspaceSwitcher({
                     onClick={() => handleFavorite(workspace.key)}
                     className="lx-btn-secondary"
                     style={{ padding: '.3rem .5rem', minWidth: 'unset' }}
-                    title={isFavorite ? 'Unset favorite workspace' : 'Set as favorite workspace'}
+                    title={
+                      isFavorite
+                        ? t('logisticsWorkspaceSwitcher.unsetFavoriteWorkspace')
+                        : t('logisticsWorkspaceSwitcher.setFavoriteWorkspace')
+                    }
                   >
                     <Star size={14} fill={isFavorite ? 'currentColor' : 'none'} />
                   </button>
@@ -73,16 +81,18 @@ export default function LogisticsWorkspaceSwitcher({
               <div className="lx-workspace-switcher-actions">
                 {enabled ? (
                   <Link to={workspace.path} className="lx-link">
-                    {isCurrent ? 'Current dashboard' : 'Open dashboard'}
+                    {isCurrent
+                      ? t('logisticsWorkspaceSwitcher.currentDashboard')
+                      : t('logisticsWorkspaceSwitcher.openDashboard')}
                   </Link>
                 ) : (
                   <span style={{ fontSize: '.74rem', fontWeight: 700, color: '#f97316' }}>
-                    Not enabled for this account
+                    {t('logisticsWorkspaceSwitcher.notEnabled')}
                   </span>
                 )}
                 {isFavorite && !isCurrent && (
                   <span style={{ fontSize: '.74rem', fontWeight: 700, color: '#f97316' }}>
-                    Opens first in Logistics mode
+                    {t('logisticsWorkspaceSwitcher.opensFirst')}
                   </span>
                 )}
               </div>

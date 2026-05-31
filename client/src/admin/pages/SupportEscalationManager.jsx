@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import adminApi from '../../lib/adminApi';
 import {
   AlertTriangle, Plus, Edit2, Trash2, RefreshCw, CheckCircle, XCircle, ChevronDown,
@@ -252,6 +253,7 @@ function EscalationRuleModal({ rule, onClose, onSave }) {
 
 // Main Escalation Manager
 export default function SupportEscalationManager() {
+  const { t } = useTranslation();
   const { businessId } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -299,7 +301,7 @@ export default function SupportEscalationManager() {
   };
 
   const handleDelete = async (ruleId) => {
-    if (!window.confirm('Are you sure you want to delete this escalation rule?')) return;
+    if (!window.confirm(t('supportAdmin.escalation.confirmDeleteRule'))) return;
     try {
       await adminApi.delete(`/support/escalation/rules/${ruleId}`);
       loadData();

@@ -6,8 +6,9 @@ import {
   ShieldCheck,
   Sparkles,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
-function buildOfferings(pack, services = []) {
+function buildOfferings(pack, services = [], t = (key) => key) {
   if (services.length > 0) {
     return services.slice(0, 3).map((service) => ({
       title: service.name,
@@ -15,13 +16,13 @@ function buildOfferings(pack, services = []) {
         service.description ||
         (service.price
           ? `$${Number(service.price).toFixed(2)}${service.priceUnit ? ` / ${service.priceUnit}` : ''}`
-          : 'Custom scoped offering'),
+          : t('templateFeatureStack.customScopedOffering')),
     }));
   }
 
   return (pack.sampleOfferings || []).slice(0, 3).map((title) => ({
     title,
-    detail: 'Template-ready offering structure for this industry',
+    detail: t('templateFeatureStack.templateReadyOfferingStructure'),
   }));
 }
 
@@ -40,16 +41,18 @@ function StackSection({ title, icon: Icon, children }) {
 }
 
 export default function TemplateFeatureStack({ pack, profileData }) {
+  const { t } = useTranslation();
+
   if (!pack) return null;
 
-  const offerings = buildOfferings(pack, profileData?.services || []);
+  const offerings = buildOfferings(pack, profileData?.services || [], t);
 
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="grid gap-6 lg:grid-cols-2">
-        <StackSection title="Industry Demand Fit" icon={Compass}>
+        <StackSection title={t('templateFeatureStack.sections.industryDemandFit')} icon={Compass}>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/45">
-            Built for
+            {t('templateFeatureStack.builtFor')}
           </p>
           <p className="mt-2 text-base font-semibold text-white">{pack.marketLabel}</p>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -64,7 +67,7 @@ export default function TemplateFeatureStack({ pack, profileData }) {
           </div>
         </StackSection>
 
-        <StackSection title="What This Template Highlights" icon={Sparkles}>
+        <StackSection title={t('templateFeatureStack.sections.templateHighlights')} icon={Sparkles}>
           <div className="space-y-3">
             {(pack.differentiators || []).map((item) => (
               <div
@@ -77,7 +80,7 @@ export default function TemplateFeatureStack({ pack, profileData }) {
           </div>
         </StackSection>
 
-        <StackSection title="How Clients Usually Buy This Service" icon={ClipboardList}>
+        <StackSection title={t('templateFeatureStack.sections.howClientsBuy')} icon={ClipboardList}>
           <div className="space-y-3">
             {(pack.workflow || []).map((item, index) => (
               <div key={item} className="flex gap-3">
@@ -90,7 +93,7 @@ export default function TemplateFeatureStack({ pack, profileData }) {
           </div>
         </StackSection>
 
-        <StackSection title="Signature Offer Structure" icon={Gem}>
+        <StackSection title={t('templateFeatureStack.sections.signatureOfferStructure')} icon={Gem}>
           <div className="space-y-3">
             {offerings.map((item) => (
               <div
@@ -105,7 +108,7 @@ export default function TemplateFeatureStack({ pack, profileData }) {
         </StackSection>
 
         <div className="lg:col-span-2">
-          <StackSection title="Client Expectations This Template Supports" icon={ShieldCheck}>
+          <StackSection title={t('templateFeatureStack.sections.clientExpectations')} icon={ShieldCheck}>
             <div className="grid gap-3 sm:grid-cols-3">
               {(pack.expectations || []).map((item) => (
                 <div
@@ -119,7 +122,7 @@ export default function TemplateFeatureStack({ pack, profileData }) {
             {(pack.trustSignals || []).length > 0 && (
               <div className="mt-5 border-t border-white/10 pt-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/45">
-                  Trust signals
+                  {t('templateFeatureStack.trustSignals')}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {pack.trustSignals.map((item) => (

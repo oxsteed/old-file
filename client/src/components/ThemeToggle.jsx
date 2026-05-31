@@ -1,13 +1,16 @@
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from 'react-i18next';
 
 export default function ThemeToggle() {
   const { isDark, toggleTheme } = useTheme();
+  const { t } = useTranslation('common');
+  const label = isDark ? t('actions.switchToLightMode') : t('actions.switchToDarkMode');
 
   return (
     <button
       onClick={toggleTheme}
-      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      aria-label={label}
+      title={label}
       className="ox-theme-toggle"
     >
       {isDark ? (

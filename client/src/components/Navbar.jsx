@@ -267,7 +267,7 @@ export default function Navbar() {
                         className="ox-nav-resource-option"
                         onClick={() => setResourcesMenuOpen(false)}
                       >
-                        <span className="ox-nav-resource-option-title">Learn to DIY</span>
+                        <span className="ox-nav-resource-option-title">{t('nav.learnToDiy')}</span>
                       </Link>
                       {isHelper && (
                         <>
@@ -392,7 +392,7 @@ export default function Navbar() {
                 <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howOxsteedWorks')}</MobileNavLink>
                 <MobileNavLink to="/tool-rentals" onClick={() => setMobileOpen(false)}>{t('toolRentals.browsePage')}</MobileNavLink>
                 <MobileNavLink to="/logistics" onClick={() => setMobileOpen(false)}>{t('logistics.nav.entry', 'OxSteed Logistics')}</MobileNavLink>
-                <MobileNavLink to="/learn" onClick={() => setMobileOpen(false)}>Learn to DIY</MobileNavLink>
+                <MobileNavLink to="/learn" onClick={() => setMobileOpen(false)}>{t('nav.learnToDiy')}</MobileNavLink>
                 <MobileNavLink to="/post-job" onClick={() => setMobileOpen(false)}>{t('nav.postJob')}</MobileNavLink>
                 <MobileNavLink to={isHelper ? '/helper/messages' : '/messages'} onClick={() => setMobileOpen(false)}>
                   {t('nav.messages')} {unreadMsgs > 0 && (

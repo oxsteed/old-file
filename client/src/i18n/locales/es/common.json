@@ -5,9 +5,279 @@
     "loading": "Loading",
     "save": "Save",
     "submit": "Submit",
-    "translate": "Translate"
+    "translate": "Translate",
+    "translating": "Traduciendo...",
+    "switchToLightMode": "Cambiar a modo claro",
+    "switchToDarkMode": "Cambiar a modo oscuro",
+    "startRecording": "Iniciar grabación",
+    "stopRecording": "Detener grabación",
+    "recording": "Grabando..."
+  },
+  "switching": "Cambiando...",
+  "forms": {
+    "country": {
+      "placeholder": "Selecciona un país"
+    },
+    "region": {
+      "selectCountryFirst": "Selecciona primero un país",
+      "selectByLabel": "Selecciona {{label}}",
+      "placeholderWithExample": "{{label}} (por ejemplo, capital del país)"
+    }
+  },
+  "productPreview": {
+    "noRatings": "Sin valoraciones aún",
+    "inCarts": {
+      "singular": "{{count}} en el carrito",
+      "plural": "{{count}} en los carritos"
+    },
+    "available": "Disponible",
+    "unavailable": "No disponible"
+  },
+  "speechToText": {
+    "placeholder": "Habla tu mensaje aquí...",
+    "clickToSpeak": "Haz clic para hablar",
+    "listening": "Escuchando...",
+    "errors": {
+      "unsupported": "El reconocimiento de voz no es compatible con este navegador.",
+      "noSpeech": "No se detectó voz. Por favor intenta de nuevo.",
+      "network": "El reconocimiento de voz tuvo un error de red.",
+      "generic": "El reconocimiento de voz falló: {{reason}}",
+      "emptyTranscript": "Habla antes de enviar."
+    }
+  },
+  "productCard": {
+    "addToCartAriaLabel": "Agregar {{name}} al carrito"
+  },
+  "notificationCenter": {
+    "loading": "Cargando notificaciones...",
+    "title": "Notificaciones",
+    "emptyState": "Aún no hay notificaciones",
+    "messageFallback": "Nueva notificación",
+    "time": {
+      "justNow": "Ahora mismo",
+      "minutesAgo": "Hace {{value}}m",
+      "hoursAgo": "Hace {{value}}h",
+      "daysAgo": "Hace {{value}}d"
+    }
+  },
+  "navigation": {
+    "skipToMainContent": "Saltar al contenido principal"
+  },
+  "productReviews": {
+    "timeAgo": {
+      "justNow": "Ahora mismo",
+      "minutesAgo": "Hace {{value}}m",
+      "hoursAgo": "Hace {{value}}h",
+      "daysAgo": "Hace {{value}}d",
+      "monthsAgo": "Hace {{value}} meses",
+      "yearsAgo": "Hace {{value}} años"
+    },
+    "ratingStarsAria": "{{count}} estrellas"
+  },
+  "bookService": {
+    "loading": "Cargando servicio...",
+    "notFound": "Servicio no encontrado",
+    "durationLabel": "Duración",
+    "basePriceLabel": "Precio base",
+    "sections": {
+      "details": "Detalles del servicio",
+      "selectDate": "Seleccionar fecha",
+      "selectTime": "Seleccionar hora"
+    },
+    "noAvailableSlots": "No hay horas disponibles para esta fecha",
+    "summary": {
+      "title": "Resumen de reserva",
+      "dateLabel": "Fecha",
+      "timeLabel": "Hora",
+      "basePriceLabel": "Precio base",
+      "totalPriceLabel": "Precio total"
+    },
+    "form": {
+      "title": "Tu información",
+      "nameLabel": "Nombre",
+      "emailLabel": "Correo",
+      "phoneLabel": "Teléfono",
+      "notesLabel": "Notas",
+      "namePlaceholder": "Tu nombre completo",
+      "emailPlaceholder": "tu@email.com",
+      "phonePlaceholder": "(123) 456-7890",
+      "notesPlaceholder": "Cualquier solicitud especial o nota...",
+      "termsText": "Acepto los términos y la política de cancelación"
+    },
+    "buttons": {
+      "booking": "Reservando...",
+      "bookNow": "Reservar ahora - ${{price}}"
+    },
+    "errors": {
+      "loadServiceDetails": "No se pudo cargar los detalles del servicio.",
+      "loadSlots": "No se pudo cargar las horas disponibles.",
+      "calculatePrice": "No se pudo calcular el precio.",
+      "agreeTerms": "Por favor acepta los términos y condiciones.",
+      "requiredFields": "Por favor completa todos los campos obligatorios.",
+      "selectDateTime": "Por favor selecciona una fecha y una hora.",
+      "createBooking": "No se pudo crear la reserva."
+    },
+    "success": "¡Reserva confirmada!"
+  },
+  "accessGateRecovery": {
+    "title": "Recuperación de acceso",
+    "validating": "Validando tu enlace de recuperación...",
+    "missingToken": "Falta el token de recuperación.",
+    "lifted": "Se limpió {{count}} bloqueo. Puedes iniciar sesión de nuevo.",
+    "lifted_plural": "Se limpiaron {{count}} bloqueos. Puedes iniciar sesión de nuevo.",
+    "consumed": "No se encontró un bloqueo activo, pero el token se ha consumido. Puedes iniciar sesión de nuevo.",
+    "postClearHelp": "El bloqueo ha sido eliminado. Si todavía ves la pantalla de acceso, espera un momento e intenta de nuevo o usa otra conexión de red.",
+    "cta": {
+      "adminLogin": "Ir al inicio de sesión de administración",
+      "logisticsHome": "Inicio de logística"
+    },
+    "errors": {
+      "alreadyUsed": "Este enlace de recuperación ya fue usado.",
+      "expired": "Este enlace de recuperación ha expirado. Solicita uno nuevo desde la página de acceso.",
+      "failed": "No se pudo usar el enlace de recuperación."
+    }
+  },
+  "impersonatePage": {
+    "title": "Error de suplantación",
+    "loading": "Iniciando sesión suplantada…",
+    "actions": {
+      "closeTab": "Cerrar pestaña"
+    },
+    "errors": {
+      "noToken": "No se encontró un token de suplantación en la URL.",
+      "invalidToken": "Token inválido o no es de suplantación.",
+      "expiredToken": "El token de suplantación ha expirado. Genera uno nuevo."
+    }
+  },
+  "searchSuggestions": {
+    "popularSearches": "Búsquedas populares"
+  },
+  "messageWithTranslation": {
+    "languageNames": {
+      "en": "Inglés",
+      "es": "Español",
+      "fr": "Francés",
+      "ht": "Criollo haitiano",
+      "de": "Alemán",
+      "it": "Italiano",
+      "pt": "Portugués",
+      "nl": "Neerlandés",
+      "pl": "Polaco",
+      "ja": "Japonés",
+      "zh": "Chino"
+    },
+    "showOriginal": "Mostrar original ({{language}})",
+    "showTranslation": "Mostrar traducción ({{language}})"
+  },
+  "impersonation": {
+    "adminView": "Vista de administrador: estás navegando como",
+    "loggedAs": "Las acciones que realices se registran como suplantación de identidad.",
+    "exitAria": "Salir de la sesión de suplantación",
+    "exitButton": "Salir de la suplantación"
+  },
+  "pageMeta": {
+    "defaults": {
+      "title": "OxSteed - Contrata ayuda local hoy",
+      "description": "Publica un trabajo, compara ofertas de ayudantes locales con habilidades y paga en OxSteed. Comenzar es gratis."
+    }
+  },
+  "orderErrorBoundary": {
+    "title": "Algo salió mal",
+    "unexpectedMessage": "Ocurrió un error inesperado al cargar {{componentName}}.",
+    "defaultComponentName": "la página de pedidos",
+    "errorDetails": "Detalles del error",
+    "tryAgain": "Intentar de nuevo",
+    "backToOrders": "Volver a pedidos",
+    "persistentErrors": "Este problema ocurre repetidamente. Nuestro equipo ha sido notificado."
   },
   "languages": {
     "autoDetect": "Auto-detect"
+  },
+  "admin": {
+    "emailChange": {
+      "emailChangeTitle": "Cambiar correo electrónico",
+      "currentEmail": "Correo actual",
+      "newEmail": "Nuevo correo electrónico *",
+      "confirmNewEmail": "Confirmar nuevo correo",
+      "emailsMismatch": "Los correos no coinciden.",
+      "newEmailMatchesCurrent": "El nuevo correo es igual al actual.",
+      "markEmailVerified": "Marcar el correo nuevo como verificado",
+      "notifyUserOnChange": "Notificar al usuario de este cambio",
+      "updating": "Actualizando…",
+      "updateEmail": "Actualizar correo",
+      "updateFailedFallback": "No se pudo actualizar el correo."
+    },
+    "emailChangeTitle": "Cambiar correo electrónico",
+    "currentEmail": "Correo actual",
+    "newEmail": "Nuevo correo electrónico *",
+    "confirmNewEmail": "Confirmar nuevo correo",
+    "emailsMismatch": "Los correos no coinciden.",
+    "newEmailMatchesCurrent": "El nuevo correo es igual al actual.",
+    "markEmailVerified": "Marcar el correo nuevo como verificado",
+    "notifyUserOnChange": "Notificar al usuario de este cambio",
+    "updating": "Actualizando…",
+    "updateEmail": "Actualizar correo",
+    "updateFailedFallback": "No se pudo actualizar el correo.",
+    "emailUpdatedTo": "Correo actualizado a {{email}}.",
+    "confirmEmailPlaceholder": "Vuelve a introducir el nuevo correo para confirmar"
+  },
+  "supportWidget": {
+    "launcher": "Soporte",
+    "launcherAriaLabel": "Abrir soporte",
+    "panelTitle": "Centro de Soporte",
+    "howCanWeHelp": "¿En qué podemos ayudarte?",
+    "helpText": "Haz clic a continuación para crear una solicitud de soporte o ver tus tickets",
+    "newSupportRequest": "Nueva Solicitud de Soporte",
+    "viewYourTickets": "Ver Tus Tickets",
+    "back": "Atrás",
+    "yourName": "Tu Nombre",
+    "yourEmail": "Tu Correo",
+    "categoryLabel": "Categoría",
+    "categoryGeneral": "Consulta General",
+    "categoryTechnical": "Problema Técnico",
+    "categoryBilling": "Facturación",
+    "categoryAccount": "Cuenta",
+    "categoryShipping": "Envío",
+    "messageLabel": "Mensaje",
+    "namePlaceholder": "Juan Pérez",
+    "emailPlaceholder": "juan@ejemplo.com",
+    "messagePlaceholder": "Describe tu problema...",
+    "submitRequest": "Enviar Solicitud",
+    "submitCreating": "Creando...",
+    "noTickets": "Aún no hay solicitudes de soporte",
+    "typeMessage": "Escribe tu mensaje...",
+    "ticketAssigned": "{{name}} ha sido asignado para ayudarte.",
+    "ticketQueued": "Tu solicitud se ha puesto en cola. Un agente te ayudará en breve.",
+    "createTicketFailed": "No se pudo crear la solicitud de soporte"
+  },
+  "hybridSupportWidget": {
+    "aiGreeting": "¡Hola! Soy el asistente de IA de OxSteed. ¿Cómo puedo ayudarte hoy?",
+    "titleAi": "Soporte de IA",
+    "titleEscalating": "Conectando...",
+    "titleLiveChat": "Chat en Vivo{{agentName}}",
+    "titleQueue": "Esperando a un Agente",
+    "titleTicket": "Crear Ticket de Soporte",
+    "talkToSomeone": "¿Necesitas hablar con alguien?",
+    "talkToAgentWithCount": "Hablar con un agente ({{count}} disponibles)",
+    "talkToSupportTeam": "Conectar con el Equipo de Soporte",
+    "connectingText": "Conectándote con un agente...",
+    "connectingSubtext": "Esto puede tardar un momento",
+    "connectedWith": "¡Conectado con {{name}}!",
+    "queueTitle": "Estás en la cola",
+    "queuePosition": "Posición: #{{position}}",
+    "queueWait": "Espera estimada: {{minutes}} minutos",
+    "queueMessage": "Un agente chateará contigo tan pronto como esté disponible.",
+    "createTicketInstead": "Crear Ticket en su Lugar",
+    "ticketQueueMessage": "Esperaba en la cola, pero prefiero crear un ticket en su lugar.",
+    "ticketNameLabel": "Tu Nombre",
+    "ticketEmailLabel": "Tu Correo",
+    "ticketMessageLabel": "Mensaje",
+    "ticketMessagePlaceholder": "Describe tu problema...",
+    "submitTicket": "Enviar Ticket",
+    "backToAi": "← Volver a la IA",
+    "back": "← Atrás",
+    "escalationFailed": "No se pudo escalar. Inténtalo de nuevo.",
+    "ticketFailed": "No se pudo crear el ticket",
+    "ticketSubmitFailed": "No se pudo enviar el ticket"
   }
 }

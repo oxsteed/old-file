@@ -20,6 +20,7 @@ import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -92,8 +93,8 @@ const fmtNum = (v) => (parseInt(v || 0)).toLocaleString();
 const payoutStatusColor = (s) => ({ pending: 'yellow', processing: 'blue', completed: 'green', failed: 'red' }[s] || 'gray');
 
 // ── Sparkline ─────────────────────────────────────────────────────────────
-function Sparkline({ data, valueKey, color = '#f97316', height = 48 }) {
-  if (!data?.length) return <div className="h-12 flex items-center justify-center text-gray-700 text-xs">No data yet</div>;
+function Sparkline({ data, valueKey, color = '#f97316', height = 48, noDataText = 'No data yet' }) {
+  if (!data?.length) return <div className="h-12 flex items-center justify-center text-gray-700 text-xs">{noDataText}</div>;
   const vals = data.map((d) => parseFloat(d[valueKey] || 0));
   const max = Math.max(...vals, 0.01);
   const pts = vals.map((v, i) => {
@@ -155,6 +156,7 @@ function Modal({ open, onClose, title, children }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────
 export default function AffiliateDashboardPage() {
+  const { t } = useTranslation();
   const [stats, setStats]             = useState(null);
   const [programs, setPrograms]       = useState([]);
   const [selectedProgram, setSelected] = useState(null);
@@ -186,7 +188,7 @@ export default function AffiliateDashboardPage() {
       setPayouts(payoutsRes.data.data || []);
       if (progsRes.data.data?.length) setSelected(progsRes.data.data[0]);
     } catch (err) {
-      toast.error('Failed to load affiliate data');
+      toast.error(t('affiliateDashboard.errors.loadAffiliateData'));
     } finally {
       setLoading(false);
     }
@@ -210,22 +212,22 @@ export default function AffiliateDashboardPage() {
       setTopProducts(p.data.top_products || []);
       setSources(s.data);
     }).catch(() => {
-      toast.error('Failed to load analytics');
+      toast.error(t('affiliateDashboard.errors.loadAnalytics'));
     }).finally(() => setALoad(false));
   }, [selectedProgram, days]);
 
   // ── Create program ─────────────────────────────────────────────────────
   const handleCreate = async () => {
-    if (!createForm.commission_rate) return toast.error('Commission rate is required');
+    if (!createForm.commission_rate) return toast.error(t('affiliateDashboard.form.commissionRateRequired'));
     setCreating(true);
     try {
       await api.post('/affiliate', createForm);
-      toast.success('Affiliate program created');
+      toast.success(t('affiliateDashboard.toasts.programCreated'));
       setCreate(false);
       setCreateForm({ program_type: 'amazon_affiliate', commission_rate: '' });
       loadOverview();
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to create program');
+      toast.error(err?.response?.data?.message || t('affiliateDashboard.errors.createProgram'));
     } finally {
       setCreating(false);
     }
@@ -243,11 +245,11 @@ export default function AffiliateDashboardPage() {
         periodStart: monthStart,
         periodEnd: now.toISOString(),
       });
-      toast.success('Payout calculated — check payout history');
+      toast.success(t('affiliateDashboard.toasts.payoutCalculated'));
       setPayout(false);
       loadOverview();
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to calculate payout');
+      toast.error(err?.response?.data?.message || t('affiliateDashboard.errors.calculatePayout'));
     } finally {
       setReqPayout(false);
     }
@@ -257,25 +259,25 @@ export default function AffiliateDashboardPage() {
   const copyLink = (programId, affiliateId) => {
     const base = window.location.origin;
     const link = `${base}/marketplace?ref=${affiliateId || programId}`;
-    navigator.clipboard.writeText(link).then(() => toast.success('Link copied'));
+    navigator.clipboard.writeText(link).then(() => toast.success(t('affiliateDashboard.toasts.linkCopied')));
   };
 
   // ── Funnel data ────────────────────────────────────────────────────────
   const currentFunnel = funnel?.current_funnel;
   const funnelStages = currentFunnel ? [
-    { label: 'click',        count: currentFunnel.stage_click_count,        pct: 100,                                  color: '#f97316' },
-    { label: 'landing',      count: currentFunnel.stage_landing_count,      pct: currentFunnel.landing_rate || 0,      color: '#fb923c' },
-    { label: 'product view', count: currentFunnel.stage_product_view_count, pct: currentFunnel.product_rate || 0,      color: '#fdba74' },
-    { label: 'add to cart',  count: currentFunnel.stage_add_to_cart_count,  pct: currentFunnel.cart_rate || 0,         color: '#10b981' },
-    { label: 'checkout',     count: currentFunnel.stage_checkout_count,     pct: currentFunnel.checkout_rate || 0,     color: '#34d399' },
-    { label: 'purchase',     count: currentFunnel.stage_purchase_count,     pct: currentFunnel.purchase_rate || 0,     color: '#6ee7b7' },
+    { label: t('affiliateDashboard.funnel.labels.click'),       count: currentFunnel.stage_click_count,        pct: 100,                                  color: '#f97316' },
+    { label: t('affiliateDashboard.funnel.labels.landing'),     count: currentFunnel.stage_landing_count,      pct: currentFunnel.landing_rate || 0,      color: '#fb923c' },
+    { label: t('affiliateDashboard.funnel.labels.productView'),  count: currentFunnel.stage_product_view_count, pct: currentFunnel.product_rate || 0,      color: '#fdba74' },
+    { label: t('affiliateDashboard.funnel.labels.addToCart'),   count: currentFunnel.stage_add_to_cart_count,  pct: currentFunnel.cart_rate || 0,         color: '#10b981' },
+    { label: t('affiliateDashboard.funnel.labels.checkout'),    count: currentFunnel.stage_checkout_count,     pct: currentFunnel.checkout_rate || 0,     color: '#34d399' },
+    { label: t('affiliateDashboard.funnel.labels.purchase'),    count: currentFunnel.stage_purchase_count,     pct: currentFunnel.purchase_rate || 0,     color: '#6ee7b7' },
   ] : [];
 
   if (loading) {
     return (
       <PageShell>
         <div className="min-h-screen flex items-center justify-center">
-          <div className="text-gray-500 text-sm">Loading affiliate dashboard…</div>
+          <div className="text-gray-500 text-sm">{t('affiliateDashboard.loading')}</div>
         </div>
       </PageShell>
     );
@@ -283,22 +285,22 @@ export default function AffiliateDashboardPage() {
 
   return (
     <PageShell>
-      <PageMeta title="Affiliate Dashboard — OxSteed" noIndex />
+      <PageMeta title={t('affiliateDashboard.pageTitle')} noIndex />
       <div className="min-h-screen text-white">
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
           {/* ── Header ────────────────────────────────────────────────── */}
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
             <div>
-              <h1 className="text-3xl font-black text-white tracking-tight mb-1">Affiliate Dashboard</h1>
-              <p className="text-gray-400 text-sm">Track earnings, conversions, and payouts from your referrals</p>
+              <h1 className="text-3xl font-black text-white tracking-tight mb-1">{t('affiliateDashboard.title')}</h1>
+              <p className="text-gray-400 text-sm">{t('affiliateDashboard.subtitle')}</p>
             </div>
             <div className="flex gap-2">
               {programs.length > 0 && (
-                <Btn variant="secondary" onClick={() => setPayout(true)}>Request payout</Btn>
+                <Btn variant="secondary" onClick={() => setPayout(true)}>{t('affiliateDashboard.actions.requestPayout')}</Btn>
               )}
               <Btn onClick={() => setCreate(true)}>
-                <span className="flex items-center gap-1.5"><IcoPlus size={14} cls="text-white" /> New program</span>
+                <span className="flex items-center gap-1.5"><IcoPlus size={14} cls="text-white" /> {t('affiliateDashboard.actions.newProgram')}</span>
               </Btn>
             </div>
           </div>
@@ -307,17 +309,16 @@ export default function AffiliateDashboardPage() {
           {programs.length === 0 && (
             <Card className="text-center py-16">
               <IcoAward size={40} cls="text-orange-400 mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-white mb-2">Start earning with affiliate links</h2>
+              <h2 className="text-xl font-bold text-white mb-2">{t('affiliateDashboard.empty.title')}</h2>
               <p className="text-gray-400 text-sm mb-6 max-w-md mx-auto">
-                Create an affiliate program to earn commissions when customers discover and buy products
-                through your guides, social posts, or referral links.
+                {t('affiliateDashboard.empty.description')}
               </p>
               <p className="text-xs text-gray-500 mb-6">
-                OxSteed requires ID verification before you can share guides and earn affiliate revenue.
+                {t('affiliateDashboard.empty.verification')}
               </p>
               <div className="flex gap-3 justify-center">
-                <Link to="/verify-identity" className="text-xs font-semibold px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition">Verify identity</Link>
-                <Btn onClick={() => setCreate(true)}>Create program</Btn>
+                <Link to="/verify-identity" className="text-xs font-semibold px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition">{t('affiliateDashboard.empty.verifyIdentity')}</Link>
+                <Btn onClick={() => setCreate(true)}>{t('affiliateDashboard.empty.createProgram')}</Btn>
               </div>
             </Card>
           )}
@@ -326,10 +327,10 @@ export default function AffiliateDashboardPage() {
             <>
               {/* ── Overview stat tiles ──────────────────────────────── */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <StatTile label="Lifetime earnings"  value={fmt$(stats?.lifetime_commission_cents)} icon={IcoDollar} color="text-orange-400" />
-                <StatTile label="Pending payout"     value={fmt$(stats?.pending_cents)} icon={IcoZap} color="text-yellow-400" sub="Available to request" />
-                <StatTile label="Total paid out"     value={fmt$(stats?.total_paid_cents)} icon={IcoCheck} color="text-emerald-400" />
-                <StatTile label="Total conversions"  value={fmtNum(stats?.total_conversions)} icon={IcoTrend} color="text-blue-400" sub={`${fmtNum(stats?.total_programs)} program${stats?.total_programs !== 1 ? 's' : ''}`} />
+                <StatTile label={t('affiliateDashboard.stats.lifetimeEarnings')}  value={fmt$(stats?.lifetime_commission_cents)} icon={IcoDollar} color="text-orange-400" />
+                <StatTile label={t('affiliateDashboard.stats.pendingPayout')}     value={fmt$(stats?.pending_cents)} icon={IcoZap} color="text-yellow-400" sub={t('affiliateDashboard.stats.availableToRequest')} />
+                <StatTile label={t('affiliateDashboard.stats.totalPaidOut')}     value={fmt$(stats?.total_paid_cents)} icon={IcoCheck} color="text-emerald-400" />
+                <StatTile label={t('affiliateDashboard.stats.totalConversions')}  value={fmtNum(stats?.total_conversions)} icon={IcoTrend} color="text-blue-400" sub={`${fmtNum(stats?.total_programs)} ${stats?.total_programs === 1 ? t('affiliateDashboard.stats.programSingle') : t('affiliateDashboard.stats.programPlural')}`} />
               </div>
 
               {/* ── Program selector + period picker ─────────────────── */}
@@ -351,14 +352,14 @@ export default function AffiliateDashboardPage() {
                   {[7, 30, 90].map((d) => (
                     <button key={d} onClick={() => setDays(d)}
                       className={`px-3 py-1.5 rounded-md text-xs font-semibold transition ${days === d ? 'bg-orange-500 text-white' : 'text-gray-400 hover:text-white'}`}>
-                      {d}d
+                      {t('affiliateDashboard.chart.periodButton', { days: d })}
                     </button>
                   ))}
                 </div>
               </div>
 
               {analyticsLoading && (
-                <div className="text-center py-8 text-gray-600 text-sm">Loading analytics…</div>
+                <div className="text-center py-8 text-gray-600 text-sm">{t('affiliateDashboard.loadingAnalytics')}</div>
               )}
 
               {!analyticsLoading && (
@@ -366,12 +367,12 @@ export default function AffiliateDashboardPage() {
                   {/* ── Earnings sparkline ──────────────────────────── */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
                     <Card>
-                      <CardHeader icon={IcoDollar} title={`Commission earned (${days}d)`}
+                      <CardHeader icon={IcoDollar} title={t('affiliateDashboard.chart.commissionEarned', { days })}
                         right={<span className="text-orange-400 text-sm font-bold">
                           {fmt$(metrics.reduce((s, r) => s + parseFloat(r.commission_earned || 0) * 100, 0))}
                         </span>}
                       />
-                      <Sparkline data={metrics} valueKey="commission_earned" color="#f97316" />
+                      <Sparkline data={metrics} valueKey="commission_earned" color="#f97316" noDataText={t('affiliateDashboard.sparklineNoData')} />
                       <div className="flex justify-between mt-3 text-xs text-gray-500">
                         <span>{metrics[0]?.metric_date?.slice(0, 10)}</span>
                         <span>{metrics[metrics.length - 1]?.metric_date?.slice(0, 10)}</span>
@@ -379,12 +380,12 @@ export default function AffiliateDashboardPage() {
                     </Card>
 
                     <Card>
-                      <CardHeader icon={IcoTrend} title={`Clicks (${days}d)`}
+                      <CardHeader icon={IcoTrend} title={t('affiliateDashboard.chart.clicks', { days })}
                         right={<span className="text-blue-400 text-sm font-bold">
                           {fmtNum(metrics.reduce((s, r) => s + parseInt(r.total_clicks || 0), 0))}
                         </span>}
                       />
-                      <Sparkline data={metrics} valueKey="total_clicks" color="#60a5fa" />
+                      <Sparkline data={metrics} valueKey="total_clicks" color="#60a5fa" noDataText={t('affiliateDashboard.sparklineNoData')} />
                       <div className="flex justify-between mt-3 text-xs text-gray-500">
                         <span>{metrics[0]?.metric_date?.slice(0, 10)}</span>
                         <span>{metrics[metrics.length - 1]?.metric_date?.slice(0, 10)}</span>
@@ -395,9 +396,9 @@ export default function AffiliateDashboardPage() {
                   {/* ── Conversion funnel + Top products ───────────── */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
                     <Card>
-                      <CardHeader icon={IcoZap} title="Conversion funnel" />
+                      <CardHeader icon={IcoZap} title={t('affiliateDashboard.funnel.title')} />
                       {funnelStages.length === 0 ? (
-                        <p className="text-gray-600 text-xs py-4">No funnel data for this period</p>
+                        <p className="text-gray-600 text-xs py-4">{t('affiliateDashboard.funnel.noData')}</p>
                       ) : (
                         <div className="space-y-2.5">
                           {funnelStages.map((s) => (
@@ -409,7 +410,7 @@ export default function AffiliateDashboardPage() {
                         <div className="mt-4 pt-4 border-t border-gray-800 grid grid-cols-2 gap-3">
                           {Object.entries(funnel.averages).map(([k, v]) => (
                             <div key={k}>
-                              <p className="text-[10px] text-gray-600 uppercase tracking-wide">{k.replace('avg_', '').replace('_rate', '')}</p>
+                              <p className="text-[10px] text-gray-600 uppercase tracking-wide">{t(`affiliateDashboard.funnel.averageLabels.${k}`, { defaultValue: k.replace('avg_', '').replace('_rate', '') })}</p>
                               <p className="text-sm font-semibold text-white">{fmtPct(v)}</p>
                             </div>
                           ))}
@@ -418,9 +419,9 @@ export default function AffiliateDashboardPage() {
                     </Card>
 
                     <Card>
-                      <CardHeader icon={IcoPackage} title="Top products" />
+                      <CardHeader icon={IcoPackage} title={t('affiliateDashboard.topProducts.title')} />
                       {topProducts.length === 0 ? (
-                        <p className="text-gray-600 text-xs py-4">No product data for this period</p>
+                        <p className="text-gray-600 text-xs py-4">{t('affiliateDashboard.topProducts.noData')}</p>
                       ) : (
                         <div className="space-y-2">
                           {topProducts.map((p, i) => (
@@ -428,7 +429,7 @@ export default function AffiliateDashboardPage() {
                               <span className="text-[11px] text-gray-600 w-4 shrink-0">{p.rank || i + 1}</span>
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs text-white font-medium truncate">{p.title || `Product ${p.product_id}`}</p>
-                                <p className="text-[10px] text-gray-500">{fmtNum(p.total_clicks_30d)} clicks · {fmtNum(p.total_conversions_30d)} conv.</p>
+                                <p className="text-[10px] text-gray-500">{fmtNum(p.total_clicks_30d)} clicks · {fmtNum(p.total_conversions_30d)} {t('affiliateDashboard.metrics.convAbbrev')}</p>
                               </div>
                               <div className="text-right shrink-0">
                                 <p className="text-xs font-semibold text-emerald-400">{fmt$(p.total_commission_30d * 100)}</p>
@@ -445,7 +446,7 @@ export default function AffiliateDashboardPage() {
                   {sources && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
                       <Card>
-                        <CardHeader icon={IcoTrend} title="Device breakdown" />
+                        <CardHeader icon={IcoTrend} title={t('affiliateDashboard.sources.deviceBreakdown')} />
                         <div className="space-y-3">
                           {sources.device_breakdown?.map((d) => {
                             const total = sources.device_breakdown.reduce((s, x) => s + parseInt(x.total_clicks || 0), 0) || 1;
@@ -463,17 +464,17 @@ export default function AffiliateDashboardPage() {
                         </div>
                       </Card>
                       <Card>
-                        <CardHeader icon={IcoLink} title="Top referrers" />
+                        <CardHeader icon={IcoLink} title={t('affiliateDashboard.sources.topReferrers')} />
                         {sources.top_referrers?.length === 0 ? (
-                          <p className="text-gray-600 text-xs py-4">No referrer data yet</p>
+                          <p className="text-gray-600 text-xs py-4">{t('affiliateDashboard.sources.noReferrers')}</p>
                         ) : (
                           <div className="space-y-2">
                             {sources.top_referrers?.map((r, i) => (
                               <div key={i} className="flex items-center justify-between py-1.5 border-b border-gray-800 last:border-0">
                                 <span className="text-xs text-white truncate max-w-[55%]">{r.referrer_source}</span>
                                 <div className="flex items-center gap-3">
-                                  <span className="text-[10px] text-gray-500">{fmtNum(r.session_count)} sessions</span>
-                                  <Badge text={`${fmtPct(r.conversion_rate)} conv.`} color="green" />
+                                  <span className="text-[10px] text-gray-500">{fmtNum(r.session_count)} {t('affiliateDashboard.sources.sessionLabel')}</span>
+                                  <Badge text={`${fmtPct(r.conversion_rate)} ${t('affiliateDashboard.metrics.convAbbrev')}`} color="green" />
                                 </div>
                               </div>
                             ))}
@@ -485,8 +486,8 @@ export default function AffiliateDashboardPage() {
 
                   {/* ── Referral links ───────────────────────────────── */}
                   <Card className="mb-4">
-                    <CardHeader icon={IcoLink} title="Your referral links"
-                      right={<span className="text-[11px] text-gray-500">Copy and share to earn commission</span>}
+                    <CardHeader icon={IcoLink} title={t('affiliateDashboard.referral.title')}
+                      right={<span className="text-[11px] text-gray-500">{t('affiliateDashboard.referral.helper')}</span>}
                     />
                     <div className="space-y-3">
                       {programs.map((p) => {
@@ -500,7 +501,7 @@ export default function AffiliateDashboardPage() {
                             <button
                               onClick={() => copyLink(p.id, p.affiliate_id)}
                               className="p-2 text-gray-500 hover:text-orange-400 transition rounded-lg hover:bg-gray-700"
-                              title="Copy link"
+                              title={t('affiliateDashboard.referral.copyLink')}
                             >
                               <IcoCopy size={14} />
                             </button>
@@ -514,21 +515,21 @@ export default function AffiliateDashboardPage() {
 
               {/* ── Payout history ───────────────────────────────────── */}
               <Card>
-                <CardHeader icon={IcoDollar} title="Payout history"
-                  right={<Btn variant="ghost" onClick={() => setPayout(true)}>Request payout</Btn>}
+                <CardHeader icon={IcoDollar} title={t('affiliateDashboard.payout.title')}
+                  right={<Btn variant="ghost" onClick={() => setPayout(true)}>{t('affiliateDashboard.actions.requestPayout')}</Btn>}
                 />
                 {payouts.length === 0 ? (
-                  <p className="text-gray-600 text-xs py-4">No payouts yet. Earn commissions and request your first payout.</p>
+                  <p className="text-gray-600 text-xs py-4">{t('affiliateDashboard.payout.emptyState')}</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="text-gray-600 uppercase tracking-wide text-[10px]">
-                          <th className="text-left py-2 pr-4">Period</th>
-                          <th className="text-left py-2 pr-4">Amount</th>
-                          <th className="text-left py-2 pr-4">Method</th>
-                          <th className="text-left py-2 pr-4">Status</th>
-                          <th className="text-left py-2">Sent</th>
+                          <th className="text-left py-2 pr-4">{t('affiliateDashboard.payout.table.period')}</th>
+                          <th className="text-left py-2 pr-4">{t('affiliateDashboard.payout.table.amount')}</th>
+                          <th className="text-left py-2 pr-4">{t('affiliateDashboard.payout.table.method')}</th>
+                          <th className="text-left py-2 pr-4">{t('affiliateDashboard.payout.table.status')}</th>
+                          <th className="text-left py-2">{t('affiliateDashboard.payout.table.sent')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-800">
@@ -555,64 +556,64 @@ export default function AffiliateDashboardPage() {
       </div>
 
       {/* ── Create program modal ──────────────────────────────────────── */}
-      <Modal open={showCreateModal} onClose={() => setCreate(false)} title="Create affiliate program">
+      <Modal open={showCreateModal} onClose={() => setCreate(false)} title={t('affiliateDashboard.create.title')}>
         <div className="space-y-4">
           <div>
-            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Program type</label>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('affiliateDashboard.create.programTypeLabel')}</label>
             <select
               value={createForm.program_type}
               onChange={(e) => setCreateForm((f) => ({ ...f, program_type: e.target.value }))}
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
             >
-              <option value="amazon_affiliate">Amazon Affiliate</option>
-              <option value="oxsteed_referral">OxSteed Referral</option>
-              <option value="marketplace_products">Marketplace Products</option>
-              <option value="custom">Custom</option>
+              <option value="amazon_affiliate">{t('affiliateDashboard.create.programTypes.amazonAffiliate')}</option>
+              <option value="oxsteed_referral">{t('affiliateDashboard.create.programTypes.oxsteedReferral')}</option>
+              <option value="marketplace_products">{t('affiliateDashboard.create.programTypes.marketplaceProducts')}</option>
+              <option value="custom">{t('affiliateDashboard.create.programTypes.custom')}</option>
             </select>
           </div>
           <div>
-            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Affiliate ID (optional)</label>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('affiliateDashboard.create.affiliateIdLabel')}</label>
             <input
               value={createForm.affiliate_id || ''}
               onChange={(e) => setCreateForm((f) => ({ ...f, affiliate_id: e.target.value }))}
-              placeholder="e.g. your Amazon Associates tag"
+              placeholder={t('affiliateDashboard.create.affiliateIdPlaceholder')}
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none"
             />
           </div>
           <div>
-            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Commission rate (%)</label>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('affiliateDashboard.create.commissionRateLabel')}</label>
             <input
               type="number" min="0" max="100" step="0.1"
               value={createForm.commission_rate}
               onChange={(e) => setCreateForm((f) => ({ ...f, commission_rate: e.target.value }))}
-              placeholder="e.g. 5.0"
+              placeholder={t('affiliateDashboard.create.commissionRatePlaceholder')}
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none"
             />
           </div>
           <div className="flex gap-3 pt-2">
-            <Btn variant="secondary" onClick={() => setCreate(false)} className="flex-1">Cancel</Btn>
-            <Btn onClick={handleCreate} disabled={creating} className="flex-1">{creating ? 'Creating…' : 'Create program'}</Btn>
+            <Btn variant="secondary" onClick={() => setCreate(false)} className="flex-1">{t('affiliateDashboard.actions.cancel')}</Btn>
+            <Btn onClick={handleCreate} disabled={creating} className="flex-1">{creating ? t('affiliateDashboard.create.creating') : t('affiliateDashboard.create.submit')}</Btn>
           </div>
         </div>
       </Modal>
 
       {/* ── Request payout modal ──────────────────────────────────────── */}
-      <Modal open={showPayoutModal} onClose={() => setPayout(false)} title="Request payout">
+      <Modal open={showPayoutModal} onClose={() => setPayout(false)} title={t('affiliateDashboard.payout.requestTitle')}>
         <div className="space-y-4">
           <p className="text-sm text-gray-400">
-            This will calculate all pending commissions for the current month for your selected program and queue them for payout.
+            {t('affiliateDashboard.payout.description')}
           </p>
           {selectedProgram && (
             <div className="bg-gray-800/60 rounded-xl p-4">
-              <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Selected program</p>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">{t('affiliateDashboard.payout.selectedProgram')}</p>
               <p className="text-sm text-white font-semibold">{selectedProgram.program_type}</p>
-              <p className="text-xs text-yellow-400 mt-1">Pending: {fmt$(selectedProgram.pending_cents)}</p>
+              <p className="text-xs text-yellow-400 mt-1">{`${t('affiliateDashboard.payout.pendingLabel')}: ${fmt$(selectedProgram.pending_cents)}`}</p>
             </div>
           )}
-          <p className="text-xs text-gray-600">Payouts are processed via Stripe. Ensure your payout method is configured in Settings.</p>
+          <p className="text-xs text-gray-600">{t('affiliateDashboard.payout.note')}</p>
           <div className="flex gap-3 pt-2">
-            <Btn variant="secondary" onClick={() => setPayout(false)} className="flex-1">Cancel</Btn>
-            <Btn onClick={handleRequestPayout} disabled={requestingPayout} className="flex-1">{requestingPayout ? 'Calculating…' : 'Request payout'}</Btn>
+            <Btn variant="secondary" onClick={() => setPayout(false)} className="flex-1">{t('affiliateDashboard.actions.cancel')}</Btn>
+            <Btn onClick={handleRequestPayout} disabled={requestingPayout} className="flex-1">{requestingPayout ? t('affiliateDashboard.payout.calculating') : t('affiliateDashboard.actions.requestPayout')}</Btn>
           </div>
         </div>
       </Modal>

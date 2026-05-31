@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Send, Archive, Plus, Search } from 'lucide-react';
 import '../../styles/BusinessMessagingTab.css';
 
 export function BusinessMessagingTab({ businessId }) {
+  const { t } = useTranslation();
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -27,7 +29,7 @@ export function BusinessMessagingTab({ businessId }) {
       });
       setConversations(response.data.conversations || []);
     } catch (error) {
-      toast.error('Failed to load conversations');
+      toast.error(t('businessMessaging.toastLoadConversationsFailed'));
     } finally {
       setLoading(false);
     }
@@ -42,7 +44,7 @@ export function BusinessMessagingTab({ businessId }) {
       setSelectedConversation(response.data);
       setMessages(response.data.messages || []);
     } catch (error) {
-      toast.error('Failed to load conversation');
+      toast.error(t('businessMessaging.toastLoadConversationFailed'));
     }
   };
 
@@ -60,7 +62,7 @@ export function BusinessMessagingTab({ businessId }) {
       // Reload conversations to update last_message_at
       loadConversations();
     } catch (error) {
-      toast.error('Failed to send message');
+      toast.error(t('businessMessaging.toastSendFailed'));
     }
   };
 
@@ -70,11 +72,11 @@ export function BusinessMessagingTab({ businessId }) {
       await api.post(
         `/businesses/${businessId}/messages/${conversationId}/archive`
       );
-      toast.success('Conversation archived');
+      toast.success(t('businessMessaging.toastArchived'));
       loadConversations();
       setSelectedConversation(null);
     } catch (error) {
-      toast.error('Failed to archive conversation');
+      toast.error(t('businessMessaging.toastArchiveFailed'));
     }
   };
 
@@ -84,36 +86,48 @@ export function BusinessMessagingTab({ businessId }) {
         conversation_type: type,
         ...data
       });
-      toast.success('Conversation created');
+      toast.success(t('businessMessaging.toastCreated'));
       setShowNewConversationModal(false);
       loadConversations();
     } catch (error) {
-      toast.error('Failed to create conversation');
+      toast.error(t('businessMessaging.toastCreateFailed'));
     }
+  };
+
+  const getConversationTypeLabel = (type) => {
+    const labels = {
+      team: t('businessMessaging.type.team'),
+      customer: t('businessMessaging.type.customer')
+    };
+    return labels[type] || t('businessMessaging.type.unknown');
   };
 
   return (
     <div className="bmt-messaging-container">
       <div className="bmt-conversations-list">
         <div className="bmt-header">
-          <h3>Conversations</h3>
+          <h3>{t('businessMessaging.title')}</h3>
           <button
             onClick={() => setShowNewConversationModal(true)}
             className="bmt-btn-new"
-            aria-label="New conversation"
+            aria-label={t('businessMessaging.newConversation')}
           >
             <Plus size={18} />
           </button>
         </div>
 
         <div className="bmt-type-filter">
-          {['all', 'team', 'customer'].map(type => (
+          {['all', 'team', 'customer'].map((type) => (
             <button
               key={type}
               onClick={() => setConversationType(type)}
               className={`bmt-filter-btn ${conversationType === type ? 'active' : ''}`}
             >
-              {type.charAt(0).toUpperCase() + type.slice(1)}
+              {type === 'all'
+                ? t('businessMessaging.filterAll')
+                : type === 'team'
+                  ? t('businessMessaging.filterTeam')
+                  : t('businessMessaging.filterCustomer')}
             </button>
           ))}
         </div>
@@ -122,36 +136,36 @@ export function BusinessMessagingTab({ businessId }) {
           <Search size={16} />
           <input
             type="text"
-            placeholder="Search conversations..."
+            placeholder={t('businessMessaging.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            aria-label="Search conversations"
+            aria-label={t('businessMessaging.searchAria')}
           />
         </div>
 
         <div className="bmt-conv-list">
           {loading ? (
-            <div className="bmt-loading">Loading conversations...</div>
+            <div className="bmt-loading">{t('businessMessaging.loading')}</div>
           ) : conversations.length === 0 ? (
-            <div className="bmt-empty">No conversations</div>
+            <div className="bmt-empty">{t('businessMessaging.empty')}</div>
           ) : (
             conversations.map(conv => (
               <div
                 key={conv.id}
                 onClick={() => openConversation(conv.id)}
                 className={`bmt-conv-item ${selectedConversation?.id === conv.id ? 'active' : ''}`}
-              >
-                <div className="bmt-conv-main">
-                  <div className="bmt-conv-title">
-                    {conv.conversation_type === 'team' ? 'Team Chat' : conv.customer_name || conv.customer_email}
-                  </div>
-                  <div className="bmt-conv-preview">
-                    {conv.subject}
+                >
+                  <div className="bmt-conv-main">
+                    <div className="bmt-conv-title">
+                    {conv.conversation_type === 'team' ? t('businessMessaging.teamChat') : conv.customer_name || conv.customer_email}
+                    </div>
+                    <div className="bmt-conv-preview">
+                      {conv.subject}
                   </div>
                 </div>
-                <div className="bmt-conv-meta">
+                  <div className="bmt-conv-meta">
                   <span className={`bmt-badge ${conv.conversation_type}`}>
-                    {conv.conversation_type}
+                    {getConversationTypeLabel(conv.conversation_type)}
                   </span>
                   {conv.last_message_at && (
                     <div className="bmt-conv-time">
@@ -170,15 +184,15 @@ export function BusinessMessagingTab({ businessId }) {
           <>
             <div className="bmt-msg-header">
               <div>
-                <h4>{selectedConversation.customer_name || 'Team Chat'}</h4>
+                <h4>{selectedConversation.customer_name || t('businessMessaging.teamChat')}</h4>
                 <span className={`bmt-status ${selectedConversation.conversation_type}`}>
-                  {selectedConversation.conversation_type}
+                  {getConversationTypeLabel(selectedConversation.conversation_type)}
                 </span>
               </div>
               <button
                 onClick={() => handleArchiveConversation(selectedConversation.id)}
                 className="bmt-btn-archive"
-                aria-label="Archive conversation"
+                aria-label={t('businessMessaging.ariaArchive')}
               >
                 <Archive size={18} />
               </button>
@@ -190,13 +204,13 @@ export function BusinessMessagingTab({ businessId }) {
                   <div key={msg.id} className={`bmt-msg ${msg.sender_type}`}>
                     <div className="bmt-msg-sender">{msg.sender_name}</div>
                     <div className="bmt-msg-content">{msg.content}</div>
-                    <div className="bmt-msg-time">
+                  <div className="bmt-msg-time">
                       {new Date(msg.created_at).toLocaleString()}
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="bmt-no-messages">No messages yet</div>
+                <div className="bmt-no-messages">{t('businessMessaging.noMessages')}</div>
               )}
             </div>
 
@@ -204,17 +218,17 @@ export function BusinessMessagingTab({ businessId }) {
               <textarea
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
-                placeholder="Type a message..."
+                placeholder={t('businessMessaging.messagePlaceholder')}
                 onKeyPress={(e) => {
                   if (e.key === 'Enter' && e.ctrlKey) handleSendMessage();
                 }}
-                aria-label="Message input"
+                aria-label={t('businessMessaging.messageAria')}
               />
               <button
                 onClick={handleSendMessage}
                 disabled={!messageText.trim()}
                 className="bmt-btn-send"
-                aria-label="Send message"
+                aria-label={t('businessMessaging.sendAria')}
               >
                 <Send size={18} />
               </button>
@@ -222,7 +236,7 @@ export function BusinessMessagingTab({ businessId }) {
           </>
         ) : (
           <div className="bmt-no-selection">
-            Select a conversation to start messaging
+            {t('businessMessaging.noSelection')}
           </div>
         )}
       </div>
@@ -238,12 +252,13 @@ export function BusinessMessagingTab({ businessId }) {
 }
 
 function NewConversationModal({ onClose, onSubmit }) {
+  const { t } = useTranslation();
   const [type, setType] = useState('team');
   const [data, setData] = useState({ customer_name: '', customer_email: '', subject: '' });
 
   const handleSubmit = () => {
     if (type === 'customer' && !data.customer_email) {
-      alert('Customer email is required');
+      toast.error(t('businessMessaging.customerEmailRequired'));
       return;
     }
     onSubmit(type, data);
@@ -252,33 +267,37 @@ function NewConversationModal({ onClose, onSubmit }) {
   return (
     <div className="bmt-modal-overlay" onClick={onClose}>
       <div className="bmt-modal" onClick={(e) => e.stopPropagation()}>
-        <h3>New Conversation</h3>
+        <h3>{t('businessMessaging.newConversation')}</h3>
         <div className="bmt-form-group">
-          <label>Type</label>
+          <label>{t('businessMessaging.formType')}</label>
           <select value={type} onChange={(e) => setType(e.target.value)}>
-            <option value="team">Team Chat</option>
-            <option value="customer">Customer Message</option>
+            <option value="team">{t('businessMessaging.type.team')}</option>
+            <option value="customer">{t('businessMessaging.type.customer')}</option>
           </select>
         </div>
 
         {type === 'customer' && (
           <>
             <div className="bmt-form-group">
-              <label>Customer Name</label>
+              <label>{t('businessMessaging.customerName')}</label>
               <input
                 type="text"
                 value={data.customer_name}
                 onChange={(e) => setData({ ...data, customer_name: e.target.value })}
-                placeholder="Customer name"
+                placeholder={t('businessMessaging.customerNamePlaceholder')}
               />
             </div>
             <div className="bmt-form-group">
-              <label>Customer Email *</label>
+              <label>
+                {t('businessMessaging.customerEmail')}
+                {' '}
+                *
+              </label>
               <input
                 type="email"
                 value={data.customer_email}
                 onChange={(e) => setData({ ...data, customer_email: e.target.value })}
-                placeholder="customer@example.com"
+                placeholder={t('businessMessaging.customerEmailPlaceholder')}
                 required
               />
             </div>
@@ -286,18 +305,18 @@ function NewConversationModal({ onClose, onSubmit }) {
         )}
 
         <div className="bmt-form-group">
-          <label>Subject</label>
+          <label>{t('businessMessaging.subject')}</label>
           <input
             type="text"
             value={data.subject}
             onChange={(e) => setData({ ...data, subject: e.target.value })}
-            placeholder="Conversation subject"
+            placeholder={t('businessMessaging.subjectPlaceholder')}
           />
         </div>
 
         <div className="bmt-modal-buttons">
-          <button onClick={onClose} className="bmt-btn-cancel">Cancel</button>
-          <button onClick={handleSubmit} className="bmt-btn-create">Create</button>
+          <button onClick={onClose} className="bmt-btn-cancel">{t('businessMessaging.cancel')}</button>
+          <button onClick={handleSubmit} className="bmt-btn-create">{t('businessMessaging.create')}</button>
         </div>
       </div>
     </div>

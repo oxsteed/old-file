@@ -24,7 +24,8 @@
     "businessLaunchStatus": "Mi Lanzamiento Empresarial",
     "supportWorkspace": "Espacio de soporte",
     "cancellationPolicies": "Políticas de Pago y Cancelación",
-    "howOxsteedWorks": "C?mo funciona OxSteed"
+    "howOxsteedWorks": "C?mo funciona OxSteed",
+    "learnToDiy": "Aprende a hacerlo tú mismo"
   },
   "supportAgentPortal": {
     "title": "Espacio de soporte",
@@ -44,6 +45,235 @@
     "kindBusiness": "Negocio",
     "kindHelper": "Ayudante",
     "kindPlatform": "Plataforma"
+  },
+  "adminPaymentsList": {
+    "title": "Pagos",
+    "permissionRequired": "Se requiere permiso para ver finanzas. Contacta a un super-admin para solicitar acceso.",
+    "count_one": "{{count}} pago",
+    "count_other": "{{count}} pagos",
+    "allStatuses": "Todos los estados",
+    "from": "Desde",
+    "to": "Hasta",
+    "columns": {
+      "payer": "PAGADOR",
+      "payee": "RECEPTOR",
+      "job": "TRABAJO",
+      "amount": "MONTO",
+      "fee": "TARIFA",
+      "payout": "PAGO",
+      "status": "ESTADO",
+      "created": "CREADO"
+    },
+    "loading": "Cargando…",
+    "empty": "No se encontraron pagos.",
+    "noJob": "Sin trabajo",
+    "pageSummary": "Página {{page}} · {{total}} total",
+    "prev": "← Anterior",
+    "next": "Siguiente →",
+    "status": {
+      "pending": "Pendiente",
+      "authorized": "Autorizado",
+      "captured": "Capturado",
+      "released": "Liberado",
+      "refunded": "Reembolsado",
+      "failed": "Fallido",
+      "disputed": "En disputa"
+    }
+  },
+  "adminJobDetail": {
+    "failedToLoad": "No se pudo cargar el trabajo.",
+    "backToJobs": "Volver a trabajos",
+    "flagged": "Marcado",
+    "disputed": "En disputa",
+    "cancelJob": "Cancelar trabajo",
+    "flag": "Marcar",
+    "unflag": "Quitar marca",
+    "refund": "Reembolsar",
+    "delete": "Eliminar",
+    "unassigned": "Sin asignar",
+    "noBids": "Aún no hay ofertas.",
+    "sections": {
+      "description": "Descripción",
+      "bids_one": "Ofertas ({{count}})",
+      "bids_other": "Ofertas ({{count}})",
+      "payment": "Pago",
+      "details": "Detalles",
+      "client": "Cliente",
+      "helper": "Ayudante"
+    },
+    "paymentFields": {
+      "status": "Estado",
+      "totalAmount": "Monto total",
+      "helperPayout": "Pago al ayudante",
+      "platformFee": "Tarifa de plataforma",
+      "date": "Fecha",
+      "stripePI": "PI de Stripe"
+    },
+    "detailFields": {
+      "location": "Ubicación",
+      "budget": "Presupuesto",
+      "category": "Categoría",
+      "jobValue": "Valor del trabajo",
+      "created": "Creado",
+      "updated": "Actualizado"
+    },
+    "modals": {
+      "reasonOptional": "Razón (opcional)…",
+      "cancel": {
+        "title": "Cancelar trabajo",
+        "description": "Esto establecerá el estado del trabajo como cancelado.",
+        "confirm": "Cancelar trabajo"
+      },
+      "flag": {
+        "title": "Marcar trabajo",
+        "description": "Marca este trabajo para revisión."
+      },
+      "unflag": {
+        "title": "Quitar marca",
+        "description": "Quita la marca de este trabajo."
+      },
+      "refund": {
+        "title": "Emitir reembolso manual",
+        "description": "Esto reembolsará el pago al cliente.",
+        "confirm": "Emitir reembolso",
+        "reasonPlaceholder": "Razón del reembolso…"
+      },
+      "delete": {
+        "title": "Eliminar trabajo permanentemente",
+        "description": "Esto no se puede deshacer. Se eliminarán todas las ofertas y datos asociados.",
+        "confirm": "Eliminar trabajo",
+        "reasonPlaceholder": "Razón de la eliminación (obligatoria)…"
+      }
+    }
+  },
+  "supportAdmin": {
+    "agentManagement": {
+      "confirmDeleteAgent": "¿Eliminar este agente?"
+    },
+    "knowledgeBase": {
+      "confirmDeleteArticle": "¿Eliminar este artículo?"
+    },
+    "escalation": {
+      "confirmDeleteRule": "¿Seguro que quieres eliminar esta regla de escalamiento?"
+    }
+  },
+  "smsPreferences": {
+    "metaTitle": "Preferencias de SMS",
+    "metaDescription": "Gestiona tus notificaciones por SMS",
+    "title": "Preferencias de SMS",
+    "subtitle": "Recibe actualizaciones sobre tus pedidos por SMS",
+    "saved": "✓ Se guardaron tus preferencias de SMS",
+    "invalidOtp": "Código inválido",
+    "phone": {
+      "title": "Número de teléfono",
+      "description": "Agrega y verifica tu número para notificaciones por SMS",
+      "label": "Número de teléfono",
+      "placeholder": "Ingresa tu número de teléfono",
+      "formatHelp": "Formato: 10–11 dígitos (p. ej., 2025551234)",
+      "sending": "Enviando código…",
+      "sendCode": "Enviar código de verificación",
+      "verified": "✓ Número verificado"
+    },
+    "otp": {
+      "label": "Código de verificación",
+      "help": "Ingresa el código de 6 dígitos enviado a tu teléfono",
+      "verifying": "Verificando…",
+      "verify": "Verificar código",
+      "resendIn": "Reenviar código en {{seconds}} s",
+      "resend": "¿No recibiste un código? Reenviar"
+    },
+    "enabled": {
+      "title": "SMS activados",
+      "description": "Activa o desactiva las notificaciones por SMS",
+      "receiveTitle": "Recibir notificaciones por SMS",
+      "receiveDesc": "Recibe mensajes para actualizaciones de pedidos"
+    },
+    "types": {
+      "title": "Tipos de notificación",
+      "description": "Elige qué mensajes SMS deseas recibir",
+      "orderCreated": {
+        "label": "Confirmación de pedido",
+        "desc": "Notificación cuando realizas un pedido"
+      },
+      "paymentConfirmed": {
+        "label": "Pago confirmado",
+        "desc": "Notificación cuando se recibe el pago"
+      },
+      "orderShipped": {
+        "label": "Pedido enviado",
+        "desc": "Información de seguimiento cuando se envía tu pedido"
+      },
+      "orderCancelled": {
+        "label": "Pedido cancelado",
+        "desc": "Notificación cuando se cancela un pedido"
+      },
+      "orderRefunded": {
+        "label": "Reembolso iniciado",
+        "desc": "Notificación cuando se procesa un reembolso"
+      }
+    },
+    "save": "Guardar preferencias de SMS",
+    "notePrefix": "Nota",
+    "note": "Pueden aplicarse tarifas estándar de SMS. Las tarifas varían según el operador. Nunca compartiremos tu número con terceros."
+  },
+  "emailPreferences": {
+    "metaTitle": "Preferencias de correo",
+    "metaDescription": "Gestiona tus notificaciones por correo",
+    "title": "Preferencias de correo",
+    "subtitle": "Controla cómo y cuándo recibes notificaciones por correo de OxSteed",
+    "saved": "✓ Se guardaron tus preferencias",
+    "frequency": {
+      "title": "Frecuencia de correos",
+      "description": "Elige con qué frecuencia deseas recibir notificaciones",
+      "realtime": {
+        "label": "En tiempo real",
+        "desc": "Recibe correos inmediatamente"
+      },
+      "daily": {
+        "label": "Resumen diario",
+        "desc": "Recibe un correo al día con todas las actualizaciones"
+      },
+      "weekly": {
+        "label": "Resumen semanal",
+        "desc": "Recibe un correo a la semana"
+      },
+      "off": {
+        "label": "Desactivado",
+        "desc": "Desactiva todas las notificaciones por correo"
+      }
+    },
+    "categories": {
+      "title": "Categorías de notificación",
+      "description": "Elige qué tipos de correos deseas recibir",
+      "orderUpdates": {
+        "label": "Actualizaciones de pedidos",
+        "desc": "Notificaciones sobre pedidos, pagos y envíos"
+      },
+      "marketing": {
+        "label": "Correos de marketing",
+        "desc": "Nuevos productos, promociones y ofertas exclusivas"
+      },
+      "sms": {
+        "label": "Notificaciones por SMS",
+        "desc": "Actualizaciones por SMS (requiere verificación del teléfono)"
+      },
+      "push": {
+        "label": "Notificaciones push",
+        "desc": "Notificaciones del navegador y la app"
+      }
+    },
+    "unsubscribe": {
+      "title": "Darse de baja",
+      "description": "Darse de baja de todos los correos",
+      "body": "Esto te dará de baja de todos los correos de marketing y transaccionales. Puedes volver a suscribirte en cualquier momento.",
+      "confirm": "¿Seguro que quieres darte de baja de todos los correos?",
+      "working": "Dándote de baja…",
+      "cta": "Darse de baja de todos los correos",
+      "success": "Te has dado de baja de todos los correos"
+    },
+    "save": "Guardar preferencias",
+    "notePrefix": "Nota",
+    "note": "Los correos transaccionales (confirmaciones de pedido, restablecimientos de contraseña, etc.) se enviarán siempre sin importar tus preferencias."
   },
   "hero": {
     "title": "Ayuda Local,\nCuando la Necesitas",
@@ -410,9 +640,11 @@
     "errorStart": "No se pudo iniciar la verificación"
   },
   "footer": {
+    "networkTagline": "Red de OxSteed",
     "platform": "Plataforma",
     "company": "Empresa",
     "tagline": "Publica un trabajo, compara ofertas de ayudantes locales de confianza y paga de forma segura.",
+    "subtagline": "Diseñado para contratación, logística y operaciones de negocios locales confiables.",
     "browseJobs": "Explorar trabajos",
     "postJob": "Publicar trabajo",
     "listSkills": "Ofrecer servicios",
@@ -1106,6 +1338,12 @@
   },
   "termsPage": {
     "title": "Condiciones del servicio",
+    "loading": "Cargando condiciones del servicio…",
+    "acceptAlerts": {
+      "completeProfile": "Completa tu perfil antes de aceptar los términos.",
+      "thankYou": "Gracias por aceptar nuestros términos de servicio.",
+      "failed": "No se pudieron aceptar los términos. Inténtalo de nuevo."
+    },
     "lastUpdated": "Última actualización: 22 de marzo de 2026 - Entran en vigor al crear una cuenta",
     "onThisPage": "En esta página",
     "onThisPageAria": "Tabla de contenidos",
@@ -1333,6 +1571,7 @@
     "tabAccount": "Tipo de cuenta",
     "tabDanger": "Zona de peligro",
     "metaDesc": "Gestiona la configuración de tu cuenta, perfil y preferencias.",
+    "removeBusinessConfirm": "¿Eliminar este negocio?",
     "switchedToHelper": "¡Cambiado al modo Ayudante! Configura tu perfil y ponte en línea cuando estés listo.",
     "switchedToCustomer": "Cambiado al modo Cliente. Tu perfil de ayudante está guardado y en espera.",
     "switchFailed": "Error al cambiar de rol",
@@ -2451,6 +2690,7 @@
       "listed": "Producto listado",
       "saveFailed": "Error al guardar el producto",
       "removed": "Producto removido",
+      "removeConfirm": "¿Eliminar este anuncio de producto?",
       "removeFailed": "Error al remover el producto"
     },
     "failedUpdate": "Error al actualizar",
@@ -2459,6 +2699,7 @@
       "added": "Habilidad agregada",
       "saveFailed": "Error al guardar la habilidad",
       "removed": "Habilidad removida",
+      "removeConfirm": "¿Eliminar este anuncio de habilidad?",
       "removeFailed": "Error al remover la habilidad"
     },
     "tools": {
@@ -2466,6 +2707,7 @@
       "listed": "Herramienta listada",
       "saveFailed": "Error al guardar la herramienta",
       "removed": "Herramienta removida",
+      "removeConfirm": "¿Eliminar este anuncio de herramienta?",
       "removeFailed": "Error al remover la herramienta"
     },
     "invoices": {
@@ -3415,6 +3657,124 @@
     }
   },
   "businessHub": {
+    "staffScheduler": {
+      "title": "Programación del personal",
+      "subtitle": "Gestiona turnos y registra horas",
+      "tabs": {
+        "shifts": "Turnos",
+        "timeEntries": "Registros de tiempo"
+      },
+      "clockIn": "Fichar",
+      "addShift": "Agregar turno",
+      "newShift": "Nuevo turno",
+      "fields": {
+        "start": "Inicio",
+        "end": "Fin",
+        "role": "Rol"
+      },
+      "emptyShifts": "Aún no hay turnos programados.",
+      "emptyTime": "Aún no hay registros de tiempo. Usa «Fichar» para empezar.",
+      "unassigned": "Sin asignar",
+      "confirmDeleteShift": "¿Eliminar este turno?",
+      "time": {
+        "in": "Entrada:",
+        "out": "Salida:",
+        "stillWorking": "En curso",
+        "clockOut": "Salir"
+      },
+      "toastLoadShiftsFail": "No se pudieron cargar los turnos",
+      "toastLoadTimeFail": "No se pudieron cargar los registros de tiempo",
+      "toastShiftTimesRequired": "Se requiere hora de inicio y fin",
+      "toastShiftAdded": "Turno agregado",
+      "toastShiftSaveFail": "No se pudo guardar el turno",
+      "toastDeleted": "Eliminado",
+      "toastClockedIn": "¡Entrada registrada!",
+      "toastClockInFail": "No se pudo registrar la entrada",
+      "toastClockedOut": "¡Salida registrada!",
+      "toastClockOutFail": "No se pudo registrar la salida"
+    },
+    "integrations": {
+      "title": "Integraciones y configuración",
+      "loading": "Cargando integraciones…",
+      "connected": "Conectado",
+      "notConnected": "No conectado",
+      "account": "Cuenta",
+      "connectStripe": "Conectar Stripe",
+      "disconnectStripe": "Desconectar Stripe",
+      "confirmDisconnectStripe": "¿Desconectar Stripe? Tendrás que volver a conectar para aceptar pagos.",
+      "confirmDeleteWebhook": "¿Eliminar este webhook?",
+      "toastLoadFail": "No se pudieron cargar las integraciones",
+      "toastStripeStartFail": "No se pudo iniciar la conexión con Stripe",
+      "toastStripeDisconnected": "Stripe desconectado",
+      "toastStripeDisconnectFail": "No se pudo desconectar Stripe",
+      "toastWebhookFieldsRequired": "Completa todos los campos",
+      "toastWebhookCreated": "Webhook creado",
+      "toastWebhookCreateFail": "No se pudo crear el webhook",
+      "toastWebhookDeleted": "Webhook eliminado",
+      "toastWebhookDeleteFail": "No se pudo eliminar el webhook",
+      "cards": {
+        "stripe": {
+          "description": "Acepta pagos y gestiona desembolsos"
+        },
+        "webhooks": {
+          "description": "Recibe notificaciones en tiempo real"
+        },
+        "sms": {
+          "description": "Envía recordatorios de citas por SMS"
+        },
+        "calendar": {
+          "description": "Sincroniza con Google Calendar u Outlook"
+        }
+      }
+    },
+    "marketing": {
+      "title": "Herramientas de marketing",
+      "subtitle": "Llega a clientes con difusiones y promociones",
+      "tabs": {
+        "broadcasts": "Difusiones",
+        "promoCodes": "Códigos promocionales"
+      },
+      "confirmSendBroadcast": "¿Enviar esta difusión a todos los clientes ahora?",
+      "confirmDeleteBroadcast": "¿Eliminar esta difusión?",
+      "confirmDeletePromo": "¿Eliminar este código promocional?",
+      "toastLoadBroadcastsFail": "No se pudieron cargar las difusiones",
+      "toastLoadPromosFail": "No se pudieron cargar los códigos promocionales",
+      "toastSubjectMessageRequired": "Se requiere asunto y mensaje",
+      "toastBroadcastCreated": "Difusión creada",
+      "toastBroadcastCreateFail": "No se pudo crear la difusión",
+      "toastBroadcastSent": "¡Difusión enviada!",
+      "toastSendFail": "No se pudo enviar",
+      "toastDeleted": "Eliminado",
+      "toastDiscountRequired": "Se requiere tipo y valor de descuento",
+      "toastPromoCreated": "Código promocional creado",
+      "toastPromoCreateFail": "No se pudo crear el código promocional",
+      "toastUpdated": "Actualizado"
+    },
+    "packages": {
+      "title": "Paquetes de servicios",
+      "subtitle": "Agrupa servicios en paquetes para clientes",
+      "tabs": {
+        "packages": "Paquetes",
+        "clientPackages": "Paquetes del cliente"
+      },
+      "newPackage": "Nuevo paquete",
+      "confirmArchive": "¿Archivar este paquete?",
+      "toastLoadPackagesFail": "No se pudieron cargar los paquetes",
+      "toastLoadClientPackagesFail": "No se pudieron cargar los paquetes del cliente",
+      "toastNamePriceRequired": "Nombre y precio son obligatorios",
+      "toastUpdated": "Paquete actualizado",
+      "toastCreated": "Paquete creado",
+      "toastArchived": "Archivado",
+      "toastRedeemed": "Sesión canjeada",
+      "toastRedeemFail": "No se pudo canjear"
+    },
+    "maintenance": {
+      "confirmOpenNewJob": "¿Abrir el nuevo trabajo ahora?",
+      "toastUpdated": "Solicitud de mantenimiento actualizada",
+      "toastUpdateFail": "No se pudo actualizar la solicitud de mantenimiento",
+      "toastConverted": "Solicitud convertida a trabajo",
+      "toastConvertFail": "No se pudo convertir la solicitud"
+    },
     "title": "Centro de negocios",
     "tabOverview": "Resumen",
     "tabInvoices": "Facturas",
@@ -3969,6 +4329,51 @@
     "tabHealthLabel": "Salud",
     "tabLeadsLabel": "Prospectos",
     "tabTemplatesLabel": "Plantillas",
+    "businessMessageTemplates": {
+      "title": "Plantillas de mensajes",
+      "subtitle": "Mensajes reutilizables para comunicaciones comunes",
+      "newTemplate": "Nueva plantilla",
+      "editTemplate": "Editar plantilla",
+      "all": "Todas",
+      "category": {
+        "general": "General",
+        "appointment": "Cita",
+        "follow_up": "Seguimiento",
+        "invoice": "Factura",
+        "promotion": "Promoción",
+        "review_request": "Solicitud de reseña",
+        "welcome": "Bienvenida",
+        "cancellation": "Cancelación"
+      },
+      "form": {
+        "templateName": "Nombre de plantilla *",
+        "emailSubject": "Asunto del correo (opcional)",
+        "category": "Categoría",
+        "messageBody": "Cuerpo del mensaje *",
+        "bodyPlaceholder": "Escribe tu plantilla aquí. Usa variables como {client_name} para personalizar."
+      },
+      "insertVariables": "Insertar:",
+      "saveTemplate": "Guardar plantilla",
+      "cancel": "Cancelar",
+      "loading": "Cargando...",
+      "emptyTitle": "Aún no hay plantillas. Crea mensajes reutilizables para situaciones comunes.",
+      "emptyBody": "Ideas: recordatorios de cita, seguimientos, solicitudes de pago, solicitudes de reseñas",
+      "usesLabel_one": "{{count}} uso",
+      "usesLabel_other": "{{count}} usos",
+      "copy": "Copiar",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "toastLoadFailed": "No se pudieron cargar las plantillas",
+      "toastNameAndBodyRequired": "Se requiere nombre y cuerpo",
+      "toastCreated": "Plantilla creada",
+      "toastUpdated": "Plantilla actualizada",
+      "toastSaveFailed": "No se pudo guardar",
+      "deleteConfirm": "¿Eliminar esta plantilla?",
+      "deleteSuccess": "Eliminada",
+      "deleteFailed": "Falló",
+      "toastCopied": "Copiada al portapapeles",
+      "subjectPrefix": "Asunto:"
+    },
     "switchTemplate": "Cambiar plantilla",
     "switchTemplateTitle": "Cambiar este negocio a otra plantilla de perfil",
     "editProfile": "Edit Profile",
@@ -5016,6 +5421,8 @@
       "clearLocation": "Limpiar ubicación",
       "locationSuggestions": "Sugerencias de ubicación",
       "skillSuggestions": "Sugerencias de habilidades",
+      "nearYou": "Cerca de ti",
+      "locationLabel": "Ubicación",
       "searchMode": "Modo de búsqueda",
       "availToday": "Hoy",
       "availTodayTitle": "Mostrar solo ayudantes disponibles hoy",
@@ -5206,6 +5613,31 @@
     "goHome": "Ir al Inicio",
     "routeHint": "Si sigue ocurriendo, borra la caché del navegador e inténtalo de nuevo.",
     "needHelp": "¿Necesitas ayuda?"
+  },
+  "recommendationFeed": {
+    "titleDefault": "Qué hacer a continuación",
+    "dismiss": "Descartar",
+    "scrollLeft": "Desplazar a la izquierda",
+    "scrollRight": "Desplazar a la derecha"
+  },
+  "productGallery": {
+    "noImage": "No hay imagen disponible",
+    "imageAlt": "{{productName}} - imagen {{index}}",
+    "thumbnailAlt": "Miniatura de {{productName}} {{index}}",
+    "fullscreenImageAlt": "{{productName}} - pantalla completa",
+    "previousImage": "Imagen anterior",
+    "nextImage": "Imagen siguiente",
+    "viewImage": "Ver imagen {{index}}",
+    "closeLightbox": "Cerrar visor"
+  },
+  "postalCode": {
+    "selectCountryFirst": "Selecciona un país primero"
+  },
+  "starRating": {
+    "ariaLabel": "{{rating}} de {{max}} estrellas"
+  },
+  "timelineEvent": {
+    "ariaLabel": "Evento: {{content}}"
   },
   "businessProfile": {
     "ourTeam": "Nuestro Equipo",
@@ -5429,12 +5861,12 @@
   },
   "legalPage": {
     "home": "Inicio",
-    "effectiveDate": "Fecha efectiva: {{date}}",
-    "goBack": "← Regresar",
-    "backToTop": "↑ Volver arriba",
+    "effectiveDate": "Última actualización: {{date}}",
+    "sectionsAria": "Secciones de {{title}}",
+    "goBack": "Volver",
     "goBackAria": "Volver a la página anterior",
-    "backToTopAria": "Desplazarse al inicio de la página",
-    "sectionsAria": "Secciones de {{title}}"
+    "backToTop": "Volver arriba",
+    "backToTopAria": "Regresar al inicio de la página"
   },
   "payments": {
     "pending": "Pendiente",
@@ -5718,7 +6150,20 @@
     "selectDates": "Por favor selecciona fechas de inicio y fin",
     "invalidDateRange": "La fecha de fin debe ser posterior a la fecha de inicio",
     "bookingFailed": "Error al crear la reserva",
+    "peerAgreementRequired": "Por favor acepta el acuerdo de alquiler entre pares antes de reservar.",
+    "depositLabel": "Depósito",
     "bookingDisclaimer": "Tu reserva estará pendiente de aprobación del propietario.",
+    "peerAgreementTitle": "Acuerdo de alquiler entre pares",
+    "peerAgreementOxSteedRole": "OxSteed ayuda a documentar este alquiler pero no es el propietario de la herramienta, ni el arrendatario, ni el inspector, ni el asegurador, ni el garante.",
+    "peerAgreementInspect": "Inspecciona la herramienta antes de usarla y decide si es apropiada para tu tarea.",
+    "peerAgreementDamage": "Puedes ser responsable por daños más allá del desgaste normal, pérdida, robo, piezas faltantes, devolución tardía o devolución sucia o no funcional.",
+    "peerAgreementReport": "Puedes reportar mal comportamiento o una disputa a través de OxSteed.",
+    "makeModel": "Marca/modelo",
+    "replacementValue": "Valor de reposición",
+    "ownerRules": "Reglas del propietario",
+    "ownerProvidedTerms": "Términos proporcionados por el propietario",
+    "ownerTermsDisclaimer": "Estos términos fueron proporcionados por el dueño de la herramienta. OxSteed no los redacta, revisa, valida ni garantiza.",
+    "peerAgreementAccept": "Entiendo que este es un alquiler entre vecinos, OxSteed tiene control limitado sobre la herramienta, y acepto las responsabilidades anteriores.",
     "myBookings": "Mis Reservas",
     "search": "Buscar herramientas",
     "priceRange": "Rango de Precio",
@@ -5795,6 +6240,7 @@
     "personalEmail": "Email Personal",
     "personalEmailDesc": "Enviar desde su propia cuenta de correo",
     "recipientEmail": "Email del Destinatario",
+    "recipientEmailPlaceholder": "cliente@ejemplo.com",
     "emailRequired": "Se requiere dirección de correo electrónico",
     "invalidEmail": "Formato de correo electrónico inválido",
     "invoiceSent": "Factura enviada con éxito",
@@ -6912,6 +7358,38 @@
     "lastUpdated": "Última Actualización",
     "whatsNext": "¿Qué sigue?",
     "contactSupport": "¿Preguntas? Escríbenos a",
+    "support": "Soporte",
+    "launchCommandCenter": "Centro de comando de lanzamiento",
+    "whatThisPageGivesYou": "Lo que te ofrece esta página",
+    "featureOneTitle": "Mira la etapa real de lanzamiento",
+    "featureOneBody": "Sabrás si estás esperando contacto, tienes la sesión inicial agendada o ya estás en ejecución.",
+    "featureTwoTitle": "Revisa los detalles del formulario",
+    "featureTwoBody": "Consulta tu paquete, urgencia, elementos de configuración y detalles del negocio sin buscar en correos antiguos.",
+    "featureThreeTitle": "Conoce la siguiente acción",
+    "featureThreeBody": "Cada estado incluye una lista de próximos pasos más clara para que el proceso sea más transparente.",
+    "requestsFound": "Solicitudes encontradas",
+    "inMotion": "En curso",
+    "completedLabel": "Completado",
+    "averageProgress": "Progreso promedio",
+    "needHelp": "¿Necesitas ayuda?",
+    "needHelpBody": "Las preguntas sobre tu solicitud de lanzamiento, paquete o cronograma pueden ir al equipo de consultoría.",
+    "emailSupport": "Escribir a support@oxsteed.com",
+    "relatedWorkspaces": "Espacios de trabajo relacionados",
+    "openConsultingWorkspace": "Abrir espacio de consultoría",
+    "submitNewIntake": "Enviar un nuevo formulario",
+    "processSnapshot": "Resumen del proceso",
+    "processSnapshotStep1": "1. Revisión de la solicitud y confirmación del paquete",
+    "processSnapshotStep2": "2. Programación y preparación del arranque",
+    "processSnapshotStep3": "3. Ejecución de configuración y actualizaciones de hitos",
+    "processSnapshotStep4": "4. Entrega final y preparación para el lanzamiento",
+    "noRequestsHelper": "Inicia el formulario de lanzamiento para que te asignemos el paquete correcto, los pasos de planificación y el soporte de lanzamiento.",
+    "package_initial": "Paquete inicial",
+    "package_foundation": "Paquete de base",
+    "package_launch": "Paquete de lanzamiento",
+    "package_accelerator": "Paquete acelerador",
+    "urgency_exploring": "Explorando opciones",
+    "urgency_twoWeeks": "En 2 semanas",
+    "urgency_asap": "Lo antes posible",
     "status_pending": "Pendiente",
     "status_contacted": "Contactado",
     "status_kickoff_scheduled": "Llamada de Inicio Agendada",
@@ -7044,6 +7522,14 @@
     "confirmBooking": "Confirmar Reserva",
     "sessionConfirmed": "¡Sesión programada exitosamente!",
     "slotUnavailable": "Esta franja horaria ya no está disponible",
+    "timezones": {
+      "eastern": "Hora del Este",
+      "central": "Hora Central",
+      "mountain": "Hora de Montaña",
+      "pacific": "Hora del Pacífico",
+      "london": "Londres",
+      "paris": "Europa Central"
+    },
     "manageAvailability": "Gestiona Tu Disponibilidad",
     "recurringSchedule": "Horario Semanal Recurrente",
     "recurringDesc": "Establece tus horas de trabajo regulares para cada día de la semana",
@@ -7251,6 +7737,7 @@
     "title": "Verifica tu correo",
     "description": "Necesitamos confirmar tu correo electrónico antes de continuar.",
     "sentTo": "Enviaremos un código de 6 dígitos a {{email}}.",
+    "otpPlaceholder": "código de 6 dígitos",
     "sendOtp": "Enviar código de verificación",
     "didntReceive": "¿No lo recibiste?",
     "verify": "Verificar correo",
@@ -9341,6 +9828,1858 @@
       "areasOfHelp": "Áreas de ayuda",
       "submitted": "Enviada",
       "scheduled": "Programada"
+    }
+  },
+  "accessibilityPage": {
+    "title": "Declaración de accesibilidad",
+    "sections": {
+      "commitment": "Nuestro compromiso",
+      "conformance": "Estado de conformidad",
+      "measures": "Medidas tomadas",
+      "feedback": "Retroalimentación y contacto"
+    },
+    "overview": "OxSteed está comprometido con asegurar la accesibilidad digital para personas con discapacidad. Trabajamos continuamente para mejorar la experiencia de usuario para todos y aplicamos los estándares de accesibilidad relevantes.",
+    "conformance": "Nuestro objetivo es cumplir con las Pautas de accesibilidad al contenido web (WCAG) 2.1 en nivel AA. Estas pautas explican cómo hacer el contenido web más accesible para personas con diversos tipos de discapacidad.",
+    "measures": {
+      "one": "Marcado HTML semántico en toda la aplicación;",
+      "two": "Relación de contraste de color suficiente para texto y elementos interactivos;",
+      "three": "Interfaz navegable con teclado;",
+      "four": "Etiquetas y roles ARIA cuando corresponde;",
+      "five": "Diseño adaptable para distintos tamaños de pantalla y niveles de zoom."
+    },
+    "feedback": "Si experimentas problemas o barreras de accesibilidad mientras usas OxSteed, contáctanos. Tomamos en serio la retroalimentación sobre accesibilidad y trabajamos para abordar cualquier inquietud con prontitud.",
+    "emailLabel": "Correo: ",
+    "responseTime": "Esperamos responder a la retroalimentación de accesibilidad dentro de 2 días hábiles."
+  },
+  "aboutPage": {
+    "title": "Acerca de OxSteed",
+    "sections": {
+      "whoWeAre": "Quiénes somos",
+      "mission": "Nuestra misión",
+      "howItWorks": "Cómo funciona",
+      "contact": "Contáctanos",
+      "legal": "Legal"
+    },
+    "whoWeAre": "OxSteed LLC es un mercado en línea que conecta a clientes con proveedores de servicios locales para trabajos de mantenimiento, servicios para el hogar y alquiler de herramientas. Estamos incorporados en el estado de Ohio.",
+    "whoWeAreSecondary": "Nuestra plataforma funciona como una bolsa de oportunidades donde los ayudantes publican sus habilidades y los clientes publican trabajos. OxSteed no emplea, asigna ni supervisa a ningún ayudante. Todos los acuerdos de servicio son directamente entre el cliente y el ayudante.",
+    "mission": "Creemos que todos deberían tener acceso fácil y asequible a ayuda local confiable. La misión de OxSteed es empoderar a los proveedores de servicios independientes para que dirijan sus propios negocios mientras brindamos a los clientes una forma transparente y segura de encontrar y pagar la ayuda que necesitan.",
+    "howItWorks": {
+      "title": "Nivel",
+      "items": {
+        "tier1": "Los ayudantes publican sus servicios gratis. Los clientes navegan y se coordinan directamente.",
+        "tier2": "Los ayudantes se suscriben para obtener prioridad, una insignia verificada y alertas de ofertas.",
+        "tier3": "Cuando ambas partes aceptan, OxSteed retiene los fondos en custodia con Stripe hasta que el trabajo se confirma como completado."
+      }
+    },
+    "contact": "¿Tienes preguntas, comentarios o consultas de colaboración? Nos encantaría saber de ti.",
+    "contactEmail": "Correo: ",
+    "contactWebsite": "Sitio web: ",
+    "legalPrefix": "OxSteed LLC · Registrada en Ohio · Todos los derechos reservados.",
+    "legalAnd": " y "
+  },
+  "doNotSellPage": {
+    "title": "No vender ni compartir mi información personal",
+    "doesNotSellYourDataTitle": "OxSteed no vende tus datos",
+    "doesNotSellText1": "OxSteed LLC no vende, arrienda, intercambia ni divulga de ninguna otra manera su información personal a terceros a cambio de dinero u otra compensación valiosa. No compartimos su información personal con terceros para publicidad conductual entre contextos.",
+    "doesNotSellText2": "Porque no vendemos ni compartimos información personal según lo definido por CCPA/CPRA, no hay ninguna acción requerida por su parte. Sin embargo, si cambia la ley de California o cambian nuestras prácticas, esta página se actualizará en consecuencia.",
+    "rightsTitle": "Sus derechos bajo CCPA/CPRA",
+    "rightsIntro": "Los residentes de California tienen derecho a:",
+    "rightsItem1": "Conocer qué información personal se recopila y cómo se usa;",
+    "rightsItem2": "Solicitar la eliminación de la información personal;",
+    "rightsItem3": "Excluir la venta o el intercambio de información personal (no aplicable, ya que no vendemos ni compartimos);",
+    "rightsItem4": "No ser discriminado por ejercer sus derechos de privacidad.",
+    "otherStateLawsTitle": "Leyes estatales de privacidad",
+    "otherStateLawsText": "OxSteed también respeta los derechos de privacidad bajo la Ley de Protección de Datos de Consumidores de Virginia (VCDPA), la Ley de Privacidad de Colorado (CPA), la Ley de Privacidad de Datos de Connecticut (CTDPA) y otras leyes estatales de privacidad aplicables. Si vive en alguno de estos estados, puede ejercer sus derechos comunicándose con nosotros en la dirección a continuación.",
+    "contactTitle": "Cómo contactarnos",
+    "contactIntro": "Si tiene preguntas sobre esta página o desea ejercer alguno de sus derechos de privacidad, contáctenos en:",
+    "contactEmailLabel": "Correo:",
+    "contactMailLabel": "Correo postal:"
+  },
+  "cookiePolicyPage": {
+    "title": "Política de cookies",
+    "section1Title": "1. Qué son las cookies",
+    "section1Text": "Las cookies son archivos de texto pequeños que se almacenan en su dispositivo al visitar un sitio web. Nos ayudan a recordar sus preferencias, comprender cómo usa nuestra plataforma y mejorar su experiencia.",
+    "section2Title": "2. Cómo usa OxSteed las cookies",
+    "section2Text": "OxSteed utiliza cookies y tecnologías similares (localStorage, sessionStorage) para operar la plataforma, analizar el uso y ofrecer contenido relevante.",
+    "section3Title": "3. Tipos de cookies que usamos",
+    "tableCategory": "Categoría",
+    "tablePurpose": "Propósito",
+    "tableDuration": "Duración",
+    "tableRequired": "Requerida",
+    "tableYes": "Sí",
+    "tableNo": "No",
+    "tableEssentialCategory": "Esenciales",
+    "tableEssentialPurpose": "Autenticación, tokens de seguridad, protección CSRF, gestión de sesión",
+    "tableEssentialDuration": "Sesión / 30 días",
+    "tableAnalyticsCategory": "Analítica",
+    "tableAnalyticsPurpose": "Vistas de página, uso de funciones, métricas de rendimiento (Google Analytics no está activo actualmente)",
+    "tableAnalyticsDuration": "Hasta 2 años",
+    "tableMarketingCategory": "Comerciales",
+    "tableMarketingPurpose": "Reservado para uso futuro",
+    "tableMarketingDuration": "Hasta 1 año",
+    "tableFunctionalCategory": "Funcionales",
+    "tableFunctionalPurpose": "Preferencias guardadas, widgets de chat, configuración de idioma",
+    "tableFunctionalDuration": "Hasta 1 año",
+    "section4Title": "4. Tus opciones",
+    "section4Text": "Al visitar OxSteed por primera vez, un banner de cookies solicitará su consentimiento. Puede:",
+    "section4Choice1": "Aceptar todo - Habilitar todas las categorías de cookies",
+    "section4Choice2": "Rechazar todo - Solo se usarán cookies esenciales",
+    "section4Choice3": "Personalizar - Elija qué categorías habilitar",
+    "section4Footer": "Puede cambiar sus preferencias en cualquier momento haciendo clic en",
+    "section5Title": "5. Controles del navegador",
+    "section5Text": "La mayoría de navegadores le permiten bloquear o eliminar cookies desde sus configuraciones. Tenga en cuenta que bloquear cookies esenciales puede afectar el funcionamiento de OxSteed.",
+    "section6Title": "6. Cookies de terceros",
+    "section6Text": "Algunos cookies están configurados por servicios de terceros que aparecen en nuestras páginas. No controlamos estas cookies. Los terceros clave incluyen:",
+    "section6ThirdParty1": "Google Analytics (actualmente no se usa)",
+    "section6ThirdParty2": "Stripe (procesamiento de pagos - esencial)",
+    "section7Title": "7. No rastrear",
+    "section7Text": "OxSteed respeta las señales de navegador Do Not Track (DNT). Cuando se detectan, desactivamos automáticamente las cookies no esenciales.",
+    "section8Title": "8. Residentes de California (CCPA)",
+    "section8Text": "Bajo CCPA, tiene derecho a optar por no participar en la venta de su información personal. Si las cookies de marketing se habilitan en el futuro, podrían constituir una \"venta\" bajo CCPA. Visite nuestra ",
+    "section8Link": "página de No vender mi información personal",
+    "section8Suffix": " para ejercer este derecho.",
+    "section9Title": "9. Actualizaciones de esta política",
+    "section9Text": "Podemos actualizar esta Política de cookies periódicamente. Los cambios se publicarán en esta página con una nueva fecha de vigencia. El uso continuado de OxSteed después de los cambios constituye su aceptación.",
+    "section10Title": "10. Contáctenos",
+    "section10Text": "¿Tiene preguntas sobre nuestras prácticas de cookies? Contáctenos en ",
+    "section10Suffix": "."
+  },
+  "securityPolicyPage": {
+    "title": "Política de seguridad",
+    "section1Title": "1. Nuestro compromiso con la seguridad",
+    "section1Text": "OxSteed LLC toma en serio la seguridad de su información personal. Implementamos salvaguardas administrativas, técnicas y físicas comercialmente razonables para proteger sus datos contra el acceso, la alteración, la divulgación o la destrucción no autorizados.",
+    "section2Title": "2. Medidas de seguridad técnica",
+    "section2List1": "Cifrado en tránsito: Todos los datos transmitidos entre su navegador y los servidores de OxSteed están cifrados con TLS 1.2+ (HTTPS).",
+    "section2List2": "Seguridad de contraseñas: Las contraseñas se codifican con bcrypt y sal única por usuario. El personal de OxSteed no puede ver su contraseña.",
+    "section2List3": "Autenticación: Autenticación basada en JWT con cookies HTTP-only seguras. Los tokens vencen y se refrescan automáticamente.",
+    "section2List4": "Autenticación de dos factores: 2FA opcional basada en TOTP mediante aplicaciones autenticadoras para proteger su cuenta.",
+    "section2List5": "Límites de tasa: Los extremos de autenticación tienen límites de tasa para prevenir ataques de fuerza bruta.",
+    "section2List6": "Control de acceso por roles: Los usuarios solo acceden a datos y funciones apropiadas para su rol (Cliente, Helper, Admin).",
+    "section2List7": "Validación de entrada: Todas las entradas del usuario se validan y sanitizan en el servidor para prevenir ataques de inyección.",
+    "section2List8": "Encabezados de seguridad: Se usa Helmet.js para definir encabezados HTTP seguros, incluidos CSP, HSTS, X-Frame-Options y X-Content-Type-Options.",
+    "section3Title": "3. Seguridad de terceros",
+    "section3List1": "Stripe: Todo el procesamiento de pagos lo maneja Stripe, Inc., que cuenta con certificación PCI DSS Nivel 1. OxSteed nunca guarda números de tarjetas.",
+    "section3List2": "Checkr: Los datos de verificación de antecedentes se procesan y almacenan en Checkr, Inc. bajo sus propias políticas de seguridad y cumplimiento FCRA.",
+    "section3List3": "Render: Nuestros servidores están alojados en la infraestructura de Render con TLS automático, protección DDoS y entornos aislados.",
+    "section3List4": "Resend: Los correos transaccionales se envían mediante Resend con cifrado TLS.",
+    "section4Title": "4. Divulgación responsable",
+    "section4Text": "Si descubre una vulnerabilidad de seguridad en OxSteed, le pedimos que la reporte de forma responsable. Envíe los problemas de seguridad a:",
+    "section4Include": "Incluya:",
+    "section4Include1": "Una descripción de la vulnerabilidad y su posible impacto;",
+    "section4Include2": "Pasos para reproducir el problema;",
+    "section4Include3": "Capturas de pantalla o código de prueba de concepto, si aplica;",
+    "section4Include4": "Información de contacto para seguimiento.",
+    "section4Response": "Reconoceremos su reporte dentro de 48 horas y trabajaremos para resolver las vulnerabilidades verificadas lo antes posible. No tomaremos medidas legales contra investigadores que sigan prácticas responsables.",
+    "section4DoNot": "No acceda a cuentas o datos de otros usuarios, no realice ataques de denegación de servicio ni explote vulnerabilidades más allá de lo necesario para demostrar el problema.",
+    "section5Title": "5. Responsabilidades de seguridad",
+    "section5List1": "Use una contraseña fuerte y única para su cuenta de OxSteed;",
+    "section5List2": "Active la autenticación de dos factores para mayor protección;",
+    "section5List3": "No comparta sus credenciales de inicio de sesión con nadie;",
+    "section5List4": "Cierre sesión cuando use dispositivos compartidos o públicos;",
+    "section5List5": "Notifíquenos de inmediato si sospecha acceso no autorizado a su cuenta;",
+    "section5List6": "Mantenga su navegador y sistema operativo actualizados.",
+    "section6Title": "6. Respuesta a incidentes",
+    "section6Text": "En caso de un incidente de seguridad que comprometa datos personales, OxSteed:",
+    "section6List1": "Investiga y contiene el incidente de inmediato;",
+    "section6List2": "Notifica por correo a los usuarios afectados dentro de las 72 horas desde su descubrimiento;",
+    "section6List3": "Notifica a los fiscales estatales de aplicación correspondientes cuando la ley lo exige;",
+    "section6List4": "Proporciona detalles sobre los datos afectados y los pasos que deben tomarse;",
+    "section6List5": "Implementa medidas para evitar que vuelva a ocurrir.",
+    "section7Title": "7. Agente designado DMCA",
+    "section7Text": "Agente designado de OxSteed para avisos de retiro DMCA:",
+    "section7Attention": "Atn: Agente DMCA"
+  },
+  "discoverPage": {
+    "title": "Descubrir",
+    "subtitle": "Busque ayudantes, trabajos, herramientas y negocios cerca de usted.",
+    "filters": {
+      "all": "Todo",
+      "helper": "Ayudantes",
+      "job": "Trabajos",
+      "tool": "Herramientas",
+      "business": "Negocios"
+    },
+    "types": {
+      "helper": "Ayudante",
+      "job": "Trabajo",
+      "tool": "Herramienta",
+      "business": "Negocio",
+      "product": "Producto",
+      "default": "Listado"
+    },
+    "verified": "Verificado",
+    "viewAction": "Ver",
+    "searchPlaceholder": "Buscar ayudantes, trabajos, herramientas, negocios…",
+    "searchFailed": "La búsqueda falló. Inténtalo de nuevo.",
+    "resultsSummary_one": "{{count}} resultado para \"{{query}}\"",
+    "resultsSummary_other": "{{count}} resultados para \"{{query}}\"",
+    "noResults": "Sin resultados para \"{{query}}\"",
+    "noResultsHint": "Pruebe diferentes palabras clave o amplíe su búsqueda.",
+    "startHint": "Empiece a escribir para descubrir ayudantes, trabajos, herramientas y negocios cerca de usted."
+  },
+  "profileHeader": {
+    "profileCover": "Portada del perfil",
+    "noCoverImage": "Sin portada",
+    "profileFilenamePrefix": "perfil",
+    "downloadQr": "Descargar QR",
+    "shareProfile": "Compartir perfil",
+    "shareText": "Mira mi perfil en OxSteed",
+    "shareTitle": "Perfil de {{name}}"
+  },
+  "businessRoleDashboard": {
+    "roleLabel": "Rol:",
+    "metricAssignedWorkspaces": "Espacios asignados",
+    "metricOpenJobs": "Trabajos abiertos",
+    "metricUnreadInbox": "Bandeja sin leer",
+    "metricTeamSize": "Tamaño del equipo",
+    "metricMtdRevenue": "Ingresos MTD",
+    "tabs": {
+      "overview": "Resumen",
+      "messages": "Mensajes",
+      "calendar": "Calendario"
+    },
+    "viewAllWorkspaces": "Ver todos los espacios de trabajo",
+    "joinWithCode": "Unirse con un código",
+    "reviewAccountSettings": "Revisar configuración de cuenta",
+    "noAssignedWorkspaces": "Aún no hay espacios asignados",
+    "noAssignedWorkspacesDescription": "Ya estás en modo {{roleName}}, pero aún no hay membresías comerciales activas para este rol en tu cuenta. Usa un código Vortex o pide a un propietario que te invite al espacio de trabajo correcto.",
+    "roleContextTitle": "Contexto del rol",
+    "roleContextBody": "Este panel solo muestra los negocios donde tu función de membresía es {{role}}. Abre cualquier espacio de trabajo abajo para continuar con las herramientas completas del Business Hub.",
+    "roleContextCta": "Revisar roles otorgados en Configuración",
+    "quickJump": "Acceso rápido",
+    "businessManager": {
+      "badge": "Gerente de negocio",
+      "title": "Espacio de trabajo del gerente",
+      "subtitle": "Gestiona las operaciones diarias en los negocios donde controlas programación, personal y salud del servicio.",
+      "primaryCta": "Abrir espacio de operaciones",
+      "checklistTitle": "Prioridades del gerente",
+      "checklist": [
+        "Revisa los trabajos abiertos y la presión de programación.",
+        "Revisa conversaciones sin leer que necesiten respuesta del equipo.",
+        "Abre el espacio para coordinar pestañas de calendario, personal y operaciones."
+      ]
+    },
+    "businessRepresentative": {
+      "badge": "Representante de negocio",
+      "title": "Espacio de trabajo del representante",
+      "subtitle": "Mantente cerca de clientes, leads y seguimiento de trabajo para los negocios que te asignaron.",
+      "primaryCta": "Abrir espacio de comunicación",
+      "checklistTitle": "Prioridades del representante",
+      "checklist": [
+        "Revisa primero los hilos de clientes sin leer.",
+        "Abre mensajes y pestañas de clientes para mantener activo el seguimiento.",
+        "Vigila los trabajos abiertos para que las transferencias al equipo de operaciones sean fluidas."
+      ]
+    },
+    "businessEmployee": {
+      "badge": "Empleado de negocio",
+      "title": "Espacio de trabajo del empleado",
+      "subtitle": "Consulta los negocios a los que estás asignado y entra directamente al espacio compartido de horarios, tareas y actualizaciones.",
+      "primaryCta": "Abrir espacio asignado",
+      "checklistTitle": "Prioridades del empleado",
+      "checklist": [
+        "Revisa primero el espacio asignado y el calendario.",
+        "Revisa mensajes o actualizaciones del equipo antes de comenzar.",
+        "Usa el espacio compartido para mantenerte alineado en horarios y próximos pasos."
+      ]
+    }
+  },
+  "jobMaterialsPanel": {
+    "title": "Materiales",
+    "needSupplies": "¿Necesitas suministros para este {{categorySuffix}}trabajo? OxSteed Logistics puede obtenerlos a precio de volumen.",
+    "openCampaigns": "Campañas abiertas",
+    "openCampaignsWithCategory": "Campañas abiertas · {{category}}",
+    "join": "Unirse",
+    "cta": "Abrir solicitud de aprovisionamiento"
+  },
+  "logisticsWorkspaceSwitcher": {
+    "title": "Paneles de usuario final de logística",
+    "subtitle": "Elige el espacio que coincide con cómo usas el modo de logística día a día.",
+    "openHub": "Abrir el centro de logística",
+    "current": "Actual",
+    "favorite": "Favorito",
+    "unsetFavoriteWorkspace": "Quitar espacio favorito",
+    "setFavoriteWorkspace": "Establecer como espacio favorito",
+    "currentDashboard": "Panel actual",
+    "openDashboard": "Abrir panel",
+    "notEnabled": "No está habilitado para esta cuenta",
+    "opensFirst": "Se abre primero en modo Logística"
+  },
+  "transcriptConfidence": {
+    "label": "{{percent}}% de confianza",
+    "improving": "Mejorando...",
+    "improve": "Mejorar",
+    "highAccuracy": "Alta precisión"
+  },
+  "businessHubComplete": {
+    "loading": "Cargando el hub de negocio...",
+    "loadError": "No se pudo cargar los datos del negocio.",
+    "notFound": "No se pudo cargar los datos del negocio.",
+    "headerFallbackName": "Hub de negocio",
+    "headerFallbackCategory": "Negocio de servicios",
+    "tabs": {
+      "overview": "Resumen",
+      "services": "Servicios",
+      "appointments": "Citas",
+      "pricingRules": "Reglas de precios",
+      "analytics": "Analítica",
+      "loyalty": "Fidelización",
+      "integrations": "Integraciones",
+      "procurement": "Abastecimiento"
+    },
+    "overview": {
+      "title": "Estadísticas rápidas",
+      "servicesLabel": "Servicios:",
+      "ratingLabel": "Calificación:",
+      "appointmentsLabel": "Citas:",
+      "businessInfo": "Información del negocio",
+      "locationLabel": "Ubicación:",
+      "phoneLabel": "Teléfono:",
+      "statusLabel": "Estado:",
+      "notSet": "No definido",
+      "statusActive": "Activo",
+      "statusInactive": "Inactivo",
+      "na": "N/A",
+      "recentActivity": "Actividad reciente",
+      "lastAppointment": "Última cita: {{date}}",
+      "noAppointments": "Aún no hay citas",
+      "memberSince": "Miembro desde: {{date}}"
+    }
+  },
+  "templateFeatureStack": {
+    "builtFor": "Diseñado para",
+    "customScopedOffering": "Oferta personalizada y definida",
+    "templateReadyOfferingStructure": "Estructura de oferta lista para este sector",
+    "trustSignals": "Señales de confianza",
+    "sections": {
+      "industryDemandFit": "Ajuste a la demanda del sector",
+      "templateHighlights": "Qué destaca esta plantilla",
+      "howClientsBuy": "Cómo los clientes suelen comprar este servicio",
+      "signatureOfferStructure": "Estructura de oferta principal",
+      "clientExpectations": "Expectativas del cliente que soporta esta plantilla"
+    }
+  },
+  "passwordResetForm": {
+    "title": "Restablecer contraseña",
+    "generateStrongPassword": "Generar contraseña segura",
+    "newPasswordLabel": "Nueva contraseña (mín. 8 caracteres) *",
+    "confirmPasswordLabel": "Confirmar contraseña *",
+    "passwordMinLength": "Debe tener al menos 8 caracteres.",
+    "passwordMismatch": "Las contraseñas no coinciden.",
+    "showPassword": "Mostrar contraseña",
+    "notifyUser": "Notificar al usuario",
+    "warningTitle": "Aviso:",
+    "warningBody": "La contraseña se cifra antes de guardarse. El texto sin cifrar nunca se escribe en los registros y no se podrá recuperar después de esta acción. Compártela con el usuario mediante un canal seguro antes de salir de esta página.",
+    "updating": "Actualizando…",
+    "updatePassword": "Actualizar contraseña",
+    "successMessage": "Contraseña actualizada correctamente.",
+    "updateFailed": "No se pudo actualizar la contraseña."
+  },
+  "jobPublicPage": {
+    "back": "Atrás",
+    "loading": "Cargando trabajo…",
+    "description": "Descripción",
+    "photos": "Fotos",
+    "statusOpen": "Abierto",
+    "statusPublished": "Abierto",
+    "statusInProgress": "En progreso",
+    "statusCompleted": "Completado",
+    "statusCancelled": "Cancelado",
+    "statusDefault": "{{status}}",
+    "postedOn": "Publicado {{date}}",
+    "submitBid": "Enviar oferta",
+    "bidsClosed": "Este trabajo ya no acepta ofertas.",
+    "browseMore": "← Ver más oportunidades",
+    "jobPhotoAlt": "Foto del trabajo {{index}}",
+    "errors": {
+      "notFound": "Este anuncio no se encontró o fue eliminado.",
+      "loadFailed": "No se pudo cargar este trabajo. Inténtalo de nuevo."
+    }
+  },
+  "maintenanceRequestPage": {
+    "loading": "Cargando solicitud de mantenimiento...",
+    "meta": {
+      "sentTitle": "Solicitud de mantenimiento enviada - OxSteed",
+      "reportTitle": "Reportar problema de mantenimiento - {{businessName}}"
+    },
+    "submitted": {
+      "title": "Solicitud enviada",
+      "businessFallback": "El administrador del inmueble",
+      "message": "{{businessName}} ahora puede aceptar, programar, asignar, convertir esto en trabajo y mantener los registros de reparación vinculados a OxSteed.",
+      "backToProfile": "Volver al perfil",
+      "goToDashboard": "Ir al tablero"
+    },
+    "hero": {
+      "eyebrow": "Mantenimiento de propiedades",
+      "businessFallback": "este administrador de inmueble",
+      "title": "Reportar un problema a {{businessName}}",
+      "intro": "Envía los detalles que el propietario necesita para decidir, agendar, asignar a un helper y mantener un registro claro de la reparación.",
+      "helpTitle": "Lo que más ayuda",
+      "helpDescription": "Fotos, detalles de la unidad, notas de acceso, nivel de urgencia y horarios posibles para el ingreso."
+    },
+    "sections": {
+      "issueDetails": "Detalles del problema",
+      "propertyAndAccess": "Propiedad y acceso",
+      "photos": "Fotos y expectativas"
+    },
+    "fields": {
+      "issueCategory": "Categoría del problema",
+      "shortTitle": "Título corto",
+      "happening": "¿Qué está pasando?",
+      "urgency": "Urgencia",
+      "locationArea": "Habitación, zona o ubicación",
+      "assetLabel": "Activo o electrodoméstico",
+      "symptomStartedAt": "¿Cuándo comenzó?",
+      "propertyLabel": "Etiqueta de propiedad o dirección",
+      "unitLabel": "Unidad",
+      "preferredRepairWindows": "Ventanas de reparación preferidas",
+      "accessNotes": "Notas de acceso",
+      "entryPreference": "Preferencia de entrada",
+      "bestUpdateChannel": "Mejor canal de actualización",
+      "contactPhone": "Número de teléfono preferido",
+      "billableParty": "Facturar a"
+    },
+    "placeholders": {
+      "title": "Grifo de la cocina goteando bajo el gabinete",
+      "description": "Describe cuándo empezó, dónde está, qué cambió y si hay algo peligroso o con fuga activa.",
+      "locationArea": "Cocina, pasillo, baño trasero de la unidad",
+      "assetLabel": "Calentador, nevera, panel eléctrico",
+      "symptomStartedAt": "Hoy a las 8 a. m., se notó anoche, lleva una semana",
+      "propertyLabel": "Dúplex de Main St",
+      "unitLabel": "Apto 2B",
+      "preferredWindows": "Entre semana después de las 4 p. m., sábado por la mañana, etc.",
+      "accessNotes": "Mascotas, código de portón, estacionamiento, reglas de permiso o cómo llegarte.",
+      "entryPreference": "Llamar primero, llave de administrador disponible, mensaje al llegar",
+      "contactPhone": "Opcional"
+    },
+    "issueCategories": [
+      "Fontanería",
+      "Eléctrica",
+      "Electrodoméstico",
+      "Calefacción / Refrigeración",
+      "Puertas / Cerraduras",
+      "Preocupación por plagas",
+      "Preocupación de seguridad",
+      "Reparación general"
+    ],
+    "urgency": {
+      "emergency": "Emergencia",
+      "urgent": "Urgente",
+      "normal": "Normal",
+      "low": "Baja"
+    },
+    "updateChannels": {
+      "sms": "SMS",
+      "phone": "Llamada telefónica",
+      "email": "Correo electrónico"
+    },
+    "billableParty": {
+      "owner": "Propietario / administración",
+      "tenant": "Inquilino",
+      "hoa": "Asociación de propietarios",
+      "internal": "Presupuesto de mantenimiento interno"
+    },
+    "checks": {
+      "permissionToEnter": "Doy permiso para entrar si el administrador programa la reparación según las notas anteriores.",
+      "residentPresentRequired": "Debe haber un residente presente cuando alguien entre a la unidad.",
+      "petsOnSite": "Hay mascotas en el lugar o cualquier otra cosa que los equipos de entrada deben saber."
+    },
+    "photoUpload": "Agregar hasta 5 fotos",
+    "notes": {
+      "management": "OxSteed ayuda a organizar la solicitud, mensajes, programación y registros. El administrador decide cómo responder, quién realiza la reparación y qué arreglos de acceso o pago aplican.",
+      "warning": "Por peligro inmediato, inundación activa, incendio, olor a gas o riesgo de seguridad urgente, contacta primero a emergencias{{emergencyLine}}.",
+      "emergencyFallback": " o tu línea de emergencia de propiedad"
+    },
+    "buttons": {
+      "sending": "Enviando...",
+      "send": "Enviar solicitud de mantenimiento"
+    },
+    "validation": {
+      "titleMinLength": "Agrega un título corto para el problema.",
+      "descriptionMinLength": "Agrega más detalles para que el administrador pueda responder correctamente."
+    },
+    "messages": {
+      "loadFailed": "No se pudo cargar este perfil de propiedad.",
+      "sent": "Solicitud de mantenimiento enviada.",
+      "sendFailed": "No se pudo enviar la solicitud de mantenimiento."
+    }
+  },
+  "franchiseIntakePage": {
+    "submitted": {
+      "title": "Solicitud de franquicia recibida",
+      "heading": "Solicitud recibida",
+      "body": "Ya tenemos su solicitud y nuestro equipo la revisará pronto. Conserva este correo porque los actualizaciones para la aplicación #{{applicationId}} se enviarán ahí.",
+      "cta": {
+        "signIn": "Iniciar sesión para ver el progreso",
+        "strategyCall": "Reservar una llamada de estrategia"
+      }
+    },
+    "meta": {
+      "title": "Solicitud de franquicia OxSteed",
+      "description": "Solicita lanzar una franquicia de OxSteed en tu mercado."
+    },
+    "hero": {
+      "badge": "Solicitud de franquicia OxSteed",
+      "heading": "Lanza un negocio operativo real, no solo una solicitud.",
+      "description": "Esta solicitud es solo para expansión de franquicias. Cuéntanos tu mercado, experiencia operativa, preparación de capital y objetivos de lanzamiento. Revisamos el ajuste de franquicia por separado del programa de consultoría de lanzamiento business.",
+      "reviewTitle": "Lo que revisamos"
+    },
+    "heroCards": {
+      "territory": {
+        "title": "Revisión por territorio",
+        "body": "País, región y demanda del mercado se evalúan antes de la aprobación."
+      },
+      "capital": {
+        "title": "Preparación de capital",
+        "body": "Confirmamos el perfil de inversión antes de pasar a la diligencia."
+      },
+      "launchChecklist": {
+        "title": "Checklist de lanzamiento",
+        "body": "Los solicitantes aprobados avanzan a entrenamiento, acuerdos y hitos de preparación."
+      }
+    },
+    "review": {
+      "title": "Lo que revisamos",
+      "cards": {
+        "market": {
+          "title": "Ajuste al mercado",
+          "body": "Demanda territorial, contexto local y lógica de expansión."
+        },
+        "background": {
+          "title": "Experiencia operativa",
+          "body": "Liderazgo, servicio y experiencia en ejecución del negocio."
+        },
+        "capital": {
+          "title": "Capital y compromiso",
+          "body": "Capital disponible, tiempo y metas de número de locales."
+        },
+        "launch": {
+          "title": "Listo para lanzar",
+          "body": "Qué tan rápido puedes avanzar una vez aprobado."
+        }
+      }
+    },
+    "sections": {
+      "applicantInformation": "Información del solicitante",
+      "territoryTarget": "Territorio y objetivo de lanzamiento",
+      "experience": "Experiencia y capital"
+    },
+    "placeholders": {
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "email": "Correo electrónico",
+      "phone": "Teléfono (opcional)",
+      "country": "Seleccionar país objetivo",
+      "region": "Seleccionar {{locationLabel}}",
+      "city": "Ciudad objetivo (opcional)",
+      "brandName": "Marca deseada o nombre operativo",
+      "territory": "Describe el territorio que quieres operar, por qué importa y qué demanda ves allí.",
+      "currentCompany": "Nombre de la empresa actual (opcional)",
+      "storeCount": "Cantidad de locales preferida",
+      "availableCapital": "Capital disponible (USD)",
+      "liquidCapital": "Capital líquido (USD)",
+      "businessBackground": "¿Qué experiencia de negocio tienes?",
+      "operationsBackground": "¿Qué experiencia operativa o de campo tienes?",
+      "marketOverview": "¿Qué sabes de tu mercado local, demanda de clientes o competencia?"
+    },
+    "selects": {
+      "leadSource": "¿Cómo te enteraste de OxSteed?",
+      "timeline": "Cronograma objetivo"
+    },
+    "labels": {
+      "territoryAndState": "Región / estado"
+    },
+    "leadSources": [
+      "Plataforma OxSteed",
+      "Recomendación",
+      "Redes sociales",
+      "Búsqueda",
+      "Prensa o pódcast",
+      "Otro"
+    ],
+    "timelineOptions": [
+      "Inmediatamente",
+      "Dentro de 30 días",
+      "Dentro de 90 días",
+      "Dentro de 6 meses",
+      "Solo explorando"
+    ],
+    "formFooter": "Enviar este formulario inicia solo el flujo de revisión de franquicia. No te coloca en la cola del programa de consultoría de lanzamiento business.",
+    "footer": {
+      "viewStatus": "Ver mi estado"
+    },
+    "buttons": {
+      "submitting": "Enviando...",
+      "submit": "Enviar solicitud de franquicia"
+    },
+    "validation": {
+      "missingRequired": "Nombre, apellido, correo y país son obligatorios.",
+      "missingContext": "Cuéntanos sobre tu territorio, tu experiencia y tu calendario de lanzamiento."
+    },
+    "messages": {
+      "success": "Solicitud de franquicia recibida.",
+      "submitFailed": "No se pudo enviar la solicitud de franquicia."
+    }
+  },
+  "franchiseTerritoryPage": {
+    "trainingLabels": {
+      "notStarted": "No iniciado",
+      "scheduled": "Programado",
+      "inProgress": "En progreso",
+      "completed": "Completado"
+    },
+    "errors": {
+      "loadFailure": "No se pudieron cargar los datos del territorio"
+    },
+    "noTerritory": {
+      "badge": "Territorio de franquicia",
+      "title": "Aún no hay franquicia activa",
+      "description": "Tu centro de operaciones de territorio de franquicia se habilitará una vez que tu solicitud sea aprobada y tu tienda esté activada.",
+      "viewApplication": "Ver solicitud",
+      "applyNow": "Solicitar ahora"
+    },
+    "header": {
+      "territoryFallback": "Tu territorio",
+      "title": "Operaciones de territorio"
+    },
+    "actions": {
+      "refresh": "Actualizar"
+    },
+    "status": {
+      "agreementLabel": "Acuerdo",
+      "trainingLabel": "Capacitación"
+    },
+    "kpis": {
+      "helpers": "Ayudantes en el territorio",
+      "avgRating": "Calificación promedio del ayudante",
+      "jobsPosted": "Trabajos publicados (30d)",
+      "completionRate": "Tasa de finalización",
+      "revenue": "Ingresos (30d)",
+      "compliance": "Cumplimiento",
+      "helpersVerified": "{{count}} verificados",
+      "jobsActive": "{{count}} activos",
+      "completedJobs": "{{count}} completados",
+      "revenueTotal": "Total: {{amount}}"
+    },
+    "compliance": {
+      "title": "Preparación de cumplimiento",
+      "stepsComplete": "{{done}} / {{total}} pasos completos",
+      "labels": {
+        "agreement": "Acuerdo",
+        "training": "Capacitación",
+        "launchReadiness": "Preparación de lanzamiento"
+      }
+    },
+    "actionsCard": {
+      "title": "Acciones de territorio",
+      "viewApplication": {
+        "title": "Ver solicitud",
+        "sub": "Sigue el estado de tu franquicia"
+      },
+      "growth": {
+        "title": "Escalera de crecimiento",
+        "sub": "Expandir alcance del territorio"
+      },
+      "training": {
+        "title": "Capacitación",
+        "sub": "Rutas de certificación"
+      },
+      "jobs": {
+        "title": "Ver trabajos",
+        "sub": "Trabajos en tu territorio"
+      }
+    },
+    "helpersSection": {
+      "title": "Ayudantes en tu territorio",
+      "found": "{{count}} encontrados",
+      "emptyTitle": "Aún no se encontraron ayudantes en tu territorio.",
+      "emptyDescription": "La coincidencia de territorio usa la ciudad o región de los perfiles de ayudantes.",
+      "table": {
+        "helper": "Ayudante",
+        "location": "Ubicación",
+        "rating": "Calificación",
+        "reviews": "Reseñas",
+        "verified": "Verificado",
+        "available": "Disponible"
+      },
+      "showingTop": "Mostrando los 20 mejores de {{count}}"
+    }
+  },
+  "professionalIntakePage": {
+    "loading": "Cargando solicitud de asistencia",
+    "businessNameFallback": "este negocio profesional",
+    "errors": {
+      "loadFailed": "No se pudo cargar esta página de solicitud.",
+      "missingServiceNeed": "Cuéntanos qué servicio necesitas (al menos 3 caracteres).",
+      "submitFailed": "No se pudo enviar la solicitud. Inténtalo de nuevo."
+    },
+    "messages": {
+      "submitted": "Tu solicitud se envió correctamente."
+    },
+    "submitted": {
+      "pageTitle": "Solicitud enviada",
+      "title": "Solicitud enviada",
+      "description": "Tu solicitud fue enviada a {{business}}.",
+      "backToProfile": "Volver al perfil",
+      "goToDashboard": "Ir al panel"
+    },
+    "page": {
+      "title": "Solicitar servicios de {{business}}"
+    },
+    "header": {
+      "title": "Solicitud de servicios profesionales",
+      "start": "Iniciar con {{business}}",
+      "policyFallback": "Aún no hay una política de atención listada para este negocio.",
+      "consultationLabel": "Solicitar reunión inicial",
+      "cardDescription": "Comparte tus objetivos, contexto y preferencia de horario para que el equipo se prepare."
+    },
+    "form": {
+      "sections": {
+        "context": "Contexto del proyecto",
+        "documents": "Documentos y requisitos",
+        "contact": "Detalles de contacto"
+      },
+      "serviceNeed": {
+        "label": "¿Qué servicio necesitas?",
+        "placeholder": {
+          "accountant": "Describe la tarea contable y el resultado esperado.",
+          "legal": "Describe el problema legal y el tipo de ayuda que buscas.",
+          "default": "Describe el tipo de ayuda que solicitas."
+        }
+      },
+      "context": {
+        "label": "Contexto del negocio",
+        "placeholder": "Comparte tu contexto, objetivos y qué intentaste hasta ahora."
+      },
+      "timeline": {
+        "label": "Cronograma preferido",
+        "placeholder": "¿Para cuándo lo necesitas?"
+      },
+      "package": {
+        "label": "Interés en paquete",
+        "placeholder": "Cuéntanos tu paquete preferido o nivel de ayuda."
+      },
+      "documentSummary": {
+        "label": "Resumen de documentos",
+        "placeholder": "Lista documentos, enlaces o evidencia clave para revisión."
+      },
+      "budget": {
+        "label": "Notas de presupuesto",
+        "placeholder": "Comparte tu rango de presupuesto y preferencias de pago."
+      },
+      "documentChecklist": {
+        "title": "Documentos recomendados",
+        "fallback": "Aún no hay documentos obligatorios listados."
+      },
+      "obligationChecklist": {
+        "title": "Información adicional solicitada",
+        "fallback": "Aún no se listaron elementos adicionales de la lista."
+      },
+      "contactName": {
+        "label": "Nombre completo",
+        "placeholder": "Tu nombre completo"
+      },
+      "contactEmail": {
+        "label": "Dirección de correo",
+        "placeholder": "tu@ejemplo.com"
+      },
+      "contactPhone": {
+        "label": "Número de teléfono",
+        "placeholder": "(555) 555-5555"
+      },
+      "contactChannel": {
+        "label": "Canal preferido",
+        "options": {
+          "email": "Correo",
+          "call": "Llamada",
+          "meeting": "Reunión",
+          "message": "Mensaje"
+        }
+      },
+      "actions": {
+        "sending": "Enviando...",
+        "submit": "Enviar solicitud"
+      }
+    },
+    "creativeIntakePage": {
+      "loading": "Cargando descubrimiento creativo...",
+      "businessNameFallback": "este negocio creativo",
+      "errors": {
+        "loadFailed": "No se pudo cargar este perfil creativo.",
+        "missingProjectType": "Dile al negocio qué tipo de proyecto necesitas.",
+        "submitFailed": "No se pudo enviar el descubrimiento creativo."
+      },
+      "messages": {
+        "submitted": "Descubrimiento creativo enviado."
+      },
+      "submitted": {
+        "pageTitle": "Descubrimiento creativo enviado - OxSteed",
+        "eyebrow": "Descubrimiento enviado",
+        "description": "{{business}} puede revisar ahora el objetivo del proyecto, la dirección de estilo, el encaje del paquete y los plazos antes de pasarte a descubrimiento, propuesta o producción.",
+        "backToProfile": "Volver al perfil",
+        "goToDashboard": "Ir al panel"
+      },
+      "page": {
+        "title": "Descubrimiento creativo - {{business}}"
+      },
+      "hero": {
+        "eyebrow": "Descubrimiento creativo",
+        "title": "Empieza un proyecto con {{business}}",
+        "subtitle": "Comparte el objetivo del proyecto, la dirección de estilo, referencias y fecha límite para que el negocio te dirija al paquete creativo o propuesta adecuados.",
+        "cardTitle": "Solicitud de descubrimiento creativo",
+        "cardDescription": "Diseñado para descubrimiento, claridad de propuesta, aprobaciones y seguimiento de entrega en lugar de mensajes de contacto genéricos."
+      },
+      "sections": {
+        "projectBrief": "Resumen del proyecto",
+        "assetsAndDelivery": "Activos y entrega",
+        "contactAndProcess": "Contacto y proceso"
+      },
+      "form": {
+        "projectType": {
+          "label": "Tipo de proyecto",
+          "placeholderDefault": "Campaña, sistema de contenido, dirección creativa",
+          "placeholderPhotographer": "Sesión de retrato, sesión de marca, cobertura de evento",
+          "placeholderDesigner": "Sistema de logotipo, empaques, pitch deck"
+        },
+        "projectGoal": {
+          "label": "Objetivo del proyecto",
+          "placeholder": "¿Qué intentas lograr, para quién es y qué resultado importa más?"
+        },
+        "styleDirection": {
+          "label": "Dirección de estilo",
+          "placeholder": "Describe la estética, tono, referencias de marca o lenguaje visual que quieres."
+        },
+        "deadlineNotes": {
+          "label": "Notas de fecha",
+          "placeholder": "Fecha de lanzamiento, fecha del evento, tiempo de entrega"
+        },
+        "packageInterest": {
+          "label": "Interés de paquete",
+          "placeholder": "Paquete de sesión, sistema de marca, retención"
+        },
+        "assetsNeeded": {
+          "label": "Activos o entregables necesarios",
+          "placeholder": "¿Qué archivos, formatos, escenas, entregables o resultados necesitas?"
+        },
+        "revisionScope": {
+          "label": "Expectativas de revisiones",
+          "placeholder": "Rondas de revisiones, selecciones, necesidades de pruebas"
+        },
+        "budgetNotes": {
+          "label": "Notas de presupuesto",
+          "placeholder": "Presupuesto opcional o límites de precio"
+        },
+        "referenceLinks": {
+          "label": "Enlaces de referencia",
+          "placeholder": "Un enlace por línea: tablero de Pinterest, moodboard, activos de marca previos, trabajo de ejemplo"
+        },
+        "uploadReferences": {
+          "label": "Subir referencias"
+        },
+        "contactName": {
+          "label": "Nombre de contacto",
+          "placeholder": "Tu nombre o contacto del equipo"
+        },
+        "contactEmail": {
+          "label": "Correo electrónico",
+          "placeholder": "tu@ejemplo.com"
+        },
+        "contactPhone": {
+          "label": "Teléfono",
+          "placeholder": "Teléfono opcional"
+        },
+        "contactChannel": {
+          "label": "Canal de contacto preferido",
+          "options": {
+            "email": "Correo",
+            "call": "Llamada",
+            "meeting": "Reunión",
+            "message": "Mensaje"
+          }
+        },
+        "labels": {
+          "revisionPolicy": "Política de revisiones:",
+          "approvalPolicy": "Proceso de aprobación:"
+        },
+        "fallbacks": {
+          "configuredInsideHub": "Configurado en Business Hub."
+        },
+        "actions": {
+          "sending": "Enviando...",
+          "submit": "Enviar descubrimiento creativo"
+        }
+      }
+    },
+    "beautyIntakePage": {
+      "loading": "Cargando solicitud de belleza...",
+      "businessNameFallback": "este negocio de belleza",
+      "errors": {
+        "loadFailed": "No se pudo cargar este perfil de belleza.",
+        "missingService": "Dile al negocio qué servicio quieres.",
+        "missingAcknowledgement": "Primero acepta las expectativas de preparación y cancelación.",
+        "submitFailed": "No se pudo enviar la solicitud de belleza."
+      },
+      "messages": {
+        "submitted": "Solicitud de belleza enviada."
+      },
+      "submitted": {
+        "pageTitle": "Solicitud de belleza enviada - OxSteed",
+        "eyebrow": "Solicitud enviada",
+        "description": "{{business}} puede revisar ahora tus objetivos, necesidades de preparación, tiempos y paquete adecuado antes de pasarte a reserva, confirmación o seguimiento de reprogramación.",
+        "backToProfile": "Volver al perfil",
+        "goToDashboard": "Ir al panel"
+      },
+      "page": {
+        "title": "Solicitud de belleza - {{business}}"
+      },
+      "hero": {
+        "eyebrow": "Solicitud de belleza",
+        "title": "Inicia tu solicitud de belleza con {{business}}",
+        "subtitle": "Comparte el look que quieres, tu cronograma y notas de preparación o sensibilidad para que el negocio te dirija al servicio correcto.",
+        "cardTitle": "Solicitud de belleza y planificación de cita",
+        "cardDescription": "Pensado para objetivos de apariencia, expectativas de preparación, ajuste de paquete y seguimiento de re-reserva en lugar de notas de reserva genéricas."
+      },
+      "sections": {
+        "serviceGoals": "Objetivos del servicio",
+        "prepSensitivities": "Preparación y sensibilidades",
+        "policyAndConsent": "Preparación, política y consentimiento"
+      },
+      "form": {
+        "desiredService": {
+          "label": "Servicio deseado",
+          "placeholderDefault": "Corte, retoque de color, alisado",
+          "placeholderBarber": "Degradado, recorte de barba, afeitado con toalla caliente",
+          "placeholderSpa": "Facial, peeling, ritual de piel"
+        },
+        "desiredLook": {
+          "label": "Look o resultado deseado",
+          "placeholderDefault": "Capas suaves con un rostro más luminoso",
+          "placeholderBarber": "Degradado limpio con barba perfilada",
+          "placeholderSpa": "Hidratación calmante y brillo"
+        },
+        "inspirationNotes": {
+          "label": "Inspiración o notas de detalle",
+          "placeholder": "Cuenta al equipo qué quieres, qué quieres evitar y qué hay de visitas anteriores."
+        },
+        "preferredStaff": {
+          "label": "Personal preferido",
+          "placeholder": "Opcional"
+        },
+        "preferredTimeNotes": {
+          "label": "Notas de tiempo",
+          "placeholder": "Mejores días, fecha límite de evento, mismo día si es posible"
+        },
+        "packageInterest": {
+          "label": "Interés en paquete o plan",
+          "placeholder": "Membresía, preparación nupcial, plan de mantenimiento de color"
+        },
+        "budgetNotes": {
+          "label": "Notas de presupuesto",
+          "placeholder": "Presupuesto opcional o nota de paquete"
+        },
+        "hairLength": {
+          "label": "Longitud / densidad del cabello",
+          "placeholder": "Corto, a la altura del hombro, grueso, extensiones"
+        },
+        "hairHistory": {
+          "label": "Historial de cabello",
+          "placeholder": "Color, relajante, decoloración, daño, último servicio"
+        },
+        "beardPreferences": {
+          "label": "Preferencias de barba / arreglo",
+          "placeholder": "Perfilado, longitud, forma, zonas sensibles a la navaja"
+        },
+        "skinSensitivities": {
+          "label": "Sensibilidades cutáneas",
+          "placeholder": "Acné, rosácea, sequedad, sensibilidad al perfume"
+        },
+        "contraindications": {
+          "label": "Contraindicaciones o medicamentos",
+          "placeholder": "Retinol, peeling reciente, alergias, embarazo"
+        },
+        "referencePhotos": {
+          "label": "Fotos de referencia"
+        },
+        "contactName": {
+          "label": "Nombre de contacto",
+          "placeholder": "Tu nombre"
+        },
+        "contactEmail": {
+          "label": "Correo",
+          "placeholder": "tu@ejemplo.com"
+        },
+        "contactPhone": {
+          "label": "Teléfono",
+          "placeholder": "Número para mensajes preferible"
+        },
+        "consent": {
+          "patchTest": "Puedo necesitar guía de prueba de parche o revisión de sensibilidad antes de la visita.",
+          "photoRelease": "Estoy disponible para hablar sobre fotos antes/después si el proveedor lo solicita.",
+          "fragranceSensitivity": "Tengo sensibilidades a fragancias o productos que el proveedor debe conocer."
+        },
+        "labels": {
+          "depositPolicy": "Depósito / cancelación:",
+          "prepGuidance": "Guía de preparación:"
+        },
+        "acknowledgement": {
+          "prep": "He leído la guía de preparación y seguiré las instrucciones del día de la cita.",
+          "noShow": "Entiendo que pueden aplicarse expectativas de cancelación o ausencia antes de que el negocio confirme el horario."
+        },
+        "fallbacks": {
+          "configuredInsideHub": "Configurado en Business Hub."
+        },
+        "actions": {
+          "sending": "Enviando...",
+          "submit": "Enviar solicitud de belleza"
+        }
+      }
+    },
+    "continuityIntakePage": {
+      "loading": "Cargando solicitud guiada...",
+      "businessNameFallback": "este negocio",
+      "errors": {
+        "loadFailed": "No se pudo cargar este perfil de atención guiada.",
+        "missingGoal": "Cuéntale al negocio el objetivo o problema principal primero.",
+        "missingAcknowledgement": "Primero acepta la solicitud y las expectativas de comunicación.",
+        "submitFailed": "No se pudo enviar la solicitud guiada."
+      },
+      "messages": {
+        "submitted": "Solicitud guiada enviada."
+      },
+      "submitted": {
+        "pageTitle": "Solicitud guiada enviada - OxSteed",
+        "eyebrow": "Solicitud enviada",
+        "description": "{{business}} ahora puede revisar el objetivo, el contexto, el ritmo recurrente y los requisitos de confianza antes de pasarte a programación, revisión de progreso o un plan de continuidad más largo.",
+        "backToProfile": "Volver al perfil",
+        "goToDashboard": "Ir al panel"
+      },
+      "page": {
+        "title": "Solicitud guiada - {{business}}"
+      },
+      "hero": {
+        "eyebrow": "Solicitud guiada",
+        "title": "Inicia la solicitud guiada con {{business}}",
+        "subtitle": "Comparte el objetivo, el contexto de apoyo, el ritmo de programación y las consideraciones de confianza para que el negocio te dirija al camino de soporte recurrente correcto.",
+        "cardTitle": "Solicitud guiada y planificación de continuidad",
+        "cardDescription": "Diseñado para sesiones recurrentes, revisión de progreso y seguimiento sensible a la confianza, en vez de una sola solicitud de reserva."
+      },
+      "sections": {
+        "goalContext": "Objetivo y contexto de apoyo",
+        "routineTrust": "Rutina, confianza y consideraciones",
+        "contactAcknowledgement": "Contacto y confirmación"
+      },
+      "form": {
+        "primaryGoal": {
+          "label": "Objetivo o preocupación principal",
+          "placeholderDefault": "Plan de fortalecimiento, apoyo de recuperación, alivio del estrés, reinicio de nutrición",
+          "placeholderEducation": "Apoyo en lectura, preparación de examen, confianza con álgebra",
+          "placeholderCare": "Soporte recurrente, rutina de mascota, ayuda familiar, cuidados confiables"
+        },
+        "supportContext": {
+          "label": "Contexto de apoyo",
+          "placeholder": "Explica la situación, los desafíos actuales y cómo se vería un buen progreso."
+        },
+        "scheduleNotes": {
+          "label": "Notas de programación",
+          "placeholder": "Mejores días, frecuencia, urgencia, ventanas de tiempo"
+        },
+        "progressTarget": {
+          "label": "Objetivo de progreso",
+          "placeholder": "Paseos semanales, meta de puntaje de examen, menos recaídas, hito de movilidad"
+        },
+        "packageInterest": {
+          "label": "Interés en paquete o plan",
+          "placeholder": "Membresía, sesiones semanales, paquete de apoyo"
+        },
+        "ageOrLevel": {
+          "label": "Edad, nivel o etapa de vida",
+          "placeholderDefault": "Principiante, posparto, adulto mayor",
+          "placeholderEducation": "Grado 6, preparación SAT, primera infancia",
+          "placeholderCare": "Principiante, posparto, adulto mayor",
+          "placeholderPet": "Cachorro, perro mayor, paseo reactivo"
+        },
+        "currentRoutine": {
+          "label": "Rutina o referencia actual",
+          "placeholder": "¿Cómo se ve la rutina, el horario o la base actual en este momento?"
+        },
+        "specialConsiderations": {
+          "label": "Consideraciones especiales",
+          "placeholder": "Alergias, sensibilidades, necesidades de accesibilidad, notas de comportamiento, adaptaciones o preferencias de comunicación."
+        },
+        "guardianName": {
+          "label": "Contacto de tutoría / familiar",
+          "placeholder": "Padre, tutor o responsable familiar opcional"
+        },
+        "guardianPhone": {
+          "label": "Teléfono del tutor",
+          "placeholder": "Número de contacto opcional"
+        },
+        "budgetNotes": {
+          "label": "Notas de presupuesto",
+          "placeholder": "Presupuesto opcional o nota de compromiso"
+        },
+        "labels": {
+          "trustSignals": "Señales de confianza:",
+          "prepExpectations": "Preparación y expectativas:"
+        },
+        "fallbacks": {
+          "configuredInsideHub": "Configurado en el Business Hub."
+        },
+        "contactName": {
+          "label": "Nombre de contacto",
+          "placeholder": "Contacto principal"
+        },
+        "contactEmail": {
+          "label": "Correo electrónico",
+          "placeholder": "tu@ejemplo.com"
+        },
+        "contactPhone": {
+          "label": "Teléfono",
+          "placeholder": "Mejor número"
+        },
+        "contactChannel": {
+          "label": "Canal de contacto preferido",
+          "options": {
+            "message": "Mensaje",
+            "email": "Correo",
+            "call": "Llamada",
+            "text": "Mensaje de texto",
+            "meeting": "Reunión"
+          }
+        },
+        "relationshipType": {
+          "label": "Tipo de relación",
+          "options": {
+            "client": "Cliente",
+            "student": "Estudiante",
+            "family": "Familiar",
+            "pet": "Mascota",
+            "patient": "Paciente",
+            "athlete": "Atleta"
+          }
+        },
+        "acknowledgement": {
+          "guardian": "Entiendo que puede ser necesario un tutor o contacto familiar para soporte recurrente cuando corresponda.",
+          "safety": "Compartí cualquier nota clave de seguridad, comportamiento, accesibilidad o acomodaciones que importen.",
+          "policy": "Entiendo que esta solicitud ayuda al negocio a decidir el plan, el horario y el siguiente paso correctos antes de confirmar el servicio."
+        },
+        "actions": {
+          "sending": "Enviando...",
+          "submit": "Enviar solicitud guiada"
+        },
+        "businessRecurringBilling": {
+          "title": "Facturación recurrente",
+          "subtitle": "Gestiona retenedores y facturación por suscripción",
+          "addRecurring": "Agregar facturación recurrente",
+          "createRecurring": "Nueva facturación recurrente",
+          "editRecurring": "Editar facturación recurrente",
+          "description": "Descripción",
+          "amount": "Importe ($)",
+          "frequency": "Frecuencia",
+          "startDate": "Fecha de inicio",
+          "notes": "Notas",
+          "save": "Guardar",
+          "loading": "Cargando...",
+          "emptyState": "No se ha configurado facturación recurrente. Ideal para clientes por retención y suscripciones.",
+          "fallbackDescription": "Facturación recurrente",
+          "next": "Próxima:",
+          "pause": "Pausar",
+          "resume": "Reanudar",
+          "statusActive": "Activo",
+          "statusPausedStatus": "Pausado",
+          "statusUnknown": "Desconocido",
+          "statusPaused": "Pausada",
+          "statusResumed": "Reanudado",
+          "created": "Facturación recurrente creada",
+          "updated": "Actualizado",
+          "deleted": "Cancelado",
+          "deleteConfirm": "¿Cancelar esta facturación recurrente?",
+          "deleteError": "Error",
+          "updateError": "Error al actualizar",
+          "loadError": "Error al cargar la facturación recurrente",
+          "saveError": "Error al guardar",
+          "requiredFields": "Importe, frecuencia y fecha de inicio son obligatorios",
+          "frequencies": {
+            "weekly": "Semanal",
+            "biweekly": "Quincenal",
+            "monthly": "Mensual",
+            "quarterly": "Trimestral",
+            "annually": "Anual"
+          },
+          "all": "Todas",
+          "activeContracts": "Contratos activos",
+          "monthlyRecurringRevenue": "Ingresos mensuales recurrentes",
+          "dueThisMonth": "Vencimientos este mes",
+          "dueNext30Days": "Vence en los próximos 30 días",
+          "tableClient": "Cliente",
+          "tableDescription": "Descripción",
+          "tableAmount": "Importe",
+          "tableNextBilling": "Próxima fecha de facturación",
+          "tableStatus": "Estado",
+          "tableActions": "Acciones",
+          "nextDateLabel": "Próxima fecha de facturación *",
+          "generateInvoice": "Generar factura",
+          "invoiceGenerated": "Factura generada",
+          "descriptionPlaceholder": "Descripción del servicio",
+          "notesPlaceholder": "Notas opcionales"
+        }
+      }
+    }
+  },
+  "affiliateDashboard": {
+    "loading": "Cargando el panel de afiliados…",
+    "loadingAnalytics": "Cargando analíticas…",
+    "sparklineNoData": "Aún no hay datos",
+    "pageTitle": "Panel de afiliados — OxSteed",
+    "title": "Panel de afiliados",
+    "subtitle": "Supervisa las ganancias, conversiones y pagos de tus referencias",
+    "actions": {
+      "requestPayout": "Solicitar pago",
+      "newProgram": "Nuevo programa",
+      "cancel": "Cancelar"
+    },
+    "errors": {
+      "loadAffiliateData": "No se pudo cargar la información de afiliados",
+      "loadAnalytics": "No se pudo cargar las analíticas",
+      "createProgram": "No se pudo crear el programa",
+      "calculatePayout": "No se pudo calcular el pago"
+    },
+    "toasts": {
+      "programCreated": "Programa de afiliados creado",
+      "payoutCalculated": "Pago calculado — revisa el historial de pagos",
+      "linkCopied": "Enlace copiado"
+    },
+    "form": {
+      "commissionRateRequired": "La tarifa de comisión es obligatoria"
+    },
+    "empty": {
+      "title": "Comienza a ganar con enlaces de afiliados",
+      "description": "Crea un programa de afiliados para ganar comisión cuando los clientes descubran y compren productos a través de tus guías, publicaciones sociales o enlaces de referencia.",
+      "verification": "OxSteed requiere verificación de identidad antes de que puedas compartir guías y generar ingresos de afiliado.",
+      "verifyIdentity": "Verificar identidad",
+      "createProgram": "Crear programa"
+    },
+    "stats": {
+      "lifetimeEarnings": "Ganancias totales",
+      "pendingPayout": "Pago pendiente",
+      "availableToRequest": "Disponible para solicitar",
+      "totalPaidOut": "Total pagado",
+      "totalConversions": "Total de conversiones",
+      "programSingle": "programa",
+      "programPlural": "programas"
+    },
+    "chart": {
+      "periodButton": "{{days}}d",
+      "commissionEarned": "Comisiones ganadas ({{days}}d)",
+      "clicks": "Clics ({{days}}d)"
+    },
+    "funnel": {
+      "title": "Embudo de conversión",
+      "noData": "Sin datos de embudo para este período",
+      "labels": {
+        "click": "Clic",
+        "landing": "Destino",
+        "productView": "Vista de producto",
+        "addToCart": "Agregar al carrito",
+        "checkout": "Pago",
+        "purchase": "Compra"
+      },
+      "averageLabels": {
+        "avg_landing_rate": "Destino",
+        "avg_product_rate": "Vista de producto",
+        "avg_add_to_cart_rate": "Agregar al carrito",
+        "avg_checkout_rate": "Pago",
+        "avg_purchase_rate": "Compra"
+      }
+    },
+    "topProducts": {
+      "title": "Productos principales",
+      "noData": "No hay datos de productos para este período"
+    },
+    "metrics": {
+      "clicks": "clics",
+      "convAbbrev": "conv."
+    },
+    "sources": {
+      "deviceBreakdown": "Desglose por dispositivo",
+      "topReferrers": "Principales referencias",
+      "noReferrers": "Aún no hay datos de referencias",
+      "sessionLabel": "sesiones"
+    },
+    "referral": {
+      "title": "Tus enlaces de referencia",
+      "helper": "Copia y comparte para ganar comisión",
+      "copyLink": "Copiar enlace"
+    },
+    "payout": {
+      "title": "Historial de pagos",
+      "emptyState": "Aún no hay pagos. Gana comisiones y solicita tu primer pago.",
+      "requestTitle": "Solicitar pago",
+      "description": "Esto calculará todas las comisiones pendientes de este mes para el programa seleccionado y las pondrá en cola para pago.",
+      "selectedProgram": "Programa seleccionado",
+      "pendingLabel": "Pendiente",
+      "note": "Los pagos se procesan a través de Stripe. Asegúrate de configurar tu método de pago en Configuración.",
+      "calculating": "Calculando…",
+      "table": {
+        "period": "Período",
+        "amount": "Monto",
+        "method": "Método",
+        "status": "Estado",
+        "sent": "Enviado"
+      }
+    },
+    "create": {
+      "title": "Crear programa de afiliados",
+      "programTypeLabel": "Tipo de programa",
+      "programTypes": {
+        "amazonAffiliate": "Afiliado de Amazon",
+        "oxsteedReferral": "Referencia OxSteed",
+        "marketplaceProducts": "Productos del marketplace",
+        "custom": "Personalizado"
+      },
+      "affiliateIdLabel": "ID de afiliado (opcional)",
+      "affiliateIdPlaceholder": "p. ej. tu etiqueta de Amazon Associates",
+      "commissionRateLabel": "Tasa de comisión (%)",
+      "commissionRatePlaceholder": "p. ej. 5.0",
+      "creating": "Creando…",
+      "submit": "Crear programa"
+    }
+  },
+  "businessServices": {
+    "title": "Servicios",
+    "btnNew": "Nuevo servicio",
+    "btnCreateFirst": "Crear tu primer servicio",
+    "loading": "Cargando servicios…",
+    "emptyTitle": "Aún no hay servicios",
+    "fieldServiceName": "Nombre del servicio",
+    "fieldCategory": "Categoría",
+    "fieldDescription": "Descripción",
+    "fieldDuration": "Duración (minutos)",
+    "fieldPrice": "Precio base",
+    "fieldCapacity": "Capacidad máxima",
+    "fieldNotice": "Aviso mínimo (horas)",
+    "capacityPrefix": "Capacidad:",
+    "staffAssigned": "personal asignado",
+    "btnCancel": "Cancelar",
+    "btnSave": "Guardar",
+    "ariaEdit": "Editar servicio",
+    "ariaDelete": "Eliminar servicio",
+    "formTitleCreate": "Crear servicio",
+    "formTitleEdit": "Editar servicio",
+    "placeholderServiceName": "Nombre de tu servicio",
+    "placeholderCategory": "Categoría opcional",
+    "placeholderDescription": "Describe lo que incluye este servicio",
+    "toastLoadFailed": "No se pudieron cargar los servicios.",
+    "toastInvalidFields": "Introduce un nombre y duración válidos.",
+    "toastUpdated": "Servicio actualizado.",
+    "toastCreated": "Servicio creado.",
+    "toastSaveFailed": "No se pudo guardar el servicio.",
+    "confirmDeactivate": "¿Desactivar este servicio?",
+    "toastDeactivated": "Servicio desactivado.",
+    "toastDeleteFailed": "No se pudo desactivar el servicio."
+  },
+  "businessClients": {
+    "modalEdit": "Editar cliente",
+    "modalAdd": "Agregar cliente",
+    "close": "Cerrar",
+    "btnArchive": "Archivar",
+    "btnCancel": "Cancelar",
+    "btnSave": "Guardar cambios",
+    "btnAdd": "Agregar cliente",
+    "btnAddFirst": "Agregar tu primer cliente",
+    "searchPlaceholder": "Buscar por nombre, correo, teléfono o etiquetas",
+    "filterByStatus": "Filtrar clientes por estado",
+    "sort": "Ordenar",
+    "sortRecent": "Más reciente",
+    "sortLifetime": "Valor de vida",
+    "sortName": "Nombre",
+    "loading": "Cargando clientes…",
+    "emptyTitle": "Aún no hay clientes",
+    "emptyBody": "No hay clientes que coincidan con tus filtros. Agrega tu primer cliente para comenzar.",
+    "toastNameRequired": "El nombre del cliente es obligatorio.",
+    "toastUpdated": "Cliente actualizado.",
+    "toastCreated": "Cliente creado.",
+    "saveFailed": "No se pudo guardar el cliente.",
+    "toastLoadFailed": "No se pudieron cargar los clientes.",
+    "toastArchived": "Cliente archivado.",
+    "toastArchiveFailed": "No se pudo archivar el cliente.",
+    "confirmArchive": "¿Archivar a {{name}}?",
+    "sectionClients": "Clientes",
+    "businessClientsTitleWithName": "Clientes de {{name}}",
+    "yourClients": "Tus clientes",
+    "intro": "Rastrea clientes, notas y valor de por vida en un solo lugar.",
+    "fieldName": "Nombre del cliente",
+    "fieldEmail": "Correo electrónico",
+    "fieldPhone": "Teléfono",
+    "fieldAddress": "Dirección",
+    "fieldCity": "Ciudad",
+    "fieldStateRegion": "Estado o región",
+    "fieldZip": "Código postal",
+    "fieldStatus": "Estado",
+    "fieldPreferredContact": "Contacto preferido",
+    "fieldTags": "Etiquetas",
+    "fieldInternalNotes": "Notas internas",
+    "placeholderAddress": "Dirección postal",
+    "placeholderTags": "Añade etiquetas separadas por comas",
+    "preferredContactAny": "Cualquiera",
+    "preferredContactEmail": "Correo electrónico",
+    "preferredContactPhone": "Teléfono",
+    "preferredContactSms": "SMS",
+    "statJobs_one": "{{count}} trabajo",
+    "statJobs_other": "{{count}} trabajos",
+    "statLifetime": "Valor de por vida",
+    "statLastJob": "Último trabajo",
+    "cardTotal": "Total",
+    "cardActive": "Activo",
+    "cardLeads": "Prospectos",
+    "cardLifetime": "Valor de por vida",
+    "status": {
+      "all": "Todos",
+      "active": "Activo",
+      "lead": "Prospecto",
+      "past": "Anterior",
+      "archived": "Archivado",
+      "blocked": "Bloqueado",
+      "unknown": "Desconocido"
+    }
+  },
+  "businessAnalytics": {
+    "title": "Análisis de Negocio",
+    "loading": "Cargando análisis...",
+    "noData": "Aún no hay datos de análisis",
+    "toastLoadFailed": "No se pudo cargar el análisis.",
+    "dateRange": {
+      "7d": "Últimos 7 días",
+      "30d": "Últimos 30 días",
+      "90d": "Últimos 90 días",
+      "1y": "Último Año"
+    },
+    "totalRevenue": "Ingresos Totales",
+    "appointments": "Citas",
+    "completedAppointments": "{{count}} completadas",
+    "customers": "Clientes",
+    "newCustomers": "{{count}} nuevos este período",
+    "rating": "Calificación",
+    "reviews": "{{count}} reseñas",
+    "revenueTrend": "Tendencia de Ingresos",
+    "appointmentsByStatus": "Citas por Estado",
+    "servicesPerformance": "Rendimiento de Servicios",
+    "keyInsights": "Principales Hallazgos",
+    "noInsights": "Aún no hay hallazgos disponibles"
+  },
+  "businessMessaging": {
+    "title": "Conversaciones",
+    "newConversation": "Nueva conversación",
+    "filterAll": "Todo",
+    "filterTeam": "Equipo",
+    "filterCustomer": "Cliente",
+    "searchPlaceholder": "Buscar conversaciones...",
+    "searchAria": "Buscar conversaciones",
+    "loading": "Cargando conversaciones...",
+    "empty": "Sin conversaciones",
+    "teamChat": "Chat de equipo",
+    "type": {
+      "team": "Chat de equipo",
+      "customer": "Mensaje de cliente",
+      "unknown": "Conversación"
+    },
+    "noMessages": "Aún no hay mensajes",
+    "messagePlaceholder": "Escribe un mensaje...",
+    "messageAria": "Entrada de mensaje",
+    "sendAria": "Enviar mensaje",
+    "ariaArchive": "Archivar conversación",
+    "noSelection": "Selecciona una conversación para comenzar a enviar mensajes",
+    "formType": "Tipo",
+    "customerName": "Nombre del cliente",
+    "customerNamePlaceholder": "Nombre del cliente",
+    "customerEmail": "Correo del cliente",
+    "customerEmailPlaceholder": "cliente@ejemplo.com",
+    "customerEmailRequired": "El correo del cliente es obligatorio",
+    "subject": "Asunto",
+    "subjectPlaceholder": "Asunto de la conversación",
+    "cancel": "Cancelar",
+    "create": "Crear",
+    "toastLoadConversationsFailed": "No se pudieron cargar las conversaciones",
+    "toastLoadConversationFailed": "No se pudo cargar la conversación",
+    "toastSendFailed": "No se pudo enviar el mensaje",
+    "toastArchived": "Conversación archivada",
+    "toastArchiveFailed": "No se pudo archivar la conversación",
+    "toastCreated": "Conversación creada",
+    "toastCreateFailed": "No se pudo crear la conversación"
+  },
+  "businessQuotes": {
+    "title": "Cotizaciones",
+    "newQuote": "Nueva cotización",
+    "loading": "Cargando cotizaciones...",
+    "emptyTitle": "Aún no hay cotizaciones",
+    "emptyBody": "Crea tu primera cotización para comenzar",
+    "toastLoadFailed": "No se pudo cargar las cotizaciones",
+    "toastClientNameRequired": "El nombre del cliente es obligatorio",
+    "toastUpdated": "Cotización actualizada",
+    "toastCreated": "Cotización creada",
+    "toastSaveFailed": "No se pudo guardar la cotización",
+    "toastSent": "Cotización enviada",
+    "toastSendFailed": "No se pudo enviar la cotización",
+    "toastConverted": "Cotización convertida, redirigiendo a facturas",
+    "toastConvertFailed": "No se pudo convertir la cotización",
+    "toastDeleted": "Cotización eliminada",
+    "toastDeleteFailed": "No se pudo eliminar la cotización",
+    "deleteConfirm": "¿Eliminar esta cotización borrador?",
+    "subtotal": "Subtotal",
+    "total": "Total",
+    "validUntilPrefix": "Válida hasta:",
+    "totalQuotes": "{{count}} cotizaciones en total",
+    "status": {
+      "all": "Todas",
+      "draft": "Borrador",
+      "sent": "Enviada",
+      "approved": "Aprobada",
+      "declined": "Rechazada",
+      "expired": "Caducada",
+      "converted": "Convertida"
+    },
+    "form": {
+      "clientName": "Nombre del cliente",
+      "clientNamePlaceholder": "Nombre del cliente",
+      "clientEmail": "Correo electrónico del cliente",
+      "clientEmailPlaceholder": "cliente@correo.com",
+      "quoteTitle": "Título de cotización",
+      "quoteTitlePlaceholder": "Ej. Jardinería",
+      "validUntil": "Válida hasta",
+      "lineItems": "Líneas",
+      "lineItemDesc": "Descripción",
+      "lineItemQty": "Cantidad",
+      "lineItemUnitPrice": "Precio unitario",
+      "addLine": "Agregar línea",
+      "taxRate": "Tasa de impuesto (%)",
+      "notes": "Notas",
+      "notesPlaceholder": "Notas opcionales",
+      "edit": "Editar cotización",
+      "new": "Nueva cotización",
+      "saving": "Guardando...",
+      "saveChanges": "Guardar cambios",
+      "createQuote": "Crear cotización",
+      "cancel": "Cancelar"
+    },
+    "actions": {
+      "edit": "Editar",
+      "send": "Enviar",
+      "delete": "Eliminar",
+      "convertToInvoice": "Convertir a factura"
+    }
+  },
+  "investorDashboard": {
+    "header": {
+      "mode": "Modo inversionista",
+      "title": "Panel de inversionista"
+    },
+    "periods": {
+      "sevenDays": "Últimos 7 días",
+      "thirtyDays": "Últimos 30 días",
+      "ninetyDays": "Últimos 90 días",
+      "oneYear": "Último año"
+    },
+    "actions": {
+      "refresh": "Actualizar"
+    },
+    "error": {
+      "loadFailed": "No se pudieron cargar los datos del panel."
+    },
+    "kpis": {
+      "revenuePeriod": "Ingresos",
+      "mtd": "MTC: {{value}}",
+      "newUsers": "Nuevos usuarios",
+      "totalUsers": "{{value}} usuarios totales",
+      "newJobs": "Nuevos trabajos",
+      "completionRate": "{{value}} de finalización",
+      "activeSubscriptions": "Suscripciones activas",
+      "subscriptionRevenue": "Suscripciones: {{value}}",
+      "avgHelperRating": "Calificación media de ayudantes",
+      "verifiedHelpers": "{{value}} ayudantes verificados",
+      "refunds": "Reembolsos",
+      "pendingPayouts": "{{value}} pagos pendientes"
+    },
+    "charts": {
+      "revenueBySource": "Ingresos por fuente",
+      "topCategories": "Categorías principales",
+      "noCategoryData": "Aún no hay datos de categorías.",
+      "table": {
+        "category": "Categoría",
+        "jobs": "Trabajos",
+        "completed": "Completados",
+        "avgBids": "Ofertas medias"
+      },
+      "series": {
+        "jobFees": "Tarifas de trabajos",
+        "subscriptions": "Suscripciones"
+      }
+    },
+    "pipeline": {
+      "title": "Canal de franquicia",
+      "total": "Total: {{count}}",
+      "empty": "Aún no hay datos de la canalización."
+    },
+    "pipelineStatuses": {
+      "pending": "Pendiente",
+      "reviewing": "En revisión",
+      "approved": "Aprobado",
+      "activated": "Activado",
+      "rejected": "Rechazado"
+    },
+    "trends": {
+      "weekly": "Tendencia semanal de suministro",
+      "helpersAvailableNow": "{{count}} ayudantes disponibles",
+      "listed": "{{count}} ayudantes listados"
+    },
+    "users": {
+      "title": "Resumen de usuarios",
+      "totalUsers": "Total de usuarios",
+      "customers": "Clientes",
+      "helpers": "Ayudantes",
+      "verifiedUsers": "Usuarios verificados"
+    },
+    "noData": "Aún no hay datos"
+  },
+  "healthAlertsDashboard": {
+    "title": "Salud del negocio",
+    "subtitle": "Percepciones automáticas para mantener tu negocio en marcha",
+    "scanNow": "Escanear ahora",
+    "scanning": "Escaneando...",
+    "metrics": {
+      "active": "Alertas activas",
+      "critical": "Crítico",
+      "warnings": "Advertencias"
+    },
+    "showDismissed": "Mostrar descartadas",
+    "loading": "Cargando...",
+    "noAlertsTitle": "¡Todo está claro!",
+    "noAlertsMessage": "No hay alertas activas. Haz clic en \"{{scanAction}}\" para buscar nuevos problemas.",
+    "severity": {
+      "critical": "Crítico",
+      "warning": "Advertencia",
+      "info": "Información"
+    },
+    "toast": {
+      "loadFailed": "No se pudo cargar las alertas",
+      "generateSuccess": "Alertas actualizadas",
+      "generateFailed": "No se pudieron generar alertas",
+      "dismissSuccess": "Alerta descartada",
+      "dismissFailed": "No se pudo descartar"
+    }
+  },
+  "requestDetailPage": {
+    "loading": "Cargando…",
+    "notFound": "No se encontró la solicitud de abastecimiento.",
+    "backToSourcing": "← Volver a Abastecimiento",
+    "defaultDescription": "No se proporcionó descripción.",
+    "sections": {
+      "specifications": "Especificaciones",
+      "quotes": "Cotizaciones {{count}}"
+    },
+    "labels": {
+      "category": "Categoría",
+      "targetQuantity": "Cantidad objetivo",
+      "targetPrice": "Precio objetivo",
+      "budgetMax": "Presupuesto máximo",
+      "destination": "Destino",
+      "preferredFreight": "Carga preferida",
+      "privateLabel": "Marca privada",
+      "customMfg": "Fabricación personalizada",
+      "deadline": "Fecha límite",
+      "business": "Negocio",
+      "personalRequest": "Solicitud personal",
+      "structuredSpecs": "Especificaciones estructuradas",
+      "quotedQty": "Cantidad cotizada",
+      "unitPrice": "Precio unitario",
+      "freightEst": "Estimación de flete",
+      "leadTime": "Tiempo de entrega",
+      "days": "días",
+      "yes": "Sí",
+      "no": "No"
+    },
+    "quotes": {
+      "empty": "Aún no hay cotizaciones de proveedores."
+    },
+    "statuses": {
+      "request": {
+        "draft": "Borrador",
+        "open": "Abierto",
+        "quoting": "Cotizando",
+        "quoted": "Cotizado",
+        "converting": "Convirtiendo",
+        "direct_order": "Pedido directo",
+        "pooled": "Agregado",
+        "procurement": "Abastecimiento",
+        "cancelled": "Cancelado",
+        "closed": "Cerrado"
+      },
+      "quote": {
+        "draft": "Borrador",
+        "open": "Abierto",
+        "requesting": "Solicitando",
+        "quoted": "Cotizado",
+        "accepted": "Aceptado",
+        "declined": "Rechazado",
+        "cancelled": "Cancelado",
+        "expired": "Vencido"
+      }
+    }
+  },
+  "shipmentDetailPage": {
+    "loading": "Cargando…",
+    "notFound": "Envío no encontrado.",
+    "backToShipments": "← Volver a Envíos",
+    "defaults": {
+      "shipment": "Envío",
+      "document": "Documento",
+      "noLocation": "Sin ubicación",
+      "noNotes": "Sin notas.",
+      "kg": "kg"
+    },
+    "sections": {
+      "details": "Detalles del envío",
+      "documents": "Documentos {{count}}",
+      "milestones": "Hitos"
+    },
+    "labels": {
+      "carrier": "Transportista",
+      "trackingNumber": "Número de seguimiento",
+      "bookingRef": "Referencia de reserva",
+      "originPort": "Puerto de origen",
+      "destinationPort": "Puerto de destino",
+      "totalCartons": "Total de bultos",
+      "totalWeight": "Peso total",
+      "totalCbm": "Total de CBM",
+      "eta": "ETA"
+    },
+    "empty": {
+      "documents": "Aún no se han subido documentos de envío."
+    },
+    "statuses": {
+      "planned": "Planificado",
+      "booked": "Reservado",
+      "origin_received": "Recibido en origen",
+      "consolidating": "Consolidando",
+      "departed_origin": "Salida del origen",
+      "transshipment": "Transbordo",
+      "arrived_destination": "Llegó al destino",
+      "customs_hold": "Retenido en aduana",
+      "customs_cleared": "Desaduanado",
+      "delivering_to_warehouse": "Entregando al almacén",
+      "delivered_to_warehouse": "Entregado al almacén",
+      "receiving": "Recepción",
+      "allocation_ready": "Asignación lista",
+      "distributed": "Distribuido",
+      "completed": "Completado",
+      "exception": "Excepción"
+    },
+    "milestones": {
+      "planned": "Planificado",
+      "booked": "Reservado",
+      "origin_received": "Recibido en origen",
+      "consolidating": "Consolidando",
+      "departed_origin": "Salida del origen",
+      "transshipment": "Transbordo",
+      "arrived_destination": "Llegó al destino",
+      "customs_hold": "Retenido en aduana",
+      "customs_cleared": "Desaduanado",
+      "delivering_to_warehouse": "Entregando al almacén",
+      "delivered_to_warehouse": "Entregado al almacén",
+      "receiving": "Recepción",
+      "allocation_ready": "Asignación lista",
+      "distributed": "Distribuido",
+      "completed": "Completado",
+      "exception": "Excepción"
+    }
+  },
+  "orderDetailPage": {
+    "loading": "Cargando…",
+    "notFound": "No se encontró la orden de compra.",
+    "backToOrders": "← Volver a Pedidos",
+    "defaults": {
+      "purchaseOrder": "Orden de compra"
+    },
+    "sections": {
+      "overview": "Resumen del pedido",
+      "financial": "Resumen financiero"
+    },
+    "labels": {
+      "supplier": "Proveedor",
+      "buyer": "Comprador",
+      "quantity": "Cantidad",
+      "freightOption": "Opción de flete",
+      "incoterms": "Incoterms",
+      "expectedProductionComplete": "Producción completa esperada",
+      "expectedShipDate": "Fecha estimada de envío",
+      "expectedArrival": "Llegada estimada",
+      "destination": "Destino"
+    },
+    "finance": {
+      "productTotal": "Total del producto",
+      "originHandling": "Manejo en origen",
+      "sourcingFee": "Tarifa de sourcing",
+      "oxsteedMarkup": "Margen OxSteed",
+      "freightEstimate": "Estimación de flete",
+      "customsAdmin": "Aduanas/administración",
+      "warehouseFee": "Tarifa de almacén",
+      "lastMile": "Última milla",
+      "riskSurcharge": "Recargo de riesgo"
+    },
+    "totals": {
+      "totalLanded": "Total aterrizado",
+      "depositDue": "Depósito pendiente",
+      "finalDue": "Saldo final",
+      "remaining": "Restante"
+    },
+    "statuses": {
+      "draft": "Borrador",
+      "quoted": "Cotizado",
+      "approved": "Aprobado",
+      "awaiting_deposit": "Esperando depósito",
+      "deposit_collected": "Depósito cobrado",
+      "placed_with_supplier": "Asignado al proveedor",
+      "in_production": "En producción",
+      "production_complete": "Producción completa",
+      "ready_for_pickup": "Listo para recoger",
+      "in_transit": "En tránsito",
+      "customs_review": "Revisión aduanera",
+      "cleared": "Liberado",
+      "warehoused": "En almacén",
+      "allocated": "Asignado",
+      "fulfilled": "Cumplido",
+      "closed": "Cerrado",
+      "cancelled": "Cancelado"
+    }
+  },
+  "distributionPage": {
+    "title": "Distribución",
+    "subtitle": "Visibilidad de entrega de última milla entre asignaciones, pedidos de entrega, métodos de liberación y cumplimiento del destinatario.",
+    "stats": {
+      "allocations": "Asignaciones",
+      "released": "Liberadas",
+      "deliveryOrders": "Órdenes de entrega",
+      "inTransit": "En tránsito"
+    },
+    "loading": "Cargando…",
+    "sections": {
+      "allocationQueue": "Cola de asignaciones",
+      "openWarehousing": "Abrir almacén →",
+      "deliveryExecution": "Ejecución de entrega"
+    },
+    "defaults": {
+      "buyerAllocation": "Asignación del comprador",
+      "warehouse": "Almacén",
+      "releasePending": "pendiente de liberación",
+      "recipient": "Destinatario"
+    },
+    "labels": {
+      "allocatedQty": "Cantidad asignada",
+      "mode": "Modo",
+      "tracking": "Seguimiento"
+    },
+    "empty": {
+      "allocations": "No hay asignaciones disponibles.",
+      "deliveries": "No hay órdenes de entrega disponibles."
     }
   }
 }

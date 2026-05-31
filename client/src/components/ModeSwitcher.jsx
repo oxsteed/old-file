@@ -74,14 +74,13 @@ export default function ModeSwitcher({ compact = false }) {
       await switchRole(mode);
       toast.success(t('modeSwitcher.switchedTo', {
         mode: t(MODE_CATALOG[mode]?.labelKey || `modes.${mode}.label`, { defaultValue: mode }),
-        defaultValue: 'Switched.',
       }));
       // Hard reload so navbar / sidebars / role gates everywhere pick up the
       // new user shape. Same pattern as Settings page.
       navigate(routeForMode(mode), { replace: true });
       window.location.reload();
     } catch (err) {
-      toast.error(err?.response?.data?.error || t('modeSwitcher.switchFailed', { defaultValue: 'Could not switch.' }));
+      toast.error(err?.response?.data?.error || t('modeSwitcher.switchFailed'));
       setSwitching(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -209,12 +208,12 @@ export default function ModeSwitcher({ compact = false }) {
                           letterSpacing: '0.04em',
                         }}
                       >
-                        {t('modeSwitcher.currentBadge', { defaultValue: 'Current' })}
+                        {t('modeSwitcher.currentBadge')}
                       </span>
                     )}
                     {switching === m && (
                       <span style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)' }}>
-                        {t('common.switching', { defaultValue: 'Switching...' })}
+                        {t('common.switching')}
                       </span>
                     )}
                   </div>

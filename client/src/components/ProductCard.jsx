@@ -129,7 +129,7 @@ export default function ProductCard({
             onAddToCart();
           }}
           disabled={disabled || !inStock}
-          aria-label={`Add ${product.name} to cart`}
+          aria-label={t('common:productCard.addToCartAriaLabel', { name: product.name })}
         >
           <ShoppingCart size={16} />
           {inStock ? t('marketplace.addToCart') : t('marketplace.outOfStock')}

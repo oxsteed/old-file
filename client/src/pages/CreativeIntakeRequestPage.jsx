@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { Camera, CheckCircle2, Layers3, Palette, PenTool } from 'lucide-react';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
@@ -25,6 +26,7 @@ const INITIAL_FORM = {
 };
 
 export default function CreativeIntakeRequestPage() {
+  const { t } = useTranslation();
   const { businessId } = useParams();
   const [workspace, setWorkspace] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -42,7 +44,7 @@ export default function CreativeIntakeRequestPage() {
         setWorkspace(data);
         setForm((current) => ({ ...current, preferred_contact_channel: data?.settings?.preferred_contact_channel || 'email' }));
       } catch {
-        toast.error('Could not load this creative profile.');
+        toast.error(t('creativeIntakePage.errors.loadFailed'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -57,7 +59,7 @@ export default function CreativeIntakeRequestPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (form.project_type.trim().length < 3) return toast.error('Tell the business what kind of project you need.');
+    if (form.project_type.trim().length < 3) return toast.error(t('creativeIntakePage.errors.missingProjectType'));
     const payload = new FormData();
     Object.entries(form).forEach(([key, value]) => {
       if (key === 'photos') return;
@@ -74,9 +76,9 @@ export default function CreativeIntakeRequestPage() {
     try {
       const request = await createPublicCreativeIntake(businessId, payload);
       setSubmitted(request);
-      toast.success('Creative discovery sent.');
+      toast.success(t('creativeIntakePage.messages.submitted'));
     } catch (error) {
-      toast.error(error?.response?.data?.error || 'Could not send creative discovery.');
+      toast.error(error?.response?.data?.error || t('creativeIntakePage.errors.submitFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -85,12 +87,14 @@ export default function CreativeIntakeRequestPage() {
   const activeTemplate = workspace?.business?.active_template || 'creative_studio';
   const isPhotographer = activeTemplate === 'photographer';
   const isDesigner = activeTemplate === 'graphic_design';
-  const businessName = workspace?.business?.business_name || 'this creative business';
+  const businessName = workspace?.business?.business_name || t('creativeIntakePage.businessNameFallback');
+  const configuredFallback = t('creativeIntakePage.form.fallbacks.configuredInsideHub');
+  const projectTypePlaceholder = isPhotographer ? t('creativeIntakePage.form.projectType.placeholderPhotographer') : isDesigner ? t('creativeIntakePage.form.projectType.placeholderDesigner') : t('creativeIntakePage.form.projectType.placeholderDefault');
 
   if (loading) {
     return (
       <PageShell>
-        <div className="mrq-page"><p className="mrq-muted">Loading creative discovery...</p></div>
+        <div className="mrq-page"><p className="mrq-muted">{t('creativeIntakePage.loading')}</p></div>
       </PageShell>
     );
   }
@@ -98,18 +102,16 @@ export default function CreativeIntakeRequestPage() {
   if (submitted) {
     return (
       <PageShell>
-        <PageMeta title="Creative discovery sent - OxSteed" noIndex />
+        <PageMeta title={t('creativeIntakePage.submitted.pageTitle')} noIndex />
         <main className="mrq-page">
           <section className="mrq-success">
             <CheckCircle2 size={42} />
-            <p className="mrq-eyebrow">Discovery sent</p>
+            <p className="mrq-eyebrow">{t('creativeIntakePage.submitted.eyebrow')}</p>
             <h1>{submitted.project_type}</h1>
-            <p>
-              {businessName} can now review the project goal, style direction, package fit, and delivery timing before moving you into discovery, proposal, or production.
-            </p>
+            <p>{t('creativeIntakePage.submitted.description', { business: businessName })}</p>
             <div className="mrq-success-actions">
-              <Link className="mrq-btn primary" to={`/business/${businessId}`}>Back to profile</Link>
-              <Link className="mrq-btn" to="/dashboard">Go to dashboard</Link>
+              <Link className="mrq-btn primary" to={`/business/${businessId}`}>{t('creativeIntakePage.submitted.backToProfile')}</Link>
+              <Link className="mrq-btn" to="/dashboard">{t('creativeIntakePage.submitted.goToDashboard')}</Link>
             </div>
           </section>
         </main>
@@ -119,107 +121,107 @@ export default function CreativeIntakeRequestPage() {
 
   return (
     <PageShell>
-      <PageMeta title={`Creative discovery - ${businessName}`} noIndex />
+      <PageMeta title={t('creativeIntakePage.page.title', { business: businessName })} noIndex />
       <main className="mrq-page">
         <section className="mrq-hero">
           <div>
-            <p className="mrq-eyebrow"><Layers3 size={16} /> Creative discovery</p>
-            <h1>Start a project with {businessName}</h1>
+            <p className="mrq-eyebrow"><Layers3 size={16} /> {t('creativeIntakePage.hero.eyebrow')}</p>
+            <h1>{t('creativeIntakePage.hero.title', { business: businessName })}</h1>
             <p>
-              {workspace?.settings?.revision_policy || 'Share the project goal, style direction, references, and deadline so the business can route you into the right creative package or proposal.'}
+              {workspace?.settings?.revision_policy || t('creativeIntakePage.hero.subtitle')}
             </p>
           </div>
           <div className="mrq-hero-card">
             {isPhotographer ? <Camera size={24} /> : isDesigner ? <PenTool size={24} /> : <Palette size={24} />}
-            <strong>{workspace?.settings?.discovery_call_label || 'Creative discovery intake'}</strong>
-            <span>Built for discovery, proposal clarity, approvals, and delivery follow-through instead of generic contact messages.</span>
+            <strong>{workspace?.settings?.discovery_call_label || t('creativeIntakePage.hero.cardTitle')}</strong>
+            <span>{t('creativeIntakePage.hero.cardDescription')}</span>
           </div>
         </section>
 
         <form className="mrq-grid" onSubmit={handleSubmit}>
           <section className="mrq-panel">
-            <h2><Palette size={18} /> Project brief</h2>
+            <h2><Palette size={18} /> {t('creativeIntakePage.sections.projectBrief')}</h2>
             <div className="mrq-field">
-              <label>Project type</label>
-              <input value={form.project_type} onChange={(e) => updateField('project_type', e.target.value)} placeholder={isPhotographer ? 'Portrait session, brand shoot, event coverage' : isDesigner ? 'Logo system, packaging, pitch deck' : 'Campaign, content system, creative direction'} maxLength={180} />
+              <label>{t('creativeIntakePage.form.projectType.label')}</label>
+              <input value={form.project_type} onChange={(e) => updateField('project_type', e.target.value)} placeholder={projectTypePlaceholder} maxLength={180} />
             </div>
             <div className="mrq-field">
-              <label>Project goal</label>
-              <textarea value={form.project_goal} onChange={(e) => updateField('project_goal', e.target.value)} rows={5} placeholder="What are you trying to achieve, who is it for, and what outcome matters most?" />
+              <label>{t('creativeIntakePage.form.projectGoal.label')}</label>
+              <textarea value={form.project_goal} onChange={(e) => updateField('project_goal', e.target.value)} rows={5} placeholder={t('creativeIntakePage.form.projectGoal.placeholder')} />
             </div>
             <div className="mrq-field">
-              <label>Style direction</label>
-              <textarea value={form.style_direction} onChange={(e) => updateField('style_direction', e.target.value)} rows={4} placeholder="Describe the aesthetic, mood, brand references, or visual language you want." />
+              <label>{t('creativeIntakePage.form.styleDirection.label')}</label>
+              <textarea value={form.style_direction} onChange={(e) => updateField('style_direction', e.target.value)} rows={4} placeholder={t('creativeIntakePage.form.styleDirection.placeholder')} />
             </div>
             <div className="mrq-two">
               <div className="mrq-field">
-                <label>Deadline notes</label>
-                <input value={form.deadline_notes} onChange={(e) => updateField('deadline_notes', e.target.value)} placeholder="Launch date, event date, handoff timing" />
+                <label>{t('creativeIntakePage.form.deadlineNotes.label')}</label>
+                <input value={form.deadline_notes} onChange={(e) => updateField('deadline_notes', e.target.value)} placeholder={t('creativeIntakePage.form.deadlineNotes.placeholder')} />
               </div>
               <div className="mrq-field">
-                <label>Package interest</label>
-                <input value={form.package_interest} onChange={(e) => updateField('package_interest', e.target.value)} placeholder="Session package, brand system, retainer" />
+                <label>{t('creativeIntakePage.form.packageInterest.label')}</label>
+                <input value={form.package_interest} onChange={(e) => updateField('package_interest', e.target.value)} placeholder={t('creativeIntakePage.form.packageInterest.placeholder')} />
               </div>
             </div>
           </section>
 
           <section className="mrq-panel">
-            <h2>{isPhotographer ? <Camera size={18} /> : <PenTool size={18} />} Assets and delivery</h2>
+            <h2>{isPhotographer ? <Camera size={18} /> : <PenTool size={18} />} {t('creativeIntakePage.sections.assetsAndDelivery')}</h2>
             <div className="mrq-field">
-              <label>Assets or deliverables needed</label>
-              <textarea value={form.asset_needs} onChange={(e) => updateField('asset_needs', e.target.value)} rows={4} placeholder="What files, formats, scenes, deliverables, or outputs do you need?" />
+              <label>{t('creativeIntakePage.form.assetsNeeded.label')}</label>
+              <textarea value={form.asset_needs} onChange={(e) => updateField('asset_needs', e.target.value)} rows={4} placeholder={t('creativeIntakePage.form.assetsNeeded.placeholder')} />
             </div>
             <div className="mrq-two">
               <div className="mrq-field">
-                <label>Revision scope expectations</label>
-                <input value={form.revision_scope} onChange={(e) => updateField('revision_scope', e.target.value)} placeholder="Rounds of revisions, selects, proofing needs" />
+                <label>{t('creativeIntakePage.form.revisionScope.label')}</label>
+                <input value={form.revision_scope} onChange={(e) => updateField('revision_scope', e.target.value)} placeholder={t('creativeIntakePage.form.revisionScope.placeholder')} />
               </div>
               <div className="mrq-field">
-                <label>Budget notes</label>
-                <input value={form.budget_notes} onChange={(e) => updateField('budget_notes', e.target.value)} placeholder="Optional budget or pricing guardrails" />
+                <label>{t('creativeIntakePage.form.budgetNotes.label')}</label>
+                <input value={form.budget_notes} onChange={(e) => updateField('budget_notes', e.target.value)} placeholder={t('creativeIntakePage.form.budgetNotes.placeholder')} />
               </div>
             </div>
             <div className="mrq-field">
-              <label>Reference links</label>
-              <textarea value={form.reference_links} onChange={(e) => updateField('reference_links', e.target.value)} rows={4} placeholder="One link per line: Pinterest board, moodboard, prior brand assets, example work" />
+              <label>{t('creativeIntakePage.form.referenceLinks.label')}</label>
+              <textarea value={form.reference_links} onChange={(e) => updateField('reference_links', e.target.value)} rows={4} placeholder={t('creativeIntakePage.form.referenceLinks.placeholder')} />
             </div>
             <div className="mrq-field">
-              <label>Upload references</label>
+              <label>{t('creativeIntakePage.form.uploadReferences.label')}</label>
               <input type="file" accept="image/*" multiple onChange={(e) => updateField('photos', Array.from(e.target.files || []).slice(0, 5))} />
             </div>
           </section>
 
           <section className="mrq-panel">
-            <h2><Layers3 size={18} /> Contact and process</h2>
+            <h2><Layers3 size={18} /> {t('creativeIntakePage.sections.contactAndProcess')}</h2>
             <div className="mrq-field">
-              <label>Contact name</label>
-              <input value={form.contact_name} onChange={(e) => updateField('contact_name', e.target.value)} placeholder="Your name or team contact" />
+              <label>{t('creativeIntakePage.form.contactName.label')}</label>
+              <input value={form.contact_name} onChange={(e) => updateField('contact_name', e.target.value)} placeholder={t('creativeIntakePage.form.contactName.placeholder')} />
             </div>
             <div className="mrq-two">
               <div className="mrq-field">
-                <label>Email</label>
-                <input value={form.contact_email} onChange={(e) => updateField('contact_email', e.target.value)} placeholder="you@example.com" />
+                <label>{t('creativeIntakePage.form.contactEmail.label')}</label>
+                <input value={form.contact_email} onChange={(e) => updateField('contact_email', e.target.value)} placeholder={t('creativeIntakePage.form.contactEmail.placeholder')} />
               </div>
               <div className="mrq-field">
-                <label>Phone</label>
-                <input value={form.contact_phone} onChange={(e) => updateField('contact_phone', e.target.value)} placeholder="Optional phone" />
+                <label>{t('creativeIntakePage.form.contactPhone.label')}</label>
+                <input value={form.contact_phone} onChange={(e) => updateField('contact_phone', e.target.value)} placeholder={t('creativeIntakePage.form.contactPhone.placeholder')} />
               </div>
             </div>
             <div className="mrq-field">
-              <label>Preferred contact channel</label>
+              <label>{t('creativeIntakePage.form.contactChannel.label')}</label>
               <select value={form.preferred_contact_channel} onChange={(e) => updateField('preferred_contact_channel', e.target.value)}>
-                <option value="email">Email</option>
-                <option value="call">Call</option>
-                <option value="meeting">Meeting</option>
-                <option value="message">Message</option>
+                <option value="email">{t('creativeIntakePage.form.contactChannel.options.email')}</option>
+                <option value="call">{t('creativeIntakePage.form.contactChannel.options.call')}</option>
+                <option value="meeting">{t('creativeIntakePage.form.contactChannel.options.meeting')}</option>
+                <option value="message">{t('creativeIntakePage.form.contactChannel.options.message')}</option>
               </select>
             </div>
             <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-950/70 px-4 py-4 text-sm text-gray-300">
-              <p><strong>Revision policy:</strong> {workspace?.settings?.revision_policy || 'Configured inside Business Hub.'}</p>
-              <p className="mt-3"><strong>Approval process:</strong> {workspace?.settings?.approval_policy || 'Configured inside Business Hub.'}</p>
+              <p><strong>{t('creativeIntakePage.form.labels.revisionPolicy')}</strong> {workspace?.settings?.revision_policy || configuredFallback}</p>
+              <p className="mt-3"><strong>{t('creativeIntakePage.form.labels.approvalPolicy')}</strong> {workspace?.settings?.approval_policy || configuredFallback}</p>
             </div>
             <button className="mrq-btn primary" type="submit" disabled={submitting}>
-              {submitting ? 'Sending...' : 'Send creative discovery'}
+              {submitting ? t('creativeIntakePage.form.actions.sending') : t('creativeIntakePage.form.actions.submit')}
             </button>
           </section>
         </form>

@@ -337,7 +337,7 @@ export default function SettingsPage() {
   };
 
   const deleteBusiness = async (id) => {
-    if (!confirm('Remove this business?')) return;
+    if (!confirm(t('settings.removeBusinessConfirm'))) return;
     try {
       await api.delete(`/businesses/${id}`);
       setBusinesses(prev => prev.filter(b => b.id !== id));

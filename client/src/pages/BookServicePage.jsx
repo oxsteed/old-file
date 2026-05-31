@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { Calendar, Clock, DollarSign, User, Mail, Phone } from 'lucide-react';
 import '../styles/BookServicePage.css';
 
 export default function BookServicePage() {
   const { businessId, serviceId } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [business, setBusiness] = useState(null);
   const [service, setService] = useState(null);
@@ -58,7 +60,7 @@ export default function BookServicePage() {
       const svc = serviceRes.data.find(s => s.id === serviceId);
       setService(svc);
     } catch (error) {
-      toast.error('Failed to load service details');
+      toast.error(t('bookService.errors.loadServiceDetails'));
       navigate('/');
     } finally {
       setLoading(false);
@@ -74,7 +76,7 @@ export default function BookServicePage() {
       setAvailableSlots(response.data.available_slots);
       setSelectedSlot(null);
     } catch (error) {
-      toast.error('Failed to load available slots');
+      toast.error(t('bookService.errors.loadSlots'));
       setAvailableSlots([]);
     }
   };
@@ -93,23 +95,23 @@ export default function BookServicePage() {
       );
       setCalculatedPrice(response.data);
     } catch (error) {
-      toast.error('Failed to calculate price');
+      toast.error(t('bookService.errors.calculatePrice'));
     }
   };
 
   const handleBooking = async () => {
     if (!formData.agree_to_terms) {
-      toast.error('Please agree to terms and conditions');
+      toast.error(t('bookService.errors.agreeTerms'));
       return;
     }
 
     if (!formData.customer_name || !formData.customer_email) {
-      toast.error('Please fill in all required fields');
+      toast.error(t('bookService.errors.requiredFields'));
       return;
     }
 
     if (!selectedDate || !selectedSlot) {
-      toast.error('Please select a date and time');
+      toast.error(t('bookService.errors.selectDateTime'));
       return;
     }
 
@@ -131,21 +133,21 @@ export default function BookServicePage() {
         }
       );
 
-      toast.success('Booking confirmed!');
+      toast.success(t('bookService.success'));
       navigate(`/bookings/${response.data.id}`);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to create booking');
+      toast.error(error.response?.data?.message || t('bookService.errors.createBooking'));
     } finally {
       setLoading(false);
     }
   };
 
   if (loading && !service) {
-    return <div className="bsp-loading">Loading service...</div>;
+    return <div className="bsp-loading">{t('bookService.loading')}</div>;
   }
 
   if (!service) {
-    return <div className="bsp-error">Service not found</div>;
+    return <div className="bsp-error">{t('bookService.notFound')}</div>;
   }
 
   const nextDays = Array.from({ length: 30 }, (_, i) => {
@@ -171,19 +173,19 @@ export default function BookServicePage() {
         <div className="bsp-main">
           {/* Service Details */}
           <section className="bsp-section">
-            <h2>Service Details</h2>
+            <h2>{t('bookService.sections.details')}</h2>
             <div className="bsp-details">
               <div className="bsp-detail-item">
                 <Clock size={20} />
                 <div>
-                  <div className="label">Duration</div>
+                  <div className="label">{t('bookService.durationLabel')}</div>
                   <div className="value">{service.duration_minutes} minutes</div>
                 </div>
               </div>
               <div className="bsp-detail-item">
                 <DollarSign size={20} />
                 <div>
-                  <div className="label">Base Price</div>
+                  <div className="label">{t('bookService.basePriceLabel')}</div>
                   <div className="value">${(service.base_price_cents / 100).toFixed(2)}</div>
                 </div>
               </div>
@@ -195,7 +197,7 @@ export default function BookServicePage() {
 
           {/* Date Selection */}
           <section className="bsp-section">
-            <h2>Select Date</h2>
+            <h2>{t('bookService.sections.selectDate')}</h2>
             <div className="bsp-date-grid">
               {nextDays.map(date => (
                 <button
@@ -213,7 +215,7 @@ export default function BookServicePage() {
           {/* Time Selection */}
           {selectedDate && (
             <section className="bsp-section">
-              <h2>Select Time</h2>
+              <h2>{t('bookService.sections.selectTime')}</h2>
               {availableSlots.length > 0 ? (
                 <div className="bsp-time-grid">
                   {availableSlots.map((slot, idx) => (
@@ -227,7 +229,7 @@ export default function BookServicePage() {
                   ))}
                 </div>
               ) : (
-                <p className="bsp-no-slots">No available times for this date</p>
+                <p className="bsp-no-slots">{t('bookService.noAvailableSlots')}</p>
               )}
             </section>
           )}
@@ -236,18 +238,18 @@ export default function BookServicePage() {
         <div className="bsp-sidebar">
           {/* Booking Summary */}
           <div className="bsp-summary">
-            <h3>Booking Summary</h3>
+            <h3>{t('bookService.summary.title')}</h3>
 
             {selectedDate && (
               <div className="bsp-summary-item">
-                <span>Date:</span>
+                <span>{t('bookService.summary.dateLabel')}:</span>
                 <span>{new Date(selectedDate).toLocaleDateString()}</span>
               </div>
             )}
 
             {selectedSlot && (
               <div className="bsp-summary-item">
-                <span>Time:</span>
+                <span>{t('bookService.summary.timeLabel')}:</span>
                 <span>{selectedSlot.start_time} - {selectedSlot.end_time}</span>
               </div>
             )}
@@ -256,7 +258,7 @@ export default function BookServicePage() {
               <>
                 <div className="bsp-price-breakdown">
                   <div className="bsp-summary-item">
-                    <span>Base Price:</span>
+                    <span>{t('bookService.summary.basePriceLabel')}:</span>
                     <span>${(calculatedPrice.base_price_cents / 100).toFixed(2)}</span>
                   </div>
                   {calculatedPrice.modifiers && calculatedPrice.modifiers.length > 0 && (
@@ -274,7 +276,7 @@ export default function BookServicePage() {
                 <div className="bsp-summary-divider"></div>
 
                 <div className="bsp-summary-item final-price">
-                  <span>Total Price:</span>
+                  <span>{t('bookService.summary.totalPriceLabel')}:</span>
                   <span>${(calculatedPrice.final_price_cents / 100).toFixed(2)}</span>
                 </div>
               </>
@@ -283,46 +285,46 @@ export default function BookServicePage() {
 
           {/* Customer Info Form */}
           <form className="bsp-form">
-            <h3>Your Information</h3>
+            <h3>{t('bookService.form.title')}</h3>
 
             <div className="bsp-form-group">
-              <label>Name *</label>
+              <label>{t('bookService.form.nameLabel')} *</label>
               <input
                 type="text"
                 value={formData.customer_name}
                 onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
-                placeholder="Your full name"
+                placeholder={t('bookService.form.namePlaceholder')}
                 required
               />
             </div>
 
             <div className="bsp-form-group">
-              <label>Email *</label>
+              <label>{t('bookService.form.emailLabel')} *</label>
               <input
                 type="email"
                 value={formData.customer_email}
                 onChange={(e) => setFormData({ ...formData, customer_email: e.target.value })}
-                placeholder="your@email.com"
+                placeholder={t('bookService.form.emailPlaceholder')}
                 required
               />
             </div>
 
             <div className="bsp-form-group">
-              <label>Phone</label>
+              <label>{t('bookService.form.phoneLabel')}</label>
               <input
                 type="tel"
                 value={formData.customer_phone}
                 onChange={(e) => setFormData({ ...formData, customer_phone: e.target.value })}
-                placeholder="(123) 456-7890"
+                placeholder={t('bookService.form.phonePlaceholder')}
               />
             </div>
 
             <div className="bsp-form-group">
-              <label>Notes</label>
+              <label>{t('bookService.form.notesLabel')}</label>
               <textarea
                 value={formData.customer_notes}
                 onChange={(e) => setFormData({ ...formData, customer_notes: e.target.value })}
-                placeholder="Any special requests or notes..."
+                placeholder={t('bookService.form.notesPlaceholder')}
                 rows="4"
               />
             </div>
@@ -334,7 +336,7 @@ export default function BookServicePage() {
                 checked={formData.agree_to_terms}
                 onChange={(e) => setFormData({ ...formData, agree_to_terms: e.target.checked })}
               />
-              <label htmlFor="agree">I agree to the terms and cancellation policy</label>
+              <label htmlFor="agree">{t('bookService.form.termsText')}</label>
             </div>
 
             <button
@@ -343,7 +345,10 @@ export default function BookServicePage() {
               disabled={!selectedDate || !selectedSlot || !formData.customer_email || loading}
               className="bsp-btn-book"
             >
-              {loading ? 'Booking...' : `Book Now - $${calculatedPrice ? (calculatedPrice.final_price_cents / 100).toFixed(2) : '0.00'}`}
+              {loading
+                ? t('bookService.buttons.booking')
+                : t('bookService.buttons.bookNow', { price: calculatedPrice ? (calculatedPrice.final_price_cents / 100).toFixed(2) : '0.00' })
+              }
             </button>
           </form>
         </div>
