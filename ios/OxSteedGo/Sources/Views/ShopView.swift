@@ -4,25 +4,29 @@ struct ShopView: View {
     @Environment(GoStore.self) private var store
 
     private let items = [
-        ("Leak repair kit", "For sink, faucet, and small pipe fixes", "$24"),
-        ("Stud finder", "Useful for shelves, mounts, and cabinets", "$31"),
-        ("Moving straps", "Rental-friendly logistics helper", "$14"),
-        ("Contractor trash bags", "Common add-on for cleanup jobs", "$18")
+        (title: GoCopyKey.shopItemLeakRepairKit, subtitle: GoCopyKey.shopItemLeakRepairKitDescription, price: "$24"),
+        (title: GoCopyKey.shopItemStudFinder, subtitle: GoCopyKey.shopItemStudFinderDescription, price: "$31"),
+        (title: GoCopyKey.shopItemMovingStraps, subtitle: GoCopyKey.shopItemMovingStrapsDescription, price: "$14"),
+        (title: GoCopyKey.shopItemTrashBags, subtitle: GoCopyKey.shopItemTrashBagsDescription, price: "$18")
     ]
+
+    private func t(_ key: GoCopyKey) -> String {
+        GoLocalization.text(key, language: store.appLanguage)
+    }
 
     var body: some View {
         @Bindable var store = store
 
-        GoScreen(title: "Shop") {
+        GoScreen(title: t(.shop)) {
             GoCard {
-                Text("Skill-Aware Shopping")
+                Text(t(.shopSkillAwareShopping))
                     .font(.largeTitle.bold())
-                Text("A simpler user app surface for the marketplace: supplies, tools, rentals, and recommended lists tied to a job draft.")
+                Text(t(.shopDescription))
                     .font(.headline)
                     .foregroundStyle(.secondary)
-                TextField("Search marketplace", text: $store.searchText)
+                TextField(t(.shopSearchMarketplace), text: $store.searchText)
                     .textFieldStyle(.roundedBorder)
-                Button("Load Products") {
+                Button(t(.shopLoadProducts)) {
                     Task { await store.loadProducts() }
                 }
                 .buttonStyle(.borderedProminent)
@@ -32,21 +36,25 @@ struct ShopView: View {
             switch store.products {
             case .idle:
                 ForEach(items, id: \.0) { item in
-                    ProductPreviewRow(title: item.0, subtitle: item.1, price: item.2)
+                    ProductPreviewRow(
+                        title: t(item.title),
+                        subtitle: t(item.subtitle),
+                        price: item.price
+                    )
                 }
             case .loading:
-                GoCard { ProgressView("Loading products") }
+                GoCard { ProgressView(t(.shopLoadingProducts)) }
             case .failed(let message):
                 GoCard {
                     Text(message)
                         .foregroundStyle(.red)
-                    Button("Retry") { Task { await store.loadProducts() } }
+                    Button(t(.shopRetry)) { Task { await store.loadProducts() } }
                 }
             case .loaded(let products):
                 ForEach(products.prefix(20)) { product in
                     ProductPreviewRow(
-                        title: product.name ?? "Unnamed product",
-                        subtitle: product.description ?? product.category ?? "Marketplace item",
+                        title: product.name ?? t(.shopUnnamedProduct),
+                        subtitle: product.description ?? product.category ?? t(.shopMarketplaceItem),
                         price: product.priceText
                     )
                 }

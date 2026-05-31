@@ -12,6 +12,7 @@ const emailService = require('../services/emailService');
 const { sendSMS } = require('../utils/sms');
 const { broadcastToUser } = require('../services/socketService');
 const { renderAppointmentEmail, renderAppointmentSms } = require('../utils/calendarEmails');
+const { tNotif } = require('../utils/i18n');
 
 const REMINDER_TYPES = new Set([
   'appointment_requested',
@@ -24,15 +25,9 @@ const REMINDER_TYPES = new Set([
   'appointment_completed',
 ]);
 
-const SUBJECT_BY_TYPE = {
-  appointment_requested:  'New appointment request',
-  appointment_confirmed:  'Your appointment is confirmed',
-  appointment_cancelled:  'Your appointment has been cancelled',
-  reminder_24h:           'Reminder: your appointment is tomorrow',
-  reminder_2h:            'Reminder: your appointment is in 2 hours',
-  reminder_same_day:      'Reminder: your appointment is today',
-  appointment_completed:  'Appointment completed',
-};
+function subjectForType(type, language = 'en') {
+  return tNotif(type, language).title || tNotif('appointment_requested', language).title;
+}
 
 // ─── HTTP: list pending + sent notifications ─────────────────
 exports.getPendingNotifications = async (req, res, next) => {
@@ -117,6 +112,7 @@ exports.processReminderNotifications = async () => {
     const result = await pool.query(
       `SELECT cn.id                AS notification_id,
               cn.user_id,
+              (SELECT preferred_language FROM users WHERE id = cn.user_id LIMIT 1) AS recipient_preferred_language,
               cn.appointment_id,
               cn.notification_type,
               cn.channel,
@@ -175,6 +171,7 @@ async function dispatchNotification(row) {
     appointment_id,
     notification_type,
     channel,
+    recipient_preferred_language,
     customer_id,
     customer_email, customer_name, customer_phone,
     helper_email,   helper_name,   helper_phone,
@@ -205,6 +202,7 @@ async function dispatchNotification(row) {
   const recipientName  = isCustomer ? customer_name  : helper_name;
   const recipientPhone = isCustomer ? customer_phone : helper_phone;
   const otherName      = isCustomer ? helper_name    : customer_name;
+  const recipientLanguage = recipient_preferred_language || 'en';
 
   // Resolve channels:
   //   * Each row has its own `channel` (we usually create rows with channel='in_app');
@@ -250,10 +248,10 @@ async function dispatchNotification(row) {
         service: service_description,
         when: scheduled_start_time,
         location: location_address,
-      });
+      }, recipientLanguage);
       await emailService.send({
         to: recipientEmail,
-        subject: SUBJECT_BY_TYPE[notification_type] || 'Appointment notification',
+        subject: subjectForType(notification_type, recipientLanguage),
         html,
       });
       sent = true;
@@ -268,7 +266,7 @@ async function dispatchNotification(row) {
       const body = renderAppointmentSms(notification_type, {
         recipientName: recipientName || '',
         when: scheduled_start_time,
-      });
+      }, recipientLanguage);
       const result = await sendSMS(recipientPhone, body);
       if (result && result.success) sent = true;
       else lastError = `sms: ${result?.error || 'unknown'}`;

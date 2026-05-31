@@ -90,9 +90,13 @@ exports.createBid = async (req, res, next) => {
         await sendNotification({
           userId: client_id,
           type: 'bid_received',
-          title: 'New Bid on Your Job',
-          body: `${helper_name} placed a bid of $${Number(result.amount).toFixed(2)} on "${title}"`,
-          data: { job_id: result.job_id, bid_id: result.id },
+          data: {
+            job_id: result.job_id,
+            bid_id: result.id,
+            helper_name,
+            amount: Number(result.amount).toFixed(2),
+            job_title: title,
+          },
           action_url: `/jobs/${result.job_id}`,
         });
       }

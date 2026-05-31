@@ -113,13 +113,13 @@ struct OneRootView: View {
     }
 
     private var guestAppHeader: some View {
-        HStack(spacing: 12) {
+            HStack(spacing: 12) {
             OxSteedOneMark(size: 44)
             VStack(alignment: .leading, spacing: 1) {
-                Text("OxSteed")
+                Text(store.localized("app.name", fallback: "OxSteed One"))
                     .font(.title2.weight(.heavy))
                     .foregroundStyle(.white)
-                Text("Browse local help, jobs, and tools")
+                Text(store.localized("home.browse_help_jobs_tools", fallback: "Browse local help, jobs, and tools"))
                     .font(.caption.weight(.medium))
                     .foregroundStyle(OneTheme.muted)
             }
@@ -143,7 +143,7 @@ struct OneRootView: View {
                 .foregroundStyle(OneTheme.muted)
             ZStack(alignment: .leading) {
                 if guestSearchText.isEmpty {
-                    Text("Search jobs, helpers, or tools")
+                    Text(store.localized("home.search_placeholder_text", fallback: "Search jobs, helpers, or tools"))
                         .foregroundStyle(.white.opacity(0.46))
                 }
                 TextField("", text: $guestSearchText)
@@ -169,9 +169,9 @@ struct OneRootView: View {
 
     private var guestModeStrip: some View {
         HStack(spacing: 6) {
-            guestSegmentButton("Jobs", icon: "hammer.fill", index: 0)
-            guestSegmentButton("Helpers", icon: "person.2.fill", index: 1)
-            guestSegmentButton("Tools", icon: "wrench.and.screwdriver.fill", index: 2)
+            guestSegmentButton(store.localized("home.guest_section_jobs", fallback: "Jobs"), icon: "hammer.fill", index: 0)
+            guestSegmentButton(store.localized("home.guest_section_helpers", fallback: "Helpers"), icon: "person.2.fill", index: 1)
+            guestSegmentButton(store.localized("home.guest_section_tools", fallback: "Tools"), icon: "wrench.and.screwdriver.fill", index: 2)
         }
         .padding(5)
         .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -205,8 +205,8 @@ struct OneRootView: View {
     private var guestMetricStrip: some View {
         HStack(spacing: 8) {
             guestMetric(value: "\(store.customerJobs.count)", label: "Jobs")
-            guestMetric(value: "\(store.serviceHelpers.count)", label: "Helpers")
-            guestMetric(value: "\(store.rentalTools.count)", label: "Tools")
+            guestMetric(value: "\(store.serviceHelpers.count)", label: store.localized("home.guest_section_helpers", fallback: "Helpers"))
+            guestMetric(value: "\(store.rentalTools.count)", label: store.localized("home.guest_section_tools", fallback: "Tools"))
         }
     }
 
@@ -283,10 +283,10 @@ struct OneRootView: View {
             Image(systemName: "tray")
                 .font(.title3)
                 .foregroundStyle(OneTheme.amber)
-            Text("No matching public listings")
+            Text(store.localized("home.guest_empty_state_title", fallback: "No matching public listings"))
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(.white)
-            Text("Try a different search or refresh public listings.")
+            Text(store.localized("home.guest_empty_state_body", fallback: "Try a different search or refresh public listings."))
                 .font(.caption)
                 .foregroundStyle(OneTheme.muted)
         }
@@ -301,7 +301,7 @@ struct OneRootView: View {
 
     private var guestAuthBar: some View {
         HStack(spacing: 10) {
-            NavigationLink("Create Account") { SignupView() }
+            NavigationLink(store.localized("auth.create_account", fallback: "Create Account")) { SignupView() }
                 .font(.headline.weight(.bold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -314,7 +314,7 @@ struct OneRootView: View {
                     ),
                     in: RoundedRectangle(cornerRadius: 8, style: .continuous)
                 )
-            NavigationLink("Sign In") { LoginView() }
+            NavigationLink(store.localized("auth.sign_in", fallback: "Sign In")) { LoginView() }
                 .font(.headline.weight(.bold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -333,17 +333,17 @@ struct OneRootView: View {
 
     private var guestSectionTitle: String {
         switch guestExploreSection {
-        case 0: return "Open Jobs"
-        case 1: return "Available Helpers"
-        default: return "Tool Rentals"
+        case 0: return store.localized("home.guest_section_open_jobs", fallback: "Open Jobs")
+        case 1: return store.localized("home.guest_section_available_helpers", fallback: "Available Helpers")
+        default: return store.localized("home.guest_section_tool_rentals", fallback: "Tool Rentals")
         }
     }
 
     private var guestSectionSubtitle: String {
         switch guestExploreSection {
-        case 0: return "See live customer needs before joining as a helper."
-        case 1: return "Find local service providers and compare trust signals."
-        default: return "Browse nearby tools before reserving."
+        case 0: return store.localized("home.guest_section_open_jobs_subtitle", fallback: "See live customer needs before joining as a helper.")
+        case 1: return store.localized("home.guest_section_available_helpers_subtitle", fallback: "Find local service providers and compare trust signals.")
+        default: return store.localized("home.guest_section_tool_rentals_subtitle", fallback: "Browse nearby tools before reserving.")
         }
     }
 
@@ -355,11 +355,11 @@ struct OneRootView: View {
                 GuestPreviewItem(
                     id: "job-\($0.id.uuidString)",
                     title: $0.title,
-                    subtitle: "\($0.category) · \($0.locationQuery.isEmpty ? "Local area" : $0.locationQuery)",
-                    detail: $0.details.isEmpty ? "Sign in to message, bid, or manage this job." : $0.details,
+                    subtitle: "\($0.category) · \($0.locationQuery.isEmpty ? store.localized(\"home.location_local_area\", fallback: \"Local area\") : $0.locationQuery)",
+                    detail: $0.details.isEmpty ? store.localized("guest.item_detail_job_prompt", fallback: "Sign in to message, bid, or manage this job.") : $0.details,
                     icon: "hammer.fill",
                     accessory: $0.status.rawValue.replacingOccurrences(of: "_", with: " ").capitalized,
-                    actionTitle: "Sign in to view job"
+                    actionTitle: store.localized("guest.action_view_job", fallback: "Sign in to view job")
                 )
             }
         case 1:
@@ -368,10 +368,10 @@ struct OneRootView: View {
                     id: "helper-\($0.id.uuidString)",
                     title: $0.name,
                     subtitle: "\($0.specialty) · \($0.city)",
-                    detail: "Rating \(String(format: "%.1f", $0.rating)) stars. Starting around $\(Int($0.hourlyRate))/hour.",
+                    detail: "\(store.localized(\"home.rating_label\", fallback: \"Rating\")) \(String(format: \"%.1f\", $0.rating)) \(store.localized(\"home.rating_stars\", fallback: \"stars.\")) \(store.localized(\"home.rate_prefix\", fallback: \"Starting around\")) $\(Int($0.hourlyRate))/hour.",
                     icon: "person.crop.circle.badge.checkmark",
                     accessory: "\(String(format: "%.1f", $0.rating))★",
-                    actionTitle: "Sign in to book"
+                    actionTitle: store.localized("guest.action_book", fallback: "Sign in to book")
                 )
             }
         default:
@@ -380,10 +380,10 @@ struct OneRootView: View {
                     id: "tool-\($0.id.uuidString)",
                     title: $0.title,
                     subtitle: "\($0.ownerName) · \($0.city)",
-                    detail: $0.terms.isEmpty ? "Sign in to reserve, coordinate pickup, and protect your deposit." : $0.terms,
+                    detail: $0.terms.isEmpty ? store.localized("guest.action_reserve_prompt", fallback: "Sign in to reserve, coordinate pickup, and protect your deposit.") : $0.terms,
                     icon: "wrench.and.screwdriver.fill",
                     accessory: "$\(Int($0.dailyRate))/day",
-                    actionTitle: "Sign in to reserve"
+                    actionTitle: store.localized("guest.action_reserve", fallback: "Sign in to reserve")
                 )
             }
         }
@@ -526,11 +526,11 @@ struct OneRootView: View {
     private var onboardingView: some View {
         NavigationStack {
             Form {
-                Section("Welcome") {
-                    Text("Set up your first persona and pulse pillars. Pulse is never zero on first launch.")
+                Section(store.localized("onboarding.welcome", fallback: "Welcome")) {
+                    Text(store.localized("onboarding.welcome_description", fallback: "Set up your first persona and pulse pillars. Pulse is never zero on first launch."))
                 }
 
-                Section("Primary Persona") {
+                Section(store.localized("auth.primary_persona", fallback: "Primary Persona")) {
                     Picker("Start as", selection: Binding(
                         get: { store.onboardingState.selectedPrimaryPersona },
                         set: { store.onboardingState.selectedPrimaryPersona = $0 }
@@ -541,23 +541,23 @@ struct OneRootView: View {
                     }
                 }
 
-                Section("Pulse Pillars") {
-                    Toggle("Money", isOn: Binding(get: { store.onboardingState.hasMoney }, set: { store.onboardingState.hasMoney = $0 }))
-                    Toggle("Home Care", isOn: Binding(get: { store.onboardingState.hasHomeCare }, set: { store.onboardingState.hasHomeCare = $0 }))
-                    Toggle("Car Care", isOn: Binding(get: { store.onboardingState.hasCarCare }, set: { store.onboardingState.hasCarCare = $0 }))
-                    Toggle("Personal Care", isOn: Binding(get: { store.onboardingState.hasPersonalCare }, set: { store.onboardingState.hasPersonalCare = $0 }))
-                    Toggle("Goals", isOn: Binding(get: { store.onboardingState.hasGoals }, set: { store.onboardingState.hasGoals = $0 }))
-                    Toggle("Planned Needs", isOn: Binding(get: { store.onboardingState.hasPlannedNeeds }, set: { store.onboardingState.hasPlannedNeeds = $0 }))
+                Section(store.localized("onboarding.pulse_pillars", fallback: "Pulse Pillars")) {
+                    Toggle(store.localized("onboarding.pillar_money", fallback: "Money"), isOn: Binding(get: { store.onboardingState.hasMoney }, set: { store.onboardingState.hasMoney = $0 }))
+                    Toggle(store.localized("onboarding.pillar_home_care", fallback: "Home Care"), isOn: Binding(get: { store.onboardingState.hasHomeCare }, set: { store.onboardingState.hasHomeCare = $0 }))
+                    Toggle(store.localized("onboarding.pillar_car_care", fallback: "Car Care"), isOn: Binding(get: { store.onboardingState.hasCarCare }, set: { store.onboardingState.hasCarCare = $0 }))
+                    Toggle(store.localized("onboarding.pillar_personal_care", fallback: "Personal Care"), isOn: Binding(get: { store.onboardingState.hasPersonalCare }, set: { store.onboardingState.hasPersonalCare = $0 }))
+                    Toggle(store.localized("onboarding.pillar_goals", fallback: "Goals"), isOn: Binding(get: { store.onboardingState.hasGoals }, set: { store.onboardingState.hasGoals = $0 }))
+                    Toggle(store.localized("onboarding.pillar_planned_needs", fallback: "Planned Needs"), isOn: Binding(get: { store.onboardingState.hasPlannedNeeds }, set: { store.onboardingState.hasPlannedNeeds = $0 }))
                 }
 
                 Section {
-                    Button("Finish Setup") {
+                    Button(store.localized("onboarding.finish_setup", fallback: "Finish Setup")) {
                         store.completeOnboarding()
                     }
                     .buttonStyle(GoAccentButtonStyle())
                 }
             }
-            .navigationTitle("Get Started")
+            .navigationTitle(store.localized("onboarding.get_started", fallback: "Get Started"))
         }
     }
 
@@ -624,7 +624,7 @@ private struct GuestListingDetailSheet: View {
 
                 NavigationLink(item.actionTitle) { LoginView() }
                     .buttonStyle(GoAccentButtonStyle())
-                NavigationLink("Create account") { SignupView() }
+                NavigationLink(store.localized("auth.create_account", fallback: "Create Account")) { SignupView() }
                     .font(.headline.weight(.bold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -639,7 +639,7 @@ private struct GuestListingDetailSheet: View {
             .background(OneTheme.background.ignoresSafeArea())
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
+                    Button(store.localized("common.done", fallback: "Done")) {
                         dismiss()
                     }
                     .foregroundStyle(OneTheme.amber)
@@ -664,9 +664,9 @@ private struct LoginView: View {
         @Bindable var store = store
         Form {
             Section(store.localized("auth.welcome_back", fallback: "Welcome Back")) {
-                TextField("Email", text: $store.authEmail)
+                TextField(store.localized("auth.email", fallback: "Email"), text: $store.authEmail)
                     .textContentType(.username)
-                SecureField("Password", text: $store.authPassword)
+                SecureField(store.localized("auth.password", fallback: "Password"), text: $store.authPassword)
                     .textContentType(.password)
                 TextField(store.localized("auth.full_legal_name", fallback: "Full legal name"), text: $store.authAgreementName)
                     .textContentType(.name)
@@ -715,18 +715,18 @@ private struct SignupView: View {
         @Bindable var store = store
         Form {
             Section(store.localized("auth.create_account_title", fallback: "Create Account")) {
-                TextField("First name", text: $store.authFirstName)
+                TextField(store.localized("auth.first_name", fallback: "First name"), text: $store.authFirstName)
                     .textContentType(.givenName)
-                TextField("Last name", text: $store.authLastName)
+                TextField(store.localized("auth.last_name", fallback: "Last name"), text: $store.authLastName)
                     .textContentType(.familyName)
-                TextField("Email", text: $store.authEmail)
+                TextField(store.localized("auth.email", fallback: "Email"), text: $store.authEmail)
                     .textContentType(.username)
-                SecureField("Password", text: $store.authPassword)
+                SecureField(store.localized("auth.password", fallback: "Password"), text: $store.authPassword)
                     .textContentType(.newPassword)
             }
 
             Section(store.localized("auth.primary_persona", fallback: "Primary Persona")) {
-                Picker("Persona", selection: $store.onboardingState.selectedPrimaryPersona) {
+                Picker(store.localized("auth.persona", fallback: "Persona"), selection: $store.onboardingState.selectedPrimaryPersona) {
                     ForEach(store.personaOptions) { persona in
                         Text(persona.label).tag(persona)
                     }

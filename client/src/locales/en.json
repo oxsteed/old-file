@@ -485,6 +485,10 @@
     "agreementRequired": "You must agree to the Terms of Service and Privacy Policy to sign in",
     "signatureRequired": "Please enter your full name as your digital signature to continue",
     "signatureFullNameRequired": "Please enter your first and last name (e.g. Jane Smith)",
+    "emailPlaceholder": "you@example.com",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "copyright": "© {{year}} OxSteed LLC. All rights reserved.",
     "signatureNameMismatch": "The name you entered doesn't match the name on your account. Please use the exact name you registered with."
   },
   "forgotPassword": {
@@ -4250,6 +4254,19 @@
         "clientPackages": "Client Packages"
       },
       "newPackage": "New Package",
+      "editPackage": "Edit Package",
+      "labelName": "Package Name *",
+      "labelDescription": "Description",
+      "labelPrice": "Price ($) *",
+      "labelTotalSessions": "Total Sessions",
+      "labelValidityDays": "Valid for (days)",
+      "emptyPackages": "No packages yet. Create your first service bundle.",
+      "emptyClientPackages": "No client packages yet.",
+      "sessions": "sessions",
+      "sessionsLeft": "sessions left",
+      "noExpiry": "No expiry",
+      "expires": "Expires",
+      "useSession": "Use",
       "confirmArchive": "Archive this package?",
       "toastLoadPackagesFail": "Failed to load packages",
       "toastLoadClientPackagesFail": "Failed to load client packages",
@@ -6654,6 +6671,7 @@
     "badgeHelper": "Helper",
     "badgeBusiness": "Business",
     "availableNow": "Available now",
+    "onlineCount": "{{count}} online",
     "viewProfile": "View Profile",
     "viewProfileAria": "View {{name}}'s profile",
     "badgeIdVerified": "ID Verified",
@@ -9115,7 +9133,149 @@
       "moqProgress": "{{pct}}% of MOQ reached",
       "closes": "Closes",
       "deposit": "Deposit",
-      "perUnit": "/ unit"
+      "perUnit": "/ unit",
+      "heroTitle": "Global supply chains were built for corporations.",
+      "heroSubtitle": "We built one for the buyer who needs 200 units, the organizer who ships to Haiti, and the business that can't afford a freight broker.",
+      "openWorkspace": "Open your workspace →",
+      "getStarted": "Get started",
+      "browseOpenCampaigns": "Browse open campaigns",
+      "viewAll": "View all",
+      "readyToStart": "Ready to start?",
+      "readyToStartBody": "Join to access sourcing, pooled buying, and full supply-chain visibility — from first supplier contact to last-mile delivery.",
+      "createAccount": "Create an account",
+      "unitsProgress": "{{current}} / {{target}} {{units}}",
+      "whyCards": {
+        "moq": {
+          "heading": "The minimum order problem",
+          "body": "Manufacturers set minimums for factories, not individuals. Most buyers are locked out — not because of price, but because of volume. Campaigns pool demand until the math works for everyone."
+        },
+        "compliance": {
+          "heading": "Compliance isn’t optional",
+          "body": "Every shipment crosses regulations: trade rules, duties, restricted categories, import licenses. OxSteed surfaces restrictions before you commit — not after your goods are held at customs."
+          },
+        "lastmile": {
+          "heading": "The last mile is its own problem",
+          "body": "Goods arrive at port. Then what? Warehousing, allocation, and delivery orders — each one is its own handoff. OxSteed coordinates the chain so every step knows what the next one needs."
+        }
+      }
+    },
+    "complianceWorkspace": {
+      "title": "Compliance Workspace",
+      "subtitle": "See trade rules for each route and the customs-sensitive operations queue when you have operator access.",
+      "nav": {
+        "tradeRules": "Trade rules",
+        "reviewQueue": "Review queue",
+        "customsOps": "Customs operations",
+        "restrictions": "Restrictions"
+      },
+      "kpis": {
+        "lowRisk": "Low-risk lanes",
+        "managed": "Managed lanes",
+        "restricted": "Restricted lanes",
+        "prohibited": "Prohibited lanes"
+      },
+      "cardTitleLaneMarketRules": "Lane and market rules",
+      "cardTitleOperator": "Operator review posture",
+      "cardTitleCategoryRestrictions": "Category restrictions snapshot",
+      "tableHeaders": {
+        "lane": "Lane",
+        "countries": "Countries",
+        "risk": "Risk",
+        "flags": "Flags",
+        "item": "Item",
+        "routeOrCountry": "Route / Country",
+        "country": "Country",
+        "status": "Status"
+      },
+      "risk": {
+        "low": "Low",
+        "managed": "Managed",
+        "restricted": "Restricted",
+        "prohibited": "Prohibited"
+      },
+      "flags": {
+        "open": "Open",
+        "businessVerification": "Business verification",
+        "manualApproval": "Manual approval"
+      },
+      "status": {
+        "approvalRequired": "Approval required"
+      },
+      "empty": {
+        "noLanes": "No lanes available yet.",
+        "noRestrictions": "No restrictions available."
+      },
+      "separator": "·",
+      "queueLabel": "Customs-sensitive shipments in queue"
+    },
+    "operatorLogin": {
+      "copy": {
+        "compliance": {
+          "title": "Compliance Workspace Login",
+          "subtitle": "Internal compliance access requires your assigned name and security key before password sign-in."
+        },
+        "adminControl": {
+          "title": "Admin Control Login",
+          "subtitle": "Internal admin control remains operator-only. Use your linked admin account to continue."
+        },
+        "operations": {
+          "title": "Operations Workspace Login",
+          "subtitle": "Internal operations access requires your assigned name and security key before password sign-in."
+        }
+      },
+      "twoFaTitle": "Two-Factor Authentication",
+      "twoFaPrompt": "Enter the 6-digit code from your authenticator app, or a backup code.",
+      "labels": {
+        "email": "Email",
+        "password": "Password",
+        "internalName": "Internal name",
+        "securityKey": "Security key",
+        "twoFaCode": "2FA Code"
+      },
+      "placeholders": {
+        "email": "operator@oxsteed.com",
+        "password": "Enter your password",
+        "internalName": "Your assigned internal name",
+        "securityKey": "Security key provided by super-admin"
+      },
+      "approvedAccountLabel": "Approved account",
+      "approvedAccountNote": "This login can only continue with the OxSteed account linked to",
+      "verifying": "Verifying…",
+      "verify": "Verify",
+      "checking": "Checking…",
+      "continue": "Continue",
+      "signingIn": "Signing in…",
+      "signIn": "Sign In",
+      "locked": "Account Locked",
+      "requestRecoveryEmail": "Request a recovery email",
+      "recoveryPrompt": "Enter the recovery email on file:",
+      "resetIdentity": "Use a different internal access identity",
+      "footer": {
+        "internalKeyRequired": "Operations and Compliance access now require a super-admin-issued internal name and security key.",
+        "adminOnly": "Only users with admin or super-admin roles can enter this portal.",
+        "standardSignIn": "Go to the standard OxSteed sign-in"
+      },
+      "errors": {
+        "tooManyAttempts": "Too many failed attempts. Try again in {{minutes}} minute(s).",
+        "tooManyAttemptsLocked": "Too many failed attempts. Locked until the timer expires.",
+        "internalNameAndKeyRequired": "Name and security key are required.",
+        "internalAccessFailed": "Internal access verification failed.",
+        "lockedRecovery": "Access temporarily locked. Request a recovery email or contact a super-admin.",
+        "invalidCredentialsRemaining": "Invalid credentials. {{attemptsLeft}} attempts remaining before lockout.",
+        "recoveryEmailSent": "If that email is authorised for recovery, a one-time link has been sent. Check your inbox.",
+        "recoveryEmailFailed": "Could not request recovery email.",
+        "internalAccessRequired": "Complete the internal access verification first.",
+        "passwordRequired": "Password is required.",
+        "passwordLocked": "Access temporarily locked due to too many failed attempts.",
+        "passwordFailed": "Login failed. Please check your password.",
+        "emailAndPasswordRequired": "Email and password are required.",
+        "accountLocked": "Account temporarily locked due to too many failed attempts.",
+        "credentialsFailed": "Login failed. Please check your credentials.",
+        "twoFaExpired": "Your 2FA session expired. Please sign in again.",
+        "twoFaCodeRequired": "Please enter your 2FA code.",
+        "operatorPrivilegesRequired": "Access denied. Logistics operator privileges required.",
+        "invalid2Fa": "Invalid 2FA code."
+      }
     },
     "campaigns": {
       "title": "Pooled Campaigns",
@@ -9283,8 +9443,11 @@
       "draft": "Draft",
       "open": "Open",
       "quoted": "Quoted",
+      "pledging": "Pledging",
+      "deposit_phase": "Deposit phase",
       "approved": "Approved",
       "placed_with_supplier": "Placed",
+      "placed": "Placed",
       "deposit_paid": "Deposit Paid",
       "production": "In Production",
       "ready_to_ship": "Ready to Ship",
@@ -11685,6 +11848,170 @@
     "empty": {
       "allocations": "No allocations available.",
       "deliveries": "No delivery orders available."
+    }
+  },
+  "consultantContractorDashboard": {
+    "page": {
+      "title": "Consultant Contractor Dashboard",
+      "description": "Manage local OxSteed business-launch referrals, coverage markets, and negotiated referral economics.",
+      "workspaceBadge": "Consultant contractor workspace",
+      "heading": "Local referrals, payout split, and market coverage in one place.",
+      "subheading": "Use this dashboard to operate as an independent OxSteed consultant. You can define your market coverage, manage referrals, track the negotiated OxSteed cut, and move each lead from introduction to engagement.",
+      "signedInAs": "Signed in as"
+    },
+    "summary": {
+      "activeReferrals": "Active referrals",
+      "activeReferralsHint": "Leads still moving through your local consulting pipeline.",
+      "pipelineValue": "Your pipeline value",
+      "pipelineValueHint": "Estimated contractor-side value from assigned and open referrals.",
+      "generated": "OxSteed generated",
+      "generatedHint": "Estimated platform-side share being created from your referral activity.",
+      "coveredCountries": "Covered countries",
+      "coveredCountriesHint": "Markets where you are currently available for local or virtual referrals."
+    },
+    "coverageProfile": {
+      "label": "Coverage Profile",
+      "title": "Where you can serve",
+      "noCoverage": "Add your country and region coverage so OxSteed can route local business-launch referrals to you."
+    },
+    "errors": {
+      "load": "Failed to load consultant dashboard.",
+      "saveProfile": "Failed to save profile.",
+      "saveReferral": "Failed to update referral."
+    },
+    "actions": {
+      "saving": "Saving",
+      "savingProfile": "Saving profile",
+      "saveProfile": "Save profile",
+      "manageAvailability": "Manage availability"
+    },
+    "referral": {
+      "yourShare": "Your share",
+      "retainedByPlatform": "{{amount}} retained by platform",
+      "statusLabel": "Referral status",
+      "followUpLabel": "Follow-up",
+      "saveUpdate": "Save update",
+      "notesLabel": "Notes for this referral",
+      "notesPlaceholder": "Capture discovery notes, local market context, next steps, and anything OxSteed should know.",
+      "targetMarketLabel": "Target market",
+      "targetMarketMissing": "Not provided"
+    },
+    "referralStatus": {
+      "assigned": "Assigned",
+      "introPending": "Intro pending",
+      "introSent": "Intro sent",
+      "discoveryScheduled": "Discovery scheduled",
+      "proposalSent": "Proposal sent",
+      "engaged": "Engaged",
+      "won": "Won",
+      "lost": "Lost",
+      "completed": "Completed",
+      "paused": "Paused"
+    },
+    "profile": {
+      "fields": {
+        "headline": "Headline",
+        "headlinePlaceholder": "e.g. Local consultant for hospitality and service operations",
+        "bio": "Bio",
+        "bioPlaceholder": "Your background, specialties, and how you support local referrals.",
+        "homeCountry": "Home country",
+        "homeCountryPlaceholder": "United States",
+        "homeRegion": "Home region / state",
+        "homeRegionPlaceholder": "Florida",
+        "homeCity": "Home city",
+        "homeCityPlaceholder": "Miami",
+        "coverageCountries": "Coverage countries",
+        "coverageCountriesPlaceholder": "United States, Dominican Republic",
+        "coverageRegions": "Coverage regions",
+        "coverageRegionsPlaceholder": "Southeast, Northeast",
+        "languages": "Languages",
+        "languagesPlaceholder": "English, French, Spanish",
+        "specialties": "Specialties",
+        "specialtiesPlaceholder": "Consulting, operations setup, launch support",
+        "timezone": "Timezone",
+        "timezonePlaceholder": "America/New_York",
+        "yearsExperience": "Years experience",
+        "defaultCut": "Default OxSteed cut (bps)",
+        "referralLimit": "Referral limit",
+        "minimumPackageCents": "Minimum package cents"
+      },
+      "toggles": {
+        "acceptingReferrals": "Accepting referrals",
+        "virtualConsulting": "Virtual consulting",
+        "profileActive": "Profile active"
+      }
+    },
+    "pipeline": {
+      "label": "Referral Pipeline",
+      "title": "Assigned local consulting leads",
+      "openNow": "Open now",
+      "loading": "Loading referrals…",
+      "emptyTitle": "No assigned referrals yet",
+      "emptyDescription": "Once OxSteed routes a business-launch lead to you, it will appear here with payout split, market context, and next-step tracking."
+    },
+    "howItWorks": {
+      "label": "How this program works",
+      "title": "OxSteed referral model",
+      "step1Title": "1. Local match",
+      "step1Body": "Admins can match a helper or business-launch intake to consultants who cover that country, region, and language.",
+      "step2Title": "2. Negotiated cut",
+      "step2Body": "The agreed OxSteed referral cut is copied onto the lead at assignment time, so your share and the platform share stay locked for that referral.",
+      "step3Title": "3. Pipeline execution",
+      "step3Body": "Use your dashboard to move leads from intro to discovery, proposal, engagement, and completion while keeping OxSteed in the loop."
+    },
+    "consultantAvailabilityPage": {
+      "metaTitle": "Availability",
+      "metaDescription": "Manage your recurring weekly schedule, time blocks, and time off dates.",
+      "badge": "Consultant Availability",
+      "heading": "Your Weekly Availability",
+      "intro": "Set your regular working hours and manage time off so customers only book within available windows.",
+      "backToDashboard": "Back to Dashboard",
+      "summaryActiveDays": "Active Days",
+      "summaryActiveDaysHint": "Days with at least one active weekly slot",
+      "summaryWeeklySlots": "Weekly Slots",
+      "summaryWeeklySlotsHint": "Total configured recurring slots",
+      "summaryBlockedDates": "Blocked Dates",
+      "summaryBlockedDatesHint": "Specific dates you have marked unavailable",
+      "nextTimeOff": "Next Time Off",
+      "summaryNextTimeOffHint": "Earliest upcoming blocked date",
+      "none": "None",
+      "scheduleBuilder": "Schedule Builder",
+      "liveWeeklyView": "Live Weekly View",
+      "loadedNow": "Items loaded",
+      "controlsHeading": "Controls",
+      "controlsBody": "Add, edit, and track recurring availability by day.",
+      "slotActiveDesc": "This slot is active.",
+      "slotInactiveDesc": "This slot is inactive.",
+      "noRecurringHours": "No recurring hours set",
+      "timeOff": "Time Off",
+      "useFor": "Use for vacations, holidays, etc.",
+      "useForBody": "Mark days you are not available so customers and clients see accurate availability.",
+      "protectedDates": "Protected Dates",
+      "reasonPlaceholder": "Optional reason",
+      "noReasonAdded": "Time blocked with no reason added yet.",
+      "noBlockedDates": "No blocked dates yet",
+      "noBlockedDatesBody": "Add at least one blocked date to keep your availability from showing for that day.",
+      "notSet": "Not set",
+      "saveAvailability": "Save Availability",
+      "noScheduleSaved": "No schedule entries yet",
+      "noScheduleSavedBody": "Use the form on the left to add your first recurring slot.",
+      "addBlockedDate": "Add Blocked Date",
+      "dayLabels": {
+        "sunday": "Sunday",
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday"
+      },
+      "errorLoadingAvailability": "Failed to load availability.",
+      "errorLoadingBlockedDates": "Failed to load blocked dates.",
+      "errorTimeRange": "Set both start and end time.",
+      "errorSavingAvailability": "Could not save availability.",
+      "errorAddingBlockedDate": "Could not add blocked date.",
+      "errorRemovingBlockedDate": "Could not remove blocked date.",
+      "dateRequired": "Please select a date."
     }
   }
 }

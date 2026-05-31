@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api, { clearStoredSession, persistSessionPayload } from '../../api/auth';
 import { useAuth } from '../../hooks/useAuth';
 import { isLogisticsOperator } from '../../utils/logisticsWorkspaces';
@@ -26,26 +27,27 @@ function getSafeNextPath(rawNext, mode) {
 function loginCopy(mode) {
   if (mode === 'compliance') {
     return {
-      title: 'Compliance Workspace Login',
-      subtitle: 'Internal compliance access requires your assigned name and security key before password sign-in.',
+      titleKey: 'logistics.operatorLogin.copy.compliance.title',
+      subtitleKey: 'logistics.operatorLogin.copy.compliance.subtitle',
       route: 'compliance',
     };
   }
   if (mode === 'admin_control') {
     return {
-      title: 'Admin Control Login',
-      subtitle: 'Internal admin control remains operator-only. Use your linked admin account to continue.',
+      titleKey: 'logistics.operatorLogin.copy.adminControl.title',
+      subtitleKey: 'logistics.operatorLogin.copy.adminControl.subtitle',
       route: null,
     };
   }
   return {
-    title: 'Operations Workspace Login',
-    subtitle: 'Internal operations access requires your assigned name and security key before password sign-in.',
+    titleKey: 'logistics.operatorLogin.copy.operations.title',
+    subtitleKey: 'logistics.operatorLogin.copy.operations.subtitle',
     route: 'operations',
   };
 }
 
 export default function LogisticsOperatorLoginPage() {
+  const { t } = useTranslation();
   const { login, setUser, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -95,12 +97,12 @@ export default function LogisticsOperatorLoginPage() {
 
     if (isLocked) {
       const mins = Math.ceil((lockedUntil - Date.now()) / 60000);
-      setError(`Too many failed attempts. Try again in ${mins} minute(s).`);
+      setError(t('logistics.operatorLogin.errors.tooManyAttempts', { minutes: mins }));
       return;
     }
 
     if (!internalName.trim() || !securityKey.trim()) {
-      setError('Name and security key are required.');
+      setError(t('logistics.operatorLogin.errors.internalNameAndKeyRequired'));
       return;
     }
 
@@ -121,17 +123,19 @@ export default function LogisticsOperatorLoginPage() {
       const payload = err.response?.data || {};
       if (status === 423 && payload.lockedUntil) {
         setLockedUntil(new Date(payload.lockedUntil).getTime());
-        setError(payload.message || 'Access temporarily locked. Request a recovery email or contact a super-admin.');
+        setError(payload.message || t('logistics.operatorLogin.errors.lockedRecovery'));
       } else if (status === 401 && payload.lockedUntil) {
         setLockedUntil(new Date(payload.lockedUntil).getTime());
-        setError('Too many failed attempts. Locked until the timer expires.');
+        setError(t('logistics.operatorLogin.errors.tooManyAttemptsLocked'));
       } else if (status === 401 && typeof payload.attemptsLeft === 'number') {
         setAttempts(MAX_ATTEMPTS - payload.attemptsLeft);
-        setError(`Invalid credentials. ${payload.attemptsLeft} attempt${payload.attemptsLeft === 1 ? '' : 's'} remaining before lockout.`);
+        setError(t('logistics.operatorLogin.errors.invalidCredentialsRemaining', {
+          attemptsLeft: payload.attemptsLeft,
+        }));
       } else {
         const newAttempts = attempts + 1;
         setAttempts(newAttempts);
-        setError(payload.error || 'Internal access verification failed.');
+        setError(payload.error || t('logistics.operatorLogin.errors.internalAccessFailed'));
       }
     } finally {
       setLoading(false);
@@ -140,16 +144,16 @@ export default function LogisticsOperatorLoginPage() {
 
   async function handleRequestRecovery() {
     setError('');
-    const email = (window.prompt('Enter the recovery email on file:') || '').trim();
+    const email = (window.prompt(t('logistics.operatorLogin.recoveryPrompt')) || '').trim();
     if (!email) return;
     try {
       await api.post('/auth/internal-access/recovery/request', {
         email,
         internal_name: internalName.trim() || undefined,
       });
-      setError('If that email is authorised for recovery, a one-time link has been sent. Check your inbox.');
+      setError(t('logistics.operatorLogin.errors.recoveryEmailSent'));
     } catch (err) {
-      setError(err.response?.data?.error || 'Could not request recovery email.');
+      setError(err.response?.data?.error || t('logistics.operatorLogin.errors.recoveryEmailFailed'));
     }
   }
 
@@ -159,17 +163,17 @@ export default function LogisticsOperatorLoginPage() {
 
     if (isLocked) {
       const mins = Math.ceil((lockedUntil - Date.now()) / 60000);
-      setError(`Too many failed attempts. Try again in ${mins} minute(s).`);
+      setError(t('logistics.operatorLogin.errors.tooManyAttempts', { minutes: mins }));
       return;
     }
 
     if (requiresInternalKey) {
       if (!internalAccessToken || !approvedIdentity) {
-        setError('Complete the internal access verification first.');
+        setError(t('logistics.operatorLogin.errors.internalAccessRequired'));
         return;
       }
       if (!password) {
-        setError('Password is required.');
+        setError(t('logistics.operatorLogin.errors.passwordRequired'));
         return;
       }
 
@@ -197,9 +201,9 @@ export default function LogisticsOperatorLoginPage() {
         if (newAttempts >= MAX_ATTEMPTS) {
           const lockTime = Date.now() + LOCKOUT_MS;
           setLockedUntil(lockTime);
-          setError('Access temporarily locked due to too many failed attempts.');
+          setError(t('logistics.operatorLogin.errors.passwordLocked'));
         } else {
-          setError(err.response?.data?.error || 'Login failed. Please check your password.');
+          setError(err.response?.data?.error || t('logistics.operatorLogin.errors.passwordFailed'));
         }
       } finally {
         setLoading(false);
@@ -208,7 +212,7 @@ export default function LogisticsOperatorLoginPage() {
     }
 
     if (!email || !password) {
-      setError('Email and password are required.');
+      setError(t('logistics.operatorLogin.errors.emailAndPasswordRequired'));
       return;
     }
 
@@ -225,7 +229,7 @@ export default function LogisticsOperatorLoginPage() {
 
       const loggedInUser = data.user;
       if (!isLogisticsOperator(loggedInUser)) {
-        setError('Access denied. Logistics operator privileges required.');
+        setError(t('logistics.operatorLogin.errors.operatorPrivilegesRequired'));
         clearStoredSession();
         setUser(null);
         setLoading(false);
@@ -240,9 +244,9 @@ export default function LogisticsOperatorLoginPage() {
       if (newAttempts >= MAX_ATTEMPTS) {
         const lockTime = Date.now() + LOCKOUT_MS;
         setLockedUntil(lockTime);
-        setError('Account temporarily locked due to too many failed attempts.');
+        setError(t('logistics.operatorLogin.errors.accountLocked'));
       } else {
-        setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
+        setError(err.response?.data?.error || t('logistics.operatorLogin.errors.credentialsFailed'));
       }
     } finally {
       setLoading(false);
@@ -254,7 +258,7 @@ export default function LogisticsOperatorLoginPage() {
     setError('');
 
     if (!twoFACode || !mfaToken) {
-      setError(!mfaToken ? 'Your 2FA session expired. Please sign in again.' : 'Please enter your 2FA code.');
+      setError(!mfaToken ? t('logistics.operatorLogin.errors.twoFaExpired') : t('logistics.operatorLogin.errors.twoFaCodeRequired'));
       return;
     }
 
@@ -267,7 +271,7 @@ export default function LogisticsOperatorLoginPage() {
       });
 
       if (!isLogisticsOperator(data.user)) {
-        setError('Access denied. Logistics operator privileges required.');
+        setError(t('logistics.operatorLogin.errors.operatorPrivilegesRequired'));
         clearStoredSession();
         setUser(null);
         setLoading(false);
@@ -279,7 +283,7 @@ export default function LogisticsOperatorLoginPage() {
       setAttempts(0);
       navigate(nextPath, { replace: true });
     } catch (err) {
-      setError(err.response?.data?.error || 'Invalid 2FA code.');
+      setError(err.response?.data?.error || t('logistics.operatorLogin.errors.invalid2Fa'));
     } finally {
       setLoading(false);
     }
@@ -290,14 +294,14 @@ export default function LogisticsOperatorLoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-orange-500">OxSteed Logistics</h1>
-          <p className="text-gray-400 mt-2">{copy.title}</p>
+          <p className="text-gray-400 mt-2">{t(copy.titleKey)}</p>
         </div>
 
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8">
           <h2 className="text-xl font-semibold text-white mb-2">
-            {requires2FA ? 'Two-Factor Authentication' : copy.title}
+            {requires2FA ? t('logistics.operatorLogin.twoFaTitle') : t(copy.titleKey)}
           </h2>
-          <p className="text-sm text-gray-400 mb-6">{copy.subtitle}</p>
+          <p className="text-sm text-gray-400 mb-6">{t(copy.subtitleKey)}</p>
 
           {error && (
             <div className="bg-red-900/30 border border-red-700 text-red-400 px-4 py-3 rounded-lg mb-4 text-sm">
@@ -307,11 +311,9 @@ export default function LogisticsOperatorLoginPage() {
 
           {requires2FA ? (
             <form onSubmit={handle2FASubmit} className="space-y-4">
-              <p className="text-sm text-gray-400 mb-2">
-                Enter the 6-digit code from your authenticator app, or a backup code.
-              </p>
+              <p className="text-sm text-gray-400 mb-2">{t('logistics.operatorLogin.twoFaPrompt')}</p>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">2FA Code</label>
+                <label className="block text-sm text-gray-400 mb-1">{t('logistics.operatorLogin.labels.twoFaCode')}</label>
                 <input
                   type="text"
                   value={twoFACode}
@@ -329,39 +331,43 @@ export default function LogisticsOperatorLoginPage() {
                 disabled={loading}
                 className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg transition"
               >
-                {loading ? 'Verifying...' : 'Verify'}
+                {loading ? t('logistics.operatorLogin.verifying') : t('logistics.operatorLogin.verify')}
               </button>
               <button
                 type="button"
-                onClick={() => { setRequires2FA(false); setTwoFACode(''); setMfaToken(null); }}
+                onClick={() => {
+                  setRequires2FA(false);
+                  setTwoFACode('');
+                  setMfaToken(null);
+                }}
                 className="w-full text-gray-400 hover:text-white text-sm py-2 transition"
               >
-                Back
+                {t('common.back')}
               </button>
             </form>
           ) : requiresInternalKey && !approvedIdentity ? (
             <form onSubmit={handleInternalAccessSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Internal name</label>
+                <label className="block text-sm text-gray-400 mb-1">{t('logistics.operatorLogin.labels.internalName')}</label>
                 <input
                   type="text"
                   value={internalName}
                   onChange={(e) => setInternalName(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
-                  placeholder="Your assigned internal name"
+                  placeholder={t('logistics.operatorLogin.placeholders.internalName')}
                   autoComplete="username"
                   disabled={loading || isLocked}
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Security key</label>
+                <label className="block text-sm text-gray-400 mb-1">{t('logistics.operatorLogin.labels.securityKey')}</label>
                 <input
                   type="password"
                   value={securityKey}
                   onChange={(e) => setSecurityKey(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
-                  placeholder="Security key provided by super-admin"
+                  placeholder={t('logistics.operatorLogin.placeholders.securityKey')}
                   autoComplete="one-time-code"
                   disabled={loading || isLocked}
                   required
@@ -372,7 +378,7 @@ export default function LogisticsOperatorLoginPage() {
                 disabled={loading || isLocked}
                 className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg transition mt-2"
               >
-                {loading ? 'Checking...' : isLocked ? 'Access Locked' : 'Continue'}
+                {loading ? t('logistics.operatorLogin.checking') : isLocked ? t('logistics.operatorLogin.locked') : t('logistics.operatorLogin.continue')}
               </button>
               {isLocked && (
                 <button
@@ -380,7 +386,7 @@ export default function LogisticsOperatorLoginPage() {
                   onClick={handleRequestRecovery}
                   className="w-full mt-2 text-sm text-orange-400 hover:text-orange-300 underline"
                 >
-                  Request a recovery email
+                  {t('logistics.operatorLogin.requestRecoveryEmail')}
                 </button>
               )}
             </form>
@@ -388,21 +394,24 @@ export default function LogisticsOperatorLoginPage() {
             <form onSubmit={handlePasswordSubmit} className="space-y-4">
               {requiresInternalKey ? (
                 <div className="bg-gray-800/60 border border-gray-700 rounded-lg px-4 py-3">
-                  <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">Approved account</div>
+                  <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">{t('logistics.operatorLogin.approvedAccountLabel')}</div>
                   <div className="text-white font-medium">{approvedIdentity?.email_masked || approvedIdentity?.email}</div>
                   <div className="text-xs text-gray-400 mt-1">
-                    This login can only continue with the OxSteed account linked to <strong>{approvedIdentity?.internal_name}</strong>.
+                    {t('logistics.operatorLogin.approvedAccountNote')}
+                    {approvedIdentity?.internal_name ? (
+                      <strong> {approvedIdentity.internal_name}</strong>
+                    ) : null}
                   </div>
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">Email</label>
+                  <label className="block text-sm text-gray-400 mb-1">{t('logistics.operatorLogin.labels.email')}</label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
-                    placeholder="operator@oxsteed.com"
+                    placeholder={t('logistics.operatorLogin.placeholders.email')}
                     autoComplete="email"
                     disabled={loading || isLocked}
                     required
@@ -410,13 +419,13 @@ export default function LogisticsOperatorLoginPage() {
                 </div>
               )}
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Password</label>
+                <label className="block text-sm text-gray-400 mb-1">{t('logistics.operatorLogin.labels.password')}</label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
-                  placeholder="Enter your password"
+                  placeholder={t('logistics.operatorLogin.placeholders.password')}
                   autoComplete="current-password"
                   disabled={loading || isLocked}
                   required
@@ -427,7 +436,9 @@ export default function LogisticsOperatorLoginPage() {
                 disabled={loading || isLocked}
                 className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg transition mt-2"
               >
-                {loading ? 'Signing in...' : isLocked ? 'Account Locked' : 'Sign In'}
+                {loading
+                  ? t('logistics.operatorLogin.signingIn')
+                  : isLocked ? t('logistics.operatorLogin.locked') : t('logistics.operatorLogin.signIn')}
               </button>
               {requiresInternalKey && (
                 <button
@@ -435,7 +446,7 @@ export default function LogisticsOperatorLoginPage() {
                   onClick={resetToFirstStep}
                   className="w-full text-gray-400 hover:text-white text-sm py-2 transition"
                 >
-                  Use a different internal access identity
+                  {t('logistics.operatorLogin.resetIdentity')}
                 </button>
               )}
             </form>
@@ -445,11 +456,11 @@ export default function LogisticsOperatorLoginPage() {
         <div className="mt-6 text-center text-sm text-gray-500 space-y-2">
           <p>
             {requiresInternalKey
-              ? 'Operations and Compliance access now require a super-admin-issued internal name and security key.'
-              : 'Only users with admin or super-admin roles can enter this portal.'}
+              ? t('logistics.operatorLogin.footer.internalKeyRequired')
+              : t('logistics.operatorLogin.footer.adminOnly')}
           </p>
           <Link to="/login" className="text-orange-400 hover:text-orange-300 transition-colors">
-            Go to the standard OxSteed sign-in
+            {t('logistics.operatorLogin.footer.standardSignIn')}
           </Link>
         </div>
       </div>

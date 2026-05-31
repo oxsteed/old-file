@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import {
   listCampaigns,
@@ -11,27 +12,6 @@ import {
   isBusinessProcurementEligibleMembership,
 } from '../../utils/logisticsWorkspaces';
 import '../../styles/logistics/LogisticsHomePage.css';
-
-const WHY_CARDS = [
-  {
-    key: 'moq',
-    accent: '#f97316',
-    heading: 'The minimum order problem',
-    body: 'Manufacturers set minimums for factories, not individuals. Most buyers are locked out — not because of price, but because of volume. Campaigns pool demand until the math works for everyone.',
-  },
-  {
-    key: 'compliance',
-    accent: '#8b5cf6',
-    heading: 'Compliance isn\'t optional',
-    body: 'Every shipment crosses regulations: trade rules, duties, restricted categories, import licenses. OxSteed surfaces restrictions before you commit — not after your goods are held at customs.',
-  },
-  {
-    key: 'lastmile',
-    accent: '#06b6d4',
-    heading: 'The last mile is its own problem',
-    body: 'Goods arrive at port. Then what? Warehousing, allocation, delivery orders — each one is its own handoff. OxSteed coordinates the chain so every step knows what the next one needs.',
-  },
-];
 
 const STATUS_COLOR = {
   draft: '#94a3b8',
@@ -45,9 +25,34 @@ const STATUS_COLOR = {
 };
 
 export default function LogisticsHomePage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [openCampaigns, setOpenCampaigns] = useState([]);
   const [businessAccess, setBusinessAccess] = useState({ eligibleBusinesses: [], businesses: [] });
+
+  const whyCards = useMemo(
+    () => [
+      {
+        key: 'moq',
+        accent: '#f97316',
+        heading: t('logistics.home.whyCards.moq.heading'),
+        body: t('logistics.home.whyCards.moq.body'),
+      },
+      {
+        key: 'compliance',
+        accent: '#8b5cf6',
+        heading: t('logistics.home.whyCards.compliance.heading'),
+        body: t('logistics.home.whyCards.compliance.body'),
+      },
+      {
+        key: 'lastmile',
+        accent: '#06b6d4',
+        heading: t('logistics.home.whyCards.lastmile.heading'),
+        body: t('logistics.home.whyCards.lastmile.body'),
+      },
+    ],
+    [t],
+  );
 
   const recommendedWorkspace = useMemo(
     () => recommendedLogisticsWorkspace(user, businessAccess),
@@ -78,24 +83,25 @@ export default function LogisticsHomePage() {
 
         {/* ── Hero ───────────────────────────────────────────── */}
         <div className="lxh-hero">
-          <p className="lxh-eyebrow">OxSteed Logistics</p>
+          <p className="lxh-eyebrow">{t('logistics.home.title')}</p>
           <h1 className="lxh-title">
-            Global supply chains were built for corporations.
+            {t('logistics.home.heroTitle')}
           </h1>
           <p className="lxh-sub">
-            We built one for the buyer who needs 200 units, the organizer who
-            ships to Haiti, and the business that can't afford a freight broker.
+            {t('logistics.home.heroSubtitle')}
           </p>
           <div className="lxh-actions">
             {user ? (
               <Link to={recommendedWorkspace} className="lx-btn-primary">
-                Open your workspace →
+                {t('logistics.home.openWorkspace')}
               </Link>
             ) : (
               <>
-                <Link to="/register" className="lx-btn-primary">Get started</Link>
+                <Link to="/register" className="lx-btn-primary">
+                  {t('logistics.home.getStarted')}
+                </Link>
                 <Link to="/logistics/campaigns" className="lx-btn-ghost">
-                  Browse open campaigns
+                  {t('logistics.home.browseOpenCampaigns')}
                 </Link>
               </>
             )}
@@ -104,7 +110,7 @@ export default function LogisticsHomePage() {
 
         {/* ── Why this exists ────────────────────────────────── */}
         <section className="lxh-why">
-          {WHY_CARDS.map((card) => (
+          {whyCards.map((card) => (
             <div key={card.key} className="lxh-why-card">
               <div className="lxh-why-accent" style={{ background: card.accent }} />
               <h2 className="lxh-why-heading">{card.heading}</h2>
@@ -117,9 +123,9 @@ export default function LogisticsHomePage() {
         {openCampaigns.length > 0 && (
           <section className="lxh-campaigns">
             <div className="lxh-campaigns-header">
-              <span className="lxh-campaigns-label">Open campaigns</span>
+              <span className="lxh-campaigns-label">{t('logistics.home.openCampaigns')}</span>
               <Link to="/logistics/campaigns?open=true" className="lx-link">
-                View all
+                {t('logistics.home.viewAll')}
               </Link>
             </div>
             <div className="lxh-campaigns-grid">
@@ -140,12 +146,18 @@ export default function LogisticsHomePage() {
                     />
                   </div>
                   <div className="lxh-campaign-foot">
-                    <span>{c.current_committed_qty || 0} / {c.target_moq} units</span>
+                    <span>
+                      {t('logistics.home.unitsProgress', {
+                        current: c.current_committed_qty || 0,
+                        target: c.target_moq,
+                        units: t('logistics.campaigns.units'),
+                      })}
+                    </span>
                     <span
                       className="lx-status-pill"
                       style={{ background: STATUS_COLOR[c.status] || '#64748b' }}
                     >
-                      {c.status}
+                      {t(`logistics.status.${c.status}`, { defaultValue: c.status })}
                     </span>
                   </div>
                 </Link>
@@ -157,12 +169,13 @@ export default function LogisticsHomePage() {
         {/* ── CTA (non-auth only) ────────────────────────────── */}
         {!user && (
           <div className="lxh-cta">
-            <h2 className="lxh-cta-heading">Ready to start?</h2>
+            <h2 className="lxh-cta-heading">{t('logistics.home.readyToStart')}</h2>
             <p className="lxh-cta-body">
-              Join to access sourcing, pooled buying, and full supply-chain
-              visibility — from first supplier contact to last-mile delivery.
+              {t('logistics.home.readyToStartBody')}
             </p>
-            <Link to="/register" className="lx-btn-primary">Create an account</Link>
+            <Link to="/register" className="lx-btn-primary">
+              {t('logistics.home.createAccount')}
+            </Link>
           </div>
         )}
 

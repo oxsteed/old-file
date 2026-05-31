@@ -342,9 +342,7 @@ exports.stripeWebhook = async (req, res, next) => {
             sendNotification({
               userId: helperId,
               type: 'payment_released',
-              title: '💰 Payment Released',
-              body: `$${amountDollars} has been released to your account for job #${jobId}.`,
-              data: { job_id: jobId },
+              data: { job_id: jobId, amount: amountDollars },
               action_url: `/jobs/${jobId}`,
             }).catch(e => logger.warn('Failed to send payment released notification', { error: e.message }));
           }

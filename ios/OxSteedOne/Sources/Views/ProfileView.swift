@@ -21,7 +21,7 @@ struct ProfileView: View {
                 if store.activePersona == .businessOwner {
                     Section(store.localized("settings.business", fallback: "Business")) {
                         if store.canOverrideBusinessSubRole {
-                            Picker("Sub-role", selection: Binding(
+                            Picker(store.localized("profile.sub_role", fallback: "Sub-role"), selection: Binding(
                                 get: { store.personaContext.businessSubRole },
                                 set: { store.setBusinessSubRole($0) }
                             )) {
@@ -30,13 +30,13 @@ struct ProfileView: View {
                                 }
                             }
                         } else {
-                            LabeledContent("Assigned Role", value: store.resolvedBusinessSubRole.label)
+                            LabeledContent(store.localized("profile.assigned_role", fallback: "Assigned Role"), value: store.resolvedBusinessSubRole.label)
                         }
 
                         if let selected = store.personaContext.selectedBusinessName {
-                            LabeledContent("Selected Business", value: selected)
+                            LabeledContent(store.localized("profile.selected_business", fallback: "Selected Business"), value: selected)
                         } else {
-                            Text("No business selected")
+                            Text(store.localized("profile.no_business_selected", fallback: "No business selected"))
                                 .foregroundStyle(.secondary)
                         }
 
@@ -47,7 +47,7 @@ struct ProfileView: View {
                 }
 
                 Section(store.localized("settings.language_localization", fallback: "Language & Localization")) {
-                    Picker("Language", selection: Binding(
+                    Picker(store.localized("settings.language", fallback: "Language"), selection: Binding(
                         get: { store.appLanguage },
                         set: { store.setLanguage($0) }
                     )) {
@@ -55,16 +55,16 @@ struct ProfileView: View {
                             Text(language.label).tag(language)
                         }
                     }
-                    Text("Locale: \(store.activeLocale.identifier)")
+                    Text("\(store.localized("profile.locale", fallback: "Locale")): \(store.activeLocale.identifier)")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    Text("Layout direction: \(store.appLanguage.layoutDirection == .rightToLeft ? "RTL" : "LTR")")
+                    Text("\(store.localized("profile.layout_direction", fallback: "Layout direction")): \(store.appLanguage.layoutDirection == .rightToLeft ? store.localized("profile.layout_rtl", fallback: "RTL") : store.localized("profile.layout_ltr", fallback: "LTR"))")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
 
                 Section(store.localized("settings.display_privacy", fallback: "Display & Privacy")) {
-                    Picker("Appearance", selection: Binding(
+                    Picker(store.localized("settings.appearance", fallback: "Appearance"), selection: Binding(
                         get: { store.appPreferences.appearance },
                         set: { store.setAppearance($0) }
                     )) {
@@ -72,21 +72,21 @@ struct ProfileView: View {
                             Text(appearance.rawValue.capitalized).tag(appearance)
                         }
                     }
-                    Toggle("Large text mode", isOn: Binding(
+                    Toggle(store.localized("settings.large_text_mode", fallback: "Large text mode"), isOn: Binding(
                         get: { store.appPreferences.largeTextEnabled },
                         set: { store.setLargeTextEnabled($0) }
                     ))
-                    Toggle("Privacy mode (mask sensitive values)", isOn: Binding(
+                    Toggle(store.localized("settings.privacy_mode", fallback: "Privacy mode (mask sensitive values)"), isOn: Binding(
                         get: { store.appPreferences.privacyMode },
                         set: { store.setPrivacyMode($0) }
                     ))
-                    Toggle("Allow analytics signals", isOn: Binding(
+                    Toggle(store.localized("settings.analytics_signals", fallback: "Allow analytics signals"), isOn: Binding(
                         get: { store.appPreferences.allowAnalytics },
                         set: { store.setAnalyticsEnabled($0) }
                     ))
                 }
 
-                Section("Security") {
+                Section(store.localized("profile.security_section", fallback: "Security")) {
                     Toggle(store.localized("profile.security", fallback: "Security") + " · Biometric lock", isOn: Binding(
                         get: { store.biometricEnabled },
                         set: { store.setBiometricEnabled($0) }
@@ -94,7 +94,7 @@ struct ProfileView: View {
                 }
 
                 Section(store.localized("profile.communication", fallback: "Communication")) {
-                    Toggle("Auto-translate inbox previews", isOn: Binding(
+                    Toggle(store.localized("profile.auto_translate_previews", fallback: "Auto-translate inbox previews"), isOn: Binding(
                         get: { store.autoTranslateEnabled },
                         set: { store.setAutoTranslate($0) }
                     ))
@@ -115,15 +115,15 @@ struct ProfileView: View {
                 Section(store.localized("settings.notification_preferences_persona", fallback: "Notification Preferences by Persona")) {
                     ForEach(store.notificationPreferences) { pref in
                         VStack(alignment: .leading, spacing: 8) {
-                            Toggle("\(pref.persona.label) alerts", isOn: Binding(
+                            Toggle("\(store.localized("settings.persona", fallback: "Persona")) \(pref.persona.label) \(store.localized("settings.alerts", fallback: "alerts"))", isOn: Binding(
                                 get: { pref.enabled },
                                 set: { store.setNotificationEnabled(for: pref.persona, enabled: $0) }
                             ))
-                            Stepper("Radius: \(pref.radiusMiles) miles", value: Binding(
+                            Stepper("\(store.localized("settings.radius", fallback: "Radius")): \(pref.radiusMiles) \(store.localized("settings.miles", fallback: "miles"))", value: Binding(
                                 get: { pref.radiusMiles },
                                 set: { store.setNotificationRadius(for: pref.persona, radiusMiles: $0) }
                             ), in: 1...100)
-                            Text("Quiet hours: \(pref.quietHoursStart):00-\(pref.quietHoursEnd):00")
+                            Text("\(store.localized("settings.quiet_hours", fallback: "Quiet hours")): \(pref.quietHoursStart):00-\(pref.quietHoursEnd):00")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -152,14 +152,14 @@ struct ProfileView: View {
                 }
 
                 Section(store.localized("settings.account_recovery_export", fallback: "Account Recovery & Export")) {
-                    Text(store.accountRecoveryReady ? "Recovery snapshot ready for restore on new device." : "Recovery snapshot not ready.")
+                    Text(store.accountRecoveryReady ? store.localized("profile.recovery_snapshot_ready", fallback: "Recovery snapshot ready for restore on new device.") : store.localized("profile.recovery_snapshot_not_ready", fallback: "Recovery snapshot not ready."))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     Button(store.localized("settings.request_data_export", fallback: "Request Data Export")) {
                         store.requestDataExport()
                     }
                     if store.dataExportRequested {
-                        Text("Export request queued.")
+                        Text(store.localized("profile.export_request_queued", fallback: "Export request queued."))
                             .font(.caption)
                             .foregroundStyle(.green)
                     }
@@ -168,34 +168,34 @@ struct ProfileView: View {
                     }
                     .foregroundStyle(.red)
                     if store.accountDeletionRequested {
-                        Text("Account deletion request submitted.")
+                        Text(store.localized("profile.account_deletion_submitted", fallback: "Account deletion request submitted."))
                             .font(.caption)
                             .foregroundStyle(.red)
                     }
                 }
 
                 Section(store.localized("settings.app_api", fallback: "App API")) {
-                    TextField("API Base URL", text: Binding(
+                    TextField(store.localized("settings.api_base_url", fallback: "API Base URL"), text: Binding(
                         get: { store.apiBaseURLString },
                         set: { store.apiBaseURLString = $0 }
                     ))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled(true)
-                    Text("Active: \(store.resolvedAPIBaseURLString)")
+                    Text("\(store.localized("settings.active", fallback: "Active")): \(store.resolvedAPIBaseURLString)")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     HStack {
-                        Button("Save API URL") {
+                        Button(store.localized("settings.save_api_url", fallback: "Save API URL")) {
                             store.saveAPIBaseURL(store.apiBaseURLString)
                         }
                         .buttonStyle(.bordered)
 
-                        Button("Test Connection") {
+                        Button(store.localized("settings.test_connection", fallback: "Test Connection")) {
                             Task { await store.testAPIConnection() }
                         }
                         .buttonStyle(.bordered)
                     }
-                    Button("Probe Auth Endpoints") {
+                    Button(store.localized("settings.probe_auth_endpoints", fallback: "Probe Auth Endpoints")) {
                         Task { await store.probeAuthEndpoints() }
                     }
                     .buttonStyle(.bordered)
@@ -209,7 +209,7 @@ struct ProfileView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    Button(store.isRefreshingCustomerData ? "Syncing..." : "Sync Now") {
+                    Button(store.isRefreshingCustomerData ? store.localized("settings.syncing", fallback: "Syncing...") : store.localized("settings.sync_now", fallback: "Sync Now")) {
                         Task {
                             await store.refreshCustomerTransactionData()
                             await store.syncPendingChanges()

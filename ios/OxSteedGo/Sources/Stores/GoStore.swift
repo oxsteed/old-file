@@ -30,65 +30,69 @@ final class GoStore {
         currentUser != nil && api.token != nil
     }
 
+    private func localized(_ key: GoCopyKey) -> String {
+        GoLocalization.text(key, language: appLanguage)
+    }
+
     var heroTitle: String {
         switch mode {
         case .customer:
-            "Get real work handled"
+            localized(.heroGetRealWorkHandled)
         case .helper:
-            "Win better local jobs"
+            localized(.heroWinBetterLocalJobs)
         case .business:
-            "Run the front desk"
+            localized(.heroRunTheFrontDesk)
         case .logistics:
-            "Move group buys cleanly"
+            localized(.heroMoveGroupBuysCleanly)
         }
     }
 
     var heroSubtitle: String {
         switch mode {
         case .customer:
-            "Post a job, book a trusted pro, shop the right supplies, and keep the whole conversation in one pocket-sized command center."
+            localized(.heroSubtitleCustomer)
         case .helper:
-            "See nearby opportunities, incoming bookings, customer messages, earnings nudges, and profile tasks without hunting through the full platform."
+            localized(.heroSubtitleHelper)
         case .business:
-            "Manage appointments, services, quotes, invoices, intake requests, team basics, and customer messages from a lighter business-owner view."
+            localized(.heroSubtitleBusiness)
         case .logistics:
-            "Track sourcing requests, campaigns, shipments, and buyer actions from the simpler OxSteed Go surface."
+            localized(.heroSubtitleLogistics)
         }
     }
 
     var metrics: [GoMetric] {
         if case .loaded(let feed) = mobileFeed, let summary = feed.summary {
             return [
-                GoMetric(label: "Open jobs", value: "\(summary.openJobs ?? 0)", symbolName: "hammer"),
-                GoMetric(label: "Bookings", value: "\(summary.incomingBookingRequests ?? 0)", symbolName: "calendar"),
-                GoMetric(label: "Unread", value: "\(summary.unreadMessages ?? 0)", symbolName: "bubble.left")
+                GoMetric(label: localized(.metricOpenJobs), value: "\(summary.openJobs ?? 0)", symbolName: "hammer"),
+                GoMetric(label: localized(.metricBookings), value: "\(summary.incomingBookingRequests ?? 0)", symbolName: "calendar"),
+                GoMetric(label: localized(.metricUnread), value: "\(summary.unreadMessages ?? 0)", symbolName: "bubble.left")
             ]
         }
 
         switch mode {
         case .customer:
             return [
-                GoMetric(label: "Open jobs", value: "2", symbolName: "hammer"),
-                GoMetric(label: "Upcoming", value: "3", symbolName: "calendar"),
-                GoMetric(label: "Unread", value: "5", symbolName: "bubble.left")
+                GoMetric(label: localized(.metricOpenJobs), value: "2", symbolName: "hammer"),
+                GoMetric(label: localized(.metricUpcoming), value: "3", symbolName: "calendar"),
+                GoMetric(label: localized(.metricUnread), value: "5", symbolName: "bubble.left")
             ]
         case .helper:
             return [
-                GoMetric(label: "Leads", value: "8", symbolName: "briefcase"),
-                GoMetric(label: "Bookings", value: "4", symbolName: "checkmark.seal"),
-                GoMetric(label: "Profile", value: "86%", symbolName: "person.text.rectangle")
+                GoMetric(label: localized(.metricLeads), value: "8", symbolName: "briefcase"),
+                GoMetric(label: localized(.metricBookings), value: "4", symbolName: "checkmark.seal"),
+                GoMetric(label: localized(.metricProfile), value: "86%", symbolName: "person.text.rectangle")
             ]
         case .business:
             return [
-                GoMetric(label: "Appointments", value: "7", symbolName: "calendar.badge.clock"),
-                GoMetric(label: "Quotes", value: "3", symbolName: "doc.text"),
-                GoMetric(label: "Intakes", value: "5", symbolName: "tray.full")
+                GoMetric(label: localized(.metricAppointments), value: "7", symbolName: "calendar.badge.clock"),
+                GoMetric(label: localized(.metricQuotes), value: "3", symbolName: "doc.text"),
+                GoMetric(label: localized(.metricIntakes), value: "5", symbolName: "tray.full")
             ]
         case .logistics:
             return [
-                GoMetric(label: "Requests", value: "6", symbolName: "shippingbox"),
-                GoMetric(label: "Campaigns", value: "2", symbolName: "person.3"),
-                GoMetric(label: "Alerts", value: "1", symbolName: "exclamationmark.triangle")
+                GoMetric(label: localized(.metricRequests), value: "6", symbolName: "shippingbox"),
+                GoMetric(label: localized(.metricCampaigns), value: "2", symbolName: "person.3"),
+                GoMetric(label: localized(.metricAlerts), value: "1", symbolName: "exclamationmark.triangle")
             ]
         }
     }
@@ -97,32 +101,32 @@ final class GoStore {
         [
             GoAction(
                 id: "post-job",
-                title: "Post a job",
-                detail: "Describe the work, location, urgency, and budget in a native quick-post flow.",
+                title: localized(.actionPostAJob),
+                detail: localized(.actionPostAJobDetail),
                 symbolName: "square.and.pencil",
                 tint: .orange,
                 route: "/post-job"
             ),
             GoAction(
                 id: "find-helper",
-                title: "Find a helper",
-                detail: "Search trusted local helpers and start a booking or message.",
+                title: localized(.actionFindHelper),
+                detail: localized(.actionFindHelperDetail),
                 symbolName: "person.2.wave.2",
                 tint: .teal,
                 route: "/helpers"
             ),
             GoAction(
                 id: "shop-list",
-                title: "Shop the list",
-                detail: "Browse skill-aware supplies and tools for the job you are planning.",
+                title: localized(.actionShopTheList),
+                detail: localized(.actionShopTheListDetail),
                 symbolName: "bag",
                 tint: .green,
                 route: "/products"
             ),
             GoAction(
                 id: "messages",
-                title: "Open inbox",
-                detail: "Keep job, booking, support, and business conversations together.",
+                title: localized(.actionOpenInbox),
+                detail: localized(.actionOpenInboxDetail),
                 symbolName: "bubble.left.and.bubble.right",
                 tint: .blue,
                 route: "/messages"
@@ -134,13 +138,25 @@ final class GoStore {
         if case .loaded(let feed) = mobileFeed {
             var liveTasks: [GoTask] = []
             liveTasks.append(contentsOf: (feed.jobs?.mine ?? []).prefix(2).map {
-                GoTask(title: $0.title ?? "Untitled job", subtitle: [$0.status, $0.categoryName].compactMap { $0 }.joined(separator: " · "), badge: "Job")
+                GoTask(
+                    title: $0.title ?? localized(.taskUntitledJob),
+                    subtitle: [$0.status, $0.categoryName].compactMap { $0 }.joined(separator: " · "),
+                    badge: localized(.taskBadgeJob)
+                )
             })
             liveTasks.append(contentsOf: (feed.appointments ?? []).prefix(2).map {
-                GoTask(title: $0.title ?? "Appointment", subtitle: $0.scheduledStartTime ?? "Scheduled", badge: $0.status ?? "Calendar")
+                GoTask(
+                    title: $0.title ?? localized(.taskAppointment),
+                    subtitle: $0.scheduledStartTime ?? localized(.taskScheduled),
+                    badge: $0.status ?? localized(.taskBadgeAppointment)
+                )
             })
             liveTasks.append(contentsOf: (feed.plannedNeeds ?? []).prefix(2).map {
-                GoTask(title: $0.title ?? "Planned need", subtitle: $0.dueDate ?? $0.category ?? "Planned", badge: $0.status ?? "Need")
+                GoTask(
+                    title: $0.title ?? localized(.taskPlannedNeed),
+                    subtitle: $0.dueDate ?? $0.category ?? localized(.taskBadgeNeed),
+                    badge: $0.status ?? localized(.taskBadgeNeed)
+                )
             })
             if !liveTasks.isEmpty {
                 return liveTasks
@@ -148,16 +164,18 @@ final class GoStore {
         }
 
         return [
-            GoTask(title: "Confirm tomorrow's appointment", subtitle: "Sink repair with Carter Plumbing", badge: "Today"),
-            GoTask(title: "Review two new bids", subtitle: "Back fence repair", badge: "Action"),
-            GoTask(title: "Add photos to your request", subtitle: "Garage shelf install", badge: "Improve match"),
-            GoTask(title: "Pay invoice draft", subtitle: "OxSteed invoice INV-1042", badge: "Payment")
+            GoTask(title: localized(.taskConfirmTomorrowAppointment), subtitle: localized(.taskConfirmTomorrowSubtitle), badge: localized(.taskBadgeToday)),
+            GoTask(title: localized(.taskReviewNewBids), subtitle: localized(.taskReviewNewBidsSubtitle), badge: localized(.taskBadgeAction)),
+            GoTask(title: localized(.taskAddPhotosToRequest), subtitle: localized(.taskAddPhotosToRequestSubtitle), badge: localized(.taskBadgeImprove)),
+            GoTask(title: localized(.taskPayInvoiceDraft), subtitle: localized(.taskPayInvoiceDraftSubtitle), badge: localized(.taskBadgePayment))
         ]
     }
 
     func saveDraftJob() {
         let trimmed = draftJob.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        savedJobMessage = trimmed.isEmpty ? "Add a title before saving this job draft." : "Saved '\(trimmed)' as a native job draft."
+        savedJobMessage = trimmed.isEmpty
+            ? localized(.jobDraftNeedTitle)
+            : String(format: localized(.jobDraftSavedMessage), trimmed)
     }
 
     @MainActor
@@ -180,11 +198,11 @@ final class GoStore {
             )
             let response: GoAuthResponse = try await api.post("/auth/login", body: request)
             if response.requiresTwoFactor == true {
-                authMessage = "Enter your two-factor code to finish signing in."
+                authMessage = localized(.signInTwoFactorCode)
                 return
             }
             guard let token = response.token else {
-                authMessage = "OxSteed did not return a session token."
+                authMessage = localized(.sessionTokenMissing)
                 return
             }
             api.token = token
@@ -213,6 +231,23 @@ final class GoStore {
         messageTranslationState = .idle
         if autoTranslateMessages {
             Task { await translateLoadedConversationsIfNeeded() }
+        }
+
+        Task {
+            struct PreferredLanguageUpdate: Encodable {
+                let preferredLanguage: String
+            }
+
+            struct EmptyResponse: Decodable {}
+
+            do {
+                let _: EmptyResponse = try await api.patch(
+                    "/users/me",
+                    body: PreferredLanguageUpdate(preferredLanguage: language.rawValue)
+                )
+            } catch {
+                // Best effort: keeps local preference even when offline.
+            }
         }
     }
 
@@ -291,10 +326,10 @@ final class GoStore {
     var displayedConversations: [GoMessageDisplay] {
         guard case .loaded(let rows) = conversations else { return [] }
         return rows.map { conversation in
-            let original = conversation.lastMessage ?? conversation.jobTitle ?? "No messages yet"
+            let original = conversation.lastMessage ?? conversation.jobTitle ?? localized(.taskNoMessagesYet)
             return GoMessageDisplay(
                 id: conversation.id,
-                title: conversation.otherUserName ?? conversation.conversationBusinessName ?? conversation.helperBusinessName ?? "Conversation #\(conversation.id)",
+                title: conversation.otherUserName ?? conversation.conversationBusinessName ?? conversation.helperBusinessName ?? "\(localized(.conversationTitlePrefix)) #\(conversation.id)",
                 originalMessage: original,
                 translatedMessage: autoTranslateMessages ? translatedMessages[conversation.id] : nil,
                 unreadCount: conversation.unreadCount ?? 0
@@ -349,7 +384,7 @@ final class GoStore {
     func submitJobOrQueue() async {
         let trimmed = draftJob.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, draftJob.details.count >= 20, !draftJob.city.isEmpty else {
-            savedJobMessage = "Add a title, city, and at least 20 characters of detail."
+            savedJobMessage = localized(.jobDraftValidationMessage)
             return
         }
 
@@ -373,21 +408,21 @@ final class GoStore {
 
         guard isSignedIn else {
             offlineQueue.append(GoOfflineAction(type: "job_draft", title: trimmed, payloadPreview: draftJob.details))
-            savedJobMessage = "Saved offline. Sign in to sync this job draft."
+            savedJobMessage = localized(.offlineSignInToSync)
             return
         }
 
         do {
             let _: GenericResponse = try await api.post("/jobs", body: payload)
-            savedJobMessage = "Posted '\(trimmed)' to OxSteed."
+            savedJobMessage = String(format: localized(.jobPosted), trimmed)
             await loadMobileFeed()
         } catch {
             offlineQueue.append(GoOfflineAction(type: "job_submit_retry", title: trimmed, payloadPreview: error.localizedDescription))
-            savedJobMessage = "Could not post yet. Queued for retry."
+            savedJobMessage = localized(.jobRetryQueued)
         }
     }
 
     func queueNotificationOpen(_ title: String) {
-        offlineQueue.append(GoOfflineAction(type: "notification_deeplink", title: title, payloadPreview: "Route this push into the exact native screen."))
+        offlineQueue.append(GoOfflineAction(type: "notification_deeplink", title: title, payloadPreview: localized(.notificationPayloadPreview)))
     }
 }

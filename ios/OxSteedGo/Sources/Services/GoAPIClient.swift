@@ -39,6 +39,10 @@ final class GoAPIClient {
         try await request(path, method: "POST", body: encoder.encode(body))
     }
 
+    func patch<Body: Encodable, Response: Decodable>(_ path: String, body: Body) async throws -> Response {
+        try await request(path, method: "PATCH", body: encoder.encode(body))
+    }
+
     private func request<Response: Decodable>(_ path: String, method: String, body: Data?) async throws -> Response {
         guard let url = URL(string: path, relativeTo: baseURL) else {
             throw GoAPIError.invalidURL(path)

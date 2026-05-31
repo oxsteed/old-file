@@ -485,6 +485,10 @@
     "agreementRequired": "Vous devez accepter les Conditions d'utilisation et la Politique de confidentialité pour vous connecter",
     "signatureRequired": "Veuillez entrer votre nom complet comme signature numérique pour continuer",
     "signatureFullNameRequired": "Veuillez saisir votre prénom et nom de famille (ex. Marie Dupont)",
+    "emailPlaceholder": "vous@exemple.com",
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe",
+    "copyright": "© {{year}} OxSteed LLC. Tous droits réservés.",
     "signatureNameMismatch": "Le nom saisi ne correspond pas au nom de votre compte. Veuillez utiliser le nom exact avec lequel vous vous êtes inscrit(e)."
   },
   "forgotPassword": {
@@ -4244,14 +4248,27 @@
     },
     "packages": {
       "title": "Forfaits de services",
-      "subtitle": "Regrouper des services en forfaits pour les clients",
-      "tabs": {
-        "packages": "Forfaits",
-        "clientPackages": "Forfaits client"
-      },
-      "newPackage": "Nouveau forfait",
-      "confirmArchive": "Archiver ce forfait ?",
-      "toastLoadPackagesFail": "Impossible de charger les forfaits",
+    "subtitle": "Regrouper des services en forfaits pour les clients",
+    "tabs": {
+      "packages": "Forfaits",
+      "clientPackages": "Forfaits client"
+    },
+    "newPackage": "Nouveau forfait",
+    "editPackage": "Modifier le forfait",
+    "labelName": "Nom du forfait *",
+    "labelDescription": "Description",
+    "labelPrice": "Prix ($) *",
+    "labelTotalSessions": "Sessions totales",
+    "labelValidityDays": "Valide pendant (jours)",
+    "emptyPackages": "Aucun forfait pour le moment. Créez votre premier pack de services.",
+    "emptyClientPackages": "Aucun forfait client pour le moment.",
+    "sessions": "sessions",
+    "sessionsLeft": "sessions restantes",
+    "noExpiry": "Sans expiration",
+    "expires": "Expire",
+    "useSession": "Utiliser",
+    "confirmArchive": "Archiver ce forfait ?",
+    "toastLoadPackagesFail": "Impossible de charger les forfaits",
       "toastLoadClientPackagesFail": "Impossible de charger les forfaits client",
       "toastNamePriceRequired": "Nom et prix requis",
       "toastUpdated": "Forfait mis à jour",
@@ -6654,6 +6671,7 @@
     "badgeHelper": "Assistant",
     "badgeBusiness": "Entreprise",
     "availableNow": "Disponible maintenant",
+    "onlineCount": "{{count}} en ligne",
     "viewProfile": "Voir le profil",
     "viewProfileAria": "Voir le profil de {{name}}",
     "badgeIdVerified": "Identité Vérifiée",
@@ -9115,7 +9133,149 @@
       "moqProgress": "{{pct}}% du MOQ atteint",
       "closes": "Ferme",
       "deposit": "Depot",
-      "perUnit": "/ unite"
+      "perUnit": "/ unite",
+      "heroTitle": "Les chaînes d'approvisionnement mondiales ont été créées pour les grandes entreprises.",
+      "heroSubtitle": "Nous en avons créée une pour l'acheteur qui a besoin de 200 unités, pour l'organisateur qui expédie vers Haïti et pour l'entreprise qui ne peut pas se permettre un courtier en fret.",
+      "openWorkspace": "Ouvrir votre espace de travail →",
+      "getStarted": "Commencer",
+      "browseOpenCampaigns": "Parcourir les campagnes ouvertes",
+      "viewAll": "Voir tout",
+      "readyToStart": "Prêt à commencer ?",
+      "readyToStartBody": "Rejoignez-nous pour accéder à l'approvisionnement, aux achats groupés et à une visibilité complète de la chaîne d'approvisionnement — du premier contact avec le fournisseur à la livraison finale.",
+      "createAccount": "Créer un compte",
+      "unitsProgress": "{{current}} / {{target}} {{units}}",
+      "whyCards": {
+        "moq": {
+          "heading": "Le problème de la quantité minimum",
+          "body": "Les fabricants fixent des minimums pour les usines, pas pour les particuliers. La plupart des acheteurs sont exclus, non pas à cause du prix, mais à cause du volume. Les campagnes regroupent la demande jusqu'à ce que le calcul fonctionne pour tous."
+        },
+        "compliance": {
+          "heading": "La conformité n'est pas optionnelle",
+          "body": "Chaque envoi doit respecter les règles commerciales : taxes douanières, catégories restreintes, licences d'importation. OxSteed affiche les restrictions avant votre engagement, pas après que vos marchandises soient bloquées en douane."
+          },
+        "lastmile": {
+          "heading": "La dernière étape est un défi à part",
+          "body": "Les produits arrivent au port. Ensuite ? Stockage, allocation, ordres de livraison — chaque étape est une nouvelle transition. OxSteed coordonne la chaîne pour que chaque étape sache ce dont la suivante a besoin."
+        }
+      }
+    },
+    "complianceWorkspace": {
+      "title": "Espace de conformité",
+      "subtitle": "Consultez les règles commerciales de chaque route et la file des opérations sensibles aux douanes lorsque vous avez un accès opérateur.",
+      "nav": {
+        "tradeRules": "Règles commerciales",
+        "reviewQueue": "File de révision",
+        "customsOps": "Opérations douanières",
+        "restrictions": "Restrictions"
+      },
+      "kpis": {
+        "lowRisk": "Lignes à faible risque",
+        "managed": "Lignes gérées",
+        "restricted": "Lignes restreintes",
+        "prohibited": "Lignes interdites"
+      },
+      "cardTitleLaneMarketRules": "Règles de routes et marchés",
+      "cardTitleOperator": "Posture de revue opérateur",
+      "cardTitleCategoryRestrictions": "Aperçu des restrictions de catégorie",
+      "tableHeaders": {
+        "lane": "Couloir",
+        "countries": "Pays",
+        "risk": "Risque",
+        "flags": "Marqueurs",
+        "item": "Élément",
+        "routeOrCountry": "Route / Pays",
+        "country": "Pays",
+        "status": "Statut"
+      },
+      "risk": {
+        "low": "Faible",
+        "managed": "Géré",
+        "restricted": "Restreint",
+        "prohibited": "Interdit"
+      },
+      "flags": {
+        "open": "Ouvert",
+        "businessVerification": "Vérification commerciale",
+        "manualApproval": "Approbation manuelle"
+      },
+      "status": {
+        "approvalRequired": "Approbation requise"
+      },
+      "empty": {
+        "noLanes": "Aucun couloir disponible pour le moment.",
+        "noRestrictions": "Aucune restriction disponible."
+      },
+      "separator": "·",
+      "queueLabel": "Expéditions sensibles aux douanes en file d'attente"
+    },
+    "operatorLogin": {
+      "copy": {
+        "compliance": {
+          "title": "Connexion espace de conformité",
+          "subtitle": "L’accès interne de conformité exige votre nom attribué et votre clé de sécurité avant la connexion par mot de passe."
+        },
+        "adminControl": {
+          "title": "Connexion de contrôle administrateur",
+          "subtitle": "Le contrôle interne reste réservé aux opérateurs. Utilisez votre compte administrateur lié."
+        },
+        "operations": {
+          "title": "Connexion espace opérations",
+          "subtitle": "L’accès opérations interne exige votre nom attribué et votre clé de sécurité avant la connexion par mot de passe."
+        }
+      },
+      "twoFaTitle": "Authentification à deux facteurs",
+      "twoFaPrompt": "Saisissez le code à 6 chiffres de votre application d’authentification ou un code de secours.",
+      "labels": {
+        "email": "Email",
+        "password": "Mot de passe",
+        "internalName": "Nom interne",
+        "securityKey": "Clé de sécurité",
+        "twoFaCode": "Code 2FA"
+      },
+      "placeholders": {
+        "email": "operateur@oxsteed.com",
+        "password": "Entrez votre mot de passe",
+        "internalName": "Votre nom interne attribué",
+        "securityKey": "Clé de sécurité fournie par un super-admin"
+      },
+      "approvedAccountLabel": "Compte approuvé",
+      "approvedAccountNote": "Cette connexion ne peut continuer qu’avec le compte OxSteed lié à",
+      "verifying": "Vérification…",
+      "verify": "Vérifier",
+      "checking": "Vérification…",
+      "continue": "Continuer",
+      "signingIn": "Connexion en cours…",
+      "signIn": "Se connecter",
+      "locked": "Compte verrouillé",
+      "requestRecoveryEmail": "Demander un email de récupération",
+      "recoveryPrompt": "Saisissez l’email de récupération enregistré :",
+      "resetIdentity": "Utiliser une autre identité d’accès interne",
+      "footer": {
+        "internalKeyRequired": "L’accès Operations et Compliance requiert maintenant un nom interne et une clé de sécurité émis par un super-admin.",
+        "adminOnly": "Seuls les utilisateurs avec un rôle admin ou super-admin peuvent entrer dans ce portail.",
+        "standardSignIn": "Aller à la connexion standard OxSteed"
+      },
+      "errors": {
+        "tooManyAttempts": "Trop de tentatives échouées. Réessayez dans {{minutes}} minute(s).",
+        "tooManyAttemptsLocked": "Trop de tentatives échouées. Verrouillé jusqu’à la fin du délai.",
+        "internalNameAndKeyRequired": "Le nom et la clé de sécurité sont obligatoires.",
+        "internalAccessFailed": "La vérification d’accès interne a échoué.",
+        "lockedRecovery": "Accès temporairement verrouillé. Demandez un email de récupération ou contactez un super-admin.",
+        "invalidCredentialsRemaining": "Identifiants invalides. {{attemptsLeft}} tentatives restantes avant verrouillage.",
+        "recoveryEmailSent": "Si cet email est autorisé pour la récupération, un lien unique a été envoyé. Vérifiez votre boîte.",
+        "recoveryEmailFailed": "Impossible de demander l’email de récupération.",
+        "internalAccessRequired": "Terminez d’abord la vérification d’accès interne.",
+        "passwordRequired": "Le mot de passe est requis.",
+        "passwordLocked": "Accès temporairement verrouillé en raison de trop de tentatives.",
+        "passwordFailed": "La connexion a échoué. Vérifiez votre mot de passe.",
+        "emailAndPasswordRequired": "L’email et le mot de passe sont requis.",
+        "accountLocked": "Compte temporairement verrouillé en raison de trop de tentatives.",
+        "credentialsFailed": "Connexion impossible. Vérifiez vos identifiants.",
+        "twoFaExpired": "Votre session 2FA a expiré. Veuillez vous reconnecter.",
+        "twoFaCodeRequired": "Saisissez votre code 2FA.",
+        "operatorPrivilegesRequired": "Accès refusé. Privilèges opérateur nécessaires.",
+        "invalid2Fa": "Code 2FA invalide."
+      }
     },
     "campaigns": {
       "title": "Campagnes groupees",
@@ -9283,8 +9443,11 @@
       "draft": "Brouillon",
       "open": "Ouvert",
       "quoted": "Devis",
+      "pledging": "En cours d'engagement",
+      "deposit_phase": "Phase de dépôt",
       "approved": "Approuve",
       "placed_with_supplier": "Place",
+      "placed": "Placé",
       "deposit_paid": "Depot paye",
       "production": "En production",
       "ready_to_ship": "Pret a expedier",
@@ -10419,7 +10582,12 @@
     "messages": {
       "success": "Demande de franchise reçue.",
       "submitFailed": "Impossible de soumettre la demande de franchise."
-    }
+    },
+    "heroCardsFallback": [
+      "Revue par territoire",
+      "Préparation du capital",
+      "Liste de contrôle de lancement"
+    ]
   },
   "franchiseTerritoryPage": {
     "trainingLabels": {
@@ -11680,6 +11848,170 @@
     "empty": {
       "allocations": "Aucune allocation disponible.",
       "deliveries": "Aucune commande de livraison disponible."
+    }
+  },
+  "consultantContractorDashboard": {
+    "page": {
+      "title": "Tableau de bord consultant-conseiller",
+      "description": "Gérez les leads de lancement d’activité local, les marchés couverts et l’économie des commissions négociées.",
+      "workspaceBadge": "Espace consultant-conseiller",
+      "heading": "Références locales, partage des gains et couverture de marché en un seul endroit.",
+      "subheading": "Utilisez ce tableau de bord pour agir comme consultant OxSteed indépendant. Vous pouvez définir votre couverture locale, gérer vos leads, suivre la commission OxSteed négociée et faire progresser chaque lead de l’introduction à l’engagement.",
+      "signedInAs": "Connecté en tant que"
+    },
+    "summary": {
+      "activeReferrals": "Leads actifs",
+      "activeReferralsHint": "Pistes encore en cours dans votre pipeline de consulting local.",
+      "pipelineValue": "Valeur de votre pipeline",
+      "pipelineValueHint": "Valeur estimée côté consultant pour les leads assignés et ouverts.",
+      "generated": "Généré par OxSteed",
+      "generatedHint": "Part plateforme estimée générée par votre activité de referral.",
+      "coveredCountries": "Pays couverts",
+      "coveredCountriesHint": "Marchés où vous êtes disponible pour des referrals locaux ou virtuels."
+    },
+    "coverageProfile": {
+      "label": "Profil de couverture",
+      "title": "Où vous intervenez",
+      "noCoverage": "Ajoutez votre pays et région afin qu’OxSteed puisse orienter les leads locaux vers vous."
+    },
+    "errors": {
+      "load": "Impossible de charger le tableau de bord consultant.",
+      "saveProfile": "Échec de l’enregistrement du profil.",
+      "saveReferral": "Échec de la mise à jour du lead."
+    },
+    "actions": {
+      "saving": "Enregistrement",
+      "savingProfile": "Enregistrement du profil",
+      "saveProfile": "Enregistrer le profil",
+      "manageAvailability": "Gérer les disponibilités"
+    },
+    "referral": {
+      "yourShare": "Votre part",
+      "retainedByPlatform": "{{amount}} retenu par la plateforme",
+      "statusLabel": "Statut du lead",
+      "followUpLabel": "Suivi",
+      "saveUpdate": "Enregistrer la mise à jour",
+      "notesLabel": "Notes pour ce lead",
+      "notesPlaceholder": "Consignez vos notes de découverte, le contexte local et les prochaines étapes, ainsi que toute information utile à OxSteed.",
+      "targetMarketLabel": "Marché cible",
+      "targetMarketMissing": "Non fourni"
+    },
+    "referralStatus": {
+      "assigned": "Assigné",
+      "introPending": "Présentation en attente",
+      "introSent": "Présentation envoyée",
+      "discoveryScheduled": "Découverte planifiée",
+      "proposalSent": "Proposition envoyée",
+      "engaged": "Engagé",
+      "won": "Gagné",
+      "lost": "Perdu",
+      "completed": "Terminé",
+      "paused": "En pause"
+    },
+    "profile": {
+      "fields": {
+        "headline": "Titre",
+        "headlinePlaceholder": "Ex. Consultant local pour l’hôtellerie et les opérations de service",
+        "bio": "Présentation",
+        "bioPlaceholder": "Votre expérience, vos spécialités et comment vous accompagnez les referrals locaux.",
+        "homeCountry": "Pays de résidence",
+        "homeCountryPlaceholder": "États-Unis",
+        "homeRegion": "Région / État",
+        "homeRegionPlaceholder": "Florida",
+        "homeCity": "Ville",
+        "homeCityPlaceholder": "Miami",
+        "coverageCountries": "Pays couverts",
+        "coverageCountriesPlaceholder": "États-Unis, République dominicaine",
+        "coverageRegions": "Régions couvertes",
+        "coverageRegionsPlaceholder": "Sud-Est, Nord-Est",
+        "languages": "Langues",
+        "languagesPlaceholder": "Anglais, Français, Espagnol",
+        "specialties": "Spécialités",
+        "specialtiesPlaceholder": "Conseil, configuration opérationnelle, soutien au lancement",
+        "timezone": "Fuseau horaire",
+        "timezonePlaceholder": "America/New_York",
+        "yearsExperience": "Années d’expérience",
+        "defaultCut": "Commission OxSteed par défaut (bps)",
+        "referralLimit": "Limite de referrals",
+        "minimumPackageCents": "Montant minimum du package (centimes)"
+      },
+      "toggles": {
+        "acceptingReferrals": "Acceptation des referrals",
+        "virtualConsulting": "Consulting virtuel",
+        "profileActive": "Profil actif"
+      }
+    },
+    "pipeline": {
+      "label": "Pipeline des referrals",
+      "title": "Leads de consulting local attribués",
+      "openNow": "Ouverts",
+      "loading": "Chargement des leads…",
+      "emptyTitle": "Aucun lead attribué",
+      "emptyDescription": "Lorsqu’OxSteed vous attribue un lead de lancement d’activité, il apparaîtra ici avec la répartition de gains, le contexte marché et le suivi des prochaines étapes."
+    },
+    "howItWorks": {
+      "label": "Comment fonctionne ce programme",
+      "title": "Modèle de referral OxSteed",
+      "step1Title": "1. Match local",
+      "step1Body": "Les administrateurs peuvent attribuer un helper ou une demande de lancement à des consultants qui couvrent le pays, la région et la langue ciblés.",
+      "step2Title": "2. Commission négociée",
+      "step2Body": "La commission OxSteed convenue est appliquée au lead au moment de l’attribution, pour verrouiller votre part et la part plateforme sur ce lead.",
+      "step3Title": "3. Exécution du pipeline",
+      "step3Body": "Utilisez votre tableau de bord pour faire passer les leads de l’introduction à la découverte, la proposition, l’engagement puis la finalisation tout en gardant OxSteed en boucle."
+    },
+    "consultantAvailabilityPage": {
+      "metaTitle": "Disponibilité",
+      "metaDescription": "Gérez votre planning hebdomadaire récurrent, vos blocs de temps et vos jours de pause.",
+      "badge": "Disponibilité du consultant",
+      "heading": "Votre disponibilité hebdomadaire",
+      "intro": "Définissez vos heures de travail régulières et gérez vos indisponibilités pour que les clients ne réservent que sur des créneaux ouverts.",
+      "backToDashboard": "Retour au tableau de bord",
+      "summaryActiveDays": "Jours actifs",
+      "summaryActiveDaysHint": "Jours avec au moins une plage hebdomadaire active",
+      "summaryWeeklySlots": "Plages hebdomadaires",
+      "summaryWeeklySlotsHint": "Nombre total de plages récurrentes configurées",
+      "summaryBlockedDates": "Dates bloquées",
+      "summaryBlockedDatesHint": "Dates spécifiques marquées comme indisponibles",
+      "nextTimeOff": "Prochaine indisponibilité",
+      "summaryNextTimeOffHint": "Prochaine date bloquée à venir",
+      "none": "Aucune",
+      "scheduleBuilder": "Construction de planning",
+      "liveWeeklyView": "Aperçu hebdomadaire en direct",
+      "loadedNow": "Éléments chargés",
+      "controlsHeading": "Options",
+      "controlsBody": "Ajoutez, modifiez et suivez la disponibilité récurrente par jour.",
+      "slotActiveDesc": "Cette plage est active.",
+      "slotInactiveDesc": "Cette plage est inactive.",
+      "noRecurringHours": "Aucune heure récurrente définie",
+      "timeOff": "Temps libre",
+      "useFor": "À utiliser pour les vacances, les congés, etc.",
+      "useForBody": "Indiquez les jours où vous n’êtes pas disponible pour afficher une disponibilité précise.",
+      "protectedDates": "Dates protégées",
+      "reasonPlaceholder": "Raison (facultatif)",
+      "noReasonAdded": "Temps bloqué sans raison ajoutée.",
+      "noBlockedDates": "Aucune date bloquée pour le moment",
+      "noBlockedDatesBody": "Ajoutez au moins une date bloquée pour empêcher les réservations ce jour-là.",
+      "notSet": "Non défini",
+      "saveAvailability": "Enregistrer la disponibilité",
+      "noScheduleSaved": "Aucun horaire enregistré",
+      "noScheduleSavedBody": "Utilisez le formulaire à gauche pour ajouter votre première plage récurrente.",
+      "addBlockedDate": "Ajouter une date bloquée",
+      "dayLabels": {
+        "sunday": "Dimanche",
+        "monday": "Lundi",
+        "tuesday": "Mardi",
+        "wednesday": "Mercredi",
+        "thursday": "Jeudi",
+        "friday": "Vendredi",
+        "saturday": "Samedi"
+      },
+      "errorLoadingAvailability": "Échec du chargement de la disponibilité.",
+      "errorLoadingBlockedDates": "Échec du chargement des dates bloquées.",
+      "errorTimeRange": "Définissez l’heure de début et l’heure de fin.",
+      "errorSavingAvailability": "Impossible d’enregistrer la disponibilité.",
+      "errorAddingBlockedDate": "Impossible d’ajouter la date bloquée.",
+      "errorRemovingBlockedDate": "Impossible de supprimer la date bloquée.",
+      "dateRequired": "Veuillez sélectionner une date."
     }
   }
 }

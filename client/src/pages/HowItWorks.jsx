@@ -37,7 +37,7 @@ export default function HowItWorks() {
       {/* ── Navbar ── */}
       <nav
         role="navigation"
-        aria-label="Main navigation"
+        aria-label={t('mainNavigation')}
         style={{
           borderBottom: '1px solid rgba(255,255,255,0.06)',
           backdropFilter: 'blur(12px)',

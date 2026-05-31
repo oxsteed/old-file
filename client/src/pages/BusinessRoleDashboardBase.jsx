@@ -113,11 +113,11 @@ function WorkspaceCard({ business, config, tx }) {
       <header className="px-5 pt-4 pb-3 flex items-start justify-between gap-4" style={{ borderBottom: '1px solid rgba(148,163,184,0.12)' }}>
         <div className="min-w-0">
           <div className="text-[11px] uppercase tracking-[0.18em]" style={{ color: config.accent }}>
-            {tx(`${config.translationKey}.badge`, config.badge)}
+            {tx(`${config.translationKey}.badge`)}
           </div>
           <div className="text-lg font-semibold mt-1 truncate">{business.business_name}</div>
           <div className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
-            {tx('businessRoleDashboard.roleLabel', 'Role:')} {business.role}
+            {tx('businessRoleDashboard.roleLabel')} {business.role}
           </div>
         </div>
         <div
@@ -131,25 +131,25 @@ function WorkspaceCard({ business, config, tx }) {
       <div className="px-5 py-4 grid grid-cols-2 gap-3">
         <div>
           <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: 'var(--color-text-muted)' }}>
-            {tx('businessRoleDashboard.metricOpenJobs', 'Open jobs')}
+            {tx('businessRoleDashboard.metricOpenJobs')}
           </div>
           <div className="text-lg font-semibold mt-1">{business.open_jobs ?? '—'}</div>
         </div>
         <div>
           <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: 'var(--color-text-muted)' }}>
-            {tx('businessRoleDashboard.metricUnreadInbox', 'Unread inbox')}
+            {tx('businessRoleDashboard.metricUnreadInbox')}
           </div>
           <div className="text-lg font-semibold mt-1">{business.unread_messages ?? '—'}</div>
         </div>
         <div>
           <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: 'var(--color-text-muted)' }}>
-            {tx('businessRoleDashboard.metricTeamSize', 'Team size')}
+            {tx('businessRoleDashboard.metricTeamSize')}
           </div>
           <div className="text-lg font-semibold mt-1">{business.member_count ?? '—'}</div>
         </div>
         <div>
           <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: 'var(--color-text-muted)' }}>
-            {tx('businessRoleDashboard.metricMtdRevenue', 'MTD revenue')}
+            {tx('businessRoleDashboard.metricMtdRevenue')}
           </div>
           <div className="text-lg font-semibold mt-1">{fmtCurrency(business.mtd_revenue_cents, 'USD')}</div>
         </div>
@@ -164,13 +164,13 @@ function WorkspaceCard({ business, config, tx }) {
         </Link>
           <div className="flex items-center gap-3 flex-wrap">
             <Link to={`${workspaceBase}/overview`} className="text-xs text-orange-400 hover:text-orange-300">
-            {tx('businessRoleDashboard.tabs.overview', 'Overview')}
+            {tx('businessRoleDashboard.tabs.overview')}
           </Link>
             <Link to={`${workspaceBase}/messages`} className="text-xs text-orange-400 hover:text-orange-300">
-            {tx('businessRoleDashboard.tabs.messages', 'Messages')}
+            {tx('businessRoleDashboard.tabs.messages')}
           </Link>
             <Link to={`${workspaceBase}/calendar`} className="text-xs text-orange-400 hover:text-orange-300">
-            {tx('businessRoleDashboard.tabs.calendar', 'Calendar')}
+            {tx('businessRoleDashboard.tabs.calendar')}
           </Link>
         </div>
       </footer>
@@ -262,11 +262,11 @@ export default function BusinessRoleDashboardBase({ mode }) {
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-[0.18em]" style={{ background: `${config.accent}22`, color: config.accent }}>
                 <config.icon size={14} />
-                {tx(`${config.translationKey}.badge`, config.badge)}
+                {tx(`${config.translationKey}.badge`)}
               </div>
-              <h1 className="text-4xl font-bold tracking-tight mt-4">{tx(`${config.translationKey}.title`, config.title)}</h1>
+              <h1 className="text-4xl font-bold tracking-tight mt-4">{tx(`${config.translationKey}.title`)}</h1>
               <p className="text-sm mt-3" style={{ color: 'var(--color-text-muted, #94a3b8)', lineHeight: 1.75 }}>
-                {tx(`${config.translationKey}.subtitle`, config.subtitle)}
+                {tx(`${config.translationKey}.subtitle`)}
               </p>
             </div>
             <Link
@@ -275,16 +275,16 @@ export default function BusinessRoleDashboardBase({ mode }) {
               style={{ borderColor: 'rgba(148,163,184,0.16)' }}
             >
               <Building2 size={15} />
-              {tx('businessRoleDashboard.viewAllWorkspaces', 'View all workspaces')}
+              {tx('businessRoleDashboard.viewAllWorkspaces')}
               </Link>
             </div>
         </section>
 
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <MetricCard icon={Building2} label={tx('businessRoleDashboard.metricAssignedWorkspaces', 'Assigned workspaces')} value={totals.workspaces} accent={config.accent} />
-          <MetricCard icon={Briefcase} label={tx('businessRoleDashboard.metricOpenJobs', 'Open jobs')} value={totals.openJobs} accent={config.accent} />
-          <MetricCard icon={BellRing} label={tx('businessRoleDashboard.metricUnreadInbox', 'Unread inbox')} value={totals.unread} accent={config.accent} />
-          <MetricCard icon={Users} label={tx('businessRoleDashboard.metricTeamSize', 'Team size')} value={totals.team} accent={config.accent} />
+          <MetricCard icon={Building2} label={tx('businessRoleDashboard.metricAssignedWorkspaces')} value={totals.workspaces} accent={config.accent} />
+          <MetricCard icon={Briefcase} label={tx('businessRoleDashboard.metricOpenJobs')} value={totals.openJobs} accent={config.accent} />
+          <MetricCard icon={BellRing} label={tx('businessRoleDashboard.metricUnreadInbox')} value={totals.unread} accent={config.accent} />
+          <MetricCard icon={Users} label={tx('businessRoleDashboard.metricTeamSize')} value={totals.team} accent={config.accent} />
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-[1.25fr,0.75fr] gap-4">
@@ -295,21 +295,20 @@ export default function BusinessRoleDashboardBase({ mode }) {
                   <config.icon size={28} />
                 </div>
                 <h2 className="text-2xl font-semibold mt-5">
-                  {tx('businessRoleDashboard.noAssignedWorkspaces', 'No assigned workspaces yet')}
+                  {tx('businessRoleDashboard.noAssignedWorkspaces')}
                 </h2>
                 <p className="text-sm mt-3 max-w-2xl" style={{ color: 'var(--color-text-muted)', lineHeight: 1.75 }}>
                   {tx(
                     'businessRoleDashboard.noAssignedWorkspacesDescription',
-                    'You are in {{roleName}} mode, but there are no active business memberships for this role on your account yet. Use a Vortex code or ask an owner to invite you into the right workspace.',
-                    { roleName: config.badge.toLowerCase() }
+                    { roleName: tx(`${config.translationKey}.badge`).toLowerCase() }
                   )}
                 </p>
                 <div className="flex gap-3 flex-wrap mt-6">
                   <Link to="/vortex" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition">
-                    {tx('businessRoleDashboard.joinWithCode', 'Join with a code')} <ArrowRight size={15} />
+                    {tx('businessRoleDashboard.joinWithCode')} <ArrowRight size={15} />
                   </Link>
                   <Link to="/settings" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-semibold transition hover:bg-white/5" style={{ borderColor: 'rgba(148,163,184,0.16)' }}>
-                    {tx('businessRoleDashboard.reviewAccountSettings', 'Review account settings')}
+                    {tx('businessRoleDashboard.reviewAccountSettings')}
                   </Link>
                 </div>
               </div>
@@ -323,11 +322,11 @@ export default function BusinessRoleDashboardBase({ mode }) {
           <aside className="rounded-[28px] border p-6" style={{ borderColor: 'rgba(148,163,184,0.14)', background: 'rgba(15,23,42,0.88)' }}>
             <div className="text-sm font-semibold flex items-center gap-2">
               <CalendarRange size={16} style={{ color: config.accent }} />
-              {tx(`${config.translationKey}.checklistTitle`, config.checklistTitle)}
+              {tx(`${config.translationKey}.checklistTitle`)}
             </div>
             <ol className="mt-4 grid gap-3 text-sm">
-              {config.checklist.map((item, index) => (
-                <li key={item} className="rounded-2xl border p-3 flex items-start gap-3" style={{ borderColor: 'rgba(148,163,184,0.12)', background: 'rgba(255,255,255,0.03)' }}>
+              {config.checklist.map((_, index) => (
+                <li key={`${config.translationKey}.checklist.${index}`} className="rounded-2xl border p-3 flex items-start gap-3" style={{ borderColor: 'rgba(148,163,184,0.12)', background: 'rgba(255,255,255,0.03)' }}>
                   <div
                     className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
                     style={{ background: `${config.accent}22`, color: config.accent }}
@@ -335,7 +334,7 @@ export default function BusinessRoleDashboardBase({ mode }) {
                     {index + 1}
                   </div>
                   <span style={{ color: 'var(--color-text-muted)', lineHeight: 1.65 }}>
-                    {tx(`${config.translationKey}.checklist.${index}`, item)}
+                    {tx(`${config.translationKey}.checklist.${index}`)}
                   </span>
                 </li>
               ))}
@@ -344,7 +343,7 @@ export default function BusinessRoleDashboardBase({ mode }) {
             <div className="rounded-2xl border p-4 mt-5" style={{ borderColor: 'rgba(148,163,184,0.12)', background: 'rgba(255,255,255,0.03)' }}>
               <div className="text-sm font-semibold flex items-center gap-2">
                 <UserCheck size={15} style={{ color: config.accent }} />
-                {tx('businessRoleDashboard.roleContextTitle', 'Role context')}
+                {tx('businessRoleDashboard.roleContextTitle')}
               </div>
               <p className="text-sm mt-3" style={{ color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
                 {tx(
@@ -354,7 +353,7 @@ export default function BusinessRoleDashboardBase({ mode }) {
                 )}
               </p>
               <Link to="/settings" className="inline-flex items-center gap-2 text-sm font-semibold mt-4 hover:opacity-90" style={{ color: config.accent }}>
-                {tx('businessRoleDashboard.roleContextCta', 'Review granted roles in Settings')} <ArrowRight size={14} />
+                {tx('businessRoleDashboard.roleContextCta')} <ArrowRight size={14} />
               </Link>
             </div>
 
@@ -362,7 +361,7 @@ export default function BusinessRoleDashboardBase({ mode }) {
               <div className="rounded-2xl border p-4 mt-5" style={{ borderColor: 'rgba(148,163,184,0.12)', background: 'rgba(255,255,255,0.03)' }}>
                 <div className="text-sm font-semibold flex items-center gap-2">
                   <BarChart3 size={15} style={{ color: config.accent }} />
-                  {tx('businessRoleDashboard.quickJump', 'Quick jump')}
+                  {tx('businessRoleDashboard.quickJump')}
                 </div>
                 <div className="grid gap-2 mt-3">
                   {businesses.slice(0, 3).map((business) => (

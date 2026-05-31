@@ -7,37 +7,37 @@ struct ProfileView: View {
     var body: some View {
         @Bindable var store = store
 
-        GoScreen(title: "Modes") {
+        GoScreen(title: GoLocalization.text(.profileModes, language: store.appLanguage)) {
             ModesHeader()
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("YOUR MODES")
+                Text(GoLocalization.text(.profileYourModes, language: store.appLanguage))
                     .font(.caption.weight(.bold))
                     .tracking(3)
                     .foregroundStyle(GoTheme.muted)
 
                 VStack(spacing: 0) {
                     ModeToggleRow(
-                        title: "Home",
-                        subtitle: "Marketplace jobs & hiring",
+                        title: GoLocalization.text(.profileHomeMode, language: store.appLanguage),
+                        subtitle: GoLocalization.text(.profileHomeModeSubtitle, language: store.appLanguage),
                         symbolName: "briefcase.fill",
                         isOn: binding(for: "Home")
                     )
                     ModeToggleRow(
-                        title: "Learn",
-                        subtitle: "DIY videos & step-by-step guides",
+                        title: GoLocalization.text(.profileLearnMode, language: store.appLanguage),
+                        subtitle: GoLocalization.text(.profileLearnModeSubtitle, language: store.appLanguage),
                         symbolName: "graduationcap.fill",
                         isOn: binding(for: "Learn")
                     )
                     ModeToggleRow(
-                        title: "Tools",
-                        subtitle: "Tool rentals & equipment",
+                        title: GoLocalization.text(.profileToolsMode, language: store.appLanguage),
+                        subtitle: GoLocalization.text(.profileToolsModeSubtitle, language: store.appLanguage),
                         symbolName: "wrench.fill",
                         isOn: binding(for: "Tools")
                     )
                     ModeToggleRow(
-                        title: "Pro",
-                        subtitle: "Clients, invoices & scheduling",
+                        title: GoLocalization.text(.profileProMode, language: store.appLanguage),
+                        subtitle: GoLocalization.text(.profileProModeSubtitle, language: store.appLanguage),
                         symbolName: "chart.line.uptrend.xyaxis",
                         isOn: binding(for: "Pro")
                     )
@@ -49,20 +49,20 @@ struct ProfileView: View {
             ConnectedExperiences()
 
             GoCard {
-                Text(store.isSignedIn ? "Session" : GoLocalization.text(.signIn, language: store.appLanguage))
+                Text(store.isSignedIn ? GoLocalization.text(.profileSession, language: store.appLanguage) : GoLocalization.text(.signIn, language: store.appLanguage))
                     .font(.headline)
                 if store.isSignedIn {
-                    Button("Sign Out", role: .destructive) {
+                    Button(GoLocalization.text(.profileSignOut, language: store.appLanguage), role: .destructive) {
                         store.signOut()
                     }
                 } else {
-                    TextField("Email", text: $store.email)
+                    TextField(GoLocalization.text(.profileEmail, language: store.appLanguage), text: $store.email)
                         .textFieldStyle(.roundedBorder)
-                    SecureField("Password", text: $store.password)
+                    SecureField(GoLocalization.text(.profilePassword, language: store.appLanguage), text: $store.password)
                         .textFieldStyle(.roundedBorder)
-                    TextField("2FA code if required", text: $store.twoFactorCode)
+                    TextField(GoLocalization.text(.profileTwoFactor, language: store.appLanguage), text: $store.twoFactorCode)
                         .textFieldStyle(.roundedBorder)
-                    Button("Sign In") {
+                    Button(GoLocalization.text(.profileSignIn, language: store.appLanguage)) {
                         Task { await store.signIn() }
                     }
                     .buttonStyle(GoAccentButtonStyle())
@@ -77,10 +77,10 @@ struct ProfileView: View {
             GoCard {
                 Label(GoLocalization.text(.languageTranslation, language: store.appLanguage), systemImage: "globe")
                     .font(.headline)
-                Text("OxSteed Go supports English, Spanish, French, and Haitian Creole, with cross-language message translation on by default.")
+                Text(GoLocalization.text(.profileTranslationDescription, language: store.appLanguage))
                     .font(.subheadline)
                     .foregroundStyle(GoTheme.muted)
-                Picker("App language", selection: Binding(
+                Picker(GoLocalization.text(.profileAppLanguage, language: store.appLanguage), selection: Binding(
                     get: { store.appLanguage },
                     set: { store.setLanguage($0) }
                 )) {
@@ -89,24 +89,24 @@ struct ProfileView: View {
                     }
                 }
                 .tint(GoTheme.amber)
-                Toggle("Auto-translate messages", isOn: Binding(
+                Toggle(GoLocalization.text(.profileAutoTranslate, language: store.appLanguage), isOn: Binding(
                     get: { store.autoTranslateMessages },
                     set: { store.setAutoTranslateMessages($0) }
                 ))
                 .tint(GoTheme.amber)
-                Text(store.autoTranslateMessages ? "Messages are translated to \(store.appLanguage.translatorLabel) when needed." : "Original message text will be shown unless you turn translation back on.")
+                Text(store.autoTranslateMessages ? "\(GoLocalization.text(.profileOriginalMessageMode, language: store.appLanguage)) \(store.appLanguage.translatorLabel)." : GoLocalization.text(.profileOriginalMessageFallback, language: store.appLanguage))
                     .font(.footnote)
                     .foregroundStyle(GoTheme.muted)
             }
 
             GoCard {
-                Label("Account checklist", systemImage: "checklist")
+                Label(GoLocalization.text(.profileAccountChecklist, language: store.appLanguage), systemImage: "checklist")
                     .font(.headline)
-                ChecklistRow(done: store.isSignedIn, title: "Sign in")
-                ChecklistRow(done: false, title: "Verify identity")
-                ChecklistRow(done: false, title: "Turn on notifications")
-                ChecklistRow(done: false, title: "Connect payment methods")
-                ChecklistRow(done: false, title: "Enable calendar sync")
+                ChecklistRow(done: store.isSignedIn, title: GoLocalization.text(.profileChecklistSignIn, language: store.appLanguage))
+                ChecklistRow(done: false, title: GoLocalization.text(.profileChecklistVerify, language: store.appLanguage))
+                ChecklistRow(done: false, title: GoLocalization.text(.profileChecklistNotifications, language: store.appLanguage))
+                ChecklistRow(done: false, title: GoLocalization.text(.profileChecklistPayment, language: store.appLanguage))
+                ChecklistRow(done: false, title: GoLocalization.text(.profileChecklistCalendar, language: store.appLanguage))
             }
 
             ModeWorkspacePanel()
@@ -143,11 +143,11 @@ private struct ModesHeader: View {
                 }
                 .buttonStyle(.plain)
 
-                Text("Modes")
+                Text(GoLocalization.text(.profileModes, language: store.appLanguage))
                     .font(.system(size: 34, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
                     .padding(.top, 8)
-                Text("Enable the experiences you want.\nEach mode works independently.")
+                Text(GoLocalization.text(.profileModesHeaderBody, language: store.appLanguage))
                     .font(.subheadline)
                     .foregroundStyle(GoTheme.muted)
             }
@@ -192,17 +192,19 @@ private struct ModeToggleRow: View {
 }
 
 private struct ConnectedExperiences: View {
+    @Environment(GoStore.self) private var store
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("CONNECTED EXPERIENCES")
+            Text(GoLocalization.text(.profileConnectedExperiences, language: store.appLanguage))
                 .font(.caption.weight(.bold))
                 .tracking(3)
                 .foregroundStyle(GoTheme.muted)
 
             VStack(spacing: 0) {
-                ConnectedRow(left: "graduationcap.fill", right: "briefcase.fill", title: "Learn → Hire a helper", subtitle: "Learn it or get it done")
-                ConnectedRow(left: "briefcase.fill", right: "chart.line.uptrend.xyaxis", title: "Home → Open in Pro", subtitle: "Manage jobs in your business")
-                ConnectedRow(left: "graduationcap.fill", right: "wrench.fill", title: "Learn → Rent tools", subtitle: "Get the tools you need")
+                ConnectedRow(left: "graduationcap.fill", right: "briefcase.fill", title: GoLocalization.text(.profileLearnHireHelper, language: store.appLanguage), subtitle: GoLocalization.text(.profileLearnHireSubtitle, language: store.appLanguage))
+                ConnectedRow(left: "briefcase.fill", right: "chart.line.uptrend.xyaxis", title: GoLocalization.text(.profileHomePro, language: store.appLanguage), subtitle: GoLocalization.text(.profileHomeProSubtitle, language: store.appLanguage))
+                ConnectedRow(left: "graduationcap.fill", right: "wrench.fill", title: GoLocalization.text(.profileLearnRentTools, language: store.appLanguage), subtitle: GoLocalization.text(.profileLearnRentToolsSubtitle, language: store.appLanguage))
             }
             .background(GoTheme.card, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 15).stroke(GoTheme.border, lineWidth: 1))
@@ -263,19 +265,19 @@ private struct ModeWorkspacePanel: View {
         switch store.mode {
         case .customer:
             GoCard {
-                Label("Customer dashboard", systemImage: "house.and.flag")
+                Label(GoLocalization.text(.profileCustomerDashboard, language: store.appLanguage), systemImage: "house.and.flag")
                     .font(.headline)
-                Text("Jobs, bids, appointments, planned needs, invoices, orders, and disputes should be reachable without opening the website.")
+                Text(GoLocalization.text(.profileCustomerDescription, language: store.appLanguage))
                     .foregroundStyle(GoTheme.muted)
                 LiveFeedSummary()
             }
         case .helper:
             GoCard {
-                Label("Helper mode", systemImage: "briefcase.fill")
+                Label(GoLocalization.text(.profileHelperMode, language: store.appLanguage), systemImage: "briefcase.fill")
                     .font(.headline)
-                Text("Available jobs, bids, booking accept/decline, calendar availability, profile edits, earnings, and Stripe Connect live here.")
+                Text(GoLocalization.text(.profileHelperDescription, language: store.appLanguage))
                     .foregroundStyle(GoTheme.muted)
-                Button("Load nearby helper opportunities") {
+                Button(GoLocalization.text(.profileLoadHelperOpps, language: store.appLanguage)) {
                     Task { await store.loadHelpers() }
                 }
                 .buttonStyle(GoAccentButtonStyle())
@@ -283,19 +285,19 @@ private struct ModeWorkspacePanel: View {
             }
         case .business:
             GoCard {
-                Label("Business owner lite", systemImage: "building.2.fill")
+                Label(GoLocalization.text(.profileBusinessOwnerLite, language: store.appLanguage), systemImage: "building.2.fill")
                     .font(.headline)
-                Text("Appointments, messages, services, quotes, invoices, products, team basics, and intake requests should be handled here.")
+                Text(GoLocalization.text(.profileBusinessDescription, language: store.appLanguage))
                     .foregroundStyle(GoTheme.muted)
                 LiveFeedSummary()
             }
         case .logistics:
             GoCard {
-                Label("Logistics lite", systemImage: "shippingbox.fill")
+                Label(GoLocalization.text(.profileLogisticsLite, language: store.appLanguage), systemImage: "shippingbox.fill")
                     .font(.headline)
-                Text("Sourcing requests, campaigns, shipment milestones, claims, and buyer alerts can be handled from the lightweight app.")
+                Text(GoLocalization.text(.profileLogisticsDescription, language: store.appLanguage))
                     .foregroundStyle(GoTheme.muted)
-                Button("Load logistics requests") {
+                Button(GoLocalization.text(.profileLoadLogistics, language: store.appLanguage)) {
                     Task { await store.loadLogisticsRequests() }
                 }
                 .buttonStyle(GoAccentButtonStyle())
@@ -310,11 +312,11 @@ private struct LiveFeedSummary: View {
 
     var body: some View {
         if case .loaded(let feed) = store.mobileFeed {
-            Text("Jobs: \(feed.jobs?.mine?.count ?? 0) · Appointments: \(feed.appointments?.count ?? 0) · Businesses: \(feed.businesses?.count ?? 0)")
+            Text("\(GoLocalization.text(.profileJobsLabel, language: store.appLanguage)): \(feed.jobs?.mine?.count ?? 0) · \(GoLocalization.text(.profileAppointmentsLabel, language: store.appLanguage)): \(feed.appointments?.count ?? 0) · \(GoLocalization.text(.profileBusinessesLabel, language: store.appLanguage)): \(feed.businesses?.count ?? 0)" )
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(GoTheme.amber)
         } else {
-            Text(store.isSignedIn ? "Refresh Home to load live customer data." : "Sign in to load live customer data.")
+            Text(store.isSignedIn ? GoLocalization.text(.profileRefreshHome, language: store.appLanguage) : GoLocalization.text(.profileSignInLoadData, language: store.appLanguage))
                 .font(.footnote)
                 .foregroundStyle(GoTheme.muted)
         }
@@ -328,7 +330,7 @@ private struct HelperPreviewList: View {
         switch store.nearbyHelpers {
         case .loaded(let helpers):
             ForEach(helpers.prefix(3)) { helper in
-                Text(helper.ownerName ?? helper.profileHeadline ?? "Helper #\(helper.id)")
+                Text(helper.ownerName ?? helper.profileHeadline ?? "\(GoLocalization.text(.profileHelperFallback, language: store.appLanguage))\(helper.id)")
                     .font(.subheadline.weight(.semibold))
             }
         case .loading:
@@ -350,13 +352,13 @@ private struct LogisticsPreviewList: View {
         switch store.logisticsRequests {
         case .loaded(let requests):
             ForEach(requests.prefix(3)) { request in
-                Text(request.title ?? request.reference ?? "Request #\(request.id)")
+                Text(request.title ?? request.reference ?? "\(GoLocalization.text(.profileLogisticsFallback, language: store.appLanguage))\(request.id)")
                     .font(.subheadline.weight(.semibold))
             }
         case .loading:
             ProgressView()
         case .failed(let message):
-            Text(store.isSignedIn ? message : "Sign in to load logistics requests.")
+            Text(store.isSignedIn ? message : GoLocalization.text(.profileSignInLoadLogistics, language: store.appLanguage))
                 .font(.footnote)
                 .foregroundStyle(store.isSignedIn ? .red : GoTheme.muted)
         case .idle:

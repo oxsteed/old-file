@@ -27,6 +27,9 @@ struct GoRootView: View {
             GoTabBar(selection: $store.selectedTab, language: store.appLanguage)
         }
         .background(GoTheme.background.ignoresSafeArea())
+        .environment(\.layoutDirection,
+            store.appLanguage == .arabic ? .rightToLeft : .leftToRight
+        )
         .task {
             await store.restoreSession()
         }

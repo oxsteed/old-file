@@ -790,7 +790,12 @@ exports.toggleUserBan = async (req, res) => {
       return res.status(409).json({ error: 'User status changed during ban operation - concurrent modification detected.' });
     }
     try { await logAdminAction({ adminId, action: newStatus ? 'user_unbanned' : 'user_banned', targetType: 'user', targetId: userId, description: reason || null, before: { is_active: before[0].is_active }, after: { is_active: newStatus }, req }); } catch(e) {}
-    try { await sendNotification({ userId, type: newStatus ? 'account_restored' : 'account_banned', title: newStatus ? 'Account restored' : 'Account suspended', body: newStatus ? 'Your account has been restored.' : `Your account has been suspended. Reason: ${reason || 'Policy violation'}`, action_url: newStatus ? '/login' : null }); } catch(e) {}
+    try { await sendNotification({
+      userId,
+      type: newStatus ? 'account_restored' : 'account_banned',
+      action_url: newStatus ? '/login' : null,
+      data: { reason: reason || null },
+    }); } catch (e) {}
     if (newStatus) {
       try { await reinstateAfterPendingAdminDeletion(userId); } catch (e) { logger.warn('toggleUserBan: reinstate after unban failed', { userId, err: e.message }); }
     }
@@ -2234,17 +2239,12 @@ exports.deleteUser = async (req, res) => {
     const graceEndIso = hasMig165 ? thirtyDaysFromNow.toISOString() : null;
     await notifyUserAccountEvent(userId, {
       type: 'account_deletion_scheduled',
-      title: 'Your OxSteed account is scheduled for removal',
-      body: hasMig165
-        ? (
-          'An OxSteed administrator scheduled your account for permanent deletion. Your sign-in access is disabled. '
-          + `If this is not reversed, your data may be permanently removed after ${graceEndIso} (UTC). `
-          + (reason ? `Reason provided: ${reason}` : 'If you believe this is a mistake, reply to this email or contact support.')
-        )
-        : (
-          'An OxSteed administrator locked your account and marked it for deletion. You cannot sign in until this is reversed. '
-          + (reason ? `Reason: ${reason}` : 'If you believe this is a mistake, contact support.')
-        ),
+      data: {
+        deletionNotice: 'account_deletion_scheduled',
+        hasMigration165: Boolean(hasMig165),
+        graceEndIso: graceEndIso || null,
+        reason: reason || null,
+      },
     });
 
     res.json({
@@ -2371,10 +2371,6 @@ exports.restoreUser = async (req, res) => {
 
     await notifyUserAccountEvent(userId, {
       type: 'account_restored',
-      title: 'Your OxSteed account has been restored',
-      body:
-        'An administrator cancelled the scheduled removal of your account. You can sign in again with your usual email and password.'
-        + (reason ? ` Note: ${reason}` : ''),
       action_url: '/login',
     });
 
@@ -2440,9 +2436,6 @@ exports.cancelPendingDeletion = async (req, res) => {
 
     await notifyUserAccountEvent(userId, {
       type: 'account_restored',
-      title: 'Your OxSteed account is active again',
-      body:
-        'An administrator removed the scheduled deletion from your account. You can sign in again.',
       action_url: '/login',
     });
 
@@ -3197,11 +3190,10 @@ exports.suspendUser = async (req, res) => {
       : ' This suspension has no automatic end date; an administrator must lift it.';
     await notifyUserAccountEvent(userId, {
       type: 'account_suspended',
-      title: 'Your OxSteed account has been suspended',
-      body:
-        'An OxSteed administrator suspended your account. You cannot sign in until the suspension is lifted.'
-        + untilText
-        + ` Reason: ${reason.trim()}`,
+      data: {
+        untilText,
+        reason: reason.trim(),
+      },
     });
 
     res.json({
@@ -3243,10 +3235,9 @@ exports.restrictUser = async (req, res) => {
 
     await notifyUserAccountEvent(userId, {
       type: 'account_restricted',
-      title: 'Your OxSteed account has been restricted',
-      body:
-        'An OxSteed administrator restricted your account. You may still be able to sign in, but you cannot post jobs or submit bids until the restriction is lifted.'
-        + ` Reason: ${reason.trim()}`,
+      data: {
+        reason: reason.trim(),
+      },
       action_url: '/settings',
     });
 
@@ -3278,8 +3269,9 @@ exports.warnUser = async (req, res) => {
     // In-app + email (transactional) for official warnings
     await notifyUserAccountEvent(userId, {
       type: 'admin_warning',
-      title: 'Official warning from OxSteed',
-      body: reason.trim(),
+      data: {
+        reason: reason.trim(),
+      },
       action_url: '/support',
     });
 
@@ -3331,10 +3323,9 @@ exports.reactivateUser = async (req, res) => {
 
     await notifyUserAccountEvent(userId, {
       type: 'account_restored',
-      title: 'Your OxSteed account has been reactivated',
-      body:
-        'An administrator cleared suspensions, restrictions, and ban flags on your account. If a scheduled account removal was pending, it has been cleared. You can sign in again.'
-        + (notes.trim() ? ` Note: ${notes.trim()}` : ''),
+      data: {
+        notes: notes.trim(),
+      },
       action_url: '/login',
     });
 

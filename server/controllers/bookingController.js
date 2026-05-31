@@ -793,7 +793,6 @@ async function notifyHelperOfBooking(helperId, booking) {
     await sendNotification({
       userId: helperId,
       type: 'booking_request_new',
-      title: 'New Booking Request',
       body: `${booking.service_name} — ${booking.requested_date} ${booking.requested_start_time}–${booking.requested_end_time}`,
       data: { bookingId: booking.id },
       action_url: '/calendar?tab=bookingRequests',
@@ -814,28 +813,25 @@ async function notifyCustomerOfBookingResponse(customerId, booking, response) {
     const isDeclined = response === 'declined';
     const isAcceptedCancelled = response === 'accepted_cancelled';
 
-    let type, title, body, action_url;
+    let type, body, action_url;
 
     if (isAccepted) {
       type = 'booking_accepted';
-      title = 'Booking Request Accepted';
-      body = `Your request for ${booking.service_name} on ${booking.requested_date} has been accepted.`;
+      body = `${booking.service_name} — ${booking.requested_date}`;
       action_url = '/calendar';
     } else if (isDeclined) {
       type = 'booking_declined';
-      title = 'Booking Request Declined';
-      body = `Your request for ${booking.service_name} on ${booking.requested_date} was declined.${booking.helper_response_reason ? ` Reason: ${booking.helper_response_reason}` : ''}`;
+      body = `${booking.service_name} — ${booking.requested_date}${booking.helper_response_reason ? ` (${booking.helper_response_reason})` : ''}`;
       action_url = '/my-bookings';
     } else if (isAcceptedCancelled) {
       type = 'booking_cancelled';
-      title = 'Booking Cancelled';
-      body = `Your confirmed booking for ${booking.service_name} on ${booking.requested_date} has been cancelled.`;
+      body = `${booking.service_name} — ${booking.requested_date}`;
       action_url = '/my-bookings';
     } else {
       return;
     }
 
-    await sendNotification({ userId: customerId, type, title, body, data: { bookingId: booking.id }, action_url });
+    await sendNotification({ userId: customerId, type, body, data: { bookingId: booking.id }, action_url });
   } catch (err) {
     logger.warn('Failed to notify customer of booking response', { error: err.message });
   }
@@ -851,8 +847,7 @@ async function notifyHelperOfBookingCancellation(helperId, booking) {
     await sendNotification({
       userId: helperId,
       type: 'booking_cancelled',
-      title: 'Booking Request Cancelled',
-      body: `A booking request for ${booking.service_name} on ${booking.requested_date} was cancelled by the customer.`,
+      body: `${booking.service_name} — ${booking.requested_date}`,
       data: { bookingId: booking.id },
       action_url: '/calendar?tab=bookingRequests',
     });
@@ -880,50 +875,8 @@ exports.expirePendingBookingRequests = async () => {
         // Fire-and-forget — don't block the cron if one notification fails
         sendNotification({
           userId: row.customer_id,
-          type: 'booking_declined',
-          title: 'Booking Request Expired',
-          body: `Your booking request for ${row.service_name} on ${row.requested_date} expired without a response.`,
-          data: { bookingId: row.id },
-          action_url: '/my-bookings',
-        }).catch((err) => logger.warn('Failed expiry notification', { error: err.message }));
-      }
-    }
-    return r.rowCount || 0;
-  } catch (err) {
-    logger.warn('expirePendingBookingRequests failed', { error: err.message });
-    return 0;
-  }
-};
-
-/**
- * After scheduled end (date + end time in server TZ), release accepted bookings so customer can post publicly.
- * Notifies both parties.
- */
-exports.releaseStaleAcceptedBookings = async () => {
-  try {
-    const r = await pool.query(
-      `UPDATE booking_requests
-       SET status = 'accepted_cancelled',
-           helper_response_reason = COALESCE(
-             helper_response_reason,
-             'Automatically released after scheduled time passed'
-           ),
-           updated_at = CURRENT_TIMESTAMP
-       WHERE status = 'accepted'
-         AND (requested_date::timestamp + requested_end_time::interval) < NOW()
-       RETURNING id, customer_id, helper_id, service_name, requested_date`
-    );
-    if (r.rowCount > 0) {
-      logger.info('Released accepted bookings past scheduled end', { count: r.rowCount });
-      for (const row of r.rows) {
-        broadcastToUser(row.customer_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
-        broadcastToUser(row.helper_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
-
-        sendNotification({
-          userId: row.customer_id,
-          type: 'booking_declined',
-          title: 'Booking Request Expired',
-          body: `Your booking request for ${row.service_name} on ${row.requested_date} expired without a response.`,
+          type: 'booking_auto_released',
+          body: `${row.service_name} — ${row.requested_date}`,
           data: { bookingId: row.id },
           action_url: '/my-bookings',
         }).catch((err) => logger.warn('Failed expiry notification', { error: err.message }));
@@ -963,8 +916,47 @@ exports.releaseStaleAcceptedBookings = async () => {
         sendNotification({
           userId: row.customer_id,
           type: 'booking_auto_released',
-          title: 'Booking Completed',
-          body: `Your booking for ${row.service_name} on ${row.requested_date} has been marked complete. You can now post this as a job if you need follow-up work.`,
+          body: `${row.service_name} — ${row.requested_date}`,
+          data: { bookingId: row.id },
+          action_url: '/my-bookings',
+        }).catch((err) => logger.warn('Failed expiry notification', { error: err.message }));
+      }
+    }
+    return r.rowCount || 0;
+  } catch (err) {
+    logger.warn('expirePendingBookingRequests failed', { error: err.message });
+    return 0;
+  }
+};
+
+/**
+ * After scheduled end (date + end time in server TZ), release accepted bookings so customer can post publicly.
+ * Notifies both parties.
+ */
+exports.releaseStaleAcceptedBookings = async () => {
+  try {
+    const r = await pool.query(
+      `UPDATE booking_requests
+       SET status = 'accepted_cancelled',
+           helper_response_reason = COALESCE(
+             helper_response_reason,
+             'Automatically released after scheduled time passed'
+           ),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE status = 'accepted'
+         AND (requested_date::timestamp + requested_end_time::interval) < NOW()
+       RETURNING id, customer_id, helper_id, service_name, requested_date`
+    );
+    if (r.rowCount > 0) {
+      logger.info('Released accepted bookings past scheduled end', { count: r.rowCount });
+      for (const row of r.rows) {
+        broadcastToUser(row.customer_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
+        broadcastToUser(row.helper_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
+
+        sendNotification({
+          userId: row.customer_id,
+          type: 'booking_auto_released',
+          body: `${row.service_name} — ${row.requested_date}`,
           data: { bookingId: row.id },
           action_url: '/my-bookings',
         }).catch((err) => logger.warn('Failed auto-release customer notification', { error: err.message }));
@@ -972,8 +964,7 @@ exports.releaseStaleAcceptedBookings = async () => {
         sendNotification({
           userId: row.helper_id,
           type: 'booking_auto_released',
-          title: 'Booking Auto-Closed',
-          body: `The booking for ${row.service_name} on ${row.requested_date} has been automatically closed after the scheduled end time.`,
+          body: `${row.service_name} — ${row.requested_date}`,
           data: { bookingId: row.id },
           action_url: '/calendar',
         }).catch((err) => logger.warn('Failed auto-release helper notification', { error: err.message }));

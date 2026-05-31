@@ -15,12 +15,35 @@ enum GoTab: String, CaseIterable, Identifiable {
     }
 
     func localizedTitle(_ language: GoLanguage) -> String {
-        switch self {
-        case .today: "Home"
-        case .hire: "Learn"
-        case .shop: "Tools"
-        case .inbox: "Pro"
-        case .profile: "Account"
+        switch (self, language) {
+        case (.today, .spanish): "Hoy"
+        case (.today, .french): "Aujourd'hui"
+        case (.today, .haitianCreole): "Jodi a"
+        case (.today, .arabic): "الرئيسية"
+        case (.hire, .spanish): "Aprender"
+        case (.hire, .french): "Embaucher"
+        case (.hire, .haitianCreole): "Anboche"
+        case (.hire, .arabic): "تعلم"
+        case (.shop, .spanish): "Comprar"
+        case (.shop, .french): "Acheter"
+        case (.shop, .haitianCreole): "Achte"
+        case (.shop, .arabic): "الأدوات"
+        case (.inbox, .spanish): "Mensajes"
+        case (.inbox, .french): "Messages"
+        case (.inbox, .haitianCreole): "Mesaj"
+        case (.inbox, .arabic): "البريد الوارد"
+        case (.profile, .spanish): "Yo"
+        case (.profile, .french): "Moi"
+        case (.profile, .haitianCreole): "Mwen"
+        case (.profile, .arabic): "حسابي"
+        default:
+            switch self {
+            case .today: "Today"
+            case .hire: "Hire"
+            case .shop: "Shop"
+            case .inbox: "Inbox"
+            case .profile: "Account"
+            }
         }
     }
 
@@ -53,6 +76,7 @@ enum GoLanguage: String, CaseIterable, Identifiable, Codable {
     case spanish = "es"
     case french = "fr"
     case haitianCreole = "ht"
+    case arabic = "ar"
 
     var id: String { rawValue }
 
@@ -66,6 +90,8 @@ enum GoLanguage: String, CaseIterable, Identifiable, Codable {
             "Français"
         case .haitianCreole:
             "Kreyòl ayisyen"
+        case .arabic:
+            "العربية"
         }
     }
 
@@ -79,6 +105,8 @@ enum GoLanguage: String, CaseIterable, Identifiable, Codable {
             "French"
         case .haitianCreole:
             "Haitian Creole"
+        case .arabic:
+            "Arabic"
         }
     }
 }

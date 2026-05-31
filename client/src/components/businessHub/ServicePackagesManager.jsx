@@ -81,27 +81,47 @@ export function ServicePackagesManager({ businessId }) {
         <>
           {showForm && (
             <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.75rem', padding: '1.25rem', marginBottom: '1.5rem' }}>
-              <h4 style={{ margin: '0 0 1rem' }}>{editing ? 'Edit' : 'New'} Package</h4>
+            <h4 style={{ margin: '0 0 1rem' }}>
+              {editing ? t('businessHub.packages.editPackage') : t('businessHub.packages.newPackage')}
+            </h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                {[['name','Package Name *','text'],['price_cents','Price ($) *','number'],['total_sessions','Total Sessions','number'],['validity_days','Valid for (days)','number']].map(([k,l,t]) => (
+                {[
+                  ['name', t('businessHub.packages.labelName'), 'text'],
+                  ['price_cents', t('businessHub.packages.labelPrice'), 'number'],
+                  ['total_sessions', t('businessHub.packages.labelTotalSessions'), 'number'],
+                  ['validity_days', t('businessHub.packages.labelValidityDays'), 'number'],
+                ].map(([k,l,fieldType]) => (
                   <div key={k}>
                     <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{l}</label>
-                    <input type={t} step={t==='number'&&k==='price_cents'?'0.01':undefined} value={form[k]} onChange={e => setForm(f => ({ ...f, [k]: t === 'number' ? (k === 'price_cents' ? e.target.value : parseInt(e.target.value)||0) : e.target.value }))} style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)', boxSizing: 'border-box' }} />
+                    <input
+                      type={fieldType}
+                      step={fieldType === 'number' && k === 'price_cents' ? '0.01' : undefined}
+                      value={form[k]}
+                      onChange={e => setForm(f => ({ ...f, [k]: fieldType === 'number' ? (k === 'price_cents' ? e.target.value : parseInt(e.target.value) || 0) : e.target.value }))}
+                      style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)', boxSizing: 'border-box' }}
+                    />
                   </div>
                 ))}
                 <div style={{ gridColumn: '1/-1' }}>
-                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>Description</label>
+                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.packages.labelDescription')}</label>
                   <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)', resize: 'vertical', boxSizing: 'border-box' }} />
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                <button onClick={() => { setShowForm(false); setEditing(null); }} style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }}>Cancel</button>
-                <button onClick={save} style={{ padding: '0.5rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>Save</button>
+                <button
+                  onClick={() => { setShowForm(false); setEditing(null); }}
+                  style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'transparent', color: 'var(--app-text)', cursor: 'pointer' }}
+                >
+                  {t('common.cancel')}
+                </button>
+                <button onClick={save} style={{ padding: '0.5rem 1rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>
+                  {t('common.save')}
+                </button>
               </div>
             </div>
           )}
-          {loading ? <p style={{ color: 'var(--muted-text)' }}>Loading...</p> : packages.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--muted-text)' }}><Package size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} /><p>No packages yet. Create your first service bundle.</p></div>
+          {loading ? <p style={{ color: 'var(--muted-text)' }}>{t('common.loading')}</p> : packages.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--muted-text)' }}><Package size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} /><p>{t('businessHub.packages.emptyPackages')}</p></div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: '1rem' }}>
               {packages.map(p => (
@@ -115,7 +135,7 @@ export function ServicePackagesManager({ businessId }) {
                   </div>
                   {p.description && <p style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: 'var(--muted-text)' }}>{p.description}</p>}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '0.875rem', color: 'var(--muted-text)' }}>{p.total_sessions} sessions · {p.validity_days}d</div>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--muted-text)' }}>{p.total_sessions} {t('businessHub.packages.sessions')} · {p.validity_days}d</div>
                     <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#f97316' }}>${(p.price_cents/100).toFixed(2)}</div>
                   </div>
                 </div>
@@ -126,8 +146,8 @@ export function ServicePackagesManager({ businessId }) {
       )}
 
       {tab === 'clients' && (
-        loading ? <p style={{ color: 'var(--muted-text)' }}>Loading...</p> : clientPkgs.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--muted-text)' }}><Gift size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} /><p>No client packages yet.</p></div>
+        loading ? <p style={{ color: 'var(--muted-text)' }}>{t('common.loading')}</p> : clientPkgs.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--muted-text)' }}><Gift size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} /><p>{t('businessHub.packages.emptyClientPackages')}</p></div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {clientPkgs.map(cp => (
@@ -135,12 +155,12 @@ export function ServicePackagesManager({ businessId }) {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>{cp.customer_name} · {cp.package_name}</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--muted-text)' }}>
-                    {cp.sessions_remaining} sessions left · {cp.expires_at ? `Expires ${new Date(cp.expires_at).toLocaleDateString()}` : 'No expiry'}
+                    {cp.sessions_remaining} {t('businessHub.packages.sessionsLeft')} · {cp.expires_at ? `${t('businessHub.packages.expires')} ${new Date(cp.expires_at).toLocaleDateString()}` : t('businessHub.packages.noExpiry')}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <div style={{ fontSize: '0.875rem', background: cp.sessions_remaining > 0 ? '#10b98122' : '#94a3b822', color: cp.sessions_remaining > 0 ? '#10b981' : '#94a3b8', padding: '0.25rem 0.6rem', borderRadius: '999px', fontWeight: 600 }}>{cp.sessions_remaining}/{cp.sessions_used + cp.sessions_remaining} sessions</div>
-                  {cp.sessions_remaining > 0 && cp.status === 'active' && <button onClick={() => redeem(cp.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.4rem 0.75rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}><Minus size={12} /> Use</button>}
+                  <div style={{ fontSize: '0.875rem', background: cp.sessions_remaining > 0 ? '#10b98122' : '#94a3b822', color: cp.sessions_remaining > 0 ? '#10b981' : '#94a3b8', padding: '0.25rem 0.6rem', borderRadius: '999px', fontWeight: 600 }}>{cp.sessions_remaining}/{cp.sessions_used + cp.sessions_remaining} {t('businessHub.packages.sessions')}</div>
+                  {cp.sessions_remaining > 0 && cp.status === 'active' && <button onClick={() => redeem(cp.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.4rem 0.75rem', background: '#f97316', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}><Minus size={12} /> {t('businessHub.packages.useSession')}</button>}
                 </div>
               </div>
             ))}

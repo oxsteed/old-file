@@ -135,8 +135,8 @@ const createBooking = async (req, res, next) => {
     await client.query('COMMIT');
 
     // Fetch customer and owner data for email
-    const customerData = await db.query('SELECT email, first_name FROM users WHERE id = $1', [userId]);
-    const ownerData = await db.query('SELECT email, first_name FROM users WHERE id = $1', [ownerId]);
+    const customerData = await db.query('SELECT email, first_name, preferred_language FROM users WHERE id = $1', [userId]);
+    const ownerData = await db.query('SELECT email, first_name, preferred_language FROM users WHERE id = $1', [ownerId]);
     const toolData = await db.query('SELECT name FROM tool_rentals WHERE id = $1', [toolId]);
 
     const customer = customerData.rows[0];
@@ -238,13 +238,13 @@ const updateBookingStatus = async (req, res, next) => {
 
     // Send status update emails asynchronously
     if (status === 'confirmed') {
-      const customerData = await db.query('SELECT email, first_name FROM users WHERE id = $1', [booking.customer_id]);
+      const customerData = await db.query('SELECT email, first_name, preferred_language FROM users WHERE id = $1', [booking.customer_id]);
       const toolData = await db.query('SELECT name FROM tool_rentals WHERE id = $1', [booking.tool_id]);
       if (customerData.rows[0] && toolData.rows[0]) {
         bookingEmailService.sendBookingApproved(updatedBooking, toolData.rows[0], customerData.rows[0]);
       }
     } else if (status === 'cancelled' && booking.status !== 'cancelled') {
-      const customerData = await db.query('SELECT email, first_name FROM users WHERE id = $1', [booking.customer_id]);
+      const customerData = await db.query('SELECT email, first_name, preferred_language FROM users WHERE id = $1', [booking.customer_id]);
       const toolData = await db.query('SELECT name FROM tool_rentals WHERE id = $1', [booking.tool_id]);
       if (customerData.rows[0] && toolData.rows[0]) {
         bookingEmailService.sendBookingDeclined(updatedBooking, toolData.rows[0], customerData.rows[0]);

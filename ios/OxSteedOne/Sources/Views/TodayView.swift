@@ -37,7 +37,7 @@ struct TodayView: View {
     @State private var damageNotes: [UUID: String] = [:]
 
     var body: some View {
-        GoScreen(title: "Home", showsTitle: false) {
+        GoScreen(title: store.localized("home.title", fallback: "Home"), showsTitle: false) {
             header
             if !store.isNetworkAvailable || !store.pendingSyncChanges.isEmpty {
                 GoCard {
@@ -50,7 +50,7 @@ struct TodayView: View {
                                  : store.localized("sync.offline", fallback: "Offline Mode"))
                                 .font(.subheadline.weight(.semibold))
                             Text(store.isNetworkAvailable
-                                 ? "\(store.pendingSyncChanges.count) change(s) waiting to sync."
+                                 ? "\(store.pendingSyncChanges.count) " + store.localized("home.sync_pending_changes", fallback: "change(s) waiting to sync.")
                                  : store.localized("sync.offline_detail", fallback: "Changes are saved locally and will sync when connection returns."))
                                 .font(.caption)
                                 .foregroundStyle(OneTheme.muted)
@@ -67,25 +67,25 @@ struct TodayView: View {
             }
 
             GoCard {
-                Text("Universal Search")
+                Text(store.localized("home.universal_search", fallback: "Universal Search"))
                     .font(.headline)
-                TextField("Search jobs, helpers, tools, training, financing", text: Binding(
+                TextField(store.localized("home.search_placeholder", fallback: "Search jobs, helpers, tools, training, financing"), text: Binding(
                     get: { store.universalSearchQuery },
                     set: { store.universalSearchQuery = $0 }
                 ))
                 .padding(10)
                 .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                Text("Saved search alerts and map overlays are next implementation step.")
+                Text(store.localized("home.universal_search_note", fallback: "Saved search alerts and map overlays are next implementation step."))
                     .font(.caption)
                     .foregroundStyle(OneTheme.muted)
             }
 
             if !store.universalSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 GoCard {
-                    Text("Search Results")
+                    Text(store.localized("home.search_results", fallback: "Search Results"))
                         .font(.headline)
                     if store.globalSearchResults.isEmpty {
-                        Text("No matches found across Home, Life, Growth, and Learn.")
+                        Text(store.localized("home.no_search_results", fallback: "No matches found across Home, Life, Growth, and Learn."))
                             .font(.caption)
                             .foregroundStyle(OneTheme.muted)
                     } else {
@@ -104,18 +104,18 @@ struct TodayView: View {
             }
 
             GoCard {
-                Text("Discovery Views")
+                Text(store.localized("home.discovery_views", fallback: "Discovery Views"))
                     .font(.headline)
-                Text("Feed, Map, and List are unified by persona-aware search context.")
+                Text(store.localized("home.discovery_description", fallback: "Feed, Map, and List are unified by persona-aware search context."))
                     .font(.caption)
                     .foregroundStyle(OneTheme.muted)
                 HStack {
-                    labelPill("Feed")
-                    labelPill("Map")
-                    labelPill("List")
-                    labelPill("Alerts")
+                    labelPill(store.localized("home.discovery_feed", fallback: "Feed"))
+                    labelPill(store.localized("home.discovery_map", fallback: "Map"))
+                    labelPill(store.localized("home.discovery_list", fallback: "List"))
+                    labelPill(store.localized("home.discovery_alerts", fallback: "Alerts"))
                 }
-                Text("Saved alert example: plumber under $150 in Springfield")
+                Text(store.localized("home.saved_alert_example", fallback: "Saved alert example: plumber under $150 in Springfield"))
                     .font(.caption2)
                     .foregroundStyle(OneTheme.muted)
             }
@@ -123,25 +123,25 @@ struct TodayView: View {
             if store.activePersona == .customer {
                 GoCard {
                     HStack {
-                        Text("Customer Transactions")
+                        Text(store.localized("home.customer_transactions", fallback: "Customer Transactions"))
                             .font(.headline)
                         Spacer()
-                        Button("Sync Live Data") {
+                        Button(store.localized("home.sync_live_data", fallback: "Sync Live Data")) {
                             Task { await store.refreshCustomerTransactionData() }
                         }
                         .disabled(store.isRefreshingCustomerData)
                         .buttonStyle(.bordered)
                     }
                     if store.isRefreshingCustomerData {
-                        ProgressView("Syncing...")
+                        ProgressView(store.localized("home.syncing", fallback: "Syncing..."))
                             .font(.caption)
                     }
                     if let last = store.lastCustomerSyncAt {
-                        Text("Last sync: \(last.formatted(date: .abbreviated, time: .shortened))")
+                        Text("\(store.localized("home.last_sync", fallback: "Last sync:")) \(last.formatted(date: .abbreviated, time: .shortened))")
                             .font(.caption2)
                             .foregroundStyle(OneTheme.muted)
                     }
-                    Text("Refreshes jobs, bids, helpers, appointments, and rentals from \(store.resolvedAPIBaseURLString).")
+                    Text("\(store.localized("home.refreshes_customer_data", fallback: "Refreshes jobs, bids, helpers, appointments, and rentals from")) \(store.resolvedAPIBaseURLString).")
                         .font(.caption)
                         .foregroundStyle(OneTheme.muted)
                 }
@@ -151,7 +151,7 @@ struct TodayView: View {
                         HStack {
                             ProgressView()
                                 .padding(.trailing, 6)
-                            Text("Loading your jobs…")
+                            Text(store.localized("home.loading_jobs", fallback: "Loading your jobs…"))
                                 .font(.subheadline)
                                 .foregroundStyle(OneTheme.muted)
                         }
@@ -166,7 +166,7 @@ struct TodayView: View {
                         HStack {
                             ProgressView()
                                 .padding(.trailing, 6)
-                            Text("Loading bookings…")
+                            Text(store.localized("home.loading_bookings", fallback: "Loading bookings…"))
                                 .font(.subheadline)
                                 .foregroundStyle(OneTheme.muted)
                         }
@@ -180,7 +180,7 @@ struct TodayView: View {
                         HStack {
                             ProgressView()
                                 .padding(.trailing, 6)
-                            Text("Loading rental tools…")
+                            Text(store.localized("home.loading_rental_tools", fallback: "Loading rental tools…"))
                                 .font(.subheadline)
                                 .foregroundStyle(OneTheme.muted)
                         }
@@ -192,13 +192,13 @@ struct TodayView: View {
             }
 
             GoCard {
-                Text("Saved Search Alerts")
+                Text(store.localized("home.saved_search_alerts", fallback: "Saved Search Alerts"))
                     .font(.headline)
                 HStack {
-                    TextField("Create alert query", text: $newAlertQuery)
+                    TextField(store.localized("home.create_alert_query", fallback: "Create alert query"), text: $newAlertQuery)
                         .padding(10)
                         .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    Button("Add") {
+                    Button(store.localized("home.add", fallback: "Add")) {
                         store.addSavedAlert(newAlertQuery)
                         newAlertQuery = ""
                     }
@@ -219,7 +219,7 @@ struct TodayView: View {
             }
 
             GoCard {
-                Text("Map View")
+                Text(store.localized("home.map_view", fallback: "Map View"))
                     .font(.headline)
                 Map(position: $cameraPosition) {
                     ForEach(store.mapPoints) { point in
@@ -232,27 +232,27 @@ struct TodayView: View {
                 }
                 .frame(height: 220)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                Button("Refresh Map for Active Persona") {
+                Button(store.localized("home.refresh_map_for_active_persona", fallback: "Refresh Map for Active Persona")) {
                     store.refreshMapPointsForActivePersona()
                 }
                 .buttonStyle(.bordered)
             }
 
             GoCard {
-                Text("Trust & Safety")
+                Text(store.localized("home.trust_and_safety", fallback: "Trust & Safety"))
                     .font(.headline)
                 ForEach(store.verificationBadges) { badge in
                     HStack {
                         Text(badge.title)
                             .font(.subheadline)
                         Spacer()
-                        Text(badge.verified ? "Verified" : "Pending")
+                        Text(store.localized(badge.verified ? "home.verified" : "home.pending", fallback: badge.verified ? "Verified" : "Pending"))
                             .font(.caption.weight(.bold))
                             .foregroundStyle(badge.verified ? .green : OneTheme.amber)
                     }
                 }
                 HStack {
-                    Button(store.safetyTimerRunning ? "Stop Safety Timer" : "Start Safety Timer") {
+                    Button(store.safetyTimerRunning ? store.localized("home.stop_safety_timer", fallback: "Stop Safety Timer") : store.localized("home.start_safety_timer", fallback: "Start Safety Timer")) {
                         if store.safetyTimerRunning {
                             store.stopSafetyTimer()
                         } else {
@@ -260,37 +260,37 @@ struct TodayView: View {
                         }
                     }
                     .buttonStyle(GoAccentButtonStyle())
-                    Button("SOS") {
+                    Button(store.localized("home.sos", fallback: "SOS")) {
                         store.triggerSOS()
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.red)
                 }
                 if store.sosTriggered {
-                    Text("SOS triggered: location + incident log queued.")
+                    Text(store.localized("home.sos_triggered", fallback: "SOS triggered: location + incident log queued."))
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
             }
 
             GoCard {
-                Text("Two-Way Reviews")
+                Text(store.localized("home.two_way_reviews", fallback: "Two-Way Reviews"))
                     .font(.headline)
-                Picker("From", selection: $reviewFromRole) {
-                    Text("Customer").tag("Customer")
-                    Text("Helper").tag("Helper")
-                    Text("Business Owner").tag("Business Owner")
+                Picker(store.localized("home.from", fallback: "From"), selection: $reviewFromRole) {
+                    Text(store.localized("home.customer", fallback: "Customer")).tag("Customer")
+                    Text(store.localized("home.helper", fallback: "Helper")).tag("Helper")
+                    Text(store.localized("home.business_owner", fallback: "Business Owner")).tag("Business Owner")
                 }
-                Picker("To", selection: $reviewToRole) {
-                    Text("Customer").tag("Customer")
-                    Text("Helper").tag("Helper")
-                    Text("Business Owner").tag("Business Owner")
+                Picker(store.localized("home.to", fallback: "To"), selection: $reviewToRole) {
+                    Text(store.localized("home.customer", fallback: "Customer")).tag("Customer")
+                    Text(store.localized("home.helper", fallback: "Helper")).tag("Helper")
+                    Text(store.localized("home.business_owner", fallback: "Business Owner")).tag("Business Owner")
                 }
-                Stepper("Rating: \(reviewRating)", value: $reviewRating, in: 1...5)
-                TextField("Review comment", text: $reviewComment)
+                Stepper("\(store.localized("home.rating", fallback: "Rating")): \(reviewRating)", value: $reviewRating, in: 1...5)
+                TextField(store.localized("home.review_comment", fallback: "Review comment"), text: $reviewComment)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                Button("Submit Review") {
+                Button(store.localized("home.submit_review", fallback: "Submit Review")) {
                     store.addReview(fromRole: reviewFromRole, toRole: reviewToRole, rating: reviewRating, comment: reviewComment)
                     reviewComment = ""
                     reviewRating = 5
@@ -309,12 +309,12 @@ struct TodayView: View {
             }
 
             // Phase 1: show a loading indicator on the helper job feed while the first fetch runs.
-            if store.activePersona == .helper && store.isFetchingJobs && store.customerJobs.isEmpty {
+                if store.activePersona == .helper && store.isFetchingJobs && store.customerJobs.isEmpty {
                 GoCard {
                     HStack {
                         ProgressView()
                             .padding(.trailing, 6)
-                        Text("Loading jobs near you…")
+                        Text(store.localized("home.loading_jobs_near_you", fallback: "Loading jobs near you…"))
                             .font(.subheadline)
                             .foregroundStyle(OneTheme.muted)
                     }
@@ -389,26 +389,26 @@ struct TodayView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("OxSteed One")
                             .font(.title2.weight(.bold))
-                        Text("Run today. Build tomorrow.")
+                        Text(store.localized("home.run_today_build_tomorrow", fallback: "Run today. Build tomorrow."))
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(OneTheme.muted)
                     }
                     Spacer(minLength: 8)
                 }
 
-                Text("One account. Many personas. Home updates instantly.")
+                Text(store.localized("home.one_account_many_personas", fallback: "One account. Many personas. Home updates instantly."))
                     .font(.footnote)
                     .foregroundStyle(OneTheme.muted)
 
                 HStack(spacing: 8) {
-                    statusPill("Persona: \(store.personaContext.activePersona.label)")
+                    statusPill("\(store.localized("home.persona", fallback: "Persona:")) \(store.personaContext.activePersona.label)")
                     if store.personaContext.activePersona == .businessOwner {
-                        statusPill("Role: \(store.personaContext.businessSubRole.label)")
+                        statusPill("\(store.localized("home.role", fallback: "Role:")) \(store.personaContext.businessSubRole.label)")
                     }
                 }
 
-                HStack(spacing: 10) {
-                    Button("Profile & Settings") {
+            HStack(spacing: 10) {
+                    Button(store.localized("home.profile_settings", fallback: "Profile & Settings")) {
                         store.selectedTab = .profile
                     }
                     .buttonStyle(GoAccentButtonStyle())
@@ -443,7 +443,7 @@ struct TodayView: View {
                     .padding(.vertical, 4)
                 }
             }
-            .navigationTitle("Select Business")
+            .navigationTitle(store.localized("home.select_business", fallback: "Select Business"))
         }
     }
 
@@ -451,26 +451,26 @@ struct TodayView: View {
         GoCard {
             Text(store.localized("home.customer_job_posting", fallback: "Customer Job Posting"))
                 .font(.headline)
-            TextField("Job title", text: $postTitle)
+            TextField(store.localized("home.job_title", fallback: "Job title"), text: $postTitle)
                 .padding(10)
                 .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             HStack {
-                Picker("Category", selection: $postCategory) {
-                    Text("Plumbing").tag("Plumbing")
-                    Text("Electrical").tag("Electrical")
-                    Text("HVAC").tag("HVAC")
-                    Text("Carpentry").tag("Carpentry")
-                    Text("Cleaning").tag("Cleaning")
+                Picker(store.localized("home.category", fallback: "Category"), selection: $postCategory) {
+                    Text(store.localized("home.category_plumbing", fallback: "Plumbing")).tag("Plumbing")
+                    Text(store.localized("home.category_electrical", fallback: "Electrical")).tag("Electrical")
+                    Text(store.localized("home.category_hvac", fallback: "HVAC")).tag("HVAC")
+                    Text(store.localized("home.category_carpentry", fallback: "Carpentry")).tag("Carpentry")
+                    Text(store.localized("home.category_cleaning", fallback: "Cleaning")).tag("Cleaning")
                 }
                 .pickerStyle(.menu)
-                TextField("Location autocomplete", text: $postLocation)
+                TextField(store.localized("home.location_autocomplete", fallback: "Location autocomplete"), text: $postLocation)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
-            TextField("Address", text: $postAddress)
+            TextField(store.localized("home.address", fallback: "Address"), text: $postAddress)
                 .padding(10)
                 .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            TextField("Describe the work", text: $postDetails, axis: .vertical)
+            TextField(store.localized("home.describe_work", fallback: "Describe the work"), text: $postDetails, axis: .vertical)
                 .lineLimit(2...4)
                 .padding(10)
                 .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -479,7 +479,7 @@ struct TodayView: View {
                 Button {
                     showJobPhotoPicker = true
                 } label: {
-                    Label("Add Photos (up to 5)", systemImage: "photo.badge.plus")
+                    Label(store.localized("home.add_photos", fallback: "Add Photos (up to 5)"), systemImage: "photo.badge.plus")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -522,10 +522,10 @@ struct TodayView: View {
                 }
             } label: {
                 if store.isUploadingImages {
-                    Label("Uploading photos…", systemImage: "arrow.up.circle")
+                    Label(store.localized("home.uploading_photos", fallback: "Uploading photos…"), systemImage: "arrow.up.circle")
                         .frame(maxWidth: .infinity)
                 } else if store.isSubmittingCustomerJob {
-                    ProgressView("Publishing job…").frame(maxWidth: .infinity)
+                    ProgressView(store.localized("home.publishing_job", fallback: "Publishing job…")).frame(maxWidth: .infinity)
                 } else {
                     Text(store.localized("home.publish_job", fallback: "Publish Job + Notify Helpers"))
                         .frame(maxWidth: .infinity)
@@ -548,7 +548,7 @@ struct TodayView: View {
                         .font(.caption)
                         .foregroundStyle(.red)
                     Spacer()
-                    Button("Retry") {
+                    Button(store.localized("home.retry", fallback: "Retry")) {
                         Task {
                             await store.postCustomerJobServerFirst(
                                 title: postTitle,
@@ -578,17 +578,17 @@ struct TodayView: View {
                             }
                             Spacer()
                             if job.status == .draft {
-                                Button("Publish") { store.publishCustomerJob(job.id) }
+                                Button(store.localized("home.publish", fallback: "Publish")) { store.publishCustomerJob(job.id) }
                                     .buttonStyle(.bordered)
                             } else {
-                                Button("Start") { Task { await store.startCustomerJobServerFirst(job.id) } }
+                                Button(store.localized("home.start", fallback: "Start")) { Task { await store.startCustomerJobServerFirst(job.id) } }
                                     .disabled(store.isUpdatingJob)
                                     .buttonStyle(.bordered)
-                                Button("Complete") { Task { await store.completeCustomerJobServerFirst(job.id) } }
+                                Button(store.localized("home.complete", fallback: "Complete")) { Task { await store.completeCustomerJobServerFirst(job.id) } }
                                     .disabled(store.isUpdatingJob)
                                     .buttonStyle(.bordered)
                             }
-                            Button("Cancel") { Task { await store.cancelCustomerJobServerFirst(job.id) } }
+                            Button(store.localized("home.cancel", fallback: "Cancel")) { Task { await store.cancelCustomerJobServerFirst(job.id) } }
                                 .disabled(store.isUpdatingJob)
                                 .buttonStyle(.bordered)
                         }
@@ -619,9 +619,9 @@ struct TodayView: View {
                     }
                 }
                 if store.hasMoreJobs {
-                    Button(store.isLoadingMoreJobs ? "Loading..." : store.localized("home.load_more_jobs", fallback: "Load More Jobs")) {
-                        Task { await store.loadMoreCustomerJobs() }
-                    }
+                Button(store.isLoadingMoreJobs ? store.localized("home.loading", fallback: "Loading...") : store.localized("home.load_more_jobs", fallback: "Load More Jobs")) {
+                    Task { await store.loadMoreCustomerJobs() }
+                }
                     .disabled(store.isLoadingMoreJobs)
                     .buttonStyle(.bordered)
                 }
@@ -637,11 +637,11 @@ struct TodayView: View {
             Text(store.localized("home.bids_comparison", fallback: "Bids + Comparison"))
                 .font(.headline)
             if store.customerJobs.isEmpty {
-                Text("Post a job to start receiving bids.")
+                Text(store.localized("home.post_job_for_bids", fallback: "Post a job to start receiving bids."))
                     .font(.caption)
                     .foregroundStyle(OneTheme.muted)
             } else {
-                Picker("Job", selection: Binding(
+                Picker(store.localized("home.job_picker", fallback: "Job"), selection: Binding(
                     get: { selectedJobID ?? store.customerJobs.first?.id ?? UUID() },
                     set: { selectedJobID = $0 }
                 )) {
@@ -650,10 +650,10 @@ struct TodayView: View {
                     }
                 }
                 .pickerStyle(.menu)
-                Picker("Sort", selection: $bidSort) {
-                    Text("Price Low→High").tag("price_asc")
-                    Text("Price High→Low").tag("price_desc")
-                    Text("Helper A→Z").tag("helper_asc")
+                Picker(store.localized("home.sort", fallback: "Sort"), selection: $bidSort) {
+                    Text(store.localized("home.price_low_to_high", fallback: "Price Low→High")).tag("price_asc")
+                    Text(store.localized("home.price_high_to_low", fallback: "Price High→Low")).tag("price_desc")
+                    Text(store.localized("home.helper_a_to_z", fallback: "Helper A→Z")).tag("helper_asc")
                 }
                 .pickerStyle(.segmented)
 
@@ -669,27 +669,27 @@ struct TodayView: View {
                             .foregroundStyle(OneTheme.muted)
                         HStack {
                             if bid.accepted {
-                                Text("Accepted")
+                                Text(store.localized("home.accepted", fallback: "Accepted"))
                                     .font(.caption.weight(.bold))
                                     .foregroundStyle(.green)
                             } else {
-                                Button("Accept + Create Appointment") {
+                                Button(store.localized("home.accept_create_appointment", fallback: "Accept + Create Appointment")) {
                                     Task { await store.acceptBidServerFirst(bid.id) }
                                 }
                                 .disabled(store.bidAcceptanceInFlight.contains(bid.id))
                                 .buttonStyle(.borderedProminent)
                             }
-                                Button("Message") {
+                                Button(store.localized("home.message", fallback: "Message")) {
                                     Task {
                                         await store.messageHelperForBidServerFirst(
                                             bid.id,
-                                            content: bidMessageByID[bid.id] ?? "Can you confirm scope and timeline?"
+                                            content: bidMessageByID[bid.id] ?? store.localized("home.message_default_content", fallback: "Can you confirm scope and timeline?")
                                         )
                                     }
                                 }
                                 .buttonStyle(.bordered)
                         }
-                        TextField("Message helper", text: Binding(
+                        TextField(store.localized("home.message_helper", fallback: "Message helper"), text: Binding(
                             get: { bidMessageByID[bid.id] ?? "" },
                             set: { bidMessageByID[bid.id] = $0 }
                         ))
@@ -699,7 +699,7 @@ struct TodayView: View {
                     .padding(.vertical, 4)
                 }
                 if store.isFetchingBids {
-                    ProgressView("Refreshing bids...")
+                    ProgressView(store.localized("home.refreshing_bids", fallback: "Refreshing bids..."))
                         .font(.caption)
                 }
                 if let error = store.lastBidError {
@@ -708,7 +708,7 @@ struct TodayView: View {
                             .font(.caption)
                             .foregroundStyle(.red)
                         Spacer()
-                        Button("Retry Bid Sync") {
+                        Button(store.localized("home.retry_bid_sync", fallback: "Retry Bid Sync")) {
                             Task { await store.refreshCustomerTransactionData() }
                         }
                         .buttonStyle(.bordered)
@@ -722,16 +722,16 @@ struct TodayView: View {
         GoCard {
             Text(store.localized("home.customer_service_booking", fallback: "Customer Service Booking"))
                 .font(.headline)
-            TextField("Search helpers", text: $helperSearch)
+            TextField(store.localized("home.search_helpers", fallback: "Search helpers"), text: $helperSearch)
                 .padding(10)
                 .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             HStack {
-                Text("Min rating: \(String(format: "%.1f", helperMinRating))★")
+                Text("\(store.localized("home.min_rating", fallback: "Min rating:")) \(String(format: "%.1f", helperMinRating))★")
                     .font(.caption)
                 Slider(value: $helperMinRating, in: 3.5...5.0, step: 0.5)
             }
             let helpers = store.filteredHelpers(query: helperSearch, minRating: helperMinRating)
-            Picker("Helper", selection: Binding(get: {
+            Picker(store.localized("home.helper", fallback: "Helper"), selection: Binding(get: {
                 selectedHelperID ?? helpers.first?.id ?? UUID()
             }, set: {
                 selectedHelperID = $0
@@ -743,27 +743,27 @@ struct TodayView: View {
             .pickerStyle(.menu)
 
             if let helper = helpers.first(where: { $0.id == (selectedHelperID ?? helpers.first?.id) }) {
-                Text("Availability: \(helper.availableSlots.joined(separator: " · "))")
+                Text("\(store.localized("home.availability", fallback: "Availability:")) \(helper.availableSlots.joined(separator: " · "))")
                     .font(.caption)
                     .foregroundStyle(OneTheme.muted)
             }
-            TextField("Service type", text: $bookingServiceType)
+            TextField(store.localized("home.service_type", fallback: "Service type"), text: $bookingServiceType)
                 .padding(10)
                 .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            DatePicker("Date", selection: $bookingDate, displayedComponents: .date)
-            TextField("Time slot", text: $bookingSlot)
+            DatePicker(store.localized("home.date", fallback: "Date"), selection: $bookingDate, displayedComponents: .date)
+            TextField(store.localized("home.time_slot", fallback: "Time slot"), text: $bookingSlot)
                 .padding(10)
                 .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            Toggle("Payment authorization", isOn: $bookingPaymentAuthorized)
+            Toggle(store.localized("home.payment_authorization", fallback: "Payment authorization"), isOn: $bookingPaymentAuthorized)
             if let paymentMessage = store.mobilePaymentStatusMessage {
                 Text(paymentMessage)
                     .font(.caption)
                     .foregroundStyle(store.mobilePaymentsAvailable ? OneTheme.muted : .orange)
             }
-            TextField("Pre-appointment message", text: $bookingPreMessage)
+            TextField(store.localized("home.pre_appointment_message", fallback: "Pre-appointment message"), text: $bookingPreMessage)
                 .padding(10)
                 .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            Button("Book Service") {
+            Button(store.localized("home.book_service", fallback: "Book Service")) {
                 if let helperID = selectedHelperID ?? helpers.first?.id {
                     Task {
                         await store.createServiceBookingServerFirst(
@@ -781,7 +781,7 @@ struct TodayView: View {
             .disabled(store.isCreatingBooking)
             .buttonStyle(GoAccentButtonStyle())
             if store.isCreatingBooking {
-                ProgressView("Creating booking...")
+                ProgressView(store.localized("home.creating_booking", fallback: "Creating booking..."))
                     .font(.caption)
             }
 
@@ -792,10 +792,10 @@ struct TodayView: View {
                     Text("\(booking.scheduledSlot) · \(booking.status)")
                         .font(.caption)
                         .foregroundStyle(OneTheme.muted)
-                    Text("Payment: \(booking.paymentStatus ?? (booking.paymentAuthorized ? "authorized" : "pending"))")
+                    Text("\(store.localized("home.payment_prefix", fallback: "Payment:")) \(booking.paymentStatus ?? (booking.paymentAuthorized ? store.localized("home.payment_authorized", fallback: "authorized") : store.localized("home.payment_pending", fallback: "pending")))")
                         .font(.caption2)
                         .foregroundStyle(OneTheme.muted)
-                    TextField("Post-appointment message", text: Binding(
+                    TextField(store.localized("home.post_appointment_message", fallback: "Post-appointment message"), text: Binding(
                         get: { booking.postMessage },
                         set: { store.setBookingPostMessage(booking.id, message: $0) }
                     ))
@@ -803,38 +803,38 @@ struct TodayView: View {
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     HStack {
                         if (booking.paymentStatus ?? "") == "requires_payment" && booking.paymentIntentID != nil {
-                            Button("Confirm Payment") {
+                            Button(store.localized("home.confirm_payment", fallback: "Confirm Payment")) {
                                 Task { await store.confirmBookingPaymentServerFirst(booking.id) }
                             }
                             .disabled(store.isUpdatingBooking || !store.mobilePaymentsAvailable)
                             .buttonStyle(.borderedProminent)
                         }
-                        Button("Send Update") {
+                        Button(store.localized("home.send_update", fallback: "Send Update")) {
                             Task {
                                 await store.sendBookingMessageServerFirst(booking.id, content: booking.postMessage)
                             }
                         }
                         .disabled(store.isUpdatingBooking)
                         .buttonStyle(.bordered)
-                        Button("Cancel Booking") {
+                        Button(store.localized("home.cancel_booking", fallback: "Cancel Booking")) {
                             Task { await store.cancelServiceBookingServerFirst(booking.id) }
                         }
                         .disabled(store.isUpdatingBooking)
                         .buttonStyle(.bordered)
-                        Stepper("Rating \(bookingReviewRating)", value: $bookingReviewRating, in: 1...5)
-                        Button("Submit Review") {
+                        Stepper("\(store.localized("home.rating", fallback: "Rating")) \(bookingReviewRating)", value: $bookingReviewRating, in: 1...5)
+                        Button(store.localized("home.submit_review", fallback: "Submit Review")) {
                             store.submitBookingReview(booking.id, rating: bookingReviewRating, comment: bookingReviewComment)
                             bookingReviewComment = ""
                         }
                     }
-                    TextField("Review note", text: $bookingReviewComment)
+                    TextField(store.localized("home.review_note", fallback: "Review note"), text: $bookingReviewComment)
                         .padding(8)
                         .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
                 .padding(.vertical, 4)
             }
             if store.hasMoreBookings {
-                Button(store.isLoadingMoreBookings ? "Loading..." : "Load More Bookings") {
+                Button(store.isLoadingMoreBookings ? store.localized("home.loading", fallback: "Loading...") : store.localized("home.load_more_bookings", fallback: "Load More Bookings")) {
                     Task { await store.loadMoreBookings() }
                 }
                 .disabled(store.isLoadingMoreBookings)
@@ -846,7 +846,7 @@ struct TodayView: View {
                         .font(.caption)
                         .foregroundStyle(.red)
                     Spacer()
-                    Button("Retry Booking Sync") {
+                    Button(store.localized("home.retry_booking_sync", fallback: "Retry Booking Sync")) {
                         Task { await store.refreshCustomerTransactionData() }
                     }
                     .buttonStyle(.bordered)
@@ -859,16 +859,16 @@ struct TodayView: View {
         GoCard {
             Text(store.localized("home.tool_rental_flow", fallback: "Tool Rental Flow"))
                 .font(.headline)
-            TextField("Search tool rentals", text: $toolSearch)
+            TextField(store.localized("home.search_tool_rentals", fallback: "Search tool rentals"), text: $toolSearch)
                 .padding(10)
                 .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             HStack {
-                Text("Max daily rate: $\(Int(toolMaxRate))")
+                Text("\(store.localized("home.max_daily_rate", fallback: "Max daily rate:")) $\(Int(toolMaxRate))")
                     .font(.caption)
                 Slider(value: $toolMaxRate, in: 10...150, step: 5)
             }
             let tools = store.filteredTools(query: toolSearch, maxDailyRate: toolMaxRate)
-            Picker("Tool", selection: Binding(get: {
+            Picker(store.localized("home.tool_picker", fallback: "Tool"), selection: Binding(get: {
                 selectedToolID ?? tools.first?.id ?? UUID()
             }, set: {
                 selectedToolID = $0
@@ -879,18 +879,18 @@ struct TodayView: View {
             }
             .pickerStyle(.menu)
             if let tool = tools.first(where: { $0.id == (selectedToolID ?? tools.first?.id) }) {
-                Text("Terms: \(tool.terms)")
+                Text("\(store.localized("home.terms", fallback: "Terms:")) \(tool.terms)")
                     .font(.caption)
                     .foregroundStyle(OneTheme.muted)
-                Text("Available: \(tool.availableSlots.joined(separator: " · "))")
+                Text("\(store.localized("home.available", fallback: "Available:")) \(tool.availableSlots.joined(separator: " · "))")
                     .font(.caption2)
                     .foregroundStyle(OneTheme.muted)
             }
-            TextField("Reservation slot", text: $toolSlot)
+            TextField(store.localized("home.reservation_slot", fallback: "Reservation slot"), text: $toolSlot)
                 .padding(10)
                 .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            Toggle("Payment authorization", isOn: $toolPaymentAuthorized)
-            Button("Reserve Tool") {
+            Toggle(store.localized("home.payment_authorization", fallback: "Payment authorization"), isOn: $toolPaymentAuthorized)
+            Button(store.localized("home.reserve_tool", fallback: "Reserve Tool")) {
                 if let toolID = selectedToolID ?? tools.first?.id {
                     Task { await store.reserveToolServerFirst(toolID: toolID, slot: toolSlot, paymentAuthorized: toolPaymentAuthorized) }
                     toolSlot = ""
@@ -899,7 +899,7 @@ struct TodayView: View {
             .disabled(store.isReservingTool)
             .buttonStyle(GoAccentButtonStyle())
             if store.isReservingTool {
-                ProgressView("Reserving tool...")
+                ProgressView(store.localized("home.reserving_tool", fallback: "Reserving tool..."))
                     .font(.caption)
             }
 
@@ -907,21 +907,21 @@ struct TodayView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(reservation.toolTitle) · \(reservation.ownerName)")
                         .font(.subheadline.weight(.semibold))
-                    Text("Deposit: \(reservation.depositStatus) · Dispute: \(reservation.disputeStatus)")
+                    Text("\(store.localized("home.deposit", fallback: "Deposit:")) \(reservation.depositStatus) · \(store.localized("home.dispute", fallback: "Dispute:")) \(reservation.disputeStatus)")
                         .font(.caption)
                         .foregroundStyle(OneTheme.muted)
-                    Text("Payment: \(reservation.paymentStatus ?? (reservation.paymentAuthorized ? "authorized" : "pending"))")
+                    Text("\(store.localized("home.payment_prefix", fallback: "Payment:")) \(reservation.paymentStatus ?? (reservation.paymentAuthorized ? store.localized("home.payment_authorized", fallback: "authorized") : store.localized("home.payment_pending", fallback: "pending")))")
                         .font(.caption2)
                         .foregroundStyle(OneTheme.muted)
                     HStack {
-                        Button("Pickup") { store.confirmToolPickup(reservation.id) }.buttonStyle(.bordered)
-                        Button("Return") { store.confirmToolReturn(reservation.id) }.buttonStyle(.bordered)
-                        Button("Cancel") {
+                        Button(store.localized("home.pickup", fallback: "Pickup")) { store.confirmToolPickup(reservation.id) }.buttonStyle(.bordered)
+                        Button(store.localized("home.return", fallback: "Return")) { store.confirmToolReturn(reservation.id) }.buttonStyle(.bordered)
+                        Button(store.localized("home.cancel", fallback: "Cancel")) {
                             Task { await store.cancelToolReservationServerFirst(reservation.id) }
                         }
                         .disabled(store.isUpdatingTool)
                         .buttonStyle(.bordered)
-                        Button(reservation.disputeStatus == "Open" ? "Resolve Dispute" : "Open Dispute") {
+                        Button(reservation.disputeStatus == "Open" ? store.localized("home.resolve_dispute", fallback: "Resolve Dispute") : store.localized("home.open_dispute", fallback: "Open Dispute")) {
                             if reservation.disputeStatus == "Open" {
                                 store.setToolDispute(reservation.id, open: false)
                             } else {
@@ -932,13 +932,13 @@ struct TodayView: View {
                         .disabled(store.isUpdatingTool)
                         .buttonStyle(.bordered)
                     }
-                    TextField("Damage assessment", text: Binding(
+                    TextField(store.localized("home.damage_assessment", fallback: "Damage assessment"), text: Binding(
                         get: { damageNotes[reservation.id] ?? reservation.damageNotes },
                         set: { damageNotes[reservation.id] = $0 }
                     ))
                     .padding(8)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    Button("Save Damage Notes") {
+                    Button(store.localized("home.save_damage_notes", fallback: "Save Damage Notes")) {
                         store.assessToolDamage(reservation.id, notes: damageNotes[reservation.id] ?? reservation.damageNotes)
                     }
                     .buttonStyle(.bordered)
@@ -946,7 +946,7 @@ struct TodayView: View {
                 .padding(.vertical, 4)
             }
             if store.hasMoreRentals {
-                Button(store.isLoadingMoreRentals ? "Loading..." : "Load More Rentals") {
+                Button(store.isLoadingMoreRentals ? store.localized("home.loading", fallback: "Loading...") : store.localized("home.load_more_rentals", fallback: "Load More Rentals")) {
                     Task { await store.loadMoreRentals() }
                 }
                 .disabled(store.isLoadingMoreRentals)
@@ -958,7 +958,7 @@ struct TodayView: View {
                         .font(.caption)
                         .foregroundStyle(.red)
                     Spacer()
-                    Button("Retry Rental Sync") {
+                    Button(store.localized("home.retry_rental_sync", fallback: "Retry Rental Sync")) {
                         Task { await store.refreshCustomerTransactionData() }
                     }
                     .buttonStyle(.bordered)

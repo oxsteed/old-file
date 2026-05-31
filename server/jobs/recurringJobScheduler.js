@@ -108,9 +108,11 @@ async function spawnRecurringJobs() {
         await sendNotification({
           userId:     job.client_id,
           type:       'job_recurring_posted',
-          title:      '🔄 Recurring Job Re-Posted',
-          body:       `Your recurring job "${job.title}" is ready for bids again.`,
-          data:       { job_id: newJobId, original_job_id: job.id },
+          data:       {
+            job_id: newJobId,
+            original_job_id: job.id,
+            job_title: job.title,
+          },
           action_url: `/jobs/${newJobId}`,
         });
 

@@ -16,41 +16,41 @@ struct ShopView: View {
     @State private var ascensionName = ""
     @State private var ascensionSkill = "General Home Services"
     @State private var ascensionLicense = "HVAC Contractor"
-    @State private var financingAmount = "5000"
-    @State private var financingPurpose = "Equipment"
-    @State private var financingRevenue = "2800"
+    @State private var financingAmount = ""
+    @State private var financingPurpose = ""
+    @State private var financingRevenue = ""
     @State private var financingCredit = "Fair"
 
     var body: some View {
-        GoScreen(title: "Growth", showsTitle: true) {
+        GoScreen(title: t("shop.growth_title", fallback: "Growth"), showsTitle: true) {
             GoCard {
-                Text("Economic Mobility Ladder")
+                Text(t("shop.economic_mobility_ladder", fallback: "Economic Mobility Ladder"))
                     .font(.headline)
-                Text("Skill → Side Income → Licensed Business → Scaled Operation")
+                Text(t("shop.ladder_path", fallback: "Skill → Side Income → Licensed Business → Scaled Operation"))
                     .font(.footnote)
                     .foregroundStyle(OneTheme.muted)
-                Text("Next Step: \(store.growthNextStep)")
+                Text(t("shop.next_step", fallback: "Next Step:") + " " + localizedGrowthNextStep(store.growthNextStep))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(OneTheme.amber)
             }
 
             GoCard {
-                growthItem("Business Ascension", "Apply to move from side work to licensed operation.", "arrow.up.right.circle.fill")
-                growthItem("Community Wholesale Groups", "Join neighborhood bulk-buy campaigns.", "person.3.fill")
-                growthItem("Financing Pre-Qualification", "Micro-loans, equipment, and startup financing pathways.", "banknote.fill")
-                growthItem("Grants & Subsidies", "Location-aware opportunities for your trade.", "doc.badge.gearshape.fill")
+                growthItem(t("shop.business_ascension", fallback: "Business Ascension"), t("shop.business_ascension_detail", fallback: "Apply to move from side work to licensed operation."), "arrow.up.right.circle.fill")
+                growthItem(t("shop.community_wholesale_groups", fallback: "Community Wholesale Groups"), t("shop.community_wholesale_groups_detail", fallback: "Join neighborhood bulk-buy campaigns."), "person.3.fill")
+                growthItem(t("shop.financing_prequalification", fallback: "Financing Pre-Qualification"), t("shop.financing_prequalification_detail", fallback: "Micro-loans, equipment, and startup financing pathways."), "banknote.fill")
+                growthItem(t("shop.grants_and_subsidies", fallback: "Grants & Subsidies"), t("shop.grants_and_subsidies_detail", fallback: "Location-aware opportunities for your trade."), "doc.badge.gearshape.fill")
             }
 
             GoCard {
-                Text("Business Ascension Application")
+                Text(t("shop.business_ascension_application", fallback: "Business Ascension Application"))
                     .font(.headline)
-                TextField("Full name", text: $ascensionName)
+                TextField(t("shop.full_name", fallback: "Full name"), text: $ascensionName)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                TextField("Current skill", text: $ascensionSkill)
+                TextField(t("shop.current_skill", fallback: "Current skill"), text: $ascensionSkill)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                TextField("Target license/business", text: $ascensionLicense)
+                TextField(t("shop.target_license_business", fallback: "Target license/business"), text: $ascensionLicense)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 Button {
@@ -62,12 +62,12 @@ struct ShopView: View {
                     if store.isSubmittingCustomerJob {
                         ProgressView().frame(maxWidth: .infinity)
                     } else {
-                        Text("Submit Ascension Application").frame(maxWidth: .infinity)
+                        Text(t("shop.submit_ascension_application", fallback: "Submit Ascension Application")).frame(maxWidth: .infinity)
                     }
                 }
                 .disabled(store.isSubmittingCustomerJob)
                 .buttonStyle(GoAccentButtonStyle())
-                Text("Status: \(store.ascensionApplication.status)")
+                Text(t("shop.status_label", fallback: "Status:") + " " + localizedAscensionStatus(store.ascensionApplication.status))
                     .font(.caption)
                     .foregroundStyle(OneTheme.muted)
                 if let msg = store.customerJobFlowMessage {
@@ -83,7 +83,7 @@ struct ShopView: View {
             }
 
             GoCard {
-                Text("Community Wholesale Groups")
+                Text(t("shop.community_wholesale_groups", fallback: "Community Wholesale Groups"))
                     .font(.headline)
                 ForEach(store.wholesaleGroups) { group in
                     HStack {
@@ -95,7 +95,7 @@ struct ShopView: View {
                                 .foregroundStyle(OneTheme.muted)
                         }
                         Spacer()
-                        Button(group.joined ? "Joined" : "Join") {
+                        Button(group.joined ? t("shop.joined", fallback: "Joined") : t("shop.join", fallback: "Join")) {
                             Task { await store.toggleWholesaleGroupJoin(group.id) }
                         }
                         .disabled(store.isSubmittingCustomerJob)
@@ -105,21 +105,21 @@ struct ShopView: View {
             }
 
             GoCard {
-                Text("Financing Pre-Qualification")
+                Text(t("shop.financing_prequalification", fallback: "Financing Pre-Qualification"))
                     .font(.headline)
-                TextField("Requested amount", text: $financingAmount)
+                TextField(t("shop.requested_amount", fallback: "Requested amount"), text: $financingAmount)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                TextField("Purpose", text: $financingPurpose)
+                TextField(t("shop.purpose", fallback: "Purpose"), text: $financingPurpose)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                TextField("Monthly revenue", text: $financingRevenue)
+                TextField(t("shop.monthly_revenue", fallback: "Monthly revenue"), text: $financingRevenue)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                Picker("Credit band", selection: $financingCredit) {
-                    Text("Fair").tag("Fair")
-                    Text("Good").tag("Good")
-                    Text("Very Good").tag("Very Good")
+                Picker(t("shop.credit_band", fallback: "Credit band"), selection: $financingCredit) {
+                    Text(t("shop.credit_fair", fallback: "Fair")).tag("Fair")
+                    Text(t("shop.credit_good", fallback: "Good")).tag("Good")
+                    Text(t("shop.credit_very_good", fallback: "Very Good")).tag("Very Good")
                 }
                 Button {
                     Task {
@@ -134,18 +134,18 @@ struct ShopView: View {
                     if store.isSubmittingCustomerJob {
                         ProgressView().frame(maxWidth: .infinity)
                     } else {
-                        Text("Submit Pre-Qualification").frame(maxWidth: .infinity)
+                        Text(t("shop.submit_prequalification", fallback: "Submit Pre-Qualification")).frame(maxWidth: .infinity)
                     }
                 }
                 .disabled(store.isSubmittingCustomerJob)
                 .buttonStyle(GoAccentButtonStyle())
-                Text("Status: \(store.financingPrequal.status)")
+                Text(t("shop.status_label", fallback: "Status:") + " " + localizedFinancingStatus(store.financingPrequal.status))
                     .font(.caption)
                     .foregroundStyle(OneTheme.muted)
             }
 
             GoCard {
-                Text("Grants & Subsidies")
+                Text(t("shop.grants_and_subsidies", fallback: "Grants & Subsidies"))
                     .font(.headline)
                 ForEach(store.grantOpportunities) { grant in
                     HStack {
@@ -157,7 +157,7 @@ struct ShopView: View {
                                 .foregroundStyle(OneTheme.muted)
                         }
                         Spacer()
-                        Button("Apply") {
+                        Button(t("shop.apply", fallback: "Apply")) {
                             Task { await store.applyForGrant(grant.id) }
                         }
                         .disabled(store.isSubmittingCustomerJob)
@@ -168,37 +168,37 @@ struct ShopView: View {
             }
 
             GoCard {
-                Text("Progress Tracker")
+                Text(t("shop.progress_tracker", fallback: "Progress Tracker"))
                     .font(.headline)
                 HStack {
                     ForEach(["Skill", "Side Income", "Licensed Business", "Scaled Operation"], id: \.self) { step in
-                        Text(step)
+                        Text(localizedGrowthStepLabel(step))
                             .font(.caption.weight(step == store.growthProgressStep ? .bold : .regular))
                             .foregroundStyle(step == store.growthProgressStep ? OneTheme.amber : OneTheme.muted)
                     }
                 }
-                Picker("Current Step", selection: Binding(
+                Picker(t("shop.current_step", fallback: "Current Step"), selection: Binding(
                     get: { store.growthProgressStep },
                     set: { store.growthProgressStep = $0 }
                 )) {
-                    Text("Skill").tag("Skill")
-                    Text("Side Income").tag("Side Income")
-                    Text("Licensed Business").tag("Licensed Business")
-                    Text("Scaled Operation").tag("Scaled Operation")
+                    Text(localizedGrowthStepLabel("Skill")).tag("Skill")
+                    Text(localizedGrowthStepLabel("Side Income")).tag("Side Income")
+                    Text(localizedGrowthStepLabel("Licensed Business")).tag("Licensed Business")
+                    Text(localizedGrowthStepLabel("Scaled Operation")).tag("Scaled Operation")
                 }
             }
 
             GoCard {
-                Text("Tax Document Center")
+                Text(t("shop.tax_document_center", fallback: "Tax Document Center"))
                     .font(.headline)
-                Text("Annual 1099-style summary and deductible tracking.")
+                Text(t("shop.tax_document_description", fallback: "Annual 1099-style summary and deductible tracking."))
                     .font(.caption)
                     .foregroundStyle(OneTheme.muted)
                 ForEach(store.taxDocuments) { doc in
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Tax Year \(doc.year)")
+                        Text(t("shop.tax_year", fallback: "Tax Year") + " \(doc.year)")
                             .font(.subheadline.weight(.semibold))
-                        Text("Gross: \(currency(doc.grossIncome)) · Deductions: \(currency(doc.deductibleExpenses))")
+                        Text(t("shop.gross", fallback: "Gross") + ": \(currency(doc.grossIncome)) " + "· " + t("shop.deductions", fallback: "Deductions") + ": \(currency(doc.deductibleExpenses))")
                             .font(.caption)
                             .foregroundStyle(OneTheme.muted)
                     }
@@ -207,20 +207,20 @@ struct ShopView: View {
             }
 
             GoCard {
-                Text("Voice Input")
+                Text(t("shop.voice_input", fallback: "Voice Input"))
                     .font(.headline)
-                Toggle("Enable voice input for posting and chat", isOn: Binding(
+                Toggle(t("shop.voice_input_enable_label", fallback: "Enable voice input for posting and chat"), isOn: Binding(
                     get: { store.voiceInputEnabled },
                     set: { store.voiceInputEnabled = $0 }
                 ))
-                Text("Language-aware dictation path follows selected app language.")
+                Text(t("shop.voice_input_description", fallback: "Language-aware dictation path follows selected app language."))
                     .font(.caption)
                     .foregroundStyle(OneTheme.muted)
             }
 
             GoCard {
                 HStack {
-                    Text("Live Growth Data")
+                    Text(t("shop.live_growth_data", fallback: "Live Growth Data"))
                         .font(.headline)
                     Spacer()
                     Button {
@@ -229,7 +229,7 @@ struct ShopView: View {
                         if store.isRefreshingGrowthData {
                             ProgressView()
                         } else {
-                            Text("Sync Live Data")
+                            Text(t("shop.sync_live_data", fallback: "Sync Live Data"))
                         }
                     }
                     .disabled(store.isRefreshingGrowthData)
@@ -243,35 +243,35 @@ struct ShopView: View {
             }
 
             GoCard {
-                Text("Wallet")
+                Text(t("shop.wallet", fallback: "Wallet"))
                     .font(.headline)
-                Text("Available: \(currency(store.walletSnapshot.availableBalance))")
+                Text(t("shop.available_prefix", fallback: "Available:") + " \(currency(store.walletSnapshot.availableBalance))")
                     .font(.subheadline.weight(.semibold))
-                Text("Pending escrow: \(currency(store.walletSnapshot.pendingEscrow))")
+                Text(t("shop.pending_escrow", fallback: "Pending escrow") + ": \(currency(store.walletSnapshot.pendingEscrow))")
                     .font(.caption)
                     .foregroundStyle(OneTheme.muted)
-                Text("Payout method: \(store.walletSnapshot.payoutMethod)")
+                Text(t("shop.payout_method", fallback: "Payout method") + ": \(store.walletSnapshot.payoutMethod)")
                     .font(.caption)
                     .foregroundStyle(OneTheme.muted)
-                TextField("Update payout method", text: $payoutMethod)
+                TextField(t("shop.update_payout_method", fallback: "Update payout method"), text: $payoutMethod)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                Button("Save Payout Method") {
+                Button(t("shop.save_payout_method", fallback: "Save Payout Method")) {
                     store.setPayoutMethod(payoutMethod)
                     payoutMethod = ""
                 }
                 .buttonStyle(.bordered)
                 Divider()
-                Text("Transaction History")
+                Text(t("shop.transaction_history", fallback: "Transaction History"))
                     .font(.subheadline.weight(.semibold))
-                TextField("Transaction title", text: $transactionTitle)
+                TextField(t("shop.transaction_title", fallback: "Transaction title"), text: $transactionTitle)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                TextField("Amount", text: $transactionAmount)
+                TextField(t("shop.amount", fallback: "Amount"), text: $transactionAmount)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                Toggle("Credit", isOn: $transactionIsCredit)
-                Button("Add Transaction") {
+                Toggle(t("shop.credit", fallback: "Credit"), isOn: $transactionIsCredit)
+                Button(t("shop.add_transaction", fallback: "Add Transaction")) {
                     store.addWalletTransaction(
                         title: transactionTitle,
                         amount: Double(transactionAmount) ?? 0,
@@ -301,16 +301,16 @@ struct ShopView: View {
 
             if store.activePersona == .consultant {
                 GoCard {
-                    Text("Consultant Profile Snapshot")
+                    Text(t("shop.consultant_profile_snapshot", fallback: "Consultant Profile Snapshot"))
                         .font(.headline)
                     if let profile = store.consultantProfile {
                         Text(profile.displayName)
                             .font(.subheadline.weight(.semibold))
-                        Text("Packages: \(profile.servicePackages.count) · Appointments: \(profile.appointmentCount) · Notes: \(profile.notesCount)")
+                        Text(localizedPackagesLabel(profile.servicePackages.count) + " · " + localizedAppointmentsLabel(profile.appointmentCount) + " · " + localizedNotesLabel(profile.notesCount))
                             .font(.caption)
                             .foregroundStyle(OneTheme.muted)
                     } else {
-                        Text("Sync Live Data to load consultant profile.")
+                        Text(t("shop.sync_growth_data_hint", fallback: "Sync Live Data to load consultant profile."))
                             .font(.caption)
                             .foregroundStyle(OneTheme.muted)
                     }
@@ -319,19 +319,19 @@ struct ShopView: View {
 
             if store.activePersona == .toolOwner {
                 GoCard {
-                    Text("Tool Owner Inventory")
+                    Text(t("shop.tool_owner_inventory", fallback: "Tool Owner Inventory"))
                         .font(.headline)
                     if store.toolOwnerInventory.isEmpty {
-                        Text("Sync Live Data to load inventory.")
+                        Text(t("shop.sync_tool_inventory_hint", fallback: "Sync Live Data to load inventory."))
                             .font(.caption)
                             .foregroundStyle(OneTheme.muted)
                     } else {
                         ForEach(store.toolOwnerInventory) { item in
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(item.title)
+                                Text(item.title)
                                         .font(.subheadline.weight(.semibold))
-                                    Text("Available: \(item.availableUnits) · Pending returns: \(item.pendingReturns)")
+                                    Text(t("shop.available_prefix", fallback: "Available") + ": \(item.availableUnits) · " + t("shop.pending_returns", fallback: "Pending returns") + ": \(item.pendingReturns)")
                                         .font(.caption)
                                         .foregroundStyle(OneTheme.muted)
                                 }
@@ -346,21 +346,21 @@ struct ShopView: View {
             }
 
             GoCard {
-                Text("Quote Builder")
+                Text(t("shop.quote_builder", fallback: "Quote Builder"))
                     .font(.headline)
-                TextField("Customer name", text: $quoteCustomer)
+                TextField(t("shop.customer_name", fallback: "Customer name"), text: $quoteCustomer)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                TextField("Labor amount", text: $quoteLabor)
+                TextField(t("shop.labor_amount", fallback: "Labor amount"), text: $quoteLabor)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                TextField("Material amount", text: $quoteMaterials)
+                TextField(t("shop.material_amount", fallback: "Material amount"), text: $quoteMaterials)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                TextField("Notes", text: $quoteNotes)
+                TextField(t("shop.quote_notes", fallback: "Notes"), text: $quoteNotes)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                Button("Save Quote Draft") {
+                Button(t("shop.save_quote_draft", fallback: "Save Quote Draft")) {
                     store.addQuoteDraft(
                         customerName: quoteCustomer,
                         labor: Double(quoteLabor) ?? 0,
@@ -381,18 +381,18 @@ struct ShopView: View {
             }
 
             GoCard {
-                Text("Recurring Services")
+                Text(t("shop.recurring_services", fallback: "Recurring Services"))
                     .font(.headline)
-                TextField("Service title", text: $recurringTitle)
+                TextField(t("shop.service_title", fallback: "Service title"), text: $recurringTitle)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                Picker("Frequency", selection: $recurringFrequency) {
-                    Text("Weekly").tag("Weekly")
-                    Text("Bi-weekly").tag("Bi-weekly")
-                    Text("Monthly").tag("Monthly")
+                Picker(t("shop.frequency", fallback: "Frequency"), selection: $recurringFrequency) {
+                    Text(t("shop.frequency_weekly", fallback: "Weekly")).tag("Weekly")
+                    Text(t("shop.frequency_bi_weekly", fallback: "Bi-weekly")).tag("Bi-weekly")
+                    Text(t("shop.frequency_monthly", fallback: "Monthly")).tag("Monthly")
                 }
-                DatePicker("Next date", selection: $recurringDate, displayedComponents: .date)
-                Button("Create Plan") {
+                DatePicker(t("shop.frequency_label_next_date", fallback: "Next date"), selection: $recurringDate, displayedComponents: .date)
+                Button(t("shop.create_plan", fallback: "Create Plan")) {
                     store.addRecurringPlan(title: recurringTitle, frequency: recurringFrequency, nextDate: recurringDate)
                     recurringTitle = ""
                 }
@@ -402,12 +402,12 @@ struct ShopView: View {
                         VStack(alignment: .leading) {
                             Text(plan.title)
                                 .font(.subheadline.weight(.semibold))
-                            Text("\(plan.frequency) · \(plan.active ? "Active" : "Paused")")
+                            Text("\(localizedFrequency(plan.frequency)) · \(plan.active ? t("shop.status_active", fallback: "Active") : t("shop.status_paused", fallback: "Paused"))")
                                 .font(.caption)
                                 .foregroundStyle(OneTheme.muted)
                         }
                         Spacer()
-                        Button(plan.active ? "Pause" : "Resume") {
+                        Button(plan.active ? t("shop.pause", fallback: "Pause") : t("shop.resume", fallback: "Resume")) {
                             store.toggleRecurringPlan(plan.id)
                         }
                         .buttonStyle(.bordered)
@@ -438,5 +438,80 @@ struct ShopView: View {
         formatter.numberStyle = .currency
         formatter.locale = store.activeLocale
         return formatter.string(from: NSNumber(value: value)) ?? "$0"
+    }
+
+    private func t(_ key: String, fallback: String) -> String {
+        store.localized(key, fallback: fallback)
+    }
+
+    private func localizedGrowthNextStep(_ nextStep: String) -> String {
+        switch nextStep {
+        case "Start Business Ascension application":
+            return t("shop.ascension_status_not_started", fallback: "Start Business Ascension application")
+        case "Complete Learning tab courses for your license track":
+            return t("shop.ascension_status_submitted", fallback: "Complete Learning tab courses for your license track")
+        case "Submit financing pre-qualification":
+            return t("shop.ascension_status_financing_pending", fallback: "Submit financing pre-qualification")
+        default:
+            return t("shop.ascension_status_default", fallback: "Join a wholesale group and execute first scaled operation")
+        }
+    }
+
+    private func localizedGrowthStepLabel(_ step: String) -> String {
+        switch step {
+        case "Side Income":
+            return t("shop.progress_step_side_income", fallback: "Side Income")
+        case "Licensed Business":
+            return t("shop.progress_step_licensed_business", fallback: "Licensed Business")
+        case "Scaled Operation":
+            return t("shop.progress_step_scaled_operation", fallback: "Scaled Operation")
+        default:
+            return t("shop.progress_step_skill", fallback: "Skill")
+        }
+    }
+
+    private func localizedAscensionStatus(_ status: String) -> String {
+        switch status {
+        case "Not Started":
+            return t("shop.ascension_status_not_started", fallback: "Start Business Ascension application")
+        case "Submitted":
+            return t("shop.ascension_status_submitted", fallback: "Complete Learning tab courses for your license track")
+        default:
+            return status
+        }
+    }
+
+    private func localizedFinancingStatus(_ status: String) -> String {
+        switch status {
+        case "Not Started":
+            return t("shop.financing_status_not_started", fallback: "Not Started")
+        case "Submitted":
+            return t("shop.financing_status_submitted", fallback: "Submitted")
+        default:
+            return status
+        }
+    }
+
+    private func localizedFrequency(_ frequency: String) -> String {
+        switch frequency {
+        case "Bi-weekly":
+            return t("shop.frequency_bi_weekly", fallback: "Bi-weekly")
+        case "Monthly":
+            return t("shop.frequency_monthly", fallback: "Monthly")
+        default:
+            return t("shop.frequency_weekly", fallback: "Weekly")
+        }
+    }
+
+    private func localizedPackagesLabel(_ count: Int) -> String {
+        String(format: t("shop.packages_label", fallback: "Packages: %d"), count)
+    }
+
+    private func localizedAppointmentsLabel(_ count: Int) -> String {
+        String(format: t("shop.appointments_label", fallback: "Appointments: %d"), count)
+    }
+
+    private func localizedNotesLabel(_ count: Int) -> String {
+        String(format: t("shop.notes_label", fallback: "Notes: %d"), count)
     }
 }

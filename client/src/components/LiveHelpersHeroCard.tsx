@@ -112,10 +112,13 @@ export default function LiveHelpersHeroCard() {
     return () => clearInterval(interval);
   }, [displayedHelpers.length]);
 
-  const location =
-    userLocation && userLocation.lat !== FALLBACK_LAT ? 'Near you' : 'Near you';
+  const isFallbackLocation =
+    userLocation ? userLocation.lat === FALLBACK_LAT && userLocation.lng === FALLBACK_LNG : false;
+  const location = isFallbackLocation ? t('liveHelpers.usingFallbackLocation') : t('homePage.search.nearYou');
   const badgeLabel =
-    displayedHelpers.length > 0 ? `${Math.min(displayedHelpers.length, 99)}+ online` : 'Loading';
+    displayedHelpers.length > 0
+      ? t('liveHelpers.onlineCount', { count: Math.min(displayedHelpers.length, 99) })
+      : t('common:loading');
   const isLoading_ = isLoading || !userLocation;
 
   return (
@@ -189,7 +192,7 @@ export default function LiveHelpersHeroCard() {
             }}
           >
             {isLoading_ ? (
-              <span style={{ opacity: 0.4 }}>Loading…</span>
+              <span style={{ opacity: 0.4 }}>{t('common:loading')}</span>
             ) : (
               <span>{t('liveHelpers.availableNow')}</span>
             )}

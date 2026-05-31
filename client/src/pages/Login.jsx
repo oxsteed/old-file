@@ -199,7 +199,7 @@ export default function Login() {
 
             {/* Footer */}
             <p className="text-orange-200/60 text-xs">
-              &copy; {new Date().getFullYear()} OxSteed LLC. All rights reserved.
+              {t('login.copyright', { year: new Date().getFullYear() })}
             </p>
           </div>
         </div>
@@ -233,7 +233,7 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
-                  placeholder="you@example.com"
+                    placeholder={t('login.emailPlaceholder')}
                   autoComplete="email"
                 />
               </div>
@@ -263,7 +263,7 @@ export default function Login() {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>

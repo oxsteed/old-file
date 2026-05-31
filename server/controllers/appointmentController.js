@@ -18,6 +18,7 @@ const { withTransaction } = require('../utils/transaction');
 const emailService = require('../services/emailService');
 const { broadcastToUser } = require('../services/socketService');
 const { renderAppointmentEmail } = require('../utils/calendarEmails');
+const { tNotif } = require('../utils/i18n');
 const { sendSuccess, sendError } = require('../utils/apiError');
 
 const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
@@ -202,8 +203,8 @@ exports.createAppointment = async (req, res, next) => {
 
     // Best-effort email + websocket notify (non-fatal)
     Promise.all([
-      pool.query('SELECT email, first_name FROM users WHERE id = $1', [customer_id]),
-      pool.query('SELECT email, first_name FROM users WHERE id = $1', [helper_id]),
+      pool.query('SELECT email, first_name, preferred_language FROM users WHERE id = $1', [customer_id]),
+      pool.query('SELECT email, first_name, preferred_language FROM users WHERE id = $1', [helper_id]),
     ]).then(([custRes, helpRes]) => {
       const customer = custRes.rows[0];
       const helper = helpRes.rows[0];
@@ -213,10 +214,12 @@ exports.createAppointment = async (req, res, next) => {
         otherName: displayName(customer),
         service: service_description,
         when: start,
-      });
+      }, helper?.preferred_language || 'en');
+      const helperLang = helper?.preferred_language || 'en';
+      const requestTitle = tNotif('appointment_requested', helperLang).title;
       return emailService.send({
         to: helper.email,
-        subject: `New appointment request from ${displayName(customer)}`,
+        subject: requestTitle,
         html,
       });
     }).catch(err => logger.warn('Appointment request email failed', { error: err?.message }));
@@ -432,7 +435,7 @@ exports.confirmAppointment = async (req, res) => {
     }, 'appointment_confirm');
 
     // Best-effort customer / guest email + websocket
-    pool.query('SELECT email, first_name FROM users WHERE id = $1', [updated.customer_id])
+    pool.query('SELECT email, first_name, preferred_language FROM users WHERE id = $1', [updated.customer_id])
       .then(r => {
         const customer = r.rows[0];
         const recipientEmail = updated.source === 'ai_chat' ? updated.guest_email : customer?.email;
@@ -442,10 +445,12 @@ exports.confirmAppointment = async (req, res) => {
             ? (updated.guest_name || 'there')
             : displayName(customer),
           when: new Date(updated.scheduled_start_time),
-        });
+        }, updated.source === 'ai_chat' ? 'en' : (customer?.preferred_language || 'en'));
+        const confirmLang = updated.source === 'ai_chat' ? 'en' : (customer?.preferred_language || 'en');
+        const confirmTitle = tNotif('appointment_confirmed', confirmLang).title;
         return emailService.send({
           to: recipientEmail,
-          subject: 'Your appointment has been confirmed',
+          subject: confirmTitle,
           html,
         });
       })
@@ -542,7 +547,7 @@ exports.cancelAppointment = async (req, res) => {
     if (result.appointment.source === 'ai_chat' && result.appointment.guest_email) {
       emailService.send({
         to: result.appointment.guest_email,
-        subject: 'Your appointment request was cancelled',
+        subject: tNotif('appointment_cancelled', 'en').title,
         html: renderAppointmentEmail('appointment_cancelled', {
           recipientName: result.appointment.guest_name || 'there',
           when: new Date(result.appointment.scheduled_start_time),
@@ -880,4 +885,3 @@ exports.getIcal = async (req, res) => {
     return sendError(res, 500, 'Failed to generate calendar file', 'INTERNAL_ERROR');
   }
 };
-

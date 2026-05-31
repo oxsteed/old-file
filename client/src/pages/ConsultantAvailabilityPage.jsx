@@ -19,20 +19,20 @@ import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 
 const DAYS_OF_WEEK = [
-  { value: 0, label: 'Sunday' },
-  { value: 1, label: 'Monday' },
-  { value: 2, label: 'Tuesday' },
-  { value: 3, label: 'Wednesday' },
-  { value: 4, label: 'Thursday' },
-  { value: 5, label: 'Friday' },
-  { value: 6, label: 'Saturday' },
+  { value: 0, labelKey: 'consultantAvailabilityPage.dayLabels.sunday' },
+  { value: 1, labelKey: 'consultantAvailabilityPage.dayLabels.monday' },
+  { value: 2, labelKey: 'consultantAvailabilityPage.dayLabels.tuesday' },
+  { value: 3, labelKey: 'consultantAvailabilityPage.dayLabels.wednesday' },
+  { value: 4, labelKey: 'consultantAvailabilityPage.dayLabels.thursday' },
+  { value: 5, labelKey: 'consultantAvailabilityPage.dayLabels.friday' },
+  { value: 6, labelKey: 'consultantAvailabilityPage.dayLabels.saturday' },
 ];
 
-function formatTimeRange(startTime, endTime) {
-  if (!startTime || !endTime) return 'Not set';
+function formatTimeRange(startTime, endTime, t, locale) {
+  if (!startTime || !endTime) return t('consultantAvailabilityPage.notSet');
   const start = new Date(`2000-01-01T${startTime}`);
   const end = new Date(`2000-01-01T${endTime}`);
-  return `${start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} - ${end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+  return `${start.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' })} - ${end.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' })}`;
 }
 
 function SummaryCard({ icon: Icon, label, value, hint, accent = 'text-white' }) {
@@ -71,7 +71,7 @@ function SectionPanel({ icon: Icon, eyebrow, title, children, aside = null }) {
 }
 
 export default function ConsultantAvailabilityPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const consultantId = user?.id;
   const [availability, setAvailability] = useState([]);
@@ -101,7 +101,7 @@ export default function ConsultantAvailabilityPage() {
       const response = await axios.get(`/scheduling/consultants/${consultantId}/availability`);
       setAvailability(response.data || []);
     } catch (err) {
-      toast.error(t('common.errorLoading') || 'Failed to load availability');
+      toast.error(t('consultantAvailabilityPage.errorLoadingAvailability') || t('common.errorLoading'));
     } finally {
       setLoading(false);
     }
@@ -113,7 +113,7 @@ export default function ConsultantAvailabilityPage() {
       const response = await axios.get(`/scheduling/consultants/${consultantId}/blocked-dates`);
       setBlockedDates(response.data || []);
     } catch (err) {
-      toast.error(t('common.errorLoading') || 'Failed to load blocked dates');
+      toast.error(t('consultantAvailabilityPage.errorLoadingBlockedDates') || t('common.errorLoading'));
     }
   };
 
@@ -121,13 +121,13 @@ export default function ConsultantAvailabilityPage() {
     if (!consultantId || loading) return;
     try {
       if (!newAvailability.startTime || !newAvailability.endTime) {
-        toast.error('Set both start and end time');
+        toast.error(t('consultantAvailabilityPage.errorTimeRange'));
         return;
       }
 
       setLoading(true);
       await axios.post(`/scheduling/consultants/${consultantId}/availability`, newAvailability);
-      toast.success(t('scheduling.availabilitySaved') || 'Availability saved');
+      toast.success(t('scheduling.availabilitySaved'));
       setNewAvailability({
         dayOfWeek: 1,
         startTime: '09:00',
@@ -136,7 +136,7 @@ export default function ConsultantAvailabilityPage() {
       });
       await loadAvailability();
     } catch (err) {
-      toast.error(t('common.errorUpdating') || 'Failed to save availability');
+      toast.error(t('consultantAvailabilityPage.errorSavingAvailability') || t('common.errorUpdating'));
     } finally {
       setLoading(false);
     }
@@ -146,17 +146,17 @@ export default function ConsultantAvailabilityPage() {
     if (!consultantId || loading) return;
     try {
       if (!newBlockedDate.blockedDate) {
-        toast.error(t('scheduling.dateRequired') || 'Please select a date');
+        toast.error(t('consultantAvailabilityPage.dateRequired'));
         return;
       }
 
       setLoading(true);
       await axios.post(`/scheduling/consultants/${consultantId}/blocked-dates`, newBlockedDate);
-      toast.success(t('scheduling.blockedDateAdded') || 'Blocked date added');
+      toast.success(t('scheduling.blockedDateAdded'));
       setNewBlockedDate({ blockedDate: '', reason: '' });
       await loadBlockedDates();
     } catch (err) {
-      toast.error(t('common.errorUpdating') || 'Failed to add blocked date');
+      toast.error(t('consultantAvailabilityPage.errorAddingBlockedDate') || t('common.errorUpdating'));
     } finally {
       setLoading(false);
     }
@@ -167,10 +167,10 @@ export default function ConsultantAvailabilityPage() {
     try {
       setLoading(true);
       await axios.delete(`/scheduling/consultants/${consultantId}/blocked-dates/${dateId}`);
-      toast.success(t('scheduling.blockedDateRemoved') || 'Blocked date removed');
+      toast.success(t('scheduling.blockedDateRemoved'));
       await loadBlockedDates();
     } catch (err) {
-      toast.error(t('common.errorUpdating') || 'Failed to remove blocked date');
+      toast.error(t('consultantAvailabilityPage.errorRemovingBlockedDate') || t('common.errorUpdating'));
     } finally {
       setLoading(false);
     }
@@ -200,8 +200,8 @@ export default function ConsultantAvailabilityPage() {
   return (
     <PageShell>
       <PageMeta
-        title="Consultant Availability"
-        description="Manage your recurring consultant schedule, time off, and referral readiness."
+        title={t('consultantAvailabilityPage.metaTitle')}
+        description={t('consultantAvailabilityPage.metaDescription')}
         url={`${window.location.origin}/consultant-availability`}
       />
 
@@ -212,14 +212,13 @@ export default function ConsultantAvailabilityPage() {
               <div className="max-w-3xl">
                 <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-orange-500/25 bg-orange-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-orange-200">
                   <CalendarClock className="h-3.5 w-3.5" />
-                  Consultant schedule control
+                  {t('consultantAvailabilityPage.badge')}
                 </div>
                 <h1 className="text-3xl font-semibold tracking-tight text-white lg:text-4xl">
-                  Keep your local launch calendar bookable and clear.
+                  {t('consultantAvailabilityPage.heading')}
                 </h1>
                 <p className="mt-4 text-sm leading-7 text-gray-300 lg:text-base">
-                  Set weekly hours, block time off, and keep OxSteed’s referral routing aligned with when you can actually serve
-                  businesses in-market or virtually.
+                  {t('consultantAvailabilityPage.intro')}
                 </p>
               </div>
 
@@ -229,7 +228,7 @@ export default function ConsultantAvailabilityPage() {
                   className="inline-flex items-center gap-2 rounded-2xl border border-gray-700 bg-gray-900 px-4 py-2.5 text-sm font-semibold text-gray-200 transition hover:border-gray-500 hover:text-white"
                 >
                   <ArrowLeft className="h-4 w-4" />
-                  Contractor dashboard
+                  {t('consultantAvailabilityPage.backToDashboard')}
                 </Link>
               </div>
             </div>
@@ -238,59 +237,62 @@ export default function ConsultantAvailabilityPage() {
           <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <SummaryCard
               icon={Clock3}
-              label="Active days"
+              label={t('consultantAvailabilityPage.summaryActiveDays')}
               value={loading ? '...' : activeDaysCount}
-              hint="Days in your weekly schedule currently marked as available."
+              hint={t('consultantAvailabilityPage.summaryActiveDaysHint')}
             />
             <SummaryCard
               icon={CalendarDays}
-              label="Weekly slots"
+              label={t('consultantAvailabilityPage.summaryWeeklySlots')}
               value={loading ? '...' : availability.length}
-              hint="Recurring schedule entries OxSteed can use for planning and handoff."
+              hint={t('consultantAvailabilityPage.summaryWeeklySlotsHint')}
             />
             <SummaryCard
               icon={ShieldCheck}
-              label="Blocked dates"
+              label={t('consultantAvailabilityPage.summaryBlockedDates')}
               value={loading ? '...' : blockedDates.length}
-              hint="Days you’ve protected for travel, holidays, or offline work."
+              hint={t('consultantAvailabilityPage.summaryBlockedDatesHint')}
             />
             <SummaryCard
               icon={MapPinned}
-              label="Next time off"
+              label={t('consultantAvailabilityPage.nextTimeOff')}
               value={
                 loading
                   ? '...'
                   : nextBlockedDate
-                    ? new Date(nextBlockedDate.blocked_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                    : 'None'
+                    ? new Date(nextBlockedDate.blocked_date).toLocaleDateString(i18n.language, {
+                      month: 'short',
+                      day: 'numeric',
+                    })
+                    : t('consultantAvailabilityPage.none')
               }
-              hint="Your next blocked date currently scheduled in the system."
+              hint={t('consultantAvailabilityPage.summaryNextTimeOffHint')}
               accent="text-orange-300"
             />
           </section>
 
           <div className="mt-6 grid gap-5 xl:grid-cols-[1.05fr_1.35fr]">
-            <SectionPanel
+              <SectionPanel
               icon={CalendarClock}
-              eyebrow="Schedule Builder"
-              title={t('scheduling.recurringSchedule') || 'Recurring Weekly Schedule'}
+              eyebrow={t('consultantAvailabilityPage.scheduleBuilder')}
+              title={t('scheduling.recurringSchedule')}
               aside={
                 <div className="rounded-2xl border border-gray-800 bg-gray-900/75 px-4 py-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">What this controls</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">{t('consultantAvailabilityPage.controlsHeading')}</p>
                   <p className="mt-1 max-w-xs text-sm leading-6 text-gray-400">
-                    Your weekly schedule helps OxSteed coordinate referrals, calls, and business-launch touchpoints.
+                    {t('consultantAvailabilityPage.controlsBody')}
                   </p>
                 </div>
               }
             >
               <p className="mb-5 text-sm leading-6 text-gray-400">
-                {t('scheduling.recurringDesc') || 'Set your regular working hours for each day of the week'}.
+                {t('scheduling.recurringDesc')}
               </p>
 
               <div className="grid gap-3 md:grid-cols-2">
                 <div>
                   <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-                    {t('scheduling.dayOfWeek') || 'Day of Week'}
+                    {t('scheduling.dayOfWeek')}
                   </label>
                   <select
                     value={newAvailability.dayOfWeek}
@@ -298,7 +300,7 @@ export default function ConsultantAvailabilityPage() {
                     className="w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-orange-500"
                   >
                     {DAYS_OF_WEEK.map((day) => (
-                      <option key={day.value} value={day.value}>{day.label}</option>
+                      <option key={day.value} value={day.value}>{t(day.labelKey)}</option>
                     ))}
                   </select>
                 </div>
@@ -306,7 +308,7 @@ export default function ConsultantAvailabilityPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-                      {t('scheduling.startTime') || 'Start Time'}
+                      {t('scheduling.startTime')}
                     </label>
                     <input
                       type="time"
@@ -317,7 +319,7 @@ export default function ConsultantAvailabilityPage() {
                   </div>
                   <div>
                     <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-                      {t('scheduling.endTime') || 'End Time'}
+                      {t('scheduling.endTime')}
                     </label>
                     <input
                       type="time"
@@ -330,7 +332,7 @@ export default function ConsultantAvailabilityPage() {
               </div>
 
               <label className="mt-4 flex items-center justify-between rounded-2xl border border-gray-800 bg-[#111318] px-4 py-3 text-sm text-white">
-                <span>{t('scheduling.active') || 'Active'}</span>
+                <span>{t('scheduling.active')}</span>
                 <input
                   type="checkbox"
                   checked={newAvailability.isActive}
@@ -341,23 +343,23 @@ export default function ConsultantAvailabilityPage() {
 
               <div className="mt-5">
                 <button
-                  onClick={handleSaveAvailability}
+                onClick={handleSaveAvailability}
                   disabled={loading}
                   className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                  {loading ? (t('common.saving') || 'Saving...') : (t('common.save') || 'Save Availability')}
+                  {loading ? t('common.saving') : t('consultantAvailabilityPage.saveAvailability')}
                 </button>
               </div>
             </SectionPanel>
 
             <SectionPanel
               icon={Clock3}
-              eyebrow="Live Weekly View"
-              title={t('scheduling.currentSchedule') || 'Your Current Schedule'}
+              eyebrow={t('consultantAvailabilityPage.liveWeeklyView')}
+              title={t('scheduling.currentSchedule')}
               aside={
                 <div className="rounded-2xl border border-gray-800 bg-gray-900/75 px-4 py-3 text-right">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">Loaded now</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">{t('consultantAvailabilityPage.loadedNow')}</p>
                   <p className="mt-1 text-xl font-semibold text-white">{loading ? '...' : availability.length}</p>
                 </div>
               }
@@ -371,9 +373,9 @@ export default function ConsultantAvailabilityPage() {
                     return (
                       <article key={day.value} className="rounded-[24px] border border-gray-800 bg-[#111318] p-4">
                         <div className="mb-3 flex items-center justify-between gap-3">
-                          <h3 className="text-lg font-semibold text-white">{day.label}</h3>
+                            <h3 className="text-lg font-semibold text-white">{t(day.labelKey)}</h3>
                           <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${hasActive ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border border-gray-700 bg-gray-900/70 text-gray-400'}`}>
-                            {hasActive ? (t('scheduling.active') || 'Active') : (t('scheduling.inactive') || 'Inactive')}
+                          {hasActive ? t('scheduling.active') : t('scheduling.inactive')}
                           </span>
                         </div>
 
@@ -381,18 +383,20 @@ export default function ConsultantAvailabilityPage() {
                           <div className="space-y-2">
                             {daySlots.map((slot) => (
                               <div key={slot.id} className="rounded-2xl border border-gray-800 bg-gray-900/70 px-3 py-2.5">
-                                <div className="text-sm font-medium text-white">
-                                  {formatTimeRange(slot.start_time, slot.end_time)}
+                            <div className="text-sm font-medium text-white">
+                                  {formatTimeRange(slot.start_time, slot.end_time, t, i18n.language)}
                                 </div>
                                 <div className="mt-1 text-xs text-gray-500">
-                                  {slot.is_active ? 'Available for referrals and scheduling' : 'Stored but currently turned off'}
+                                  {slot.is_active
+                                    ? t('consultantAvailabilityPage.slotActiveDesc')
+                                    : t('consultantAvailabilityPage.slotInactiveDesc')}
                                 </div>
                               </div>
                             ))}
                           </div>
                         ) : (
                           <div className="rounded-2xl border border-dashed border-gray-700 bg-gray-900/40 px-3 py-5 text-sm text-gray-500">
-                            No recurring hours saved for this day yet.
+                            {t('consultantAvailabilityPage.noRecurringHours')}
                           </div>
                         )}
                       </article>
@@ -404,9 +408,9 @@ export default function ConsultantAvailabilityPage() {
                   <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-3xl border border-gray-800 bg-gray-900/80">
                     <CalendarClock className="h-6 w-6 text-gray-400" />
                   </div>
-                  <h3 className="text-lg font-semibold text-white">No schedule saved yet</h3>
+                  <h3 className="text-lg font-semibold text-white">{t('consultantAvailabilityPage.noScheduleSaved')}</h3>
                   <p className="mt-2 text-sm leading-6 text-gray-400">
-                    Add recurring hours so OxSteed can route launch consultations and local follow-ups with more confidence.
+                    {t('consultantAvailabilityPage.noScheduleSavedBody')}
                   </p>
                 </div>
               )}
@@ -416,25 +420,25 @@ export default function ConsultantAvailabilityPage() {
           <div className="mt-5 grid gap-5 xl:grid-cols-[1.05fr_1.35fr]">
             <SectionPanel
               icon={ShieldCheck}
-              eyebrow="Time Off"
-              title={t('scheduling.blockedDates') || 'Block Your Time Off'}
+              eyebrow={t('consultantAvailabilityPage.timeOff')}
+              title={t('scheduling.blockedDates')}
               aside={
                 <div className="rounded-2xl border border-gray-800 bg-gray-900/75 px-4 py-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">Use this for</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">{t('consultantAvailabilityPage.useFor')}</p>
                   <p className="mt-1 max-w-xs text-sm leading-6 text-gray-400">
-                    Travel, holidays, onsite launch weeks, or any period when OxSteed should not schedule around you.
+                    {t('consultantAvailabilityPage.useForBody')}
                   </p>
                 </div>
               }
             >
               <p className="mb-5 text-sm leading-6 text-gray-400">
-                {t('scheduling.blockedDatesDesc') || 'Mark dates when you are unavailable (holidays, vacation, etc.)'}.
+                {t('scheduling.blockedDatesDesc')}
               </p>
 
               <div className="grid gap-3 md:grid-cols-2">
                 <div>
                   <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-                    {t('scheduling.date') || 'Date'}
+                    {t('scheduling.date')}
                   </label>
                   <input
                     type="date"
@@ -446,11 +450,11 @@ export default function ConsultantAvailabilityPage() {
 
                 <div>
                   <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-                    {t('scheduling.reason') || 'Reason'}
+                    {t('scheduling.reason')}
                   </label>
                   <input
                     type="text"
-                    placeholder="Vacation, travel, launch week, holiday..."
+                    placeholder={t('consultantAvailabilityPage.reasonPlaceholder')}
                     value={newBlockedDate.reason}
                     onChange={(e) => setNewBlockedDate({ ...newBlockedDate, reason: e.target.value })}
                     className="w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-orange-500"
@@ -465,18 +469,18 @@ export default function ConsultantAvailabilityPage() {
                   className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                  {loading ? (t('common.saving') || 'Saving...') : (t('scheduling.addBlockedDate') || 'Add Blocked Date')}
+                  {loading ? t('common.saving') : t('scheduling.addBlockedDate')}
                 </button>
               </div>
             </SectionPanel>
 
             <SectionPanel
               icon={CalendarDays}
-              eyebrow="Protected Dates"
-              title={t('scheduling.timeOff') || 'Your Time Off'}
+              eyebrow={t('consultantAvailabilityPage.protectedDates')}
+              title={t('scheduling.timeOff')}
               aside={
                 <div className="rounded-2xl border border-gray-800 bg-gray-900/75 px-4 py-3 text-right">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">Protected</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">{t('consultantAvailabilityPage.protectedDates')}</p>
                   <p className="mt-1 text-xl font-semibold text-white">{loading ? '...' : blockedDates.length}</p>
                 </div>
               }
@@ -489,14 +493,14 @@ export default function ConsultantAvailabilityPage() {
                       <article key={blocked.id} className="flex flex-col gap-3 rounded-[24px] border border-gray-800 bg-[#111318] p-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <div className="text-base font-semibold text-white">
-                            {new Date(blocked.blocked_date).toLocaleDateString('en-US', {
+                            {new Date(blocked.blocked_date).toLocaleDateString(i18n.language, {
                               weekday: 'long',
                               month: 'long',
                               day: 'numeric',
                               year: 'numeric',
                             })}
                           </div>
-                          <div className="mt-1 text-sm text-gray-400">{blocked.reason || 'Time blocked with no reason added yet.'}</div>
+                          <div className="mt-1 text-sm text-gray-400">{blocked.reason || t('consultantAvailabilityPage.noReasonAdded')}</div>
                         </div>
                         <button
                           onClick={() => handleRemoveBlockedDate(blocked.id)}
@@ -504,7 +508,7 @@ export default function ConsultantAvailabilityPage() {
                           className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-200 transition hover:bg-red-500/20 disabled:opacity-50"
                         >
                           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                          {t('common.remove') || 'Remove'}
+                          {t('common.remove')}
                         </button>
                       </article>
                     ))}
@@ -514,9 +518,9 @@ export default function ConsultantAvailabilityPage() {
                   <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-3xl border border-gray-800 bg-gray-900/80">
                     <ShieldCheck className="h-6 w-6 text-gray-400" />
                   </div>
-                  <h3 className="text-lg font-semibold text-white">No blocked dates yet</h3>
+                  <h3 className="text-lg font-semibold text-white">{t('consultantAvailabilityPage.noBlockedDates')}</h3>
                   <p className="mt-2 text-sm leading-6 text-gray-400">
-                    Add your travel days and blackout dates here so referral assignments and scheduling stay realistic.
+                    {t('consultantAvailabilityPage.noBlockedDatesBody')}
                   </p>
                 </div>
               )}

@@ -71,11 +71,12 @@ async function runCustomerReengagement() {
       const notificationLang = c.preferred_language || 'en';
       const { title: reengagementTitle, body: reengagementBody } = tNotif('reengagement_nudge', notificationLang);
       const emailTranslations = tNotifEmail('reengagement_nudge', notificationLang);
+      const emailTranslationsEn = tNotifEmail('reengagement_nudge', 'en');
       const reengagementBodyWithContext = `${reengagementBody}${c.last_job_title ? ` ("${c.last_job_title}")` : ''}`;
-      const ctaText = emailTranslations.buttonText || 'Post a New Job';
-      const manageNotificationsText = emailTranslations.manageNotificationsText || 'Manage notifications';
-      const footerPrefixText = emailTranslations.footerPrefix || 'You are receiving this because you have an OxSteed account.';
-      const footerFallbackText = emailTranslations.footerFallbackText || 'You received this notification from OxSteed.';
+      const ctaText = emailTranslations.buttonText || emailTranslationsEn.buttonText;
+      const manageNotificationsText = emailTranslations.manageNotificationsText || emailTranslationsEn.manageNotificationsText;
+      const footerPrefixText = emailTranslations.footerPrefix || emailTranslationsEn.footerPrefix;
+      const footerFallbackText = emailTranslations.footerFallbackText || emailTranslationsEn.footerFallbackText;
       try {
         // In-app push notification
         await sendNotification({

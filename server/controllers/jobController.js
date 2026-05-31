@@ -735,9 +735,12 @@ exports.assignHelper = async (req, res, next) => {
       await sendNotification({
         userId: result.bid.helper_id,
         type: 'bid_accepted',
-        title: "🎉 You've Been Hired!",
-        body: `Your bid on "${result.job.title}" was accepted. Check the job details for next steps.`,
-        data: { job_id: result.job.id, bid_id: result.bid.id },
+        data: {
+          job_id: result.job.id,
+          bid_id: result.bid.id,
+          job_title: result.job.title,
+          client_name: result.job.client_name,
+        },
         action_url: `/jobs/${result.job.id}`,
       });
     } catch (notifErr) {

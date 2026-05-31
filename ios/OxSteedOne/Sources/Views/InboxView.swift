@@ -6,13 +6,13 @@ struct InboxView: View {
 
     var body: some View {
         NavigationStack {
-        GoScreen(title: "Learn", showsTitle: true) {
+        GoScreen(title: store.localized("inbox.page_title", fallback: "Learn"), showsTitle: true) {
             GoCard {
                 HStack {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("OxSteed Academy")
+                        Text(store.localized("inbox.academy_title", fallback: "OxSteed Academy"))
                             .font(.headline)
-                        Text("Short, practical lessons tied to action and monetization.")
+                        Text(store.localized("inbox.academy_subtitle", fallback: "Short, practical lessons tied to action and monetization."))
                             .font(.footnote)
                             .foregroundStyle(OneTheme.muted)
                     }
@@ -22,14 +22,30 @@ struct InboxView: View {
             }
 
             GoCard {
-                learnItem("Academy Lessons", "5–15 minute practical videos", "play.rectangle.fill")
-                learnItem("Tool Kit Store", "Affiliate bundles linked to what you just learned", "bag.fill")
-                learnItem("Creator Upload", "Verified experts can upload and earn", "camera.fill")
-                learnItem("Trending Skills", "Regional demand signals for better earnings", "chart.bar.fill")
+                learnItem(
+                  store.localized("inbox.learn_lessons_title", fallback: "Academy Lessons"),
+                  store.localized("inbox.learn_lessons_detail", fallback: "5–15 minute practical videos"),
+                  "play.rectangle.fill"
+                )
+                learnItem(
+                  store.localized("inbox.tool_kit_store_title", fallback: "Tool Kit Store"),
+                  store.localized("inbox.tool_kit_store_detail", fallback: "Affiliate bundles linked to what you just learned"),
+                  "bag.fill"
+                )
+                learnItem(
+                  store.localized("inbox.creator_upload_title", fallback: "Creator Upload"),
+                  store.localized("inbox.creator_upload_detail", fallback: "Verified experts can upload and earn"),
+                  "camera.fill"
+                )
+                learnItem(
+                  store.localized("inbox.trending_skills_title", fallback: "Trending Skills"),
+                  store.localized("inbox.trending_skills_detail", fallback: "Regional demand signals for better earnings"),
+                  "chart.bar.fill"
+                )
             }
 
             GoCard {
-                Text("OxSteed Academy")
+                Text(store.localized("inbox.academy_title", fallback: "OxSteed Academy"))
                     .font(.headline)
                 ForEach(store.academyLessons) { lesson in
                     VStack(alignment: .leading, spacing: 2) {
@@ -44,19 +60,19 @@ struct InboxView: View {
             }
 
             GoCard {
-                Text("Tool Kit Store")
+                Text(store.localized("inbox.tool_kit_store_title", fallback: "Tool Kit Store"))
                     .font(.headline)
                 ForEach(store.toolkitBundles) { bundle in
                     VStack(alignment: .leading, spacing: 2) {
                         Text(bundle.title)
                             .font(.subheadline.weight(.semibold))
-                        Text("Linked lesson: \(bundle.lessonTitle)")
+                        Text("\(store.localized("inbox.bundle_link_label", fallback: "Linked lesson:")) \(bundle.lessonTitle)")
                             .font(.caption)
                             .foregroundStyle(OneTheme.muted)
                         Text("Estimated cost: \(currency(bundle.estimatedCost))")
                             .font(.caption2)
                             .foregroundStyle(OneTheme.muted)
-                        Link("Open affiliate bundle", destination: URL(string: bundle.affiliateURL) ?? URL(string: "https://www.amazon.com")!)
+                        Link(store.localized("inbox.open_affiliate_bundle", fallback: "Open affiliate bundle"), destination: URL(string: bundle.affiliateURL) ?? URL(string: "https://www.amazon.com")!)
                             .font(.caption.weight(.semibold))
                     }
                     .padding(.vertical, 3)
@@ -64,7 +80,7 @@ struct InboxView: View {
             }
 
             GoCard {
-                Text("Trending Skills Near You")
+                Text(store.localized("inbox.trending_skills_near_you", fallback: "Trending Skills Near You"))
                     .font(.headline)
                 ForEach(store.trendingSkills) { skill in
                     HStack {
@@ -85,10 +101,10 @@ struct InboxView: View {
 
             GoCard {
                 HStack {
-                    Text("Unified Inbox")
+                    Text(store.localized("inbox.unified_inbox", fallback: "Unified Inbox"))
                         .font(.headline)
                     Spacer()
-                    Button("Sync Live Data") {
+                    Button(store.localized("home.sync_live_data", fallback: "Sync Live Data")) {
                         Task {
                             await store.fetchUnifiedInbox()
                             if store.autoTranslateEnabled {
@@ -98,15 +114,15 @@ struct InboxView: View {
                     }
                     .buttonStyle(.bordered)
                 }
-                Text("Threads remain unified across persona switching.")
+                Text(store.localized("inbox.unified_inbox_help", fallback: "Threads remain unified across persona switching."))
                     .font(.caption)
                     .foregroundStyle(OneTheme.muted)
 
-                Toggle("Auto-translate previews", isOn: Binding(
+                Toggle(store.localized("profile.auto_translate_previews", fallback: "Auto-translate inbox previews"), isOn: Binding(
                     get: { store.autoTranslateEnabled },
                     set: { store.setAutoTranslate($0) }
                 ))
-                Button("Refresh Translations") {
+                Button(store.localized("inbox.refresh_translations", fallback: "Refresh Translations")) {
                     Task { await store.refreshTranslatedPreviews() }
                 }
                 .buttonStyle(.bordered)
@@ -116,7 +132,7 @@ struct InboxView: View {
                     HStack {
                         ProgressView()
                             .padding(.trailing, 6)
-                        Text("Loading conversations…")
+                        Text(store.localized("inbox.loading_conversations", fallback: "Loading conversations…"))
                             .font(.caption)
                             .foregroundStyle(OneTheme.muted)
                     }
@@ -133,7 +149,7 @@ struct InboxView: View {
                                     .font(.caption)
                                     .foregroundStyle(OneTheme.muted)
                                     .lineLimit(2)
-                                Text("Persona: \(thread.personaSource)")
+                                Text("\(store.localized("inbox.persona_prefix", fallback: "Persona:")) \(thread.personaSource)")
                                     .font(.caption2)
                                     .foregroundStyle(OneTheme.muted)
                             }
@@ -156,14 +172,14 @@ struct InboxView: View {
             }
 
             GoCard {
-                Text("Creator Upload + Moderation")
+                Text(store.localized("inbox.creator_upload_moderation", fallback: "Creator Upload + Moderation"))
                     .font(.headline)
                 Text(store.canUploadCreatorContent
-                     ? "Verified helper/business owner upload is enabled."
-                     : "Upload requires verified Helper or Business Owner role.")
+                     ? store.localized("inbox.creator_upload_enabled", fallback: "Verified helper/business owner upload is enabled.")
+                     : store.localized("inbox.creator_upload_requires_role", fallback: "Upload requires verified Helper or Business Owner role.")
                     .font(.caption)
                     .foregroundStyle(store.canUploadCreatorContent ? .green : OneTheme.muted)
-                TextField("Upload title", text: $newUploadTitle)
+                TextField(store.localized("inbox.upload_title_placeholder", fallback: "Upload title"), text: $newUploadTitle)
                     .padding(10)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 Button {
@@ -175,7 +191,7 @@ struct InboxView: View {
                     if store.isSubmittingCustomerJob {
                         ProgressView().frame(maxWidth: .infinity)
                     } else {
-                        Text("Submit Upload").frame(maxWidth: .infinity)
+                        Text(store.localized("inbox.submit_upload", fallback: "Submit Upload")).frame(maxWidth: .infinity)
                     }
                 }
                 .buttonStyle(GoAccentButtonStyle())
@@ -197,15 +213,15 @@ struct InboxView: View {
                                 .font(.caption.weight(.bold))
                                 .foregroundStyle(item.status == .approved ? .green : (item.status == .rejected ? .red : OneTheme.amber))
                         }
-                        Text("Language: \(item.language.label)")
+                        Text("\(store.localized("inbox.language_label", fallback: "Language:")) \(item.language.label)")
                             .font(.caption2)
                             .foregroundStyle(OneTheme.muted)
                         HStack {
-                            Button("Approve") {
+                            Button(store.localized("inbox.approve", fallback: "Approve")) {
                                 store.setCreatorUploadStatus(item.id, status: .approved)
                             }
                             .buttonStyle(.bordered)
-                            Button("Reject") {
+                            Button(store.localized("inbox.reject", fallback: "Reject")) {
                                 store.setCreatorUploadStatus(item.id, status: .rejected)
                             }
                             .buttonStyle(.bordered)

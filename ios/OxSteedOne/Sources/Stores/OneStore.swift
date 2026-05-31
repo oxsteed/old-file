@@ -652,6 +652,17 @@ final class OneStore {
     func setLanguage(_ language: AppLanguage) {
         appLanguage = language
         OneSessionVault.saveLanguage(language)
+        Task {
+            struct PreferredLanguageUpdate: Encodable {
+                let preferredLanguage: String
+            }
+
+            do {
+                _ = try await api.put("/users/me", body: PreferredLanguageUpdate(preferredLanguage: language.rawValue))
+            } catch {
+                // Best effort; keep local language in UserDefaults on failure.
+            }
+        }
     }
 
     func localized(_ key: String, fallback: String) -> String {

@@ -570,6 +570,10 @@
     "agreementRequired": "Ou dwe dakò ak Kondisyon Sèvis ak Règ Konfidansyalite pou konekte",
     "signatureRequired": "Tanpri antre non konplè ou kòm siyati nimerik pou kontinye",
     "signatureFullNameRequired": "Tanpri antre prenon ak siyati ou (egzanp: Marie Jean)",
+    "emailPlaceholder": "ou@egzanp.com",
+    "showPassword": "Montre modpas",
+    "hidePassword": "Kache modpas",
+    "copyright": "© {{year}} OxSteed LLC. Tout dwa rezève.",
     "signatureNameMismatch": "Non ou antre a pa koresponn ak non ki nan kont ou. Tanpri itilize non egzak ou te itilize lè ou te enskri."
   },
   "forgotPassword": {
@@ -3837,14 +3841,27 @@
     },
     "packages": {
       "title": "Pakè sèvis",
-      "subtitle": "Mete sèvis yo ansanm nan pakè pou kliyan",
-      "tabs": {
-        "packages": "Pakè",
-        "clientPackages": "Pakè kliyan"
-      },
-      "newPackage": "Nouvo pakè",
-      "confirmArchive": "Achive pakè sa a?",
-      "toastLoadPackagesFail": "Nou pa t kapab chaje pakè yo",
+    "subtitle": "Mete sèvis yo ansanm nan pakè pou kliyan",
+    "tabs": {
+      "packages": "Pakè",
+      "clientPackages": "Pakè kliyan"
+    },
+    "newPackage": "Nouvo pakè",
+    "editPackage": "Modifye pakè",
+    "labelName": "Non pakè *",
+    "labelDescription": "Deskripsyon",
+    "labelPrice": "Pri ($) *",
+    "labelTotalSessions": "Total sesyon",
+    "labelValidityDays": "Valab pou (jou)",
+    "emptyPackages": "Pa gen pakè ankò. Kreye premye pakè sèvis ou.",
+    "emptyClientPackages": "Pa gen pakè kliyan ankò.",
+    "sessions": "sesyon",
+    "sessionsLeft": "sesyon ki rete",
+    "noExpiry": "Pa gen dat ekspirasyon",
+    "expires": "Ekspire",
+    "useSession": "Sèvi",
+    "confirmArchive": "Achive pakè sa a?",
+    "toastLoadPackagesFail": "Nou pa t kapab chaje pakè yo",
       "toastLoadClientPackagesFail": "Nou pa t kapab chaje pakè kliyan yo",
       "toastNamePriceRequired": "Non ak pri obligatwa",
       "toastUpdated": "Pakè mete ajou",
@@ -6654,6 +6671,7 @@
     "badgeHelper": "Asistan",
     "badgeBusiness": "Biznis",
     "availableNow": "Disponib kounye a",
+    "onlineCount": "{{count}} anliy",
     "viewProfile": "Wè Pwofil",
     "viewProfileAria": "Wè pwofil {{name}} la",
     "badgeIdVerified": "Idantite Verifye",
@@ -9115,7 +9133,149 @@
       "moqProgress": "{{pct}}% nan MOQ atenn",
       "closes": "Fèmen",
       "deposit": "Depo",
-      "perUnit": "/ inite"
+      "perUnit": "/ inite",
+      "heroTitle": "Chèn lojistik mondyal yo te bati pou gwo konpayi.",
+      "heroSubtitle": "Nou bati youn pou achtè ki bezwen 200 inite, òganizatè a ki ekspedisyon nan Ayiti, ak biznis ki pa ka peye yon ajan fret.",
+      "openWorkspace": "Louvri espas travay ou →",
+      "getStarted": "Kòmanse",
+      "browseOpenCampaigns": "Browse kanpay ouvè",
+      "viewAll": "Gade tout",
+      "readyToStart": "Èske ou pare pou kòmanse?",
+      "readyToStartBody": "Antre pou jwenn aksè nan apwovizyonman, achte an gwoup, ak vizibilite konplè sou chèn lojistik la, depi premye kontak ak founisè rive nan livrezon dènye etap la.",
+      "createAccount": "Kreye yon kont",
+      "unitsProgress": "{{current}} / {{target}} {{units}}",
+      "whyCards": {
+        "moq": {
+          "heading": "Pwoblèm lòd minimòm nan",
+          "body": "Manifakti yo fikse minimòm pou faktori, pa pou moun endividyèl. Pifò achtè bloke — pa paske pri a, men paske kantite."
+        },
+        "compliance": {
+          "heading": "Kòmplians pa opsyonèl",
+          "body": "Chak chajman pase atravè lwa: règ komès, taks, kategori entèdi, lisans enpòtasyon. OxSteed montre restriksyon yo anvan ou konfime, pa apre machandiz ou bloke nan ladwàn."
+          },
+        "lastmile": {
+          "heading": "Dènye etap la se pwòp pwoblèm li",
+          "body": "Machandiz yo rive nan pò. Apre sa? Depo, alokasyon, lòd livrezon — chak youn se yon nouvo etap. OxSteed kowòdone chèn nan pou chak etap konnen sa pwochen an bezwen."
+        }
+      }
+    },
+    "complianceWorkspace": {
+      "title": "Espas Konfòmite",
+      "subtitle": "Gade règ komès chak wout epi ke operasyon sansib pou ladwann lè ou gen aksè operatè.",
+      "nav": {
+        "tradeRules": "Règ komès",
+        "reviewQueue": "Ke revizyon",
+        "customsOps": "Operasyon ladwann",
+        "restrictions": "Restriksyon"
+      },
+      "kpis": {
+        "lowRisk": "Kòdin ki ba an risk",
+        "managed": "Kòdin jere",
+        "restricted": "Kòdin limite",
+        "prohibited": "Kòdin entèdi"
+      },
+      "cardTitleLaneMarketRules": "Règ pou wout ak mache",
+      "cardTitleOperator": "Pozisyon revizyon operatè",
+      "cardTitleCategoryRestrictions": "Rezime restriksyon kategori yo",
+      "tableHeaders": {
+        "lane": "Kòdin",
+        "countries": "Peyi",
+        "risk": "Risk",
+        "flags": "Etikèt",
+        "item": "Atik",
+        "routeOrCountry": "Wout / Peyi",
+        "country": "Peyi",
+        "status": "Estati"
+      },
+      "risk": {
+        "low": "Ba",
+        "managed": "Jere",
+        "restricted": "Limite",
+        "prohibited": "Entèdi"
+      },
+      "flags": {
+        "open": "Louvri",
+        "businessVerification": "Verifikasyon biznis",
+        "manualApproval": "Aprobasyon manyèl"
+      },
+      "status": {
+        "approvalRequired": "Aprobasyon obligatwa"
+      },
+      "empty": {
+        "noLanes": "Ou poko gen okenn kòd disponib ankò.",
+        "noRestrictions": "Pa gen restriksyon."
+      },
+      "separator": "·",
+      "queueLabel": "Machandiz sansib pou ladwann ki nan ke"
+    },
+    "operatorLogin": {
+      "copy": {
+        "compliance": {
+          "title": "Antre nan espas konfòmite",
+          "subtitle": "Aksè entèn konfòmite mande non ki bay ou ak kle sekirite avan ou konekte ak modpas."
+        },
+        "adminControl": {
+          "title": "Antre nan kontwòl administratè",
+          "subtitle": "Kontwòl administratè entèn rete sèlman pou operatè yo. Itilize kont admin ki lye ak ou."
+        },
+        "operations": {
+          "title": "Antre nan espas operasyon",
+          "subtitle": "Aksè entèn operasyon mande non ki bay ou ak kle sekirite avan ou konekte ak modpas."
+        }
+      },
+      "twoFaTitle": "Otantifikasyon de-faktè",
+      "twoFaPrompt": "Mete kòd 6 chif ki soti nan aplikasyon otantifikasyon ou, oswa yon kòd rezèv.",
+      "labels": {
+        "email": "Imèl",
+        "password": "Modpas",
+        "internalName": "Non entèn",
+        "securityKey": "Kle sekirite",
+        "twoFaCode": "Kòd 2FA"
+      },
+      "placeholders": {
+        "email": "operatè@oxsteed.com",
+        "password": "Mete modpas ou",
+        "internalName": "Non entèn ki ba ou a",
+        "securityKey": "Kle sekirite ki soti nan super-admin"
+      },
+      "approvedAccountLabel": "Kont ki apwouve",
+      "approvedAccountNote": "Lajan koneksyon sa a ka kontinye sèlman ak kont OxSteed la lye ak",
+      "verifying": "Ap verifye…",
+      "verify": "Verifye",
+      "checking": "Ap verifye…",
+      "continue": "Kontinye",
+      "signingIn": "Ap konekte…",
+      "signIn": "Antre",
+      "locked": "Kont bloke",
+      "requestRecoveryEmail": "Mande yon imèl pou rekiperasyon",
+      "recoveryPrompt": "Mete imèl rekiperasyon ki anrejistre a:",
+      "resetIdentity": "Itile yon lòt idantite aksè entèn",
+      "footer": {
+        "internalKeyRequired": "Aksè Operations ak Compliance mande kounye a yon non entèn ak kle sekirite yon super-admin emèt.",
+        "adminOnly": "Se itilizatè ki gen wòl admin oswa super-admin ki ka antre nan pòsyon sa a.",
+        "standardSignIn": "Ale nan koneksyon estanda OxSteed la"
+      },
+      "errors": {
+        "tooManyAttempts": "Twòp tantativ ki echwe. Eseye ankò nan {{minutes}} minit.",
+        "tooManyAttemptsLocked": "Twòp tantativ ki echwe. Bloke jouk tan an fini.",
+        "internalNameAndKeyRequired": "Non ak kle sekirite obligatwa.",
+        "internalAccessFailed": "Verifikasyon aksè entèn echwe.",
+        "lockedRecovery": "Aksè bloke tanporèman. Mande yon imèl rekiperasyon oswa kontakte yon super-admin.",
+        "invalidCredentialsRemaining": "Done koneksyon pa valab. {{attemptsLeft}} tantativ ki rete anvan blokaj.",
+        "recoveryEmailSent": "Si imèl sa a gen otorizasyon pou rekiperasyon, yon lyen yon sèl-itè a te voye. W ap jwenn li nan bwat enfòmasyon ou.",
+        "recoveryEmailFailed": "Pa t kapab mande imèl rekiperasyon an.",
+        "internalAccessRequired": "Ranpli verifikasyon aksè entèn an premye.",
+        "passwordRequired": "Modpas obligatwa.",
+        "passwordLocked": "Aksè bloke tanporèman akoz twòp tantativ ki echwe.",
+        "passwordFailed": "Koneksyon echwe. W ap tcheke modpas ou.",
+        "emailAndPasswordRequired": "Imèl ak modpas obligatwa.",
+        "accountLocked": "Kont bloke tanporèman akoz twòp tantativ ki echwe.",
+        "credentialsFailed": "Koneksyon echwe. W ap tcheke idantifyan ou.",
+        "twoFaExpired": "Sesyon 2FA ou fini. Tanpri konekte ankò.",
+        "twoFaCodeRequired": "Mete kòd 2FA ou.",
+        "operatorPrivilegesRequired": "Aksè refize. Opèrasyonè logisitik obligatwa.",
+        "invalid2Fa": "Kòd 2FA pa valab."
+      }
     },
     "campaigns": {
       "title": "Kanpay gwoup",
@@ -9283,8 +9443,11 @@
       "draft": "Bwouyon",
       "open": "Ouvè",
       "quoted": "Devis",
+      "pledging": "An pwosesis angajman",
+      "deposit_phase": "Faz depo",
       "approved": "Apwouve",
       "placed_with_supplier": "Plase",
+      "placed": "Plase",
       "deposit_paid": "Depo peye",
       "production": "An pwodiksyon",
       "ready_to_ship": "Pare pou ekspedisyon",
@@ -10419,7 +10582,12 @@
     "messages": {
       "success": "Aplikasyon frankti resevwa.",
       "submitFailed": "Nou pa t ka soumèt aplikasyon frankti a."
-    }
+    },
+    "heroCardsFallback": [
+      "Revizyon anvan teritwa",
+      "Prè pou kapital",
+      "Lis vérifikasyon lansman"
+    ]
   },
   "franchiseTerritoryPage": {
     "trainingLabels": {
@@ -11680,6 +11848,170 @@
     "empty": {
       "allocations": "Pa gen alokasyon ki disponib.",
       "deliveries": "Pa gen lòd livrezon ki disponib."
+    }
+  },
+  "consultantContractorDashboard": {
+    "page": {
+      "title": "Tablo konsiltan kontra",
+      "description": "Jere referans ouvèti biznis lokal, mache kouvèti, ak pati peman ou negosye sou OxSteed.",
+      "workspaceBadge": "Espas travay konsiltan kontra",
+      "heading": "Referans lokal, pataj pousantaj, ak kouvèti mache an yon sèl plas.",
+      "subheading": "Sèvi ak tablodbò sa a pou jere kòm yon konsiltan endepandan OxSteed. Ou ka defini zòn ou kouvri, jere referans, swiv pousantaj OxSteed ki dakò, epi fè mennen chak kliyan soti nan entwodiksyon jiska angajman.",
+      "signedInAs": "Konekte kòm"
+    },
+    "summary": {
+      "activeReferrals": "Referans aktif",
+      "activeReferralsHint": "Moso kliyan ki toujou nan tiyo konsiltasyon lokal ou.",
+      "pipelineValue": "Valè tiyo w la",
+      "pipelineValueHint": "Valè estime bò konsiltan pou referans ki asiyen ak ouvè.",
+      "generated": "OxSteed pwodwi",
+      "generatedHint": "Patisyon platfòm estime ki soti nan aktivite referans ou yo.",
+      "coveredCountries": "Peyi kouvri",
+      "coveredCountriesHint": "Mache kote ou disponib kounye a pou referans lokal oswa vityèl."
+    },
+    "coverageProfile": {
+      "label": "Pwofil kouvèti",
+      "title": "Ki kote ou ka sèvi",
+      "noCoverage": "Ajoute peyi ou ak rejyon ou kouvri pou OxSteed ka voye referans lokal la ba ou."
+    },
+    "errors": {
+      "load": "Nou pa ka chaje tablodbò konsiltan an.",
+      "saveProfile": "Nou pa ka anrejistre pwofil la.",
+      "saveReferral": "Nou pa ka mete referans lan ajou."
+    },
+    "actions": {
+      "saving": "Ap sove",
+      "savingProfile": "Ap anrejistre pwofil",
+      "saveProfile": "Anrejistre pwofil",
+      "manageAvailability": "Jere disponiblite"
+    },
+    "referral": {
+      "yourShare": "Pati ou",
+      "retainedByPlatform": "{{amount}} rete nan platfòm nan",
+      "statusLabel": "Eta referans",
+      "followUpLabel": "Swivi",
+      "saveUpdate": "Sove mizajou",
+      "notesLabel": "Nòt pou referans sa a",
+      "notesPlaceholder": "Ekri nòt dekouvèt, kontèks mache lokal, pwochen etap, ak sa OxSteed dwe konnen.",
+      "targetMarketLabel": "Mache sib",
+      "targetMarketMissing": "Pa bay"
+    },
+    "referralStatus": {
+      "assigned": "Asiyen",
+      "introPending": "Entwodiksyon an ap tann",
+      "introSent": "Entwodiksyon voye",
+      "discoveryScheduled": "Dekouvèt pwograme",
+      "proposalSent": "Pwopozisyon voye",
+      "engaged": "Angaje",
+      "won": "Ganyen",
+      "lost": "Pèdi",
+      "completed": "Fin",
+      "paused": "Kanpe"
+    },
+    "profile": {
+      "fields": {
+        "headline": "Tit",
+        "headlinePlaceholder": "Egzanp: Konsiltan lokal pou operasyon ak sèvis kliyan",
+        "bio": "Bio",
+        "bioPlaceholder": "Istwa ou, espesyalite, ak fason ou sipòte referans lokal yo.",
+        "homeCountry": "Peyi lakay",
+        "homeCountryPlaceholder": "Etazini",
+        "homeRegion": "Rejyon / eta",
+        "homeRegionPlaceholder": "Florida",
+        "homeCity": "Vil",
+        "homeCityPlaceholder": "Miami",
+        "coverageCountries": "Peyi kouvri",
+        "coverageCountriesPlaceholder": "Etazini, Repiblik Dominiken",
+        "coverageRegions": "Rejyon kouvri",
+        "coverageRegionsPlaceholder": "Sidès, Nòès",
+        "languages": "Lang",
+        "languagesPlaceholder": "Angle, Franse, panyòl",
+        "specialties": "Espesyalite",
+        "specialtiesPlaceholder": "Konsiltasyon, òganizasyon operasyon, sipò lansman",
+        "timezone": "Zon tan",
+        "timezonePlaceholder": "America/New_York",
+        "yearsExperience": "Ane eksperyans",
+        "defaultCut": "Pousantaj default OxSteed (bps)",
+        "referralLimit": "Limit referans",
+        "minimumPackageCents": "Minimòm pakè an santim"
+      },
+      "toggles": {
+        "acceptingReferrals": "Aksepte referans",
+        "virtualConsulting": "Konsiltasyon vityèl",
+        "profileActive": "Pwofil aktif"
+      }
+    },
+    "pipeline": {
+      "label": "Tiyo referans",
+      "title": "Lid konsiltasyon lokal asiyen",
+      "openNow": "Louvri kounye a",
+      "loading": "Ap chaje referans…",
+      "emptyTitle": "Pa gen referans ki asiyen",
+      "emptyDescription": "Lè OxSteed voye yon gid lansman biznis bay ou, li va parèt isit la ak pataj peman, kontèks mache, ak siveyans pwochen etap."
+    },
+    "howItWorks": {
+      "label": "Kijan pwogram sa a mache",
+      "title": "Modèl referans OxSteed",
+      "step1Title": "1. Korespondans lokal",
+      "step1Body": "Administratè yo ka asiyen yon helper oswa entèvyou lansman biznis bay konsiltan ki kouvri peyi, rejyon, ak lang sa a.",
+      "step2Title": "2. Pousantaj negosye",
+      "step2Body": "Pousantaj OxSteed ki dakò a kopye sou lead la lè li asiyen, pou pati ou ak pati platfòm la rete fikse.",
+      "step3Title": "3. Egzekisyon tiyo",
+      "step3Body": "Sèvi ak tablodbò a pou deplase leads soti nan entwodiksyon rive dekouvèt, pwopozisyon, angajman, ak fini pandan w ap kenbe OxSteed nan sik la."
+    },
+    "consultantAvailabilityPage": {
+      "metaTitle": "Disponiblite",
+      "metaDescription": "Jere orè repete semènal ou, dat pwoteje, ak tan repo.",
+      "badge": "Disponiblite konsiltan",
+      "heading": "Disponiblite semèn ou",
+      "intro": "Mete èdtan travay ou regilye epi jere tan repo pou kliyan sèlman ka pran randevou lè ou disponib.",
+      "backToDashboard": "Retounen nan tablodbò a",
+      "summaryActiveDays": "Jou aktif",
+      "summaryActiveDaysHint": "Jou ki gen omwen yon èd semènal aktif",
+      "summaryWeeklySlots": "Plage semènal",
+      "summaryWeeklySlotsHint": "Total èd repete ki mete",
+      "summaryBlockedDates": "Dat bloke",
+      "summaryBlockedDatesHint": "Dat espesifik ou make kòm pa disponib",
+      "nextTimeOff": "Pwochen tan repo",
+      "summaryNextTimeOffHint": "Pwochen dat bloke k ap vini",
+      "none": "Okenn",
+      "scheduleBuilder": "Konstriksyon orè",
+      "liveWeeklyView": "Gade semènan aktif",
+      "loadedNow": "Atik chaje",
+      "controlsHeading": "Kontwòl",
+      "controlsBody": "Ajoute, modifye, epi swiv disponiblite repete pa jou.",
+      "slotActiveDesc": "Peryòd sa a aktif.",
+      "slotInactiveDesc": "Peryòd sa a inaktif.",
+      "noRecurringHours": "Pa gen èdtan repete kounye a",
+      "timeOff": "Tan repo",
+      "useFor": "Pou vakans, jou selebrasyon elatriye.",
+      "useForBody": "Make jou kote ou pa disponib pou kliyan wè orè presi.",
+      "protectedDates": "Dat pwoteje",
+      "reasonPlaceholder": "Rezon (opsyonèl)",
+      "noReasonAdded": "Tan bloke san rezon ajoute.",
+      "noBlockedDates": "Pa gen dat bloke ankò",
+      "noBlockedDatesBody": "Ajoute omwen yon dat bloke pou anpeche livrezon randevou nan jou sa a.",
+      "notSet": "Pa defini",
+      "saveAvailability": "Sove disponiblite",
+      "noScheduleSaved": "Pa gen orè ki anrejistre ankò",
+      "noScheduleSavedBody": "Sèvi ak fòmilè sou bò gòch la pou w ajoute premye èd repete ou.",
+      "addBlockedDate": "Ajoute dat bloke",
+      "dayLabels": {
+        "sunday": "Dimanch",
+        "monday": "Lendi",
+        "tuesday": "Madi",
+        "wednesday": "Mèkredi",
+        "thursday": "Jedi",
+        "friday": "Vandredi",
+        "saturday": "Samdi"
+      },
+      "errorLoadingAvailability": "Echèk chaje disponiblite.",
+      "errorLoadingBlockedDates": "Echèk chaje dat bloke yo.",
+      "errorTimeRange": "Antre de toude lè kòmanse ak lè fini.",
+      "errorSavingAvailability": "Echèk pou sove disponiblite.",
+      "errorAddingBlockedDate": "Echèk pou ajoute dat bloke.",
+      "errorRemovingBlockedDate": "Echèk pou retire dat bloke.",
+      "dateRequired": "Tanpri chwazi yon dat."
     }
   }
 }

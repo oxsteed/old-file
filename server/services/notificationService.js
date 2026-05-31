@@ -48,9 +48,10 @@ exports.sendNotification = async ({
     const notificationText = tNotif(type, language);
     const emailTranslations = tNotifEmail(type, language);
     const finalTitle = notificationText.title || title;
-    const finalBody = notificationText.body
-      ? [notificationText.body, body].filter(Boolean).join(' ')
-      : (body || notificationText.body);
+    const translationBody = notificationText.body || '';
+    const finalBody = translationBody
+      ? [translationBody, body].filter(Boolean).join(' ')
+      : (body || translationBody);
 
     // ── Quiet-hours gate (blocks push only, in-app and email still proceed) ──
     // quiet_hours_start / quiet_hours_end are stored as Postgres TIME (HH:MM:SS).
