@@ -416,3 +416,183 @@ exports.getBadges = async (req, res, next) => {
     res.json({ badges: [] });
   }
 };
+
+// ── Product link overrides ────────────────────────────────────────────────────
+// Admin manages rows in learn_product_links; the iOS app overlays them on the
+// hardcoded LearnGuideCatalog at startup. No app update required to change a URL.
+
+const VALID_LINK_TYPES = ['amazon_affiliate', 'own_inventory', 'partner', 'rental'];
+
+/**
+ * GET /api/learn/product-links
+ * Public — no auth. Returns all active overrides.
+ * The iOS app calls this on every refresh; returns [] gracefully if table absent.
+ */
+exports.getProductLinks = async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, guide_id, tool_name, link_type, buy_url, rent_url, affiliate_tag, is_active
+       FROM learn_product_links
+       WHERE is_active = TRUE
+       ORDER BY guide_id NULLS LAST, LOWER(tool_name)`,
+    );
+    res.json({ products: rows });
+  } catch (_err) {
+    // Migration not yet applied — fail open so the app uses its hardcoded catalog
+    res.json({ products: [] });
+  }
+};
+
+/**
+ * GET /api/admin/learn/product-links
+ * Admin — returns all rows (active + inactive) with audit fields.
+ */
+exports.adminListProductLinks = async (req, res, next) => {
+  try {
+    const { guide_id, link_type, is_active } = req.query;
+    const conditions = [];
+    const values = [];
+
+    if (guide_id)  { values.push(guide_id);  conditions.push(`guide_id = $${values.length}`); }
+    if (link_type) { values.push(link_type); conditions.push(`link_type = $${values.length}`); }
+    if (is_active !== undefined) {
+      values.push(is_active === 'true');
+      conditions.push(`is_active = $${values.length}`);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const { rows } = await pool.query(
+      `SELECT l.*, u.email AS created_by_email
+       FROM learn_product_links l
+       LEFT JOIN users u ON u.id = l.created_by
+       ${where}
+       ORDER BY l.guide_id NULLS LAST, LOWER(l.tool_name), l.created_at DESC`,
+      values,
+    );
+    res.json({ products: rows });
+  } catch (err) {
+    next(new AppError('Failed to list product links', 500, 'list_failed'));
+  }
+};
+
+/**
+ * POST /api/admin/learn/product-links
+ * Admin — create a new product link override.
+ */
+exports.adminCreateProductLink = async (req, res, next) => {
+  try {
+    const { guide_id, tool_name, link_type, buy_url, rent_url, affiliate_tag, is_active } = req.body;
+
+    if (!tool_name?.trim()) return next(new AppError('tool_name is required', 400, 'validation'));
+    if (!VALID_LINK_TYPES.includes(link_type)) {
+      return next(new AppError(`link_type must be one of: ${VALID_LINK_TYPES.join(', ')}`, 400, 'validation'));
+    }
+
+    // Enforce no-cloaking compliance for Amazon links
+    if (link_type === 'amazon_affiliate' && buy_url) {
+      if (!/^https?:\/\/(www\.)?amazon\.(com|ca|co\.uk|com\.au|de|fr|it|es|co\.jp)/i.test(buy_url)) {
+        return next(new AppError(
+          'Amazon affiliate links must go directly to an amazon.com domain. No redirects or URL shorteners are allowed per Amazon Associates policy.',
+          400, 'compliance_violation',
+        ));
+      }
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO learn_product_links
+         (guide_id, tool_name, link_type, buy_url, rent_url, affiliate_tag, is_active, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [
+        guide_id?.trim() || null,
+        tool_name.trim(),
+        link_type,
+        buy_url?.trim() || null,
+        rent_url?.trim() || null,
+        affiliate_tag?.trim() || null,
+        is_active !== false,
+        req.user.id,
+      ],
+    );
+    res.status(201).json({ product: rows[0] });
+  } catch (err) {
+    next(new AppError('Failed to create product link', 500, 'create_failed'));
+  }
+};
+
+/**
+ * PUT /api/admin/learn/product-links/:id
+ * Admin — update any field. Partial updates supported.
+ */
+exports.adminUpdateProductLink = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const allowed = ['guide_id', 'tool_name', 'link_type', 'buy_url', 'rent_url', 'affiliate_tag', 'is_active'];
+    const updates = [];
+    const values = [];
+
+    for (const field of allowed) {
+      if (field in req.body) {
+        values.push(field === 'guide_id' && req.body[field] === '' ? null : req.body[field]);
+        updates.push(`${field} = $${values.length}`);
+      }
+    }
+
+    if (!updates.length) return next(new AppError('No fields to update', 400, 'validation'));
+
+    // Enforce compliance if buy_url or link_type is being changed
+    const newLinkType = req.body.link_type;
+    const newBuyUrl   = req.body.buy_url;
+    if ((newLinkType === 'amazon_affiliate' || (!newLinkType)) && newBuyUrl) {
+      // Fetch current link_type if not in body
+      const { rows: cur } = await pool.query('SELECT link_type FROM learn_product_links WHERE id=$1', [id]);
+      const effectiveType = newLinkType || cur[0]?.link_type;
+      if (effectiveType === 'amazon_affiliate' &&
+          !/^https?:\/\/(www\.)?amazon\.(com|ca|co\.uk|com\.au|de|fr|it|es|co\.jp)/i.test(newBuyUrl)) {
+        return next(new AppError(
+          'Amazon affiliate links must go directly to an amazon.com domain.',
+          400, 'compliance_violation',
+        ));
+      }
+    }
+
+    values.push(id);
+    const { rows } = await pool.query(
+      `UPDATE learn_product_links SET ${updates.join(', ')}, updated_at = NOW()
+       WHERE id = $${values.length} RETURNING *`,
+      values,
+    );
+    if (!rows.length) return next(new AppError('Product link not found', 404, 'not_found'));
+    res.json({ product: rows[0] });
+  } catch (err) {
+    next(new AppError('Failed to update product link', 500, 'update_failed'));
+  }
+};
+
+/**
+ * DELETE /api/admin/learn/product-links/:id
+ * Admin — soft-delete by default (sets is_active = false).
+ * Pass ?permanent=true to hard-delete.
+ */
+exports.adminDeleteProductLink = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const permanent = req.query.permanent === 'true';
+
+    if (permanent) {
+      const { rowCount } = await pool.query('DELETE FROM learn_product_links WHERE id = $1', [id]);
+      if (!rowCount) return next(new AppError('Product link not found', 404, 'not_found'));
+      return res.json({ success: true, deleted: true });
+    }
+
+    const { rows } = await pool.query(
+      `UPDATE learn_product_links SET is_active = FALSE, updated_at = NOW()
+       WHERE id = $1 RETURNING id, tool_name, is_active`,
+      [id],
+    );
+    if (!rows.length) return next(new AppError('Product link not found', 404, 'not_found'));
+    res.json({ success: true, product: rows[0] });
+  } catch (err) {
+    next(new AppError('Failed to delete product link', 500, 'delete_failed'));
+  }
+};

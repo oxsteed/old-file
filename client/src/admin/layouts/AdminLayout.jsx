@@ -10,7 +10,7 @@ import {
   Menu, X, Sun, Moon, HeadphonesIcon,
   Search, Key, ClipboardList, Building2, CreditCard, MessageSquare,
   HeartHandshake, Calendar, UserPlus, Map, ShoppingCart, Layers, Fingerprint,
-  AlertTriangle, Crown, Globe, Network, Package, Truck, ShieldAlert, BookOpen,
+  AlertTriangle, Crown, Globe, Network, Package, Truck, ShieldAlert, BookOpen, Link2,
 } from 'lucide-react';
 
 const REGULAR_NAV = [
@@ -40,6 +40,7 @@ const REGULAR_NAV = [
   { to: '/admin/corporate/assignments',icon: Crown,              label: 'Corporate Titles' },
   { to: '/admin/logistics',            icon: Truck,              label: 'Logistics Ops'    },
   { to: '/admin/learn/submissions',    icon: BookOpen,           label: 'Learn Submissions'},
+  { to: '/admin/learn/product-links', icon: Link2,              label: 'Learn Product Links'},
 ];
 
 const SUPER_NAV = [
