@@ -416,7 +416,6 @@ export default function ConsultantContractorDashboard() {
               ) : null}
 
               <div className="grid gap-3">
-                {[
                 {PROFILE_FIELDS.map(([labelFallback, key, labelKey, placeholderKey]) => (
                   <div key={key}>
                     <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{tx(labelKey, labelFallback)}</label>
