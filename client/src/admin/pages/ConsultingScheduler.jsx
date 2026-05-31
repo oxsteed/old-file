@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import axios from '../../api/axios';
 import toast from 'react-hot-toast';
 
@@ -70,6 +71,7 @@ function CalendarEvent({ session, onClick }) {
 }
 
 function ScheduleModal({ session, consultants, onClose, onScheduled }) {
+  const { t } = useTranslation();
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [meetingUrl, setMeetingUrl] = useState('');
@@ -78,7 +80,7 @@ function ScheduleModal({ session, consultants, onClose, onScheduled }) {
 
   async function doSchedule() {
     if (!selectedDate || !selectedTime) {
-      toast.error('Please select date and time');
+      toast.error(t('adminConsultingScheduler.toast.selectDateTime'));
       return;
     }
     try {
@@ -90,11 +92,11 @@ function ScheduleModal({ session, consultants, onClose, onScheduled }) {
         meeting_url: meetingUrl,
         ...(consultant && { consultant_id: consultant }),
       });
-      toast.success('Session scheduled');
+      toast.success(t('adminConsultingScheduler.toast.sessionScheduled'));
       onScheduled();
       onClose();
     } catch {
-      toast.error('Failed to schedule session');
+      toast.error(t('adminConsultingScheduler.toast.scheduleFailed'));
     } finally {
       setSaving(false);
     }
@@ -103,21 +105,21 @@ function ScheduleModal({ session, consultants, onClose, onScheduled }) {
   async function sendCalendarInvite() {
     try {
       await axios.post(`/consulting/admin/sessions/${session.id}/send-invite`);
-      toast.success('Calendar invite sent');
+      toast.success(t('adminConsultingScheduler.toast.inviteSent'));
     } catch {
-      toast.error('Failed to send invite');
+      toast.error(t('adminConsultingScheduler.toast.inviteFailed'));
     }
   }
 
   async function decline() {
-    if (!window.confirm('Decline this request? The client will be notified.')) return;
+    if (!window.confirm(t('adminConsultingScheduler.confirm.decline'))) return;
     try {
       await axios.patch(`/consulting/admin/requests/${session.id}/status`, { status: 'cancelled' });
-      toast.success('Request declined');
+      toast.success(t('adminConsultingScheduler.toast.requestDeclined'));
       onScheduled();
       onClose();
     } catch {
-      toast.error('Failed to decline request');
+      toast.error(t('adminConsultingScheduler.toast.declineFailed'));
     }
   }
 
@@ -130,10 +132,10 @@ function ScheduleModal({ session, consultants, onClose, onScheduled }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
           <div>
             <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.2rem', fontWeight: 700 }}>
-              Schedule: {session.first_name} {session.last_name}
+              {t('adminConsultingScheduler.scheduleModal.title', { name: `${session.first_name} ${session.last_name}` })}
             </h2>
             <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
-              {session.email} · {session.service_tier} · {session.phone || 'No phone'}
+              {session.email} · {session.service_tier} · {session.phone || t('adminConsultingScheduler.scheduleModal.noPhone')}
             </p>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--color-text-muted)' }}>×</button>
@@ -146,12 +148,12 @@ function ScheduleModal({ session, consultants, onClose, onScheduled }) {
         )}
 
         <div style={{ marginBottom: '1rem' }}>
-          <label style={labelStyle}>Select Date</label>
+          <label style={labelStyle}>{t('adminConsultingScheduler.scheduleModal.selectDate')}</label>
           <input type="date" style={inputStyle} value={selectedDate} onChange={e => setSelectedDate(e.target.value)} min={new Date().toISOString().slice(0, 10)} />
         </div>
 
         <div style={{ marginBottom: '1rem' }}>
-          <label style={labelStyle}>Select Time</label>
+          <label style={labelStyle}>{t('adminConsultingScheduler.scheduleModal.selectTime')}</label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.35rem' }}>
             {TIME_SLOTS.map(t => (
               <button key={t} onClick={() => setSelectedTime(t)} style={{
@@ -169,14 +171,14 @@ function ScheduleModal({ session, consultants, onClose, onScheduled }) {
         </div>
 
         <div style={{ marginBottom: '1rem' }}>
-          <label style={labelStyle}>Meeting URL (Zoom, Google Meet...)</label>
-          <input type="url" placeholder="https://zoom.us/j/..." style={inputStyle} value={meetingUrl} onChange={e => setMeetingUrl(e.target.value)} />
+          <label style={labelStyle}>{t('adminConsultingScheduler.scheduleModal.meetingUrlLabel')}</label>
+          <input type="url" placeholder={t('adminConsultingScheduler.scheduleModal.meetingUrlPlaceholder')} style={inputStyle} value={meetingUrl} onChange={e => setMeetingUrl(e.target.value)} />
         </div>
 
         <div style={{ marginBottom: '1.5rem' }}>
-          <label style={labelStyle}>Assign Consultant</label>
+          <label style={labelStyle}>{t('adminConsultingScheduler.scheduleModal.assignConsultant')}</label>
           <select style={inputStyle} value={consultant} onChange={e => setConsultant(e.target.value)}>
-            <option value="">-- Select consultant --</option>
+            <option value="">{t('adminConsultingScheduler.scheduleModal.selectConsultantPlaceholder')}</option>
             {consultants.map(c => (
               <option key={c.id} value={c.id}>{c.first_name} {c.last_name} ({c.role}) - {c.active_sessions || 0} active</option>
             ))}
@@ -185,13 +187,13 @@ function ScheduleModal({ session, consultants, onClose, onScheduled }) {
 
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button onClick={doSchedule} disabled={saving} style={{ padding: '0.6rem 1.25rem', borderRadius: '6px', border: 'none', background: 'var(--color-primary)', color: 'white', fontWeight: 600, cursor: 'pointer', flex: 1 }}>
-            {saving ? 'Scheduling...' : 'Confirm Session'}
+            {saving ? t('adminConsultingScheduler.scheduleModal.scheduling') : t('adminConsultingScheduler.scheduleModal.confirm')}
           </button>
           <button onClick={sendCalendarInvite} style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid var(--color-primary)', background: 'none', color: 'var(--color-primary)', fontWeight: 600, cursor: 'pointer' }}>
-            Send Invite
+            {t('adminConsultingScheduler.scheduleModal.sendInvite')}
           </button>
           <button onClick={decline} style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid #EF4444', background: 'none', color: '#EF4444', fontWeight: 600, cursor: 'pointer' }}>
-            Decline
+            {t('adminConsultingScheduler.scheduleModal.decline')}
           </button>
         </div>
       </div>
@@ -200,24 +202,25 @@ function ScheduleModal({ session, consultants, onClose, onScheduled }) {
 }
 
 function NewSessionModal({ consultants, onClose, onCreated }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({ first_name: '', last_name: '', email: '', service_tier: 'initial', scheduled_date: '', scheduled_time: '', meeting_url: '', consultant_id: '', description: '' });
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.email || !form.scheduled_date || !form.scheduled_time) {
-      toast.error('Email, date, and time are required');
+      toast.error(t('adminConsultingScheduler.toast.createRequiredFields'));
       return;
     }
     try {
       setSaving(true);
       const scheduled_at = new Date(`${form.scheduled_date}T${form.scheduled_time}`).toISOString();
       await axios.post('/consulting/admin/sessions/create', { ...form, scheduled_at });
-      toast.success('Session created');
+      toast.success(t('adminConsultingScheduler.toast.sessionCreated'));
       onCreated();
       onClose();
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to create session');
+      toast.error(err?.response?.data?.error || t('adminConsultingScheduler.toast.createFailed'));
     } finally {
       setSaving(false);
     }
@@ -230,24 +233,24 @@ function NewSessionModal({ consultants, onClose, onCreated }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
       <div style={{ background: 'var(--color-surface)', borderRadius: '10px', padding: '2rem', maxWidth: '560px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
-        <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.3rem', fontWeight: 700 }}>Schedule New Session</h2>
+        <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.3rem', fontWeight: 700 }}>{t('adminConsultingScheduler.newSessionModal.title')}</h2>
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 1rem' }}>
             <div style={fieldStyle}>
-              <label style={labelStyle}>First Name</label>
+              <label style={labelStyle}>{t('adminConsultingScheduler.newSessionModal.fields.firstName')}</label>
               <input style={inputStyle} value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} />
             </div>
             <div style={fieldStyle}>
-              <label style={labelStyle}>Last Name</label>
+              <label style={labelStyle}>{t('adminConsultingScheduler.newSessionModal.fields.lastName')}</label>
               <input style={inputStyle} value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} />
             </div>
           </div>
           <div style={fieldStyle}>
-            <label style={labelStyle}>Email *</label>
+            <label style={labelStyle}>{t('adminConsultingScheduler.newSessionModal.fields.email')}</label>
             <input type="email" style={inputStyle} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
           </div>
           <div style={fieldStyle}>
-            <label style={labelStyle}>Service Tier</label>
+            <label style={labelStyle}>{t('adminConsultingScheduler.newSessionModal.fields.serviceTier')}</label>
             <select style={inputStyle} value={form.service_tier} onChange={e => setForm({ ...form, service_tier: e.target.value })}>
               <option value="initial">Initial ($100)</option>
               <option value="foundation">Foundation</option>
@@ -257,36 +260,36 @@ function NewSessionModal({ consultants, onClose, onCreated }) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 1rem' }}>
             <div style={fieldStyle}>
-              <label style={labelStyle}>Date *</label>
+              <label style={labelStyle}>{t('adminConsultingScheduler.newSessionModal.fields.date')}</label>
               <input type="date" style={inputStyle} value={form.scheduled_date} onChange={e => setForm({ ...form, scheduled_date: e.target.value })} required />
             </div>
             <div style={fieldStyle}>
-              <label style={labelStyle}>Time *</label>
+              <label style={labelStyle}>{t('adminConsultingScheduler.newSessionModal.fields.time')}</label>
               <select style={inputStyle} value={form.scheduled_time} onChange={e => setForm({ ...form, scheduled_time: e.target.value })} required>
-                <option value="">-- Select --</option>
+                <option value="">{t('adminConsultingScheduler.newSessionModal.fields.timePlaceholder')}</option>
                 {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
           </div>
           <div style={fieldStyle}>
-            <label style={labelStyle}>Meeting URL</label>
-            <input type="url" placeholder="https://zoom.us/j/..." style={inputStyle} value={form.meeting_url} onChange={e => setForm({ ...form, meeting_url: e.target.value })} />
+            <label style={labelStyle}>{t('adminConsultingScheduler.newSessionModal.fields.meetingUrl')}</label>
+            <input type="url" placeholder={t('adminConsultingScheduler.newSessionModal.fields.meetingUrlPlaceholder')} style={inputStyle} value={form.meeting_url} onChange={e => setForm({ ...form, meeting_url: e.target.value })} />
           </div>
           <div style={fieldStyle}>
-            <label style={labelStyle}>Assign Consultant</label>
+            <label style={labelStyle}>{t('adminConsultingScheduler.newSessionModal.fields.assignConsultant')}</label>
             <select style={inputStyle} value={form.consultant_id} onChange={e => setForm({ ...form, consultant_id: e.target.value })}>
-              <option value="">-- Unassigned --</option>
+              <option value="">{t('adminConsultingScheduler.newSessionModal.fields.unassigned')}</option>
               {consultants.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name} ({c.role})</option>)}
             </select>
           </div>
           <div style={fieldStyle}>
-            <label style={labelStyle}>Notes</label>
+            <label style={labelStyle}>{t('adminConsultingScheduler.newSessionModal.fields.notes')}</label>
             <textarea style={{ ...inputStyle, minHeight: '70px', resize: 'vertical', fontFamily: 'inherit' }} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={{ padding: '0.6rem 1.25rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'none', cursor: 'pointer', color: 'var(--color-text)' }}>Cancel</button>
+            <button type="button" onClick={onClose} style={{ padding: '0.6rem 1.25rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'none', cursor: 'pointer', color: 'var(--color-text)' }}>{t('adminConsultingScheduler.actions.cancel')}</button>
             <button type="submit" disabled={saving} style={{ padding: '0.6rem 1.25rem', borderRadius: '6px', border: 'none', background: 'var(--color-primary)', color: 'white', fontWeight: 600, cursor: 'pointer' }}>
-              {saving ? 'Creating...' : 'Create Session'}
+              {saving ? t('adminConsultingScheduler.newSessionModal.actions.creating') : t('adminConsultingScheduler.newSessionModal.actions.create')}
             </button>
           </div>
         </form>
@@ -296,6 +299,7 @@ function NewSessionModal({ consultants, onClose, onCreated }) {
 }
 
 export default function ConsultingScheduler() {
+  const { t } = useTranslation();
   const [sessions, setSessions] = useState([]);
   const [consultants, setConsultants] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -314,11 +318,11 @@ export default function ConsultingScheduler() {
       setSessions(sesRes.data.requests || []);
       setConsultants(consRes.data || []);
     } catch {
-      toast.error('Failed to load sessions');
+      toast.error(t('adminConsultingScheduler.toast.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -333,9 +337,9 @@ export default function ConsultingScheduler() {
   async function sendReminder(session) {
     try {
       await axios.post(`/consulting/admin/sessions/${session.id}/send-reminder`);
-      toast.success('Reminder sent to client');
+      toast.success(t('adminConsultingScheduler.toast.reminderSent'));
     } catch {
-      toast.error('Failed to send reminder');
+      toast.error(t('adminConsultingScheduler.toast.reminderFailed'));
     }
   }
 
@@ -344,7 +348,7 @@ export default function ConsultingScheduler() {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '2rem', color: 'var(--color-text-muted)' }}>Loading sessions...</div>
+      <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '2rem', color: 'var(--color-text-muted)' }}>{t('adminConsultingScheduler.loading')}</div>
     );
   }
 
@@ -352,17 +356,17 @@ export default function ConsultingScheduler() {
     <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '2rem' }}>
       {/* Breadcrumb */}
       <nav style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '1.25rem' }}>
-        <Link to="/admin" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>Admin</Link>
+        <Link to="/admin" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>{t('adminConsultingScheduler.breadcrumb.admin')}</Link>
         {' / '}
-        <Link to="/admin/consulting" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>Consulting</Link>
+        <Link to="/admin/consulting" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>{t('adminConsultingScheduler.breadcrumb.consulting')}</Link>
         {' / '}
-        <span>Scheduling</span>
+        <span>{t('adminConsultingScheduler.breadcrumb.scheduling')}</span>
       </nav>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.75rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 700 }}>Session Scheduler</h1>
+        <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 700 }}>{t('adminConsultingScheduler.title')}</h1>
         <button onClick={() => setShowNewSession(true)} style={{ padding: '0.65rem 1.25rem', borderRadius: '8px', border: 'none', background: 'var(--color-primary)', color: 'white', fontWeight: 600, cursor: 'pointer' }}>
-          + Schedule Session
+          {t('adminConsultingScheduler.actions.scheduleSession')}
         </button>
       </div>
 
@@ -469,15 +473,17 @@ export default function ConsultingScheduler() {
 
       {scheduledSessions.length === 0 ? (
         <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '10px', padding: '2.5rem', textAlign: 'center' }}>
-          <p style={{ color: 'var(--color-text-muted)' }}>No scheduled sessions. Confirm a pending request above to get started.</p>
+          <p style={{ color: 'var(--color-text-muted)' }}>{t('adminConsultingScheduler.scheduled.empty')}</p>
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', background: 'var(--color-surface)', borderRadius: '10px', overflow: 'hidden' }}>
             <thead>
               <tr>
-                {['Client', 'Date & Time', 'Tier', 'Consultant', 'Meeting', 'Status', 'Reminders', 'Actions'].map(h => (
-                  <th key={h} style={{ background: 'var(--color-bg)', padding: '0.85rem 1rem', textAlign: 'left', borderBottom: '2px solid var(--color-border)', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{h}</th>
+                {['client', 'dateTime', 'tier', 'consultant', 'meeting', 'status', 'reminders', 'actions'].map((key) => (
+                  <th key={key} style={{ background: 'var(--color-bg)', padding: '0.85rem 1rem', textAlign: 'left', borderBottom: '2px solid var(--color-border)', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                    {t(`adminConsultingScheduler.scheduled.table.${key}`)}
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -489,20 +495,20 @@ export default function ConsultingScheduler() {
                     <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{s.email}</div>
                   </td>
                   <td style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap', fontSize: '0.9rem' }}>
-                    {s.scheduled_at ? new Date(s.scheduled_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Not set'}
+                    {s.scheduled_at ? new Date(s.scheduled_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : t('adminConsultingScheduler.scheduled.notSet')}
                   </td>
                   <td style={{ padding: '0.85rem 1rem' }}>
                     <span style={{ background: '#8B5CF6', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.78rem', fontWeight: 600 }}>{s.service_tier}</span>
                   </td>
                   <td style={{ padding: '0.85rem 1rem', fontSize: '0.85rem', color: s.consultant_id ? 'var(--color-text)' : 'var(--color-text-muted)' }}>
-                    {s.consultant_name || (s.consultant_id ? 'Assigned' : 'Unassigned')}
+                    {s.consultant_name || (s.consultant_id ? t('adminConsultingScheduler.scheduled.assigned') : t('adminConsultingScheduler.scheduled.unassigned'))}
                   </td>
                   <td style={{ padding: '0.85rem 1rem' }}>
                     {s.meeting_url ? (
                       <a href={s.meeting_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', fontSize: '0.85rem', fontWeight: 600, textDecoration: 'none' }}>
-                        Join
+                        {t('adminConsultingScheduler.scheduled.join')}
                       </a>
-                    ) : <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>No link</span>}
+                    ) : <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>{t('adminConsultingScheduler.scheduled.noLink')}</span>}
                   </td>
                   <td style={{ padding: '0.85rem 1rem' }}>
                     <span style={{ background: SESSION_STATUS_COLORS[s.status] || '#6B7280', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.78rem', fontWeight: 600 }}>
@@ -510,15 +516,15 @@ export default function ConsultingScheduler() {
                     </span>
                   </td>
                   <td style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                    {s.reminder_sent ? 'Sent' : 'Not sent'}
+                    {s.reminder_sent ? t('adminConsultingScheduler.scheduled.reminderSent') : t('adminConsultingScheduler.scheduled.reminderNotSent')}
                   </td>
                   <td style={{ padding: '0.85rem 1rem' }}>
                     <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                       <button onClick={() => setSelectedSession(s)} style={{ padding: '0.3rem 0.6rem', borderRadius: '5px', border: '1px solid var(--color-primary)', background: 'none', color: 'var(--color-primary)', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 600 }}>
-                        Edit
+                        {t('adminConsultingScheduler.scheduled.edit')}
                       </button>
                       <button onClick={() => sendReminder(s)} style={{ padding: '0.3rem 0.6rem', borderRadius: '5px', border: '1px solid var(--color-border)', background: 'none', color: 'var(--color-text-muted)', fontSize: '0.78rem', cursor: 'pointer' }}>
-                        Remind
+                        {t('adminConsultingScheduler.scheduled.remind')}
                       </button>
                     </div>
                   </td>

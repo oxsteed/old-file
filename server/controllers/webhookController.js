@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
+const { sendNotification } = require('../services/notificationService');
 
 if (!process.env.STRIPE_SECRET_KEY) {
   logger.error('[FATAL] STRIPE_SECRET_KEY is not set - Stripe webhooks will fail.');
@@ -280,10 +281,19 @@ exports.stripeWebhook = async (req, res, next) => {
           'SELECT user_id FROM subscriptions WHERE stripe_subscription_id = $1', [subId]
         );
         if (rows.length) {
+          const uid = rows[0].user_id;
           await db.query(
             `UPDATE users SET subscription_status = 'past_due' WHERE id = $1`,
-            [rows[0].user_id]
+            [uid]
           );
+          sendNotification({
+            userId: uid,
+            type: 'payment_failed',
+            title: '⚠️ Subscription Payment Failed',
+            body: 'We couldn\'t charge your card for your OxSteed subscription. Please update your payment method to keep your account active.',
+            data: { subscription_id: subId },
+            action_url: '/settings/billing',
+          }).catch(e => logger.warn('Failed to send subscription payment failed notification', { error: e.message }));
         }
         break;
       }
@@ -325,6 +335,19 @@ exports.stripeWebhook = async (req, res, next) => {
             [jobId]
           );
           logger.info(`[Stripe] PaymentIntent ${pi.id} captured - funds released for job ${jobId}`);
+          // Notify helper that payment has been released
+          const helperId = pi.metadata?.helper_id;
+          if (helperId) {
+            const amountDollars = ((pi.amount_received || pi.amount) / 100).toFixed(2);
+            sendNotification({
+              userId: helperId,
+              type: 'payment_released',
+              title: '💰 Payment Released',
+              body: `$${amountDollars} has been released to your account for job #${jobId}.`,
+              data: { job_id: jobId },
+              action_url: `/jobs/${jobId}`,
+            }).catch(e => logger.warn('Failed to send payment released notification', { error: e.message }));
+          }
         } else if (orderId) {
           // Marketplace order payment succeeded
           await db.query(
@@ -359,6 +382,18 @@ exports.stripeWebhook = async (req, res, next) => {
             [jobId]
           );
           logger.warn(`[Stripe] PaymentIntent ${pi.id} failed for job ${jobId}: ${failureMsg}`);
+          // Notify customer to retry
+          const clientId = pi.metadata?.client_id;
+          if (clientId) {
+            sendNotification({
+              userId: clientId,
+              type: 'payment_failed',
+              title: '⚠️ Payment Failed',
+              body: `Your escrow payment for job #${jobId} failed: ${failureMsg}. Please try again.`,
+              data: { job_id: jobId },
+              action_url: `/jobs/${jobId}`,
+            }).catch(e => logger.warn('Failed to send payment failed notification to customer', { error: e.message }));
+          }
         }
         break;
       }

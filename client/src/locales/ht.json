@@ -2568,6 +2568,9 @@
       "deleteConfirm": "Efase fakti sa a?",
       "sentToClient": "Fakti voye bay klyan an",
       "sentWithLink": "Fakti voye! Pataje lyen an: {{url}}",
+      "clientNameRequired": "Non klyan an obligatwa",
+      "clientEmailRequired": "Imèl klyan an obligatwa",
+      "lineItemRequired": "Ajoute omwen yon atik liy",
       "clientName": "Non Klyan",
       "clientEmail": "Email Klyan",
       "lineItems": "Atik Liy",
@@ -5198,8 +5201,10 @@
   "errorBoundary": {
     "title": "Yon bagay te mal pase",
     "message": "Yon erè inatandu te rive. Tanpri eseye ankò oswa kontakte sipò si pwoblèm nan kontinye.",
+    "detailsSummary": "Detay erè a (dev sèlman)",
     "tryAgain": "Eseye Ankò",
     "goHome": "Ale nan Paj Akèy",
+    "routeHint": "Si sa kontinye rive, efase kach navigatè a epi eseye ankò.",
     "needHelp": "Ou bezwen èd?"
   },
   "businessProfile": {
@@ -8896,6 +8901,446 @@
       "evidence": "Prèv",
       "status": "Estati",
       "noClaims": "Pa gen okenn reklamasyon."
+    }
+  },
+  "investorLogin": {
+    "title": "Koneksyon envestisè",
+    "subtitle": "Antre nan espas travay envestisè OxSteed",
+    "fields": {
+      "email": "Imèl",
+      "password": "Modpas",
+      "signature": "Siyati dijital (non konplè)",
+      "termsAgree": "Mwen dakò ak Kondisyon Sèvis yo ak Politik Konfidansyalite a."
+    },
+    "actions": {
+      "signingIn": "Ap konekte...",
+      "enterDashboard": "Antre nan tablo envestisè a",
+      "createAccount": "Kreye kont envestisè",
+      "standardLogin": "Koneksyon nòmal"
+    },
+    "toast": {
+      "switchingMode": "Konekte. N ap chanje w nan mòd envestisè...",
+      "signInFailed": "Koneksyon envestisè a echwe"
+    }
+  },
+  "tradesRequest": {
+    "loading": "Ap chaje fòm dyagnostik la...",
+    "meta": {
+      "sentTitle": "Demann dyagnostik voye - OxSteed",
+      "requestTitle": "Mande dyagnostik - {{provider}}"
+    },
+    "provider": {
+      "generic": "Founisè a",
+      "thisProvider": "founisè sa a"
+    },
+    "toast": {
+      "loadFailed": "Nou pa t kapab chaje pwofil sèvis sa a.",
+      "titleTooShort": "Ajoute yon ti rezime kout sou pwoblèm nan.",
+      "descriptionTooShort": "Ajoute plis detay pou teknisyen an ka evalye byen.",
+      "requestSent": "Demann dyagnostik la voye.",
+      "sendFailed": "Nou pa t kapab voye demann dyagnostik la."
+    },
+    "success": {
+      "eyebrow": "Demann voye",
+      "body": "{{provider}} ka kounye a evalye pwoblèm nan, dokimante dyagnostik la, ekri rekòmandasyon, epi fè swivi sou reparasyon yo apwouve.",
+      "actions": {
+        "backToProfile": "Retounen sou pwofil la",
+        "goToDashboard": "Ale nan tablo a"
+      }
+    },
+    "hero": {
+      "eyebrow": "Fòm sèvis teknik",
+      "title": "Mande yon dyagnostik nan men {{provider}}",
+      "instructionsFallback": "Pataje sentòm yo, ijans lan, detay sou byen an, ak lè a pou biznis la ka evalye, dyagnostike, epi bay pri pou pwochen etap ki bon an.",
+      "card": {
+        "titleFallback": "Dyagnostik ak estimasyon",
+        "subtitle": "Fèt pou rasanble enfòmasyon teknik, rezilta ekri, ak swivi sou estimasyon olye de demann randevou ki pa klè."
+      }
+    },
+    "sections": {
+      "problemDetails": "Detay pwoblèm nan",
+      "assetAndAccess": "Byen ak aksè",
+      "photosAndExpectations": "Foto ak atant repons"
+    },
+    "fields": {
+      "issueType": "Kalite pwoblèm",
+      "shortTitle": "Tit kout",
+      "symptoms": "Dekri sentòm yo",
+      "urgency": "Ijans",
+      "startedAt": "Kilè sa te kòmanse?",
+      "safetySensitive": "Sansib pou sekirite?",
+      "garagePick": "Chwazi nan garaj mwen",
+      "garagePickPlaceholder": "Chwazi yon machin ki sove",
+      "asset": {
+        "vehicleOrAsset": "Machin oswa byen",
+        "systemOrAsset": "Sistèm oswa byen",
+        "year": "Ane",
+        "propertyType": "Kalite pwopriyete",
+        "vin": "VIN",
+        "mileage": "Kilometraj"
+      },
+      "site": {
+        "outageScope": "Anplitid pann lan",
+        "accessConstraints": "Kontrent aksè",
+        "warningLights": "Limyè avètisman / disjonktè",
+        "priorRepairs": "Reparasyon anvan",
+        "serviceLocationAuto": "Kote sèvis la oswa nòt depo",
+        "serviceAddressGeneric": "Adrès sèvis la oswa nòt sou sit la",
+        "preferredWindows": "Lè ou prefere pou dyagnostik",
+        "bestPhone": "Pi bon nimewo telefòn"
+      }
+    },
+    "placeholders": {
+      "shortTitleAuto": "Limyè motè limen epi ralanti a move",
+      "shortTitleGeneric": "Sikil kwizin nan ap tonbe (disjonkte) tout tan",
+      "symptoms": "Ki sa k ap echwe, kilè li rive, ki sa ki chanje, ak tout sa ki fè l pi mal oswa ki fè l rive tanzantan.",
+      "startedAt": "Jodi a, semèn pase a, apre gwo lapli, apre dènye sèvis la...",
+      "assetAuto": "Toyota Camry 2017",
+      "assetGeneric": "Panèl prensipal, disjonktè 14, kondansè HVAC",
+      "assetYear": "2017",
+      "propertyType": "Rezidansyèl, komèsyal, atelye",
+      "optionalVin": "VIN opsyonèl",
+      "optionalMileage": "Kilometraj opsyonèl",
+      "outageScope": "Tout panèl la, yon chanm, sèlman kèk priz",
+      "accessConstraints": "Kòd pòtay, aksè sou do kay, kliyan an dwe prezan",
+      "warningLights": "Limyè panèl, disjonktè sote, sant boule",
+      "priorRepairs": "Nenpòt sèvis resan, reparasyon, oswa solisyon tanporè",
+      "serviceLocationAuto": "Depo nan boutik la, vizit sou sit, oswa kote machin nan ye",
+      "serviceAddressGeneric": "Adrès, nòt aksè, pakin, oswa kontrent sou sit la",
+      "preferredWindows": "Kilè yon moun ka enspekte, rele, oswa pwograme sèvis la.",
+      "optional": "Opsyonèl"
+    },
+    "issueTypes": {
+      "systemFailure": "Pann sistèm",
+      "safetyConcern": "Enkyetid sekirite",
+      "intermittent": "Pwoblèm tanzantan",
+      "installOrReplacement": "Enstalasyon oswa ranplasman",
+      "maintenance": "Demann antretyen"
+    },
+    "urgency": {
+      "emergency": "Ijans",
+      "urgent": "Ijan",
+      "normal": "Nòmal",
+      "low": "Ba"
+    },
+    "safetySensitive": {
+      "no": "Pa gen risk sekirite imedya",
+      "yes": "Wi, risk sekirite oswa risk pann"
+    },
+    "photos": {
+      "selected_one": "{{count}} foto chwazi",
+      "selected_other": "{{count}} foto chwazi",
+      "addUpTo": "Ajoute jiska 5 foto"
+    },
+    "notes": {
+      "organizer": "OxSteed ede òganize rasanbleman enfòmasyon dyagnostik, rekòmandasyon ekri, ak swivi. Founisè a deside chemen reparasyon an, tèm estimasyon an, epi si sèvis ijans oswa sèvis sou sit disponib.",
+      "emergencyWithPhone": "Si gen danje imedya oswa echèk ijan, kontakte sèvis ijans yo oswa {{phone}} anvan.",
+      "emergencyFallback": "Si gen danje imedya oswa echèk ijan, kontakte sèvis ijans yo oswa liy ijans founisè a anvan."
+    },
+    "actions": {
+      "sending": "Ap voye...",
+      "sendRequest": "Voye demann dyagnostik la"
+    }
+  },
+  "shoppingCart": {
+    "toast": {
+      "itemAdded": "Atik la ajoute nan panyen an",
+      "itemUpdated": "Atik la mete ajou",
+      "itemRemoved": "Atik la retire",
+      "cartUpdated": "Panyen an mete ajou",
+      "cartDeleted": "Panyen an efase",
+      "savedAsTemplate": "Panyen an sove kòm modèl",
+      "shared": "Panyen an pataje avèk siksè"
+    },
+    "errors": {
+      "loadCart": "Nou pa t kapab chaje panyen an",
+      "addItem": "Nou pa t kapab ajoute atik la",
+      "updateItem": "Nou pa t kapab mete ajou atik la",
+      "removeItem": "Nou pa t kapab retire atik la",
+      "updateCart": "Nou pa t kapab mete ajou panyen an",
+      "deleteCart": "Nou pa t kapab efase panyen an",
+      "saveTemplate": "Nou pa t kapab sove modèl la",
+      "shareCart": "Nou pa t kapab pataje panyen an"
+    }
+  },
+  "adminLicenses": {
+    "title": "Lisans ak sètifikasyon",
+    "subtitle": "Jere lis oto-konplete lisans yo ki parèt pou tout itilizatè. {{total}} antre an total.",
+    "filters": {
+      "searchPlaceholder": "Chèche non lisans…",
+      "allCategories": "Tout kategori"
+    },
+    "table": {
+      "name": "Non lisans / sètifikasyon",
+      "category": "Kategori",
+      "status": "Estati",
+      "actions": "Aksyon",
+      "loading": "Ap chaje…",
+      "none": "Pa gen lisans jwenn",
+      "noneCategory": "okenn"
+    },
+    "status": {
+      "active": "Aktif",
+      "hidden": "Kache"
+    },
+    "pagination": {
+      "showing": "Ap montre {{start}}–{{end}} sou {{total}}",
+      "previous": "Anvan",
+      "next": "Apre"
+    },
+    "modal": {
+      "editTitle": "Modifye lisans",
+      "addTitle": "Ajoute nouvo lisans"
+    },
+    "form": {
+      "name": "Non lisans",
+      "namePlaceholder": "egz. Lisans plonbye mèt",
+      "category": "Kategori",
+      "categoryPlaceholder": "egz. Plonbri",
+      "activeLabel": "Aktif (vizib nan oto-konplete)"
+    },
+    "actions": {
+      "add": "Ajoute lisans",
+      "edit": "Modifye",
+      "cancel": "Anile",
+      "saveChanges": "Sove chanjman yo",
+      "saving": "Ap sove…",
+      "hideFromAutocomplete": "Kache nan oto-konplete",
+      "restore": "Retabli",
+      "hardDelete": "Efase nèt"
+    },
+    "deleteConfirm": "Efase nèt \"{{name}}\"? Ou p ap ka defè sa.",
+    "toast": {
+      "loadFailed": "Nou pa t kapab chaje lisans yo",
+      "nameRequired": "Non lisans lan obligatwa",
+      "added": "Lisans ajoute",
+      "updated": "Lisans mete ajou",
+      "saveFailed": "Nou pa t kapab sove lisans lan",
+      "hidden": "Lisans kache nan oto-konplete",
+      "restored": "Lisans retabli",
+      "toggleFailed": "Nou pa t kapab chanje estati lisans lan",
+      "deleted": "Lisans efase",
+      "deleteFailed": "Nou pa t kapab efase lisans lan"
+    }
+  },
+  "adminConsultingSessionDetail": {
+    "confirm": {
+      "complete": "Make sesyon sa a fini? N ap voye yon imèl swivi bay kliyan an ak aksyon pou li fè.",
+      "noShow": "Make sesyon sa a kòm 'pa vini'? N ap voye yon imèl swivi bay kliyan an pou pwopoze replanifye."
+    },
+    "toast": {
+      "loadConsultantsFailed": "Nou pa t kapab chaje konsiltan yo",
+      "selectConsultant": "Tanpri chwazi yon konsiltan",
+      "consultantAssigned": "Konsiltan an asiyen avèk siksè",
+      "assignConsultantFailed": "Nou pa t kapab asiyen konsiltan an",
+      "markedComplete": "Sesyon an make kòm fini. Imèl swivi a nan lis pou voye.",
+      "markCompleteFailed": "Nou pa t kapab make sesyon an kòm fini",
+      "markedNoShow": "Sesyon an make kòm 'pa vini'. Imèl swivi a nan lis pou voye.",
+      "markNoShowFailed": "Nou pa t kapab make sesyon an kòm 'pa vini'",
+      "statusUpdated": "Estati a mete ajou avèk siksè",
+      "statusUpdateFailed": "Nou pa t kapab mete ajou estati a",
+      "noteRequired": "Tanpri antre yon nòt",
+      "notesSaved": "Nòt yo sove avèk siksè",
+      "saveNotesFailed": "Nou pa t kapab sove nòt yo"
+    }
+  },
+  "adminConsultingScheduler": {
+    "loading": "Ap chaje sesyon yo...",
+    "title": "Pwogramasyon sesyon",
+    "breadcrumb": {
+      "admin": "Admin",
+      "consulting": "Konsiltasyon",
+      "scheduling": "Pwogramasyon"
+    },
+    "actions": {
+      "cancel": "Anile",
+      "scheduleSession": "+ Pwograme sesyon"
+    },
+    "confirm": {
+      "decline": "Refize demann sa a? N ap notifye kliyan an."
+    },
+    "toast": {
+      "loadFailed": "Nou pa t kapab chaje sesyon yo",
+      "selectDateTime": "Tanpri chwazi dat ak lè",
+      "sessionScheduled": "Sesyon an pwograme",
+      "scheduleFailed": "Nou pa t kapab pwograme sesyon an",
+      "inviteSent": "Envitasyon kalandriye a voye",
+      "inviteFailed": "Nou pa t kapab voye envitasyon an",
+      "requestDeclined": "Demann lan refize",
+      "declineFailed": "Nou pa t kapab refize demann lan",
+      "createRequiredFields": "Imèl, dat, ak lè obligatwa",
+      "sessionCreated": "Sesyon an kreye",
+      "createFailed": "Nou pa t kapab kreye sesyon an",
+      "reminderSent": "Rapèl la voye bay kliyan an",
+      "reminderFailed": "Nou pa t kapab voye rapèl la"
+    },
+    "scheduleModal": {
+      "title": "Pwograme: {{name}}",
+      "noPhone": "Pa gen telefòn",
+      "selectDate": "Chwazi dat",
+      "selectTime": "Chwazi lè",
+      "meetingUrlLabel": "URL reyinyon (Zoom, Google Meet...)",
+      "meetingUrlPlaceholder": "https://zoom.us/j/...",
+      "assignConsultant": "Asiyen konsiltan",
+      "selectConsultantPlaceholder": "-- Chwazi konsiltan --",
+      "scheduling": "Ap pwograme...",
+      "confirm": "Konfime sesyon an",
+      "sendInvite": "Voye envitasyon",
+      "decline": "Refize"
+    },
+    "newSessionModal": {
+      "title": "Pwograme nouvo sesyon",
+      "fields": {
+        "firstName": "Prenon",
+        "lastName": "Siyati",
+        "email": "Imèl *",
+        "serviceTier": "Nivo sèvis",
+        "date": "Dat *",
+        "time": "Lè *",
+        "timePlaceholder": "-- Chwazi --",
+        "meetingUrl": "URL reyinyon",
+        "meetingUrlPlaceholder": "https://zoom.us/j/...",
+        "assignConsultant": "Asiyen konsiltan",
+        "unassigned": "-- San asiyen --",
+        "notes": "Nòt"
+      },
+      "actions": {
+        "creating": "Ap kreye...",
+        "create": "Kreye sesyon"
+      }
+    },
+    "scheduled": {
+      "empty": "Pa gen sesyon pwograme. Konfime yon demann ki ann atant anlè a pou kòmanse.",
+      "notSet": "Pa fikse",
+      "assigned": "Asiyen",
+      "unassigned": "San asiyen",
+      "join": "Antre",
+      "noLink": "Pa gen lyen",
+      "reminderSent": "Voye",
+      "reminderNotSent": "Pa voye",
+      "edit": "Modifye",
+      "remind": "Raple",
+      "table": {
+        "client": "Kliyan",
+        "dateTime": "Dat ak lè",
+        "tier": "Nivo",
+        "consultant": "Konsiltan",
+        "meeting": "Reyinyon",
+        "status": "Estati",
+        "reminders": "Rapèl",
+        "actions": "Aksyon"
+      }
+    }
+  },
+  "adminConsultingSessions": {
+    "title": "Sesyon konsiltasyon",
+    "subtitle": "{{total}} sesyon an total",
+    "breadcrumb": {
+      "admin": "Admin",
+      "consulting": "Konsiltasyon",
+      "sessions": "Sesyon"
+    },
+    "loading": "Ap chaje sesyon yo...",
+    "filters": {
+      "searchPlaceholder": "Chèche pa non oswa imèl...",
+      "allStatus": "Tout estati",
+      "allTiers": "Tout nivo",
+      "clear": "Netwaye"
+    },
+    "status": {
+      "pending": "Annatant",
+      "scheduled": "Pwograme",
+      "completed": "Fini",
+      "cancelled": "Anile",
+      "noShow": "Pa vini"
+    },
+    "tiers": {
+      "initial": "Inisyal ($100)",
+      "foundation": "Fondasyon",
+      "implementation": "Enplemantasyon",
+      "transformation": "Transfòmasyon"
+    },
+    "assigned": "Asiyen",
+    "unassigned": "San asiyen",
+    "areas": {
+      "none": "Okenn",
+      "more": "+{{count}} lòt"
+    },
+    "actions": {
+      "exportCsv": "Ekspòte CSV",
+      "newSession": "+ Nouvo sesyon",
+      "view": "Wè",
+      "complete": "Fini",
+      "followUp": "Swivi",
+      "cancel": "Anile",
+      "creating": "Ap kreye...",
+      "createSession": "Kreye sesyon"
+    },
+    "table": {
+      "client": "Kliyan",
+      "email": "Imèl",
+      "serviceTier": "Nivo sèvis",
+      "status": "Estati",
+      "consultant": "Konsiltan",
+      "scheduled": "Pwograme",
+      "areasOfHelp": "Zòn èd",
+      "submitted": "Voye",
+      "actions": "Aksyon"
+    },
+    "empty": {
+      "title": "Poko gen sesyon konsiltasyon",
+      "subtitle": "Kreye yon nouvo sesyon oswa kliyan yo ka voye demann atravè fòm intake la.",
+      "noMatches": "Pa gen sesyon ki mache ak filtè ou yo."
+    },
+    "pagination": {
+      "previous": "← Anvan",
+      "next": "Apre →",
+      "pageOf": "Paj {{page}} sou {{pages}}"
+    },
+    "confirm": {
+      "markComplete": "Make sesyon ak {{name}} kòm fini?",
+      "cancel": "Anile sesyon ak {{name}}?"
+    },
+    "toast": {
+      "loadFailed": "Nou pa t kapab chaje sesyon yo",
+      "markedComplete": "Sesyon an make kòm fini",
+      "markCompleteFailed": "Nou pa t kapab make kòm fini",
+      "cancelled": "Sesyon an anile",
+      "cancelFailed": "Nou pa t kapab anile sesyon an",
+      "followUpSent": "Imèl swivi a voye",
+      "followUpFailed": "Nou pa t kapab voye swivi a",
+      "createRequired": "Imèl ak nivo sèvis obligatwa",
+      "created": "Sesyon an kreye",
+      "createFailed": "Nou pa t kapab kreye sesyon an"
+    },
+    "newSession": {
+      "title": "Nouvo sesyon konsiltasyon",
+      "fields": {
+        "firstName": "Prenon",
+        "lastName": "Siyati",
+        "email": "Imèl *",
+        "phone": "Telefòn",
+        "businessName": "Non biznis",
+        "serviceTier": "Nivo sèvis *",
+        "assignConsultant": "Asiyen konsiltan",
+        "unassigned": "-- San asiyen --",
+        "sessionDate": "Dat sesyon",
+        "sessionTime": "Lè sesyon",
+        "notSet": "-- Pa fikse --",
+        "meetingUrl": "URL reyinyon",
+        "meetingUrlPlaceholder": "https://zoom.us/j/...",
+        "areasOfFocus": "Zòn fokus",
+        "description": "Deskripsyon / nòt"
+      }
+    },
+    "csv": {
+      "name": "Non",
+      "email": "Imèl",
+      "serviceTier": "Nivo sèvis",
+      "status": "Estati",
+      "areasOfHelp": "Zòn èd",
+      "submitted": "Voye",
+      "scheduled": "Pwograme"
     }
   }
 }

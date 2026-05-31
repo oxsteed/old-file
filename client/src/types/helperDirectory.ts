@@ -284,6 +284,8 @@ export interface HelperCardData {
   distanceMiles?: number;
   availableToday: boolean;
   shortBio: string;
+  /** Learn category certifications earned by this helper */
+  skillBadges?: Array<{ category: string; earnedAt: string }>;
 }
 
 // ─── Directory page state ─────────────────────────────────────────────────────

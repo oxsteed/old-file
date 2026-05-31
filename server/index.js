@@ -793,6 +793,8 @@ const cleanupOldMessagesJob = require('./jobs/cleanupOldMessages');
 const { startTemplateExpiryJob } = require('./jobs/templateExpiryJob');
 const { startAcceptedJobExpiryJob } = require('./jobs/acceptedJobExpiryJob');
 const { startScheduledDeletionJob } = require('./jobs/scheduledDeletionJob');
+const { startRecurringJobScheduler }    = require('./jobs/recurringJobScheduler');
+const { startCustomerReengagementJob }  = require('./jobs/customerReengagementJob');
 const bookingController = require('./controllers/bookingController');
 
 startWeeklySummaryJob();
@@ -808,6 +810,8 @@ startAffiliateCommissionBatchJob();
 startScheduledDeletionJob();
 startTemplateExpiryJob();
 startAcceptedJobExpiryJob();
+startRecurringJobScheduler();
+startCustomerReengagementJob();
 
 // Start message cleanup job (180-day auto-retention for support conversations)
 const cron = require('node-cron');

@@ -2,10 +2,12 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { Plus, Search, Pencil, Trash2, ToggleLeft, ToggleRight, X, Check } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 
 const EMPTY_FORM = { name: '', category: '', is_active: true };
 
 export default function LicensesManager() {
+  const { t } = useTranslation();
   const [licenses,   setLicenses]   = useState([]);
   const [total,      setTotal]      = useState(0);
   const [categories, setCategories] = useState([]);
@@ -29,11 +31,11 @@ export default function LicensesManager() {
       setLicenses(data.licenses);
       setTotal(data.total);
     } catch {
-      toast.error('Failed to load licenses');
+      toast.error(t('adminLicenses.toast.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, t]);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -77,21 +79,21 @@ export default function LicensesManager() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!form.name.trim()) return toast.error('License name is required');
+    if (!form.name.trim()) return toast.error(t('adminLicenses.toast.nameRequired'));
     setSaving(true);
     try {
       if (editing) {
         await adminApi.put(`/admin/licenses-lookup/${editing.id}`, form);
-        toast.success('License updated');
+        toast.success(t('adminLicenses.toast.updated'));
       } else {
         await adminApi.post('/admin/licenses-lookup', form);
-        toast.success('License added');
+        toast.success(t('adminLicenses.toast.added'));
       }
       setShowForm(false);
       fetchLicenses();
       fetchCategories();
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to save license');
+      toast.error(err?.response?.data?.error || t('adminLicenses.toast.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -100,22 +102,22 @@ export default function LicensesManager() {
   const handleToggle = async (license) => {
     try {
       await adminApi.put(`/admin/licenses-lookup/${license.id}`, { is_active: !license.is_active });
-      toast.success(license.is_active ? 'License hidden from autocomplete' : 'License restored');
+      toast.success(license.is_active ? t('adminLicenses.toast.hidden') : t('adminLicenses.toast.restored'));
       fetchLicenses();
     } catch {
-      toast.error('Failed to toggle license');
+      toast.error(t('adminLicenses.toast.toggleFailed'));
     }
   };
 
   const handleDelete = async (license) => {
-    if (!confirm(`Hard delete "${license.name}"? This cannot be undone.`)) return;
+    if (!confirm(t('adminLicenses.deleteConfirm', { name: license.name }))) return;
     try {
       await adminApi.delete(`/admin/licenses-lookup/${license.id}?hard=true`);
-      toast.success('License deleted');
+      toast.success(t('adminLicenses.toast.deleted'));
       fetchLicenses();
       fetchCategories();
     } catch {
-      toast.error('Failed to delete license');
+      toast.error(t('adminLicenses.toast.deleteFailed'));
     }
   };
 
@@ -124,16 +126,16 @@ export default function LicensesManager() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-white">Licenses &amp; Certifications</h1>
+          <h1 className="text-xl font-bold text-white">{t('adminLicenses.title')}</h1>
           <p className="text-sm text-gray-400 mt-0.5">
-            Manage the license autocomplete list shown to all users. {total} entries total.
+            {t('adminLicenses.subtitle', { total })}
           </p>
         </div>
         <button
           onClick={openAdd}
           className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition"
         >
-          <Plus size={16} /> Add License
+          <Plus size={16} /> {t('adminLicenses.actions.add')}
         </button>
       </div>
 
@@ -144,7 +146,7 @@ export default function LicensesManager() {
           <input
             value={filters.q}
             onChange={e => setFilters(p => ({ ...p, q: e.target.value, offset: 0 }))}
-            placeholder="Search license names…"
+            placeholder={t('adminLicenses.filters.searchPlaceholder')}
             className="w-full pl-8 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
           />
         </div>
@@ -153,7 +155,7 @@ export default function LicensesManager() {
           onChange={e => setFilters(p => ({ ...p, category: e.target.value, offset: 0 }))}
           className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
         >
-          <option value="">All Categories</option>
+          <option value="">{t('adminLicenses.filters.allCategories')}</option>
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
@@ -163,47 +165,47 @@ export default function LicensesManager() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
-              <th className="text-left px-4 py-3 font-medium">License / Certification Name</th>
-              <th className="text-left px-4 py-3 font-medium">Category</th>
-              <th className="text-left px-4 py-3 font-medium">Status</th>
-              <th className="text-right px-4 py-3 font-medium">Actions</th>
+              <th className="text-left px-4 py-3 font-medium">{t('adminLicenses.table.name')}</th>
+              <th className="text-left px-4 py-3 font-medium">{t('adminLicenses.table.category')}</th>
+              <th className="text-left px-4 py-3 font-medium">{t('adminLicenses.table.status')}</th>
+              <th className="text-right px-4 py-3 font-medium">{t('adminLicenses.table.actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800">
             {loading ? (
-              <tr><td colSpan={4} className="text-center py-10 text-gray-500">Loading…</td></tr>
+              <tr><td colSpan={4} className="text-center py-10 text-gray-500">{t('adminLicenses.table.loading')}</td></tr>
             ) : licenses.length === 0 ? (
-              <tr><td colSpan={4} className="text-center py-10 text-gray-500">No licenses found</td></tr>
+              <tr><td colSpan={4} className="text-center py-10 text-gray-500">{t('adminLicenses.table.none')}</td></tr>
             ) : licenses.map(license => (
               <tr key={license.id} className={`hover:bg-gray-800/50 transition ${!license.is_active ? 'opacity-50' : ''}`}>
                 <td className="px-4 py-3 text-white font-medium">{license.name}</td>
-                <td className="px-4 py-3 text-gray-400">{license.category || <span className="text-gray-600 italic">none</span>}</td>
+                <td className="px-4 py-3 text-gray-400">{license.category || <span className="text-gray-600 italic">{t('adminLicenses.table.noneCategory')}</span>}</td>
                 <td className="px-4 py-3">
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
                     license.is_active ? 'bg-green-500/10 text-green-400' : 'bg-gray-700 text-gray-500'
                   }`}>
-                    {license.is_active ? 'Active' : 'Hidden'}
+                    {license.is_active ? t('adminLicenses.status.active') : t('adminLicenses.status.hidden')}
                   </span>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1">
                     <button
                       onClick={() => handleToggle(license)}
-                      title={license.is_active ? 'Hide from autocomplete' : 'Restore'}
+                      title={license.is_active ? t('adminLicenses.actions.hideFromAutocomplete') : t('adminLicenses.actions.restore')}
                       className="p-1.5 text-gray-500 hover:text-orange-400 transition rounded hover:bg-gray-800"
                     >
                       {license.is_active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
                     </button>
                     <button
                       onClick={() => openEdit(license)}
-                      title="Edit"
+                      title={t('adminLicenses.actions.edit')}
                       className="p-1.5 text-gray-500 hover:text-white transition rounded hover:bg-gray-800"
                     >
                       <Pencil size={14} />
                     </button>
                     <button
                       onClick={() => handleDelete(license)}
-                      title="Hard delete"
+                      title={t('adminLicenses.actions.hardDelete')}
                       className="p-1.5 text-gray-500 hover:text-red-400 transition rounded hover:bg-gray-800"
                     >
                       <Trash2 size={14} />
@@ -219,18 +221,24 @@ export default function LicensesManager() {
       {/* Pagination */}
       {total > filters.limit && (
         <div className="flex items-center justify-between mt-4 text-sm text-gray-400">
-          <span>Showing {filters.offset + 1}–{Math.min(filters.offset + filters.limit, total)} of {total}</span>
+          <span>
+            {t('adminLicenses.pagination.showing', {
+              start: filters.offset + 1,
+              end: Math.min(filters.offset + filters.limit, total),
+              total,
+            })}
+          </span>
           <div className="flex gap-2">
             <button
               disabled={filters.offset === 0}
               onClick={() => setFilters(p => ({ ...p, offset: Math.max(0, p.offset - p.limit) }))}
               className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 disabled:opacity-40 transition"
-            >Previous</button>
+            >{t('adminLicenses.pagination.previous')}</button>
             <button
               disabled={filters.offset + filters.limit >= total}
               onClick={() => setFilters(p => ({ ...p, offset: p.offset + p.limit }))}
               className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 disabled:opacity-40 transition"
-            >Next</button>
+            >{t('adminLicenses.pagination.next')}</button>
           </div>
         </div>
       )}
@@ -240,7 +248,7 @@ export default function LicensesManager() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="font-bold text-white">{editing ? 'Edit License' : 'Add New License'}</h3>
+              <h3 className="font-bold text-white">{editing ? t('adminLicenses.modal.editTitle') : t('adminLicenses.modal.addTitle')}</h3>
               <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-white transition">
                 <X size={18} />
               </button>
@@ -249,20 +257,20 @@ export default function LicensesManager() {
             <form onSubmit={handleSave} className="space-y-4">
               <div>
                 <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">
-                  License Name <span className="text-orange-500">*</span>
+                  {t('adminLicenses.form.name')} <span className="text-orange-500">*</span>
                 </label>
                 <input
                   required
                   value={form.name}
                   onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                  placeholder="e.g. Master Plumber License"
+                  placeholder={t('adminLicenses.form.namePlaceholder')}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none"
                 />
               </div>
 
               <div ref={catRef} className="relative">
                 <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">
-                  Category
+                  {t('adminLicenses.form.category')}
                 </label>
                 <input
                   value={catSearch}
@@ -270,7 +278,7 @@ export default function LicensesManager() {
                     setCatSearch(e.target.value);
                     setForm(p => ({ ...p, category: e.target.value }));
                   }}
-                  placeholder="e.g. Plumbing"
+                  placeholder={t('adminLicenses.form.categoryPlaceholder')}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none"
                 />
                 {catSugs.length > 0 && (
@@ -297,7 +305,7 @@ export default function LicensesManager() {
                   onChange={e => setForm(p => ({ ...p, is_active: e.target.checked }))}
                   className="accent-orange-500"
                 />
-                <span className="text-sm text-gray-400">Active (visible in autocomplete)</span>
+                <span className="text-sm text-gray-400">{t('adminLicenses.form.activeLabel')}</span>
               </label>
 
               <div className="flex gap-3 pt-1">
@@ -305,13 +313,13 @@ export default function LicensesManager() {
                   type="button"
                   onClick={() => setShowForm(false)}
                   className="flex-1 py-2.5 border border-gray-700 text-gray-400 hover:text-white rounded-lg text-sm transition"
-                >Cancel</button>
+                >{t('adminLicenses.actions.cancel')}</button>
                 <button
                   type="submit"
                   disabled={saving}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg text-sm disabled:opacity-50 transition"
                 >
-                  <Check size={16} /> {saving ? 'Saving…' : (editing ? 'Save Changes' : 'Add License')}
+                  <Check size={16} /> {saving ? t('adminLicenses.actions.saving') : (editing ? t('adminLicenses.actions.saveChanges') : t('adminLicenses.actions.add'))}
                 </button>
               </div>
             </form>

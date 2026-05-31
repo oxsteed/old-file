@@ -112,6 +112,9 @@ import DiscoverPage from './pages/DiscoverPage';
 import MyBookingsPage from './pages/MyBookingsPage';
 import ToolRentalsAnalytics from './pages/ToolRentalsAnalytics';
 import QRCodeGeneratorPage from './pages/QRCodeGeneratorPage';
+import BusinessPublicProfilePage from './pages/BusinessPublicProfilePage';
+import HelperPublicProfilePage from './pages/HelperPublicProfilePage';
+import JobPublicPage from './pages/JobPublicPage';
 import ConsultingFullPortal from './pages/ConsultingFullPortal';
 import ConsultingPortalPage from './pages/ConsultingPortalPage';
 import ConsultantAvailabilityPage from './pages/ConsultantAvailabilityPage';
@@ -214,8 +217,10 @@ export default function App() {
                     <Route path="/about"                   element={<Guarded><AboutPage /></Guarded>} />
                     <Route path="/jobs"                    element={<Guarded><JobListPage /></Guarded>} />
                     <Route path="/jobs/:id"                element={<Guarded><JobDetailPage /></Guarded>} />
+                    <Route path="/jobs/public/:jobId"      element={<JobPublicPage />} />
                     <Route path="/profile/:id"             element={<Guarded><PublicProfile /></Guarded>} />
                     <Route path="/helpers"                 element={<Guarded><HelpersDirectoryPage /></Guarded>} />
+                    <Route path="/helpers/public/:helperId" element={<HelperPublicProfilePage />} />
                     <Route path="/discover"                element={<Guarded><DiscoverPage /></Guarded>} />
                     <Route path="/consulting-intake"       element={<Guarded><ConsultingIntakePage /></Guarded>} />
                     <Route path="/consulting/feedback/:sessionId" element={<Guarded><ConsultingFeedbackPage /></Guarded>} />
@@ -224,6 +229,7 @@ export default function App() {
                     <Route path="/franchise/status"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><FranchiseApplicantDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/franchise/territory"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><FranchiseTerritoryOpsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
+                    <Route path="/businesses/public/:businessId" element={<BusinessPublicProfilePage />} />
                     <Route path="/book/:id"                element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookHelperPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/book/business/:id"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookBusinessPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/business/:businessId/services/:serviceId/book" element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookServicePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

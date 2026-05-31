@@ -124,7 +124,27 @@ exports.createPaymentIntent = async (req, res, next) => {
       throw new AppError('Helper payment account is not ready. Please ask the helper to complete their payment setup.', 400, 'helper_account_not_ready');
     }
 
-    const jobValueCents = Math.round(job.rows[0].job_value * 100);
+    const rawJobValueCents = Math.round(job.rows[0].job_value * 100);
+
+    // ── Apply referral credits (reduces amount charged to customer) ──────────
+    // Query spendable credit balance: referral_credit + dispute_credit + promo_credit
+    // minus any previously applied credits.
+    const creditResult = await pool.query(
+      `SELECT COALESCE(SUM(
+         CASE WHEN type IN ('referral_credit', 'dispute_credit', 'promo_credit') THEN amount_cents
+              WHEN type = 'credit_applied' THEN -amount_cents
+              ELSE 0
+         END
+       ), 0) AS balance_cents
+       FROM platform_ledger
+       WHERE user_id = $1`,
+      [req.user.id]
+    );
+    const availableCreditCents = Math.max(0, parseInt(creditResult.rows[0].balance_cents, 10));
+    // Cap credit at job value — can't go below $0.50 (Stripe minimum)
+    const appliedCreditCents = Math.min(availableCreditCents, Math.max(0, rawJobValueCents - 50));
+    const jobValueCents = rawJobValueCents - appliedCreditCents;
+
     const fees = calculateTier3Fees(jobValueCents);
 
     // Check for existing payment to prevent duplicates (idempotency).
@@ -206,7 +226,22 @@ exports.createPaymentIntent = async (req, res, next) => {
       throw new AppError('Failed to save payment intent to database', 500, 'payment_save_failed');
     }
 
-    res.json({ client_secret: paymentIntent.client_secret, payment_intent_id: paymentIntent.id });
+    // Record the credit deduction so it can't be double-spent
+    if (appliedCreditCents > 0) {
+      await pool.query(
+        `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
+         VALUES ($1, 'credit_applied', $2, 'Referral credit applied to job payment', $3)`,
+        [req.user.id, appliedCreditCents, JSON.stringify({ job_id, payment_id: insertRows[0].id })]
+      );
+      logger.info(`Applied ${appliedCreditCents}¢ credit for user ${req.user.id} on job ${job_id}`);
+    }
+
+    res.json({
+      client_secret: paymentIntent.client_secret,
+      payment_intent_id: paymentIntent.id,
+      applied_credit_cents: appliedCreditCents,
+      applied_credit_dollars: (appliedCreditCents / 100).toFixed(2),
+    });
   } catch (err) {
     next(err);
   }

@@ -175,6 +175,26 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
         {/* Short bio */}
         <p className="text-xs text-gray-400 leading-relaxed line-clamp-2">{helper.shortBio}</p>
 
+        {/* Learn certifications — show up to 3 badges */}
+        {helper.skillBadges && helper.skillBadges.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {helper.skillBadges.slice(0, 3).map((badge) => (
+              <span
+                key={badge.category}
+                title={`OxSteed Learn certified: ${badge.category}`}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-900/30 text-amber-400 border border-amber-700/40"
+              >
+                🎓 {badge.category}
+              </span>
+            ))}
+            {helper.skillBadges.length > 3 && (
+              <span className="px-2 py-0.5 rounded-full text-xs text-gray-500 border border-gray-700">
+                +{helper.skillBadges.length - 3} more
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Category + skill pills */}
         <div className="flex flex-wrap gap-1.5">
           {helper.categories.slice(0, 3).map((cat) => (

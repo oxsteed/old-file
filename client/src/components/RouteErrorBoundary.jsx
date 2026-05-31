@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Per-route error boundary to isolate page crashes
@@ -54,6 +55,7 @@ class RouteErrorBoundary extends React.Component {
  */
 function RouteErrorFallback({ error, errorInfo, onReset }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   return (
     <div style={styles.container}>
@@ -62,15 +64,15 @@ function RouteErrorFallback({ error, errorInfo, onReset }) {
           <span style={styles.icon}>⚠️</span>
         </div>
 
-        <h1 style={styles.title}>Something went wrong</h1>
+        <h1 style={styles.title}>{t('errorBoundary.title')}</h1>
 
         <p style={styles.message}>
-          This page encountered an error. Your data is safe and the rest of the app is working normally.
+          {t('errorBoundary.message')}
         </p>
 
         {import.meta.env.DEV && (
           <details style={styles.details}>
-            <summary style={styles.summary}>Error details (development only)</summary>
+            <summary style={styles.summary}>{t('errorBoundary.detailsSummary')}</summary>
             <pre style={styles.errorText}>
               {error && error.toString()}
               {'\n\n'}
@@ -81,15 +83,15 @@ function RouteErrorFallback({ error, errorInfo, onReset }) {
 
         <div style={styles.actions}>
           <button onClick={onReset} style={{ ...styles.button, ...styles.primaryButton }}>
-            Try Again
+            {t('errorBoundary.tryAgain')}
           </button>
           <button onClick={() => navigate('/')} style={{ ...styles.button, ...styles.secondaryButton }}>
-            Go Home
+            {t('errorBoundary.goHome')}
           </button>
         </div>
 
         <p style={styles.hint}>
-          If this keeps happening, please clear your browser cache and try again.
+          {t('errorBoundary.routeHint')}
         </p>
       </div>
     </div>

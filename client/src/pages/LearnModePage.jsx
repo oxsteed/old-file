@@ -4711,6 +4711,7 @@ export default function LearnModePage() {
                                               rel="noopener noreferrer"
                                               className={isOwn ? 'lrn-tool-buy lrn-tool-buy--own' : 'lrn-tool-buy'}
                                               aria-label={ariaLabel}
+                                              onClick={() => { try { window.gtag && window.gtag('event', 'learn_buy_clicked', { tool_name: tool.name, link_type: tool.link_type || (isAffiliate ? 'amazon_affiliate' : 'partner') }); } catch(_){} }}
                                             >
                                               {label} <ExternalLink size={11} aria-hidden="true" />
                                             </a>

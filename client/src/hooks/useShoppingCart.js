@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { cartApi, shareApi } from '../api/marketplaceApi';
 import { toast } from 'sonner';
+import i18next from 'i18next';
 
 /**
  * Custom hook for managing shopping cart state and operations
@@ -24,7 +25,7 @@ export const useShoppingCart = (cartId) => {
       setCart(data);
       setItems(data.items || []);
     } catch (err) {
-      const message = err.response?.data?.error || 'Failed to load cart';
+      const message = err.response?.data?.error || i18next.t('shoppingCart.errors.loadCart');
       setError(message);
       toast.error(message);
     } finally {
@@ -45,10 +46,10 @@ export const useShoppingCart = (cartId) => {
       try {
         const { data } = await cartApi.addItem(cartId, productId, quantity, notes);
         setItems([...items, data]);
-        toast.success('Item added to cart');
+        toast.success(i18next.t('shoppingCart.toast.itemAdded'));
         return data;
       } catch (err) {
-        const message = err.response?.data?.error || 'Failed to add item';
+        const message = err.response?.data?.error || i18next.t('shoppingCart.errors.addItem');
         toast.error(message);
         throw err;
       }
@@ -62,10 +63,10 @@ export const useShoppingCart = (cartId) => {
       try {
         const { data } = await cartApi.updateItem(cartId, itemId, quantity, notes);
         setItems(items.map((item) => (item.id === itemId ? { ...item, ...data } : item)));
-        toast.success('Item updated');
+        toast.success(i18next.t('shoppingCart.toast.itemUpdated'));
         return data;
       } catch (err) {
-        const message = err.response?.data?.error || 'Failed to update item';
+        const message = err.response?.data?.error || i18next.t('shoppingCart.errors.updateItem');
         toast.error(message);
         throw err;
       }
@@ -79,9 +80,9 @@ export const useShoppingCart = (cartId) => {
       try {
         await cartApi.removeItem(cartId, itemId);
         setItems(items.filter((item) => item.id !== itemId));
-        toast.success('Item removed');
+        toast.success(i18next.t('shoppingCart.toast.itemRemoved'));
       } catch (err) {
-        const message = err.response?.data?.error || 'Failed to remove item';
+        const message = err.response?.data?.error || i18next.t('shoppingCart.errors.removeItem');
         toast.error(message);
         throw err;
       }
@@ -95,10 +96,10 @@ export const useShoppingCart = (cartId) => {
       try {
         const { data } = await cartApi.updateCart(cartId, name, description, status);
         setCart({ ...cart, ...data });
-        toast.success('Cart updated');
+        toast.success(i18next.t('shoppingCart.toast.cartUpdated'));
         return data;
       } catch (err) {
-        const message = err.response?.data?.error || 'Failed to update cart';
+        const message = err.response?.data?.error || i18next.t('shoppingCart.errors.updateCart');
         toast.error(message);
         throw err;
       }
@@ -110,11 +111,11 @@ export const useShoppingCart = (cartId) => {
   const deleteCart = useCallback(async () => {
     try {
       await cartApi.deleteCart(cartId);
-      toast.success('Cart deleted');
+      toast.success(i18next.t('shoppingCart.toast.cartDeleted'));
       setCart(null);
       setItems([]);
     } catch (err) {
-      const message = err.response?.data?.error || 'Failed to delete cart';
+      const message = err.response?.data?.error || i18next.t('shoppingCart.errors.deleteCart');
       toast.error(message);
       throw err;
     }
@@ -126,10 +127,10 @@ export const useShoppingCart = (cartId) => {
       try {
         const { data } = await cartApi.saveAsTemplate(cartId, templateName);
         setCart({ ...cart, ...data, is_template: true });
-        toast.success('Cart saved as template');
+        toast.success(i18next.t('shoppingCart.toast.savedAsTemplate'));
         return data;
       } catch (err) {
-        const message = err.response?.data?.error || 'Failed to save template';
+        const message = err.response?.data?.error || i18next.t('shoppingCart.errors.saveTemplate');
         toast.error(message);
         throw err;
       }
@@ -147,10 +148,10 @@ export const useShoppingCart = (cartId) => {
           canModify,
           expiresInDays
         );
-        toast.success('Cart shared successfully');
+        toast.success(i18next.t('shoppingCart.toast.shared'));
         return data;
       } catch (err) {
-        const message = err.response?.data?.error || 'Failed to share cart';
+        const message = err.response?.data?.error || i18next.t('shoppingCart.errors.shareCart');
         toast.error(message);
         throw err;
       }

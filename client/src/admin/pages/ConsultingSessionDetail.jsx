@@ -32,7 +32,7 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
       const response = await axios.get('/consulting/admin/consultants');
       setConsultants(response.data);
     } catch (err) {
-      toast.error('Failed to load consultants');
+      toast.error(t('adminConsultingSessionDetail.toast.loadConsultantsFailed'));
     } finally {
       setConsultantsLoading(false);
     }
@@ -40,7 +40,7 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
 
   async function assignConsultant() {
     if (!selectedConsultant) {
-      toast.error('Please select a consultant');
+      toast.error(t('adminConsultingSessionDetail.toast.selectConsultant'));
       return;
     }
 
@@ -49,44 +49,44 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
       await axios.patch(`/consulting/admin/sessions/${session.id}`, {
         consultant_assigned_id: selectedConsultant,
       });
-      toast.success('Consultant assigned successfully');
+      toast.success(t('adminConsultingSessionDetail.toast.consultantAssigned'));
       onStatusUpdate();
     } catch (err) {
-      toast.error('Failed to assign consultant');
+      toast.error(t('adminConsultingSessionDetail.toast.assignConsultantFailed'));
     } finally {
       setAssigningConsultant(false);
     }
   }
 
   async function markSessionComplete() {
-    if (!window.confirm('Mark this session as completed? A follow-up email will be sent to the customer with action items.')) {
+    if (!window.confirm(t('adminConsultingSessionDetail.confirm.complete'))) {
       return;
     }
 
     try {
       setUpdateLoading(true);
       await axios.patch(`/consulting/admin/sessions/${session.id}/complete`);
-      toast.success('Session marked as completed. Follow-up email queued.');
+      toast.success(t('adminConsultingSessionDetail.toast.markedComplete'));
       onStatusUpdate();
     } catch (err) {
-      toast.error('Failed to mark session as completed');
+      toast.error(t('adminConsultingSessionDetail.toast.markCompleteFailed'));
     } finally {
       setUpdateLoading(false);
     }
   }
 
   async function markSessionNoShow() {
-    if (!window.confirm('Mark this session as a no-show? A follow-up email will be sent to the customer offering to reschedule.')) {
+    if (!window.confirm(t('adminConsultingSessionDetail.confirm.noShow'))) {
       return;
     }
 
     try {
       setUpdateLoading(true);
       await axios.patch(`/consulting/admin/sessions/${session.id}/no-show`);
-      toast.success('Session marked as no-show. Follow-up email queued.');
+      toast.success(t('adminConsultingSessionDetail.toast.markedNoShow'));
       onStatusUpdate();
     } catch (err) {
-      toast.error('Failed to mark session as no-show');
+      toast.error(t('adminConsultingSessionDetail.toast.markNoShowFailed'));
     } finally {
       setUpdateLoading(false);
     }
@@ -98,11 +98,11 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
       await axios.patch(`/consulting/admin/sessions/${sessionId}`, {
         status: newStatus,
       });
-      toast.success('Status updated successfully');
+      toast.success(t('adminConsultingSessionDetail.toast.statusUpdated'));
       onStatusUpdate();
       onClose();
     } catch (err) {
-      toast.error('Failed to update status');
+      toast.error(t('adminConsultingSessionDetail.toast.statusUpdateFailed'));
     } finally {
       setUpdateLoading(false);
     }
@@ -110,7 +110,7 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
 
   async function saveNotes() {
     if (!notes.trim()) {
-      toast.error('Please enter a note');
+      toast.error(t('adminConsultingSessionDetail.toast.noteRequired'));
       return;
     }
 
@@ -119,10 +119,10 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
       await axios.patch(`/consulting/admin/sessions/${session.id}`, {
         notes: notes,
       });
-      toast.success('Notes saved successfully');
+      toast.success(t('adminConsultingSessionDetail.toast.notesSaved'));
       onStatusUpdate();
     } catch (err) {
-      toast.error('Failed to save notes');
+      toast.error(t('adminConsultingSessionDetail.toast.saveNotesFailed'));
     } finally {
       setNotesLoading(false);
     }

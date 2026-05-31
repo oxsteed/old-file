@@ -99,11 +99,29 @@ exports.getMyReferral = async (req, res, next) => {
     const { referral_code, referrals_count, referral_conversions_count, referral_reward_given, referred_users } = rows[0];
 
     const appUrl = process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com';
-    const shareUrl = `${appUrl}/register/customer?ref=${referral_code}`;
+
+    // Generate role-appropriate share URLs so referrers land on the right
+    // registration flow, and so the platform can track cross-persona referrals.
+    const role = req.user.role || 'customer';
+    const roleToRegisterPath = {
+      helper:          'register/helper',
+      helper_pro:      'register/helper',
+      broker:          'register/helper',
+      business_owner:  'register/business',
+      consultant:      'register/consultant',
+      franchise_owner: 'register/franchise',
+      tool_owner:      'register/helper',
+    };
+    const registerPath = roleToRegisterPath[role] || 'register/customer';
+    const shareUrl         = `${appUrl}/${registerPath}?ref=${referral_code}`;
+    // Also provide a customer-specific URL for when they want to refer end-users
+    const customerShareUrl = `${appUrl}/register/customer?ref=${referral_code}`;
 
     res.json({
       referral_code,
-      share_url:    shareUrl,
+      share_url:          shareUrl,
+      customer_share_url: customerShareUrl,
+      referrer_role:      role,
       reward_type:  REWARD_TYPE,
       stats: {
         referrals_count:            parseInt(referrals_count)            || 0,
@@ -134,6 +152,31 @@ exports.validateCode = async (req, res, next) => {
     }
 
     res.json({ valid: true, referrer_name: rows[0].first_name });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── GET /api/referrals/balance ─────────────────────────────────────────────────
+// Returns the user's spendable referral credit balance in cents and dollars.
+exports.getCreditBalance = async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT COALESCE(SUM(
+         CASE WHEN type IN ('referral_credit', 'dispute_credit', 'promo_credit') THEN amount_cents
+              WHEN type = 'credit_applied' THEN -amount_cents
+              ELSE 0
+         END
+       ), 0) AS balance_cents
+       FROM platform_ledger
+       WHERE user_id = $1`,
+      [req.user.id]
+    );
+    const balanceCents = Math.max(0, parseInt(rows[0].balance_cents, 10));
+    res.json({
+      balance_cents: balanceCents,
+      balance_dollars: (balanceCents / 100).toFixed(2),
+    });
   } catch (err) {
     next(err);
   }

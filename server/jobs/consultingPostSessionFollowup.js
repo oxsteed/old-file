@@ -89,6 +89,24 @@ const startConsultingPostSessionFollowup = () => {
                 <li>Reach out if you have any questions or need clarification</li>
                 <li>Schedule your next session when you're ready for the next phase</li>
               </ul>
+
+              <div style="margin:24px 0;padding:20px;background:#f9f5ff;border-left:4px solid #7c3aed;border-radius:4px;">
+                <h3 style="margin:0 0 8px;color:#5b21b6;">Ready to execute? Find a helper on OxSteed.</h3>
+                <p style="margin:0 0 12px;color:#4b5563;font-size:14px;">
+                  Many action items benefit from hands-on help — a handyman, cleaner, landscaper, or local specialist.
+                  OxSteed has vetted, reviewed helpers ready to take on the work while you focus on growing your business.
+                </p>
+                <a href="${process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com'}/post-job"
+                   style="display:inline-block;padding:10px 20px;background:#7c3aed;color:white;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px;">
+                  Post a Job →
+                </a>
+                &nbsp;
+                <a href="${process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com'}/helpers"
+                   style="display:inline-block;padding:10px 20px;background:white;color:#7c3aed;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px;border:1px solid #7c3aed;">
+                  Browse Helpers
+                </a>
+              </div>
+
               <p>We'd love to hear about your experience! <a href="${process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com'}/consulting/feedback/${session.session_id}">Please provide your feedback here</a> (takes less than 2 minutes).</p>
               <p>Best regards,<br>The OxSteed Consulting Team</p>
             `,

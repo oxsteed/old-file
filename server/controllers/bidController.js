@@ -2,6 +2,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const { AppError } = require('../middleware/errorHandler');
+const { sendNotification } = require('../services/notificationService');
 
 // Create a bid on a job
 exports.createBid = async (req, res, next) => {
@@ -75,6 +76,29 @@ exports.createBid = async (req, res, next) => {
     });
 
     res.status(201).json(result);
+
+    // Notify the job owner that a new bid arrived (non-blocking, after response)
+    try {
+      const jobRow = await pool.query(
+        `SELECT j.client_id, j.title, u.first_name AS helper_name
+         FROM jobs j JOIN users u ON u.id = $1
+         WHERE j.id = $2`,
+        [req.user.id, result.job_id]
+      );
+      if (jobRow.rows[0]) {
+        const { client_id, title, helper_name } = jobRow.rows[0];
+        await sendNotification({
+          userId: client_id,
+          type: 'bid_received',
+          title: 'New Bid on Your Job',
+          body: `${helper_name} placed a bid of $${Number(result.amount).toFixed(2)} on "${title}"`,
+          data: { job_id: result.job_id, bid_id: result.id },
+          action_url: `/jobs/${result.job_id}`,
+        });
+      }
+    } catch (notifErr) {
+      logger.warn('Failed to send bid notification', { error: notifErr.message });
+    }
   } catch (err) {
     next(err);
   }

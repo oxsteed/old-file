@@ -12,6 +12,7 @@
 
 const db = require('../db');
 const logger = require('../utils/logger');
+const { sendBulkNotification } = require('./notificationService');
 
 const MAX_RADIUS_MILES   = 50;
 const MAX_RADIUS_METERS  = MAX_RADIUS_MILES * 1609.34;
@@ -88,6 +89,32 @@ async function scoreAndMatch(job) {
 
   if (!helpers.length) return 0;
 
+  // ── 1b. Franchise territory lookup ────────────────────────────────────────
+  // If a launched franchise covers the job's city/region, boost its owner's
+  // score by +8 pts so franchise operators surface first in their territory.
+  const franchiseOwnerIds = new Set();
+  if (job.location_city || job.location_state) {
+    try {
+      const { rows: franchises } = await db.query(
+        `SELECT owner_user_id
+           FROM franchise_applications
+          WHERE status = 'launched'
+            AND owner_user_id IS NOT NULL
+            AND (
+              LOWER(desired_city)   = LOWER($1)
+              OR LOWER(desired_region) = LOWER($2)
+            )`,
+        [job.location_city || '', job.location_state || '']
+      );
+      for (const f of franchises) {
+        if (f.owner_user_id) franchiseOwnerIds.add(f.owner_user_id);
+      }
+    } catch (franchiseErr) {
+      // Non-fatal — franchise boost is best-effort
+      logger.warn('[matchService] Franchise territory lookup failed', { error: franchiseErr.message });
+    }
+  }
+
   // Parse requirements array to know which credentials are required
   const reqs = Array.isArray(job.requirements) ? job.requirements
     : (typeof job.requirements === 'string' ? JSON.parse(job.requirements) : []);
@@ -147,9 +174,13 @@ async function scoreAndMatch(job) {
     if (requiresBgCheck   && !h.is_background_checked) { credPenalty += 8;  warnings.push('background_check'); }
     breakdown.cred_penalty = -credPenalty;
 
+    // Franchise territory bonus (+8 pts) — franchise operator in their own market
+    const franchiseBonus = franchiseOwnerIds.has(h.user_id) ? 8 : 0;
+    breakdown.franchise_territory = franchiseBonus;
+
     const total = Math.max(0,
       distScore + skillScore + ratingScore + tierScore +
-      jobScore  + rtScore   + urgencyScore - credPenalty
+      jobScore  + rtScore   + urgencyScore + franchiseBonus - credPenalty
     );
 
     return {
@@ -192,10 +223,22 @@ async function scoreAndMatch(job) {
     insertParams
   );
 
-  // ── 5. Mark top NOTIFY helpers for push (future hook) ─────────────────────
-  // In a full implementation this would enqueue push notifications.
-  // We return the notify count so the API response can surface it.
-    const notifyCount = Math.min(safeTop.length, TOP_N_NOTIFY);
+  // ── 5. Notify top matched helpers via push ────────────────────────────────
+  const toNotify = safeTop.slice(0, TOP_N_NOTIFY);
+  const notifyCount = toNotify.length;
+
+  if (notifyCount > 0) {
+    const helperIds = toNotify.map(m => m.helper_id);
+    const jobTitle = job.title || 'A new job';
+    const category = job.category_name || job.category_id || 'service';
+    sendBulkNotification({
+      userIds: helperIds,
+      type: 'job_matched',
+      title: '🔔 New Job Match',
+      body: `"${jobTitle}" — a ${category} job near you is looking for a helper.`,
+      data: { job_id: job.id },
+    }).catch(err => logger.warn('Failed to send job match push notifications', { error: err.message }));
+  }
 
     return { total: safeTop.length, notified: notifyCount };
   } catch (err) {

@@ -6,6 +6,7 @@ const { fuzzCoords } = require('../models/jobModel');
 const { withTransaction, withJobTransaction } = require('../utils/transaction');
 const { captureAuthorizedPaymentWithClient } = require('../services/paymentCaptureService');
 const { AppError } = require('../middleware/errorHandler');
+const { sendNotification, sendBulkNotification } = require('../services/notificationService');
 let { notifyMatchingSavedSearches } = (() => {
   try { return require('../routes/savedSearches'); } catch (_) { return {}; }
 })();
@@ -728,6 +729,20 @@ exports.assignHelper = async (req, res, next) => {
     }, 'assign_helper');
 
     res.status(200).json({ message: 'Bid accepted and helper assigned', job: result.job, bid: result.bid });
+
+    // Notify the hired helper (non-blocking, after response)
+    try {
+      await sendNotification({
+        userId: result.bid.helper_id,
+        type: 'bid_accepted',
+        title: '🎉 You've Been Hired!',
+        body: `Your bid on "${result.job.title}" was accepted. Check the job details for next steps.`,
+        data: { job_id: result.job.id, bid_id: result.bid.id },
+        action_url: `/jobs/${result.job.id}`,
+      });
+    } catch (notifErr) {
+      logger.warn('Failed to send hire notification to helper', { error: notifErr.message });
+    }
   } catch (err) {
     next(err);
   }
@@ -870,10 +885,123 @@ exports.completeJob = async (req, res, next) => {
         [id]
       );
 
+      // Increment helper's completed_jobs_count and refresh search_rank_boost
+      // so their discovery rank reflects their track record immediately.
+      if (rows[0].assigned_helper_id) {
+        await client.query(`
+          UPDATE helper_profiles
+          SET completed_jobs_count = COALESCE(completed_jobs_count, 0) + 1,
+              search_rank_boost = LEAST(2.0,
+                1.0
+                + GREATEST(0.0, COALESCE(avg_rating, 0) - 3.5) * 0.15
+                + LEAST(0.30, LN(GREATEST(1, COALESCE(total_reviews, 0)) + 1) * 0.10)
+                + LEAST(0.25, LN(GREATEST(1, COALESCE(completed_jobs_count, 0) + 1) + 1) * 0.08)
+              ),
+              updated_at = now()
+          WHERE user_id = $1
+        `, [rows[0].assigned_helper_id]);
+      }
+
       return rows[0];
     }, 'complete_job');
 
     res.json({ message: 'Job completed', job: result });
+
+    // Notify both parties to leave a review (non-blocking)
+    try {
+      const jobFull = result;
+      const reviewUrl = `/jobs/${jobFull.id}`;
+      if (jobFull.assigned_helper_id) {
+        await sendNotification({
+          userId: jobFull.assigned_helper_id,
+          type: 'job_completed',
+          title: 'Job Complete — Leave a Review',
+          body: `The job "${jobFull.title || 'your job'}" has been marked complete. Share your experience!`,
+          data: { job_id: jobFull.id },
+          action_url: reviewUrl,
+        });
+      }
+      if (jobFull.client_id && jobFull.client_id !== req.user.id) {
+        // Only notify client if they didn't trigger the completion themselves
+        await sendNotification({
+          userId: jobFull.client_id,
+          type: 'job_completed',
+          title: 'Job Complete — Leave a Review',
+          body: `"${jobFull.title || 'Your job'}" is marked complete. Rate your helper!`,
+          data: { job_id: jobFull.id },
+          action_url: reviewUrl,
+        });
+      }
+    } catch (notifErr) {
+      logger.warn('Failed to send job completion notifications', { error: notifErr.message });
+    }
+
+    // ── Franchise royalty collection (non-blocking) ────────────────────────
+    // If the job was completed in a franchise territory, credit the franchise
+    // owner's platform_ledger with their agreed royalty_bps of the job value.
+    try {
+      const jobForRoyalty = result;
+      if (jobForRoyalty.job_value && (jobForRoyalty.location_city || jobForRoyalty.location_state)) {
+        const city   = jobForRoyalty.location_city  || null;
+        const region = jobForRoyalty.location_state || null;
+
+        const { rows: franchiseRows } = await pool.query(`
+          SELECT fa.owner_user_id, fa.desired_city, fa.desired_region,
+                 fagr.royalty_bps
+          FROM franchise_applications fa
+          JOIN franchise_agreements fagr ON fagr.application_id = fa.id
+          WHERE fa.status = 'launched'
+            AND fagr.royalty_bps > 0
+            AND (
+              ($1::text IS NOT NULL AND LOWER(COALESCE(fa.desired_city,'')) = LOWER($1))
+              OR ($2::text IS NOT NULL AND LOWER(COALESCE(fa.desired_region,'')) = LOWER($2))
+            )
+          LIMIT 1
+        `, [city, region]);
+
+        if (franchiseRows.length > 0) {
+          const { owner_user_id, royalty_bps } = franchiseRows[0];
+          const royaltyCents = Math.round((jobForRoyalty.job_value * 100) * (royalty_bps / 10000));
+          if (royaltyCents > 0 && owner_user_id) {
+            await pool.query(`
+              INSERT INTO platform_ledger
+                (user_id, type, amount_cents, description, metadata, source_type)
+              VALUES ($1, 'franchise_royalty', $2, $3, $4, 'franchise_royalty')
+            `, [
+              owner_user_id,
+              royaltyCents,
+              `Territory royalty — job #${jobForRoyalty.id} in ${city || region}`,
+              JSON.stringify({ job_id: jobForRoyalty.id, royalty_bps, job_value: jobForRoyalty.job_value }),
+            ]);
+            logger.info(`[franchise] Royalty ${royaltyCents}¢ credited to owner ${owner_user_id} for job ${jobForRoyalty.id}`);
+          }
+        }
+      }
+    } catch (royaltyErr) {
+      logger.warn('Failed to collect franchise royalty (non-fatal)', { error: royaltyErr.message });
+    }
+
+    // ── Referral value-event: grant reward on FIRST completed job (non-blocking)
+    // This fires if the customer (client_id) was referred and has now completed
+    // their first job — a stronger signal than mere registration.
+    try {
+      const { rows: referralRows } = await pool.query(`
+        SELECT u.referred_by,
+               (SELECT COUNT(*) FROM jobs
+                WHERE client_id = u.id AND status = 'completed') AS total_completed
+        FROM users u
+        WHERE u.id = $1 AND u.referred_by IS NOT NULL
+      `, [result.client_id]);
+
+      if (referralRows.length > 0 && parseInt(referralRows[0].total_completed) === 1) {
+        // Exactly 1 completed job means this IS the first — grant the conversion reward
+        const { grantReferralReward } = require('./referralController');
+        await grantReferralReward(referralRows[0].referred_by, result.client_id);
+        logger.info(`[referral] Value-event conversion: client ${result.client_id} completed first job, reward → ${referralRows[0].referred_by}`);
+      }
+    } catch (refErr) {
+      logger.warn('Failed to process referral value-event (non-fatal)', { error: refErr.message });
+    }
   } catch (err) {
     next(err);
   }

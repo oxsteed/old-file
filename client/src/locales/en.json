@@ -2477,6 +2477,9 @@
       "deleteConfirm": "Delete this invoice?",
       "sentToClient": "Invoice sent to client",
       "sentWithLink": "Invoice sent! Share link: {{url}}",
+      "clientNameRequired": "Client name required",
+      "clientEmailRequired": "Client email required",
+      "lineItemRequired": "Add at least one line item",
       "clientName": "Client Name",
       "clientEmail": "Client Email",
       "lineItems": "Line Items",
@@ -5198,8 +5201,10 @@
   "errorBoundary": {
     "title": "Something went wrong",
     "message": "An unexpected error occurred. Please try again or contact support if the problem persists.",
+    "detailsSummary": "Error details (development only)",
     "tryAgain": "Try Again",
     "goHome": "Go to Homepage",
+    "routeHint": "If this keeps happening, please clear your browser cache and try again.",
     "needHelp": "Need help?"
   },
   "businessProfile": {
@@ -8896,6 +8901,446 @@
       "evidence": "Evidence",
       "status": "Status",
       "noClaims": "No claims filed yet."
+    }
+  },
+  "investorLogin": {
+    "title": "Investor Login",
+    "subtitle": "Access OxSteed Investor workspace",
+    "fields": {
+      "email": "Email",
+      "password": "Password",
+      "signature": "Digital signature (full name)",
+      "termsAgree": "I agree to the Terms of Service and Privacy Policy."
+    },
+    "actions": {
+      "signingIn": "Signing in...",
+      "enterDashboard": "Enter Investor Dashboard",
+      "createAccount": "Create investor account",
+      "standardLogin": "Standard login"
+    },
+    "toast": {
+      "switchingMode": "Logged in. Switching you to Investor mode...",
+      "signInFailed": "Investor sign-in failed"
+    }
+  },
+  "tradesRequest": {
+    "loading": "Loading diagnostic intake...",
+    "meta": {
+      "sentTitle": "Diagnostic request sent - OxSteed",
+      "requestTitle": "Request diagnostic - {{provider}}"
+    },
+    "provider": {
+      "generic": "The provider",
+      "thisProvider": "this provider"
+    },
+    "toast": {
+      "loadFailed": "Could not load this trades profile.",
+      "titleTooShort": "Add a short summary of the issue.",
+      "descriptionTooShort": "Add more detail so the technician can triage properly.",
+      "requestSent": "Diagnostic request sent.",
+      "sendFailed": "Could not send diagnostic request."
+    },
+    "success": {
+      "eyebrow": "Request sent",
+      "body": "{{provider}} can now triage the issue, document diagnosis, build written recommendations, and move approved work into repair follow-up.",
+      "actions": {
+        "backToProfile": "Back to profile",
+        "goToDashboard": "Go to dashboard"
+      }
+    },
+    "hero": {
+      "eyebrow": "Technical service intake",
+      "title": "Request a diagnostic from {{provider}}",
+      "instructionsFallback": "Share the symptoms, urgency, asset details, and timing so the business can triage, diagnose, and quote the right next step.",
+      "card": {
+        "titleFallback": "Diagnostic and estimate",
+        "subtitle": "Built for technical intake, written findings, and estimate follow-up instead of vague booking requests."
+      }
+    },
+    "sections": {
+      "problemDetails": "Problem details",
+      "assetAndAccess": "Asset and access",
+      "photosAndExpectations": "Photos and response expectations"
+    },
+    "fields": {
+      "issueType": "Issue type",
+      "shortTitle": "Short title",
+      "symptoms": "Describe the symptoms",
+      "urgency": "Urgency",
+      "startedAt": "When did it start?",
+      "safetySensitive": "Safety-sensitive?",
+      "garagePick": "Choose from my garage",
+      "garagePickPlaceholder": "Select a saved vehicle",
+      "asset": {
+        "vehicleOrAsset": "Vehicle or asset",
+        "systemOrAsset": "System or asset",
+        "year": "Year",
+        "propertyType": "Property type",
+        "vin": "VIN",
+        "mileage": "Mileage"
+      },
+      "site": {
+        "outageScope": "Outage scope",
+        "accessConstraints": "Access constraints",
+        "warningLights": "Warning lights / breakers",
+        "priorRepairs": "Prior repairs",
+        "serviceLocationAuto": "Service location or drop-off note",
+        "serviceAddressGeneric": "Service address or site notes",
+        "preferredWindows": "Preferred diagnostic windows",
+        "bestPhone": "Best phone number"
+      }
+    },
+    "placeholders": {
+      "shortTitleAuto": "Engine light on and rough idle",
+      "shortTitleGeneric": "Kitchen circuit keeps tripping",
+      "symptoms": "What is failing, when it happens, what changed, and anything that makes it worse or intermittent.",
+      "startedAt": "Today, last week, after heavy rain, after last service...",
+      "assetAuto": "2017 Toyota Camry",
+      "assetGeneric": "Main panel, breaker 14, HVAC condenser",
+      "assetYear": "2017",
+      "propertyType": "Residential, commercial, shop",
+      "optionalVin": "Optional VIN",
+      "optionalMileage": "Optional mileage",
+      "outageScope": "Whole panel, one room, only certain outlets",
+      "accessConstraints": "Gate code, roof access, customer must be present",
+      "warningLights": "Panel light, tripped breaker, burning smell",
+      "priorRepairs": "Any recent service, repair, or workaround",
+      "serviceLocationAuto": "Shop drop-off, on-site visit, or where the vehicle is located",
+      "serviceAddressGeneric": "Address, access notes, parking, or site constraints",
+      "preferredWindows": "When someone can inspect, call, or schedule service.",
+      "optional": "Optional"
+    },
+    "issueTypes": {
+      "systemFailure": "System failure",
+      "safetyConcern": "Safety concern",
+      "intermittent": "Intermittent issue",
+      "installOrReplacement": "Install or replacement",
+      "maintenance": "Maintenance request"
+    },
+    "urgency": {
+      "emergency": "Emergency",
+      "urgent": "Urgent",
+      "normal": "Normal",
+      "low": "Low"
+    },
+    "safetySensitive": {
+      "no": "No immediate safety risk",
+      "yes": "Yes, safety or breakdown risk"
+    },
+    "photos": {
+      "selected_one": "{{count}} photo selected",
+      "selected_other": "{{count}} photos selected",
+      "addUpTo": "Add up to 5 photos"
+    },
+    "notes": {
+      "organizer": "OxSteed helps organize diagnostic intake, written recommendations, and follow-up. The provider decides the repair path, estimate terms, and whether emergency or on-site service is available.",
+      "emergencyWithPhone": "For immediate danger or urgent failure, contact emergency services or {{phone}} first.",
+      "emergencyFallback": "For immediate danger or urgent failure, contact emergency services or the provider emergency line first."
+    },
+    "actions": {
+      "sending": "Sending...",
+      "sendRequest": "Send diagnostic request"
+    }
+  },
+  "shoppingCart": {
+    "toast": {
+      "itemAdded": "Item added to cart",
+      "itemUpdated": "Item updated",
+      "itemRemoved": "Item removed",
+      "cartUpdated": "Cart updated",
+      "cartDeleted": "Cart deleted",
+      "savedAsTemplate": "Cart saved as template",
+      "shared": "Cart shared successfully"
+    },
+    "errors": {
+      "loadCart": "Failed to load cart",
+      "addItem": "Failed to add item",
+      "updateItem": "Failed to update item",
+      "removeItem": "Failed to remove item",
+      "updateCart": "Failed to update cart",
+      "deleteCart": "Failed to delete cart",
+      "saveTemplate": "Failed to save template",
+      "shareCart": "Failed to share cart"
+    }
+  },
+  "adminLicenses": {
+    "title": "Licenses & Certifications",
+    "subtitle": "Manage the license autocomplete list shown to all users. {{total}} entries total.",
+    "filters": {
+      "searchPlaceholder": "Search license names…",
+      "allCategories": "All Categories"
+    },
+    "table": {
+      "name": "License / Certification Name",
+      "category": "Category",
+      "status": "Status",
+      "actions": "Actions",
+      "loading": "Loading…",
+      "none": "No licenses found",
+      "noneCategory": "none"
+    },
+    "status": {
+      "active": "Active",
+      "hidden": "Hidden"
+    },
+    "pagination": {
+      "showing": "Showing {{start}}–{{end}} of {{total}}",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "modal": {
+      "editTitle": "Edit License",
+      "addTitle": "Add New License"
+    },
+    "form": {
+      "name": "License Name",
+      "namePlaceholder": "e.g. Master Plumber License",
+      "category": "Category",
+      "categoryPlaceholder": "e.g. Plumbing",
+      "activeLabel": "Active (visible in autocomplete)"
+    },
+    "actions": {
+      "add": "Add License",
+      "edit": "Edit",
+      "cancel": "Cancel",
+      "saveChanges": "Save Changes",
+      "saving": "Saving…",
+      "hideFromAutocomplete": "Hide from autocomplete",
+      "restore": "Restore",
+      "hardDelete": "Hard delete"
+    },
+    "deleteConfirm": "Hard delete \"{{name}}\"? This cannot be undone.",
+    "toast": {
+      "loadFailed": "Failed to load licenses",
+      "nameRequired": "License name is required",
+      "added": "License added",
+      "updated": "License updated",
+      "saveFailed": "Failed to save license",
+      "hidden": "License hidden from autocomplete",
+      "restored": "License restored",
+      "toggleFailed": "Failed to toggle license",
+      "deleted": "License deleted",
+      "deleteFailed": "Failed to delete license"
+    }
+  },
+  "adminConsultingSessionDetail": {
+    "confirm": {
+      "complete": "Mark this session as completed? A follow-up email will be sent to the customer with action items.",
+      "noShow": "Mark this session as a no-show? A follow-up email will be sent to the customer offering to reschedule."
+    },
+    "toast": {
+      "loadConsultantsFailed": "Failed to load consultants",
+      "selectConsultant": "Please select a consultant",
+      "consultantAssigned": "Consultant assigned successfully",
+      "assignConsultantFailed": "Failed to assign consultant",
+      "markedComplete": "Session marked as completed. Follow-up email queued.",
+      "markCompleteFailed": "Failed to mark session as completed",
+      "markedNoShow": "Session marked as no-show. Follow-up email queued.",
+      "markNoShowFailed": "Failed to mark session as no-show",
+      "statusUpdated": "Status updated successfully",
+      "statusUpdateFailed": "Failed to update status",
+      "noteRequired": "Please enter a note",
+      "notesSaved": "Notes saved successfully",
+      "saveNotesFailed": "Failed to save notes"
+    }
+  },
+  "adminConsultingScheduler": {
+    "loading": "Loading sessions...",
+    "title": "Session Scheduler",
+    "breadcrumb": {
+      "admin": "Admin",
+      "consulting": "Consulting",
+      "scheduling": "Scheduling"
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "scheduleSession": "+ Schedule Session"
+    },
+    "confirm": {
+      "decline": "Decline this request? The client will be notified."
+    },
+    "toast": {
+      "loadFailed": "Failed to load sessions",
+      "selectDateTime": "Please select date and time",
+      "sessionScheduled": "Session scheduled",
+      "scheduleFailed": "Failed to schedule session",
+      "inviteSent": "Calendar invite sent",
+      "inviteFailed": "Failed to send invite",
+      "requestDeclined": "Request declined",
+      "declineFailed": "Failed to decline request",
+      "createRequiredFields": "Email, date, and time are required",
+      "sessionCreated": "Session created",
+      "createFailed": "Failed to create session",
+      "reminderSent": "Reminder sent to client",
+      "reminderFailed": "Failed to send reminder"
+    },
+    "scheduleModal": {
+      "title": "Schedule: {{name}}",
+      "noPhone": "No phone",
+      "selectDate": "Select Date",
+      "selectTime": "Select Time",
+      "meetingUrlLabel": "Meeting URL (Zoom, Google Meet...)",
+      "meetingUrlPlaceholder": "https://zoom.us/j/...",
+      "assignConsultant": "Assign Consultant",
+      "selectConsultantPlaceholder": "-- Select consultant --",
+      "scheduling": "Scheduling...",
+      "confirm": "Confirm Session",
+      "sendInvite": "Send Invite",
+      "decline": "Decline"
+    },
+    "newSessionModal": {
+      "title": "Schedule New Session",
+      "fields": {
+        "firstName": "First Name",
+        "lastName": "Last Name",
+        "email": "Email *",
+        "serviceTier": "Service Tier",
+        "date": "Date *",
+        "time": "Time *",
+        "timePlaceholder": "-- Select --",
+        "meetingUrl": "Meeting URL",
+        "meetingUrlPlaceholder": "https://zoom.us/j/...",
+        "assignConsultant": "Assign Consultant",
+        "unassigned": "-- Unassigned --",
+        "notes": "Notes"
+      },
+      "actions": {
+        "creating": "Creating...",
+        "create": "Create Session"
+      }
+    },
+    "scheduled": {
+      "empty": "No scheduled sessions. Confirm a pending request above to get started.",
+      "notSet": "Not set",
+      "assigned": "Assigned",
+      "unassigned": "Unassigned",
+      "join": "Join",
+      "noLink": "No link",
+      "reminderSent": "Sent",
+      "reminderNotSent": "Not sent",
+      "edit": "Edit",
+      "remind": "Remind",
+      "table": {
+        "client": "Client",
+        "dateTime": "Date & Time",
+        "tier": "Tier",
+        "consultant": "Consultant",
+        "meeting": "Meeting",
+        "status": "Status",
+        "reminders": "Reminders",
+        "actions": "Actions"
+      }
+    }
+  },
+  "adminConsultingSessions": {
+    "title": "Consulting Sessions",
+    "subtitle": "{{total}} total sessions",
+    "breadcrumb": {
+      "admin": "Admin",
+      "consulting": "Consulting",
+      "sessions": "Sessions"
+    },
+    "loading": "Loading sessions...",
+    "filters": {
+      "searchPlaceholder": "Search by name or email...",
+      "allStatus": "All Status",
+      "allTiers": "All Tiers",
+      "clear": "Clear"
+    },
+    "status": {
+      "pending": "Pending",
+      "scheduled": "Scheduled",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "noShow": "No Show"
+    },
+    "tiers": {
+      "initial": "Initial ($100)",
+      "foundation": "Foundation",
+      "implementation": "Implementation",
+      "transformation": "Transformation"
+    },
+    "assigned": "Assigned",
+    "unassigned": "Unassigned",
+    "areas": {
+      "none": "None",
+      "more": "+{{count}} more"
+    },
+    "actions": {
+      "exportCsv": "Export CSV",
+      "newSession": "+ New Session",
+      "view": "View",
+      "complete": "Complete",
+      "followUp": "Follow-up",
+      "cancel": "Cancel",
+      "creating": "Creating...",
+      "createSession": "Create Session"
+    },
+    "table": {
+      "client": "Client",
+      "email": "Email",
+      "serviceTier": "Service Tier",
+      "status": "Status",
+      "consultant": "Consultant",
+      "scheduled": "Scheduled",
+      "areasOfHelp": "Areas of Help",
+      "submitted": "Submitted",
+      "actions": "Actions"
+    },
+    "empty": {
+      "title": "No consulting sessions yet",
+      "subtitle": "Create a new session or clients can submit consulting requests from the intake form.",
+      "noMatches": "No sessions match your filters."
+    },
+    "pagination": {
+      "previous": "← Previous",
+      "next": "Next →",
+      "pageOf": "Page {{page}} of {{pages}}"
+    },
+    "confirm": {
+      "markComplete": "Mark session with {{name}} as completed?",
+      "cancel": "Cancel session with {{name}}?"
+    },
+    "toast": {
+      "loadFailed": "Failed to load sessions",
+      "markedComplete": "Session marked as completed",
+      "markCompleteFailed": "Failed to mark complete",
+      "cancelled": "Session cancelled",
+      "cancelFailed": "Failed to cancel session",
+      "followUpSent": "Follow-up email sent",
+      "followUpFailed": "Failed to send follow-up",
+      "createRequired": "Email and service tier are required",
+      "created": "Session created",
+      "createFailed": "Failed to create session"
+    },
+    "newSession": {
+      "title": "New Consulting Session",
+      "fields": {
+        "firstName": "First Name",
+        "lastName": "Last Name",
+        "email": "Email *",
+        "phone": "Phone",
+        "businessName": "Business Name",
+        "serviceTier": "Service Tier *",
+        "assignConsultant": "Assign Consultant",
+        "unassigned": "-- Unassigned --",
+        "sessionDate": "Session Date",
+        "sessionTime": "Session Time",
+        "notSet": "-- Not set --",
+        "meetingUrl": "Meeting URL",
+        "meetingUrlPlaceholder": "https://zoom.us/j/...",
+        "areasOfFocus": "Areas of Focus",
+        "description": "Description / Notes"
+      }
+    },
+    "csv": {
+      "name": "Name",
+      "email": "Email",
+      "serviceTier": "Service Tier",
+      "status": "Status",
+      "areasOfHelp": "Areas of Help",
+      "submitted": "Submitted",
+      "scheduled": "Scheduled"
     }
   }
 }

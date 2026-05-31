@@ -142,6 +142,20 @@ exports.getKpis = async (req, res) => {
       active_subs = safeInt(sr?.cnt);
     }
 
+    // ── GMV (Gross Merchandise Value) from completed jobs ─────────────
+    let gmv_cents = 0;
+    if (hasJobs) {
+      const [gmvRow] = await safeQuery(`
+        SELECT COALESCE(
+          SUM(COALESCE(budget_max, budget_min, 0) * 100)::BIGINT,
+          0
+        ) AS gmv_cents
+        FROM jobs
+        WHERE status = 'completed'
+      `);
+      gmv_cents = safeInt(gmvRow?.gmv_cents);
+    }
+
     // ── Pending payouts ────────────────────────────────────────────────
     let pending_payouts_cents = 0;
     if (hasPayouts) {
@@ -188,7 +202,10 @@ exports.getKpis = async (req, res) => {
         pending_payouts_cents,
 
         // Derived
-        take_rate_pct: completed_jobs > 0 && revenue_total > 0 ? null : null, // placeholder
+        gmv_cents,
+        take_rate_pct: gmv_cents > 0
+          ? Math.round((revenue_total / gmv_cents) * 10000) / 100  // e.g. 8.50
+          : null,
       },
     });
   } catch (err) {
@@ -247,12 +264,16 @@ exports.getFranchisePipeline = async (req, res) => {
       GROUP BY status
       ORDER BY
         CASE status
-          WHEN 'pending'    THEN 1
-          WHEN 'reviewing'  THEN 2
-          WHEN 'approved'   THEN 3
-          WHEN 'activated'  THEN 4
-          WHEN 'rejected'   THEN 5
-          ELSE 6
+          WHEN 'inquiry'            THEN 1
+          WHEN 'screening'          THEN 2
+          WHEN 'application_review' THEN 3
+          WHEN 'diligence'          THEN 4
+          WHEN 'agreement_pending'  THEN 5
+          WHEN 'approved'           THEN 6
+          WHEN 'launched'           THEN 7
+          WHEN 'rejected'           THEN 8
+          WHEN 'archived'           THEN 9
+          ELSE 10
         END
     `);
 

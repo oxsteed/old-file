@@ -2484,6 +2484,9 @@
       "deleteConfirm": "¿Eliminar esta factura?",
       "sentToClient": "Factura enviada al cliente",
       "sentWithLink": "¡Factura enviada! Comparte el enlace: {{url}}",
+      "clientNameRequired": "Se requiere el nombre del cliente",
+      "clientEmailRequired": "Se requiere el correo del cliente",
+      "lineItemRequired": "Agrega al menos un artículo de línea",
       "clientName": "Nombre del Cliente",
       "clientEmail": "Email del Cliente",
       "lineItems": "Artículos de Línea",
@@ -5198,8 +5201,10 @@
   "errorBoundary": {
     "title": "Algo salió mal",
     "message": "Ocurrió un error inesperado. Por favor, intenta de nuevo o contacta al soporte si el problema persiste.",
+    "detailsSummary": "Detalles del error (solo desarrollo)",
     "tryAgain": "Intentar de Nuevo",
     "goHome": "Ir al Inicio",
+    "routeHint": "Si sigue ocurriendo, borra la caché del navegador e inténtalo de nuevo.",
     "needHelp": "¿Necesitas ayuda?"
   },
   "businessProfile": {
@@ -8896,6 +8901,446 @@
       "evidence": "Evidencia",
       "status": "Estado",
       "noClaims": "Sin reclamos presentados."
+    }
+  },
+  "investorLogin": {
+    "title": "Inicio de sesión de inversor",
+    "subtitle": "Accede al espacio de trabajo de inversor de OxSteed",
+    "fields": {
+      "email": "Correo electrónico",
+      "password": "Contraseña",
+      "signature": "Firma digital (nombre completo)",
+      "termsAgree": "Acepto los Términos de servicio y la Política de privacidad."
+    },
+    "actions": {
+      "signingIn": "Iniciando sesión...",
+      "enterDashboard": "Entrar al panel de inversor",
+      "createAccount": "Crear cuenta de inversor",
+      "standardLogin": "Inicio de sesión estándar"
+    },
+    "toast": {
+      "switchingMode": "Sesión iniciada. Cambiando al modo inversor...",
+      "signInFailed": "Error al iniciar sesión de inversor"
+    }
+  },
+  "tradesRequest": {
+    "loading": "Cargando formulario de diagnóstico...",
+    "meta": {
+      "sentTitle": "Solicitud de diagnóstico enviada - OxSteed",
+      "requestTitle": "Solicitar diagnóstico - {{provider}}"
+    },
+    "provider": {
+      "generic": "El proveedor",
+      "thisProvider": "este proveedor"
+    },
+    "toast": {
+      "loadFailed": "No se pudo cargar este perfil de servicios.",
+      "titleTooShort": "Añade un resumen breve del problema.",
+      "descriptionTooShort": "Añade más detalle para que el técnico pueda evaluar correctamente.",
+      "requestSent": "Solicitud de diagnóstico enviada.",
+      "sendFailed": "No se pudo enviar la solicitud de diagnóstico."
+    },
+    "success": {
+      "eyebrow": "Solicitud enviada",
+      "body": "{{provider}} ahora puede evaluar el problema, documentar el diagnóstico, preparar recomendaciones escritas y dar seguimiento a la reparación aprobada.",
+      "actions": {
+        "backToProfile": "Volver al perfil",
+        "goToDashboard": "Ir al panel"
+      }
+    },
+    "hero": {
+      "eyebrow": "Formulario técnico",
+      "title": "Solicitar diagnóstico a {{provider}}",
+      "instructionsFallback": "Comparte los síntomas, la urgencia, los detalles del activo y el tiempo para que el negocio pueda evaluar, diagnosticar y cotizar el siguiente paso correcto.",
+      "card": {
+        "titleFallback": "Diagnóstico y estimación",
+        "subtitle": "Diseñado para intake técnico, hallazgos escritos y seguimiento de estimaciones en lugar de solicitudes de reserva vagas."
+      }
+    },
+    "sections": {
+      "problemDetails": "Detalles del problema",
+      "assetAndAccess": "Activo y acceso",
+      "photosAndExpectations": "Fotos y expectativas de respuesta"
+    },
+    "fields": {
+      "issueType": "Tipo de problema",
+      "shortTitle": "Título breve",
+      "symptoms": "Describe los síntomas",
+      "urgency": "Urgencia",
+      "startedAt": "¿Cuándo comenzó?",
+      "safetySensitive": "¿Relacionado con seguridad?",
+      "garagePick": "Elegir de mi garaje",
+      "garagePickPlaceholder": "Selecciona un vehículo guardado",
+      "asset": {
+        "vehicleOrAsset": "Vehículo o activo",
+        "systemOrAsset": "Sistema o activo",
+        "year": "Año",
+        "propertyType": "Tipo de propiedad",
+        "vin": "VIN",
+        "mileage": "Kilometraje"
+      },
+      "site": {
+        "outageScope": "Alcance del corte",
+        "accessConstraints": "Restricciones de acceso",
+        "warningLights": "Luces de advertencia / disyuntores",
+        "priorRepairs": "Reparaciones previas",
+        "serviceLocationAuto": "Ubicación del servicio o nota de entrega",
+        "serviceAddressGeneric": "Dirección del servicio o notas del sitio",
+        "preferredWindows": "Ventanas de diagnóstico preferidas",
+        "bestPhone": "Mejor número de teléfono"
+      }
+    },
+    "placeholders": {
+      "shortTitleAuto": "Luz de motor encendida y ralentí inestable",
+      "shortTitleGeneric": "El circuito de la cocina se dispara continuamente",
+      "symptoms": "Qué está fallando, cuándo ocurre, qué cambió y cualquier cosa que lo empeore o lo haga intermitente.",
+      "startedAt": "Hoy, la semana pasada, después de una lluvia fuerte, después del último servicio...",
+      "assetAuto": "Toyota Camry 2017",
+      "assetGeneric": "Panel principal, interruptor 14, condensador HVAC",
+      "assetYear": "2017",
+      "propertyType": "Residencial, comercial, taller",
+      "optionalVin": "VIN opcional",
+      "optionalMileage": "Kilometraje opcional",
+      "outageScope": "Todo el panel, una habitación, solo ciertos tomacorrientes",
+      "accessConstraints": "Código de acceso, acceso al techo, el cliente debe estar presente",
+      "warningLights": "Luz del panel, disyuntor disparado, olor a quemado",
+      "priorRepairs": "Cualquier servicio reciente, reparación o solución temporal",
+      "serviceLocationAuto": "Entrega en taller, visita en sitio o dónde está el vehículo",
+      "serviceAddressGeneric": "Dirección, notas de acceso, estacionamiento o restricciones del sitio",
+      "preferredWindows": "Cuándo alguien puede inspeccionar, llamar o programar el servicio.",
+      "optional": "Opcional"
+    },
+    "issueTypes": {
+      "systemFailure": "Falla del sistema",
+      "safetyConcern": "Preocupación de seguridad",
+      "intermittent": "Problema intermitente",
+      "installOrReplacement": "Instalación o reemplazo",
+      "maintenance": "Solicitud de mantenimiento"
+    },
+    "urgency": {
+      "emergency": "Emergencia",
+      "urgent": "Urgente",
+      "normal": "Normal",
+      "low": "Baja"
+    },
+    "safetySensitive": {
+      "no": "Sin riesgo de seguridad inmediato",
+      "yes": "Sí, riesgo de seguridad o avería"
+    },
+    "photos": {
+      "selected_one": "{{count}} foto seleccionada",
+      "selected_other": "{{count}} fotos seleccionadas",
+      "addUpTo": "Agrega hasta 5 fotos"
+    },
+    "notes": {
+      "organizer": "OxSteed ayuda a organizar el intake de diagnóstico, recomendaciones escritas y seguimiento. El proveedor decide el camino de reparación, los términos del estimado y si hay servicio de emergencia o en sitio.",
+      "emergencyWithPhone": "En caso de peligro inmediato o falla urgente, contacta primero a emergencias o al {{phone}}.",
+      "emergencyFallback": "En caso de peligro inmediato o falla urgente, contacta primero a emergencias o a la línea de emergencia del proveedor."
+    },
+    "actions": {
+      "sending": "Enviando...",
+      "sendRequest": "Enviar solicitud de diagnóstico"
+    }
+  },
+  "shoppingCart": {
+    "toast": {
+      "itemAdded": "Artículo agregado al carrito",
+      "itemUpdated": "Artículo actualizado",
+      "itemRemoved": "Artículo eliminado",
+      "cartUpdated": "Carrito actualizado",
+      "cartDeleted": "Carrito eliminado",
+      "savedAsTemplate": "Carrito guardado como plantilla",
+      "shared": "Carrito compartido con éxito"
+    },
+    "errors": {
+      "loadCart": "No se pudo cargar el carrito",
+      "addItem": "No se pudo agregar el artículo",
+      "updateItem": "No se pudo actualizar el artículo",
+      "removeItem": "No se pudo eliminar el artículo",
+      "updateCart": "No se pudo actualizar el carrito",
+      "deleteCart": "No se pudo eliminar el carrito",
+      "saveTemplate": "No se pudo guardar la plantilla",
+      "shareCart": "No se pudo compartir el carrito"
+    }
+  },
+  "adminLicenses": {
+    "title": "Licencias y certificaciones",
+    "subtitle": "Administra la lista de autocompletado de licencias que se muestra a todos los usuarios. {{total}} entradas en total.",
+    "filters": {
+      "searchPlaceholder": "Buscar licencias…",
+      "allCategories": "Todas las categorías"
+    },
+    "table": {
+      "name": "Nombre de licencia / certificación",
+      "category": "Categoría",
+      "status": "Estado",
+      "actions": "Acciones",
+      "loading": "Cargando…",
+      "none": "No se encontraron licencias",
+      "noneCategory": "ninguna"
+    },
+    "status": {
+      "active": "Activa",
+      "hidden": "Oculta"
+    },
+    "pagination": {
+      "showing": "Mostrando {{start}}–{{end}} de {{total}}",
+      "previous": "Anterior",
+      "next": "Siguiente"
+    },
+    "modal": {
+      "editTitle": "Editar licencia",
+      "addTitle": "Agregar nueva licencia"
+    },
+    "form": {
+      "name": "Nombre de la licencia",
+      "namePlaceholder": "p. ej., Licencia de plomero maestro",
+      "category": "Categoría",
+      "categoryPlaceholder": "p. ej., Plomería",
+      "activeLabel": "Activa (visible en autocompletado)"
+    },
+    "actions": {
+      "add": "Agregar licencia",
+      "edit": "Editar",
+      "cancel": "Cancelar",
+      "saveChanges": "Guardar cambios",
+      "saving": "Guardando…",
+      "hideFromAutocomplete": "Ocultar del autocompletado",
+      "restore": "Restaurar",
+      "hardDelete": "Eliminar definitivamente"
+    },
+    "deleteConfirm": "¿Eliminar definitivamente \"{{name}}\"? Esto no se puede deshacer.",
+    "toast": {
+      "loadFailed": "No se pudieron cargar las licencias",
+      "nameRequired": "Se requiere el nombre de la licencia",
+      "added": "Licencia agregada",
+      "updated": "Licencia actualizada",
+      "saveFailed": "No se pudo guardar la licencia",
+      "hidden": "Licencia oculta del autocompletado",
+      "restored": "Licencia restaurada",
+      "toggleFailed": "No se pudo cambiar el estado de la licencia",
+      "deleted": "Licencia eliminada",
+      "deleteFailed": "No se pudo eliminar la licencia"
+    }
+  },
+  "adminConsultingSessionDetail": {
+    "confirm": {
+      "complete": "¿Marcar esta sesión como completada? Se enviará un correo de seguimiento al cliente con elementos de acción.",
+      "noShow": "¿Marcar esta sesión como inasistencia? Se enviará un correo de seguimiento al cliente para ofrecer reprogramar."
+    },
+    "toast": {
+      "loadConsultantsFailed": "No se pudieron cargar los consultores",
+      "selectConsultant": "Selecciona un consultor",
+      "consultantAssigned": "Consultor asignado correctamente",
+      "assignConsultantFailed": "No se pudo asignar el consultor",
+      "markedComplete": "Sesión marcada como completada. Correo de seguimiento en cola.",
+      "markCompleteFailed": "No se pudo marcar la sesión como completada",
+      "markedNoShow": "Sesión marcada como inasistencia. Correo de seguimiento en cola.",
+      "markNoShowFailed": "No se pudo marcar la sesión como inasistencia",
+      "statusUpdated": "Estado actualizado correctamente",
+      "statusUpdateFailed": "No se pudo actualizar el estado",
+      "noteRequired": "Ingresa una nota",
+      "notesSaved": "Notas guardadas correctamente",
+      "saveNotesFailed": "No se pudieron guardar las notas"
+    }
+  },
+  "adminConsultingScheduler": {
+    "loading": "Cargando sesiones...",
+    "title": "Programador de sesiones",
+    "breadcrumb": {
+      "admin": "Admin",
+      "consulting": "Consultoría",
+      "scheduling": "Programación"
+    },
+    "actions": {
+      "cancel": "Cancelar",
+      "scheduleSession": "+ Programar sesión"
+    },
+    "confirm": {
+      "decline": "¿Rechazar esta solicitud? Se notificará al cliente."
+    },
+    "toast": {
+      "loadFailed": "No se pudieron cargar las sesiones",
+      "selectDateTime": "Selecciona fecha y hora",
+      "sessionScheduled": "Sesión programada",
+      "scheduleFailed": "No se pudo programar la sesión",
+      "inviteSent": "Invitación de calendario enviada",
+      "inviteFailed": "No se pudo enviar la invitación",
+      "requestDeclined": "Solicitud rechazada",
+      "declineFailed": "No se pudo rechazar la solicitud",
+      "createRequiredFields": "Correo, fecha y hora son obligatorios",
+      "sessionCreated": "Sesión creada",
+      "createFailed": "No se pudo crear la sesión",
+      "reminderSent": "Recordatorio enviado al cliente",
+      "reminderFailed": "No se pudo enviar el recordatorio"
+    },
+    "scheduleModal": {
+      "title": "Programar: {{name}}",
+      "noPhone": "Sin teléfono",
+      "selectDate": "Seleccionar fecha",
+      "selectTime": "Seleccionar hora",
+      "meetingUrlLabel": "URL de reunión (Zoom, Google Meet...)",
+      "meetingUrlPlaceholder": "https://zoom.us/j/...",
+      "assignConsultant": "Asignar consultor",
+      "selectConsultantPlaceholder": "-- Seleccionar consultor --",
+      "scheduling": "Programando...",
+      "confirm": "Confirmar sesión",
+      "sendInvite": "Enviar invitación",
+      "decline": "Rechazar"
+    },
+    "newSessionModal": {
+      "title": "Programar nueva sesión",
+      "fields": {
+        "firstName": "Nombre",
+        "lastName": "Apellido",
+        "email": "Correo *",
+        "serviceTier": "Nivel de servicio",
+        "date": "Fecha *",
+        "time": "Hora *",
+        "timePlaceholder": "-- Seleccionar --",
+        "meetingUrl": "URL de reunión",
+        "meetingUrlPlaceholder": "https://zoom.us/j/...",
+        "assignConsultant": "Asignar consultor",
+        "unassigned": "-- Sin asignar --",
+        "notes": "Notas"
+      },
+      "actions": {
+        "creating": "Creando...",
+        "create": "Crear sesión"
+      }
+    },
+    "scheduled": {
+      "empty": "No hay sesiones programadas. Confirma una solicitud pendiente arriba para comenzar.",
+      "notSet": "No establecido",
+      "assigned": "Asignado",
+      "unassigned": "Sin asignar",
+      "join": "Unirse",
+      "noLink": "Sin enlace",
+      "reminderSent": "Enviado",
+      "reminderNotSent": "No enviado",
+      "edit": "Editar",
+      "remind": "Recordar",
+      "table": {
+        "client": "Cliente",
+        "dateTime": "Fecha y hora",
+        "tier": "Nivel",
+        "consultant": "Consultor",
+        "meeting": "Reunión",
+        "status": "Estado",
+        "reminders": "Recordatorios",
+        "actions": "Acciones"
+      }
+    }
+  },
+  "adminConsultingSessions": {
+    "title": "Sesiones de consultoría",
+    "subtitle": "{{total}} sesiones en total",
+    "breadcrumb": {
+      "admin": "Admin",
+      "consulting": "Consultoría",
+      "sessions": "Sesiones"
+    },
+    "loading": "Cargando sesiones...",
+    "filters": {
+      "searchPlaceholder": "Buscar por nombre o correo...",
+      "allStatus": "Todos los estados",
+      "allTiers": "Todos los niveles",
+      "clear": "Limpiar"
+    },
+    "status": {
+      "pending": "Pendiente",
+      "scheduled": "Programada",
+      "completed": "Completada",
+      "cancelled": "Cancelada",
+      "noShow": "Inasistencia"
+    },
+    "tiers": {
+      "initial": "Inicial ($100)",
+      "foundation": "Fundación",
+      "implementation": "Implementación",
+      "transformation": "Transformación"
+    },
+    "assigned": "Asignado",
+    "unassigned": "Sin asignar",
+    "areas": {
+      "none": "Ninguna",
+      "more": "+{{count}} más"
+    },
+    "actions": {
+      "exportCsv": "Exportar CSV",
+      "newSession": "+ Nueva sesión",
+      "view": "Ver",
+      "complete": "Completar",
+      "followUp": "Seguimiento",
+      "cancel": "Cancelar",
+      "creating": "Creando...",
+      "createSession": "Crear sesión"
+    },
+    "table": {
+      "client": "Cliente",
+      "email": "Correo",
+      "serviceTier": "Nivel de servicio",
+      "status": "Estado",
+      "consultant": "Consultor",
+      "scheduled": "Programada",
+      "areasOfHelp": "Áreas de ayuda",
+      "submitted": "Enviada",
+      "actions": "Acciones"
+    },
+    "empty": {
+      "title": "Aún no hay sesiones de consultoría",
+      "subtitle": "Crea una nueva sesión o los clientes pueden enviar solicitudes desde el formulario de intake.",
+      "noMatches": "Ninguna sesión coincide con tus filtros."
+    },
+    "pagination": {
+      "previous": "← Anterior",
+      "next": "Siguiente →",
+      "pageOf": "Página {{page}} de {{pages}}"
+    },
+    "confirm": {
+      "markComplete": "¿Marcar la sesión con {{name}} como completada?",
+      "cancel": "¿Cancelar la sesión con {{name}}?"
+    },
+    "toast": {
+      "loadFailed": "No se pudieron cargar las sesiones",
+      "markedComplete": "Sesión marcada como completada",
+      "markCompleteFailed": "No se pudo marcar como completada",
+      "cancelled": "Sesión cancelada",
+      "cancelFailed": "No se pudo cancelar la sesión",
+      "followUpSent": "Correo de seguimiento enviado",
+      "followUpFailed": "No se pudo enviar el seguimiento",
+      "createRequired": "Correo y nivel de servicio son obligatorios",
+      "created": "Sesión creada",
+      "createFailed": "No se pudo crear la sesión"
+    },
+    "newSession": {
+      "title": "Nueva sesión de consultoría",
+      "fields": {
+        "firstName": "Nombre",
+        "lastName": "Apellido",
+        "email": "Correo *",
+        "phone": "Teléfono",
+        "businessName": "Nombre del negocio",
+        "serviceTier": "Nivel de servicio *",
+        "assignConsultant": "Asignar consultor",
+        "unassigned": "-- Sin asignar --",
+        "sessionDate": "Fecha de la sesión",
+        "sessionTime": "Hora de la sesión",
+        "notSet": "-- No establecido --",
+        "meetingUrl": "URL de reunión",
+        "meetingUrlPlaceholder": "https://zoom.us/j/...",
+        "areasOfFocus": "Áreas de enfoque",
+        "description": "Descripción / notas"
+      }
+    },
+    "csv": {
+      "name": "Nombre",
+      "email": "Correo",
+      "serviceTier": "Nivel de servicio",
+      "status": "Estado",
+      "areasOfHelp": "Áreas de ayuda",
+      "submitted": "Enviada",
+      "scheduled": "Programada"
     }
   }
 }

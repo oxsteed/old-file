@@ -65,7 +65,7 @@ exports.submitReview = async (req, res, next) => {
 
     const review = rows[0];
 
-    // Update helper's avg_rating if helper was reviewed
+    // Update helper's avg_rating, total_reviews, and search_rank_boost if helper was reviewed
     if (isClient) {
       await dbClient.query(`
         UPDATE helper_profiles
@@ -80,6 +80,22 @@ exports.submitReview = async (req, res, next) => {
               FROM reviews
               WHERE reviewee_id = $1
                 AND is_public = true
+            ),
+            -- search_rank_boost drives the 'best_match' sort order.
+            -- Formula: base 1.0 + rating signal (up to +0.45 for 5-star avg)
+            --        + review volume signal (up to +0.30, log-scaled)
+            --        + completion volume signal (up to +0.25, log-scaled)
+            -- Capped at 2.0 so no single helper dominates forever.
+            search_rank_boost = LEAST(2.0,
+              1.0
+              + GREATEST(0.0, (
+                  SELECT ROUND(AVG(rating)::numeric, 2)
+                  FROM reviews WHERE reviewee_id = $1 AND is_public = true
+                ) - 3.5) * 0.15
+              + LEAST(0.30, LN(GREATEST(1,
+                  (SELECT COUNT(*) FROM reviews WHERE reviewee_id = $1 AND is_public = true)
+                ) + 1) * 0.10)
+              + LEAST(0.25, LN(GREATEST(1, COALESCE(completed_jobs_count, 0)) + 1) * 0.08)
             ),
             updated_at = now()
         WHERE user_id = $1

@@ -94,6 +94,11 @@ export default function HelperDashboard() {
       refreshSubscription?.();
       setSearchParams({},{replace:true});
     }
+    if(searchParams.get('onboarding')==='complete'){
+      toast.success('✅ Payment account connected! You can now receive payments for jobs.');
+      refreshUser?.();
+      setSearchParams({},{replace:true});
+    }
   },[]);
 
   useEffect(() => {
@@ -283,9 +288,9 @@ export default function HelperDashboard() {
 
   const handleSaveInvoice = async (e) => {
     e.preventDefault();
-    if (!invoiceForm.client_name.trim()) return toast.error('Client name required');
-    if (!invoiceForm.client_email.trim()) return toast.error('Client email required');
-    if (invoiceForm.line_items.length === 0) return toast.error('Add at least one line item');
+    if (!invoiceForm.client_name.trim()) return toast.error(t('helperDashboard.invoices.clientNameRequired'));
+    if (!invoiceForm.client_email.trim()) return toast.error(t('helperDashboard.invoices.clientEmailRequired'));
+    if (invoiceForm.line_items.length === 0) return toast.error(t('helperDashboard.invoices.lineItemRequired'));
 
     const payload = {
       client_email: invoiceForm.client_email,
@@ -1226,6 +1231,27 @@ export default function HelperDashboard() {
               </div>
             )}
 
+            {/* Stripe Connect onboarding banner */}
+            {isOnboardingComplete && !user?.stripe_connect_ready && (
+              <div className="mb-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-yellow-400 font-semibold text-sm">💳 Connect your payment account</p>
+                  <p className="text-gray-400 text-xs mt-0.5">You need a Stripe account to receive payments for jobs. It only takes a few minutes.</p>
+                </div>
+                <button
+                  className="shrink-0 px-4 py-2 bg-yellow-500 text-gray-900 font-semibold text-sm rounded-lg hover:bg-yellow-400 transition-colors"
+                  onClick={async () => {
+                    try {
+                      const { data } = await api.post('/payments/connect');
+                      if (data.url) window.location.href = data.url;
+                    } catch (e) { toast.error('Could not start payment setup. Try again.'); }
+                  }}
+                >
+                  Set Up Payments
+                </button>
+              </div>
+            )}
+
           {/* Financial Pulse Score - upgraded to match customer dashboard */}
           {!showOnboarding && fp && (() => {
             const score = fp.pulse_score;
@@ -1301,7 +1327,7 @@ export default function HelperDashboard() {
                 {isProActive?(<><p className="text-lg font-bold text-orange-400 mb-1">{t('common.pro')}</p><Tag text={t('helperDashboard.active')} color="green"/><button onClick={openPortal} className="mt-2 text-xs text-gray-400 hover:text-gray-200 transition font-medium block">{t('helperDashboard.manageBilling')} →</button></>)
                 :isTrialActive?(<><p className="text-lg font-bold text-orange-400 mb-1">{t('common.pro')}</p><Tag text={`${t('trial.active', { defaultValue: 'Trial Active' })} · ${trialDaysLeft} ${trialDaysLeft === 1 ? t('trial.dayLeft', { defaultValue: 'day left' }) : t('trial.daysLeft', { defaultValue: 'days left' })}`} color="purple"/><p className="text-xs text-gray-500 my-2">All new accounts start with free Pro access, including verification and background check tools.</p><button onClick={()=>navigate('/upgrade')} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.viewPlans')}</button></>)
                 :selectedProNoPay?(<><p className="text-lg font-bold text-orange-400 mb-1">{t('common.pro')}</p><Tag text={t('helperDashboard.paymentPending')} color="orange"/><p className="text-xs text-gray-500 my-2">{t('helperDashboard.selectedProNoPay')}</p><button onClick={()=>createCheckout('pro')} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.completeUpgrade')}</button></>)
-                :(<><p className="text-lg font-bold text-gray-400 mb-1">{t('helperDashboard.free')}</p><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.upgradeHint')}</p><button onClick={()=>navigate('/upgrade')} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.upgradeToPro')}</button></>)}
+                :(<><p className="text-lg font-bold text-gray-400 mb-1">{t('helperDashboard.free')}</p><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.upgradeHint')}</p><button onClick={()=>{ try{window.gtag&&window.gtag('event','upgrade_clicked',{from_tier:'free',source:'helper_dashboard'});}catch(_){} navigate('/upgrade');}} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.upgradeToPro')}</button></>)}
               </Card>
               <Card>
                 <div className="flex items-center gap-2 mb-3"><IcoShield size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.backgroundCheck')}</span></div>

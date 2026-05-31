@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { TrendingUp } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 
 export default function InvestorLoginPage() {
+  const { t } = useTranslation();
   const { login } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -28,11 +30,11 @@ export default function InvestorLoginPage() {
       });
       const user = result?.user;
       if (user?.default_mode !== 'investor') {
-        toast('Logged in. Switching you to Investor mode...');
+        toast(t('investorLogin.toast.switchingMode'));
       }
       navigate('/investor/dashboard', { replace: true });
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Investor sign-in failed');
+      toast.error(err?.response?.data?.error || t('investorLogin.toast.signInFailed'));
     } finally {
       setLoading(false);
     }
@@ -46,14 +48,14 @@ export default function InvestorLoginPage() {
             <TrendingUp size={18} className="text-emerald-300" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">Investor Login</h1>
-            <p className="text-xs text-gray-400">Access OxSteed Investor workspace</p>
+            <h1 className="text-xl font-bold">{t('investorLogin.title')}</h1>
+            <p className="text-xs text-gray-400">{t('investorLogin.subtitle')}</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Email</label>
+            <label className="block text-xs text-gray-400 mb-1">{t('investorLogin.fields.email')}</label>
             <input
               type="email"
               value={email}
@@ -63,7 +65,7 @@ export default function InvestorLoginPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Password</label>
+            <label className="block text-xs text-gray-400 mb-1">{t('investorLogin.fields.password')}</label>
             <input
               type="password"
               value={password}
@@ -73,7 +75,7 @@ export default function InvestorLoginPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Digital signature (full name)</label>
+            <label className="block text-xs text-gray-400 mb-1">{t('investorLogin.fields.signature')}</label>
             <input
               type="text"
               value={agreementName}
@@ -84,7 +86,7 @@ export default function InvestorLoginPage() {
           </div>
           <label className="flex items-start gap-2 text-xs text-gray-300">
             <input type="checkbox" checked={termsAgreed} onChange={(e) => setTermsAgreed(e.target.checked)} className="mt-0.5" />
-            <span>I agree to the Terms of Service and Privacy Policy.</span>
+            <span>{t('investorLogin.fields.termsAgree')}</span>
           </label>
 
           <button
@@ -92,13 +94,13 @@ export default function InvestorLoginPage() {
             disabled={!canSubmit || loading}
             className="w-full rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 px-3 py-2 text-sm font-semibold"
           >
-            {loading ? 'Signing in...' : 'Enter Investor Dashboard'}
+            {loading ? t('investorLogin.actions.signingIn') : t('investorLogin.actions.enterDashboard')}
           </button>
         </form>
 
         <div className="mt-4 text-xs text-gray-400 flex justify-between">
-          <Link to="/join?mode=investor" className="hover:text-white">Create investor account</Link>
-          <Link to="/login" className="hover:text-white">Standard login</Link>
+          <Link to="/join?mode=investor" className="hover:text-white">{t('investorLogin.actions.createAccount')}</Link>
+          <Link to="/login" className="hover:text-white">{t('investorLogin.actions.standardLogin')}</Link>
         </div>
       </div>
     </div>

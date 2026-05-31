@@ -273,6 +273,25 @@ async function listHelpers(req, res, next) {
       (categoriesByUser[row.user_id] ||= new Set()).add(row.category_name);
     }
 
+    // Skill badges (Learn certifications) for directory cards
+    const badgesByUser = {};
+    if (helperIds.length > 0) {
+      try {
+        const { rows: badgeRows } = await pool.query(
+          `SELECT user_id, category, earned_at
+           FROM skill_badges
+           WHERE user_id = ANY($1)
+           ORDER BY user_id, earned_at DESC`,
+          [helperIds],
+        );
+        for (const row of badgeRows) {
+          (badgesByUser[row.user_id] ||= []).push({ category: row.category, earnedAt: row.earned_at });
+        }
+      } catch (_) {
+        // skill_badges table may not exist in all envs — fail open
+      }
+    }
+
     // Service titles for directory cards (helper-owned + primary business)
     const topServicesByUser = {};
     if (helperIds.length > 0) {
@@ -342,6 +361,7 @@ async function listHelpers(req, res, next) {
         serviceRadius:    h.service_radius_miles || 10,
         availableToday:   !!h.is_available_now,
         shortBio:         h.bio_short || h.profile_headline || '',
+        skillBadges:      badgesByUser[h.id] || [],
       };
     });
 
