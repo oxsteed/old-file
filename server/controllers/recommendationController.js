@@ -378,7 +378,7 @@ async function buildRecommendations(userId, userRole) {
       'idle-tools',
       65,
       `${idleTools.length} tool${idleTools.length > 1 ? 's' : ''} not listed for rental`,
-      'Earn passive income when you're not using them',
+      "Earn passive income when you're not using them",
       `/tool-owner`,
       'List tools',
       'Your tools are sitting idle — list them to earn rental income',
