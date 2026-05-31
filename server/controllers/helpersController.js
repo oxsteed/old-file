@@ -514,7 +514,7 @@ async function getHelperProfile(req, res, next) {
   try {
     const { id } = req.params;
 
-    const [helperRes, skillRes, reviewRes, svcRes, faqRes, polRes, galRes, rateRes] = await Promise.all([
+    const [helperRes, skillRes, reviewRes, svcRes, faqRes, polRes, galRes, rateRes, badgeRes] = await Promise.all([
       pool.query(
         `SELECT
            u.id, u.first_name, u.last_name, u.created_at AS member_since,
@@ -607,6 +607,11 @@ async function getHelperProfile(req, res, next) {
          ) sub`,
         [id],
       ),
+      // Skill badges from Learn completions — fail open if table absent
+      pool.query(
+        `SELECT category, awarded_at FROM skill_badges WHERE user_id = $1 ORDER BY awarded_at ASC`,
+        [id],
+      ).catch(() => ({ rows: [] })),
     ]);
 
     const h = helperRes.rows[0];
@@ -658,7 +663,7 @@ async function getHelperProfile(req, res, next) {
       type:    'photo',
     }));
 
-    // Badges
+    // Badges — trust signals
     const badges = [];
     if (h.is_background_checked) badges.push({ id: 'bg',   label: 'Background Checked', icon: 'shield-check', variant: 'verified'       });
     if (h.is_identity_verified)  badges.push({ id: 'id',   label: 'ID Verified',         icon: 'badge-check',  variant: 'verified'       });
@@ -668,6 +673,16 @@ async function getHelperProfile(req, res, next) {
                                  badges.push({ id: 'fast', label: 'Fast Responder',      icon: 'zap',          variant: 'fast_responder' });
     if (h.avg_rating >= 4.8 && h.total_reviews >= 10)
                                  badges.push({ id: 'top',  label: 'Top Rated',           icon: 'star',         variant: 'top_rated'      });
+
+    // Skill badges from Learn completions
+    const skillBadges = (badgeRes.rows || []).map((b) => ({
+      id:          `skill_${b.category.toLowerCase().replace(/\s+/g, '_')}`,
+      label:       `${b.category} Certified`,
+      icon:        'graduation-cap',
+      variant:     'skill',
+      category:    b.category,
+      awarded_at:  b.awarded_at,
+    }));
 
     // Hours from availability_json
     const avail = h.availability_json || {};
@@ -723,6 +738,7 @@ async function getHelperProfile(req, res, next) {
         responseTime: formatResponseTime(responseHours),
         responseRate: rateRes.rows[0]?.response_rate ?? 0,
         badges,
+        skillBadges,
         categories,
         city:         h.service_city  || '',
         state:        h.service_state || '',

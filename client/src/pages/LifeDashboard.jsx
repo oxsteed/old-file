@@ -18,7 +18,7 @@
 // Everything is best-effort — if one endpoint is down or missing, that card
 // shows an empty/loading state but the page still renders.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
@@ -27,7 +27,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import {
   HeartPulse, Car, Home, Wallet, Target, ListChecks,
-  CalendarClock, Lightbulb, ArrowRight,
+  CalendarClock, Lightbulb, ArrowRight, Wrench, Hammer, Sparkles,
 } from 'lucide-react';
 
 function Card({ title, icon, action, children }) {
@@ -95,6 +95,145 @@ function PulseRing({ score }) {
         <span className="text-2xl font-bold" style={{ color: 'var(--color-text, #f3f4f6)' }}>{Math.round(score)}</span>
       </div>
     </div>
+  );
+}
+
+// ── Cross-sell engine ──────────────────────────────────────────────────────────
+// Generates contextual OxSteed suggestions from pillar data already on the page.
+function buildCrossSells({ vehicles, homes, goals, expenses, summary }) {
+  const suggestions = [];
+
+  // Car pillar → car maintenance helpers
+  if (vehicles.length > 0) {
+    suggestions.push({
+      id: 'car_maintenance',
+      icon: <Car size={16} className="text-yellow-400" />,
+      title: 'Schedule car maintenance',
+      subtitle: `You have ${vehicles.length} vehicle${vehicles.length > 1 ? 's' : ''} in your garage. Stay ahead of service.`,
+      href: '/helpers?categories=Automotive',
+      cta: 'Find a mechanic',
+      color: 'yellow',
+    });
+  }
+
+  // Home pillar → home repair helpers
+  if (homes.length > 0) {
+    suggestions.push({
+      id: 'home_repair',
+      icon: <Home size={16} className="text-blue-400" />,
+      title: 'Home maintenance on demand',
+      subtitle: `You own ${homes.length} propert${homes.length > 1 ? 'ies' : 'y'}. Keep it in top shape.`,
+      href: '/helpers?categories=Home+Repair',
+      cta: 'Find a helper',
+      color: 'blue',
+    });
+  }
+
+  // Goals shortfall → suggest side income (rent tools)
+  const shortfallGoal = goals.find(g =>
+    g.target_amount > 0 &&
+    (g.current_amount / g.target_amount) < 0.5 &&
+    g.status !== 'completed'
+  );
+  if (shortfallGoal) {
+    suggestions.push({
+      id: 'tool_rental',
+      icon: <Hammer size={16} className="text-orange-400" />,
+      title: 'Earn side income with your tools',
+      subtitle: `"${shortfallGoal.title}" is less than halfway there. List idle tools and earn while you sleep.`,
+      href: '/tool-rentals/list',
+      cta: 'List your tools',
+      color: 'orange',
+    });
+  }
+
+  // Negative monthly net → suggest posting skills as a helper
+  const net = summary ? (summary.total_income || 0) - (summary.total_expenses || 0) : null;
+  if (net !== null && net < 0) {
+    suggestions.push({
+      id: 'become_helper',
+      icon: <Wrench size={16} className="text-green-400" />,
+      title: 'Turn your skills into income',
+      subtitle: 'You spent more than you earned this month. Helpers on OxSteed earn on their own schedule.',
+      href: '/register/helper',
+      cta: 'Become a helper',
+      color: 'green',
+    });
+  }
+
+  // High home-category expenses → suggest planning ahead
+  const homeExpenses = (expenses || []).filter(e =>
+    /home|rent|mortgage|repair|maintenance/i.test(e.category || '')
+  );
+  if (homeExpenses.length >= 2 && !suggestions.find(s => s.id === 'home_repair')) {
+    suggestions.push({
+      id: 'planned_needs',
+      icon: <CalendarClock size={16} className="text-purple-400" />,
+      title: 'Plan your home expenses',
+      subtitle: 'You've logged several home costs. Set up planned needs to stay ahead.',
+      href: '/planned-needs',
+      cta: 'Set up a plan',
+      color: 'purple',
+    });
+  }
+
+  // Always offer consulting if any business/financial goal exists
+  const businessGoal = goals.find(g => /business|revenue|income|profit/i.test(g.title || ''));
+  if (businessGoal) {
+    suggestions.push({
+      id: 'consulting',
+      icon: <Sparkles size={16} className="text-pink-400" />,
+      title: 'Get a business consultant',
+      subtitle: `Working toward "${businessGoal.title}"? OxSteed consultants can accelerate it.`,
+      href: '/consulting',
+      cta: 'Find a consultant',
+      color: 'pink',
+    });
+  }
+
+  return suggestions.slice(0, 4); // cap at 4 cards
+}
+
+const COLOR_MAP = {
+  yellow:  { bg: 'rgba(234,179,8,0.08)',   border: 'rgba(234,179,8,0.25)',   text: '#facc15' },
+  blue:    { bg: 'rgba(59,130,246,0.08)',   border: 'rgba(59,130,246,0.25)', text: '#60a5fa' },
+  orange:  { bg: 'rgba(249,115,22,0.08)',   border: 'rgba(249,115,22,0.25)', text: '#f97316' },
+  green:   { bg: 'rgba(34,197,94,0.08)',    border: 'rgba(34,197,94,0.25)',  text: '#4ade80' },
+  purple:  { bg: 'rgba(168,85,247,0.08)',   border: 'rgba(168,85,247,0.25)', text: '#c084fc' },
+  pink:    { bg: 'rgba(236,72,153,0.08)',   border: 'rgba(236,72,153,0.25)', text: '#f472b6' },
+};
+
+function CrossSellPanel({ vehicles, homes, goals, expenses, summary, loaded }) {
+  const suggestions = useMemo(
+    () => buildCrossSells({ vehicles, homes, goals, expenses, summary }),
+    [vehicles, homes, goals, expenses, summary],
+  );
+  if (!loaded || suggestions.length === 0) return null;
+  return (
+    <Card title="Tailored for your life" icon={<Sparkles size={16} className="text-orange-500" />}>
+      <div className="grid sm:grid-cols-2 gap-3 pt-1">
+        {suggestions.map((s) => {
+          const c = COLOR_MAP[s.color] || COLOR_MAP.orange;
+          return (
+            <a
+              key={s.id}
+              href={s.href}
+              className="flex flex-col gap-2 rounded-xl p-3 transition hover:opacity-90"
+              style={{ background: c.bg, border: `1px solid ${c.border}` }}
+            >
+              <div className="flex items-center gap-2">
+                {s.icon}
+                <span className="text-sm font-semibold" style={{ color: 'var(--color-text, #f3f4f6)' }}>{s.title}</span>
+              </div>
+              <p className="text-[11px] leading-relaxed" style={{ color: 'var(--color-text-muted, #9ca3af)' }}>{s.subtitle}</p>
+              <span className="text-xs font-semibold mt-auto flex items-center gap-1" style={{ color: c.text }}>
+                {s.cta} <ArrowRight size={11} />
+              </span>
+            </a>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 
@@ -348,6 +487,15 @@ export default function LifeDashboard() {
             )}
           </Card>
         </div>
+
+        <CrossSellPanel
+          vehicles={vehicles}
+          homes={homes}
+          goals={goals}
+          expenses={expenses}
+          summary={summary}
+          loaded={loaded}
+        />
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Link to="/vehicles" className="rounded-lg border p-4 hover:bg-orange-500/5 transition flex items-center gap-3" style={{ borderColor: 'var(--color-border)' }}>

@@ -24,6 +24,7 @@ import ConsultingFeedbackPage from './pages/ConsultingFeedbackPage';
 import BusinessLaunchStatusPage from './pages/BusinessLaunchStatusPage';
 import FranchiseIntakePage from './pages/FranchiseIntakePage';
 import FranchiseApplicantDashboard from './pages/FranchiseApplicantDashboard';
+import FranchiseTerritoryOpsPage from './pages/FranchiseTerritoryOpsPage';
 import SmartDashboard from './pages/SmartDashboard';
 import UpgradePage from './pages/UpgradePage';
 import JobListPage from './pages/JobListPage';
@@ -142,6 +143,7 @@ import ProfessionalIntakeRequestPage from './pages/ProfessionalIntakeRequestPage
 import ContinuityIntakeRequestPage from './pages/ContinuityIntakeRequestPage';
 import TranslatorWorkspacePage from './pages/TranslatorWorkspacePage';
 import InvestorDashboardPage from './pages/InvestorDashboardPage';
+import AffiliateDashboardPage from './pages/AffiliateDashboardPage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -220,6 +222,7 @@ export default function App() {
                     <Route path="/business-launch-status"  element={<Guarded><BusinessLaunchStatusPage /></Guarded>} />
                     <Route path="/franchise/apply"         element={<Guarded><FranchiseIntakePage /></Guarded>} />
                     <Route path="/franchise/status"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><FranchiseApplicantDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/franchise/territory"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><FranchiseTerritoryOpsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
                     <Route path="/book/:id"                element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookHelperPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/book/business/:id"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookBusinessPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
@@ -272,6 +275,7 @@ export default function App() {
                     {/* Critical routes: wrapped in RouteErrorBoundary to isolate crashes */}
                     <Route path="/dashboard"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><SmartDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/investor/dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestorDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/affiliate" element={<Guarded><ProtectedRoute><RouteErrorBoundary><AffiliateDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helper-dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><SmartDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/upgrade"        element={<Guarded><ProtectedRoute><UpgradePage /></ProtectedRoute></Guarded>} />
                     <Route path="/templates"      element={<Guarded><ProtectedRoute><TemplatePicker /></ProtectedRoute></Guarded>} />

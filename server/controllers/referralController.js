@@ -2,7 +2,66 @@ const db     = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 
-const REWARD_TYPE = process.env.REFERRAL_REWARD_TYPE || 'none';
+const REWARD_TYPE = process.env.REFERRAL_REWARD_TYPE || 'credit';
+
+// Reward amounts (cents)
+const REFERRER_CREDIT_CENTS = parseInt(process.env.REFERRAL_REFERRER_CREDIT_CENTS || '500',  10); // $5 default
+const REFEREE_CREDIT_CENTS  = parseInt(process.env.REFERRAL_REFEREE_CREDIT_CENTS  || '250',  10); // $2.50 default
+
+/**
+ * grantReferralReward(referrerId, newUserId)
+ *
+ * Called after a referred user successfully completes registration.
+ * Fail-open — never throws so it can be fire-and-forget from auth.
+ *
+ * REWARD_TYPE options:
+ *   'credit'  – platform_ledger credit for the referrer only
+ *   'both'    – credit for referrer + new user
+ *   'none'    – no reward (disabled)
+ */
+exports.grantReferralReward = async function grantReferralReward(referrerId, newUserId) {
+  if (REWARD_TYPE === 'none') return;
+
+  try {
+    const grants = [];
+
+    if (REWARD_TYPE === 'credit' || REWARD_TYPE === 'both') {
+      grants.push(
+        db.query(
+          `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
+           VALUES ($1, 'referral_credit', $2, 'Referral reward — new member joined', $3)`,
+          [referrerId, REFERRER_CREDIT_CENTS, JSON.stringify({ new_user_id: newUserId, reward_type: 'referrer' })],
+        ),
+      );
+    }
+
+    if (REWARD_TYPE === 'both') {
+      grants.push(
+        db.query(
+          `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
+           VALUES ($1, 'referral_credit', $2, 'Welcome credit — joined via referral', $3)`,
+          [newUserId, REFEREE_CREDIT_CENTS, JSON.stringify({ referrer_id: referrerId, reward_type: 'referee' })],
+        ),
+      );
+    }
+
+    // Mark reward given + increment conversions on referrer
+    grants.push(
+      db.query(
+        `UPDATE users
+         SET referral_reward_given      = TRUE,
+             referral_conversions_count = COALESCE(referral_conversions_count, 0) + 1
+         WHERE id = $1`,
+        [referrerId],
+      ),
+    );
+
+    await Promise.all(grants);
+    logger.info('[referral] Reward granted', { referrerId, newUserId, type: REWARD_TYPE });
+  } catch (err) {
+    logger.error('[referral] grantReferralReward failed (non-fatal)', { referrerId, newUserId, err: err.message });
+  }
+};
 
 // ── GET /api/referrals/me ──────────────────────────────────────────────────────
 // Returns the authenticated user's referral code, share URL, and stats.

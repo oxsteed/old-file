@@ -210,6 +210,11 @@ export default function FranchiseApplicantDashboard() {
                 {t('dashboards.franchise.subtitle', { defaultValue: 'Track application review, diligence, agreement progress, and launch readiness without mixing in business-launch consulting requests.' })}
               </p>
               <div className="flex flex-wrap gap-3 mt-6">
+                {(primary.status === 'launched' || primary.status === 'approved') && (
+                  <Link to="/franchise/territory" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition">
+                    Territory ops <ArrowRight size={15} />
+                  </Link>
+                )}
                 <Link to="/franchise/apply" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition">
                   Submit another territory <ArrowRight size={15} />
                 </Link>

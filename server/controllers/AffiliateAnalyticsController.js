@@ -7,7 +7,7 @@ class AffiliateAnalyticsController {
   static async getMetricsTimeSeries(req, res) {
     try {
       const { program_id } = req.params;
-      const { helper_id } = req.user;
+      const helper_id = req.user.id; // programs keyed by user.id
       const { days = 30, granularity = 'daily' } = req.query;
 
       // Verify ownership
@@ -69,7 +69,7 @@ class AffiliateAnalyticsController {
   static async getConversionFunnel(req, res) {
     try {
       const { program_id } = req.params;
-      const { helper_id } = req.user;
+      const helper_id = req.user.id; // programs keyed by user.id
       const { days = 30 } = req.query;
 
       // Verify ownership
@@ -141,7 +141,7 @@ class AffiliateAnalyticsController {
   static async getTopProducts(req, res) {
     try {
       const { program_id } = req.params;
-      const { helper_id } = req.user;
+      const helper_id = req.user.id; // programs keyed by user.id
       const { limit = 10, days = 30 } = req.query;
 
       // Verify ownership
@@ -190,7 +190,7 @@ class AffiliateAnalyticsController {
   static async getProductAnalytics(req, res) {
     try {
       const { program_id, product_id } = req.params;
-      const { helper_id } = req.user;
+      const helper_id = req.user.id; // programs keyed by user.id
       const { days = 30 } = req.query;
 
       // Verify ownership
@@ -253,7 +253,7 @@ class AffiliateAnalyticsController {
   static async getVisitorFunnel(req, res) {
     try {
       const { program_id } = req.params;
-      const { helper_id } = req.user;
+      const helper_id = req.user.id; // programs keyed by user.id
       const { days = 7 } = req.query;
 
       // Verify ownership
@@ -316,7 +316,7 @@ class AffiliateAnalyticsController {
   static async getSourceBreakdown(req, res) {
     try {
       const { program_id } = req.params;
-      const { helper_id } = req.user;
+      const helper_id = req.user.id; // programs keyed by user.id
       const { days = 30 } = req.query;
 
       // Verify ownership

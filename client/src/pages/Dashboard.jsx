@@ -9,6 +9,7 @@ import useLifeDashboard from '../hooks/useLifeDashboard';
 import PageShell from '../components/PageShell';
 import TrialBanner from '../components/TrialBanner';
 import PulseScoreSettings from '../components/PulseScoreSettings';
+import RecommendationFeed from '../components/RecommendationFeed';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -791,6 +792,8 @@ export default function Dashboard() {
           </div>
           <TrialBanner />
         </div>
+
+        <RecommendationFeed title="What to do next" />
 
         <div className="flex items-center gap-1 overflow-x-auto pb-2 mb-8 border-b border-gray-800" style={{
           WebkitOverflowScrolling: 'touch',
@@ -1667,6 +1670,15 @@ export default function Dashboard() {
         {/* ═══════ SKILLS & TOOLS ═══════ */}
         {tab==='skills' && (
           <div className="space-y-8">
+
+            {/* ── Affiliate CTA ── */}
+            <Link to="/affiliate" className="flex items-center justify-between bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 hover:bg-orange-500/15 transition group">
+              <div>
+                <p className="text-orange-400 font-semibold text-sm mb-0.5">Earn affiliate commissions</p>
+                <p className="text-gray-400 text-xs">Share guide links and earn revenue from product referrals</p>
+              </div>
+              <IcoArrowR size={16} cls="text-orange-400 group-hover:translate-x-0.5 transition-transform flex-shrink-0" />
+            </Link>
 
             {/* ── My Skills ── */}
             <div>

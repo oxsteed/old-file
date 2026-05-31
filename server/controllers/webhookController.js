@@ -213,6 +213,61 @@ exports.stripeWebhook = async (req, res, next) => {
         }
         break;
       }
+      case 'invoice.payment_succeeded': {
+        // Fires on every successful charge — initial subscription AND all renewals.
+        // `customer.subscription.updated` also fires on renewal, but that event
+        // can sometimes precede the actual payment confirmation. This handler
+        // ensures the subscription row and user tier are authoritative after each
+        // billing cycle regardless of event ordering.
+        const invoice = event.data.object;
+        const subId = invoice.subscription;
+        if (!subId) break; // one-off invoice, not a subscription charge
+
+        // Retrieve the live subscription object to get fresh period dates
+        const sub = await stripe.subscriptions.retrieve(subId).catch(() => null);
+        if (!sub) break;
+
+        await db.query(
+          `UPDATE subscriptions
+           SET status                = $1,
+               current_period_start  = to_timestamp($2),
+               current_period_end    = to_timestamp($3),
+               cancel_at_period_end  = $4,
+               updated_at            = NOW()
+           WHERE stripe_subscription_id = $5`,
+          [sub.status, sub.current_period_start, sub.current_period_end,
+           sub.cancel_at_period_end, subId]
+        );
+
+        const { rows: subRows } = await db.query(
+          'SELECT user_id, plan_id FROM subscriptions WHERE stripe_subscription_id = $1', [subId]
+        );
+        if (subRows.length) {
+          const { user_id, plan_id } = subRows[0];
+          // Refresh user tier in case plan changed during renewal
+          if (plan_id) {
+            const { rows: planRows } = await db.query(
+              'SELECT COALESCE(tier, slug) AS tier_slug, slug FROM plans WHERE id = $1', [plan_id]
+            );
+            const planSlug = planRows[0]?.slug || planRows[0]?.tier_slug || 'pro';
+            const userTier = planSlug === 'basic' ? 'basic' : planSlug === 'broker' ? 'broker' : 'pro';
+            await db.query(
+              `UPDATE users SET tier = $1, subscription_status = 'active', tier_selected = TRUE WHERE id = $2`,
+              [userTier, user_id]
+            );
+          } else {
+            await db.query(
+              `UPDATE users SET subscription_status = 'active' WHERE id = $1`,
+              [user_id]
+            );
+          }
+          await recalculateBadges(user_id);
+          logger.info('[webhook] invoice.payment_succeeded — subscription renewed', {
+            subscriptionId: subId, userId: user_id, periodEnd: sub.current_period_end,
+          });
+        }
+        break;
+      }
       case 'invoice.payment_failed': {
         const invoice = event.data.object;
         const subId = invoice.subscription;

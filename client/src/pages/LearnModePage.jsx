@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import useRecommendations from '../hooks/useRecommendations';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -3905,6 +3906,7 @@ export default function LearnModePage() {
   const [xpToast, setXpToast]         = useState(null);        // { xp, badge } | null
   const [helperPrompt, setHelperPrompt] = useState(null);      // { guideTitle, skill } | null
   const xpToastTimer = useRef(null);
+  const { refresh: refreshRecs } = useRecommendations();
 
   const listRef    = useRef(null);
   const viewedRef  = useRef(new Set()); // guides already view-tracked this session
@@ -4151,13 +4153,16 @@ export default function LearnModePage() {
 
     fireXpToast(xp, badgeAwarded);
 
+    // Bust recommendation cache so next visit reflects the new completion
+    if (user) refreshRecs();
+
     // Helper post-completion prompt — suggest adding skill to profile
     if (persona === 'helper' && guide?.skills?.length) {
       setHelperPrompt({ guideTitle: guide.title, skill: guide.skills[0] });
     }
 
     setCompleting(null);
-  }, [completions, user, persona, fireXpToast, activeGuides]);
+  }, [completions, user, persona, fireXpToast, activeGuides, refreshRecs]);
 
   const handleCategoryClick = (id) => {
     setActiveCategory(id);

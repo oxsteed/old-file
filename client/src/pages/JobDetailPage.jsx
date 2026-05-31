@@ -18,6 +18,7 @@ import HelperCancellationConfirmation from '../components/HelperCancellationConf
 import CancellationStats from '../components/CancellationStats';
 import UserReputationCard from '../components/UserReputationCard';
 import ReportModal from '../components/ReportModal';
+import JobMaterialsPanel from '../components/JobMaterialsPanel';
 import { useTranslation } from 'react-i18next';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -857,6 +858,11 @@ export default function JobDetailPage() {
                 </button>
               )}
             </>
+          )}
+
+          {/* Helper: source materials via logistics */}
+          {isHelper && job.category_name && (
+            <JobMaterialsPanel category={job.category_name} jobId={id} />
           )}
 
           {/* Owner actions */}

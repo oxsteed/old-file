@@ -1,27 +1,34 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { axiosInstance } from '../../api/axios';
 import toast from 'react-hot-toast';
-import { BarChart3, Settings, Users, TrendingUp, DollarSign, Package, MessageSquare } from 'lucide-react';
+import { BarChart3, Settings, Users, TrendingUp, DollarSign, Package, MessageSquare, ShoppingCart } from 'lucide-react';
 import { BusinessServicesTab } from './BusinessServicesTab';
 import { PricingRulesManager } from './PricingRulesManager';
 import { BusinessAnalyticsTab } from './BusinessAnalyticsTab';
 import { CustomerLoyaltyManager } from './CustomerLoyaltyManager';
 import { BusinessIntegrations } from './BusinessIntegrations';
 import { AppointmentCalendarView } from './AppointmentCalendarView';
+import { BusinessProcurementTab } from './BusinessProcurementTab';
 import '../../styles/BusinessHubComplete.css';
 
 const TABS = [
-  { id: 'overview', name: 'Overview', icon: BarChart3 },
-  { id: 'services', name: 'Services', icon: Package },
-  { id: 'appointments', name: 'Appointments', icon: MessageSquare },
-  { id: 'pricing', name: 'Pricing Rules', icon: DollarSign },
-  { id: 'analytics', name: 'Analytics', icon: TrendingUp },
-  { id: 'loyalty', name: 'Loyalty', icon: Users },
-  { id: 'integrations', name: 'Integrations', icon: Settings }
+  { id: 'overview',     name: 'Overview',    icon: BarChart3 },
+  { id: 'services',     name: 'Services',    icon: Package },
+  { id: 'appointments', name: 'Appointments',icon: MessageSquare },
+  { id: 'pricing',      name: 'Pricing Rules',icon: DollarSign },
+  { id: 'analytics',    name: 'Analytics',   icon: TrendingUp },
+  { id: 'loyalty',      name: 'Loyalty',     icon: Users },
+  { id: 'integrations', name: 'Integrations',icon: Settings },
+  { id: 'procurement',  name: 'Procurement', icon: ShoppingCart },
 ];
 
 export function BusinessHubComplete({ businessId }) {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'overview';
+  const [activeTab, setActiveTab] = useState(
+    TABS.some(t => t.id === initialTab) ? initialTab : 'overview',
+  );
   const [businessData, setBusinessData] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -139,6 +146,8 @@ export function BusinessHubComplete({ businessId }) {
         {activeTab === 'loyalty' && <CustomerLoyaltyManager businessId={businessId} />}
 
         {activeTab === 'integrations' && <BusinessIntegrations businessId={businessId} />}
+
+        {activeTab === 'procurement' && <BusinessProcurementTab businessId={businessId} />}
       </div>
     </div>
   );

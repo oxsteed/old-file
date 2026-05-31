@@ -178,12 +178,14 @@ async function register(req, res, next) {
       );
     }
 
-    // Increment referrer's count
+    // Increment referrer's count + grant reward
     if (referrerId) {
       pool.query(
         `UPDATE users SET referrals_count = referrals_count + 1 WHERE id = $1`,
         [referrerId]
       ).catch(err => logger.error('Failed to increment referrals_count', { err }));
+      const { grantReferralReward } = require('./referralController');
+      grantReferralReward(referrerId, user.id);
     }
 
     // Grant 1-year free trial on all paid templates (fire-and-forget)
@@ -1049,11 +1051,13 @@ async function verifyRegistrationOTP(req, res) {
       );
     }
 
-    // Increment referrer count (non-fatal)
+    // Increment referrer count + grant reward (non-fatal)
     if (referrerId) {
       pool.query(
         `UPDATE users SET referrals_count = referrals_count + 1 WHERE id = $1`, [referrerId]
       ).catch(err => logger.error('Failed to increment referrals_count', { err }));
+      const { grantReferralReward } = require('./referralController');
+      grantReferralReward(referrerId, user.id);
     }
 
     // Grant 1-year free trial on all paid templates (fire-and-forget)

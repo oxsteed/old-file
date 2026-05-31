@@ -15,8 +15,15 @@ const {
   activateFranchiseStore,
 } = require('../controllers/franchiseController');
 
+const {
+  getTerritoryStats,
+  getTerritoryHelpers,
+} = require('../controllers/franchiseTerritoryController');
+
 router.post('/applications', generalLimiter, createFranchiseApplication);
-router.get('/my-applications', authenticate, listMyFranchiseApplications);
+router.get('/my-applications',     authenticate, listMyFranchiseApplications);
+router.get('/territory-stats',     authenticate, getTerritoryStats);
+router.get('/territory-helpers',   authenticate, getTerritoryHelpers);
 
 router.get('/applications', authenticate, requireAdmin, listFranchiseApplications);
 router.get('/applications/:id', authenticate, requireAdmin, getFranchiseApplication);

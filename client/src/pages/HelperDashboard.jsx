@@ -5,6 +5,7 @@ import PageMeta from '../components/PageMeta';
 import useSubscription from '../hooks/useSubscription';
 import useLifeDashboard from '../hooks/useLifeDashboard';
 import BadgeDisplay from '../components/BadgeDisplay';
+import RecommendationFeed from '../components/RecommendationFeed';
 import api from '../api/axios';
 import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -1148,6 +1149,8 @@ export default function HelperDashboard() {
           </div>
           <HelperOffersCard />
 
+          <RecommendationFeed title="What to do next" />
+
           {welcomeMsg&&<div className="mb-5 flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-medium"><span>🎉</span><span>{welcomeMsg}</span></div>}
 
           {/* Directory listing status */}
@@ -1442,6 +1445,19 @@ export default function HelperDashboard() {
               </Link>
             ))}</div>}
           </div>
+        )}
+
+        {/* ═══════ AFFILIATE CTA (earnings tab) ═══════ */}
+        {tab==='earnings'&&(
+          <Link to="/affiliate" className="block mb-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 hover:bg-orange-500/15 transition group">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-orange-400 font-semibold text-sm mb-0.5">Affiliate earnings dashboard</p>
+                <p className="text-gray-400 text-xs">Track commissions, conversion funnel, top products, and request payouts</p>
+              </div>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-orange-400 group-hover:translate-x-0.5 transition-transform"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </div>
+          </Link>
         )}
 
         {/* ═══════ MONEY ═══════ */}

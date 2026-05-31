@@ -19,7 +19,7 @@ import PageMeta from '../components/PageMeta';
 import ProfileJsonLd from '../components/ProfileJsonLd';
 import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDescription';
 import ProfileShareControls from '../components/helperProfile/ProfileShareControls';
-import { MessageCircle, Flag, X } from 'lucide-react';
+import { MessageCircle, Flag, X, GraduationCap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
@@ -397,6 +397,30 @@ const HelperBusinessProfilePage: React.FC = () => {
                   {t('businessProfile.about', { name: helper.businessName })}
                 </h2>
                 <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">{helper.bio}</p>
+              </section>
+            )}
+
+            {/* ── Skill badges from Learn completions ── */}
+            {helper.skillBadges && helper.skillBadges.length > 0 && (
+              <section
+                aria-labelledby="skill-badges-heading"
+                className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-6 py-5"
+              >
+                <h2 id="skill-badges-heading" className="text-base font-semibold text-white mb-3 flex items-center gap-2">
+                  <GraduationCap size={16} className="text-orange-500" />
+                  {t('helperProfile.skillBadges', { defaultValue: 'Learn certifications' })}
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {helper.skillBadges.map((b: { id: string; label: string; category: string }) => (
+                    <span
+                      key={b.id}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-500/10 text-orange-400 border border-orange-500/25"
+                    >
+                      <GraduationCap size={12} />
+                      {b.label}
+                    </span>
+                  ))}
+                </div>
               </section>
             )}
 
