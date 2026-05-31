@@ -4248,27 +4248,27 @@
     },
     "packages": {
       "title": "Forfaits de services",
-    "subtitle": "Regrouper des services en forfaits pour les clients",
-    "tabs": {
-      "packages": "Forfaits",
-      "clientPackages": "Forfaits client"
-    },
-    "newPackage": "Nouveau forfait",
-    "editPackage": "Modifier le forfait",
-    "labelName": "Nom du forfait *",
-    "labelDescription": "Description",
-    "labelPrice": "Prix ($) *",
-    "labelTotalSessions": "Sessions totales",
-    "labelValidityDays": "Valide pendant (jours)",
-    "emptyPackages": "Aucun forfait pour le moment. Créez votre premier pack de services.",
-    "emptyClientPackages": "Aucun forfait client pour le moment.",
-    "sessions": "sessions",
-    "sessionsLeft": "sessions restantes",
-    "noExpiry": "Sans expiration",
-    "expires": "Expire",
-    "useSession": "Utiliser",
-    "confirmArchive": "Archiver ce forfait ?",
-    "toastLoadPackagesFail": "Impossible de charger les forfaits",
+      "subtitle": "Regrouper des services en forfaits pour les clients",
+      "tabs": {
+        "packages": "Forfaits",
+        "clientPackages": "Forfaits client"
+      },
+      "newPackage": "Nouveau forfait",
+      "editPackage": "Modifier le forfait",
+      "labelName": "Nom du forfait *",
+      "labelDescription": "Description",
+      "labelPrice": "Prix ($) *",
+      "labelTotalSessions": "Sessions totales",
+      "labelValidityDays": "Valide pendant (jours)",
+      "emptyPackages": "Aucun forfait pour le moment. Créez votre premier pack de services.",
+      "emptyClientPackages": "Aucun forfait client pour le moment.",
+      "sessions": "sessions",
+      "sessionsLeft": "sessions restantes",
+      "noExpiry": "Sans expiration",
+      "expires": "Expire",
+      "useSession": "Utiliser",
+      "confirmArchive": "Archiver ce forfait ?",
+      "toastLoadPackagesFail": "Impossible de charger les forfaits",
       "toastLoadClientPackagesFail": "Impossible de charger les forfaits client",
       "toastNamePriceRequired": "Nom et prix requis",
       "toastUpdated": "Forfait mis à jour",
@@ -9152,7 +9152,7 @@
         "compliance": {
           "heading": "La conformité n'est pas optionnelle",
           "body": "Chaque envoi doit respecter les règles commerciales : taxes douanières, catégories restreintes, licences d'importation. OxSteed affiche les restrictions avant votre engagement, pas après que vos marchandises soient bloquées en douane."
-          },
+        },
         "lastmile": {
           "heading": "La dernière étape est un défi à part",
           "body": "Les produits arrivent au port. Ensuite ? Stockage, allocation, ordres de livraison — chaque étape est une nouvelle transition. OxSteed coordonne la chaîne pour que chaque étape sache ce dont la suivante a besoin."
@@ -12012,6 +12012,159 @@
       "errorAddingBlockedDate": "Impossible d’ajouter la date bloquée.",
       "errorRemovingBlockedDate": "Impossible de supprimer la date bloquée.",
       "dateRequired": "Veuillez sélectionner une date."
+    }
+  },
+  "learn": {
+    "page": {
+      "metaTitle": "Apprendre à le faire soi-même — Réparations maison, entretien auto & métiers | OxSteed",
+      "metaDesc": "Guides étape par étape pour réparer les robinets, boucher les trous, changer l'huile, et plus encore. Chaque guide inclut une liste d'outils, le suivi des compétences et un accès direct à un intervenant local.",
+      "searchPlaceholder": "Rechercher des guides… (robinet, placo, vidange)",
+      "searchAriaLabel": "Rechercher des guides",
+      "clearSearch": "Effacer la recherche",
+      "dismissBanner": "Fermer la bannière",
+      "appBannerText": "Accédez à tous les guides hors ligne",
+      "appBannerCta": "Téléchargez l'application OxSteed",
+      "appStore": "App Store",
+      "startHere": "Commencez ici",
+      "browseByCategory": "Parcourir par catégorie",
+      "guidesCount": "Guides {{label}}",
+      "viewMode": "Mode d'affichage",
+      "listView": "Vue liste",
+      "gridView": "Vue grille",
+      "noResults": "Aucun guide ne correspond à « {{query}} ».",
+      "clearFilters": "Effacer les filtres",
+      "moreComingSoon": "D'autres guides {{category}} bientôt disponibles",
+      "videoComingSoon": "Vidéo guide bientôt disponible",
+      "stepsHeading": "Étapes",
+      "askAiTitle": "Demander à l'IA à propos de cette étape",
+      "askAi": "Ask AI",
+      "guideCompleted": "Guide terminé · +{{xp}} XP gagnés",
+      "saving": "Enregistrement…",
+      "markComplete": "✓ Marquer comme terminé",
+      "skillsHeading": "Compétences que vous allez acquérir",
+      "toolsHeading": "Outils & matériaux",
+      "paidLink": "(lien rémunéré)",
+      "shopOxsteed": "Boutique OxSteed",
+      "buy": "Acheter",
+      "rent": "Louer",
+      "amazonDisclosure": "En tant qu'Associé Amazon, OxSteed gagne des commissions sur les achats éligibles.",
+      "ctaYouKnowSkill": "Vous maîtrisez cette compétence",
+      "ctaRatherNotDiy": "Vous préférez ne pas le faire vous-même ?",
+      "ctaNeedHelp": "Besoin d'aide ?",
+      "addToProfile": "Ajouter à votre profil →",
+      "findHelper": "Trouver un intervenant local →",
+      "rentTools": "Louer les outils",
+      "offerAsService": "Proposer en service",
+      "xpEarned": "+{{xp}} XP gagnés !",
+      "badgeUnlocked": "Badge {{badge}} débloqué !",
+      "submissionFailed": "Envoi échoué. Veuillez réessayer.",
+      "helperPromptCompleted": "terminé !",
+      "helperPromptAdd": "Ajouter {{skill}} à votre profil d'intervenant ?",
+      "helperPromptLink": "Ajouter la compétence →",
+      "modal": {
+        "ariaLabel": "Soumettre un guide",
+        "title": "Soumettre un guide",
+        "successTitle": "Guide soumis !",
+        "successMessage": "Votre guide est en cours de révision. Nous vous informerons dès qu'il sera approuvé et publié.",
+        "done": "Terminer",
+        "titleLabel": "Titre du guide",
+        "titlePlaceholder": "ex. Remplacer un robinet de salle de bain",
+        "categoryLabel": "Catégorie",
+        "difficultyLabel": "Difficulté",
+        "minutesLabel": "Minutes estimées",
+        "introLabel": "Introduction (1–2 phrases)",
+        "introPlaceholder": "Ce que ce guide couvre et pourquoi c'est important.",
+        "stepsLabel": "Étapes (min {{n}})",
+        "stepPlaceholder": "Étape {{n}}",
+        "addStep": "+ Ajouter une étape",
+        "skillsLabel": "Compétences que vous allez acquérir",
+        "skillPlaceholder": "ex. Utilisation du robinet d'arrêt",
+        "addSkill": "+ Ajouter une compétence",
+        "videoLabel": "URL de la vidéo (optionnel)",
+        "licenseLabel": "Note de licence / permis (optionnel)",
+        "cancel": "Annuler",
+        "submitting": "Envoi en cours…",
+        "submit": "Soumettre pour révision"
+      },
+      "categories": {
+        "all": "Tout",
+        "plumbing": "Plomberie",
+        "electrical": "Électricité",
+        "carpentry": "Menuiserie",
+        "hvac": "CVC",
+        "painting": "Peinture",
+        "carCare": "Entretien auto",
+        "landscaping": "Paysagisme",
+        "maintenance": "Maintenance",
+        "management": "Gestion",
+        "customer": "Client",
+        "helper": "Intervenant",
+        "logistics": "Logistique",
+        "consulting": "Conseil",
+        "toolRental": "Location d'outils",
+        "franchise": "Franchise",
+        "life": "Vie",
+        "business": "Entreprise",
+        "sales": "Ventes",
+        "support": "Support"
+      },
+      "difficulty": {
+        "Easy": "Facile",
+        "Medium": "Moyen",
+        "Hard": "Difficile"
+      },
+      "hero": {
+        "eyebrow": "Mode Apprentissage",
+        "guest": {
+          "title": "Apprendre. Faire. Gagner.",
+          "sub": "Guides étape par étape pour la réparation domicile et l'entretien auto — chaque compétence acquise vous connecte aux outils, kits et intervenants dont vous avez besoin."
+        },
+        "customer": {
+          "title": "Apprendre. Faire. Gagner.",
+          "sub": "Chaque guide complété développe une vraie compétence. Quand vous êtes prêt, devenez Intervenant et transformez vos savoirs en revenus.",
+          "cta": "Devenir Intervenant"
+        },
+        "helper": {
+          "title": "Montez en compétence. Développez-vous. Gagnez plus.",
+          "sub": "Chaque guide complété peut être ajouté à votre profil d'intervenant comme compétence vérifiée. Plus de compétences = plus de missions, plus d'avis, meilleur score Pulse.",
+          "cta": "Voir votre profil de compétences"
+        },
+        "consultant": {
+          "title": "Partagez ce que vous savez.",
+          "sub": "Votre expertise a une vraie valeur. Soumettez un guide, construisez votre réputation et gagnez de la visibilité quand votre contenu aide les autres.",
+          "cta": "Soumettre un guide"
+        },
+        "business": {
+          "title": "Formez votre équipe.",
+          "sub": "Utilisez ces guides pour intégrer les nouvelles recrues, fixer les standards de compétences et constituer une bibliothèque de savoirs métier.",
+          "cta": "Gérer votre équipe"
+        },
+        "investor": {
+          "title": "Connaissez ce que vous achetez.",
+          "sub": "Comprendre la complexité des réparations et les coûts réels est un avantage concurrentiel. Chaque guide se traduit par une meilleure diligence raisonnable et des décisions capex plus intelligentes.",
+          "cta": "Parcourir la marketplace"
+        },
+        "manager": {
+          "title": "Maîtrisez chaque système de votre bâtiment.",
+          "sub": "Les gestionnaires de sites qui comprennent les travaux qu'ils supervisent négocient mieux avec les prestataires et gagnent plus la confiance de la direction.",
+          "cta": "Poster un job"
+        },
+        "support_agent": {
+          "title": "Résolvez plus vite. Escaladez plus intelligemment.",
+          "sub": "Plus vous comprenez la réparation, plus vite vous pouvez trier le problème d'un client — et mieux vous savez quand escalader.",
+          "cta": "Parcourir tous les guides"
+        }
+      },
+      "personaTip": {
+        "guest": "Conseil propriétaire",
+        "customer": "Avant de faire vous-même",
+        "helper": "Proposez en service",
+        "consultant": "Perspective d'expert",
+        "business": "Gestion à l'échelle",
+        "investor": "Vision investisseur",
+        "manager": "Vue gestionnaire de sites",
+        "support_agent": "Manuel agent support"
+      }
     }
   }
 }

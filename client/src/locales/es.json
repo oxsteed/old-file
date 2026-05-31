@@ -3756,27 +3756,27 @@
     },
     "packages": {
       "title": "Paquetes de servicios",
-    "subtitle": "Agrupa servicios en paquetes para clientes",
-    "tabs": {
-      "packages": "Paquetes",
-      "clientPackages": "Paquetes del cliente"
-    },
-    "newPackage": "Nuevo paquete",
-    "editPackage": "Editar paquete",
-    "labelName": "Nombre del paquete *",
-    "labelDescription": "Descripción",
-    "labelPrice": "Precio ($) *",
-    "labelTotalSessions": "Sesiones totales",
-    "labelValidityDays": "Válido por (días)",
-    "emptyPackages": "Aún no hay paquetes. Crea tu primer paquete de servicio.",
-    "emptyClientPackages": "Aún no hay paquetes de clientes.",
-    "sessions": "sesiones",
-    "sessionsLeft": "sesiones restantes",
-    "noExpiry": "Sin vencimiento",
-    "expires": "Expira",
-    "useSession": "Usar",
-    "confirmArchive": "¿Archivar este paquete?",
-    "toastLoadPackagesFail": "No se pudieron cargar los paquetes",
+      "subtitle": "Agrupa servicios en paquetes para clientes",
+      "tabs": {
+        "packages": "Paquetes",
+        "clientPackages": "Paquetes del cliente"
+      },
+      "newPackage": "Nuevo paquete",
+      "editPackage": "Editar paquete",
+      "labelName": "Nombre del paquete *",
+      "labelDescription": "Descripción",
+      "labelPrice": "Precio ($) *",
+      "labelTotalSessions": "Sesiones totales",
+      "labelValidityDays": "Válido por (días)",
+      "emptyPackages": "Aún no hay paquetes. Crea tu primer paquete de servicio.",
+      "emptyClientPackages": "Aún no hay paquetes de clientes.",
+      "sessions": "sesiones",
+      "sessionsLeft": "sesiones restantes",
+      "noExpiry": "Sin vencimiento",
+      "expires": "Expira",
+      "useSession": "Usar",
+      "confirmArchive": "¿Archivar este paquete?",
+      "toastLoadPackagesFail": "No se pudieron cargar los paquetes",
       "toastLoadClientPackagesFail": "No se pudieron cargar los paquetes del cliente",
       "toastNamePriceRequired": "Nombre y precio son obligatorios",
       "toastUpdated": "Paquete actualizado",
@@ -9152,7 +9152,7 @@
         "compliance": {
           "heading": "El cumplimiento no es opcional",
           "body": "Cada envío cruza regulaciones: normas comerciales, aranceles, categorías restringidas, licencias de importación. OxSteed muestra restricciones antes de que confirmes, no después de que tu mercancía se retenga en aduanas."
-          },
+        },
         "lastmile": {
           "heading": "La última milla es un problema aparte",
           "body": "Los productos llegan al puerto. ¿Y luego? Almacenamiento, asignación, órdenes de entrega; cada una es una nueva entrega. OxSteed coordina la cadena para que cada paso sepa qué necesita el siguiente."
@@ -12012,6 +12012,159 @@
       "errorAddingBlockedDate": "No se pudo agregar la fecha bloqueada.",
       "errorRemovingBlockedDate": "No se pudo eliminar la fecha bloqueada.",
       "dateRequired": "Por favor selecciona una fecha."
+    }
+  },
+  "learn": {
+    "page": {
+      "metaTitle": "Aprende a hacerlo tú mismo — Reparaciones del hogar, cuidado del auto y oficios | OxSteed",
+      "metaDesc": "Guías paso a paso para reparar grifos, parchear paredes, cambiar el aceite y más. Cada guía incluye listas de herramientas, seguimiento de habilidades y acceso directo a un ayudante local.",
+      "searchPlaceholder": "Buscar guías… (grifo, drywall, cambio de aceite)",
+      "searchAriaLabel": "Buscar guías",
+      "clearSearch": "Borrar búsqueda",
+      "dismissBanner": "Cerrar banner",
+      "appBannerText": "Accede a todas las guías sin conexión",
+      "appBannerCta": "Descarga la app OxSteed",
+      "appStore": "App Store",
+      "startHere": "Empieza aquí",
+      "browseByCategory": "Explorar por categoría",
+      "guidesCount": "Guías de {{label}}",
+      "viewMode": "Modo de vista",
+      "listView": "Vista lista",
+      "gridView": "Vista cuadrícula",
+      "noResults": "Ninguna guía coincide con «{{query}}».",
+      "clearFilters": "Borrar filtros",
+      "moreComingSoon": "Más guías de {{category}} próximamente",
+      "videoComingSoon": "Videoclase próximamente",
+      "stepsHeading": "Pasos",
+      "askAiTitle": "Preguntarle a la IA sobre este paso",
+      "askAi": "Ask AI",
+      "guideCompleted": "Guía completada · +{{xp}} XP ganados",
+      "saving": "Guardando…",
+      "markComplete": "✓ Marcar como completado",
+      "skillsHeading": "Habilidades que aprenderás",
+      "toolsHeading": "Herramientas y materiales",
+      "paidLink": "(enlace de pago)",
+      "shopOxsteed": "Tienda OxSteed",
+      "buy": "Comprar",
+      "rent": "Alquilar",
+      "amazonDisclosure": "Como Afiliado de Amazon, OxSteed obtiene ingresos por compras que cumplen los requisitos.",
+      "ctaYouKnowSkill": "Dominas esta habilidad",
+      "ctaRatherNotDiy": "¿Prefieres no hacerlo tú mismo?",
+      "ctaNeedHelp": "¿Necesitas ayuda?",
+      "addToProfile": "Añadir a tu perfil →",
+      "findHelper": "Encontrar un ayudante local →",
+      "rentTools": "Alquilar las herramientas",
+      "offerAsService": "Ofrecer como servicio",
+      "xpEarned": "+{{xp}} XP ganados!",
+      "badgeUnlocked": "¡Insignia {{badge}} desbloqueada!",
+      "submissionFailed": "Error al enviar. Por favor, inténtalo de nuevo.",
+      "helperPromptCompleted": "¡completada!",
+      "helperPromptAdd": "¿Añadir {{skill}} a tu perfil de ayudante?",
+      "helperPromptLink": "Añadir habilidad →",
+      "modal": {
+        "ariaLabel": "Enviar una guía",
+        "title": "Enviar una guía",
+        "successTitle": "¡Guía enviada!",
+        "successMessage": "Tu guía está siendo revisada. Te avisaremos cuando esté aprobada y publicada.",
+        "done": "Listo",
+        "titleLabel": "Título de la guía",
+        "titlePlaceholder": "p. ej. Reemplazar un grifo de baño",
+        "categoryLabel": "Categoría",
+        "difficultyLabel": "Dificultad",
+        "minutesLabel": "Minutos estimados",
+        "introLabel": "Introducción (1–2 frases)",
+        "introPlaceholder": "Qué cubre esta guía y por qué es importante.",
+        "stepsLabel": "Pasos (mín {{n}})",
+        "stepPlaceholder": "Paso {{n}}",
+        "addStep": "+ Añadir paso",
+        "skillsLabel": "Habilidades que aprenderás",
+        "skillPlaceholder": "p. ej. Uso de la llave de paso",
+        "addSkill": "+ Añadir habilidad",
+        "videoLabel": "URL del video (opcional)",
+        "licenseLabel": "Nota de licencia / permiso (opcional)",
+        "cancel": "Cancelar",
+        "submitting": "Enviando…",
+        "submit": "Enviar para revisión"
+      },
+      "categories": {
+        "all": "Todo",
+        "plumbing": "Plomería",
+        "electrical": "Electricidad",
+        "carpentry": "Carpintería",
+        "hvac": "Climatización",
+        "painting": "Pintura",
+        "carCare": "Cuidado del auto",
+        "landscaping": "Jardinería",
+        "maintenance": "Mantenimiento",
+        "management": "Gestión",
+        "customer": "Cliente",
+        "helper": "Ayudante",
+        "logistics": "Logística",
+        "consulting": "Consultoría",
+        "toolRental": "Alquiler de herramientas",
+        "franchise": "Franquicia",
+        "life": "Vida",
+        "business": "Negocio",
+        "sales": "Ventas",
+        "support": "Soporte"
+      },
+      "difficulty": {
+        "Easy": "Fácil",
+        "Medium": "Medio",
+        "Hard": "Difícil"
+      },
+      "hero": {
+        "eyebrow": "Modo Aprendizaje",
+        "guest": {
+          "title": "Aprende. Hazlo. Gana.",
+          "sub": "Guías paso a paso para reparaciones del hogar y cuidado del auto — cada habilidad que construyes te conecta con las herramientas, kits y ayudantes que necesitas."
+        },
+        "customer": {
+          "title": "Aprende. Hazlo. Gana.",
+          "sub": "Cada guía que completas desarrolla una habilidad real. Cuando estés listo, conviértete en Ayudante y transforma lo que sabes en ingresos.",
+          "cta": "Convertirse en Ayudante"
+        },
+        "helper": {
+          "title": "Mejora. Crece. Gana más.",
+          "sub": "Cada guía completada puede añadirse a tu perfil de ayudante como habilidad verificada. Más habilidades = más trabajos, más reseñas y mejor puntuación Pulse.",
+          "cta": "Ver tu perfil de habilidades"
+        },
+        "consultant": {
+          "title": "Comparte lo que sabes.",
+          "sub": "Tu experiencia tiene valor real. Envía una guía, construye tu reputación y gana reconocimiento cuando tu contenido ayuda a otros a tener éxito.",
+          "cta": "Enviar una guía"
+        },
+        "business": {
+          "title": "Entrena a tu equipo.",
+          "sub": "Usa estas guías para incorporar nuevas contrataciones, establecer estándares de habilidades para tu equipo y construir una biblioteca de conocimiento comercial.",
+          "cta": "Gestionar tu equipo"
+        },
+        "investor": {
+          "title": "Conoce lo que estás comprando.",
+          "sub": "Entender la complejidad de las reparaciones y el costo real es una ventaja competitiva. Cada guía se traduce directamente en mejor diligencia debida y decisiones de gasto de capital más inteligentes.",
+          "cta": "Explorar el mercado"
+        },
+        "manager": {
+          "title": "Domina cada sistema de tu edificio.",
+          "sub": "Los gerentes de instalaciones que entienden el trabajo que supervisan negocian mejor con los contratistas y se ganan más la confianza de los propietarios.",
+          "cta": "Publicar un trabajo"
+        },
+        "support_agent": {
+          "title": "Resuelve más rápido. Escala más inteligente.",
+          "sub": "Cuanto más entiendas la reparación, más rápido podrás clasificar el problema de un cliente — y mejor sabrás cuándo escalar.",
+          "cta": "Explorar todas las guías"
+        }
+      },
+      "personaTip": {
+        "guest": "Consejo de propietario",
+        "customer": "Antes de hacerlo tú mismo",
+        "helper": "Ofrécelo como servicio",
+        "consultant": "Perspectiva de experto",
+        "business": "Gestión a escala",
+        "investor": "Perspectiva del inversor",
+        "manager": "Vista del gerente de instalaciones",
+        "support_agent": "Manual del agente de soporte"
+      }
     }
   }
 }

@@ -3841,27 +3841,27 @@
     },
     "packages": {
       "title": "Pakè sèvis",
-    "subtitle": "Mete sèvis yo ansanm nan pakè pou kliyan",
-    "tabs": {
-      "packages": "Pakè",
-      "clientPackages": "Pakè kliyan"
-    },
-    "newPackage": "Nouvo pakè",
-    "editPackage": "Modifye pakè",
-    "labelName": "Non pakè *",
-    "labelDescription": "Deskripsyon",
-    "labelPrice": "Pri ($) *",
-    "labelTotalSessions": "Total sesyon",
-    "labelValidityDays": "Valab pou (jou)",
-    "emptyPackages": "Pa gen pakè ankò. Kreye premye pakè sèvis ou.",
-    "emptyClientPackages": "Pa gen pakè kliyan ankò.",
-    "sessions": "sesyon",
-    "sessionsLeft": "sesyon ki rete",
-    "noExpiry": "Pa gen dat ekspirasyon",
-    "expires": "Ekspire",
-    "useSession": "Sèvi",
-    "confirmArchive": "Achive pakè sa a?",
-    "toastLoadPackagesFail": "Nou pa t kapab chaje pakè yo",
+      "subtitle": "Mete sèvis yo ansanm nan pakè pou kliyan",
+      "tabs": {
+        "packages": "Pakè",
+        "clientPackages": "Pakè kliyan"
+      },
+      "newPackage": "Nouvo pakè",
+      "editPackage": "Modifye pakè",
+      "labelName": "Non pakè *",
+      "labelDescription": "Deskripsyon",
+      "labelPrice": "Pri ($) *",
+      "labelTotalSessions": "Total sesyon",
+      "labelValidityDays": "Valab pou (jou)",
+      "emptyPackages": "Pa gen pakè ankò. Kreye premye pakè sèvis ou.",
+      "emptyClientPackages": "Pa gen pakè kliyan ankò.",
+      "sessions": "sesyon",
+      "sessionsLeft": "sesyon ki rete",
+      "noExpiry": "Pa gen dat ekspirasyon",
+      "expires": "Ekspire",
+      "useSession": "Sèvi",
+      "confirmArchive": "Achive pakè sa a?",
+      "toastLoadPackagesFail": "Nou pa t kapab chaje pakè yo",
       "toastLoadClientPackagesFail": "Nou pa t kapab chaje pakè kliyan yo",
       "toastNamePriceRequired": "Non ak pri obligatwa",
       "toastUpdated": "Pakè mete ajou",
@@ -9152,7 +9152,7 @@
         "compliance": {
           "heading": "Kòmplians pa opsyonèl",
           "body": "Chak chajman pase atravè lwa: règ komès, taks, kategori entèdi, lisans enpòtasyon. OxSteed montre restriksyon yo anvan ou konfime, pa apre machandiz ou bloke nan ladwàn."
-          },
+        },
         "lastmile": {
           "heading": "Dènye etap la se pwòp pwoblèm li",
           "body": "Machandiz yo rive nan pò. Apre sa? Depo, alokasyon, lòd livrezon — chak youn se yon nouvo etap. OxSteed kowòdone chèn nan pou chak etap konnen sa pwochen an bezwen."
@@ -12012,6 +12012,159 @@
       "errorAddingBlockedDate": "Echèk pou ajoute dat bloke.",
       "errorRemovingBlockedDate": "Echèk pou retire dat bloke.",
       "dateRequired": "Tanpri chwazi yon dat."
+    }
+  },
+  "learn": {
+    "page": {
+      "metaTitle": "Aprann fè DIY — Reparasyon kay, swen machin & metye | OxSteed",
+      "metaDesc": "Gid etap pa etap pou repare robinèt, bwouche miray, chanje lwil, ak plis. Chak gid gen lis zouti, swivi konpetans, ak aksè dirèk a yon asistan lokal.",
+      "searchPlaceholder": "Chèche gid… (tiyo, drywall, chanjman lwil)",
+      "searchAriaLabel": "Chèche gid",
+      "clearSearch": "Efase rechèch",
+      "dismissBanner": "Fèmen banyè",
+      "appBannerText": "Jwenn aksè a tout gid san entènèt",
+      "appBannerCta": "Telechaje app OxSteed la",
+      "appStore": "App Store",
+      "startHere": "Kòmanse la",
+      "browseByCategory": "Parcourir par kategori",
+      "guidesCount": "Gid {{label}}",
+      "viewMode": "Mod wè",
+      "listView": "Wè lis",
+      "gridView": "Wè griy",
+      "noResults": "Pa gen gid ki matche «{{query}}».",
+      "clearFilters": "Efase filtè",
+      "moreComingSoon": "Plis gid {{category}} ap vini byento",
+      "videoComingSoon": "Videyo gid ap vini byento",
+      "stepsHeading": "Etap",
+      "askAiTitle": "Mande AI sou etap sa a",
+      "askAi": "Ask AI",
+      "guideCompleted": "Gid fini · +{{xp}} XP ou touche",
+      "saving": "Ap sove…",
+      "markComplete": "✓ Mete kòm Fini",
+      "skillsHeading": "Konpetans ou pral aprann",
+      "toolsHeading": "Zouti & materyèl",
+      "paidLink": "(lyen peye)",
+      "shopOxsteed": "Boutik OxSteed",
+      "buy": "Achte",
+      "rent": "Lwe",
+      "amazonDisclosure": "Kòm yon Afilye Amazon, OxSteed touche sou acha ki kalifye.",
+      "ctaYouKnowSkill": "Ou konn konpetans sa a",
+      "ctaRatherNotDiy": "Ou pito pa fè l ou menm?",
+      "ctaNeedHelp": "Ou bezwen èd?",
+      "addToProfile": "Ajoute nan pwofil ou →",
+      "findHelper": "Jwenn yon asistan lokal →",
+      "rentTools": "Lwe zouti yo",
+      "offerAsService": "Ofri kòm sèvis",
+      "xpEarned": "+{{xp}} XP ou touche!",
+      "badgeUnlocked": "Badge {{badge}} debloke!",
+      "submissionFailed": "Soumisyon echwe. Tanpri eseye ankò.",
+      "helperPromptCompleted": "fini!",
+      "helperPromptAdd": "Ajoute {{skill}} nan pwofil asistan ou?",
+      "helperPromptLink": "Ajoute konpetans →",
+      "modal": {
+        "ariaLabel": "Soumèt yon gid",
+        "title": "Soumèt yon gid",
+        "successTitle": "Gid soumèt!",
+        "successMessage": "Gid ou a ap revize. N ap fè w konnen lè li apwouve epi pibliye.",
+        "done": "Fini",
+        "titleLabel": "Tit gid la",
+        "titlePlaceholder": "eg. Ranplase yon robinèt saldeben",
+        "categoryLabel": "Kategori",
+        "difficultyLabel": "Difikilte",
+        "minutesLabel": "Minit estimé",
+        "introLabel": "Entwodiksyon (1–2 fraz)",
+        "introPlaceholder": "Sa gid sa a kouvri ak poukisa li enpòtan.",
+        "stepsLabel": "Etap (min {{n}})",
+        "stepPlaceholder": "Etap {{n}}",
+        "addStep": "+ Ajoute etap",
+        "skillsLabel": "Konpetans ou pral aprann",
+        "skillPlaceholder": "eg. Itilizasyon vann yo",
+        "addSkill": "+ Ajoute konpetans",
+        "videoLabel": "URL videyo (opsyonèl)",
+        "licenseLabel": "Nòt lisans / pèmi (opsyonèl)",
+        "cancel": "Anile",
+        "submitting": "Ap soumèt…",
+        "submit": "Soumèt pou revizyon"
+      },
+      "categories": {
+        "all": "Tout",
+        "plumbing": "Plonbri",
+        "electrical": "Elektrisite",
+        "carpentry": "Bwa / Chapant",
+        "hvac": "Kondisyone",
+        "painting": "Penti",
+        "carCare": "Swen machin",
+        "landscaping": "Jaden",
+        "maintenance": "Antretyen",
+        "management": "Jesyon",
+        "customer": "Kliyan",
+        "helper": "Asistan",
+        "logistics": "Lojistik",
+        "consulting": "Konsiltasyon",
+        "toolRental": "Lwe zouti",
+        "franchise": "Franchiz",
+        "life": "Lavi",
+        "business": "Biznis",
+        "sales": "Vant",
+        "support": "Sipò"
+      },
+      "difficulty": {
+        "Easy": "Fasil",
+        "Medium": "Mwayen",
+        "Hard": "Difisil"
+      },
+      "hero": {
+        "eyebrow": "Mod Aprantisaj",
+        "guest": {
+          "title": "Aprann. Fè. Genyen.",
+          "sub": "Gid etap pa etap pou reparasyon kay ak swen machin — chak konpetans ou devlope konekte w ak zouti, kits, ak asistan ou bezwen."
+        },
+        "customer": {
+          "title": "Aprann. Fè. Genyen.",
+          "sub": "Chak gid ou konplete bati yon reyèl konpetans. Lè ou prèt, vin Asistan epi konvèti sa ou konnen an revni.",
+          "cta": "Vin Asistan"
+        },
+        "helper": {
+          "title": "Monte nivo. Grandi. Touche plis.",
+          "sub": "Chak gid ou konplete ka ajoute nan pwofil asistan ou kòm konpetans verifye. Plis konpetans = plis travay, plis revizyon, pi bon Pulse.",
+          "cta": "Wè pwofil konpetans ou"
+        },
+        "consultant": {
+          "title": "Pataje sa ou konnen.",
+          "sub": "Ekspètiz ou gen reyèl valè. Soumèt yon gid, bati reputasyon ou, epi touche rekonesans lè kontni ou ede lòt moun reyisi.",
+          "cta": "Soumèt yon gid"
+        },
+        "business": {
+          "title": "Fòme ekip ou.",
+          "sub": "Itilize gid sa yo pou entegre nouvo anplwaye, fikse estanda konpetans pou ekip ou, epi bati yon bibliyotèk konesans biznis.",
+          "cta": "Jere ekip ou"
+        },
+        "investor": {
+          "title": "Konnen sa ou ap achte.",
+          "sub": "Konprann konpleksite reparasyon ak reyèl pri se yon avantaj konkiransyèl. Chak gid tradui dirèkteman an miyò dilijans ak desizyon depans kapital ki pi entelijan.",
+          "cta": "Parcourir mache a"
+        },
+        "manager": {
+          "title": "Poze chak sistèm nan bilding ou.",
+          "sub": "Direktè enstalasyon ki konprann travay yo sipèvize negosye pi byen ak kontraktè epi jwenn plis konfyans nan direksyon an.",
+          "cta": "Poste yon travay"
+        },
+        "support_agent": {
+          "title": "Rezoud pi vit. Eskalad pi entèlijan.",
+          "sub": "Plis ou konprann reparasyon an, pi vit ou ka triage pwoblèm yon kliyan — epi pi byen ou konnen ki lè pou eskalad.",
+          "cta": "Parcourir tout gid yo"
+        }
+      },
+      "personaTip": {
+        "guest": "Konsèy pwopriyetè",
+        "customer": "Anvan ou fè l ou menm",
+        "helper": "Ofri sa kòm sèvis",
+        "consultant": "Pèspektiv ekspè",
+        "business": "Jesyon nan echèl",
+        "investor": "Vizyèl envestisè",
+        "manager": "Wè direktè enstalasyon",
+        "support_agent": "Manyèl ajan sipò"
+      }
     }
   }
 }

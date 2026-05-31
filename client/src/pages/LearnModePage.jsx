@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import useRecommendations from '../hooks/useRecommendations';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -55,28 +56,28 @@ const amz = (q) => `https://www.amazon.com/s?k=${encodeURIComponent(q)}&tag=${AF
 // ── Categories ────────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
-  { id: 'all',          label: 'All',          Icon: LayoutGrid,  color: '#f97316' },
-  { id: 'plumbing',     label: 'Plumbing',     Icon: Droplet,     color: '#0ea5e9' },
-  { id: 'electrical',   label: 'Electrical',   Icon: Zap,         color: '#eab308' },
-  { id: 'carpentry',    label: 'Carpentry',    Icon: Hammer,      color: '#8b5cf6' },
-  { id: 'hvac',         label: 'HVAC',         Icon: Thermometer, color: '#14b8a6' },
-  { id: 'painting',     label: 'Painting',     Icon: Paintbrush,  color: '#ec4899' },
-  { id: 'car-care',     label: 'Car Care',     Icon: Car,         color: '#6366f1' },
-  { id: 'landscaping',  label: 'Landscaping',  Icon: Leaf,        color: '#22c55e' },
-  { id: 'maintenance',  label: 'Maintenance',  Icon: Wrench,      color: '#94a3b8' },
-  { id: 'management',   label: 'Management',   Icon: ClipboardList, color: '#0369a1' },
+  { id: 'all',          tKey: 'learn.page.categories.all',         Icon: LayoutGrid,    color: '#f97316' },
+  { id: 'plumbing',     tKey: 'learn.page.categories.plumbing',    Icon: Droplet,       color: '#0ea5e9' },
+  { id: 'electrical',   tKey: 'learn.page.categories.electrical',  Icon: Zap,           color: '#eab308' },
+  { id: 'carpentry',    tKey: 'learn.page.categories.carpentry',   Icon: Hammer,        color: '#8b5cf6' },
+  { id: 'hvac',         tKey: 'learn.page.categories.hvac',        Icon: Thermometer,   color: '#14b8a6' },
+  { id: 'painting',     tKey: 'learn.page.categories.painting',    Icon: Paintbrush,    color: '#ec4899' },
+  { id: 'car-care',     tKey: 'learn.page.categories.carCare',     Icon: Car,           color: '#6366f1' },
+  { id: 'landscaping',  tKey: 'learn.page.categories.landscaping', Icon: Leaf,          color: '#22c55e' },
+  { id: 'maintenance',  tKey: 'learn.page.categories.maintenance', Icon: Wrench,        color: '#94a3b8' },
+  { id: 'management',   tKey: 'learn.page.categories.management',  Icon: ClipboardList, color: '#0369a1' },
   // Persona categories
-  { id: 'customer',     label: 'Customer',     Icon: Flag,        color: '#f97316' },
-  { id: 'helper',       label: 'Helper',       Icon: UserCheck,   color: '#10b981' },
-  { id: 'logistics',    label: 'Logistics',    Icon: Package,     color: '#64748b' },
-  { id: 'consulting',   label: 'Consulting',   Icon: MessageCircle, color: '#a855f7' },
-  { id: 'tool-rental',  label: 'Tool Rental',  Icon: Truck,       color: '#f59e0b' },
-  { id: 'franchise',    label: 'Franchise',    Icon: Building2,   color: '#0891b2' },
-  { id: 'life',         label: 'Life',         Icon: Heart,       color: '#ef4444' },
+  { id: 'customer',     tKey: 'learn.page.categories.customer',    Icon: Flag,          color: '#f97316' },
+  { id: 'helper',       tKey: 'learn.page.categories.helper',      Icon: UserCheck,     color: '#10b981' },
+  { id: 'logistics',    tKey: 'learn.page.categories.logistics',   Icon: Package,       color: '#64748b' },
+  { id: 'consulting',   tKey: 'learn.page.categories.consulting',  Icon: MessageCircle, color: '#a855f7' },
+  { id: 'tool-rental',  tKey: 'learn.page.categories.toolRental',  Icon: Truck,         color: '#f59e0b' },
+  { id: 'franchise',    tKey: 'learn.page.categories.franchise',   Icon: Building2,     color: '#0891b2' },
+  { id: 'life',         tKey: 'learn.page.categories.life',        Icon: Heart,         color: '#ef4444' },
   // Business role categories
-  { id: 'business',    label: 'Business',     Icon: Briefcase,   color: '#7c3aed' },
-  { id: 'sales',       label: 'Sales',        Icon: Users,       color: '#059669' },
-  { id: 'support',     label: 'Support',      Icon: Headphones,  color: '#0284c7' },
+  { id: 'business',     tKey: 'learn.page.categories.business',    Icon: Briefcase,     color: '#7c3aed' },
+  { id: 'sales',        tKey: 'learn.page.categories.sales',       Icon: Users,         color: '#059669' },
+  { id: 'support',      tKey: 'learn.page.categories.support',     Icon: Headphones,    color: '#0284c7' },
 ];
 
 // ── Guide data ────────────────────────────────────────────────────────────────
@@ -3783,15 +3784,16 @@ const DIFFICULTY_COLOR = { Easy: '#22c55e', Medium: '#f97316', Hard: '#ef4444' }
 const DIFFICULTY_XP    = { Easy: 10, Medium: 25, Hard: 50 };
 
 // ── Persona tip metadata ──────────────────────────────────────────────────────
+// Labels resolved with t() at render time.
 const PERSONA_TIP_META = {
-  guest:         { label: 'Homeowner Tip',              Icon: User },
-  customer:      { label: 'Before You DIY',             Icon: User },
-  helper:        { label: 'Offer This as a Service',    Icon: TrendingUp },
-  consultant:    { label: 'Expert Perspective',         Icon: BookOpen },
-  business:      { label: 'Managing at Scale',          Icon: ShoppingBag },
-  investor:      { label: 'Investor Lens',              Icon: TrendingUp },
-  manager:       { label: 'Facilities Manager View',    Icon: ShoppingBag },
-  support_agent: { label: 'Support Agent Playbook',     Icon: BookOpen },
+  guest:         { labelKey: 'learn.page.personaTip.guest',         Icon: User },
+  customer:      { labelKey: 'learn.page.personaTip.customer',      Icon: User },
+  helper:        { labelKey: 'learn.page.personaTip.helper',        Icon: TrendingUp },
+  consultant:    { labelKey: 'learn.page.personaTip.consultant',    Icon: BookOpen },
+  business:      { labelKey: 'learn.page.personaTip.business',      Icon: ShoppingBag },
+  investor:      { labelKey: 'learn.page.personaTip.investor',      Icon: TrendingUp },
+  manager:       { labelKey: 'learn.page.personaTip.manager',       Icon: ShoppingBag },
+  support_agent: { labelKey: 'learn.page.personaTip.support_agent', Icon: BookOpen },
 };
 
 function normalize(str) { return String(str || '').toLowerCase(); }
@@ -3807,47 +3809,16 @@ function getPersona(user) {
   return 'customer';
 }
 
+// HERO uses translation keys; labels resolved with t() at render time.
 const HERO = {
-  guest: {
-    title: 'Learn. Do. Earn.',
-    sub: 'Step-by-step guides for home repair and car care — every skill you build connects to the tools, kits, and Helpers you need to finish the job.',
-    cta: null,
-  },
-  customer: {
-    title: 'Learn. Do. Earn.',
-    sub: 'Every guide you complete builds real skill. When you\'re ready, list yourself as a Helper and turn what you know into income.',
-    cta: { label: 'Become a Helper', href: '/join?mode=helper' },
-  },
-  helper: {
-    title: 'Upskill. Grow. Earn more.',
-    sub: 'Every guide you complete can be added to your Helper profile as a verified skill. More skills means more jobs, more reviews, and a higher Pulse score.',
-    cta: { label: 'View your skill profile', href: '/helper-profile/skills' },
-  },
-  consultant: {
-    title: 'Share what you know.',
-    sub: 'Your expertise has real value. Submit a guide, build your reputation, and earn attribution when your content helps others succeed.',
-    cta: { label: 'Submit a Guide', href: null }, // null → opens submit modal
-  },
-  business: {
-    title: 'Train your team.',
-    sub: 'Use these guides to onboard new hires, set skills standards for your crew, and build a library of trade knowledge your business depends on.',
-    cta: { label: 'Manage your team', href: '/business-hub' },
-  },
-  investor: {
-    title: 'Know what you\'re buying.',
-    sub: 'Understanding repair complexity and true cost is a competitive edge. Every guide here translates directly into better due diligence, smarter capex decisions, and lower vacancy.',
-    cta: { label: 'Browse the marketplace', href: '/marketplace' },
-  },
-  manager: {
-    title: 'Own every system in your building.',
-    sub: 'Facilities managers who understand the work they oversee negotiate better with contractors, catch scope creep early, and earn more trust from ownership.',
-    cta: { label: 'Post a job', href: '/post-job' },
-  },
-  support_agent: {
-    title: 'Resolve faster. Escalate smarter.',
-    sub: 'The more you understand the repair, the faster you can triage a customer\'s issue — and the better you know when to escalate vs. walk them through it.',
-    cta: { label: 'Browse all guides', href: '/learn' },
-  },
+  guest:         { titleKey: 'learn.page.hero.guest.title',         subKey: 'learn.page.hero.guest.sub',         ctaKey: null,                              href: null },
+  customer:      { titleKey: 'learn.page.hero.customer.title',      subKey: 'learn.page.hero.customer.sub',      ctaKey: 'learn.page.hero.customer.cta',      href: '/join?mode=helper' },
+  helper:        { titleKey: 'learn.page.hero.helper.title',        subKey: 'learn.page.hero.helper.sub',        ctaKey: 'learn.page.hero.helper.cta',        href: '/helper-profile/skills' },
+  consultant:    { titleKey: 'learn.page.hero.consultant.title',    subKey: 'learn.page.hero.consultant.sub',    ctaKey: 'learn.page.hero.consultant.cta',    href: null },
+  business:      { titleKey: 'learn.page.hero.business.title',      subKey: 'learn.page.hero.business.sub',      ctaKey: 'learn.page.hero.business.cta',      href: '/business-hub' },
+  investor:      { titleKey: 'learn.page.hero.investor.title',      subKey: 'learn.page.hero.investor.sub',      ctaKey: 'learn.page.hero.investor.cta',      href: '/marketplace' },
+  manager:       { titleKey: 'learn.page.hero.manager.title',       subKey: 'learn.page.hero.manager.sub',       ctaKey: 'learn.page.hero.manager.cta',       href: '/post-job' },
+  support_agent: { titleKey: 'learn.page.hero.support_agent.title', subKey: 'learn.page.hero.support_agent.sub', ctaKey: 'learn.page.hero.support_agent.cta', href: '/learn' },
 };
 
 function buildHowToLd(guides) {
@@ -3877,6 +3848,7 @@ const EMPTY_SUBMISSION = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function LearnModePage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery]                 = useState(searchParams.get('q') || '');
@@ -4226,27 +4198,27 @@ export default function LearnModePage() {
         estimated_minutes: parseInt(submitForm.estimated_minutes, 10),
         steps:  submitForm.steps.filter(Boolean),
         skills: submitForm.skills.filter(Boolean),
-        tools:  submitForm.tools.filter((t) => t.name.trim()),
+        tools:  submitForm.tools.filter((tool) => tool.name.trim()),
       });
       setSubmitSuccess(true);
     } catch (err) {
-      setSubmitError(err?.response?.data?.message || 'Submission failed. Please try again.');
+      setSubmitError(err?.response?.data?.message || t('learn.page.submissionFailed'));
     } finally {
       setSubmitting(false);
     }
   };
 
   const activeCategoryLabel = activeCategory === 'all'
-    ? 'All'
-    : (categoryMap[activeCategory]?.label ?? activeCategory);
+    ? t('learn.page.categories.all')
+    : (categoryMap[activeCategory] ? t(categoryMap[activeCategory].tKey) : activeCategory);
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <PageShell>
       <PageMeta
-        title="Learn to DIY — Home Repair, Car Care & Trade Skills | OxSteed"
-        description="Step-by-step guides for fixing faucets, patching drywall, changing oil, and more. Every guide includes tool lists, skill tracking, and a direct path to hire a local Helper."
+        title={t('learn.page.metaTitle')}
+        description={t('learn.page.metaDesc')}
       />
 
       <div className="lrn-page">
@@ -4255,20 +4227,20 @@ export default function LearnModePage() {
         {showAppBanner && (
           <div className="lrn-app-banner" role="banner">
             <Smartphone size={20} aria-hidden="true" />
-            <span>Get offline access to all guides — <strong>Download the OxSteed app</strong></span>
+            <span>{t('learn.page.appBannerText')} — <strong>{t('learn.page.appBannerCta')}</strong></span>
             <a
               href="https://apps.apple.com/app/oxsteed"
               target="_blank"
               rel="noopener noreferrer"
               className="lrn-app-banner-btn"
             >
-              App Store
+              {t('learn.page.appStore')}
             </a>
             <button
               type="button"
               className="lrn-app-banner-close"
               onClick={dismissAppBanner}
-              aria-label="Dismiss app banner"
+              aria-label={t('learn.page.dismissBanner')}
             >
               <X size={16} />
             </button>
@@ -4278,20 +4250,20 @@ export default function LearnModePage() {
         {/* ── Hero ──────────────────────────────────────────────────────────── */}
         <div className={`lrn-hero lrn-hero--${persona}`}>
           <div className="lrn-hero-body">
-            <p className="lrn-hero-eyebrow">Learn Mode</p>
-            <h1 className="lrn-hero-title">{hero.title}</h1>
-            <p className="lrn-hero-sub">{hero.sub}</p>
+            <p className="lrn-hero-eyebrow">{t('learn.page.hero.eyebrow')}</p>
+            <h1 className="lrn-hero-title">{t(hero.titleKey)}</h1>
+            <p className="lrn-hero-sub">{t(hero.subKey)}</p>
             <div className="lrn-hero-actions">
-              {hero.cta && (
-                hero.cta.href ? (
-                  <Link to={hero.cta.href} className="lrn-hero-cta">{hero.cta.label} →</Link>
+              {hero.ctaKey && (
+                hero.href ? (
+                  <Link to={hero.href} className="lrn-hero-cta">{t(hero.ctaKey)} →</Link>
                 ) : (
                   <button
                     type="button"
                     className="lrn-hero-cta"
                     onClick={() => { setSubmitForm(EMPTY_SUBMISSION); setSubmitSuccess(false); setShowSubmitModal(true); }}
                   >
-                    {hero.cta.label} →
+                    {t(hero.ctaKey)} →
                   </button>
                 )
               )}
@@ -4302,16 +4274,16 @@ export default function LearnModePage() {
                   className="lrn-hero-submit-btn"
                   onClick={() => { setSubmitForm(EMPTY_SUBMISSION); setSubmitSuccess(false); setShowSubmitModal(true); }}
                 >
-                  + Submit a Guide
+                  + {t('learn.page.modal.title')}
                 </button>
               )}
             </div>
           </div>
           <div className="lrn-ladder">
-            {['Learn a skill', 'Do it yourself', 'List as a service', 'Grow your business'].map((step, i) => (
-              <span key={step} className="lrn-ladder-step">
+            {['learn.step.1', 'learn.step.2', 'learn.step.3', 'learn.step.4'].map((stepKey, i) => (
+              <span key={stepKey} className="lrn-ladder-step">
                 <span className="lrn-ladder-num">{i + 1}</span>
-                {step}
+                {t(stepKey)}
               </span>
             ))}
           </div>
@@ -4346,7 +4318,7 @@ export default function LearnModePage() {
               return (
                 <span key={cat} className="lrn-badge-chip" style={{ '--badge-color': c?.color ?? '#f97316' }}>
                   {c && <c.Icon size={11} aria-hidden="true" />}
-                  {c?.label ?? cat}
+                  {c ? t(c.tKey) : cat}
                 </span>
               );
             })}
@@ -4358,10 +4330,10 @@ export default function LearnModePage() {
           <div className="lrn-helper-prompt" role="status">
             <CheckCircle size={16} aria-hidden="true" />
             <span>
-              <strong>{helperPrompt.guideTitle}</strong> completed!
-              Add <em>{helperPrompt.skill}</em> to your Helper profile?
+              <strong>{helperPrompt.guideTitle}</strong> {t('learn.page.helperPromptCompleted')}
+              {' '}{t('learn.page.helperPromptAdd', { skill: helperPrompt.skill })}
             </span>
-            <Link to="/helper-profile/skills" className="lrn-helper-prompt-cta">Add skill →</Link>
+            <Link to="/helper-profile/skills" className="lrn-helper-prompt-cta">{t('learn.page.helperPromptLink')}</Link>
             <button
               type="button"
               className="lrn-helper-prompt-close"
@@ -4381,8 +4353,8 @@ export default function LearnModePage() {
             className="lrn-search-input"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search guides… (faucet, drywall, oil change)"
-            aria-label="Search guides"
+            placeholder={t('learn.page.searchPlaceholder')}
+            aria-label={t('learn.page.searchAriaLabel')}
           />
           {query && (
             <button type="button" className="lrn-search-clear" onClick={() => {
@@ -4398,7 +4370,7 @@ export default function LearnModePage() {
           <section className="lrn-section">
             <h2 className="lrn-section-label">
               <TrendingUp size={14} aria-hidden="true" />
-              Start Here
+              {t('learn.page.startHere')}
             </h2>
             <div className="lrn-featured-grid">
               {featuredGuides.map((guide) => {
@@ -4419,11 +4391,11 @@ export default function LearnModePage() {
                     {done && <CheckCircle size={18} className="lrn-featured-check" aria-label="Completed" />}
                     <span className="lrn-featured-cat" style={{ color: cat?.color }}>
                       {cat && <cat.Icon size={14} aria-hidden="true" />}
-                      {cat?.label}
+                      {cat ? t(cat.tKey) : null}
                     </span>
                     <span className="lrn-featured-name">{guide.title}</span>
                     <span className="lrn-featured-meta">
-                      <span style={{ color: DIFFICULTY_COLOR[guide.difficulty] }}>{guide.difficulty}</span>
+                      <span style={{ color: DIFFICULTY_COLOR[guide.difficulty] }}>{t(`learn.page.difficulty.${guide.difficulty}`, { defaultValue: guide.difficulty })}</span>
                       <span>·</span>
                       <Clock size={12} aria-hidden="true" />
                       <span>{guide.minutes} min</span>
@@ -4445,9 +4417,9 @@ export default function LearnModePage() {
 
         {/* ── Category grid ─────────────────────────────────────────────────── */}
         <section className="lrn-section">
-          <h2 className="lrn-section-label">Browse by Category</h2>
+          <h2 className="lrn-section-label">{t('learn.page.browseByCategory')}</h2>
           <div className="lrn-categories">
-            {CATEGORIES.map(({ id, label, Icon, color }) => {
+            {CATEGORIES.map(({ id, tKey, Icon, color }) => {
               const isActive = activeCategory === id;
               return (
                 <button
@@ -4459,7 +4431,7 @@ export default function LearnModePage() {
                   aria-pressed={isActive}
                 >
                   <Icon size={20} aria-hidden="true" />
-                  <span>{label}</span>
+                  <span>{t(tKey)}</span>
                 </button>
               );
             })}
@@ -4470,16 +4442,16 @@ export default function LearnModePage() {
         <section className="lrn-section" ref={listRef}>
           <div className="lrn-list-header">
             <h2 className="lrn-section-label">
-              {activeCategoryLabel} Guides
+              {t('learn.page.guidesCount', { label: activeCategoryLabel })}
               <span className="lrn-count">({filteredGuides.length})</span>
             </h2>
-            <div className="lrn-view-toggle" role="group" aria-label="View mode">
+            <div className="lrn-view-toggle" role="group" aria-label={t('learn.page.viewMode')}>
               <button
                 type="button"
                 className={viewMode === 'list' ? 'is-active' : ''}
                 onClick={() => setViewMode('list')}
                 aria-pressed={viewMode === 'list'}
-                title="List view"
+                title={t('learn.page.listView')}
               >
                 <LayoutList size={16} aria-hidden="true" />
               </button>
@@ -4488,7 +4460,7 @@ export default function LearnModePage() {
                 className={viewMode === 'grid' ? 'is-active' : ''}
                 onClick={() => setViewMode('grid')}
                 aria-pressed={viewMode === 'grid'}
-                title="Grid view"
+                title={t('learn.page.gridView')}
               >
                 <LayoutGrid size={16} aria-hidden="true" />
               </button>
@@ -4497,9 +4469,9 @@ export default function LearnModePage() {
 
           {filteredGuides.length === 0 ? (
             <div className="lrn-empty">
-              <p>No guides match "{query}".</p>
+              <p>{t('learn.page.noResults', { query })}</p>
               <button type="button" onClick={() => { setQuery(''); setActiveCategory('all'); setSearchParams({}, { replace: true }); }}>
-                Clear filters
+                {t('learn.page.clearFilters')}
               </button>
             </div>
           ) : viewMode === 'grid' ? (
@@ -4520,10 +4492,10 @@ export default function LearnModePage() {
                       <span className="lrn-grid-cat-icon" style={{ color: cat?.color }}>{cat && <cat.Icon size={22} aria-hidden="true" />}</span>
                     </div>
                     <div className="lrn-grid-body">
-                      <span className="lrn-grid-cat-label" style={{ color: cat?.color }}>{cat?.label}</span>
+                      <span className="lrn-grid-cat-label" style={{ color: cat?.color }}>{cat ? t(cat.tKey) : null}</span>
                       <span className="lrn-grid-name">{guide.title}</span>
                       <span className="lrn-grid-meta">
-                        <span style={{ color: DIFFICULTY_COLOR[guide.difficulty] }} className="lrn-difficulty">{guide.difficulty}</span>
+                        <span style={{ color: DIFFICULTY_COLOR[guide.difficulty] }} className="lrn-difficulty">{t(`learn.page.difficulty.${guide.difficulty}`, { defaultValue: guide.difficulty })}</span>
                         <span className="lrn-meta-sep" aria-hidden="true" />
                         <Clock size={12} aria-hidden="true" />
                         <span>{guide.minutes} min</span>
@@ -4547,7 +4519,7 @@ export default function LearnModePage() {
                 return (
                   <li key="coming-soon" className="lrn-coming-soon-card" aria-hidden="true">
                     {cat && <cat.Icon size={20} style={{ color: cat.color }} aria-hidden="true" />}
-                    <span>More {cat?.label ?? activeCategory} guides coming soon</span>
+                    <span>{t('learn.page.moreComingSoon', { category: cat ? t(cat.tKey) : activeCategory })}</span>
                   </li>
                 );
               })()}
@@ -4603,7 +4575,7 @@ export default function LearnModePage() {
                         ) : (
                           <div className="lrn-video-placeholder">
                             <PlayCircle size={28} aria-hidden="true" />
-                            <span>Video guide coming soon</span>
+                            <span>{t('learn.page.videoComingSoon')}</span>
                           </div>
                         )}
 
@@ -4620,7 +4592,7 @@ export default function LearnModePage() {
                         <div className="lrn-detail-grid">
                           {/* Steps */}
                           <div className="lrn-detail-steps">
-                            <h3 className="lrn-detail-heading">Steps</h3>
+                            <h3 className="lrn-detail-heading">{t('learn.page.stepsHeading')}</h3>
                             <ol className="lrn-steps">
                               {guide.steps.map((step, i) => (
                                 <li key={i}>
@@ -4632,11 +4604,11 @@ export default function LearnModePage() {
                                       type="button"
                                       className="lrn-ask-ai-btn"
                                       onClick={() => handleAskAI(guide, i, step)}
-                                      title="Ask AI about this step"
-                                      aria-label={`Ask AI about step ${i + 1}`}
+                                      title={t('learn.page.askAiTitle')}
+                                      aria-label={`${t('learn.page.askAiTitle')} ${i + 1}`}
                                     >
                                       <MessageCircle size={12} aria-hidden="true" />
-                                      Ask AI
+                                      {t('learn.page.askAi')}
                                     </button>
                                   </span>
                                 </li>
@@ -4647,7 +4619,7 @@ export default function LearnModePage() {
                             {done ? (
                               <div className="lrn-completed-badge">
                                 <CheckCircle size={18} aria-hidden="true" />
-                                Guide completed · +{DIFFICULTY_XP[guide.difficulty] ?? 0} XP earned
+                                {t('learn.page.guideCompleted', { xp: DIFFICULTY_XP[guide.difficulty] ?? 0 })}
                               </div>
                             ) : (
                               <button
@@ -4656,7 +4628,7 @@ export default function LearnModePage() {
                                 onClick={() => handleComplete(guide.id)}
                                 disabled={completing === guide.id}
                               >
-                                {completing === guide.id ? 'Saving…' : '✓ Mark as Complete'}
+                                {completing === guide.id ? t('learn.page.saving') : t('learn.page.markComplete')}
                               </button>
                             )}
                           </div>
@@ -4664,7 +4636,7 @@ export default function LearnModePage() {
                           {/* Side panels */}
                           <div className="lrn-detail-side">
                             <div className="lrn-detail-panel">
-                              <h3 className="lrn-detail-heading">Skills you'll learn</h3>
+                              <h3 className="lrn-detail-heading">{t('learn.page.skillsHeading')}</h3>
                               <div className="lrn-skill-chips">
                                 {guide.skills.map((s) => <span key={s} className="lrn-chip">{s}</span>)}
                               </div>
@@ -4679,7 +4651,7 @@ export default function LearnModePage() {
                                 <div className="lrn-tips-panel">
                                   <h3 className="lrn-detail-heading">
                                     <meta.Icon size={14} aria-hidden="true" />
-                                    {meta.label}
+                                    {t(meta.labelKey)}
                                   </h3>
                                   <p className="lrn-tips-text">{tip}</p>
                                 </div>
@@ -4689,7 +4661,7 @@ export default function LearnModePage() {
                             <div className="lrn-detail-panel">
                               <h3 className="lrn-detail-heading">
                                 <ShoppingBag size={14} aria-hidden="true" />
-                                Tools &amp; materials
+                                {t('learn.page.toolsHeading')}
                               </h3>
                               <ul className="lrn-tool-list">
                                 {guide.tools.map((tool) => (
@@ -4699,7 +4671,7 @@ export default function LearnModePage() {
                                       {tool.buy && (() => {
                                         const isOwn      = tool.link_type === 'own_inventory';
                                         const isAffiliate = !isOwn && tool.link_type !== 'rental';
-                                        const label      = isOwn ? 'Shop OxSteed' : 'Buy';
+                                        const label      = isOwn ? t('learn.page.shopOxsteed') : t('learn.page.buy');
                                         const ariaLabel  = isOwn
                                           ? `Shop ${tool.name} on OxSteed`
                                           : `Buy ${tool.name}`;
@@ -4717,13 +4689,13 @@ export default function LearnModePage() {
                                             </a>
                                             {/* FTC + Amazon: "(paid link)" must appear near each affiliate link */}
                                             {isAffiliate && (
-                                              <span className="lrn-tool-paid-label">(paid link)</span>
+                                              <span className="lrn-tool-paid-label">{t('learn.page.paidLink')}</span>
                                             )}
                                           </>
                                         );
                                       })()}
                                       {tool.rent && (
-                                        <Link to={tool.rent} className="lrn-tool-rent">Rent</Link>
+                                        <Link to={tool.rent} className="lrn-tool-rent">{t('learn.page.rent')}</Link>
                                       )}
                                     </span>
                                   </li>
@@ -4732,7 +4704,7 @@ export default function LearnModePage() {
                               {/* Amazon Associates site-wide disclosure — required when any affiliate link is present */}
                               {guide.tools.some((t) => t.buy && t.link_type !== 'own_inventory' && t.link_type !== 'rental') && (
                                 <p className="lrn-affiliate-disclosure">
-                                  As an Amazon Associate, OxSteed earns from qualifying purchases.
+                                  {t('learn.page.amazonDisclosure')}
                                 </p>
                               )}
                             </div>
@@ -4741,21 +4713,21 @@ export default function LearnModePage() {
                             <div className="lrn-detail-ctas">
                               {persona === 'helper' ? (
                                 <>
-                                  <p className="lrn-cta-label"><User size={13} aria-hidden="true" />You know this skill</p>
-                                  <Link to="/helper-profile/skills" className="lrn-cta-primary">Add to your profile →</Link>
-                                  <Link to={guide.hireHref} className="lrn-cta-secondary">Post a job in this category</Link>
+                                  <p className="lrn-cta-label"><User size={13} aria-hidden="true" />{t('learn.page.ctaYouKnowSkill')}</p>
+                                  <Link to="/helper-profile/skills" className="lrn-cta-primary">{t('learn.page.addToProfile')}</Link>
+                                  <Link to={guide.hireHref} className="lrn-cta-secondary">{t('jobs.postJob', { defaultValue: 'Post a job in this category' })}</Link>
                                 </>
                               ) : persona === 'customer' ? (
                                 <>
-                                  <p className="lrn-cta-label"><User size={13} aria-hidden="true" />Rather not DIY?</p>
-                                  <Link to={guide.hireHref} className="lrn-cta-primary">Find a local Helper →</Link>
-                                  <Link to={guide.toolsHref} className="lrn-cta-secondary">Rent the tools</Link>
+                                  <p className="lrn-cta-label"><User size={13} aria-hidden="true" />{t('learn.page.ctaRatherNotDiy')}</p>
+                                  <Link to={guide.hireHref} className="lrn-cta-primary">{t('learn.page.findHelper')}</Link>
+                                  <Link to={guide.toolsHref} className="lrn-cta-secondary">{t('learn.page.rentTools')}</Link>
                                 </>
                               ) : (
                                 <>
-                                  <p className="lrn-cta-label"><User size={13} aria-hidden="true" />Need help?</p>
-                                  <Link to={guide.hireHref} className="lrn-cta-primary">Find a local Helper →</Link>
-                                  <Link to="/join?mode=helper" className="lrn-cta-secondary">Offer this as a service</Link>
+                                  <p className="lrn-cta-label"><User size={13} aria-hidden="true" />{t('learn.page.ctaNeedHelp')}</p>
+                                  <Link to={guide.hireHref} className="lrn-cta-primary">{t('learn.page.findHelper')}</Link>
+                                  <Link to="/join?mode=helper" className="lrn-cta-secondary">{t('learn.page.offerAsService')}</Link>
                                 </>
                               )}
                             </div>
@@ -4791,13 +4763,13 @@ export default function LearnModePage() {
       {xpToast && (
         <div className="lrn-xp-toast" role="status" aria-live="polite">
           <CheckCircle size={16} aria-hidden="true" />
-          <span>+{xpToast.xp} XP earned!</span>
+          <span>{t('learn.page.xpEarned', { xp: xpToast.xp })}</span>
           {xpToast.badge && (
             <>
               <span className="lrn-xp-toast-sep">·</span>
               <Award size={14} aria-hidden="true" />
               <span className="lrn-xp-toast-badge">
-                {CATEGORIES.find((c) => c.id === xpToast.badge)?.label ?? xpToast.badge} badge unlocked!
+                {t('learn.page.badgeUnlocked', { badge: (() => { const c = CATEGORIES.find((c) => c.id === xpToast.badge); return c ? t(c.tKey) : xpToast.badge; })() })}
               </span>
             </>
           )}
@@ -4806,10 +4778,10 @@ export default function LearnModePage() {
 
       {/* ── UGC Submit Modal (Priority 11) ─────────────────────────────────── */}
       {showSubmitModal && (
-        <div className="lrn-modal-overlay" role="dialog" aria-modal="true" aria-label="Submit a guide">
+        <div className="lrn-modal-overlay" role="dialog" aria-modal="true" aria-label={t('learn.page.modal.ariaLabel')}>
           <div className="lrn-modal">
             <div className="lrn-modal-header">
-              <h2 className="lrn-modal-title">Submit a Guide</h2>
+              <h2 className="lrn-modal-title">{t('learn.page.modal.title')}</h2>
               <button type="button" className="lrn-modal-close" onClick={() => setShowSubmitModal(false)} aria-label="Close">
                 <X size={20} />
               </button>
@@ -4818,38 +4790,38 @@ export default function LearnModePage() {
             {submitSuccess ? (
               <div className="lrn-modal-success">
                 <CheckCircle size={40} aria-hidden="true" />
-                <h3>Guide submitted!</h3>
-                <p>Your guide is under review. We'll let you know once it's approved and published.</p>
-                <button type="button" className="lrn-cta-primary" onClick={() => setShowSubmitModal(false)}>Done</button>
+                <h3>{t('learn.page.modal.successTitle')}</h3>
+                <p>{t('learn.page.modal.successMessage')}</p>
+                <button type="button" className="lrn-cta-primary" onClick={() => setShowSubmitModal(false)}>{t('learn.page.modal.done')}</button>
               </div>
             ) : (
               <form className="lrn-modal-form" onSubmit={handleSubmitGuide}>
                 <div className="lrn-modal-row">
-                  <label className="lrn-modal-label">Guide title *
+                  <label className="lrn-modal-label">{t('learn.page.modal.titleLabel')} *
                     <input className="lrn-modal-input" type="text" maxLength={200} required
                       value={submitForm.title}
                       onChange={(e) => handleSubmitField('title', e.target.value)}
-                      placeholder="e.g. Replace a Bathroom Faucet"
+                      placeholder={t('learn.page.modal.titlePlaceholder')}
                     />
                   </label>
                 </div>
 
                 <div className="lrn-modal-row lrn-modal-row--cols">
-                  <label className="lrn-modal-label">Category *
+                  <label className="lrn-modal-label">{t('learn.page.modal.categoryLabel')} *
                     <select className="lrn-modal-input" value={submitForm.category}
                       onChange={(e) => handleSubmitField('category', e.target.value)}>
                       {CATEGORIES.filter((c) => c.id !== 'all').map((c) => (
-                        <option key={c.id} value={c.id}>{c.label}</option>
+                        <option key={c.id} value={c.id}>{t(c.tKey)}</option>
                       ))}
                     </select>
                   </label>
-                  <label className="lrn-modal-label">Difficulty *
+                  <label className="lrn-modal-label">{t('learn.page.modal.difficultyLabel')} *
                     <select className="lrn-modal-input" value={submitForm.difficulty}
                       onChange={(e) => handleSubmitField('difficulty', e.target.value)}>
-                      {['Easy', 'Medium', 'Hard'].map((d) => <option key={d}>{d}</option>)}
+                      {['Easy', 'Medium', 'Hard'].map((d) => <option key={d} value={d}>{t(`learn.page.difficulty.${d}`, { defaultValue: d })}</option>)}
                     </select>
                   </label>
-                  <label className="lrn-modal-label">Est. minutes *
+                  <label className="lrn-modal-label">{t('learn.page.modal.minutesLabel')} *
                     <input className="lrn-modal-input" type="number" min={1} max={1440} required
                       value={submitForm.estimated_minutes}
                       onChange={(e) => handleSubmitField('estimated_minutes', e.target.value)}
@@ -4858,24 +4830,24 @@ export default function LearnModePage() {
                 </div>
 
                 <div className="lrn-modal-row">
-                  <label className="lrn-modal-label">Intro (1–2 sentences) *
+                  <label className="lrn-modal-label">{t('learn.page.modal.introLabel')} *
                     <textarea className="lrn-modal-input lrn-modal-textarea" rows={3} maxLength={2000} required
                       value={submitForm.intro}
                       onChange={(e) => handleSubmitField('intro', e.target.value)}
-                      placeholder="What this guide covers and why it matters."
+                      placeholder={t('learn.page.modal.introPlaceholder')}
                     />
                   </label>
                 </div>
 
                 <div className="lrn-modal-row">
-                  <p className="lrn-modal-label" style={{ marginBottom: '.5rem' }}>Steps * (min 2)</p>
+                  <p className="lrn-modal-label" style={{ marginBottom: '.5rem' }}>{t('learn.page.modal.stepsLabel', { n: 2 })}</p>
                   {submitForm.steps.map((step, i) => (
                     <div key={i} className="lrn-modal-step-row">
                       <span className="lrn-step-num">{i + 1}</span>
                       <input className="lrn-modal-input" type="text" maxLength={500}
                         value={step}
                         onChange={(e) => handleSubmitStep(i, e.target.value)}
-                        placeholder={`Step ${i + 1}`}
+                        placeholder={t('learn.page.modal.stepPlaceholder', { n: i + 1 })}
                       />
                       {submitForm.steps.length > 2 && (
                         <button type="button" className="lrn-modal-remove" onClick={() => {
@@ -4890,20 +4862,20 @@ export default function LearnModePage() {
                   {submitForm.steps.length < 20 && (
                     <button type="button" className="lrn-modal-add-btn"
                       onClick={() => setSubmitForm((prev) => ({ ...prev, steps: [...prev.steps, ''] }))}>
-                      + Add step
+                      {t('learn.page.modal.addStep')}
                     </button>
                   )}
                 </div>
 
                 <div className="lrn-modal-row">
-                  <p className="lrn-modal-label" style={{ marginBottom: '.5rem' }}>Skills you'll learn *</p>
+                  <p className="lrn-modal-label" style={{ marginBottom: '.5rem' }}>{t('learn.page.modal.skillsLabel')} *</p>
                   <div className="lrn-modal-skills-row">
                     {submitForm.skills.map((skill, i) => (
                       <div key={i} className="lrn-modal-skill-item">
                         <input className="lrn-modal-input" type="text" maxLength={80}
                           value={skill}
                           onChange={(e) => handleSubmitSkill(i, e.target.value)}
-                          placeholder="e.g. Shutoff valve operation"
+                          placeholder={t('learn.page.modal.skillPlaceholder')}
                         />
                         {submitForm.skills.length > 1 && (
                           <button type="button" className="lrn-modal-remove" onClick={() => {
@@ -4918,14 +4890,14 @@ export default function LearnModePage() {
                     {submitForm.skills.length < 10 && (
                       <button type="button" className="lrn-modal-add-btn"
                         onClick={() => setSubmitForm((prev) => ({ ...prev, skills: [...prev.skills, ''] }))}>
-                        + Add skill
+                        {t('learn.page.modal.addSkill')}
                       </button>
                     )}
                   </div>
                 </div>
 
                 <div className="lrn-modal-row">
-                  <label className="lrn-modal-label">Video URL (optional)
+                  <label className="lrn-modal-label">{t('learn.page.modal.videoLabel')}
                     <input className="lrn-modal-input" type="url" maxLength={500}
                       value={submitForm.video_url}
                       onChange={(e) => handleSubmitField('video_url', e.target.value)}
@@ -4935,7 +4907,7 @@ export default function LearnModePage() {
                 </div>
 
                 <div className="lrn-modal-row">
-                  <label className="lrn-modal-label">License / permit note (optional)
+                  <label className="lrn-modal-label">{t('learn.page.modal.licenseLabel')}
                     <textarea className="lrn-modal-input lrn-modal-textarea" rows={2} maxLength={1000}
                       value={submitForm.license_note}
                       onChange={(e) => handleSubmitField('license_note', e.target.value)}
@@ -4951,10 +4923,10 @@ export default function LearnModePage() {
                 )}
 
                 <div className="lrn-modal-footer">
-                  <button type="button" className="lrn-cta-secondary" onClick={() => setShowSubmitModal(false)}>Cancel</button>
+                  <button type="button" className="lrn-cta-secondary" onClick={() => setShowSubmitModal(false)}>{t('learn.page.modal.cancel')}</button>
                   <button type="submit" className="lrn-modal-submit-btn" disabled={submitting}>
                     <Send size={15} aria-hidden="true" />
-                    {submitting ? 'Submitting…' : 'Submit for review'}
+                    {submitting ? t('learn.page.modal.submitting') : t('learn.page.modal.submit')}
                   </button>
                 </div>
               </form>

@@ -9152,7 +9152,7 @@
         "compliance": {
           "heading": "Compliance isn’t optional",
           "body": "Every shipment crosses regulations: trade rules, duties, restricted categories, import licenses. OxSteed surfaces restrictions before you commit — not after your goods are held at customs."
-          },
+        },
         "lastmile": {
           "heading": "The last mile is its own problem",
           "body": "Goods arrive at port. Then what? Warehousing, allocation, and delivery orders — each one is its own handoff. OxSteed coordinates the chain so every step knows what the next one needs."
@@ -12012,6 +12012,159 @@
       "errorAddingBlockedDate": "Could not add blocked date.",
       "errorRemovingBlockedDate": "Could not remove blocked date.",
       "dateRequired": "Please select a date."
+    }
+  },
+  "learn": {
+    "page": {
+      "metaTitle": "Learn to DIY — Home Repair, Car Care & Trade Skills | OxSteed",
+      "metaDesc": "Step-by-step guides for fixing faucets, patching drywall, changing oil, and more. Every guide includes tool lists, skill tracking, and a direct path to hire a local Helper.",
+      "searchPlaceholder": "Search guides… (faucet, drywall, oil change)",
+      "searchAriaLabel": "Search guides",
+      "clearSearch": "Clear search",
+      "dismissBanner": "Dismiss app banner",
+      "appBannerText": "Get offline access to all guides",
+      "appBannerCta": "Download the OxSteed app",
+      "appStore": "App Store",
+      "startHere": "Start Here",
+      "browseByCategory": "Browse by Category",
+      "guidesCount": "{{label}} Guides",
+      "viewMode": "View mode",
+      "listView": "List view",
+      "gridView": "Grid view",
+      "noResults": "No guides match \"{{query}}\".",
+      "clearFilters": "Clear filters",
+      "moreComingSoon": "More {{category}} guides coming soon",
+      "videoComingSoon": "Video guide coming soon",
+      "stepsHeading": "Steps",
+      "askAiTitle": "Ask AI about this step",
+      "askAi": "Ask AI",
+      "guideCompleted": "Guide completed · +{{xp}} XP earned",
+      "saving": "Saving…",
+      "markComplete": "✓ Mark as Complete",
+      "skillsHeading": "Skills you'll learn",
+      "toolsHeading": "Tools & materials",
+      "paidLink": "(paid link)",
+      "shopOxsteed": "Shop OxSteed",
+      "buy": "Buy",
+      "rent": "Rent",
+      "amazonDisclosure": "As an Amazon Associate, OxSteed earns from qualifying purchases.",
+      "ctaYouKnowSkill": "You know this skill",
+      "ctaRatherNotDiy": "Rather not DIY?",
+      "ctaNeedHelp": "Need help?",
+      "addToProfile": "Add to your profile →",
+      "findHelper": "Find a local Helper →",
+      "rentTools": "Rent the tools",
+      "offerAsService": "Offer this as a service",
+      "xpEarned": "+{{xp}} XP earned!",
+      "badgeUnlocked": "{{badge}} badge unlocked!",
+      "submissionFailed": "Submission failed. Please try again.",
+      "helperPromptCompleted": "completed!",
+      "helperPromptAdd": "Add {{skill}} to your Helper profile?",
+      "helperPromptLink": "Add skill →",
+      "modal": {
+        "ariaLabel": "Submit a guide",
+        "title": "Submit a Guide",
+        "successTitle": "Guide submitted!",
+        "successMessage": "Your guide is under review. We'll let you know once it's approved and published.",
+        "done": "Done",
+        "titleLabel": "Guide title",
+        "titlePlaceholder": "e.g. Replace a Bathroom Faucet",
+        "categoryLabel": "Category",
+        "difficultyLabel": "Difficulty",
+        "minutesLabel": "Est. minutes",
+        "introLabel": "Intro (1–2 sentences)",
+        "introPlaceholder": "What this guide covers and why it matters.",
+        "stepsLabel": "Steps (min {{n}})",
+        "stepPlaceholder": "Step {{n}}",
+        "addStep": "+ Add step",
+        "skillsLabel": "Skills you'll learn",
+        "skillPlaceholder": "e.g. Shutoff valve operation",
+        "addSkill": "+ Add skill",
+        "videoLabel": "Video URL (optional)",
+        "licenseLabel": "License / permit note (optional)",
+        "cancel": "Cancel",
+        "submitting": "Submitting…",
+        "submit": "Submit for review"
+      },
+      "categories": {
+        "all": "All",
+        "plumbing": "Plumbing",
+        "electrical": "Electrical",
+        "carpentry": "Carpentry",
+        "hvac": "HVAC",
+        "painting": "Painting",
+        "carCare": "Car Care",
+        "landscaping": "Landscaping",
+        "maintenance": "Maintenance",
+        "management": "Management",
+        "customer": "Customer",
+        "helper": "Helper",
+        "logistics": "Logistics",
+        "consulting": "Consulting",
+        "toolRental": "Tool Rental",
+        "franchise": "Franchise",
+        "life": "Life",
+        "business": "Business",
+        "sales": "Sales",
+        "support": "Support"
+      },
+      "difficulty": {
+        "Easy": "Easy",
+        "Medium": "Medium",
+        "Hard": "Hard"
+      },
+      "hero": {
+        "eyebrow": "Learn Mode",
+        "guest": {
+          "title": "Learn. Do. Earn.",
+          "sub": "Step-by-step guides for home repair and car care — every skill you build connects to the tools, kits, and Helpers you need to finish the job."
+        },
+        "customer": {
+          "title": "Learn. Do. Earn.",
+          "sub": "Every guide you complete builds real skill. When you're ready, list yourself as a Helper and turn what you know into income.",
+          "cta": "Become a Helper"
+        },
+        "helper": {
+          "title": "Upskill. Grow. Earn more.",
+          "sub": "Every guide you complete can be added to your Helper profile as a verified skill. More skills means more jobs, more reviews, and a higher Pulse score.",
+          "cta": "View your skill profile"
+        },
+        "consultant": {
+          "title": "Share what you know.",
+          "sub": "Your expertise has real value. Submit a guide, build your reputation, and earn attribution when your content helps others succeed.",
+          "cta": "Submit a Guide"
+        },
+        "business": {
+          "title": "Train your team.",
+          "sub": "Use these guides to onboard new hires, set skills standards for your crew, and build a library of trade knowledge your business depends on.",
+          "cta": "Manage your team"
+        },
+        "investor": {
+          "title": "Know what you're buying.",
+          "sub": "Understanding repair complexity and true cost is a competitive edge. Every guide here translates directly into better due diligence, smarter capex decisions, and lower vacancy.",
+          "cta": "Browse the marketplace"
+        },
+        "manager": {
+          "title": "Own every system in your building.",
+          "sub": "Facilities managers who understand the work they oversee negotiate better with contractors, catch scope creep early, and earn more trust from ownership.",
+          "cta": "Post a job"
+        },
+        "support_agent": {
+          "title": "Resolve faster. Escalate smarter.",
+          "sub": "The more you understand the repair, the faster you can triage a customer's issue — and the better you know when to escalate vs. walk them through it.",
+          "cta": "Browse all guides"
+        }
+      },
+      "personaTip": {
+        "guest": "Homeowner Tip",
+        "customer": "Before You DIY",
+        "helper": "Offer This as a Service",
+        "consultant": "Expert Perspective",
+        "business": "Managing at Scale",
+        "investor": "Investor Lens",
+        "manager": "Facilities Manager View",
+        "support_agent": "Support Agent Playbook"
+      }
     }
   }
 }
