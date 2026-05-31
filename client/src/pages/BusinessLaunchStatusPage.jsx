@@ -7,7 +7,6 @@ import {
   ArrowRight,
   AlertCircle,
   Briefcase,
-  BriefcaseBusiness,
   CalendarClock,
   CheckCircle2,
   Compass,
@@ -506,7 +505,7 @@ function DetailModal({ request, onClose }) {
                 {t('businessLaunchStatus.businessInfo', { defaultValue: 'Business Information' })}
               </h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.8rem' }}>
-                <DetailField icon={BriefcaseBusiness} label={t('businessLaunchStatus.skill', { defaultValue: 'Skill / Offer' })} value={request.skill_description} />
+                <DetailField icon={Briefcase} label={t('businessLaunchStatus.skill', { defaultValue: 'Skill / Offer' })} value={request.skill_description} />
                 <DetailField icon={Compass} label={t('businessLaunchStatus.targetMarket', { defaultValue: 'Target Market' })} value={request.target_market} />
                 <DetailField icon={Rocket} label={t('businessLaunchStatus.businessName', { defaultValue: 'Business Name' })} value={request.business_name} />
                 <DetailField icon={MapPin} label={t('businessLaunchStatus.location', { defaultValue: 'Location' })} value={[request.operating_state, request.operating_country].filter(Boolean).join(', ') || null} />
