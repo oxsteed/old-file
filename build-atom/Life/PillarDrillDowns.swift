@@ -25,7 +25,6 @@ struct MoneyPillarView: View {
         .navigationTitle("Money")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Theme.background, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showAdd = true } label: {
@@ -144,7 +143,6 @@ private struct AddMoneyEntryView: View {
                 Button("Cancel") { dismiss() }.foregroundStyle(Theme.accent)
             }}
             .toolbarBackground(Theme.background, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
         }
     }
 }
@@ -153,7 +151,8 @@ private struct AddMoneyEntryView: View {
 
 struct HomeCarePillarView: View {
     @EnvironmentObject var lifeData: LifeDataStore
-    @State private var showAdd = false
+    @State private var showAdd       = false
+    @State private var postJobPrefill: PostJobPrefill? = nil
 
     var body: some View {
         ScrollView {
@@ -181,6 +180,19 @@ struct HomeCarePillarView: View {
                                 Image(systemName: "arrow.clockwise").font(.system(size: 11))
                                     .foregroundStyle(Theme.textTertiary)
                             }
+                            // Post as Job context button
+                            Button {
+                                postJobPrefill = PostJobPrefill(
+                                    title: task.title,
+                                    description: "Home care task: \(task.title) (\(task.category))",
+                                    category: "Handyman",
+                                    urgency: "medium"
+                                )
+                            } label: {
+                                Image(systemName: "arrow.up.right.circle")
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(Theme.accent)
+                            }
                         }
                         .padding(12)
                         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
@@ -202,8 +214,12 @@ struct HomeCarePillarView: View {
         .navigationTitle("Home Care")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Theme.background, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
         .sheet(isPresented: $showAdd) { AddHomeTaskView().presentationDetents([.medium]) }
+        .sheet(item: $postJobPrefill) { pf in
+            PostJobView(prefill: pf)
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Theme.background)
+        }
     }
 }
 
@@ -238,7 +254,6 @@ private struct AddHomeTaskView: View {
                 Button("Cancel") { dismiss() }.foregroundStyle(Theme.accent)
             }}
             .toolbarBackground(Theme.background, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
         }
     }
 }
@@ -247,7 +262,11 @@ private struct AddHomeTaskView: View {
 
 struct CarCarePillarView: View {
     @EnvironmentObject var lifeData: LifeDataStore
-    @State private var showAdd = false
+    @EnvironmentObject private var localization: LocalizationManager
+    @State private var showAdd: Bool = false
+    @State private var postJobPrefill: PostJobPrefill? = nil
+    /// Map of vehicleId → open recall count fetched from NHTSA
+    @State private var recallCounts: [UUID: Int] = [:]
 
     var body: some View {
         ScrollView {
@@ -273,13 +292,19 @@ struct CarCarePillarView: View {
         .navigationTitle("Car Care")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Theme.background, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
         .sheet(isPresented: $showAdd) { AddVehicleView().presentationDetents([.large]) }
+        .sheet(item: $postJobPrefill) { pf in
+            PostJobView(prefill: pf)
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Theme.background)
+        }
+        .task { await loadRecalls() }
     }
 
     private func vehicleCard(_ v: Vehicle) -> some View {
-        let oilDue = v.lastOilChangeMile + 5000
+        let oilDue        = v.lastOilChangeMile + 5_000
         let milesUntilOil = oilDue - v.mileage
+        let recalls       = recallCounts[v.id] ?? 0
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "car.fill").foregroundStyle(Theme.pillarCar)
@@ -289,34 +314,177 @@ struct CarCarePillarView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(v.year) \(v.make) \(v.model)").font(.system(size: 16, weight: .bold))
                         .foregroundStyle(Theme.textPrimary)
-                    Text("\(v.mileage.formatted()) miles").font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
+                    Text(localization.format("%@ miles", v.mileage.formatted()))
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                Spacer()
+                if !v.vin.isEmpty {
+                    Text("VIN ✓").font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(Theme.success).padding(.horizontal, 6).padding(.vertical, 3)
+                        .background(Theme.success.opacity(0.14), in: Capsule())
                 }
             }
+
+            // NHTSA recall alert banner
+                if recalls > 0 {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(Theme.danger).font(.system(size: 13))
+                        Text(localization.format("%d open recall(s) — check nhtsa.gov", recalls))
+                            .font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.danger)
+                    }
+                    .padding(10)
+                    .background(Theme.danger.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.danger.opacity(0.25), lineWidth: 1))
+                }
+
             Divider().background(Theme.stroke)
             HStack {
-                Label("Oil change in \(max(0, milesUntilOil).formatted()) mi",
+                Label(localization.format("Oil change in %@ mi", max(0, milesUntilOil).formatted()),
                       systemImage: "oilcan.fill")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(milesUntilOil < 1000 ? Theme.danger : Theme.textSecondary)
+                    .foregroundStyle(milesUntilOil < 1_000 ? Theme.danger : Theme.textSecondary)
                 Spacer()
-                Text("Last service: \(v.lastServiceDate)").font(.system(size: 11))
+                Text(localization.format("Last service: %@", v.lastServiceDate)).font(.system(size: 11))
                     .foregroundStyle(Theme.textTertiary)
+            }
+            Button {
+                postJobPrefill = PostJobPrefill(
+                    title: "\(v.year) \(v.make) \(v.model) — Service Needed",
+                    description: milesUntilOil < 1_000
+                        ? "Oil change due. Current mileage: \(v.mileage.formatted()). Last service: \(v.lastServiceDate)."
+                        : "Vehicle service for my \(v.year) \(v.make) \(v.model). Current mileage: \(v.mileage.formatted()).",
+                    category: "Handyman",
+                    urgency: milesUntilOil < 1_000 ? "high" : "medium"
+                )
+            } label: {
+                Label("Post Service Job", systemImage: "arrow.up.right.circle.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.pillarCar)
+                    .frame(maxWidth: .infinity).padding(.vertical, 10)
+                    .background(Theme.pillarCar.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
             }
         }
         .cardStyle()
+    }
+
+    private func loadRecalls() async {
+        for v in lifeData.vehicles where !v.make.isEmpty && !v.model.isEmpty && !v.year.isEmpty {
+            let count = await NHTSAService.recallCount(make: v.make, model: v.model, year: v.year)
+            recallCounts[v.id] = count
+        }
+    }
+}
+
+// MARK: - NHTSA Public API
+
+enum NHTSAService {
+    struct RecallResponse: Decodable {
+        let Count: Int?
+        let Message: String?
+    }
+
+    struct VINDecodeResult: Decodable {
+        let Results: [VINField]?
+        struct VINField: Decodable { let Variable: String; let Value: String? }
+    }
+
+    /// Returns the number of open NHTSA recalls for a given make/model/year.
+    static func recallCount(make: String, model: String, year: String) async -> Int {
+        let urlStr = "https://api.nhtsa.gov/recalls/recallsByVehicle?make=\(make)&model=\(model)&modelYear=\(year)"
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        guard let url = URL(string: urlStr) else { return 0 }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let resp = try JSONDecoder().decode(RecallResponse.self, from: data)
+            return resp.Count ?? 0
+        } catch { return 0 }
+    }
+
+    /// Decodes a VIN and returns (year, make, model) if successful.
+    static func decodeVIN(_ vin: String) async -> (year: String, make: String, model: String)? {
+        guard vin.count == 17 else { return nil }
+        let urlStr = "https://vpic.nhtsa.dot.gov/api/vehicles/decodevin/\(vin)?format=json"
+        guard let url = URL(string: urlStr) else { return nil }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let resp = try JSONDecoder().decode(VINDecodeResult.self, from: data)
+            let fields = resp.Results ?? []
+            func val(_ name: String) -> String {
+                fields.first { $0.Variable == name }?.Value ?? ""
+            }
+            let year  = val("Model Year")
+            let make  = val("Make")
+            let model = val("Model")
+            guard !year.isEmpty, !make.isEmpty, !model.isEmpty else { return nil }
+            return (year, make.capitalized, model.capitalized)
+        } catch { return nil }
     }
 }
 
 private struct AddVehicleView: View {
     @EnvironmentObject var lifeData: LifeDataStore
+    @EnvironmentObject private var localization: LocalizationManager
     @Environment(\.dismiss) private var dismiss
-    @State private var year = ""; @State private var make = ""; @State private var model = ""
-    @State private var mileage = ""; @State private var lastOil = ""; @State private var lastService = ""
+
+    @State private var vin         = ""
+    @State private var year        = ""
+    @State private var make        = ""
+    @State private var model       = ""
+    @State private var mileage     = ""
+    @State private var lastOil     = ""
+    @State private var lastService = ""
+    @State private var isDecoding  = false
+    @State private var decodeError: String?
+
+    private var canSave: Bool { !year.isEmpty && !make.isEmpty && !model.isEmpty }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 14) {
+                    // VIN input with decode button
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("VIN (optional)").font(.system(size: 11, weight: .semibold))
+                            .tracking(0.8).foregroundStyle(Theme.textTertiary).textCase(.uppercase)
+                        HStack(spacing: 8) {
+                            TextField("17-character VIN", text: $vin)
+                                .textInputAutocapitalization(.characters)
+                                .autocorrectionDisabled()
+                                .font(.system(size: 14))
+                                .foregroundStyle(Theme.textPrimary)
+                                .padding(10)
+                                .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
+                                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
+                            Button {
+                                Task { await decodeVIN() }
+                            } label: {
+                                if isDecoding {
+                                    ProgressView().tint(.white).frame(width: 50, height: 40)
+                                } else {
+                                    Text("Decode")
+                                        .font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
+                                        .frame(width: 60, height: 40)
+                                }
+                            }
+                            .background(vin.count == 17 ? Theme.accent : Theme.textTertiary,
+                                        in: RoundedRectangle(cornerRadius: 12))
+                            .disabled(vin.count != 17 || isDecoding)
+                        }
+                        if let err = decodeError {
+                            Text(err).font(.system(size: 11)).foregroundStyle(Theme.danger)
+                        }
+                    }
+
+                    if !year.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.success)
+                            Text(localization.format("Decoded: %@ %@ %@", year, make, model))
+                                .font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+                        }
+                    }
+
                     HStack(spacing: 10) {
                         OxTextField(title: "Year", text: $year, keyboard: .numberPad)
                         OxTextField(title: "Make", text: $make)
@@ -325,29 +493,46 @@ private struct AddVehicleView: View {
                     OxTextField(title: "Current Mileage", text: $mileage, keyboard: .numberPad)
                     OxTextField(title: "Last Oil Change Mile", text: $lastOil, keyboard: .numberPad)
                     OxTextField(title: "Last Service Date (YYYY-MM-DD)", text: $lastService)
+
                     Button {
-                        lifeData.vehicles.append(.init(year: year, make: make, model: model,
-                                                       mileage: Int(mileage) ?? 0,
-                                                       lastOilChangeMile: Int(lastOil) ?? 0,
-                                                       lastServiceDate: lastService, notes: ""))
+                        lifeData.vehicles.append(.init(
+                            vin: vin,
+                            year: year, make: make, model: model,
+                            mileage: Int(mileage) ?? 0,
+                            lastOilChangeMile: Int(lastOil) ?? 0,
+                            lastServiceDate: lastService.isEmpty ? "—" : lastService,
+                            notes: ""))
                         dismiss()
                     } label: {
-                        Text("Add Vehicle").font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
+                        Text("Add Vehicle")
+                            .font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
                             .frame(maxWidth: .infinity).padding(.vertical, 14)
                             .background(Theme.accent, in: RoundedRectangle(cornerRadius: 14))
                     }
-                    .disabled(year.isEmpty || make.isEmpty || model.isEmpty)
+                    .disabled(!canSave)
                 }
                 .padding(20)
             }
             .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Add Vehicle").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("Add Vehicle")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) {
                 Button("Cancel") { dismiss() }.foregroundStyle(Theme.accent)
             }}
             .toolbarBackground(Theme.background, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
         }
+    }
+
+    private func decodeVIN() async {
+        isDecoding = true; decodeError = nil
+        defer { isDecoding = false }
+        guard let result = await NHTSAService.decodeVIN(vin) else {
+            decodeError = "VIN not recognised — please enter details manually."
+            return
+        }
+        year  = result.year
+        make  = result.make
+        model = result.model
     }
 }
 
@@ -355,6 +540,7 @@ private struct AddVehicleView: View {
 
 struct PersonalCarePillarView: View {
     @EnvironmentObject var lifeData: LifeDataStore
+    @EnvironmentObject private var localization: LocalizationManager
 
     var body: some View {
         ScrollView {
@@ -370,7 +556,7 @@ struct PersonalCarePillarView: View {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(habit.name).font(.system(size: 14, weight: .semibold))
                                 .foregroundStyle(Theme.textPrimary)
-                            Text("🔥 \(habit.streak)-day streak · \(habit.target)×/week")
+                            Text(localization.format("🔥 %d-day streak · %d×/week", habit.streak, habit.target))
                                 .font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
                         }
                         Spacer()
@@ -393,7 +579,6 @@ struct PersonalCarePillarView: View {
         .navigationTitle("Personal Care")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Theme.background, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
     }
 
     private var streakSummary: some View {
@@ -435,7 +620,6 @@ struct GoalsPillarView: View {
         .navigationTitle("Goals")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Theme.background, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
         .sheet(isPresented: $showAdd) { AddGoalView().presentationDetents([.medium]) }
     }
 
@@ -501,7 +685,6 @@ private struct AddGoalView: View {
                 Button("Cancel") { dismiss() }.foregroundStyle(Theme.accent)
             }}
             .toolbarBackground(Theme.background, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
         }
     }
 }
@@ -510,6 +693,7 @@ private struct AddGoalView: View {
 
 struct SinkingFundsPillarView: View {
     @EnvironmentObject var lifeData: LifeDataStore
+    @EnvironmentObject private var localization: LocalizationManager
     @State private var showAdd = false
 
     var body: some View {
@@ -531,7 +715,6 @@ struct SinkingFundsPillarView: View {
         .navigationTitle("Sinking Funds")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Theme.background, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
         .sheet(isPresented: $showAdd) { AddSinkingFundView().presentationDetents([.large]) }
     }
 
@@ -545,7 +728,7 @@ struct SinkingFundsPillarView: View {
                     .background(Theme.pillarSinking.opacity(0.16), in: RoundedRectangle(cornerRadius: 10))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(f.name).font(.system(size: 14, weight: .bold)).foregroundStyle(Theme.textPrimary)
-                    Text("Target: \(f.targetDate)").font(.system(size: 11)).foregroundStyle(Theme.textTertiary)
+                    Text(localization.format("Target: %@", f.targetDate)).font(.system(size: 11)).foregroundStyle(Theme.textTertiary)
                 }
                 Spacer()
                 Text(String(format: "$%.0f / $%.0f", f.savedAmount, f.targetAmount))
@@ -554,7 +737,7 @@ struct SinkingFundsPillarView: View {
             ProgressView(value: f.progress).progressViewStyle(.linear).tint(f.statusColor)
 
             let perPaycheck = perPaycheckAmount(f)
-            Text("→ \(String(format: "$%.0f", perPaycheck)) per paycheck")
+            Text(localization.format("→ %@ per paycheck", String(format: "$%.0f", perPaycheck)))
                 .font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.textSecondary)
             HStack(spacing: 8) {
                 Button {
@@ -626,7 +809,6 @@ private struct AddSinkingFundView: View {
                 Button("Cancel") { dismiss() }.foregroundStyle(Theme.accent)
             }}
             .toolbarBackground(Theme.background, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
         }
     }
 }

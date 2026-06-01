@@ -1,35 +1,71 @@
 import SwiftUI
 
 struct HomeTabView: View {
+    @Binding var pendingDeepLink: AppDeepLink?
     @EnvironmentObject var personaStore: PersonaStore
     @EnvironmentObject var notifications: NotificationsStore
+    @EnvironmentObject var auth: AuthStore
     @State private var showPersonaSheet = false
     @State private var showSettingsSheet = false
+    @State private var showNotificationsSheet = false
+    @State private var showInboxSheet = false
+    @State private var showSearchSheet = false
+    @State private var showMapSheet = false
+    @State private var showAuthSheet = false
+    // Intent-triggered sheets (App Intents / Siri)
+    @State private var showPostJobSheet  = false
+    @State private var showPayoutSheet   = false
 
     var body: some View {
+        let isGuest = auth.user == nil
+        let persona = isGuest ? Persona.customer : personaStore.active
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
                     HomeHeader(
-                        persona: personaStore.active,
+                        persona: persona,
+                        isGuest: isGuest,
                         unread: notifications.unreadCount,
-                        onTapPersona: { showPersonaSheet = true },
+                        onTapPersona: {
+                            if isGuest { showAuthSheet = true }
+                            else { showPersonaSheet = true }
+                        },
+                        onTapSearch: { showSearchSheet = true },
+                        onTapMap: { showMapSheet = true },
+                        onTapInbox: {
+                            if isGuest { showAuthSheet = true }
+                            else { showInboxSheet = true }
+                        },
+                        onTapNotifications: {
+                            if isGuest { showAuthSheet = true }
+                            else { showNotificationsSheet = true }
+                        },
                         onTapSettings: { showSettingsSheet = true }
                     )
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
 
-                    HomeContent(persona: personaStore.active)
+                    if !isGuest {
+                        PersonaDashboard(persona: persona)
+                            .padding(.horizontal, 20)
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                            .id(persona)
+                    }
+
+                    HomeContent(persona: persona, isGuest: isGuest, onRequireAuth: { showAuthSheet = true })
                         .padding(.horizontal, 20)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
-                        .id(personaStore.active)
+                        .id(persona)
                 }
                 .padding(.bottom, 24)
             }
             .background(Theme.background.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
         }
-        .task { await notifications.load() }
+        .task {
+            // Guest mode: don't fetch protected resources.
+            if !isGuest { await notifications.load() }
+        }
         .sheet(isPresented: $showPersonaSheet) {
             PersonaSwitcherSheet()
                 .presentationDetents([.large])
@@ -42,111 +78,223 @@ struct HomeTabView: View {
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Theme.background)
         }
+        .sheet(isPresented: $showNotificationsSheet) {
+            NotificationsView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Theme.background)
+        }
+        .sheet(isPresented: $showInboxSheet) {
+            InboxView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Theme.background)
+        }
+        .sheet(isPresented: $showSearchSheet) {
+            UniversalSearchView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Theme.background)
+        }
+        .sheet(isPresented: $showMapSheet) {
+            MapBrowseView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Theme.background)
+        }
+        .sheet(isPresented: $showAuthSheet) {
+            AuthLandingView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Theme.background)
+        }
         .animation(.spring(response: 0.35, dampingFraction: 0.86), value: personaStore.active)
+        // ── App Intent / Siri routing ────────────────────────────────────
+        .sheet(isPresented: $showPostJobSheet) {
+            PostJobView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Theme.background)
+        }
+        .sheet(isPresented: $showPayoutSheet) {
+            PaymentsView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Theme.background)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .oxIntentTriggerPostJob)) { _ in
+            guard auth.user != nil else { showAuthSheet = true; return }
+            showPostJobSheet = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .oxIntentTriggerNearbyJobs)) { _ in
+            showSearchSheet = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .oxIntentTriggerInbox)) { _ in
+            guard auth.user != nil else { showAuthSheet = true; return }
+            showInboxSheet = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .oxIntentTriggerPayout)) { _ in
+            guard auth.user != nil else { showAuthSheet = true; return }
+            showPayoutSheet = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .oxIntentTriggerJobSearch)) { _ in
+            showSearchSheet = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .oxIntentTriggerHelperSearch)) { _ in
+            showSearchSheet = true
+        }
+        .onChange(of: pendingDeepLink) { _, deepLink in
+            guard let deepLink else { return }
+            switch deepLink {
+            case .conversation(let id):
+                NotificationCenter.default.post(name: .oxOpenConversation, object: nil, userInfo: ["id": id])
+                showInboxSheet = true
+            case .job(let id):
+                NotificationCenter.default.post(name: .oxOpenJob, object: nil, userInfo: ["id": id])
+                showSearchSheet = true
+            case .bid(let id):
+                NotificationCenter.default.post(name: .oxOpenBid, object: nil, userInfo: ["id": id])
+                showInboxSheet = true
+            case .notification:
+                showNotificationsSheet = true
+            case .home:
+                break
+            }
+            pendingDeepLink = nil
+        }
     }
 }
 
 private struct HomeHeader: View {
     let persona: Persona
+    let isGuest: Bool
     let unread: Int
     let onTapPersona: () -> Void
+    let onTapSearch: () -> Void
+    let onTapMap: () -> Void
+    let onTapInbox: () -> Void
+    let onTapNotifications: () -> Void
     let onTapSettings: () -> Void
 
     var body: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 12) {
-                LogoMark()
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.appName)
-                        .font(.system(size: 22, weight: .heavy))
-                        .foregroundStyle(Theme.textPrimary)
-                    Text(L10n.greeting)
-                        .font(.system(size: 13))
-                        .foregroundStyle(Theme.textSecondary)
-                }
-                Spacer()
-                IconChip(systemName: "bell.fill", badge: unread > 0 ? unread : nil)
-                Button(action: onTapSettings) {
-                    IconChip(systemName: "gearshape.fill")
-                }
-                .buttonStyle(.plain)
-            }
+        ZStack {
+            Theme.heroGradient
+            Circle()
+                .fill(Theme.accent.opacity(0.18))
+                .frame(width: 240, height: 240)
+                .offset(x: 120, y: -94)
+            Circle()
+                .fill(Theme.pillarHome.opacity(0.12))
+                .frame(width: 164, height: 164)
+                .offset(x: -120, y: 100)
 
-            Button(action: onTapPersona) {
-                HStack(spacing: 12) {
-                    Image(systemName: persona.icon)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(persona.color)
-                        .frame(width: 36, height: 36)
-                        .background(persona.color.opacity(0.16), in: RoundedRectangle(cornerRadius: 10))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(L10n.PersonaKey.actingAs)
-                            .font(.system(size: 11, weight: .semibold))
-                            .tracking(1.2)
-                            .foregroundStyle(Theme.textTertiary)
-                            .textCase(.uppercase)
-                        Text(L10n.PersonaKey.name(for: persona))
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(Theme.textPrimary)
-                    }
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(spacing: 10) {
+                    LogoMark()
+                    Text(L10n.appName)
+                        .font(.system(size: 15, weight: .bold))
+                        .tracking(1.1)
+                        .foregroundStyle(.white.opacity(0.9))
                     Spacer()
-                    Text(L10n.PersonaKey.switchAction)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Theme.accent)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(Theme.accent)
+                    Button(action: onTapPersona) {
+                        HStack(spacing: 6) {
+                            Image(systemName: persona.icon)
+                                .font(.system(size: 11, weight: .bold))
+                            Text(isGuest ? L10n.AuthKey.signIn : L10n.PersonaKey.name(for: persona))
+                                .lineLimit(1)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 9, weight: .bold))
+                        }
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 8)
+                        .background(.white.opacity(0.15), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
                 }
-                .cardStyle()
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(L10n.greeting)
+                        .font(.system(size: 25, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white)
+                    if isGuest {
+                        Text("settings.guest.subtitle")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.76))
+                    } else {
+                        Text(persona.tagline)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.76))
+                    }
+                }
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        HeroActionChip(title: L10n.CommonKey.search, icon: "magnifyingglass", action: onTapSearch)
+                        HeroActionChip(title: L10n.NavigationKey.map, icon: "map.fill", action: onTapMap)
+                        HeroActionChip(title: L10n.CommonKey.inbox, icon: "envelope.fill", action: onTapInbox)
+                        HeroActionChip(title: L10n.NavigationKey.alerts, icon: "bell.fill", badge: unread, action: onTapNotifications)
+                        HeroActionChip(title: L10n.NavigationKey.settings, icon: "gearshape.fill", action: onTapSettings)
+                    }
+                }
             }
-            .buttonStyle(.plain)
+            .padding(18)
         }
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(.white.opacity(0.09), lineWidth: 1))
+        .shadow(color: Theme.accent.opacity(0.17), radius: 18, y: 9)
     }
 }
 
 private struct LogoMark: View {
     var body: some View {
-        ZStack {
-            Circle().fill(
-                LinearGradient(colors: [Theme.accent, Theme.accentDeep], startPoint: .topLeading, endPoint: .bottomTrailing)
-            )
-            Image(systemName: "scope")
-                .font(.system(size: 18, weight: .black))
-                .foregroundStyle(.white)
-        }
-        .frame(width: 38, height: 38)
+        Image("OxSteedLogo")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 38, height: 38)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 
-private struct IconChip: View {
-    let systemName: String
-    var badge: Int? = nil
+private struct HeroActionChip: View {
+    let title: LocalizedStringKey
+    let icon: String
+    var badge: Int = 0
+    let action: () -> Void
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Image(systemName: systemName)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Theme.textPrimary)
-                .frame(width: 38, height: 38)
-                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
-            if let badge, badge > 0 {
-                Text("\(badge)")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 5).padding(.vertical, 2)
-                    .background(Theme.accent, in: Capsule())
-                    .offset(x: 6, y: -4)
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                Text(title)
+                    .lineLimit(1)
+                if badge > 0 {
+                    Text("\(badge)")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Theme.accent, in: Capsule())
+                }
             }
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.white.opacity(0.92))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 9)
+            .background(.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
         }
+        .buttonStyle(.plain)
     }
 }
 
 private struct HomeContent: View {
     let persona: Persona
+    let isGuest: Bool
+    let onRequireAuth: () -> Void
     var body: some View {
         switch persona {
-        case .customer: CustomerHome()
+        case .customer: CustomerHome(isGuest: isGuest, onRequireAuth: onRequireAuth)
         case .helper: HelperHome()
         case .business: BusinessHome()
         case .consultant: ConsultantHome()

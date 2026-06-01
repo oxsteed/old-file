@@ -69,7 +69,7 @@ struct ImagePickerButton: View {
                                                                purpose: purpose)
                 uploadedURLs.append(resp.url)
             } catch {
-                NSLog("[ImagePicker] upload failed: \(error)")
+                OXLog.error("upload failed: \(String(describing: error))", category: "upload")
             }
         }
     }
@@ -119,7 +119,7 @@ struct ProfilePhotoPicker: View {
                                                                    purpose: "profile_photo")
                     onUpload(resp.url)
                 } catch {
-                    NSLog("[ProfilePhoto] upload failed: \(error)")
+                    OXLog.error("profile photo upload failed: \(String(describing: error))", category: "upload")
                 }
             }
         }

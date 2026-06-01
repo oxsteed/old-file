@@ -36,15 +36,24 @@ final class KeychainManager {
 
     private func save(_ value: String, for key: String) {
         guard let data = value.data(using: .utf8) else { return }
-        let query: [String: Any] = [
+        let identityQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: key,
+            kSecAttrAccount as String: key
+        ]
+        let attributesToUpdate: [String: Any] = [
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
-        SecItemDelete(query as CFDictionary)
-        SecItemAdd(query as CFDictionary, nil)
+
+        let updateStatus = SecItemUpdate(identityQuery as CFDictionary, attributesToUpdate as CFDictionary)
+        if updateStatus == errSecSuccess { return }
+
+        let createQuery: [String: Any] = identityQuery.merging(attributesToUpdate) { _, new in new }
+        let addStatus = SecItemAdd(createQuery as CFDictionary, nil)
+        if addStatus != errSecSuccess {
+            OXLog.error("keychain save failed for \(key), status=\(addStatus)", category: "auth")
+        }
     }
 
     private func retrieve(for key: String) -> String? {

@@ -141,3 +141,54 @@
 "learn.step.3" = "اعرضها كخدمة";
 "learn.step.4" = "نمِّ عملك";
 "learn.search.placeholder" = "ابحث في الأدلة… (صنبور، جبس، تغيير زيت)";
+
+/* Navigation and guest home */
+"settings.guest.subtitle" = "تصفح الوظائف والمساعدين والخدمات المحلية";
+"auth.sign_in" = "تسجيل الدخول";
+"map.title" = "الخريطة";
+"notifications.title" = "الإشعارات";
+"home.browse_jobs.title" = "تصفح الوظائف المحلية";
+"home.pulse.sign_in_to_view" = "سجّل الدخول للعرض";
+
+/* Learn dynamic labels */
+"learn.hero.customer.eyebrow" = "أدوات العملاء";
+"learn.hero.customer.title" = "تعلّم قبل التوظيف";
+"learn.hero.customer.subtitle" = "أدلة قصيرة لتحديد العمل ومقارنة العروض واختيار المساعد المناسب.";
+"learn.hero.helper.eyebrow" = "أدوات المساعدين";
+"learn.hero.helper.title" = "مهارات تتحول إلى دخل";
+"learn.hero.helper.subtitle" = "طوّر مهارات عملية وحوّلها إلى أعمال على OxSteed.";
+"learn.hero.business.eyebrow" = "أدوات الأعمال";
+"learn.hero.business.title" = "درّب فريقك أسرع";
+"learn.hero.business.subtitle" = "أدلة قابلة لإعادة الاستخدام للعمليات والجودة والنمو.";
+"learn.hero.consultant.eyebrow" = "أدوات الاستشاري";
+"learn.hero.consultant.title" = "قدّم خدمات أفضل";
+"learn.hero.consultant.subtitle" = "تعلّم مسارات متكررة للمبيعات والتنفيذ والنتائج.";
+"learn.hero.toolowner.eyebrow" = "أدوات مالك المعدات";
+"learn.hero.toolowner.title" = "أجّر بذكاء";
+"learn.hero.toolowner.subtitle" = "حضّر وسعّر وأدر الأدوات بقوائم عملية.";
+"learn.hero.franchise.eyebrow" = "أدوات الامتياز";
+"learn.hero.franchise.title" = "شغّل بثبات";
+"learn.hero.franchise.subtitle" = "تعلّم أدلة تشغيل الخدمات المحلية الموثوقة.";
+"learn.hero.investor.eyebrow" = "أدوات المستثمر";
+"learn.hero.investor.title" = "افهم الطلب المحلي";
+"learn.hero.investor.subtitle" = "قيّم فئات الخدمات وجاهزية المشغلين.";
+"learn.category.all" = "الكل";
+"learn.category.business" = "الأعمال";
+"learn.category.car_care" = "العناية بالسيارة";
+"learn.category.carpentry" = "النجارة";
+"learn.category.consulting" = "الاستشارات";
+"learn.category.customer" = "العميل";
+"learn.category.electrical" = "الكهرباء";
+"learn.category.franchise" = "الامتياز";
+"learn.category.helper" = "المساعد";
+"learn.category.hvac" = "التكييف";
+"learn.category.landscaping" = "تنسيق الحدائق";
+"learn.category.life" = "الحياة";
+"learn.category.logistics" = "اللوجستيات";
+"learn.category.maintenance" = "الصيانة";
+"learn.category.management" = "الإدارة";
+"learn.category.painting" = "الطلاء";
+"learn.category.plumbing" = "السباكة";
+"learn.category.sales" = "المبيعات";
+"learn.category.support" = "الدعم";
+"learn.category.tool_rental" = "تأجير الأدوات";

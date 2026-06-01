@@ -141,3 +141,54 @@
 "learn.step.3" = "Ofrécelo como servicio";
 "learn.step.4" = "Crece tu negocio";
 "learn.search.placeholder" = "Buscar guías… (grifo, drywall, cambio de aceite)";
+
+/* Navigation and guest home */
+"settings.guest.subtitle" = "Explora trabajos, ayudantes y servicios locales";
+"auth.sign_in" = "Iniciar sesión";
+"map.title" = "Mapa";
+"notifications.title" = "Notificaciones";
+"home.browse_jobs.title" = "Explora trabajos locales";
+"home.pulse.sign_in_to_view" = "Inicia sesión para ver";
+
+/* Learn dynamic labels */
+"learn.hero.customer.eyebrow" = "Herramientas para clientes";
+"learn.hero.customer.title" = "Aprende antes de contratar";
+"learn.hero.customer.subtitle" = "Guías cortas para definir trabajos, comparar ofertas y elegir ayudantes.";
+"learn.hero.helper.eyebrow" = "Herramientas para ayudantes";
+"learn.hero.helper.title" = "Habilidades que generan ingresos";
+"learn.hero.helper.subtitle" = "Desarrolla habilidades prácticas y conviértelas en trabajos en OxSteed.";
+"learn.hero.business.eyebrow" = "Herramientas de negocio";
+"learn.hero.business.title" = "Entrena tu equipo más rápido";
+"learn.hero.business.subtitle" = "Guías reutilizables para operaciones, calidad y crecimiento.";
+"learn.hero.consultant.eyebrow" = "Herramientas de consultoría";
+"learn.hero.consultant.title" = "Empaqueta mejores servicios";
+"learn.hero.consultant.subtitle" = "Aprende flujos repetibles para ventas, entrega y resultados.";
+"learn.hero.toolowner.eyebrow" = "Herramientas para dueños";
+"learn.hero.toolowner.title" = "Renta mejor";
+"learn.hero.toolowner.subtitle" = "Prepara, valora y gestiona herramientas con listas prácticas.";
+"learn.hero.franchise.eyebrow" = "Herramientas de franquicia";
+"learn.hero.franchise.title" = "Opera con consistencia";
+"learn.hero.franchise.subtitle" = "Aprende métodos para operaciones locales confiables.";
+"learn.hero.investor.eyebrow" = "Herramientas para inversionistas";
+"learn.hero.investor.title" = "Entiende la demanda local";
+"learn.hero.investor.subtitle" = "Evalúa categorías de servicio y preparación operativa.";
+"learn.category.all" = "Todo";
+"learn.category.business" = "Negocio";
+"learn.category.car_care" = "Auto";
+"learn.category.carpentry" = "Carpintería";
+"learn.category.consulting" = "Consultoría";
+"learn.category.customer" = "Cliente";
+"learn.category.electrical" = "Electricidad";
+"learn.category.franchise" = "Franquicia";
+"learn.category.helper" = "Ayudante";
+"learn.category.hvac" = "HVAC";
+"learn.category.landscaping" = "Jardinería";
+"learn.category.life" = "Vida";
+"learn.category.logistics" = "Logística";
+"learn.category.maintenance" = "Mantenimiento";
+"learn.category.management" = "Gestión";
+"learn.category.painting" = "Pintura";
+"learn.category.plumbing" = "Plomería";
+"learn.category.sales" = "Ventas";
+"learn.category.support" = "Soporte";
+"learn.category.tool_rental" = "Renta de herramientas";

@@ -57,6 +57,8 @@ struct GrowthStep: Identifiable {
     let description: String
     let progress: Double
     let isActive: Bool
+    /// Tab name to switch to when the step row is tapped ("home","life","learn","growth").
+    var tapTab: String? = nil
 }
 
 struct LearnCourse: Identifiable {

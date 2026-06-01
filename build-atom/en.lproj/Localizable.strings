@@ -141,3 +141,54 @@
 "learn.step.3" = "List as service";
 "learn.step.4" = "Grow your business";
 "learn.search.placeholder" = "Search guides… (faucet, drywall, oil change)";
+
+/* Navigation and guest home */
+"settings.guest.subtitle" = "Browse local jobs, helpers, and services";
+"auth.sign_in" = "Sign In";
+"map.title" = "Map";
+"notifications.title" = "Notifications";
+"home.browse_jobs.title" = "Browse local jobs";
+"home.pulse.sign_in_to_view" = "Sign in to view";
+
+/* Learn dynamic labels */
+"learn.hero.customer.eyebrow" = "Customer toolkit";
+"learn.hero.customer.title" = "Learn before you hire";
+"learn.hero.customer.subtitle" = "Short guides help you scope jobs, compare bids, and choose the right helper.";
+"learn.hero.helper.eyebrow" = "Helper toolkit";
+"learn.hero.helper.title" = "Skills that turn into income";
+"learn.hero.helper.subtitle" = "Build practical service skills, then turn them into jobs on OxSteed.";
+"learn.hero.business.eyebrow" = "Business toolkit";
+"learn.hero.business.title" = "Train your team faster";
+"learn.hero.business.subtitle" = "Reusable guides for operations, service quality, and growth.";
+"learn.hero.consultant.eyebrow" = "Consultant toolkit";
+"learn.hero.consultant.title" = "Package better services";
+"learn.hero.consultant.subtitle" = "Learn repeatable workflows for sales, delivery, and client outcomes.";
+"learn.hero.toolowner.eyebrow" = "Tool owner toolkit";
+"learn.hero.toolowner.title" = "Rent smarter";
+"learn.hero.toolowner.subtitle" = "Prepare, price, and manage tools with practical checklists.";
+"learn.hero.franchise.eyebrow" = "Franchise toolkit";
+"learn.hero.franchise.title" = "Operate with consistency";
+"learn.hero.franchise.subtitle" = "Learn the playbooks behind reliable local service operations.";
+"learn.hero.investor.eyebrow" = "Investor toolkit";
+"learn.hero.investor.title" = "Understand local service demand";
+"learn.hero.investor.subtitle" = "Use practical guides to evaluate service categories and operator readiness.";
+"learn.category.all" = "All";
+"learn.category.business" = "Business";
+"learn.category.car_care" = "Car Care";
+"learn.category.carpentry" = "Carpentry";
+"learn.category.consulting" = "Consulting";
+"learn.category.customer" = "Customer";
+"learn.category.electrical" = "Electrical";
+"learn.category.franchise" = "Franchise";
+"learn.category.helper" = "Helper";
+"learn.category.hvac" = "HVAC";
+"learn.category.landscaping" = "Landscaping";
+"learn.category.life" = "Life";
+"learn.category.logistics" = "Logistics";
+"learn.category.maintenance" = "Maintenance";
+"learn.category.management" = "Management";
+"learn.category.painting" = "Painting";
+"learn.category.plumbing" = "Plumbing";
+"learn.category.sales" = "Sales";
+"learn.category.support" = "Support";
+"learn.category.tool_rental" = "Tool Rental";

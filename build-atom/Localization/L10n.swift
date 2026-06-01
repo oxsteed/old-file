@@ -11,7 +11,15 @@ enum L10n {
 
     enum TabKey: String {
         case home, life, growth, learn
-        var key: LocalizedStringKey { LocalizedStringKey("tab.\(rawValue)") }
+        /// Use string literals so SwiftUI reliably resolves keys from `Localizable.strings`.
+        var key: LocalizedStringKey {
+            switch self {
+            case .home: return "tab.home"
+            case .life: return "tab.life"
+            case .growth: return "tab.growth"
+            case .learn: return "tab.learn"
+            }
+        }
     }
 
     static func tab(_ t: TabKey) -> LocalizedStringKey { t.key }
@@ -70,6 +78,21 @@ enum L10n {
         static let seeAll: LocalizedStringKey = "common.see_all"
         static let search: LocalizedStringKey = "common.search"
         static let bid: LocalizedStringKey = "common.bid"
+        static let inbox: LocalizedStringKey = "section.messages"
+        static let helperFallback: String = "Helper"
+        static let jobFallback: String = "Job"
+        static let yourHelper: String = "your helper"
+        static let theCustomer: String = "the customer"
+    }
+
+    enum NavigationKey {
+        static let map: LocalizedStringKey = "map.title"
+        static let alerts: LocalizedStringKey = "notifications.title"
+        static let settings: LocalizedStringKey = "settings.title"
+    }
+
+    enum AuthKey {
+        static let signIn: LocalizedStringKey = "auth.sign_in"
     }
 
     // MARK: - Section headers
@@ -135,6 +158,27 @@ enum L10n {
         static let emptyMessage: LocalizedStringKey = "consultant.empty.message"
         static let emptyCta: LocalizedStringKey = "consultant.empty.cta"
     }
+
+    enum ConsultingPipelineKey {
+        static let active: String = "Active"
+        static let won: String = "Won"
+        static let pipeline: String = "Pipeline"
+        static let referralPipeline: String = "Referral Pipeline"
+        static let update: String = "Update"
+        static let noteFormat: String = "Note: %@"
+        static let followUpDateFormat: String = "Follow up: %@"
+        static let client: String = "Client"
+        static let status: String = "Status"
+        static let notes: String = "Notes"
+        static let setFollowUpDate: String = "Set follow-up date"
+        static let followUp: String = "Follow up"
+        static let updateReferral: String = "Update Referral"
+        static let urgencyExploring: String = "Just exploring"
+        static let urgencyTwoWeeks: String = "Ready to start within 2 weeks"
+        static let urgencyASAP: String = "I need this done as soon as possible"
+        static let allItems: String = "All items"
+    }
+
     enum ToolOwnerKey {
         static let emptyTitle: LocalizedStringKey = "toolowner.empty.title"
         static let emptyMessage: LocalizedStringKey = "toolowner.empty.message"
@@ -160,6 +204,10 @@ enum L10n {
         static let onTrack: LocalizedStringKey = "life.legend.ontrack"
         static let slipping: LocalizedStringKey = "life.legend.slipping"
         static let critical: LocalizedStringKey = "life.legend.critical"
+        static let needsAttention: LocalizedStringKey = "Needs attention"
+        static let syncing: String = "Syncing…"
+        static let pending: String = "Pending"
+        static let saved: String = "Saved"
     }
 
     enum GrowthKey {
@@ -198,5 +246,42 @@ enum L10n {
         static let step3: LocalizedStringKey = "learn.step.3"
         static let step4: LocalizedStringKey = "learn.step.4"
         static let searchPlaceholder: LocalizedStringKey = "learn.search.placeholder"
+
+        // Persona-specific hero card content
+        enum Hero {
+            static func eyebrow(for persona: Persona) -> LocalizedStringKey {
+                switch persona {
+                case .helper:     return "learn.hero.helper.eyebrow"
+                case .business:   return "learn.hero.business.eyebrow"
+                case .investor:   return "learn.hero.investor.eyebrow"
+                case .customer:   return "learn.hero.customer.eyebrow"
+                case .consultant: return "learn.hero.consultant.eyebrow"
+                case .toolOwner:  return "learn.hero.toolowner.eyebrow"
+                case .franchise:  return "learn.hero.franchise.eyebrow"
+                }
+            }
+            static func title(for persona: Persona) -> LocalizedStringKey {
+                switch persona {
+                case .helper:     return "learn.hero.helper.title"
+                case .business:   return "learn.hero.business.title"
+                case .investor:   return "learn.hero.investor.title"
+                case .customer:   return "learn.hero.customer.title"
+                case .consultant: return "learn.hero.consultant.title"
+                case .toolOwner:  return "learn.hero.toolowner.title"
+                case .franchise:  return "learn.hero.franchise.title"
+                }
+            }
+            static func subtitle(for persona: Persona) -> LocalizedStringKey {
+                switch persona {
+                case .helper:     return "learn.hero.helper.subtitle"
+                case .business:   return "learn.hero.business.subtitle"
+                case .investor:   return "learn.hero.investor.subtitle"
+                case .customer:   return "learn.hero.customer.subtitle"
+                case .consultant: return "learn.hero.consultant.subtitle"
+                case .toolOwner:  return "learn.hero.toolowner.subtitle"
+                case .franchise:  return "learn.hero.franchise.subtitle"
+                }
+            }
+        }
     }
 }

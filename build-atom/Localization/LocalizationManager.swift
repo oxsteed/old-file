@@ -14,12 +14,12 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .system: return "System Default"
-        case .en:     return "English"
-        case .es:     return "Español"
-        case .fr:     return "Français"
-        case .ht:     return "Kreyòl Ayisyen"
-        case .ar:     return "العربية"
+        case .system: return "language.system"
+        case .en:     return "language.en"
+        case .es:     return "language.es"
+        case .fr:     return "language.fr"
+        case .ht:     return "language.ht"
+        case .ar:     return "language.ar"
         }
     }
 
@@ -49,6 +49,18 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         default:  return .leftToRight
         }
     }
+
+    /// BCP-47 language code for server features (translation, etc).
+    var bcp47: String {
+        switch self {
+        case .system:
+            // Prefer the first preferred language; fall back to English.
+            let raw = Locale.preferredLanguages.first ?? "en"
+            return String(raw.prefix(2))
+        default:
+            return rawValue
+        }
+    }
 }
 
 /// Runtime language manager. Persists user's choice and exposes a `locale` +
@@ -56,6 +68,7 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 /// entire app re-renders in the chosen language instantly — no restart.
 final class LocalizationManager: ObservableObject {
     static let storageKey = "oxsteed.appLanguage"
+    private static var bundleCache: [String: Bundle] = [:]
 
     @Published var language: AppLanguage {
         didSet {
@@ -70,4 +83,31 @@ final class LocalizationManager: ObservableObject {
 
     var locale: Locale { language.locale }
     var layoutDirection: LayoutDirection { language.layoutDirection }
+    var bcp47: String { language.bcp47 }
+
+    /// Bundle used for string lookup. This is intentionally based on the user's in-app
+    /// selection (not the system language) so runtime language switching works for
+    /// formatted strings and non-SwiftUI lookups.
+    private var stringsBundle: Bundle {
+        switch language {
+        case .system:
+            return .main
+        default:
+            if let cached = Self.bundleCache[language.rawValue] { return cached }
+            if let path = Bundle.main.path(forResource: language.rawValue, ofType: "lproj"),
+               let bundle = Bundle(path: path) {
+                Self.bundleCache[language.rawValue] = bundle
+                return bundle
+            }
+            return .main
+        }
+    }
+
+    func localized(_ key: String) -> String {
+        stringsBundle.localizedString(forKey: key, value: key, table: nil)
+    }
+
+    func format(_ key: String, _ args: CVarArg...) -> String {
+        String(format: localized(key), locale: locale, arguments: args)
+    }
 }

@@ -13,8 +13,8 @@ final class PushManager: NSObject, UNUserNotificationCenterDelegate {
     func requestAndRegister() {
         UNUserNotificationCenter.current().delegate = self
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
-            if let error { NSLog("[Push] permission error: \(error)") }
-            guard granted else { NSLog("[Push] permission denied"); return }
+            if let error { OXLog.error("permission error: \(String(describing: error))", category: "push") }
+            guard granted else { OXLog.warn("permission denied", category: "push"); return }
             DispatchQueue.main.async {
                 UIApplication.shared.registerForRemoteNotifications()
             }
@@ -24,16 +24,17 @@ final class PushManager: NSObject, UNUserNotificationCenterDelegate {
     /// Called from AppDelegate / SwiftUI onReceive after APNs delivers the device token.
     func didRegister(deviceToken: Data) {
         let tokenStr = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-        NSLog("[Push] device token: \(tokenStr.prefix(20))...")
+        OXLog.info("device token received", category: "push")
+        // UIKit is main-actor isolated in Swift 6; capture device id on the current (main) context.
+        let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
         Task {
-            let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
             try? await NotificationsService.registerPushToken(tokenStr, deviceId: deviceId)
-            NSLog("[Push] token registered with server")
+            OXLog.info("token registered with server", category: "push")
         }
     }
 
     func didFailToRegister(error: Error) {
-        NSLog("[Push] failed to register: \(error.localizedDescription)")
+        OXLog.error("failed to register: \(error.localizedDescription)", category: "push")
     }
 
     // MARK: - Foreground display
@@ -52,12 +53,16 @@ final class PushManager: NSObject, UNUserNotificationCenterDelegate {
                                  withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
         // Post internally so any listening view can react
-        NotificationCenter.default.post(name: .oxPushTapped, object: nil, userInfo: userInfo as? [AnyHashable: Any])
+        NotificationCenter.default.post(name: .oxPushTapped, object: nil, userInfo: userInfo)
         completionHandler()
     }
 }
 
 extension Notification.Name {
-    static let oxPushTapped = Notification.Name("ox.push.tapped")
-    static let oxAPNsToken  = Notification.Name("ox.apns.token")
+    static let oxPushTapped         = Notification.Name("ox.push.tapped")
+    static let oxAPNsToken          = Notification.Name("ox.apns.token")
+    /// Post with userInfo ["tab": "home"|"life"|"growth"|"learn"] to switch tabs app-wide.
+    static let oxSwitchTab          = Notification.Name("ox.switch.tab")
+    /// Post to open the VerifyIdentity flow from anywhere (e.g. creator gate in Learn tab).
+    static let oxOpenVerifyIdentity = Notification.Name("ox.open.verify_identity")
 }

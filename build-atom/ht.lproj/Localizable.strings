@@ -141,3 +141,54 @@
 "learn.step.3" = "Mete kòm sèvis";
 "learn.step.4" = "Devlope biznis ou";
 "learn.search.placeholder" = "Chèche gid… (tiyo, drywall, chanjman lwil)";
+
+/* Navigation and guest home */
+"settings.guest.subtitle" = "Gade travay, moun k ap ede, ak sèvis lokal";
+"auth.sign_in" = "Konekte";
+"map.title" = "Kat";
+"notifications.title" = "Notifikasyon";
+"home.browse_jobs.title" = "Gade travay lokal";
+"home.pulse.sign_in_to_view" = "Konekte pou wè";
+
+/* Learn dynamic labels */
+"learn.hero.customer.eyebrow" = "Zouti kliyan";
+"learn.hero.customer.title" = "Aprann avan ou anboche";
+"learn.hero.customer.subtitle" = "Ti gid pou konprann travay, konpare òf, epi chwazi moun ki bon an.";
+"learn.hero.helper.eyebrow" = "Zouti moun k ap ede";
+"learn.hero.helper.title" = "Konpetans ki vin revni";
+"learn.hero.helper.subtitle" = "Devlope konpetans pratik epi fè yo tounen travay sou OxSteed.";
+"learn.hero.business.eyebrow" = "Zouti biznis";
+"learn.hero.business.title" = "Fòme ekip ou pi vit";
+"learn.hero.business.subtitle" = "Gid pou operasyon, kalite sèvis, ak kwasans.";
+"learn.hero.consultant.eyebrow" = "Zouti konsiltan";
+"learn.hero.consultant.title" = "Prepare pi bon sèvis";
+"learn.hero.consultant.subtitle" = "Aprann metòd repete pou vann, delivre, ak bay rezilta.";
+"learn.hero.toolowner.eyebrow" = "Zouti pwopriyetè";
+"learn.hero.toolowner.title" = "Lwe pi byen";
+"learn.hero.toolowner.subtitle" = "Prepare, mete pri, epi jere zouti ak lis pratik.";
+"learn.hero.franchise.eyebrow" = "Zouti franchiz";
+"learn.hero.franchise.title" = "Opere ak konsistans";
+"learn.hero.franchise.subtitle" = "Aprann playbook pou operasyon lokal serye.";
+"learn.hero.investor.eyebrow" = "Zouti envestisè";
+"learn.hero.investor.title" = "Konprann demann lokal";
+"learn.hero.investor.subtitle" = "Evalye kategori sèvis ak preparasyon operatè.";
+"learn.category.all" = "Tout";
+"learn.category.business" = "Biznis";
+"learn.category.car_care" = "Swen machin";
+"learn.category.carpentry" = "Chapant";
+"learn.category.consulting" = "Konsiltasyon";
+"learn.category.customer" = "Kliyan";
+"learn.category.electrical" = "Elektrik";
+"learn.category.franchise" = "Franchiz";
+"learn.category.helper" = "Èd";
+"learn.category.hvac" = "HVAC";
+"learn.category.landscaping" = "Jaden";
+"learn.category.life" = "Lavi";
+"learn.category.logistics" = "Lojistik";
+"learn.category.maintenance" = "Antretyen";
+"learn.category.management" = "Jesyon";
+"learn.category.painting" = "Penti";
+"learn.category.plumbing" = "Plonbri";
+"learn.category.sales" = "Lavant";
+"learn.category.support" = "Sipò";
+"learn.category.tool_rental" = "Lwe zouti";

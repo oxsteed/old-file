@@ -13,13 +13,24 @@
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
-	<real>6</real>
+	<real>6.0</real>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.oxsteed.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>oxsteed</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
@@ -28,8 +39,26 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>OxSteed uses your camera to capture job photos.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>OxSteed uses Face ID / Touch ID to protect your account.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>OxSteed uses your location to show nearby jobs and helpers.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>OxSteed uses your microphone to let you dictate text for jobs and messages.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>OxSteed uses your photo library to attach images to jobs and messages.</string>
+	<key>NSSiriUsageDescription</key>
+	<string>OxSteed uses Siri so you can post jobs, check your Pulse, and message helpers with your voice.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>OxSteed uses speech recognition to turn your voice into text for jobs and messages.</string>
+	<key>NSTranslationUsageDescription</key>
+	<string>OxSteed uses Translation to help customers and helpers communicate across languages.</string>
+	<key>OX_API_BASE_URL</key>
+	<string>$(OX_API_BASE_URL)</string>
+	<key>OX_AUTH_BASE_URL</key>
+	<string>$(OX_AUTH_BASE_URL)</string>
+	<key>OX_ENVIRONMENT</key>
+	<string>$(OX_ENVIRONMENT)</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

@@ -1,5 +1,6 @@
 import Foundation
 
+// Prefer real-time implementation whenever SocketIO can be imported.
 #if canImport(SocketIO)
 import SocketIO
 
@@ -25,7 +26,7 @@ final class OxSocketManager: ObservableObject {
             Task { @MainActor in
                 self?.socket?.emit("authenticate", ["token": token])
                 self?.isConnected = true
-                NSLog("[Socket] connected")
+                OXLog.info("connected", category: "socket")
             }
         }
         socket?.on(clientEvent: .disconnect) { [weak self] _, _ in
@@ -45,6 +46,7 @@ final class OxSocketManager: ObservableObject {
     private func registerHandlers() {
         let events = [
             "message:new","message:read","message:deleted",
+            "conversation:archived",
             "bid:received","bid:accepted","bid:rejected",
             "appointment:created","appointment:updated","appointment:cancelled",
             "job:created","job:updated","job:completed","job:cancelled",
@@ -71,7 +73,7 @@ final class OxSocketManager: ObservableObject {
     init() {}
 
     func connect(token: String) {
-        NSLog("[Socket] SocketIO package not resolved — real-time events disabled.")
+        OXLog.warn("SocketIO package not resolved — real-time events disabled.", category: "socket")
     }
 
     func disconnect() { isConnected = false }

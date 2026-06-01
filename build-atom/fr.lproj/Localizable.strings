@@ -141,3 +141,54 @@
 "learn.step.3" = "Proposez en service";
 "learn.step.4" = "Développez votre activité";
 "learn.search.placeholder" = "Rechercher des guides… (robinet, placo, vidange)";
+
+/* Navigation and guest home */
+"settings.guest.subtitle" = "Parcourez les missions, aides et services locaux";
+"auth.sign_in" = "Se connecter";
+"map.title" = "Carte";
+"notifications.title" = "Notifications";
+"home.browse_jobs.title" = "Parcourir les missions locales";
+"home.pulse.sign_in_to_view" = "Connectez-vous pour voir";
+
+/* Learn dynamic labels */
+"learn.hero.customer.eyebrow" = "Outils client";
+"learn.hero.customer.title" = "Apprenez avant d'embaucher";
+"learn.hero.customer.subtitle" = "Des guides courts pour cadrer les missions, comparer les offres et choisir.";
+"learn.hero.helper.eyebrow" = "Outils aide";
+"learn.hero.helper.title" = "Des compétences qui deviennent du revenu";
+"learn.hero.helper.subtitle" = "Développez des compétences pratiques puis proposez-les sur OxSteed.";
+"learn.hero.business.eyebrow" = "Outils business";
+"learn.hero.business.title" = "Formez votre équipe plus vite";
+"learn.hero.business.subtitle" = "Des guides réutilisables pour les opérations, la qualité et la croissance.";
+"learn.hero.consultant.eyebrow" = "Outils consultant";
+"learn.hero.consultant.title" = "Structurez de meilleurs services";
+"learn.hero.consultant.subtitle" = "Apprenez des méthodes répétables pour vendre, livrer et réussir.";
+"learn.hero.toolowner.eyebrow" = "Outils propriétaire";
+"learn.hero.toolowner.title" = "Louez plus intelligemment";
+"learn.hero.toolowner.subtitle" = "Préparez, fixez les prix et gérez vos outils avec des listes pratiques.";
+"learn.hero.franchise.eyebrow" = "Outils franchise";
+"learn.hero.franchise.title" = "Opérez avec constance";
+"learn.hero.franchise.subtitle" = "Apprenez les méthodes d'opérations locales fiables.";
+"learn.hero.investor.eyebrow" = "Outils investisseur";
+"learn.hero.investor.title" = "Comprenez la demande locale";
+"learn.hero.investor.subtitle" = "Évaluez les catégories de services et la préparation des opérateurs.";
+"learn.category.all" = "Tout";
+"learn.category.business" = "Business";
+"learn.category.car_care" = "Auto";
+"learn.category.carpentry" = "Menuiserie";
+"learn.category.consulting" = "Conseil";
+"learn.category.customer" = "Client";
+"learn.category.electrical" = "Électricité";
+"learn.category.franchise" = "Franchise";
+"learn.category.helper" = "Aide";
+"learn.category.hvac" = "CVC";
+"learn.category.landscaping" = "Paysage";
+"learn.category.life" = "Vie";
+"learn.category.logistics" = "Logistique";
+"learn.category.maintenance" = "Maintenance";
+"learn.category.management" = "Gestion";
+"learn.category.painting" = "Peinture";
+"learn.category.plumbing" = "Plomberie";
+"learn.category.sales" = "Ventes";
+"learn.category.support" = "Support";
+"learn.category.tool_rental" = "Location d'outils";
