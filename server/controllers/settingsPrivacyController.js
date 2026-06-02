@@ -89,4 +89,92 @@ async function patchPrivacySettings(req, res, next) {
   }
 }
 
-module.exports = { patchPrivacySettings };
+/**
+ * POST /api/settings/app-report
+ * Creates a support ticket from the mobile Settings → Report a Problem flow.
+ */
+async function submitAppReport(req, res, next) {
+  const client = await pool.connect();
+  try {
+    const details = typeof req.body.details === 'string' ? req.body.details.trim() : '';
+    if (!details) {
+      throw new AppError('Report details are required', 400, 'validation_failed', {
+        details: 'Required',
+      });
+    }
+    if (details.length > 4000) {
+      throw new AppError('Report details must be 4000 characters or less', 400, 'validation_failed', {
+        details: 'Max 4000 characters',
+      });
+    }
+
+    const appVersion = req.body.app_version || req.get('X-OxSteed-App-Version') || 'unknown';
+    const buildNumber = req.body.build_number || req.get('X-OxSteed-Build') || 'unknown';
+    const gitSha = req.body.git_sha || req.get('X-OxSteed-Git-SHA') || null;
+    const platform = req.body.platform || req.get('X-OxSteed-Platform') || 'ios';
+    const requestId = req.id || req.get('X-Request-ID') || null;
+    const name = [req.user.first_name, req.user.last_name].filter(Boolean).join(' ').trim() || 'OxSteed User';
+    const email = (req.body.contact_email || req.user.email || '').trim().toLowerCase();
+    const subject = `iOS Settings Report - build ${buildNumber}`.slice(0, 500);
+    const content = [
+      details,
+      '',
+      '---',
+      `platform: ${platform}`,
+      `app_version: ${appVersion}`,
+      `build_number: ${buildNumber}`,
+      gitSha ? `git_sha: ${gitSha}` : null,
+      requestId ? `request_id: ${requestId}` : null,
+    ].filter(Boolean).join('\n');
+
+    await client.query('BEGIN');
+    const ticketRes = await client.query(
+      `INSERT INTO support_tickets
+         (user_id, name, email, subject, category, priority, status, source)
+       VALUES ($1, $2, $3, $4, 'technical', 'normal', 'open', 'ios_settings')
+       RETURNING id, ticket_number`,
+      [req.user.id, name, email, subject],
+    );
+    const ticket = ticketRes.rows[0];
+
+    await client.query(
+      `INSERT INTO support_messages
+         (ticket_id, sender_id, sender_name, sender_email, content,
+          sender_language, is_internal, is_from_admin)
+       VALUES ($1, $2, $3, $4, $5, $6, false, false)`,
+      [
+        ticket.id,
+        req.user.id,
+        name,
+        email,
+        content,
+        req.user.preferred_language || 'en',
+      ],
+    );
+    await client.query('COMMIT');
+
+    logger.info('Settings app report submitted', {
+      userId: req.user.id,
+      ticketId: ticket.id,
+      ticketNumber: ticket.ticket_number,
+      platform,
+      appVersion,
+      buildNumber,
+      gitSha,
+      requestId,
+    });
+
+    res.status(201).json({
+      ticket_id: String(ticket.id),
+      ticket_number: String(ticket.ticket_number || ticket.id),
+      message: 'Your report has been received.',
+    });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch { /* non-fatal */ }
+    next(err);
+  } finally {
+    client.release();
+  }
+}
+
+module.exports = { patchPrivacySettings, submitAppReport };

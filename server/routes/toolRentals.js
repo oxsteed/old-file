@@ -48,7 +48,7 @@ async function getToolFields() {
     const { rows: trCols } = await pool.query(`
       SELECT column_name FROM information_schema.columns
        WHERE table_name = 'tool_rentals'
-         AND column_name IN ('avg_rating', 'review_count', 'image_gallery')
+         AND column_name IN ('avg_rating', 'review_count', 'image_gallery', 'location_lat', 'location_lng')
     `);
     const tr = new Set(trCols.map(r => r.column_name));
 
@@ -66,18 +66,22 @@ async function getToolFields() {
       tr.has('image_gallery')
         ? `CASE WHEN t.image_gallery IS NOT NULL AND array_length(t.image_gallery, 1) > 0 THEN t.image_gallery[1] ELSE NULL END AS image_url`
         : 'NULL AS image_url',
+      tr.has('location_lat') ? 't.location_lat' : 'NULL::numeric AS location_lat',
+      tr.has('location_lng') ? 't.location_lng' : 'NULL::numeric AS location_lng',
     ].join(',\n  ');
 
     // Store which optional users columns are safe to select
     _resolvedFields = {
       toolFields: `${TOOL_FIELDS_BASE},\n  ${toolExtras}`,
+      ownerRatingExpr: tr.has('avg_rating') ? 'COALESCE(t.avg_rating, 0)' : '0',
       hasAvatarUrl: uc.has('avatar_url'),
       hasResponseTime: uc.has('avg_response_time_hours'),
       hasImageGallery: tr.has('image_gallery'),
     };
   } catch {
     _resolvedFields = {
-      toolFields: `${TOOL_FIELDS_BASE},\n  0 AS avg_rating, 0 AS review_count, NULL AS image_url`,
+      toolFields: `${TOOL_FIELDS_BASE},\n  0 AS avg_rating, 0 AS review_count, NULL AS image_url, NULL::numeric AS location_lat, NULL::numeric AS location_lng`,
+      ownerRatingExpr: '0',
       hasAvatarUrl: false,
       hasResponseTime: false,
       hasImageGallery: false,
@@ -310,7 +314,7 @@ router.get('/categories', async (req, res) => {
 });
 
 // GET /api/tool-rentals/browse?category=&city=&name=&priceMin=&priceMax=&sort=&limit=30
-router.get('/browse', async (req, res) => {
+async function browseTools(req, res) {
   try {
     const { category, city, name, priceMin, priceMax, sort = 'newest', limit = 30, offset = 0 } = req.query;
     const params = [true];
@@ -330,12 +334,12 @@ router.get('/browse', async (req, res) => {
     params.push(Math.min(parseInt(limit) || 30, 100));
     params.push(parseInt(offset) || 0);
 
-    const { toolFields, hasAvatarUrl, hasResponseTime } = await getToolFields();
+    const { toolFields, ownerRatingExpr, hasAvatarUrl, hasResponseTime } = await getToolFields();
     const result = await pool.query(
       `SELECT ${toolFields},
               ${buildUserFields(hasAvatarUrl, hasResponseTime)},
               t.user_id AS owner_id,
-              COALESCE(t.avg_rating, 0) AS owner_rating
+              ${ownerRatingExpr} AS owner_rating
          FROM tool_rentals t
          JOIN users u ON u.id = t.user_id
          LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
@@ -349,19 +353,22 @@ router.get('/browse', async (req, res) => {
     require('../utils/logger').error('[toolRentals] browse error:', err.message);
     res.status(500).json({ error: 'Failed to fetch tools' });
   }
-});
+}
+
+router.get('/', browseTools);
+router.get('/browse', browseTools);
 
 // GET /api/tool-rentals/public/:id - single listing for deep links (Discover, etc.)
 router.get('/public/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: 'Invalid tool id' });
-    const { toolFields, hasAvatarUrl, hasResponseTime } = await getToolFields();
+    const { toolFields, ownerRatingExpr, hasAvatarUrl, hasResponseTime } = await getToolFields();
     const result = await pool.query(
       `SELECT ${toolFields},
               ${buildUserFields(hasAvatarUrl, hasResponseTime)},
               t.user_id AS owner_id,
-              COALESCE(t.avg_rating, 0) AS owner_rating
+              ${ownerRatingExpr} AS owner_rating
          FROM tool_rentals t
          JOIN users u ON u.id = t.user_id
          LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE

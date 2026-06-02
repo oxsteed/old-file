@@ -103,7 +103,10 @@ async function authenticate(req, res, next) {
          u.default_mode, u.logistics_role,
          b.business_name,
          hp.is_listed,
-         COALESCE(hp.allow_guest_contact, TRUE) AS allow_guest_contact
+         COALESCE(hp.allow_guest_contact, TRUE) AS allow_guest_contact,
+         COALESCE(hp.allow_booking, TRUE) AS allow_booking,
+         COALESCE(hp.allow_scheduling, TRUE) AS allow_scheduling,
+         COALESCE(hp.allow_live_chat, TRUE) AS allow_live_chat
        FROM users u
        LEFT JOIN businesses b ON b.user_id = u.id AND b.is_primary = TRUE
        LEFT JOIN helper_profiles hp ON hp.user_id = u.id
