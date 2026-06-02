@@ -29,7 +29,7 @@ export function ProductPricingManager({ businessId }) {
   const loadRules = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/api/businesses/${businessId}/product-pricing/rules`);
+      const res = await api.get(`/businesses/${businessId}/product-pricing/rules`);
       setRules(res.data.data || []);
     } catch {
       toast.error(t('common.failedToLoad'));
@@ -44,7 +44,7 @@ export function ProductPricingManager({ businessId }) {
     e.preventDefault();
     if (!form.name || !form.type) { toast.error(t('common.fillRequiredFields')); return; }
     try {
-      await api.post(`/api/businesses/${businessId}/product-pricing/rules`, {
+      await api.post(`/businesses/${businessId}/product-pricing/rules`, {
         name:          form.name,
         type:          form.type,
         description:   form.description,
@@ -66,7 +66,7 @@ export function ProductPricingManager({ businessId }) {
   const handleDelete = async (ruleId) => {
     if (!window.confirm(t('common.confirmDelete', { defaultValue: 'Delete this rule?' }))) return;
     try {
-      await api.delete(`/api/businesses/${businessId}/product-pricing/rules/${ruleId}`);
+      await api.delete(`/businesses/${businessId}/product-pricing/rules/${ruleId}`);
       setRules(rules.filter(r => r.id !== ruleId));
       if (selectedRule?.id === ruleId) setSelectedRule(null);
       toast.success(t('common.deleted', { defaultValue: 'Deleted' }));
@@ -77,7 +77,7 @@ export function ProductPricingManager({ businessId }) {
 
   const handleToggle = async (ruleId, currentActive) => {
     try {
-      await api.put(`/api/businesses/${businessId}/product-pricing/rules/${ruleId}`, { isActive: !currentActive });
+      await api.put(`/businesses/${businessId}/product-pricing/rules/${ruleId}`, { isActive: !currentActive });
       loadRules();
     } catch {
       toast.error(t('common.failedToUpdate'));

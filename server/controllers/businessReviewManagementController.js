@@ -1,13 +1,35 @@
 const pool = require('../db');
 
+async function hasBusinessReviewsTable() {
+  const { rows } = await pool.query(
+    `SELECT 1 FROM information_schema.tables WHERE table_name='business_reviews' LIMIT 1`
+  );
+  return rows.length > 0;
+}
+
+async function ensureReviewReplyColumns() {
+  if (!await hasBusinessReviewsTable()) return false;
+
+  await pool.query(`
+    ALTER TABLE business_reviews
+      ADD COLUMN IF NOT EXISTS owner_reply TEXT,
+      ADD COLUMN IF NOT EXISTS owner_reply_at TIMESTAMPTZ
+  `);
+  return true;
+}
+
 exports.listReviews = async (req, res, next) => {
   const { businessId } = req.params;
   const { limit = 20, offset = 0, replied } = req.query;
   try {
+    if (!await ensureReviewReplyColumns()) {
+      return res.json({ reviews: [], total: 0, avg_rating: 0 });
+    }
+
     let where = 'WHERE r.business_id = $1';
     const params = [businessId];
-    if (replied === 'true')  where += ' AND r.owner_reply IS NOT NULL';
-    if (replied === 'false') where += ' AND r.owner_reply IS NULL';
+    if (replied === 'true')  where += " AND NULLIF(BTRIM(r.owner_reply), '') IS NOT NULL";
+    if (replied === 'false') where += " AND NULLIF(BTRIM(r.owner_reply), '') IS NULL";
     const rows = await pool.query(
       `SELECT r.*,
               COALESCE(u.display_name_preference, u.first_name || ' ' || u.last_name, 'Anonymous') AS reviewer_name,
@@ -17,7 +39,7 @@ exports.listReviews = async (req, res, next) => {
        ${where} ORDER BY r.created_at DESC LIMIT $${params.length+1} OFFSET $${params.length+2}`,
       [...params, parseInt(limit), parseInt(offset)]
     );
-    const total = await pool.query(`SELECT COUNT(*), AVG(rating)::numeric(3,2) AS avg_rating FROM business_reviews ${where}`, params);
+    const total = await pool.query(`SELECT COUNT(*), AVG(r.rating)::numeric(3,2) AS avg_rating FROM business_reviews r ${where}`, params);
     res.json({ reviews: rows.rows, total: parseInt(total.rows[0].count), avg_rating: parseFloat(total.rows[0].avg_rating) || 0 });
   } catch (err) { next(err); }
 };
@@ -27,24 +49,33 @@ exports.replyToReview = async (req, res, next) => {
   const { reply } = req.body;
   if (!reply || !reply.trim()) return res.status(400).json({ error: 'Reply text is required' });
   try {
+    if (!await ensureReviewReplyColumns()) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+
     const row = await pool.query(
       `UPDATE business_reviews SET owner_reply=$1, owner_reply_at=NOW()
        WHERE id=$2 AND business_id=$3 RETURNING *`,
       [reply.trim(), reviewId, businessId]
     );
     if (!row.rows.length) return res.status(404).json({ error: 'Review not found' });
-    res.json(row.rows[0]);
+    res.json({ review: row.rows[0] });
   } catch (err) { next(err); }
 };
 
 exports.deleteReply = async (req, res, next) => {
   const { businessId, reviewId } = req.params;
   try {
-    await pool.query(
-      'UPDATE business_reviews SET owner_reply=NULL, owner_reply_at=NULL WHERE id=$1 AND business_id=$2',
+    if (!await ensureReviewReplyColumns()) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+
+    const row = await pool.query(
+      'UPDATE business_reviews SET owner_reply=NULL, owner_reply_at=NULL WHERE id=$1 AND business_id=$2 RETURNING *',
       [reviewId, businessId]
     );
-    res.json({ success: true });
+    if (!row.rows.length) return res.status(404).json({ error: 'Review not found' });
+    res.json({ success: true, review: row.rows[0] });
   } catch (err) { next(err); }
 };
 

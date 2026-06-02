@@ -32,6 +32,9 @@ exports.openDispute = async (req, res, next) => {
     const { reason, description, job_type } = req.body;
 
     const fields = {};
+    if (!jobId) {
+      fields.jobId = 'jobId is required';
+    }
     if (!DISPUTE_REASON_VALUES.includes(reason)) {
       fields.reason = `Invalid reason. Must be one of: ${DISPUTE_REASON_VALUES.join(', ')}`;
     }

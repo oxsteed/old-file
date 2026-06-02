@@ -7,6 +7,7 @@ const pricingService = require('../services/pricingService');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const crypto = require('crypto');
+const Stripe = require('stripe');
 
 /**
  * GET /api/admin/pricing-overrides
@@ -177,12 +178,30 @@ exports.batchUpdatePricing = async (req, res, next) => {
  */
 exports.syncPricesToStripe = async (req, res, next) => {
   try {
-    // This is a placeholder for future Stripe integration
-    // Would create/update Stripe prices for each region
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new AppError('Stripe secret key is not configured', 503, 'configuration_error');
+    }
+    if (!process.env.STRIPE_PREMIUM_PRODUCT_ID) {
+      throw new AppError('STRIPE_PREMIUM_PRODUCT_ID is required to sync regional prices', 503, 'configuration_error');
+    }
+
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    const result = await pricingService.syncRegionalPricesToStripe({
+      stripeClient: stripe,
+      productId: process.env.STRIPE_PREMIUM_PRODUCT_ID,
+    });
+
+    logger.info('Regional pricing synced to Stripe', {
+      adminId: req.user.id,
+      synced: result.synced,
+      skipped: result.skipped,
+      failed: result.failed,
+    });
+
     res.json({
       success: true,
-      message: 'Stripe sync completed (placeholder)',
-      synced: 0
+      message: `Stripe sync completed: ${result.synced} created, ${result.skipped} already synced, ${result.failed} failed.`,
+      ...result,
     });
   } catch (err) {
     next(err);

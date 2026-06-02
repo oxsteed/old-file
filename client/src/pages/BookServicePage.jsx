@@ -50,12 +50,12 @@ export default function BookServicePage() {
     try {
       setLoading(true);
       // Load business info
-      const businessRes = await api.get(`/api/businesses/${businessId}/profile`);
+      const businessRes = await api.get(`/businesses/${businessId}/profile`);
       setBusiness(businessRes.data);
 
       // Load service
       const serviceRes = await api.get(
-        `/api/businesses/${businessId}/services`
+        `/businesses/${businessId}/services`
       );
       const svc = serviceRes.data.find(s => s.id === serviceId);
       setService(svc);
@@ -70,7 +70,7 @@ export default function BookServicePage() {
   const loadAvailableSlots = async () => {
     try {
       const response = await api.get(
-        `/api/businesses/${businessId}/services/${serviceId}/slots`,
+        `/businesses/${businessId}/services/${serviceId}/slots`,
         { params: { date: selectedDate } }
       );
       setAvailableSlots(response.data.available_slots);
@@ -84,7 +84,7 @@ export default function BookServicePage() {
   const calculatePrice = async () => {
     try {
       const response = await api.get(
-        `/api/businesses/${businessId}/services/${serviceId}/calculate-price`,
+        `/businesses/${businessId}/services/${serviceId}/calculate-price`,
         {
           params: {
             booking_date: selectedDate,
@@ -120,7 +120,7 @@ export default function BookServicePage() {
 
       // Create appointment
       const response = await api.post(
-        `/api/businesses/${businessId}/appointments`,
+        `/businesses/${businessId}/appointments`,
         {
           service_id: serviceId,
           customer_name: formData.customer_name,

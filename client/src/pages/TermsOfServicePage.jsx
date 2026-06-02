@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Copy, CheckCircle, ChevronDown, AlertCircle, Clock } from 'lucide-react';
+import toast from 'react-hot-toast';
 import api from '../api/axios';
 import logger from '../utils/logger';
 import './TermsOfServicePage.css';
@@ -214,7 +215,7 @@ export default function TermsOfServicePage() {
       const lastName = user.last_name || '';
 
       if (!firstName || !lastName) {
-        alert(t('termsPage.acceptAlerts.completeProfile'));
+        toast.error(t('termsPage.acceptAlerts.completeProfile'));
         return;
       }
 
@@ -229,11 +230,10 @@ export default function TermsOfServicePage() {
         timestamp: new Date().toISOString()
       });
 
-      // Show confirmation
-      alert(t('termsPage.acceptAlerts.thankYou'));
+      toast.success(t('termsPage.acceptAlerts.thankYou'));
     } catch (err) {
       logger.error('Failed to accept terms', { err });
-      alert(t('termsPage.acceptAlerts.failed'));
+      toast.error(t('termsPage.acceptAlerts.failed'));
       e.target.checked = false;
     }
   };

@@ -10,6 +10,24 @@ async function checkAccess(businessId, userId) {
   return rows.length > 0;
 }
 
+async function hasBusinessReviewsTable() {
+  const { rows } = await pool.query(
+    `SELECT 1 FROM information_schema.tables WHERE table_name='business_reviews' LIMIT 1`
+  );
+  return rows.length > 0;
+}
+
+async function ensureReviewReplyColumns() {
+  if (!await hasBusinessReviewsTable()) return false;
+
+  await pool.query(`
+    ALTER TABLE business_reviews
+      ADD COLUMN IF NOT EXISTS owner_reply TEXT,
+      ADD COLUMN IF NOT EXISTS owner_reply_at TIMESTAMPTZ
+  `);
+  return true;
+}
+
 exports.getReputation = async (req, res, next) => {
   try {
     const { businessId } = req.params;
@@ -108,28 +126,45 @@ exports.replyToReview = async (req, res, next) => {
   try {
     const { businessId, reviewId } = req.params;
     const userId = req.user.id;
-    const { reply_text } = req.body;
+    const replyText = req.body.reply_text || req.body.reply;
 
     if (!await checkAccess(businessId, userId)) return res.status(403).json({ error: 'Access denied' });
-    if (!reply_text?.trim()) return res.status(400).json({ error: 'reply_text required' });
+    if (!replyText?.trim()) return res.status(400).json({ error: 'reply_text required' });
 
-    // Check if owner_reply column exists
-    const colCheck = await pool.query(
-      `SELECT 1 FROM information_schema.columns
-       WHERE table_name='business_reviews' AND column_name='owner_reply' LIMIT 1`
-    );
-
-    if (colCheck.rows.length) {
-      const { rows } = await pool.query(
-        `UPDATE business_reviews SET owner_reply=$1, owner_reply_at=now()
-         WHERE id=$2 AND business_id=$3 RETURNING *`,
-        [reply_text.trim(), reviewId, businessId]
-      );
-      if (!rows.length) return res.status(404).json({ error: 'Review not found' });
-      return res.json({ review: rows[0] });
-    } else {
-      return res.status(501).json({ error: 'owner_reply column not available' });
+    if (!await ensureReviewReplyColumns()) {
+      return res.status(404).json({ error: 'Review not found' });
     }
+
+    const { rows } = await pool.query(
+      `UPDATE business_reviews SET owner_reply=$1, owner_reply_at=now()
+       WHERE id=$2 AND business_id=$3 RETURNING *`,
+      [replyText.trim(), reviewId, businessId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Review not found' });
+    return res.json({ review: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deleteReply = async (req, res, next) => {
+  try {
+    const { businessId, reviewId } = req.params;
+    const userId = req.user.id;
+
+    if (!await checkAccess(businessId, userId)) return res.status(403).json({ error: 'Access denied' });
+    if (!await ensureReviewReplyColumns()) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+
+    const { rows } = await pool.query(
+      `UPDATE business_reviews
+       SET owner_reply=NULL, owner_reply_at=NULL
+       WHERE id=$1 AND business_id=$2 RETURNING *`,
+      [reviewId, businessId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Review not found' });
+    return res.json({ review: rows[0] });
   } catch (err) {
     next(err);
   }
@@ -138,20 +173,19 @@ exports.replyToReview = async (req, res, next) => {
 exports.getReviews = async (req, res, next) => {
   try {
     const { businessId } = req.params;
-    const { page = 1, rating_filter } = req.query;
+    const { page = 1, rating_filter, replied } = req.query;
     const limit = 20;
     const offset = (parseInt(page) - 1) * limit;
 
-    const tableCheck = await pool.query(
-      `SELECT 1 FROM information_schema.tables WHERE table_name='business_reviews' LIMIT 1`
-    );
-    if (!tableCheck.rows.length) return res.json({ reviews: [], total: 0 });
+    if (!await ensureReviewReplyColumns()) return res.json({ reviews: [], total: 0 });
 
     const conditions = ['r.business_id = $1'];
     const params = [businessId];
     let p = 2;
 
     if (rating_filter) { conditions.push(`r.rating = $${p++}`); params.push(parseInt(rating_filter)); }
+    if (replied === 'true') conditions.push(`NULLIF(BTRIM(r.owner_reply), '') IS NOT NULL`);
+    if (replied === 'false') conditions.push(`NULLIF(BTRIM(r.owner_reply), '') IS NULL`);
 
     const where = conditions.join(' AND ');
     const [reviewsRes, totalRes] = await Promise.all([

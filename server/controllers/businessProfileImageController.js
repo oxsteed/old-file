@@ -1,6 +1,6 @@
 const pool = require('../db');
 const { AppError, sendValidationError, sendError } = require('../utils/apiError');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 const { uploadFile } = require('../utils/storage');
 const {
   generateBusinessProfileQRCode,

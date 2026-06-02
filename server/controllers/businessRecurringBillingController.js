@@ -103,7 +103,7 @@ exports.generateInvoice = async (req, res, next) => {
     );
 
     // Advance next_billing_date by one period
-    const freqMap = { daily: 1, weekly: 7, biweekly: 14, monthly: 30, quarterly: 90, yearly: 365 };
+    const freqMap = { daily: 1, weekly: 7, biweekly: 14, monthly: 30, quarterly: 90, yearly: 365, annually: 365 };
     const days = freqMap[billing.frequency] || 30;
     await pool.query(
       `UPDATE business_recurring_billing

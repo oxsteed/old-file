@@ -80,7 +80,7 @@ async function createConversation(req, res) {
       customerId: req.user.id
     });
 
-    res.json({ success: true, data: conversation });
+    res.json({ success: true, data: conversation, ticketId: conversation.id, conversation });
   } catch (err) {
     logger.error('createConversation error', { error: err.message });
     sendError(res, 500, 'Failed to create conversation');

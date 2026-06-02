@@ -158,7 +158,7 @@ async function createPaymentIntent(req, res) {
     if (total <= 0) return sendError(res, 400, 'Invalid order total');
 
     // Create order and payment intent in transaction
-    const order = await withTransaction(async (client) => {
+    const order = await withTransaction(pool, async (client) => {
       // Create order
       const orderResult = await client.query(
         `INSERT INTO marketplace_orders

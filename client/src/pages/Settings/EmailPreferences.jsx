@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import axios from 'axios';
+import toast from 'react-hot-toast';
+import api from '../../api/axios';
 import PageMeta from '../../components/PageMeta';
 import { useAuth } from '../../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
@@ -19,7 +20,7 @@ export default function EmailPreferences() {
   const { data: preferences, isLoading } = useQuery({
     queryKey: ['emailPreferences'],
     queryFn: async () => {
-      const res = await axios.get('/api/notifications/email');
+      const res = await api.get('/notifications/email');
       return res.data.data;
     },
   });
@@ -38,7 +39,7 @@ export default function EmailPreferences() {
   // Update preferences mutation
   const updateMutation = useMutation({
     mutationFn: async () => {
-      await axios.put('/api/notifications/email', {
+      await api.put('/notifications/email', {
         frequency,
         emailNotifications,
         marketingEmails,
@@ -48,24 +49,25 @@ export default function EmailPreferences() {
     },
     onSuccess: () => {
       setShowSuccess(true);
+      toast.success(t('emailPreferences.saved'));
       setTimeout(() => setShowSuccess(false), 3000);
     },
     onError: (error) => {
-      alert(`${t('common.error')}: ${error.response?.data?.error || error.message}`);
+      toast.error(error.response?.data?.error || error.message || t('common.error'));
     },
   });
 
   // Unsubscribe mutation
   const unsubscribeMutation = useMutation({
     mutationFn: async () => {
-      await axios.post('/api/notifications/email/unsubscribe-all');
+      await api.post('/notifications/email/unsubscribe-all');
     },
     onSuccess: () => {
-      alert(t('emailPreferences.unsubscribe.success'));
+      toast.success(t('emailPreferences.unsubscribe.success'));
       window.location.reload();
     },
     onError: (error) => {
-      alert(`${t('common.error')}: ${error.response?.data?.error || error.message}`);
+      toast.error(error.response?.data?.error || error.message || t('common.error'));
     },
   });
 

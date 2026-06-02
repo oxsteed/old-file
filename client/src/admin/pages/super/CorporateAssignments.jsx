@@ -4,6 +4,7 @@ import {
   Plus, X, Building2, MapPin, Calendar, Trash2, Edit3,
   AlertTriangle, Crown, Shield, Loader2, ChevronDown,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import adminApi from '../../lib/adminApi';
 import {
   getCorporateCatalog,
@@ -311,7 +312,7 @@ export default function CorporateAssignments() {
       await endCorporateAssignment(id);
       await load();
     } catch (e) {
-      alert(e?.response?.data?.error || 'Failed to end assignment.');
+      toast.error(e?.response?.data?.error || 'Failed to end assignment.');
     }
   }
 

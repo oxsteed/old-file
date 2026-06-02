@@ -278,7 +278,7 @@ function normalizeToolPayload(body, { partial = false } = {}) {
     errors.deposit_amount = 'deposit_amount is required when a deposit is required';
   }
   payload.owner_attestation_accepted = parseBoolean(body.owner_attestation_accepted);
-  if (!payload.owner_attestation_accepted) {
+  if (!partial && !payload.owner_attestation_accepted) {
     errors.owner_attestation_accepted = 'Confirm the peer rental acknowledgement before listing this tool';
   }
 
@@ -506,9 +506,9 @@ router.put('/:id', authenticate, upload.single('image'), validateFileUpload, asy
          name               = COALESCE($1,  name),
          category           = COALESCE($2,  category),
          description        = COALESCE($3,  description),
-         daily_rate         = $4,
-         hourly_rate        = $5,
-         deposit_amount     = $6,
+         daily_rate         = COALESCE($4, daily_rate),
+         hourly_rate        = COALESCE($5, hourly_rate),
+         deposit_amount     = COALESCE($6, deposit_amount),
          condition          = COALESCE($7,  condition),
          brand              = COALESCE($8,  brand),
          model              = COALESCE($9,  model),
@@ -520,8 +520,8 @@ router.put('/:id', authenticate, upload.single('image'), validateFileUpload, asy
          location_state     = COALESCE($15, location_state),
          owner_rules        = COALESCE($16, owner_rules),
          owner_custom_terms = COALESCE($17, owner_custom_terms),
-         owner_custom_terms_hash = $18,
-         replacement_value  = $19,
+         owner_custom_terms_hash = COALESCE($18, owner_custom_terms_hash),
+         replacement_value  = COALESCE($19, replacement_value),
          owner_attested_at  = CASE WHEN $20::boolean THEN NOW() ELSE owner_attested_at END,
          owner_attestation_version = CASE WHEN $20::boolean THEN '${TOOL_RENTAL_ATTESTATION_VERSION}' ELSE owner_attestation_version END,
          ${imageSetSql}
@@ -539,9 +539,9 @@ router.put('/:id', authenticate, upload.single('image'), validateFileUpload, asy
         payload.name ?? null,
         payload.category ?? null,
         payload.description ?? null,
-        payload.daily_rate,
-        payload.hourly_rate,
-        payload.deposit_amount,
+        payload.daily_rate ?? null,
+        payload.hourly_rate ?? null,
+        payload.deposit_amount ?? null,
         payload.condition ?? null,
         payload.brand ?? null,
         payload.model ?? null,
@@ -553,8 +553,8 @@ router.put('/:id', authenticate, upload.single('image'), validateFileUpload, asy
         payload.location_state ?? null,
         payload.owner_rules ?? null,
         payload.owner_custom_terms ?? null,
-        payload.owner_custom_terms_hash,
-        payload.replacement_value,
+        payload.owner_custom_terms_hash ?? null,
+        payload.replacement_value ?? null,
         !!payload.owner_attestation_accepted,
         ...(hasImageGallery ? [removeImage, imageUrl] : []),
         id,

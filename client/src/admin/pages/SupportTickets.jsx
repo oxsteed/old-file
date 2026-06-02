@@ -3,6 +3,7 @@ import adminApi from '../../lib/adminApi';
 import { useAuth } from '../../hooks/useAuth';
 import { useSocket } from '../../hooks/useSocket';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import {
   Inbox,
   MessageSquare,
@@ -273,7 +274,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
       await load();
       onUpdated();
     } catch (err) {
-      alert(err?.response?.data?.error || 'Action failed.');
+      toast.error(err?.response?.data?.error || 'Action failed.');
     } finally {
       setActionBusy(false);
     }
@@ -297,7 +298,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
       await load();
       onUpdated();
     } catch (err) {
-      alert(err?.response?.data?.error || 'Failed to send reply.');
+      toast.error(err?.response?.data?.error || 'Failed to send reply.');
     } finally {
       setSending(false);
     }

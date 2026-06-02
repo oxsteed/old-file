@@ -49,7 +49,7 @@ export function BusinessServicesTab({ businessId }) {
   const loadServices = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/api/businesses/${businessId}/services`, { params: { all: 'true' } });
+      const response = await api.get(`/businesses/${businessId}/services`, { params: { all: 'true' } });
       const raw = Array.isArray(response.data)
         ? response.data
         : (Array.isArray(response.data?.services) ? response.data.services : []);
@@ -71,12 +71,12 @@ export function BusinessServicesTab({ businessId }) {
     try {
       if (selectedService) {
         await api.put(
-          `/api/businesses/${businessId}/services/${selectedService.id}`,
+          `/businesses/${businessId}/services/${selectedService.id}`,
           formData
         );
         toast.success(t('businessServices.toastUpdated'));
       } else {
-        await api.post(`/api/businesses/${businessId}/services`, formData);
+        await api.post(`/businesses/${businessId}/services`, formData);
         toast.success(t('businessServices.toastCreated'));
       }
       setShowForm(false);
@@ -100,7 +100,7 @@ export function BusinessServicesTab({ businessId }) {
   const handleDeleteService = async (serviceId) => {
     if (!window.confirm(t('businessServices.confirmDeactivate'))) return;
     try {
-      await api.put(`/api/businesses/${businessId}/services/${serviceId}`, {
+      await api.put(`/businesses/${businessId}/services/${serviceId}`, {
         is_active: false
       });
       toast.success(t('businessServices.toastDeactivated'));

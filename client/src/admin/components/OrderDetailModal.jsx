@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import axios from 'axios';
+import toast from 'react-hot-toast';
+import api from '../../api/axios';
 
 export default function OrderDetailModal({ order, onClose, onRefresh }) {
   const [activeTab, setActiveTab] = useState('details');
@@ -14,7 +15,7 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
   const { data: fullOrder, isLoading } = useQuery({
     queryKey: ['adminOrderDetail', order.id],
     queryFn: async () => {
-      const res = await axios.get(`/api/admin/orders/${order.id}`);
+      const res = await api.get(`/admin/orders/${order.id}`);
       return res.data.data;
     },
   });
@@ -22,24 +23,25 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
   // Mark shipped mutation
   const markShippedMutation = useMutation({
     mutationFn: async () => {
-      await axios.post(`/api/admin/orders/${order.id}/mark-shipped`, {
+      await api.post(`/admin/orders/${order.id}/mark-shipped`, {
         trackingNumber: trackingNumber || undefined,
       });
     },
     onSuccess: () => {
       setShowMarkShipped(false);
       setTrackingNumber('');
+      toast.success('Order marked shipped');
       onRefresh();
     },
     onError: (error) => {
-      alert(`Error: ${error.response?.data?.error || error.message}`);
+      toast.error(error.response?.data?.error || error.message || 'Could not mark order shipped');
     },
   });
 
   // Refund mutation
   const refundMutation = useMutation({
     mutationFn: async () => {
-      await axios.post(`/api/admin/orders/${order.id}/refund`, {
+      await api.post(`/admin/orders/${order.id}/refund`, {
         reason: refundReason,
         refundAmount,
       });
@@ -47,25 +49,27 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
     onSuccess: () => {
       setShowRefund(false);
       setRefundReason('');
+      toast.success('Refund processed');
       onRefresh();
     },
     onError: (error) => {
-      alert(`Error: ${error.response?.data?.error || error.message}`);
+      toast.error(error.response?.data?.error || error.message || 'Could not process refund');
     },
   });
 
   // Cancel order mutation
   const cancelMutation = useMutation({
     mutationFn: async () => {
-      await axios.post(`/api/admin/orders/${order.id}/cancel`, {
+      await api.post(`/admin/orders/${order.id}/cancel`, {
         reason: 'Cancelled by admin',
       });
     },
     onSuccess: () => {
+      toast.success('Order cancelled');
       onRefresh();
     },
     onError: (error) => {
-      alert(`Error: ${error.response?.data?.error || error.message}`);
+      toast.error(error.response?.data?.error || error.message || 'Could not cancel order');
     },
   });
 

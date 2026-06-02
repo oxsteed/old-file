@@ -41,8 +41,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
 
   const loadBookedDates = async () => {
     try {
-      const response = await fetch(`/api/tool-rentals/${tool.id}/availability`);
-      const data = await response.json();
+      const data = await toolRentalsApi.getAvailability(tool.id);
       setBookedDates(data.booked_dates || []);
     } catch (err) {
       console.error('Failed to load booked dates:', err);

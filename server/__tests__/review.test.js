@@ -100,6 +100,35 @@ describe('POST /api/reviews/jobs/:jobId', () => {
     expect(res.status).toBe(201);
     expect(res.body.review).toHaveProperty('id', 55);
   });
+
+  test('accepts legacy iOS comment payload without dropping the review note', async () => {
+    const job = {
+      id: 10, client_id: CLIENT_ID, assigned_helper_id: HELPER_ID,
+      status: 'closed', client_first: 'Alice', helper_first: 'Bob',
+    };
+    const review = { id: 56, job_id: 10, reviewer_id: CLIENT_ID, reviewee_id: HELPER_ID, rating: 5 };
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [MOCK_CLIENT] }) // authenticate
+      .mockResolvedValueOnce({ rows: [] })            // BEGIN
+      .mockResolvedValueOnce({ rows: [job] })         // SELECT job
+      .mockResolvedValueOnce({ rows: [review] })      // INSERT review
+      .mockResolvedValueOnce({ rows: [] })            // UPDATE helper_profiles avg_rating
+      .mockResolvedValueOnce({ rows: [] });           // COMMIT
+
+    const res = await auth(
+      request(buildApp()).post('/api/reviews/jobs/10').send({ rating: 5, comment: 'Reliable and respectful.' })
+    );
+
+    expect(res.status).toBe(201);
+    expect(mockQuery.mock.calls[3][1]).toEqual([
+      '10',
+      CLIENT_ID,
+      HELPER_ID,
+      5,
+      'Reliable and respectful.',
+    ]);
+  });
 });
 
 // ── GET /api/reviews/users/:userId ────────────────────────────────────────────

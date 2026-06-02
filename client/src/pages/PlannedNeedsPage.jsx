@@ -27,6 +27,7 @@ import {
   List,
   Sparkles,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import api from '../api/axios';
@@ -527,7 +528,7 @@ export default function PlannedNeedsPage() {
       await loadNeeds();
       await loadProjection(window_);
     } catch (e) {
-      alert(e?.response?.data?.error || t('plannedNeeds.deleteFailed'));
+      toast.error(e?.response?.data?.error || t('plannedNeeds.deleteFailed'));
     }
   }
 
@@ -541,7 +542,7 @@ export default function PlannedNeedsPage() {
       await loadNeeds();
       await loadProjection(window_);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed');
+      toast.error(err.response?.data?.error || t('common.failed', 'Failed'));
     }
   }
 

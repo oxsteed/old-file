@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import ProfileHeader from '../components/profile/ProfileHeader';
 import QRCodeDisplay from '../components/profile/QRCodeDisplay';
 import { Star, MapPin, Phone, Mail } from 'lucide-react';
+import api from '../api/axios';
 import './HelperPublicProfilePage.css';
 
 /**
@@ -13,6 +14,7 @@ import './HelperPublicProfilePage.css';
 export default function HelperPublicProfilePage() {
   const { t } = useTranslation();
   const { helperId } = useParams();
+  const navigate = useNavigate();
   const [helper, setHelper] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -24,15 +26,10 @@ export default function HelperPublicProfilePage() {
 
   const loadHelperProfile = async () => {
     try {
-      const response = await fetch(`/api/helpers/${helperId}/profile`);
-      if (response.ok) {
-        const data = await response.json();
-        setHelper(data.data);
-      } else {
-        setError('Helper not found');
-      }
+      const { data } = await api.get(`/helpers/${helperId}/profile`);
+      setHelper(data.data);
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message || 'Helper not found');
     } finally {
       setLoading(false);
     }
@@ -96,7 +93,7 @@ export default function HelperPublicProfilePage() {
             </div>
 
             {/* CTA Button */}
-            <button className="cta-button">
+            <button className="cta-button" onClick={() => navigate(`/book/${helperId}`)}>
               {t('booking.bookNow')}
             </button>
           </div>

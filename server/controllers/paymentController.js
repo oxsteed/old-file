@@ -34,7 +34,7 @@ exports.createConnectAccount = async (req, res, next) => {
           return_url: `${process.env.CLIENT_URL}/helper-dashboard?onboarding=complete`,
           type: 'account_onboarding',
         });
-        return res.json({ url: link.url, account_id: existing.rows[0].stripe_account_id });
+        return res.json({ url: link.url, onboarding_url: link.url, account_id: existing.rows[0].stripe_account_id });
       }
       return res.json({ message: 'Account already set up', account: existing.rows[0] });
     }
@@ -57,7 +57,7 @@ exports.createConnectAccount = async (req, res, next) => {
       return_url: `${process.env.CLIENT_URL}/helper-dashboard?onboarding=complete`,
       type: 'account_onboarding',
     });
-    res.json({ url: link.url, account_id: account.id });
+    res.json({ url: link.url, onboarding_url: link.url, account_id: account.id });
   } catch (err) {
     logger.error('Create connect account error', { userId: req.user?.id, error: err.message });
     next(new AppError('Failed to create payment account', 502, 'connect_account_create_failed'));
@@ -68,7 +68,7 @@ exports.createConnectAccount = async (req, res, next) => {
 exports.getConnectStatus = async (req, res, next) => {
   try {
     const result = await pool.query(
-      'SELECT charges_enabled, payouts_enabled, onboarding_complete FROM connect_accounts WHERE user_id = $1',
+      'SELECT stripe_account_id, charges_enabled, payouts_enabled, onboarding_complete FROM connect_accounts WHERE user_id = $1',
       [req.user.id]
     );
     if (!result.rows[0]) return res.json({ connected: false });
@@ -94,7 +94,7 @@ exports.createPaymentIntent = async (req, res, next) => {
   try {
     const { job_id } = req.body;
 
-    const errs = validate(req.body, { job_id: [rules.required, rules.integer] });
+    const errs = validate(req.body, { job_id: [rules.required] });
     if (errs) {
       throw new AppError('Validation failed', 400, 'validation_failed', errs);
     }
@@ -140,7 +140,7 @@ exports.createPaymentIntent = async (req, res, next) => {
        WHERE user_id = $1`,
       [req.user.id]
     );
-    const availableCreditCents = Math.max(0, parseInt(creditResult.rows[0].balance_cents, 10));
+    const availableCreditCents = Math.max(0, parseInt(creditResult.rows?.[0]?.balance_cents || '0', 10));
     // Cap credit at job value — can't go below $0.50 (Stripe minimum)
     const appliedCreditCents = Math.min(availableCreditCents, Math.max(0, rawJobValueCents - 50));
     const jobValueCents = rawJobValueCents - appliedCreditCents;
@@ -244,6 +244,83 @@ exports.createPaymentIntent = async (req, res, next) => {
     });
   } catch (err) {
     next(err);
+  }
+};
+
+exports.requestInstantPayout = async (req, res, next) => {
+  try {
+    const accountResult = await pool.query(
+      'SELECT * FROM connect_accounts WHERE user_id = $1',
+      [req.user.id]
+    );
+    const account = accountResult.rows[0];
+    if (!account) {
+      throw new AppError('Connect account not found. Complete payout setup first.', 404, 'connect_account_not_found');
+    }
+    if (!account.payouts_enabled) {
+      throw new AppError('Payouts are not enabled yet. Finish Stripe onboarding before requesting instant payout.', 400, 'payouts_not_enabled');
+    }
+
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(202).json({
+        status: 'pending',
+        message: 'Payout account is ready. Stripe is not configured in this environment, so no payout was created.',
+      });
+    }
+
+    const balance = await stripe.balance.retrieve({ stripeAccount: account.stripe_account_id });
+    const available = (balance.available || []).find((b) => String(b.currency).toLowerCase() === 'usd');
+    const amount = available?.amount || 0;
+    if (amount <= 0) {
+      return res.status(200).json({
+        status: 'no_available_balance',
+        message: 'No instant payout balance is available yet.',
+      });
+    }
+
+    const payout = await stripe.payouts.create(
+      { amount, currency: 'usd', method: 'instant' },
+      { stripeAccount: account.stripe_account_id }
+    );
+    res.json({
+      status: payout.status || 'created',
+      payout_id: payout.id,
+      amount_cents: amount,
+      message: 'Instant payout requested',
+    });
+  } catch (err) {
+    if (err instanceof AppError) return next(err);
+    logger.error('Instant payout request failed', { userId: req.user?.id, error: err.message });
+    next(new AppError('Failed to request instant payout', 502, 'instant_payout_failed'));
+  }
+};
+
+exports.disconnectConnectAccount = async (req, res, next) => {
+  try {
+    const accountResult = await pool.query(
+      'SELECT * FROM connect_accounts WHERE user_id = $1',
+      [req.user.id]
+    );
+    const account = accountResult.rows[0];
+    if (!account) return res.json({ success: true, message: 'No connected payout account found.' });
+
+    if (process.env.STRIPE_SECRET_KEY && account.stripe_account_id) {
+      try {
+        await stripe.accounts.del(account.stripe_account_id);
+      } catch (stripeErr) {
+        logger.warn('Stripe account disconnect failed; removing local link', {
+          userId: req.user.id,
+          accountId: account.stripe_account_id,
+          error: stripeErr.message,
+        });
+      }
+    }
+
+    await pool.query('DELETE FROM connect_accounts WHERE user_id = $1', [req.user.id]);
+    res.json({ success: true, message: 'Payout account disconnected.' });
+  } catch (err) {
+    logger.error('Disconnect connect account failed', { userId: req.user?.id, error: err.message });
+    next(new AppError('Failed to disconnect payout account', 500, 'connect_disconnect_failed'));
   }
 };
 
@@ -491,4 +568,28 @@ exports.getMyPayments = async (req, res, next) => {
     logger.error('Get my payments error', { userId: req.user?.id, role: req.query?.role, error: err.message });
     next(new AppError('Failed to fetch payments', 500, 'fetch_payments_failed'));
   }
+};
+
+exports.getInvestorSummary = async (_req, res) => {
+  const safeCount = async (sql) => {
+    try {
+      const { rows } = await pool.query(sql);
+      return parseInt(rows?.[0]?.count || rows?.[0]?.total || '0', 10) || 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  const [helpersFunded, activeOpportunities, revenueShareCents] = await Promise.all([
+    safeCount(`SELECT COUNT(DISTINCT payee_id) AS count FROM payments WHERE status IN ('authorized','captured','released')`),
+    safeCount(`SELECT COUNT(*) AS count FROM jobs WHERE status IN ('published','open','in_progress')`),
+    safeCount(`SELECT COALESCE(SUM(platform_fee * 100), 0)::bigint AS total FROM payments WHERE status IN ('captured','released')`),
+  ]);
+
+  res.json({
+    total_invested_cents: revenueShareCents,
+    helpers_funded: helpersFunded,
+    revenue_share_cents: revenueShareCents,
+    active_opportunities: activeOpportunities,
+  });
 };

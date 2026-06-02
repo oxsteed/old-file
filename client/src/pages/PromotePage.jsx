@@ -1091,6 +1091,7 @@ function PerformanceTab({ trackedClicks, onReset }) {
  * ------------------------------------------------------------------------- */
 
 function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedClick }) {
+  const [requestingPlacement, setRequestingPlacement] = useState(false);
   // Email signature ---------------------------------------------------------
   const sigName = target.providerName;
   const sigTitle = target.serviceText;
@@ -1145,6 +1146,28 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
   };
   const seoDone = SEO_QUICK_WINS.filter((w) => seoChecks[w.id]).length;
   const seoTotalMinutes = SEO_QUICK_WINS.reduce((acc, w) => acc + (seoChecks[w.id] ? 0 : w.minutes), 0);
+
+  const requestFeaturedPlacement = async () => {
+    if (!target.businessId) {
+      toast.error('Choose a business page in the Studio tab before requesting featured placement.');
+      return;
+    }
+
+    try {
+      setRequestingPlacement(true);
+      await api.post(`/businesses/${target.businessId}/featured-placement-requests`, {
+        category: target.serviceText,
+        note: `Featured placement requested from Growth Center for ${target.providerName}.`,
+        source: 'promote_page',
+      });
+      toast.success('Featured placement request sent');
+      onTrackedClick('featured_placement', 'request');
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to request featured placement');
+    } finally {
+      setRequestingPlacement(false);
+    }
+  };
 
   return (
     <>
@@ -1298,13 +1321,32 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
         <div className="promote-tool-block boost">
           <div className="promote-tool-head">
             <TrendingUp size={18} />
-            <h3>Coming soon: Featured Placement</h3>
+            <h3>Featured Placement</h3>
             <span>Promoted card at the top of search results in your category and ZIP.</span>
           </div>
           <p className="promote-help">
-            We are quietly piloting paid boost slots with a small group of high-rated providers.
-            <Link to="/dashboard?tab=settings" className="promote-inline-link"> Tell us you want in.</Link>
+            Request a pilot boost review for your business. OxSteed will use your category, profile quality,
+            service area, and recent reputation before approving paid placement.
           </p>
+          <div className="promote-tool-actions">
+            <button
+              type="button"
+              className="promote-btn primary"
+              onClick={requestFeaturedPlacement}
+              disabled={requestingPlacement || !target.businessId}
+            >
+              <TrendingUp size={14} /> {requestingPlacement ? 'Sending...' : 'Request review'}
+            </button>
+            {!target.businessId && (
+              <button
+                type="button"
+                className="promote-btn secondary"
+                onClick={() => toast('Use the Studio tab to select a business page first.')}
+              >
+                Choose business page
+              </button>
+            )}
+          </div>
         </div>
       </section>
     </>
@@ -1386,6 +1428,7 @@ export default function PromotePage() {
     const profilePath = canUseBusiness ? `/business/${selectedBusiness.id}` : `/helpers/${user?.id}`;
     const bookingPath = canUseBusiness ? profilePath : `/book/${user?.id}`;
     return {
+      businessId: canUseBusiness ? selectedBusiness.id : null,
       providerName,
       serviceText,
       locationText,

@@ -15,6 +15,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import adminApi from '../../../lib/adminApi';
 import RegionForm from '../../../components/RegionForm';
 
@@ -306,7 +307,7 @@ export default function RegionsManager() {
       await adminApi.delete(`/admin/super/regions/${region.id}`);
       await load();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to delete region.');
+      toast.error(err.response?.data?.error || 'Failed to delete region.');
     } finally {
       setDeletingId(null);
     }

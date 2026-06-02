@@ -21,6 +21,28 @@ router.delete('/draft', authenticate, deleteDraft);
 
 // ── Protected specific routes ─────────────────────────────────────────────────
 router.get('/me/list', authenticate, getMyJobs);
+router.get('/:id/appointment', authenticate, async (req, res, next) => {
+  try {
+    const db = require('../db');
+    const { rows } = await db.query(
+      `SELECT
+         id,
+         COALESCE(scheduled_start_at, scheduled_date) AS start_time,
+         scheduled_end_at AS end_time,
+         scheduled_date,
+         scheduled_time
+       FROM jobs
+       WHERE id = $1
+         AND deleted_at IS NULL
+         AND (client_id = $2 OR assigned_helper_id = $2)
+       LIMIT 1`,
+      [req.params.id, req.user.id]
+    );
+    return res.json({ data: rows[0] || null });
+  } catch (err) {
+    next(err);
+  }
+});
 // checkRestrictions('job_posting') blocks customers with active job-posting restrictions
 router.post('/',       authenticate, requireEmailVerified, checkRestrictions('job_posting'), upload.array('media', 10), validateFileUpload, createJob);
 router.post('/assign', authenticate, assignHelper);

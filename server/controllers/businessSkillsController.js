@@ -181,6 +181,93 @@ exports.updateBusinessSkill = async (req, res) => {
   }
 };
 
+// ── Bulk replace business skills ────────────────────────────────────────────
+exports.replaceBusinessSkills = async (req, res) => {
+  try {
+    const { businessId } = req.params;
+    const skills = Array.isArray(req.body?.skills) ? req.body.skills : Array.isArray(req.body) ? req.body : null;
+
+    if (!skills) {
+      return sendError(res, 400, 'skills array is required');
+    }
+
+    const normalized = [];
+    for (const item of skills) {
+      const skillId = parseInt(item.skillId ?? item.skill_id ?? item.id, 10);
+      const rawYears = item.minYearsExperience ?? item.min_years_experience ?? null;
+
+      if (!Number.isInteger(skillId) || skillId <= 0) {
+        return sendError(res, 400, 'Each skill must include a valid skillId');
+      }
+
+      let minYearsExperience = null;
+      if (rawYears !== null && rawYears !== undefined && rawYears !== '') {
+        minYearsExperience = parseInt(rawYears, 10);
+        if (!Number.isInteger(minYearsExperience) || minYearsExperience < 0) {
+          return sendError(res, 400, 'minYearsExperience must be a non-negative integer');
+        }
+      }
+
+      normalized.push({
+        skillId,
+        isRequired: item.isRequired ?? item.is_required ?? true,
+        minYearsExperience,
+      });
+    }
+
+    const biz = await canManageBusinessFinance(req.user.id, businessId);
+    if (!biz) {
+      return sendError(res, 403, 'You do not have permission to manage this business');
+    }
+
+    await pool.query('BEGIN');
+    try {
+      await pool.query('DELETE FROM business_skills WHERE business_id = $1', [businessId]);
+
+      if (normalized.length) {
+        const placeholders = normalized
+          .map((_, idx) => `($1, $${idx * 3 + 2}, $${idx * 3 + 3}, $${idx * 3 + 4})`)
+          .join(', ');
+        const values = [businessId];
+        normalized.forEach((item) => {
+          values.push(item.skillId, Boolean(item.isRequired), item.minYearsExperience);
+        });
+
+        await pool.query(
+          `INSERT INTO business_skills (business_id, skill_id, is_required, min_years_experience)
+           VALUES ${placeholders}
+           ON CONFLICT (business_id, skill_id) DO UPDATE
+           SET is_required = EXCLUDED.is_required,
+               min_years_experience = EXCLUDED.min_years_experience,
+               updated_at = NOW()`,
+          values
+        );
+      }
+
+      const result = await pool.query(
+        `SELECT
+           bs.id, bs.business_id, bs.skill_id, bs.is_required, bs.min_years_experience,
+           sl.name as skill_name, sl.category,
+           bs.created_at, bs.updated_at
+         FROM business_skills bs
+         JOIN skills_lookup sl ON bs.skill_id = sl.id
+         WHERE bs.business_id = $1
+         ORDER BY sl.name`,
+        [businessId]
+      );
+      await pool.query('COMMIT');
+
+      sendSuccess(res, { skills: result.rows, message: 'Business skills updated' });
+    } catch (err) {
+      await pool.query('ROLLBACK');
+      throw err;
+    }
+  } catch (err) {
+    logger.error('replaceBusinessSkills failed', { error: err.message, userId: req.user?.id });
+    sendError(res, 500, 'Failed to update business skills');
+  }
+};
+
 // ── Remove skill from business ───────────────────────────────────────────────
 exports.removeBusinessSkill = async (req, res) => {
   try {

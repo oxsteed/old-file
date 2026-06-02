@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Shield, Clock, Loader, X } from 'lucide-react';
+import api from '../../api/axios';
 import '../styles/AdminEnforcementDashboard.css';
 
 const AdminEnforcementDashboard = () => {
@@ -34,14 +35,12 @@ const AdminEnforcementDashboard = () => {
       if (filters.actionType) params.append('actionType', filters.actionType);
       if (filters.isActive !== '') params.append('isActive', filters.isActive);
 
-      const response = await fetch(`/api/admin/enforcement/all?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch enforcement actions');
-
-      const { data, pagination: paginationData } = await response.json();
+      const response = await api.get('/admin/enforcement/all', { params });
+      const { data, pagination: paginationData } = response.data;
       setActions(data);
       setPagination(paginationData);
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
     }
@@ -77,16 +76,7 @@ const AdminEnforcementDashboard = () => {
         expiresAt: newAction.expiresAt || null
       };
 
-      const response = await fetch('/api/admin/enforcement/issue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const { error: errMsg } = await response.json();
-        throw new Error(errMsg || 'Failed to create enforcement action');
-      }
+      await api.post('/admin/enforcement/issue', payload);
 
       setNewAction({
         userId: '',
@@ -99,7 +89,7 @@ const AdminEnforcementDashboard = () => {
       setShowNewActionModal(false);
       fetchActions();
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message);
     } finally {
       setCreatingAction(false);
     }
@@ -107,15 +97,10 @@ const AdminEnforcementDashboard = () => {
 
   const handleDeactivateAction = async (actionId) => {
     try {
-      const response = await fetch(`/api/admin/enforcement/${actionId}/deactivate`, {
-        method: 'POST'
-      });
-
-      if (!response.ok) throw new Error('Failed to deactivate action');
-
+      await api.post(`/admin/enforcement/${actionId}/deactivate`);
       fetchActions();
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message);
     }
   };
 

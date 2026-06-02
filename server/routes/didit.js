@@ -6,6 +6,7 @@ const { createSession, getStatus, skipVerification } = require('../controllers/d
 
 // Authenticated: create session + check status
 router.post('/session',  authenticate, createSession);
+router.post('/start',    authenticate, createSession);
 router.get('/status',    authenticate, getStatus);
 
 // Skip verification - only succeeds when DIDIT_API_KEY is absent (dev/staging).

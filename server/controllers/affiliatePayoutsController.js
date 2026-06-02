@@ -201,7 +201,7 @@ async function calculateAndCreatePayout(req, res, next) {
       throw new AppError('No commissions to payout for this period', 400, 'no_commissions');
     }
 
-    const payout = await withTransaction(async (client) => {
+    const payout = await withTransaction(pool, async (client) => {
       // Create payout record
       const payoutResult = await client.query(
         `INSERT INTO affiliate_payouts

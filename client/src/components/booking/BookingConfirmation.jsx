@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
+import { Calendar, Clock, MapPin, FileText, AlertCircle } from 'lucide-react';
+import './BookingConfirmation.css';
 
 function formatTime(hhmm) {
   if (!hhmm) return hhmm;
@@ -7,8 +10,6 @@ function formatTime(hhmm) {
   const d = new Date(2000, 0, 1, h, m || 0);
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
-import { Calendar, Clock, MapPin, FileText, AlertCircle } from 'lucide-react';
-import './BookingConfirmation.css';
 
 /**
  * BookingConfirmation Component
@@ -29,7 +30,7 @@ export default function BookingConfirmation({
 
   const handleConfirm = () => {
     if (!agreed) {
-      alert(t('booking.agreementRequired'));
+      toast.error(t('booking.agreementRequired'));
       return;
     }
 

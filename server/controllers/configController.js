@@ -9,6 +9,29 @@ async function hasPlatformConfigTable() {
   return rows.length > 0;
 }
 
+async function ensurePlatformConfigTable() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS platform_config (
+      id SERIAL PRIMARY KEY,
+      key VARCHAR(100) UNIQUE NOT NULL,
+      value TEXT NOT NULL,
+      updated_by UUID REFERENCES users(id),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  const entries = Object.entries(DEFAULT_PRICES);
+  for (const [key, value] of entries) {
+    await db.query(
+      `INSERT INTO platform_config (key, value)
+       VALUES ($1, $2)
+       ON CONFLICT (key) DO NOTHING`,
+      [key, value]
+    );
+  }
+}
+
 // Default tier pricing (fallback if DB has no entries)
 const DEFAULT_PRICES = {
   tier1_price: '0',
@@ -45,7 +68,7 @@ exports.getPricing = async (req, res, next) => {
 exports.updatePricing = async (req, res, next) => {
   try {
     if (!(await hasPlatformConfigTable())) {
-      throw new AppError('Pricing configuration is not available yet.', 501, 'processing_error');
+      await ensurePlatformConfigTable();
     }
     const updates = req.body; // { tier1_price: '0', tier2_price: '29.99', ... }
     const allowedKeys = Object.keys(DEFAULT_PRICES);

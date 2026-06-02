@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, FileText, AlertTriangle } from 'lucide-react';
+import api from '../api/axios';
 
 interface AppealFormProps {
   restrictionId: string | number;
@@ -53,27 +54,18 @@ const AppealForm: React.FC<AppealFormProps> = ({
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/enforcement-policy/appeals`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          enforcementId: restrictionId,
-          appealText: appealText.trim(),
-          evidence,
-        }),
+      await api.post('/enforcement-policy/appeals', {
+        enforcementId: restrictionId,
+        appealText: appealText.trim(),
+        evidence,
       });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error?.message || 'Failed to submit appeal');
-      }
 
       setAppealText('');
       setEvidence([]);
       onSuccess?.();
       onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+    } catch (err: any) {
+      setError(err.response?.data?.error?.message || err.response?.data?.error || err.message || 'Unknown error');
     } finally {
       setIsSubmitting(false);
     }

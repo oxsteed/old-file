@@ -2,19 +2,27 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendError } = require('../utils/apiError');
 
+function clampInteger(value, fallback, min, max) {
+  const parsed = parseInt(value, 10);
+  if (Number.isNaN(parsed)) return fallback;
+  return Math.max(min, Math.min(max, parsed));
+}
+
+async function verifyProgramOwnership(programId, helperId) {
+  const ownerQuery = 'SELECT id FROM affiliate_programs WHERE id = $1 AND helper_id = $2';
+  const ownerResult = await pool.query(ownerQuery, [programId, helperId]);
+  return ownerResult.rows.length > 0;
+}
+
 class AffiliateAnalyticsController {
   // Get time-series metrics for a program
   static async getMetricsTimeSeries(req, res) {
     try {
       const { program_id } = req.params;
       const helper_id = req.user.id; // programs keyed by user.id
-      const { days = 30, granularity = 'daily' } = req.query;
+      const days = clampInteger(req.query.days, 30, 1, 365);
 
-      // Verify ownership
-      const ownerQuery = `SELECT id FROM affiliate_programs WHERE id = $1 AND helper_id = $2`;
-      const ownerResult = await pool.query(ownerQuery, [program_id, helper_id]);
-
-      if (!ownerResult.rows.length) {
+      if (!(await verifyProgramOwnership(program_id, helper_id))) {
         return sendError(res, 403, 'Unauthorized');
       }
 
@@ -70,13 +78,9 @@ class AffiliateAnalyticsController {
     try {
       const { program_id } = req.params;
       const helper_id = req.user.id; // programs keyed by user.id
-      const { days = 30 } = req.query;
+      const days = clampInteger(req.query.days, 30, 1, 365);
 
-      // Verify ownership
-      const ownerQuery = `SELECT id FROM affiliate_programs WHERE id = $1 AND helper_id = $2`;
-      const ownerResult = await pool.query(ownerQuery, [program_id, helper_id]);
-
-      if (!ownerResult.rows.length) {
+      if (!(await verifyProgramOwnership(program_id, helper_id))) {
         return sendError(res, 403, 'Unauthorized');
       }
 
@@ -142,21 +146,21 @@ class AffiliateAnalyticsController {
     try {
       const { program_id } = req.params;
       const helper_id = req.user.id; // programs keyed by user.id
-      const { limit = 10, days = 30 } = req.query;
+      const limit = clampInteger(req.query.limit, 10, 1, 50);
+      const days = clampInteger(req.query.days, 30, 1, 365);
 
-      // Verify ownership
-      const ownerQuery = `SELECT id FROM affiliate_programs WHERE id = $1 AND helper_id = $2`;
-      const ownerResult = await pool.query(ownerQuery, [program_id, helper_id]);
-
-      if (!ownerResult.rows.length) {
+      if (!(await verifyProgramOwnership(program_id, helper_id))) {
         return sendError(res, 403, 'Unauthorized');
       }
+
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
 
       const query = `
         SELECT
           atp.rank,
           atp.product_id,
-          mp.title,
+          mp.name as title,
           mp.description,
           mp.image_url,
           atp.total_clicks_30d,
@@ -167,12 +171,12 @@ class AffiliateAnalyticsController {
         FROM affiliate_top_products atp
         LEFT JOIN marketplace_products mp ON atp.product_id = mp.id
         WHERE atp.affiliate_program_id = $1
-          AND atp.metric_date >= CURRENT_DATE - INTERVAL '${days} days'
+          AND atp.metric_date >= $2
         ORDER BY atp.rank ASC
-        LIMIT $2
+        LIMIT $3
       `;
 
-      const result = await pool.query(query, [program_id, limit]);
+      const result = await pool.query(query, [program_id, startDate.toISOString().split('T')[0], limit]);
 
       res.json({
         success: true,
@@ -191,13 +195,9 @@ class AffiliateAnalyticsController {
     try {
       const { program_id, product_id } = req.params;
       const helper_id = req.user.id; // programs keyed by user.id
-      const { days = 30 } = req.query;
+      const days = clampInteger(req.query.days, 30, 1, 365);
 
-      // Verify ownership
-      const ownerQuery = `SELECT id FROM affiliate_programs WHERE id = $1 AND helper_id = $2`;
-      const ownerResult = await pool.query(ownerQuery, [program_id, helper_id]);
-
-      if (!ownerResult.rows.length) {
+      if (!(await verifyProgramOwnership(program_id, helper_id))) {
         return sendError(res, 403, 'Unauthorized');
       }
 
@@ -224,7 +224,7 @@ class AffiliateAnalyticsController {
       const result = await pool.query(query, [program_id, product_id, startDate.toISOString().split('T')[0]]);
 
       // Get product details
-      const productQuery = `SELECT id, title, description, image_url, price_cents FROM marketplace_products WHERE id = $1`;
+      const productQuery = `SELECT id, name as title, description, image_url, price_cents FROM marketplace_products WHERE id = $1`;
       const productResult = await pool.query(productQuery, [product_id]);
 
       // Calculate totals
@@ -254,13 +254,9 @@ class AffiliateAnalyticsController {
     try {
       const { program_id } = req.params;
       const helper_id = req.user.id; // programs keyed by user.id
-      const { days = 7 } = req.query;
+      const days = clampInteger(req.query.days, 7, 1, 365);
 
-      // Verify ownership
-      const ownerQuery = `SELECT id FROM affiliate_programs WHERE id = $1 AND helper_id = $2`;
-      const ownerResult = await pool.query(ownerQuery, [program_id, helper_id]);
-
-      if (!ownerResult.rows.length) {
+      if (!(await verifyProgramOwnership(program_id, helper_id))) {
         return sendError(res, 403, 'Unauthorized');
       }
 
@@ -317,13 +313,9 @@ class AffiliateAnalyticsController {
     try {
       const { program_id } = req.params;
       const helper_id = req.user.id; // programs keyed by user.id
-      const { days = 30 } = req.query;
+      const days = clampInteger(req.query.days, 30, 1, 365);
 
-      // Verify ownership
-      const ownerQuery = `SELECT id FROM affiliate_programs WHERE id = $1 AND helper_id = $2`;
-      const ownerResult = await pool.query(ownerQuery, [program_id, helper_id]);
-
-      if (!ownerResult.rows.length) {
+      if (!(await verifyProgramOwnership(program_id, helper_id))) {
         return sendError(res, 403, 'Unauthorized');
       }
 

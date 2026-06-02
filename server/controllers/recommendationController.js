@@ -632,12 +632,46 @@ exports.getRecommendations = async (req, res) => {
     const userId   = req.user.id;
     const userRole = req.user.role;
     const recs = await buildRecommendations(userId, userRole);
+    const dismissed = await safeQuery(
+      `SELECT recommendation_id
+       FROM recommendation_dismissals
+       WHERE user_id = $1
+         AND dismissed_until > NOW()`,
+      [userId],
+    );
+    const dismissedIds = new Set(dismissed.map((row) => row.recommendation_id));
+    const visibleRecs = recs.filter((item) => !dismissedIds.has(item.id));
     return res.json({
-      recommendations: recs,
+      recommendations: visibleRecs,
       generated_at: new Date().toISOString(),
     });
   } catch (err) {
     logger.error('[recommendations] getRecommendations error', { err: err.message });
     return res.status(500).json({ error: 'Failed to generate recommendations' });
+  }
+};
+
+exports.dismissRecommendation = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const recommendationId = String(req.params.id || '').trim().substring(0, 160);
+    const days = Math.min(90, Math.max(1, parseInt(req.body?.days, 10) || 14));
+
+    if (!recommendationId) {
+      return res.status(400).json({ error: 'Recommendation id is required.' });
+    }
+
+    await pool.query(`
+      INSERT INTO recommendation_dismissals (user_id, recommendation_id, dismissed_until)
+      VALUES ($1, $2, NOW() + ($3::int * INTERVAL '1 day'))
+      ON CONFLICT (user_id, recommendation_id) DO UPDATE
+        SET dismissed_until = EXCLUDED.dismissed_until,
+            updated_at = NOW()
+    `, [userId, recommendationId, days]);
+
+    return res.json({ ok: true, dismissed: recommendationId, days });
+  } catch (err) {
+    logger.error('[recommendations] dismissRecommendation error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to dismiss recommendation' });
   }
 };

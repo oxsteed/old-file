@@ -178,6 +178,13 @@ async function updateSMSPreferences(req, res) {
       return sendValidationError(res, { preferences: 'No preferences to update' });
     }
 
+    await pool.query(
+      `INSERT INTO notification_preferences (user_id)
+       VALUES ($1)
+       ON CONFLICT (user_id) DO NOTHING`,
+      [userId]
+    );
+
     params.push(userId);
     const query = `UPDATE notification_preferences
                    SET ${updates.join(', ')}

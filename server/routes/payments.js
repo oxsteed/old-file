@@ -3,7 +3,18 @@ const { authenticate } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/adminAuth');
 const { paymentsLimiter, connectAccountLimiter } = require('../middleware/rateLimiter');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
-const { createConnectAccount, getConnectStatus, createPaymentIntent, capturePayment, refundPayment, getJobPayment, getMyPayments } = require('../controllers/paymentController');
+const {
+  createConnectAccount,
+  getConnectStatus,
+  createPaymentIntent,
+  capturePayment,
+  refundPayment,
+  getJobPayment,
+  getMyPayments,
+  requestInstantPayout,
+  disconnectConnectAccount,
+  getInvestorSummary,
+} = require('../controllers/paymentController');
 const { errorHandler } = require('../middleware/errorHandler');
 
 const requirePaymentsEnabled = requireFeatureEnabled('Payments', 'FEATURE_PAYMENTS_ENABLED');
@@ -11,6 +22,9 @@ const requirePaymentsEnabled = requireFeatureEnabled('Payments', 'FEATURE_PAYMEN
 // Connect account
 router.post('/connect', authenticate, requirePaymentsEnabled, connectAccountLimiter, createConnectAccount);
 router.get('/connect/status', authenticate, requirePaymentsEnabled, getConnectStatus);
+router.post('/connect/disconnect', authenticate, requirePaymentsEnabled, connectAccountLimiter, disconnectConnectAccount);
+router.post('/payout/instant', authenticate, requirePaymentsEnabled, paymentsLimiter, requestInstantPayout);
+router.get('/investor-summary', authenticate, getInvestorSummary);
 
 // Payments
 router.get('/me', authenticate, requirePaymentsEnabled, getMyPayments);

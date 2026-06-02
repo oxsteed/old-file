@@ -104,6 +104,7 @@ describe('POST /api/payments/intent', () => {
     mockAuth(
       { rows: [{ id: 10, client_id: 1, job_value: 100, assigned_helper_id: 2, title: 'Job' }] }, // job
       { rows: [{ stripe_account_id: 'acct_x', charges_enabled: true }] },                         // connect
+      { rows: [{ balance_cents: 0 }] },                                                           // customer credit balance
       { rows: [] },                                                                                // existing payment check
       { rows: [{ id: 1 }] }                                                                          // INSERT payment RETURNING id
     );
@@ -203,5 +204,22 @@ describe('GET /api/payments/connect/status', () => {
     const res = await auth(request(buildApp()).get('/api/payments/connect/status'));
     expect(res.status).toBe(200);
     expect(res.body.connected).toBe(true);
+    expect(res.body.stripe_account_id).toBe('acct_x');
+  });
+});
+
+describe('GET /api/payments/me role filtering', () => {
+  test('uses payee_id when role=payee so earners see payout history', async () => {
+    mockAuth(
+      { rows: [{ id: 6, amount: 125, status: 'captured', payee_id: 1 }] },
+      { rows: [{ count: '1' }] },
+    );
+
+    const res = await auth(request(buildApp()).get('/api/payments/me?role=payee'));
+
+    expect(res.status).toBe(200);
+    expect(res.body.payments[0].id).toBe(6);
+    expect(mockQuery.mock.calls[1][0]).toContain('WHERE p.payee_id = $1');
+    expect(mockQuery.mock.calls[2][0]).toContain('WHERE payee_id = $1');
   });
 });

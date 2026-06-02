@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import adminApi from '../../lib/adminApi';
+import toast from 'react-hot-toast';
 import {
   CheckCircle,
   ChevronRight,
@@ -120,7 +121,7 @@ export default function SupportAgentOnboarding() {
         /* ignore */
       }
 
-      alert('Agent onboarded successfully!');
+      toast.success('Agent onboarded successfully.');
       setStep(1);
       setFormData({
         first_name: '',

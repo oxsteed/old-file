@@ -12,12 +12,13 @@ export function RecurringBillingManager({ businessId }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ description: '', amount_cents: '', frequency: 'monthly', start_date: new Date().toISOString().split('T')[0], customer_id: '', notes: '' });
+  const recurringBillingPath = `/businesses/${businessId}/recurring-billing`;
 
   useEffect(() => { load(); }, [businessId]);
 
   const load = async () => {
     setLoading(true);
-    try { const res = await api.get(`/businesses/${businessId}/recurring`); setItems(res.data || []); }
+    try { const res = await api.get(recurringBillingPath); setItems(res.data || []); }
     catch { toast.error(tRecurring('loadError')); }
     finally { setLoading(false); }
   };
@@ -27,10 +28,11 @@ export function RecurringBillingManager({ businessId }) {
     const payload = { ...form, amount_cents: Math.round(parseFloat(form.amount_cents) * 100) };
     try {
       if (editing) {
-        await api.put(`/businesses/${businessId}/recurring/${editing.id}`, payload);
+        const { start_date, ...updatePayload } = payload;
+        await api.put(`${recurringBillingPath}/${editing.id}`, { ...updatePayload, next_billing_date: start_date });
         toast.success(tRecurring('updated'));
       } else {
-        await api.post(`/businesses/${businessId}/recurring`, payload);
+        await api.post(recurringBillingPath, payload);
         toast.success(tRecurring('created'));
       }
       setShowForm(false); setEditing(null); setForm({ description: '', amount_cents: '', frequency: 'monthly', start_date: new Date().toISOString().split('T')[0], customer_id: '', notes: '' }); load();
@@ -40,17 +42,17 @@ export function RecurringBillingManager({ businessId }) {
   const toggle = async (item) => {
     const newStatus = item.status === 'active' ? 'paused' : 'active';
     const statusLabel = newStatus === 'active' ? tRecurring('statusResumed') : tRecurring('statusPaused');
-    try { await api.put(`/businesses/${businessId}/recurring/${item.id}`, { ...item, status: newStatus, next_billing_date: item.next_billing_date }); toast.success(statusLabel); load(); }
+    try { await api.patch(`${recurringBillingPath}/${item.id}/toggle`); toast.success(statusLabel); load(); }
     catch { toast.error(tRecurring('updateError')); }
   };
 
   const remove = async (id) => {
     if (!window.confirm(tRecurring('deleteConfirm'))) return;
-    try { await api.delete(`/businesses/${businessId}/recurring/${id}`); toast.success(tRecurring('deleted')); load(); }
+    try { await api.delete(`${recurringBillingPath}/${id}`); toast.success(tRecurring('deleted')); load(); }
     catch { toast.error(tRecurring('deleteError')); }
   };
 
-  const frequencies = ['weekly', 'biweekly', 'monthly', 'quarterly', 'annually'];
+  const frequencies = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'];
   const statusLabel = (status) => {
     if (status === 'active') return tRecurring('statusActive');
     if (status === 'paused') return tRecurring('statusPausedStatus');

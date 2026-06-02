@@ -29,11 +29,27 @@ async function getEmailPreferences(req, res) {
       [userId]
     );
 
-    if (!result.rows.length) {
-      return sendError(res, 404, 'Email preferences not found');
+    let prefs = result.rows[0];
+    if (!prefs) {
+      const created = await pool.query(
+        `INSERT INTO notification_preferences (user_id)
+         VALUES ($1)
+         ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
+         RETURNING
+           id,
+           user_id,
+           email_notifications,
+           sms_notifications,
+           push_notifications,
+           marketing_emails,
+           email_frequency,
+           unsubscribe_all,
+           unsubscribed_from_bulk_emails,
+           email_updated_at`,
+        [userId]
+      );
+      prefs = created.rows[0];
     }
-
-    const prefs = result.rows[0];
 
     res.json({
       success: true,
@@ -69,6 +85,13 @@ async function updateEmailPreferences(req, res) {
     if (frequency && !['real-time', 'daily', 'weekly', 'off'].includes(frequency)) {
       return sendValidationError(res, { frequency: 'Invalid frequency option' });
     }
+
+    await pool.query(
+      `INSERT INTO notification_preferences (user_id)
+       VALUES ($1)
+       ON CONFLICT (user_id) DO NOTHING`,
+      [userId]
+    );
 
     const result = await pool.query(
       `UPDATE notification_preferences

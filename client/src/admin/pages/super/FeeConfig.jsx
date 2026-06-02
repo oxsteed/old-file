@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 
 // Format helper
@@ -48,7 +49,7 @@ function FeeRow({ row, onSave }) {
       setEditing(false);
       onSave();
     } catch (err) {
-      alert(err.response?.data?.error || 'Update failed');
+      toast.error(err.response?.data?.error || 'Update failed');
     } finally {
       setSaving(false);
     }

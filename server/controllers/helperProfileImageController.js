@@ -1,6 +1,6 @@
 const pool = require('../db');
 const { sendValidationError, sendError } = require('../utils/apiError');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const { invalidateHelperContext } = require('../services/helperContext');
 const {

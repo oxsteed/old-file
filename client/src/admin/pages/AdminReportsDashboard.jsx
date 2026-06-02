@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ChevronRight, Loader } from 'lucide-react';
+import api from '../../api/axios';
 import '../styles/AdminReportsDashboard.css';
 
 const AdminReportsDashboard = () => {
@@ -27,14 +28,12 @@ const AdminReportsDashboard = () => {
       if (filters.status) params.append('status', filters.status);
       if (filters.reason) params.append('reason', filters.reason);
 
-      const response = await fetch(`/api/reports/admin/all?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch reports');
-
-      const { data, pagination: paginationData } = await response.json();
+      const response = await api.get('/reports/admin/all', { params });
+      const { data, pagination: paginationData } = response.data;
       setReports(data);
       setPagination(paginationData);
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
     }
@@ -48,22 +47,16 @@ const AdminReportsDashboard = () => {
     try {
       setUpdatingStatus(true);
 
-      const response = await fetch(`/api/reports/admin/${reportId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: newStatus,
-          adminNotes
-        })
+      await api.patch(`/reports/admin/${reportId}/status`, {
+        status: newStatus,
+        adminNotes
       });
-
-      if (!response.ok) throw new Error('Failed to update report status');
 
       setAdminNotes('');
       fetchReports();
       setSelectedReport(null);
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message);
     } finally {
       setUpdatingStatus(false);
     }

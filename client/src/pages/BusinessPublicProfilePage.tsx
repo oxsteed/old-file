@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import ProfileHeader from '../components/profile/ProfileHeader';
 import QRCodeDisplay from '../components/profile/QRCodeDisplay';
 import { Star, MapPin, Phone, Mail, Users } from 'lucide-react';
+import api from '../api/axios';
 import './BusinessPublicProfilePage.css';
 
 /**
@@ -13,6 +14,7 @@ import './BusinessPublicProfilePage.css';
 export default function BusinessPublicProfilePage() {
   const { t } = useTranslation();
   const { businessId } = useParams();
+  const navigate = useNavigate();
   const [business, setBusiness] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -23,15 +25,10 @@ export default function BusinessPublicProfilePage() {
 
   const loadBusiness = async () => {
     try {
-      const response = await fetch(`/api/businesses/${businessId}/public`);
-      if (response.ok) {
-        const data = await response.json();
-        setBusiness(data.data);
-      } else {
-        setError(t('businessPublicProfile.notFound'));
-      }
+      const { data } = await api.get(`/businesses/${businessId}/public`);
+      setBusiness(data.data);
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message || t('businessPublicProfile.notFound'));
     } finally {
       setLoading(false);
     }
@@ -101,7 +98,7 @@ export default function BusinessPublicProfilePage() {
             </div>
 
             {/* CTA Button */}
-            <button className="cta-button">
+            <button className="cta-button" onClick={() => navigate(`/book/business/${businessId}`)}>
               {t('businessProfile.contactBusiness')}
             </button>
           </div>

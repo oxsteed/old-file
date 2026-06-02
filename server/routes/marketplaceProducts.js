@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate, optionalAuth } = require('../middleware/auth');
+const { authenticate, optionalAuth, requireRole } = require('../middleware/auth');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const marketplaceProductsController = require('../controllers/marketplaceProductsController');
 
@@ -15,6 +15,9 @@ router.get('/search', optionalAuth, marketplaceProductsController.searchProducts
 
 // Get product categories
 router.get('/categories', marketplaceProductsController.getCategories);
+
+// Product search suggestions
+router.get('/suggestions', optionalAuth, marketplaceProductsController.getSearchSuggestions);
 
 // Get products by skill
 router.get('/by-skill/:skillId', optionalAuth, marketplaceProductsController.getBySkill);
@@ -38,6 +41,6 @@ router.get('/:productId/reviews', optionalAuth, marketplaceProductsController.ge
 router.post('/:productId/reviews', authenticate, marketplaceProductsController.submitProductReview);
 
 // Sync from Home Depot (admin/scheduler only)
-router.post('/sync-homedepot', authenticate, marketplaceProductsController.syncFromHomeDepot);
+router.post('/sync-homedepot', authenticate, requireRole('admin', 'super_admin'), marketplaceProductsController.syncFromHomeDepot);
 
 module.exports = router;

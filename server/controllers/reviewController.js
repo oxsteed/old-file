@@ -18,7 +18,7 @@ exports.submitReview = async (req, res, next) => {
 
     const reviewerId  = req.user.id;
     const { jobId }   = req.params;
-    const { rating, title, body } = req.body;
+    const { rating, title, body, comment: legacyComment } = req.body;
 
     // Validate rating
     if (!rating || rating < 1 || rating > 5) {
@@ -52,8 +52,10 @@ exports.submitReview = async (req, res, next) => {
       throw new AppError('No reviewee found for this job', 400, 'invalid_job_state');
     }
 
-    // Combine title and body into comment field (DB has 'comment', not 'title'/'body')
-    const comment = title ? `${title}: ${body || ''}` : (body || '');
+    // Combine title and body into comment field (DB has 'comment', not 'title'/'body').
+    // Accept the iOS legacy `comment` key so older app builds do not silently drop notes.
+    const reviewBody = body ?? legacyComment ?? '';
+    const comment = title ? `${title}: ${reviewBody || ''}` : reviewBody;
 
     // Insert review
     const { rows } = await dbClient.query(`

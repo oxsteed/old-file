@@ -18,6 +18,10 @@ router.get   ('/:businessId/quotes/:quoteId',        requireAuth, requireBusines
 router.post  ('/:businessId/quotes',                 requireAuth, requireBusinessAccess({ minRole: 'any' }),     quotes.createQuote);
 router.put   ('/:businessId/quotes/:quoteId',        requireAuth, requireBusinessAccess({ minRole: 'any' }),     quotes.updateQuote);
 router.post  ('/:businessId/quotes/:quoteId/send',   requireAuth, requireBusinessAccess({ minRole: 'any' }),     quotes.sendQuote);
+router.post  ('/:businessId/quotes/:quoteId/convert', requireAuth, requireBusinessAccess({ minRole: 'any' }),    (req, res, next) => {
+  req.params.id = req.params.quoteId;
+  return quotes.convertToInvoice(req, res, next);
+});
 router.delete('/:businessId/quotes/:quoteId',        requireAuth, requireBusinessAccess({ minRole: 'any' }),     quotes.deleteQuote);
 // Public quote response (no auth — client clicks link)
 router.get   ('/quotes/view/:token',                                                                              quotes.getQuoteByToken);
@@ -26,7 +30,7 @@ router.post  ('/quotes/view/:token/respond',                                    
 // Recurring billing
 router.get   ('/:businessId/recurring',              requireAuth, requireBusinessAccess({ minRole: 'manager' }), recurring.listRecurring);
 router.post  ('/:businessId/recurring',              requireAuth, requireBusinessAccess({ minRole: 'manager' }), recurring.createRecurring);
-router.put   ('/:businessId/recurring/:billingId',   requireAuth, requireBusinessAccess({ minRole: 'manager' }), recurring.updateRecurring);
-router.delete('/:businessId/recurring/:billingId',   requireAuth, requireBusinessAccess({ minRole: 'manager' }), recurring.deleteRecurring);
+router.put   ('/:businessId/recurring/:id',          requireAuth, requireBusinessAccess({ minRole: 'manager' }), recurring.updateRecurring);
+router.delete('/:businessId/recurring/:id',          requireAuth, requireBusinessAccess({ minRole: 'manager' }), recurring.deleteRecurring);
 
 module.exports = router;

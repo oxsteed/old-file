@@ -156,6 +156,53 @@ exports.deleteExpense = async (req, res) => {
   }
 };
 
+/**
+ * Bulk-upsert iOS Life money entries from the offline queue.
+ * Body: { money_entries: [{ client_id, source, amount, type, date }] }
+ */
+exports.bulkUpsertExpenses = async (req, res) => {
+  const userId = req.user.id;
+  const items = Array.isArray(req.body?.money_entries) ? req.body.money_entries : [];
+  if (items.length === 0) return res.json({ ok: true, upserted: 0 });
+
+  try {
+    let count = 0;
+    for (const entry of items.slice(0, 500)) {
+      const clientId = String(entry.client_id || '').trim();
+      const source = String(entry.source || '').trim().substring(0, 255);
+      const amount = Number(entry.amount);
+      const type = entry.type === 'income' ? 'income' : 'expense';
+      if (!clientId || !source || !Number.isFinite(amount) || amount <= 0) continue;
+
+      await db.query(`
+        INSERT INTO expenses
+          (user_id, client_id, type, amount, category, description, occurred_at)
+        VALUES ($1, $2::uuid, $3, $4, $5, $6, NULLIF($7, '')::date)
+        ON CONFLICT (user_id, client_id) WHERE client_id IS NOT NULL DO UPDATE
+          SET type = EXCLUDED.type,
+              amount = EXCLUDED.amount,
+              category = EXCLUDED.category,
+              description = EXCLUDED.description,
+              occurred_at = EXCLUDED.occurred_at,
+              updated_at = NOW()
+      `, [
+        userId,
+        clientId,
+        type,
+        Math.abs(amount),
+        type === 'income' ? 'Life Income' : 'Life Expense',
+        source,
+        entry.date || null,
+      ]);
+      count++;
+    }
+    res.json({ ok: true, upserted: count });
+  } catch (err) {
+    logger.error('bulkUpsertExpenses error', { message: err.message });
+    res.status(500).json({ error: 'Bulk upsert failed.' });
+  }
+};
+
 // Monthly breakdown by category
 exports.getExpenseSummary = async (req, res) => {
   try {
@@ -383,6 +430,179 @@ exports.deleteGoal = async (req, res) => {
   } catch (err) {
     logger.error('deleteGoal error', { message: err.message });
     res.status(500).json({ error: 'Failed to delete goal.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SINKING FUNDS
+// ═══════════════════════════════════════════════════════════════════════════
+
+exports.getSinkingFunds = async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT id, client_id, name, target_amount, saved_amount, target_date,
+             paycheck_interval, icon, color, created_at, updated_at
+      FROM sinking_funds
+      WHERE user_id = $1
+      ORDER BY target_date NULLS LAST, created_at DESC
+    `, [req.user.id]);
+    res.json({ sinking_funds: rows });
+  } catch (err) {
+    logger.error('getSinkingFunds error', { message: err.message });
+    res.status(500).json({ error: 'Failed to fetch sinking funds.' });
+  }
+};
+
+exports.createSinkingFund = async (req, res) => {
+  try {
+    const {
+      client_id, name, target_amount, saved_amount = 0, target_date,
+      paycheck_interval = 'biweekly', icon = 'banknote.fill', color = 'pillarSinking',
+    } = req.body;
+    const cleanName = String(name || '').trim().substring(0, 200);
+    if (!cleanName) return res.status(400).json({ error: 'Name is required.' });
+
+    const targetAmount = Number(target_amount);
+    const savedAmount = Number(saved_amount);
+    const interval = ['weekly', 'biweekly', 'monthly'].includes(paycheck_interval)
+      ? paycheck_interval
+      : 'biweekly';
+
+    const { rows } = await db.query(`
+      INSERT INTO sinking_funds
+        (user_id, client_id, name, target_amount, saved_amount, target_date,
+         paycheck_interval, icon, color)
+      VALUES ($1, $2::uuid, $3, $4, $5, NULLIF($6, '')::date, $7, $8, $9)
+      RETURNING id, client_id, name, target_amount, saved_amount, target_date,
+                paycheck_interval, icon, color, created_at, updated_at
+    `, [
+      req.user.id,
+      client_id || null,
+      cleanName,
+      Number.isFinite(targetAmount) ? Math.max(0, targetAmount) : 0,
+      Number.isFinite(savedAmount) ? Math.max(0, savedAmount) : 0,
+      target_date || null,
+      interval,
+      String(icon || 'banknote.fill').substring(0, 80),
+      String(color || 'pillarSinking').substring(0, 80),
+    ]);
+
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    logger.error('createSinkingFund error', { message: err.message });
+    res.status(500).json({ error: 'Failed to create sinking fund.' });
+  }
+};
+
+exports.updateSinkingFund = async (req, res) => {
+  try {
+    const {
+      name, target_amount, saved_amount, target_date, paycheck_interval, icon, color,
+    } = req.body;
+    const interval = paycheck_interval && ['weekly', 'biweekly', 'monthly'].includes(paycheck_interval)
+      ? paycheck_interval
+      : undefined;
+
+    const { rows } = await db.query(`
+      UPDATE sinking_funds
+      SET name = COALESCE($3, name),
+          target_amount = COALESCE($4, target_amount),
+          saved_amount = COALESCE($5, saved_amount),
+          target_date = COALESCE(NULLIF($6, '')::date, target_date),
+          paycheck_interval = COALESCE($7, paycheck_interval),
+          icon = COALESCE($8, icon),
+          color = COALESCE($9, color),
+          updated_at = NOW()
+      WHERE id = $1 AND user_id = $2
+      RETURNING id, client_id, name, target_amount, saved_amount, target_date,
+                paycheck_interval, icon, color, created_at, updated_at
+    `, [
+      req.params.id,
+      req.user.id,
+      name ? String(name).trim().substring(0, 200) : undefined,
+      target_amount === undefined ? undefined : Math.max(0, Number(target_amount) || 0),
+      saved_amount === undefined ? undefined : Math.max(0, Number(saved_amount) || 0),
+      target_date,
+      interval,
+      icon ? String(icon).substring(0, 80) : undefined,
+      color ? String(color).substring(0, 80) : undefined,
+    ]);
+
+    if (!rows.length) return res.status(404).json({ error: 'Sinking fund not found.' });
+    res.json(rows[0]);
+  } catch (err) {
+    logger.error('updateSinkingFund error', { message: err.message });
+    res.status(500).json({ error: 'Failed to update sinking fund.' });
+  }
+};
+
+exports.deleteSinkingFund = async (req, res) => {
+  try {
+    const { rowCount } = await db.query(
+      'DELETE FROM sinking_funds WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Sinking fund not found.' });
+    res.json({ message: 'Sinking fund deleted.' });
+  } catch (err) {
+    logger.error('deleteSinkingFund error', { message: err.message });
+    res.status(500).json({ error: 'Failed to delete sinking fund.' });
+  }
+};
+
+/**
+ * Bulk-upsert iOS Life sinking funds from the offline queue.
+ * Body: { sinking_funds: [{ client_id, name, target_amount, saved_amount,
+ *                          target_date, paycheck_interval, icon, color }] }
+ */
+exports.bulkUpsertSinkingFunds = async (req, res) => {
+  const userId = req.user.id;
+  const items = Array.isArray(req.body?.sinking_funds) ? req.body.sinking_funds : [];
+  if (items.length === 0) return res.json({ ok: true, upserted: 0 });
+
+  try {
+    let count = 0;
+    for (const fund of items.slice(0, 100)) {
+      const clientId = String(fund.client_id || '').trim();
+      const name = String(fund.name || '').trim().substring(0, 200);
+      const targetAmount = Number(fund.target_amount);
+      const savedAmount = Number(fund.saved_amount);
+      const interval = ['weekly', 'biweekly', 'monthly'].includes(fund.paycheck_interval)
+        ? fund.paycheck_interval
+        : 'biweekly';
+      if (!clientId || !name) continue;
+
+      await db.query(`
+        INSERT INTO sinking_funds
+          (user_id, client_id, name, target_amount, saved_amount, target_date,
+           paycheck_interval, icon, color)
+        VALUES ($1, $2::uuid, $3, $4, $5, NULLIF($6, '')::date, $7, $8, $9)
+        ON CONFLICT (user_id, client_id) DO UPDATE
+          SET name = EXCLUDED.name,
+              target_amount = EXCLUDED.target_amount,
+              saved_amount = EXCLUDED.saved_amount,
+              target_date = EXCLUDED.target_date,
+              paycheck_interval = EXCLUDED.paycheck_interval,
+              icon = EXCLUDED.icon,
+              color = EXCLUDED.color,
+              updated_at = NOW()
+      `, [
+        userId,
+        clientId,
+        name,
+        Number.isFinite(targetAmount) ? Math.max(0, targetAmount) : 0,
+        Number.isFinite(savedAmount) ? Math.max(0, savedAmount) : 0,
+        fund.target_date || null,
+        interval,
+        String(fund.icon || 'banknote.fill').substring(0, 80),
+        String(fund.color || 'pillarSinking').substring(0, 80),
+      ]);
+      count++;
+    }
+    res.json({ ok: true, upserted: count });
+  } catch (err) {
+    logger.error('bulkUpsertSinkingFunds error', { message: err.message });
+    res.status(500).json({ error: 'Bulk upsert failed.' });
   }
 };
 
@@ -637,9 +857,11 @@ exports.bulkUpsertHomeTasks = async (req, res) => {
 
   try {
     let count = 0;
+    const allowedSections = ['home', 'personal_care', 'car_care'];
     for (const t of items.slice(0, 200)) {
       const title   = String(t.title || '').trim().substring(0, 200);
-      const section = String(t.section || 'home').substring(0, 50);
+      const rawSection = String(t.section || 'home').substring(0, 50);
+      const section = allowedSections.includes(rawSection) ? rawSection : 'home';
       if (!title) continue;
 
       await db.query(`
@@ -655,7 +877,7 @@ exports.bulkUpsertHomeTasks = async (req, res) => {
         t.is_completed ?? false,
         t.is_recurring ?? false,
         t.due_date || null,
-      ]).catch(() => {});  // silent on missing table or constraint
+      ]);
       count++;
     }
     res.json({ ok: true, upserted: count });
@@ -690,12 +912,391 @@ exports.bulkUpsertGoals = async (req, res) => {
           SET tier         = EXCLUDED.tier,
               is_completed = EXCLUDED.is_completed,
               updated_at   = NOW()
-      `, [userId, title, tier, g.is_completed ?? false]).catch(() => {});
+      `, [userId, title, tier, g.is_completed ?? false]);
       count++;
     }
     res.json({ ok: true, upserted: count });
   } catch (err) {
     logger.error('bulkUpsertGoals error', { message: err.message });
+    res.status(500).json({ error: 'Bulk upsert failed.' });
+  }
+};
+
+function stablePositiveInt(input) {
+  let hash = 0;
+  const value = String(input || '').toLowerCase();
+  for (let i = 0; i < value.length; i++) {
+    hash = ((hash << 5) - hash) + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.max(1, Math.abs(hash));
+}
+
+function lifeVehicleColumns() {
+  return `
+    id, client_id, vin, year, make_name AS make, model_name AS model,
+    mileage, last_oil_change_mile, last_service_date, notes,
+    created_at, updated_at
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LIFE GARAGE
+// ═══════════════════════════════════════════════════════════════════════════
+
+exports.getLifeVehicles = async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT ${lifeVehicleColumns()}
+      FROM user_vehicles
+      WHERE user_id = $1
+      ORDER BY updated_at DESC, created_at DESC
+    `, [req.user.id]);
+    res.json({ vehicles: rows });
+  } catch (err) {
+    logger.error('getLifeVehicles error', { message: err.message });
+    res.status(500).json({ error: 'Failed to fetch vehicles.' });
+  }
+};
+
+exports.createLifeVehicle = async (req, res) => {
+  try {
+    const {
+      client_id, vin, year, make, model, make_name, model_name,
+      mileage, last_oil_change_mile, last_service_date, notes,
+    } = req.body;
+    const cleanMake = String(make || make_name || '').trim().substring(0, 80);
+    const cleanModel = String(model || model_name || '').trim().substring(0, 120);
+    if (!cleanMake || !cleanModel) return res.status(400).json({ error: 'Make and model are required.' });
+
+    const makeId = stablePositiveInt(cleanMake);
+    const modelId = stablePositiveInt(`${cleanMake}:${cleanModel}`);
+    const parsedYear = parseInt(year, 10);
+
+    const { rows } = await db.query(`
+      INSERT INTO user_vehicles
+        (user_id, client_id, make_id, make_name, model_id, model_name, year,
+         nickname, notes, vin, mileage, last_oil_change_mile, last_service_date)
+      VALUES ($1, $2::uuid, $3, $4, $5, $6, $7, NULL, $8, NULLIF($9, ''),
+              $10, $11, NULLIF($12, '')::date)
+      ON CONFLICT (user_id, client_id) WHERE client_id IS NOT NULL DO UPDATE
+        SET make_id = EXCLUDED.make_id,
+            make_name = EXCLUDED.make_name,
+            model_id = EXCLUDED.model_id,
+            model_name = EXCLUDED.model_name,
+            year = EXCLUDED.year,
+            notes = EXCLUDED.notes,
+            vin = EXCLUDED.vin,
+            mileage = EXCLUDED.mileage,
+            last_oil_change_mile = EXCLUDED.last_oil_change_mile,
+            last_service_date = EXCLUDED.last_service_date,
+            updated_at = NOW()
+      RETURNING ${lifeVehicleColumns()}
+    `, [
+      req.user.id,
+      client_id || null,
+      makeId,
+      cleanMake,
+      modelId,
+      cleanModel,
+      Number.isFinite(parsedYear) ? parsedYear : null,
+      notes ? String(notes).trim().substring(0, 500) : null,
+      vin ? String(vin).trim().substring(0, 17).toUpperCase() : '',
+      Math.max(0, parseInt(mileage, 10) || 0),
+      Math.max(0, parseInt(last_oil_change_mile, 10) || 0),
+      last_service_date || null,
+    ]);
+
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    logger.error('createLifeVehicle error', { message: err.message });
+    res.status(500).json({ error: 'Failed to create vehicle.' });
+  }
+};
+
+exports.updateLifeVehicle = async (req, res) => {
+  try {
+    const {
+      vin, year, make, model, mileage, last_oil_change_mile, last_service_date, notes,
+    } = req.body;
+    const cleanMake = make === undefined ? undefined : String(make || '').trim().substring(0, 80);
+    const cleanModel = model === undefined ? undefined : String(model || '').trim().substring(0, 120);
+    const parsedYear = year === undefined ? undefined : parseInt(year, 10);
+
+    const { rows } = await db.query(`
+      UPDATE user_vehicles
+      SET make_id = COALESCE($3, make_id),
+          make_name = COALESCE($4, make_name),
+          model_id = COALESCE($5, model_id),
+          model_name = COALESCE($6, model_name),
+          year = COALESCE($7, year),
+          vin = COALESCE($8, vin),
+          mileage = COALESCE($9, mileage),
+          last_oil_change_mile = COALESCE($10, last_oil_change_mile),
+          last_service_date = COALESCE(NULLIF($11, '')::date, last_service_date),
+          notes = COALESCE($12, notes),
+          updated_at = NOW()
+      WHERE id = $1 AND user_id = $2
+      RETURNING ${lifeVehicleColumns()}
+    `, [
+      req.params.id,
+      req.user.id,
+      cleanMake ? stablePositiveInt(cleanMake) : undefined,
+      cleanMake || undefined,
+      cleanModel ? stablePositiveInt(`${cleanMake || ''}:${cleanModel}`) : undefined,
+      cleanModel || undefined,
+      Number.isFinite(parsedYear) ? parsedYear : undefined,
+      vin === undefined ? undefined : String(vin || '').trim().substring(0, 17).toUpperCase(),
+      mileage === undefined ? undefined : Math.max(0, parseInt(mileage, 10) || 0),
+      last_oil_change_mile === undefined ? undefined : Math.max(0, parseInt(last_oil_change_mile, 10) || 0),
+      last_service_date,
+      notes === undefined ? undefined : String(notes || '').trim().substring(0, 500),
+    ]);
+
+    if (!rows.length) return res.status(404).json({ error: 'Vehicle not found.' });
+    res.json(rows[0]);
+  } catch (err) {
+    logger.error('updateLifeVehicle error', { message: err.message });
+    res.status(500).json({ error: 'Failed to update vehicle.' });
+  }
+};
+
+exports.deleteLifeVehicle = async (req, res) => {
+  try {
+    const { rowCount } = await db.query(
+      'DELETE FROM user_vehicles WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Vehicle not found.' });
+    res.json({ message: 'Vehicle deleted.' });
+  } catch (err) {
+    logger.error('deleteLifeVehicle error', { message: err.message });
+    res.status(500).json({ error: 'Failed to delete vehicle.' });
+  }
+};
+
+/**
+ * Bulk-upsert iOS Life garage vehicles from the offline queue.
+ * Body: { vehicles: [{ client_id, vin, year, make, model, mileage,
+ *                      last_oil_change_mile, last_service_date, notes }] }
+ */
+exports.bulkUpsertVehicles = async (req, res) => {
+  const userId = req.user.id;
+  const items = Array.isArray(req.body?.vehicles) ? req.body.vehicles : [];
+  if (items.length === 0) return res.json({ ok: true, upserted: 0 });
+
+  try {
+    let count = 0;
+    for (const vehicle of items.slice(0, 100)) {
+      const clientId = String(vehicle.client_id || '').trim();
+      const make = String(vehicle.make || vehicle.make_name || '').trim().substring(0, 80);
+      const model = String(vehicle.model || vehicle.model_name || '').trim().substring(0, 120);
+      const year = parseInt(vehicle.year, 10);
+      if (!clientId || !make || !model) continue;
+
+      const makeId = parseInt(vehicle.make_id, 10) || stablePositiveInt(make);
+      const modelId = parseInt(vehicle.model_id, 10) || stablePositiveInt(`${make}:${model}`);
+      const mileage = Math.max(0, parseInt(vehicle.mileage, 10) || 0);
+      const lastOil = Math.max(0, parseInt(vehicle.last_oil_change_mile, 10) || 0);
+
+      await db.query(`
+        INSERT INTO user_vehicles
+          (user_id, client_id, make_id, make_name, model_id, model_name, year,
+           nickname, notes, vin, mileage, last_oil_change_mile, last_service_date)
+        VALUES ($1, $2::uuid, $3, $4, $5, $6, $7, $8, $9, NULLIF($10, ''), $11, $12, NULLIF($13, '')::date)
+        ON CONFLICT (user_id, client_id) WHERE client_id IS NOT NULL DO UPDATE
+          SET make_id = EXCLUDED.make_id,
+              make_name = EXCLUDED.make_name,
+              model_id = EXCLUDED.model_id,
+              model_name = EXCLUDED.model_name,
+              year = EXCLUDED.year,
+              nickname = EXCLUDED.nickname,
+              notes = EXCLUDED.notes,
+              vin = EXCLUDED.vin,
+              mileage = EXCLUDED.mileage,
+              last_oil_change_mile = EXCLUDED.last_oil_change_mile,
+              last_service_date = EXCLUDED.last_service_date,
+              updated_at = NOW()
+      `, [
+        userId,
+        clientId,
+        makeId,
+        make,
+        modelId,
+        model,
+        Number.isFinite(year) ? year : null,
+        vehicle.nickname ? String(vehicle.nickname).trim().substring(0, 80) : null,
+        vehicle.notes ? String(vehicle.notes).trim().substring(0, 500) : null,
+        vehicle.vin ? String(vehicle.vin).trim().substring(0, 17).toUpperCase() : '',
+        mileage,
+        lastOil,
+        vehicle.last_service_date || null,
+      ]);
+      count++;
+    }
+    res.json({ ok: true, upserted: count });
+  } catch (err) {
+    logger.error('bulkUpsertVehicles error', { message: err.message });
+    res.status(500).json({ error: 'Bulk upsert failed.' });
+  }
+};
+
+function lifeHabitColumns() {
+  return `
+    id, client_id, name, icon, streak, completed_today,
+    target_days_per_week, created_at, updated_at
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LIFE HABITS
+// ═══════════════════════════════════════════════════════════════════════════
+
+exports.getLifeHabits = async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT ${lifeHabitColumns()}
+      FROM life_habits
+      WHERE user_id = $1
+      ORDER BY completed_today ASC, updated_at DESC, created_at DESC
+    `, [req.user.id]);
+    res.json({ habits: rows });
+  } catch (err) {
+    logger.error('getLifeHabits error', { message: err.message });
+    res.status(500).json({ error: 'Failed to fetch habits.' });
+  }
+};
+
+exports.createLifeHabit = async (req, res) => {
+  try {
+    const { client_id, name, icon = 'circle.fill', streak = 0, completed_today = false, target_days_per_week = 1 } = req.body;
+    const cleanName = String(name || '').trim().substring(0, 120);
+    if (!cleanName) return res.status(400).json({ error: 'Name is required.' });
+    if (!client_id) return res.status(400).json({ error: 'Client id is required.' });
+    const target = Math.min(7, Math.max(1, parseInt(target_days_per_week, 10) || 1));
+
+    const { rows } = await db.query(`
+      INSERT INTO life_habits
+        (user_id, client_id, name, icon, streak, completed_today, target_days_per_week)
+      VALUES ($1, $2::uuid, $3, $4, $5, $6, $7)
+      ON CONFLICT (user_id, client_id) DO UPDATE
+        SET name = EXCLUDED.name,
+            icon = EXCLUDED.icon,
+            streak = EXCLUDED.streak,
+            completed_today = EXCLUDED.completed_today,
+            target_days_per_week = EXCLUDED.target_days_per_week,
+            updated_at = NOW()
+      RETURNING ${lifeHabitColumns()}
+    `, [
+      req.user.id,
+      client_id || null,
+      cleanName,
+      String(icon || 'circle.fill').substring(0, 80),
+      Math.max(0, parseInt(streak, 10) || 0),
+      completed_today === true,
+      target,
+    ]);
+
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    logger.error('createLifeHabit error', { message: err.message });
+    res.status(500).json({ error: 'Failed to create habit.' });
+  }
+};
+
+exports.updateLifeHabit = async (req, res) => {
+  try {
+    const { name, icon, streak, completed_today, target_days_per_week } = req.body;
+    const target = target_days_per_week === undefined
+      ? undefined
+      : Math.min(7, Math.max(1, parseInt(target_days_per_week, 10) || 1));
+
+    const { rows } = await db.query(`
+      UPDATE life_habits
+      SET name = COALESCE($3, name),
+          icon = COALESCE($4, icon),
+          streak = COALESCE($5, streak),
+          completed_today = COALESCE($6, completed_today),
+          target_days_per_week = COALESCE($7, target_days_per_week),
+          updated_at = NOW()
+      WHERE id = $1 AND user_id = $2
+      RETURNING ${lifeHabitColumns()}
+    `, [
+      req.params.id,
+      req.user.id,
+      name === undefined ? undefined : String(name || '').trim().substring(0, 120),
+      icon === undefined ? undefined : String(icon || 'circle.fill').substring(0, 80),
+      streak === undefined ? undefined : Math.max(0, parseInt(streak, 10) || 0),
+      completed_today,
+      target,
+    ]);
+
+    if (!rows.length) return res.status(404).json({ error: 'Habit not found.' });
+    res.json(rows[0]);
+  } catch (err) {
+    logger.error('updateLifeHabit error', { message: err.message });
+    res.status(500).json({ error: 'Failed to update habit.' });
+  }
+};
+
+exports.deleteLifeHabit = async (req, res) => {
+  try {
+    const { rowCount } = await db.query(
+      'DELETE FROM life_habits WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Habit not found.' });
+    res.json({ message: 'Habit deleted.' });
+  } catch (err) {
+    logger.error('deleteLifeHabit error', { message: err.message });
+    res.status(500).json({ error: 'Failed to delete habit.' });
+  }
+};
+
+/**
+ * Bulk-upsert iOS Life habits from the offline queue.
+ * Body: { habits: [{ client_id, name, icon, streak, completed_today, target_days_per_week }] }
+ */
+exports.bulkUpsertHabits = async (req, res) => {
+  const userId = req.user.id;
+  const items = Array.isArray(req.body?.habits) ? req.body.habits : [];
+  if (items.length === 0) return res.json({ ok: true, upserted: 0 });
+
+  try {
+    let count = 0;
+    for (const habit of items.slice(0, 100)) {
+      const clientId = String(habit.client_id || '').trim();
+      const name = String(habit.name || '').trim().substring(0, 120);
+      if (!clientId || !name) continue;
+
+      const target = Math.min(7, Math.max(1, parseInt(habit.target_days_per_week, 10) || 1));
+      const streak = Math.max(0, parseInt(habit.streak, 10) || 0);
+
+      await db.query(`
+        INSERT INTO life_habits
+          (user_id, client_id, name, icon, streak, completed_today, target_days_per_week)
+        VALUES ($1, $2::uuid, $3, $4, $5, $6, $7)
+        ON CONFLICT (user_id, client_id) DO UPDATE
+          SET name = EXCLUDED.name,
+              icon = EXCLUDED.icon,
+              streak = EXCLUDED.streak,
+              completed_today = EXCLUDED.completed_today,
+              target_days_per_week = EXCLUDED.target_days_per_week,
+              updated_at = NOW()
+      `, [
+        userId,
+        clientId,
+        name,
+        String(habit.icon || 'circle.fill').substring(0, 80),
+        streak,
+        habit.completed_today === true,
+        target,
+      ]);
+      count++;
+    }
+    res.json({ ok: true, upserted: count });
+  } catch (err) {
+    logger.error('bulkUpsertHabits error', { message: err.message });
     res.status(500).json({ error: 'Bulk upsert failed.' });
   }
 };
@@ -772,6 +1373,172 @@ exports.deleteChecklistItem = async (req, res) => {
   } catch (err) {
     logger.error('deleteChecklistItem error', { message: err.message });
     res.status(500).json({ error: 'Failed to delete checklist item.' });
+  }
+};
+
+function currency(value) {
+  const amount = Number(value) || 0;
+  return `$${Math.round(amount).toLocaleString('en-US')}`;
+}
+
+function addSuggestion(suggestions, text) {
+  if (suggestions.length < 3 && text && !suggestions.includes(text)) {
+    suggestions.push(text);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PULSE INSIGHT
+// ═══════════════════════════════════════════════════════════════════════════
+
+exports.getPulseInsight = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    const [
+      expenseRes,
+      goalsRes,
+      homeRes,
+      sinkingRes,
+      habitsRes,
+      vehiclesRes,
+    ] = await Promise.all([
+      db.query(`
+        SELECT
+          COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS total_income,
+          COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS total_expenses
+        FROM expenses
+        WHERE user_id = $1
+          AND EXTRACT(YEAR FROM occurred_at) = $2
+          AND EXTRACT(MONTH FROM occurred_at) = $3
+      `, [userId, year, month]),
+      db.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE NOT is_completed) AS active_goals,
+          COUNT(*) FILTER (WHERE is_completed) AS completed_goals,
+          ROUND(AVG(
+            CASE WHEN target_value > 0 AND NOT is_completed
+            THEN LEAST(current_value / target_value * 100, 100)
+            ELSE NULL END
+          ), 0) AS avg_progress
+        FROM goals
+        WHERE user_id = $1
+      `, [userId]),
+      db.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE NOT is_completed AND due_date < CURRENT_DATE) AS overdue,
+          COUNT(*) FILTER (WHERE NOT is_completed AND due_date >= CURRENT_DATE AND due_date <= CURRENT_DATE + INTERVAL '7 days') AS due_this_week,
+          COUNT(*) FILTER (WHERE NOT is_completed) AS total_pending
+        FROM home_tasks
+        WHERE user_id = $1
+      `, [userId]),
+      db.query(`
+        SELECT
+          COUNT(*) AS total_funds,
+          COALESCE(SUM(saved_amount), 0) AS saved_amount,
+          COALESCE(SUM(target_amount), 0) AS target_amount
+        FROM sinking_funds
+        WHERE user_id = $1
+      `, [userId]),
+      db.query(`
+        SELECT
+          COUNT(*) AS total_habits,
+          COUNT(*) FILTER (WHERE completed_today) AS completed_today,
+          COALESCE(MAX(streak), 0) AS best_streak
+        FROM life_habits
+        WHERE user_id = $1
+      `, [userId]),
+      db.query(`
+        SELECT
+          COUNT(*) AS total_vehicles,
+          COUNT(*) FILTER (WHERE mileage - last_oil_change_mile >= 4500) AS oil_attention
+        FROM user_vehicles
+        WHERE user_id = $1
+      `, [userId]),
+    ]);
+
+    const finances = expenseRes.rows[0] || {};
+    const goals = goalsRes.rows[0] || {};
+    const home = homeRes.rows[0] || {};
+    const sinking = sinkingRes.rows[0] || {};
+    const habits = habitsRes.rows[0] || {};
+    const vehicles = vehiclesRes.rows[0] || {};
+
+    const income = parseFloat(finances.total_income || 0);
+    const expenses = parseFloat(finances.total_expenses || 0);
+    const net = income - expenses;
+    const activeGoals = parseInt(goals.active_goals || 0, 10);
+    const completedGoals = parseInt(goals.completed_goals || 0, 10);
+    const overdueTasks = parseInt(home.overdue || 0, 10);
+    const dueThisWeek = parseInt(home.due_this_week || 0, 10);
+    const totalPending = parseInt(home.total_pending || 0, 10);
+    const totalFunds = parseInt(sinking.total_funds || 0, 10);
+    const savedAmount = parseFloat(sinking.saved_amount || 0);
+    const targetAmount = parseFloat(sinking.target_amount || 0);
+    const totalHabits = parseInt(habits.total_habits || 0, 10);
+    const completedHabits = parseInt(habits.completed_today || 0, 10);
+    const bestStreak = parseInt(habits.best_streak || 0, 10);
+    const oilAttention = parseInt(vehicles.oil_attention || 0, 10);
+
+    const hasData = income > 0 || expenses > 0 || activeGoals > 0 || completedGoals > 0
+      || totalPending > 0 || totalFunds > 0 || totalHabits > 0 || oilAttention > 0;
+
+    if (!hasData) {
+      return res.json({
+        overview: 'Your Life Pulse is ready, but it needs a few real entries before it can coach you well.',
+        topInsight: 'Add income, one home task, or one goal to unlock a more useful Pulse score.',
+        suggestions: [
+          'Add your latest income or expense.',
+          'Create one home task that needs attention this week.',
+          'Start a small sinking fund for an upcoming cost.',
+        ],
+      });
+    }
+
+    const suggestions = [];
+    if (net < 0) {
+      addSuggestion(suggestions, 'Pick one expense category to trim before adding new goals.');
+    } else if (income > 0) {
+      addSuggestion(suggestions, 'Move part of this month’s surplus into your highest-priority goal or sinking fund.');
+    }
+    if (overdueTasks > 0) {
+      addSuggestion(suggestions, `Clear ${overdueTasks === 1 ? 'the overdue home task' : `${overdueTasks} overdue home tasks`} before adding new work.`);
+    }
+    if (oilAttention > 0) {
+      addSuggestion(suggestions, 'Schedule vehicle service or post a service job from Car Care.');
+    }
+    if (totalHabits > 0 && completedHabits < totalHabits) {
+      addSuggestion(suggestions, 'Finish one remaining habit today to protect your streak.');
+    }
+    if (suggestions.length === 0) {
+      addSuggestion(suggestions, 'Review your next due date and keep the week focused on one priority.');
+    }
+
+    let topInsight = 'Your Life Pulse is balanced, with no urgent blocker standing out right now.';
+    if (overdueTasks > 0) {
+      topInsight = `${overdueTasks} overdue task${overdueTasks === 1 ? '' : 's'} need attention before your Pulse can feel clean.`;
+    } else if (net < 0) {
+      topInsight = `Spending is ahead of income by ${currency(Math.abs(net))} this month.`;
+    } else if (totalFunds > 0 && targetAmount > 0) {
+      const progress = Math.round((savedAmount / Math.max(targetAmount, 1)) * 100);
+      topInsight = `Your sinking funds are ${progress}% funded across ${totalFunds} goal${totalFunds === 1 ? '' : 's'}.`;
+    } else if (bestStreak > 0) {
+      topInsight = `Your strongest habit streak is ${bestStreak} day${bestStreak === 1 ? '' : 's'}.`;
+    }
+
+    const overview = [
+      `This month you have ${currency(income)} in income and ${currency(expenses)} in expenses, leaving ${currency(net)} net.`,
+      `${activeGoals} active goal${activeGoals === 1 ? '' : 's'}, ${totalPending} pending task${totalPending === 1 ? '' : 's'}, and ${completedHabits}/${Math.max(totalHabits, 0)} habit${totalHabits === 1 ? '' : 's'} completed today are shaping your Pulse.`,
+      dueThisWeek > 0 ? `${dueThisWeek} task${dueThisWeek === 1 ? ' is' : 's are'} due this week.` : null,
+    ].filter(Boolean).join(' ');
+
+    res.json({ overview, topInsight, suggestions });
+  } catch (err) {
+    logger.error('getPulseInsight error', { message: err.message });
+    res.status(500).json({ error: 'Failed to generate Pulse insight.' });
   }
 };
 

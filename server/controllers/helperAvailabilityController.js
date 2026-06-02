@@ -29,8 +29,9 @@ function toMinutes(hhmm) {
 }
 
 function fromMinutes(mins) {
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
+  const safe = Math.max(0, Math.min(1440, mins));
+  const h = Math.floor(safe / 60);
+  const m = safe % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
@@ -233,8 +234,9 @@ exports.getAvailableSlots = async (req, res, next) => {
   }
 
   try {
-    // 1. Weekly template
-    const { rows: templateRows } = await pool.query(
+    // 1. Weekly template + scheduling settings
+    const [templateResult, profileResult] = await Promise.all([
+      pool.query(
       `SELECT day_of_week,
               EXTRACT(HOUR FROM start_time)::int * 60 + EXTRACT(MINUTE FROM start_time)::int AS start_min,
               EXTRACT(HOUR FROM end_time)::int   * 60 + EXTRACT(MINUTE FROM end_time)::int   AS end_min
@@ -242,7 +244,15 @@ exports.getAvailableSlots = async (req, res, next) => {
         WHERE helper_id = $1 AND is_active = TRUE
         ORDER BY day_of_week, start_min`,
       [helperId]
-    );
+      ),
+      pool.query(
+        'SELECT COALESCE(booking_buffer_minutes, 0)::int AS booking_buffer_minutes FROM helper_profiles WHERE user_id = $1',
+        [helperId]
+      ),
+    ]);
+
+    const templateRows = templateResult.rows;
+    const bookingBufferMinutes = Math.max(0, Math.min(240, profileResult.rows[0]?.booking_buffer_minutes || 0));
 
     // If no template is set, return empty (helper hasn't configured availability)
     if (templateRows.length === 0) {
@@ -295,8 +305,8 @@ exports.getAvailableSlots = async (req, res, next) => {
       const dateKey = start.toISOString().split('T')[0];
       if (!apptsByDate[dateKey]) apptsByDate[dateKey] = [];
       apptsByDate[dateKey].push({
-        start: start.getHours() * 60 + start.getMinutes(),
-        end:   end.getHours()   * 60 + end.getMinutes(),
+        start: Math.max(0, start.getHours() * 60 + start.getMinutes() - bookingBufferMinutes),
+        end:   Math.min(1440, end.getHours()   * 60 + end.getMinutes() + bookingBufferMinutes),
       });
     }
 
@@ -348,7 +358,7 @@ exports.getAvailableSlots = async (req, res, next) => {
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    res.json({ slots, hasTemplate: true, count: slots.length });
+    res.json({ slots, hasTemplate: true, count: slots.length, bookingBufferMinutes });
   } catch (err) {
     next(err);
   }

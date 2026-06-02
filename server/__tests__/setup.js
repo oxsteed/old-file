@@ -89,6 +89,7 @@ jest.mock('stripe', () => {
   const mockInstance = {
     paymentIntents: { create: jest.fn(), capture: jest.fn() },
     customers:      { create: jest.fn(), retrieve: jest.fn() },
+    prices:         { create: jest.fn() },
     subscriptions:  { retrieve: jest.fn() },
     accounts:       { create: jest.fn() },
     accountLinks:   { create: jest.fn().mockResolvedValue({ url: 'https://stripe.com/onboard' }) },

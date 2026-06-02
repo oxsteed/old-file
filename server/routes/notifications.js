@@ -5,6 +5,14 @@ const webPushCtrl = require('../controllers/webPushController');
 
 router.get('/',                  authenticate, notifCtrl.getNotifications);
 router.post('/mark-read',        authenticate, notifCtrl.markRead);
+router.post('/read-all',         authenticate, (req, res, next) => {
+  req.body = { ...req.body, ids: 'all' };
+  return notifCtrl.markRead(req, res, next);
+});
+router.put('/read-all',          authenticate, (req, res, next) => {
+  req.body = { ...req.body, ids: 'all' };
+  return notifCtrl.markRead(req, res, next);
+});
 router.get('/preferences',       authenticate, notifCtrl.getPreferences);
 router.put('/preferences',       authenticate, notifCtrl.updatePreferences);
 router.post('/push-token',       authenticate, notifCtrl.registerPushToken);
@@ -17,5 +25,16 @@ router.post('/webpush/subscribe',     authenticate, webPushCtrl.subscribe);
 router.delete('/webpush/subscribe',   authenticate, webPushCtrl.unsubscribe);
 router.get('/webpush/devices',        authenticate, webPushCtrl.listDevices);
 router.post('/webpush/test',          authenticate, webPushCtrl.sendTest);
+
+router.get('/:id', authenticate, notifCtrl.getNotification);
+router.post('/:id/read', authenticate, (req, res, next) => {
+  req.body = { ...req.body, ids: [req.params.id] };
+  return notifCtrl.markRead(req, res, next);
+});
+router.put('/:id/read', authenticate, (req, res, next) => {
+  req.body = { ...req.body, ids: [req.params.id] };
+  return notifCtrl.markRead(req, res, next);
+});
+router.delete('/:id', authenticate, notifCtrl.deleteNotification);
 
 module.exports = router;

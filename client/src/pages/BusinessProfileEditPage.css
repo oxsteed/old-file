@@ -88,3 +88,69 @@
   resize: vertical;
   min-height: 100px;
 }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.save-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: 8px;
+  background: #ea580c;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.save-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.summary-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--app-text);
+}
+
+.summary-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary-row strong {
+  flex: 0 0 auto;
+  color: #ea580c;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

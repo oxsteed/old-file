@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import api from '../api/axios';
 
 interface ReliabilityData {
   completionRate: number;
@@ -32,11 +33,8 @@ const CustomerReliabilityBadge: React.FC<CustomerReliabilityBadgeProps> = ({
   useEffect(() => {
     const fetchReliability = async () => {
       try {
-        const response = await fetch(`/api/reputation/customers/${customerId}/reliability`);
-        if (response.ok) {
-          const data = await response.json();
-          setReliability(data.data);
-        }
+        const { data } = await api.get(`/reputation/customers/${customerId}/reliability`);
+        setReliability(data.data);
       } catch (err) {
         console.error('Failed to fetch customer reliability', err);
       } finally {

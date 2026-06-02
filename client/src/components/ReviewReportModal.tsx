@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, AlertTriangle, Flag } from 'lucide-react';
+import api from '../api/axios';
 
 interface ReviewReportModalProps {
   reviewId: string | number;
@@ -46,26 +47,17 @@ const ReviewReportModal: React.FC<ReviewReportModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/reviews/${reviewId}/report`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reason: selectedReason,
-          description: description.trim(),
-        }),
+      await api.post(`/reviews/${reviewId}/report`, {
+        reason: selectedReason,
+        description: description.trim(),
       });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error?.message || 'Failed to report review');
-      }
 
       setSelectedReason('');
       setDescription('');
       onSuccess?.();
       onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+    } catch (err: any) {
+      setError(err.response?.data?.error?.message || err.response?.data?.error || err.message || 'Unknown error');
     } finally {
       setIsSubmitting(false);
     }

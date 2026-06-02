@@ -39,7 +39,7 @@ const {
 } = require('../controllers/businessContentController');
 
 const {
-  listBusinessSkills, addBusinessSkill, updateBusinessSkill, removeBusinessSkill,
+  listBusinessSkills, addBusinessSkill, updateBusinessSkill, replaceBusinessSkills, removeBusinessSkill,
   searchSkillsForBusiness,
 } = require('../controllers/businessSkillsController');
 
@@ -67,6 +67,7 @@ router.get('/managed',                       authenticate, listManagedBusinesses
 
 // ── Public profile (no auth) - must be before authenticated /:id routes ───────
 router.get('/:id/public',  getBusinessPublicProfile);
+router.get('/:id/profile', getBusinessPublicProfile);
 
 // ── Authenticated profile editor (before generic PUT /:id) ───────────────────
 router.get('/:id/profile-edit', authenticate, getBusinessProfileForEditor);
@@ -161,6 +162,7 @@ router.put('/:businessId/hours',                 authenticate, updateBusinessHou
 router.get('/:businessId/skills/search',         searchSkillsForBusiness);
 router.get('/:businessId/skills',                listBusinessSkills);
 router.post('/:businessId/skills',               authenticate, addBusinessSkill);
+router.put('/:businessId/skills',                authenticate, replaceBusinessSkills);
 router.put('/:businessId/skills/:skillId',       authenticate, updateBusinessSkill);
 router.delete('/:businessId/skills/:skillId',    authenticate, removeBusinessSkill);
 

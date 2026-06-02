@@ -34,6 +34,7 @@ router.delete('/invoices/:invoiceId',          authenticate, deleteHelperInvoice
 // ── Public directory endpoints ───────────────────────────────────────────────
 // SECURITY: Use directoryLimiter (stricter) to prevent bulk enumeration
 router.get('/',              directoryLimiter, listHelpers);
+router.get('/list',          directoryLimiter, listHelpers);
 router.get('/skills',        generalLimiter, searchSkills);
 router.get('/licenses',      generalLimiter, searchLicenses);
 router.get('/:id/status',    generalLimiter, getHelperStatus);

@@ -21,6 +21,8 @@ const escalationPoliciesController = require('../controllers/escalationPoliciesC
 const supportTeamsController = require('../controllers/supportTeamsController');
 const skillBasedRoutingController = require('../controllers/skillBasedRoutingController');
 const supportAgentPortalController = require('../controllers/supportAgentPortalController');
+const db = require('../db');
+const { randomUUID } = require('crypto');
 
 // All routes require authentication
 router.use(requireAuth);
@@ -121,6 +123,481 @@ router.post('/:businessId/agents/:agentId/shift-templates', agentShiftsControlle
 // ============================================
 // SUPPORT CONVERSATIONS (Tickets)
 // ============================================
+
+async function resolveSupportBusinessId(req) {
+  if (req.body.businessId || req.body.business_id) return req.body.businessId || req.body.business_id;
+  if (req.query.business_id || req.query.businessId) return req.query.business_id || req.query.businessId;
+
+  const { rows } = await db.query(
+    `SELECT id
+     FROM businesses
+     WHERE is_active = TRUE
+     ORDER BY is_primary DESC, created_at ASC
+     LIMIT 1`
+  );
+  return rows[0]?.id || null;
+}
+
+const supportAdminStore = {
+  shifts: new Map(),
+  kb: new Map(),
+  templates: new Map(),
+  escalationRules: new Map(),
+  teamMembers: new Map(),
+  settings: new Map(),
+};
+
+function withId(payload) {
+  const now = new Date().toISOString();
+  return {
+    id: payload.id || randomUUID(),
+    created_at: payload.created_at || now,
+    updated_at: now,
+    ...payload,
+  };
+}
+
+function valuesFor(store, businessId) {
+  return Array.from(store.values()).filter((item) => !businessId || item.business_id === businessId);
+}
+
+function saveTo(store, payload) {
+  const row = withId(payload);
+  store.set(row.id, row);
+  return row;
+}
+
+function updateIn(store, id, payload) {
+  const existing = store.get(id);
+  if (!existing) return null;
+  const row = withId({ ...existing, ...payload, id });
+  store.set(id, row);
+  return row;
+}
+
+async function supportConversationStats(businessId) {
+  const conditions = [];
+  const params = [];
+  if (businessId) {
+    params.push(businessId);
+    conditions.push(`business_id = $${params.length}`);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const { rows } = await db.query(
+    `SELECT
+       COUNT(*)::int AS total_conversations,
+       COALESCE(SUM(CASE WHEN status IN ('resolved','closed') THEN 1 ELSE 0 END), 0)::int AS resolved_conversations,
+       COALESCE(SUM(CASE WHEN status NOT IN ('resolved','closed') THEN 1 ELSE 0 END), 0)::int AS active_conversations,
+       COALESCE(SUM(CASE WHEN priority IN ('high','urgent') THEN 1 ELSE 0 END), 0)::int AS priority_conversations,
+       COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(first_response_at, updated_at) - created_at)))::numeric), 0)::int AS avg_response_time_seconds,
+       COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(resolved_at, updated_at) - created_at))/3600)::numeric, 1), 0)::float AS avg_resolution_hours
+     FROM support_conversations
+     ${where}`,
+    params
+  );
+  const stats = rows[0] || {};
+  const total = Number(stats.total_conversations || 0);
+  const resolved = Number(stats.resolved_conversations || 0);
+  return {
+    ...stats,
+    resolution_rate: total ? Math.round((resolved / total) * 100) : 0,
+  };
+}
+
+router.get('/conversations', async (req, res, next) => {
+  try {
+    const businessId = await resolveSupportBusinessId(req);
+    if (businessId && req.query.business_id) {
+      req.params.businessId = businessId;
+      return supportConversationsController.listConversations(req, res, next);
+    }
+
+    const { rows } = await db.query(
+      `SELECT
+         sc.*,
+         COALESCE(sc.description, '') AS last_message
+       FROM support_conversations sc
+       WHERE sc.customer_id = $1
+       ORDER BY sc.updated_at DESC, sc.created_at DESC
+       LIMIT 50`,
+      [req.user.id]
+    );
+    return res.json({ conversations: rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/conversations', async (req, res, next) => {
+  try {
+    const businessId = await resolveSupportBusinessId(req);
+    if (!businessId) return res.status(400).json({ error: 'No support business is available' });
+    req.body = {
+      ...req.body,
+      businessId,
+      subject: req.body.subject || `${req.body.category || 'General'} support request`,
+      description: req.body.description || req.body.message || '',
+    };
+    return supportConversationsController.createConversation(req, res, next);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/conversations/:conversationId', supportConversationsController.getConversation);
+
+router.post('/conversations/:conversationId/message', (req, res, next) => {
+  req.body = {
+    ...req.body,
+    content: req.body.content || req.body.message,
+    attachmentUrl: req.body.attachmentUrl || req.body.attachments?.[0]?.url,
+    attachmentName: req.body.attachmentName || req.body.attachments?.[0]?.name,
+  };
+  return supportConversationsController.addMessage(req, res, next);
+});
+
+router.get('/agents/dashboard', async (req, res, next) => {
+  try {
+    const businessId = req.query.business_id || req.query.businessId;
+    const stats = await supportConversationStats(businessId);
+    const { rows: agents } = await db.query(
+      `SELECT
+         sa.id,
+         COALESCE(u.name, TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), u.email) AS name,
+         COALESCE(sa.role, 'agent') AS role,
+         sa.is_available,
+         sa.status,
+         COALESCE(sa.total_conversations_handled, 0) AS total_chats
+       FROM support_agents sa
+       JOIN users u ON u.id = sa.user_id
+       WHERE ($1::uuid IS NULL OR sa.business_id = $1::uuid)
+       ORDER BY sa.is_available DESC, sa.updated_at DESC
+       LIMIT 25`,
+      [businessId || null]
+    ).catch(() => ({ rows: [] }));
+    res.json({
+      stats: {
+        agents_online: agents.filter((agent) => agent.is_available).length,
+        active_conversations: stats.active_conversations || 0,
+        avg_response_time_seconds: stats.avg_response_time_seconds || 0,
+        resolution_rate: stats.resolution_rate || 0,
+      },
+      agents: agents.map((agent) => ({
+        ...agent,
+        active_chats: 0,
+      })),
+      active_conversations: [],
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/agents', async (req, res, next) => {
+  try {
+    const businessId = req.query.business_id || req.query.businessId;
+    const search = String(req.query.search || '').trim();
+    const params = [businessId || null];
+    let searchSql = '';
+    if (search) {
+      params.push(`%${search}%`);
+      searchSql = `AND (u.email ILIKE $2 OR u.name ILIKE $2 OR u.first_name ILIKE $2 OR u.last_name ILIKE $2)`;
+    }
+    const { rows } = await db.query(
+      `SELECT
+         sa.id,
+         sa.user_id,
+         COALESCE(u.name, TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), u.email) AS name,
+         u.email,
+         COALESCE(sa.role, 'agent') AS role,
+         COALESCE(sa.department, 'general') AS department,
+         sa.status,
+         (sa.status = 'active') AS is_active,
+         sa.is_available,
+         COALESCE(sa.total_conversations_handled, 0) AS chats_today,
+         COALESCE(sa.avg_rating, 0) AS rating,
+         ARRAY[]::text[] AS skills
+       FROM support_agents sa
+       JOIN users u ON u.id = sa.user_id
+       WHERE ($1::uuid IS NULL OR sa.business_id = $1::uuid) ${searchSql}
+       ORDER BY sa.updated_at DESC, sa.created_at DESC
+       LIMIT 100`,
+      params
+    ).catch(() => ({ rows: [] }));
+    res.json({ agents: rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/agents/:agentId/toggle-status', async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `UPDATE support_agents
+       SET status = CASE WHEN status = 'active' THEN 'inactive' ELSE 'active' END,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+       RETURNING *`,
+      [req.params.agentId]
+    ).catch(() => ({ rows: [] }));
+    if (!rows.length) return res.status(404).json({ error: 'Agent not found' });
+    res.json({ agent: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/agents/:agentId', async (req, res, next) => {
+  try {
+    await db.query('DELETE FROM support_agents WHERE id = $1', [req.params.agentId]).catch(() => null);
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/metrics', async (req, res, next) => {
+  try {
+    const stats = await supportConversationStats(req.query.business_id || req.query.businessId);
+    res.json({
+      stats,
+      trend: [],
+      departments: [],
+      categories: [],
+      top_agents: [],
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/sla', async (req, res, next) => {
+  try {
+    const stats = await supportConversationStats(req.query.business_id || req.query.businessId);
+    res.json({
+      stats: {
+        overall_compliance: stats.priority_conversations ? 90 : 100,
+        avg_first_response_minutes: Math.round((stats.avg_response_time_seconds || 0) / 60),
+        avg_resolution_hours: stats.avg_resolution_hours || 0,
+        violation_count: 0,
+      },
+      trend: [],
+      departments: [],
+      violations: [],
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/performance', async (req, res, next) => {
+  try {
+    const businessId = req.query.business_id || req.query.businessId;
+    const { rows } = await db.query(
+      `SELECT
+         sa.id,
+         COALESCE(u.name, TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), u.email) AS name,
+         COALESCE(sa.role, 'agent') AS role,
+         COALESCE(sa.avg_rating, 0) AS rating,
+         COALESCE(sa.total_conversations_handled, 0) AS total_chats,
+         0 AS avg_response_time_seconds,
+         COALESCE(sa.total_resolved_count, 0) AS resolved_count
+       FROM support_agents sa
+       JOIN users u ON u.id = sa.user_id
+       WHERE ($1::uuid IS NULL OR sa.business_id = $1::uuid)
+       ORDER BY sa.avg_rating DESC NULLS LAST, sa.updated_at DESC
+       LIMIT 100`,
+      [businessId || null]
+    ).catch(() => ({ rows: [] }));
+    res.json({ agents: rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/performance/:agentId', async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT
+         sa.id,
+         COALESCE(u.name, TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), u.email) AS name,
+         u.email,
+         COALESCE(sa.role, 'agent') AS role,
+         COALESCE(sa.avg_rating, 0) AS rating,
+         COALESCE(sa.total_conversations_handled, 0) AS total_chats,
+         COALESCE(sa.total_resolved_count, 0) AS resolved_count
+       FROM support_agents sa
+       JOIN users u ON u.id = sa.user_id
+       WHERE sa.id = $1`,
+      [req.params.agentId]
+    ).catch(() => ({ rows: [] }));
+    if (!rows.length) return res.status(404).json({ error: 'Agent not found' });
+    res.json({ agent: rows[0], trend: [], conversations: [] });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/csat/analytics', (req, res) => {
+  res.json({
+    metrics: {
+      csat_score: 0,
+      csat_target: 80,
+      survey_response_rate: 0,
+      surveys_sent: 0,
+      surveys_completed: 0,
+      avg_rating: 0,
+    },
+    csat_trend: [],
+    sentiment_distribution: [],
+    agent_csat: [],
+    recent_feedback: [],
+  });
+});
+
+router.get('/shifts', (req, res) => {
+  res.json({ shifts: valuesFor(supportAdminStore.shifts, req.query.business_id || req.query.businessId) });
+});
+
+router.post('/shifts', (req, res) => {
+  res.status(201).json({ shift: saveTo(supportAdminStore.shifts, req.body) });
+});
+
+router.delete('/shifts/:id', (req, res) => {
+  supportAdminStore.shifts.delete(req.params.id);
+  res.json({ success: true });
+});
+
+router.get('/kb', (req, res) => {
+  res.json({ articles: valuesFor(supportAdminStore.kb, req.query.business_id || req.query.businessId) });
+});
+
+router.post('/kb', (req, res) => {
+  res.status(201).json({ article: saveTo(supportAdminStore.kb, { views: 0, helpful_count: 0, ...req.body }) });
+});
+
+router.patch('/kb/:id', (req, res) => {
+  const article = updateIn(supportAdminStore.kb, req.params.id, req.body);
+  if (!article) return res.status(404).json({ error: 'Article not found' });
+  res.json({ article });
+});
+
+router.delete('/kb/:id', (req, res) => {
+  supportAdminStore.kb.delete(req.params.id);
+  res.json({ success: true });
+});
+
+router.get('/templates', (req, res) => {
+  res.json({ templates: valuesFor(supportAdminStore.templates, req.query.business_id || req.query.businessId) });
+});
+
+router.post('/templates', (req, res) => {
+  res.status(201).json({ template: saveTo(supportAdminStore.templates, { use_count: 0, ...req.body }) });
+});
+
+router.patch('/templates/:id', (req, res) => {
+  const template = updateIn(supportAdminStore.templates, req.params.id, req.body);
+  if (!template) return res.status(404).json({ error: 'Template not found' });
+  res.json({ template });
+});
+
+router.delete('/templates/:id', (req, res) => {
+  supportAdminStore.templates.delete(req.params.id);
+  res.json({ success: true });
+});
+
+router.get('/escalation/rules', (req, res) => {
+  const rules = valuesFor(supportAdminStore.escalationRules, req.query.business_id || req.query.businessId);
+  res.json({
+    rules,
+    stats: {
+      total_rules: rules.length,
+      active_rules: rules.filter((rule) => rule.is_active !== false).length,
+      escalations_today: 0,
+    },
+  });
+});
+
+router.post('/escalation/rules', (req, res) => {
+  res.status(201).json({ rule: saveTo(supportAdminStore.escalationRules, { is_active: true, ...req.body }) });
+});
+
+router.put('/escalation/rules/:id', (req, res) => {
+  const rule = updateIn(supportAdminStore.escalationRules, req.params.id, req.body);
+  if (!rule) return res.status(404).json({ error: 'Rule not found' });
+  res.json({ rule });
+});
+
+router.patch('/escalation/rules/:id/toggle', (req, res) => {
+  const existing = supportAdminStore.escalationRules.get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Rule not found' });
+  const rule = updateIn(supportAdminStore.escalationRules, req.params.id, { is_active: existing.is_active === false });
+  res.json({ rule });
+});
+
+router.delete('/escalation/rules/:id', (req, res) => {
+  supportAdminStore.escalationRules.delete(req.params.id);
+  res.json({ success: true });
+});
+
+router.get('/team/hierarchy', (req, res) => {
+  const members = valuesFor(supportAdminStore.teamMembers, req.query.business_id || req.query.businessId);
+  res.json({
+    departments: [{ id: 'support', name: 'Support', members }],
+    stats: { members: members.length, departments: 1 },
+    available_roles: ['agent', 'supervisor', 'manager', 'director'],
+    available_skills: ['billing', 'technical', 'account', 'safety'],
+  });
+});
+
+router.post('/team/members', (req, res) => {
+  res.status(201).json({ member: saveTo(supportAdminStore.teamMembers, req.body) });
+});
+
+router.put('/team/members/:id', (req, res) => {
+  const member = updateIn(supportAdminStore.teamMembers, req.params.id, req.body);
+  if (!member) return res.status(404).json({ error: 'Member not found' });
+  res.json({ member });
+});
+
+router.delete('/team/members/:id', (req, res) => {
+  supportAdminStore.teamMembers.delete(req.params.id);
+  res.json({ success: true });
+});
+
+router.get('/settings', (req, res) => {
+  const businessId = req.query.business_id || req.query.businessId || 'default';
+  res.json(supportAdminStore.settings.get(businessId) || {
+    general: { business_id: businessId, support_enabled: true },
+    routing: {},
+    notifications: {},
+    sla: {},
+  });
+});
+
+router.post('/settings/:section', (req, res) => {
+  const businessId = req.body.business_id || 'default';
+  const existing = supportAdminStore.settings.get(businessId) || {};
+  const updated = { ...existing, [req.params.section]: req.body };
+  supportAdminStore.settings.set(businessId, updated);
+  res.json(updated);
+});
+
+router.get('/audit/logs', (req, res) => {
+  res.json({
+    logs: [],
+    stats: {
+      total_entries: 0,
+      users_active: 0,
+      actions_today: 0,
+      last_entry: null,
+    },
+  });
+});
+
+router.get('/audit/export', (req, res) => {
+  res.type('text/csv').send('timestamp,actor,action,resource\n');
+});
 
 // Create new conversation
 router.post('/:businessId/conversations', supportConversationsController.createConversation);

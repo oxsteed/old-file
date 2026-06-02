@@ -29,7 +29,7 @@ export function ProductManagement({ businessId }) {
   const loadProducts = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/api/businesses/${businessId}/products`, {
+      const res = await api.get(`/businesses/${businessId}/products`, {
         params: { limit: 100 },
       });
       setProducts(res.data.data || []);
@@ -43,7 +43,7 @@ export function ProductManagement({ businessId }) {
   const loadLowStockAlerts = useCallback(async () => {
     try {
       const res = await api.get(
-        `/api/businesses/${businessId}/products/alerts/low-stock`
+        `/businesses/${businessId}/products/alerts/low-stock`
       );
       setLowStockAlerts(res.data.data || []);
     } catch {
@@ -63,7 +63,7 @@ export function ProductManagement({ businessId }) {
       return;
     }
     try {
-      const res = await api.post(`/api/businesses/${businessId}/products`, {
+      const res = await api.post(`/businesses/${businessId}/products`, {
         name:        productForm.name,
         category:    productForm.category,
         description: productForm.description,
@@ -83,7 +83,7 @@ export function ProductManagement({ businessId }) {
   const handleDeleteProduct = async (productId) => {
     if (!window.confirm(t('common.confirmDelete', { defaultValue: 'Delete this product?' }))) return;
     try {
-      await api.delete(`/api/businesses/${businessId}/products/${productId}`);
+      await api.delete(`/businesses/${businessId}/products/${productId}`);
       setProducts(products.filter(p => p.id !== productId));
       if (selectedProduct?.id === productId) setSelectedProduct(null);
       toast.success(t('common.deleted', { defaultValue: 'Deleted' }));
@@ -100,7 +100,7 @@ export function ProductManagement({ businessId }) {
     }
     try {
       await api.post(
-        `/api/businesses/${businessId}/products/${selectedProduct.id}/variants`,
+        `/businesses/${businessId}/products/${selectedProduct.id}/variants`,
         {
           variantName:     variantForm.variantName,
           sku:             variantForm.sku,
@@ -121,7 +121,7 @@ export function ProductManagement({ businessId }) {
   const handleUpdateInventory = async (variantId, quantityChange, reason) => {
     try {
       await api.put(
-        `/api/businesses/${businessId}/products/${selectedProduct.id}/variants/${variantId}/inventory`,
+        `/businesses/${businessId}/products/${selectedProduct.id}/variants/${variantId}/inventory`,
         { quantityChange: parseInt(quantityChange), reason }
       );
       loadProducts();

@@ -10,8 +10,9 @@ export default function useNotifications() {
     try {
       setLoading(true);
       const { data } = await api.get('/notifications');
-      setNotifications(data);
-      setUnreadCount(data.filter(n => !n.read_at).length);
+      const rows = Array.isArray(data) ? data : (data?.notifications || []);
+      setNotifications(rows);
+      setUnreadCount(data?.unread_count ?? rows.filter(n => !n.read_at && !n.is_read).length);
     } catch (err) {
       console.error('Failed to fetch notifications:', err);
     } finally {
@@ -23,7 +24,7 @@ export default function useNotifications() {
     try {
       await api.put(`/notifications/${notificationId}/read`);
       setNotifications(prev =>
-        prev.map(n => n.id === notificationId ? { ...n, read_at: new Date().toISOString() } : n)
+        prev.map(n => n.id === notificationId ? { ...n, is_read: true, read_at: new Date().toISOString() } : n)
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (err) {
@@ -35,7 +36,7 @@ export default function useNotifications() {
     try {
       await api.put('/notifications/read-all');
       setNotifications(prev =>
-        prev.map(n => ({ ...n, read_at: n.read_at || new Date().toISOString() }))
+        prev.map(n => ({ ...n, is_read: true, read_at: n.read_at || new Date().toISOString() }))
       );
       setUnreadCount(0);
     } catch (err) {

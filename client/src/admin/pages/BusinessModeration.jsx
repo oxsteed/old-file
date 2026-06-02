@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 const STATUS_FILTERS = [
   { value: '',         label: 'All'      },
@@ -271,7 +272,7 @@ export default function BusinessModeration() {
 
       setModal(null);
     } catch (err) {
-      alert(err?.response?.data?.error || 'Action failed.');
+      toast.error(err?.response?.data?.error || 'Action failed.');
     } finally {
       setActionBusy(false);
     }

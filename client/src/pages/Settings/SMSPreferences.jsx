@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import axios from 'axios';
+import toast from 'react-hot-toast';
+import api from '../../api/axios';
 import PageMeta from '../../components/PageMeta';
 import { useTranslation } from 'react-i18next';
 
@@ -24,7 +25,7 @@ export default function SMSPreferences() {
   const { data: preferences, isLoading, refetch } = useQuery({
     queryKey: ['smsPreferences'],
     queryFn: async () => {
-      const res = await axios.get('/api/notifications/sms/preferences');
+      const res = await api.get('/notifications/sms/preferences');
       return res.data.data;
     },
   });
@@ -49,7 +50,7 @@ export default function SMSPreferences() {
   // Request phone verification mutation
   const requestVerificationMutation = useMutation({
     mutationFn: async () => {
-      await axios.post('/api/notifications/sms/request-verification', {
+      await api.post('/notifications/sms/request-verification', {
         phoneNumber: formatPhoneNumber(phoneInput),
       });
     },
@@ -57,16 +58,17 @@ export default function SMSPreferences() {
       setShowOtpInput(true);
       setCountdownTimer(60);
       setOtpCode('');
+      toast.success(t('smsPreferences.phone.codeSent', { defaultValue: 'Verification code sent' }));
     },
     onError: (error) => {
-      alert(`${t('common.error')}: ${error.response?.data?.error || error.message}`);
+      toast.error(error.response?.data?.error || error.message || t('common.error'));
     },
   });
 
   // Verify OTP mutation
   const verifyOtpMutation = useMutation({
     mutationFn: async () => {
-      await axios.post('/api/notifications/sms/verify-otp', {
+      await api.post('/notifications/sms/verify-otp', {
         otp: otpCode,
       });
     },
@@ -75,10 +77,11 @@ export default function SMSPreferences() {
       setShowOtpInput(false);
       setOtpCode('');
       refetch();
+      toast.success(t('smsPreferences.phone.verified', { defaultValue: 'Phone verified' }));
       setTimeout(() => setShowSuccess(false), 3000);
     },
     onError: (error) => {
-      alert(`${t('common.error')}: ${error.response?.data?.error || t('smsPreferences.invalidOtp')}`);
+      toast.error(error.response?.data?.error || t('smsPreferences.invalidOtp'));
       setOtpCode('');
     },
   });
@@ -86,17 +89,18 @@ export default function SMSPreferences() {
   // Update preferences mutation
   const updateMutation = useMutation({
     mutationFn: async () => {
-      await axios.put('/api/notifications/sms/preferences', {
+      await api.put('/notifications/sms/preferences', {
         smsEnabled,
         notificationTypes,
       });
     },
     onSuccess: () => {
       setShowSuccess(true);
+      toast.success(t('smsPreferences.saved'));
       setTimeout(() => setShowSuccess(false), 3000);
     },
     onError: (error) => {
-      alert(`${t('common.error')}: ${error.response?.data?.error || error.message}`);
+      toast.error(error.response?.data?.error || error.message || t('common.error'));
     },
   });
 

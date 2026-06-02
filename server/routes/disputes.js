@@ -7,6 +7,14 @@ const upload      = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 
 // User: open and manage own disputes
+router.post('/',
+  authenticate,
+  (req, res, next) => {
+    req.params.jobId = req.body.jobId || req.body.job_id;
+    return disputeCtrl.openDispute(req, res, next);
+  }
+);
+
 router.post('/jobs/:jobId',
   authenticate,
   disputeCtrl.openDispute
@@ -30,6 +38,11 @@ router.post('/:disputeId/evidence',
 );
 
 router.post('/:disputeId/messages',
+  authenticate,
+  disputeCtrl.sendDisputeMessage
+);
+
+router.post('/:disputeId/message',
   authenticate,
   disputeCtrl.sendDisputeMessage
 );

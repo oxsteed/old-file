@@ -12,6 +12,7 @@ import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import useAuth from '../hooks/useAuth';
 import AppealForm from '../components/AppealForm';
+import api from '../api/axios';
 
 const EnforcementPolicyPage: React.FC = () => {
   const { t } = useTranslation();
@@ -23,9 +24,8 @@ const EnforcementPolicyPage: React.FC = () => {
   const { data: policy } = useQuery({
     queryKey: ['enforcement-policy'],
     queryFn: async () => {
-      const res = await fetch('/api/enforcement-policy/policy');
-      if (!res.ok) throw new Error('Failed to fetch policy');
-      return res.json();
+      const res = await api.get('/enforcement-policy/policy');
+      return res.data;
     },
   });
 
@@ -33,9 +33,8 @@ const EnforcementPolicyPage: React.FC = () => {
   const { data: myStatus } = useQuery({
     queryKey: ['my-enforcement-status'],
     queryFn: async () => {
-      const res = await fetch('/api/enforcement-policy/my-status');
-      if (!res.ok) throw new Error('Failed to fetch status');
-      return res.json();
+      const res = await api.get('/enforcement-policy/my-status');
+      return res.data;
     },
     enabled: !!user,
   });

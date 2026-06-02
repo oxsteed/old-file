@@ -3,6 +3,7 @@ import { MessageCircle, X, Plus, ArrowLeft, Send } from 'lucide-react';
 import io from 'socket.io-client';
 import api from '../../api/axios';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import './CustomerSupportWidget.css';
 
 /**
@@ -210,7 +211,7 @@ export default function CustomerSupportWidget() {
       }
     } catch (err) {
       console.error('Failed to create ticket:', err);
-      alert(t('supportWidget.createTicketFailed'));
+      toast.error(t('supportWidget.createTicketFailed', { defaultValue: 'Could not create a support ticket. Please try again.' }));
     }
     setLoading(false);
   };

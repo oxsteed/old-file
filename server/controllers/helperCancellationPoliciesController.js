@@ -1,6 +1,6 @@
 const pool = require('../db');
 const { AppError } = require('../utils/apiError');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 
 /**
  * Get helper's current cancellation policies

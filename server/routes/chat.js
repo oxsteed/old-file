@@ -2,6 +2,8 @@ const router = require('express').Router();
 const { chatMessage, profileChatMessage, guestProfileChatSession, financialAdvisor, transcribeAudio, getProfileContext } = require('../controllers/chatController');
 const { chatLimiter, profileChatLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');
+const upload = require('../middleware/upload');
+const validateFileUpload = require('../middleware/validateFileUpload');
 const logger = require('../utils/logger');
 
 // Middleware: attach user if token present and valid; continue as unauthenticated otherwise.
@@ -49,7 +51,7 @@ router.get('/profile-context/:type/:id', chatLimiter, authenticate, getProfileCo
 // POST /api/chat/transcribe
 // Transcribe audio using OpenRouter (fallback when Web Speech confidence is low)
 // Requires authentication.
-router.post('/transcribe', chatLimiter, authenticate, transcribeAudio);
+router.post('/transcribe', chatLimiter, authenticate, upload.single('audio'), validateFileUpload, transcribeAudio);
 
 // POST /api/chat/feedback - thumbs up/down on AI replies (best-effort logging)
 router.post('/feedback', chatLimiter, (req, res) => {

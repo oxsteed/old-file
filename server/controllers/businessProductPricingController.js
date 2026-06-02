@@ -18,24 +18,14 @@
 
 const pool = require('../db');
 const { AppError } = require('../utils/apiError');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
-
-// ── helpers ──────────────────────────────────────────────────────────────────
-async function verifyOwner(businessId, userId) {
-  const r = await pool.query(
-    'SELECT id FROM businesses WHERE id = $1 AND user_id = $2',
-    [businessId, userId]
-  );
-  if (!r.rows.length) throw new AppError('Unauthorized', 403, 'not_authorized');
-}
 
 // ── List pricing rules ────────────────────────────────────────────────────────
 async function listPricingRules(req, res, next) {
   try {
     const { businessId } = req.params;
     const { page = 0, limit = 50 } = req.query;
-    await verifyOwner(businessId, req.user.id);
 
     const safeLimit  = Math.min(parseInt(limit) || 50, 200);
     const safeOffset = (parseInt(page) || 0) * safeLimit;
@@ -128,7 +118,6 @@ async function createPricingRule(req, res, next) {
       conditions = {}, adjustment = {},
       startDate, endDate,
     } = req.body;
-    await verifyOwner(businessId, req.user.id);
 
     if (!name || name.length > 200)
       throw new AppError('Rule name required (1-200 chars)', 400, 'validation_failed');
@@ -171,7 +160,6 @@ async function updatePricingRule(req, res, next) {
   try {
     const { businessId, ruleId } = req.params;
     const { name, description, priority, conditions, adjustment, isActive } = req.body;
-    await verifyOwner(businessId, req.user.id);
 
     const sets = [];
     const params = [ruleId, businessId];
@@ -204,7 +192,6 @@ async function updatePricingRule(req, res, next) {
 async function deletePricingRule(req, res, next) {
   try {
     const { businessId, ruleId } = req.params;
-    await verifyOwner(businessId, req.user.id);
 
     await pool.query(
       'DELETE FROM product_pricing_rules WHERE id = $1 AND business_id = $2',
@@ -290,7 +277,6 @@ async function setBulkPricingTiers(req, res, next) {
   try {
     const { businessId, productId } = req.params;
     const { tiers } = req.body;
-    await verifyOwner(businessId, req.user.id);
 
     if (!Array.isArray(tiers) || !tiers.length)
       throw new AppError('Tiers array required', 400, 'validation_failed');
@@ -301,7 +287,7 @@ async function setBulkPricingTiers(req, res, next) {
     );
     if (!productCheck.rows.length) throw new AppError('Product not found', 404, 'not_found');
 
-    await withTransaction(async (client) => {
+    await withTransaction(pool, async (client) => {
       await client.query('DELETE FROM product_bulk_tiers WHERE product_id = $1', [productId]);
       for (const tier of tiers) {
         if (!tier.minQuantity || typeof tier.discountPercent !== 'number')

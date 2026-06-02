@@ -232,6 +232,9 @@ exports.createAppointment = async (req, res, next) => {
 
     return sendSuccess(res, created, 201);
   } catch (err) {
+    if (err instanceof AppError) {
+      return next(err);
+    }
     if (err.code === 'SCHEDULING_CONFLICT') {
       return sendError(res, 409, 'Helper has a conflicting appointment', 'SCHEDULING_CONFLICT');
     }

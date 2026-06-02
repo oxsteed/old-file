@@ -212,6 +212,88 @@ async function getPricingHistory(countryCode, limit = 50) {
 }
 
 /**
+ * Sync active regional prices to Stripe recurring Price objects.
+ * Existing stripe_price_id values are treated as already synced to avoid
+ * creating duplicate Stripe prices for the same regional subscription.
+ *
+ * @param {Object} deps
+ * @param {Object} deps.stripeClient - Initialized Stripe SDK client.
+ * @param {string} deps.productId - Stripe Product ID for OxSteed Premium.
+ * @returns {Promise<{synced:number, skipped:number, results:Array}>}
+ */
+async function syncRegionalPricesToStripe({ stripeClient, productId }) {
+  if (!stripeClient || !stripeClient.prices || typeof stripeClient.prices.create !== 'function') {
+    throw new Error('Stripe client is not configured');
+  }
+  if (!productId || typeof productId !== 'string' || !productId.trim()) {
+    throw new Error('STRIPE_PREMIUM_PRODUCT_ID is required to sync regional prices');
+  }
+
+  const overrides = await getAllPricingOverrides();
+  const results = [];
+
+  for (const override of overrides) {
+    const countryCode = String(override.country_code || '').toUpperCase();
+    const currency = String(override.currency_code || '').toLowerCase();
+    const amount = Number(override.price_cents);
+
+    if (override.stripe_price_id) {
+      results.push({
+        country_code: countryCode,
+        status: 'skipped',
+        reason: 'already_synced',
+        stripe_price_id: override.stripe_price_id,
+      });
+      continue;
+    }
+
+    if (!countryCode || !currency || !Number.isFinite(amount) || amount <= 0) {
+      results.push({
+        country_code: countryCode,
+        status: 'failed',
+        reason: 'invalid_pricing',
+      });
+      continue;
+    }
+
+    const price = await stripeClient.prices.create({
+      product: productId,
+      unit_amount: Math.round(amount),
+      currency,
+      recurring: { interval: 'month' },
+      nickname: `OxSteed Premium ${countryCode}`,
+      metadata: {
+        country_code: countryCode,
+        pricing_override_id: String(override.id),
+      },
+    });
+
+    await pool.query(
+      `UPDATE pricing_overrides
+          SET stripe_price_id = $1,
+              updated_at = NOW()
+        WHERE id = $2`,
+      [price.id, override.id]
+    );
+
+    results.push({
+      country_code: countryCode,
+      status: 'synced',
+      stripe_price_id: price.id,
+    });
+  }
+
+  invalidateCache();
+
+  return {
+    synced: results.filter(r => r.status === 'synced').length,
+    skipped: results.filter(r => r.status === 'skipped').length,
+    failed: results.filter(r => r.status === 'failed').length,
+    results,
+  };
+}
+
+/**
  * Get default US pricing (fallback)
  * @returns {Object}
  */
@@ -276,6 +358,7 @@ module.exports = {
   updatePremiumPrice,
   getAllPricingOverrides,
   getPricingHistory,
+  syncRegionalPricesToStripe,
   getPricingForUser,
   getDefaultPricing,
   invalidateCache,

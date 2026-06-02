@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, AlertTriangle } from 'lucide-react';
+import api from '../api/axios';
 import '../styles/ReportModal.css';
 
 const REPORT_REASONS = [
@@ -55,21 +56,12 @@ const ReportModal = ({ userId, userName, jobId = null, conversationId = null, on
         conversationId: conversationId || null
       };
 
-      const response = await fetch('/api/reports', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const { error: errMsg } = await response.json();
-        throw new Error(errMsg || 'Failed to submit report');
-      }
+      await api.post('/reports', payload);
 
       onSuccess && onSuccess();
       onClose();
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
     }

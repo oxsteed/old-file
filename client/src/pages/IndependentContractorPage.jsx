@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import toast from 'react-hot-toast';
+import api from '../api/axios';
 import '../styles/IndependentContractorPage.css';
 
 export default function IndependentContractorPage() {
@@ -42,16 +43,10 @@ export default function IndependentContractorPage() {
 
   const fetchAcceptanceHistory = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) return;
+      if (!localStorage.getItem('accessToken')) return;
 
-      const res = await fetch('/api/legal/contractor_agreement/history', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAcceptanceHistory(data.history || []);
-      }
+      const { data } = await api.get('/legal/contractor_agreement/history');
+      setAcceptanceHistory(data.history || []);
     } catch (err) {
       console.error('Failed to fetch acceptance history:', err);
     }
@@ -110,27 +105,15 @@ export default function IndependentContractorPage() {
 
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/legal/contractor_agreement/accept', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          timestamp: new Date().toISOString(),
-          ipAddress,
-          userAgent,
-          documentType: 'contractor_agreement',
-          versionNumber: 1,
-        }),
+      await api.post('/legal/contractor_agreement/accept', {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        timestamp: new Date().toISOString(),
+        ipAddress,
+        userAgent,
+        documentType: 'contractor_agreement',
+        versionNumber: 1,
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to accept agreement');
-      }
 
       toast.success(t('contractorAgreement.successSignature'));
       fetchAcceptanceHistory();
@@ -261,12 +244,12 @@ export default function IndependentContractorPage() {
                     {acceptanceHistory.map((entry, idx) => (
                       <li key={idx} className="history-entry">
                         <div className="entry-date">
-                          {new Date(entry.accepted_at).toLocaleDateString()} {new Date(entry.accepted_at).toLocaleTimeString()}
+                          {new Date(entry.acceptedAt || entry.accepted_at).toLocaleDateString()} {new Date(entry.acceptedAt || entry.accepted_at).toLocaleTimeString()}
                         </div>
                         <div className="entry-signer">
-                          {entry.first_name} {entry.last_name}
+                          {entry.firstName || entry.first_name} {entry.lastName || entry.last_name}
                         </div>
-                        <div className="entry-version">v{entry.version_number}</div>
+                        <div className="entry-version">v{entry.versionNumber || entry.version_number}</div>
                       </li>
                     ))}
                   </ul>

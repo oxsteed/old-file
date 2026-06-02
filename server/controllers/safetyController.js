@@ -4,6 +4,7 @@ const { sendNotification } = require('../services/notificationService');
 
 // ─── POST /api/safety/sos ─────────────────────────────────────────────────────
 // Body: { lat, lng, contact_name, contact_phone, job_id? }
+// Also accepts legacy iOS payload fields { latitude, longitude }.
 // Records the SOS event, notifies any matched job parties, and returns OK so
 // the iOS safety timer can confirm dispatch.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -12,12 +13,16 @@ exports.sendSOS = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const {
-      lat,
-      lng,
+      lat: latInput,
+      lng: lngInput,
+      latitude,
+      longitude,
       contact_name  = null,
       contact_phone = null,
       job_id        = null,
     } = req.body || {};
+    const lat = latInput ?? latitude ?? null;
+    const lng = lngInput ?? longitude ?? null;
 
     // ── 1. Store the SOS event ──────────────────────────────────
     await db.query(

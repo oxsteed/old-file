@@ -23,6 +23,7 @@ import {
   Link2, Plus, Pencil, Trash2, AlertTriangle, CheckCircle,
   RefreshCw, Search, ShoppingBag, Tag, X,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -359,7 +360,7 @@ export default function LearnProductLinksAdmin() {
       await api.delete(`/learn/admin/product-links/${link.id}`);
       setLinks(prev => prev.map(l => l.id === link.id ? { ...l, is_active: false } : l));
     } catch (e) {
-      alert(e.response?.data?.message || 'Delete failed.');
+      toast.error(e.response?.data?.message || 'Delete failed.');
     }
   };
 

@@ -38,6 +38,31 @@ exports.getNotifications = async (req, res, next) => {
   }
 };
 
+// ─── GET SINGLE NOTIFICATION ─────────────────────────────────
+exports.getNotification = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    const { rows } = await db.query(`
+      SELECT id, type, title, body, data,
+             data->>'action_url' AS action_url,
+             is_read, created_at, read_at
+      FROM notifications
+      WHERE user_id = $1 AND id = $2
+      LIMIT 1
+    `, [userId, id]);
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+
+    res.json({ notification: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ─── MARK AS READ ─────────────────────────────────────────────
 exports.markRead = async (req, res, next) => {
   try {
@@ -67,6 +92,28 @@ exports.markRead = async (req, res, next) => {
     `, [userId]);
 
     res.json({ unread_count: parseInt(rows[0].count) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── DELETE / DISMISS SINGLE NOTIFICATION ─────────────────────
+exports.deleteNotification = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    await db.query(`
+      DELETE FROM notifications
+      WHERE user_id = $1 AND id = $2
+    `, [userId, id]);
+
+    const { rows } = await db.query(`
+      SELECT COUNT(*) FROM notifications
+      WHERE user_id = $1 AND is_read = false
+    `, [userId]);
+
+    res.json({ success: true, unread_count: parseInt(rows[0].count, 10) });
   } catch (err) {
     next(err);
   }

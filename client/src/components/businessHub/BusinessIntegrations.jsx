@@ -56,7 +56,8 @@ export function BusinessIntegrations({ businessId }) {
     url: '',
     events: []
   });
-  const [stripeAuthUrl, setStripeAuthUrl] = useState(null);
+  const [savingIntegration, setSavingIntegration] = useState(null);
+  const [newApiKey, setNewApiKey] = useState('');
 
   useEffect(() => {
     loadIntegrations();
@@ -134,6 +135,59 @@ export function BusinessIntegrations({ businessId }) {
       loadIntegrations();
     } catch (error) {
       toast.error(t('businessHub.integrations.toastWebhookDeleteFail'));
+    }
+  };
+
+  const handleToggleSms = async () => {
+    const nextEnabled = !integrations.sms_enabled;
+
+    try {
+      setSavingIntegration('sms');
+      await api.patch(
+        `/businesses/${businessId}/integrations/sms_notifications`,
+        { enabled: nextEnabled }
+      );
+      toast.success(nextEnabled ? 'SMS reminders enabled' : 'SMS reminders disabled');
+      await loadIntegrations();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to update SMS settings');
+    } finally {
+      setSavingIntegration(null);
+    }
+  };
+
+  const handleRequestCalendarSetup = async () => {
+    try {
+      setSavingIntegration('calendar');
+      await api.patch(
+        `/businesses/${businessId}/integrations/google_calendar`,
+        { enabled: true, setup_requested: true }
+      );
+      toast.success('Calendar setup request saved');
+      await loadIntegrations();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to save calendar setup request');
+    } finally {
+      setSavingIntegration(null);
+    }
+  };
+
+  const handleRegenerateApiKey = async () => {
+    if (!window.confirm('Regenerate this API key? The previous key will stop working immediately.')) return;
+
+    try {
+      setSavingIntegration('api-key');
+      const response = await api.post(
+        `/businesses/${businessId}/integrations/api-key/regenerate`
+      );
+      const apiKey = response.data?.api_key || '';
+      setNewApiKey(apiKey);
+      setIntegrations((current) => ({ ...current, api_key: apiKey }));
+      toast.success('API key regenerated');
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to regenerate API key');
+    } finally {
+      setSavingIntegration(null);
     }
   };
 
@@ -224,9 +278,10 @@ export function BusinessIntegrations({ businessId }) {
                   </p>
                   <button
                     className={isEnabled ? 'bi-btn-danger' : 'bi-btn-primary'}
-                    onClick={() => toast.info('SMS configuration in settings')}
+                    onClick={handleToggleSms}
+                    disabled={savingIntegration === 'sms'}
                   >
-                    {isEnabled ? 'Disable' : 'Enable'} SMS
+                    {savingIntegration === 'sms' ? 'Saving...' : `${isEnabled ? 'Disable' : 'Enable'} SMS`}
                   </button>
                 </div>
               )}
@@ -234,13 +289,16 @@ export function BusinessIntegrations({ businessId }) {
               {integration.id === 'calendar' && (
                 <div className="bi-integration-actions">
                   <p className="bi-status-text">
-                    {isEnabled ? 'Calendar sync active' : 'Connect your calendar account'}
+                    {integrations.calendar_setup_status === 'setup_requested'
+                      ? 'Setup request saved. OxSteed will guide connection next.'
+                      : isEnabled ? 'Calendar sync setup requested' : 'Request guided calendar setup'}
                   </p>
                   <button
                     className="bi-btn-primary"
-                    onClick={() => toast.info('Calendar setup coming soon')}
+                    onClick={handleRequestCalendarSetup}
+                    disabled={savingIntegration === 'calendar'}
                   >
-                    <Settings size={16} /> Configure
+                    <Settings size={16} /> {savingIntegration === 'calendar' ? 'Saving...' : 'Request Setup'}
                   </button>
                 </div>
               )}
@@ -336,13 +394,14 @@ export function BusinessIntegrations({ businessId }) {
         <div className="bi-setting-item">
           <div className="bi-setting-info">
             <h5>API Key</h5>
-            <p>Use this key for direct API access</p>
+            <p>{newApiKey ? 'Copy this key now and store it securely.' : 'Use a generated key for direct API access.'}</p>
           </div>
           <div className="bi-setting-value">
-            <code>{integrations.api_key || 'sk_' + 'x'.repeat(32)}</code>
+            <code>{integrations.api_key || 'No API key generated yet'}</code>
             <button
               onClick={() => copyToClipboard(integrations.api_key || '')}
               className="bi-btn-copy"
+              disabled={!integrations.api_key}
             >
               <Copy size={14} />
             </button>
@@ -355,10 +414,11 @@ export function BusinessIntegrations({ businessId }) {
             <p>Create a new API key. Old key will be invalidated.</p>
           </div>
           <button
-            onClick={() => toast.info('API key regeneration feature coming soon')}
+            onClick={handleRegenerateApiKey}
             className="bi-btn-secondary"
+            disabled={savingIntegration === 'api-key'}
           >
-            <RefreshCw size={16} /> Regenerate
+            <RefreshCw size={16} /> {savingIntegration === 'api-key' ? 'Regenerating...' : 'Regenerate'}
           </button>
         </div>
       </div>

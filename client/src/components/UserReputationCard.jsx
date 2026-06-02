@@ -38,8 +38,8 @@ const UserReputationCard = ({ userId, showFeeHistory = false, className = '' }) 
   useEffect(() => {
     if (!userId) return;
     setLoading(true);
-    fetch(`/api/reputation/${userId}`)
-      .then(r => r.ok ? r.json() : Promise.reject())
+    api.get(`/reputation/${userId}`)
+      .then(r => r.data)
       .then(({ data }) => setReputation(data))
       .catch(err => setError(err?.message || 'Failed to fetch'))
       .finally(() => setLoading(false));

@@ -8,6 +8,20 @@ const { withTransaction } = require('../utils/transaction');
 const { verifyConversationAccess } = require('../utils/conversationAccess');
 const { AppError } = require('../middleware/errorHandler');
 
+function normalizeMessageAttachments(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 10).flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const url = typeof item.url === 'string' ? item.url.trim() : '';
+    if (!url) return [];
+    return [{
+      url,
+      type: typeof item.type === 'string' ? item.type.slice(0, 120) : null,
+      filename: typeof item.filename === 'string' ? item.filename.slice(0, 255) : null,
+    }];
+  });
+}
+
 /**
  * Guest profile inquiries (visitors without accounts) - guest_profile_chat_inbound.
  */
@@ -477,9 +491,10 @@ const sendMessage = async (req, res, next) => {
     const userId = req.user.id;
     const { conversationId } = req.params;
     const rawContent = (req.body.content || '').trim();
+    const attachments = normalizeMessageAttachments(req.body.attachments);
 
     const fields = {};
-    if (!rawContent) fields.content = 'Message content is required';
+    if (!rawContent && attachments.length === 0) fields.content = 'Message content or attachment is required';
     if (rawContent.length > 4000) fields.content = 'Message too long (max 4000 characters)';
     if (Object.keys(fields).length > 0) {
       throw new AppError('Validation failed', 400, 'validation_failed', fields);
@@ -516,8 +531,16 @@ const sendMessage = async (req, res, next) => {
 
       // Insert message
       const msgResult = await client.query(
-        'INSERT INTO messages (conversation_id, sender_id, content) VALUES ($1, $2, $3) RETURNING *',
-        [conversationId, userId, content]
+        `INSERT INTO messages (conversation_id, sender_id, content, message_type, attachments)
+         VALUES ($1, $2, $3, $4, $5::jsonb)
+         RETURNING *`,
+        [
+          conversationId,
+          userId,
+          content,
+          attachments.length > 0 && !content ? 'attachment' : 'text',
+          JSON.stringify(attachments),
+        ]
       );
 
       if (!msgResult.rows.length) {
@@ -897,8 +920,15 @@ const archiveConversation = async (req, res) => {
 
     // Verify user is part of conversation
     const conv = await pool.query(
-      `SELECT c.customer_id, c.helper_id FROM conversations c
-       WHERE c.id = $1 AND (c.customer_id = $2 OR c.helper_id = $2)`,
+      `SELECT c.customer_id, c.helper_id, c.business_id FROM conversations c
+       WHERE c.id = $1 AND (
+         c.customer_id = $2
+         OR c.helper_id = $2
+         OR (c.business_id IS NOT NULL AND EXISTS(
+           SELECT 1 FROM business_members bm
+           WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
+         ))
+       )`,
       [conversationId, userId]
     );
     if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
@@ -938,8 +968,15 @@ const restoreConversation = async (req, res) => {
 
     // Verify user is part of conversation
     const conv = await pool.query(
-      `SELECT c.customer_id, c.helper_id FROM conversations c
-       WHERE c.id = $1 AND (c.customer_id = $2 OR c.helper_id = $2)`,
+      `SELECT c.customer_id, c.helper_id, c.business_id FROM conversations c
+       WHERE c.id = $1 AND (
+         c.customer_id = $2
+         OR c.helper_id = $2
+         OR (c.business_id IS NOT NULL AND EXISTS(
+           SELECT 1 FROM business_members bm
+           WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
+         ))
+       )`,
       [conversationId, userId]
     );
     if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
@@ -991,7 +1028,14 @@ const getArchivedConversations = async (req, res) => {
        LEFT JOIN users h  ON c.helper_id   = h.id
        LEFT JOIN users cu ON c.customer_id = cu.id
        LEFT JOIN jobs j   ON c.job_id      = j.id
-       WHERE (c.customer_id = $1 OR c.helper_id = $1)
+       WHERE (
+           c.customer_id = $1
+           OR c.helper_id = $1
+           OR (c.business_id IS NOT NULL AND EXISTS(
+             SELECT 1 FROM business_members bm
+             WHERE bm.business_id = c.business_id AND bm.member_id = $1 AND bm.status = 'active'
+           ))
+         )
          AND c.archived_at IS NOT NULL
        ORDER BY c.archived_at DESC
        LIMIT $2 OFFSET $3`,
@@ -1000,7 +1044,15 @@ const getArchivedConversations = async (req, res) => {
 
     const countResult = await pool.query(
       `SELECT COUNT(*) FROM conversations
-       WHERE (customer_id = $1 OR helper_id = $1) AND archived_at IS NOT NULL`,
+       WHERE (
+           customer_id = $1
+           OR helper_id = $1
+           OR (business_id IS NOT NULL AND EXISTS(
+             SELECT 1 FROM business_members bm
+             WHERE bm.business_id = conversations.business_id AND bm.member_id = $1 AND bm.status = 'active'
+           ))
+         )
+         AND archived_at IS NOT NULL`,
       [userId]
     );
 

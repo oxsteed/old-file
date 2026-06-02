@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, AlertTriangle, FileText } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import api from '../api/axios';
 
 interface DisputeSubmissionModalProps {
   jobId: string | number;
@@ -41,9 +42,8 @@ const DisputeSubmissionModal: React.FC<DisputeSubmissionModalProps> = ({
   const { data: jobData } = useQuery({
     queryKey: ['job', jobId],
     queryFn: async () => {
-      const res = await fetch(`/api/jobs/${jobId}`);
-      if (!res.ok) throw new Error('Failed to fetch job');
-      return res.json();
+      const res = await api.get(`/jobs/${jobId}`);
+      return res.data;
     },
     enabled: isOpen,
   });
@@ -59,26 +59,17 @@ const DisputeSubmissionModal: React.FC<DisputeSubmissionModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/disputes/jobs/${jobId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reason: selectedReason,
-          description: description.trim(),
-        }),
+      await api.post(`/disputes/jobs/${jobId}`, {
+        reason: selectedReason,
+        description: description.trim(),
       });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error?.message || 'Failed to submit dispute');
-      }
 
       setSelectedReason('');
       setDescription('');
       onSuccess?.();
       onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+    } catch (err: any) {
+      setError(err.response?.data?.error?.message || err.response?.data?.error || err.message || 'Unknown error');
     } finally {
       setIsSubmitting(false);
     }

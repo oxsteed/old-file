@@ -4,6 +4,7 @@ import {
   ArrowLeft, Building2, User, MapPin, Mail, Phone, Calendar, DollarSign,
   ToggleLeft, ToggleRight, Trash2, Flag, Edit2, ExternalLink, AlertCircle
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import adminApi from '../../lib/adminApi';
 
 function BusinessAvatar({ business }) {
@@ -64,7 +65,7 @@ export default function BusinessDetail() {
       setBusiness(data.business);
       setModal(null);
     } catch (err) {
-      alert(err?.response?.data?.error || 'Action failed.');
+      toast.error(err?.response?.data?.error || 'Action failed.');
     } finally {
       setActionBusy(false);
     }
@@ -74,8 +75,9 @@ export default function BusinessDetail() {
     try {
       await adminApi.put(`/admin/businesses/${id}/admin-notes`, { notes: adminNotes });
       setEditingNotes(false);
+      toast.success('Notes saved.');
     } catch (err) {
-      alert('Failed to save notes');
+      toast.error('Failed to save notes.');
     }
   };
 

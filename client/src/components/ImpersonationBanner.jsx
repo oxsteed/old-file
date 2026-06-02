@@ -16,6 +16,7 @@ import {
   IMPERSONATION_USER_KEY,
   IMPERSONATION_JTI_KEY,
 } from '../pages/ImpersonatePage';
+import api from '../api/axios';
 
 export default function ImpersonationBanner() {
   const [impUser, setImpUser] = useState(null);
@@ -30,21 +31,12 @@ export default function ImpersonationBanner() {
 
   if (!impUser) return null;
 
-  const handleExit = () => {
-    // Tell the server to mark the session ended (best-effort, non-blocking)
+  const handleExit = async () => {
+    // Tell the server to mark the session ended so audit history closes cleanly.
     try {
-      const token = sessionStorage.getItem(IMPERSONATION_TOKEN_KEY);
       const jti   = sessionStorage.getItem(IMPERSONATION_JTI_KEY);
-      if (jti && token) {
-        fetch('/api/admin/users/' + impUser.id + '/impersonate/end', {
-          method:  'POST',
-          headers: {
-            'Content-Type':  'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({ jti }),
-          keepalive: true,
-        }).catch(() => {});
+      if (jti) {
+        await api.post(`/admin/users/${impUser.id}/impersonate/end`, { jti });
       }
     } catch (_) {}
 

@@ -38,6 +38,22 @@ router.delete(
   ctrl.deleteWebhook
 );
 
+// POST /:businessId/integrations/api-key/regenerate — owner only
+router.post(
+  '/:businessId/integrations/api-key/regenerate',
+  requireAuth,
+  requireBusinessAccess({ minRole: 'owner' }),
+  ctrl.regenerateApiKey
+);
+
+// PATCH /:businessId/integrations/:integrationType — manager+
+router.patch(
+  '/:businessId/integrations/:integrationType',
+  requireAuth,
+  requireBusinessAccess({ minRole: 'manager' }),
+  ctrl.updateIntegration
+);
+
 // POST /:businessId/integrations/stripe/auth — owner only
 router.post(
   '/:businessId/integrations/stripe/auth',

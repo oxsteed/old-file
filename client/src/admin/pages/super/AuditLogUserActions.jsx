@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollText, Download, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import toast from 'react-hot-toast';
 import adminApi from '../../../lib/adminApi';
 import AuditLogFilter from '../../../components/AuditLogFilter';
 
@@ -96,7 +97,7 @@ export default function AuditLogUserActions() {
       link.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to export.');
+      toast.error(err.response?.data?.error || 'Failed to export.');
     } finally {
       setExporting(false);
     }

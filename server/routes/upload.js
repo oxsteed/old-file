@@ -21,6 +21,14 @@ function uploadFolder(req, kind) {
   return `user-uploads/${userId}/${kind}/${purpose}`;
 }
 
+function kindForFile(file) {
+  const mime = String(file?.mimetype || '').toLowerCase();
+  if (mime.startsWith('image/')) return 'images';
+  if (mime.startsWith('video/')) return 'videos';
+  if (mime === 'application/pdf' || mime.startsWith('text/')) return 'documents';
+  return 'files';
+}
+
 async function handleUpload(req, res, next, kind) {
   try {
     if (!req.file) {
@@ -56,6 +64,10 @@ router.post('/image', upload.single('image'), validateFileUpload, (req, res, nex
 
 router.post('/document', upload.single('document'), validateFileUpload, (req, res, next) => {
   handleUpload(req, res, next, 'documents');
+});
+
+router.post('/', upload.single('file'), validateFileUpload, (req, res, next) => {
+  handleUpload(req, res, next, kindForFile(req.file));
 });
 
 module.exports = router;

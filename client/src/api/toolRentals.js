@@ -91,6 +91,11 @@ export const toolRentalsApi = {
     return response.data;
   },
 
+  getAvailability: async (toolId) => {
+    const response = await api.get(`/tool-rentals/${toolId}/availability`);
+    return response.data;
+  },
+
   getMyBookings: async () => {
     const response = await api.get('/tool-rentals/bookings/my');
     return response.data || [];

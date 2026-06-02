@@ -15,7 +15,7 @@
 
 const pool = require('../db');
 const { AppError } = require('../utils/apiError');
-const { logger } = require('../utils/logger');
+const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 
 // ── List products ────────────────────────────────────────────────────────────
@@ -188,7 +188,6 @@ async function createProduct(req, res, next) {
   try {
     const { businessId } = req.params;
     const { name, description, category, price, cost, sku, isActive = true } = req.body;
-    const userId = req.user.id;
 
     if (!name || name.length > 255)
       throw new AppError('Product name required (1-255 chars)', 400, 'validation_failed');
@@ -198,12 +197,6 @@ async function createProduct(req, res, next) {
       throw new AppError('Valid price required (0–1,000,000)', 400, 'validation_failed');
     if (!sku || sku.length > 100)
       throw new AppError('SKU required (1-100 chars)', 400, 'validation_failed');
-
-    const bizCheck = await pool.query(
-      'SELECT id FROM businesses WHERE id = $1 AND user_id = $2',
-      [businessId, userId]
-    );
-    if (!bizCheck.rows.length) throw new AppError('Unauthorized', 403, 'not_authorized');
 
     const skuCheck = await pool.query(
       'SELECT id FROM business_products WHERE business_id = $1 AND sku = $2 AND deleted_at IS NULL',
@@ -237,13 +230,6 @@ async function updateProduct(req, res, next) {
   try {
     const { businessId, productId } = req.params;
     const { name, description, category, price, cost, isActive } = req.body;
-    const userId = req.user.id;
-
-    const bizCheck = await pool.query(
-      'SELECT id FROM businesses WHERE id = $1 AND user_id = $2',
-      [businessId, userId]
-    );
-    if (!bizCheck.rows.length) throw new AppError('Unauthorized', 403, 'not_authorized');
 
     const sets = [];
     const params = [productId, businessId];
@@ -276,13 +262,6 @@ async function updateProduct(req, res, next) {
 async function deleteProduct(req, res, next) {
   try {
     const { businessId, productId } = req.params;
-    const userId = req.user.id;
-
-    const bizCheck = await pool.query(
-      'SELECT id FROM businesses WHERE id = $1 AND user_id = $2',
-      [businessId, userId]
-    );
-    if (!bizCheck.rows.length) throw new AppError('Unauthorized', 403, 'not_authorized');
 
     await pool.query(
       'UPDATE business_products SET deleted_at = now() WHERE id = $1 AND business_id = $2',
@@ -301,13 +280,6 @@ async function createVariant(req, res, next) {
   try {
     const { businessId, productId } = req.params;
     const { variantName, sku, priceAdjustment = 0, stock = 0, reorderLevel = 10 } = req.body;
-    const userId = req.user.id;
-
-    const bizCheck = await pool.query(
-      'SELECT id FROM businesses WHERE id = $1 AND user_id = $2',
-      [businessId, userId]
-    );
-    if (!bizCheck.rows.length) throw new AppError('Unauthorized', 403, 'not_authorized');
 
     const productCheck = await pool.query(
       'SELECT id FROM business_products WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL',
@@ -315,7 +287,7 @@ async function createVariant(req, res, next) {
     );
     if (!productCheck.rows.length) throw new AppError('Product not found', 404, 'not_found');
 
-    const variant = await withTransaction(async (client) => {
+    const variant = await withTransaction(pool, async (client) => {
       const varResult = await client.query(
         `INSERT INTO business_product_variants (product_id, variant_name, sku, price_adjustment_cents)
          VALUES ($1,$2,$3,$4) RETURNING *`,
@@ -346,23 +318,24 @@ async function createVariant(req, res, next) {
 // ── Update variant inventory ─────────────────────────────────────────────────
 async function updateVariantInventory(req, res, next) {
   try {
-    const { businessId, variantId } = req.params;
+    const { businessId, productId, variantId } = req.params;
     const { quantityChange, reason = 'Manual adjustment' } = req.body;
-    const userId = req.user.id;
-
-    const bizCheck = await pool.query(
-      'SELECT id FROM businesses WHERE id = $1 AND user_id = $2',
-      [businessId, userId]
-    );
-    if (!bizCheck.rows.length) throw new AppError('Unauthorized', 403, 'not_authorized');
 
     if (typeof quantityChange !== 'number')
       throw new AppError('Quantity change required', 400, 'validation_failed');
 
-    const inventory = await withTransaction(async (client) => {
+    const inventory = await withTransaction(pool, async (client) => {
       const cur = await client.query(
-        'SELECT stock_quantity FROM business_product_inventory WHERE variant_id = $1 FOR UPDATE',
-        [variantId]
+        `SELECT pi.stock_quantity
+           FROM business_product_inventory pi
+           JOIN business_product_variants v ON v.id = pi.variant_id
+           JOIN business_products p ON p.id = v.product_id
+          WHERE pi.variant_id = $1
+            AND v.product_id = $2
+            AND p.business_id = $3
+            AND p.deleted_at IS NULL
+          FOR UPDATE OF pi`,
+        [variantId, productId, businessId]
       );
       if (!cur.rows.length) throw new AppError('Variant not found', 404, 'not_found');
 
@@ -394,13 +367,6 @@ async function updateVariantInventory(req, res, next) {
 async function getLowStockAlerts(req, res, next) {
   try {
     const { businessId } = req.params;
-    const userId = req.user.id;
-
-    const bizCheck = await pool.query(
-      'SELECT id FROM businesses WHERE id = $1 AND user_id = $2',
-      [businessId, userId]
-    );
-    if (!bizCheck.rows.length) throw new AppError('Unauthorized', 403, 'not_authorized');
 
     const result = await pool.query(
       `SELECT p.id, p.name, p.category,

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { ClipboardList, Search, X } from 'lucide-react';
+import toast from 'react-hot-toast';
 import adminApi from '../../lib/adminApi';
 
 const ALL_STATUSES = [
@@ -140,7 +141,7 @@ export default function PlannedNeedsAdmin() {
       setModal(null);
       fetchNeeds();
     } catch (err) {
-      alert(err?.response?.data?.error || 'Action failed.');
+      toast.error(err?.response?.data?.error || 'Action failed.');
     } finally {
       setActionBusy(false);
     }

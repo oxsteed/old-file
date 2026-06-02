@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import api from '../api/axios';
 
 export default function PlannedNeedHoldStatus({ need, onUpdate }) {
@@ -30,7 +31,7 @@ export default function PlannedNeedHoldStatus({ need, onUpdate }) {
       await api.post(`/planned-needs/${need.id}/broadcast`);
       onUpdate?.();
     } catch (err) {
-      alert(err.response?.data?.error || t('common.failed'));
+      toast.error(err.response?.data?.error || t('common.failed'));
     } finally {
       setBusy(false);
     }
@@ -46,7 +47,7 @@ export default function PlannedNeedHoldStatus({ need, onUpdate }) {
       setShowFund(false);
       onUpdate?.();
     } catch (err) {
-      alert(err.response?.data?.error || t('common.failed'));
+      toast.error(err.response?.data?.error || t('common.failed'));
     } finally {
       setBusy(false);
     }

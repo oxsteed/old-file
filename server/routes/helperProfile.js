@@ -14,6 +14,17 @@ const { invalidateHelperContext } = require('../services/helperContext');
 const helperProfileImageController = require('../controllers/helperProfileImageController');
 
 const helperOnly = [authenticate, requireRole('helper', 'helper_pro', 'broker')];
+const BUFFER_MINUTES_MIN = 0;
+const BUFFER_MINUTES_MAX = 240;
+
+function parseBufferMinutes(value) {
+  if (value === undefined || value === null || value === '') return undefined;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < BUFFER_MINUTES_MIN || parsed > BUFFER_MINUTES_MAX) {
+    return null;
+  }
+  return parsed;
+}
 
 const coverUpload = multer({
   storage: multer.memoryStorage(),
@@ -36,6 +47,7 @@ router.get('/me', helperOnly, async (req, res) => {
               cover_image_url,
               service_city, service_state, service_zip, service_radius_miles,
               hourly_rate_min, hourly_rate_max, rate_preference,
+              booking_buffer_minutes,
               flat_rate_available, contact_for_pricing,
               availability_json, is_available_now, response_rate,
               show_services, show_faqs, show_policies, show_gallery, show_hours,
@@ -86,6 +98,7 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
       availability_json,
       is_available_now,
       ai_knowledge,
+      booking_buffer_minutes,
     } = req.body;
 
     let safeAiKnowledge = undefined;
@@ -99,13 +112,17 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
 
     const VALID_RATE_PREFS = ['per_job', 'hourly', 'flat', 'negotiable'];
     const safePref = VALID_RATE_PREFS.includes(rate_preference) ? rate_preference : undefined;
+    const safeBufferMinutes = parseBufferMinutes(booking_buffer_minutes);
+    if (safeBufferMinutes === null) {
+      return res.status(400).json({ error: 'booking_buffer_minutes must be an integer between 0 and 240' });
+    }
 
     await pool.query(
       `INSERT INTO helper_profiles (user_id, profile_headline, bio_long, bio_short,
           hourly_rate_min, hourly_rate_max, rate_preference, flat_rate_available, contact_for_pricing,
           service_city, service_state, service_zip, service_radius_miles,
-          availability_json, is_available_now, ai_knowledge)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+          availability_json, is_available_now, ai_knowledge, booking_buffer_minutes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$18)
        ON CONFLICT (user_id) DO UPDATE SET
          profile_headline    = COALESCE($2,  helper_profiles.profile_headline),
          bio_long            = COALESCE($3,  helper_profiles.bio_long),
@@ -122,6 +139,7 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
          availability_json   = COALESCE($14, helper_profiles.availability_json),
          is_available_now    = COALESCE($15, helper_profiles.is_available_now),
          ai_knowledge        = CASE WHEN $17::boolean THEN $16 ELSE helper_profiles.ai_knowledge END,
+         booking_buffer_minutes = COALESCE($18, helper_profiles.booking_buffer_minutes),
          updated_at          = NOW()`,
       [
         uid,
@@ -141,6 +159,7 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
         is_available_now  != null ? !!is_available_now : false,
         safeAiKnowledge !== undefined ? safeAiKnowledge : null,
         safeAiKnowledge !== undefined,
+        safeBufferMinutes === undefined ? null : safeBufferMinutes,
       ],
     );
 

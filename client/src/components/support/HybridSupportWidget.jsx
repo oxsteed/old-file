@@ -3,6 +3,7 @@ import { MessageCircle, X, Send, PhoneOff, Clock, AlertCircle } from 'lucide-rea
 import io from 'socket.io-client';
 import api from '../../api/axios';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import './HybridSupportWidget.css';
 
 /**
@@ -72,8 +73,8 @@ export default function HybridSupportWidget() {
 
     // Assigned to agent
     socket.on('ticket:assigned', (data) => {
-      const { ticketId, agentName } = data;
-      if (ticketId === ticketId) {
+      const { ticketId: assignedTicketId, agentName } = data;
+      if (assignedTicketId === ticketId) {
         setAssignedAgent({ name: agentName });
         setPhase('live-chat');
         setLiveMessages(prev => [...prev, {
@@ -221,7 +222,7 @@ export default function HybridSupportWidget() {
       }
     } catch (err) {
       console.error('Escalation error:', err);
-      alert(t('hybridSupportWidget.escalationFailed'));
+      toast.error(t('hybridSupportWidget.escalationFailed', { defaultValue: 'Could not connect you to support right now. Please try again.' }));
       setPhase('ai');
     } finally {
       setEscalatingLoading(false);
@@ -249,7 +250,7 @@ export default function HybridSupportWidget() {
   // Submit ticket
   const handleSubmitTicket = async () => {
     if (!visitorName.trim() || !visitorEmail.trim() || !ticketMessage.trim()) {
-      alert(t('hybridSupportWidget.ticketFailed'));
+      toast.error(t('hybridSupportWidget.ticketFailed', { defaultValue: 'Add your name, email, and message before sending.' }));
       return;
     }
 
@@ -269,9 +270,10 @@ export default function HybridSupportWidget() {
 
       setPhase('ai');
       setTicketMessage('');
+      toast.success(t('hybridSupportWidget.ticketSubmitted', { defaultValue: 'Support ticket created. We will follow up soon.' }));
     } catch (err) {
       console.error('Ticket error:', err);
-      alert(t('hybridSupportWidget.ticketSubmitFailed'));
+      toast.error(t('hybridSupportWidget.ticketSubmitFailed', { defaultValue: 'Could not submit your ticket. Please try again.' }));
     }
   };
 

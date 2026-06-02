@@ -1090,14 +1090,15 @@ exports.guestProfileChatSession = async (req, res, next) => {
  * POST /api/chat/transcribe
  * Transcribe audio using OpenRouter when Web Speech API confidence is low.
  * Requires authentication.
- * Request body: { audio_data: base64, language: 'en' }
+ * Request body: multipart field `audio`, or JSON { audio_data: base64, language: 'en' }
  * Response: { transcript, confidence, language }
  */
 exports.transcribeAudio = async (req, res, next) => {
   try {
     const { audio_data, language = 'en' } = req.body;
 
-    if (!audio_data?.trim()) {
+    const audioBuffer = req.file?.buffer || (audio_data?.trim() ? Buffer.from(audio_data, 'base64') : null);
+    if (!audioBuffer?.length) {
       throw new AppError('audio_data is required', 400, 'validation_failed', { audio_data: 'audio_data is required' });
     }
 
@@ -1107,7 +1108,6 @@ exports.transcribeAudio = async (req, res, next) => {
     }
 
     const { transcribeAudio } = require('../utils/speechToText');
-    const audioBuffer = Buffer.from(audio_data, 'base64');
     const result = await transcribeAudio(audioBuffer, language);
 
     logger.info('Audio transcribed', {

@@ -58,6 +58,9 @@ async function createSession(req, res) {
       sessionId,
       sessionToken: diditData.session_token,
       verificationUrl: diditData.url,
+      session_id: sessionId,
+      session_token: diditData.session_token,
+      verification_url: diditData.url,
     });
 
   } catch (err) {

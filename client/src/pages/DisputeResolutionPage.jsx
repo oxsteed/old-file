@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import toast from 'react-hot-toast';
+import api from '../api/axios';
 import '../styles/DisputeResolutionPage.css';
 
 export default function DisputeResolutionPage() {
@@ -43,16 +44,10 @@ export default function DisputeResolutionPage() {
 
   const fetchAcceptanceHistory = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) return;
+      if (!localStorage.getItem('accessToken')) return;
 
-      const res = await fetch('/api/legal/dispute_resolution/history', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAcceptanceHistory(data.history || []);
-      }
+      const { data } = await api.get('/legal/dispute_resolution/history');
+      setAcceptanceHistory(data.history || []);
     } catch (err) {
       console.error('Failed to fetch acceptance history:', err);
     }
@@ -111,27 +106,15 @@ export default function DisputeResolutionPage() {
 
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/legal/dispute_resolution/accept', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          timestamp: new Date().toISOString(),
-          ipAddress,
-          userAgent,
-          documentType: 'dispute_resolution',
-          versionNumber: 1,
-        }),
+      await api.post('/legal/dispute_resolution/accept', {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        timestamp: new Date().toISOString(),
+        ipAddress,
+        userAgent,
+        documentType: 'dispute_resolution',
+        versionNumber: 1,
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to accept policy');
-      }
 
       toast.success(t('disputeResolution.successSignature'));
       fetchAcceptanceHistory();
@@ -265,12 +248,12 @@ export default function DisputeResolutionPage() {
                     {acceptanceHistory.map((entry, idx) => (
                       <li key={idx} className="history-entry">
                         <div className="entry-date">
-                          {new Date(entry.accepted_at).toLocaleDateString()} {new Date(entry.accepted_at).toLocaleTimeString()}
+                          {new Date(entry.acceptedAt || entry.accepted_at).toLocaleDateString()} {new Date(entry.acceptedAt || entry.accepted_at).toLocaleTimeString()}
                         </div>
                         <div className="entry-signer">
-                          {entry.first_name} {entry.last_name}
+                          {entry.firstName || entry.first_name} {entry.lastName || entry.last_name}
                         </div>
-                        <div className="entry-version">v{entry.version_number}</div>
+                        <div className="entry-version">v{entry.versionNumber || entry.version_number}</div>
                       </li>
                     ))}
                   </ul>

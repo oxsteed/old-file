@@ -38,7 +38,14 @@ function safeOnError(onError, message) {
  * Allows helpers to upload or update their profile cover image.
  * Shows preview, upload progress, and error handling.
  */
-export default function CoverImageUpload({ currentCoverUrl, onUploadSuccess, onError, embedded = false }) {
+export default function CoverImageUpload({
+  currentCoverUrl,
+  onUploadSuccess,
+  onError,
+  embedded = false,
+  uploadCover,
+  deleteCover,
+}) {
   const { t } = useTranslation();
   const fileInputRef = useRef(null);
 
@@ -91,17 +98,21 @@ export default function CoverImageUpload({ currentCoverUrl, onUploadSuccess, onE
     setError(null);
 
     try {
-      const formData = new FormData();
-      formData.append('image', file);
-
-      const { data } = await api.put('/helper-profile/cover-image', formData);
+      const uploadedUrl = uploadCover
+        ? await uploadCover(file)
+        : await (async () => {
+            const formData = new FormData();
+            formData.append('image', file);
+            const { data } = await api.put('/helper-profile/cover-image', formData);
+            return data.data.coverImageUrl;
+          })();
 
       setSuccess(true);
       setFileName(null);
-      setPreview(data.data.coverImageUrl);
+      setPreview(uploadedUrl);
 
       if (onUploadSuccess) {
-        onUploadSuccess(data.data.coverImageUrl);
+        onUploadSuccess(uploadedUrl);
       }
 
       // Clear success message after 3 seconds
@@ -149,7 +160,11 @@ export default function CoverImageUpload({ currentCoverUrl, onUploadSuccess, onE
     setLoading(true);
 
     try {
-      await api.delete('/helper-profile/cover-image');
+      if (deleteCover) {
+        await deleteCover();
+      } else {
+        await api.delete('/helper-profile/cover-image');
+      }
 
       setPreview(null);
       setError(null);

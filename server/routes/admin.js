@@ -60,6 +60,11 @@ router.put('/tool-rentals/:id/toggle',  requireAdmin, bizModCtrl.toggleToolRenta
 router.get('/planned-needs',                         requireAdmin, bizModCtrl.listPlannedNeeds);
 router.post('/planned-needs/:id/cancel-autopublish', requireAdmin, bizModCtrl.cancelAutopublish);
 router.post('/planned-needs/:id/force-cancel',       requireAdmin, bizModCtrl.forceCancel);
+router.post('/planned-needs/:id/:action',            requireAdmin, (req, res, next) => {
+  if (req.params.action === 'cancel-autopublish') return bizModCtrl.cancelAutopublish(req, res, next);
+  if (req.params.action === 'force-cancel') return bizModCtrl.forceCancel(req, res, next);
+  return res.status(404).json({ error: 'Unknown planned need action.' });
+});
 
 // Payments list (read-only)
 router.get('/payments', requireAdmin, requirePermission('view_financials'), paymentsCtrl.listPayments);
@@ -72,6 +77,7 @@ router.put('/users/:userId/didit-enforcement', requireAdmin, superCtrl.setUserDi
 router.post('/users/:userId/ban',  requireAdmin, superCtrl.toggleUserBan);
 
 // Market / Zip Code management
+router.get('/regions',                       requireAdmin, regionCtrl.listRegions);
 router.get('/markets',                        requireAdmin, adminCtrl.getMarkets);
 router.post('/markets/:marketId/zip-codes',   requireAdmin, adminCtrl.addZipCodes);
 router.delete('/markets/:marketId/zip-codes', requireAdmin, adminCtrl.removeZipCodes);

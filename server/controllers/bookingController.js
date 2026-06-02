@@ -8,6 +8,15 @@ const { broadcastToUser } = require('../services/socketService');
 const DEFAULT_CONFIRMATION_HOURS = 24;
 const MIN_CONFIRMATION_HOURS = 1;
 const MAX_CONFIRMATION_HOURS = 168;
+const WEEKDAY_INDEX = {
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+};
 
 /**
  * If pending and past expires_at, mark expired (single-row).
@@ -51,6 +60,19 @@ function buildJobPrefillPayload(booking) {
     preferredHelperName: null,
     sourceBookingId: booking.id,
   };
+}
+
+function nextDateForPreferredDay(day) {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const key = String(day || '').trim().toLowerCase();
+  const target = WEEKDAY_INDEX[key];
+  if (target === undefined) return today.toISOString().slice(0, 10);
+  let delta = (target - today.getDay() + 7) % 7;
+  if (delta === 0) delta = 7;
+  const next = new Date(today);
+  next.setDate(today.getDate() + delta);
+  return next.toISOString().slice(0, 10);
 }
 
 /**
@@ -605,12 +627,13 @@ exports.getHelperAvailableSlots = async (req, res) => {
     }
 
     const helperCheck = await pool.query(
-      'SELECT 1 FROM users u JOIN helper_profiles hp ON hp.user_id = u.id WHERE u.id = $1 AND u.deleted_at IS NULL',
+      'SELECT COALESCE(hp.booking_buffer_minutes, 0)::int AS booking_buffer_minutes FROM users u JOIN helper_profiles hp ON hp.user_id = u.id WHERE u.id = $1 AND u.deleted_at IS NULL',
       [helperId]
     );
     if (!helperCheck.rows.length) {
       return sendError(res, 404, 'Helper not found');
     }
+    const bookingBufferMinutes = Math.max(0, Math.min(240, helperCheck.rows[0].booking_buffer_minutes || 0));
 
     const dateObj = new Date(`${date}T12:00:00`);
     if (Number.isNaN(dateObj.getTime())) {
@@ -673,8 +696,8 @@ exports.getHelperAvailableSlots = async (req, res) => {
     );
 
     const appointments = appointmentsResult.rows.map((apt) => ({
-      start: timeFromTimestamptz(apt.scheduled_start_time),
-      end: timeFromTimestamptz(apt.scheduled_end_time),
+      start: minutesToTime(Math.max(0, timeToMinutes(timeFromTimestamptz(apt.scheduled_start_time)) - bookingBufferMinutes)),
+      end: minutesToTime(Math.min(1440, timeToMinutes(timeFromTimestamptz(apt.scheduled_end_time)) + bookingBufferMinutes)),
     }));
 
     // Merge partial-day override blocks into the busy list
@@ -693,11 +716,203 @@ exports.getHelperAvailableSlots = async (req, res) => {
         date,
         dayOfWeek: dayNames[dow],
         slots,
+        bookingBufferMinutes,
       },
     });
   } catch (err) {
     logger.error('Error fetching available slots', { error: err.message, stack: err.stack });
     sendError(res, 500, 'Failed to fetch available slots');
+  }
+};
+
+exports.listRecurringBookings = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const result = await pool.query(
+      `SELECT r.*,
+              NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), '') AS helper_name,
+              u.profile_photo_url AS helper_avatar_url
+         FROM recurring_booking_subscriptions r
+         JOIN users u ON u.id = r.helper_id
+        WHERE r.customer_id = $1
+        ORDER BY
+          CASE r.status WHEN 'active' THEN 0 WHEN 'paused' THEN 1 ELSE 2 END,
+          r.next_date NULLS LAST,
+          r.created_at DESC`,
+      [userId]
+    );
+    res.json({ subscriptions: result.rows.map(transformRecurringBooking) });
+  } catch (err) {
+    logger.error('Error listing recurring bookings', { userId: req.user?.id, error: err.message });
+    sendError(res, 500, 'Failed to load recurring bookings');
+  }
+};
+
+exports.createRecurringBooking = async (req, res) => {
+  try {
+    const customerId = req.user.id;
+    const { helper_id, service_name, frequency, preferred_day, preferred_time, notes } = req.body || {};
+    const safeFrequency = String(frequency || '').toLowerCase();
+    const errors = {};
+    if (!helper_id) errors.helper_id = 'Helper is required';
+    if (!service_name || !String(service_name).trim()) errors.service_name = 'Service name is required';
+    if (!['weekly', 'biweekly', 'monthly'].includes(safeFrequency)) errors.frequency = 'Frequency must be weekly, biweekly, or monthly';
+    if (String(customerId) === String(helper_id)) errors.helper_id = 'Cannot subscribe to yourself';
+    if (Object.keys(errors).length) return sendValidationError(res, errors);
+
+    const helperResult = await pool.query(
+      `SELECT id, is_active, role FROM users WHERE id = $1`,
+      [helper_id]
+    );
+    const helper = helperResult.rows[0];
+    if (!helper || !helper.is_active) return sendError(res, 404, 'Helper not found', 'HELPER_NOT_FOUND');
+    if (!['helper', 'helper_pro', 'broker'].includes(helper.role)) {
+      return sendError(res, 400, 'User is not accepting recurring services', 'INVALID_HELPER');
+    }
+
+    const nextDate = nextDateForPreferredDay(preferred_day);
+    const result = await pool.query(
+      `INSERT INTO recurring_booking_subscriptions
+         (customer_id, helper_id, service_name, frequency, preferred_day, preferred_time, notes, next_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [
+        customerId,
+        helper_id,
+        String(service_name).trim(),
+        safeFrequency,
+        preferred_day || null,
+        preferred_time || null,
+        notes || null,
+        nextDate,
+      ]
+    );
+
+    const subscription = transformRecurringBooking(result.rows[0]);
+    await sendNotification({
+      userId: helper_id,
+      type: 'recurring_booking_new',
+      body: `${subscription.service_name} ${subscription.frequency}`,
+      data: { subscriptionId: subscription.id },
+      action_url: '/calendar?tab=recurring',
+    }).catch((err) => logger.warn('Failed recurring booking notification', { error: err.message }));
+
+    res.status(201).json({ subscription, message: 'Recurring booking created' });
+  } catch (err) {
+    logger.error('Error creating recurring booking', { userId: req.user?.id, error: err.message });
+    sendError(res, 500, 'Failed to create recurring booking');
+  }
+};
+
+exports.updateRecurringBookingStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const action = String(req.params.action || req.path || '').split('/').filter(Boolean).pop();
+    const nextStatus = action === 'cancel' ? 'cancelled' : action === 'pause' ? 'paused' : 'active';
+    const result = await pool.query(
+      `UPDATE recurring_booking_subscriptions
+          SET status = $3, updated_at = now()
+        WHERE id = $1 AND customer_id = $2
+        RETURNING *`,
+      [id, req.user.id, nextStatus]
+    );
+    if (!result.rows.length) return sendError(res, 404, 'Recurring booking not found');
+    res.json({ subscription: transformRecurringBooking(result.rows[0]), message: `Subscription ${nextStatus}` });
+  } catch (err) {
+    logger.error('Error updating recurring booking', { userId: req.user?.id, error: err.message });
+    sendError(res, 500, 'Failed to update recurring booking');
+  }
+};
+
+exports.counterProposeBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const helperId = req.user.id;
+    const { counter_date, counter_start_time, counter_end_time, counter_message } = req.body || {};
+    const errors = {};
+    if (!counter_date) errors.counter_date = 'Date is required';
+    if (!counter_start_time) errors.counter_start_time = 'Start time is required';
+    if (!counter_end_time) errors.counter_end_time = 'End time is required';
+    if (counter_start_time && counter_end_time && counter_start_time >= counter_end_time) {
+      errors.counter_end_time = 'End time must be after start time';
+    }
+    if (Object.keys(errors).length) return sendValidationError(res, errors);
+
+    const existing = await pool.query('SELECT * FROM booking_requests WHERE id = $1', [bookingId]);
+    const booking = existing.rows[0];
+    if (!booking) return sendError(res, 404, 'Booking request not found');
+    if (String(booking.helper_id) !== String(helperId)) {
+      return sendError(res, 403, 'Only the assigned helper can counter-propose this booking');
+    }
+    if (booking.status !== 'pending') return sendError(res, 400, `Cannot counter-propose a ${booking.status} booking`);
+
+    const updated = await pool.query(
+      `UPDATE booking_requests
+          SET counter_proposed_at = now(),
+              counter_date = $2,
+              counter_start_time = $3,
+              counter_end_time = $4,
+              counter_message = $5,
+              counter_status = 'pending',
+              updated_at = now()
+        WHERE id = $1
+        RETURNING *`,
+      [bookingId, counter_date, counter_start_time, counter_end_time, counter_message || null]
+    );
+    await logBookingAudit(bookingId, 'counter_proposed', helperId, 'helper', booking.status, booking.status);
+    await sendNotification({
+      userId: booking.customer_id,
+      type: 'booking_counter_proposed',
+      body: `${booking.service_name} — ${counter_date} ${counter_start_time}-${counter_end_time}`,
+      data: { bookingId },
+      action_url: '/my-bookings',
+    }).catch((err) => logger.warn('Failed counter-propose notification', { error: err.message }));
+    res.json({ booking: transformBooking(updated.rows[0]), message: 'Counter-proposal sent' });
+  } catch (err) {
+    logger.error('Error counter-proposing booking', { error: err.message });
+    sendError(res, 500, 'Failed to send counter-proposal');
+  }
+};
+
+exports.respondToCounterPropose = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const customerId = req.user.id;
+    const action = String(req.body?.action || '').toLowerCase();
+    if (!['accept', 'decline'].includes(action)) return sendValidationError(res, { action: 'Use accept or decline' });
+
+    const existing = await pool.query('SELECT * FROM booking_requests WHERE id = $1', [bookingId]);
+    const booking = existing.rows[0];
+    if (!booking) return sendError(res, 404, 'Booking request not found');
+    if (String(booking.customer_id) !== String(customerId)) {
+      return sendError(res, 403, 'Only the customer can respond to this counter-proposal');
+    }
+    if (booking.counter_status !== 'pending') return sendError(res, 400, 'No pending counter-proposal');
+
+    const accepted = action === 'accept';
+    const updated = await pool.query(
+      `UPDATE booking_requests
+          SET requested_date = CASE WHEN $2 THEN counter_date ELSE requested_date END,
+              requested_start_time = CASE WHEN $2 THEN counter_start_time ELSE requested_start_time END,
+              requested_end_time = CASE WHEN $2 THEN counter_end_time ELSE requested_end_time END,
+              counter_status = $3,
+              updated_at = now()
+        WHERE id = $1
+        RETURNING *`,
+      [bookingId, accepted, accepted ? 'accepted' : 'declined']
+    );
+    await logBookingAudit(bookingId, accepted ? 'counter_accepted' : 'counter_declined', customerId, 'customer', booking.status, booking.status);
+    await sendNotification({
+      userId: booking.helper_id,
+      type: accepted ? 'booking_counter_accepted' : 'booking_counter_declined',
+      body: `${booking.service_name} — ${accepted ? 'counter-proposal accepted' : 'counter-proposal declined'}`,
+      data: { bookingId },
+      action_url: '/calendar?tab=bookingRequests',
+    }).catch((err) => logger.warn('Failed counter response notification', { error: err.message }));
+    res.json({ booking: transformBooking(updated.rows[0]), message: accepted ? 'Counter-proposal accepted' : 'Counter-proposal declined' });
+  } catch (err) {
+    logger.error('Error responding to counter-proposal', { error: err.message });
+    sendError(res, 500, 'Failed to respond to counter-proposal');
   }
 };
 
@@ -720,8 +935,9 @@ function timeToMinutes(t) {
 }
 
 function minutesToTime(mins) {
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
+  const safe = Math.max(0, Math.min(1440, mins));
+  const h = Math.floor(safe / 60);
+  const m = safe % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
@@ -768,8 +984,30 @@ function transformBooking(booking) {
     declinedAt: booking.declined_at,
     helperResponseReason: booking.helper_response_reason,
     convertedToJobId: booking.converted_to_job_id,
+    counter_proposed_at: booking.counter_proposed_at,
+    counter_date: booking.counter_date,
+    counter_start_time: booking.counter_start_time,
+    counter_end_time: booking.counter_end_time,
+    counter_message: booking.counter_message,
+    counter_status: booking.counter_status,
     createdAt: booking.created_at,
     updatedAt: booking.updated_at,
+  };
+}
+
+function transformRecurringBooking(row) {
+  return {
+    id: row.id,
+    helper_id: row.helper_id,
+    service_name: row.service_name,
+    frequency: row.frequency,
+    preferred_day: row.preferred_day,
+    preferred_time: row.preferred_time,
+    status: row.status,
+    next_date: row.next_date,
+    created_at: row.created_at,
+    helper_name: row.helper_name || null,
+    helper_avatar_url: row.helper_avatar_url || null,
   };
 }
 

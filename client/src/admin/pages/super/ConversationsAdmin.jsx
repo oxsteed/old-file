@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MessageSquare, Search, RefreshCw, AlertTriangle } from 'lucide-react';
+import toast from 'react-hot-toast';
 import adminApi from '../../../lib/adminApi';
 
 const STATUS_TABS = ['all', 'active', 'blocked', 'archived'];
@@ -275,7 +276,7 @@ export default function ConversationsAdmin() {
         setSelected(prev => ({ ...prev, status }));
       }
     } catch (err) {
-      alert(err?.response?.data?.error || 'Action failed.');
+      toast.error(err?.response?.data?.error || 'Action failed.');
     } finally {
       setActionBusy(false);
     }

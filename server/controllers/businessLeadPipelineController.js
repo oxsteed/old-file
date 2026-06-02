@@ -21,7 +21,8 @@ exports.listLeads = async (req, res, next) => {
 };
 
 exports.getLead = async (req, res, next) => {
-  const { businessId, id } = req.params;
+  const { businessId } = req.params;
+  const id = req.params.leadId || req.params.id;
   try {
     const row = await pool.query('SELECT * FROM business_leads WHERE id=$1 AND business_id=$2', [id, businessId]);
     if (!row.rows.length) return res.status(404).json({ error: 'Not found' });
@@ -45,7 +46,8 @@ exports.createLead = async (req, res, next) => {
 };
 
 exports.updateLead = async (req, res, next) => {
-  const { businessId, id } = req.params;
+  const { businessId } = req.params;
+  const id = req.params.leadId || req.params.id;
   const { name, email, phone, service_interest, budget_cents, notes, status } = req.body;
   try {
     const row = await pool.query(
@@ -60,7 +62,8 @@ exports.updateLead = async (req, res, next) => {
 };
 
 exports.addNote = async (req, res, next) => {
-  const { businessId, id } = req.params;
+  const { businessId } = req.params;
+  const id = req.params.leadId || req.params.id;
   const { note } = req.body;
   if (!note) return res.status(400).json({ error: 'note is required' });
   try {
@@ -79,7 +82,8 @@ exports.addNote = async (req, res, next) => {
 };
 
 exports.deleteLead = async (req, res, next) => {
-  const { businessId, id } = req.params;
+  const { businessId } = req.params;
+  const id = req.params.leadId || req.params.id;
   try {
     await pool.query('DELETE FROM business_leads WHERE id=$1 AND business_id=$2', [id, businessId]);
     res.json({ success: true });
@@ -87,7 +91,8 @@ exports.deleteLead = async (req, res, next) => {
 };
 
 exports.createLeadQuote = async (req, res, next) => {
-  const { businessId, id } = req.params;
+  const { businessId } = req.params;
+  const id = req.params.leadId || req.params.id;
   const { description, amount_cents, valid_until } = req.body;
   if (!amount_cents) return res.status(400).json({ error: 'amount_cents is required' });
   try {

@@ -30,6 +30,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import PageShell from '../components/PageShell';
+import api from '../api/axios';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n) => (n ?? 0).toLocaleString();
@@ -216,10 +217,10 @@ export default function InvestorDashboardPage() {
     setError(null);
     try {
       const [k, c, f, s] = await Promise.all([
-        fetch(`/api/investor/kpis?period=${p}`, { credentials: 'include' }).then(r => r.json()),
-        fetch(`/api/investor/revenue-chart?period=${p}`, { credentials: 'include' }).then(r => r.json()),
-        fetch('/api/investor/franchise', { credentials: 'include' }).then(r => r.json()),
-        fetch('/api/investor/supply-demand', { credentials: 'include' }).then(r => r.json()),
+        api.get('/investor/kpis', { params: { period: p } }).then(r => r.data),
+        api.get('/investor/revenue-chart', { params: { period: p } }).then(r => r.data),
+        api.get('/investor/franchise').then(r => r.data),
+        api.get('/investor/supply-demand').then(r => r.data),
       ]);
       if (k.error) throw new Error(k.error);
       setKpis(k.kpis);
@@ -227,7 +228,7 @@ export default function InvestorDashboardPage() {
       setFranchise(f);
       setSupDem(s);
     } catch (e) {
-      setError(e.message || t('investorDashboard.error.loadFailed'));
+      setError(e.response?.data?.error || e.message || t('investorDashboard.error.loadFailed'));
     } finally {
       setLoading(false);
     }

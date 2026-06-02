@@ -130,6 +130,112 @@ describe('POST /api/jobs', () => {
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('id');
   });
+
+  test('creates job with uploaded media urls from the iOS payload', async () => {
+    const mediaUrls = [
+      'https://cdn.oxsteed.com/jobs/fence-before.jpg',
+      'https://cdn.oxsteed.com/jobs/fence-closeup.jpg',
+    ];
+    const newJob = {
+      id: 43,
+      title: validBody.title,
+      status: 'published',
+      client_id: 1,
+      media_urls: mediaUrls,
+    };
+    mockAuth(MOCK_USER_CUSTOMER, { rows: [newJob] });
+
+    const res = await auth(
+      request(buildApp()).post('/api/jobs').send({
+        ...validBody,
+        media_urls: mediaUrls,
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(res.body.media_urls).toEqual(mediaUrls);
+    expect(mockQuery.mock.calls[1][1][23]).toEqual(mediaUrls);
+  });
+
+  test('creates recurring job using recurrence from the mobile payload', async () => {
+    const newJob = {
+      id: 44,
+      title: validBody.title,
+      status: 'published',
+      client_id: 1,
+      recurrence: 'monthly',
+    };
+    mockAuth(MOCK_USER_CUSTOMER, { rows: [newJob] });
+
+    const res = await auth(
+      request(buildApp()).post('/api/jobs').send({
+        ...validBody,
+        recurrence: 'monthly',
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(res.body.recurrence).toBe('monthly');
+    expect(mockQuery.mock.calls[1][1][28]).toBe('monthly');
+  });
+});
+
+// ── POST /api/jobs/assign ─────────────────────────────────────────────────────
+describe('POST /api/jobs/assign', () => {
+  test('customer accepts a pending bid with OxSteed payment and assigns the job', async () => {
+    mockAuth(
+      MOCK_USER_CUSTOMER,
+      {
+        rows: [{
+          id: 20,
+          job_id: 10,
+          helper_id: 2,
+          status: 'pending',
+          eta_hours: 2,
+          client_id: 1,
+          job_status: 'published',
+          title: 'Fix my fence',
+          scheduled_date: null,
+          scheduled_time: null,
+          location_city: 'Austin',
+          location_state: 'TX',
+        }],
+      },
+      {
+        rows: [{
+          id: 20,
+          job_id: 10,
+          helper_id: 2,
+          amount: 25000,
+          status: 'accepted',
+          eta_hours: 2,
+        }],
+      },
+      { rows: [] },
+      { rows: [{ helper_id: 2, oxsteed_enabled: true, custom_enabled: false, custom_policy: {} }] },
+      { rows: [], rowCount: 1 },
+      { rows: [], rowCount: 1 },
+      {
+        rows: [{
+          id: 10,
+          title: 'Fix my fence',
+          client_id: 1,
+          assigned_helper_id: 2,
+          status: 'accepted',
+        }],
+      },
+      { rows: [], rowCount: 1 },
+    );
+
+    const res = await auth(
+      request(buildApp()).post('/api/jobs/assign').send({ bid_id: 20, payment_method: 'oxsteed' })
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body.job.status).toBe('accepted');
+    expect(res.body.job.assigned_helper_id).toBe(2);
+    expect(res.body.bid.status).toBe('accepted');
+  });
 });
 
 // ── POST /api/jobs/:id/cancel ─────────────────────────────────────────────────

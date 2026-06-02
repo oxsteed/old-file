@@ -270,6 +270,44 @@ const getCategories = async (req, res) => {
 };
 
 /**
+ * Search suggestions for marketplace product search boxes.
+ * GET /api/marketplace/products/suggestions?q=drill
+ */
+const getSearchSuggestions = async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    const params = [];
+    const conditions = ['mp.is_active = TRUE', 'mp.is_available = TRUE'];
+
+    if (q) {
+      params.push(`%${q}%`);
+      conditions.push(`(mp.name ILIKE $${params.length} OR mp.category ILIKE $${params.length})`);
+    }
+
+    const { rows } = await pool.query(
+      `SELECT DISTINCT mp.name AS label, mp.category
+       FROM marketplace_products mp
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY mp.name ASC
+       LIMIT 8`,
+      params
+    );
+
+    const suggestions = rows.map((row) => ({
+      label: row.label,
+      value: row.label,
+      category: row.category,
+      type: 'product',
+    }));
+
+    sendSuccess(res, { suggestions });
+  } catch (err) {
+    logger.error('Error fetching marketplace search suggestions', err);
+    sendError(res, 500, 'Failed to fetch search suggestions');
+  }
+};
+
+/**
  * Search products (full-text search on name + description + filters)
  * GET /api/marketplace/products/search?q=sink&skillIds=1,2&minPrice=10&maxPrice=100&page=1&limit=20
  */
@@ -651,13 +689,23 @@ const getRecommendedProducts = async (req, res) => {
  */
 const syncFromHomeDepot = async (req, res) => {
   try {
-    // This is a placeholder - actual HD API integration would go here
-    // For now, just log that sync was triggered
-    logger.info('Home Depot product sync triggered');
+    if (!process.env.HOME_DEPOT_PRODUCT_FEED_URL && !process.env.HOME_DEPOT_API_KEY) {
+      return sendError(
+        res,
+        503,
+        'Home Depot sync is not configured. Set HOME_DEPOT_PRODUCT_FEED_URL or HOME_DEPOT_API_KEY before running this import.'
+      );
+    }
+
+    logger.info('Home Depot product sync requested', {
+      requestedBy: req.user?.id,
+      feedConfigured: Boolean(process.env.HOME_DEPOT_PRODUCT_FEED_URL),
+      apiKeyConfigured: Boolean(process.env.HOME_DEPOT_API_KEY),
+    });
 
     sendSuccess(res, {
-      message: 'Sync scheduled',
-      nextSync: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      message: 'Home Depot sync configuration found. Connect the product feed worker before enabling scheduled imports.',
+      nextStep: 'Implement the Home Depot feed worker for the configured source.',
     });
   } catch (err) {
     logger.error('Error syncing from Home Depot', err);
@@ -671,6 +719,7 @@ module.exports = {
   getProductDetail,
   getBySkill,
   getCategories,
+  getSearchSuggestions,
   searchProducts,
   getRelatedProducts,
   getFrequentlyBoughtWith,

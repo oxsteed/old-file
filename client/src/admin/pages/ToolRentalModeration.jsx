@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Wrench, Search, ToggleLeft, ToggleRight, X } from 'lucide-react';
+import toast from 'react-hot-toast';
 import adminApi from '../../lib/adminApi';
 
 const AVAIL_FILTERS = [
@@ -123,8 +124,9 @@ export default function ToolRentalModeration() {
         prev.map(t => t.id === toggling.id ? { ...t, is_available: !t.is_available } : t)
       );
       setToggling(null);
+      toast.success('Tool listing updated.');
     } catch (err) {
-      alert(err?.response?.data?.error || 'Action failed.');
+      toast.error(err?.response?.data?.error || 'Action failed.');
     } finally {
       setActionBusy(false);
     }

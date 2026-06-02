@@ -10,6 +10,11 @@ const AppError = require('../utils/appError');
 
 const XP_BY_DIFFICULTY = { Easy: 10, Medium: 25, Hard: 50 };
 const VALID_DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
+const IOS_SUBMISSION_CATEGORIES = [
+  'plumbing', 'electrical', 'carpentry', 'hvac', 'painting', 'car-care',
+  'landscaping', 'maintenance', 'management', 'customer', 'helper',
+  'logistics', 'consulting', 'tool-rental', 'franchise', 'life',
+];
 
 // Single source of truth for guide IDs/categories across web + API.
 // This file is also used to generate the iOS Learn catalog.
@@ -219,33 +224,49 @@ exports.recordCompletion = async (req, res, next) => {
 exports.submitGuide = async (req, res, next) => {
   const {
     title, category, difficulty, estimated_minutes,
-    intro, steps, skills, tools, video_url, license_note,
+    intro, summary, steps, skills, tools, media_urls, video_url, license_note,
   } = req.body;
+  const submissionIntro = intro || summary;
+  const estimatedMinutes = Number.isInteger(estimated_minutes)
+    ? estimated_minutes
+    : Math.min(1440, Math.max(5, (Array.isArray(steps) ? steps.length : 2) * 3));
+  const categoryAllowed = VALID_CATEGORIES.includes(category) || IOS_SUBMISSION_CATEGORIES.includes(category);
+  const normalizedSkills = Array.isArray(skills) && skills.length > 0
+    ? skills
+    : [category].filter(Boolean);
 
   // Validate required fields
   if (!title?.trim())             return next(new AppError('Title is required', 400, 'validation_failed'));
-  if (!VALID_CATEGORIES.includes(category))
+  if (!categoryAllowed)
     return next(new AppError('Invalid category', 400, 'validation_failed'));
   if (!VALID_DIFFICULTIES.includes(difficulty))
     return next(new AppError('Difficulty must be Easy, Medium, or Hard', 400, 'validation_failed'));
-  if (!Number.isInteger(estimated_minutes) || estimated_minutes < 1 || estimated_minutes > 1440)
+  if (!Number.isInteger(estimatedMinutes) || estimatedMinutes < 1 || estimatedMinutes > 1440)
     return next(new AppError('estimated_minutes must be 1–1440', 400, 'validation_failed'));
-  if (!intro?.trim())             return next(new AppError('Intro is required', 400, 'validation_failed'));
+  if (!submissionIntro?.trim())   return next(new AppError('Intro is required', 400, 'validation_failed'));
   if (!Array.isArray(steps) || steps.length < 2)
     return next(new AppError('At least 2 steps are required', 400, 'validation_failed'));
-  if (!Array.isArray(skills) || skills.length < 1)
+  if (!Array.isArray(normalizedSkills) || normalizedSkills.length < 1)
     return next(new AppError('At least 1 skill is required', 400, 'validation_failed'));
 
   // Sanitize
   const cleanSteps  = steps.map(String).filter(Boolean).slice(0, 20);
-  const cleanSkills = skills.map(String).filter(Boolean).slice(0, 10);
+  const cleanSkills = normalizedSkills.map(String).filter(Boolean).slice(0, 10);
   const cleanTools  = Array.isArray(tools)
-    ? tools.slice(0, 12).map((t) => ({
+    ? tools.slice(0, 12).map((t) => (typeof t === 'string' ? {
+        name: t.slice(0, 120),
+        buy_url: null,
+        rent_url: null,
+      } : {
         name: String(t.name || '').slice(0, 120),
         buy_url: t.buy_url ? String(t.buy_url).slice(0, 300) : null,
         rent_url: t.rent_url ? String(t.rent_url).slice(0, 300) : null,
       }))
     : null;
+  const mediaNote = Array.isArray(media_urls) && media_urls.length
+    ? `Media: ${media_urls.map(String).slice(0, 10).join(', ')}`
+    : null;
+  const finalLicenseNote = [license_note, mediaNote].filter(Boolean).join('\n').slice(0, 1000) || null;
 
   try {
     const { rows } = await pool.query(
@@ -259,17 +280,17 @@ exports.submitGuide = async (req, res, next) => {
         title.trim().slice(0, 200),
         category,
         difficulty,
-        estimated_minutes,
-        intro.trim().slice(0, 2000),
+        estimatedMinutes,
+        submissionIntro.trim().slice(0, 2000),
         JSON.stringify(cleanSteps),
         JSON.stringify(cleanSkills),
         cleanTools ? JSON.stringify(cleanTools) : null,
         video_url ? String(video_url).slice(0, 500) : null,
-        license_note ? String(license_note).slice(0, 1000) : null,
+        finalLicenseNote,
       ],
     );
 
-    res.status(201).json({ success: true, submission: rows[0] });
+    res.status(201).json({ ok: true, success: true, submission: rows[0] });
   } catch (err) {
     next(new AppError('Failed to submit guide', 500, 'submit_guide_failed'));
   }

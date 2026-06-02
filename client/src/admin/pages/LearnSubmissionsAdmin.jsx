@@ -248,7 +248,7 @@ export default function LearnSubmissionsAdmin() {
     setLoading(true);
     setError('');
     try {
-      const { data } = await api.get('/api/learn/admin/submissions', {
+      const { data } = await api.get('/learn/admin/submissions', {
         params: { status, limit: PAGE_SIZE, offset: page * PAGE_SIZE },
       });
       setSubmissions(data.submissions ?? []);
@@ -263,7 +263,7 @@ export default function LearnSubmissionsAdmin() {
   useEffect(() => { load(); }, [load]);
 
   const handleReview = async (id, action, reviewer_note) => {
-    await api.patch(`/api/learn/admin/submissions/${id}`, { action, reviewer_note });
+    await api.patch(`/learn/admin/submissions/${id}`, { action, reviewer_note });
     // Refresh to reflect new status
     load();
     setExpanded(null);

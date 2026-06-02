@@ -48,6 +48,9 @@ router.post('/internal-access/recovery/request', strictLimiter, logisticsInterna
 router.post('/internal-access/recovery/use', strictLimiter, logisticsInternalAccessCtrl.useRecovery);
 router.post('/otp/request', authLimiter, requestOTP);
 router.post('/otp/verify', authLimiter, verifyOTP);
+// Backward-compatible aliases used by older web/mobile clients.
+router.post('/request-otp', authLimiter, requestOTP);
+router.post('/verify-otp', authLimiter, verifyOTP);
 router.post('/forgot-password', passwordResetLimiter, forgotPassword);
 router.post('/reset-password', passwordResetLimiter, resetPassword);
 router.post('/refresh', authLimiter, refreshToken);
