@@ -9,6 +9,9 @@ router.use(generalLimiter);
 // Share a cart (auth required - helper only)
 router.post('/', authenticate, sharedCartsController.shareCart);
 
+// List carts shared directly with the logged-in customer
+router.get('/my', authenticate, sharedCartsController.listMySharedCarts);
+
 // View shared cart (public - no auth required)
 router.get('/:shareToken', optionalAuth, sharedCartsController.viewSharedCart);
 

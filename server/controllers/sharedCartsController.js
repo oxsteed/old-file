@@ -4,6 +4,81 @@ const { sendError, sendSuccess } = require('../utils/apiError');
 const logger = require('../utils/logger');
 
 /**
+ * List shared carts assigned to the logged-in customer
+ * GET /api/shared-carts/my
+ */
+const listMySharedCarts = async (req, res) => {
+  try {
+    const customerId = req.user.id;
+
+    const query = `
+      SELECT
+        sc.id,
+        sc.share_token,
+        sc.cart_id,
+        sc.shared_by,
+        sc.customer_id,
+        sc.can_modify,
+        sc.expires_at,
+        sc.view_count,
+        sc.last_viewed_at,
+        sc.created_at,
+        c.name,
+        c.description,
+        c.status,
+        c.subtotal_cents,
+        c.tax_cents,
+        c.total_cents,
+        c.currency,
+        COALESCE(NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''), u.email) AS shared_by_name,
+        COALESCE(item_counts.item_count, 0)::int AS item_count
+      FROM shared_carts sc
+      JOIN shopping_carts c ON sc.cart_id = c.id
+      LEFT JOIN users u ON u.id = sc.shared_by
+      LEFT JOIN (
+        SELECT cart_id, COUNT(*) AS item_count
+        FROM shopping_cart_items
+        GROUP BY cart_id
+      ) item_counts ON item_counts.cart_id = c.id
+      WHERE sc.customer_id = $1
+        AND (sc.expires_at IS NULL OR sc.expires_at > NOW())
+      ORDER BY sc.created_at DESC
+    `;
+
+    const result = await pool.query(query, [customerId]);
+
+    sendSuccess(res, {
+      sharedCarts: result.rows.map((row) => ({
+        id: row.id,
+        shareToken: row.share_token,
+        cartId: row.cart_id,
+        sharedBy: row.shared_by,
+        sharedByName: row.shared_by_name,
+        customerId: row.customer_id,
+        canModify: row.can_modify,
+        expiresAt: row.expires_at,
+        viewCount: row.view_count,
+        lastViewedAt: row.last_viewed_at,
+        createdAt: row.created_at,
+        name: row.name,
+        description: row.description,
+        status: row.status,
+        subtotalCents: row.subtotal_cents,
+        taxCents: row.tax_cents,
+        totalCents: row.total_cents,
+        currency: row.currency,
+        itemCount: row.item_count,
+        reviewUrl: `/shared-cart/${row.share_token}`,
+      })),
+      count: result.rows.length,
+    });
+  } catch (err) {
+    logger.error('Error listing customer shared carts', err);
+    sendError(res, 500, 'Failed to load shared carts');
+  }
+};
+
+/**
  * Generate a secure share token for a cart
  */
 const generateShareToken = () => {
@@ -538,6 +613,7 @@ const revokeShare = async (req, res) => {
 };
 
 module.exports = {
+  listMySharedCarts,
   shareCart,
   viewSharedCart,
   modifySharedCart,
