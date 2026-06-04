@@ -7,6 +7,10 @@ const { withTransaction, withJobTransaction } = require('../utils/transaction');
 const { captureAuthorizedPaymentWithClient } = require('../services/paymentCaptureService');
 const { AppError } = require('../middleware/errorHandler');
 const { sendNotification, sendBulkNotification } = require('../services/notificationService');
+const {
+  translateRecordForRequest,
+  translateRecordsForRequest,
+} = require('../modules/translation/userContentTranslationService');
 let { notifyMatchingSavedSearches } = (() => {
   try { return require('../routes/savedSearches'); } catch (_) { return {}; }
 })();
@@ -376,8 +380,13 @@ exports.getJobs = async (req, res, next) => {
       SELECT COUNT(*) FROM jobs j JOIN users u ON j.client_id = u.id ${whereClause}
     `, params);
 
+    const translatedRows = await translateRecordsForRequest(rows, req, {
+      fields: ['title', 'description', 'category_name'],
+      contentType: 'job',
+    });
+
     res.json({
-      jobs: rows,
+      jobs: translatedRows,
       total: parseInt(countRows[0].count),
       page: parseInt(page),
       limit: parseInt(limit)
@@ -418,7 +427,12 @@ exports.getJob = async (req, res, next) => {
       throw new AppError('Job not found', 404, 'job_not_found');
     }
 
-    res.json(rows[0]);
+    const translatedJob = await translateRecordForRequest(rows[0], req, {
+      fields: ['title', 'description', 'category_name'],
+      contentType: 'job',
+    });
+
+    res.json(translatedJob);
   } catch (err) {
     next(err);
   }
@@ -1120,7 +1134,12 @@ exports.getMyJobs = async (req, res, next) => {
       LIMIT $${params.length - 1} OFFSET $${params.length}
     `, params);
 
-    res.json(rows);
+    const translatedRows = await translateRecordsForRequest(rows, req, {
+      fields: ['title', 'description', 'category_name'],
+      contentType: 'job',
+    });
+
+    res.json(translatedRows);
   } catch (err) {
     next(err);
   }

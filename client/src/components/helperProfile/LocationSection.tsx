@@ -9,7 +9,12 @@ interface LocationSectionProps {
 }
 
 /** Approximate geocode for city/state/zip when lat/lng missing (Nominatim; US-focused). */
-async function geocodeCityStateZip(city: string, state: string, zip: string): Promise<[number, number] | null> {
+async function geocodeCityStateZip(
+  city: string,
+  state: string,
+  zip: string,
+  language: string,
+): Promise<[number, number] | null> {
   const parts = [city, state, zip, 'USA'].filter(Boolean).join(', ');
   if (!city.trim() && !state.trim()) return null;
 
@@ -17,7 +22,7 @@ async function geocodeCityStateZip(city: string, state: string, zip: string): Pr
   const res = await fetch(url, {
     headers: {
       Accept: 'application/json',
-      'Accept-Language': 'en',
+      'Accept-Language': language,
       // Nominatim usage policy: identify application
       'User-Agent': 'OxSteedMarketplace/1.0 (contact: support@oxsteed.com)',
     },
@@ -34,10 +39,11 @@ async function geocodeCityStateZip(city: string, state: string, zip: string): Pr
 const ServiceAreaMapLazy = React.lazy(() => import('./ServiceAreaMapLeaflet'));
 
 const LocationSection: React.FC<LocationSectionProps> = ({ location }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [center, setCenter] = useState<[number, number] | null>(null);
   const [geoFailed, setGeoFailed] = useState(false);
   const [loadingMap, setLoadingMap] = useState(true);
+  const geocodeLanguage = (i18n.resolvedLanguage || i18n.language || 'en').split(/[-_]/)[0];
 
   const hasCoords =
     location.serviceLat != null &&
@@ -63,6 +69,7 @@ const LocationSection: React.FC<LocationSectionProps> = ({ location }) => {
           location.city,
           location.state,
           location.zip,
+          geocodeLanguage,
         );
         if (cancelled) return;
         if (resolved) {
@@ -92,6 +99,7 @@ const LocationSection: React.FC<LocationSectionProps> = ({ location }) => {
     location.city,
     location.state,
     location.zip,
+    geocodeLanguage,
   ]);
 
   const radiusMiles = useMemo(

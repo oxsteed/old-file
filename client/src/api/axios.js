@@ -7,6 +7,16 @@ const api = axios.create({
   withCredentials: true,
 });
 
+function getPreferredLanguage() {
+  const stored = typeof localStorage !== 'undefined'
+    ? localStorage.getItem('oxs:language')
+    : null;
+  if (stored) return stored.trim().toLowerCase().split(/[-_]/)[0] || 'en';
+
+  const browserLanguage = typeof navigator !== 'undefined' ? navigator.language : 'en';
+  return browserLanguage.trim().toLowerCase().split(/[-_]/)[0] || 'en';
+}
+
 // Attach token to every request.
 // Impersonation sessions store a short-lived token in sessionStorage so the
 // admin's normal access token in localStorage is never overwritten.
@@ -26,6 +36,11 @@ api.interceptors.request.use((config) => {
       url: config.url,
     });
   }
+
+  config.headers = config.headers || {};
+  const preferredLanguage = getPreferredLanguage();
+  config.headers['Accept-Language'] = preferredLanguage;
+  config.headers['X-OxSteed-Language'] = preferredLanguage;
 
   return config;
 });

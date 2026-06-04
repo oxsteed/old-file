@@ -14,25 +14,7 @@ import {
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
 import '../styles/PublicInvoiceView.css';
-
-function formatMoney(value) {
-  const amount = Number(value || 0);
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-  }).format(Number.isFinite(amount) ? amount : 0);
-}
-
-function formatDate(value) {
-  if (!value) return 'Not set';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Not set';
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
+import { formatDate, formatMoney } from '../lib/format';
 
 function parseLineItems(raw) {
   if (Array.isArray(raw)) return raw;
@@ -45,10 +27,11 @@ function parseLineItems(raw) {
   }
 }
 
-function getStatusLabel(status = 'sent') {
-  return String(status)
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+function getStatusLabel(status = 'sent', t) {
+  const normalized = String(status || 'sent').toLowerCase();
+  return t(`publicInvoice.statusLabels.${normalized}`, {
+    defaultValue: normalized.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()),
+  });
 }
 
 function getWebsiteHref(url) {
@@ -78,7 +61,7 @@ function PublicInvoiceView() {
         setError(null);
       } catch (err) {
         if (!isMounted) return;
-        setError('Invoice not found or has expired');
+        setError(t('publicInvoice.notFound'));
         console.error('Error loading invoice:', err);
       } finally {
         if (isMounted) setLoading(false);
@@ -89,7 +72,7 @@ function PublicInvoiceView() {
     return () => {
       isMounted = false;
     };
-  }, [token]);
+  }, [token, t]);
 
   const lineItems = useMemo(() => parseLineItems(invoice?.line_items), [invoice]);
   const subtotal = Number(invoice?.subtotal || 0);
@@ -104,7 +87,7 @@ function PublicInvoiceView() {
   if (loading) {
     return (
       <div className="piv-page">
-        <PageMeta title="Loading invoice" noIndex />
+        <PageMeta title={t('publicInvoice.loadingTitle')} noIndex />
         <div className="piv-state-card">
           <div className="piv-loader" aria-hidden="true" />
           <p>{t('common.loading')}</p>
@@ -116,7 +99,7 @@ function PublicInvoiceView() {
   if (error || !invoice) {
     return (
       <div className="piv-page">
-        <PageMeta title="Invoice unavailable" noIndex />
+        <PageMeta title={t('publicInvoice.unavailableTitle')} noIndex />
         <div className="piv-state-card piv-state-card-error">
           <AlertCircle size={34} aria-hidden="true" />
           <h1>{t('common.notFound')}</h1>
@@ -179,37 +162,37 @@ function PublicInvoiceView() {
           </div>
 
           <div className="piv-amount-card">
-            <span className={`piv-status piv-status-${status}`}>{getStatusLabel(status)}</span>
-            <p>Balance due</p>
+            <span className={`piv-status piv-status-${status}`}>{getStatusLabel(status, t)}</span>
+            <p>{t('publicInvoice.balanceDue')}</p>
             <strong>{formatMoney(balanceDue)}</strong>
-            <small>Invoice {invoice.invoice_number || 'number pending'}</small>
+            <small>{t('publicInvoice.invoiceNumber')} {invoice.invoice_number || t('publicInvoice.numberPending')}</small>
           </div>
         </section>
 
         <div className="piv-layout">
-          <section className="piv-panel piv-invoice-panel" aria-label="Invoice details">
+          <section className="piv-panel piv-invoice-panel" aria-label={t('publicInvoice.invoiceDetails')}>
             <div className="piv-details-grid">
               <div>
-                <span>Invoice number</span>
-                <strong>{invoice.invoice_number || 'Not assigned'}</strong>
+                <span>{t('publicInvoice.invoiceNumber')}</span>
+                <strong>{invoice.invoice_number || t('publicInvoice.notAssigned')}</strong>
               </div>
               <div>
-                <span>Issued</span>
-                <strong>{formatDate(invoice.issue_date)}</strong>
+                <span>{t('publicInvoice.issued')}</span>
+                <strong>{formatDate(invoice.issue_date, { fallback: t('publicInvoice.notSet') })}</strong>
               </div>
               <div>
-                <span>Due</span>
-                <strong>{formatDate(invoice.due_date)}</strong>
+                <span>{t('publicInvoice.due')}</span>
+                <strong>{formatDate(invoice.due_date, { fallback: t('publicInvoice.notSet') })}</strong>
               </div>
               <div>
-                <span>Status</span>
-                <strong>{getStatusLabel(status)}</strong>
+                <span>{t('publicInvoice.status')}</span>
+                <strong>{getStatusLabel(status, t)}</strong>
               </div>
             </div>
 
             <div className="piv-bill-to">
-              <span>Bill to</span>
-              <strong>{invoice.client_name || 'Customer'}</strong>
+              <span>{t('publicInvoice.billTo')}</span>
+              <strong>{invoice.client_name || t('publicInvoice.customer')}</strong>
               {invoice.client_company && <p>{invoice.client_company}</p>}
               {invoice.client_email && <p>{invoice.client_email}</p>}
             </div>
@@ -218,10 +201,10 @@ function PublicInvoiceView() {
               <table className="piv-line-items">
                 <thead>
                   <tr>
-                    <th>Description</th>
-                    <th>Qty</th>
-                    <th>Unit price</th>
-                    <th>Amount</th>
+                    <th>{t('publicInvoice.description')}</th>
+                    <th>{t('publicInvoice.quantity')}</th>
+                    <th>{t('publicInvoice.unitPrice')}</th>
+                    <th>{t('publicInvoice.amount')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -231,7 +214,7 @@ function PublicInvoiceView() {
                       const unitPrice = Number(item.unit_price || 0);
                       return (
                         <tr key={`${item.description || 'line'}-${idx}`}>
-                          <td>{item.description || 'Service'}</td>
+                          <td>{item.description || t('publicInvoice.service')}</td>
                           <td>{quantity}</td>
                           <td>{formatMoney(unitPrice)}</td>
                           <td>{formatMoney(quantity * unitPrice)}</td>
@@ -241,8 +224,7 @@ function PublicInvoiceView() {
                   ) : (
                     <tr>
                       <td colSpan="4" className="piv-empty-line">
-                        Line item details are unavailable. The total below is still the invoice
-                        amount recorded by the business.
+                        {t('publicInvoice.lineItemsUnavailable')}
                       </td>
                     </tr>
                   )}
@@ -252,30 +234,30 @@ function PublicInvoiceView() {
 
             <div className="piv-totals">
               <div>
-                <span>Subtotal</span>
+                <span>{t('publicInvoice.subtotal')}</span>
                 <strong>{formatMoney(subtotal)}</strong>
               </div>
               {taxAmount > 0 && (
                 <div>
-                  <span>Tax ({invoice.invoice_tax_rate || 0}%)</span>
+                  <span>{t('publicInvoice.tax', { rate: invoice.invoice_tax_rate || 0 })}</span>
                   <strong>{formatMoney(taxAmount)}</strong>
                 </div>
               )}
               {amountPaid > 0 && (
                 <div>
-                  <span>Amount paid</span>
+                  <span>{t('publicInvoice.amountPaid')}</span>
                   <strong>{formatMoney(amountPaid)}</strong>
                 </div>
               )}
               <div className="piv-total-due">
-                <span>Total due</span>
+                <span>{t('publicInvoice.totalDue')}</span>
                 <strong>{formatMoney(balanceDue)}</strong>
               </div>
             </div>
 
             {invoice.notes && (
               <div className="piv-notes">
-                <span>Notes from {business?.business_name || 'the business'}</span>
+                <span>{t('publicInvoice.notesFrom', { business: business?.business_name || t('publicInvoice.fallbackBusiness') })}</span>
                 <p>{invoice.notes}</p>
               </div>
             )}
@@ -286,40 +268,40 @@ function PublicInvoiceView() {
               {isPaid ? (
                 <>
                   <CheckCircle2 size={34} aria-hidden="true" />
-                  <h2>Payment received</h2>
-                  <p>Thank you. Keep this link for your records and future reference.</p>
+                  <h2>{t('publicInvoice.paymentReceivedTitle')}</h2>
+                  <p>{t('publicInvoice.paymentReceivedBody')}</p>
                 </>
               ) : (
                 <>
                   <CreditCard size={34} aria-hidden="true" />
-                  <h2>Ready to pay?</h2>
-                  <p>Sign in to OxSteed to continue with secure payment and account protection.</p>
+                  <h2>{t('publicInvoice.readyTitle')}</h2>
+                  <p>{t('publicInvoice.readyBody')}</p>
                   <Link to="/login" className="piv-button piv-button-primary piv-full-button">
-                    Login to pay
+                    {t('publicInvoice.loginToPay')}
                   </Link>
                 </>
               )}
             </section>
 
             <section className="piv-panel piv-trust-card">
-              <h2>What happens next</h2>
+              <h2>{t('publicInvoice.whatNext')}</h2>
               <div className="piv-trust-item">
                 <Lock size={18} aria-hidden="true" />
-                <p>Payment stays tied to your OxSteed account and invoice record.</p>
+                <p>{t('publicInvoice.trustAccount')}</p>
               </div>
               <div className="piv-trust-item">
                 <Clock3 size={18} aria-hidden="true" />
-                <p>Due dates, paid status, and receipts stay visible after payment.</p>
+                <p>{t('publicInvoice.trustReceipts')}</p>
               </div>
               <div className="piv-trust-item">
                 <ShieldCheck size={18} aria-hidden="true" />
-                <p>Questions can be traced back to the business and OxSteed support.</p>
+                <p>{t('publicInvoice.trustSupport')}</p>
               </div>
             </section>
 
             <section className="piv-panel piv-question-card">
-              <h2>Need clarity?</h2>
-              <p>Contact {business?.business_name || 'the business'} before paying if a line item looks unfamiliar.</p>
+              <h2>{t('publicInvoice.needClarity')}</h2>
+              <p>{t('publicInvoice.clarityBody', { business: business?.business_name || t('publicInvoice.fallbackBusiness') })}</p>
               {business?.phone && <a href={`tel:${business.phone}`}>{business.phone}</a>}
             </section>
           </aside>
@@ -327,7 +309,7 @@ function PublicInvoiceView() {
 
         <footer className="piv-footer">
           <span>&copy; {new Date().getFullYear()} {business?.business_name || 'OxSteed'}.</span>
-          <span>Powered by OxSteed secure invoices.</span>
+          <span>{t('publicInvoice.poweredBy')}</span>
         </footer>
       </main>
     </div>

@@ -24,7 +24,7 @@
     "businessLaunchStatus": "Mi Lanzamiento Empresarial",
     "supportWorkspace": "Espacio de soporte",
     "cancellationPolicies": "Políticas de Pago y Cancelación",
-    "howOxsteedWorks": "C?mo funciona OxSteed",
+    "howOxsteedWorks": "Cómo funciona OxSteed",
     "learnToDiy": "Aprende a hacerlo tú mismo"
   },
   "supportAgentPortal": {
@@ -425,7 +425,7 @@
     "timeline": "Cronograma",
     "about": "Acerca de",
     "description": "Descripción",
-    "urgent": "Urgent"
+    "urgent": "Urgente"
   },
   "auth": {
     "email": "Correo electrónico",
@@ -601,8 +601,8 @@
     "errorCountry": "País inválido",
     "customerHeroTitle": "Encuentra ayuda local confiable",
     "customerHeroSubtitle": "Publica un trabajo, compara ofertas y contrata con confianza.",
-    "customerHeroTrial": "Gratis por 90 d?as ? No se requiere tarjeta",
-    "customerTrialBadge": "Prueba Pro de 90 d?as incluida: todas las funciones desbloqueadas, sin tarjeta",
+    "customerHeroTrial": "Gratis por 90 días - no se requiere tarjeta",
+    "customerTrialBadge": "Prueba Pro de 90 días incluida: todas las funciones desbloqueadas, sin tarjeta",
     "helperHeroTitle": "Empieza a ganar en tu vecindario",
     "helperHeroSubtitle": "Define tus propias tarifas. Haz que tus vecinos te encuentren."
   },
@@ -683,14 +683,14 @@
     "qrGenerator": "Generador QR",
     "consulting": "Asesoría",
     "consultingTooltip": "Programa una sesión de asesoría empresarial inicial de $100",
-    "legal": "Legal",
+    "legal": "Avisos legales",
     "backgroundCheck": "Verificaciones de Antecedentes",
     "arbitration": "Arbitraje",
     "escrowPolicy": "Política de Custodia",
     "accountTermination": "Cancelación de Cuenta",
     "disputeResolution": "Resolución de Disputas",
     "independentContractor": "Contratista Independiente",
-    "howOxsteedWorks": "C?mo funciona OxSteed"
+    "howOxsteedWorks": "Cómo funciona OxSteed"
   },
   "accountTermination": {
     "pageTitle": "Política de Cancelación de Cuenta",
@@ -1457,6 +1457,7 @@
     "proActiveTitle": "Estás en el plan Pro",
     "activeLabel": "Activo",
     "renewsOn": "Tu suscripción se renueva el {{date}}.",
+    "renewalSoon": "pronto",
     "manageBilling": "Gestionar facturación",
     "cancelSubscription": "Cancelar suscripción",
     "cancelling": "Cancelando...",
@@ -1477,6 +1478,7 @@
     "protectionTitle": "Protección OxSteed",
     "protectionTagline": "Pagos seguros para cada trabajo",
     "exampleTitle": "Ejemplo: trabajo de $200",
+    "exampleTitleAmount": "Ejemplo: trabajo de {{amount}}",
     "customerPays": "El cliente paga",
     "platformFee": "Comisión de plataforma OxSteed (7.1%)",
     "stripeFee": "Comisión de procesamiento Stripe (~2.9% + $0.30)",
@@ -1487,9 +1489,11 @@
     "forHelpersDesc": "Completa la verificación de ID, verificación de antecedentes y configura tu cuenta Stripe Express para aceptar pagos protegidos.",
     "faqTitle": "Preguntas frecuentes",
     "getProBtn": "Obtener Pro - ${{price}}/{{period}}",
+    "getProBtnFormatted": "Obtener Pro - {{price}}/{{period}}",
     "noHiddenFees": "Cancela cuando quieras. Sin cargos ocultos.",
     "cancelConfirm": "¿Seguro que quieres cancelar? Mantendrás el acceso hasta el final de tu período de facturación.",
     "yearlySavings": "Eso es ${{monthly}}/mes - ahorras ${{savings}}/año",
+    "yearlySavingsFormatted": "Eso es {{monthly}}/mes - ahorras {{savings}}/año",
     "faq1Q": "¿Qué incluye Pro?",
     "faq1A": "Pro te da una insignia verificada, la capacidad de enviar ofertas en trabajos, posicionamiento prioritario en búsquedas, elegibilidad para verificación de antecedentes, verificación de identidad, notificaciones push para trabajos urgentes, y el Panel de Vida completo con seguimiento de presupuesto, metas, recordatorios de mantenimiento del hogar e información de la comunidad.",
     "faq2Q": "¿Puedo cancelar en cualquier momento?",
@@ -1502,6 +1506,7 @@
     "faq5A": "La Protección OxSteed está disponible para todos los usuarios verificados - tanto Free como Pro. Sin embargo, los ayudantes Pro tienen posicionamiento prioritario lo que significa más oportunidades de trabajo, y la insignia verificada genera más confianza con los clientes.",
     "faq6Q": "¿Cuál es la diferencia entre mensual y anual?",
     "faq6A": "Mensual es ${{monthly}}/mes. Anual es ${{yearly}}/año - eso es ${{perMonth}}/mes, ahorrando ${{savings}} al año ({{pct}}% de descuento).",
+    "faq6AFormatted": "Mensual es {{monthly}}/mes. Anual es {{yearly}}/año - eso es {{perMonth}}/mes, ahorrando {{savings}} al año ({{pct}}% de descuento).",
     "faq7Q": "¿Es segura mi información de pago?",
     "faq7A": "Absolutamente. Todos los pagos se procesan a través de Stripe, un procesador de pagos certificado PCI Nivel 1. OxSteed nunca almacena información de tu tarjeta de crédito.",
     "freeF1": "Perfil en OxSteed",
@@ -1542,6 +1547,43 @@
     "protectionDesc": "Cuando usas la Protección OxSteed, los pagos se procesan de forma segura a través de Stripe. El cliente paga el precio del trabajo acordado, y OxSteed cobra una simple comisión de plataforma del 7.1% (mínimo $5). Eso es todo - una tarifa transparente que cubre el procesamiento de pagos, mediación de disputas y soporte de la plataforma.",
     "protectionNote": "* La Protección OxSteed requiere verificación de ID para clientes y verificación de ID + verificación de antecedentes + cuenta Stripe para ayudantes.",
     "proFeatures": "Características profesionales"
+  },
+  "businessAppointments": {
+    "title": "Calendario de citas",
+    "loadFailed": "No se pudieron cargar las citas",
+    "updateFailed": "No se pudo actualizar la cita",
+    "statusUpdated": "Cita {{status}}",
+    "detailsTitle": "Detalles de la cita",
+    "dateTime": "Fecha y hora",
+    "dateTimeValue": "{{date}} a las {{time}}",
+    "statusLabel": "Estado",
+    "customer": "Cliente",
+    "name": "Nombre",
+    "email": "Correo electrónico",
+    "phone": "Teléfono",
+    "customerNotes": "Notas del cliente",
+    "confirm": "Confirmar",
+    "decline": "Rechazar",
+    "complete": "Completar",
+    "cancel": "Cancelar",
+    "status": {
+      "all": "Todo",
+      "pending": "Pendiente",
+      "confirmed": "Confirmada",
+      "completed": "Completada",
+      "cancelled": "Cancelada",
+      "no-show": "No se presentó",
+      "unknown": "Desconocido"
+    },
+    "weekdays": {
+      "sun": "Dom",
+      "mon": "Lun",
+      "tue": "Mar",
+      "wed": "Mié",
+      "thu": "Jue",
+      "fri": "Vie",
+      "sat": "Sáb"
+    }
   },
   "jobList": {
     "title": "Encuentra servicios locales cerca de ti",
@@ -1844,7 +1886,19 @@
     "conversationNotFound": "Conversación no encontrada",
     "noMessagesStart": "Sin mensajes aún. ¡Inicia la conversación!",
     "typeAMessage": "Escribe un mensaje...",
-    "empty": "Sin mensajes",
+    "empty": {
+      "kicker": "Sin mensajes aún",
+      "title": "Tu bandeja está lista cuando comience el trabajo.",
+      "text": "Los mensajes aparecen cuando contactas a un ayudante, recibes una oferta, reservas a alguien directamente, haces una pregunta sobre un servicio o necesitas seguimiento de un trabajo activo.",
+      "findHelper": "Buscar un ayudante",
+      "planFutureWork": "Planificar trabajo futuro",
+      "helpTitle": "Para qué ayudan los mensajes",
+      "helpShareDetails": "Comparte fotos, horarios, instrucciones de acceso y detalles del trabajo.",
+      "helpExpectations": "Mantén las expectativas del ayudante y del cliente en un solo lugar.",
+      "helpContext": "Conserva contexto para pagos, cancelaciones y disputas.",
+      "helpRepeat": "Construye relaciones repetidas con ayudantes de confianza.",
+      "learnLink": "Ver cómo se conectan los mensajes"
+    },
     "emptyDesc": "Tu historial de mensajes está vacío",
     "clearChat": "Borrar chat",
     "clearChatConfirm": "¿Estás seguro de que deseas borrar esta conversación?",
@@ -1919,11 +1973,45 @@
     "messageNotFound": "Mensaje no encontrado",
     "failed": "Message failed to send.",
     "retry": "Retry",
-    "deleteConfirm": "?Eliminar este mensaje?",
-    "copied": "?Copiado!",
+    "deleteConfirm": "¿Eliminar este mensaje?",
+    "copied": "¡Copiado!",
     "copyMessage": "Copiar mensaje",
     "editMessage": "Editar mensaje",
-    "deleteMessage": "Eliminar mensaje"
+    "deleteMessage": "Eliminar mensaje",
+    "kicker": "Conversaciones de trabajo",
+    "heroDescription": "Mantén cada pregunta al ayudante, conversación de trabajo, detalle de reserva y seguimiento en un lugar responsable. Los mensajes mantienen el alcance, los horarios, las fotos, las notas de acceso y las decisiones conectadas con el trabajo.",
+    "stats": {
+      "conversations": "Conversaciones",
+      "unread": "Sin leer"
+    },
+    "toolsAriaLabel": "Herramientas de mensajes",
+    "searchPlaceholder": "Busca personas, trabajos o mensajes...",
+    "findHelpers": "Buscar ayudantes",
+    "postJob": "Publicar un trabajo",
+    "filteredEmpty": {
+      "title": "Ninguna conversación coincide con esa búsqueda.",
+      "text": "Prueba con el nombre de un ayudante, negocio, título del trabajo o una frase del último mensaje."
+    },
+    "conversationListAriaLabel": "Lista de conversaciones",
+    "guide": {
+      "ariaLabel": "Cómo se conectan los mensajes",
+      "jobs": {
+        "title": "Trabajos y ofertas",
+        "text": "Aclara el alcance antes de aceptar el trabajo y mantén las decisiones vinculadas al trabajo."
+      },
+      "bookings": {
+        "title": "Reservas",
+        "text": "Confirma horarios, dirección, notas de acceso y lo que debe pasar antes de la llegada."
+      },
+      "trust": {
+        "title": "Registros de confianza",
+        "text": "Si más tarde surge una disputa o tema de soporte, el historial ayuda a explicar lo ocurrido."
+      },
+      "repeat": {
+        "title": "Relaciones repetidas",
+        "text": "Las buenas conversaciones se convierten en ayudantes guardados, nuevas reservas y necesidades futuras planificadas."
+      }
+    }
   },
   "dashboard": {
     "welcome": "¡Bienvenido de nuevo, {{name}}!",
@@ -2055,6 +2143,7 @@
       "expenses": "Gastos",
       "net": "Neto",
       "savingsRate": "Tasa de ahorro",
+      "inOutSummary": "{{income}} ingresados · {{expenses}} gastados",
       "recentTransactions": "Transacciones recientes",
       "noTransactions": "Sin transacciones aún. Registra la primera arriba.",
       "budgets": "Categorías de presupuesto",
@@ -2833,6 +2922,16 @@
     "fixed": "Fijo",
     "hourly": "Por hora",
     "open": "Abierto a ofertas",
+    "openToBids": "Abierto a ofertas",
+    "fixedPriceShort": "{{amount}} fijo",
+    "hourlyRateShort": "{{amount}}/h",
+    "step3BudgetTimeline": "Paso 3 de 4 - Presupuesto y cronograma",
+    "budgetAmountAria": "Monto del presupuesto",
+    "budgetTabs": {
+      "fixed": "Precio fijo",
+      "hourly": "Tarifa por hora",
+      "open": "Abierto a ofertas"
+    },
     "urgency": "Urgencia",
     "asap": "Lo antes posible",
     "thisWeek": "Esta semana",
@@ -3068,6 +3167,10 @@
     "status": "Estado",
     "posted": "Publicado",
     "assignedTo": "Asignado a",
+    "openToBids": "Abierto a ofertas",
+    "hourlyRate": "{{amount}}/h",
+    "jobValue": "Valor del trabajo: {{amount}}",
+    "creditApplied": "Crédito aplicado: -{{amount}}",
     "review": "Dejar una reseña",
     "openBids": "Abierto a ofertas",
     "urgencyASAP": "Urgente",
@@ -3099,15 +3202,24 @@
     "responseFromOwner": "Respuesta del propietario",
     "noBidFound": "No hay oferta aceptada",
     "paymentInitiated": "Pago iniciado. Los fondos se retienen en depósito en garantía hasta que se complete el trabajo.",
-    "acceptBid": "Accept Bid",
-    "helperAssigned": "Helper Assigned",
-    "helperAvailability": "Helper Availability",
-    "reviewCount": "{{count}} review"
+    "acceptBid": "Aceptar oferta",
+    "helperAssigned": "Ayudante asignado",
+    "helperAvailability": "Disponibilidad del ayudante",
+    "reviewCount": "{{count}} reseña"
   },
   "myJobs": {
     "subtitle": "Trabajos que has publicado",
     "bids": "{{count}} oferta(s)",
     "noBids": "Sin ofertas aún",
+    "statusOpen": "Abierto",
+    "statusInProgress": "En progreso",
+    "statusCompleted": "Completado",
+    "statusCancelled": "Cancelado",
+    "statusPending": "Pendiente",
+    "statusAccepted": "Aceptado",
+    "statusDeclined": "Rechazado",
+    "statusExpired": "Vencido",
+    "statusUnknown": "Desconocido",
     "reviewBids": "Revisar Ofertas",
     "assignedTo": "Asignado a",
     "loadError": "No se pudieron cargar los trabajos.",
@@ -3116,6 +3228,7 @@
     "noBookingRequests": "Sin solicitudes de reserva aún",
     "requestedOn": "Solicitado en",
     "expiresIn": "Expira en {{days}} días",
+    "serviceRequest": "Solicitud de servicio",
     "calendar": "Calendario",
     "postedJob": "Trabajo Publicado",
     "directBooking": "Reserva Directa",
@@ -4479,7 +4592,7 @@
     "propertyOps": {
       "badge": "Ops de propiedades",
       "title": "Sistema operativo para administradores de propiedades",
-      "description": "Esta pesta?a convierte la plantilla en un espacio inmobiliario vivo con unidades, normas de intake para inquilinos, recordatorios de cumplimiento, l?gica de precios de despacho y colas de seguimiento ligadas al mantenimiento.",
+      "description": "Esta pestaña convierte la plantilla en un espacio inmobiliario vivo con unidades, normas de intake para inquilinos, recordatorios de cumplimiento, lógica de precios de despacho y colas de seguimiento ligadas al mantenimiento.",
       "common": {
         "refresh": "Actualizar",
         "saveSettings": "Guardar ajustes",
@@ -4490,51 +4603,51 @@
       },
       "metrics": {
         "unitsTracked": "Unidades seguidas",
-        "unitsTrackedHint": "{{occupied}} ocupadas ? {{turnover}} en rotaci?n",
+        "unitsTrackedHint": "{{occupied}} ocupadas · {{turnover}} en rotación",
         "complianceRisk": "Riesgo de cumplimiento",
-        "complianceRiskHint": "Registros vencidos o por vencer que requieren acci?n",
+        "complianceRiskHint": "Registros vencidos o por vencer que requieren acción",
         "openRequests": "Solicitudes abiertas",
         "openRequestsHint": "Flujo actual de reparaciones",
         "followUpsDue": "Seguimientos pendientes",
-        "followUpsDueHint": "Solicitudes esperando el pr?ximo contacto",
+        "followUpsDueHint": "Solicitudes esperando el próximo contacto",
         "recordedCost": "Costo registrado",
-        "recordedCostHint": "Gasto de reparaci?n registrado",
+        "recordedCostHint": "Gasto de reparación registrado",
         "activePackages": "Paquetes activos",
-        "activePackagesHint": "L?gica facturable en vivo"
+        "activePackagesHint": "Lógica facturable en vivo"
       },
       "followUpQueue": {
         "title": "Cola de seguimiento",
-        "subtitle": "Estos recordatorios se generan autom?ticamente a partir de solicitudes de mantenimiento estancadas y registros de cumplimiento pendientes.",
+        "subtitle": "Estos recordatorios se generan automáticamente a partir de solicitudes de mantenimiento estancadas y registros de cumplimiento pendientes.",
         "empty": "No hay seguimientos pendientes ahora mismo.",
         "dueNow": "Vence ahora"
       },
       "recentWorkflow": {
         "title": "Flujo reciente de propiedades",
-        "subtitle": "Los elementos de mantenimiento recientes siguen visibles aqu? para que la pesta?a de operaciones y la cola de mantenimiento trabajen juntas.",
+        "subtitle": "Los elementos de mantenimiento recientes siguen visibles aquí para que la pestaña de operaciones y la cola de mantenimiento trabajen juntas.",
         "openMaintenance": "Abrir mantenimiento",
-        "empty": "A?n no se han registrado solicitudes de mantenimiento.",
+        "empty": "Aún no se han registrado solicitudes de mantenimiento.",
         "propertyFallback": "Propiedad"
       },
       "settings": {
         "title": "Ajustes de intake y confianza para inquilinos",
-        "subtitle": "Estos ajustes cambian lo que ve el inquilino, c?mo se clasifica el mantenimiento y qu? tan r?pido debe hacer seguimiento el equipo.",
-        "emergencyPhone": "Tel?fono de emergencia",
-        "emergencyPhonePlaceholder": "L?nea de emergencia opcional",
+        "subtitle": "Estos ajustes cambian lo que ve el inquilino, cómo se clasifica el mantenimiento y qué tan rápido debe hacer seguimiento el equipo.",
+        "emergencyPhone": "Teléfono de emergencia",
+        "emergencyPhonePlaceholder": "Línea de emergencia opcional",
         "defaultBillTo": "Cobrar por defecto a",
         "responsePromiseHours": "Promesa de respuesta (horas)",
         "followUpCadenceHours": "Cadencia de seguimiento (horas)",
-        "issueCategories": "Categor?as de incidentes",
-        "issueCategoriesPlaceholder": "Categor?as separadas por comas",
+        "issueCategories": "Categorías de incidentes",
+        "issueCategoriesPlaceholder": "Categorías separadas por comas",
         "trustArtifacts": "Elementos de confianza",
-        "trustArtifactsPlaceholder": "Se?ales de confianza separadas por comas",
+        "trustArtifactsPlaceholder": "Señales de confianza separadas por comas",
         "managedPropertyTypes": "Tipos de propiedad gestionados",
-        "managedPropertyTypesPlaceholder": "Apartamento, d?plex, HOA, renta de corta duraci?n",
-        "tenantPortalIntro": "Introducci?n del portal del inquilino",
-        "tenantPortalIntroPlaceholder": "Gu?a p?blica antes de enviar una solicitud",
+        "managedPropertyTypesPlaceholder": "Apartamento, dúplex, HOA, renta de corta duración",
+        "tenantPortalIntro": "Introducción del portal del inquilino",
+        "tenantPortalIntroPlaceholder": "Guía pública antes de enviar una solicitud",
         "emergencyInstructions": "Instrucciones de emergencia",
-        "emergencyInstructionsPlaceholder": "Qu? debe hacer un inquilino en caso de inundaci?n, incendio o problema de seguridad",
-        "afterHoursPolicy": "Pol?tica fuera de horario",
-        "afterHoursPolicyPlaceholder": "Gu?a de despacho fuera de horario o solo para emergencias"
+        "emergencyInstructionsPlaceholder": "Qué debe hacer un inquilino en caso de inundación, incendio o problema de seguridad",
+        "afterHoursPolicy": "Política fuera de horario",
+        "afterHoursPolicyPlaceholder": "Guía de despacho fuera de horario o solo para emergencias"
       },
       "units": {
         "title": "Unidades del portafolio",
@@ -4542,9 +4655,9 @@
         "propertyLabel": "Etiqueta de la propiedad",
         "unit": "Unidad",
         "propertyType": "Tipo de propiedad",
-        "occupancy": "Ocupaci?n",
+        "occupancy": "Ocupación",
         "contactName": "Nombre del contacto",
-        "contactPhone": "Tel?fono del contacto",
+        "contactPhone": "Teléfono del contacto",
         "priorityTier": "Nivel de prioridad",
         "accessSummary": "Resumen de acceso",
         "notes": "Notas",
@@ -4553,14 +4666,14 @@
       },
       "packages": {
         "title": "Paquetes y precios de propiedades",
-        "subtitle": "Define l?gica de despacho, inspecci?n, rotaci?n y retainer que esta plantilla realmente pueda vender y facturar.",
+        "subtitle": "Define lógica de despacho, inspección, rotación y retainer que esta plantilla realmente pueda vender y facturar.",
         "packageName": "Nombre del paquete",
         "pricingModel": "Modelo de precio",
         "billTo": "Cobrar a",
         "basePriceCents": "Precio base (centavos)",
         "afterHoursSurchargeCents": "Recargo fuera de horario (centavos)",
         "targetTurnaroundHours": "Tiempo objetivo (horas)",
-        "descriptionLabel": "Descripci?n",
+        "descriptionLabel": "Descripción",
         "includes": "Incluye",
         "includesPlaceholder": "Inclusiones separadas por comas",
         "updatePackage": "Actualizar paquete",
@@ -4570,11 +4683,11 @@
       },
       "compliance": {
         "title": "Cumplimiento y registros de confianza",
-        "subtitle": "Sigue inspecciones, obligaciones recurrentes y elementos de confianza que hacen que la plantilla se sienta como un sistema real de gesti?n.",
+        "subtitle": "Sigue inspecciones, obligaciones recurrentes y elementos de confianza que hacen que la plantilla se sienta como un sistema real de gestión.",
         "unit": "Unidad",
         "generalWholeProperty": "General / propiedad completa",
         "recordType": "Tipo de registro",
-        "titleLabel": "T?tulo",
+        "titleLabel": "Título",
         "status": "Estado",
         "dueDate": "Fecha de vencimiento",
         "vendor": "Proveedor",
@@ -4594,19 +4707,19 @@
         "occupancy": {
           "occupied": "Ocupada",
           "vacant": "Vacante",
-          "turnover": "Rotaci?n",
+          "turnover": "Rotación",
           "ownerHold": "Reserva del propietario"
         },
         "priority": {
-          "standard": "Est?ndar",
+          "standard": "Estándar",
           "priority": "Prioridad",
           "vip": "VIP"
         },
         "pricingModel": {
           "flat": "Fijo",
           "hourly": "Por hora",
-          "inspection": "Inspecci?n",
-          "turnover": "Rotaci?n",
+          "inspection": "Inspección",
+          "turnover": "Rotación",
           "retainer": "Retainer"
         },
         "complianceStatus": {
@@ -4633,9 +4746,9 @@
         "complianceDeleted": "Registro de cumplimiento eliminado"
       },
       "confirms": {
-        "deleteUnit": "?Eliminar esta unidad?",
-        "deletePackage": "?Eliminar este paquete?",
-        "deleteRecord": "?Eliminar este registro?"
+        "deleteUnit": "¿Eliminar esta unidad?",
+        "deletePackage": "¿Eliminar este paquete?",
+        "deleteRecord": "¿Eliminar este registro?"
       }
     }
   },
@@ -5317,28 +5430,28 @@
       "subtitle": "Ver y administrar tus disputas activas",
       "loading": "Cargando...",
       "noDisputesSub": "Las disputas se pueden abrir en trabajos completados dentro del período de revisión.",
-      "metaDescription": "Da seguimiento a disputas de OxSteed, evidencias, mensajes de soporte y resultados de resoluci?n.",
-      "eyebrow": "Centro de confianza y resoluci?n",
-      "heroExtra": "Mant?n evidencias, mensajes de soporte, contexto del trabajo y actualizaciones de resoluci?n en un solo lugar para que una situaci?n dif?cil siga organizada.",
+      "metaDescription": "Da seguimiento a disputas de OxSteed, evidencias, mensajes de soporte y resultados de resolución.",
+      "eyebrow": "Centro de confianza y resolución",
+      "heroExtra": "Mantén evidencias, mensajes de soporte, contexto del trabajo y actualizaciones de resolución en un solo lugar para que una situación difícil siga organizada.",
       "openMessages": "Abrir mensajes",
       "contactSupport": "Contactar soporte",
       "dateUnavailable": "Fecha no disponible",
       "generalIssue": "Problema general",
-      "untitledJob": "Trabajo sin t?tulo",
+      "untitledJob": "Trabajo sin título",
       "openedOn": "Abierto el {{date}}",
       "stats": {
         "open": "Abiertas",
-        "inReview": "En revisi?n",
+        "inReview": "En revisión",
         "resolved": "Resueltas"
       },
       "aria": {
         "summary": "Resumen de disputas",
-        "guide": "C?mo funcionan las disputas",
+        "guide": "Cómo funcionan las disputas",
         "list": "Tus disputas"
       },
       "status": {
         "open": "Abierta",
-        "underReview": "En revisi?n",
+        "underReview": "En revisión",
         "resolved": "Resuelta",
         "closed": "Cerrada"
       },
@@ -5350,21 +5463,21 @@
       },
       "guide": {
         "preserveTitle": "Conserva la evidencia",
-        "preserveText": "Agrega fotos, documentos, cronolog?as y notas breves mientras los detalles est?n frescos.",
-        "focusTitle": "Mant?n la conversaci?n enfocada",
-        "focusText": "Usa el hilo de disputa para aclaraciones, as? soporte puede seguir el historial.",
+        "preserveText": "Agrega fotos, documentos, cronologías y notas breves mientras los detalles están frescos.",
+        "focusTitle": "Mantén la conversación enfocada",
+        "focusText": "Usa el hilo de disputa para aclaraciones, así soporte puede seguir el historial.",
         "outcomeTitle": "Sigue el resultado",
-        "outcomeText": "El estado de resoluci?n, los reembolsos y las decisiones de liberaci?n quedan vinculados al trabajo."
+        "outcomeText": "El estado de resolución, los reembolsos y las decisiones de liberación quedan vinculados al trabajo."
       },
       "empty": {
         "title": "No hay disputas abiertas",
-        "body": "Eso es bueno. Si un trabajo, pago, alquiler de herramienta o reserva necesita revisi?n formal, aparecer? aqu? con la l?nea de tiempo de evidencia y la conversaci?n de soporte.",
+        "body": "Eso es bueno. Si un trabajo, pago, alquiler de herramienta o reserva necesita revisión formal, aparecerá aquí con la línea de tiempo de evidencia y la conversación de soporte.",
         "browseJobs": "Explorar trabajos",
-        "learnHow": "Aprender c?mo funciona OxSteed",
+        "learnHow": "Aprender cómo funciona OxSteed",
         "beforeTitle": "Antes de abrir una disputa",
         "bullet1": "Intenta aclarar el alcance en los mensajes.",
         "bullet2": "Guarda fotos, recibos y detalles de tiempo.",
-        "bullet3": "Usa la escalaci?n de soporte para problemas urgentes de seguridad o pago."
+        "bullet3": "Usa la escalación de soporte para problemas urgentes de seguridad o pago."
       }
     },
     "detail": {
@@ -5588,6 +5701,20 @@
     "needHelp": "¿Necesitas ayuda?"
   },
   "verifyIdentity": {
+    "metaTitle": "Verifica tu identidad",
+    "metaDescription": "Completa la verificación de identidad de OxSteed para ayudar a proteger a clientes, ayudantes, trabajos y pagos.",
+    "secureBadge": "Verificación segura",
+    "eyebrow": "Capa de confianza para el trabajo en el mundo real",
+    "heroTitle": "Verifica una vez. Trabaja, contrata y cobra con más confianza.",
+    "heroDescription": "OxSteed conecta a personas para trabajos, reservas, pagos, alquileres de herramientas y servicios empresariales. La verificación de identidad ayuda a que cada parte del sistema sea más segura y responsable.",
+    "benefitsAriaLabel": "Por qué importa la verificación",
+    "benefitTrustTitle": "Más confianza en el marketplace",
+    "benefitTrustDescription": "Clientes y ayudantes saben que hay una persona real detrás de la cuenta.",
+    "benefitPaymentsTitle": "Pagos más seguros",
+    "benefitPaymentsDescription": "Las facturas, depósitos y pagos tienen un rastro de identidad más sólido.",
+    "benefitApprovalsTitle": "Aprobaciones más fluidas",
+    "benefitApprovalsDescription": "A los usuarios verificados les resulta más fácil coincidir, reservar, evaluar y recibir soporte.",
+    "formAriaLabel": "Formulario de verificación de identidad",
     "step1": "1. Cuenta",
     "step2": "2. Verificación de Identidad"
   },
@@ -5621,6 +5748,15 @@
     "customize": "Personalizar",
     "bannerText": "Usamos cookies para mejorar tu experiencia en OxSteed. Las cookies esenciales son necesarias para el funcionamiento de la plataforma. Puedes personalizar tus preferencias o aceptar todas las cookies.",
     "cookiePolicy": "Política de Cookies"
+  },
+  "supportWidget": {
+    "askAi": "Preguntar a la IA",
+    "openAssistant": "Abrir asistente de IA",
+    "aiGreeting": "¡Hola! Soy el asistente de IA de OxSteed. ¿Cómo puedo ayudarte hoy?",
+    "welcomeBack": "¡Te damos la bienvenida de nuevo! Estoy aquí si tienes preguntas sobre OxSteed.",
+    "proactivePostJob": "¿Necesitas ayuda para publicar tu primer trabajo? Puedo guiarte paso a paso.",
+    "proactiveHelpers": "¿Buscas al ayudante adecuado? Puedo explicarte cómo funciona OxSteed.",
+    "errorMessage": "Lo siento, tengo problemas en este momento. Inténtalo de nuevo o escribe a **support@oxsteed.com**."
   },
   "errorBoundary": {
     "title": "Algo salió mal",
@@ -5733,29 +5869,29 @@
     "viewDetails": "Ver Detalles",
     "markComplete": "Marcar Completada",
     "rejectRequest": "Rechazar Solicitud",
-    "commandCenter": "Centro de gesti?n de leads",
-    "heroBody": "Convierte solicitudes de clientes en cotizaciones claras, trabajo aceptado y registros completados. Cada lead es una oportunidad para responder r?pido, fijar expectativas y mantener la relaci?n avanzando sin perder contexto.",
+    "commandCenter": "Centro de gestión de leads",
+    "heroBody": "Convierte solicitudes de clientes en cotizaciones claras, trabajo aceptado y registros completados. Cada lead es una oportunidad para responder rápido, fijar expectativas y mantener la relación avanzando sin perder contexto.",
     "activeLeads": "Leads activos",
     "possibleValue": "Valor posible",
     "workflowAria": "Flujo de leads",
     "listAria": "Leads: {{status}}",
     "budgetRange": "Presupuesto: ${{min}} - ${{max}}",
-    "quoteRequest": "Solicitud de cotizaci?n",
+    "quoteRequest": "Solicitud de cotización",
     "guide": {
       "readTitle": "Lee la solicitud",
-      "readText": "Comprende la necesidad, ubicaci?n, presupuesto y contexto del cliente antes de cotizar.",
-      "quoteTitle": "Env?a una cotizaci?n",
-      "quoteText": "Una cotizaci?n ?til explica precio, alcance y tiempo para que el cliente decida con confianza.",
+      "readText": "Comprende la necesidad, ubicación, presupuesto y contexto del cliente antes de cotizar.",
+      "quoteTitle": "Envía una cotización",
+      "quoteText": "Una cotización útil explica precio, alcance y tiempo para que el cliente decida con confianza.",
       "closeTitle": "Cierra el ciclo",
       "closeText": "Los leads aceptados se convierten en historial real de trabajo cuando completas y das seguimiento."
     },
     "empty": {
       "title": "No hay leads en {{status}}",
-      "body": "Los leads de tu perfil de negocio y solicitudes de servicio aparecer?n aqu?. Usa esta p?gina para responder con precio, alcance y tiempo antes de que el cliente pierda impulso.",
-      "sideTitle": "Haz que los pr?ximos leads sean m?s f?ciles de ganar",
-      "bullet1": "Mant?n claros tus servicios y precios en el perfil.",
-      "bullet2": "Agrega fotos y pol?ticas para que los clientes sepan qu? esperar.",
-      "bullet3": "Responde r?pido con una cotizaci?n completa y una fecha realista."
+      "body": "Los leads de tu perfil de negocio y solicitudes de servicio aparecerán aquí. Usa esta página para responder con precio, alcance y tiempo antes de que el cliente pierda impulso.",
+      "sideTitle": "Haz que los próximos leads sean más fáciles de ganar",
+      "bullet1": "Mantén claros tus servicios y precios en el perfil.",
+      "bullet2": "Agrega fotos y políticas para que los clientes sepan qué esperar.",
+      "bullet3": "Responde rápido con una cotización completa y una fecha realista."
     }
   },
   "quickAddTemplates": {
@@ -6250,6 +6386,7 @@
     "paymentMethodDeleted": "Método de pago eliminado",
     "paymentMethodDeleteFailed": "No se pudo eliminar el método de pago",
     "paymentMethodActive": "Método de pago activo en archivo",
+    "closeInvoiceModal": "Cerrar diálogo de factura",
     "sendInvoice": "Enviar Factura",
     "invoiceSubtitle": "Elija cómo enviar la factura al cliente",
     "inPlatform": "En la Plataforma",
@@ -7362,6 +7499,10 @@
     "viewDetails": "Ver detalles",
     "viewDetailsFor": "Ver detalles de {{name}}",
     "requestDetails": "Detalles de la solicitud",
+    "businessLaunchRequest": "Solicitud de lanzamiento empresarial",
+    "progressLabel": "Progreso del lanzamiento",
+    "progressAria": "Progreso: {{progress}}%",
+    "loadError": "No se pudieron cargar las solicitudes de lanzamiento.",
     "selectedPackage": "Paquete Seleccionado",
     "businessInfo": "Información del Negocio",
     "skill": "Habilidad / Oferta",
@@ -7591,6 +7732,7 @@
     "amount": "Monto",
     "status": "Estado",
     "dueDate": "Fecha Límite",
+    "due": "Vence",
     "actions": "Acciones",
     "view": "Ver",
     "resendEmail": "Reenviar Email",
@@ -7602,7 +7744,60 @@
     "issuedDate": "Emitida",
     "paidDate": "Pagada",
     "customerName": "Cliente",
-    "consultant": "Consultor"
+    "consultant": "Consultor",
+    "metaTitle": "Mis facturas - OxSteed",
+    "metaDescription": "Sigue las facturas de OxSteed, el estado de pago, recibos de consultoría, facturas de servicios, facturas de alquiler de herramientas y registros financieros del negocio.",
+    "kicker": "Registros financieros",
+    "heroDescription": "Mantén todo tu historial de OxSteed en un solo lugar: recibos de consultoría, facturas de ayudantes, facturas de alquiler de herramientas, trabajo pagado, saldos pendientes y seguimiento de pagos.",
+    "moneyDashboard": "Panel de dinero",
+    "refresh": "Actualizar",
+    "summaryAriaLabel": "Resumen de facturas",
+    "totalInvoiceValue": "Valor total de las facturas",
+    "statusDraft": "Borrador",
+    "statusSent": "Enviada",
+    "statusIssued": "Emitida",
+    "statusPaid": "Pagada",
+    "statusOverdue": "Vencida",
+    "statusCancelled": "Cancelada",
+    "statusOutstanding": "Pendiente",
+    "listAriaLabel": "Lista de facturas",
+    "activityTitle": "Actividad de facturas",
+    "activityDescription": "Revisa el estado de pago, reenvía correos e inspecciona los detalles detrás de cada cargo.",
+    "recordCount_one": "{{count}} registro",
+    "recordCount_other": "{{count}} registros",
+    "invoiceLabel": "Factura",
+    "invoiceIdFallback": "Factura {{id}}",
+    "customerFallback": "Cliente de OxSteed",
+    "viewAriaLabel": "Ver {{invoice}}",
+    "resendAriaLabel": "Reenviar {{invoice}}",
+    "invoiceGeneric": "factura",
+    "guideAriaLabel": "Cómo se conectan las facturas",
+    "guideTitle": "Cómo encajan las facturas en OxSteed",
+    "guideDescription": "Las facturas no son solo recibos. Conectan trabajo, herramientas, consultoría, pagos, registros y seguimiento para que clientes y negocios puedan ver qué ocurrió y qué sigue pendiente.",
+    "guideServiceTitle": "Trabajo de servicio",
+    "guideServiceText": "Los trabajos y el trabajo de ayudantes pueden crear un registro de lo solicitado, facturado, pagado o aún pendiente.",
+    "guideToolTitle": "Alquileres de herramientas",
+    "guideToolText": "Los dueños de herramientas pueden enviar facturas de alquiler, seguir el pago y mantener el historial de alquiler conectado a las reservas.",
+    "guideConsultingTitle": "Consultoría",
+    "guideConsultingText": "Las sesiones de lanzamiento de negocios y consultoría pueden generar facturas que permanecen vinculadas al historial de tu cuenta.",
+    "guideBusinessTitle": "Registros del negocio",
+    "guideBusinessText": "Las facturas pagadas y pendientes alimentan la visión financiera más amplia: ingresos, impuestos, flujo de caja y planificación.",
+    "emptyTitle": "Tu centro de facturas está listo antes de que llegue la primera factura.",
+    "emptyDescription": "Una vez que compres consultoría, recibas una factura de servicio, alquiles una herramienta, vendas trabajo o envíes una factura a un cliente, el registro aparecerá aquí con estado de pago y acciones de seguimiento.",
+    "createInvoice": "Crear una factura",
+    "exploreConsulting": "Explorar consultoría",
+    "browseToolRentals": "Explorar alquileres de herramientas",
+    "learnPayments": "Aprende cómo se conectan los pagos",
+    "emptySideTitle": "¿Qué aparecerá aquí?",
+    "emptyBullet1": "Registros de facturas pagadas, pendientes, vencidas y canceladas.",
+    "emptyBullet2": "Facturas de consultoría, servicio, alquiler y negocio.",
+    "emptyBullet3": "Fechas de vencimiento, estado del pago y detalles del cliente o consultor.",
+    "emptyBullet4": "Acciones para reenviar correos y revisar detalles para seguimiento.",
+    "detailsTitle": "Detalles de la factura",
+    "closeDetails": "Cerrar detalles de la factura",
+    "sending": "Enviando...",
+    "notSet": "Sin definir",
+    "notListed": "No indicado"
   },
   "calendar": {
     "pageTitle": "Calendario",
@@ -8157,6 +8352,7 @@
     "report": "Reportar",
     "reportUser": "Reportar Usuario",
     "reportingUser": "Estás reportando a {{name}}",
+    "close": "Cerrar",
     "reason": "Razón del Reporte",
     "selectReason": "Selecciona una razón...",
     "reasonHarassment": "Acoso",
@@ -8173,7 +8369,9 @@
     "evidenceUrls": "URLs de Evidencia (Opcional)",
     "evidenceUrlsPlaceholder": "Pega URLs de evidencia (una por línea)",
     "evidenceHelpText": "Puedes incluir enlaces a capturas de pantalla, mensajes u otra evidencia.",
+    "charCount": "{{count}} / {{max}}",
     "privacyNotice": "Tu reporte es confidencial. El usuario reportado no será notificado de que presentaste este reporte.",
+    "submitError": "No pudimos enviar tu reporte en este momento. Inténtalo de nuevo.",
     "cancel": "Cancelar",
     "submitReport": "Enviar Reporte",
     "submitting": "Enviando..."
@@ -8490,36 +8688,87 @@
     "withdrawError": "No se pudo retirar la oferta."
   },
   "orders": {
-    "title": "Order History",
-    "yourOrders": "Your Orders",
-    "noOrders": "You have no orders yet.",
-    "continueShopping": "Continue Shopping",
-    "totalOrders": "Total Orders",
-    "completedOrders": "Completed Orders",
-    "pendingOrders": "Pending Orders",
-    "totalSpent": "Total Spent",
-    "orderId": "Order ID",
-    "date": "Date",
-    "status": "Status",
-    "items": "Items",
+    "title": "Historial de pedidos",
+    "yourOrders": "Tus pedidos",
+    "noOrders": "Aún no tienes pedidos.",
+    "continueShopping": "Seguir comprando",
+    "totalOrders": "Pedidos totales",
+    "completedOrders": "Pedidos completados",
+    "pendingOrders": "Pedidos pendientes",
+    "totalSpent": "Total gastado",
+    "orderId": "ID del pedido",
+    "date": "Fecha",
+    "status": "Estado",
+    "items": "Artículos",
     "total": "Total",
-    "description": "Description",
-    "order": "Order",
-    "orderSummary": "Order Summary",
-    "backToOrders": "Back to Orders",
-    "notFound": "Order not found.",
-    "placedOn": "Placed on",
-    "payment": "Payment",
-    "paymentMethod": "Payment Method",
-    "transactionId": "Transaction ID",
-    "shippingAddress": "Shipping Address",
-    "shipping": "Shipping",
+    "description": "Descripción",
+    "order": "Pedido",
+    "orderSummary": "Resumen del pedido",
+    "backToOrders": "Volver a pedidos",
+    "notFound": "Pedido no encontrado.",
+    "placedOn": "Realizado el",
+    "payment": "Pago",
+    "paymentMethod": "Método de pago",
+    "transactionId": "ID de transacción",
+    "shippingAddress": "Dirección de envío",
+    "shipping": "Envío",
     "subtotal": "Subtotal",
-    "tax": "Tax",
-    "discount": "Discount",
-    "quantity": "Qty",
-    "cancelOrder": "Cancel Order",
-    "confirmCancel": "Are you sure you want to cancel this order?"
+    "tax": "Impuesto",
+    "discount": "Descuento",
+    "quantity": "Cant.",
+    "cancelOrder": "Cancelar pedido",
+    "confirmCancel": "¿Seguro que quieres cancelar este pedido?",
+    "kicker": "Historial de compras",
+    "heroDescription": "Haz seguimiento de compras del marketplace, pedidos de productos, cumplimiento, recibos y seguimiento en un solo lugar para que comprar por OxSteed se sienta organizado desde el carrito hasta la finalización.",
+    "browseProducts": "Ver productos",
+    "browseToolRentals": "Ver alquileres de herramientas",
+    "viewInvoices": "Ver facturas",
+    "summaryAriaLabel": "Resumen de pedidos",
+    "panelDescription": "Filtra pedidos por estado de pago y cumplimiento, luego abre cualquier pedido para ver detalles.",
+    "loadError": "No se pudieron cargar los pedidos",
+    "notSet": "Sin definir",
+    "marketplaceOrder": "Pedido del marketplace de OxSteed",
+    "statusLabels": {
+      "all": "Todos",
+      "pending": "Pendiente",
+      "paid": "Pagado",
+      "processing": "En proceso",
+      "completed": "Completado",
+      "cancelled": "Cancelado",
+      "refunded": "Reembolsado"
+    },
+    "guide": {
+      "ariaLabel": "Cómo se conectan los pedidos",
+      "products": {
+        "title": "Productos y suministros",
+        "text": "Los pedidos registran compras del marketplace de productos, incluidos artículos que una empresa vende por OxSteed."
+      },
+      "fulfillment": {
+        "title": "Cumplimiento",
+        "text": "El estado facilita ver qué está pendiente, pagado, en proceso, completado, cancelado o reembolsado."
+      },
+      "sharedCarts": {
+        "title": "Carritos compartidos",
+        "text": "Los pedidos pueden empezar desde un carrito que creas tú o desde un carrito compartido que alguien te envía."
+      },
+      "records": {
+        "title": "Registros",
+        "text": "Los pedidos viven junto a facturas y pagos como parte del historial financiero del cliente."
+      }
+    },
+    "empty": {
+      "kicker": "Aún no hay pedidos",
+      "filteredKicker": "No hay pedidos coincidentes",
+      "title": "Tu historial de pedidos está listo antes de tu primera compra.",
+      "filteredTitle": "Nada coincide con este filtro todavía.",
+      "text": "Cuando compres productos, pagues desde un carrito compartido o compres suministros por OxSteed, tus recibos y estados aparecerán aquí.",
+      "filteredText": "Prueba otro estado o vuelve a todos los pedidos para ver tu historial completo.",
+      "helpTitle": "Para qué sirve esta página",
+      "help1": "Revisar compras de productos y marketplace.",
+      "help2": "Seguir el estado desde el pago hasta la finalización.",
+      "help3": "Mantener recibos conectados con tus registros de dinero.",
+      "help4": "Volver a detalles del pedido si necesitas soporte o seguimiento."
+    }
   },
   "cancellationSettings": {
     "pageTitle": "Payment & Cancellation Policies",
@@ -8547,11 +8796,11 @@
     "noteBody": "You must enable at least one payment method. Customers will see your enabled options when reviewing your bid."
   },
   "howOxsteedWorks": {
-    "metaTitle": "C?mo funciona OxSteed - Funciones, flujos y casos reales",
-    "metaDescription": "Aprende c?mo funciona OxSteed para clientes, ayudantes, negocios y due?os de herramientas. Explora trabajos, reservas, herramientas, pagos, necesidades planificadas, mensajes, disputas, paneles y funciones para crecer.",
-    "kicker": "C?mo funciona OxSteed",
+    "metaTitle": "Cómo funciona OxSteed - Funciones, flujos y casos reales",
+    "metaDescription": "Aprende cómo funciona OxSteed para clientes, ayudantes, negocios y dueños de herramientas. Explora trabajos, reservas, herramientas, pagos, necesidades planificadas, mensajes, disputas, paneles y funciones para crecer.",
+    "kicker": "Cómo funciona OxSteed",
     "title": "Un sistema conectado para conseguir ayuda, trabajar, alquilar herramientas y dirigir un negocio local.",
-    "subtitle": "OxSteed es mercado local, centro de organizaci?n de vida y sistema operativo para negocios. Esta p?gina combina una explicaci?n simple con una gu?a detallada para que los nuevos usuarios sepan qu? hacer despu?s.",
+    "subtitle": "OxSteed es mercado local, centro de organización de vida y sistema operativo para negocios. Esta página combina una explicación simple con una guía detallada para que los nuevos usuarios sepan qué hacer después.",
     "heroActions": {
       "postJob": "Publicar un trabajo",
       "findHelpers": "Encontrar ayudantes",
@@ -8563,8 +8812,8 @@
         "title": "Consigue ayuda sin perder el hilo",
         "steps": [
           "Describe un trabajo, una necesidad planificada, una reserva o un alquiler de herramienta.",
-          "Compara ayudantes, cotizaciones, mensajes, horarios y se?ales de confianza.",
-          "Paga, deja rese?as, guarda el historial y planifica la pr?xima necesidad desde tu panel."
+          "Compara ayudantes, cotizaciones, mensajes, horarios y señales de confianza.",
+          "Paga, deja reseñas, guarda el historial y planifica la próxima necesidad desde tu panel."
         ],
         "cta": "Publicar un trabajo"
       },
@@ -8573,8 +8822,8 @@
         "title": "Convierte tus habilidades en trabajo local",
         "steps": [
           "Crea un perfil con servicios, fotos, plantillas, QR y disponibilidad.",
-          "Encuentra trabajos, recibe reservas directas, escribe a clientes y env?a ofertas.",
-          "Usa pagos, facturas, reputaci?n y calendario para trabajar de forma repetible."
+          "Encuentra trabajos, recibe reservas directas, escribe a clientes y envía ofertas.",
+          "Usa pagos, facturas, reputación y calendario para trabajar de forma repetible."
         ],
         "cta": "Ver trabajos"
       },
@@ -8582,26 +8831,26 @@
         "label": "Para negocios",
         "title": "Opera desde un espacio conectado",
         "steps": [
-          "Gestiona servicios, clientes potenciales, productos, facturas, pol?ticas y solicitudes.",
-          "Usa Business Hub, anal?ticas, plantillas, consultor?a y soporte para crecer.",
-          "Mant?n registros de confianza, disputas, mensajes, pagos y seguimiento en un solo lugar."
+          "Gestiona servicios, clientes potenciales, productos, facturas, políticas y solicitudes.",
+          "Usa Business Hub, analíticas, plantillas, consultoría y soporte para crecer.",
+          "Mantén registros de confianza, disputas, mensajes, pagos y seguimiento en un solo lugar."
         ],
         "cta": "Abrir Business Hub"
       },
       "toolOwners": {
-        "label": "Para due?os de herramientas",
-        "title": "Gana con equipos ?tiles",
+        "label": "Para dueños de herramientas",
+        "title": "Gana con equipos útiles",
         "steps": [
-          "Publica herramientas con fotos, tarifas, dep?sitos, t?rminos, recogida y entrega.",
-          "Recibe reservas, env?a facturas, controla estados y gestiona reportes.",
-          "Usa anal?ticas para entender alquileres, ingresos y calidad de anuncios."
+          "Publica herramientas con fotos, tarifas, depósitos, términos, recogida y entrega.",
+          "Recibe reservas, envía facturas, controla estados y gestiona reportes.",
+          "Usa analíticas para entender alquileres, ingresos y calidad de anuncios."
         ],
         "cta": "Ver herramientas"
       }
     },
     "mentalModel": {
       "title": "El modelo simple",
-      "body": "OxSteed conecta cuatro cosas que las personas suelen manejar por separado: necesidades, personas, dinero y tiempo. Una necesidad puede convertirse en trabajo. Un trabajo puede crear mensajes, citas, pagos, rese?as y recordatorios. Un servicio terminado puede convertirse en una necesidad recurrente. Un ayudante puede convertirse en favorito. El panel re?ne esas se?ales para que el usuario sepa qu? hacer despu?s.",
+      "body": "OxSteed conecta cuatro cosas que las personas suelen manejar por separado: necesidades, personas, dinero y tiempo. Una necesidad puede convertirse en trabajo. Un trabajo puede crear mensajes, citas, pagos, reseñas y recordatorios. Un servicio terminado puede convertirse en una necesidad recurrente. Un ayudante puede convertirse en favorito. El panel reúne esas señales para que el usuario sepa qué hacer después.",
       "flow": [
         "Necesidad",
         "Plan",
@@ -8610,12 +8859,12 @@
         "Pagar",
         "Recordar"
       ],
-      "aria": "C?mo se conecta OxSteed",
+      "aria": "Cómo se conecta OxSteed",
       "flowAria": "Flujo conectado"
     },
     "examples": {
       "title": "Ejemplos reales",
-      "body": "OxSteed debe sentirse pr?ctico desde la primera visita. Estos son los tipos de recorridos que la plataforma apoya.",
+      "body": "OxSteed debe sentirse práctico desde la primera visita. Estos son los tipos de recorridos que la plataforma apoya.",
       "items": [
         "Necesito un ayudante confiable para reparar mi casa.",
         "Quiero ganar dinero con mis habilidades.",
@@ -8628,23 +8877,23 @@
     },
     "library": {
       "kicker": "Biblioteca de funciones",
-      "title": "Cada funci?n principal de OxSteed y c?mo se conecta"
+      "title": "Cada función principal de OxSteed y cómo se conecta"
     },
     "searchResults": "Mostrando {{shown}} de {{total}} secciones para \"{{query}}\".",
-    "sidebarAria": "Navegaci?n de la gu?a de funciones",
+    "sidebarAria": "Navegación de la guía de funciones",
     "searchPlaceholder": "Busca funciones, casos de uso o flujos...",
     "searchAria": "Buscar funciones de OxSteed",
     "contents": "Contenido",
-    "pathsAria": "C?mo funciona OxSteed por tipo de usuario",
-    "categoriesAria": "Categor?as de funciones",
+    "pathsAria": "Cómo funciona OxSteed por tipo de usuario",
+    "categoriesAria": "Categorías de funciones",
     "empty": {
       "title": "No se encontraron funciones coincidentes.",
       "body": "Prueba buscar trabajos, herramientas, pagos, necesidades planificadas, calendario, ayudante, negocio o soporte."
     },
     "detail": {
       "realLifeTitle": "Casos de uso reales",
-      "connectsTitle": "C?mo se conecta",
-      "actionsTitle": "Pr?ximas acciones ?tiles"
+      "connectsTitle": "Cómo se conecta",
+      "actionsTitle": "Próximas acciones útiles"
     }
   },
   "businessPublicProfile": {
@@ -9006,6 +9255,7 @@
       "unread": "Sin leer",
       "team": "Equipo",
       "owner": "Dueño",
+      "member": "Miembro",
       "primary": "Principal",
       "open": "Abrir espacio",
       "analytics": "Analíticas",
@@ -12037,7 +12287,7 @@
       "videoComingSoon": "Videoclase próximamente",
       "stepsHeading": "Pasos",
       "askAiTitle": "Preguntarle a la IA sobre este paso",
-      "askAi": "Ask AI",
+      "askAi": "Preguntar a la IA",
       "guideCompleted": "Guía completada · +{{xp}} XP ganados",
       "saving": "Guardando…",
       "markComplete": "✓ Marcar como completado",
@@ -12166,5 +12416,29 @@
         "support_agent": "Manual del agente de soporte"
       }
     }
+  },
+  "cancellationStats": {
+    "loading": "Cargando información de confiabilidad...",
+    "customerTitle": "Confiabilidad del cliente",
+    "helperTitle": "Confiabilidad del ayudante",
+    "summaryCustomerClean": "{{count}} trabajos publicados, sin cancelaciones",
+    "summaryCustomerRate": "{{jobs}} trabajos, {{cancelled}} cancelados ({{rate}}%)",
+    "summaryHelperClean": "{{count}} trabajos aceptados, sin cancelaciones",
+    "summaryHelperRate": "{{jobs}} trabajos aceptados, {{cancelled}} cancelados ({{rate}}%)",
+    "expandDetails": "Expandir detalles",
+    "collapseDetails": "Ocultar detalles",
+    "totalJobsPosted": "Total de trabajos publicados:",
+    "cancellations": "Cancelaciones:",
+    "averageDaysBeforeCancel": "Promedio de días antes de cancelar:",
+    "daysValue": "{{count}} días",
+    "lastMinuteCancellations": "Cancelaciones de último minuto:",
+    "within24HoursOfStart": "{{count}} dentro de las 24 h del inicio",
+    "lastJobPosted": "Último trabajo publicado:",
+    "jobsAccepted": "Trabajos aceptados:",
+    "averageDaysFromAcceptanceToCancel": "Promedio de días desde la aceptación hasta la cancelación:",
+    "customerDisclaimer": "Esta información ayuda a los ayudantes a entender tu historial de publicaciones para tomar decisiones informadas.",
+    "helperDisclaimer": "Esta información ayuda a los clientes a decidir si contratar a este ayudante.",
+    "customerWarning": "Este cliente tiene un historial de cancelaciones. Considera fijar una tarifa más alta o pedir confirmación por adelantado.",
+    "helperWarning": "Este ayudante ha cancelado trabajos aceptados. Revisa sus reseñas y considera pedir una confirmación de compromiso."
   }
 }

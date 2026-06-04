@@ -1,11 +1,11 @@
 {
   "actions": {
-    "cancel": "Cancel",
-    "create": "Create",
-    "loading": "Loading",
-    "save": "Save",
-    "submit": "Submit",
-    "translate": "Translate",
+    "cancel": "Cancelar",
+    "create": "Crear",
+    "loading": "Cargando",
+    "save": "Guardar",
+    "submit": "Enviar",
+    "translate": "Traducir",
     "translating": "Traduciendo...",
     "switchToLightMode": "Cambiar a modo claro",
     "switchToDarkMode": "Cambiar a modo oscuro",
@@ -14,6 +14,12 @@
     "recording": "Grabando..."
   },
   "switching": "Cambiando...",
+  "languageSelector": {
+    "changeLanguage": "Cambiar idioma",
+    "languageMenu": "Menú de idiomas",
+    "currentLanguage": "Idioma actual: {{language}}",
+    "chooseLanguage": "Elegir {{language}}"
+  },
   "forms": {
     "country": {
       "placeholder": "Selecciona un país"
@@ -119,6 +125,55 @@
     },
     "success": "¡Reserva confirmada!"
   },
+  "publicInvoice": {
+    "loadingTitle": "Cargando factura",
+    "unavailableTitle": "Factura no disponible",
+    "notFound": "La factura no se encontró o ha vencido",
+    "notSet": "No establecido",
+    "notAssigned": "No asignado",
+    "balanceDue": "Saldo pendiente",
+    "invoiceNumber": "Factura",
+    "numberPending": "número pendiente",
+    "invoiceDetails": "Detalles de la factura",
+    "issued": "Emitida",
+    "due": "Vence",
+    "status": "Estado",
+    "billTo": "Facturar a",
+    "customer": "Cliente",
+    "description": "Descripción",
+    "quantity": "Cant.",
+    "unitPrice": "Precio unitario",
+    "amount": "Importe",
+    "service": "Servicio",
+    "lineItemsUnavailable": "Los detalles de las líneas no están disponibles. El total abajo sigue siendo el importe de la factura registrado por el negocio.",
+    "subtotal": "Subtotal",
+    "tax": "Impuesto ({{rate}}%)",
+    "amountPaid": "Importe pagado",
+    "totalDue": "Total pendiente",
+    "notesFrom": "Notas de {{business}}",
+    "fallbackBusiness": "el negocio",
+    "paymentReceivedTitle": "Pago recibido",
+    "paymentReceivedBody": "Gracias. Guarda este enlace para tus registros y futuras consultas.",
+    "readyTitle": "¿Listo para pagar?",
+    "readyBody": "Inicia sesión en OxSteed para continuar con pago seguro y protección de cuenta.",
+    "loginToPay": "Iniciar sesión para pagar",
+    "whatNext": "Qué pasa después",
+    "trustAccount": "El pago queda vinculado a tu cuenta de OxSteed y al registro de la factura.",
+    "trustReceipts": "Las fechas de vencimiento, el estado pagado y los recibos siguen visibles después del pago.",
+    "trustSupport": "Las preguntas se pueden rastrear hasta el negocio y el soporte de OxSteed.",
+    "needClarity": "¿Necesitas claridad?",
+    "clarityBody": "Contacta a {{business}} antes de pagar si una línea no te resulta familiar.",
+    "poweredBy": "Con tecnología de facturas seguras de OxSteed.",
+    "statusLabels": {
+      "draft": "Borrador",
+      "sent": "Enviada",
+      "issued": "Emitida",
+      "paid": "Pagada",
+      "overdue": "Vencida",
+      "cancelled": "Cancelada",
+      "outstanding": "Pendiente"
+    }
+  },
   "accessGateRecovery": {
     "title": "Recuperación de acceso",
     "validating": "Validando tu enlace de recuperación...",
@@ -188,7 +243,12 @@
     "errorDetails": "Detalles del error",
     "tryAgain": "Intentar de nuevo",
     "backToOrders": "Volver a pedidos",
-    "persistentErrors": "Este problema ocurre repetidamente. Nuestro equipo ha sido notificado."
+    "persistentErrors": "Este problema ocurre repetidamente. Nuestro equipo ha sido notificado.",
+    "componentNames": {
+      "orderHistory": "Historial de pedidos",
+      "orderDetails": "Detalles del pedido",
+      "checkout": "Pago"
+    }
   },
   "languages": {
     "autoDetect": "Auto-detect"

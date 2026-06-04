@@ -10,6 +10,7 @@ import PageShell from '../components/PageShell';
 import TrialBanner from '../components/TrialBanner';
 import PulseScoreSettings from '../components/PulseScoreSettings';
 import RecommendationFeed from '../components/RecommendationFeed';
+import { formatDate, formatMoney } from '../lib/format';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -110,6 +111,9 @@ const Modal = ({ open, onClose, title, children }) => {
 // Format a Date as YYYY-MM-DD in local time (avoids UTC-shift from toISOString())
 const localDateStr = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const monthYearLabel = () => formatDate(new Date(), { month: 'long', year: 'numeric', day: undefined });
+const shortDateLabel = (value) => formatDate(value, { month: 'short', day: 'numeric', year: undefined });
+const fullShortDateLabel = (value) => formatDate(value, { month: 'short', day: 'numeric', year: 'numeric' });
 
 // ═══════════════════════════════════════════════════════════════════════════
 export default function Dashboard() {
@@ -1129,14 +1133,14 @@ export default function Dashboard() {
                   </div>
                   <div className="text-center p-3 bg-gray-800/30 rounded-xl">
                     <p className="text-xl font-bold text-emerald-400">
-                      ${parseFloat(s.planned_needs.total_planned_cost || 0).toLocaleString(undefined,{maximumFractionDigits:0})}
+                      {formatMoney(parseFloat(s.planned_needs.total_planned_cost || 0), { maximumFractionDigits: 0 })}
                     </p>
                     <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.plannedNeeds.totalPlanned')}</p>
                   </div>
                   <div className="text-center p-3 bg-gray-800/30 rounded-xl">
                     <p className="text-sm font-bold text-gray-300">
                       {s.planned_needs.next_due_date
-                        ? new Date(s.planned_needs.next_due_date + 'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})
+                        ? shortDateLabel(`${s.planned_needs.next_due_date}T00:00:00`)
                         : '-'}
                     </p>
                     <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.plannedNeeds.nextDue')}</p>
@@ -1248,11 +1252,11 @@ export default function Dashboard() {
         {tab==='money' && (<>
           {/* Monthly summary */}
           <Card className="mb-6">
-            <CardHeader icon={IcoDollar} title={`${new Date().toLocaleString('en-US',{month:'long'})} ${new Date().getFullYear()}`} right={<Btn onClick={()=>setShowExpenseModal(true)}>{t('dashboard.money.logTransaction')}</Btn>}/>
+            <CardHeader icon={IcoDollar} title={monthYearLabel()} right={<Btn onClick={()=>setShowExpenseModal(true)}>{t('dashboard.money.logTransaction')}</Btn>}/>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.income')}</p><p className="text-xl font-bold text-emerald-400">${(life.expenseSummary?.total_income||0).toFixed(2)}</p></div>
-              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.expenses')}</p><p className="text-xl font-bold text-red-400">${(life.expenseSummary?.total_expenses||0).toFixed(2)}</p></div>
-              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.net')}</p><p className={`text-xl font-bold ${(life.expenseSummary?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>${(life.expenseSummary?.net||0).toFixed(2)}</p></div>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.income')}</p><p className="text-xl font-bold text-emerald-400">{formatMoney(life.expenseSummary?.total_income || 0)}</p></div>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.expenses')}</p><p className="text-xl font-bold text-red-400">{formatMoney(life.expenseSummary?.total_expenses || 0)}</p></div>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.net')}</p><p className={`text-xl font-bold ${(life.expenseSummary?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>{formatMoney(life.expenseSummary?.net || 0)}</p></div>
               <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.savingsRate')}</p>
                 {(() => {
                   const income = life.expenseSummary?.total_income ?? 0;
@@ -1872,7 +1876,7 @@ export default function Dashboard() {
                           <p className="text-sm font-medium text-white truncate">{pcTask.title}</p>
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             {pcTask.description&&<span className="text-[10px] bg-gray-800/60 text-gray-400 px-1.5 py-0.5 rounded-full">{pcTask.description}</span>}
-                            {pcTask.due_date&&<span className={`text-[10px] ${overdue?'text-red-400 font-semibold':'text-gray-600'}`}>{overdue?t('dashboard.personalCare.overdueDot'):''}{new Date(pcTask.due_date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>}
+                            {pcTask.due_date&&<span className={`text-[10px] ${overdue?'text-red-400 font-semibold':'text-gray-600'}`}>{overdue?t('dashboard.personalCare.overdueDot'):''}{fullShortDateLabel(`${pcTask.due_date}T00:00:00`)}</span>}
                             {recLabel&&<span className="text-[10px] text-purple-400">↻ {recLabel}</span>}
                             {pcTask.home_name&&<span className="text-[10px] text-blue-400">🏠 {pcTask.home_name}</span>}
                           </div>
@@ -2110,7 +2114,7 @@ export default function Dashboard() {
                           <p className="text-sm font-medium text-white truncate">{ccTask.title}</p>
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             {ccTask.description&&<span className="text-[10px] bg-gray-800/60 text-gray-400 px-1.5 py-0.5 rounded-full">{ccTask.description}</span>}
-                            {ccTask.due_date&&<span className={`text-[10px] ${overdue?'text-red-400 font-semibold':'text-gray-600'}`}>{overdue?t('dashboard.carCare.overdueDot'):''}{new Date(ccTask.due_date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>}
+                            {ccTask.due_date&&<span className={`text-[10px] ${overdue?'text-red-400 font-semibold':'text-gray-600'}`}>{overdue?t('dashboard.carCare.overdueDot'):''}{fullShortDateLabel(`${ccTask.due_date}T00:00:00`)}</span>}
                             {recLabel&&<span className="text-[10px] text-purple-400">↻ {recLabel}</span>}
                             {ccTask.vehicle_name&&<span className="text-[10px] text-yellow-400">🚗 {ccTask.vehicle_name}</span>}
                             {ccTask.home_name&&<span className="text-[10px] text-blue-400">🏠 {ccTask.home_name}</span>}

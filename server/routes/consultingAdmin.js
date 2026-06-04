@@ -21,6 +21,7 @@ router.get('/consultants', ...auth, adminConsultingController.getAvailableConsul
 // Invoices & packages
 router.post('/invoices/generate', ...auth, adminConsultingController.generateInvoice);
 router.post('/invoices/generate-manual', ...auth, adminConsultingController.generateManualInvoice);
+router.get('/invoices/:invoiceId/download', ...auth, adminConsultingController.downloadInvoice);
 router.get('/invoices', ...auth, adminConsultingController.listInvoices);
 router.get('/purchases', ...auth, adminConsultingController.listPurchases);
 router.patch('/packages/:id', ...auth, adminConsultingController.updatePackage);

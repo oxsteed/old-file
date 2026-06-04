@@ -1102,7 +1102,7 @@ exports.transcribeAudio = async (req, res, next) => {
       throw new AppError('audio_data is required', 400, 'validation_failed', { audio_data: 'audio_data is required' });
     }
 
-    const SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'ht', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
+    const SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'ht', 'ar', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
     if (!SUPPORTED_LANGUAGES.includes(language)) {
       throw new AppError('Invalid language code', 400, 'validation_failed', { language: 'Language not supported' });
     }

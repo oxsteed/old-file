@@ -5,6 +5,7 @@ import useSubscription from '../hooks/useSubscription';
 import { useAuth } from '../hooks/useAuth';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { formatDate, formatMoney } from '../lib/format';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -72,7 +73,17 @@ export default function UpgradePage() {
   const proYearly = 79.99;
   const proYearlySavings = Math.round((1 - (proYearly / (proMonthly * 12))) * 100);
   const displayPrice = billing === 'yearly' ? proYearly : proMonthly;
+  const displayPriceText = formatMoney(displayPrice);
   const displayPeriod = billing === 'yearly' ? t('plans.year') : t('plans.month');
+  const yearlyPerMonthText = formatMoney(proYearly / 12);
+  const yearlySavingsText = formatMoney((proMonthly * 12) - proYearly);
+  const renewalDateText = subscription?.current_period_end
+    ? formatDate(subscription.current_period_end, { month: 'long', day: 'numeric', year: 'numeric' })
+    : t('upgrade.renewalSoon');
+  const exampleJobAmount = formatMoney(200);
+  const examplePlatformFee = formatMoney(14.2);
+  const exampleStripeFee = formatMoney(6.1);
+  const exampleHelperReceives = formatMoney(179.7);
 
   const handleSubscribe = async (planSlug) => {
     const slug = billing === 'yearly' ? `${planSlug}-yearly` : planSlug;
@@ -138,7 +149,7 @@ export default function UpgradePage() {
                 {t('upgrade.activeLabel')}
               </div>
               <p className="text-gray-400 text-sm mb-6">
-                {t('upgrade.renewsOn', { date: subscription?.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Soon' })}
+                {t('upgrade.renewsOn', { date: renewalDateText })}
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <button onClick={openPortal}
@@ -190,7 +201,7 @@ export default function UpgradePage() {
                 <p className="text-gray-500 text-sm mb-6">{t('upgrade.freeDesc')}</p>
 
                 <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-4xl font-bold text-white">$0</span>
+                  <span className="text-4xl font-bold text-white">{formatMoney(0)}</span>
                   <span className="text-gray-500 text-sm">{t('upgrade.freeForever')}</span>
                 </div>
 
@@ -224,14 +235,14 @@ export default function UpgradePage() {
                 <p className="text-gray-500 text-sm mb-6">{t('upgrade.proDesc')}</p>
 
                 <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-4xl font-bold text-orange-400">${displayPrice}</span>
+                  <span className="text-4xl font-bold text-orange-400">{displayPriceText}</span>
                   <span className="text-gray-500 text-sm">/{displayPeriod}</span>
                 </div>
                 {billing === 'yearly' && (
                   <p className="text-emerald-400 text-xs font-medium mb-5">
-                    {t('upgrade.yearlySavings', {
-                      monthly: (proYearly / 12).toFixed(2),
-                      savings: ((proMonthly * 12) - proYearly).toFixed(2),
+                    {t('upgrade.yearlySavingsFormatted', {
+                      monthly: yearlyPerMonthText,
+                      savings: yearlySavingsText,
                     })}
                   </p>
                 )}
@@ -278,23 +289,25 @@ export default function UpgradePage() {
 
                 {/* Example breakdown */}
                 <div className="bg-gray-800/50 rounded-xl p-6 mb-6">
-                  <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold mb-4">{t('upgrade.exampleTitle')}</p>
+                  <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold mb-4">
+                    {t('upgrade.exampleTitleAmount', { amount: exampleJobAmount })}
+                  </p>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-300">{t('upgrade.customerPays')}</span>
-                      <span className="text-sm font-bold text-white">$200.00</span>
+                      <span className="text-sm font-bold text-white">{exampleJobAmount}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-300">{t('upgrade.platformFee')}</span>
-                      <span className="text-sm font-semibold text-orange-400">-$14.20</span>
+                      <span className="text-sm font-semibold text-orange-400">-{examplePlatformFee}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-300">{t('upgrade.stripeFee')}</span>
-                      <span className="text-sm font-semibold text-gray-500">-$6.10</span>
+                      <span className="text-sm font-semibold text-gray-500">-{exampleStripeFee}</span>
                     </div>
                     <div className="border-t border-gray-700 pt-3 flex justify-between items-center">
                       <span className="text-sm font-bold text-white">{t('upgrade.helperReceives')}</span>
-                      <span className="text-lg font-bold text-emerald-400">~$179.70</span>
+                      <span className="text-lg font-bold text-emerald-400">~{exampleHelperReceives}</span>
                     </div>
                   </div>
                 </div>
@@ -384,11 +397,11 @@ export default function UpgradePage() {
                 <FaqItem q={t('upgrade.faq5Q')} a={t('upgrade.faq5A')} />
                 <FaqItem
                   q={t('upgrade.faq6Q')}
-                  a={t('upgrade.faq6A', {
-                    monthly: proMonthly,
-                    yearly: proYearly,
-                    perMonth: (proYearly / 12).toFixed(2),
-                    savings: ((proMonthly * 12) - proYearly).toFixed(2),
+                  a={t('upgrade.faq6AFormatted', {
+                    monthly: formatMoney(proMonthly),
+                    yearly: formatMoney(proYearly),
+                    perMonth: yearlyPerMonthText,
+                    savings: yearlySavingsText,
                     pct: proYearlySavings,
                   })}
                 />
@@ -402,7 +415,7 @@ export default function UpgradePage() {
                 onClick={() => handleSubscribe('pro')}
                 className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-10 py-4 rounded-xl transition text-base"
               >
-                {t('upgrade.getProBtn', { price: displayPrice, period: displayPeriod })}
+                {t('upgrade.getProBtnFormatted', { price: displayPriceText, period: displayPeriod })}
               </button>
               <p className="text-gray-600 text-xs mt-3">{t('upgrade.noHiddenFees')}</p>
             </div>

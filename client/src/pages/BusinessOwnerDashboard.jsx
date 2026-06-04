@@ -40,6 +40,11 @@ function colorFromName(name) {
 
 function BusinessCard({ biz, currency, t }) {
   const accent = colorFromName(biz.business_name);
+  const roleLabel = biz.role === 'owner'
+    ? t('dashboards.businessOwner.owner')
+    : biz.role === 'member'
+      ? t('dashboards.businessOwner.member')
+      : biz.role;
   const initials = String(biz.business_name || '?')
     .split(/\s+/)
     .map(w => w[0])
@@ -70,7 +75,7 @@ function BusinessCard({ biz, currency, t }) {
           <div className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
             {biz.role && (
               <span className="px-1.5 py-0.5 rounded-md uppercase tracking-wider" style={{ background: 'rgba(148,163,184,0.1)' }}>
-                {biz.role === 'owner' ? t('dashboards.businessOwner.owner', { defaultValue: 'Owner' }) : biz.role}
+                {roleLabel}
               </span>
             )}
             {biz.is_primary && (

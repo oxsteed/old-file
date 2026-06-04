@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import adminApi from '../../lib/adminApi';
+import toast from 'react-hot-toast';
 import {
   Clock,
   Plus,
@@ -26,6 +27,7 @@ export default function SupportShiftsManager() {
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingShiftId, setEditingShiftId] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     start_time: '09:00',
@@ -54,12 +56,32 @@ export default function SupportShiftsManager() {
   }, [loadShifts]);
 
   const handleSave = async () => {
+    if (!formData.name.trim()) {
+      toast.error('Shift name is required');
+      return;
+    }
+
+    const payload = {
+      ...formData,
+      name: formData.name.trim(),
+      max_agents: parseInt(formData.max_agents, 10) || 0,
+      days: formData.days,
+    };
+
     try {
-      await adminApi.post('/support/shifts', {
-        ...formData,
-        business_id: businessId,
-      });
+      if (editingShiftId) {
+        await adminApi.patch(`/support/shifts/${editingShiftId}`, {
+          ...payload,
+          business_id: businessId,
+        });
+      } else {
+        await adminApi.post('/support/shifts', {
+          ...payload,
+          business_id: businessId,
+        });
+      }
       setShowForm(false);
+      setEditingShiftId(null);
       setFormData({
         name: '',
         start_time: '09:00',
@@ -68,9 +90,49 @@ export default function SupportShiftsManager() {
         days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
       });
       loadShifts();
+      toast.success(editingShiftId ? 'Shift updated' : 'Shift created');
     } catch (err) {
       console.error('Failed to save shift:', err);
+      toast.error('Failed to save shift');
     }
+  };
+
+  const handleEditShift = (shift) => {
+    setEditingShiftId(shift.id);
+    setShowForm(true);
+    setFormData({
+      name: shift.name || '',
+      start_time: shift.start_time || '09:00',
+      end_time: shift.end_time || '17:00',
+      max_agents: shift.max_agents || 10,
+      days: Array.isArray(shift.days) && shift.days.length
+        ? shift.days
+        : ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+    });
+  };
+
+  const handleNewShift = () => {
+    setEditingShiftId(null);
+    setShowForm(true);
+    setFormData({
+      name: '',
+      start_time: '09:00',
+      end_time: '17:00',
+      max_agents: 10,
+      days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+    });
+  };
+
+  const handleCancelForm = () => {
+    setShowForm(false);
+    setEditingShiftId(null);
+    setFormData({
+      name: '',
+      start_time: '09:00',
+      end_time: '17:00',
+      max_agents: 10,
+      days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+    });
   };
 
   const handleDelete = async (shiftId) => {
@@ -94,10 +156,10 @@ export default function SupportShiftsManager() {
         description="Plan shift windows, capacity, and recurring coverage so the support queue always has the right staffing rhythm behind it."
         actions={(
           <>
-            <SupportActionButton icon={RefreshCw} onClick={loadShifts} tone="secondary">
-              Refresh
-            </SupportActionButton>
-            <SupportActionButton icon={Plus} onClick={() => setShowForm(true)} tone="primary">
+              <SupportActionButton icon={RefreshCw} onClick={loadShifts} tone="secondary">
+                Refresh
+              </SupportActionButton>
+            <SupportActionButton icon={Plus} onClick={handleNewShift} tone="primary">
               New shift
             </SupportActionButton>
           </>
@@ -143,7 +205,7 @@ export default function SupportShiftsManager() {
             title="No shifts configured"
             body="Create the first support shift to start defining queue coverage and staffing capacity."
             action={(
-              <SupportActionButton icon={Plus} onClick={() => setShowForm(true)} tone="primary">
+              <SupportActionButton icon={Plus} onClick={handleNewShift} tone="primary">
                 Create first shift
               </SupportActionButton>
             )}
@@ -169,7 +231,11 @@ export default function SupportShiftsManager() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button className="rounded-xl border border-gray-700 bg-gray-900 p-2 text-gray-400 transition hover:text-white">
+                    <button
+                      onClick={() => handleEditShift(shift)}
+                      className="rounded-xl border border-gray-700 bg-gray-900 p-2 text-gray-400 transition hover:text-white"
+                      aria-label={`Edit ${shift.name} shift`}
+                    >
                       <Edit2 size={15} />
                     </button>
                     <button
@@ -191,10 +257,10 @@ export default function SupportShiftsManager() {
           <div className="w-full max-w-xl rounded-[28px] border border-gray-700 bg-gray-900 shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-800 px-6 py-5">
               <div>
-                <div className="text-xl font-semibold text-white">New shift</div>
-                <div className="mt-1 text-sm text-gray-500">Define a recurring support coverage block.</div>
-              </div>
-              <button onClick={() => setShowForm(false)} className="text-2xl text-gray-500 hover:text-white">x</button>
+            <div className="text-xl font-semibold text-white">{editingShiftId ? 'Edit shift' : 'New shift'}</div>
+            <div className="mt-1 text-sm text-gray-500">{editingShiftId ? 'Update coverage details to adjust staffing and availability.' : 'Define a recurring support coverage block.'}</div>
+          </div>
+            <button onClick={handleCancelForm} className="text-2xl text-gray-500 hover:text-white">x</button>
             </div>
 
             <div className="space-y-5 px-6 py-6">
@@ -267,12 +333,12 @@ export default function SupportShiftsManager() {
               </div>
 
               <div className="flex gap-3 border-t border-gray-800 pt-5">
-                <SupportActionButton tone="secondary" onClick={() => setShowForm(false)}>
-                  Cancel
-                </SupportActionButton>
-                <SupportActionButton tone="primary" onClick={handleSave}>
-                  Create shift
-                </SupportActionButton>
+              <SupportActionButton tone="secondary" onClick={handleCancelForm}>
+                Cancel
+              </SupportActionButton>
+              <SupportActionButton tone="primary" onClick={handleSave}>
+                  {editingShiftId ? 'Save changes' : 'Create shift'}
+              </SupportActionButton>
               </div>
             </div>
           </div>

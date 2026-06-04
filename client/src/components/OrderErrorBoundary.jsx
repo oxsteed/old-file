@@ -44,6 +44,10 @@ class OrderErrorBoundary extends Component {
 
   render() {
     const { t } = this.props;
+    const componentName = this.props.componentNameKey
+      ? t(this.props.componentNameKey)
+      : this.props.componentName || t('orderErrorBoundary.defaultComponentName');
+
     if (this.state.hasError) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -52,7 +56,7 @@ class OrderErrorBoundary extends Component {
               <h1 className="text-2xl font-bold text-red-600 mb-2">{t('orderErrorBoundary.title')}</h1>
               <p className="text-gray-600">
                 {t('orderErrorBoundary.unexpectedMessage', {
-                  componentName: this.props.componentName || t('orderErrorBoundary.defaultComponentName'),
+                  componentName,
                 })}
               </p>
             </div>

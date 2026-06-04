@@ -1,1 +1,1 @@
-export { default, LANGUAGES } from './i18n/index.js';
+export { default, LANGUAGES, detectInitialLanguage } from './i18n/index.js';

@@ -1,7 +1,35 @@
 import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, AlertCircle, Mail, TrendingUp, TrendingDown } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+const toNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const normalizeAcceptanceRate = (rate, totalUsers = 0) => {
+  if (rate && typeof rate === 'object') {
+    const percentage = toNumber(rate.percentage ?? rate.rate ?? rate.acceptanceRate, toNumber(rate.total && rate.accepted ? (rate.accepted / rate.total) * 100 : 0));
+    const total = toNumber(rate.total, totalUsers);
+    const accepted = Math.max(0, toNumber(rate.accepted, Math.round((percentage / 100) * total)));
+    const safeTotal = total > 0 ? total : Math.max(accepted, toNumber(rate.total, 0));
+    return {
+      percentage: Math.min(100, Math.round(percentage)),
+      accepted,
+      total: safeTotal,
+    };
+  }
+
+  const percentage = toNumber(rate);
+  const safeTotal = toNumber(totalUsers);
+  const accepted = Math.max(0, Math.round((percentage / 100) * safeTotal));
+  return {
+    percentage: Math.min(100, Math.round(percentage)),
+    accepted,
+    total: safeTotal,
+  };
+};
 
 // ─── Acceptance Rate Card ─────────────────────────────────────────────────────
 
@@ -48,14 +76,18 @@ function AcceptanceCard({ title, percentage, accepted, total, acceptedDate }) {
 function DocumentStatusColumn({ title, count, docs, status }) {
   const bgColor = {
     created: 'bg-blue-500/20',
+    draft: 'bg-blue-500/20',
     in_review: 'bg-yellow-500/20',
+    inReview: 'bg-yellow-500/20',
     approved: 'bg-purple-500/20',
     published: 'bg-green-500/20',
   }[status] || 'bg-gray-700/20';
 
   const textColor = {
     created: 'text-blue-400',
+    draft: 'text-blue-400',
     in_review: 'text-yellow-400',
+    inReview: 'text-yellow-400',
     approved: 'text-purple-400',
     published: 'text-green-400',
   }[status] || 'text-gray-400';
@@ -68,13 +100,13 @@ function DocumentStatusColumn({ title, count, docs, status }) {
       </div>
 
       <div className="space-y-2 max-h-48 overflow-y-auto">
-        {docs.length === 0 ? (
+        {(docs || []).length === 0 ? (
           <p className="text-gray-500 text-xs py-4 text-center">No documents</p>
         ) : (
-          docs.map((doc, idx) => (
+          (docs || []).map((doc, idx) => (
             <div key={idx} className="bg-gray-900/50 rounded p-2 text-xs">
-              <p className="text-gray-300 font-medium truncate">{doc.name}</p>
-              <p className="text-gray-500 text-xs">v{doc.version}</p>
+              <p className="text-gray-300 font-medium truncate">{doc.name || doc.document_name || doc.package_name || doc.type || doc.id}</p>
+              <p className="text-gray-500 text-xs">v{doc.version || doc.document_version || 1}</p>
             </div>
           ))
         )}
@@ -97,6 +129,22 @@ function AlertBox({ type, title, message, action }) {
     warning: '🟡',
     info: '🔵',
   };
+  const handleAction = () => {
+    if (!action) return;
+    const href = action.href || action.url || action.path || action.route;
+    if (href) {
+      window.location.href = href;
+      return;
+    }
+    if (action.type === 'mailto' && action.to) {
+      window.location.href = `mailto:${action.to}`;
+      return;
+    }
+    if (action.type === 'email' && action.to) {
+      window.location.href = `mailto:${action.to}`;
+      return;
+    }
+  };
 
   return (
     <div className={`border rounded-lg p-4 flex items-start gap-3 ${styles[type]}`}>
@@ -106,7 +154,11 @@ function AlertBox({ type, title, message, action }) {
         <p className="text-xs mt-1">{message}</p>
       </div>
       {action && (
-        <button className="flex-shrink-0 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs transition whitespace-nowrap ml-2">
+        <button
+          type="button"
+          onClick={handleAction}
+          className="flex-shrink-0 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs transition whitespace-nowrap ml-2"
+        >
           {action.label}
         </button>
       )}
@@ -126,7 +178,7 @@ export default function AdminComplianceMetricsPage() {
     setError('');
     try {
       const res = await adminApi.get('/admin/legal/compliance-metrics');
-      setData(res.data);
+      setData(res.data?.metrics ? res.data.metrics : res.data);
     } catch (err) {
       console.error('Failed to load metrics:', err);
       setError(err.response?.data?.message || 'Failed to load compliance metrics');
@@ -147,6 +199,7 @@ export default function AdminComplianceMetricsPage() {
   }
 
   const {
+    totalActiveUsers = 0,
     acceptanceRates = {},
     ccpaMetrics = {},
     documentStatus = {},
@@ -154,8 +207,68 @@ export default function AdminComplianceMetricsPage() {
     alerts = [],
   } = data || {};
 
-  const trendData = trends.acceptance || [];
-  const ccpaData = trends.ccpa || [];
+  const trendRows = Array.isArray(trends.acceptance)
+    ? trends.acceptance
+    : Array.isArray(trends.acceptanceTrend)
+      ? trends.acceptanceTrend
+    : Array.isArray(trends.last90Days)
+      ? trends.last90Days
+      : Array.isArray(trends.trend)
+        ? trends.trend
+        : [];
+  const trendData = trendRows
+    .map((entry) => ({
+      date: entry.date || entry.bucket || entry.month || entry.day,
+      rate: toNumber(
+        entry.rate ?? entry.acceptanceRate,
+        toNumber(entry.total) > 0 && toNumber(entry.acceptanceCount) > 0
+          ? (toNumber(entry.acceptanceCount) / toNumber(entry.total)) * 100
+          : 0,
+      ),
+      acceptanceCount: toNumber(entry.acceptanceCount ?? entry.count ?? 0),
+      total: toNumber(entry.total ?? 0),
+    }))
+    .filter((entry) => entry.date);
+
+  const byTypeRows = ccpaMetrics?.byType && typeof ccpaMetrics.byType === 'object'
+    ? Object.entries(ccpaMetrics.byType)
+    : [];
+  const ccpaData = Array.isArray(trends.ccpa)
+    ? trends.ccpa
+    : byTypeRows.map(([type, stats]) => ({
+        month: type,
+        count: toNumber(stats?.total ?? stats?.count, 0),
+        completed: toNumber(stats?.completed, 0),
+      }));
+
+  const documentStatusCounts = {
+    created: Number(documentStatus.created ?? documentStatus.draft ?? 0),
+    inReview: Number(documentStatus.inReview ?? documentStatus.in_review ?? 0),
+    approved: Number(documentStatus.approved ?? 0),
+    published: Number(documentStatus.published ?? 0),
+  };
+  const normalizedDocumentStatus = {
+    created: Array.isArray(documentStatus.created)
+      ? documentStatus.created
+      : Array.isArray(documentStatus.draft)
+        ? documentStatus.draft
+        : [],
+    inReview: Array.isArray(documentStatus.inReview)
+      ? documentStatus.inReview
+      : Array.isArray(documentStatus.in_review)
+        ? documentStatus.in_review
+        : [],
+    approved: Array.isArray(documentStatus.approved)
+      ? documentStatus.approved
+      : [],
+    published: Array.isArray(documentStatus.published)
+      ? documentStatus.published
+      : [],
+  };
+  const ccpaResponseTime = ccpaMetrics.avgResponseTimeDays ?? ccpaMetrics.avgResponseTime ?? ccpaMetrics.gdprResponseTime ?? 0;
+  const ccpaRequestTotal = ccpaMetrics.thisMonth ?? byTypeRows.reduce((sum, [, stats]) => sum + toNumber(stats?.total ?? stats?.count, 0), 0);
+  const ccpaPendingCount = ccpaMetrics.pending ?? 0;
+  const gdprRequestTotal = ccpaMetrics.deletionRequests ?? ccpaMetrics.deletionRequestCount ?? byTypeRows.reduce((sum, [, stats]) => sum + toNumber(stats?.total ?? stats?.count, 0), 0);
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -186,16 +299,19 @@ export default function AdminComplianceMetricsPage() {
       <div>
         <h2 className="text-white font-bold text-lg mb-4">Acceptance Rates by Document Type</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Object.entries(acceptanceRates).map(([key, rate]) => (
-            <AcceptanceCard
-              key={key}
-              title={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-              percentage={Math.round(rate.percentage)}
-              accepted={rate.accepted}
-              total={rate.total}
-              acceptedDate={new Date(rate.lastUpdated).toLocaleDateString()}
-            />
-          ))}
+          {Object.entries(acceptanceRates).map(([key, rate]) => {
+            const normalizedRate = normalizeAcceptanceRate(rate, totalActiveUsers);
+            return (
+              <AcceptanceCard
+                key={key}
+                title={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                percentage={normalizedRate.percentage}
+                accepted={normalizedRate.accepted}
+                total={normalizedRate.total}
+                acceptedDate={normalizedRate.total ? new Date().toLocaleDateString() : 'N/A'}
+              />
+            );
+          })}
         </div>
       </div>
 
@@ -207,18 +323,18 @@ export default function AdminComplianceMetricsPage() {
           <div className="space-y-3">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-gray-400 text-sm">Requests This Month</p>
-                <p className="text-white text-3xl font-bold">{ccpaMetrics.thisMonth || 0}</p>
+                  <p className="text-gray-400 text-sm">Requests This Month</p>
+                <p className="text-white text-3xl font-bold">{ccpaRequestTotal || 0}</p>
               </div>
               <div className="text-right">
                 <p className="text-gray-400 text-sm">Pending</p>
-                <p className="text-yellow-400 text-2xl font-bold">{ccpaMetrics.pending || 0}</p>
+                <p className="text-yellow-400 text-2xl font-bold">{ccpaPendingCount || 0}</p>
               </div>
             </div>
             <div className="border-t border-gray-700 pt-3">
               <p className="text-gray-400 text-sm mb-1">Avg Response Time</p>
               <div className="flex items-baseline gap-2">
-                <p className="text-white text-2xl font-bold">{ccpaMetrics.avgResponseTime || 0}</p>
+                <p className="text-white text-2xl font-bold">{ccpaResponseTime || 0}</p>
                 <p className="text-gray-500 text-sm">days (goal: 45)</p>
               </div>
             </div>
@@ -229,20 +345,20 @@ export default function AdminComplianceMetricsPage() {
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <h3 className="text-white font-bold text-lg mb-4">GDPR Compliance</h3>
           <div className="space-y-3">
-            <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between">
               <div>
                 <p className="text-gray-400 text-sm">Access Requests</p>
-                <p className="text-white text-3xl font-bold">{ccpaMetrics.gdprRequests || 0}</p>
+                <p className="text-white text-3xl font-bold">{ccpaRequestTotal || 0}</p>
               </div>
               <div className="text-right">
                 <p className="text-gray-400 text-sm">Deletions</p>
-                <p className="text-white text-2xl font-bold">{ccpaMetrics.deletionRequests || 0}</p>
+                <p className="text-white text-2xl font-bold">{gdprRequestTotal || 0}</p>
               </div>
             </div>
             <div className="border-t border-gray-700 pt-3">
               <p className="text-gray-400 text-sm mb-1">Avg Response Time</p>
               <div className="flex items-baseline gap-2">
-                <p className="text-white text-2xl font-bold">{ccpaMetrics.gdprResponseTime || 0}</p>
+                <p className="text-white text-2xl font-bold">{ccpaResponseTime || 0}</p>
                 <p className="text-gray-500 text-sm">days (goal: 30)</p>
               </div>
             </div>
@@ -256,33 +372,33 @@ export default function AdminComplianceMetricsPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <DocumentStatusColumn
             title="Created"
-            count={documentStatus.created?.length || 0}
-            docs={documentStatus.created || []}
+            count={documentStatusCounts.created}
+            docs={normalizedDocumentStatus.created}
             status="created"
           />
           <DocumentStatusColumn
             title="In Review"
-            count={documentStatus.inReview?.length || 0}
-            docs={documentStatus.inReview || []}
-            status="in_review"
+            count={documentStatusCounts.inReview}
+            docs={normalizedDocumentStatus.inReview}
+            status="inReview"
           />
           <DocumentStatusColumn
             title="Approved"
-            count={documentStatus.approved?.length || 0}
-            docs={documentStatus.approved || []}
+            count={documentStatusCounts.approved}
+            docs={normalizedDocumentStatus.approved}
             status="approved"
           />
           <DocumentStatusColumn
             title="Published"
-            count={documentStatus.published?.length || 0}
-            docs={documentStatus.published || []}
+            count={documentStatusCounts.published}
+            docs={normalizedDocumentStatus.published}
             status="published"
           />
         </div>
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Acceptance Trend */}
         {trendData.length > 0 && (
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
@@ -294,7 +410,7 @@ export default function AdminComplianceMetricsPage() {
                 <YAxis stroke="#9ca3af" style={{ fontSize: '12px' }} />
                 <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151' }} />
                 <Legend />
-                <Line type="monotone" dataKey="rate" stroke="#f97316" strokeWidth={2} name="Acceptance Rate %" />
+                <Line type="monotone" dataKey="rate" stroke="#f97316" strokeWidth={2} name="Acceptance" />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -303,7 +419,7 @@ export default function AdminComplianceMetricsPage() {
         {/* CCPA Requests */}
         {ccpaData.length > 0 && (
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <h3 className="text-white font-semibold mb-4">CCPA Requests by Month</h3>
+            <h3 className="text-white font-semibold mb-4">CCPA Requests by Type</h3>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={ccpaData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -337,7 +453,7 @@ export default function AdminComplianceMetricsPage() {
       )}
 
       {/* Document Versions Chart */}
-      {trends.versions && trends.versions.length > 0 && (
+      {Array.isArray(trends.versions) && trends.versions.length > 0 && (
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
           <h3 className="text-white font-semibold mb-4">Document Version Adoption</h3>
           <ResponsiveContainer width="100%" height={250}>

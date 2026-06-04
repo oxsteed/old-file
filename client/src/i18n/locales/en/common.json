@@ -14,6 +14,12 @@
     "recording": "Recording..."
   },
   "switching": "Switching...",
+  "languageSelector": {
+    "changeLanguage": "Change language",
+    "languageMenu": "Language menu",
+    "currentLanguage": "Current language: {{language}}",
+    "chooseLanguage": "Choose {{language}}"
+  },
   "forms": {
     "country": {
       "placeholder": "Select a country"
@@ -119,6 +125,55 @@
     },
     "success": "Booking confirmed!"
   },
+  "publicInvoice": {
+    "loadingTitle": "Loading invoice",
+    "unavailableTitle": "Invoice unavailable",
+    "notFound": "Invoice not found or has expired",
+    "notSet": "Not set",
+    "notAssigned": "Not assigned",
+    "balanceDue": "Balance due",
+    "invoiceNumber": "Invoice",
+    "numberPending": "number pending",
+    "invoiceDetails": "Invoice details",
+    "issued": "Issued",
+    "due": "Due",
+    "status": "Status",
+    "billTo": "Bill to",
+    "customer": "Customer",
+    "description": "Description",
+    "quantity": "Qty",
+    "unitPrice": "Unit price",
+    "amount": "Amount",
+    "service": "Service",
+    "lineItemsUnavailable": "Line item details are unavailable. The total below is still the invoice amount recorded by the business.",
+    "subtotal": "Subtotal",
+    "tax": "Tax ({{rate}}%)",
+    "amountPaid": "Amount paid",
+    "totalDue": "Total due",
+    "notesFrom": "Notes from {{business}}",
+    "fallbackBusiness": "the business",
+    "paymentReceivedTitle": "Payment received",
+    "paymentReceivedBody": "Thank you. Keep this link for your records and future reference.",
+    "readyTitle": "Ready to pay?",
+    "readyBody": "Sign in to OxSteed to continue with secure payment and account protection.",
+    "loginToPay": "Login to pay",
+    "whatNext": "What happens next",
+    "trustAccount": "Payment stays tied to your OxSteed account and invoice record.",
+    "trustReceipts": "Due dates, paid status, and receipts stay visible after payment.",
+    "trustSupport": "Questions can be traced back to the business and OxSteed support.",
+    "needClarity": "Need clarity?",
+    "clarityBody": "Contact {{business}} before paying if a line item looks unfamiliar.",
+    "poweredBy": "Powered by OxSteed secure invoices.",
+    "statusLabels": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "issued": "Issued",
+      "paid": "Paid",
+      "overdue": "Overdue",
+      "cancelled": "Cancelled",
+      "outstanding": "Outstanding"
+    }
+  },
   "accessGateRecovery": {
     "title": "Access gate recovery",
     "validating": "Validating your recovery link...",
@@ -188,7 +243,12 @@
     "errorDetails": "Error details",
     "tryAgain": "Try again",
     "backToOrders": "Back to orders",
-    "persistentErrors": "This issue is happening repeatedly. Our team has been notified."
+    "persistentErrors": "This issue is happening repeatedly. Our team has been notified.",
+    "componentNames": {
+      "orderHistory": "Order History",
+      "orderDetails": "Order Details",
+      "checkout": "Checkout"
+    }
   },
   "languages": {
     "autoDetect": "Auto-detect"

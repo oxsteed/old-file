@@ -22,17 +22,38 @@ const STATUS_COLORS = {
   cancelled:   'bg-red-500/15 text-red-400',
 };
 
-function StatusBadge({ status }) {
+function useJobStatusLabel() {
   const { t } = useTranslation();
-  const label = OPEN_STATUSES.includes(status)
-    ? t('dashboard.jobs.open')
-    : status === 'in_progress'
-      ? t('dashboard.jobs.inProgress')
-      : status === 'completed'
-        ? t('dashboard.jobs.completed')
-        : status === 'cancelled'
-          ? t('jobs.cancelled', { defaultValue: 'Cancelled' })
-          : status;
+
+  return useCallback((status) => {
+    switch (status) {
+      case 'open':
+      case 'published':
+      case 'matched':
+        return t('myJobs.statusOpen');
+      case 'in_progress':
+        return t('myJobs.statusInProgress');
+      case 'completed':
+        return t('myJobs.statusCompleted');
+      case 'cancelled':
+        return t('myJobs.statusCancelled');
+      case 'pending':
+        return t('myJobs.statusPending');
+      case 'accepted':
+        return t('myJobs.statusAccepted');
+      case 'declined':
+        return t('myJobs.statusDeclined');
+      case 'expired':
+        return t('myJobs.statusExpired');
+      default:
+        return t('myJobs.statusUnknown');
+    }
+  }, [t]);
+}
+
+function StatusBadge({ status }) {
+  const getStatusLabel = useJobStatusLabel();
+  const label = getStatusLabel(status);
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${STATUS_COLORS[status] || 'bg-gray-700 text-gray-400'}`}>
       {label}
@@ -60,6 +81,7 @@ function BidCountBadge({ count }) {
 export default function MyJobsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const getStatusLabel = useJobStatusLabel();
 
   const [jobs, setJobs] = useState([]);
   const [bookingRequests, setBookingRequests] = useState([]);
@@ -169,6 +191,11 @@ export default function MyJobsPage() {
     return acc;
   }, {});
 
+  const getFilterLabel = useCallback((status) => {
+    if (status === 'all') return t('dashboard.jobs.all', { defaultValue: 'All' });
+    return getStatusLabel(status);
+  }, [getStatusLabel, t]);
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-950">
       <PageMeta title={t('dashboard.myJobs')} noIndex />
@@ -246,10 +273,10 @@ export default function MyJobsPage() {
                 {s === 'all'
                   ? `${t('dashboard.jobs.all', { defaultValue: 'All' })} (${counts.all})`
                   : s === 'open'
-                    ? `${t('dashboard.jobs.open')} (${counts.open})`
+                    ? `${getFilterLabel(s)} (${counts.open})`
                     : s === 'published'
                       ? null  // merged into "open" tab
-                      : `${t(`dashboard.jobs.${s === 'in_progress' ? 'inProgress' : s}`, { defaultValue: s })} (${counts[s] || 0})`
+                      : `${getFilterLabel(s)} (${counts[s] || 0})`
                 }
               </button>
             )).filter(Boolean)}
@@ -290,7 +317,7 @@ export default function MyJobsPage() {
                 <p className="text-gray-400 text-sm mb-4">
                   {filter === 'all'
                     ? t('dashboard.jobs.noJobs')
-                    : t('myJobs.noJobsInStatus', { status: filter, defaultValue: `No ${filter} jobs.` })}
+                    : t('myJobs.noJobsInStatus', { status: getFilterLabel(filter) })}
                 </p>
                 {filter === 'all' && (
                   <Link
@@ -465,11 +492,11 @@ export default function MyJobsPage() {
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-green-400 font-bold">■</span>
-                  <span className="text-gray-400">{t('calendar.statusOpen', { defaultValue: 'Open' })}</span>
+                  <span className="text-gray-400">{t('myJobs.statusOpen')}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-orange-400 font-bold">■</span>
-                  <span className="text-gray-400">{t('calendar.statusAccepted', { defaultValue: 'Accepted' })}</span>
+                  <span className="text-gray-400">{t('myJobs.statusAccepted')}</span>
                 </div>
               </div>
             </div>
@@ -523,7 +550,7 @@ export default function MyJobsPage() {
                               ? 'bg-gray-500/15 text-gray-400'
                               : 'bg-red-500/15 text-red-400'
                       }`}>
-                        {selectedEvent.status.charAt(0).toUpperCase() + selectedEvent.status.slice(1).replace(/_/g, ' ')}
+                        {getStatusLabel(selectedEvent.status)}
                       </span>
                     </div>
 
@@ -611,12 +638,11 @@ export default function MyJobsPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${statusColor}`}>
-                          {t(`calendar.status${booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}`,
-                            { defaultValue: booking.status })}
+                          {getStatusLabel(booking.status)}
                         </span>
                       </div>
                       <h2 className="text-white font-semibold text-base truncate">
-                        {booking.service_name || t('calendar.service', { defaultValue: 'Service Request' })}
+                        {booking.service_name || t('myJobs.serviceRequest', { defaultValue: 'Service Request' })}
                       </h2>
                       <p className="text-xs text-gray-500 mt-0.5">
                         {t('myJobs.requestedOn', { defaultValue: 'Requested on' })} {createdDate.toLocaleDateString()}
@@ -655,11 +681,10 @@ export default function MyJobsPage() {
                       {booking.status === 'pending' && booking.expires_at && (
                         <span className="text-xs text-gray-500">
                           {new Date(booking.expires_at) > new Date()
-                            ? t('calendar.expiresIn', {
-                                defaultValue: 'Expires in',
+                            ? t('myJobs.expiresIn', {
                                 days: Math.ceil((new Date(booking.expires_at) - new Date()) / (1000 * 60 * 60 * 24))
                               })
-                            : t('calendar.expired', { defaultValue: 'Expired' })}
+                            : t('myJobs.statusExpired')}
                         </span>
                       )}
                       <div className="flex gap-2">

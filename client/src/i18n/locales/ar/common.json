@@ -14,6 +14,12 @@
     "recording": "جارٍ التسجيل..."
   },
   "switching": "جارٍ التبديل...",
+  "languageSelector": {
+    "changeLanguage": "تغيير اللغة",
+    "languageMenu": "قائمة اللغات",
+    "currentLanguage": "اللغة الحالية: {{language}}",
+    "chooseLanguage": "اختيار {{language}}"
+  },
   "forms": {
     "country": {
       "placeholder": "اختر دولة"
@@ -99,8 +105,8 @@
       "phoneLabel": "الهاتف",
       "notesLabel": "ملاحظات",
       "namePlaceholder": "اسمك الكامل",
-    "emailPlaceholder": "example@email.com",
-    "phonePlaceholder": "(123) 456-7890",
+      "emailPlaceholder": "example@email.com",
+      "phonePlaceholder": "(123) 456-7890",
       "notesPlaceholder": "أي طلبات أو ملاحظات خاصة...",
       "termsText": "أوافق على الشروط وسياسة الإلغاء"
     },
@@ -118,6 +124,55 @@
       "createBooking": "تعذر إنشاء الحجز."
     },
     "success": "تم تأكيد الحجز!"
+  },
+  "publicInvoice": {
+    "loadingTitle": "جار تحميل الفاتورة",
+    "unavailableTitle": "الفاتورة غير متاحة",
+    "notFound": "لم يتم العثور على الفاتورة أو انتهت صلاحيتها",
+    "notSet": "غير محدد",
+    "notAssigned": "غير معين",
+    "balanceDue": "الرصيد المستحق",
+    "invoiceNumber": "الفاتورة",
+    "numberPending": "الرقم قيد الانتظار",
+    "invoiceDetails": "تفاصيل الفاتورة",
+    "issued": "تاريخ الإصدار",
+    "due": "تاريخ الاستحقاق",
+    "status": "الحالة",
+    "billTo": "الفاتورة إلى",
+    "customer": "العميل",
+    "description": "الوصف",
+    "quantity": "الكمية",
+    "unitPrice": "سعر الوحدة",
+    "amount": "المبلغ",
+    "service": "الخدمة",
+    "lineItemsUnavailable": "تفاصيل البنود غير متاحة. يظل الإجمالي أدناه هو مبلغ الفاتورة المسجل من النشاط التجاري.",
+    "subtotal": "المجموع الفرعي",
+    "tax": "الضريبة ({{rate}}%)",
+    "amountPaid": "المبلغ المدفوع",
+    "totalDue": "الإجمالي المستحق",
+    "notesFrom": "ملاحظات من {{business}}",
+    "fallbackBusiness": "النشاط التجاري",
+    "paymentReceivedTitle": "تم استلام الدفع",
+    "paymentReceivedBody": "شكرًا لك. احتفظ بهذا الرابط لسجلاتك وللرجوع إليه مستقبلًا.",
+    "readyTitle": "هل أنت جاهز للدفع؟",
+    "readyBody": "سجّل الدخول إلى OxSteed للمتابعة بدفع آمن وحماية للحساب.",
+    "loginToPay": "تسجيل الدخول للدفع",
+    "whatNext": "ماذا يحدث بعد ذلك",
+    "trustAccount": "يبقى الدفع مرتبطًا بحسابك في OxSteed وسجل الفاتورة.",
+    "trustReceipts": "تبقى تواريخ الاستحقاق وحالة الدفع والإيصالات مرئية بعد الدفع.",
+    "trustSupport": "يمكن تتبع الأسئلة إلى النشاط التجاري ودعم OxSteed.",
+    "needClarity": "هل تحتاج إلى توضيح؟",
+    "clarityBody": "تواصل مع {{business}} قبل الدفع إذا بدا أحد البنود غير مألوف.",
+    "poweredBy": "مدعوم بفواتير OxSteed الآمنة.",
+    "statusLabels": {
+      "draft": "مسودة",
+      "sent": "مرسلة",
+      "issued": "صادرة",
+      "paid": "مدفوعة",
+      "overdue": "متأخرة",
+      "cancelled": "ملغاة",
+      "outstanding": "مستحقة"
+    }
   },
   "accessGateRecovery": {
     "title": "استعادة الوصول",
@@ -188,7 +243,12 @@
     "errorDetails": "تفاصيل الخطأ",
     "tryAgain": "حاول مرة أخرى",
     "backToOrders": "العودة إلى الطلبات",
-    "persistentErrors": "يتكرر هذا الخطأ بشكل متكرر. تم إخطار فريقنا."
+    "persistentErrors": "يتكرر هذا الخطأ بشكل متكرر. تم إخطار فريقنا.",
+    "componentNames": {
+      "orderHistory": "سجل الطلبات",
+      "orderDetails": "تفاصيل الطلب",
+      "checkout": "الدفع"
+    }
   },
   "languages": {
     "autoDetect": "تحديد تلقائي"

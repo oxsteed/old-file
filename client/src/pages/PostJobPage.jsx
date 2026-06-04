@@ -113,9 +113,9 @@ const CAT_BY_ID = CATEGORIES.flatMap(g => g.options).reduce((acc, o) => { acc[o.
 
 // ─── Budget config ────────────────────────────────────────────────────────────
 const BUDGET_CFG = {
-  fixed:  { min: 50,  max: 50000, step: 50,  defaultVal: 800,  labelMin: '$50',   labelMax: '$50,000', fmt: v => `$${Number(v).toLocaleString()} fixed` },
-  hourly: { min: 15,  max: 500,   step: 5,   defaultVal: 45,   labelMin: '$15/hr',labelMax: '$500/hr', fmt: v => `$${v}/hr` },
-  open:   { min: 0,   max: 0,     step: 0,   defaultVal: 0,    labelMin: '',      labelMax: '',        fmt: () => 'Open to bids' },
+  fixed:  { min: 50,  max: 50000, step: 50,  defaultVal: 800 },
+  hourly: { min: 15,  max: 500,   step: 5,   defaultVal: 45 },
+  open:   { min: 0,   max: 0,     step: 0,   defaultVal: 0 },
 };
 
 // ─── Brand icon (matches homepage) ───────────────────────────────────────────
@@ -612,12 +612,18 @@ function sliderPct(val, min, max) {
   return Math.round(((val - min) / (max - min)) * 100);
 }
 
-function formatBudgetDisplay(form, currency = 'USD') {
-  if (form.budgetType === 'open') return 'Open to bids';
+function formatBudgetAmount(type, value, currency, t) {
+  const amount = formatMoney(value, { currency, minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  if (type === 'hourly') return t('postJob.hourlyRateShort', { amount });
+  return t('postJob.fixedPriceShort', { amount });
+}
+
+function formatBudgetDisplay(form, currency = 'USD', t) {
+  if (form.budgetType === 'open') return t('postJob.openToBids');
   if (form.budgetType === 'hourly') {
-    return `${formatMoney(form.budgetAmountHourly, { currency, minimumFractionDigits: 0, maximumFractionDigits: 0 })}/hr`;
+    return formatBudgetAmount('hourly', form.budgetAmountHourly, currency, t);
   }
-  return `${formatMoney(form.budgetAmount, { currency, minimumFractionDigits: 0, maximumFractionDigits: 0 })} fixed`;
+  return formatBudgetAmount('fixed', form.budgetAmount, currency, t);
 }
 
 function getLocationDisplay(form) {
@@ -1650,15 +1656,15 @@ export default function PostJobPage() {
               <div className="pjw-card">
                 <div className="pjw-section-label">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                  Step 3 of 4 - Budget &amp; Timeline
+                  {t('postJob.step3BudgetTimeline')}
                 </div>
 
                 {/* Budget type tabs */}
-                <div className="pjw-budget-tabs" role="group" aria-label="Budget type">
-                  {['fixed','hourly','open'].map(t => (
-                    <button key={t} type="button" className={`pjw-tab-btn${form.budgetType===t?' is-active':''}`}
-                      onClick={() => set({ budgetType: t })}>
-                      {t === 'fixed' ? 'Fixed Price' : t === 'hourly' ? 'Hourly Rate' : 'Open to Bids'}
+                <div className="pjw-budget-tabs" role="group" aria-label={t('postJob.budgetType')}>
+                  {['fixed','hourly','open'].map(type => (
+                    <button key={type} type="button" className={`pjw-tab-btn${form.budgetType===type?' is-active':''}`}
+                      onClick={() => set({ budgetType: type })}>
+                      {t(`postJob.budgetTabs.${type}`)}
                     </button>
                   ))}
                 </div>
@@ -1672,11 +1678,11 @@ export default function PostJobPage() {
                     <div className="pjw-field">
                       <label>{t('postJob.yourBudget')} <span className="req">*</span></label>
                       <div className="pjw-budget-row">
-                        <div className="pjw-budget-display">{cfg.fmt(val)}</div>
+                        <div className="pjw-budget-display">{formatBudgetAmount(form.budgetType, val, currency, t)}</div>
                         <input type="range" className="pjw-slider"
                           min={cfg.min} max={cfg.max} step={cfg.step} value={val}
                           style={{ '--range-pct': `${pct}%` }}
-                          aria-label="Budget amount"
+                          aria-label={t('postJob.budgetAmountAria')}
                           onChange={e => {
                             const n = Number(e.target.value);
                             if (form.budgetType === 'hourly') set({ budgetAmountHourly: n });
@@ -1684,7 +1690,10 @@ export default function PostJobPage() {
                           }}
                         />
                       </div>
-                      <div className="pjw-budget-range-labels"><span>{cfg.labelMin}</span><span>{cfg.labelMax}</span></div>
+                      <div className="pjw-budget-range-labels">
+                        <span>{formatBudgetAmount(form.budgetType, cfg.min, currency, t)}</span>
+                        <span>{formatBudgetAmount(form.budgetType, cfg.max, currency, t)}</span>
+                      </div>
                     </div>
                   );
                 })()}
@@ -1884,7 +1893,7 @@ export default function PostJobPage() {
                 {/* Budget review */}
                 <div className="pjw-review-row">
                   <span className="pjw-review-label">{t('postJob.budget')}</span>
-                  <span className="pjw-review-value">{formatBudgetDisplay(form, currency)}</span>
+                  <span className="pjw-review-value">{formatBudgetDisplay(form, currency, t)}</span>
                   <button
                     className="pjw-edit-btn"
                     type="button"
@@ -2010,7 +2019,7 @@ export default function PostJobPage() {
                 </div>
                 <div className="pjw-sum-row">
                   <span className="pjw-sum-label">{t('postJob.budgetType')}</span>
-                  <span className="pjw-sum-value">{formatBudgetDisplay(form, currency)}</span>
+                  <span className="pjw-sum-value">{formatBudgetDisplay(form, currency, t)}</span>
                 </div>
                 <div className="pjw-sum-row">
                   <span className="pjw-sum-label">{t('postJob.requirements')}</span>

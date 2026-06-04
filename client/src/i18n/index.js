@@ -29,12 +29,14 @@ import htTranslator from './locales/ht/translator.json';
 import arTranslator from './locales/ar/translator.json';
 
 export const LANGUAGES = [
-  { code: 'en', name: 'English', flag: '🇬🇧' },
-  { code: 'es', name: 'Español', flag: '🇪🇸' },
-  { code: 'fr', name: 'Français', flag: '🇫🇷' },
-  { code: 'ht', name: 'Kreyòl', flag: '🇭🇹' },
-  { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+  { code: 'en', name: 'English', nativeName: 'English', flag: '🇺🇸' },
+  { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
+  { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
+  { code: 'ht', name: 'Haitian Creole', nativeName: 'Kreyòl ayisyen', flag: '🇭🇹' },
+  { code: 'ar', name: 'Arabic', nativeName: 'العربية', flag: '🇸🇦' },
 ];
+
+const LANGUAGE_QUERY_PARAMS = ['lang', 'lng', 'locale'];
 
 const resources = {
   en: {
@@ -84,9 +86,56 @@ const resources = {
   },
 };
 
+function normalizeInitialLanguage(code) {
+  const normalizedCode = String(code || '')
+    .trim()
+    .toLowerCase()
+    .split(/[-_]/)[0];
+  return LANGUAGES.some((language) => language.code === normalizedCode) ? normalizedCode : 'en';
+}
+
+function detectUrlLanguage() {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  for (const param of LANGUAGE_QUERY_PARAMS) {
+    const value = params.get(param);
+    if (value) return normalizeInitialLanguage(value);
+  }
+  return null;
+}
+
+function detectBrowserLanguage() {
+  if (typeof navigator === 'undefined') return 'en';
+  const preferred = Array.isArray(navigator.languages) && navigator.languages.length
+    ? navigator.languages
+    : [navigator.language];
+  for (const candidate of preferred) {
+    const normalized = normalizeInitialLanguage(candidate);
+    if (normalized !== 'en' || String(candidate || '').toLowerCase().startsWith('en')) {
+      return normalized;
+    }
+  }
+  return 'en';
+}
+
+export function detectInitialLanguage() {
+  const urlLanguage = detectUrlLanguage();
+  if (urlLanguage) {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('oxs:language', urlLanguage);
+    }
+    return urlLanguage;
+  }
+  if (typeof localStorage !== 'undefined') {
+    const storedLanguage = localStorage.getItem('oxs:language');
+    if (storedLanguage) return normalizeInitialLanguage(storedLanguage);
+  }
+  return detectBrowserLanguage();
+}
+
 i18n.use(initReactI18next).init({
   resources,
-  lng: localStorage.getItem('oxs:language') || 'en',
+  lng: detectInitialLanguage(),
   fallbackLng: 'en',
   supportedLngs: LANGUAGES.map((language) => language.code),
   ns: ['translation', 'common', 'translator'],

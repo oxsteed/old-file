@@ -65,6 +65,22 @@ describe('chat transcription compatibility', () => {
     expect(speechToText.transcribeAudio).toHaveBeenCalledWith(expect.any(Buffer), 'en');
   });
 
+  test('accepts Arabic as a supported app language', async () => {
+    speechToText.transcribeAudio.mockResolvedValueOnce({
+      transcript: 'اختبار',
+      confidence: 0.9,
+      language: 'ar',
+    });
+
+    const res = await request(buildApp())
+      .post('/api/chat/transcribe')
+      .send({ audio_data: Buffer.from('audio bytes').toString('base64'), language: 'ar' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.language).toBe('ar');
+    expect(speechToText.transcribeAudio).toHaveBeenCalledWith(expect.any(Buffer), 'ar');
+  });
+
   test('rejects requests without audio data', async () => {
     const res = await request(buildApp())
       .post('/api/chat/transcribe')

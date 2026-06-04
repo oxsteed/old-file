@@ -4,10 +4,11 @@ import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
 import OrderErrorBoundary from '../components/OrderErrorBoundary';
+import { formatCents, formatDateTime } from '../lib/format';
 
 export default function OrderDetailsPage() {
   return (
-    <OrderErrorBoundary componentName="Order Details">
+    <OrderErrorBoundary componentNameKey="orderErrorBoundary.componentNames.orderDetails">
       <OrderDetailsPageContent />
     </OrderErrorBoundary>
   );
@@ -119,13 +120,7 @@ function OrderDetailsPageContent() {
             <div>
               <h1 className="text-3xl font-bold mb-2">{t('orders.order')} #{order.id}</h1>
               <p className="text-gray-600">
-                {t('orders.placedOn')} {new Date(order.created_at).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
+                {t('orders.placedOn')} {formatDateTime(order.created_at, { month: 'long' })}
               </p>
             </div>
             <span className={`px-4 py-2 rounded-full font-semibold ${statusColor(order.status)}`}>
@@ -167,10 +162,10 @@ function OrderDetailsPageContent() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-600 mb-1">
-                          ${(item.unit_price_cents / 100).toFixed(2)} {t('common.each')}
+                          {formatCents(item.unit_price_cents)} {t('common.each')}
                         </p>
                         <p className="font-semibold">
-                          ${(item.total_price_cents / 100).toFixed(2)}
+                          {formatCents(item.total_price_cents)}
                         </p>
                       </div>
                     </div>
@@ -197,29 +192,29 @@ function OrderDetailsPageContent() {
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-gray-600">{t('checkout.subtotal')}</span>
-                    <span>${(order.subtotal_cents / 100).toFixed(2)}</span>
+                    <span>{formatCents(order.subtotal_cents)}</span>
                   </div>
                   {order.tax_cents > 0 && (
                     <div className="flex justify-between">
                       <span className="text-gray-600">{t('checkout.tax')}</span>
-                      <span>${(order.tax_cents / 100).toFixed(2)}</span>
+                      <span>{formatCents(order.tax_cents)}</span>
                     </div>
                   )}
                   {order.shipping_cents > 0 && (
                     <div className="flex justify-between">
                       <span className="text-gray-600">{t('orders.shipping')}</span>
-                      <span>${(order.shipping_cents / 100).toFixed(2)}</span>
+                      <span>{formatCents(order.shipping_cents)}</span>
                     </div>
                   )}
                   {order.discount_cents > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>{t('orders.discount')}</span>
-                      <span>-${(order.discount_cents / 100).toFixed(2)}</span>
+                      <span>-{formatCents(order.discount_cents)}</span>
                     </div>
                   )}
                   <div className="border-t pt-3 flex justify-between font-bold text-lg">
                     <span>{t('checkout.total')}</span>
-                    <span>${(order.total_cents / 100).toFixed(2)}</span>
+                    <span>{formatCents(order.total_cents)}</span>
                   </div>
                 </div>
               </div>

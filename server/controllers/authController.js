@@ -72,6 +72,16 @@ function resolveRequestLanguage(req, fallback = 'en') {
   return SUPPORTED_LANGUAGE_CODES.has(parsed) ? parsed : fallback;
 }
 
+function normalizeSupportedLanguage(raw, fallback = undefined) {
+  const parsed = String(raw || '')
+    .split(',')[0]
+    .trim()
+    .split(/[-_]/)[0]
+    .toLowerCase();
+
+  return SUPPORTED_LANGUAGE_CODES.has(parsed) ? parsed : fallback;
+}
+
 function formatAuthUser(user) {
   if (!user) return null;
 
@@ -1260,7 +1270,7 @@ async function updateProfile(req, res) {
 
     const VALID_PREFS = ['full_name', 'first_name', 'business_name'];
     const pref = VALID_PREFS.includes(display_name_preference) ? display_name_preference : undefined;
-    const preferredLang = SUPPORTED_LANGUAGE_CODES.has(preferred_language) ? preferred_language : undefined;
+    const preferredLang = normalizeSupportedLanguage(preferred_language);
 
     // default_mode through updateProfile is a convenience for clients that
     // want to do everything in one PATCH. The actual switch goes through

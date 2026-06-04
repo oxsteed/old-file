@@ -24,27 +24,37 @@ import { useAuth } from '../hooks/useAuth';
 import invoicesApi from '../api/invoices';
 import './InvoicesPage.css';
 
-function centsToMoney(cents) {
+function centsToMoney(cents, language) {
   const value = Number(cents || 0) / 100;
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat(language || undefined, {
     style: 'currency',
     currency: 'USD',
   }).format(value);
 }
 
-function formatDate(value) {
-  if (!value) return 'Not set';
+function formatDate(value, language, fallback) {
+  if (!value) return fallback;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Not set';
-  return date.toLocaleDateString(undefined, {
+  if (Number.isNaN(date.getTime())) return fallback;
+  return date.toLocaleDateString(language || undefined, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   });
 }
 
-function statusLabel(status = 'draft') {
-  return String(status).replace(/_/g, ' ').replace(/^\w/, (char) => char.toUpperCase());
+function statusLabel(status = 'draft', t) {
+  const normalized = String(status || 'draft').toLowerCase();
+  const map = {
+    draft: t('invoices.statusDraft', { defaultValue: 'Draft' }),
+    sent: t('invoices.statusSent', { defaultValue: 'Sent' }),
+    issued: t('invoices.statusIssued', { defaultValue: 'Issued' }),
+    paid: t('invoices.statusPaid', { defaultValue: 'Paid' }),
+    overdue: t('invoices.statusOverdue', { defaultValue: 'Overdue' }),
+    cancelled: t('invoices.statusCancelled', { defaultValue: 'Cancelled' }),
+    outstanding: t('invoices.statusOutstanding', { defaultValue: 'Outstanding' }),
+  };
+  return map[normalized] || normalized.replace(/_/g, ' ').replace(/^\w/, (char) => char.toUpperCase());
 }
 
 function invoiceDate(invoice) {
@@ -63,7 +73,7 @@ function invoiceAmount(invoice) {
 }
 
 export default function InvoicesPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -113,40 +123,42 @@ export default function InvoicesPage() {
   }, [invoices]);
 
   const isHelper = ['helper', 'helper_pro', 'broker', 'business'].includes(user?.role);
+  const language = i18n.resolvedLanguage || i18n.language;
+  const notSetText = t('invoices.notSet', { defaultValue: 'Not set' });
+  const notListedText = t('invoices.notListed', { defaultValue: 'Not listed' });
 
   return (
     <PageShell>
       <PageMeta
-        title="My Invoices - OxSteed"
-        description="Track OxSteed invoices, payment status, consulting receipts, service invoices, tool rental invoices, and business financial records."
+        title={t('invoices.metaTitle', { defaultValue: 'My Invoices - OxSteed' })}
+        description={t('invoices.metaDescription', { defaultValue: 'Track OxSteed invoices, payment status, consulting receipts, service invoices, tool rental invoices, and business financial records.' })}
       />
       <div className="invoices-page">
         <header className="invoices-hero">
           <div>
-            <p className="invoices-kicker">Financial records</p>
+            <p className="invoices-kicker">{t('invoices.kicker', { defaultValue: 'Financial records' })}</p>
             <h1>{t('invoices.title') || 'My Invoices'}</h1>
             <p>
-              Keep your OxSteed paper trail in one place: consulting receipts, helper invoices,
-              tool rental invoices, paid work, outstanding balances, and payment follow-up.
+              {t('invoices.heroDescription', { defaultValue: 'Keep your OxSteed paper trail in one place: consulting receipts, helper invoices, tool rental invoices, paid work, outstanding balances, and payment follow-up.' })}
             </p>
           </div>
           <div className="invoices-hero-actions">
             <Link to="/dashboard?tab=money" className="invoices-btn invoices-btn-primary">
               <CreditCard size={16} />
-              Money dashboard
+              {t('invoices.moneyDashboard', { defaultValue: 'Money dashboard' })}
             </Link>
             <button type="button" className="invoices-btn" onClick={loadInvoices} disabled={loading}>
               <RefreshCw size={16} />
-              Refresh
+              {t('invoices.refresh', { defaultValue: 'Refresh' })}
             </button>
           </div>
         </header>
 
-        <section className="invoices-stats" aria-label="Invoice summary">
-          <SummaryCard label="Total invoice value" value={centsToMoney(stats.total)} icon={FileText} />
-          <SummaryCard label="Paid" value={centsToMoney(stats.paid)} icon={CheckCircle2} tone="success" />
-          <SummaryCard label="Outstanding" value={centsToMoney(stats.outstanding)} icon={CalendarClock} tone="warn" />
-          <SummaryCard label="Overdue" value={String(stats.overdueCount)} icon={ShieldCheck} tone={stats.overdueCount > 0 ? 'danger' : 'neutral'} />
+        <section className="invoices-stats" aria-label={t('invoices.summaryAriaLabel', { defaultValue: 'Invoice summary' })}>
+          <SummaryCard label={t('invoices.totalInvoiceValue', { defaultValue: 'Total invoice value' })} value={centsToMoney(stats.total, language)} icon={FileText} />
+          <SummaryCard label={t('invoices.statusPaid', { defaultValue: 'Paid' })} value={centsToMoney(stats.paid, language)} icon={CheckCircle2} tone="success" />
+          <SummaryCard label={t('invoices.statusOutstanding', { defaultValue: 'Outstanding' })} value={centsToMoney(stats.outstanding, language)} icon={CalendarClock} tone="warn" />
+          <SummaryCard label={t('invoices.statusOverdue', { defaultValue: 'Overdue' })} value={String(stats.overdueCount)} icon={ShieldCheck} tone={stats.overdueCount > 0 ? 'danger' : 'neutral'} />
         </section>
 
         {loading ? (
@@ -157,42 +169,42 @@ export default function InvoicesPage() {
             <p>{t('common.loading') || 'Loading...'}</p>
           </div>
         ) : invoices.length > 0 ? (
-          <section className="invoices-panel" aria-label="Invoice list">
+          <section className="invoices-panel" aria-label={t('invoices.listAriaLabel', { defaultValue: 'Invoice list' })}>
             <div className="invoices-panel-header">
               <div>
-                <h2>Invoice activity</h2>
-                <p>Review payment status, resend emails, and inspect the details behind each charge.</p>
+                <h2>{t('invoices.activityTitle', { defaultValue: 'Invoice activity' })}</h2>
+                <p>{t('invoices.activityDescription', { defaultValue: 'Review payment status, resend emails, and inspect the details behind each charge.' })}</p>
               </div>
-              <span>{invoices.length} record{invoices.length === 1 ? '' : 's'}</span>
+              <span>{t('invoices.recordCount', { count: invoices.length, defaultValue: '{{count}} record' })}</span>
             </div>
 
             <div className="invoices-table">
               <div className="invoices-table-head">
-                <span>Invoice</span>
-                <span>Date</span>
-                <span>Amount</span>
-                <span>Status</span>
-                <span>Due</span>
-                <span>Actions</span>
+                <span>{t('invoices.invoiceLabel', { defaultValue: 'Invoice' })}</span>
+                <span>{t('invoices.date', { defaultValue: 'Date' })}</span>
+                <span>{t('invoices.amount', { defaultValue: 'Amount' })}</span>
+                <span>{t('invoices.status', { defaultValue: 'Status' })}</span>
+                <span>{t('invoices.due', { defaultValue: 'Due' })}</span>
+                <span>{t('invoices.actions', { defaultValue: 'Actions' })}</span>
               </div>
               {invoices.map((invoice) => (
                 <article key={invoice.id} className="invoices-row">
                   <div>
-                    <strong>{invoice.invoice_number || `Invoice ${invoice.id}`}</strong>
-                    <small>{invoice.customer_name || invoice.client_name || 'OxSteed customer'}</small>
+                    <strong>{invoice.invoice_number || t('invoices.invoiceIdFallback', { id: invoice.id, defaultValue: 'Invoice {{id}}' })}</strong>
+                    <small>{invoice.customer_name || invoice.client_name || t('invoices.customerFallback', { defaultValue: 'OxSteed customer' })}</small>
                   </div>
-                  <span>{formatDate(invoiceDate(invoice))}</span>
-                  <span className="invoices-amount">{centsToMoney(invoiceAmount(invoice))}</span>
+                  <span>{formatDate(invoiceDate(invoice), language, notSetText)}</span>
+                  <span className="invoices-amount">{centsToMoney(invoiceAmount(invoice), language)}</span>
                   <span className={`invoices-status invoices-status-${invoice.status || 'draft'}`}>
-                    {statusLabel(invoice.status)}
+                    {statusLabel(invoice.status, t)}
                   </span>
-                  <span>{formatDate(invoiceDueDate(invoice))}</span>
+                  <span>{formatDate(invoiceDueDate(invoice), language, notSetText)}</span>
                   <div className="invoices-row-actions">
                     <button
                       type="button"
                       onClick={() => setSelectedInvoice(invoice)}
                       title={t('invoices.view') || 'View'}
-                      aria-label={`View ${invoice.invoice_number || 'invoice'}`}
+                      aria-label={t('invoices.viewAriaLabel', { invoice: invoice.invoice_number || t('invoices.invoiceGeneric', { defaultValue: 'invoice' }), defaultValue: 'View {{invoice}}' })}
                     >
                       <Eye size={16} />
                     </button>
@@ -201,7 +213,7 @@ export default function InvoicesPage() {
                       onClick={() => handleResendEmail(invoice.id)}
                       disabled={resendingEmail === invoice.id}
                       title={t('invoices.resendEmail') || 'Resend Email'}
-                      aria-label={`Resend ${invoice.invoice_number || 'invoice'}`}
+                      aria-label={t('invoices.resendAriaLabel', { invoice: invoice.invoice_number || t('invoices.invoiceGeneric', { defaultValue: 'invoice' }), defaultValue: 'Resend {{invoice}}' })}
                     >
                       <Mail size={16} />
                     </button>
@@ -214,25 +226,25 @@ export default function InvoicesPage() {
           <EmptyInvoices isHelper={isHelper} />
         )}
 
-        <section className="invoices-guide" aria-label="How invoices connect">
+        <section className="invoices-guide" aria-label={t('invoices.guideAriaLabel', { defaultValue: 'How invoices connect' })}>
           <div>
-            <h2>How invoices fit into OxSteed</h2>
-            <p>
-              Invoices are not just receipts. They connect work, tools, consulting, payments,
-              records, and follow-up so customers and businesses can see what happened and what still needs attention.
-            </p>
+            <h2>{t('invoices.guideTitle', { defaultValue: 'How invoices fit into OxSteed' })}</h2>
+            <p>{t('invoices.guideDescription', { defaultValue: 'Invoices are not just receipts. They connect work, tools, consulting, payments, records, and follow-up so customers and businesses can see what happened and what still needs attention.' })}</p>
           </div>
           <div className="invoices-guide-grid">
-            <GuideItem icon={Briefcase} title="Service work" text="Jobs and helper work can create a record of what was requested, billed, paid, or still outstanding." />
-            <GuideItem icon={Wrench} title="Tool rentals" text="Tool owners can send rental invoices, track payment, and keep rental history connected to bookings." />
-            <GuideItem icon={Sparkles} title="Consulting" text="Business-launch and consulting sessions can produce invoices that stay attached to your account history." />
-            <GuideItem icon={PackageSearch} title="Business records" text="Paid and pending invoices feed the bigger money picture: income, taxes, cash flow, and planning." />
+            <GuideItem icon={Briefcase} title={t('invoices.guideServiceTitle', { defaultValue: 'Service work' })} text={t('invoices.guideServiceText', { defaultValue: 'Jobs and helper work can create a record of what was requested, billed, paid, or still outstanding.' })} />
+            <GuideItem icon={Wrench} title={t('invoices.guideToolTitle', { defaultValue: 'Tool rentals' })} text={t('invoices.guideToolText', { defaultValue: 'Tool owners can send rental invoices, track payment, and keep rental history connected to bookings.' })} />
+            <GuideItem icon={Sparkles} title={t('invoices.guideConsultingTitle', { defaultValue: 'Consulting' })} text={t('invoices.guideConsultingText', { defaultValue: 'Business-launch and consulting sessions can produce invoices that stay attached to your account history.' })} />
+            <GuideItem icon={PackageSearch} title={t('invoices.guideBusinessTitle', { defaultValue: 'Business records' })} text={t('invoices.guideBusinessText', { defaultValue: 'Paid and pending invoices feed the bigger money picture: income, taxes, cash flow, and planning.' })} />
           </div>
         </section>
 
         {selectedInvoice && (
           <InvoiceDetailModal
             invoice={selectedInvoice}
+            language={language}
+            notSetText={notSetText}
+            notListedText={notListedText}
             resending={resendingEmail === selectedInvoice.id}
             onClose={() => setSelectedInvoice(null)}
             onResend={() => handleResendEmail(selectedInvoice.id)}
@@ -256,46 +268,44 @@ function SummaryCard({ label, value, icon: Icon, tone = 'neutral' }) {
 }
 
 function EmptyInvoices({ isHelper }) {
+  const { t } = useTranslation();
   return (
     <section className="invoices-empty">
       <div className="invoices-empty-main">
         <div className="invoices-empty-icon">
           <FileText size={34} />
         </div>
-        <p className="invoices-empty-kicker">No invoices yet</p>
-        <h2>Your invoice hub is ready before the first bill arrives.</h2>
-        <p>
-          Once you purchase consulting, receive a service invoice, rent a tool, sell work,
-          or send a client invoice, the record will appear here with payment status and follow-up actions.
-        </p>
+        <p className="invoices-empty-kicker">{t('invoices.noInvoices', { defaultValue: 'No invoices yet' })}</p>
+        <h2>{t('invoices.emptyTitle', { defaultValue: 'Your invoice hub is ready before the first bill arrives.' })}</h2>
+        <p>{t('invoices.emptyDescription', { defaultValue: 'Once you purchase consulting, receive a service invoice, rent a tool, sell work, or send a client invoice, the record will appear here with payment status and follow-up actions.' })}</p>
         <div className="invoices-empty-actions">
           {isHelper ? (
             <Link to="/dashboard?tab=invoices" className="invoices-btn invoices-btn-primary">
-              Create an invoice
+              {t('invoices.createInvoice', { defaultValue: 'Create an invoice' })}
               <ArrowRight size={16} />
             </Link>
           ) : (
             <Link to="/consulting-intake" className="invoices-btn invoices-btn-primary">
-              Explore consulting
+              {t('invoices.exploreConsulting', { defaultValue: 'Explore consulting' })}
               <ArrowRight size={16} />
             </Link>
           )}
           <Link to="/tool-rentals" className="invoices-btn">
-            Browse tool rentals
+            {t('invoices.browseToolRentals', { defaultValue: 'Browse tool rentals' })}
           </Link>
           <Link to="/features#payments" className="invoices-btn">
-            Learn how payments connect
+            {t('invoices.learnPayments', { defaultValue: 'Learn how payments connect' })}
           </Link>
         </div>
       </div>
 
       <div className="invoices-empty-side">
-        <h3>What will show here?</h3>
+        <h3>{t('invoices.emptySideTitle', { defaultValue: 'What will show here?' })}</h3>
         <ul>
-          <li>Paid, pending, overdue, and cancelled invoice records.</li>
-          <li>Consulting, service, rental, and business invoices.</li>
-          <li>Due dates, payment state, customer or consultant details.</li>
-          <li>Email resend actions and detail review for follow-up.</li>
+          <li>{t('invoices.emptyBullet1', { defaultValue: 'Paid, pending, overdue, and cancelled invoice records.' })}</li>
+          <li>{t('invoices.emptyBullet2', { defaultValue: 'Consulting, service, rental, and business invoices.' })}</li>
+          <li>{t('invoices.emptyBullet3', { defaultValue: 'Due dates, payment state, customer or consultant details.' })}</li>
+          <li>{t('invoices.emptyBullet4', { defaultValue: 'Email resend actions and detail review for follow-up.' })}</li>
         </ul>
       </div>
     </section>
@@ -312,44 +322,45 @@ function GuideItem({ icon: Icon, title, text }) {
   );
 }
 
-function InvoiceDetailModal({ invoice, resending, onClose, onResend }) {
+function InvoiceDetailModal({ invoice, language, notSetText, notListedText, resending, onClose, onResend }) {
+  const { t } = useTranslation();
   return (
     <div className="invoices-modal-overlay" onClick={onClose}>
       <div className="invoices-modal" onClick={(event) => event.stopPropagation()}>
         <div className="invoices-modal-header">
           <div>
-            <p>Invoice details</p>
-            <h2>{invoice.invoice_number || `Invoice ${invoice.id}`}</h2>
+            <p>{t('invoices.detailsTitle', { defaultValue: 'Invoice details' })}</p>
+            <h2>{invoice.invoice_number || t('invoices.invoiceIdFallback', { id: invoice.id, defaultValue: 'Invoice {{id}}' })}</h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close invoice details">
+          <button type="button" onClick={onClose} aria-label={t('invoices.closeDetails', { defaultValue: 'Close invoice details' })}>
             <X size={18} />
           </button>
         </div>
 
         <div className="invoices-modal-total">
-          <span>Amount</span>
-          <strong>{centsToMoney(invoiceAmount(invoice))}</strong>
+          <span>{t('invoices.amount', { defaultValue: 'Amount' })}</span>
+          <strong>{centsToMoney(invoiceAmount(invoice), language)}</strong>
           <em className={`invoices-status invoices-status-${invoice.status || 'draft'}`}>
-            {statusLabel(invoice.status)}
+            {statusLabel(invoice.status, t)}
           </em>
         </div>
 
         <div className="invoices-modal-grid">
-          <Detail label="Issued" value={formatDate(invoiceDate(invoice))} />
-          <Detail label="Due date" value={formatDate(invoiceDueDate(invoice))} />
-          {invoice.paid_at && <Detail label="Paid" value={formatDate(invoice.paid_at)} />}
-          <Detail label="Customer" value={invoice.customer_name || invoice.client_name || 'Not listed'} />
-          <Detail label="Consultant" value={invoice.consultant_name || 'Not listed'} />
-          <Detail label="Status" value={statusLabel(invoice.status)} />
+          <Detail label={t('invoices.issuedDate', { defaultValue: 'Issued' })} value={formatDate(invoiceDate(invoice), language, notSetText)} />
+          <Detail label={t('invoices.dueDate', { defaultValue: 'Due Date' })} value={formatDate(invoiceDueDate(invoice), language, notSetText)} />
+          {invoice.paid_at && <Detail label={t('invoices.paidDate', { defaultValue: 'Paid' })} value={formatDate(invoice.paid_at, language, notSetText)} />}
+          <Detail label={t('invoices.customerName', { defaultValue: 'Customer' })} value={invoice.customer_name || invoice.client_name || notListedText} />
+          <Detail label={t('invoices.consultant', { defaultValue: 'Consultant' })} value={invoice.consultant_name || notListedText} />
+          <Detail label={t('invoices.status', { defaultValue: 'Status' })} value={statusLabel(invoice.status, t)} />
         </div>
 
         <div className="invoices-modal-footer">
           <button type="button" className="invoices-btn invoices-btn-primary" onClick={onResend} disabled={resending}>
             <Mail size={16} />
-            {resending ? 'Sending...' : 'Resend email'}
+            {resending ? t('invoices.sending', { defaultValue: 'Sending...' }) : t('invoices.resendEmail', { defaultValue: 'Resend Email' })}
           </button>
           <button type="button" className="invoices-btn" onClick={onClose}>
-            Close
+            {t('common.close', { defaultValue: 'Close' })}
           </button>
         </div>
       </div>

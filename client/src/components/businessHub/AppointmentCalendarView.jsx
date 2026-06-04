@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { ChevronLeft, ChevronRight, Clock, User, Phone, Mail, AlertCircle } from 'lucide-react';
+import { formatDate as formatLocalizedDate, formatDateTime } from '../../lib/format';
 import '../../styles/AppointmentCalendarView.css';
 
 export function AppointmentCalendarView({ businessId }) {
+  const { t } = useTranslation();
   const [appointments, setAppointments] = useState([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState('month'); // 'month', 'week', 'day'
@@ -32,7 +35,7 @@ export function AppointmentCalendarView({ businessId }) {
 
       setAppointments(response.data.appointments || []);
     } catch (error) {
-      toast.error('Failed to load appointments');
+      toast.error(t('businessAppointments.loadFailed'));
       setAppointments([]);
     } finally {
       setLoading(false);
@@ -48,19 +51,21 @@ export function AppointmentCalendarView({ businessId }) {
   };
 
   const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString('en-US', { 
+    return formatLocalizedDate(dateStr, {
       month: 'short', 
       day: 'numeric',
       year: 'numeric'
     });
   };
 
-  const formatTime = (timeStr) => {
-    const [hours, minutes] = timeStr.split(':');
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    return `${displayHour}:${minutes} ${ampm}`;
+  const formatTime = (dateStr) => {
+    return formatDateTime(dateStr, {
+      hour: 'numeric',
+      minute: '2-digit',
+      month: undefined,
+      day: undefined,
+      year: undefined,
+    });
   };
 
   const getStatusColor = (status) => {
@@ -73,6 +78,10 @@ export function AppointmentCalendarView({ businessId }) {
     };
     return colors[status] || '#6b7280';
   };
+
+  const statusLabel = (status) => t(`businessAppointments.status.${status || 'unknown'}`, {
+    defaultValue: String(status || '').replace(/_/g, ' '),
+  });
 
   const getAppointmentsForDate = (day) => {
     return appointments.filter(apt => {
@@ -94,10 +103,10 @@ export function AppointmentCalendarView({ businessId }) {
       await api.put(`/businesses/${businessId}/appointments/${appointmentId}/status`, {
         status: newStatus
       });
-      toast.success(`Appointment ${newStatus}`);
+      toast.success(t('businessAppointments.statusUpdated', { status: statusLabel(newStatus) }));
       loadAppointments();
     } catch (error) {
-      toast.error('Failed to update appointment');
+      toast.error(t('businessAppointments.updateFailed'));
     }
   };
 
@@ -133,7 +142,7 @@ export function AppointmentCalendarView({ businessId }) {
                 onClick={() => setSelectedAppointment(apt)}
                 title={apt.service_name}
               >
-                {formatTime(apt.start_time.split('T')[1])}
+                {formatTime(apt.start_time)}
               </div>
             ))}
             {dayAppointments.length > 2 && (
@@ -147,12 +156,12 @@ export function AppointmentCalendarView({ businessId }) {
     return days;
   };
 
-  const monthYear = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const monthYear = formatLocalizedDate(currentDate, { month: 'long', year: 'numeric', day: undefined });
 
   return (
     <div className="acv-container">
       <div className="acv-header">
-        <h3>Appointment Calendar</h3>
+        <h3>{t('businessAppointments.title')}</h3>
         <div className="acv-header-controls">
           <div className="acv-filter-buttons">
             {['all', 'pending', 'confirmed', 'completed', 'cancelled'].map(status => (
@@ -161,7 +170,7 @@ export function AppointmentCalendarView({ businessId }) {
                 className={`acv-filter-btn ${filter === status ? 'active' : ''}`}
                 onClick={() => setFilter(status)}
               >
-                {status.charAt(0).toUpperCase() + status.slice(1)}
+                {statusLabel(status)}
               </button>
             ))}
           </div>
@@ -180,8 +189,8 @@ export function AppointmentCalendarView({ businessId }) {
         </div>
 
         <div className="acv-weekdays">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="acv-weekday">{day}</div>
+          {['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].map(day => (
+            <div key={day} className="acv-weekday">{t(`businessAppointments.weekdays.${day}`)}</div>
           ))}
         </div>
 
@@ -193,7 +202,7 @@ export function AppointmentCalendarView({ businessId }) {
       {selectedAppointment && (
         <div className="acv-detail-panel">
           <div className="acv-detail-header">
-            <h4>Appointment Details</h4>
+            <h4>{t('businessAppointments.detailsTitle')}</h4>
             <button onClick={() => setSelectedAppointment(null)} className="acv-detail-close">×</button>
           </div>
 
@@ -203,31 +212,34 @@ export function AppointmentCalendarView({ businessId }) {
               <div className="acv-detail-row">
                 <Clock size={16} />
                 <div>
-                  <div className="label">Date & Time</div>
+                  <div className="label">{t('businessAppointments.dateTime')}</div>
                   <div className="value">
-                    {formatDate(selectedAppointment.start_time)} at {formatTime(selectedAppointment.start_time.split('T')[1])}
+                    {t('businessAppointments.dateTimeValue', {
+                      date: formatDate(selectedAppointment.start_time),
+                      time: formatTime(selectedAppointment.start_time),
+                    })}
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="acv-detail-section">
-              <div className="label">Status</div>
+              <div className="label">{t('businessAppointments.statusLabel')}</div>
               <div 
                 className="acv-status-badge"
                 style={{ backgroundColor: getStatusColor(selectedAppointment.status) }}
               >
-                {selectedAppointment.status}
+                {statusLabel(selectedAppointment.status)}
               </div>
             </div>
 
             {selectedAppointment.customer_name && (
               <div className="acv-detail-section">
-                <h5>Customer</h5>
+                <h5>{t('businessAppointments.customer')}</h5>
                 <div className="acv-detail-row">
                   <User size={16} />
                   <div>
-                    <div className="label">Name</div>
+                    <div className="label">{t('businessAppointments.name')}</div>
                     <div className="value">{selectedAppointment.customer_name}</div>
                   </div>
                 </div>
@@ -235,7 +247,7 @@ export function AppointmentCalendarView({ businessId }) {
                   <div className="acv-detail-row">
                     <Mail size={16} />
                     <div>
-                      <div className="label">Email</div>
+                      <div className="label">{t('businessAppointments.email')}</div>
                       <div className="value">{selectedAppointment.customer_email}</div>
                     </div>
                   </div>
@@ -244,7 +256,7 @@ export function AppointmentCalendarView({ businessId }) {
                   <div className="acv-detail-row">
                     <Phone size={16} />
                     <div>
-                      <div className="label">Phone</div>
+                      <div className="label">{t('businessAppointments.phone')}</div>
                       <div className="value">{selectedAppointment.customer_phone}</div>
                     </div>
                   </div>
@@ -254,7 +266,7 @@ export function AppointmentCalendarView({ businessId }) {
 
             {selectedAppointment.customer_notes && (
               <div className="acv-detail-section">
-                <div className="label">Customer Notes</div>
+                <div className="label">{t('businessAppointments.customerNotes')}</div>
                 <div className="acv-notes">{selectedAppointment.customer_notes}</div>
               </div>
             )}
@@ -266,13 +278,13 @@ export function AppointmentCalendarView({ businessId }) {
                     className="acv-btn acv-btn-confirm"
                     onClick={() => handleUpdateStatus(selectedAppointment.id, 'confirmed')}
                   >
-                    Confirm
+                    {t('businessAppointments.confirm')}
                   </button>
                   <button 
                     className="acv-btn acv-btn-cancel"
                     onClick={() => handleUpdateStatus(selectedAppointment.id, 'cancelled')}
                   >
-                    Decline
+                    {t('businessAppointments.decline')}
                   </button>
                 </>
               )}
@@ -282,13 +294,13 @@ export function AppointmentCalendarView({ businessId }) {
                     className="acv-btn acv-btn-confirm"
                     onClick={() => handleUpdateStatus(selectedAppointment.id, 'completed')}
                   >
-                    Complete
+                    {t('businessAppointments.complete')}
                   </button>
                   <button 
                     className="acv-btn acv-btn-cancel"
                     onClick={() => handleUpdateStatus(selectedAppointment.id, 'cancelled')}
                   >
-                    Cancel
+                    {t('businessAppointments.cancel')}
                   </button>
                 </>
               )}

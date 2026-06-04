@@ -647,6 +647,59 @@ exports.generateManualInvoice = async (req, res) => {
 };
 
 /**
+ * Download an invoice as CSV (admin)
+ * GET /api/consulting/admin/invoices/:invoiceId/download
+ */
+exports.downloadInvoice = async (req, res) => {
+  const { invoiceId } = req.params;
+  try {
+    const result = await db.query(
+      `SELECT ci.id, ci.purchase_id, ci.user_id, ci.invoice_number, ci.amount_cents, ci.issued_date, ci.due_date, ci.status, ci.notes, ci.created_at,
+              cp.package_name, u.email, u.first_name, u.last_name
+       FROM consulting_invoices ci
+       LEFT JOIN consulting_purchases cp ON cp.id = ci.purchase_id
+       LEFT JOIN users u ON u.id = ci.user_id
+       WHERE ci.id = $1`,
+      [invoiceId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    const invoice = result.rows[0];
+    const invoiceName = `consulting-invoice-${invoice.invoice_number || invoice.id}.csv`;
+    const csv = [
+      ['invoice_id', 'invoice_number', 'amount_cents', 'issued_date', 'due_date', 'status', 'package_name', 'customer_name', 'customer_email', 'notes', 'created_at']
+        .join(','),
+      [
+        invoice.id,
+        invoice.invoice_number || '',
+        invoice.amount_cents || 0,
+        invoice.issued_date ? new Date(invoice.issued_date).toISOString(),
+        invoice.due_date ? new Date(invoice.due_date).toISOString(),
+        invoice.status || '',
+        `"${String(invoice.package_name || '').replaceAll('"', '""')}"`,
+        `"${String(`${invoice.first_name || ''} ${invoice.last_name || ''}`.trim()).replaceAll('"', '""')}"`,
+        invoice.email || '',
+        `"${String(invoice.notes || '').replaceAll('"', '""')}"`,
+        new Date(invoice.created_at).toISOString(),
+      ].join(','),
+    ].join('\n');
+
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${invoiceName}"`,
+      'Cache-Control': 'no-store',
+    });
+    return res.status(200).send(csv);
+  } catch (err) {
+    logger.error('Error downloading consulting invoice', { invoiceId, err });
+    return res.status(500).json({ error: 'Failed to download invoice' });
+  }
+};
+
+/**
  * Update consulting package (admin)
  * PATCH /api/consulting/admin/packages/:id
  */

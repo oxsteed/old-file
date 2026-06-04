@@ -510,7 +510,7 @@
     "timeline": "Deline",
     "about": "Sou",
     "description": "Deskripsyon",
-    "urgent": "Urgent"
+    "urgent": "Ijan"
   },
   "auth": {
     "email": "Adrès imèl",
@@ -684,11 +684,11 @@
     "haveAccount": "Ou deja gen kont?",
     "country": "Peyi",
     "errorCountry": "Peyi envalid",
-    "customerHeroTitle": "Jwenn ?d lokal ou ka f? konfyans",
+    "customerHeroTitle": "Jwenn èd lokal ou ka fè konfyans",
     "customerHeroSubtitle": "Poste yon travay, konpare ?f, epi anboche ak konfyans.",
-    "customerHeroTrial": "Gratis pou 90 jou ? Pa bezwen kat kredi",
-    "customerTrialBadge": "Es? Pro 90 jou ladan - tout fonksyon ouv?, pa bezwen kat",
-    "helperHeroTitle": "K?manse touche nan katye ou",
+    "customerHeroTrial": "Gratis pou 90 jou - pa bezwen kat kredi",
+    "customerTrialBadge": "Esè Pro 90 jou ladan - tout fonksyon ouvè, pa bezwen kat",
+    "helperHeroTitle": "Kòmanse touche nan katye ou",
     "helperHeroSubtitle": "Mete pri pa ou. F? vwazen yo jwenn ou."
   },
   "didit": {
@@ -768,7 +768,7 @@
     "qrGenerator": "Jeneratè QR",
     "consulting": "Konsèy",
     "consultingTooltip": "Planifye yon seyans konsèy biznis inisyal $100",
-    "legal": "Legal",
+    "legal": "Jiridik",
     "backgroundCheck": "Verifikasyon Antesèdan",
     "arbitration": "Abitraj",
     "escrowPolicy": "Règleman Depo",
@@ -1542,6 +1542,7 @@
     "proActiveTitle": "Ou sou Plan Pro",
     "activeLabel": "Aktif",
     "renewsOn": "Abonman ou renouvle nan {{date}}.",
+    "renewalSoon": "talè",
     "manageBilling": "Jere Faktirasyon",
     "cancelSubscription": "Anile Abonman",
     "cancelling": "Ap anile...",
@@ -1562,6 +1563,7 @@
     "protectionTitle": "Pwoteksyon OxSteed",
     "protectionTagline": "Pèman sekirize pou chak travay",
     "exampleTitle": "Egzanp: Travay $200",
+    "exampleTitleAmount": "Egzanp: travay {{amount}}",
     "customerPays": "Kliyan peye",
     "platformFee": "Frè platfòm OxSteed (7.1%)",
     "stripeFee": "Frè tretman Stripe (~2.9% + $0.30)",
@@ -1572,9 +1574,11 @@
     "forHelpersDesc": "Konplete verifikasyon ID, verifikasyon dosye kriminèl, ak konfigire kont Stripe Express ou pou aksepte pèman pwoteje.",
     "faqTitle": "Kesyon Frekans",
     "getProBtn": "Pran Pro - ${{price}}/{{period}}",
+    "getProBtnFormatted": "Pran Pro - {{price}}/{{period}}",
     "noHiddenFees": "Anile nenpòt ki lè. Pa gen frè kache.",
     "cancelConfirm": "Ou sèten ou vle anile? Ou pral kenbe aksè jiska fen peryòd faktirasyon ou.",
     "yearlySavings": "Sa ${{monthly}}/mwa - ekonomize ${{savings}}/ane",
+    "yearlySavingsFormatted": "Sa {{monthly}}/mwa - ekonomize {{savings}}/ane",
     "faq1Q": "Kisa ki enkli nan Pro?",
     "faq1A": "Pro ba ou yon badge verifye, kapasite pou soumèt òf sou travay, plas prioritè nan rechèch, elejibilite pou verifikasyon dosye kriminèl, verifikasyon idantite, notifikasyon push pou travay ijan, ak Tablo de Bò Lavi konplè ak swivi bidjè, objektif, reminès antretyen kay, ak enfòmasyon kominotè.",
     "faq2Q": "Èske mwen ka anile nenpòt ki lè?",
@@ -1587,6 +1591,7 @@
     "faq5A": "Pwoteksyon OxSteed disponib pou tout itilizatè verifye yo - Free ak Pro tou. Sepandan, pwofesyonèl Pro yo gen plas prioritè sa vle di plis opòtinite travay, epi badge verifye a bati plis konfyans ak kliyan yo.",
     "faq6Q": "Kisa diferans ant chak mwa ak chak ane?",
     "faq6A": "Chak mwa se ${{monthly}}/mwa. Chak ane se ${{yearly}}/ane - sa se ${{perMonth}}/mwa, ekonomize ou ${{savings}} pa ane ({{pct}}% rabè).",
+    "faq6AFormatted": "Chak mwa se {{monthly}}/mwa. Chak ane se {{yearly}}/ane - sa se {{perMonth}}/mwa, ekonomize ou {{savings}} pa ane ({{pct}}% rabè).",
     "faq7Q": "Èske enfòmasyon pèman mwen an sekirize?",
     "faq7A": "Absoliman. Tout pèman trete atravè Stripe, yon pwosesè pèman sètifye PCI Nivo 1. OxSteed pa janm estoke enfòmasyon kat kredi ou.",
     "freeF1": "Pwofil sou OxSteed",
@@ -1627,6 +1632,43 @@
     "protectionDesc": "Lè ou sèvi ak Pwoteksyon OxSteed, pèman trete an sekirite atravè Stripe. Kliyan an peye pri travay akòde a, epi OxSteed pran yon sèl frè platfòm 7.1% (minimòm $5). Sa tout - yon frè transparan ki kouvri tretman pèman, mediasyon konfli, ak sipò platfòm.",
     "protectionNote": "* Pwoteksyon OxSteed mande verifikasyon ID pou kliyan ak verifikasyon ID + verifikasyon dosye kriminèl + kont Stripe pou pwofesyonèl yo.",
     "proFeatures": "Karakteristik pwofesyonèl"
+  },
+  "businessAppointments": {
+    "title": "Kalandriye randevou",
+    "loadFailed": "Nou pa t ka chaje randevou yo",
+    "updateFailed": "Nou pa t ka mete randevou a ajou",
+    "statusUpdated": "Randevou {{status}}",
+    "detailsTitle": "Detay randevou",
+    "dateTime": "Dat ak lè",
+    "dateTimeValue": "{{date}} a {{time}}",
+    "statusLabel": "Estati",
+    "customer": "Kliyan",
+    "name": "Non",
+    "email": "Imèl",
+    "phone": "Telefòn",
+    "customerNotes": "Nòt kliyan an",
+    "confirm": "Konfime",
+    "decline": "Refize",
+    "complete": "Fini",
+    "cancel": "Anile",
+    "status": {
+      "all": "Tout",
+      "pending": "Ap tann",
+      "confirmed": "Konfime",
+      "completed": "Fini",
+      "cancelled": "Anile",
+      "no-show": "Pa vini",
+      "unknown": "Enkoni"
+    },
+    "weekdays": {
+      "sun": "Dim",
+      "mon": "Len",
+      "tue": "Mas",
+      "wed": "Mèk",
+      "thu": "Jedi",
+      "fri": "Van",
+      "sat": "Sam"
+    }
   },
   "jobList": {
     "title": "Jwenn Sèvis Lokal Prè Ou",
@@ -1929,7 +1971,19 @@
     "conversationNotFound": "Konvèsasyon pa jwenn",
     "noMessagesStart": "Poko gen mesaj. Dema konvèsasyon!",
     "typeAMessage": "Ekri yon mesaj...",
-    "empty": "Poko gen mesaj",
+    "empty": {
+      "kicker": "Pa gen mesaj ankò",
+      "title": "Bwat resepsyon ou pare lè travay la kòmanse.",
+      "text": "Mesaj yo parèt lè ou kontakte yon èd, resevwa yon òf, rezève yon moun dirèkteman, poze yon kesyon sou yon sèvis, oswa bezwen swivi sou travay ki aktif.",
+      "findHelper": "Jwenn yon èd",
+      "planFutureWork": "Planifye travay lavni",
+      "helpTitle": "Sa mesaj yo ede fè",
+      "helpShareDetails": "Pataje foto, lè, enstriksyon aksè, ak detay travay.",
+      "helpExpectations": "Kenbe atant èd la ak kliyan an nan yon sèl kote.",
+      "helpContext": "Konsève kontèks pou peman, anilasyon, ak diskisyon.",
+      "helpRepeat": "Bati relasyon ki repete ak èd ou fè konfyans.",
+      "learnLink": "Aprann kijan mesaj yo konekte"
+    },
     "emptyDesc": "Istwa mesaj ou a vid",
     "clearChat": "Clear chat",
     "clearChatConfirm": "Are you sure you want to clear this conversation?",
@@ -2008,7 +2062,41 @@
     "copied": "Kopye!",
     "copyMessage": "Kopye mesaj",
     "editMessage": "Modifye mesaj",
-    "deleteMessage": "Efase mesaj"
+    "deleteMessage": "Efase mesaj",
+    "kicker": "Konvèsasyon travay",
+    "heroDescription": "Kenbe chak kesyon pou èd la, konvèsasyon travay, detay rezèvasyon, ak swivi nan yon sèl kote ki responsab. Mesaj yo kenbe dimansyon travay la, lè, foto, nòt aksè, ak desizyon yo konekte ak travay la.",
+    "stats": {
+      "conversations": "Konvèsasyon",
+      "unread": "Pa li"
+    },
+    "toolsAriaLabel": "Zouti mesaj",
+    "searchPlaceholder": "Chèche moun, travay, oswa mesaj...",
+    "findHelpers": "Jwenn èd",
+    "postJob": "Afiche yon travay",
+    "filteredEmpty": {
+      "title": "Pa gen konvèsasyon ki matche ak rechèch sa a.",
+      "text": "Eseye non yon èd, non biznis, tit travay, oswa yon fraz nan dènye mesaj la."
+    },
+    "conversationListAriaLabel": "Lis konvèsasyon",
+    "guide": {
+      "ariaLabel": "Kijan mesaj yo konekte",
+      "jobs": {
+        "title": "Travay ak òf",
+        "text": "Klarifye dimansyon anvan ou aksepte travay la epi kenbe desizyon yo atache ak travay la."
+      },
+      "bookings": {
+        "title": "Rezèvasyon",
+        "text": "Konfime lè, adrès, nòt aksè, ak sa ki dwe fèt anvan moun nan rive."
+      },
+      "trust": {
+        "title": "Dosye konfyans",
+        "text": "Si gen yon diskisyon oswa pwoblèm sipò pita, istwa konvèsasyon an ede eksplike sa ki te pase."
+      },
+      "repeat": {
+        "title": "Relasyon ki repete",
+        "text": "Bon konvèsasyon vin tounen èd ou sove, rezèvasyon ki repete, ak bezwen lavni ou planifye."
+      }
+    }
   },
   "dashboard": {
     "welcome": "Byenvini tounen, {{name}}!",
@@ -2140,6 +2228,7 @@
       "expenses": "Depans",
       "net": "Nèt",
       "savingsRate": "Pousantaj ekonomi",
+      "inOutSummary": "{{income}} antre · {{expenses}} soti",
       "recentTransactions": "Dènye Tranzaksyon",
       "noTransactions": "Pa gen tranzaksyon ankò. Anrejistre premye a anlè a.",
       "budgets": "Kategori Bidjè",
@@ -2918,6 +3007,16 @@
     "fixed": "Fiks",
     "hourly": "Pa Lè",
     "open": "Ouvè pou Òf",
+    "openToBids": "Ouvè pou òf",
+    "fixedPriceShort": "{{amount}} fiks",
+    "hourlyRateShort": "{{amount}}/èdtan",
+    "step3BudgetTimeline": "Etap 3 sou 4 - Bidjè ak delè",
+    "budgetAmountAria": "Montan bidjè",
+    "budgetTabs": {
+      "fixed": "Pri fiks",
+      "hourly": "Tarif pa èdtan",
+      "open": "Ouvè pou òf"
+    },
     "urgency": "Ijan",
     "asap": "Pi vit Posib",
     "thisWeek": "Semèn sa a",
@@ -3153,6 +3252,10 @@
     "status": "Estati",
     "posted": "Pibliye",
     "assignedTo": "Asiyen ba",
+    "openToBids": "Ouvè pou òf",
+    "hourlyRate": "{{amount}}/èdtan",
+    "jobValue": "Valè travay la: {{amount}}",
+    "creditApplied": "Kredi aplike: -{{amount}}",
     "review": "Kite yon Kòmantè",
     "openBids": "Ouvè pou Òf",
     "urgencyASAP": "Ijan",
@@ -3184,15 +3287,24 @@
     "responseFromOwner": "Repons bò kote mèt la",
     "noBidFound": "Poko gen ofè aksepte",
     "paymentInitiated": "Peyman inisye. Fon yo kenbe an deposit jiskaske travay konplete.",
-    "acceptBid": "Accept Bid",
-    "helperAssigned": "Helper Assigned",
-    "helperAvailability": "Helper Availability",
-    "reviewCount": "{{count}} review"
+    "acceptBid": "Aksepte òf",
+    "helperAssigned": "Èdè asiyen",
+    "helperAvailability": "Disponibilite èdè a",
+    "reviewCount": "{{count}} revizyon"
   },
   "myJobs": {
     "subtitle": "Travay ou pibliye yo",
     "bids": "{{count}} ofè",
     "noBids": "Poko gen ofè",
+    "statusOpen": "Louvri",
+    "statusInProgress": "An pwogrè",
+    "statusCompleted": "Fini",
+    "statusCancelled": "Anile",
+    "statusPending": "An atant",
+    "statusAccepted": "Aksepte",
+    "statusDeclined": "Refize",
+    "statusExpired": "Ekspire",
+    "statusUnknown": "Enkoni",
     "reviewBids": "Revize Ofè",
     "assignedTo": "Asiyen a",
     "loadError": "Pwobyèm chajman travay yo.",
@@ -3201,6 +3313,7 @@
     "noBookingRequests": "Poko gen demann rezalvason",
     "requestedOn": "Demann sou",
     "expiresIn": "Ekspire nan {{days}} jou",
+    "serviceRequest": "Demann sèvis",
     "calendar": "Almanak",
     "postedJob": "Travay Pibliye",
     "directBooking": "Rezalvason Dirèk",
@@ -4563,8 +4676,8 @@
     "switchTemplateTitle": "Chanje biznis sa a pou yon lot model pwofil",
     "propertyOps": {
       "badge": "Ops pwopriyete",
-      "title": "Sist?m operasyon pou jere pwopriyete",
-      "description": "Tab sa a f? mod?l la tounen yon espas pwopriyete vivan ak inite, r?g intake pou lokat?, rap?l konf?mite, lojik pri dispatch, ak lis swivi ki mare ak operasyon antretyen.",
+      "title": "Sistèm operasyon pou jere pwopriyete",
+      "description": "Tab sa a fè modèl la tounen yon espas pwopriyete vivan ak inite, règ intake pou lokatè, rapèl konfòmite, lojik pri dispatch, ak lis swivi ki mare ak operasyon antretyen.",
       "common": {
         "refresh": "Rafrechi",
         "saveSettings": "Sove reglaj yo",
@@ -4576,11 +4689,11 @@
       "metrics": {
         "unitsTracked": "Inite swiv",
         "unitsTrackedHint": "{{occupied}} okipe ? {{turnover}} an wotasyon",
-        "complianceRisk": "Risk konf?mite",
-        "complianceRiskHint": "Dosye ki dwe f?t oswa an reta",
+        "complianceRisk": "Risk konfòmite",
+        "complianceRiskHint": "Dosye ki dwe fèt oswa an reta",
         "openRequests": "Demann ouv?",
-        "openRequestsHint": "Kouran reparasyon akty?l la",
-        "followUpsDue": "Swivi ki dwe f?t",
+        "openRequestsHint": "Kouran reparasyon aktyèl la",
+        "followUpsDue": "Swivi ki dwe fèt",
         "followUpsDueHint": "Demann k ap tann pwochen kontak la",
         "recordedCost": "Pri anrejistre",
         "recordedCostHint": "Depans reparasyon ki antre",
@@ -4589,62 +4702,62 @@
       },
       "followUpQueue": {
         "title": "Lis swivi",
-        "subtitle": "Rap?l sa yo f?t otomatikman apati demann antretyen ki pa bouje ak dosye konf?mite ki rive l? yo.",
-        "empty": "Pa gen swivi ki dwe f?t kounye a.",
-        "dueNow": "Dwe f?t kounye a"
+        "subtitle": "Rapèl sa yo fèt otomatikman apati demann antretyen ki pa bouje ak dosye konfòmite ki rive lè yo.",
+        "empty": "Pa gen swivi ki dwe fèt kounye a.",
+        "dueNow": "Dwe fèt kounye a"
       },
       "recentWorkflow": {
-        "title": "D?nye workflow pwopriyete",
-        "subtitle": "D?nye bagay antretyen yo rete vizib isit la pou tab operasyon an ak lis antretyen an mache ansanm.",
+        "title": "Dènye workflow pwopriyete",
+        "subtitle": "Dènye bagay antretyen yo rete vizib isit la pou tab operasyon an ak lis antretyen an mache ansanm.",
         "openMaintenance": "Louvri antretyen",
         "empty": "Pa gen demann antretyen ki antre ank?.",
         "propertyFallback": "Pwopriyete"
       },
       "settings": {
-        "title": "Reglaj intake lokat? ak konfyans",
-        "subtitle": "Reglaj sa yo chanje sa lokat? a w?, kijan antretyen klase, ak konbyen vit ekip la dwe f? swivi.",
-        "emergencyPhone": "Telef?n ijans",
-        "emergencyPhonePlaceholder": "Liy ijans opsyon?l",
+        "title": "Reglaj intake lokatè ak konfyans",
+        "subtitle": "Reglaj sa yo chanje sa lokatè a wè, kijan antretyen klase, ak konbyen vit ekip la dwe fè swivi.",
+        "emergencyPhone": "Telefòn ijans",
+        "emergencyPhonePlaceholder": "Liy ijans opsyonèl",
         "defaultBillTo": "Faktire pa default bay",
-        "responsePromiseHours": "Pwom?s repons (?dtan)",
-        "followUpCadenceHours": "Kadans swivi (?dtan)",
-        "issueCategories": "Kategori pwobl?m",
+        "responsePromiseHours": "Pwomès repons (èdtan)",
+        "followUpCadenceHours": "Kadans swivi (èdtan)",
+        "issueCategories": "Kategori pwoblèm",
         "issueCategoriesPlaceholder": "Kategori separe ak vigil",
         "trustArtifacts": "Eleman konfyans",
         "trustArtifactsPlaceholder": "Siy konfyans separe ak vigil",
         "managedPropertyTypes": "Kalite pwopriyete yo jere",
-        "managedPropertyTypesPlaceholder": "Apatman, duplex, HOA, lokasyon kout t?m",
-        "tenantPortalIntro": "Entwodiksyon p?tal lokat?",
-        "tenantPortalIntroPlaceholder": "Gid piblik anvan lokat? a voye yon demann",
+        "managedPropertyTypesPlaceholder": "Apatman, duplex, HOA, lokasyon kout tèm",
+        "tenantPortalIntro": "Entwodiksyon pòtal lokatè",
+        "tenantPortalIntroPlaceholder": "Gid piblik anvan lokatè a voye yon demann",
         "emergencyInstructions": "Enstriksyon ijans",
-        "emergencyInstructionsPlaceholder": "Kisa yon lokat? dwe f? pou inondasyon, dife, oswa risk sekirite",
+        "emergencyInstructionsPlaceholder": "Kisa yon lokatè dwe fè pou inondasyon, dife, oswa risk sekirite",
         "afterHoursPolicy": "Politik apre l?",
-        "afterHoursPolicyPlaceholder": "Gid dispatch apre l? oswa pou ijans s?lman"
+        "afterHoursPolicyPlaceholder": "Gid dispatch apre lè oswa pou ijans sèlman"
       },
       "units": {
-        "title": "Inite p?tfolyo",
-        "subtitle": "Swiv inite, moun ki ladan yo, kont?ks aks?, ak nivo priyorite pou dispatch f?t ak bon kont?ks pwopriyete a.",
-        "propertyLabel": "Etik?t pwopriyete",
+        "title": "Inite pòtfolyo",
+        "subtitle": "Swiv inite, moun ki ladan yo, kontèks aksè, ak nivo priyorite pou dispatch fèt ak bon kontèks pwopriyete a.",
+        "propertyLabel": "Etikèt pwopriyete",
         "unit": "Inite",
         "propertyType": "Kalite pwopriyete",
         "occupancy": "Okipasyon",
         "contactName": "Non kontak",
-        "contactPhone": "Telef?n kontak",
+        "contactPhone": "Telefòn kontak",
         "priorityTier": "Nivo priyorite",
         "accessSummary": "Rezime aks?",
-        "notes": "N?t",
+        "notes": "Nòt",
         "updateUnit": "Mete inite a ajou",
         "addUnit": "Ajoute inite"
       },
       "packages": {
         "title": "Pake ak pri pwopriyete",
-        "subtitle": "Defini lojik dispatch, enspeksyon, turnover, ak retainer ke mod?l sa a ka vann ak faktire toutbon.",
+        "subtitle": "Defini lojik dispatch, enspeksyon, turnover, ak retainer ke modèl sa a ka vann ak faktire toutbon.",
         "packageName": "Non pake",
-        "pricingModel": "Mod?l pri",
+        "pricingModel": "Modèl pri",
         "billTo": "Faktire bay",
         "basePriceCents": "Pri baz (santim)",
-        "afterHoursSurchargeCents": "Siplemant? apre l? (santim)",
-        "targetTurnaroundHours": "Tan sib pou fini (?dtan)",
+        "afterHoursSurchargeCents": "Siplemantè apre lè (santim)",
+        "targetTurnaroundHours": "Tan sib pou fini (èdtan)",
         "descriptionLabel": "Deskripsyon",
         "includes": "Sa ki ladan li",
         "includesPlaceholder": "Sa ki ladan yo separe ak vigil",
@@ -4654,8 +4767,8 @@
         "afterHoursSuffix": "apre l?"
       },
       "compliance": {
-        "title": "Konf?mite ak dosye konfyans",
-        "subtitle": "Swiv enspeksyon, obligasyon repete, ak eleman konfyans ki f? mod?l pwopriyete a santi tankou yon vr? sist?m jesyon.",
+        "title": "Konfòmite ak dosye konfyans",
+        "subtitle": "Swiv enspeksyon, obligasyon repete, ak eleman konfyans ki fè modèl pwopriyete a santi tankou yon vrè sistèm jesyon.",
         "unit": "Inite",
         "generalWholeProperty": "Jeneral / tout pwopriyete a",
         "recordType": "Kalite dosye",
@@ -4664,7 +4777,7 @@
         "dueDate": "Dat limit",
         "vendor": "Founis?",
         "documentUrl": "URL dokiman",
-        "notes": "N?t",
+        "notes": "Nòt",
         "updateRecord": "Mete dosye a ajou",
         "addRecord": "Ajoute dosye",
         "generalRecord": "Dosye jeneral",
@@ -4674,7 +4787,7 @@
         "billTo": {
           "owner": "Pwopriyet?",
           "tenant": "Lokat?",
-          "internal": "Ent?n"
+          "internal": "Entèn"
         },
         "occupancy": {
           "occupied": "Okipe",
@@ -4683,13 +4796,13 @@
           "ownerHold": "Kenbe pou pwopriyet?"
         },
         "priority": {
-          "standard": "N?mal",
+          "standard": "Nòmal",
           "priority": "Priyorite",
           "vip": "VIP"
         },
         "pricingModel": {
           "flat": "Fiks",
-          "hourly": "Pa ?dtan",
+          "hourly": "Pa èdtan",
           "inspection": "Enspeksyon",
           "turnover": "Turnover",
           "retainer": "Retainer"
@@ -4712,10 +4825,10 @@
         "packageAdded": "Pake a ajoute",
         "packageSaveError": "Pa t ka sove pake a",
         "packageDeleted": "Pake a efase",
-        "complianceUpdated": "Dosye konf?mite a mete ajou",
-        "complianceAdded": "Dosye konf?mite a ajoute",
-        "complianceSaveError": "Pa t ka sove dosye konf?mite a",
-        "complianceDeleted": "Dosye konf?mite a efase"
+        "complianceUpdated": "Dosye konfòmite a mete ajou",
+        "complianceAdded": "Dosye konfòmite a ajoute",
+        "complianceSaveError": "Pa t ka sove dosye konfòmite a",
+        "complianceDeleted": "Dosye konfòmite a efase"
       },
       "confirms": {
         "deleteUnit": "Efase inite sa a?",
@@ -5317,13 +5430,13 @@
       "subtitle": "Wè ak jere dispute aktif ou yo",
       "loading": "Ap chaje...",
       "noDisputesSub": "Dispute yo ka ouvè sou travay konplete yo nan peryòd revizyon an.",
-      "metaDescription": "Swiv difikilte OxSteed yo, pr?v yo, mesaj sip? yo, ak rezilta rezolisyon yo.",
+      "metaDescription": "Swiv difikilte OxSteed yo, prèv yo, mesaj sipò yo, ak rezilta rezolisyon yo.",
       "eyebrow": "Sant konfyans ak rezolisyon",
-      "heroExtra": "Kenbe pr?v, mesaj sip?, kont?ks travay la, ak mizajou rezolisyon yo yon s?l kote pou yon sitiyasyon difisil rete ?ganize.",
+      "heroExtra": "Kenbe prèv, mesaj sipò, kontèks travay la, ak mizajou rezolisyon yo yon sèl kote pou yon sitiyasyon difisil rete òganize.",
       "openMessages": "Louvri mesaj yo",
       "contactSupport": "Kontakte sip?",
       "dateUnavailable": "Dat pa disponib",
-      "generalIssue": "Pwobl?m jeneral",
+      "generalIssue": "Pwoblèm jeneral",
       "untitledJob": "Travay san tit",
       "openedOn": "Louvri {{date}}",
       "stats": {
@@ -5340,31 +5453,31 @@
         "open": "Louvri",
         "underReview": "An revizyon",
         "resolved": "Rezoud",
-        "closed": "F?men"
+        "closed": "Fèmen"
       },
       "resolution": {
-        "full_refund": "Ranbousman konpl? f?t",
-        "partial_refund": "Ranbousman pasy?l f?t",
-        "release_to_helper": "Peman lage bay ?d la",
+        "full_refund": "Ranbousman konplè fèt",
+        "partial_refund": "Ranbousman pasyèl fèt",
+        "release_to_helper": "Peman lage bay èd la",
         "dismissed": "Rejte"
       },
       "guide": {
-        "preserveTitle": "Kenbe pr?v yo",
-        "preserveText": "Ajoute foto, dokiman, del?, ak ti n?t pandan detay yo toujou fre.",
+        "preserveTitle": "Kenbe prèv yo",
+        "preserveText": "Ajoute foto, dokiman, delè, ak ti nòt pandan detay yo toujou fre.",
         "focusTitle": "Kenbe diskisyon an kl?",
-        "focusText": "S?vi ak fil difikilte a pou klarifikasyon pou sip? ka swiv dosye a.",
+        "focusText": "Sèvi ak fil difikilte a pou klarifikasyon pou sipò ka swiv dosye a.",
         "outcomeTitle": "Swiv rezilta a",
         "outcomeText": "Estati rezolisyon, ranbousman, ak desizyon lage peman rete kole ak travay la."
       },
       "empty": {
         "title": "Pa gen difikilte ouv?",
-        "body": "Se yon bon bagay. Si yon travay, peman, lokasyon zouti, oswa randevou bezwen yon revizyon f?m?l, li ap par?t isit la ak del? pr?v la ak konv?sasyon sip? a.",
+        "body": "Se yon bon bagay. Si yon travay, peman, lokasyon zouti, oswa randevou bezwen yon revizyon fòmèl, li ap parèt isit la ak delè prèv la ak konvèsasyon sipò a.",
         "browseJobs": "Gade travay yo",
         "learnHow": "Aprann kijan OxSteed mache",
         "beforeTitle": "Anvan ou louvri yon difikilte",
         "bullet1": "Eseye klarifye dimansyon an nan mesaj yo.",
         "bullet2": "Sove foto, resi, ak detay l?.",
-        "bullet3": "S?vi ak eskalasyon sip? pou pwobl?m sekirite oswa peman ki ijan."
+        "bullet3": "Sèvi ak eskalasyon sipò pou pwoblèm sekirite oswa peman ki ijan."
       }
     },
     "detail": {
@@ -5588,6 +5701,20 @@
     "needHelp": "Ou bezwen èd?"
   },
   "verifyIdentity": {
+    "metaTitle": "Verifye idantite ou",
+    "metaDescription": "Konplete verifikasyon idantite OxSteed la pou ede pwoteje kliyan, èdè, travay, ak peman yo.",
+    "secureBadge": "Verifikasyon an sekirite",
+    "eyebrow": "Yon kouch konfyans pou travay nan lavi reyèl",
+    "heroTitle": "Verifye yon sèl fwa. Travay, anboche, epi resevwa peman ak plis konfyans.",
+    "heroDescription": "OxSteed konekte moun pou travay, rezèvasyon, peman, lokasyon zouti, ak sèvis biznis. Verifikasyon idantite ede chak pati nan sistèm sa a vin pi an sekirite epi pi responsab.",
+    "benefitsAriaLabel": "Poukisa verifikasyon an enpòtan",
+    "benefitTrustTitle": "Pi bon konfyans sou platfòm lan",
+    "benefitTrustDescription": "Kliyan ak èdè yo konnen gen yon moun reyèl dèyè kont lan.",
+    "benefitPaymentsTitle": "Peman ki pi an sekirite",
+    "benefitPaymentsDescription": "Fakti, depo, ak peman yo gen yon tras idantite ki pi solid.",
+    "benefitApprovalsTitle": "Apwobasyon ki pi fasil",
+    "benefitApprovalsDescription": "Itilizatè verifye yo pi fasil pou matche, rezève, evalye, epi sipòte.",
+    "formAriaLabel": "Fòm verifikasyon idantite",
     "step1": "1. Kont",
     "step2": "2. Verifikasyon Idantite"
   },
@@ -5621,6 +5748,15 @@
     "customize": "Pèsonalize",
     "bannerText": "Nou itilize cookie pou amelyore eksperyans ou sou OxSteed. Cookie esansyèl yo obligatwa pou platfòm nan fonksyone. Ou ka pèsonalize preferans ou oswa aksepte tout cookie yo.",
     "cookiePolicy": "Politik Cookie"
+  },
+  "supportWidget": {
+    "askAi": "Mande IA",
+    "openAssistant": "Louvri asistan IA",
+    "aiGreeting": "Bonjou! Mwen se asistan IA OxSteed. Kijan mwen ka ede w jodi a?",
+    "welcomeBack": "Byenvini ankò! Mwen la si ou gen nenpòt kesyon sou OxSteed.",
+    "proactivePostJob": "Ou bezwen èd pou poste premye travay ou? Mwen ka gide w etap pa etap.",
+    "proactiveHelpers": "W ap chèche bon moun pou ede w? Mwen ka esplike kijan OxSteed mache.",
+    "errorMessage": "Padon, mwen gen yon pwoblèm kounye a. Tanpri eseye ankò oswa voye imèl bay **support@oxsteed.com**."
   },
   "errorBoundary": {
     "title": "Yon bagay te mal pase",
@@ -5734,28 +5870,28 @@
     "markComplete": "Make Konplè",
     "rejectRequest": "Refize Demann",
     "commandCenter": "Sant jesyon leads",
-    "heroBody": "F? demann kliyan yo tounen devis kl?, travay aksepte, ak dosye fini. Chak lead se yon chans pou reponn vit, mete atant yo kl?, epi kenbe relasyon an ap avanse san p?di kont?ks.",
+    "heroBody": "Fè demann kliyan yo tounen devis klè, travay aksepte, ak dosye fini. Chak lead se yon chans pou reponn vit, mete atant yo klè, epi kenbe relasyon an ap avanse san pèdi kontèks.",
     "activeLeads": "Leads aktif",
-    "possibleValue": "Val? posib",
+    "possibleValue": "Valè posib",
     "workflowAria": "Kouman leads yo mache",
     "listAria": "Leads {{status}}",
     "budgetRange": "Bidj?: ${{min}} - ${{max}}",
     "quoteRequest": "Demann devis",
     "guide": {
       "readTitle": "Li demann nan",
-      "readText": "Konprann bezwen an, kote a, bidj? a, ak kont?ks kliyan an anvan ou bay devis.",
+      "readText": "Konprann bezwen an, kote a, bidjè a, ak kontèks kliyan an anvan ou bay devis.",
       "quoteTitle": "Voye yon devis",
-      "quoteText": "Yon bon devis esplike pri, dimansyon, ak del? pou kliyan an ka deside ak konfyans.",
-      "closeTitle": "F? swivi a",
-      "closeText": "Leads ki aksepte yo vin istwa travay rey?l l? ou fini travay la epi f? swivi."
+      "quoteText": "Yon bon devis esplike pri, dimansyon, ak delè pou kliyan an ka deside ak konfyans.",
+      "closeTitle": "Fè swivi a",
+      "closeText": "Leads ki aksepte yo vin istwa travay reyèl lè ou fini travay la epi fè swivi."
     },
     "empty": {
       "title": "Pa gen leads {{status}}",
-      "body": "Leads ki soti nan pwofil biznis ou ak demann s?vis yo ap par?t isit la. S?vi ak paj sa a pou reponn ak pri, dimansyon, ak del? anvan kliyan an p?di elan.",
-      "sideTitle": "F? pwochen leads yo pi fasil pou genyen",
-      "bullet1": "Kenbe s?vis ak pri yo kl? sou pwofil ou.",
-      "bullet2": "Ajoute foto ak r?gleman pou kliyan yo konnen sa pou yo atann.",
-      "bullet3": "Reponn vit ak yon devis konpl? ak yon del? reyalis."
+      "body": "Leads ki soti nan pwofil biznis ou ak demann sèvis yo ap parèt isit la. Sèvi ak paj sa a pou reponn ak pri, dimansyon, ak delè anvan kliyan an pèdi elan.",
+      "sideTitle": "Fè pwochen leads yo pi fasil pou genyen",
+      "bullet1": "Kenbe sèvis ak pri yo klè sou pwofil ou.",
+      "bullet2": "Ajoute foto ak règleman pou kliyan yo konnen sa pou yo atann.",
+      "bullet3": "Reponn vit ak yon devis konplè ak yon delè reyalis."
     }
   },
   "quickAddTemplates": {
@@ -6040,7 +6176,7 @@
     "setPasswordRepeat": "Konfime nouvo modpas",
     "setPasswordTooShort": "Modpas la dwe gen omwen 8 karaktè.",
     "setPasswordMismatch": "Modpas yo pa matche.",
-    "setPasswordPrompt": "Mete yon nouvo modpas pou itilizatè sa a? Yo pral femen sesyon ki egziste deja.",
+    "setPasswordPrompt": "Mete yon nouvo modpas pou itilizatè sa a? Sesyon ki egziste deja yo pral fèmen.",
     "setPasswordSuccess": "Modpas mete ajou. Sesyon yo envalidasyon.",
     "setPasswordFailed": "Pa t kapab mete ajou modpas la.",
     "setPasswordSubmit": "Anrejistre modpas",
@@ -6250,19 +6386,20 @@
     "paymentMethodDeleted": "Metòd peman efase",
     "paymentMethodDeleteFailed": "Echèk efase metòd peman",
     "paymentMethodActive": "Metòd peman aktif sou dosye",
+    "closeInvoiceModal": "Fèmen fenèt fakti a",
     "sendInvoice": "Voye Faktir",
-    "invoiceSubtitle": "Chwazi kouman pou voye faktir a klyan an",
-    "inPlatform": "Sou Platfòm",
-    "inPlatformDesc": "Voye atravè OxSteed avèk resè lekti",
-    "personalEmail": "Email Pèsonèl",
-    "personalEmailDesc": "Voye soti nan kont imel w",
-    "recipientEmail": "Email Resipyan",
+    "invoiceSubtitle": "Chwazi kijan pou voye fakti a bay kliyan an",
+    "inPlatform": "Sou OxSteed",
+    "inPlatformDesc": "Voye atravè OxSteed ak konfimasyon lekti",
+    "personalEmail": "Imèl pèsonèl",
+    "personalEmailDesc": "Voye soti nan pwòp kont imèl ou",
+    "recipientEmail": "Imèl moun k ap resevwa a",
     "recipientEmailPlaceholder": "kliyan@egzanp.com",
     "emailRequired": "Adrès imel obliyatwa",
     "invalidEmail": "Fòma imel envalid",
-    "invoiceSent": "Faktir voye avèk siksè",
-    "invoiceSendFailed": "Echèk voye faktir",
-    "invoiceInfo": "Faktir la pral enkli metòd peman w ak yon kòd QR pou peman fasil.",
+    "invoiceSent": "Fakti a voye avèk siksè",
+    "invoiceSendFailed": "Nou pa t kapab voye fakti a",
+    "invoiceInfo": "Fakti a ap gen ladan metòd peman ou ak yon kòd QR pou fè peman an pi fasil.",
     "reportUser": "Rapòte Itilizatè",
     "reportWarning": "Rapò yo revize pa tim nou. Fo rapò ka rezilte nan aksyon kont kont w.",
     "issueType": "Tip Pwoblèm",
@@ -6397,7 +6534,7 @@
     "viewAndBook": "Wè ak Rezève",
     "viewAndBookAria": "Wè ak rezève {{name}}",
     "listYourTool": "Liste Zouti Ou",
-    "listYourToolSubtitle": "Gen yon zouti nan garaj ou? Fè kòb lwe li.",
+    "listYourToolSubtitle": "Gen yon zouti nan garaj ou? Fè kòb lè w lwe li.",
     "taxonomy": {
       "categories": {
         "power_tools": "Zouti Elektrik",
@@ -7362,6 +7499,10 @@
     "viewDetails": "Wè detay",
     "viewDetailsFor": "Wè detay pou {{name}}",
     "requestDetails": "Detay demann nan",
+    "businessLaunchRequest": "Demann lansman biznis",
+    "progressLabel": "Pwogrè lansman an",
+    "progressAria": "Pwogrè: {{progress}}%",
+    "loadError": "Pa t kapab chaje demann lansman yo.",
     "selectedPackage": "Pakè Chwazi",
     "businessInfo": "Enfòmasyon Biznis",
     "skill": "Konpetans / Ofri",
@@ -7591,6 +7732,7 @@
     "amount": "Montan",
     "status": "Estati",
     "dueDate": "Dat Limite",
+    "due": "Limit",
     "actions": "Aksyon",
     "view": "Wè",
     "resendEmail": "Voye Email Ankò",
@@ -7602,7 +7744,60 @@
     "issuedDate": "Emis",
     "paidDate": "Peye",
     "customerName": "Kli",
-    "consultant": "Konsèy"
+    "consultant": "Konsèy",
+    "metaTitle": "Fakti mwen yo - OxSteed",
+    "metaDescription": "Swiv fakti OxSteed yo, estati peman, resi konsiltasyon, fakti sèvis, fakti lokasyon zouti, ak dosye finans biznis.",
+    "kicker": "Dosye finansye",
+    "heroDescription": "Kenbe tout tras OxSteed ou yo nan yon sèl kote: resi konsiltasyon, fakti èd, fakti lokasyon zouti, travay peye, balans ki rete, ak swivi peman.",
+    "moneyDashboard": "Tablo lajan",
+    "refresh": "Rafrechi",
+    "summaryAriaLabel": "Rezime fakti yo",
+    "totalInvoiceValue": "Valè total fakti yo",
+    "statusDraft": "Bouyon",
+    "statusSent": "Voye",
+    "statusIssued": "Emis",
+    "statusPaid": "Peye",
+    "statusOverdue": "An reta",
+    "statusCancelled": "Anile",
+    "statusOutstanding": "An atant",
+    "listAriaLabel": "Lis fakti yo",
+    "activityTitle": "Aktivite fakti yo",
+    "activityDescription": "Revize estati peman, voye imel yo ankò, epi gade detay ki dèyè chak chaj.",
+    "recordCount_one": "{{count}} dosye",
+    "recordCount_other": "{{count}} dosye",
+    "invoiceLabel": "Fakti",
+    "invoiceIdFallback": "Fakti {{id}}",
+    "customerFallback": "Kliyan OxSteed",
+    "viewAriaLabel": "Gade {{invoice}}",
+    "resendAriaLabel": "Voye {{invoice}} ankò",
+    "invoiceGeneric": "fakti",
+    "guideAriaLabel": "Kijan fakti yo konekte",
+    "guideTitle": "Kijan fakti yo antre nan OxSteed",
+    "guideDescription": "Fakti yo pa sèlman resi. Yo konekte travay, zouti, konsiltasyon, peman, dosye, ak swivi pou kliyan ak biznis yo ka wè sa ki te rive ak sa ki toujou bezwen atansyon.",
+    "guideServiceTitle": "Travay sèvis",
+    "guideServiceText": "Travay ak sèvis èd yo ka kreye yon dosye sou sa ki te mande, fakti, peye, oswa toujou rete an atant.",
+    "guideToolTitle": "Lokasyon zouti",
+    "guideToolText": "Pwopriyetè zouti yo ka voye fakti lokasyon, swiv peman, epi kenbe istwa lokasyon an konekte ak rezèvasyon yo.",
+    "guideConsultingTitle": "Konsiltasyon",
+    "guideConsultingText": "Sesyon lansman biznis ak konsiltasyon ka pwodui fakti ki rete tache ak istwa kont ou.",
+    "guideBusinessTitle": "Dosye biznis",
+    "guideBusinessText": "Fakti ki peye ak sa ki toujou an atant yo bay pi gwo foto finansye a: revni, taks, koule lajan, ak planifikasyon.",
+    "emptyTitle": "Sant fakti ou a pare anvan premye bòdwo a rive.",
+    "emptyDescription": "Depi ou achte konsiltasyon, resevwa yon fakti sèvis, lwe yon zouti, vann yon travay, oswa voye yon fakti bay yon kliyan, dosye a ap parèt isit la ak estati peman ak aksyon swivi.",
+    "createInvoice": "Kreye yon fakti",
+    "exploreConsulting": "Eksplore konsiltasyon",
+    "browseToolRentals": "Gade lokasyon zouti yo",
+    "learnPayments": "Aprann kijan peman yo konekte",
+    "emptySideTitle": "Kisa k ap parèt isit la?",
+    "emptyBullet1": "Dosye fakti ki peye, an atant, an reta, ak anile.",
+    "emptyBullet2": "Fakti konsiltasyon, sèvis, lokasyon, ak biznis.",
+    "emptyBullet3": "Dat limit, estati peman, ak detay kliyan oswa konsiltan.",
+    "emptyBullet4": "Aksyon pou voye imel ankò ak revizyon detay pou swivi.",
+    "detailsTitle": "Detay fakti yo",
+    "closeDetails": "Fèmen detay fakti yo",
+    "sending": "Ap voye...",
+    "notSet": "Pa defini",
+    "notListed": "Pa make"
   },
   "calendar": {
     "pageTitle": "Kalandriye",
@@ -8157,6 +8352,7 @@
     "report": "Rapòte",
     "reportUser": "Rapòte Itilizatè",
     "reportingUser": "Ou rapòte {{name}}",
+    "close": "Fèmen",
     "reason": "Rezon Rapò",
     "selectReason": "Chwazi yon rezon...",
     "reasonHarassment": "Harèsman",
@@ -8173,7 +8369,9 @@
     "evidenceUrls": "URL Prèv (Opsyonal)",
     "evidenceUrlsPlaceholder": "Kole URL prèv (yon pa liy)",
     "evidenceHelpText": "Ou ka enkli lyen a foto, mesaj, oubyen lòt prèv.",
+    "charCount": "{{count}} / {{max}}",
     "privacyNotice": "Rapò ou a sekrè. Itilizatè rapòte a pa p notifye ke ou file rapò sa.",
+    "submitError": "Nou pa t kapab soumèt rapò ou a kounye a. Tanpri eseye ankò.",
     "cancel": "Anile",
     "submitReport": "Soumèt Rapò",
     "submitting": "Soumèt an kous..."
@@ -8490,36 +8688,87 @@
     "withdrawError": "Pa kapab retire òf la."
   },
   "orders": {
-    "title": "Order History",
-    "yourOrders": "Your Orders",
-    "noOrders": "You have no orders yet.",
-    "continueShopping": "Continue Shopping",
-    "totalOrders": "Total Orders",
-    "completedOrders": "Completed Orders",
-    "pendingOrders": "Pending Orders",
-    "totalSpent": "Total Spent",
-    "orderId": "Order ID",
-    "date": "Date",
-    "status": "Status",
-    "items": "Items",
+    "title": "Istwa kòmand",
+    "yourOrders": "Kòmand ou yo",
+    "noOrders": "Ou poko gen kòmand.",
+    "continueShopping": "Kontinye achte",
+    "totalOrders": "Total kòmand",
+    "completedOrders": "Kòmand fini",
+    "pendingOrders": "Kòmand annatant",
+    "totalSpent": "Total depanse",
+    "orderId": "ID kòmand",
+    "date": "Dat",
+    "status": "Estati",
+    "items": "Atik",
     "total": "Total",
-    "description": "Description",
-    "order": "Order",
-    "orderSummary": "Order Summary",
-    "backToOrders": "Back to Orders",
-    "notFound": "Order not found.",
-    "placedOn": "Placed on",
-    "payment": "Payment",
-    "paymentMethod": "Payment Method",
-    "transactionId": "Transaction ID",
-    "shippingAddress": "Shipping Address",
-    "shipping": "Shipping",
-    "subtotal": "Subtotal",
-    "tax": "Tax",
-    "discount": "Discount",
-    "quantity": "Qty",
-    "cancelOrder": "Cancel Order",
-    "confirmCancel": "Are you sure you want to cancel this order?"
+    "description": "Deskripsyon",
+    "order": "Kòmand",
+    "orderSummary": "Rezime kòmand",
+    "backToOrders": "Retounen nan kòmand",
+    "notFound": "Kòmand lan pa jwenn.",
+    "placedOn": "Te fèt nan",
+    "payment": "Peman",
+    "paymentMethod": "Metòd peman",
+    "transactionId": "ID tranzaksyon",
+    "shippingAddress": "Adrès livrezon",
+    "shipping": "Livrezon",
+    "subtotal": "Sou-total",
+    "tax": "Taks",
+    "discount": "Rabè",
+    "quantity": "Kant.",
+    "cancelOrder": "Anile kòmand",
+    "confirmCancel": "Èske ou sèten ou vle anile kòmand sa a?",
+    "kicker": "Istwa acha",
+    "heroDescription": "Swiv acha marketplace, kòmand pwodwi, estati livrezon, resi, ak swivi nan yon sèl kote pou achte sou OxSteed rete òganize depi panyè a jouk li fini.",
+    "browseProducts": "Gade pwodwi yo",
+    "browseToolRentals": "Gade lokasyon zouti",
+    "viewInvoices": "Gade fakti yo",
+    "summaryAriaLabel": "Rezime kòmand",
+    "panelDescription": "Filtre kòmand yo selon estati peman ak livrezon, apre sa louvri nenpòt kòmand pou detay.",
+    "loadError": "Pa t kapab chaje kòmand yo",
+    "notSet": "Pa mete",
+    "marketplaceOrder": "Kòmand marketplace OxSteed",
+    "statusLabels": {
+      "all": "Tout",
+      "pending": "Annatant",
+      "paid": "Peye",
+      "processing": "Ap trete",
+      "completed": "Fini",
+      "cancelled": "Anile",
+      "refunded": "Ranbouse"
+    },
+    "guide": {
+      "ariaLabel": "Kijan kòmand yo konekte",
+      "products": {
+        "title": "Pwodwi ak founiti",
+        "text": "Kòmand yo swiv acha nan marketplace pwodwi a, ansanm ak atik yon biznis vann sou OxSteed."
+      },
+      "fulfillment": {
+        "title": "Livrezon",
+        "text": "Estati a fè li pi fasil pou wè sa ki annatant, peye, ap trete, fini, anile, oswa ranbouse."
+      },
+      "sharedCarts": {
+        "title": "Panyè pataje",
+        "text": "Kòmand yo ka kòmanse nan yon panyè ou bati oswa nan yon panyè pataje yon moun voye ba ou."
+      },
+      "records": {
+        "title": "Dosye",
+        "text": "Kòmand yo rete bò kote fakti ak peman kòm pati nan dosye finansye kliyan an."
+      }
+    },
+    "empty": {
+      "kicker": "Pa gen kòmand ankò",
+      "filteredKicker": "Pa gen kòmand ki matche",
+      "title": "Istwa kòmand ou pare anvan premye acha ou.",
+      "filteredTitle": "Pa gen anyen ki matche ak filtè sa a ankò.",
+      "text": "Lè ou achte pwodwi, peye nan yon panyè pataje, oswa achte founiti sou OxSteed, resi ak estati kòmand ou yo ap parèt isit la.",
+      "filteredText": "Eseye yon lòt estati oswa retounen nan tout kòmand pou wè tout istwa acha ou.",
+      "helpTitle": "Sa paj sa a ede w fè",
+      "help1": "Revize acha pwodwi ak marketplace.",
+      "help2": "Swiv estati depi peman jouk fini.",
+      "help3": "Kenbe resi yo konekte ak dosye lajan ou.",
+      "help4": "Retounen nan detay kòmand si ou bezwen sipò oswa swivi."
+    }
   },
   "cancellationSettings": {
     "pageTitle": "Payment & Cancellation Policies",
@@ -8547,11 +8796,11 @@
     "noteBody": "You must enable at least one payment method. Customers will see your enabled options when reviewing your bid."
   },
   "howOxsteedWorks": {
-    "metaTitle": "Kijan OxSteed mache - Fonksyon, etap travay, ak egzanp rey?l",
-    "metaDescription": "Aprann kijan OxSteed mache pou kliyan, moun k ap bay s?vis, biznis, ak moun ki lwe zouti. Gade travay, rez?vasyon, zouti, peman, bezwen planifye, mesaj, diskisyon, tablo kontw?l, ak zouti pou grandi biznis.",
+    "metaTitle": "Kijan OxSteed mache - Fonksyon, etap travay, ak egzanp reyèl",
+    "metaDescription": "Aprann kijan OxSteed mache pou kliyan, moun k ap bay sèvis, biznis, ak moun ki lwe zouti. Gade travay, rezèvasyon, zouti, peman, bezwen planifye, mesaj, diskisyon, tablo kontwòl, ak zouti pou grandi biznis.",
     "kicker": "Kijan OxSteed mache",
-    "title": "Yon sist?m ki konekte pou jwenn ?d, f? travay, lwe zouti, epi dirije yon biznis lokal.",
-    "subtitle": "OxSteed se yon mache lokal, yon sant kontw?l pou lavi, epi yon sist?m pou jere biznis. Paj sa a mete etap senp yo ansanm ak yon gid detaye pou nouvo itilizat? yo konnen pwochen aksyon yo.",
+    "title": "Yon sistèm ki konekte pou jwenn èd, fè travay, lwe zouti, epi dirije yon biznis lokal.",
+    "subtitle": "OxSteed se yon mache lokal, yon sant kontwòl pou lavi, epi yon sistèm pou jere biznis. Paj sa a mete etap senp yo ansanm ak yon gid detaye pou nouvo itilizatè yo konnen pwochen aksyon yo.",
     "heroActions": {
       "postJob": "Pibliye yon travay",
       "findHelpers": "Jwenn moun pou ede",
@@ -8560,53 +8809,53 @@
     "paths": {
       "customers": {
         "label": "Pou kliyan",
-        "title": "Jwenn ?d san p?di kont?ks la",
+        "title": "Jwenn èd san pèdi kontèks la",
         "steps": [
-          "Dekri yon travay, yon bezwen planifye, yon rez?vasyon, oswa yon zouti pou lwe.",
-          "Konpare moun k ap ede yo, pri, mesaj, or?, ak siy konfyans.",
-          "Peye, bay revizyon, kenbe dosye a, epi planifye pwochen bezwen an nan tablo kontw?l ou."
+          "Dekri yon travay, yon bezwen planifye, yon rezèvasyon, oswa yon zouti pou lwe.",
+          "Konpare moun k ap ede yo, pri, mesaj, orè, ak siy konfyans.",
+          "Peye, bay revizyon, kenbe dosye a, epi planifye pwochen bezwen an nan tablo kontwòl ou."
         ],
         "cta": "Pibliye yon travay"
       },
       "helpers": {
-        "label": "Pou moun k ap bay s?vis",
-        "title": "F? konpetans ou tounen travay lokal",
+        "label": "Pou moun k ap bay sèvis",
+        "title": "Fè konpetans ou tounen travay lokal",
         "steps": [
-          "Bati yon pwofil ak s?vis, foto, mod?l, QR, ak disponiblite.",
-          "Jwenn travay, resevwa rez?vasyon dir?k, ekri kliyan, epi voye ?f.",
-          "S?vi ak peman, fakti, repitasyon, ak kalandriye pou travay la vin regilye."
+          "Bati yon pwofil ak sèvis, foto, modèl, QR, ak disponiblite.",
+          "Jwenn travay, resevwa rezèvasyon dirèk, ekri kliyan, epi voye òf.",
+          "Sèvi ak peman, fakti, repitasyon, ak kalandriye pou travay la vin regilye."
         ],
         "cta": "Gade travay yo"
       },
       "businesses": {
         "label": "Pou biznis",
-        "title": "Jere travay la nan yon s?l espas konekte",
+        "title": "Jere travay la nan yon sèl espas konekte",
         "steps": [
-          "Jere s?vis, kliyan potansy?l, pwodwi, fakti, r?gleman, ak demann kliyan.",
-          "S?vi ak Business Hub, analiz, mod?l, konsiltasyon, ak sip? pou grandi.",
+          "Jere sèvis, kliyan potansyèl, pwodwi, fakti, règleman, ak demann kliyan.",
+          "Sèvi ak Business Hub, analiz, modèl, konsiltasyon, ak sipò pou grandi.",
           "Kenbe dosye konfyans, diskisyon, mesaj, peman, ak swivi ansanm."
         ],
         "cta": "Louvri Business Hub"
       },
       "toolOwners": {
         "label": "Pou moun ki gen zouti",
-        "title": "F? lajan ak ekipman itil",
+        "title": "Fè lajan ak ekipman itil",
         "steps": [
           "Mete zouti sou lis ak foto, pri, depo, kondisyon, ranmasaj, ak livrezon.",
-          "Resevwa rez?vasyon, voye fakti, swiv estati, epi jere rap?.",
-          "S?vi ak analiz pou konprann lokasyon, revni, ak kalite lis yo."
+          "Resevwa rezèvasyon, voye fakti, swiv estati, epi jere rapò.",
+          "Sèvi ak analiz pou konprann lokasyon, revni, ak kalite lis yo."
         ],
         "cta": "Gade zouti yo"
       }
     },
     "mentalModel": {
-      "title": "Mod?l senp la",
-      "body": "OxSteed konekte kat bagay moun souvan jere apa: bezwen, moun, lajan, ak tan. Yon bezwen ka vin yon travay. Yon travay ka kreye mesaj, randevou, peman, revizyon, ak rap?l. Yon s?vis ki fini ka vin yon bezwen planifye ki repete. Yon moun k ap ede ka vin yon moun ou prefere. Tablo kontw?l la rasanble siy sa yo pou itilizat? a konnen sa pou l f? apre.",
+      "title": "Modèl senp la",
+      "body": "OxSteed konekte kat bagay moun souvan jere apa: bezwen, moun, lajan, ak tan. Yon bezwen ka vin yon travay. Yon travay ka kreye mesaj, randevou, peman, revizyon, ak rapèl. Yon sèvis ki fini ka vin yon bezwen planifye ki repete. Yon moun k ap ede ka vin yon moun ou prefere. Tablo kontwòl la rasanble siy sa yo pou itilizatè a konnen sa pou l fè apre.",
       "flow": [
         "Bezwen",
         "Planifye",
         "Anplwaye",
-        "Mete or?",
+        "Mete orè",
         "Peye",
         "Sonje"
       ],
@@ -8614,35 +8863,35 @@
       "flowAria": "Koule travay ki konekte"
     },
     "examples": {
-      "title": "Egzanp nan lavi rey?l",
-      "body": "OxSteed dwe santi li itil depi premye vizit la. Men kalite chemen platf?m nan f?t pou sip?te.",
+      "title": "Egzanp nan lavi reyèl",
+      "body": "OxSteed dwe santi li itil depi premye vizit la. Men kalite chemen platfòm nan fèt pou sipòte.",
       "items": [
         "Mwen bezwen yon moun serye pou repare kay mwen.",
-        "Mwen vle f? lajan ak konpetans mwen.",
+        "Mwen vle fè lajan ak konpetans mwen.",
         "Mwen bezwen yon zouti pou yon wikenn.",
-        "Mwen vle grandi yon biznis s?vis.",
+        "Mwen vle grandi yon biznis sèvis.",
         "Mwen bezwen planifye depans lavni anvan yo vin ijans.",
-        "Mwen bezwen yon dosye si gen yon pwobl?m."
+        "Mwen bezwen yon dosye si gen yon pwoblèm."
       ],
-      "aria": "Egzanp nan lavi rey?l"
+      "aria": "Egzanp nan lavi reyèl"
     },
     "library": {
-      "kicker": "Bibliyot?k fonksyon",
+      "kicker": "Bibliyotèk fonksyon",
       "title": "Tout gwo fonksyon OxSteed yo ak kijan yo konekte"
     },
     "searchResults": "Ap montre {{shown}} sou {{total}} seksyon pou \"{{query}}\".",
     "sidebarAria": "Navigasyon gid fonksyon yo",
-    "searchPlaceholder": "Ch?che fonksyon, ka itilizasyon, oswa koule travay...",
-    "searchAria": "Ch?che fonksyon OxSteed yo",
+    "searchPlaceholder": "Chèche fonksyon, ka itilizasyon, oswa koule travay...",
+    "searchAria": "Chèche fonksyon OxSteed yo",
     "contents": "Kontni",
-    "pathsAria": "Kijan OxSteed mache selon kalite itilizat?",
+    "pathsAria": "Kijan OxSteed mache selon kalite itilizatè",
     "categoriesAria": "Kategori fonksyon yo",
     "empty": {
       "title": "Pa gen fonksyon ki matche.",
-      "body": "Eseye ch?che travay, zouti, peman, bezwen planifye, kalandriye, ?d, biznis, oswa sip?."
+      "body": "Eseye chèche travay, zouti, peman, bezwen planifye, kalandriye, èd, biznis, oswa sipò."
     },
     "detail": {
-      "realLifeTitle": "Ka itilizasyon nan lavi rey?l",
+      "realLifeTitle": "Ka itilizasyon nan lavi reyèl",
       "connectsTitle": "Kijan li konekte",
       "actionsTitle": "Pwochen aksyon ki itil"
     }
@@ -9006,6 +9255,7 @@
       "unread": "Pa li",
       "team": "Ekip",
       "owner": "Pwopriyetè",
+      "member": "Manm",
       "primary": "Prensipal",
       "open": "Ouvri espas",
       "analytics": "Analitik",
@@ -12037,7 +12287,7 @@
       "videoComingSoon": "Videyo gid ap vini byento",
       "stepsHeading": "Etap",
       "askAiTitle": "Mande AI sou etap sa a",
-      "askAi": "Ask AI",
+      "askAi": "Mande IA",
       "guideCompleted": "Gid fini · +{{xp}} XP ou touche",
       "saving": "Ap sove…",
       "markComplete": "✓ Mete kòm Fini",
@@ -12166,5 +12416,29 @@
         "support_agent": "Manyèl ajan sipò"
       }
     }
+  },
+  "cancellationStats": {
+    "loading": "Ap chaje enfòmasyon sou fyabilite...",
+    "customerTitle": "Fyabilite kliyan",
+    "helperTitle": "Fyabilite èdè a",
+    "summaryCustomerClean": "{{count}} travay afiche, pa gen anilasyon",
+    "summaryCustomerRate": "{{jobs}} travay, {{cancelled}} anile ({{rate}}%)",
+    "summaryHelperClean": "{{count}} travay aksepte, pa gen anilasyon",
+    "summaryHelperRate": "{{jobs}} travay aksepte, {{cancelled}} anile ({{rate}}%)",
+    "expandDetails": "Elaji detay yo",
+    "collapseDetails": "Kache detay yo",
+    "totalJobsPosted": "Total travay afiche:",
+    "cancellations": "Anilasyon:",
+    "averageDaysBeforeCancel": "Mwayèn jou avan anilasyon:",
+    "daysValue": "{{count}} jou",
+    "lastMinuteCancellations": "Anilasyon dènye minit:",
+    "within24HoursOfStart": "{{count}} nan 24 èdtan avan kòmansman an",
+    "lastJobPosted": "Dènye travay afiche:",
+    "jobsAccepted": "Travay aksepte:",
+    "averageDaysFromAcceptanceToCancel": "Mwayèn jou soti nan akseptasyon rive nan anilasyon:",
+    "customerDisclaimer": "Enfòmasyon sa a ede èdè yo konprann istwa afichaj travay ou pou yo pran desizyon avèk plis enfòmasyon.",
+    "helperDisclaimer": "Enfòmasyon sa a ede kliyan yo deside si yo vle anboche èdè sa a.",
+    "customerWarning": "Kliyan sa a gen yon istwa anilasyon. Konsidere mete yon pri pi wo oswa mande konfimasyon davans.",
+    "helperWarning": "Èdè sa a te anile travay li te deja aksepte. Gade revizyon li yo epi konsidere mande yon konfimasyon angajman."
   }
 }

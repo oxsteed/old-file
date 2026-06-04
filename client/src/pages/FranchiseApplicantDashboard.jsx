@@ -269,15 +269,15 @@ export default function FranchiseApplicantDashboard() {
                   Next milestone
                 </div>
                 <p className="mt-3 text-sm" style={{ color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
-                  {primary.status === 'inquiry' && 'We are reviewing your territory and initial fit.'}
-                  {primary.status === 'screening' && 'Expect screening questions about your background and capital readiness.'}
-                  {primary.status === 'application_review' && 'Your formal application is under review by the franchise team.'}
-                  {primary.status === 'diligence' && 'We are working through diligence, validation, and operating readiness.'}
-                  {primary.status === 'agreement_pending' && 'Agreement documents and signing steps are now the main blocker.'}
-                  {primary.status === 'approved' && 'You are approved. Training and launch-readiness work remain.'}
-                  {primary.status === 'launched' && 'This franchise has moved into launch mode.'}
-                  {primary.status === 'rejected' && 'This application is closed. Contact support if you believe more context is needed.'}
-                  {primary.status === 'archived' && 'This application is archived.'}
+                  {primary.status === 'inquiry' && 'Your territory request is being reviewed for fit and availability. No action needed yet — you\'ll be contacted within 3–5 business days to discuss your interest and timeline.'}
+                  {primary.status === 'screening' && 'Screening is underway. Watch your email for a short questionnaire about your professional background, capital readiness, and local market experience. Responding promptly keeps your application moving.'}
+                  {primary.status === 'application_review' && 'Your full application is with the franchise review team. This stage typically takes 1–2 weeks. Check your email for any requests for clarification or additional documents.'}
+                  {primary.status === 'diligence' && 'Diligence is active. Our team is validating territory data, checking financial readiness, and confirming operational fit. You may receive reference or document requests — respond within 48 hours to avoid delays.'}
+                  {primary.status === 'agreement_pending' && 'You\'re almost there. Franchise agreement documents have been prepared or are awaiting your signature. Check your email for a DocuSign link. Contact your franchise coordinator if you haven\'t received documents yet.'}
+                  {primary.status === 'approved' && 'Congratulations — you\'re approved! Training materials and your launch-readiness checklist are being prepared. Your franchise coordinator will reach out with next steps within 5 business days.'}
+                  {primary.status === 'launched' && 'Your franchise is live. Visit the Territory Operations page to manage your helpers, track activity, and monitor revenue.'}
+                  {primary.status === 'rejected' && 'This application did not advance. Common reasons include territory unavailability, capital requirements, or market fit. Contact support@oxsteed.com if you have questions or believe there has been an error.'}
+                  {primary.status === 'archived' && 'This application is archived. If you\'d like to reapply or start a new territory inquiry, contact franchise@oxsteed.com.'}
                 </p>
               </div>
             </div>

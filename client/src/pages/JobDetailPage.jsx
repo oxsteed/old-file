@@ -25,6 +25,7 @@ import ReportModal from '../components/ReportModal';
 import JobMaterialsPanel from '../components/JobMaterialsPanel';
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../utils/analytics';
+import { detectLocale, formatDate, formatMoney } from '../lib/format';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const JOB_TYPE_MAP = {
@@ -56,14 +57,21 @@ const STATUS_MAP = {
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function formatBudget(job) {
+function formatBudget(job, t) {
   if (!job) return '-';
-  if (job.budget_type === 'open' || (!job.budget_min && !job.budget_max)) return 'Open to bids';
-  if (job.budget_type === 'hourly') return `$${Number(job.budget_min).toLocaleString()}/hr`;
-  const lo = Number(job.budget_min).toLocaleString();
-  const hi = Number(job.budget_max).toLocaleString();
-  if (lo === hi) return `$${lo}`;
-  return `$${lo} – $${hi}`;
+  if (job.budget_type === 'open' || (!job.budget_min && !job.budget_max)) return t('jobDetail.openToBids');
+  const moneyOptions = {
+    currency: job.currency || 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  };
+  if (job.budget_type === 'hourly') {
+    return t('jobDetail.hourlyRate', { amount: formatMoney(job.budget_min, moneyOptions) });
+  }
+  const lo = formatMoney(job.budget_min, moneyOptions);
+  const hi = formatMoney(job.budget_max, moneyOptions);
+  if (lo === hi) return lo;
+  return `${lo} – ${hi}`;
 }
 
 function parseRequirements(raw) {
@@ -78,12 +86,13 @@ function timeAgo(dateStr) {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins}m ago`;
+  const relative = new Intl.RelativeTimeFormat(detectLocale(), { numeric: 'auto' });
+  if (mins < 60) return relative.format(-Math.max(0, mins), 'minute');
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return relative.format(-hrs, 'hour');
   const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  if (days < 7) return relative.format(-days, 'day');
+  return formatDate(dateStr, { year: undefined });
 }
 
 function initials(name) {
@@ -112,6 +121,7 @@ function daysUntil(dateStr) {
 
 // ─── Job Payment Modal ────────────────────────────────────────────────────────
 function JobPaymentForm({ clientSecret, stripeAccount, jobTitle, amount, appliedCredit, onSuccess, onCancel }) {
+  const { t } = useTranslation();
   const stripe = useStripe();
   const elements = useElements();
   const [loading, setLoading] = useState(false);
@@ -142,10 +152,10 @@ function JobPaymentForm({ clientSecret, stripeAccount, jobTitle, amount, applied
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       <div style={{ padding: '0.75rem 1rem', background: 'var(--color-bg)', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
         <p style={{ margin: 0, fontWeight: 600, color: 'var(--color-text)' }}>{jobTitle}</p>
-        {amount && <p style={{ margin: '0.25rem 0 0', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>Job value: ${Number(amount).toLocaleString()}</p>}
+        {amount && <p style={{ margin: '0.25rem 0 0', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>{t('jobDetail.jobValue', { amount: formatMoney(amount, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) })}</p>}
         {appliedCredit > 0 && (
           <p style={{ margin: '0.25rem 0 0', color: '#34d399', fontSize: '0.875rem', fontWeight: 600 }}>
-            🎁 Credit applied: -${appliedCredit.toFixed(2)}
+            {t('jobDetail.creditApplied', { amount: formatMoney(appliedCredit) })}
           </p>
         )}
         <p style={{ margin: '0.25rem 0 0', color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>
@@ -452,7 +462,7 @@ export default function JobDetailPage() {
   const jobTypeLabel = JOB_TYPE_MAP[job.job_type_label] || JOB_TYPE_MAP[job.job_type] || job.job_type_label || 'One-Time';
   const location = [job.location_city, job.location_state].filter(Boolean).join(', ');
   const daysLeft = daysUntil(job.expires_at);
-  const budget   = formatBudget(job);
+  const budget   = formatBudget(job, t);
 
   return (
     <>
@@ -758,7 +768,7 @@ export default function JobDetailPage() {
                           </div>
                         </div>
                         <div className="jdp-bid-right">
-                          <div className="jdp-bid-amount">${Number(bid.amount).toLocaleString()}</div>
+                          <div className="jdp-bid-amount">{formatMoney(bid.amount, { currency: job.currency || 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
                           <div className="jdp-bid-eta">⏱ {bid.eta_hours}h est.</div>
                           <span className={`jdp-bid-status ${bid.status}`}>{bid.status}</span>
                         </div>
@@ -773,7 +783,7 @@ export default function JobDetailPage() {
                           </span>
                           {bid.available_times.slice(0, 3).map((slot, i) => (
                             <span key={i} className="jdp-bid-avail-pill">
-                              {new Date(slot.date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                              {formatDate(`${slot.date}T12:00:00`, { weekday: 'short', year: undefined })}
                               {slot.start ? ` · ${slot.start}` : ''}
                             </span>
                           ))}
@@ -836,7 +846,7 @@ export default function JobDetailPage() {
             <div>
               <div className="jdp-detail-label">Scheduled</div>
               <div className="jdp-detail-val">
-                {job.scheduled_date && new Date(job.scheduled_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                {job.scheduled_date && formatDate(job.scheduled_date, { month: 'long' })}
                 {job.scheduled_date && job.scheduled_time && ' at '}
                 {job.scheduled_time && String(job.scheduled_time).substring(0, 5)}
               </div>
@@ -847,7 +857,7 @@ export default function JobDetailPage() {
                 <span className="jdp-detail-icon">📅</span>
                 <div>
                   <div className="jdp-detail-label">{t('jobDetail.posted')}</div>
-                  <div className="jdp-detail-val">{new Date(job.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+                  <div className="jdp-detail-val">{formatDate(job.created_at, { month: 'long' })}</div>
                 </div>
               </div>
               <div className="jdp-detail-row">

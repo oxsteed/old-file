@@ -1,71 +1,71 @@
 {
   "navigation": {
-    "workspace": "Translation Workspace"
+    "workspace": "Espace de traduction"
   },
   "page": {
-    "eyebrow": "Translation Platform",
-    "title": "Translate runtime content through a structured backend pipeline.",
-    "subtitle": "Keep app UI localization separate from user-submitted translation jobs, with cache-aware results, glossary controls, and async batch processing.",
-    "shellTitle": "Translation Workspace"
+    "eyebrow": "Plateforme de traduction",
+    "title": "Traduisez le contenu opérationnel avec un pipeline backend structuré.",
+    "subtitle": "Gardez la localisation de l’interface séparée des demandes de traduction envoyées par les utilisateurs, avec résultats en cache, glossaires et traitement par lots asynchrone.",
+    "shellTitle": "Espace de traduction"
   },
   "form": {
-    "sourceLanguage": "Source language",
-    "targetLanguage": "Target language",
-    "tone": "Tone",
-    "glossary": "Glossary",
-    "input": "Text to translate",
-    "placeholder": "Paste the customer, support, product, or ops copy you want to translate.",
-    "translateNow": "Translate now",
-    "createBatchJob": "Create batch job",
-    "batchHint": "Batch mode splits the text on blank lines and processes each section asynchronously.",
-    "toneDefault": "Default",
-    "toneFormal": "Formal",
-    "toneFriendly": "Friendly",
-    "toneTechnical": "Technical"
+    "sourceLanguage": "Langue source",
+    "targetLanguage": "Langue cible",
+    "tone": "Ton",
+    "glossary": "Glossaire",
+    "input": "Texte à traduire",
+    "placeholder": "Collez le texte client, support, produit ou opérationnel à traduire.",
+    "translateNow": "Traduire maintenant",
+    "createBatchJob": "Créer un lot",
+    "batchHint": "Le mode lot sépare le texte sur les lignes vides et traite chaque section de façon asynchrone.",
+    "toneDefault": "Par défaut",
+    "toneFormal": "Formel",
+    "toneFriendly": "Amical",
+    "toneTechnical": "Technique"
   },
   "results": {
-    "title": "Structured result",
-    "empty": "Run a translation to see the normalized request, translated text, cache status, provider info, and glossary hits.",
-    "translatedText": "Translated text",
-    "sourceLanguage": "Source language",
-    "targetLanguage": "Target language",
-    "provider": "Provider",
-    "model": "Model",
-    "confidence": "Confidence",
-    "cacheStatus": "Cache status",
-    "glossaryHits": "Glossary hits",
-    "warnings": "Warnings",
-    "cached": "Cache hit",
-    "fresh": "Fresh result",
-    "none": "None"
+    "title": "Résultat structuré",
+    "empty": "Lancez une traduction pour voir la demande normalisée, le texte traduit, l’état du cache, le fournisseur et les correspondances de glossaire.",
+    "translatedText": "Texte traduit",
+    "sourceLanguage": "Langue source",
+    "targetLanguage": "Langue cible",
+    "provider": "Fournisseur",
+    "model": "Modèle",
+    "confidence": "Confiance",
+    "cacheStatus": "État du cache",
+    "glossaryHits": "Correspondances du glossaire",
+    "warnings": "Avertissements",
+    "cached": "Depuis le cache",
+    "fresh": "Résultat récent",
+    "none": "Aucun"
   },
   "batch": {
-    "title": "Batch job",
-    "empty": "Create a batch job to translate longer multi-section text without blocking the browser.",
-    "status": "Status",
-    "progress": "Progress",
-    "completedItems": "Completed items",
-    "jobId": "Job ID",
-    "results": "Batch results",
-    "waiting": "Waiting for results."
+    "title": "Traitement par lots",
+    "empty": "Créez un lot pour traduire un long texte en plusieurs sections sans bloquer le navigateur.",
+    "status": "Statut",
+    "progress": "Progression",
+    "completedItems": "Éléments terminés",
+    "jobId": "ID du travail",
+    "results": "Résultats du lot",
+    "waiting": "En attente des résultats."
   },
   "glossary": {
-    "none": "No glossary",
-    "loadError": "Glossaries could not be loaded for this account."
+    "none": "Aucun glossaire",
+    "loadError": "Impossible de charger les glossaires de ce compte."
   },
   "history": {
-    "title": "Recent translation history",
-    "empty": "Sign in and run translations to build a reviewable request log.",
-    "cached": "cached",
-    "fresh": "fresh",
-    "noSource": "No source text recorded."
+    "title": "Historique récent des traductions",
+    "empty": "Connectez-vous et lancez des traductions pour créer un journal de demandes consultable.",
+    "cached": "en cache",
+    "fresh": "récent",
+    "noSource": "Aucun texte source enregistré."
   },
   "languageCard": {
-    "title": "Website language",
-    "body": "This switcher controls the app shell locale. Runtime translations stay separate and always flow through the backend translation pipeline."
+    "title": "Langue du site web",
+    "body": "Ce sélecteur contrôle la langue de l’interface. Les traductions opérationnelles restent séparées et passent toujours par le pipeline backend de traduction."
   },
   "errors": {
-    "generic": "Translation failed. Please try again.",
-    "batchRequiresBreaks": "Add blank lines between sections before creating a batch job."
+    "generic": "La traduction a échoué. Veuillez réessayer.",
+    "batchRequiresBreaks": "Ajoutez des lignes vides entre les sections avant de créer un lot."
   }
 }

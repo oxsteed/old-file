@@ -1,0 +1,136 @@
+businessHub.switchBusiness	Switch business
+pricing.ruleCreated	Pricing rule created
+common.confirmDelete	Delete this rule?
+common.deleted	Deleted
+common.failedToDelete	Failed to delete
+pricing.volumeBased	Volume-Based
+pricing.timeLimited	Promotion
+pricing.bundleOffer	Bundle
+pricing.customerSegment	Customer Segment
+pricing.seasonal	Seasonal
+pricing.productRulesTitle	Product Pricing Rules
+pricing.productRulesDesc	Volume discounts, promotions, bundles, and seasonal pricing for your products.
+pricing.addRule	Add Rule
+pricing.noRules	No pricing rules yet
+pricing.createFirst	Create your first rule
+common.ongoing	ongoing
+pricing.createNewRule	New Pricing Rule
+pricing.type	Type
+pricing.priority	Priority
+pricing.adjustment	Discount / Adjustment
+pricing.percentage	Percentage off
+pricing.multiplier	Price multiplier
+pricing.validFrom	Valid from
+pricing.validUntil	Valid until
+products.created	Product created
+products.variantCreated	Variant created
+inventory.updated	Inventory updated
+products.management	Product Management
+products.addProduct	Add Product
+inventory.lowStockAlerts	Low Stock Alerts
+products.noProducts	No products yet
+products.createFirst	Create your first product
+products.category	Category
+products.sku	SKU
+inventory.stock	Stock
+products.addVariant	Add Variant
+products.createNew	New Product
+products.variantName	Variant Name
+inventory.initialStock	Initial Stock
+inventory.reorderLevel	Reorder Level
+products.variants	Variants
+inventory.lowStock	Low
+common.email	Email
+common.phone	Phone
+hybridSupportWidget.ticketSubmitted	Support ticket created. We will follow up soon.
+consultingPortal.emptyEyebrow	Business launch consulting
+consultingPortal.viewLaunchStatus	View launch status
+consultingPortal.emptyStat1Label	Starts with clarity
+consultingPortal.emptyStat1Value	Discovery, direction, and package fit
+consultingPortal.emptyStat2Label	Built for execution
+consultingPortal.emptyStat2Value	Phases, deliverables, and action items
+consultingPortal.emptyStat3Label	One portal after purchase
+consultingPortal.emptyStat3Value	Sessions, progress, files, and consultant communication
+consultingPortal.emptyPreviewTitle	What this portal becomes after purchase
+booking.invalidBusiness	Business not found.
+booking.bookBusinessHeading	Book ${businessName}
+booking.businessIntro	Pick a date and time that works for you. The business will confirm before the slot is locked.
+settings.tabPaymentPolicies	Payment Policies
+marketplace.pickASkillFilter	Pick one of your skills to narrow the catalog.
+marketplace.clearSkillFilter	Clear skill filter
+howOxsteedWorks.detail.tabsIntro	Every tab in this workspace is listed below so you can scan what is in there before you click in. Visibility depends on your role and the template the business is using.
+businessHub.tabWorkflowLabel	Workflow System
+businessHub.tabAnalyticsLabel	Analytics
+businessHub.tabLoyaltyLabel	Loyalty
+businessHub.tabIntegrationsLabel	Integrations
+businessHub.profileStudioEyebrow	Profile Studio
+businessHub.profileStudioSupportCopy	This is the storefront customers judge in a few seconds, so lead with trust, clarity, and strong visuals.
+businessHub.profileReadinessLabel	Profile Readiness
+businessHub.brandAssetsLabel	Brand Assets
+businessHub.trustSignalsLabel	Trust Signals
+businessHub.serviceReachLabel	Service Reach
+businessHub.photosSectionSupportCopy	Customers scan visuals before reading details. Use a clean square logo and a welcoming cover image that feels local, professional, and real.
+businessHub.identitySectionSupportCopy	Name, category, headline, and description shape the first serious impression. Keep this crisp, specific, and customer-facing.
+businessHub.quickChecklistLabel	Quick Checklist
+common.review	Review
+common.manage	Manage
+jobs.postJob	Post a job in this category
+dashboards.franchise.statusInquiry	Inquiry received
+dashboards.franchise.statusScreening	Screening
+dashboards.franchise.statusApplicationReview	Application review
+dashboards.franchise.statusDiligence	Diligence
+dashboards.franchise.statusAgreementPending	Agreement pending
+dashboards.franchise.statusApproved	Approved
+dashboards.franchise.statusRejected	Not approved
+dashboards.franchise.statusArchived	Archived
+dashboards.franchise.statusLaunched	Launched
+dashboards.franchise.bookCall	Book a strategy call
+dashboard.skillsTools.toolNameRequired	Tool name is required
+dashboard.skillsTools.toolCategoryRequired	Tool category is required
+dashboard.skillsTools.toolCityRequired	City is required so renters know where pickup happens
+dashboard.skillsTools.dailyRateRequired	Daily rate must be greater than 0
+dashboard.skillsTools.hourlyRateInvalid	Hourly rate must be greater than 0
+dashboard.skillsTools.depositInvalid	Deposit cannot be negative
+dashboard.skillsTools.replacementInvalid	Replacement value cannot be negative
+dashboard.skillsTools.ownerAttestationRequired	Confirm the peer rental acknowledgement before listing this tool
+dashboard.skillsTools.toolImageInvalid	Choose a JPG, PNG, GIF, or WebP image.
+dashboard.skillsTools.toolImageTooLarge	Tool photo must be 10MB or smaller.
+dashboard.skillsTools.toolPhotoLabel	Tool photo
+dashboard.skillsTools.toolPhotoEmpty	No photo yet
+dashboard.skillsTools.toolPhotoHint	Add a clear photo so renters can inspect the tool before booking.
+dashboard.skillsTools.replacementValueLabel	Replacement value
+dashboard.skillsTools.ownerRulesLabel	Owner rules / handling notes
+dashboard.skillsTools.ownerRulesPlaceholder	Example: return clean, use only with wood, do not use in rain, include batteries/charger.
+dashboard.skillsTools.ownerCustomTermsLabel	Owner-provided rental terms
+dashboard.skillsTools.ownerCustomTermsPlaceholder	Optional. Add the agreement terms you want renters to accept, such as late return expectations, cleaning rules, missing accessory responsibility, or replacement expectations.
+dashboard.skillsTools.ownerCustomTermsHint	Renters will see these as owner-provided terms. OxSteed does not draft, review, validate, or guarantee them.
+dashboard.skillsTools.ownerAttestationText	I understand this is a neighbor-to-neighbor rental. I am responsible for accurately describing the tool, setting rules/deposit expectations, and handling condition, damage, return, and payment issues with the renter. OxSteed only helps document the listing, booking, messages, reports, and agreement records.
+businessLaunchStatus.activeLaunch	Active launch
+businessLaunchStatus.progressLabel	Launch progress
+businessLaunchStatus.businessLaunchRequest	Business launch request
+smsPreferences.phone.codeSent	Verification code sent
+helperProfile.cta.contactForPricing	Quote
+helperProfile.cta.startingAtPrice	From ${amount}
+helperProfile.cta.flatRate	flat
+helperProfile.reviews.noVerifiedYet	No verified reviews yet
+helperProfile.reviews.noVerifiedYetSub	Reviews appear after completed OxSteed jobs, so new helpers start without a rating until customers have real work to evaluate.
+helperProfile.header.noReviewsYet	No reviews yet
+helperProfile.header.savedHelper	Saved
+helperProfile.header.saveHelper	Save
+helperProfile.chat.expandChat	Expand chat
+helperProfile.header.cannotSaveSelf	You cannot save your own profile
+helperProfile.header.removedSavedHelper	Removed from saved helpers
+helperProfile.header.addedSavedHelper	Saved helper
+helperProfile.header.saveHelperFailed	Could not update saved helper
+helperProfile.skillBadges	Learn certifications
+businessProfileEdit.noBusiness	Create a business profile first.
+businessProfileEdit.nameRequired	Business name is required
+businessProfileEdit.saved	Business profile saved
+businessProfileEdit.saveFailed	Could not save business profile
+businessProfileEdit.website	Website
+businessProfileEdit.phone	Phone
+businessProfileEdit.city	City
+businessProfileEdit.state	State
+businessProfileEdit.emptyTeam	No team members yet.
+businessProfileEdit.emptyServices	No services listed yet.
+businessProfileEdit.emptyBilling	No invoices yet.

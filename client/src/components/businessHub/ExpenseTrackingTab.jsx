@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
+import { formatCents, formatDate } from '../../lib/format';
 
 const CATEGORIES = ['materials','labor','vehicle','software','marketing','equipment','utilities','other'];
 
 function fmtCents(cents, currency = 'USD') {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format((cents || 0) / 100);
+  return formatCents(cents, { currency });
 }
 
 const DEFAULT_FORM = { category: 'materials', description: '', amount: '', expense_date: new Date().toISOString().split('T')[0], receipt_url: '', notes: '' };
@@ -260,7 +261,7 @@ export function ExpenseTrackingTab({ businessId, currency = 'USD' }) {
               {expenses.map(exp => (
                 <tr key={exp.id} className="border-b border-gray-800 hover:bg-gray-800/40">
                   <td className="py-3 pr-4 text-gray-300 whitespace-nowrap">
-                    {exp.expense_date ? new Date(exp.expense_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '-'}
+                    {exp.expense_date ? formatDate(`${exp.expense_date}T00:00:00`, { month: 'short', day: 'numeric', year: undefined }) : '-'}
                   </td>
                   <td className="py-3 pr-4">
                     <span className="capitalize bg-gray-700 text-orange-300 text-xs px-2 py-0.5 rounded-full">

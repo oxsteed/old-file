@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import { formatCents } from '../../lib/format';
 
 const STATUS_COLORS = {
   draft: 'bg-gray-600 text-gray-200',
@@ -15,7 +16,7 @@ const STATUS_COLORS = {
 const STATUS_TABS = ['all','draft','sent','approved','declined','expired','converted'];
 
 function fmtCents(cents) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((cents || 0) / 100);
+  return formatCents(cents);
 }
 
 function calcTotals(lineItems, taxRate) {

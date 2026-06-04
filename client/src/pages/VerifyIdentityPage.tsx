@@ -26,8 +26,8 @@ export default function VerifyIdentityPage() {
   return (
     <div className="verify-identity-page">
       <PageMeta
-        title="Verify your identity"
-        description="Complete OxSteed identity verification to help protect customers, helpers, jobs, and payments."
+        title={t('verifyIdentity.metaTitle')}
+        description={t('verifyIdentity.metaDescription')}
         noIndex
       />
 
@@ -36,7 +36,7 @@ export default function VerifyIdentityPage() {
           <Link to="/" className="verify-identity-brand">OxSteed</Link>
           <div className="verify-identity-nav-badge">
             <Lock size={15} aria-hidden="true" />
-            Secure verification
+            {t('verifyIdentity.secureBadge')}
           </div>
         </div>
       </nav>
@@ -46,35 +46,31 @@ export default function VerifyIdentityPage() {
           <div className="verify-identity-copy">
             <div className="verify-identity-eyebrow">
               <ShieldCheck size={16} aria-hidden="true" />
-              Trust layer for real-world work
+              {t('verifyIdentity.eyebrow')}
             </div>
-            <h1 id="verify-identity-title">Verify once. Work, hire, and get paid with more confidence.</h1>
-            <p>
-              OxSteed connects people for jobs, bookings, payments, tool rentals, and business
-              services. Identity verification helps every part of that system feel safer and more
-              accountable.
-            </p>
+            <h1 id="verify-identity-title">{t('verifyIdentity.heroTitle')}</h1>
+            <p>{t('verifyIdentity.heroDescription')}</p>
 
-            <div className="verify-identity-benefits" aria-label="Why verification matters">
+            <div className="verify-identity-benefits" aria-label={t('verifyIdentity.benefitsAriaLabel')}>
               <div>
                 <UserCheck size={20} aria-hidden="true" />
-                <strong>Better marketplace trust</strong>
-                <span>Customers and helpers know there is a real person behind the account.</span>
+                <strong>{t('verifyIdentity.benefitTrustTitle')}</strong>
+                <span>{t('verifyIdentity.benefitTrustDescription')}</span>
               </div>
               <div>
                 <CreditCard size={20} aria-hidden="true" />
-                <strong>Safer payments</strong>
-                <span>Invoices, deposits, and payouts have a stronger identity trail.</span>
+                <strong>{t('verifyIdentity.benefitPaymentsTitle')}</strong>
+                <span>{t('verifyIdentity.benefitPaymentsDescription')}</span>
               </div>
               <div>
                 <CheckCircle2 size={20} aria-hidden="true" />
-                <strong>Smoother approvals</strong>
-                <span>Verified users are easier to match, book, review, and support.</span>
+                <strong>{t('verifyIdentity.benefitApprovalsTitle')}</strong>
+                <span>{t('verifyIdentity.benefitApprovalsDescription')}</span>
               </div>
             </div>
           </div>
 
-          <div className="verify-identity-card" aria-label="Identity verification form">
+          <div className="verify-identity-card" aria-label={t('verifyIdentity.formAriaLabel')}>
             <div className="verify-identity-stepper">
               <div>
                 <span>1</span>

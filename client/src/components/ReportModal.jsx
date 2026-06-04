@@ -61,7 +61,7 @@ const ReportModal = ({ userId, userName, jobId = null, conversationId = null, on
       onSuccess && onSuccess();
       onClose();
     } catch (err) {
-      setError(err.response?.data?.error || err.message);
+      setError(err.response?.data?.error || t('reportModal.submitError'));
     } finally {
       setLoading(false);
     }
@@ -69,13 +69,13 @@ const ReportModal = ({ userId, userName, jobId = null, conversationId = null, on
 
   return (
     <div className="report-modal-overlay" onClick={onClose}>
-      <div className="report-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="report-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
         <div className="report-modal-header">
           <div className="report-modal-title-section">
             <AlertTriangle size={20} />
-            <h2 className="report-modal-title">{t('reportModal.reportUser')}</h2>
+            <h2 id="report-modal-title" className="report-modal-title">{t('reportModal.reportUser')}</h2>
           </div>
-          <button className="report-modal-close" onClick={onClose} aria-label="Close">
+          <button className="report-modal-close" onClick={onClose} aria-label={t('reportModal.close')}>
             <X size={20} />
           </button>
         </div>
@@ -123,7 +123,7 @@ const ReportModal = ({ userId, userName, jobId = null, conversationId = null, on
                 required
               />
               <p className="report-char-count">
-                {description.length} / 2000
+                {t('reportModal.charCount', { count: description.length, max: 2000 })}
               </p>
             </div>
 

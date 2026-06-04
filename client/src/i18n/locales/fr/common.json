@@ -1,11 +1,11 @@
 {
   "actions": {
-    "cancel": "Cancel",
-    "create": "Create",
-    "loading": "Loading",
-    "save": "Save",
-    "submit": "Submit",
-    "translate": "Translate",
+    "cancel": "Annuler",
+    "create": "Créer",
+    "loading": "Chargement",
+    "save": "Enregistrer",
+    "submit": "Envoyer",
+    "translate": "Traduire",
     "translating": "Traduction en cours...",
     "switchToLightMode": "Passer en mode clair",
     "switchToDarkMode": "Passer en mode sombre",
@@ -14,6 +14,12 @@
     "recording": "Enregistrement..."
   },
   "switching": "Bascule...",
+  "languageSelector": {
+    "changeLanguage": "Changer de langue",
+    "languageMenu": "Menu des langues",
+    "currentLanguage": "Langue actuelle : {{language}}",
+    "chooseLanguage": "Choisir {{language}}"
+  },
   "forms": {
     "country": {
       "placeholder": "Sélectionnez un pays"
@@ -119,6 +125,55 @@
     },
     "success": "Réservation confirmée !"
   },
+  "publicInvoice": {
+    "loadingTitle": "Chargement de la facture",
+    "unavailableTitle": "Facture indisponible",
+    "notFound": "La facture est introuvable ou a expiré",
+    "notSet": "Non défini",
+    "notAssigned": "Non attribué",
+    "balanceDue": "Solde dû",
+    "invoiceNumber": "Facture",
+    "numberPending": "numéro en attente",
+    "invoiceDetails": "Détails de la facture",
+    "issued": "Émise",
+    "due": "Échéance",
+    "status": "Statut",
+    "billTo": "Facturer à",
+    "customer": "Client",
+    "description": "Description",
+    "quantity": "Qté",
+    "unitPrice": "Prix unitaire",
+    "amount": "Montant",
+    "service": "Service",
+    "lineItemsUnavailable": "Les détails des lignes ne sont pas disponibles. Le total ci-dessous reste le montant de facture enregistré par l'entreprise.",
+    "subtotal": "Sous-total",
+    "tax": "Taxe ({{rate}}%)",
+    "amountPaid": "Montant payé",
+    "totalDue": "Total dû",
+    "notesFrom": "Notes de {{business}}",
+    "fallbackBusiness": "l'entreprise",
+    "paymentReceivedTitle": "Paiement reçu",
+    "paymentReceivedBody": "Merci. Conservez ce lien pour vos dossiers et futures références.",
+    "readyTitle": "Prêt à payer ?",
+    "readyBody": "Connectez-vous à OxSteed pour continuer avec un paiement sécurisé et la protection du compte.",
+    "loginToPay": "Se connecter pour payer",
+    "whatNext": "Ce qui se passe ensuite",
+    "trustAccount": "Le paiement reste lié à votre compte OxSteed et au dossier de facture.",
+    "trustReceipts": "Les dates d'échéance, le statut payé et les reçus restent visibles après le paiement.",
+    "trustSupport": "Les questions peuvent être rattachées à l'entreprise et au support OxSteed.",
+    "needClarity": "Besoin de précisions ?",
+    "clarityBody": "Contactez {{business}} avant de payer si une ligne vous semble inconnue.",
+    "poweredBy": "Propulsé par les factures sécurisées OxSteed.",
+    "statusLabels": {
+      "draft": "Brouillon",
+      "sent": "Envoyée",
+      "issued": "Émise",
+      "paid": "Payée",
+      "overdue": "En retard",
+      "cancelled": "Annulée",
+      "outstanding": "En attente"
+    }
+  },
   "accessGateRecovery": {
     "title": "Récupération de l'accès",
     "validating": "Validation de votre lien de récupération...",
@@ -188,7 +243,12 @@
     "errorDetails": "Détails de l'erreur",
     "tryAgain": "Réessayer",
     "backToOrders": "Retour aux commandes",
-    "persistentErrors": "Ce problème se produit de manière répétée. Notre équipe a été notifiée."
+    "persistentErrors": "Ce problème se produit de manière répétée. Notre équipe a été notifiée.",
+    "componentNames": {
+      "orderHistory": "Historique des commandes",
+      "orderDetails": "Détails de la commande",
+      "checkout": "Paiement"
+    }
   },
   "languages": {
     "autoDetect": "Auto-detect"

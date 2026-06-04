@@ -224,6 +224,34 @@ export default function ConsultingPayments() {
   const thStyle = { background: 'var(--color-bg)', padding: '0.85rem 1rem', textAlign: 'left', borderBottom: '2px solid var(--color-border)', fontWeight: 600, fontSize: '0.85rem' };
   const tdStyle = { padding: '0.85rem 1rem', borderBottom: '1px solid var(--color-border)', fontSize: '0.9rem' };
 
+  const handleDownloadInvoice = async (invoice) => {
+    const invoiceId = invoice.id;
+    const invoiceName = invoice.invoice_number || invoice.id;
+
+    try {
+      const response = await axios.get(`/consulting/admin/invoices/${invoiceId}/download`, {
+        responseType: 'blob',
+      });
+
+      const contentDisposition = response.headers?.['content-disposition'] || '';
+      const filenameMatch = /filename="([^"]+)"/.exec(contentDisposition);
+      const filename = filenameMatch?.[1] || `consulting-invoice-${invoiceName}.csv`;
+
+      const blob = new Blob([response.data], { type: response.headers?.['content-type'] || 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Invoice download started');
+    } catch (err) {
+      toast.error(err?.response?.data?.error || err?.response?.data?.message || 'Failed to download invoice');
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem', color: 'var(--color-text-muted)' }}>
@@ -381,7 +409,10 @@ export default function ConsultingPayments() {
                         {inv.due_date ? new Date(inv.due_date).toLocaleDateString() : '-'}
                       </td>
                       <td style={tdStyle}>
-                        <button style={{ padding: '0.3rem 0.6rem', borderRadius: '5px', border: '1px solid var(--color-primary)', background: 'none', color: 'var(--color-primary)', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 600 }}>
+                        <button
+                          onClick={() => handleDownloadInvoice(inv)}
+                          style={{ padding: '0.3rem 0.6rem', borderRadius: '5px', border: '1px solid var(--color-primary)', background: 'none', color: 'var(--color-primary)', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 600 }}
+                        >
                           Download
                         </button>
                       </td>

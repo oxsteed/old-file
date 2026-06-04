@@ -21,6 +21,7 @@ import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import { formatCents, formatNumber } from '../lib/format';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -84,11 +85,10 @@ const Badge = ({ text, color = 'orange' }) => {
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 const fmt$ = (cents) => {
-  if (cents == null) return '$0.00';
-  return `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return formatCents(cents || 0);
 };
 const fmtPct = (v) => `${parseFloat(v || 0).toFixed(1)}%`;
-const fmtNum = (v) => (parseInt(v || 0)).toLocaleString();
+const fmtNum = (v) => formatNumber(parseInt(v || 0));
 
 const payoutStatusColor = (s) => ({ pending: 'yellow', processing: 'blue', completed: 'green', failed: 'red' }[s] || 'gray');
 

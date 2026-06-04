@@ -16,6 +16,7 @@ import {
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { formatDate, formatMoney } from '../lib/format';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -88,13 +89,9 @@ function statusChip(status: string, t) {
 
 function formatBudget(min?: number, max?: number): string | null {
   if (!min && !max) return null;
-  if (min && max && min !== max) return `$${min.toLocaleString()} – $${max.toLocaleString()}`;
-  return `$${(min || max)!.toLocaleString()}`;
-}
-
-function formatDate(iso?: string): string | null {
-  if (!iso) return null;
-  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  const moneyOptions = { minimumFractionDigits: 0, maximumFractionDigits: 0 };
+  if (min && max && min !== max) return `${formatMoney(min, moneyOptions)} – ${formatMoney(max, moneyOptions)}`;
+  return formatMoney((min || max)!, moneyOptions);
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -198,13 +195,13 @@ export default function JobPublicPage() {
                 {job.scheduled_date && (
                   <span className="flex items-center gap-1.5">
                     <Calendar className="w-4 h-4 text-zinc-500" />
-                    {formatDate(job.scheduled_date)}
+                    {formatDate(job.scheduled_date, { month: 'long' })}
                   </span>
                 )}
                 {job.created_at && (
                   <span className="flex items-center gap-1.5">
                     <Clock className="w-4 h-4 text-zinc-500" />
-                    {t('jobPublicPage.postedOn', { date: formatDate(job.created_at) })}
+                    {t('jobPublicPage.postedOn', { date: formatDate(job.created_at, { month: 'long' }) })}
                   </span>
                 )}
               </div>

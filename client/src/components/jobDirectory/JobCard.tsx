@@ -12,6 +12,7 @@ import {
 import type { JobCardData } from '../../types/jobDirectory';
 import { translateJobCategory } from '../../utils/jobsTaxonomy';
 import CustomerReliabilityBadge from '../CustomerReliabilityBadge';
+import { formatMoney } from '../../lib/format';
 
 interface JobCardProps {
   job: JobCardData;
@@ -29,23 +30,25 @@ function formatBudget(
 
   if (!hasMin && !hasMax) return t ? t('jobsDir.budgetTBD') : 'Budget TBD';
   if (hasMin && !hasMax) {
-    const amount = `$${Number(min).toLocaleString()}`;
+    const amount = formatMoney(Number(min), { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     return t ? t('jobsDir.budgetFrom', { amount }) : `From ${amount}`;
   }
   if (!hasMin && hasMax) {
-    const amount = `$${Number(max).toLocaleString()}`;
+    const amount = formatMoney(Number(max), { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     return t ? t('jobsDir.budgetUpTo', { amount }) : `Up to ${amount}`;
   }
   if (Number(min) === Number(max)) {
-    const amount = `$${Number(min).toLocaleString()}`;
+    const amount = formatMoney(Number(min), { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     return t ? t('jobsDir.budgetExact', { amount }) : amount;
   }
+  const formattedMin = formatMoney(Number(min), { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const formattedMax = formatMoney(Number(max), { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   return t
     ? t('jobsDir.budgetBetween', {
-        min: `$${Number(min).toLocaleString()}`,
-        max: `$${Number(max).toLocaleString()}`,
+        min: formattedMin,
+        max: formattedMax,
       })
-    : `$${Number(min).toLocaleString()} – $${Number(max).toLocaleString()}`;
+    : `${formattedMin} – ${formattedMax}`;
 }
 
 function formatLocation(city?: string | null, state?: string | null, t?: (k: string) => string): string {

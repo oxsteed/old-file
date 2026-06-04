@@ -1,12 +1,12 @@
 {
   "actions": {
-    "cancel": "Cancel",
-    "create": "Create",
-    "loading": "Loading",
-    "save": "Save",
-    "submit": "Submit",
-    "translate": "Translate",
-    "translating": "Ap chanje lang ...",
+    "cancel": "Anile",
+    "create": "Kreye",
+    "loading": "Ap chaje",
+    "save": "Sove",
+    "submit": "Voye",
+    "translate": "Tradui",
+    "translating": "Ap tradui...",
     "switchToLightMode": "Chanje nan mòd limyè",
     "switchToDarkMode": "Chanje nan mòd fènwa",
     "startRecording": "Kòmanse anrejistreman",
@@ -14,6 +14,12 @@
     "recording": "Ap anrejistre..."
   },
   "switching": "Ap chanje...",
+  "languageSelector": {
+    "changeLanguage": "Chanje lang",
+    "languageMenu": "Meni lang",
+    "currentLanguage": "Lang aktyèl: {{language}}",
+    "chooseLanguage": "Chwazi {{language}}"
+  },
   "forms": {
     "country": {
       "placeholder": "Chwazi yon peyi"
@@ -119,6 +125,55 @@
     },
     "success": "Rezèvasyon konfime!"
   },
+  "publicInvoice": {
+    "loadingTitle": "Chaje fakti a",
+    "unavailableTitle": "Fakti a pa disponib",
+    "notFound": "Fakti a pa jwenn oswa li ekspire",
+    "notSet": "Pa fikse",
+    "notAssigned": "Pa asiyen",
+    "balanceDue": "Balans pou peye",
+    "invoiceNumber": "Fakti",
+    "numberPending": "nimewo annatant",
+    "invoiceDetails": "Detay fakti",
+    "issued": "Emèt",
+    "due": "Dat limit",
+    "status": "Estati",
+    "billTo": "Faktire bay",
+    "customer": "Kliyan",
+    "description": "Deskripsyon",
+    "quantity": "Kantite",
+    "unitPrice": "Pri inite",
+    "amount": "Montan",
+    "service": "Sèvis",
+    "lineItemsUnavailable": "Detay liy yo pa disponib. Total ki anba a toujou se montan fakti biznis la anrejistre.",
+    "subtotal": "Sou-total",
+    "tax": "Taks ({{rate}}%)",
+    "amountPaid": "Montan ki peye",
+    "totalDue": "Total pou peye",
+    "notesFrom": "Nòt soti nan {{business}}",
+    "fallbackBusiness": "biznis la",
+    "paymentReceivedTitle": "Peman resevwa",
+    "paymentReceivedBody": "Mèsi. Kenbe lyen sa a pou dosye ou ak pou referans alavni.",
+    "readyTitle": "Pare pou peye?",
+    "readyBody": "Konekte sou OxSteed pou kontinye ak peman sekirize ak pwoteksyon kont.",
+    "loginToPay": "Konekte pou peye",
+    "whatNext": "Sa k ap pase apre",
+    "trustAccount": "Peman an rete mare ak kont OxSteed ou ak dosye fakti a.",
+    "trustReceipts": "Dat limit, estati peye, ak resi yo rete vizib apre peman.",
+    "trustSupport": "Kesyon yo ka remonte bay biznis la ak sipò OxSteed.",
+    "needClarity": "Bezwen plis klète?",
+    "clarityBody": "Kontakte {{business}} anvan ou peye si yon liy pa parèt abitye.",
+    "poweredBy": "Fonksyone ak fakti sekirize OxSteed.",
+    "statusLabels": {
+      "draft": "Bouyon",
+      "sent": "Voye",
+      "issued": "Emèt",
+      "paid": "Peye",
+      "overdue": "Anreta",
+      "cancelled": "Anile",
+      "outstanding": "Annatant"
+    }
+  },
   "accessGateRecovery": {
     "title": "Retablisman aksè",
     "validating": "Ap verifye lyen rekiperasyon ou a...",
@@ -188,7 +243,12 @@
     "errorDetails": "Detay erè",
     "tryAgain": "Eseye ankò",
     "backToOrders": "Retounen nan lòd yo",
-    "persistentErrors": "Pwoblèm sa a ap repete. Ekip nou an deja resevwa notifikasyon."
+    "persistentErrors": "Pwoblèm sa a ap repete. Ekip nou an deja resevwa notifikasyon.",
+    "componentNames": {
+      "orderHistory": "Istwa kòmand",
+      "orderDetails": "Detay kòmand",
+      "checkout": "Peman"
+    }
   },
   "languages": {
     "autoDetect": "Auto-detect"

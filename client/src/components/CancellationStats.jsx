@@ -9,7 +9,7 @@ import './CancellationStats.css';
  * Used in: Bid forms, profiles, job detail sidebars
  */
 export default function CancellationStats({ userId, type = 'customer', showDetails = false }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -37,27 +37,36 @@ export default function CancellationStats({ userId, type = 'customer', showDetai
     }
   }
 
-  if (loading) return <div className="cs-loading">Loading reliability info...</div>;
+  if (loading) return <div className="cs-loading">{t('cancellationStats.loading')}</div>;
   if (!stats) return null;
 
   const reliabilityScore = stats.reliability_score;
+  const formatDate = (value) => new Date(value).toLocaleDateString(i18n.resolvedLanguage || i18n.language);
+
   const getMessage = () => {
     if (type === 'customer') {
-      if (!stats.message) {
-        // Construct message from summary data
-        if (stats.cancellation_rate === 0) {
-          return `Clean record: ${stats.total_jobs_posted} jobs posted, no cancellations`;
-        }
-        return `${stats.total_jobs_posted} jobs, ${stats.cancellations_total} cancelled (${stats.cancellation_rate}%)`;
+      if (stats.cancellation_rate === 0) {
+        return t('cancellationStats.summaryCustomerClean', {
+          count: stats.total_jobs_posted ?? 0,
+        });
       }
-      return stats.message;
-    } else {
-      // Helper stats
-      if (!stats.accepted_job_cancellations) {
-        return `Reliable: ${stats.total_jobs_accepted} jobs accepted, no cancellations`;
-      }
-      return `${stats.total_jobs_accepted} jobs accepted, ${stats.accepted_job_cancellations} cancelled (${stats.accepted_job_cancellation_rate}%)`;
+      return t('cancellationStats.summaryCustomerRate', {
+        jobs: stats.total_jobs_posted ?? 0,
+        cancelled: stats.cancellations_total ?? 0,
+        rate: stats.cancellation_rate ?? stats.cancellation_rate_percent ?? 0,
+      });
     }
+
+    if (!stats.accepted_job_cancellations) {
+      return t('cancellationStats.summaryHelperClean', {
+        count: stats.total_jobs_accepted ?? 0,
+      });
+    }
+    return t('cancellationStats.summaryHelperRate', {
+      jobs: stats.total_jobs_accepted ?? 0,
+      cancelled: stats.accepted_job_cancellations ?? 0,
+      rate: stats.accepted_job_cancellation_rate ?? 0,
+    });
   };
 
   const getRiskColor = (score) => {
@@ -92,12 +101,19 @@ export default function CancellationStats({ userId, type = 'customer', showDetai
           <div className="cs-icon">{riskIcon}</div>
           <div className="cs-content">
             <div className="cs-title">
-              {type === 'customer' ? 'Customer Reliability' : 'Helper Reliability'}
+              {type === 'customer' ? t('cancellationStats.customerTitle') : t('cancellationStats.helperTitle')}
             </div>
             <div className="cs-message">{getMessage()}</div>
           </div>
           {showDetails && (
-            <button className="cs-expand-btn" aria-label="Expand details">
+            <button
+              onClick={(event) => {
+                event.stopPropagation();
+                setExpanded((previous) => !previous);
+              }}
+              className="cs-expand-btn"
+              aria-label={expanded ? t('cancellationStats.collapseDetails') : t('cancellationStats.expandDetails')}
+            >
               {expanded ? '−' : '+'}
             </button>
           )}
@@ -109,31 +125,31 @@ export default function CancellationStats({ userId, type = 'customer', showDetai
             {type === 'customer' && stats.total_jobs_posted !== undefined && (
               <>
                 <div className="cs-stat-row">
-                  <span className="cs-label">Total jobs posted:</span>
+                  <span className="cs-label">{t('cancellationStats.totalJobsPosted')}</span>
                   <span className="cs-value">{stats.total_jobs_posted}</span>
                 </div>
                 {stats.cancellations_total > 0 && (
                   <>
                     <div className="cs-stat-row">
-                      <span className="cs-label">Cancellations:</span>
+                      <span className="cs-label">{t('cancellationStats.cancellations')}</span>
                       <span className="cs-value">{stats.cancellations_total} ({stats.cancellation_rate_percent}%)</span>
                     </div>
                     <div className="cs-stat-row">
-                      <span className="cs-label">Average days before cancel:</span>
-                      <span className="cs-value">{Math.round(stats.avg_days_before_cancel)} days</span>
+                      <span className="cs-label">{t('cancellationStats.averageDaysBeforeCancel')}</span>
+                      <span className="cs-value">{t('cancellationStats.daysValue', { count: Math.round(stats.avg_days_before_cancel) })}</span>
                     </div>
                     {stats.cancellations_within_24h_of_start > 0 && (
                       <div className="cs-stat-row cs-warning">
-                        <span className="cs-label">⚠️ Last-minute cancellations:</span>
-                        <span className="cs-value">{stats.cancellations_within_24h_of_start} within 24h of start</span>
+                        <span className="cs-label">{t('cancellationStats.lastMinuteCancellations')}</span>
+                        <span className="cs-value">{t('cancellationStats.within24HoursOfStart', { count: stats.cancellations_within_24h_of_start })}</span>
                       </div>
                     )}
                   </>
                 )}
                 {stats.last_job_posted && (
                   <div className="cs-stat-row">
-                    <span className="cs-label">Last job posted:</span>
-                    <span className="cs-value">{new Date(stats.last_job_posted).toLocaleDateString()}</span>
+                    <span className="cs-label">{t('cancellationStats.lastJobPosted')}</span>
+                    <span className="cs-value">{formatDate(stats.last_job_posted)}</span>
                   </div>
                 )}
               </>
@@ -142,18 +158,18 @@ export default function CancellationStats({ userId, type = 'customer', showDetai
             {type === 'helper' && stats.total_jobs_accepted !== undefined && (
               <>
                 <div className="cs-stat-row">
-                  <span className="cs-label">Jobs accepted:</span>
+                  <span className="cs-label">{t('cancellationStats.jobsAccepted')}</span>
                   <span className="cs-value">{stats.total_jobs_accepted}</span>
                 </div>
                 {stats.accepted_job_cancellations > 0 && (
                   <>
                     <div className="cs-stat-row">
-                      <span className="cs-label">Cancellations:</span>
+                      <span className="cs-label">{t('cancellationStats.cancellations')}</span>
                       <span className="cs-value">{stats.accepted_job_cancellations} ({stats.accepted_job_cancellation_rate}%)</span>
                     </div>
                     <div className="cs-stat-row">
-                      <span className="cs-label">Avg days from acceptance to cancel:</span>
-                      <span className="cs-value">{Math.round(stats.avg_days_from_acceptance_to_cancel)} days</span>
+                      <span className="cs-label">{t('cancellationStats.averageDaysFromAcceptanceToCancel')}</span>
+                      <span className="cs-value">{t('cancellationStats.daysValue', { count: Math.round(stats.avg_days_from_acceptance_to_cancel) })}</span>
                     </div>
                   </>
                 )}
@@ -162,8 +178,8 @@ export default function CancellationStats({ userId, type = 'customer', showDetai
 
             <div className="cs-disclaimer">
               {type === 'customer'
-                ? 'This information helps helpers understand your job posting history to make informed decisions.'
-                : 'This information helps customers decide whether to hire this helper.'}
+                ? t('cancellationStats.customerDisclaimer')
+                : t('cancellationStats.helperDisclaimer')}
             </div>
           </div>
         )}
@@ -175,8 +191,8 @@ export default function CancellationStats({ userId, type = 'customer', showDetai
           <div className="cs-warning-icon">⚠️</div>
           <div className="cs-warning-text">
             {type === 'customer'
-              ? 'This customer has a history of cancellations. Consider setting a higher rate or requesting upfront confirmation.'
-              : 'This helper has cancelled accepted jobs. Review their reviews and consider asking for commitment confirmation.'}
+              ? t('cancellationStats.customerWarning')
+              : t('cancellationStats.helperWarning')}
           </div>
         </div>
       )}

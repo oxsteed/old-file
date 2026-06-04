@@ -23,6 +23,7 @@ import {
 import PageShell from '../components/PageShell';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
+import { formatDate as formatLocalizedDate } from '../lib/format';
 
 function kindLabel(kind, t) {
   if (kind === 'business') return t('supportAgentPortal.kindBusiness');
@@ -48,9 +49,8 @@ function formatLocation(city, state) {
 
 function formatDate(value) {
   if (!value) return null;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const formatted = formatLocalizedDate(value, { month: 'short', day: 'numeric', year: 'numeric', fallback: '' });
+  return formatted || null;
 }
 
 function statusBadge(status) {

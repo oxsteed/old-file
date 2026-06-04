@@ -18,38 +18,41 @@ import PageShell from '../components/PageShell';
 import OrderErrorBoundary from '../components/OrderErrorBoundary';
 import './OrderHistoryPage.css';
 
-function moneyFromCents(cents) {
-  return new Intl.NumberFormat(undefined, {
+function moneyFromCents(cents, language) {
+  return new Intl.NumberFormat(language || undefined, {
     style: 'currency',
     currency: 'USD',
   }).format(Number(cents || 0) / 100);
 }
 
-function formatDate(value) {
-  if (!value) return 'Not set';
+function formatDate(value, language, fallback) {
+  if (!value) return fallback;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Not set';
-  return date.toLocaleDateString(undefined, {
+  if (Number.isNaN(date.getTime())) return fallback;
+  return date.toLocaleDateString(language || undefined, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   });
 }
 
-function titleCase(value) {
-  return String(value || '').replace(/_/g, ' ').replace(/^\w/, (char) => char.toUpperCase());
+function statusLabel(status, t) {
+  const key = String(status || 'pending').toLowerCase();
+  return t(`orders.statusLabels.${key}`, {
+    defaultValue: key.replace(/_/g, ' ').replace(/^\w/, (char) => char.toUpperCase()),
+  });
 }
 
 export default function OrderHistoryPage() {
   return (
-    <OrderErrorBoundary componentName="Order History">
+    <OrderErrorBoundary componentNameKey="orderErrorBoundary.componentNames.orderHistory">
       <OrderHistoryPageContent />
     </OrderErrorBoundary>
   );
 }
 
 function OrderHistoryPageContent() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -70,7 +73,7 @@ function OrderHistoryPageContent() {
       const response = await api.get('/orders', { params });
       setOrders(response.data.data || []);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to load orders');
+      setError(err.response?.data?.error || t('orders.loadError'));
     } finally {
       setLoading(false);
     }
@@ -85,6 +88,9 @@ function OrderHistoryPageContent() {
     }
   };
 
+  const language = i18n.resolvedLanguage || i18n.language;
+  const notSetText = t('orders.notSet');
+
   const derivedStats = useMemo(() => ({
     total_orders: stats?.total_orders ?? orders.length,
     completed_orders: stats?.completed_orders ?? orders.filter((order) => order.status === 'completed').length,
@@ -98,37 +104,34 @@ function OrderHistoryPageContent() {
       <div className="orders-page">
         <header className="orders-hero">
           <div>
-            <p className="orders-kicker">Purchase history</p>
+            <p className="orders-kicker">{t('orders.kicker')}</p>
             <h1>{t('orders.title')}</h1>
-            <p>
-              Track marketplace purchases, product orders, fulfillment status, receipts, and follow-up
-              in one place so buying through OxSteed feels organized from cart to completion.
-            </p>
+            <p>{t('orders.heroDescription')}</p>
           </div>
           <div className="orders-hero-actions">
             <Link to="/products" className="orders-btn orders-btn-primary">
               <ShoppingBag size={16} />
-              Browse products
+              {t('orders.browseProducts')}
             </Link>
             <button type="button" className="orders-btn" onClick={loadOrders} disabled={loading}>
               <RefreshCw size={16} />
-              Refresh
+              {t('common.refresh')}
             </button>
           </div>
         </header>
 
-        <section className="orders-stats" aria-label="Order summary">
+        <section className="orders-stats" aria-label={t('orders.summaryAriaLabel')}>
           <SummaryCard label={t('orders.totalOrders')} value={derivedStats.total_orders} icon={Receipt} />
           <SummaryCard label={t('orders.completedOrders')} value={derivedStats.completed_orders} icon={CheckCircle2} tone="success" />
           <SummaryCard label={t('orders.pendingOrders')} value={derivedStats.pending_orders} icon={Clock3} tone="warn" />
-          <SummaryCard label={t('orders.totalSpent')} value={moneyFromCents(derivedStats.total_spent_cents)} icon={ShoppingBag} />
+          <SummaryCard label={t('orders.totalSpent')} value={moneyFromCents(derivedStats.total_spent_cents, language)} icon={ShoppingBag} />
         </section>
 
         <section className="orders-panel" aria-label={t('orders.yourOrders')}>
           <div className="orders-panel-header">
             <div>
               <h2>{t('orders.yourOrders')}</h2>
-              <p>Filter orders by payment and fulfillment state, then open any order for details.</p>
+              <p>{t('orders.panelDescription')}</p>
             </div>
             <div className="orders-filters">
               {['all', 'pending', 'paid', 'completed', 'cancelled'].map(status => (
@@ -138,7 +141,7 @@ function OrderHistoryPageContent() {
                   onClick={() => setFilter(status)}
                   className={filter === status ? 'active' : ''}
                 >
-                  {t(`orders.status.${status}`)}
+                  {statusLabel(status, t)}
                 </button>
               ))}
             </div>
@@ -152,10 +155,10 @@ function OrderHistoryPageContent() {
           ) : error ? (
             <div className="orders-error">
               <p>{error}</p>
-              <button type="button" className="orders-btn" onClick={loadOrders}>Try again</button>
+              <button type="button" className="orders-btn" onClick={loadOrders}>{t('common.tryAgain')}</button>
             </div>
           ) : orders.length === 0 ? (
-            <EmptyOrders filter={filter} />
+            <EmptyOrders filter={filter} t={t} />
           ) : (
             <div className="orders-list">
               <div className="orders-list-head">
@@ -170,13 +173,13 @@ function OrderHistoryPageContent() {
                 <article key={order.id} className="orders-row">
                   <div>
                     <strong>#{order.id}</strong>
-                    <small>OxSteed marketplace order</small>
+                    <small>{t('orders.marketplaceOrder')}</small>
                   </div>
-                  <span>{formatDate(order.created_at)}</span>
+                  <span>{formatDate(order.created_at, language, notSetText)}</span>
                   <span>{order.item_count || '-'}</span>
-                  <span className="orders-total">{moneyFromCents(order.total_cents)}</span>
+                  <span className="orders-total">{moneyFromCents(order.total_cents, language)}</span>
                   <span className={`orders-status orders-status-${order.status}`}>
-                    {titleCase(t(`orders.status.${order.status}`) || order.status)}
+                    {statusLabel(order.status, t)}
                   </span>
                   <button type="button" onClick={() => navigate(`/orders/${order.id}`)}>
                     {t('common.view')}
@@ -188,11 +191,11 @@ function OrderHistoryPageContent() {
           )}
         </section>
 
-        <section className="orders-guide" aria-label="How orders connect">
-          <GuideItem icon={Store} title="Products and supplies" text="Orders track purchases from the product marketplace, including items a business sells through OxSteed." />
-          <GuideItem icon={Truck} title="Fulfillment" text="Status makes it easier to see what is pending, paid, processing, completed, cancelled, or refunded." />
-          <GuideItem icon={Package} title="Shared carts" text="Orders can start from a cart you build yourself or a shared cart someone sends you." />
-          <GuideItem icon={Receipt} title="Records" text="Orders sit beside invoices and payments as part of the customer’s financial paper trail." />
+        <section className="orders-guide" aria-label={t('orders.guide.ariaLabel')}>
+          <GuideItem icon={Store} title={t('orders.guide.products.title')} text={t('orders.guide.products.text')} />
+          <GuideItem icon={Truck} title={t('orders.guide.fulfillment.title')} text={t('orders.guide.fulfillment.text')} />
+          <GuideItem icon={Package} title={t('orders.guide.sharedCarts.title')} text={t('orders.guide.sharedCarts.text')} />
+          <GuideItem icon={Receipt} title={t('orders.guide.records.title')} text={t('orders.guide.records.text')} />
         </section>
       </div>
     </PageShell>
@@ -211,7 +214,7 @@ function SummaryCard({ label, value, icon: Icon, tone = 'neutral' }) {
   );
 }
 
-function EmptyOrders({ filter }) {
+function EmptyOrders({ filter, t }) {
   const filtered = filter !== 'all';
   return (
     <div className="orders-empty">
@@ -219,29 +222,29 @@ function EmptyOrders({ filter }) {
         <div className="orders-empty-icon">
           <ShoppingBag size={34} />
         </div>
-        <p className="orders-kicker">{filtered ? 'No matching orders' : 'No orders yet'}</p>
-        <h2>{filtered ? 'Nothing matches this filter yet.' : 'Your order history is ready before your first purchase.'}</h2>
+        <p className="orders-kicker">{filtered ? t('orders.empty.filteredKicker') : t('orders.empty.kicker')}</p>
+        <h2>{filtered ? t('orders.empty.filteredTitle') : t('orders.empty.title')}</h2>
         <p>
           {filtered
-            ? 'Try another status or return to all orders to see your full purchase history.'
-            : 'When you buy products, checkout from a shared cart, or purchase supplies through OxSteed, your receipts and order status will appear here.'}
+            ? t('orders.empty.filteredText')
+            : t('orders.empty.text')}
         </p>
         <div className="orders-empty-actions">
           <Link to="/products" className="orders-btn orders-btn-primary">
-            Browse products
+            {t('orders.browseProducts')}
             <ArrowRight size={16} />
           </Link>
-          <Link to="/tool-rentals" className="orders-btn">Browse tool rentals</Link>
-          <Link to="/invoices" className="orders-btn">View invoices</Link>
+          <Link to="/tool-rentals" className="orders-btn">{t('orders.browseToolRentals')}</Link>
+          <Link to="/invoices" className="orders-btn">{t('orders.viewInvoices')}</Link>
         </div>
       </div>
       <div className="orders-empty-side">
-        <h3>What this page will help with</h3>
+        <h3>{t('orders.empty.helpTitle')}</h3>
         <ul>
-          <li>Review product and marketplace purchases.</li>
-          <li>Track status from payment through completion.</li>
-          <li>Keep receipts connected to your money records.</li>
-          <li>Return to order details if support or follow-up is needed.</li>
+          <li>{t('orders.empty.help1')}</li>
+          <li>{t('orders.empty.help2')}</li>
+          <li>{t('orders.empty.help3')}</li>
+          <li>{t('orders.empty.help4')}</li>
         </ul>
       </div>
     </div>

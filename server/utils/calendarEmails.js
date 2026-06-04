@@ -36,7 +36,11 @@ const EMAIL_LABELS = {
 };
 
 function normalizeLanguage(value) {
-  const code = String(value || DEFAULT_LANGUAGE).trim().toLowerCase();
+  const code = String(value || DEFAULT_LANGUAGE)
+    .split(',')[0]
+    .trim()
+    .split(/[-_]/)[0]
+    .toLowerCase();
   return ALLOWED_LANGS.has(code) ? code : DEFAULT_LANGUAGE;
 }
 

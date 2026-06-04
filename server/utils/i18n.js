@@ -239,6 +239,134 @@ const T = {
       ar: 'لقد انتهت صلاحية طلب حجز أو تم تحريره تلقائيًا.',
     },
   },
+  appointment_requested: {
+    title: {
+      en: 'New appointment request',
+      fr: 'Nouvelle demande de rendez-vous',
+      es: 'Nueva solicitud de cita',
+      ht: 'Nouvo demann randevou',
+      ar: 'طلب موعد جديد',
+    },
+    body: {
+      en: 'Hi %{recipientName},\n\n%{otherName} has requested an appointment for %{service} on %{when}. %{locationLine}Please reply to your OxSteed dashboard to review details.',
+      fr: 'Bonjour %{recipientName},\n\n%{otherName} a demandé un rendez-vous pour %{service} le %{when}. %{locationLine}Veuillez consulter votre tableau de bord OxSteed pour revoir les détails.',
+      es: 'Hola %{recipientName},\n\n%{otherName} ha solicitado una cita para %{service} el %{when}. %{locationLine}Revise su panel de OxSteed para confirmar los detalles.',
+      ht: 'Bonjou %{recipientName},\n\n%{otherName} mande ou yon randevou pou %{service} sou %{when}. %{locationLine}Tanpri tcheke tablodbò OxSteed ou pou w revize detay yo.',
+      ar: 'مرحبًا %{recipientName}،\n\n%{otherName} قد طلب موعدًا لـ%{service} في %{when}. %{locationLine}يرجى مراجعة لوحة التحكم في OxSteed لمتابعة التفاصيل.',
+    },
+  },
+  appointment_confirmed: {
+    title: {
+      en: 'Appointment confirmed',
+      fr: 'Rendez-vous confirmé',
+      es: 'Cita confirmada',
+      ht: 'Randevou konfime',
+      ar: 'تم تأكيد الموعد',
+    },
+    body: {
+      en: 'Hi %{recipientName},\n\nGreat news — your appointment on %{when} has been confirmed.',
+      fr: 'Bonjour %{recipientName},\n\nBonne nouvelle — votre rendez-vous du %{when} a été confirmé.',
+      es: 'Hola %{recipientName},\n\n¡Buenas noticias! Su cita del %{when} ha sido confirmada.',
+      ht: 'Bonjou %{recipientName},\n\nBèl nouvèl — randevou ou nan %{when} lan konfime deja.',
+      ar: 'مرحبًا %{recipientName}،\n\nأخبار جيدة — تم تأكيد موعدك في %{when}.',
+    },
+  },
+  appointment_cancelled: {
+    title: {
+      en: 'Appointment cancelled',
+      fr: 'Rendez-vous annulé',
+      es: 'Cita cancelada',
+      ht: 'Randevou anile',
+      ar: 'تم إلغاء الموعد',
+    },
+    body: {
+      en: 'Hi %{recipientName},\n\nThe appointment scheduled for %{when} has been cancelled.',
+      fr: 'Bonjour %{recipientName},\n\nLe rendez-vous prévu le %{when} a été annulé.',
+      es: 'Hola %{recipientName},\n\nLa cita prevista para %{when} ha sido cancelada.',
+      ht: 'Bonjou %{recipientName},\n\nRandevou ki te pwograme pou %{when} lan anile.',
+      ar: 'مرحبًا %{recipientName}،\n\nتم إلغاء الموعد المقرر في %{when}.',
+    },
+  },
+  appointment_rescheduled: {
+    title: {
+      en: 'Appointment time changed',
+      fr: 'Horaire du rendez-vous modifié',
+      es: 'Cambio de hora de la cita',
+      ht: 'Lè randevou a chanje',
+      ar: 'تم تغيير وقت الموعد',
+    },
+    body: {
+      en: 'Hi %{recipientName},\n\nAn appointment time has changed. Please review the updated details in your OxSteed dashboard.',
+      fr: 'Bonjour %{recipientName},\n\nL’horaire d’un rendez-vous a changé. Veuillez consulter les détails mis à jour dans votre tableau de bord OxSteed.',
+      es: 'Hola %{recipientName},\n\nLa hora de una cita ha cambiado. Revisa los detalles actualizados en tu panel de OxSteed.',
+      ht: 'Bonjou %{recipientName},\n\nLè yon randevou chanje. Tanpri revize detay ki ajou yo nan tablodbò OxSteed ou.',
+      ar: 'مرحبًا %{recipientName}،\n\nتم تغيير وقت أحد المواعيد. يرجى مراجعة التفاصيل المحدثة في لوحة تحكم OxSteed.',
+    },
+  },
+  reminder_24h: {
+    title: {
+      en: 'Reminder: appointment tomorrow',
+      fr: 'Rappel : votre rendez-vous demain',
+      es: 'Recordatorio: cita mañana',
+      ht: 'Rappel: randevou demen',
+      ar: 'تذكير: موعدك غدًا',
+    },
+    body: {
+      en: 'Hi %{recipientName},\n\nThis is a reminder: your appointment is tomorrow at %{when}.',
+      fr: 'Bonjour %{recipientName},\n\nRappel : votre rendez-vous est prévu demain à %{when}.',
+      es: 'Hola %{recipientName},\n\nRecordatorio: tu cita es mañana a las %{when}.',
+      ht: 'Bonjou %{recipientName},\n\nSa se yon rapèl: randevou ou demen a %{when}.',
+      ar: 'مرحبًا %{recipientName}،\n\nهذا تذكير: موعدك غدًا الساعة %{when}.',
+    },
+  },
+  reminder_2h: {
+    title: {
+      en: 'Your appointment in 2 hours',
+      fr: 'Votre rendez-vous dans 2 heures',
+      es: 'Tu cita en 2 horas',
+      ht: 'Randevou ou nan 2 èdtan',
+      ar: 'موعدك بعد ساعتين',
+    },
+    body: {
+      en: 'Hi %{recipientName},\n\nReminder — your appointment is about to start at %{when}.',
+      fr: 'Bonjour %{recipientName},\n\nRappel — votre rendez-vous doit commencer à %{when}.',
+      es: 'Hola %{recipientName},\n\nRecordatorio: tu cita comenzará a las %{when}.',
+      ht: 'Bonjou %{recipientName},\n\nRappel — randevou ou ap kòmanse nan %{when}.',
+      ar: 'مرحبًا %{recipientName}،\n\nتذكير — سيبدأ موعدك في %{when}.',
+    },
+  },
+  reminder_same_day: {
+    title: {
+      en: 'Reminder: appointment today',
+      fr: 'Rappel : rendez-vous aujourd\'hui',
+      es: 'Recordatorio: cita hoy',
+      ht: 'Rappel: randevou jodi a',
+      ar: 'تذكير: موعدك اليوم',
+    },
+    body: {
+      en: 'Hi %{recipientName},\n\nJust a reminder — your appointment is today at %{when}.',
+      fr: 'Bonjour %{recipientName},\n\nSimple rappel — votre rendez-vous est aujourd\'hui à %{when}.',
+      es: 'Hola %{recipientName},\n\nSolo un recordatorio: tu cita es hoy a las %{when}.',
+      ht: 'Bonjou %{recipientName},\n\nRappel senp — randevou ou jodi a a %{when}.',
+      ar: 'مرحبًا %{recipientName}،\n\nمجرد تذكير — موعدك اليوم في %{when}.',
+    },
+  },
+  appointment_completed: {
+    title: {
+      en: 'Appointment completed',
+      fr: 'Rendez-vous terminé',
+      es: 'Cita completada',
+      ht: 'Randevou fini',
+      ar: 'تم اكتمال الموعد',
+    },
+    body: {
+      en: 'Hi %{recipientName},\n\nYour appointment has been marked as complete.',
+      fr: 'Bonjour %{recipientName},\n\nVotre rendez-vous a été marqué comme terminé.',
+      es: 'Hola %{recipientName},\n\nTu cita se ha marcado como completada.',
+      ht: 'Bonjou %{recipientName},\n\nYo make randevou ou kòm konplè.',
+      ar: 'مرحبًا %{recipientName}،\n\nتم وضع علامة على موعدك كمكتمل.',
+    },
+  },
 };
 
 const EMAIL_TEMPLATES = {
@@ -562,7 +690,12 @@ const DEFAULT_LANG = 'en';
 const ALLOWED = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 
 function normalizeLang(lang) {
-  return ALLOWED.has(lang) ? lang : DEFAULT_LANG;
+  const parsed = String(lang || DEFAULT_LANG)
+    .split(',')[0]
+    .trim()
+    .split(/[-_]/)[0]
+    .toLowerCase();
+  return ALLOWED.has(parsed) ? parsed : DEFAULT_LANG;
 }
 
 function resolve(entry, lang, fallback = '') {

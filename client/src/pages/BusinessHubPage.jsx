@@ -71,7 +71,7 @@ import { getBeautyOperationsWorkspace } from '../api/beautyOperations';
 import { getCreativeOperationsWorkspace } from '../api/creativeOperations';
 import { getProfessionalOperationsWorkspace } from '../api/professionalOperations';
 import { getContinuityOperationsWorkspace } from '../api/continuityOperations';
-import { formatMoney } from '../lib/format';
+import { formatDate, formatMoney } from '../lib/format';
 import { getDefaultCurrency } from '../lib/countries';
 import '../styles/BusinessHubPage.css';
 
@@ -85,13 +85,13 @@ function fmt$(n, currency = 'USD') {
 function fmtDate(d) {
   if (!d) return '-';
   const dateOnly = String(d).split('T')[0];
-  return new Date(dateOnly + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return formatDate(`${dateOnly}T00:00:00`, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 function fmtMonth(m) {
   // m = "2025-03"
   if (!m) return '';
   const [y, mo] = m.split('-');
-  return new Date(+y, +mo - 1).toLocaleString('en-US', { month: 'short' });
+  return formatDate(new Date(+y, +mo - 1), { month: 'short', day: undefined, year: undefined });
 }
 
 // ── default forms ─────────────────────────────────────────────────────────────
@@ -3452,7 +3452,7 @@ function TeamTab({
                       <span className="bh-vortex-used-by">{t('businessHub.vortexUsedBy', { first: tk.used_by_first, last: tk.used_by_last })}</span>
                     )}
                     {tk.status === 'active' && (
-                      <span className="bh-vortex-expires">{t('businessHub.vortexExpiresOn', { date: new Date(tk.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) })}</span>
+                      <span className="bh-vortex-expires">{t('businessHub.vortexExpiresOn', { date: formatDate(tk.expires_at, { month: 'short', day: 'numeric', year: undefined }) })}</span>
                     )}
                     {tk.created_by_first && (
                       <span className="bh-vortex-creator" style={{ fontSize: '0.75rem', color: 'var(--muted-text)', marginLeft: '0.4rem' }}>
@@ -3519,10 +3519,7 @@ function TeamTab({
                     </span>
                   </td>
                   <td style={{ fontSize: '0.82rem', color: 'var(--muted-text)' }}>
-                    {m.accepted_at
-                      ? new Date(m.accepted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                      : new Date(m.invited_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                    }
+                    {formatDate(m.accepted_at || m.invited_at, { month: 'short', day: 'numeric', year: 'numeric' })}
                   </td>
                   <td>
                     <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)}>

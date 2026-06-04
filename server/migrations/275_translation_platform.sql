@@ -32,7 +32,7 @@ INSERT INTO languages (
   ('it', 'Italian', 'Italiano', TRUE, FALSE, TRUE, 'en'),
   ('nl', 'Dutch', 'Nederlands', TRUE, FALSE, TRUE, 'en'),
   ('pl', 'Polish', 'Polski', TRUE, FALSE, TRUE, 'en'),
-  ('ar', 'Arabic', 'العربية', TRUE, FALSE, TRUE, 'en'),
+  ('ar', 'Arabic', 'العربية', TRUE, TRUE, TRUE, 'en'),
   ('zh', 'Chinese', '中文', TRUE, FALSE, TRUE, 'en')
 ON CONFLICT (code) DO UPDATE SET
   display_name = EXCLUDED.display_name,

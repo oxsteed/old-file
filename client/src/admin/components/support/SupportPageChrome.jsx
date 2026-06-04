@@ -83,7 +83,7 @@ export function SupportEmptyState({ icon: Icon, title, body, action }) {
   );
 }
 
-export function SupportActionButton({ icon: Icon, children, tone = 'secondary', ...props }) {
+export function SupportActionButton({ icon: Icon, children, tone = 'secondary', type = 'button', ...props }) {
   const tones = {
     primary: 'bg-orange-600 text-white hover:bg-orange-700 border-orange-500/40',
     secondary: 'bg-gray-900 text-gray-300 hover:text-white hover:border-gray-600 border-gray-700',
@@ -92,6 +92,7 @@ export function SupportActionButton({ icon: Icon, children, tone = 'secondary', 
 
   return (
     <button
+      type={type}
       {...props}
       className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition disabled:opacity-50 ${tones[tone]} ${props.className || ''}`}
     >

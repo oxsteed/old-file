@@ -6,6 +6,7 @@ import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import { formatDate, formatMoney } from '../lib/format';
 import './ToolRentalsAnalytics.css';
 
 interface ToolMetric {
@@ -235,9 +236,9 @@ const ToolRentalsAnalytics: React.FC = () => {
                   />
                 </div>
                 <div className="analytics-bar-label">
-                  {new Date(month.month).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
+                  {formatDate(month.month, { month: 'short', year: '2-digit', day: undefined })}
                 </div>
-                <div className="analytics-bar-value">${month.revenue.toFixed(0)}</div>
+                <div className="analytics-bar-value">{formatMoney(month.revenue, { maximumFractionDigits: 0 })}</div>
               </div>
             ))}
           </div>

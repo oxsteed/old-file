@@ -7,8 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "verify:i18n": "node scripts/verify-i18n.mjs",
     "typecheck": "tsc --noEmit",
-    "build:ci": "tsc --noEmit && vite build"
+    "build:ci": "npm run verify:i18n && tsc --noEmit && vite build"
   },
   "dependencies": {
     "@sentry/react": "^8.55.1",

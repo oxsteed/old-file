@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { Calendar, Clock, DollarSign, User, Mail, Phone } from 'lucide-react';
 import '../styles/BookServicePage.css';
+import { formatCents, formatDate } from '../lib/format';
 
 export default function BookServicePage() {
   const { businessId, serviceId } = useParams();
@@ -186,7 +187,7 @@ export default function BookServicePage() {
                 <DollarSign size={20} />
                 <div>
                   <div className="label">{t('bookService.basePriceLabel')}</div>
-                  <div className="value">${(service.base_price_cents / 100).toFixed(2)}</div>
+                  <div className="value">{formatCents(service.base_price_cents)}</div>
                 </div>
               </div>
             </div>
@@ -205,8 +206,8 @@ export default function BookServicePage() {
                   onClick={() => setSelectedDate(date)}
                   className={`bsp-date-btn ${selectedDate === date ? 'active' : ''}`}
                 >
-                  <div className="date">{new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                  <div className="day">{new Date(date).toLocaleDateString('en-US', { weekday: 'short' })}</div>
+                  <div className="date">{formatDate(`${date}T12:00:00`, { year: undefined })}</div>
+                  <div className="day">{formatDate(`${date}T12:00:00`, { weekday: 'short', month: undefined, day: undefined, year: undefined })}</div>
                 </button>
               ))}
             </div>
@@ -243,7 +244,7 @@ export default function BookServicePage() {
             {selectedDate && (
               <div className="bsp-summary-item">
                 <span>{t('bookService.summary.dateLabel')}:</span>
-                <span>{new Date(selectedDate).toLocaleDateString()}</span>
+                <span>{formatDate(`${selectedDate}T12:00:00`)}</span>
               </div>
             )}
 
@@ -259,14 +260,14 @@ export default function BookServicePage() {
                 <div className="bsp-price-breakdown">
                   <div className="bsp-summary-item">
                     <span>{t('bookService.summary.basePriceLabel')}:</span>
-                    <span>${(calculatedPrice.base_price_cents / 100).toFixed(2)}</span>
+                    <span>{formatCents(calculatedPrice.base_price_cents)}</span>
                   </div>
                   {calculatedPrice.modifiers && calculatedPrice.modifiers.length > 0 && (
                     <>
                       {calculatedPrice.modifiers.map((mod, idx) => (
                         <div key={idx} className="bsp-summary-item modifier">
                           <span>{mod.type}:</span>
-                          <span>{mod.multiplier ? `×${mod.multiplier}` : `+$${(mod.modifier / 100).toFixed(2)}`}</span>
+                          <span>{mod.multiplier ? `×${mod.multiplier}` : `+${formatCents(mod.modifier)}`}</span>
                         </div>
                       ))}
                     </>
@@ -277,7 +278,7 @@ export default function BookServicePage() {
 
                 <div className="bsp-summary-item final-price">
                   <span>{t('bookService.summary.totalPriceLabel')}:</span>
-                  <span>${(calculatedPrice.final_price_cents / 100).toFixed(2)}</span>
+                  <span>{formatCents(calculatedPrice.final_price_cents)}</span>
                 </div>
               </>
             )}
@@ -347,7 +348,7 @@ export default function BookServicePage() {
             >
               {loading
                 ? t('bookService.buttons.booking')
-                : t('bookService.buttons.bookNow', { price: calculatedPrice ? (calculatedPrice.final_price_cents / 100).toFixed(2) : '0.00' })
+                : t('bookService.buttons.bookNow', { price: calculatedPrice ? formatCents(calculatedPrice.final_price_cents) : formatCents(0) })
               }
             </button>
           </form>

@@ -11,7 +11,7 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 export default function CheckoutPage() {
   return (
-    <OrderErrorBoundary componentName="Checkout">
+    <OrderErrorBoundary componentNameKey="orderErrorBoundary.componentNames.checkout">
       <CheckoutPageContent />
     </OrderErrorBoundary>
   );

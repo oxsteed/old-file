@@ -150,12 +150,14 @@ function exportTranscript(messages) {
 export default function SupportWidget() {
   const location = useLocation();
   const hideOnHelperProfile = isHelperPublicProfilePath(location.pathname);
+  const { t } = useTranslation();
+  const navigate = useNavigate();
 
   // 8. Welcome-back: show different greeting if prior history exists
   const existingHistory = loadHistory();
   const initialMsg = existingHistory
-    ? { role: 'assistant', content: "Welcome back! I'm here if you have any questions about OxSteed.", ts: new Date().toISOString() }
-    : { role: 'assistant', content: "Hi! I'm OxSteed's AI assistant. How can I help you today?", ts: new Date().toISOString() };
+    ? { role: 'assistant', content: t('supportWidget.welcomeBack'), ts: new Date().toISOString() }
+    : { role: 'assistant', content: t('supportWidget.aiGreeting'), ts: new Date().toISOString() };
 
   const [open,         setOpen]         = useState(false);
   const [minimized,    setMinimized]    = useState(false);
@@ -165,9 +167,6 @@ export default function SupportWidget() {
   const [copied,       setCopied]       = useState(null);
   const [unread,       setUnread]       = useState(0);
   const [isMobile,     setIsMobile]     = useState(false);
-
-  const { t } = useTranslation();
-  const navigate = useNavigate();
 
   // Close floating widget when navigating to a helper profile (in-page chat replaces it)
   useEffect(() => {
@@ -212,8 +211,8 @@ export default function SupportWidget() {
       if (!proactiveTriggered.current && !open) {
         proactiveTriggered.current = true;
         const msg = path.startsWith('/post-job')
-          ? "Need help posting your first job? I can walk you through it - just ask!"
-          : "Looking for the right helper? I can help you understand how OxSteed works!";
+          ? t('supportWidget.proactivePostJob')
+          : t('supportWidget.proactiveHelpers');
         setMessages(prev => [...prev, { role: 'assistant', content: msg, ts: new Date().toISOString() }]);
         setOpen(true);
         setMinimized(false);
@@ -221,7 +220,7 @@ export default function SupportWidget() {
     }, PROACTIVE_DELAY_MS);
 
     return () => clearTimeout(timer);
-  }, [open, location.pathname]);
+  }, [open, location.pathname, t]);
 
   // Persist history
   useEffect(() => { saveHistory(messages); }, [messages]);
@@ -306,7 +305,7 @@ export default function SupportWidget() {
     } catch {
       setMessages(prev => [...prev, {
         role:      'assistant',
-        content:   "Sorry, I'm having trouble right now. Please try again or email **support@oxsteed.com**.",
+        content:   t('supportWidget.errorMessage'),
         ts:        new Date().toISOString(),
         isError:   true,
         retryText: text.trim(), // 5. Store for retry
@@ -315,7 +314,7 @@ export default function SupportWidget() {
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [messages, loading, open, minimized]);
+  }, [messages, loading, open, minimized, t]);
 
   const handleSubmit = (e) => { e.preventDefault(); send(input); };
 
@@ -360,13 +359,13 @@ export default function SupportWidget() {
       {(!open || !isMobile) && (
         <button
           onClick={() => { setOpen(true); setMinimized(false); setUnread(0); }}
-          aria-label="Open AI assistant"
+          aria-label={t('supportWidget.openAssistant')}
           className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 flex items-center gap-2 px-3.5 py-2.5 bg-orange-500/85 hover:bg-orange-600 text-white rounded-full shadow-md shadow-orange-500/20 font-semibold text-xs transition-all hover:scale-105 active:scale-95 backdrop-blur-sm"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
           </svg>
-          Ask AI
+          {t('supportWidget.askAi')}
           {unread > 0 && !open && (
             <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
               {unread}

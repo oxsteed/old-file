@@ -4,6 +4,32 @@ const { sendNotification } = require('../services/notificationService');
 const { ROLES }            = require('../constants/roles');
 const logger               = require('../utils/logger');
 
+const FALLBACK_LANGUAGE = 'en';
+const SUPPORTED_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
+
+const WEEKLY_SUMMARY_COPY = {
+  en: {
+    title: 'Your weekly OxSteed summary',
+    body: 'This week: %{earnings} earned MTD · %{activeBids} active bids',
+  },
+  es: {
+    title: 'Tu resumen semanal de OxSteed',
+    body: 'Esta semana: %{earnings} ganados en el mes · %{activeBids} ofertas activas',
+  },
+  fr: {
+    title: 'Votre résumé hebdomadaire OxSteed',
+    body: 'Cette semaine : %{earnings} gagnés ce mois-ci · %{activeBids} offres actives',
+  },
+  ht: {
+    title: 'Rezime chak semèn OxSteed ou',
+    body: 'Semèn sa a: %{earnings} touche mwa sa a · %{activeBids} òf aktif',
+  },
+  ar: {
+    title: 'ملخص OxSteed الأسبوعي الخاص بك',
+    body: 'هذا الأسبوع: %{earnings} مكتسبة هذا الشهر · %{activeBids} عروض نشطة',
+  },
+};
+
 /**
  * Every Monday at 8am Eastern
  * Send each active helper their weekly earnings + job summary.
@@ -27,7 +53,8 @@ const startWeeklySummaryJob = () => {
           (SELECT COUNT(*) FROM jobs j
            WHERE j.client_id = u.id
              AND j.status = 'published') AS open_jobs_posted,
-          np.email_weekly_summary
+          np.email_weekly_summary,
+          u.preferred_language
         FROM users u
         JOIN helper_profiles hp ON hp.user_id = u.id
         JOIN notification_preferences np ON np.user_id = u.id
@@ -42,12 +69,12 @@ const startWeeklySummaryJob = () => {
 
       for (const helper of helpers) {
         try {
+          const summaryCopy = buildWeeklySummaryNotification(helper, helper.preferred_language);
           await sendNotification({
             userId: helper.id,
             type:   'weekly_summary',
-            title:  `Your weekly OxSteed summary`,
-            body:   `This week: $${parseFloat(helper.earnings_mtd || 0)
-                      .toFixed(2)} earned MTD · ${helper.active_bids} active bids`,
+            title:  summaryCopy.title,
+            body:   summaryCopy.body,
             data: {
               earnings_mtd:       helper.earnings_mtd,
               completed_jobs:     helper.completed_jobs,
@@ -73,4 +100,40 @@ const startWeeklySummaryJob = () => {
   }, { timezone: 'America/New_York' });
 };
 
-module.exports = { startWeeklySummaryJob };
+function buildWeeklySummaryNotification(helper, language = FALLBACK_LANGUAGE) {
+  const lang = normalizeLanguage(language);
+  const copy = WEEKLY_SUMMARY_COPY[lang] || WEEKLY_SUMMARY_COPY[FALLBACK_LANGUAGE];
+  const earnings = formatMoney(helper.earnings_mtd || 0, lang);
+  const activeBids = formatNumber(helper.active_bids || 0, lang);
+  return {
+    title: copy.title,
+    body: interpolate(copy.body, { earnings, activeBids }),
+  };
+}
+
+function normalizeLanguage(language) {
+  const normalized = String(language || FALLBACK_LANGUAGE)
+    .trim()
+    .toLowerCase()
+    .split(/[-_]/)[0];
+  return SUPPORTED_LANGUAGES.has(normalized) ? normalized : FALLBACK_LANGUAGE;
+}
+
+function formatMoney(value, language) {
+  const amount = Number.parseFloat(value || 0);
+  return new Intl.NumberFormat(language, {
+    style: 'currency',
+    currency: 'USD',
+  }).format(Number.isFinite(amount) ? amount : 0);
+}
+
+function formatNumber(value, language) {
+  const count = Number.parseInt(value || 0, 10);
+  return new Intl.NumberFormat(language).format(Number.isFinite(count) ? count : 0);
+}
+
+function interpolate(template, values) {
+  return String(template).replace(/%\{(\w+)\}/g, (_, key) => values[key] ?? '');
+}
+
+module.exports = { startWeeklySummaryJob, buildWeeklySummaryNotification };

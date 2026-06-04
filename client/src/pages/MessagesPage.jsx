@@ -85,38 +85,35 @@ export default function MessagesPage() {
       <div className="messages-page">
         <header className="messages-hero">
           <div>
-            <p className="messages-kicker">Work conversations</p>
+            <p className="messages-kicker">{t('messages.kicker')}</p>
             <h1>{t('messages.title')}</h1>
-            <p>
-              Keep every helper question, job conversation, booking detail, and follow-up in one accountable place.
-              Messages are where scope, timing, photos, access notes, and decisions stay connected to the work.
-            </p>
+            <p>{t('messages.heroDescription')}</p>
           </div>
           <div className="messages-hero-stats">
             <div>
               <span>{conversations.length}</span>
-              <small>Conversations</small>
+              <small>{t('messages.stats.conversations')}</small>
             </div>
             <div>
               <span>{unreadCount}</span>
-              <small>Unread</small>
+              <small>{t('messages.stats.unread')}</small>
             </div>
           </div>
         </header>
 
-        <section className="messages-toolbar" aria-label="Message tools">
+        <section className="messages-toolbar" aria-label={t('messages.toolsAriaLabel')}>
           <label className="messages-search">
             <Search size={18} aria-hidden />
             <input
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search people, jobs, or messages..."
+              placeholder={t('messages.searchPlaceholder')}
             />
           </label>
           <div className="messages-actions">
-            <Link to="/helpers">Find helpers</Link>
-            <Link to="/post-job">Post a job</Link>
+            <Link to="/helpers">{t('messages.findHelpers')}</Link>
+            <Link to="/post-job">{t('messages.postJob')}</Link>
           </div>
         </section>
 
@@ -126,15 +123,15 @@ export default function MessagesPage() {
             <p>{t('common.loading') || 'Loading...'}</p>
           </div>
         ) : conversations.length === 0 ? (
-          <EmptyMessages />
+          <EmptyMessages t={t} />
         ) : filteredConversations.length === 0 ? (
           <div className="messages-empty compact">
             <MessageSquare size={30} />
-            <h2>No conversations match that search.</h2>
-            <p>Try a helper name, business name, job title, or a phrase from the last message.</p>
+            <h2>{t('messages.filteredEmpty.title')}</h2>
+            <p>{t('messages.filteredEmpty.text')}</p>
           </div>
         ) : (
-          <section className="messages-panel" aria-label="Conversation list">
+          <section className="messages-panel" aria-label={t('messages.conversationListAriaLabel')}>
             {filteredConversations.map((conv) => {
               const unread = parseInt(conv.unread_count, 10) > 0;
               return (
@@ -166,46 +163,43 @@ export default function MessagesPage() {
           </section>
         )}
 
-        <section className="messages-guide" aria-label="How messages connect">
-          <GuideItem icon={Briefcase} title="Jobs and bids" text="Clarify scope before accepting work and keep decisions attached to the job." />
-          <GuideItem icon={CalendarDays} title="Bookings" text="Confirm timing, address details, access notes, and what should happen before arrival." />
-          <GuideItem icon={ShieldCheck} title="Trust records" text="If a dispute or support issue happens later, conversation history helps explain what happened." />
-          <GuideItem icon={Sparkles} title="Repeat relationships" text="Good conversations become saved helpers, repeat bookings, and planned future needs." />
+        <section className="messages-guide" aria-label={t('messages.guide.ariaLabel')}>
+          <GuideItem icon={Briefcase} title={t('messages.guide.jobs.title')} text={t('messages.guide.jobs.text')} />
+          <GuideItem icon={CalendarDays} title={t('messages.guide.bookings.title')} text={t('messages.guide.bookings.text')} />
+          <GuideItem icon={ShieldCheck} title={t('messages.guide.trust.title')} text={t('messages.guide.trust.text')} />
+          <GuideItem icon={Sparkles} title={t('messages.guide.repeat.title')} text={t('messages.guide.repeat.text')} />
         </section>
       </div>
     </PageShell>
   );
 }
 
-function EmptyMessages() {
+function EmptyMessages({ t }) {
   return (
     <section className="messages-empty">
       <div className="messages-empty-main">
         <div className="messages-empty-icon">
           <MessageSquare size={34} />
         </div>
-        <p className="messages-kicker">No messages yet</p>
-        <h2>Your inbox is ready when the work starts.</h2>
-        <p>
-          Messages appear when you contact a helper, receive a bid, book someone directly,
-          ask a question about a service, or need follow-up on active work.
-        </p>
+        <p className="messages-kicker">{t('messages.empty.kicker')}</p>
+        <h2>{t('messages.empty.title')}</h2>
+        <p>{t('messages.empty.text')}</p>
         <div className="messages-empty-actions">
-          <Link to="/helpers">Find a helper</Link>
-          <Link to="/post-job">Post a job</Link>
-          <Link to="/planned-needs">Plan future work</Link>
+          <Link to="/helpers">{t('messages.empty.findHelper')}</Link>
+          <Link to="/post-job">{t('messages.postJob')}</Link>
+          <Link to="/planned-needs">{t('messages.empty.planFutureWork')}</Link>
         </div>
       </div>
       <div className="messages-empty-side">
-        <h3>What messages help with</h3>
+        <h3>{t('messages.empty.helpTitle')}</h3>
         <ul>
-          <li>Share photos, timing, access instructions, and job details.</li>
-          <li>Keep helper and customer expectations in one place.</li>
-          <li>Preserve context for payments, cancellations, and disputes.</li>
-          <li>Build repeat relationships with helpers you trust.</li>
+          <li>{t('messages.empty.helpShareDetails')}</li>
+          <li>{t('messages.empty.helpExpectations')}</li>
+          <li>{t('messages.empty.helpContext')}</li>
+          <li>{t('messages.empty.helpRepeat')}</li>
         </ul>
         <Link to="/features#messages" className="messages-learn-link">
-          Learn how messages connect
+          {t('messages.empty.learnLink')}
           <UserCheck size={15} />
         </Link>
       </div>

@@ -13,7 +13,7 @@ import {
   updateBusinessClient,
   deleteBusinessClient,
 } from '../../api/businesses';
-import { formatMoney } from '../../lib/format';
+import { formatDate, formatMoney } from '../../lib/format';
 import '../../styles/BusinessClientsTab.css';
 
 const STATUSES = [
@@ -182,8 +182,8 @@ function ClientCard({ client, currency, onOpen }) {
       )}
       <div className="bct-card-stats">
         <div><strong>{client.total_jobs || 0}</strong><span>{t('businessClients.statJobs', { count: client.total_jobs || 0 })}</span></div>
-        <div><strong>{formatMoney((client.lifetime_value_cents || 0) / 100, currency)}</strong><span>{t('businessClients.statLifetime')}</span></div>
-        <div><strong>{client.last_job_at ? new Date(client.last_job_at).toLocaleDateString() : '-'}</strong><span>{t('businessClients.statLastJob')}</span></div>
+        <div><strong>{formatMoney((client.lifetime_value_cents || 0) / 100, { currency })}</strong><span>{t('businessClients.statLifetime')}</span></div>
+        <div><strong>{client.last_job_at ? formatDate(client.last_job_at) : '-'}</strong><span>{t('businessClients.statLastJob')}</span></div>
       </div>
     </button>
   );
@@ -283,7 +283,7 @@ export default function BusinessClientsTab({ bizId, businessName, currency }) {
         <div><strong>{total || counts.all}</strong><span>{t('businessClients.cardTotal')}</span></div>
         <div><strong>{counts.active}</strong><span>{t('businessClients.cardActive')}</span></div>
         <div><strong>{counts.lead}</strong><span>{t('businessClients.cardLeads')}</span></div>
-        <div><strong>{formatMoney(totalLifetime, currency)}</strong><span>{t('businessClients.cardLifetime')}</span></div>
+        <div><strong>{formatMoney(totalLifetime, { currency })}</strong><span>{t('businessClients.cardLifetime')}</span></div>
       </div>
 
       <div className="bct-controls">

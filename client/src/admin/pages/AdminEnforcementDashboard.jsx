@@ -35,7 +35,7 @@ const AdminEnforcementDashboard = () => {
       if (filters.actionType) params.append('actionType', filters.actionType);
       if (filters.isActive !== '') params.append('isActive', filters.isActive);
 
-      const response = await api.get('/admin/enforcement/all', { params });
+      const response = await api.get('/enforcement/all', { params });
       const { data, pagination: paginationData } = response.data;
       setActions(data);
       setPagination(paginationData);
@@ -76,7 +76,7 @@ const AdminEnforcementDashboard = () => {
         expiresAt: newAction.expiresAt || null
       };
 
-      await api.post('/admin/enforcement/issue', payload);
+      await api.post('/enforcement/issue', payload);
 
       setNewAction({
         userId: '',
@@ -97,7 +97,7 @@ const AdminEnforcementDashboard = () => {
 
   const handleDeactivateAction = async (actionId) => {
     try {
-      await api.post(`/admin/enforcement/${actionId}/deactivate`);
+      await api.post(`/enforcement/${actionId}/deactivate`);
       fetchActions();
     } catch (err) {
       setError(err.response?.data?.error || err.message);

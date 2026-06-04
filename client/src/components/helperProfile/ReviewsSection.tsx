@@ -4,6 +4,7 @@ import { ThumbsUp, CheckCircle2, ChevronDown, ChevronUp, MessageSquare } from 'l
 import type { Review } from '../../types/helperProfile';
 import StarRating from './ui/StarRating';
 import SectionCard from './ui/SectionCard';
+import { formatDate as formatLocalizedDate } from '../../lib/format';
 
 interface ReviewsSectionProps {
   reviews: Review[];
@@ -13,8 +14,8 @@ interface ReviewsSectionProps {
 
 const INITIAL_DISPLAY = 3;
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
+function formatReviewDate(iso: string): string {
+  return formatLocalizedDate(iso, {
     month: 'short',
     year: 'numeric',
   });
@@ -90,7 +91,7 @@ const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
                 />
               )}
             </div>
-            <p className="text-xs text-gray-500">{formatDate(review.date)}</p>
+            <p className="text-xs text-gray-500">{formatReviewDate(review.date)}</p>
           </div>
         </div>
         <StarRating rating={review.rating} size="sm" />
@@ -104,13 +105,13 @@ const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
 
       {/* Helpful */}
       <footer className="flex items-center justify-between pt-1">
-        <button
-          className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+        <span
+          className="inline-flex items-center gap-1.5 text-xs text-gray-500 transition-colors"
           aria-label={t('helperProfile.reviews.foundHelpful', { count: review.helpfulCount })}
         >
           <ThumbsUp className="w-3.5 h-3.5" aria-hidden="true" />
           {t('helperProfile.reviews.foundHelpful', { count: review.helpfulCount })}
-        </button>
+        </span>
 
         {review.helperReply && (
           <button
@@ -138,7 +139,7 @@ const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
         >
           <p className="text-xs font-semibold text-brand-400">{t('helperProfile.reviews.responseFromHelper')}</p>
           <p className="text-xs text-gray-400 leading-relaxed">{review.helperReply.content}</p>
-          <p className="text-xs text-gray-600">{formatDate(review.helperReply.date)}</p>
+          <p className="text-xs text-gray-600">{formatReviewDate(review.helperReply.date)}</p>
         </div>
       )}
     </article>

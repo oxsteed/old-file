@@ -75,10 +75,16 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
 
   return (
     <div className="invoice-modal-overlay" onClick={onClose}>
-      <div className="invoice-modal-content" onClick={e => e.stopPropagation()}>
+      <div
+        className="invoice-modal-content"
+        onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="invoice-modal-title"
+      >
         <div className="invoice-modal-header">
-          <h2>{t('toolRentals.sendInvoice')}</h2>
-          <button onClick={onClose} className="invoice-modal-close">
+          <h2 id="invoice-modal-title">{t('toolRentals.sendInvoice')}</h2>
+          <button onClick={onClose} className="invoice-modal-close" aria-label={t('toolRentals.closeInvoiceModal')}>
             <X className="w-5 h-5" />
           </button>
         </div>

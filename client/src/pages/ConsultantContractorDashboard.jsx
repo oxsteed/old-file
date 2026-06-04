@@ -18,6 +18,7 @@ import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import PlatformApprovalBanner from '../components/PlatformApprovalBanner';
 import { useTranslation } from 'react-i18next';
+import { formatCents, formatNumber } from '../lib/format';
 
 const STATUS_OPTIONS = [
   ['assigned', 'consultantContractorDashboard.referralStatus.assigned', 'Assigned'],
@@ -33,18 +34,14 @@ const STATUS_OPTIONS = [
 ];
 
 function centsToCurrency(cents) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format((Number(cents) || 0) / 100);
+  return formatCents(cents || 0, { maximumFractionDigits: 0 });
 }
 
 function compactNumber(value) {
-  return new Intl.NumberFormat('en-US', {
+  return formatNumber(Number(value) || 0, {
     notation: 'compact',
     maximumFractionDigits: 1,
-  }).format(Number(value) || 0);
+  });
 }
 
 function arrayToText(list) {

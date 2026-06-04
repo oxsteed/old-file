@@ -22,6 +22,7 @@ import {
   translateJobInsurance,
 } from '../../utils/jobsTaxonomy';
 import StarRating from '../helperProfile/ui/StarRating';
+import { formatMoney } from '../../lib/format';
 
 interface HelperCardProps {
   helper: HelperCardData;
@@ -44,7 +45,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
     const u = unit || 'hour';
     if (u === 'quote') return t('helpersDir.getQuote');
     const n = typeof price === 'number' && Number.isFinite(price) ? price : 0;
-    const f = n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
+    const f = formatMoney(n, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     if (u === 'hour') return `${f}${t('helpersDir.perHour')}`;
     if (u === 'starting_at') return t('helpersDir.priceStartingAt', { amount: f });
     return f;

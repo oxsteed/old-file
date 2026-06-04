@@ -463,6 +463,12 @@ router.post('/shifts', (req, res) => {
   res.status(201).json({ shift: saveTo(supportAdminStore.shifts, req.body) });
 });
 
+router.patch('/shifts/:id', (req, res) => {
+  const shift = updateIn(supportAdminStore.shifts, req.params.id, req.body);
+  if (!shift) return res.status(404).json({ error: 'Shift not found' });
+  res.json({ shift });
+});
+
 router.delete('/shifts/:id', (req, res) => {
   supportAdminStore.shifts.delete(req.params.id);
   res.json({ success: true });

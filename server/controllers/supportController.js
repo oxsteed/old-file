@@ -79,8 +79,8 @@ exports.submitSupportRequest = async (req, res, next) => {
     const allowedCategory = ['general', 'billing', 'technical', 'account', 'dispute', 'verification', 'other', 'chat_escalation'];
     const safeCategory = allowedCategory.includes(category?.toLowerCase?.()) ? category.toLowerCase() : 'general';
 
-    // Validate and sanitize language code (en, es, fr, ht, etc)
-    const allowedLanguages = ['en', 'es', 'fr', 'ht', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
+    // Validate and sanitize language code.
+    const allowedLanguages = ['en', 'es', 'fr', 'ht', 'ar', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
     const safeLanguage = allowedLanguages.includes(sender_language?.toLowerCase?.()) ? sender_language.toLowerCase() : 'en';
 
     const client = await db.connect();
@@ -238,7 +238,7 @@ exports.replyToMyTicket = async (req, res, next) => {
     }
 
     // Validate language code
-    const allowedLanguages = ['en', 'es', 'fr', 'ht', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
+    const allowedLanguages = ['en', 'es', 'fr', 'ht', 'ar', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
     const safeLanguage = allowedLanguages.includes(sender_language?.toLowerCase?.()) ? sender_language.toLowerCase() : 'en';
 
     const { rows: tRows } = await db.query(
@@ -587,7 +587,7 @@ exports.adminReply = async (req, res) => {
   if (!content?.trim()) return res.status(400).json({ error: 'Content is required.' });
 
   // Validate language code (admin reply is assumed to be in English unless specified)
-  const allowedLanguages = ['en', 'es', 'fr', 'ht', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
+  const allowedLanguages = ['en', 'es', 'fr', 'ht', 'ar', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
   const safeLanguage = allowedLanguages.includes(sender_language?.toLowerCase?.()) ? sender_language.toLowerCase() : 'en';
 
   try {

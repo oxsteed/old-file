@@ -5,6 +5,7 @@ const FALLBACK_UI_LOCALES = [
   { code: 'es', displayName: 'Spanish', nativeName: 'Español', fallbackLanguageCode: 'en' },
   { code: 'fr', displayName: 'French', nativeName: 'Français', fallbackLanguageCode: 'en' },
   { code: 'ht', displayName: 'Haitian Creole', nativeName: 'Kreyòl Ayisyen', fallbackLanguageCode: 'en' },
+  { code: 'ar', displayName: 'Arabic', nativeName: 'العربية', fallbackLanguageCode: 'en' },
 ];
 
 const FALLBACK_RUNTIME_LANGUAGES = [
@@ -14,7 +15,6 @@ const FALLBACK_RUNTIME_LANGUAGES = [
   { code: 'it', displayName: 'Italian', nativeName: 'Italiano', fallbackLanguageCode: 'en' },
   { code: 'nl', displayName: 'Dutch', nativeName: 'Nederlands', fallbackLanguageCode: 'en' },
   { code: 'pl', displayName: 'Polish', nativeName: 'Polski', fallbackLanguageCode: 'en' },
-  { code: 'ar', displayName: 'Arabic', nativeName: 'العربية', fallbackLanguageCode: 'en' },
   { code: 'zh', displayName: 'Chinese', nativeName: '中文', fallbackLanguageCode: 'en' },
 ];
 

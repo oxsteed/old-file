@@ -65,7 +65,9 @@ const ROUTE_BY_MODE = {
 const POST_SIGNUP_ROUTE_BY_MODE = {
   // Helpers must still pass identity verification before they can list/bid.
   helper:                   '/verify-identity',
-  business_owner:           '/consulting-intake',
+  // Business owners need to set up a business — route to their portfolio
+  // dashboard where the "Create your first business" CTA is visible.
+  business_owner:           '/dashboard',
   consultant:               '/consulting/portal',
   tool_owner:               '/profile/tool-rentals',
   franchise_applicant:      '/franchise/status',

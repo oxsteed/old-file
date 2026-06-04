@@ -128,6 +128,7 @@ function StatusBadge({ status }) {
 }
 
 function ProgressBar({ status, compact = false }) {
+  const { t } = useTranslation();
   const pct = STATUS_PROGRESS[status] ?? 0;
   return (
     <div style={{ marginTop: compact ? '0.45rem' : '0.75rem' }}>
@@ -136,7 +137,10 @@ function ProgressBar({ status, compact = false }) {
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={`Progress: ${pct}%`}
+        aria-label={t('businessLaunchStatus.progressAria', {
+          defaultValue: 'Progress: {{progress}}%',
+          progress: pct,
+        })}
         style={{
           width: '100%',
           height: compact ? '7px' : '9px',
@@ -350,7 +354,14 @@ function RequestCard({ request, onClick, featured = false }) {
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', color: 'var(--muted-text)', fontSize: '0.82rem' }}>
           <span>{t('businessLaunchStatus.submitted', { defaultValue: 'Submitted' })} {fmtDate(request.created_at)}</span>
           {request.current_phase ? <span>{t('businessLaunchStatus.currentPhase', { defaultValue: 'Current Phase' })}: {request.current_phase} / 25</span> : null}
-          {request.urgency ? <span>{URGENCY_DISPLAY[request.urgency] || request.urgency}</span> : null}
+          {request.urgency ? (
+            <span>
+              {t(
+                `businessLaunchStatus.${URGENCY_DISPLAY[request.urgency] || `urgency_${request.urgency}`}`,
+                { defaultValue: request.urgency },
+              )}
+            </span>
+          ) : null}
         </div>
 
         <div style={{ color: '#A5B4FC', fontSize: '0.84rem', fontWeight: 700 }}>
@@ -385,6 +396,12 @@ function DetailModal({ request, onClose }) {
   const { t } = useTranslation();
   const items = safeItems(request.setup_items_selected);
   const summary = t(`businessLaunchStatus.${STATUS_COPY[request.status] || 'desc_pending'}`, { defaultValue: '' });
+  const packageName = t(
+    `businessLaunchStatus.${PACKAGE_DISPLAY[request.package_selected] || 'selectedPackage'}`,
+    {
+      defaultValue: request.package_selected,
+    },
+  );
 
   useEffect(() => {
     const handler = (event) => {
@@ -630,7 +647,7 @@ function DetailModal({ request, onClose }) {
                     fontSize: '0.88rem',
                   }}
                 >
-                  Open consulting workspace <ArrowRight size={14} />
+                  {t('businessLaunchStatus.openConsultingWorkspace', { defaultValue: 'Open consulting workspace' })} <ArrowRight size={14} />
                 </Link>
                 <Link
                   to="/consulting-intake"
@@ -643,7 +660,7 @@ function DetailModal({ request, onClose }) {
                     fontSize: '0.88rem',
                   }}
                 >
-                  Start another intake <ArrowRight size={14} />
+                  {t('businessLaunchStatus.submitNewIntake', { defaultValue: 'Submit a new intake form' })} <ArrowRight size={14} />
                 </Link>
               </div>
             </section>
@@ -692,12 +709,12 @@ export default function BusinessLaunchStatusPage() {
       const { data } = await api.get('/consulting/business-launch/my-requests');
       setRequests(Array.isArray(data) ? data : []);
     } catch (e) {
-      setError(e.response?.data?.error || e.message || 'Failed to load');
+      setError(e.response?.data?.error || e.message || t('businessLaunchStatus.loadError', { defaultValue: 'Failed to load launch requests.' }));
       setRequests([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadMine();

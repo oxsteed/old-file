@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import { formatCents } from '../../lib/format';
 
 const FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'annually'];
 const STATUS_COLORS = {
@@ -11,7 +12,7 @@ const STATUS_COLORS = {
 };
 
 function fmtCents(cents, currency = 'USD') {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format((cents || 0) / 100);
+  return formatCents(cents, { currency });
 }
 
 function toMonthlyCents(cents, frequency) {
