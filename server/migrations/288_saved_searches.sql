@@ -1,7 +1,7 @@
 -- Saved searches / job alerts for helpers
 CREATE TABLE IF NOT EXISTS saved_searches (
   id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id       INTEGER     NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id       UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name          TEXT        NOT NULL,
   -- Filter fields (all nullable — only set fields are matched)
   keyword       TEXT,

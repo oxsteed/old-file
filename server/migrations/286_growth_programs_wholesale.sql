@@ -47,7 +47,7 @@ CREATE INDEX IF NOT EXISTS idx_wholesale_listings_active
 
 -- ── Wholesale joins (one row per user per listing, drives joined_count) ──────
 CREATE TABLE IF NOT EXISTS wholesale_joins (
-  user_id    INT         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   listing_id INT         NOT NULL REFERENCES wholesale_listings(id) ON DELETE CASCADE,
   joined_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, listing_id)

@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS helper_quotes (
   id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   job_id          UUID        NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
-  helper_id       INTEGER     NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  helper_id       UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   line_items      JSONB       NOT NULL DEFAULT '[]',
   tax_rate        NUMERIC(6,5) NOT NULL DEFAULT 0,
   subtotal_cents  INTEGER     NOT NULL DEFAULT 0,
