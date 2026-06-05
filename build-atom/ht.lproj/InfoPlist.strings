@@ -1,0 +1,8 @@
+"NSCameraUsageDescription" = "OxSteed itilize kamera ou pou pran foto travay.";
+"NSFaceIDUsageDescription" = "OxSteed itilize Face ID / Touch ID pou pwoteje kont ou.";
+"NSLocationWhenInUseUsageDescription" = "OxSteed itilize kote ou ye a pou montre travay ak èd ki toupre.";
+"NSMicrophoneUsageDescription" = "OxSteed itilize mikwofòn ou pou ou ka dikte tèks pou travay ak mesaj.";
+"NSPhotoLibraryUsageDescription" = "OxSteed itilize bibliyotèk foto ou pou tache imaj ak travay ak mesaj.";
+"NSSiriUsageDescription" = "OxSteed itilize Siri pou ou ka pibliye travay, tcheke Pulse ou, epi voye mesaj bay èd yo ak vwa ou.";
+"NSSpeechRecognitionUsageDescription" = "OxSteed itilize rekonesans lapawòl pou vire vwa ou an tèks pou travay ak mesaj.";
+"NSTranslationUsageDescription" = "OxSteed itilize Tradiksyon pou ede kliyan ak èd yo kominike ant lang yo.";

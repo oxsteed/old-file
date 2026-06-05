@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OxSteed · Learn Product Links Admin</title>
+<style>
+  :root {
+    --bg: #0f0f11;
+    --surface: #18181b;
+    --surface2: #222226;
+    --border: #2d2d32;
+    --accent: #f97316;
+    --accent-dim: rgba(249,115,22,.15);
+    --text: #f4f4f5;
+    --text2: #a1a1aa;
+    --text3: #71717a;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #eab308;
+    --blue: #3b82f6;
+    --radius: 10px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; min-height: 100vh; }
+
+  /* Layout */
+  .shell { display: flex; flex-direction: column; min-height: 100vh; }
+  header { display: flex; align-items: center; gap: 12px; padding: 0 24px; height: 56px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+  .logo { font-weight: 800; font-size: 16px; color: var(--accent); letter-spacing: -.5px; }
+  .logo span { color: var(--text); }
+  header h1 { font-size: 14px; font-weight: 500; color: var(--text2); }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+
+  main { flex: 1; padding: 24px; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+  /* Compliance banner */
+  .compliance-banner {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text2);
+  }
+  .compliance-banner strong { color: var(--text); }
+  .compliance-banner ul { margin: 6px 0 0 16px; }
+  .compliance-banner li { margin-bottom: 3px; }
+
+  /* Toolbar */
+  .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .toolbar-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+  input[type=search], select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 7px 12px;
+    font-size: 13px;
+    outline: none;
+  }
+  input[type=search] { min-width: 220px; }
+  input[type=search]:focus, select:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: none; transition: opacity .15s;
+  }
+  .btn:hover { opacity: .85; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-ghost { background: var(--surface); border: 1px solid var(--border); color: var(--text2); }
+  .btn-danger { background: transparent; border: 1px solid var(--red); color: var(--red); padding: 4px 10px; font-size: 12px; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+  /* Table */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left; padding: 10px 14px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--text3); background: var(--surface2); border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  td { padding: 10px 14px; vertical-align: middle; }
+  .tool-name { font-weight: 600; color: var(--text); }
+  .guide-scope { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .url-cell { max-width: 280px; }
+  .url-text { font-size: 12px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; display: block; }
+
+  /* Badges */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 100px; font-size: 11px; font-weight: 600;
+  }
+  .badge-amazon   { background: #1a1a0f; color: #f59e0b; border: 1px solid #f59e0b44; }
+  .badge-own      { background: #0f1a14; color: var(--green); border: 1px solid #22c55e44; }
+  .badge-partner  { background: #0f1120; color: var(--blue); border: 1px solid #3b82f644; }
+  .badge-rental   { background: #1a0f1a; color: #a855f7; border: 1px solid #a855f744; }
+  .badge-active   { background: #0f1a14; color: var(--green); border: 1px solid #22c55e44; }
+  .badge-inactive { background: #1a0f0f; color: var(--red); border: 1px solid #ef444444; }
+
+  .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+  .dot-green  { background: var(--green); }
+  .dot-red    { background: var(--red); }
+  .dot-yellow { background: var(--yellow); }
+
+  /* Actions */
+  .actions { display: flex; gap: 6px; }
+
+  /* Modal */
+  .overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.7); z-index: 100;
+    align-items: center; justify-content: center;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 28px; width: 100%; max-width: 560px;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .modal h2 { font-size: 16px; font-weight: 700; margin-bottom: 20px; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+  .field label .req { color: var(--accent); }
+  .field input[type=text], .field input[type=url], .field select, .field textarea {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); padding: 9px 12px; font-size: 13px; outline: none;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+  .field textarea { resize: vertical; min-height: 64px; }
+  .field .hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .toggle-row { display: flex; align-items: center; gap: 10px; }
+  .toggle { width: 36px; height: 20px; background: var(--border); border-radius: 100px; position: relative; cursor: pointer; transition: background .2s; flex-shrink: 0; }
+  .toggle.on { background: var(--accent); }
+  .toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; background: white; border-radius: 50%; transition: transform .2s; }
+  .toggle.on::after { transform: translateX(16px); }
+
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+
+  /* Compliance tag */
+  .compliance-tag { font-size: 11px; color: var(--text3); display: flex; align-items: center; gap: 5px; }
+  .compliance-tag.ok { color: var(--green); }
+  .compliance-tag.warn { color: var(--yellow); }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 48px 24px; color: var(--text3); }
+  .empty svg { margin-bottom: 12px; opacity: .3; }
+
+  /* Stats row */
+  .stats { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; flex: 1; min-width: 140px; }
+  .stat-card .val { font-size: 24px; font-weight: 800; margin-bottom: 2px; }
+  .stat-card .lbl { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; }
+
+  /* API spec section */
+  .api-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-top: 28px; }
+  .api-section h3 { font-size: 14px; font-weight: 700; margin-bottom: 14px; color: var(--text2); }
+  .endpoint { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
+  .endpoint-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .method { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
+  .method-get    { background: #0f1a14; color: var(--green); }
+  .method-post   { background: #0f1120; color: var(--blue); }
+  .method-put    { background: #1a1a0f; color: var(--yellow); }
+  .method-delete { background: #1a0f0f; color: var(--red); }
+  .endpoint-path { font-family: monospace; font-size: 13px; color: var(--text); }
+  .endpoint-desc { font-size: 12px; color: var(--text3); }
+  pre { background: #0a0a0c; border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-size: 12px; color: var(--text2); overflow-x: auto; margin-top: 10px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<header>
+  <div class="logo">Ox<span>Steed</span></div>
+  <h1>Learn · Product Link Manager</h1>
+  <div class="header-right">
+    <span class="compliance-tag ok">
+      <span class="dot dot-green"></span>
+      Amazon Associates Compliant
+    </span>
+    <a href="#api-spec" class="btn btn-ghost btn-sm">API Spec</a>
+  </div>
+</header>
+
+<main>
+
+  <!-- Compliance banner -->
+  <div class="compliance-banner">
+    <strong>Amazon Associates Compliance (updated April 14 2026):</strong>
+    <ul>
+      <li><strong>No link cloaking or redirects</strong> — Amazon affiliate URLs must be direct <code>amazon.com</code> links. No <code>/go/</code> style redirects or URL shorteners.</li>
+      <li><strong>Affiliate tag</strong> — always append <code>&amp;tag=oxsteed-20</code> to every Amazon buy URL.</li>
+      <li><strong>Disclosure</strong> — the app automatically shows "(paid link)" next to each affiliate link and "As an Amazon Associate, OxSteed earns from qualifying purchases." in every guide view. Do not remove these from the app code.</li>
+      <li><strong>Own inventory</strong> — set <code>link_type = own_inventory</code> for OxSteed-stocked items. No disclosure required; the app renders "Shop OxSteed" instead of "Buy".</li>
+      <li><strong>Register new platforms</strong> — update your Amazon Associates account whenever OxSteed launches a new platform (website, new app, etc.).</li>
+    </ul>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats" id="stats-row">
+    <div class="stat-card"><div class="val" id="stat-total">0</div><div class="lbl">Total Links</div></div>
+    <div class="stat-card"><div class="val" id="stat-active" style="color:var(--green)">0</div><div class="lbl">Active</div></div>
+    <div class="stat-card"><div class="val" id="stat-amazon" style="color:#f59e0b">0</div><div class="lbl">Amazon Affiliate</div></div>
+    <div class="stat-card"><div class="val" id="stat-own" style="color:var(--green)">0</div><div class="lbl">Own Inventory</div></div>
+    <div class="stat-card"><div class="val" id="stat-inactive" style="color:var(--red)">0</div><div class="lbl">Inactive</div></div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <input type="search" id="search" placeholder="Search tool name or guide…" oninput="renderTable()" />
+      <select id="filter-type" onchange="renderTable()">
+        <option value="">All types</option>
+        <option value="amazon_affiliate">Amazon Affiliate</option>
+        <option value="own_inventory">Own Inventory</option>
+        <option value="partner">Partner</option>
+        <option value="rental">Rental</option>
+      </select>
+      <select id="filter-status" onchange="renderTable()">
+        <option value="">All statuses</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="openModal()">+ Add Product Link</button>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Tool Name</th>
+          <th>Type</th>
+          <th>Buy URL</th>
+          <th>Rent URL</th>
+          <th>Affiliate Tag</th>
+          <th>Status</th>
+          <th>Compliant</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+
+  <!-- API Spec -->
+  <div class="api-section" id="api-spec">
+    <h3>Backend API Reference · <code>/api/learn/product-links</code></h3>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/learn/product-links</span>
+      </div>
+      <div class="endpoint-desc">Fetched by the iOS app on every refresh. Returns all active overrides. No auth required.</div>
+      <pre>{
+  "products": [
+    {
+      "id": "uuid",
+      "guide_id": "fix-leaky-faucet",    // null = applies to ALL guides with matching tool_name
+      "tool_name": "Adjustable wrench",
+      "link_type": "amazon_affiliate",    // amazon_affiliate | own_inventory | partner | rental
+      "buy_url": "https://www.amazon.com/s?k=adjustable+wrench&tag=oxsteed-20",
+      "rent_url": "/tool-rentals?category=hand-tools",
+      "affiliate_tag": "oxsteed-20",
+      "is_active": true
+    }
+  ]
+}</pre>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/admin/learn/product-links</span>
+      </div>
+      <div class="endpoint-desc">Admin — returns all links (active + inactive). Requires admin auth.</div>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-post">POST</span>
+        <span class="endpoint-path">/api/admin/learn/product-links</span>
+      </div>
+      <div class="endpoint-desc">Create a new product link override.</div>
+      <pre>{
+  "guide_id":      "fix-leaky-faucet",   // optional — omit for global scope
+  "tool_name":     "Adjustable wrench",  // must match catalog tool name (case-insensitive)
+  "link_type":     "amazon_affiliate",
+  "buy_url":       "https://www.amazon.com/s?k=adjustable+wrench&tag=oxsteed-20",
+  "rent_url":      "/tool-rentals?category=hand-tools",
+  "affiliate_tag": "oxsteed-20",
+  "is_active":     true
+}</pre>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-put">PUT</span>
+        <span class="endpoint-path">/api/admin/learn/product-links/:id</span>
+      </div>
+      <div class="endpoint-desc">Update any field. Partial updates supported.</div>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-delete">DELETE</span>
+        <span class="endpoint-path">/api/admin/learn/product-links/:id</span>
+      </div>
+      <div class="endpoint-desc">Soft-delete (sets <code>is_active = false</code>). Hard-delete with <code>?permanent=true</code>.</div>
+    </div>
+
+    <pre style="margin-top:16px">-- Suggested Postgres schema
+CREATE TABLE learn_product_links (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  guide_id     TEXT,          -- NULL = global scope
+  tool_name    TEXT NOT NULL,
+  link_type    TEXT NOT NULL CHECK (link_type IN ('amazon_affiliate','own_inventory','partner','rental')),
+  buy_url      TEXT,
+  rent_url     TEXT,
+  affiliate_tag TEXT,         -- e.g. 'oxsteed-20'
+  is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at   TIMESTAMPTZ DEFAULT now(),
+  updated_at   TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX ON learn_product_links (tool_name);
+CREATE INDEX ON learn_product_links (guide_id) WHERE guide_id IS NOT NULL;</pre>
+  </div>
+
+</main>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="overlay" id="modal-overlay" onclick="closeModalOnBackdrop(event)">
+  <div class="modal">
+    <h2 id="modal-title">Add Product Link</h2>
+
+    <div class="field">
+      <label>Tool Name <span class="req">*</span></label>
+      <input type="text" id="f-tool-name" placeholder="e.g. Adjustable wrench" />
+      <div class="hint">Must match the tool name in the guide catalog (case-insensitive).</div>
+    </div>
+
+    <div class="field">
+      <label>Guide Scope</label>
+      <input type="text" id="f-guide-id" placeholder="Leave blank to apply to ALL guides" />
+      <div class="hint">e.g. <code>fix-leaky-faucet</code>. Blank = global override for this tool name.</div>
+    </div>
+
+    <div class="field">
+      <label>Link Type <span class="req">*</span></label>
+      <select id="f-link-type" onchange="onLinkTypeChange()">
+        <option value="amazon_affiliate">Amazon Affiliate</option>
+        <option value="own_inventory">Own Inventory (OxSteed Store)</option>
+        <option value="partner">Partner (other affiliate)</option>
+        <option value="rental">Rental</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Buy URL</label>
+      <input type="url" id="f-buy-url" placeholder="https://www.amazon.com/s?k=...&tag=oxsteed-20" oninput="validateForm()" />
+      <div class="hint" id="buy-url-hint">For Amazon links: must be a direct <code>amazon.com</code> URL with <code>&amp;tag=oxsteed-20</code>. No redirects.</div>
+    </div>
+
+    <div class="field">
+      <label>Rent URL</label>
+      <input type="text" id="f-rent-url" placeholder="/tool-rentals?category=hand-tools" />
+      <div class="hint">Internal OxSteed path (no host). Leave blank if not rentable.</div>
+    </div>
+
+    <div class="field" id="affiliate-tag-field">
+      <label>Affiliate Tag</label>
+      <input type="text" id="f-affiliate-tag" value="oxsteed-20" placeholder="oxsteed-20" />
+      <div class="hint">Amazon Associates tag. Default: <code>oxsteed-20</code>.</div>
+    </div>
+
+    <div class="field">
+      <div class="toggle-row">
+        <div class="toggle on" id="f-active-toggle" onclick="toggleActive()"></div>
+        <span>Active (visible to app users)</span>
+      </div>
+    </div>
+
+    <!-- Compliance check -->
+    <div id="compliance-check" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:4px;font-size:12px;display:none;">
+      <div style="font-weight:600;margin-bottom:8px;color:var(--text2);">Compliance Check</div>
+      <div id="comp-tag-check" class="compliance-tag" style="margin-bottom:5px;"></div>
+      <div id="comp-redirect-check" class="compliance-tag" style="margin-bottom:5px;"></div>
+      <div id="comp-disclosure-check" class="compliance-tag"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="save-btn" onclick="saveLink()">Save Link</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Data Store ──────────────────────────────────────────────────────────────
+// In production this talks to /api/admin/learn/product-links.
+// Here it uses localStorage so the panel is self-contained for demos.
+
+const STORAGE_KEY = 'oxsteed_product_links_v1';
+
+function loadLinks() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+}
+function saveLinks(links) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(links));
+}
+
+let links = loadLinks();
+
+// Seed with a few example entries on first load
+if (links.length === 0) {
+  links = [
+    { id: uid(), guide_id: null, tool_name: 'Adjustable wrench', link_type: 'amazon_affiliate', buy_url: 'https://www.amazon.com/s?k=adjustable+wrench&tag=oxsteed-20', rent_url: '/tool-rentals?category=hand-tools', affiliate_tag: 'oxsteed-20', is_active: true },
+    { id: uid(), guide_id: 'fix-leaky-faucet', tool_name: 'Faucet repair kit (washers + O-rings)', link_type: 'amazon_affiliate', buy_url: 'https://www.amazon.com/s?k=faucet+repair+kit&tag=oxsteed-20', rent_url: null, affiliate_tag: 'oxsteed-20', is_active: true },
+    { id: uid(), guide_id: null, tool_name: 'Drain snake or zip-it tool', link_type: 'amazon_affiliate', buy_url: 'https://www.amazon.com/s?k=drain+snake&tag=oxsteed-20', rent_url: null, affiliate_tag: 'oxsteed-20', is_active: true },
+    { id: uid(), guide_id: null, tool_name: 'OxSteed Pro Wrench Set', link_type: 'own_inventory', buy_url: 'https://shop.oxsteed.com/products/pro-wrench-set', rent_url: null, affiliate_tag: null, is_active: false },
+  ];
+  saveLinks(links);
+}
+
+function uid() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random()*16|0, v = c==='x'?r:(r&0x3|0x8);
+    return v.toString(16);
+  });
+}
+
+// ─── Compliance helpers ───────────────────────────────────────────────────────
+function isCompliant(link) {
+  if (link.link_type === 'own_inventory' || link.link_type === 'rental') return true;
+  if (!link.buy_url) return true; // no buy URL, N/A
+  const url = link.buy_url;
+  const hasTag = url.includes('tag=oxsteed-20') || url.includes('tag=' + (link.affiliate_tag || ''));
+  const isDirect = url.includes('amazon.com') && !url.includes('/go/') && !url.includes('amzn.to');
+  return hasTag && isDirect;
+}
+
+// ─── Stats ───────────────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('stat-total').textContent   = links.length;
+  document.getElementById('stat-active').textContent  = links.filter(l => l.is_active).length;
+  document.getElementById('stat-amazon').textContent  = links.filter(l => l.link_type === 'amazon_affiliate').length;
+  document.getElementById('stat-own').textContent     = links.filter(l => l.link_type === 'own_inventory').length;
+  document.getElementById('stat-inactive').textContent = links.filter(l => !l.is_active).length;
+}
+
+// ─── Table rendering ─────────────────────────────────────────────────────────
+const TYPE_BADGE = {
+  amazon_affiliate: '<span class="badge badge-amazon">Amazon Affiliate</span>',
+  own_inventory:    '<span class="badge badge-own">Own Inventory</span>',
+  partner:          '<span class="badge badge-partner">Partner</span>',
+  rental:           '<span class="badge badge-rental">Rental</span>',
+};
+
+function renderTable() {
+  const q   = document.getElementById('search').value.toLowerCase();
+  const typ = document.getElementById('filter-type').value;
+  const sts = document.getElementById('filter-status').value;
+
+  const filtered = links.filter(l => {
+    const matchQ = !q || l.tool_name.toLowerCase().includes(q) || (l.guide_id||'').toLowerCase().includes(q);
+    const matchT = !typ || l.link_type === typ;
+    const matchS = !sts || (sts === 'active' ? l.is_active : !l.is_active);
+    return matchQ && matchT && matchS;
+  });
+
+  const tbody = document.getElementById('table-body');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty">No product links found.</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(l => {
+    const comp = isCompliant(l);
+    const compIcon = comp
+      ? `<span class="compliance-tag ok"><span class="dot dot-green"></span> OK</span>`
+      : `<span class="compliance-tag warn"><span class="dot dot-yellow"></span> Check URL</span>`;
+    const statusBadge = l.is_active
+      ? `<span class="badge badge-active"><span class="dot dot-green"></span> Active</span>`
+      : `<span class="badge badge-inactive"><span class="dot dot-red"></span> Inactive</span>`;
+
+    return `<tr>
+      <td>
+        <div class="tool-name">${esc(l.tool_name)}</div>
+        <div class="guide-scope">${l.guide_id ? 'Guide: ' + esc(l.guide_id) : 'Global (all guides)'}</div>
+      </td>
+      <td>${TYPE_BADGE[l.link_type] || l.link_type}</td>
+      <td class="url-cell">${l.buy_url ? `<span class="url-text" title="${esc(l.buy_url)}">${esc(l.buy_url)}</span>` : '<span style="color:var(--text3)">—</span>'}</td>
+      <td class="url-cell">${l.rent_url ? `<span class="url-text" title="${esc(l.rent_url)}">${esc(l.rent_url)}</span>` : '<span style="color:var(--text3)">—</span>'}</td>
+      <td><code style="font-size:11px;color:var(--text3)">${esc(l.affiliate_tag || '—')}</code></td>
+      <td>${statusBadge}</td>
+      <td>${compIcon}</td>
+      <td>
+        <div class="actions">
+          <button class="btn btn-ghost btn-sm" onclick="editLink('${l.id}')">Edit</button>
+          <button class="btn btn-danger" onclick="deleteLink('${l.id}')">Delete</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  updateStats();
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Modal logic ──────────────────────────────────────────────────────────────
+let editingId = null;
+let activeState = true;
+
+function openModal(id = null) {
+  editingId = id;
+  activeState = true;
+  document.getElementById('modal-title').textContent = id ? 'Edit Product Link' : 'Add Product Link';
+
+  if (id) {
+    const l = links.find(x => x.id === id);
+    if (!l) return;
+    document.getElementById('f-tool-name').value   = l.tool_name;
+    document.getElementById('f-guide-id').value    = l.guide_id || '';
+    document.getElementById('f-link-type').value   = l.link_type;
+    document.getElementById('f-buy-url').value     = l.buy_url || '';
+    document.getElementById('f-rent-url').value    = l.rent_url || '';
+    document.getElementById('f-affiliate-tag').value = l.affiliate_tag || 'oxsteed-20';
+    activeState = l.is_active;
+  } else {
+    document.getElementById('f-tool-name').value   = '';
+    document.getElementById('f-guide-id').value    = '';
+    document.getElementById('f-link-type').value   = 'amazon_affiliate';
+    document.getElementById('f-buy-url').value     = '';
+    document.getElementById('f-rent-url').value    = '';
+    document.getElementById('f-affiliate-tag').value = 'oxsteed-20';
+    activeState = true;
+  }
+
+  const tog = document.getElementById('f-active-toggle');
+  tog.classList.toggle('on', activeState);
+  onLinkTypeChange();
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  editingId = null;
+}
+
+function closeModalOnBackdrop(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+}
+
+function toggleActive() {
+  activeState = !activeState;
+  document.getElementById('f-active-toggle').classList.toggle('on', activeState);
+}
+
+function onLinkTypeChange() {
+  const type = document.getElementById('f-link-type').value;
+  const tagField = document.getElementById('affiliate-tag-field');
+  const hint = document.getElementById('buy-url-hint');
+
+  tagField.style.display = (type === 'amazon_affiliate' || type === 'partner') ? '' : 'none';
+
+  if (type === 'amazon_affiliate') {
+    hint.innerHTML = 'Must be a direct <code>amazon.com</code> URL. Append <code>&amp;tag=oxsteed-20</code>. No redirects or URL shorteners.';
+  } else if (type === 'own_inventory') {
+    hint.innerHTML = 'Link to the OxSteed store page. App shows "Shop OxSteed" button. No affiliate disclosure shown.';
+  } else if (type === 'partner') {
+    hint.innerHTML = 'Third-party affiliate link. App shows "(paid link)" disclosure.';
+  } else {
+    hint.innerHTML = 'Internal OxSteed rental path.';
+  }
+  validateForm();
+}
+
+function validateForm() {
+  const type = document.getElementById('f-link-type').value;
+  const buyUrl = document.getElementById('f-buy-url').value.trim();
+  const tag = document.getElementById('f-affiliate-tag').value.trim();
+  const compDiv = document.getElementById('compliance-check');
+
+  if (type === 'amazon_affiliate' && buyUrl) {
+    compDiv.style.display = '';
+    const hasTag = buyUrl.includes('tag=' + tag) || buyUrl.includes('tag=oxsteed-20');
+    const isDirect = buyUrl.startsWith('https://www.amazon.com') || buyUrl.startsWith('https://amazon.com');
+    const noShortener = !buyUrl.includes('amzn.to') && !buyUrl.includes('/go/');
+
+    document.getElementById('comp-tag-check').className = 'compliance-tag ' + (hasTag ? 'ok' : 'warn');
+    document.getElementById('comp-tag-check').innerHTML = (hasTag ? '✓' : '⚠') + ' Affiliate tag ' + (hasTag ? 'present' : 'MISSING — append &tag=' + (tag || 'oxsteed-20'));
+
+    document.getElementById('comp-redirect-check').className = 'compliance-tag ' + (isDirect && noShortener ? 'ok' : 'warn');
+    document.getElementById('comp-redirect-check').innerHTML = (isDirect && noShortener ? '✓' : '⚠') + ' ' + (isDirect && noShortener ? 'Direct amazon.com URL' : 'URL must go directly to amazon.com — no redirects or shorteners');
+
+    document.getElementById('comp-disclosure-check').className = 'compliance-tag ok';
+    document.getElementById('comp-disclosure-check').innerHTML = '✓ App auto-shows "(paid link)" and Associates disclosure';
+  } else {
+    compDiv.style.display = 'none';
+  }
+}
+
+function saveLink() {
+  const toolName = document.getElementById('f-tool-name').value.trim();
+  if (!toolName) { alert('Tool name is required.'); return; }
+
+  const linkType = document.getElementById('f-link-type').value;
+  const buyUrl   = document.getElementById('f-buy-url').value.trim() || null;
+
+  // Enforce no-cloaking for Amazon links
+  if (linkType === 'amazon_affiliate' && buyUrl) {
+    if (!buyUrl.startsWith('https://www.amazon.com') && !buyUrl.startsWith('https://amazon.com')) {
+      alert('Amazon affiliate links must go directly to amazon.com. No redirects, /go/ paths, or URL shorteners allowed per Amazon Associates policy.');
+      return;
+    }
+    const tag = document.getElementById('f-affiliate-tag').value.trim() || 'oxsteed-20';
+    if (!buyUrl.includes('tag=')) {
+      alert('Amazon affiliate link is missing the affiliate tag (&tag=' + tag + '). Add it to the URL.');
+      return;
+    }
+  }
+
+  const entry = {
+    id: editingId || uid(),
+    guide_id:      document.getElementById('f-guide-id').value.trim() || null,
+    tool_name:     toolName,
+    link_type:     linkType,
+    buy_url:       buyUrl,
+    rent_url:      document.getElementById('f-rent-url').value.trim() || null,
+    affiliate_tag: (linkType === 'amazon_affiliate' || linkType === 'partner')
+                     ? (document.getElementById('f-affiliate-tag').value.trim() || 'oxsteed-20')
+                     : null,
+    is_active: activeState,
+  };
+
+  if (editingId) {
+    const idx = links.findIndex(l => l.id === editingId);
+    if (idx >= 0) links[idx] = entry;
+  } else {
+    links.unshift(entry);
+  }
+
+  saveLinks(links);
+  closeModal();
+  renderTable();
+}
+
+function editLink(id) { openModal(id); }
+
+function deleteLink(id) {
+  if (!confirm('Delete this product link? The app will fall back to the hardcoded catalog entry.')) return;
+  links = links.filter(l => l.id !== id);
+  saveLinks(links);
+  renderTable();
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+renderTable();
+updateStats();
+</script>
+</body>
+</html>

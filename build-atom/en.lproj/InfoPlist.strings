@@ -1,0 +1,8 @@
+"NSCameraUsageDescription" = "OxSteed uses your camera to capture job photos.";
+"NSFaceIDUsageDescription" = "OxSteed uses Face ID / Touch ID to protect your account.";
+"NSLocationWhenInUseUsageDescription" = "OxSteed uses your location to show nearby jobs and helpers.";
+"NSMicrophoneUsageDescription" = "OxSteed uses your microphone to let you dictate text for jobs and messages.";
+"NSPhotoLibraryUsageDescription" = "OxSteed uses your photo library to attach images to jobs and messages.";
+"NSSiriUsageDescription" = "OxSteed uses Siri so you can post jobs, check your Pulse, and message helpers with your voice.";
+"NSSpeechRecognitionUsageDescription" = "OxSteed uses speech recognition to turn your voice into text for jobs and messages.";
+"NSTranslationUsageDescription" = "OxSteed uses Translation to help customers and helpers communicate across languages.";

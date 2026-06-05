@@ -1,13 +1,56 @@
+# Node / web
 node_modules/
-.env
-.env.local
-.DS_Store
-*.log
+npm-debug.log
+yarn-error.log
+yarn.lock
+package-lock.json
+
+# Expo
+.expo/
+.expo-shared/
 dist/
-build/
+web-build/
+
+# Coverage / runtime
 coverage/
 .nyc_output/
 *.pid
 *.seed
 *.pid.lock
+
+# Xcode
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcodeproj/project.xcworkspace/
+*.xcworkspace/*
+!*.xcworkspace/contents.xcworkspacedata
+!*.xcworkspace/xcshareddata/
+DerivedData/
+build/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+xcuserdata/
+
+# macOS / editors
+.DS_Store
+.fuse_hidden*
+*.swp
+*.swo
+*~.nib
+
+# Local tools
 .claude/
+.codex_tmp/
+.xcodebuildmcp/
+
+# Secrets / generated
+*.log
+.env
+.env.local
+*.docx
+pngout.png
+swiftui_localized_test
+submission/reports/
