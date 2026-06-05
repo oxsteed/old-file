@@ -1,4 +1,34 @@
 const pool = require('../db');
+const { tNotif } = require('../utils/i18n');
+
+// Maps alert_type to the i18n notification key.
+const ALERT_TYPE_TO_I18N_KEY = {
+  no_recent_reviews: 'health_alert_no_recent_reviews',
+  low_rating:        'health_alert_low_rating',
+  overdue_invoices:  'health_alert_overdue_invoices',
+};
+
+// Returns the requesting user's preferred language (falls back to 'en').
+async function getUserLang(userId) {
+  if (!userId) return 'en';
+  try {
+    const { rows } = await pool.query(
+      'SELECT preferred_language FROM users WHERE id = $1',
+      [userId]
+    );
+    return rows[0]?.preferred_language || 'en';
+  } catch {
+    return 'en';
+  }
+}
+
+// Overlays localized title/message onto an alert row using its alert_type.
+function localizeAlert(alert, lang) {
+  const i18nKey = ALERT_TYPE_TO_I18N_KEY[alert.alert_type];
+  if (!i18nKey) return alert;
+  const { title, body } = tNotif(i18nKey, lang);
+  return { ...alert, title: title || alert.title, message: body || alert.message };
+}
 
 exports.listAlerts = async (req, res, next) => {
   const { businessId } = req.params;
@@ -10,7 +40,8 @@ exports.listAlerts = async (req, res, next) => {
       `SELECT * FROM business_health_alerts ${where} ORDER BY severity DESC, created_at DESC`,
       [businessId]
     );
-    res.json(rows.rows);
+    const lang = await getUserLang(req.user?.id);
+    res.json(rows.rows.map((a) => localizeAlert(a, lang)));
   } catch (err) { next(err); }
 };
 
@@ -36,6 +67,7 @@ exports.generateAlerts = async (req, res, next) => {
       [businessId]
     );
     if (parseInt(reviewCheck.rows[0].count) === 0) {
+      // Store canonical English — listAlerts will translate at read time.
       alerts.push({ alert_type: 'no_recent_reviews', severity: 'info', title: 'No recent reviews', message: 'You have not received any reviews in the past 30 days. Consider sending review requests to recent customers.' });
     }
 
@@ -57,7 +89,7 @@ exports.generateAlerts = async (req, res, next) => {
       alerts.push({ alert_type: 'overdue_invoices', severity: 'warning', title: 'Overdue invoices', message: `You have ${invoiceCheck.rows[0].count} overdue invoice(s). Follow up with customers to collect payment.` });
     }
 
-    // Upsert all alerts
+    // Upsert all alerts (canonical English stored; translations applied at read time)
     for (const a of alerts) {
       await pool.query(
         `INSERT INTO business_health_alerts (business_id, alert_type, severity, title, message)
@@ -71,6 +103,7 @@ exports.generateAlerts = async (req, res, next) => {
       'SELECT * FROM business_health_alerts WHERE business_id=$1 AND is_dismissed=FALSE ORDER BY severity DESC',
       [businessId]
     );
-    res.json(updated.rows);
+    const lang = await getUserLang(req.user?.id);
+    res.json(updated.rows.map((a) => localizeAlert(a, lang)));
   } catch (err) { next(err); }
 };

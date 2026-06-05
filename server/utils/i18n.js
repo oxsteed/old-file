@@ -367,6 +367,86 @@ const T = {
       ar: 'مرحبًا %{recipientName}،\n\nتم وضع علامة على موعدك كمكتمل.',
     },
   },
+  background_check_passed: {
+    title: {
+      en: 'Background check passed!',
+      fr: 'Vérification des antécédents réussie !',
+      es: '¡Verificación de antecedentes aprobada!',
+      ht: 'Verifikasyon background ou pase!',
+      ar: 'اجتزت فحص الخلفية!',
+    },
+    body: {
+      en: 'Your Verified badge is now live on your profile.',
+      fr: 'Votre badge Vérifié est désormais actif sur votre profil.',
+      es: 'Tu insignia Verificado ya está activa en tu perfil.',
+      ht: 'Badj Verifye ou aktif kounye a sou pwofil ou.',
+      ar: 'شارة "تم التحقق" نشطة الآن على ملفك الشخصي.',
+    },
+  },
+  background_check_failed: {
+    title: {
+      en: 'Background check update',
+      fr: 'Mise à jour de la vérification des antécédents',
+      es: 'Actualización de verificación de antecedentes',
+      ht: 'Mizajou verifikasyon background',
+      ar: 'تحديث فحص الخلفية',
+    },
+    body: {
+      en: 'Action required on your account. Please check your email.',
+      fr: 'Une action est requise sur votre compte. Veuillez vérifier votre e-mail.',
+      es: 'Se requiere acción en tu cuenta. Por favor revisa tu correo electrónico.',
+      ht: 'Aksyon obligatwa sou kont ou. Tanpri tcheke imèl ou.',
+      ar: 'مطلوب إجراء على حسابك. يرجى مراجعة بريدك الإلكتروني.',
+    },
+  },
+  health_alert_no_recent_reviews: {
+    title: {
+      en: 'No recent reviews',
+      fr: 'Aucun avis récent',
+      es: 'Sin reseñas recientes',
+      ht: 'Pa gen evalyasyon resan',
+      ar: 'لا توجد تقييمات حديثة',
+    },
+    body: {
+      en: 'You have not received any reviews in the past 30 days. Consider sending review requests to recent customers.',
+      fr: "Vous n'avez reçu aucun avis au cours des 30 derniers jours. Envisagez d'envoyer des demandes d'avis à vos clients récents.",
+      es: 'No has recibido ninguna reseña en los últimos 30 días. Considera enviar solicitudes de reseña a clientes recientes.',
+      ht: 'Ou pa resevwa okenn evalyasyon nan 30 dènye jou yo. Konsidere voye demann evalyasyon bay kliyan resan yo.',
+      ar: 'لم تتلقَّ أي تقييمات خلال الـ 30 يومًا الماضية. فكر في إرسال طلبات تقييم إلى عملائك الأخيرين.',
+    },
+  },
+  health_alert_low_rating: {
+    title: {
+      en: 'Low average rating',
+      fr: 'Note moyenne faible',
+      es: 'Calificación promedio baja',
+      ht: 'Nòt mwayen ba',
+      ar: 'متوسط تقييم منخفض',
+    },
+    body: {
+      en: 'Your average rating is below 3.5. Respond to reviews and improve service quality.',
+      fr: 'Votre note moyenne est inférieure à 3,5. Répondez aux avis et améliorez la qualité du service.',
+      es: 'Tu calificación promedio está por debajo de 3.5. Responde a las reseñas y mejora la calidad del servicio.',
+      ht: 'Nòt mwayen ou anba 3,5. Repon evalyasyon yo epi amelyore kalite sèvis la.',
+      ar: 'متوسط تقييمك أقل من 3.5. استجب للتقييمات وحسّن جودة الخدمة.',
+    },
+  },
+  health_alert_overdue_invoices: {
+    title: {
+      en: 'Overdue invoices',
+      fr: 'Factures en retard',
+      es: 'Facturas vencidas',
+      ht: 'Faktè an reta',
+      ar: 'فواتير متأخرة',
+    },
+    body: {
+      en: 'You have overdue invoice(s). Follow up with customers to collect payment.',
+      fr: 'Vous avez des factures en retard. Relancez vos clients pour percevoir le paiement.',
+      es: 'Tienes facturas vencidas. Haz un seguimiento con los clientes para cobrar.',
+      ht: 'Ou gen faktè ki an reta. Kontakte kliyan yo pou kolekte peman.',
+      ar: 'لديك فواتير متأخرة. تابع مع العملاء لتحصيل الدفع.',
+    },
+  },
 };
 
 const EMAIL_TEMPLATES = {

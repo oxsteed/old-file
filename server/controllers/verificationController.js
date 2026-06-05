@@ -6,6 +6,7 @@ const { sendPush } = require('../utils/pushNotification');
 const { sendEmail } = require('../utils/email');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
+const { tNotif } = require('../utils/i18n');
 
 const CHECKR_API = 'https://api.checkr.com/v1';
 
@@ -142,15 +143,27 @@ exports.checkrWebhook = async (req, res, next) => {
              ON CONFLICT DO NOTHING`, [userId]
           );
 
+          const { rows: langRows } = await db.query(
+            'SELECT preferred_language FROM users WHERE id = $1',
+            [userId]
+          );
+          const userLang = langRows[0]?.preferred_language || 'en';
+          const passedNotif = tNotif('background_check_passed', userLang);
           await sendPush(userId, {
-            title: 'Background check passed!',
-            body: 'Your Verified badge is now live on your profile.',
+            title: passedNotif.title,
+            body: passedNotif.body,
             link: '/dashboard/helper',
           });
         } else {
+          const { rows: langRows } = await db.query(
+            'SELECT preferred_language FROM users WHERE id = $1',
+            [userId]
+          );
+          const userLang = langRows[0]?.preferred_language || 'en';
+          const failedNotif = tNotif('background_check_failed', userLang);
           await sendPush(userId, {
-            title: 'Background check update',
-            body: 'Action required on your account. Please check your email.',
+            title: failedNotif.title,
+            body: failedNotif.body,
             link: '/settings',
           });
         }
