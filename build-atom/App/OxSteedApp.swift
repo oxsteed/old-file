@@ -91,6 +91,7 @@ struct OxSteedApp: App {
                         localization.language = language
                     }
                     personaStore.active = u.preferredPersona
+                    personaStore.hasExplicitPersona = true
                     if let token = KeychainManager.shared.getAccessToken() {
                         Task { @MainActor in socket.connect(token: token) }
                     }
@@ -109,6 +110,7 @@ struct OxSteedApp: App {
                 if personaStore.active != preferred {
                     personaStore.active = preferred
                 }
+                personaStore.hasExplicitPersona = true
             }
             .onChange(of: personaStore.active) { _, newPersona in
                 PersonaSuggestionsManager.donate(for: newPersona)

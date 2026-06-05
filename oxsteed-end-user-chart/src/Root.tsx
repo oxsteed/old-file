@@ -1,6 +1,6 @@
 import "./index.css";
 import { Composition } from "remotion";
-import { OxsteedEndUserChart } from "./Composition";
+import { OxsteedEndUserChart, OxsteedPromo } from "./Composition";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -12,6 +12,14 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1280}
         height={720}
+      />
+      <Composition
+        id="OxsteedPromo"
+        component={OxsteedPromo}
+        durationInFrames={270}
+        fps={30}
+        width={1080}
+        height={1920}
       />
     </>
   );

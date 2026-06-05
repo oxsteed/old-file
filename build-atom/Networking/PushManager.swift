@@ -63,6 +63,10 @@ extension Notification.Name {
     static let oxAPNsToken          = Notification.Name("ox.apns.token")
     /// Post with userInfo ["tab": "home"|"life"|"growth"|"learn"] to switch tabs app-wide.
     static let oxSwitchTab          = Notification.Name("ox.switch.tab")
+    /// Post with userInfo ["category": "car-care", "query": "oil"] to focus Learn from another tab.
+    static let oxOpenLearnCategory  = Notification.Name("ox.open.learn.category")
+    /// Post to open the Business Owner team/sub-role setup flow.
+    static let oxOpenBusinessRoleSetup = Notification.Name("ox.open.business_role_setup")
     /// Post to open the VerifyIdentity flow from anywhere (e.g. creator gate in Learn tab).
     static let oxOpenVerifyIdentity = Notification.Name("ox.open.verify_identity")
 }

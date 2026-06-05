@@ -3,6 +3,7 @@ import SwiftUI
 struct PersonaSwitcherSheet: View {
     @EnvironmentObject var personaStore: PersonaStore
     @EnvironmentObject var auth: AuthStore
+    @EnvironmentObject var localization: LocalizationManager
     @Environment(\.dismiss) private var dismiss
     @State private var switchingTo: Persona?
     @State private var error: String?
@@ -11,10 +12,10 @@ struct PersonaSwitcherSheet: View {
         ScrollView {
             VStack(spacing: 16) {
                 VStack(spacing: 6) {
-                    Text(L10n.PersonaKey.title)
+                    Text(localization.localized(L10n.PersonaKey.title))
                         .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(Theme.textPrimary)
-                    Text(L10n.PersonaKey.subtitle)
+                    Text(localization.localized(L10n.PersonaKey.subtitle))
                         .font(.system(size: 13))
                         .foregroundStyle(Theme.textSecondary)
                         .multilineTextAlignment(.center)
@@ -31,6 +32,31 @@ struct PersonaSwitcherSheet: View {
                         }
                         .buttonStyle(.plain)
                         .disabled(switchingTo != nil)
+                    }
+
+                    if personaStore.active == .business {
+                        VStack(alignment: .leading, spacing: 10) {
+                            BusinessSubPersonaPicker(
+                                selection: $personaStore.businessSubPersona,
+                                title: "Business Owner sub-role",
+                                subtitle: "Pick the role you work as inside the business. Home, Learn, Growth, and Life will adjust around it."
+                            )
+
+                            Button {
+                                dismiss()
+                            } label: {
+                                Text("Use \(personaStore.businessSubPersona.rawValue)")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(Theme.accent, in: RoundedRectangle(cornerRadius: 14))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(14)
+                        .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Theme.stroke, lineWidth: 1))
                     }
                 }
                 .padding(.horizontal, 20)
@@ -59,7 +85,7 @@ struct PersonaSwitcherSheet: View {
                 .frame(width: 44, height: 44)
                 .background(persona.color.opacity(0.16), in: RoundedRectangle(cornerRadius: 12))
             VStack(alignment: .leading, spacing: 3) {
-                Text(L10n.PersonaKey.name(for: persona))
+                Text(localization.localized(L10n.PersonaKey.name(for: persona)))
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(Theme.textPrimary)
                 Text(persona.tagline)
@@ -98,12 +124,23 @@ struct PersonaSwitcherSheet: View {
         error = nil
         switchingTo = persona
         personaStore.active = persona
+        personaStore.hasExplicitPersona = true
+        guard auth.user != nil else {
+            switchingTo = nil
+            if persona != .business {
+                dismiss()
+            }
+            return
+        }
         let succeeded = await auth.switchPersona(persona)
         switchingTo = nil
         if succeeded {
-            dismiss()
+            if persona != .business {
+                dismiss()
+            }
         } else {
             personaStore.active = previous
+            personaStore.hasExplicitPersona = true
             error = auth.lastError ?? "Could not switch workspace. Please try again."
         }
     }

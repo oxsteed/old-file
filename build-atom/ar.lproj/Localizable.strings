@@ -532,10 +532,10 @@
 "growth.seed.community_wholesale.cta" = "تصفح المجموعات";
 "growth.seed.community_wholesale.subtitle" = "انضم إلى مجموعات الشراء للوصول إلى أسعار الجملة للمواد والأدوات والمستلزمات.";
 "growth.seed.community_wholesale.title" = "الشراء الجماعي المجتمعي";
-"life.legend.needs_attention" = "Life Legend Needs Attention";
-"life.pending" = "Life Pending";
-"life.saved" = "Life Saved";
-"life.syncing" = "Life Syncing";
+"life.legend.needs_attention" = "يحتاج إلى انتباه";
+"life.pending" = "قيد الانتظار";
+"life.saved" = "محفوظ";
+"life.syncing" = "تتم المزامنة";
 "settings.app_lock" = "قفل التطبيق";
 "settings.app_lock.description" = "يتطلب Face ID او Touch ID لفتح التطبيق.";
 "settings.appearance.dark" = "داكن";

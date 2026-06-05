@@ -74,15 +74,7 @@ struct APIUser: Codable, Identifiable, Equatable {
 
     /// Map server role into local Persona enum.
     var preferredPersona: Persona {
-        switch (default_mode ?? role)?.lowercased() {
-        case "helper": return .helper
-        case "business_owner", "business": return .business
-        case "consultant": return .consultant
-        case "tool_owner": return .toolOwner
-        case "franchise_applicant", "franchise", "franchise_owner": return .franchise
-        case "investor": return .investor
-        default: return .customer
-        }
+        Persona(serverMode: default_mode ?? role)
     }
 }
 

@@ -53,6 +53,7 @@ enum PillarType: String, Hashable, CaseIterable {
 struct LifeTabView: View {
     @EnvironmentObject private var life: LifeStore
     @EnvironmentObject private var auth: AuthStore
+    @EnvironmentObject private var personaStore: PersonaStore
     @State private var showAuthSheet = false
     @State private var section: LifeSection = .home
     // Pulse AI insight
@@ -60,12 +61,42 @@ struct LifeTabView: View {
     @State private var isLoadingInsight = false
 
     var body: some View {
+        let activePersona = personaStore.active
         NavigationStack {
             ScrollView {
                 VStack(spacing: 18) {
                     LifeHeader()
 
+                    if auth.user == nil {
+                        GuestAuthPromptCard(
+                            title: "Save your Life Pulse",
+                            subtitle: "Sign in or create an account to keep your Pulse, urgency queue, goals, and funds across devices.",
+                            icon: "heart.text.square.fill",
+                            color: activePersona.color,
+                            action: { showAuthSheet = true }
+                        )
+                    }
+
                     LifePulseCard(pulse: life.pulse, summary: life.summary, isLoading: life.isLoading)
+
+                    PersonaLoopNudgeCard(
+                        nudge: activePersona.loopNudge(
+                            from: "life",
+                            businessRole: activePersona == .business ? personaStore.businessSubPersona : nil,
+                            calibrationIDs: personaStore.calibrationIDs(for: activePersona),
+                            setupSignalIDs: personaStore.setupSignalIDs(for: activePersona)
+                        )
+                    )
+
+                    if auth.user == nil {
+                        LifeGuestPulsePreviewCard(
+                            persona: activePersona,
+                            businessRole: activePersona == .business ? personaStore.businessSubPersona : nil,
+                            calibrationIDs: personaStore.calibrationIDs(for: activePersona),
+                            setupSignalIDs: personaStore.setupSignalIDs(for: activePersona),
+                            onSavePulse: { showAuthSheet = true }
+                        )
+                    }
 
                     if auth.user != nil || OxIntelligenceManager.shared.isAvailable {
                         AskPulseCard(
@@ -76,30 +107,35 @@ struct LifeTabView: View {
                     }
 
                     LifeUrgencyQueue()
+                    LifePersonaFocusCard(
+                        persona: activePersona,
+                        businessRole: activePersona == .business ? personaStore.businessSubPersona : nil,
+                        businessSetupOption: activePersona == .business
+                            ? personaStore.businessRoleSetupOption(for: personaStore.businessSubPersona)
+                            : nil
+                    )
 
                     if auth.user != nil {
-                        let persona = auth.activePersona
-
                         // ── First-run explainer: shown when all pillars are empty ──
                         if life.isFirstRun {
                             LifeWelcomeCard()
                         }
 
-                        LifeQuickStats(summary: life.summary, persona: persona)
+                        LifeQuickStats(summary: life.summary, persona: activePersona)
                         LifeMoneyCard(summary: life.expenseSummary)
                         LifeChecklistCard(items: life.checklist,
                                           onToggle: { item in await life.toggleChecklist(item) })
                         LifeTasksCard(section: $section,
                                       tasks: life.homeTasks,
                                       onToggle: { task in await life.toggleHomeTask(task) })
-                        if persona == .customer {
+                        if activePersona == .customer {
                             LifeSavedHelpersCard(items: life.savedHelpers)
                         }
                     }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
-                .padding(.bottom, 24)
+                .padding(.bottom, 96)
             }
             .background(Theme.background.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
@@ -153,8 +189,8 @@ private struct LifeHeader: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(L10n.LifeKey.eyebrow).sectionTitle()
-                Text(L10n.LifeKey.title)
+                Text(localization.localized(L10n.LifeKey.eyebrow)).sectionTitle()
+                Text(localization.localized(L10n.LifeKey.title))
                     .font(.system(size: 22, weight: .heavy))
                     .foregroundStyle(Theme.textPrimary)
             }
@@ -229,6 +265,7 @@ struct SixSegmentPulseRing: View {
     let score: Int?
     /// Normalised health score per pillar, in PillarType.allCases order (0.0-1.0).
     let pillarScores: [Double]
+    @EnvironmentObject private var localization: LocalizationManager
 
     private let pillars = PillarType.allCases
     private let lineWidth: CGFloat = 11
@@ -260,7 +297,7 @@ struct SixSegmentPulseRing: View {
                 Text(score.map(String.init) ?? "—")
                     .font(.system(size: 21, weight: .heavy))
                     .foregroundStyle(centerColor)
-                Text(L10n.LifeKey.pulseLabel)
+                Text(localization.localized(L10n.LifeKey.pulseLabel))
                     .font(.system(size: 7, weight: .bold))
                     .foregroundStyle(Theme.textTertiary)
                     .tracking(1.2)
@@ -342,6 +379,504 @@ private struct LifeWelcomeCard: View {
         .padding(10)
         .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
+    }
+}
+
+private struct LifeGuestPulsePreviewCard: View {
+    let persona: Persona
+    var businessRole: BusinessSubPersona?
+    var calibrationIDs: Set<String> = []
+    var setupSignalIDs: Set<String> = []
+    let onSavePulse: () -> Void
+
+    private var previewItems: [LifePreviewItem] {
+        switch persona {
+        case .customer:
+            return customerPreviewItems
+        case .helper:
+            return [
+                .init(pillar: .money, title: "Slow-week reserve", detail: "Start with $25/week", level: 2),
+                .init(pillar: .goals, title: "Complete first paid job", detail: "Growth milestone", level: 1),
+                .init(pillar: .personal, title: "Protect recovery time", detail: "Pending", level: 1)
+            ]
+        case .consultant:
+            return [
+                .init(pillar: .money, title: "Income variability plan", detail: "Watch", level: 2),
+                .init(pillar: .goals, title: "Draft first offer package", detail: "Pending", level: 1),
+                .init(pillar: .personal, title: "Weekly follow-up habit", detail: "Pending", level: 1)
+            ]
+        case .investor:
+            return [
+                .init(pillar: .money, title: "Capital allocation rule", detail: "Pending", level: 1),
+                .init(pillar: .goals, title: "Build operator watchlist", detail: "Growth-linked", level: 2),
+                .init(pillar: .sinking, title: "Opportunity reserve", detail: "Preview", level: 1)
+            ]
+        case .business:
+            switch businessRole ?? .owner {
+            case .owner:
+                return [
+                    .init(pillar: .money, title: "Payroll cushion", detail: "Watch", level: 2),
+                    .init(pillar: .goals, title: "Create first QA checklist", detail: "Pending", level: 1),
+                    .init(pillar: .personal, title: "Owner stability routine", detail: "Pending", level: 1)
+                ]
+            case .manager:
+                return [
+                    .init(pillar: .goals, title: "Team schedule handoff", detail: "Watch", level: 2),
+                    .init(pillar: .home, title: "Quality checklist review", detail: "Pending", level: 1),
+                    .init(pillar: .personal, title: "Manager recovery block", detail: "Pending", level: 1)
+                ]
+            case .representative:
+                return [
+                    .init(pillar: .goals, title: "Lead follow-up block", detail: "Today", level: 2),
+                    .init(pillar: .money, title: "Service agreement target", detail: "Pending", level: 1),
+                    .init(pillar: .personal, title: "Outreach rhythm", detail: "Watch", level: 2)
+                ]
+            case .support:
+                return [
+                    .init(pillar: .home, title: "Escalation queue review", detail: "Watch", level: 2),
+                    .init(pillar: .personal, title: "De-escalation recovery", detail: "Pending", level: 1),
+                    .init(pillar: .goals, title: "Update script library", detail: "Pending", level: 1)
+                ]
+            case .employee:
+                return [
+                    .init(pillar: .goals, title: "Assigned task checklist", detail: "Today", level: 2),
+                    .init(pillar: .personal, title: "Shift readiness routine", detail: "Pending", level: 1),
+                    .init(pillar: .home, title: "Complete next SOP", detail: "Watch", level: 2)
+                ]
+            }
+        case .toolOwner:
+            return [
+                .init(pillar: .sinking, title: "Tool replacement fund", detail: "Pending", level: 1),
+                .init(pillar: .home, title: "Condition check before rentals", detail: "Watch", level: 2),
+                .init(pillar: .money, title: "Deposit readiness", detail: "Preview", level: 1)
+            ]
+        case .franchise:
+            return [
+                .init(pillar: .money, title: "Territory launch reserve", detail: "Watch", level: 2),
+                .init(pillar: .goals, title: "Operator onboarding plan", detail: "Pending", level: 1),
+                .init(pillar: .personal, title: "Owner cadence", detail: "Pending", level: 1)
+            ]
+        }
+    }
+
+    private var customerPreviewItems: [LifePreviewItem] {
+        var items: [LifePreviewItem] = []
+        if setupSignalIDs.contains("customer-urgent-car") {
+            appendUnique(.init(pillar: .car, title: "2019 Honda Accord oil change", detail: "Overdue", level: 3), to: &items)
+        } else if setupSignalIDs.contains("customer-urgent-home") {
+            appendUnique(.init(pillar: .home, title: "Replace HVAC filter", detail: "Watch", level: 2), to: &items)
+        } else if setupSignalIDs.contains("customer-urgent-money") {
+            appendUnique(.init(pillar: .money, title: "Monthly budget check", detail: "Pending", level: 2), to: &items)
+        } else if setupSignalIDs.contains("customer-urgent-routines") {
+            appendUnique(.init(pillar: .personal, title: "Exercise routine", detail: "2 habits remaining", level: 1), to: &items)
+        } else if setupSignalIDs.contains("customer-urgent-ahead") {
+            appendUnique(.init(pillar: .sinking, title: "Vacation fund", detail: "23% funded", level: 2), to: &items)
+        }
+        if calibrationIDs.contains("home-care") || calibrationIDs.isEmpty {
+            appendUnique(.init(pillar: .home, title: "Replace HVAC filter", detail: "Watch", level: 2), to: &items)
+        }
+        if calibrationIDs.contains("car-care") || calibrationIDs.isEmpty {
+            appendUnique(.init(pillar: .car, title: "2019 Honda Accord oil change", detail: "Overdue", level: 3), to: &items)
+        }
+        if calibrationIDs.contains("money") {
+            appendUnique(.init(pillar: .money, title: "Monthly budget check", detail: "Pending", level: 1), to: &items)
+        }
+        if calibrationIDs.contains("goals") || calibrationIDs.isEmpty {
+            appendUnique(.init(pillar: .sinking, title: "Vacation fund", detail: "23% funded", level: 2), to: &items)
+        }
+        if calibrationIDs.contains("personal") {
+            appendUnique(.init(pillar: .personal, title: "Exercise routine", detail: "2 habits remaining", level: 1), to: &items)
+        }
+        if calibrationIDs.contains("hire-help") {
+            appendUnique(.init(pillar: .home, title: "Compare helper options", detail: "Home-linked", level: 2), to: &items)
+        }
+        let fallback: [LifePreviewItem] = [
+            .init(pillar: .home, title: "Replace HVAC filter", detail: "Watch", level: 2),
+            .init(pillar: .car, title: "2019 Honda Accord oil change", detail: "Overdue", level: 3),
+            .init(pillar: .sinking, title: "Vacation fund", detail: "23% funded", level: 2)
+        ]
+        for item in fallback where items.count < 3 && !items.contains(where: { $0.title == item.title }) {
+            items.append(item)
+        }
+        return Array(items.prefix(3))
+    }
+
+    private func appendUnique(_ item: LifePreviewItem, to items: inout [LifePreviewItem]) {
+        guard !items.contains(where: { $0.title == item.title }) else { return }
+        items.append(item)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 14) {
+                SixSegmentPulseRing(score: 68, pillarScores: [0.58, 0.42, 0.33, 0.64, 0.52, 0.23])
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(pulsePreviewTitle)
+                        .font(.system(size: 16, weight: .heavy))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("This is demo data. Sign in only when you want to make the Pulse yours and keep progress across devices.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            VStack(spacing: 8) {
+                ForEach(previewItems) { item in
+                    VStack(alignment: .leading, spacing: 9) {
+                        HStack(spacing: 11) {
+                            Image(systemName: item.pillar.icon)
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(item.pillar.color)
+                                .frame(width: 34, height: 34)
+                                .background(item.pillar.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.title)
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundStyle(Theme.textPrimary)
+                                    .lineLimit(1)
+                                Text(item.detail)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Theme.textSecondary)
+                            }
+                            Spacer()
+                            Text(item.badge)
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(item.badgeColor)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(item.badgeColor.opacity(0.13), in: Capsule())
+                        }
+
+                        if let action = LifeLoopAction(pillar: item.pillar, title: item.title, detail: item.detail) {
+                            HStack(spacing: 8) {
+                                Button {
+                                    action.openLearn()
+                                } label: {
+                                    lifeLoopActionLabel(title: action.learnTitle, icon: "graduationcap.fill", color: Theme.accent, filled: true)
+                                }
+                                .buttonStyle(.plain)
+
+                                Button {
+                                    action.openSecondary()
+                                } label: {
+                                    lifeLoopActionLabel(title: action.secondaryTitle, icon: action.secondaryIcon, color: action.secondaryColor, filled: false)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    .padding(10)
+                    .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
+                }
+            }
+
+            HStack(spacing: 10) {
+                Button(action: onSavePulse) {
+                    Label("Save my Pulse", systemImage: "person.crop.circle.badge.checkmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .background(Theme.accent, in: Capsule())
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    NotificationCenter.default.post(name: .oxSwitchTab, object: nil, userInfo: ["tab": "learn"])
+                } label: {
+                    Label("Learn first", systemImage: "graduationcap.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Theme.accent)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .background(Theme.accent.opacity(0.10), in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .cardStyle()
+    }
+
+    private func lifeLoopActionLabel(title: String, icon: String, color: Color, filled: Bool) -> some View {
+        Label(title, systemImage: icon)
+            .font(.system(size: 11, weight: .bold))
+            .foregroundStyle(filled ? .white : color)
+            .lineLimit(1)
+            .minimumScaleFactor(0.72)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 9)
+            .background(filled ? color : color.opacity(0.09), in: Capsule())
+            .overlay(Capsule().strokeBorder(filled ? Color.clear : color.opacity(0.28), lineWidth: 1))
+    }
+
+    private var pulsePreviewTitle: String {
+        if persona == .business, let businessRole {
+            return "\(businessRole.rawValue) Pulse preview"
+        }
+        return "\(persona.rawValue) Pulse preview"
+    }
+}
+
+private struct LifePreviewItem: Identifiable {
+    let pillar: PillarType
+    let title: String
+    let detail: String
+    let level: Int
+
+    var id: String { "\(pillar.rawValue)-\(title)" }
+
+    var badge: String {
+        switch level {
+        case 3: return "Critical"
+        case 2: return "Watch"
+        default: return "Pending"
+        }
+    }
+
+    var badgeColor: Color {
+        switch level {
+        case 3: return Theme.danger
+        case 2: return Theme.warning
+        default: return Theme.accent
+        }
+    }
+}
+
+private struct LifeLoopAction {
+    let learnTitle: String
+    let learnCategory: String
+    let learnQuery: String
+    let guideID: String?
+    let secondaryTitle: String
+    let secondaryIcon: String
+    let secondaryColor: Color
+    let secondaryTab: String
+    let triggersPostJob: Bool
+
+    init?(pillar: PillarType, title: String, detail: String) {
+        let signal = "\(title) \(detail)".lowercased()
+        switch pillar {
+        case .car:
+            if signal.contains("oil") || signal.contains("honda") {
+                learnTitle = "Learn oil change"
+                learnCategory = "car-care"
+                learnQuery = "oil"
+                guideID = "change-oil"
+            } else {
+                learnTitle = "Track car care"
+                learnCategory = "life"
+                learnQuery = "vehicle maintenance"
+                guideID = "track-vehicle-maintenance"
+            }
+            secondaryTitle = "Hire car help"
+            secondaryIcon = "plus.circle.fill"
+            secondaryColor = Theme.pillarHome
+            secondaryTab = "home"
+            triggersPostJob = true
+        case .home:
+            if signal.contains("hvac") || signal.contains("filter") {
+                learnTitle = "Learn HVAC filter"
+                learnCategory = "hvac"
+                learnQuery = "filter"
+                guideID = "replace-hvac-filter"
+            } else {
+                learnTitle = "Home calendar"
+                learnCategory = "life"
+                learnQuery = "home maintenance"
+                guideID = "create-home-maintenance-calendar"
+            }
+            secondaryTitle = "Post home help"
+            secondaryIcon = "plus.circle.fill"
+            secondaryColor = Theme.pillarHome
+            secondaryTab = "home"
+            triggersPostJob = true
+        case .money:
+            learnTitle = "Build budget"
+            learnCategory = "life"
+            learnQuery = "budget"
+            guideID = "build-monthly-budget"
+            secondaryTitle = "Explore earning"
+            secondaryIcon = "arrow.up.right.circle.fill"
+            secondaryColor = Theme.success
+            secondaryTab = "growth"
+            triggersPostJob = false
+        case .sinking:
+            learnTitle = "Plan this need"
+            learnCategory = "life"
+            learnQuery = "planned needs"
+            guideID = "use-planned-needs"
+            secondaryTitle = "Open Growth"
+            secondaryIcon = "arrow.up.right.circle.fill"
+            secondaryColor = Theme.success
+            secondaryTab = "growth"
+            triggersPostJob = false
+        case .personal:
+            learnTitle = "Reset routine"
+            learnCategory = "life"
+            learnQuery = "habit"
+            guideID = nil
+            secondaryTitle = "Open Growth"
+            secondaryIcon = "arrow.up.right.circle.fill"
+            secondaryColor = Theme.success
+            secondaryTab = "growth"
+            triggersPostJob = false
+        case .goals:
+            learnTitle = "Plan next step"
+            learnCategory = "life"
+            learnQuery = "planned"
+            guideID = "use-planned-needs"
+            secondaryTitle = "Open Growth"
+            secondaryIcon = "arrow.up.right.circle.fill"
+            secondaryColor = Theme.success
+            secondaryTab = "growth"
+            triggersPostJob = false
+        }
+    }
+
+    func openLearn() {
+        NotificationCenter.default.post(name: .oxSwitchTab, object: nil, userInfo: ["tab": "learn"])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            var info: [String: Any] = [
+                "category": learnCategory,
+                "query": learnQuery
+            ]
+            if let guideID {
+                info["guideId"] = guideID
+            }
+            NotificationCenter.default.post(name: .oxOpenLearnCategory, object: nil, userInfo: info)
+        }
+    }
+
+    func openSecondary() {
+        NotificationCenter.default.post(name: .oxSwitchTab, object: nil, userInfo: ["tab": secondaryTab])
+        guard triggersPostJob else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            NotificationCenter.default.post(name: .oxIntentTriggerPostJob, object: nil)
+        }
+    }
+}
+
+private struct LifePersonaFocusCard: View {
+    let persona: Persona
+    var businessRole: BusinessSubPersona?
+    var businessSetupOption: BusinessRoleSetupOption?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: displayIcon)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(displayColor)
+                    .frame(width: 34, height: 34)
+                    .background(displayColor.opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(focusTitle)
+                        .font(.system(size: 14, weight: .heavy))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(focusText)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+
+            if persona == .business, let businessRole, let businessSetupOption {
+                BusinessRoleSetupSignalRow(
+                    label: "Pulse priority",
+                    option: businessSetupOption,
+                    color: businessRole.color
+                )
+            }
+
+            VStack(spacing: 8) {
+                ForEach(persona.lifeTabActions(for: businessRole)) { action in
+                    focusButton(action)
+                }
+            }
+        }
+        .cardStyle()
+    }
+
+    private var focusText: String {
+        switch persona {
+        case .customer:
+            return "Life keeps urgent home, car, money, and planned-need items close to your next Home action."
+        case .helper:
+            return "Life emphasizes income consistency, slow-week reserves, health habits, and equipment planning."
+        case .consultant:
+            return "Life keeps income variability, follow-up routines, and personal capacity visible while you build offers."
+        case .investor:
+            return "Life keeps capital discipline, goal tracking, and opportunity reserves in view before you commit funds."
+        case .business:
+            switch businessRole ?? .owner {
+            case .owner:
+                return "Life keeps owner stability, payroll cushion, and team quality habits connected to operations."
+            case .manager:
+                return "Life keeps manager capacity, team cadence, and quality habits connected to the schedule."
+            case .representative:
+                return "Life keeps follow-up rhythm, outreach blocks, and revenue goals from slipping."
+            case .support:
+                return "Life keeps support energy, escalation cadence, and recovery habits visible."
+            case .employee:
+                return "Life keeps shift readiness, personal routines, and training progress connected to assigned work."
+            }
+        case .toolOwner:
+            return "Life keeps tool maintenance, deposit readiness, and replacement funds visible while rentals grow."
+        case .franchise:
+            return "Life keeps territory launch reserves, operator cadence, and compliance routines visible."
+        }
+    }
+
+    private func focusButton(_ action: PersonaTabAction) -> some View {
+        Button {
+            guard let tab = action.targetTab else { return }
+            NotificationCenter.default.post(name: .oxSwitchTab, object: nil, userInfo: ["tab": tab])
+        } label: {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: action.icon)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(action.color)
+                    .frame(width: 30, height: 30)
+                    .background(action.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 9))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(action.title)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(action.subtitle)
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Theme.textTertiary)
+                    .padding(.top, 8)
+            }
+            .padding(10)
+            .background(action.color.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(action.color.opacity(0.18), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .disabled(action.targetTab == nil)
+    }
+
+    private var focusTitle: String {
+        if persona == .business, let businessRole {
+            return "\(businessRole.rawValue) Life focus"
+        }
+        return "\(persona.rawValue) Life focus"
+    }
+
+    private var displayIcon: String {
+        businessRole?.icon ?? persona.icon
+    }
+
+    private var displayColor: Color {
+        businessRole?.color ?? persona.color
     }
 }
 
@@ -496,10 +1031,7 @@ struct LifeUrgencyQueue: View {
             SectionHeader(title: L10n.SectionKey.urgencyQueue, actionLabel: nil)
             VStack(spacing: 8) {
                 ForEach(urgencyItems) { item in
-                    NavigationLink(value: item.pillar) {
-                        urgencyRow(item)
-                    }
-                    .buttonStyle(.plain)
+                    urgencyCard(item)
                 }
             }
         }
@@ -604,32 +1136,58 @@ struct LifeUrgencyQueue: View {
         return result.sorted { $0.level > $1.level }
     }
 
-    private func urgencyRow(_ item: UrgencyItem) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: item.pillar.icon)
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(item.pillar.color)
-                .frame(width: 34, height: 34)
-                .background(item.pillar.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
+    private func urgencyCard(_ item: UrgencyItem) -> some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(spacing: 12) {
+                Image(systemName: item.pillar.icon)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(item.pillar.color)
+                    .frame(width: 34, height: 34)
+                    .background(item.pillar.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Theme.textPrimary)
-                    .lineLimit(1)
-                Text(item.urgencyLabel)
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.textSecondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(1)
+                    Text(item.urgencyLabel)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                Spacer()
+
+                urgencyBadge(item.level)
             }
-            Spacer()
 
-            urgencyBadge(item.level)
+            HStack(spacing: 8) {
+                NavigationLink(value: item.pillar) {
+                    queueActionLabel(title: "Open \(item.pillar.rawValue.capitalized)", icon: "arrow.right.circle.fill", color: item.pillar.color, filled: false)
+                }
+                .buttonStyle(.plain)
 
-            Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Theme.textTertiary)
+                if let action = LifeLoopAction(pillar: item.pillar, title: item.title, detail: item.urgencyLabel) {
+                    Button {
+                        action.openLearn()
+                    } label: {
+                        queueActionLabel(title: action.learnTitle, icon: "graduationcap.fill", color: Theme.accent, filled: true)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
         .cardStyle(padding: 12)
+    }
+
+    private func queueActionLabel(title: String, icon: String, color: Color, filled: Bool) -> some View {
+        Label(title, systemImage: icon)
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(filled ? .white : color)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(filled ? color : color.opacity(0.08), in: Capsule())
+            .overlay(Capsule().strokeBorder(filled ? Color.clear : color.opacity(0.25), lineWidth: 1))
     }
 
     private func urgencyBadge(_ level: Int) -> some View {
@@ -829,16 +1387,41 @@ private struct LifeQuickStats: View {
     var body: some View {
         HStack(spacing: 12) {
             switch persona {
+            case .customer:
+                statTile("Planned", value: summary?.planned_needs?.active_count.map(String.init), icon: "calendar", color: Theme.pillarSinking)
+                statTile("Overdue", value: summary?.home?.overdue.map(String.init), icon: "exclamationmark.triangle.fill", color: Theme.warning)
+                statTile("Goals", value: summary?.goals?.active.map(String.init), icon: "target", color: Theme.pillarGoals)
             case .helper:
                 statTile("Jobs done", value: summary?.activity?.jobs_completed.map(String.init), icon: "checkmark.seal.fill", color: Theme.success)
                 statTile("Active bids", value: summary?.activity?.active_bids.map(String.init), icon: "hand.raised.fill", color: Theme.pillarGoals)
                 statTile("Rating", value: summary?.activity?.avg_rating.map { String(format: "%.1f", $0) }, icon: "star.fill", color: Theme.warning)
-            default:
-                statTile("Planned", value: summary?.planned_needs?.active_count.map(String.init), icon: "calendar", color: Theme.pillarSinking)
-                statTile("Overdue", value: summary?.home?.overdue.map(String.init), icon: "exclamationmark.triangle.fill", color: Theme.warning)
+            case .consultant:
+                statTile("Sessions", value: summary?.activity?.active_jobs_posted.map(String.init), icon: "calendar.badge.clock", color: Theme.pillarPersonal)
+                statTile("Follow-ups", value: openChecklistCount.map(String.init), icon: "bubble.left.and.bubble.right.fill", color: Theme.accent)
                 statTile("Goals", value: summary?.goals?.active.map(String.init), icon: "target", color: Theme.pillarGoals)
+            case .investor:
+                statTile("Goals", value: summary?.goals?.active.map(String.init), icon: "target", color: Theme.pillarMoney)
+                statTile("Funds", value: summary?.planned_needs?.active_count.map(String.init), icon: "banknote.fill", color: Theme.success)
+                statTile("Watch", value: openChecklistCount.map(String.init), icon: "eye.fill", color: Theme.accent)
+            case .business:
+                statTile("Tasks", value: openChecklistCount.map(String.init), icon: "list.bullet.clipboard.fill", color: Theme.pillarGoals)
+                statTile("Overdue", value: summary?.home?.overdue.map(String.init), icon: "exclamationmark.triangle.fill", color: Theme.warning)
+                statTile("Buffer", value: summary?.planned_needs?.active_count.map(String.init), icon: "banknote.fill", color: Theme.success)
+            case .toolOwner:
+                statTile("Tools", value: summary?.home?.total_pending.map(String.init), icon: "hammer.fill", color: Theme.pillarCar)
+                statTile("Funds", value: summary?.planned_needs?.active_count.map(String.init), icon: "banknote.fill", color: Theme.success)
+                statTile("Tasks", value: openChecklistCount.map(String.init), icon: "checklist", color: Theme.pillarHome)
+            case .franchise:
+                statTile("Territory", value: summary?.goals?.active.map(String.init), icon: "map.fill", color: Theme.pillarSinking)
+                statTile("Checks", value: openChecklistCount.map(String.init), icon: "checkmark.shield.fill", color: Theme.warning)
+                statTile("Buffer", value: summary?.planned_needs?.active_count.map(String.init), icon: "banknote.fill", color: Theme.success)
             }
         }
+    }
+
+    private var openChecklistCount: Int? {
+        guard let total = summary?.checklist?.total else { return nil }
+        return max(0, total - (summary?.checklist?.completed ?? 0))
     }
 
     private func statTile(_ label: String, value: String?, icon: String, color: Color) -> some View {

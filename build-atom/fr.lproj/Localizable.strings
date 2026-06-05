@@ -532,10 +532,10 @@
 "growth.seed.community_wholesale.cta" = "Parcourir les groupes";
 "growth.seed.community_wholesale.subtitle" = "Rejoignez des groupes d’achat pour accéder aux prix de gros sur matériaux, outils et fournitures.";
 "growth.seed.community_wholesale.title" = "Achats groupés communautaires";
-"life.legend.needs_attention" = "Life Legend Needs Attention";
-"life.pending" = "Life Pending";
-"life.saved" = "Life Saved";
-"life.syncing" = "Life Syncing";
+"life.legend.needs_attention" = "Nécessite une attention";
+"life.pending" = "en attente";
+"life.saved" = "enregistré";
+"life.syncing" = "synchronisation";
 "settings.app_lock" = "Verrouillage de l'app";
 "settings.app_lock.description" = "Exige Face ID ou Touch ID pour ouvrir l'app.";
 "settings.appearance.dark" = "Sombre";

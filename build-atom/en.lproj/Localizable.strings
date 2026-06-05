@@ -532,10 +532,10 @@
 "growth.seed.community_wholesale.cta" = "Browse pools";
 "growth.seed.community_wholesale.subtitle" = "Join buying groups to access wholesale prices on materials, tools, and supplies.";
 "growth.seed.community_wholesale.title" = "Community Pool Purchasing";
-"life.legend.needs_attention" = "Life Legend Needs Attention";
-"life.pending" = "Life Pending";
-"life.saved" = "Life Saved";
-"life.syncing" = "Life Syncing";
+"life.legend.needs_attention" = "Needs attention";
+"life.pending" = "pending";
+"life.saved" = "saved";
+"life.syncing" = "syncing";
 "settings.app_lock" = "App Lock";
 "settings.app_lock.description" = "Require Face ID or Touch ID to open the app.";
 "settings.appearance.dark" = "Dark";

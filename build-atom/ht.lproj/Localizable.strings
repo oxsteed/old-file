@@ -532,10 +532,10 @@
 "growth.seed.community_wholesale.cta" = "Gade gwoup yo";
 "growth.seed.community_wholesale.subtitle" = "Antre nan gwoup acha pou jwenn pri an gwo sou materyèl, zouti, ak founiti.";
 "growth.seed.community_wholesale.title" = "Acha kominotè an gwoup";
-"life.legend.needs_attention" = "Life Legend Needs Attention";
-"life.pending" = "Life Pending";
-"life.saved" = "Life Saved";
-"life.syncing" = "Life Syncing";
+"life.legend.needs_attention" = "Bezwen atansyon";
+"life.pending" = "annatant";
+"life.saved" = "sove";
+"life.syncing" = "ap senkronize";
 "settings.app_lock" = "Sekirite aplikasyon an";
 "settings.app_lock.description" = "Mande Face ID oswa Touch ID pou louvri aplikasyon an.";
 "settings.appearance.dark" = "Fonse";

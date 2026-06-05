@@ -3,6 +3,7 @@ import SwiftUI
 struct LearnTabView: View {
     @EnvironmentObject private var learn: LearnStore
     @EnvironmentObject private var auth: AuthStore
+    @EnvironmentObject private var personaStore: PersonaStore
     @EnvironmentObject private var localization: LocalizationManager
     @Environment(\.openURL) private var openURL
 
@@ -20,11 +21,45 @@ struct LearnTabView: View {
             VStack(spacing: 18) {
                 header
                 heroCard
+                if auth.user == nil {
+                    GuestAuthPromptCard(
+                        title: "Save your learning progress",
+                        subtitle: "Sign in or create an account to keep completed guides, badges, and recommendations across devices.",
+                        icon: "graduationcap.fill",
+                        color: effectivePersona.color,
+                        action: { showAuthSheet = true }
+                    )
+                }
+                if !selectedCalibrationOptions.isEmpty {
+                    LearnSetupSignalsCard(
+                        calibrationOptions: selectedCalibrationOptions,
+                        signalOptions: selectedSetupSignalOptions
+                    )
+                } else if !selectedSetupSignalOptions.isEmpty {
+                    LearnSetupSignalsCard(
+                        calibrationOptions: [],
+                        signalOptions: selectedSetupSignalOptions
+                    )
+                }
+                PersonaLoopNudgeCard(
+                    nudge: effectivePersona.loopNudge(
+                        from: "learn",
+                        businessRole: effectiveBusinessRole,
+                        calibrationIDs: personaStore.calibrationIDs(for: effectivePersona),
+                        setupSignalIDs: personaStore.setupSignalIDs(for: effectivePersona)
+                    )
+                )
+                LearnPersonaPlanCard(
+                    persona: effectivePersona,
+                    businessRole: effectiveBusinessRole,
+                    businessSetupOption: effectiveBusinessSetupOption,
+                    onSelect: selectLearnAction
+                )
                 searchBar
                 categoryChips
 
                 // Creator upload banner — visible to helpers, business owners, and consultants
-                if auth.activePersona == .helper || auth.activePersona == .business || auth.activePersona == .consultant {
+                if auth.user != nil && (effectivePersona == .helper || effectivePersona == .business || effectivePersona == .consultant) {
                     creatorBanner
                     creatorSubmissionsCard
                 }
@@ -59,12 +94,23 @@ struct LearnTabView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)
-            .padding(.bottom, 24)
+            .padding(.bottom, 96)
         }
         .background(Theme.background.ignoresSafeArea())
         .task {
             // Sync progress + badges when entering the tab.
             await learn.refresh()
+            alignCategoryIfAvailable(for: effectivePersona)
+        }
+        .onChange(of: personaStore.active) { _, newPersona in
+            resetLearnFocus(for: newPersona)
+        }
+        .onChange(of: personaStore.businessSubPersona) { _, _ in
+            guard effectivePersona == .business else { return }
+            resetLearnFocus(for: effectivePersona)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .oxOpenLearnCategory)) { note in
+            focusLearnFromLoop(note.userInfo)
         }
         .sheet(item: $selectedGuide) { g in
             NavigationStack {
@@ -152,7 +198,7 @@ struct LearnTabView: View {
     }
 
     private var heroCard: some View {
-        let hero = heroContent(for: auth.activePersona)
+        let hero = heroContent(for: effectivePersona)
         return HStack(alignment: .top, spacing: 14) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(localization.localized(hero.eyebrow)).sectionTitle()
@@ -184,6 +230,63 @@ struct LearnTabView: View {
         let title: String
         let subtitle: String
         let tint: Color
+    }
+
+    private var effectivePersona: Persona {
+        personaStore.active
+    }
+
+    private var effectiveBusinessRole: BusinessSubPersona? {
+        effectivePersona == .business ? personaStore.businessSubPersona : nil
+    }
+
+    private var effectiveBusinessSetupOption: BusinessRoleSetupOption? {
+        guard let effectiveBusinessRole else { return nil }
+        return personaStore.businessRoleSetupOption(for: effectiveBusinessRole)
+    }
+
+    private var selectedCalibrationOptions: [PersonaCalibrationOption] {
+        personaStore.calibrationOptions(for: effectivePersona)
+    }
+
+    private var selectedSetupSignalOptions: [PersonaSetupSignalOption] {
+        personaStore.setupSignalOptions(for: effectivePersona)
+    }
+
+    private func selectLearnAction(_ action: PersonaTabAction) {
+        query = ""
+        guard let category = action.learnCategory else { return }
+        activeCategory = learn.guides.contains(where: { $0.category == category }) ? category : "all"
+    }
+
+    private func resetLearnFocus(for persona: Persona) {
+        query = ""
+        let category = persona.primaryLearnCategory(for: effectiveBusinessRole)
+        activeCategory = learn.guides.contains(where: { $0.category == category })
+            ? category
+            : "all"
+    }
+
+    private func alignCategoryIfAvailable(for persona: Persona) {
+        guard activeCategory == "all", query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let category = persona.primaryLearnCategory(for: effectiveBusinessRole)
+        if learn.guides.contains(where: { $0.category == category }) {
+            activeCategory = category
+        }
+    }
+
+    private func focusLearnFromLoop(_ userInfo: [AnyHashable: Any]?) {
+        if let category = userInfo?["category"] as? String,
+           learn.guides.contains(where: { $0.category == category }) {
+            activeCategory = category
+        }
+        if let queryText = userInfo?["query"] as? String {
+            query = queryText
+        }
+        if let guideID = userInfo?["guideId"] as? String,
+           let guide = learn.guides.first(where: { $0.id == guideID }) {
+            selectedGuide = guide
+        }
     }
 
     private func heroContent(for persona: Persona) -> HeroContent {
@@ -221,7 +324,7 @@ struct LearnTabView: View {
     private var searchBar: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass").foregroundStyle(Theme.textTertiary)
-            TextField("", text: $query, prompt: Text(L10n.LearnKey.searchPlaceholder))
+            TextField("", text: $query, prompt: Text(LocalizedStringKey(L10n.LearnKey.searchPlaceholder)))
                 .font(.system(size: 13))
                 .foregroundStyle(Theme.textPrimary)
                 .textInputAutocapitalization(.never)
@@ -321,8 +424,8 @@ struct LearnTabView: View {
         // Prefer unfinished, then rank by persona so the top cards feel relevant.
         let unfinished = filteredGuides.filter { !learn.isCompleted($0.id) }
         let sorted = unfinished.sorted { a, b in
-            let ra = personaRank(a, persona: auth.activePersona)
-            let rb = personaRank(b, persona: auth.activePersona)
+            let ra = personaRank(a, persona: effectivePersona)
+            let rb = personaRank(b, persona: effectivePersona)
             if ra != rb { return ra > rb }
             return a.title < b.title
         }
@@ -337,7 +440,7 @@ struct LearnTabView: View {
         case .customer:    "customer"
         case .helper:      "helper"
         case .investor:    "management"
-        case .business:    "business"
+        case .business:    effectiveBusinessRole?.primaryLearnCategory ?? "business"
         case .consultant:  "consulting"
         case .toolOwner:   "tool-rental"
         case .franchise:   "franchise"
@@ -503,6 +606,102 @@ struct LearnTabView: View {
     }
 }
 
+private struct LearnPersonaPlanCard: View {
+    let persona: Persona
+    var businessRole: BusinessSubPersona?
+    var businessSetupOption: BusinessRoleSetupOption?
+    let onSelect: (PersonaTabAction) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: planTitle, actionLabel: nil)
+            if persona == .business, let businessRole, let businessSetupOption {
+                BusinessRoleSetupSignalRow(
+                    label: "Start here",
+                    option: businessSetupOption,
+                    color: businessRole.color
+                )
+            }
+            VStack(spacing: 8) {
+                ForEach(persona.learnTabActions(for: businessRole)) { action in
+                    Button {
+                        onSelect(action)
+                    } label: {
+                        HStack(alignment: .top, spacing: 11) {
+                            Image(systemName: action.icon)
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(action.color)
+                                .frame(width: 34, height: 34)
+                                .background(action.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(action.title)
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundStyle(Theme.textPrimary)
+                                Text(action.subtitle)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Theme.textSecondary)
+                                    .lineLimit(2)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "line.3.horizontal.decrease.circle")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(Theme.textTertiary)
+                        }
+                        .cardStyle(padding: 12)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private var planTitle: String {
+        if persona == .business, let businessRole {
+            return "\(businessRole.rawValue) learning plan"
+        }
+        return "\(persona.rawValue) learning plan"
+    }
+}
+
+private struct LearnSetupSignalsCard: View {
+    let calibrationOptions: [PersonaCalibrationOption]
+    let signalOptions: [PersonaSetupSignalOption]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Text("Setup signals")
+                .font(.system(size: 12, weight: .heavy))
+                .foregroundStyle(Theme.textPrimary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(signalOptions) { option in
+                        signalChip(title: option.title, icon: option.icon, color: option.color)
+                    }
+                    ForEach(calibrationOptions) { option in
+                        signalChip(title: option.title, icon: option.icon, color: option.color)
+                    }
+                }
+            }
+        }
+        .cardStyle(padding: 12)
+    }
+
+    private func signalChip(title: String, icon: String, color: Color) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(color)
+            Text(title)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Theme.textPrimary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(color.opacity(0.09), in: Capsule())
+        .overlay(Capsule().strokeBorder(color.opacity(0.2), lineWidth: 1))
+    }
+}
+
 private struct GuideCard: View {
     let guide: LearnGuide
     let isCompleted: Bool
@@ -618,6 +817,7 @@ private struct LearnGuideDetailView: View {
     let canMarkCompleted: Bool
     let onRequireAuth: () -> Void
     let onMarkCompleted: () async -> Void
+    @EnvironmentObject private var personaStore: PersonaStore
     @Environment(\.dismiss) private var dismiss
     @State private var isMarking = false
     @State private var safariURL: URL?   // in-app browser for tool links
@@ -747,16 +947,30 @@ private struct LearnGuideDetailView: View {
                         .background((isCompleted || !canMarkCompleted) ? Theme.surfaceElevated : Theme.accent, in: RoundedRectangle(cornerRadius: 14))
                 }
                 .disabled(isCompleted || isMarking)
+
+                GuideLoopActionCard(
+                    persona: personaStore.active,
+                    businessRole: personaStore.active == .business ? personaStore.businessSubPersona : nil,
+                    guide: guide,
+                    canCommit: canMarkCompleted,
+                    onRequireAuth: {
+                        dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                            onRequireAuth()
+                        }
+                    },
+                    onRoute: routeLoopAction
+                )
             }
             .padding(20)
         }
         .background(Theme.background.ignoresSafeArea())
-        .navigationTitle(Text(L10n.tab(.learn)))
+        .navigationTitle(Text(LocalizedStringKey(L10n.tab(.learn))))
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Theme.background, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { dismiss() } label: { Text(L10n.SettingsKey.done) }.foregroundStyle(Theme.accent)
+                Button { dismiss() } label: { Text(LocalizedStringKey(L10n.SettingsKey.done)) }.foregroundStyle(Theme.accent)
             }
         }
         .sheet(item: $safariURL) { url in
@@ -766,6 +980,180 @@ private struct LearnGuideDetailView: View {
             // Fire-and-forget view tracking
             await LearnService.recordView(guideId: guide.id)
         }
+    }
+
+    private func routeLoopAction(_ action: GuideLoopAction) {
+        dismiss()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            NotificationCenter.default.post(name: .oxSwitchTab, object: nil, userInfo: ["tab": action.targetTab])
+            if action.requiresPostJob {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    NotificationCenter.default.post(name: .oxIntentTriggerPostJob, object: nil)
+                }
+            }
+        }
+    }
+}
+
+private struct GuideLoopAction: Identifiable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let icon: String
+    let color: Color
+    let targetTab: String
+    let cta: String
+    let requiresPostJob: Bool
+    let requiresAuth: Bool
+}
+
+private struct GuideLoopActionCard: View {
+    let persona: Persona
+    var businessRole: BusinessSubPersona?
+    let guide: LearnGuide
+    let canCommit: Bool
+    let onRequireAuth: () -> Void
+    let onRoute: (GuideLoopAction) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Put this guide to work")
+                .sectionTitle()
+
+            VStack(spacing: 8) {
+                ForEach(actions) { action in
+                    Button {
+                        if action.requiresAuth && !canCommit {
+                            onRequireAuth()
+                        } else {
+                            onRoute(action)
+                        }
+                    } label: {
+                        HStack(alignment: .top, spacing: 11) {
+                            Image(systemName: action.icon)
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(action.color)
+                                .frame(width: 34, height: 34)
+                                .background(action.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(action.title)
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundStyle(Theme.textPrimary)
+                                Text(action.subtitle)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Theme.textSecondary)
+                                    .lineLimit(2)
+                            }
+                            Spacer(minLength: 0)
+                            Text(action.cta)
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(action.color)
+                                .multilineTextAlignment(.trailing)
+                                .lineLimit(2)
+                                .frame(width: 62, alignment: .trailing)
+                        }
+                        .padding(12)
+                        .background(action.color.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(action.color.opacity(0.18), lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .cardStyle(padding: 14)
+    }
+
+    private var actions: [GuideLoopAction] {
+        switch persona {
+        case .customer:
+            return customerActions
+        case .helper:
+            return [
+                .init(id: "helper-home", title: "Use this on nearby work", subtitle: "Bring the lesson back to Home and look for jobs where it can improve your bid or service quality.", icon: "location.fill", color: Theme.accent, targetTab: "home", cta: "Open Home", requiresPostJob: false, requiresAuth: false),
+                .init(id: "helper-life", title: "Protect the earnings", subtitle: "Use Life to keep slow-week reserves, equipment funds, and work routines connected.", icon: "banknote.fill", color: Theme.success, targetTab: "life", cta: "Open Life", requiresPostJob: false, requiresAuth: false)
+            ]
+        case .consultant:
+            return [
+                .init(id: "consultant-growth", title: "Turn this into an offer", subtitle: "Use Growth to package the lesson into a paid session, retainer, or repeatable client path.", icon: "sparkles", color: Theme.success, targetTab: "growth", cta: "Open Growth", requiresPostJob: false, requiresAuth: false),
+                .init(id: "consultant-home", title: "Check your pipeline", subtitle: "Bring the next follow-up or client action back to your Consultant Home.", icon: "person.bubble.fill", color: Theme.pillarPersonal, targetTab: "home", cta: "Open Home", requiresPostJob: false, requiresAuth: false)
+            ]
+        case .investor:
+            return [
+                .init(id: "investor-growth", title: "Apply it to an opportunity", subtitle: "Use Growth to evaluate watchlist items with this guide's due-diligence lens.", icon: "chart.line.uptrend.xyaxis", color: Theme.pillarMoney, targetTab: "growth", cta: "Open Growth", requiresPostJob: false, requiresAuth: false),
+                .init(id: "investor-home", title: "Update your watchlist", subtitle: "Bring the signal back to Home so the next opportunity has better context.", icon: "eye.fill", color: Theme.accent, targetTab: "home", cta: "Open Home", requiresPostJob: false, requiresAuth: false)
+            ]
+        case .business:
+            return businessActions
+        case .toolOwner:
+            return [
+                .init(id: "tool-home", title: "Update rental inventory", subtitle: "Bring the lesson back to Home and tighten condition, deposit, or handoff readiness.", icon: "hammer.fill", color: Theme.pillarCar, targetTab: "home", cta: "Open Home", requiresPostJob: false, requiresAuth: false),
+                .init(id: "tool-growth", title: "Grow rental income", subtitle: "Use Growth to turn tools into kits, bundles, and stronger rental yield.", icon: "arrow.up.right.circle.fill", color: Theme.success, targetTab: "growth", cta: "Open Growth", requiresPostJob: false, requiresAuth: false)
+            ]
+        case .franchise:
+            return [
+                .init(id: "franchise-home", title: "Apply to territory health", subtitle: "Bring training or compliance signals back to the territory dashboard.", icon: "map.fill", color: Theme.pillarSinking, targetTab: "home", cta: "Open Home", requiresPostJob: false, requiresAuth: false),
+                .init(id: "franchise-growth", title: "Advance the expansion path", subtitle: "Use Growth to connect this lesson to operators, standards, and launch milestones.", icon: "arrow.up.right.circle.fill", color: Theme.success, targetTab: "growth", cta: "Open Growth", requiresPostJob: false, requiresAuth: false)
+            ]
+        }
+    }
+
+    private var customerActions: [GuideLoopAction] {
+        if guide.category == "life" {
+            return [
+                .init(id: "customer-life", title: "Apply this to your Pulse", subtitle: "Turn the guide into a Life item, planned need, or sinking-fund habit.", icon: "heart.text.square.fill", color: Theme.danger, targetTab: "life", cta: "Open Life", requiresPostJob: false, requiresAuth: false),
+                .init(id: "customer-home", title: "Convert it when help is needed", subtitle: "When the planned need becomes real work, bring it back to Home.", icon: "house.fill", color: Theme.pillarHome, targetTab: "home", cta: "Open Home", requiresPostJob: false, requiresAuth: false)
+            ]
+        }
+
+        if ["plumbing", "electrical", "hvac", "car-care", "maintenance", "carpentry", "painting", "landscaping"].contains(guide.category) {
+            return [
+                .init(id: "customer-life", title: "Track this in Life Pulse", subtitle: "Keep the maintenance item visible so it does not disappear after you close the guide.", icon: lifeIcon, color: lifeColor, targetTab: "life", cta: "Open Life", requiresPostJob: false, requiresAuth: false),
+                .init(id: "customer-post", title: "Rather hire someone?", subtitle: "Post this as a request when DIY is not worth the time, tools, or risk.", icon: "plus.circle.fill", color: Theme.accent, targetTab: "home", cta: canCommit ? "Post Job" : "Sign In", requiresPostJob: true, requiresAuth: true)
+            ]
+        }
+
+        return [
+            .init(id: "customer-home", title: "Bring this back to Home", subtitle: "Use the guide to make the next request, helper comparison, or decision cleaner.", icon: "house.and.flag.fill", color: Theme.pillarHome, targetTab: "home", cta: "Open Home", requiresPostJob: false, requiresAuth: false),
+            .init(id: "customer-life", title: "Save it as a Life habit", subtitle: "Use Life to keep the decision, budget, or planned need from slipping.", icon: "heart.text.square.fill", color: Theme.danger, targetTab: "life", cta: "Open Life", requiresPostJob: false, requiresAuth: false)
+        ]
+    }
+
+    private var businessActions: [GuideLoopAction] {
+        switch businessRole ?? .owner {
+        case .manager:
+            return [
+                .init(id: "business-manager-home", title: "Apply to the schedule", subtitle: "Bring this back to Home as a handoff, QA, or shift-management action.", icon: "person.3.fill", color: Theme.pillarMoney, targetTab: "home", cta: "Open Home", requiresPostJob: false, requiresAuth: false),
+                .init(id: "business-manager-growth", title: "Improve coverage", subtitle: "Use Growth to turn the lesson into repeatable manager coverage.", icon: "arrow.up.right.circle.fill", color: Theme.success, targetTab: "growth", cta: "Open Growth", requiresPostJob: false, requiresAuth: false)
+            ]
+        case .representative:
+            return [
+                .init(id: "business-rep-home", title: "Apply to the lead pipeline", subtitle: "Bring this back to Home as a follow-up, intake, or conversion action.", icon: "person.crop.circle.badge.checkmark", color: Theme.success, targetTab: "home", cta: "Open Home", requiresPostJob: false, requiresAuth: false),
+                .init(id: "business-rep-growth", title: "Move toward agreements", subtitle: "Use Growth to connect the lesson to recurring revenue.", icon: "signature", color: Theme.pillarGoals, targetTab: "growth", cta: "Open Growth", requiresPostJob: false, requiresAuth: false)
+            ]
+        case .support:
+            return [
+                .init(id: "business-support-home", title: "Apply to the queue", subtitle: "Bring this back to active tickets, scripts, or escalations.", icon: "headphones", color: Theme.accent, targetTab: "home", cta: "Open Home", requiresPostJob: false, requiresAuth: false),
+                .init(id: "business-support-growth", title: "Improve support quality", subtitle: "Use Growth to spot patterns and reduce repeat issues.", icon: "chart.line.uptrend.xyaxis", color: Theme.success, targetTab: "growth", cta: "Open Growth", requiresPostJob: false, requiresAuth: false)
+            ]
+        case .employee:
+            return [
+                .init(id: "business-employee-home", title: "Apply to assigned work", subtitle: "Bring this SOP or role lesson back to your task queue.", icon: "checklist.checked", color: Theme.pillarHome, targetTab: "home", cta: "Open Home", requiresPostJob: false, requiresAuth: false),
+                .init(id: "business-employee-growth", title: "Advance your path", subtitle: "Use Growth to connect training to the next role or specialist step.", icon: "arrow.up.right.circle.fill", color: Theme.success, targetTab: "growth", cta: "Open Growth", requiresPostJob: false, requiresAuth: false)
+            ]
+        case .owner:
+            return [
+                .init(id: "business-owner-home", title: "Turn it into an operating habit", subtitle: "Bring the lesson back to Home as team, job, quality, or cash-flow action.", icon: "briefcase.fill", color: Theme.pillarGoals, targetTab: "home", cta: "Open Home", requiresPostJob: false, requiresAuth: false),
+                .init(id: "business-owner-growth", title: "Use it to scale", subtitle: "Connect the lesson to hiring, compliance, training, or revenue expansion.", icon: "arrow.up.right.circle.fill", color: Theme.success, targetTab: "growth", cta: "Open Growth", requiresPostJob: false, requiresAuth: false)
+            ]
+        }
+    }
+
+    private var lifeIcon: String {
+        guide.category == "car-care" ? "car.fill" : "heart.text.square.fill"
+    }
+
+    private var lifeColor: Color {
+        guide.category == "car-care" ? Theme.pillarCar : Theme.danger
     }
 }
 
@@ -865,7 +1253,7 @@ struct SubmitGuideSheet: View {
             .toolbarBackground(Theme.background, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button { dismiss() } label: { Text(L10n.CommonKey.cancel) }.foregroundStyle(Theme.textSecondary)
+                    Button { dismiss() } label: { Text(LocalizedStringKey(L10n.CommonKey.cancel)) }.foregroundStyle(Theme.textSecondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     if !submitted {

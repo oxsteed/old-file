@@ -160,7 +160,7 @@ final class AuthStore: ObservableObject {
 
     @discardableResult
     func switchPersona(_ persona: Persona) async -> Bool {
-        let mode = serverMode(for: persona)
+        let mode = persona.serverMode
         do {
             let response = try await AuthService.switchRole(mode)
             if let access = response.accessToken, let refresh = response.refreshToken {
@@ -209,17 +209,6 @@ final class AuthStore: ObservableObject {
         self.user = nil
     }
 
-    private func serverMode(for p: Persona) -> String {
-        switch p {
-        case .customer:   return "customer"
-        case .helper:     return "helper"
-        case .business:   return "business_owner"
-        case .consultant: return "consultant"
-        case .toolOwner:  return "tool_owner"
-        case .franchise:  return "franchise_applicant"
-        case .investor:   return "investor"
-        }
-    }
 }
 
 private func appStoreLocalized(_ key: String) -> String {

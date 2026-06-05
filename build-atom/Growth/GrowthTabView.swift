@@ -46,6 +46,7 @@ struct GrowthTabView: View {
     @EnvironmentObject private var learn: LearnStore
     @EnvironmentObject private var life: LifeStore
     @EnvironmentObject private var auth: AuthStore
+    @EnvironmentObject private var personaStore: PersonaStore
     @EnvironmentObject private var localization: LocalizationManager
 
     @StateObject private var location = LocationProvider()
@@ -71,6 +72,7 @@ struct GrowthTabView: View {
     @State private var showConsultingIntake = false
     @State private var showFinancing        = false
     @State private var showGrants           = false
+    @State private var showAuthSheet        = false
     @State private var safariURL: URL?
 
     // Joined listings — persisted across launches
@@ -94,6 +96,13 @@ struct GrowthTabView: View {
             if coord != nil && popular.isEmpty {
                 Task { await loadPopular() }
             }
+        }
+        .onChange(of: personaStore.active) { _, _ in
+            Task { await refreshForPersonaChange() }
+        }
+        .onChange(of: personaStore.businessSubPersona) { _, _ in
+            guard effectivePersona == .business else { return }
+            Task { await refreshForPersonaChange() }
         }
         .task {
             await withTaskGroup(of: Void.self) { group in
@@ -131,6 +140,12 @@ struct GrowthTabView: View {
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Theme.background)
         }
+        .sheet(isPresented: $showAuthSheet) {
+            AuthLandingView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Theme.background)
+        }
         .sheet(item: $safariURL) { url in
             InAppBrowserView(url: url)
                 .ignoresSafeArea()
@@ -149,6 +164,19 @@ struct GrowthTabView: View {
             VStack(spacing: 18) {
                 header
                 ladderCard
+                PersonaLoopNudgeCard(
+                    nudge: effectivePersona.loopNudge(
+                        from: "growth",
+                        businessRole: effectiveBusinessRole,
+                        calibrationIDs: personaStore.calibrationIDs(for: effectivePersona),
+                        setupSignalIDs: personaStore.setupSignalIDs(for: effectivePersona)
+                    )
+                )
+                PersonaGrowthActionBoard(
+                    persona: effectivePersona,
+                    businessRole: effectiveBusinessRole,
+                    businessSetupOption: effectiveBusinessSetupOption
+                )
 
                 if loadError {
                     errorBanner
@@ -162,7 +190,7 @@ struct GrowthTabView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)
-            .padding(.bottom, 24)
+            .padding(.bottom, 96)
         }
         .refreshable {
             loadError = false
@@ -184,8 +212,8 @@ struct GrowthTabView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(L10n.GrowthKey.eyebrow).sectionTitle()
-                Text(L10n.GrowthKey.title)
+                Text(localization.localized(L10n.GrowthKey.eyebrow)).sectionTitle()
+                Text(localization.localized(L10n.GrowthKey.title))
                     .font(.system(size: 22, weight: .heavy))
                     .foregroundStyle(Theme.textPrimary)
             }
@@ -196,53 +224,178 @@ struct GrowthTabView: View {
     // MARK: - Guest wall
 
     private var guestWall: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            Image(systemName: "arrow.up.right.circle.fill")
-                .font(.system(size: 56, weight: .light))
-                .foregroundStyle(Theme.accent)
-            VStack(spacing: 8) {
-                Text("growth.unlock_growth")
-                    .font(.system(size: 22, weight: .heavy))
-                    .foregroundStyle(Theme.textPrimary)
-                Text(LocalizedStringKey(L10n.GrowthKey.guestSignInSubtitle))
-                    .font(.system(size: 14))
-                    .foregroundStyle(Theme.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-            }
-            VStack(spacing: 12) {
-                Button {
-                    NotificationCenter.default.post(name: .oxSwitchTab, object: nil, userInfo: ["tab": "home"])
-                } label: {
-                    Text("growth.sign_in_to_continue")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Theme.accent, in: RoundedRectangle(cornerRadius: 14))
+        ScrollView {
+            VStack(spacing: 18) {
+                header
+
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "arrow.up.right.circle.fill")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundStyle(Theme.accent)
+                            .frame(width: 48, height: 48)
+                            .background(Theme.accentSoft, in: RoundedRectangle(cornerRadius: 14))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(growthPreviewTitle)
+                                .font(.system(size: 20, weight: .heavy))
+                                .foregroundStyle(Theme.textPrimary)
+                            Text("Explore the path before signing in. Save your setup when you want progress, alerts, and recommendations to follow you.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Theme.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+
+                    Text(growthPreviewSubtitle)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(effectiveBusinessRole?.color ?? effectivePersona.color)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if !selectedCalibrationOptions.isEmpty {
+                        Text("Based on: \(selectedCalibrationOptions.map { $0.title }.prefix(3).joined(separator: ", "))")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Theme.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    if !selectedSetupSignalOptions.isEmpty {
+                        Text("Priority: \(selectedSetupSignalOptions.map { $0.title }.prefix(2).joined(separator: ", "))")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Theme.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    GuestAuthPrimaryButton(action: { showAuthSheet = true })
                 }
+                .cardStyle()
+
+                PersonaLoopNudgeCard(
+                    nudge: effectivePersona.loopNudge(
+                        from: "growth",
+                        businessRole: effectiveBusinessRole,
+                        calibrationIDs: personaStore.calibrationIDs(for: effectivePersona),
+                        setupSignalIDs: personaStore.setupSignalIDs(for: effectivePersona)
+                    )
+                )
+                PersonaGrowthActionBoard(
+                    persona: effectivePersona,
+                    businessRole: effectiveBusinessRole,
+                    businessSetupOption: effectiveBusinessSetupOption
+                )
+                guestLoopPreview
+                guestProgramPreview
 
                 Button {
                     showConsultingIntake = true
                 } label: {
-                    VStack(spacing: 4) {
-                        Text("growth.business_launch_program")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(Theme.accent)
+                    HStack(spacing: 12) {
+                        Image(systemName: "briefcase.fill")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(Theme.pillarGoals)
+                            .frame(width: 42, height: 42)
+                            .background(Theme.pillarGoals.opacity(0.14), in: RoundedRectangle(cornerRadius: 12))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("growth.business_launch_program")
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(Theme.textPrimary)
                             Text("growth.fill_intake_prompt")
-                            .font(.system(size: 12))
-                            .foregroundStyle(Theme.textSecondary)
+                                .font(.system(size: 12))
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(Theme.textTertiary)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.accent.opacity(0.25), lineWidth: 1))
+                    .padding(14)
+                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.stroke, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 40)
-            Spacer()
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+            .padding(.bottom, 96)
+        }
+    }
+
+    private var effectivePersona: Persona {
+        personaStore.active
+    }
+
+    private var effectiveBusinessRole: BusinessSubPersona? {
+        effectivePersona == .business ? personaStore.businessSubPersona : nil
+    }
+
+    private var effectiveBusinessSetupOption: BusinessRoleSetupOption? {
+        guard let effectiveBusinessRole else { return nil }
+        return personaStore.businessRoleSetupOption(for: effectiveBusinessRole)
+    }
+
+    private var selectedCalibrationOptions: [PersonaCalibrationOption] {
+        personaStore.calibrationOptions(for: effectivePersona)
+    }
+
+    private var selectedSetupSignalOptions: [PersonaSetupSignalOption] {
+        personaStore.setupSignalOptions(for: effectivePersona)
+    }
+
+    private var growthPreviewTitle: String {
+        if let effectiveBusinessRole {
+            return "\(effectiveBusinessRole.rawValue) growth preview"
+        }
+        return "\(effectivePersona.rawValue) growth preview"
+    }
+
+    private var growthPreviewSubtitle: String {
+        if let effectiveBusinessRole {
+            return effectiveBusinessRole.firstValueSubtitle
+        }
+        return effectivePersona.onboardingUnlock
+    }
+
+    private var guestLoopPreview: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "How the loop will work", actionLabel: nil)
+            ForEach(effectivePersona.loopSignals(for: effectiveBusinessRole)) { signal in
+                Button {
+                    let tab = signal.tab.lowercased()
+                    NotificationCenter.default.post(name: .oxSwitchTab, object: nil, userInfo: ["tab": tab])
+                } label: {
+                    HStack(alignment: .top, spacing: 11) {
+                        Image(systemName: signal.icon)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(signal.color)
+                            .frame(width: 34, height: 34)
+                            .background(signal.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("\(signal.tab): \(signal.title)")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(Theme.textPrimary)
+                            Text(signal.subtitle)
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.textSecondary)
+                                .lineLimit(2)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(Theme.textTertiary)
+                    }
+                    .cardStyle(padding: 12)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var guestProgramPreview: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(title: "Preview programs", actionLabel: nil)
+            let previews = seedPrograms()
+            ForEach(previews.prefix(2)) { program in
+                ProgramCard(program: program, onTap: { handleProgramTap(program) })
+            }
         }
     }
 
@@ -298,11 +451,71 @@ struct GrowthTabView: View {
         .background(Theme.warning.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
     }
 
+    // MARK: - Persona actions
+
+    private struct PersonaGrowthActionBoard: View {
+        let persona: Persona
+        var businessRole: BusinessSubPersona?
+        var businessSetupOption: BusinessRoleSetupOption?
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader(title: boardTitle, actionLabel: nil)
+                if persona == .business, let businessRole, let businessSetupOption {
+                    BusinessRoleSetupSignalRow(
+                        label: "Growth priority",
+                        option: businessSetupOption,
+                        color: businessRole.color
+                    )
+                }
+                VStack(spacing: 8) {
+                    ForEach(persona.growthTabActions(for: businessRole)) { action in
+                        Button {
+                            guard let tab = action.targetTab else { return }
+                            NotificationCenter.default.post(name: .oxSwitchTab, object: nil, userInfo: ["tab": tab])
+                        } label: {
+                            HStack(alignment: .top, spacing: 11) {
+                                Image(systemName: action.icon)
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundStyle(action.color)
+                                    .frame(width: 34, height: 34)
+                                    .background(action.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(action.title)
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundStyle(Theme.textPrimary)
+                                    Text(action.subtitle)
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(Theme.textSecondary)
+                                        .lineLimit(2)
+                                }
+                                Spacer(minLength: 0)
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(Theme.textTertiary)
+                            }
+                            .cardStyle(padding: 12)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(action.targetTab == nil)
+                    }
+                }
+            }
+        }
+
+        private var boardTitle: String {
+            if persona == .business, let businessRole {
+                return "\(businessRole.rawValue) growth actions"
+            }
+            return "\(persona.rawValue) growth actions"
+        }
+    }
+
     // MARK: - Ladder
 
     private var ladderCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(L10n.SectionKey.yourLadder)
+            Text(LocalizedStringKey(L10n.SectionKey.yourLadder))
                 .font(.system(size: 15, weight: .bold))
                 .foregroundStyle(Theme.textPrimary)
             VStack(spacing: 10) {
@@ -315,7 +528,7 @@ struct GrowthTabView: View {
     }
 
     private var growthLadder: [GrowthStep] {
-        switch auth.activePersona {
+        switch effectivePersona {
         case .customer:
             let planned    = life.summary?.planned_needs?.active_count ?? 0
             let posted     = life.summary?.activity?.active_jobs_posted ?? 0
@@ -342,32 +555,109 @@ struct GrowthTabView: View {
                            tapTab: "learn"),
             ]
 
-        default:
+        case .helper:
             let guides   = learn.completions.count
             let jobsDone = life.summary?.activity?.jobs_completed ?? 0
             let badges   = learn.badges.count
-
             return [
-                GrowthStep(stage: "Step 1", title: localization.localized(L10n.GrowthKey.stepOneTitle),
-                           description: localization.localized(L10n.GrowthKey.stepOneDescription),
-                           progress: guides > 0 ? 1.0 : 0.0, isActive: guides == 0,
-                           tapTab: "learn"),
-                GrowthStep(stage: "Step 2", title: localization.localized(L10n.GrowthKey.stepTwoTitle),
-                           description: localization.localized(L10n.GrowthKey.stepTwoDescription),
-                           progress: min(Double(jobsDone) / 5.0, 1.0),
-                           isActive: guides > 0 && jobsDone < 5,
-                           tapTab: "home"),
-                GrowthStep(stage: "Step 3", title: localization.localized(L10n.GrowthKey.stepThreeTitle),
-                           description: localization.localized(L10n.GrowthKey.stepThreeDescription),
-                           progress: min(Double(badges) / 3.0, 1.0),
-                           isActive: jobsDone >= 5 && badges < 3,
-                           tapTab: "learn"),
-                GrowthStep(stage: "Step 4", title: localization.localized(L10n.GrowthKey.stepFourTitle),
-                           description: localization.localized(L10n.GrowthKey.stepFourDescription),
-                           progress: 0.0, isActive: badges >= 3,
-                           tapTab: nil),
+                growthStep(1, "Complete helper basics", "Finish reputation, pricing, safety, and customer communication guides.", guides > 0 ? 1.0 : 0.0, guides == 0, "learn"),
+                growthStep(2, "Bid nearby work", "Use Home demand to quote clear, winnable jobs.", min(Double(jobsDone) / 5.0, 1.0), guides > 0 && jobsDone < 5, "home"),
+                growthStep(3, "Earn trust signals", "Build reviews, badges, and repeatable quality habits.", min(Double(badges) / 3.0, 1.0), jobsDone >= 5 && badges < 3, "learn"),
+                growthStep(4, "Choose an owner path", "Specialize, create a team, list tools, or move into business ownership.", badges >= 3 ? 0.35 : 0.0, badges >= 3, nil)
+            ]
+
+        case .consultant:
+            let guides = learn.completions.count
+            let followUps = max(0, (life.summary?.checklist?.total ?? 0) - (life.summary?.checklist?.completed ?? 0))
+            return [
+                growthStep(1, "Define first paid offer", "Turn expertise into a priced outcome, format, and client promise.", guides > 0 ? 1.0 : 0.0, guides == 0, "learn"),
+                growthStep(2, "Open client pipeline", "Route inquiries, follow-ups, and sessions into Home.", followUps > 0 ? 0.45 : 0.0, guides > 0, "home"),
+                growthStep(3, "Stabilize delivery", "Use Life routines to protect follow-up, scope, and energy.", min(Double(followUps) / 5.0, 1.0), followUps < 5, "life"),
+                growthStep(4, "Scale into retainers", "Move from one-off calls into packages, retainers, and referrals.", 0.0, followUps >= 5, nil)
+            ]
+
+        case .investor:
+            let guides = learn.completions.count
+            let watchItems = life.summary?.goals?.active ?? 0
+            return [
+                growthStep(1, "Learn diligence basics", "Understand operators, territories, unit economics, and risk.", guides > 0 ? 1.0 : 0.0, guides == 0, "learn"),
+                growthStep(2, "Build opportunity watchlist", "Track businesses, tools, and franchise signals before capital moves.", min(Double(watchItems) / 3.0, 1.0), guides > 0 && watchItems < 3, "home"),
+                growthStep(3, "Set capital discipline", "Use Life money and goal rules before committing funds.", watchItems >= 3 ? 0.55 : 0.0, watchItems >= 3, "life"),
+                growthStep(4, "Compare portfolio paths", "Evaluate operator, franchise, and marketplace opportunities side-by-side.", 0.0, watchItems >= 3, nil)
+            ]
+
+        case .business:
+            let guides = learn.completions.count
+            let openOps = max(0, (life.summary?.checklist?.total ?? 0) - (life.summary?.checklist?.completed ?? 0))
+            switch effectiveBusinessRole ?? .owner {
+            case .owner:
+                return [
+                    growthStep(1, "Audit operations", "Review jobs, team activity, inbox issues, and fulfillment risk.", openOps == 0 ? 0.35 : 0.65, openOps > 0, "home"),
+                    growthStep(2, "Document the playbook", "Create SOPs, QA checks, scripts, and delegation rules.", guides > 0 ? 1.0 : 0.0, guides == 0, "learn"),
+                    growthStep(3, "Add a growth lane", "Explore recurring plans, products, wholesale, or hiring programs.", min(Double(guides) / 4.0, 1.0), guides > 0, "growth"),
+                    growthStep(4, "Scale beyond owner effort", "Move repeatable work into team systems and manager coverage.", 0.0, guides >= 4, nil)
+                ]
+            case .manager:
+                return [
+                    growthStep(1, "Review schedule coverage", "Spot shifts, handoffs, and open task risk before the day starts.", openOps == 0 ? 0.35 : 0.65, openOps > 0, "home"),
+                    growthStep(2, "Complete manager playbook", "Use scheduling, QA, reporting, and conflict-resolution guides.", guides > 0 ? 1.0 : 0.0, guides == 0, "learn"),
+                    growthStep(3, "Build quality cadence", "Turn repeat issues into checklists and team routines.", min(Double(guides) / 4.0, 1.0), guides > 0, "growth"),
+                    growthStep(4, "Create manager coverage", "Make the operation less dependent on one person being present.", 0.0, guides >= 4, nil)
+                ]
+            case .representative:
+                return [
+                    growthStep(1, "Work active leads", "Keep intake, outreach, and follow-ups moving from Home.", openOps == 0 ? 0.25 : 0.6, openOps > 0, "home"),
+                    growthStep(2, "Finish sales playbook", "Practice prospecting, service agreements, and objection handling.", guides > 0 ? 1.0 : 0.0, guides == 0, "learn"),
+                    growthStep(3, "Build referral engine", "Turn happy clients into repeat and referred work.", min(Double(guides) / 4.0, 1.0), guides > 0, "growth"),
+                    growthStep(4, "Stabilize pipeline", "Move from reactive follow-up to predictable conversion rhythm.", 0.0, guides >= 4, nil)
+                ]
+            case .support:
+                return [
+                    growthStep(1, "Clear escalations", "Handle active tickets, disputes, and support risk from Home.", openOps == 0 ? 0.3 : 0.65, openOps > 0, "home"),
+                    growthStep(2, "Finish support scripts", "Practice first-contact resolution, de-escalation, and dispute handling.", guides > 0 ? 1.0 : 0.0, guides == 0, "learn"),
+                    growthStep(3, "Reduce repeat issues", "Turn common ticket patterns into scripts and operations fixes.", min(Double(guides) / 4.0, 1.0), guides > 0, "growth"),
+                    growthStep(4, "Protect service quality", "Create escalation standards the whole team can reuse.", 0.0, guides >= 4, nil)
+                ]
+            case .employee:
+                return [
+                    growthStep(1, "Complete assigned work", "Use Home to stay clear on shifts, blockers, and next tasks.", openOps == 0 ? 0.35 : 0.65, openOps > 0, "home"),
+                    growthStep(2, "Finish role basics", "Complete SOP and quality-standard lessons for your role.", guides > 0 ? 1.0 : 0.0, guides == 0, "learn"),
+                    growthStep(3, "Earn trust signals", "Build reliability through completed tasks and clean handoffs.", min(Double(guides) / 4.0, 1.0), guides > 0, "growth"),
+                    growthStep(4, "Advance your path", "Move toward specialist, representative, or manager readiness.", 0.0, guides >= 4, nil)
+                ]
+            }
+
+        case .toolOwner:
+            let guides = learn.completions.count
+            let funds = life.summary?.planned_needs?.active_count ?? 0
+            return [
+                growthStep(1, "List rentable inventory", "Add condition, rates, deposits, photos, and pickup rules.", funds > 0 ? 0.45 : 0.0, funds == 0, "home"),
+                growthStep(2, "Learn rental safeguards", "Use deposit, damage, handoff, and maintenance guides.", guides > 0 ? 1.0 : 0.0, guides == 0, "learn"),
+                growthStep(3, "Build replacement fund", "Keep maintenance and replacement reserves ahead of bookings.", min(Double(funds) / 3.0, 1.0), funds < 3, "life"),
+                growthStep(4, "Bundle kits for demand", "Package tools around local helper and customer demand.", 0.0, guides > 0 && funds >= 3, nil)
+            ]
+
+        case .franchise:
+            let guides = learn.completions.count
+            let checks = max(0, (life.summary?.checklist?.total ?? 0) - (life.summary?.checklist?.completed ?? 0))
+            return [
+                growthStep(1, "Set territory baseline", "Review coverage, demand, operator capacity, and compliance gaps.", checks == 0 ? 0.35 : 0.65, checks > 0, "home"),
+                growthStep(2, "Complete operator training", "Use franchise, management, and support playbooks.", guides > 0 ? 1.0 : 0.0, guides == 0, "learn"),
+                growthStep(3, "Build quality cadence", "Schedule compliance, QA, and operator check-ins.", min(Double(checks) / 4.0, 1.0), checks < 4, "life"),
+                growthStep(4, "Prepare expansion lane", "Move from launch territory to repeatable operator coverage.", 0.0, guides > 0 && checks >= 4, nil)
             ]
         }
+    }
+
+    private func growthStep(_ number: Int, _ title: String, _ description: String, _ progress: Double, _ isActive: Bool, _ tapTab: String?) -> GrowthStep {
+        GrowthStep(
+            stage: "Step \(number)",
+            title: localization.localized(title),
+            description: localization.localized(description),
+            progress: min(max(progress, 0.0), 1.0),
+            isActive: isActive,
+            tapTab: tapTab
+        )
     }
 
     // MARK: - Opportunities
@@ -400,14 +690,16 @@ struct GrowthTabView: View {
     }
 
     private var visiblePopular: [APIDiscoverItem] {
-        let persona = auth.activePersona
+        let persona = effectivePersona
         let allowed: Set<String> = {
             switch persona {
-            case .customer:  return ["helper", "business", "tool"]
-            case .helper:    return ["job", "tool", "business"]
-            case .business:  return ["business", "tool", "job"]
-            case .investor:  return ["business", "tool"]
-            default:         return ["job", "helper", "tool", "business"]
+            case .customer:   return ["helper", "business", "tool"]
+            case .helper:     return ["job", "tool", "business"]
+            case .business:   return ["business", "tool", "job"]
+            case .consultant: return ["business", "helper", "job"]
+            case .investor:   return ["business", "tool"]
+            case .toolOwner:  return ["tool", "job", "helper"]
+            case .franchise:  return ["business", "helper", "job"]
             }
         }()
         let filtered = popular.filter { allowed.contains($0.type) }
@@ -581,6 +873,16 @@ struct GrowthTabView: View {
 
     // MARK: - Data loading
 
+    private func refreshForPersonaChange() async {
+        programs = []
+        programsError = false
+        popularError = false
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await loadPrograms() }
+            group.addTask { await loadPopular() }
+        }
+    }
+
     private func loadPopular() async {
         guard !isLoadingPopular else { return }
         isLoadingPopular = true
@@ -609,7 +911,7 @@ struct GrowthTabView: View {
         programsError = false
         defer { isLoadingPrograms = false }
         do {
-            let persona = auth.activePersona.rawValue
+            let persona = effectivePersona.rawValue
             let fetched = try await GrowthService.programs(persona: persona)
             programs = fetched.isEmpty ? seedPrograms() : fetched
         } catch {
@@ -624,32 +926,81 @@ struct GrowthTabView: View {
     }
 
     private func seedPrograms() -> [APIGrowthProgram] {
-        [
-            APIGrowthProgram(
-                id: -1,
-                title: localization.localized(L10n.GrowthKey.seedBusinessConsultingTitle),
-                subtitle: localization.localized(L10n.GrowthKey.seedBusinessConsultingSubtitle),
-                iconName: "briefcase.fill",
-                colorKey: "money",
-                ctaLabel: localization.localized(L10n.GrowthKey.seedBusinessConsultingCta),
-                ctaUrl: nil,
-                ctaType: "consulting_intake",
-                personaFilter: nil,
-                sortOrder: 0
-            ),
-            APIGrowthProgram(
-                id: -2,
-                title: localization.localized(L10n.GrowthKey.seedWholesaleTitle),
-                subtitle: localization.localized(L10n.GrowthKey.seedWholesaleSubtitle),
-                iconName: "cart.fill.badge.plus",
-                colorKey: "sinking",
-                ctaLabel: localization.localized(L10n.GrowthKey.seedWholesaleCta),
-                ctaUrl: nil,
-                ctaType: "tab_growth",
-                personaFilter: nil,
-                sortOrder: 1
-            ),
-        ]
+        switch effectivePersona {
+        case .customer:
+            return [
+                seedProgram(-101, "Life Pulse to Job Plan", "Decide whether to DIY, learn first, or post a protected job.", "heart.text.square.fill", "home", "Open Life", "tab_life", 0),
+                seedProgram(-102, "Hire With Confidence", "Compare bids, profiles, reviews, and secure payments before work starts.", "checkmark.shield.fill", "success", "Learn", "tab_learn", 1)
+            ]
+        case .helper:
+            return [
+                seedProgram(-201, "First Bid Accelerator", "Find nearby demand, price clearly, and win the first review.", "location.fill", "money", "Open Home", "tab_home", 0),
+                seedProgram(-202, "Pricing and Trust Guide", "Build a rate floor, scope jobs, and protect customer communication.", "graduationcap.fill", "goals", "Learn", "tab_learn", 1)
+            ]
+        case .consultant:
+            return [
+                seedProgram(-301, "Paid Offer Builder", "Package one clear consulting outcome with price, scope, and follow-up.", "sparkles", "personal", "Start intake", "consulting_intake", 0),
+                seedProgram(-302, "Discovery Call Playbook", "Practice discovery, objections, and client fit before booking.", "person.bubble.fill", "success", "Learn", "tab_learn", 1)
+            ]
+        case .investor:
+            return [
+                seedProgram(-401, "Opportunity Watchlist", "Compare local operators, territories, and platform signals.", "chart.line.uptrend.xyaxis", "money", "Review", "tab_growth", 0),
+                seedProgram(-402, "Due Diligence Basics", "Study unit economics, revenue quality, and operator risk.", "clipboard.fill", "success", "Learn", "tab_learn", 1)
+            ]
+        case .business:
+            switch effectiveBusinessRole ?? .owner {
+            case .owner:
+                return [
+                    seedProgram(-501, "Operations Scale Program", "Tighten team, quality, inbox, and fulfillment before expanding.", "briefcase.fill", "goals", "Open Home", "tab_home", 0),
+                    seedProgram(-502, "Community Wholesale", "Use group buying and products to improve margin.", "cart.fill.badge.plus", "sinking", "Explore", "tab_growth", 1)
+                ]
+            case .manager:
+                return [
+                    seedProgram(-511, "Manager Coverage Program", "Build shift coverage, QA cadence, and clearer handoffs for the team.", "person.3.fill", "goals", "Open Home", "tab_home", 0),
+                    seedProgram(-512, "QA Checklist Builder", "Turn quality issues into repeatable manager checklists.", "clipboard.fill", "success", "Learn", "tab_learn", 1)
+                ]
+            case .representative:
+                return [
+                    seedProgram(-521, "Lead Pipeline Accelerator", "Move intake, follow-ups, and service agreements into a repeatable rhythm.", "person.crop.circle.badge.checkmark", "success", "Open Home", "tab_home", 0),
+                    seedProgram(-522, "Referral Engine", "Turn happy clients into warm intros and recurring work.", "arrow.up.right.circle.fill", "goals", "Learn", "tab_learn", 1)
+                ]
+            case .support:
+                return [
+                    seedProgram(-531, "Support Quality Program", "Improve first-contact resolution, escalation timing, and recovery scripts.", "headphones", "home", "Open Home", "tab_home", 0),
+                    seedProgram(-532, "De-escalation Playbook", "Practice evidence-based dispute resolution before the next charged case.", "text.bubble.fill", "success", "Learn", "tab_learn", 1)
+                ]
+            case .employee:
+                return [
+                    seedProgram(-541, "Role Advancement Path", "Build reliability through task completion, SOPs, and clean handoffs.", "checklist.checked", "home", "Open Home", "tab_home", 0),
+                    seedProgram(-542, "SOP Starter Track", "Finish role basics and quality standards for assigned work.", "graduationcap.fill", "success", "Learn", "tab_learn", 1)
+                ]
+            }
+        case .toolOwner:
+            return [
+                seedProgram(-601, "Rental Launch Checklist", "Add condition photos, rates, deposit rules, and pickup windows.", "hammer.fill", "car", "Open Home", "tab_home", 0),
+                seedProgram(-602, "Tool Kit Growth", "Bundle tools around local demand and plan replacement reserves.", "shippingbox.fill", "success", "Grow", "tab_growth", 1)
+            ]
+        case .franchise:
+            return [
+                seedProgram(-701, "Territory Launch Plan", "Track coverage, operators, quality, and compliance readiness.", "map.fill", "sinking", "Open Home", "tab_home", 0),
+                seedProgram(-702, "Operator Training System", "Use SOPs, QA, escalation, and onboarding standards.", "building.2.fill", "goals", "Learn", "tab_learn", 1)
+            ]
+        }
+    }
+
+    private func seedProgram(_ id: Int, _ title: String, _ subtitle: String, _ iconName: String, _ colorKey: String, _ ctaLabel: String, _ ctaType: String, _ sortOrder: Int) -> APIGrowthProgram {
+        APIGrowthProgram(
+            id: id,
+            title: localization.localized(title),
+            subtitle: localization.localized(subtitle),
+            iconName: iconName,
+            colorKey: colorKey,
+            ctaLabel: localization.localized(ctaLabel),
+            ctaUrl: nil,
+            ctaType: ctaType,
+            personaFilter: [effectivePersona.rawValue],
+            sortOrder: sortOrder
+        )
     }
 
     private func loadWholesale() async {
@@ -1467,7 +1818,7 @@ private extension View {
 
 /// Static + server-backed directory of grants and subsidies, filtered by persona/trade.
 struct GrantsDirectoryView: View {
-    @EnvironmentObject var auth: AuthStore
+    @EnvironmentObject var personaStore: PersonaStore
     @Environment(\.dismiss) private var dismiss
 
     @State private var grants: [APIGrowthGrant] = []
@@ -1547,7 +1898,7 @@ struct GrantsDirectoryView: View {
         isLoading = true
         defer { isLoading = false }
 
-        let persona = auth.activePersona.rawValue.lowercased().replacingOccurrences(of: " ", with: "_")
+        let persona = personaStore.active.rawValue.lowercased().replacingOccurrences(of: " ", with: "_")
         if let response = try? await GrowthService.grants(persona: persona) {
             grants = response
         } else {
@@ -1595,6 +1946,7 @@ struct GrantsDirectoryView: View {
 
 private struct GrantCard: View {
     let grant: APIGrowthGrant
+    @EnvironmentObject private var localization: LocalizationManager
     @State private var safariURL: URL?
 
     private var categoryColor: Color {

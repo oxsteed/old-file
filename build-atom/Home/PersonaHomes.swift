@@ -77,8 +77,10 @@ private enum CustomerHomeSheet: Identifiable {
 struct CustomerHome: View {
     @EnvironmentObject var jobs: JobsStore
     @EnvironmentObject var messages: MessagesStore
+    @EnvironmentObject var personaStore: PersonaStore
     @EnvironmentObject private var localization: LocalizationManager
     let isGuest: Bool
+    var showsTodayCard: Bool = true
     let onRequireAuth: () -> Void
     @State private var postJobPrefill: PostJobPrefill?
     @State private var activeSheet: CustomerHomeSheet?
@@ -86,34 +88,15 @@ struct CustomerHome: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            customerTodayCard
-            customerMetrics
+            if showsTodayCard {
+                customerTodayCard
+            }
 
             if isGuest {
-                VStack(spacing: 10) {
-                    SectionHeader(title: "home.browse_jobs.title", actionLabel: nil)
-                    if jobs.availableJobs.isEmpty {
-                        Text("home.jobs.empty.nearby")
-                            .font(.system(size: 13))
-                            .foregroundStyle(Theme.textSecondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 8)
-                    } else {
-                        ForEach(jobs.availableJobs.prefix(5)) { job in
-                            NavigationLink { JobDetailView(job: job) } label: { realJobRow(job) }
-                                .buttonStyle(.plain)
-                        }
-                        NavigationLink { JobsBrowseView() } label: {
-                            Text("home.jobs.see_all")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(Theme.accent)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.vertical, 6)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
+                guestCustomerStart
             } else {
+                customerMetrics
+
                 VStack(spacing: 10) {
                     SectionHeader(title: L10n.SectionKey.yourJobs)
                     if customerJobs.isEmpty {
@@ -129,17 +112,15 @@ struct CustomerHome: View {
                 }
             }
 
-            customerOperations
-
             if !isGuest {
+                customerOperations
+
                 RecommendationFeedView()
                     .task { await RecommendationsStore.shared.load() }
             }
         }
         .task {
-            if isGuest {
-                await jobs.loadAvailable()
-            } else {
+            if !isGuest {
                 await jobs.loadMyJobs()
                 await messages.loadConversations()
             }
@@ -212,60 +193,352 @@ struct CustomerHome: View {
     private var customerMetrics: some View {
         HStack(spacing: 12) {
             StatTile(label: L10n.StatKey.activeJobs,
-                     value: isGuest ? "\(jobs.availableJobs.count)" : "\(activeJobs.count)",
+                     value: "\(activeJobs.count)",
                      trend: nil, icon: "hammer.fill", color: Theme.accent)
             StatTile(label: L10n.StatKey.openQuotes,
-                     value: isGuest ? "0" : "\(actionableQuoteCount)",
+                     value: "\(actionableQuoteCount)",
                      trend: nil, icon: "doc.text.fill", color: Theme.pillarHome)
         }
     }
 
+    private var guestCustomerStart: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: localization.localized(guestCustomerStartTitle), actionLabel: nil)
+
+            if !selectedCustomerOptions.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(localization.localized("Your setup priorities"))
+                        .font(.system(size: 12, weight: .heavy))
+                        .foregroundStyle(Theme.textPrimary)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(selectedCustomerOptions) { option in
+                                HStack(spacing: 6) {
+                                    Image(systemName: option.icon)
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundStyle(option.color)
+                                    Text(localization.localized(option.title))
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundStyle(Theme.textPrimary)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 7)
+                                .background(option.color.opacity(0.09), in: Capsule())
+                                .overlay(Capsule().strokeBorder(option.color.opacity(0.2), lineWidth: 1))
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !selectedCustomerSetupSignals.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(localization.localized("Priority signals"))
+                        .font(.system(size: 12, weight: .heavy))
+                        .foregroundStyle(Theme.textPrimary)
+                    ForEach(selectedCustomerSetupSignals) { option in
+                        HStack(spacing: 8) {
+                            Image(systemName: option.icon)
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(option.color)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(localization.localized(option.title))
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(Theme.textPrimary)
+                                Text(localization.localized(option.unlock))
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(Theme.textSecondary)
+                                    .lineLimit(2)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(10)
+                        .background(option.color.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(option.color.opacity(0.18), lineWidth: 1))
+                    }
+                }
+            }
+
+            customerUrgencyDecisionCard
+
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                Button(action: onRequireAuth) {
+                    operationTileLabel(CustomerOperationItem(
+                        title: localization.localized("Post a request"),
+                        subtitle: localization.localized("Describe what you need done"),
+                        icon: "plus.circle.fill",
+                        color: Theme.accent,
+                        destination: .web(title: "Post Request", path: "/post-job")
+                    ))
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink { HelpersBrowseView() } label: {
+                    operationTileLabel(CustomerOperationItem(
+                        title: localization.localized("Find helpers"),
+                        subtitle: localization.localized("Browse trusted providers"),
+                        icon: "person.2.fill",
+                        color: Theme.pillarHome,
+                        destination: nil
+                    ))
+                }
+                .buttonStyle(.plain)
+
+                Button { switchHomeTab("learn") } label: {
+                    operationTileLabel(CustomerOperationItem(
+                        title: localization.localized("Learn first"),
+                        subtitle: localization.localized("Know what to ask before hiring"),
+                        icon: "graduationcap.fill",
+                        color: Theme.accent,
+                        destination: .web(title: "Learn", path: "/learn")
+                    ))
+                }
+                .buttonStyle(.plain)
+
+                Button { switchHomeTab("life") } label: {
+                    operationTileLabel(CustomerOperationItem(
+                        title: localization.localized("Plan budget"),
+                        subtitle: localization.localized("Keep repairs and funds visible"),
+                        icon: "heart.text.square.fill",
+                        color: Theme.danger,
+                        destination: .web(title: "Life Pulse", path: "/life")
+                    ))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var customerUrgencyDecisionCard: some View {
+        let urgency = customerUrgencyIntent
+        let signalIDs = personaStore.setupSignalIDs(for: .customer)
+        let prefersDIY = signalIDs.contains("customer-handle-diy")
+        let prefersHire = signalIDs.contains("customer-handle-hire") || customerCalibrationIDs.contains("hire-help")
+        let primaryIsPost = urgency.canPost && prefersHire && !prefersDIY
+        let primaryTitle = primaryIsPost ? (isGuest ? "Sign in to post" : "Post request") : (prefersDIY ? "Learn first" : "Open Life")
+        let primaryIcon = primaryIsPost ? "plus.circle.fill" : (prefersDIY ? "graduationcap.fill" : "heart.text.square.fill")
+        let secondaryTitle = primaryIsPost ? "Learn first" : (prefersDIY ? "Track in Pulse" : "Post request")
+        let secondaryIcon = primaryIsPost ? "graduationcap.fill" : (prefersDIY ? "heart.text.square.fill" : "plus.circle.fill")
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 11) {
+                Image(systemName: urgency.icon)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(urgency.color)
+                    .frame(width: 38, height: 38)
+                    .background(urgency.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 12))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Top Life signal")
+                        .sectionTitle()
+                    Text(localization.localized(urgency.title))
+                        .font(.system(size: 15, weight: .heavy))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(localization.localized(urgency.detail))
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                Text(localization.localized(urgency.badge))
+                    .font(.system(size: 9, weight: .heavy))
+                    .foregroundStyle(urgency.color)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(urgency.color.opacity(0.12), in: Capsule())
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    if primaryIsPost {
+                        postCustomerUrgency(urgency)
+                    } else if prefersDIY {
+                        switchHomeTab("learn")
+                    } else {
+                        switchHomeTab("life")
+                    }
+                } label: {
+                    urgencyActionLabel(title: primaryTitle, icon: primaryIcon, filled: true, color: urgency.color)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    if primaryIsPost {
+                        switchHomeTab("learn")
+                    } else if prefersDIY {
+                        switchHomeTab("life")
+                    } else {
+                        postCustomerUrgency(urgency)
+                    }
+                } label: {
+                    urgencyActionLabel(title: secondaryTitle, icon: secondaryIcon, filled: false, color: urgency.color)
+                }
+                .buttonStyle(.plain)
+                .disabled(!primaryIsPost && !prefersDIY && !urgency.canPost)
+                .opacity(!primaryIsPost && !prefersDIY && !urgency.canPost ? 0.55 : 1)
+            }
+        }
+        .cardStyle(padding: 14)
+    }
+
+    private func urgencyActionLabel(title: String, icon: String, filled: Bool, color: Color) -> some View {
+        Label(localization.localized(title), systemImage: icon)
+            .font(.system(size: 12, weight: .bold))
+            .foregroundStyle(filled ? .white : color)
+            .lineLimit(1)
+            .minimumScaleFactor(0.72)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 11)
+            .background(filled ? color : color.opacity(0.09), in: Capsule())
+            .overlay(Capsule().strokeBorder(filled ? Color.clear : color.opacity(0.32), lineWidth: 1))
+    }
+
+    private var customerUrgencyIntent: CustomerHomeUrgencyIntent {
+        let signalIDs = personaStore.setupSignalIDs(for: .customer)
+        if signalIDs.contains("customer-urgent-car") || customerCalibrationIDs.contains("car-care") {
+            return CustomerHomeUrgencyIntent(
+                title: "2019 Honda Accord oil change",
+                detail: "Overdue car care is first in your Pulse. Learn the basics or turn it into a request.",
+                badge: "Critical",
+                icon: "car.fill",
+                color: Theme.pillarCar,
+                postTitle: "Oil change or car maintenance help",
+                postDescription: "Customer Life Pulse item: 2019 Honda Accord oil change is overdue. I want help deciding the right service and timing.",
+                postCategory: "Handyman",
+                canPost: true
+            )
+        }
+        if signalIDs.contains("customer-urgent-money") || customerCalibrationIDs.contains("money") {
+            return CustomerHomeUrgencyIntent(
+                title: "Monthly budget check",
+                detail: "Money clarity is first in your Pulse. Start with Life, then use Learn before making bigger decisions.",
+                badge: "Pending",
+                icon: "banknote.fill",
+                color: Theme.success,
+                postTitle: "",
+                postDescription: "",
+                postCategory: "Handyman",
+                canPost: false
+            )
+        }
+        if signalIDs.contains("customer-urgent-routines") || customerCalibrationIDs.contains("personal") {
+            return CustomerHomeUrgencyIntent(
+                title: "Exercise routine",
+                detail: "Your routine needs a visible next step. Track it in Life or learn a simple reset plan first.",
+                badge: "Pending",
+                icon: "figure.walk",
+                color: Theme.pillarPersonal,
+                postTitle: "",
+                postDescription: "",
+                postCategory: "Handyman",
+                canPost: false
+            )
+        }
+        if signalIDs.contains("customer-urgent-ahead") || customerCalibrationIDs.contains("goals") {
+            return CustomerHomeUrgencyIntent(
+                title: "Vacation fund",
+                detail: "Your planned need is already visible. Keep the fund in Life and use Growth to stay ahead.",
+                badge: "23% funded",
+                icon: "wallet.pass.fill",
+                color: Theme.pillarSinking,
+                postTitle: "",
+                postDescription: "",
+                postCategory: "Handyman",
+                canPost: false
+            )
+        }
+        return CustomerHomeUrgencyIntent(
+            title: "Replace HVAC filter",
+            detail: "Home care is first in your Pulse. Learn the quick check or post it when DIY is not worth it.",
+            badge: "Watch",
+            icon: "house.fill",
+            color: Theme.pillarHome,
+            postTitle: "Replace HVAC filter",
+            postDescription: "Customer Life Pulse item: replace HVAC filter. I want help checking the filter size and replacing it safely.",
+            postCategory: "HVAC",
+            canPost: true
+        )
+    }
+
+    private var customerCalibrationIDs: Set<String> {
+        personaStore.calibrationIDs(for: .customer)
+    }
+
+    private func postCustomerUrgency(_ urgency: CustomerHomeUrgencyIntent) {
+        guard urgency.canPost else {
+            switchHomeTab("life")
+            return
+        }
+        if isGuest {
+            onRequireAuth()
+        } else {
+            postJobPrefill = PostJobPrefill(
+                title: urgency.postTitle,
+                description: urgency.postDescription,
+                category: urgency.postCategory,
+                urgency: "this_week"
+            )
+        }
+    }
+
+    private var selectedCustomerOptions: [PersonaCalibrationOption] {
+        personaStore.calibrationOptions(for: .customer)
+    }
+
+    private var selectedCustomerSetupSignals: [PersonaSetupSignalOption] {
+        personaStore.setupSignalOptions(for: .customer)
+    }
+
+    private var guestCustomerStartTitle: String {
+        let signalIDs = personaStore.setupSignalIDs(for: .customer)
+        if signalIDs.contains("customer-urgent-car") {
+            return "Start with overdue car care"
+        }
+        if signalIDs.contains("customer-urgent-money") {
+            return "Start with money clarity"
+        }
+        if signalIDs.contains("customer-handle-diy") {
+            return "Start with a quick guide"
+        }
+        if signalIDs.contains("customer-handle-hire") {
+            return "Start with help you can compare"
+        }
+        guard let first = selectedCustomerOptions.first else {
+            return "Start with a customer need"
+        }
+        return "Start with \(first.title.lowercased())"
+    }
+
     private var customerOperations: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: localization.localized("Customer tools"), actionLabel: nil)
+            SectionHeader(title: localization.localized("Customer actions"), actionLabel: nil)
 
             operationGroup(title: localization.localized("Get work done"),
                            subtitle: localization.localized("Find help, track requests, and keep every appointment visible."),
                            items: [
                             CustomerOperationItem(title: localization.localized("My Jobs"), subtitle: localization.localized("Requests and quotes"), icon: "list.bullet.rectangle.fill", color: Theme.accent, destination: .web(title: "My Jobs", path: "/my-jobs")),
                             CustomerOperationItem(title: localization.localized("Find Helpers"), subtitle: localization.localized("Profiles and services"), icon: "person.2.fill", color: Theme.accent, destination: nil),
-                            CustomerOperationItem(title: localization.localized("Discover"), subtitle: localization.localized("Businesses and services"), icon: "safari.fill", color: Theme.pillarGoals, destination: .web(title: "Discover", path: "/discover")),
+                            CustomerOperationItem(title: localization.localized("Find Services"), subtitle: localization.localized("Categories and providers"), icon: "safari.fill", color: Theme.pillarGoals, destination: .web(title: "Find Services", path: "/discover")),
                             CustomerOperationItem(title: localization.localized("Bookings"), subtitle: localization.localized("Schedule and requests"), icon: "calendar", color: Theme.pillarHome, destination: .calendar),
                             CustomerOperationItem(title: localization.localized("My Bookings"), subtitle: localization.localized("Helper and rental records"), icon: "calendar.badge.clock", color: Theme.pillarHome, destination: .web(title: "My Bookings", path: "/my-bookings")),
                             CustomerOperationItem(title: localization.localized("Messages"), subtitle: messagesSubtitle, icon: "envelope.fill", color: Theme.pillarGoals, destination: .inbox),
-                            CustomerOperationItem(title: localization.localized("Nearby Map"), subtitle: localization.localized("Jobs and rentals"), icon: "map.fill", color: Theme.success, destination: .map)
+                            CustomerOperationItem(title: localization.localized("Nearby Map"), subtitle: localization.localized("Helpers and rentals"), icon: "map.fill", color: Theme.success, destination: .map)
                            ])
 
-            operationGroup(title: localization.localized("Money and trust"),
-                           subtitle: localization.localized("Payments, records, identity, and help when a job goes sideways."),
+            operationGroup(title: localization.localized("Money and records"),
+                           subtitle: localization.localized("Keep job payments, receipts, and shared carts easy to review."),
                            items: [
                             CustomerOperationItem(title: localization.localized("Payments"), subtitle: localization.localized("Escrow and wallet"), icon: "creditcard.fill", color: Theme.success, destination: .payments),
                             CustomerOperationItem(title: localization.localized("Invoices"), subtitle: localization.localized("Bills and receipts"), icon: "doc.text.fill", color: Theme.pillarCar, destination: .invoices),
-                            CustomerOperationItem(title: localization.localized("Disputes"), subtitle: localization.localized("Resolve job issues"), icon: "exclamationmark.bubble.fill", color: Theme.warning, destination: .disputes),
-                            CustomerOperationItem(title: localization.localized("Support"), subtitle: localization.localized("Escalation help"), icon: "lifepreserver.fill", color: Theme.danger, destination: .support),
-                            CustomerOperationItem(title: localization.localized("Verify Identity"), subtitle: localization.localized("Build account trust"), icon: "checkmark.seal.fill", color: Theme.accent, destination: .identity)
-                           ])
+                            CustomerOperationItem(title: localization.localized("Cart & Checkout"), subtitle: localization.localized("Shared carts to approve"), icon: "cart.fill", color: Theme.success, destination: .sharedCarts)
+                           ],
+                           visibleCount: 3)
 
-            operationGroup(title: localization.localized("Supplies and account"),
-                           subtitle: localization.localized("Shop products, manage orders, rentals, settings, and notifications."),
+            operationGroup(title: localization.localized("Supplies and rentals"),
+                           subtitle: localization.localized("Review materials, product orders, and tool rentals tied to your projects."),
                            items: [
                             CustomerOperationItem(title: localization.localized("Products"), subtitle: localization.localized("Marketplace"), icon: "shippingbox.fill", color: Theme.pillarGoals, destination: .products),
-                            CustomerOperationItem(title: localization.localized("Cart & Checkout"), subtitle: localization.localized("Shared carts to review"), icon: "cart.fill", color: Theme.success, destination: .sharedCarts),
                             CustomerOperationItem(title: localization.localized("Orders"), subtitle: localization.localized("Purchases and carts"), icon: "bag.fill", color: Theme.pillarCar, destination: .orders),
-                            CustomerOperationItem(title: localization.localized("Tool Rentals"), subtitle: localization.localized("Rent nearby tools"), icon: "wrench.and.screwdriver.fill", color: Theme.pillarHome, destination: .web(title: "Tool Rentals", path: "/tool-rentals")),
-                            CustomerOperationItem(title: localization.localized("Notifications"), subtitle: localization.localized("Alerts and updates"), icon: "bell.fill", color: Theme.warning, destination: .notifications),
-                            CustomerOperationItem(title: localization.localized("Plans"), subtitle: localization.localized("Membership and upgrades"), icon: "sparkles.rectangle.stack.fill", color: Theme.pillarGoals, destination: .web(title: "Plans", path: "/upgrade")),
-                            CustomerOperationItem(title: localization.localized("Settings"), subtitle: localization.localized("Profile and alerts"), icon: "gearshape.fill", color: Theme.textSecondary, destination: .settings)
-                           ])
-
-            operationGroup(title: localization.localized("Account security"),
-                           subtitle: localization.localized("Verification and security steps that unlock full platform access and build trust with helpers."),
-                           items: [
-                            CustomerOperationItem(title: localization.localized("Verify Email"), subtitle: localization.localized("Confirm your account"), icon: "envelope.badge.shield.half.filled.fill", color: Theme.accent, destination: .verifyEmail),
-                            CustomerOperationItem(title: localization.localized("Two-Factor Auth"), subtitle: localization.localized("Protect sign-in"), icon: "lock.shield.fill", color: Theme.success, destination: .twoFactor),
-                            CustomerOperationItem(title: localization.localized("Verify Identity"), subtitle: localization.localized("Build account trust"), icon: "checkmark.seal.fill", color: Theme.accent, destination: .identity),
-                            CustomerOperationItem(title: localization.localized("Privacy & Safety"), subtitle: localization.localized("Data controls"), icon: "hand.raised.fill", color: Theme.pillarHome, destination: .web(title: "Privacy", path: "/privacy")),
-                            CustomerOperationItem(title: localization.localized("Legal & Policies"), subtitle: localization.localized("Terms, escrow, disputes"), icon: "doc.plaintext.fill", color: Theme.textSecondary, destination: .web(title: "Legal", path: "/terms"))
+                            CustomerOperationItem(title: localization.localized("Tool Rentals"), subtitle: localization.localized("Rent nearby tools"), icon: "wrench.and.screwdriver.fill", color: Theme.pillarHome, destination: .web(title: "Tool Rentals", path: "/tool-rentals"))
                            ])
 
             if !isGuest {
@@ -411,6 +684,14 @@ struct CustomerHome: View {
         } else {
             activeSheet = destination
         }
+    }
+
+    private func switchHomeTab(_ tab: String) {
+        NotificationCenter.default.post(
+            name: .oxSwitchTab,
+            object: nil,
+            userInfo: ["tab": tab]
+        )
     }
 
     @ViewBuilder
@@ -572,7 +853,7 @@ struct CustomerHome: View {
     }
 
     private var todaySubtitle: String {
-        if isGuest { return localization.localized("Browse local work and sign in to post your own project.") }
+        if isGuest { return personaStore.active.firstValueSubtitle }
         if let job = topActionJob { return localization.format("%@ for %@", nextActionText(for: job), job.title) }
         return localization.localized("Describe the next repair, errand, or home project.")
     }
@@ -631,6 +912,18 @@ struct CustomerHome: View {
             .padding(.vertical, 13)
             .background(Theme.accent, in: Capsule())
     }
+}
+
+private struct CustomerHomeUrgencyIntent {
+    let title: String
+    let detail: String
+    let badge: String
+    let icon: String
+    let color: Color
+    let postTitle: String
+    let postDescription: String
+    let postCategory: String
+    let canPost: Bool
 }
 
 private struct CustomerOperationItem: Identifiable {
@@ -1979,7 +2272,7 @@ struct HelperHome: View {
                 Button {
                     bidTargetJob = job
                 } label: {
-                    Text(L10n.CommonKey.bid).font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
+                    Text(LocalizedStringKey(L10n.CommonKey.bid)).font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
                         .padding(.horizontal, 14).padding(.vertical, 6).background(Theme.accent, in: Capsule())
                 }
                 .buttonStyle(.plain)
@@ -2046,11 +2339,13 @@ private struct JobPin: Identifiable {
 // MARK: - Business
 
 struct BusinessHome: View {
+    @EnvironmentObject var personaStore: PersonaStore
     @EnvironmentObject var workspace: BusinessWorkspaceStore
     @EnvironmentObject var payments: PaymentsStore
     @EnvironmentObject var jobs: JobsStore
     @EnvironmentObject var messages: MessagesStore
     @EnvironmentObject var notifications: NotificationsStore
+    @EnvironmentObject private var localization: LocalizationManager
     @State private var cashAppHandle = "$OxSteed"
     @State private var didLoadWorkspace = false
 
@@ -2114,6 +2409,19 @@ struct BusinessHome: View {
             }
             .cardStyle()
 
+            BusinessSubPersonaPicker(
+                selection: $personaStore.businessSubPersona,
+                title: "Business role",
+                subtitle: "This is nested under Business Owner and changes the work surface for the role you are using right now.",
+                compact: true
+            )
+            .cardStyle()
+
+            BusinessRoleHomeCard(
+                role: personaStore.businessSubPersona,
+                setupOption: personaStore.businessRoleSetupOption(for: personaStore.businessSubPersona)
+            )
+
             HStack(spacing: 12) {
                 StatTile(label: L10n.StatKey.teamOnline, value: "\(workspace.workspace?.items.count ?? 0)", trend: nil,
                          icon: "person.3.fill", color: Theme.success)
@@ -2144,79 +2452,37 @@ struct BusinessHome: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 10) {
-                SectionHeader(title: "Business console", actionLabel: nil)
-                HStack(spacing: 12) {
-                    WorkspaceNavCard(icon: "square.grid.2x2.fill",
-                                     title: "Messages",
-                                     subtitle: "Business inbox",
-                                     color: Theme.pillarHome) {
-                        InboxView()
-                    }
-                    WorkspaceNavCard(icon: "calendar",
-                                     title: "Calendar",
-                                     subtitle: "Bookings + events",
-                                     color: Theme.accent) {
-                        CalendarView()
-                    }
-                }
-                HStack(spacing: 12) {
-                    WorkspaceNavCard(icon: "shippingbox.fill",
-                                     title: "Growth",
-                                     subtitle: "Products and catalog",
-                                     color: Theme.pillarCar) {
-                        BusinessProductsView()
-                    }
-                    WorkspaceNavCard(icon: "creditcard.fill",
-                                     title: "Finance",
-                                     subtitle: "Payouts and revenue",
-                                     color: Theme.success) {
-                        PaymentsView()
-                    }
-                }
-                HStack(spacing: 12) {
-                    WorkspaceNavCard(icon: "tray.full.fill",
-                                     title: "Leads",
-                                     subtitle: "Pipeline",
-                                     color: Theme.pillarPersonal) {
-                        BusinessLeadsView()
-                    }
-                    WorkspaceNavCard(icon: "bell.fill",
-                                     title: "Health",
-                                     subtitle: "Active alerts",
-                                     color: Theme.warning) {
-                        BusinessHealthAlertsView()
-                    }
-                }
-            }
+            businessConsole(for: personaStore.businessSubPersona)
 
-            VStack(alignment: .leading, spacing: 10) {
-                SectionHeader(title: "Payout QR", actionLabel: nil)
-                HStack(spacing: 14) {
-                    QRCodeView(text: "https://cash.app/\(cashAppHandle.trimmingCharacters(in: CharacterSet(charactersIn: "$")))")
-                        .frame(width: 108, height: 108)
-                        .background(.white, in: RoundedRectangle(cornerRadius: 16))
-                        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.stroke, lineWidth: 1))
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(L10n.BusinessKey.cashappTitle)
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(Theme.textPrimary)
-                        Text("Customers can scan this to pay quickly.")
-                            .font(.system(size: 12))
-                            .foregroundStyle(Theme.textSecondary)
-                            .lineLimit(2)
-                        TextField("Cash App handle", text: $cashAppHandle)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .font(.system(size: 13, weight: .semibold))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                            .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
-                            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
-                            .foregroundStyle(Theme.textPrimary)
+            if personaStore.businessSubPersona == .owner {
+                VStack(alignment: .leading, spacing: 10) {
+                    SectionHeader(title: "Payout QR", actionLabel: nil)
+                    HStack(spacing: 14) {
+                        QRCodeView(text: "https://cash.app/\(cashAppHandle.trimmingCharacters(in: CharacterSet(charactersIn: "$")))")
+                            .frame(width: 108, height: 108)
+                            .background(.white, in: RoundedRectangle(cornerRadius: 16))
+                            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.stroke, lineWidth: 1))
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(LocalizedStringKey(L10n.BusinessKey.cashappTitle))
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(Theme.textPrimary)
+                            Text("Customers can scan this to pay quickly.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Theme.textSecondary)
+                                .lineLimit(2)
+                            TextField("Cash App handle", text: $cashAppHandle)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .font(.system(size: 13, weight: .semibold))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
+                                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
+                                .foregroundStyle(Theme.textPrimary)
+                        }
                     }
+                    .cardStyle(padding: 12)
                 }
-                .cardStyle(padding: 12)
             }
         }
         .task {
@@ -2229,6 +2495,220 @@ struct BusinessHome: View {
             await workspace.loadWorkspace()
         }
     }
+
+    @ViewBuilder
+    private func businessConsole(for role: BusinessSubPersona) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(title: "\(role.rawValue) console", actionLabel: nil)
+            switch role {
+            case .owner:
+                HStack(spacing: 12) {
+                    WorkspaceNavCard(icon: "square.grid.2x2.fill", title: "Messages", subtitle: "Business inbox", color: Theme.pillarHome) { InboxView() }
+                    WorkspaceNavCard(icon: "calendar", title: "Calendar", subtitle: "Bookings + events", color: Theme.accent) { CalendarView() }
+                }
+                HStack(spacing: 12) {
+                    WorkspaceNavCard(icon: "shippingbox.fill", title: "Products", subtitle: "Catalog + stock", color: Theme.pillarCar) { BusinessProductsView() }
+                    WorkspaceNavCard(icon: "creditcard.fill", title: "Finance", subtitle: "Payouts + revenue", color: Theme.success) { PaymentsView() }
+                }
+                HStack(spacing: 12) {
+                    WorkspaceNavCard(icon: "tray.full.fill", title: "Leads", subtitle: "Pipeline", color: Theme.pillarPersonal) { BusinessLeadsView() }
+                    WorkspaceNavCard(icon: "bell.fill", title: "Health", subtitle: "Active alerts", color: Theme.warning) { BusinessHealthAlertsView() }
+                }
+            case .manager:
+                HStack(spacing: 12) {
+                    WorkspaceNavCard(icon: "calendar", title: "Schedule", subtitle: "Bookings + shifts", color: Theme.accent) { CalendarView() }
+                    WorkspaceNavCard(icon: "bell.fill", title: "Quality", subtitle: "Health alerts", color: Theme.warning) { BusinessHealthAlertsView() }
+                }
+                HStack(spacing: 12) {
+                    WorkspaceNavCard(icon: "square.grid.2x2.fill", title: "Messages", subtitle: "Escalations", color: Theme.pillarHome) { InboxView() }
+                    WorkspaceNavCard(icon: "tray.full.fill", title: "Handoffs", subtitle: "Leads + follow-up", color: Theme.pillarPersonal) { BusinessLeadsView() }
+                }
+            case .representative:
+                HStack(spacing: 12) {
+                    WorkspaceNavCard(icon: "tray.full.fill", title: "Leads", subtitle: "Pipeline", color: Theme.pillarPersonal) { BusinessLeadsView() }
+                    WorkspaceNavCard(icon: "square.grid.2x2.fill", title: "Messages", subtitle: "Follow-ups", color: Theme.pillarHome) { InboxView() }
+                }
+                HStack(spacing: 12) {
+                    WorkspaceNavCard(icon: "calendar", title: "Calendar", subtitle: "Calls + meetings", color: Theme.accent) { CalendarView() }
+                    WorkspaceNavCard(icon: "bell.fill", title: "Client risk", subtitle: "Alerts", color: Theme.warning) { BusinessHealthAlertsView() }
+                }
+            case .support:
+                HStack(spacing: 12) {
+                    WorkspaceNavCard(icon: "square.grid.2x2.fill", title: "Tickets", subtitle: "Business inbox", color: Theme.pillarHome) { InboxView() }
+                    WorkspaceNavCard(icon: "bell.fill", title: "Escalations", subtitle: "Active alerts", color: Theme.warning) { BusinessHealthAlertsView() }
+                }
+                HStack(spacing: 12) {
+                    WorkspaceNavCard(icon: "calendar", title: "Coverage", subtitle: "Support blocks", color: Theme.accent) { CalendarView() }
+                    WorkspaceNavCard(icon: "tray.full.fill", title: "Client context", subtitle: "Related leads", color: Theme.pillarPersonal) { BusinessLeadsView() }
+                }
+            case .employee:
+                HStack(spacing: 12) {
+                    WorkspaceNavCard(icon: "calendar", title: "Shift", subtitle: "Today + upcoming", color: Theme.accent) { CalendarView() }
+                    WorkspaceNavCard(icon: "square.grid.2x2.fill", title: "Messages", subtitle: "Team inbox", color: Theme.pillarHome) { InboxView() }
+                }
+                WorkspaceNavCard(icon: "bell.fill", title: "Work blockers", subtitle: "Quality and support flags that need attention", color: Theme.warning) {
+                    BusinessHealthAlertsView()
+                }
+            }
+        }
+    }
+}
+
+private struct BusinessRoleHomeCard: View {
+    let role: BusinessSubPersona
+    var setupOption: BusinessRoleSetupOption?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: role.icon)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(role.color)
+                    .frame(width: 40, height: 40)
+                    .background(role.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 12))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("\(role.rawValue) focus")
+                        .font(.system(size: 16, weight: .heavy))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(role.tagline)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+
+            if let setupOption {
+                BusinessRoleSetupSignalRow(
+                    label: "Active role setup",
+                    option: setupOption,
+                    color: role.color
+                )
+            }
+
+            VStack(spacing: 8) {
+                ForEach(homeItems) { item in
+                    Button {
+                        NotificationCenter.default.post(name: .oxSwitchTab, object: nil, userInfo: ["tab": item.targetTab])
+                    } label: {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: item.icon)
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(item.color)
+                                .frame(width: 30, height: 30)
+                                .background(item.color.opacity(0.13), in: RoundedRectangle(cornerRadius: 9))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.title)
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(Theme.textPrimary)
+                                Text(item.subtitle)
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(Theme.textSecondary)
+                                    .lineLimit(2)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "arrow.right")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(Theme.textTertiary)
+                                .padding(.top, 7)
+                        }
+                        .padding(10)
+                        .background(item.color.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(item.color.opacity(0.17), lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .cardStyle()
+    }
+
+    private var homeItems: [BusinessRoleHomeItem] {
+        let baseItems: [BusinessRoleHomeItem]
+        switch role {
+        case .owner:
+            baseItems = [
+                .init(title: "Review operations health", subtitle: "Team activity, jobs, quality, and inbox risk stay in one owner view.", icon: "briefcase.fill", color: Theme.pillarGoals, targetTab: "home"),
+                .init(title: "Document the playbook", subtitle: "Move repeatable work into SOPs, QA checks, and delegation paths.", icon: "graduationcap.fill", color: Theme.accent, targetTab: "learn"),
+                .init(title: "Choose a growth lane", subtitle: "Products, wholesale, hiring, or recurring plans become the next scale step.", icon: "arrow.up.right.circle.fill", color: Theme.success, targetTab: "growth")
+            ]
+        case .manager:
+            baseItems = [
+                .init(title: "Check schedule risk", subtitle: "See shifts, task completion, and handoffs before quality slips.", icon: "person.3.fill", color: Theme.pillarMoney, targetTab: "home"),
+                .init(title: "Open QA checklist", subtitle: "Use manager guides for scheduling, reporting, and quality checks.", icon: "clipboard.fill", color: Theme.accent, targetTab: "learn"),
+                .init(title: "Build coverage depth", subtitle: "Turn repeated handoffs into stronger manager systems.", icon: "arrow.up.right.circle.fill", color: Theme.success, targetTab: "growth")
+            ]
+        case .representative:
+            baseItems = [
+                .init(title: "Work the lead pipeline", subtitle: "Inbound, outbound, follow-ups, and intake stay closest to Home.", icon: "person.crop.circle.badge.checkmark", color: Theme.success, targetTab: "home"),
+                .init(title: "Practice the next close", subtitle: "Use outreach, objection, and service-agreement playbooks.", icon: "graduationcap.fill", color: Theme.accent, targetTab: "learn"),
+                .init(title: "Grow referrals", subtitle: "Turn happy customers into repeat and referred work.", icon: "arrow.up.right.circle.fill", color: Theme.pillarGoals, targetTab: "growth")
+            ]
+        case .support:
+            baseItems = [
+                .init(title: "Clear active tickets", subtitle: "Cases, escalations, and response queue are the primary Home work.", icon: "headphones", color: Theme.accent, targetTab: "home"),
+                .init(title: "Open scripts", subtitle: "Use response templates, empathy, and escalation guidance.", icon: "text.bubble.fill", color: Theme.pillarHome, targetTab: "learn"),
+                .init(title: "Reduce repeat issues", subtitle: "Turn support patterns into better operations and training.", icon: "arrow.up.right.circle.fill", color: Theme.success, targetTab: "growth")
+            ]
+        case .employee:
+            baseItems = [
+                .init(title: "See assigned work", subtitle: "Tasks, shifts, and blockers stay visible before the next job.", icon: "checklist.checked", color: Theme.pillarHome, targetTab: "home"),
+                .init(title: "Open role basics", subtitle: "SOPs, training paths, and quality standards come first.", icon: "graduationcap.fill", color: Theme.accent, targetTab: "learn"),
+                .init(title: "Track advancement", subtitle: "Reliability and training progress point toward the next role.", icon: "arrow.up.right.circle.fill", color: Theme.success, targetTab: "growth")
+            ]
+        }
+
+        guard let setupLeadItem else { return baseItems }
+        return [setupLeadItem] + baseItems
+    }
+
+    private var setupLeadItem: BusinessRoleHomeItem? {
+        guard let setupOption else { return nil }
+        switch setupOption.id {
+        case "owner-operations":
+            return .init(title: "Stabilize operations first", subtitle: "Jobs, fulfillment, and quality alerts lead the owner dashboard.", icon: setupOption.icon, color: role.color, targetTab: "home")
+        case "owner-team":
+            return .init(title: "Set team quality rules", subtitle: "Move manager coverage, QA, and training setup to the front.", icon: setupOption.icon, color: role.color, targetTab: "learn")
+        case "owner-growth":
+            return .init(title: "Choose the next revenue lane", subtitle: "Hiring, programs, wholesale, and compliance get the next look.", icon: setupOption.icon, color: role.color, targetTab: "growth")
+        case "manager-small":
+            return .init(title: "Tighten daily handoffs", subtitle: "For 2-5 people, keep owners, shifts, and basic QA visible.", icon: setupOption.icon, color: role.color, targetTab: "home")
+        case "manager-mid":
+            return .init(title: "Watch shift coverage", subtitle: "For 6-15 people, schedule gaps and completion reporting lead.", icon: setupOption.icon, color: role.color, targetTab: "home")
+        case "manager-growing":
+            return .init(title: "Build manager layers", subtitle: "For larger teams, standards, escalation, and coverage depth lead.", icon: setupOption.icon, color: role.color, targetTab: "growth")
+        case "rep-inbound":
+            return .init(title: "Speed up lead intake", subtitle: "Inbound requests, response time, and follow-up queue lead.", icon: setupOption.icon, color: role.color, targetTab: "home")
+        case "rep-outbound":
+            return .init(title: "Run outbound cadence", subtitle: "Prospecting scripts, outreach blocks, and next touches lead.", icon: setupOption.icon, color: role.color, targetTab: "learn")
+        case "rep-both":
+            return .init(title: "Balance intake and outreach", subtitle: "CRM hygiene and conversion prompts stay visible across both lanes.", icon: setupOption.icon, color: role.color, targetTab: "home")
+        case "support-scheduling":
+            return .init(title: "Resolve scheduling issues", subtitle: "Reschedule scripts, reminders, and escalation rules lead.", icon: setupOption.icon, color: role.color, targetTab: "learn")
+        case "support-payments":
+            return .init(title: "Prioritize payment cases", subtitle: "Billing, refund, and dispute response templates lead.", icon: setupOption.icon, color: role.color, targetTab: "learn")
+        case "support-quality":
+            return .init(title: "Handle quality recovery", subtitle: "Empathy scripts, evidence capture, and recovery paths lead.", icon: setupOption.icon, color: role.color, targetTab: "learn")
+        case "employee-field":
+            return .init(title: "Prepare field work", subtitle: "Assigned jobs, SOPs, and quality standards stay first.", icon: setupOption.icon, color: role.color, targetTab: "home")
+        case "employee-admin":
+            return .init(title: "Clear admin handoffs", subtitle: "Paperwork, reminders, and task queue come forward.", icon: setupOption.icon, color: role.color, targetTab: "home")
+        case "employee-trainee":
+            return .init(title: "Start training path", subtitle: "Role basics, badges, and advancement steps lead.", icon: setupOption.icon, color: role.color, targetTab: "learn")
+        default:
+            return .init(title: setupOption.title, subtitle: setupOption.detail, icon: setupOption.icon, color: role.color, targetTab: "home")
+        }
+    }
+}
+
+private struct BusinessRoleHomeItem: Identifiable {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let color: Color
+    let targetTab: String
+
+    var id: String { title }
 }
 
 private struct QRCodeView: View {
@@ -3425,6 +3905,7 @@ struct BusinessProductsView: View {
 
 struct BusinessLeadsView: View {
     @EnvironmentObject var workspace: BusinessWorkspaceStore
+    @EnvironmentObject private var localization: LocalizationManager
     @State private var showAddLead = false
     @State private var actionError: String?
     private let leadStatuses = ["new", "contacted", "qualified", "quoted", "won", "lost"]
@@ -3517,6 +3998,7 @@ struct BusinessLeadsView: View {
 
 struct BusinessHealthAlertsView: View {
     @EnvironmentObject var workspace: BusinessWorkspaceStore
+    @EnvironmentObject private var localization: LocalizationManager
 
     var body: some View {
         NavigationStack {

@@ -14,17 +14,19 @@ private struct AppVersionInfo: Decodable {
 // MARK: - RootGate
 
 /// Top-level branch:
-/// - Guest users: show the stable 4-tab shell immediately.
+/// - Guest users: see the document-guided setup flow before the 4-tab shell.
 /// - Signed-in users: optionally require biometric unlock, then onboarding, then shell.
 struct RootGate: View {
     @EnvironmentObject var auth: AuthStore
     @EnvironmentObject var personaStore: PersonaStore
     @AppStorage("ox.security.require_biometrics") private var requireBiometrics = false
     @AppStorage("ox.onboarding.completed") private var onboardingCompleted = false
+    @AppStorage("ox.guest_onboarding.completed") private var guestOnboardingCompleted = false
     @State private var bootstrapped = false
     @State private var isUnlocked = false
     @AppStorage("ox.accountRestored.shown") private var accountRestoredShown = false
     @State private var showAccountRestored = false
+    @State private var showGuestAuthSheet = false
 
     // Force-update state
     @State private var mustUpdate = false
@@ -45,8 +47,16 @@ struct RootGate: View {
                     OnboardingFlowView(
                         onComplete: { onboardingCompleted = true },
                         onSetPersona: { persona in
+                            let previous = personaStore.active
                             personaStore.active = persona
-                            Task { await auth.switchPersona(persona) }
+                            personaStore.hasExplicitPersona = true
+                            Task {
+                                let succeeded = await auth.switchPersona(persona)
+                                if !succeeded {
+                                    personaStore.active = previous
+                                    personaStore.hasExplicitPersona = true
+                                }
+                            }
                         }
                     )
                 } else {
@@ -59,9 +69,22 @@ struct RootGate: View {
                         }
                 }
             } else {
-                // Guest mode: allow browsing/searching/learning without an account.
-                RootShellView()
+                if guestOnboardingCompleted {
+                    RootShellView()
+                } else {
+                    GuestOnboardingFlowView(
+                        onComplete: { guestOnboardingCompleted = true },
+                        onSetPersona: { persona in personaStore.active = persona },
+                        onSignIn: { showGuestAuthSheet = true }
+                    )
+                }
             }
+        }
+        .sheet(isPresented: $showGuestAuthSheet) {
+            AuthLandingView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Theme.background)
         }
         .task {
             if !bootstrapped {
@@ -83,8 +106,14 @@ struct RootGate: View {
                 accountRestoredShown = false   // reset so it shows next sign-in on fresh install
             } else if !requireBiometrics {
                 isUnlocked = true
+                if guestOnboardingCompleted {
+                    onboardingCompleted = true
+                }
             } else {
                 isUnlocked = false
+                if guestOnboardingCompleted {
+                    onboardingCompleted = true
+                }
             }
         }
         .onChange(of: requireBiometrics) { _, enabled in
@@ -238,7 +267,534 @@ private struct AppLockView: View {
 
 // MARK: - Onboarding
 
+private struct GuestOnboardingFlowView: View {
+    @EnvironmentObject private var personaStore: PersonaStore
+
+    let onComplete: () -> Void
+    let onSetPersona: (Persona) -> Void
+    let onSignIn: () -> Void
+
+    @State private var step: Step = .welcome
+    @State private var selectedPersona: Persona = .customer
+    @State private var selectedBusinessRole: BusinessSubPersona = .owner
+    @State private var selectedNeeds: Set<String> = []
+    @State private var selectedContextSignal: String?
+    @State private var selectedStyleSignal: String?
+
+    private enum Step: Int, CaseIterable {
+        case welcome = 0
+        case persona
+        case calibrate
+        case preview
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 18) {
+                    guestProgress
+
+                    switch step {
+                    case .welcome:
+                        welcomeStep
+                    case .persona:
+                        personaStep
+                    case .calibrate:
+                        calibrationStep
+                    case .preview:
+                        previewStep
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+                .padding(.bottom, 18)
+            }
+
+            bottomActions
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .background(Theme.background.opacity(0.96))
+        }
+        .background(Theme.background.ignoresSafeArea())
+        .onAppear {
+            loadStoredSetup(for: selectedPersona)
+        }
+    }
+
+    private var guestProgress: some View {
+        HStack(spacing: 6) {
+            ForEach(Step.allCases, id: \.rawValue) { item in
+                Capsule()
+                    .fill(item.rawValue <= step.rawValue ? Theme.accent : Theme.stroke)
+                    .frame(width: item == step ? 22 : 7, height: 7)
+            }
+            Spacer()
+            Text("Step \(step.rawValue + 1) of \(Step.allCases.count)")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Theme.textTertiary)
+        }
+    }
+
+    private var welcomeStep: some View {
+        VStack(spacing: 18) {
+            Image("OxSteedLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 78, height: 78)
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+
+            VStack(spacing: 8) {
+                Text("OxSteed ME")
+                    .font(.system(size: 32, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Theme.textPrimary)
+                Text("One app for your life, your work, and your growth.")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                    .multilineTextAlignment(.center)
+                Text("Let's set it up for you in under 2 minutes.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            VStack(spacing: 10) {
+                guestValueRow(icon: "person.crop.circle.badge.questionmark", title: "Choose who you are here as", subtitle: "Customer, Helper, Consultant, Investor, or Business Owner.")
+                guestValueRow(icon: "slider.horizontal.3", title: "Answer a few quick signals", subtitle: "Tap chips, skip anything, and avoid a long form.")
+                guestValueRow(icon: "sparkles", title: "See value before sign-in", subtitle: "Preview Home, Life Pulse, Growth, and Learn before saving.")
+            }
+            .cardStyle()
+        }
+    }
+
+    private var personaStep: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("What best describes you right now?")
+                    .font(.system(size: 22, weight: .heavy))
+                    .foregroundStyle(Theme.textPrimary)
+                Text("Your answer helps us show what matters most to you first.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+
+            ForEach(Persona.onboardingPersonas) { persona in
+                Button {
+                    selectedPersona = persona
+                    loadStoredSetup(for: persona)
+                    personaStore.hasExplicitPersona = true
+                    onSetPersona(persona)
+                    if persona == .business {
+                        personaStore.businessSubPersona = selectedBusinessRole
+                    }
+                } label: {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: persona.icon)
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(persona.color)
+                            .frame(width: 38, height: 38)
+                            .background(persona.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(persona.rawValue)
+                                .font(.system(size: 15, weight: .heavy))
+                                .foregroundStyle(Theme.textPrimary)
+                            Text(persona.onboardingDescription)
+                                .font(.system(size: 12))
+                                .foregroundStyle(Theme.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer()
+                        if selectedPersona == persona {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(Theme.accent)
+                        }
+                    }
+                    .padding(14)
+                    .background(selectedPersona == persona ? persona.color.opacity(0.10) : Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(selectedPersona == persona ? persona.color.opacity(0.35) : Theme.stroke, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+
+                if persona == .business && selectedPersona == .business {
+                    BusinessSubPersonaPicker(
+                        selection: $selectedBusinessRole,
+                        title: "Who do you work as inside the business?",
+                        subtitle: "This changes the Business Owner Home and the Learn path without creating a separate top-level OxPersona."
+                    )
+                    .padding(.top, -4)
+                    .onChange(of: selectedBusinessRole) { _, newRole in
+                        personaStore.businessSubPersona = newRole
+                    }
+                }
+            }
+
+            Text("You can add more roles later in OxPersona settings.")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Theme.textTertiary)
+        }
+    }
+
+    private var calibrationStep: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(calibrationPrompt)
+                    .font(.system(size: 22, weight: .heavy))
+                    .foregroundStyle(Theme.textPrimary)
+                Text("Tap what fits. Selecting an option activates matching Home, Life, Learn, and Growth previews.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                ForEach(calibrationOptions) { option in
+                    let isSelected = selectedNeeds.contains(option.id)
+                    Button {
+                        if isSelected {
+                            selectedNeeds.remove(option.id)
+                        } else {
+                            selectedNeeds.insert(option.id)
+                        }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Image(systemName: option.icon)
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(option.color)
+                                .frame(width: 30, height: 30)
+                                .background(option.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
+                            Text(option.title)
+                                .font(.system(size: 12, weight: .heavy))
+                                .foregroundStyle(Theme.textPrimary)
+                                .lineLimit(2)
+                            Text(option.unlock)
+                                .font(.system(size: 10))
+                                .foregroundStyle(Theme.textSecondary)
+                                .lineLimit(3)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 128, alignment: .topLeading)
+                        .padding(12)
+                        .background(isSelected ? option.color.opacity(0.12) : Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+                        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(isSelected ? option.color.opacity(0.42) : Theme.stroke, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            signalSection(
+                title: selectedPersona.contextSignalPrompt,
+                options: selectedPersona.contextSignalOptions,
+                selection: $selectedContextSignal
+            )
+
+            signalSection(
+                title: selectedPersona.styleSignalPrompt,
+                options: selectedPersona.styleSignalOptions,
+                selection: $selectedStyleSignal
+            )
+
+            Button {
+                selectedNeeds.removeAll()
+                selectedContextSignal = nil
+                selectedStyleSignal = nil
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
+                    step = .preview
+                }
+            } label: {
+                Text("Skip for now")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Theme.textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Theme.surfaceElevated, in: Capsule())
+                    .overlay(Capsule().strokeBorder(Theme.stroke, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var previewStep: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Here's your \(selectedPersona.rawValue) setup")
+                    .font(.system(size: 22, weight: .heavy))
+                    .foregroundStyle(Theme.textPrimary)
+                Text("This is your first value moment. Sign in only when you want to save it.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+
+            FirstValueMomentPreview(
+                persona: selectedPersona,
+                businessRole: selectedPersona == .business ? selectedBusinessRole : nil,
+                setupSignalIDs: selectedSetupSignalIDs
+            )
+                .cardStyle()
+
+            if !selectedNeeds.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Activated from your answers")
+                        .font(.system(size: 13, weight: .heavy))
+                        .foregroundStyle(Theme.textPrimary)
+                    ForEach(calibrationOptions.filter { selectedNeeds.contains($0.id) }) { option in
+                        HStack(spacing: 8) {
+                            Image(systemName: option.icon)
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(option.color)
+                            Text(option.title)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Theme.textPrimary)
+                            Spacer()
+                        }
+                        .padding(10)
+                        .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
+                    }
+                }
+                .cardStyle()
+            }
+
+            if !selectedSetupSignalOptions.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Priority signals")
+                        .font(.system(size: 13, weight: .heavy))
+                        .foregroundStyle(Theme.textPrimary)
+                    ForEach(selectedSetupSignalOptions) { option in
+                        HStack(spacing: 8) {
+                            Image(systemName: option.icon)
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(option.color)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(option.title)
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(Theme.textPrimary)
+                                Text(option.unlock)
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(Theme.textSecondary)
+                                    .lineLimit(2)
+                            }
+                            Spacer()
+                        }
+                        .padding(10)
+                        .background(option.color.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(option.color.opacity(0.18), lineWidth: 1))
+                    }
+                }
+                .cardStyle()
+            }
+        }
+    }
+
+    private var bottomActions: some View {
+        VStack(spacing: 10) {
+            if step == .welcome {
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
+                        step = .persona
+                    }
+                } label: {
+                    Text("Get Started")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Theme.accent, in: RoundedRectangle(cornerRadius: 14))
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    enterNoPersonaGuest()
+                    onComplete()
+                } label: {
+                    Text("Explore without signing in")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                .buttonStyle(.plain)
+            } else if step == .preview {
+                Button {
+                    applySelection()
+                    onComplete()
+                    onSignIn()
+                } label: {
+                    Text("Sign in to save setup")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Theme.accent, in: RoundedRectangle(cornerRadius: 14))
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    applySelection()
+                    onComplete()
+                } label: {
+                    Text("Continue without account")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                .buttonStyle(.plain)
+            } else {
+                HStack(spacing: 12) {
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
+                            step = Step(rawValue: max(0, step.rawValue - 1)) ?? .welcome
+                        }
+                    } label: {
+                        Text("common.back")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(Theme.accent)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.stroke, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        if step == .persona {
+                            applySelection()
+                        }
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
+                            step = Step(rawValue: min(Step.allCases.count - 1, step.rawValue + 1)) ?? .preview
+                        }
+                    } label: {
+                        Text("common.continue")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Theme.accent, in: RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private func guestValueRow(icon: String, title: String, subtitle: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 34, height: 34)
+                .background(Theme.accentSoft, in: RoundedRectangle(cornerRadius: 10))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Theme.textPrimary)
+                Text(subtitle)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func applySelection() {
+        onSetPersona(selectedPersona)
+        personaStore.hasExplicitPersona = true
+        personaStore.setCalibrationIDs(selectedNeeds, for: selectedPersona)
+        personaStore.setSetupSignalID(selectedContextSignal, kind: .context, for: selectedPersona)
+        personaStore.setSetupSignalID(selectedStyleSignal, kind: .style, for: selectedPersona)
+        if selectedPersona == .business {
+            personaStore.businessSubPersona = selectedBusinessRole
+        }
+    }
+
+    private func enterNoPersonaGuest() {
+        selectedPersona = .customer
+        selectedNeeds.removeAll()
+        selectedContextSignal = nil
+        selectedStyleSignal = nil
+        onSetPersona(.customer)
+        personaStore.hasExplicitPersona = false
+        personaStore.setCalibrationIDs([], for: .customer)
+        personaStore.setSetupSignalID(nil, kind: .context, for: .customer)
+        personaStore.setSetupSignalID(nil, kind: .style, for: .customer)
+    }
+
+    private func loadStoredSetup(for persona: Persona) {
+        selectedNeeds = personaStore.calibrationIDs(for: persona)
+        selectedContextSignal = personaStore.setupSignalID(for: persona, kind: .context)
+        selectedStyleSignal = personaStore.setupSignalID(for: persona, kind: .style)
+    }
+
+    private var calibrationPrompt: String {
+        selectedPersona.calibrationPrompt
+    }
+
+    private var calibrationOptions: [PersonaCalibrationOption] {
+        selectedPersona.calibrationOptions
+    }
+
+    private var selectedSetupSignalIDs: Set<String> {
+        Set([selectedContextSignal, selectedStyleSignal].compactMap { $0 })
+    }
+
+    private var selectedSetupSignalOptions: [PersonaSetupSignalOption] {
+        selectedPersona.setupSignalOptions(matching: selectedSetupSignalIDs)
+    }
+
+    private func signalSection(
+        title: String,
+        options: [PersonaSetupSignalOption],
+        selection: Binding<String?>
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.system(size: 14, weight: .heavy))
+                .foregroundStyle(Theme.textPrimary)
+            VStack(spacing: 8) {
+                ForEach(options) { option in
+                    signalButton(option, selection: selection)
+                }
+            }
+        }
+        .cardStyle(padding: 12)
+    }
+
+    private func signalButton(
+        _ option: PersonaSetupSignalOption,
+        selection: Binding<String?>
+    ) -> some View {
+        let isSelected = selection.wrappedValue == option.id
+        return Button {
+            selection.wrappedValue = isSelected ? nil : option.id
+        } label: {
+            HStack(alignment: .top, spacing: 9) {
+                Image(systemName: option.icon)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(option.color)
+                    .frame(width: 30, height: 30)
+                    .background(option.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 9))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(option.title)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(option.unlock)
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(option.color)
+                        .padding(.top, 5)
+                }
+            }
+            .padding(10)
+            .background(isSelected ? option.color.opacity(0.10) : Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(isSelected ? option.color.opacity(0.34) : Theme.stroke, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 private struct OnboardingFlowView: View {
+    @EnvironmentObject private var personaStore: PersonaStore
+
     let onComplete: () -> Void
     let onSetPersona: (Persona) -> Void
 
@@ -247,6 +803,7 @@ private struct OnboardingFlowView: View {
 
     @State private var step: Step = .welcome
     @State private var primaryPersona: Persona = .customer
+    @State private var businessRole: BusinessSubPersona = .owner
 
     enum Step: Int, CaseIterable {
         case welcome = 0
@@ -282,13 +839,29 @@ private struct OnboardingFlowView: View {
 
                 case .persona:
                     onboardingCard(title: "onboarding.persona.title", subtitle: "onboarding.persona.subtitle") {
-                        ForEach(Persona.allCases) { p in
+                        ForEach(Persona.onboardingPersonas) { p in
                             Button {
                                 primaryPersona = p
                             } label: {
-                                HStack {
-                                    Image(systemName: p.icon).foregroundStyle(p.color)
-                                    Text(LocalizedStringKey(L10n.PersonaKey.name(for: p))).foregroundStyle(Theme.textPrimary)
+                                HStack(alignment: .top, spacing: 12) {
+                                    Image(systemName: p.icon)
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundStyle(p.color)
+                                        .frame(width: 34, height: 34)
+                                        .background(p.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(LocalizedStringKey(L10n.PersonaKey.name(for: p)))
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundStyle(Theme.textPrimary)
+                                        Text(p.onboardingDescription)
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(Theme.textSecondary)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                        Text(p.onboardingUnlock)
+                                            .font(.system(size: 10, weight: .semibold))
+                                            .foregroundStyle(p.color)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
                                     Spacer()
                                     if primaryPersona == p {
                                         Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.accent)
@@ -299,6 +872,17 @@ private struct OnboardingFlowView: View {
                                 .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.stroke, lineWidth: 1))
                             }
                             .buttonStyle(.plain)
+
+                            if p == .business && primaryPersona == .business {
+                                BusinessSubPersonaPicker(
+                                    selection: $businessRole,
+                                    title: "Who do you work as inside the business?",
+                                    subtitle: "The nested role adjusts Business Home, Learn, Growth, and Life without changing your top-level OxPersona."
+                                )
+                                .onChange(of: businessRole) { _, newRole in
+                                    personaStore.businessSubPersona = newRole
+                                }
+                            }
                         }
                     }
 
@@ -326,6 +910,10 @@ private struct OnboardingFlowView: View {
 
                 case .done:
                     onboardingCard(title: "onboarding.done.title", subtitle: "onboarding.done.subtitle") {
+                        FirstValueMomentPreview(
+                            persona: primaryPersona,
+                            businessRole: primaryPersona == .business ? businessRole : nil
+                        )
                         bullet("onboarding.done.bullet_1")
                         bullet("onboarding.done.bullet_2")
                         bullet("onboarding.done.bullet_3")
@@ -366,6 +954,9 @@ private struct OnboardingFlowView: View {
             withAnimation { step = .persona }
         case .persona:
             onSetPersona(primaryPersona)
+            if primaryPersona == .business {
+                personaStore.businessSubPersona = businessRole
+            }
             withAnimation { step = .permissions }
         case .permissions:
             withAnimation { step = .pulseSetup }
@@ -461,6 +1052,70 @@ private struct PillarChecklistView: View {
         .padding(10)
         .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
+    }
+}
+
+private struct FirstValueMomentPreview: View {
+    let persona: Persona
+    var businessRole: BusinessSubPersona? = nil
+    var setupSignalIDs: Set<String> = []
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: displayIcon)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(displayColor)
+                    .frame(width: 38, height: 38)
+                    .background(displayColor.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(persona.firstValueTitle(for: businessRole, setupSignalIDs: setupSignalIDs))
+                        .font(.system(size: 14, weight: .heavy))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(persona.firstValueSubtitle(for: businessRole, setupSignalIDs: setupSignalIDs))
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            VStack(spacing: 8) {
+                ForEach(persona.loopSignals(for: businessRole).prefix(3)) { signal in
+                    HStack(spacing: 10) {
+                        Image(systemName: signal.icon)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(signal.color)
+                            .frame(width: 30, height: 30)
+                            .background(signal.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 9))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(signal.tab): \(signal.title)")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(Theme.textPrimary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
+                            Text(signal.subtitle)
+                                .font(.system(size: 10))
+                                .foregroundStyle(Theme.textSecondary)
+                                .lineLimit(2)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(10)
+                    .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
+                }
+            }
+        }
+    }
+
+    private var displayIcon: String {
+        guard persona == .business, let businessRole else { return persona.icon }
+        return businessRole.icon
+    }
+
+    private var displayColor: Color {
+        guard persona == .business, let businessRole else { return persona.color }
+        return businessRole.color
     }
 }
 
@@ -655,12 +1310,13 @@ struct LoginForm: View {
 
 struct RegisterForm: View {
     @EnvironmentObject var auth: AuthStore
+    @EnvironmentObject var personaStore: PersonaStore
     @State private var first = ""
     @State private var last = ""
     @State private var email = ""
     @State private var phone = ""
     @State private var password = ""
-    @State private var role: String = "customer"
+    @State private var role: String = Persona.customer.serverMode
     @State private var ref = ""
 
     var body: some View {
@@ -676,15 +1332,11 @@ struct RegisterForm: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("auth.field.role").sectionTitle()
                 Picker("", selection: $role) {
-                    Text(LocalizedStringKey(L10n.PersonaKey.name(for: .customer))).tag("customer")
-                    Text(LocalizedStringKey(L10n.PersonaKey.name(for: .helper))).tag("helper")
-                    Text(LocalizedStringKey(L10n.PersonaKey.name(for: .business))).tag("business_owner")
-                    Text(LocalizedStringKey(L10n.PersonaKey.name(for: .consultant))).tag("consultant")
-                    Text(LocalizedStringKey(L10n.PersonaKey.name(for: .toolOwner))).tag("tool_owner")
-                    Text(LocalizedStringKey(L10n.PersonaKey.name(for: .franchise))).tag("franchise_applicant")
-                    Text(LocalizedStringKey(L10n.PersonaKey.name(for: .investor))).tag("investor")
+                    ForEach(Persona.allCases) { persona in
+                        Text(LocalizedStringKey(L10n.PersonaKey.name(for: persona))).tag(persona.serverMode)
+                    }
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.menu)
                 OxTextField(title: "auth.field.referral_optional", text: $ref)
             }
             .cardStyle(padding: 12)
@@ -718,6 +1370,21 @@ struct RegisterForm: View {
             .disabled(auth.isLoading || email.isEmpty || password.count < 8 || first.isEmpty || last.isEmpty)
         }
         .cardStyle()
+        .onAppear {
+            role = personaStore.active.serverMode
+        }
+        .onChange(of: personaStore.active) { _, newPersona in
+            if role != newPersona.serverMode {
+                role = newPersona.serverMode
+            }
+        }
+        .onChange(of: role) { _, newRole in
+            let selectedPersona = Persona(serverMode: newRole)
+            if personaStore.active != selectedPersona {
+                personaStore.active = selectedPersona
+                personaStore.hasExplicitPersona = true
+            }
+        }
     }
 }
 

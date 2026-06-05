@@ -3,8 +3,9 @@ import SwiftUI
 /// Tiny helper namespace for localized keys. Lets us write `L10n.tab(.home)`
 /// instead of remembering raw key strings, with compile-time safety.
 ///
-/// All values return `String` so SwiftUI looks them up via the
-/// environment's `\.locale`, which we override from `LocalizationManager`.
+/// Values return key strings. Pass runtime keys through `LocalizedStringKey`
+/// or `LocalizationManager.localized(_:)`; `Text(someString)` treats a
+/// runtime `String` as verbatim text.
 enum L10n {
 
     // MARK: - Tabs

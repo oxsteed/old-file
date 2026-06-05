@@ -345,7 +345,7 @@ private func label(for status: String) -> String {
                         if isSaving {
                             ProgressView()
                         } else {
-                            Text(L10n.CommonKey.save).bold()
+                            Text(LocalizedStringKey(L10n.CommonKey.save)).bold()
                         }
                     }
                     .disabled(isSaving)

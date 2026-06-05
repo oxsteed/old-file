@@ -58,6 +58,123 @@ struct SectionHeader: View {
     }
 }
 
+struct GuestAuthPrimaryButton: View {
+    var title: String = "Sign in or create account"
+    var icon: String = "person.crop.circle.badge.checkmark"
+    let action: () -> Void
+    @EnvironmentObject private var localization: LocalizationManager
+
+    var body: some View {
+        Button(action: action) {
+            Label(localization.localized(title), systemImage: icon)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .background(Theme.accent, in: Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct GuestAuthPromptCard: View {
+    let title: String
+    let subtitle: String
+    var icon: String = "person.crop.circle.badge.checkmark"
+    var color: Color = Theme.accent
+    let action: () -> Void
+    @EnvironmentObject private var localization: LocalizationManager
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 11) {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(color)
+                    .frame(width: 36, height: 36)
+                    .background(color.opacity(0.14), in: RoundedRectangle(cornerRadius: 12))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(localization.localized(title))
+                        .font(.system(size: 15, weight: .heavy))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(localization.localized(subtitle))
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            GuestAuthPrimaryButton(action: action)
+        }
+        .cardStyle()
+    }
+}
+
+struct PersonaLoopNudgeCard: View {
+    let nudge: PersonaLoopNudge
+
+    var body: some View {
+        Button {
+            triggerNudge()
+        } label: {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: nudge.icon)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(nudge.color)
+                    .frame(width: 40, height: 40)
+                    .background(nudge.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 12))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(nudge.eyebrow)
+                        .sectionTitle()
+                    Text(nudge.title)
+                        .font(.system(size: 15, weight: .heavy))
+                        .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(nudge.subtitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+
+                VStack(spacing: 6) {
+                    Text(nudge.cta)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(nudge.color)
+                        .multilineTextAlignment(.trailing)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.75)
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(nudge.color)
+                }
+                .frame(width: 64, alignment: .trailing)
+            }
+            .cardStyle(padding: 14)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func triggerNudge() {
+        switch nudge.actionName {
+        case "businessRoleSetup":
+            NotificationCenter.default.post(name: .oxOpenBusinessRoleSetup, object: nil)
+        default:
+            NotificationCenter.default.post(
+                name: .oxSwitchTab,
+                object: nil,
+                userInfo: ["tab": nudge.targetTab]
+            )
+        }
+    }
+}
+
 struct JobRow: View {
     let job: JobItem
 
@@ -139,7 +256,7 @@ struct AvailableJobRow: View {
                         .foregroundStyle(Theme.textSecondary)
                 }
                 Spacer()
-                Text(L10n.CommonKey.bid)
+                Text(LocalizedStringKey(L10n.CommonKey.bid))
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 14).padding(.vertical, 6)
@@ -865,5 +982,122 @@ private struct PersonaActivitySection: View {
             .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Theme.stroke, lineWidth: 1))
         }
+    }
+}
+
+struct BusinessSubPersonaPicker: View {
+    @Binding var selection: BusinessSubPersona
+    var title: String = "Business role"
+    var subtitle: String = "Choose the role you work as inside the business."
+    var compact: Bool = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if !title.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: compact ? 12 : 14, weight: .heavy))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(subtitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            if compact {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(BusinessSubPersona.allCases) { role in
+                            roleButton(role, isCompact: true)
+                        }
+                    }
+                    .padding(.vertical, 1)
+                }
+            } else {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 9) {
+                    ForEach(BusinessSubPersona.allCases) { role in
+                        roleButton(role, isCompact: false)
+                    }
+                }
+            }
+        }
+    }
+
+    private func roleButton(_ role: BusinessSubPersona, isCompact: Bool) -> some View {
+        let isSelected = selection == role
+        return Button {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                selection = role
+            }
+        } label: {
+            HStack(alignment: .top, spacing: 9) {
+                Image(systemName: role.icon)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(role.color)
+                    .frame(width: isCompact ? 26 : 30, height: isCompact ? 26 : 30)
+                    .background(role.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 9))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(role.rawValue)
+                        .font(.system(size: isCompact ? 11 : 12, weight: .heavy))
+                        .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(isCompact ? 1 : 2)
+                        .minimumScaleFactor(0.8)
+                    if !isCompact {
+                        Text(role.tagline)
+                            .font(.system(size: 9))
+                            .foregroundStyle(Theme.textSecondary)
+                            .lineLimit(3)
+                    }
+                }
+
+                if isCompact {
+                    Spacer(minLength: 2)
+                }
+            }
+            .frame(maxWidth: isCompact ? nil : .infinity, minHeight: isCompact ? 34 : 86, alignment: .topLeading)
+            .padding(isCompact ? 8 : 10)
+            .background(isSelected ? role.color.opacity(0.13) : Theme.surface, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(isSelected ? role.color.opacity(0.45) : Theme.stroke, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct BusinessRoleSetupSignalRow: View {
+    let label: String
+    let option: BusinessRoleSetupOption
+    let color: Color
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: option.icon)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(color)
+                .frame(width: 32, height: 32)
+                .background(color.opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label.uppercased())
+                    .font(.system(size: 9, weight: .heavy))
+                    .foregroundStyle(color)
+                Text(option.title)
+                    .font(.system(size: 12, weight: .heavy))
+                    .foregroundStyle(Theme.textPrimary)
+                Text(option.detail)
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .background(color.opacity(0.07), in: RoundedRectangle(cornerRadius: 13))
+        .overlay(RoundedRectangle(cornerRadius: 13).strokeBorder(color.opacity(0.18), lineWidth: 1))
     }
 }
