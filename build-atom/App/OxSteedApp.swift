@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 import AppIntents
 import WidgetKit
+import SafariServices
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
@@ -45,6 +46,7 @@ struct OxSteedApp: App {
     @StateObject private var life = LifeStore()
     @StateObject private var learn = LearnStore()
     @StateObject private var recommendations = RecommendationsStore.shared
+    @StateObject private var linkRouter = LinkRouter()
 
     var body: some Scene {
         WindowGroup {
@@ -70,8 +72,13 @@ struct OxSteedApp: App {
             .environmentObject(life)
             .environmentObject(learn)
             .environmentObject(recommendations)
+            .environmentObject(linkRouter)
             .environment(\.locale, localization.locale)
             .environment(\.layoutDirection, localization.layoutDirection)
+            .environment(\.openURL, OpenURLAction { url in
+                linkRouter.open(url)
+                return .handled
+            })
             .dynamicTypeSize(dynamicTypeSize)
             .preferredColorScheme(colorScheme(for: appearancePref))
             .tint(Theme.accent)
@@ -79,7 +86,7 @@ struct OxSteedApp: App {
             .onChange(of: auth.user?.id) { _, _ in
                 if let u = auth.user {
                     if let preferredLanguage = u.preferred_language,
-                       let language = AppLanguage(rawValue: preferredLanguage),
+                       let language = AppLanguage.fromStoredCode(preferredLanguage),
                        language != localization.language {
                         localization.language = language
                     }
@@ -117,6 +124,10 @@ struct OxSteedApp: App {
             }
             .task {
                 await bootstrapOnLaunch()
+            }
+            .sheet(item: $linkRouter.presentedBrowserURL) { item in
+                SafariBrowserView(url: item.url)
+                    .ignoresSafeArea()
             }
         return withIntentRouting(base)
     }
@@ -259,4 +270,45 @@ struct OxSteedApp: App {
             }
         }
     }
+}
+
+// MARK: - In-app link routing
+
+@MainActor
+final class LinkRouter: ObservableObject {
+    @Published var presentedBrowserURL: BrowserURL?
+
+    func open(_ url: URL) {
+        if url.scheme == "oxsteed" {
+            NotificationCenter.default.post(name: .oxOpenDeepLink, object: nil, userInfo: ["url": url])
+            return
+        }
+
+        guard let scheme = url.scheme?.lowercased() else { return }
+        switch scheme {
+        case "http", "https":
+            presentedBrowserURL = BrowserURL(url: url)
+        case "mailto", "tel", "sms":
+            UIApplication.shared.open(url)
+        default:
+            UIApplication.shared.open(url)
+        }
+    }
+}
+
+struct BrowserURL: Identifiable, Equatable {
+    let url: URL
+    var id: String { url.absoluteString }
+}
+
+struct SafariBrowserView: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        let controller = SFSafariViewController(url: url)
+        controller.preferredControlTintColor = UIColor(Theme.accent)
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
 }

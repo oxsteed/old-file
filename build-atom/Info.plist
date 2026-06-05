@@ -59,6 +59,8 @@
 	<string>$(OX_AUTH_BASE_URL)</string>
 	<key>OX_ENVIRONMENT</key>
 	<string>$(OX_ENVIRONMENT)</string>
+	<key>OX_GIT_SHA</key>
+	<string>$(OX_GIT_SHA)</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

@@ -9,6 +9,18 @@ enum JobsService {
         let job: APIJob
     }
 
+    private struct AssignHelperResponse: Decodable {
+        let job: APIJob
+        let bid: APIBid
+    }
+
+    struct AssignHelperRequest: Encodable {
+        let bid_id: String
+        let scheduled_start: String?
+        let scheduled_end: String?
+        let payment_method: String
+    }
+
     static func browse(category: String? = nil,
                        categoryId: String? = nil,
                        skills: [String]? = nil,
@@ -66,6 +78,24 @@ enum JobsService {
             method: .POST,
             body: Req(cancellation_reason: reason)
         )
+    }
+
+    static func assignHelper(bidId: String,
+                             paymentMethod: String = "oxsteed",
+                             scheduledStart: String? = nil,
+                             scheduledEnd: String? = nil) async throws -> (job: APIJob, bid: APIBid) {
+        let req = AssignHelperRequest(
+            bid_id: bidId,
+            scheduled_start: scheduledStart,
+            scheduled_end: scheduledEnd,
+            payment_method: paymentMethod
+        )
+        let response: AssignHelperResponse = try await APIClient.shared.request(
+            "/api/jobs/assign",
+            method: .POST,
+            body: req
+        )
+        return (response.job, response.bid)
     }
 
     static func start(_ jobId: String) async throws -> APIJob {

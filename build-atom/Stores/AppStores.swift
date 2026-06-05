@@ -158,7 +158,8 @@ final class AuthStore: ObservableObject {
         }
     }
 
-    func switchPersona(_ persona: Persona) async {
+    @discardableResult
+    func switchPersona(_ persona: Persona) async -> Bool {
         let mode = serverMode(for: persona)
         do {
             let response = try await AuthService.switchRole(mode)
@@ -166,8 +167,10 @@ final class AuthStore: ObservableObject {
                 persistTokens(accessToken: access, refreshToken: refresh, expiresIn: 900)
             }
             self.user = response.user
+            return true
         } catch {
             self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return false
         }
     }
 
@@ -187,17 +190,17 @@ final class AuthStore: ObservableObject {
         guard let api = error as? APIError else { return error.localizedDescription }
         switch api {
         case .rateLimited:
-            return "Too many attempts. Please wait a few minutes and try again."
+            return appStoreLocalized("auth.error.too_many_attempts")
         case .unauthorized:
-            return isTwoFactor ? "Invalid verification code." : "Incorrect email or password."
+            return isTwoFactor ? appStoreLocalized("auth.error.invalid_code") : appStoreLocalized("auth.error.invalid_credentials")
         case .validation(let message, _):
             let m = message.trimmingCharacters(in: .whitespacesAndNewlines)
             if isRegister && m.lowercased().contains("exists") {
-                return "An account with this email already exists."
+                return appStoreLocalized("auth.error.email_exists")
             }
-            return m.isEmpty ? (api.errorDescription ?? "Request failed.") : m
+            return m.isEmpty ? (api.errorDescription ?? appStoreLocalized("api.error.request_failed")) : m
         default:
-            return api.errorDescription ?? "Something went wrong."
+            return api.errorDescription ?? appStoreLocalized("api.error.unknown")
         }
     }
 
@@ -217,6 +220,26 @@ final class AuthStore: ObservableObject {
         case .investor:   return "investor"
         }
     }
+}
+
+private func appStoreLocalized(_ key: String) -> String {
+    let rawLanguage = UserDefaults.standard.string(forKey: LocalizationManager.storageKey)
+    let language = rawLanguage == AppLanguage.system.rawValue
+        ? AppLanguage.fromStoredCode(Locale.preferredLanguages.first) ?? .en
+        : AppLanguage.fromStoredCode(rawLanguage) ?? .en
+
+    if let path = Bundle.main.path(forResource: language.rawValue, ofType: "lproj"),
+       let bundle = Bundle(path: path) {
+        let localized = bundle.localizedString(forKey: key, value: key, table: nil)
+        if localized != key { return localized }
+    }
+
+    if let path = Bundle.main.path(forResource: AppLanguage.en.rawValue, ofType: "lproj"),
+       let bundle = Bundle(path: path) {
+        return bundle.localizedString(forKey: key, value: key, table: nil)
+    }
+
+    return Bundle.main.localizedString(forKey: key, value: key, table: nil)
 }
 
 // MARK: - JobsStore
@@ -256,7 +279,7 @@ final class JobsStore: ObservableObject {
             myJobs.insert(job, at: 0)
             return true
         } catch {
-            lastError = (error as? APIError)?.errorDescription
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
             return false
         }
     }
@@ -284,7 +307,7 @@ final class BidsStore: ObservableObject {
             myBids.insert(bid, at: 0)
             return true
         } catch {
-            lastError = (error as? APIError)?.errorDescription
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
             return false
         }
     }
@@ -295,6 +318,7 @@ final class BidsStore: ObservableObject {
 @MainActor
 final class MessagesStore: ObservableObject {
     @Published var conversations: [APIConversation] = []
+    @Published var archivedConversations: [APIConversation] = []
     @Published var messagesByConversation: [String: [APIMessage]] = [:]
     @Published var isLoading = false
     @Published var lastError: String?
@@ -304,8 +328,21 @@ final class MessagesStore: ObservableObject {
 
     func loadConversations() async {
         isLoading = true; defer { isLoading = false }
-        do { conversations = try await MessagesService.conversations() }
+        do {
+            conversations = try await MessagesService.conversations()
+            lastError = nil
+        }
         catch { lastError = (error as? APIError)?.errorDescription }
+    }
+
+    func loadArchivedConversations() async {
+        isLoading = true; defer { isLoading = false }
+        do {
+            archivedConversations = try await MessagesService.archived()
+            lastError = nil
+        } catch {
+            lastError = (error as? APIError)?.errorDescription
+        }
     }
 
     func loadMessages(_ conversationId: String) async {
@@ -343,6 +380,32 @@ final class MessagesStore: ObservableObject {
             lastError = (error as? APIError)?.errorDescription
         }
     }
+
+    func archive(_ conversation: APIConversation) async {
+        do {
+            try await MessagesService.archive(conversation.id)
+            conversations.removeAll { $0.id == conversation.id }
+            if archivedConversations.contains(where: { $0.id == conversation.id }) == false {
+                archivedConversations.insert(conversation, at: 0)
+            }
+            lastError = nil
+        } catch {
+            lastError = (error as? APIError)?.errorDescription
+        }
+    }
+
+    func restore(_ conversation: APIConversation) async {
+        do {
+            try await MessagesService.restore(conversation.id)
+            archivedConversations.removeAll { $0.id == conversation.id }
+            if conversations.contains(where: { $0.id == conversation.id }) == false {
+                conversations.insert(conversation, at: 0)
+            }
+            lastError = nil
+        } catch {
+            lastError = (error as? APIError)?.errorDescription
+        }
+    }
 }
 
 // MARK: - CalendarStore
@@ -357,15 +420,79 @@ final class CalendarStore: ObservableObject {
 
     func loadAppointments() async {
         isLoading = true; defer { isLoading = false }
-        do { appointments = try await CalendarService.appointments() }
-        catch { lastError = (error as? APIError)?.errorDescription }
+        do {
+            appointments = try await CalendarService.appointments()
+            lastError = nil
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
     }
 
     func loadBookings(asHelper: Bool) async {
         do {
             if asHelper { bookingsIncoming = try await BookingsService.incoming() }
             else { bookingsMine = try await BookingsService.mine() }
-        } catch { lastError = (error as? APIError)?.errorDescription }
+            lastError = nil
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    func loadCalendarHome() async {
+        isLoading = true
+        defer { isLoading = false }
+        async let appts = CalendarService.appointments()
+        async let incoming = BookingsService.incoming()
+        async let mine = BookingsService.mine()
+        do {
+            appointments = try await appts
+            bookingsIncoming = try await incoming
+            bookingsMine = try await mine
+            lastError = nil
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    @discardableResult
+    func acceptBooking(_ booking: APIBooking) async -> Bool {
+        do {
+            let updated = try await BookingsService.accept(booking.id)
+            if let index = bookingsIncoming.firstIndex(where: { $0.id == booking.id }) {
+                bookingsIncoming[index] = updated
+            }
+            lastError = nil
+            return true
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return false
+        }
+    }
+
+    @discardableResult
+    func declineBooking(_ booking: APIBooking, reason: String? = nil) async -> Bool {
+        do {
+            try await BookingsService.decline(booking.id, reason: reason)
+            bookingsIncoming.removeAll { $0.id == booking.id }
+            lastError = nil
+            return true
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return false
+        }
+    }
+
+    @discardableResult
+    func cancelBooking(_ booking: APIBooking) async -> Bool {
+        do {
+            try await BookingsService.cancel(booking.id)
+            bookingsMine.removeAll { $0.id == booking.id }
+            lastError = nil
+            return true
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return false
+        }
     }
 }
 
@@ -376,6 +503,7 @@ final class NotificationsStore: ObservableObject {
     @Published var items: [APINotification] = []
     @Published var preferences: NotificationPreferences?
     @Published var unreadCount: Int = 0
+    @Published var lastError: String?
 
     func load() async {
         do {
@@ -386,8 +514,12 @@ final class NotificationsStore: ObservableObject {
             } else {
                 unreadCount = items.filter { !($0.is_read ?? false) }.count
             }
+            lastError = nil
         }
-        catch { OXLog.error("notifications load failed: \(String(describing: error))", category: "notifs") }
+        catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            OXLog.error("notifications load failed: \(String(describing: error))", category: "notifs")
+        }
     }
 
     func loadPreferences() async {
@@ -402,6 +534,7 @@ final class NotificationsStore: ObservableObject {
             let wasUnread = (n.is_read != true)
             items[idx] = APINotification(id: n.id, type: n.type, title: n.title, message: n.message,
                                          data: n.data,
+                                         action_url: n.action_url,
                                          is_read: true, created_at: n.created_at)
             if wasUnread { unreadCount = max(0, unreadCount - 1) }
         }
@@ -416,8 +549,18 @@ final class PaymentsStore: ObservableObject {
     @Published var connectStatus: StripeConnectStatus?
 
     func loadPayments() async {
-        do { payments = (try await PaymentsService.myPayments()).payments }
-        catch { OXLog.error("payments load failed: \(String(describing: error))", category: "payments") }
+        do {
+            async let payerList = PaymentsService.myPayments(status: nil, role: "payer")
+            async let payeeList = PaymentsService.myPayments(status: nil, role: "payee")
+            let (payer, payee) = try await (payerList, payeeList)
+            let merged = payer.payments + payee.payments
+            var seen = Set<String>()
+            payments = merged
+                .filter { seen.insert($0.id).inserted }
+                .sorted { ($0.created_at ?? "") > ($1.created_at ?? "") }
+        } catch {
+            OXLog.error("payments load failed: \(String(describing: error))", category: "payments")
+        }
     }
 
     func loadConnectStatus() async {
@@ -438,9 +581,75 @@ final class ToolRentalsStore: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         do {
+            lastError = nil
             myTools = try await ToolRentalsService.myTools()
         } catch {
             lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    @discardableResult
+    func createTool(_ request: ToolRentalsService.ToolRentalSaveRequest) async -> Bool {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            lastError = nil
+            let tool = try await ToolRentalsService.create(request)
+            myTools.insert(tool, at: 0)
+            return true
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return false
+        }
+    }
+
+    @discardableResult
+    func setToolAvailable(_ tool: APIToolRental, isAvailable: Bool) async -> Bool {
+        do {
+            lastError = nil
+            let request = ToolRentalsService.ToolRentalSaveRequest(
+                name: nil,
+                category: nil,
+                description: nil,
+                daily_rate: nil,
+                hourly_rate: nil,
+                deposit_amount: nil,
+                condition: nil,
+                brand: nil,
+                model: nil,
+                is_available: isAvailable,
+                requires_deposit: nil,
+                delivery_available: nil,
+                pickup_only: nil,
+                location_city: nil,
+                location_state: nil,
+                owner_rules: nil,
+                replacement_value: nil,
+                owner_attestation_accepted: nil
+            )
+            let updated = try await ToolRentalsService.update(id: tool.id, request)
+            if let index = myTools.firstIndex(where: { $0.id == updated.id }) {
+                myTools[index] = updated
+            } else {
+                myTools.insert(updated, at: 0)
+            }
+            return true
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return false
+        }
+    }
+
+    @discardableResult
+    func deleteTool(_ tool: APIToolRental) async -> Bool {
+        do {
+            lastError = nil
+            try await ToolRentalsService.delete(id: tool.id)
+            myTools.removeAll { $0.id == tool.id }
+            return true
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return false
         }
     }
 }
@@ -457,9 +666,25 @@ final class LifeStore: ObservableObject {
     @Published var goals: [APILifeGoal] = []
     @Published var checklist: [APILifeChecklistItem] = []
     @Published var homeTasks: [APILifeHomeTask] = []
+    @Published var sinkingFunds: [APILifeSinkingFund] = []
+    @Published var vehicles: [APILifeVehicle] = []
+    @Published var habits: [APILifeHabit] = []
     @Published var savedHelpers: [APILifeSavedHelper] = []
     @Published var isLoading = false
     @Published var lastError: String?
+
+    /// True when the user has no data in any pillar — used to show the Life
+    /// welcome / explainer card on first visit.
+    var isFirstRun: Bool {
+        guard !isLoading else { return false }
+        return expenses.isEmpty
+            && goals.isEmpty
+            && homeTasks.isEmpty
+            && vehicles.isEmpty
+            && habits.isEmpty
+            && sinkingFunds.isEmpty
+            && pulse == nil
+    }
 
     func refresh(window: String = "1m",
                  section: String = "home") async {
@@ -476,6 +701,9 @@ final class LifeStore: ObservableObject {
                 goals = []
                 checklist = []
                 homeTasks = []
+                sinkingFunds = []
+                vehicles = []
+                habits = []
                 savedHelpers = []
                 lastError = nil
                 return
@@ -487,6 +715,9 @@ final class LifeStore: ObservableObject {
             async let g: APILifeGoalsResponse = LifeService.goals(completed: false)
             async let c: APILifeChecklistResponse = LifeService.checklist()
             async let t: APILifeHomeTasksResponse = LifeService.homeTasks(section: section, completed: false)
+            async let sf: APILifeSinkingFundsResponse = LifeService.sinkingFunds()
+            async let v: APILifeVehiclesResponse = LifeService.vehicles()
+            async let h: APILifeHabitsResponse = LifeService.habits()
             async let sh: APILifeSavedHelpersResponse = LifeService.savedHelpers()
             let nextPulse = try await p
             let nextSummary = try await s
@@ -495,6 +726,9 @@ final class LifeStore: ObservableObject {
             let nextGoals = try await g.goals
             let nextChecklist = try await c.items
             let nextHomeTasks = try await t.home_tasks
+            let nextSinkingFunds = try await sf.sinking_funds
+            let nextVehicles = try await v.vehicles
+            let nextHabits = try await h.habits
             let nextSavedHelpers = try await sh.saved_helpers
 
             pulse = nextPulse
@@ -505,6 +739,9 @@ final class LifeStore: ObservableObject {
             goals = nextGoals
             checklist = nextChecklist
             homeTasks = nextHomeTasks
+            sinkingFunds = nextSinkingFunds
+            vehicles = nextVehicles
+            habits = nextHabits
             savedHelpers = nextSavedHelpers
         } catch {
             lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
@@ -534,6 +771,332 @@ final class LifeStore: ObservableObject {
             lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
     }
+
+    @discardableResult
+    func createExpense(source: String,
+                       amount: Double,
+                       type: String,
+                       occurredAt: String) async -> Bool {
+        do {
+            let safeType = type == "income" ? "income" : "expense"
+            let expense = try await LifeService.createExpense(
+                type: safeType,
+                amount: amount,
+                category: safeType == "income" ? "Life Income" : "Life Expense",
+                description: source,
+                occurredAt: occurredAt
+            )
+            expenses.insert(expense, at: 0)
+            expenseSummary = APILifeExpenseSummary(
+                total_income: expenses.filter { $0.type == "income" }.compactMap(\.amount).reduce(0, +),
+                total_expenses: expenses.filter { $0.type == "expense" }.compactMap(\.amount).reduce(0, +),
+                net: expenses.reduce(0) { sum, item in
+                    let amount = item.amount ?? 0
+                    return sum + (item.type == "income" ? amount : -amount)
+                },
+                month: expenseSummary?.month,
+                year: expenseSummary?.year
+            )
+            lastError = nil
+            return true
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return false
+        }
+    }
+
+    @discardableResult
+    func createHomeTask(title: String,
+                        category: String,
+                        dueDate: String,
+                        isRecurring: Bool) async -> Bool {
+        do {
+            let section = normalizedLifeSection(category)
+            let task = try await LifeService.createHomeTask(
+                title: title,
+                description: category.isEmpty ? nil : category,
+                dueDate: dueDate.isEmpty ? nil : dueDate,
+                urgency: "medium",
+                section: section,
+                isRecurring: isRecurring,
+                frequency: isRecurring ? "monthly" : nil
+            )
+            if section == "home" {
+                homeTasks.insert(task, at: 0)
+            }
+            lastError = nil
+            return true
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return false
+        }
+    }
+
+    @discardableResult
+    func createGoal(title: String, tier: String) async -> Bool {
+        do {
+            let goal = try await LifeService.createGoal(
+                title: title,
+                goalType: tier,
+                icon: "target"
+            )
+            goals.insert(goal, at: 0)
+            lastError = nil
+            return true
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return false
+        }
+    }
+
+    func toggleGoal(_ goal: APILifeGoal) async {
+        let current = goal.is_completed ?? false
+        do {
+            let updated = try await LifeService.updateGoalCompleted(id: goal.id, isCompleted: !current)
+            if let idx = goals.firstIndex(where: { $0.id == goal.id }) {
+                goals[idx] = updated
+            }
+            lastError = nil
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    func savedHelper(for helperId: String) -> APILifeSavedHelper? {
+        savedHelpers.first { $0.helper_id == helperId }
+    }
+
+    @discardableResult
+    func saveHelper(helperId: String) async -> Bool {
+        do {
+            let saved = try await LifeService.saveHelper(helperId: helperId)
+            if !savedHelpers.contains(where: { $0.id == saved.id }) {
+                savedHelpers.insert(saved, at: 0)
+            }
+            if let response = try? await LifeService.savedHelpers() {
+                savedHelpers = response.saved_helpers
+            }
+            lastError = nil
+            return true
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return false
+        }
+    }
+
+    @discardableResult
+    func removeSavedHelper(_ saved: APILifeSavedHelper) async -> Bool {
+        do {
+            try await LifeService.removeSavedHelper(id: saved.id)
+            savedHelpers.removeAll { $0.id == saved.id }
+            lastError = nil
+            return true
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return false
+        }
+    }
+
+    @discardableResult
+    func createVehicle(clientId: String = UUID().uuidString,
+                       vin: String,
+                       year: String,
+                       make: String,
+                       model: String,
+                       mileage: Int,
+                       lastOilChangeMile: Int,
+                       lastServiceDate: String,
+                       notes: String = "") async -> APILifeVehicle? {
+        do {
+            let vehicle = try await LifeService.createVehicle(
+                clientId: clientId,
+                vin: vin,
+                year: year,
+                make: make,
+                model: model,
+                mileage: mileage,
+                lastOilChangeMile: lastOilChangeMile,
+                lastServiceDate: lastServiceDate,
+                notes: notes
+            )
+            vehicles.insert(vehicle, at: 0)
+            lastError = nil
+            return vehicle
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return nil
+        }
+    }
+
+    @discardableResult
+    func updateVehicleMileage(_ vehicle: APILifeVehicle,
+                              mileage: Int,
+                              markOilChanged: Bool = false) async -> Bool {
+        do {
+            let updated = try await LifeService.updateVehicleMileage(
+                id: vehicle.id,
+                mileage: mileage,
+                lastOilChangeMile: markOilChanged ? mileage : nil,
+                lastServiceDate: markOilChanged ? Self.todayString() : nil
+            )
+            if let idx = vehicles.firstIndex(where: { $0.id == vehicle.id }) {
+                vehicles[idx] = updated
+            }
+            lastError = nil
+            return true
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return false
+        }
+    }
+
+    @discardableResult
+    func deleteVehicle(_ vehicle: APILifeVehicle) async -> Bool {
+        do {
+            try await LifeService.deleteVehicle(id: vehicle.id)
+            vehicles.removeAll { $0.id == vehicle.id }
+            lastError = nil
+            return true
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return false
+        }
+    }
+
+    @discardableResult
+    func ensureHabitBacked(_ habit: Habit) async -> APILifeHabit? {
+        if let match = habits.first(where: { $0.client_id == habit.id.uuidString || $0.name.caseInsensitiveCompare(habit.name) == .orderedSame }) {
+            return match
+        }
+        do {
+            let created = try await LifeService.createHabit(
+                clientId: habit.id.uuidString,
+                name: habit.name,
+                icon: habit.icon,
+                streak: habit.streak,
+                completedToday: habit.completedToday,
+                targetDaysPerWeek: habit.target
+            )
+            habits.insert(created, at: 0)
+            lastError = nil
+            return created
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return nil
+        }
+    }
+
+    @discardableResult
+    func toggleHabit(_ habit: APILifeHabit) async -> APILifeHabit? {
+        let nextCompleted = !(habit.completed_today ?? false)
+        let nextStreak = max(0, (habit.streak ?? 0) + (nextCompleted ? 1 : -1))
+        return await setHabitState(habit, completedToday: nextCompleted, streak: nextStreak)
+    }
+
+    @discardableResult
+    func setHabitState(_ habit: APILifeHabit,
+                       completedToday: Bool,
+                       streak: Int) async -> APILifeHabit? {
+        do {
+            let updated = try await LifeService.updateHabit(id: habit.id, completedToday: completedToday, streak: streak)
+            if let idx = habits.firstIndex(where: { $0.id == habit.id }) {
+                habits[idx] = updated
+            }
+            lastError = nil
+            return updated
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return nil
+        }
+    }
+
+    @discardableResult
+    func createSinkingFund(name: String,
+                           targetAmount: Double,
+                           savedAmount: Double,
+                           targetDate: String,
+                           paycheckInterval: String) async -> Bool {
+        do {
+            let fund = try await LifeService.createSinkingFund(
+                clientId: UUID().uuidString,
+                name: name,
+                targetAmount: targetAmount,
+                savedAmount: savedAmount,
+                targetDate: targetDate,
+                paycheckInterval: paycheckInterval
+            )
+            sinkingFunds.insert(fund, at: 0)
+            lastError = nil
+            return true
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return false
+        }
+    }
+
+    @discardableResult
+    func depositToSinkingFund(_ fund: APILifeSinkingFund, amount: Double) async -> Bool {
+        guard amount > 0 else { return false }
+        do {
+            let nextSaved = min(fund.target_amount ?? Double.greatestFiniteMagnitude,
+                                (fund.saved_amount ?? 0) + amount)
+            let updated = try await LifeService.updateSinkingFundSavedAmount(id: fund.id, savedAmount: nextSaved)
+            if let idx = sinkingFunds.firstIndex(where: { $0.id == fund.id }) {
+                sinkingFunds[idx] = updated
+            }
+            lastError = nil
+            return true
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return false
+        }
+    }
+
+    @discardableResult
+    func deleteSinkingFund(_ fund: APILifeSinkingFund) async -> Bool {
+        do {
+            try await LifeService.deleteSinkingFund(id: fund.id)
+            sinkingFunds.removeAll { $0.id == fund.id }
+            lastError = nil
+            return true
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return false
+        }
+    }
+
+    @discardableResult
+    func deleteGoal(_ goal: APILifeGoal) async -> Bool {
+        do {
+            try await LifeService.deleteGoal(id: goal.id)
+            goals.removeAll { $0.id == goal.id }
+            lastError = nil
+            return true
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return false
+        }
+    }
+
+    private func normalizedLifeSection(_ category: String) -> String {
+        let value = category.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        switch value {
+        case "personal", "personal care", "habit", "habits":
+            return "personal_care"
+        case "car", "vehicle", "car care", "auto":
+            return "car_care"
+        default:
+            return "home"
+        }
+    }
+
+    private static func todayString() -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: Date())
+    }
 }
 
 // MARK: - LearnStore
@@ -544,6 +1107,7 @@ final class LearnStore: ObservableObject {
     @Published var stats: APILearnStatsResponse?
     @Published var completions: Set<String> = []
     @Published var badges: [APILearnBadge] = []
+    @Published var submissions: [APILearnSubmission] = []
     @Published var isLoading = false
     @Published var lastError: String?
 
@@ -568,14 +1132,17 @@ final class LearnStore: ObservableObject {
             guard KeychainManager.shared.getAccessToken() != nil else {
                 completions = []
                 badges = []
+                submissions = []
                 return
             }
 
             async let c = LearnService.completions()
             async let b = LearnService.badges()
+            async let s = LearnService.mySubmissions()
             let comp = try await c
             completions = Set(comp.completions.map(\.guide_id))
             badges = try await b.badges
+            submissions = try await s.submissions
         } catch {
             lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -627,6 +1194,18 @@ final class LearnStore: ObservableObject {
             badges = try await LearnService.badges().badges
             // Bust recommendation cache so the feed reflects the new completion.
             RecommendationsStore.shared.invalidate()
+        } catch {
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    func refreshSubmissions() async {
+        guard KeychainManager.shared.getAccessToken() != nil else {
+            submissions = []
+            return
+        }
+        do {
+            submissions = try await LearnService.mySubmissions().submissions
         } catch {
             lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -711,7 +1290,7 @@ final class BusinessWorkspaceStore: ObservableObject {
             leads.insert(lead, at: 0)
             return true
         } catch {
-            lastError = (error as? APIError)?.errorDescription
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
             return false
         }
     }
@@ -738,7 +1317,7 @@ final class BusinessWorkspaceStore: ObservableObject {
             }
             return true
         } catch {
-            lastError = (error as? APIError)?.errorDescription
+            lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
             return false
         }
     }

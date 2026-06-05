@@ -327,11 +327,20 @@ struct SafetyTimerView: View {
                                     .background(Theme.success, in: RoundedRectangle(cornerRadius: 14))
                             }
                             Button(role: .destructive) { vm.triggerSOS() } label: {
-                                Label("safety.timer.send_sos_now", systemImage: "sos")
-                                    .font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
-                                    .frame(maxWidth: .infinity).padding(.vertical, 16)
-                                    .background(Theme.danger, in: RoundedRectangle(cornerRadius: 14))
+                                HStack(spacing: 8) {
+                                    if vm.isSendingSOS {
+                                        ProgressView().tint(.white).scaleEffect(0.85)
+                                    } else {
+                                        Image(systemName: "sos").font(.system(size: 16, weight: .bold))
+                                    }
+                                    Text("safety.timer.send_sos_now")
+                                        .font(.system(size: 16, weight: .bold))
+                                }
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity).padding(.vertical, 16)
+                                .background(Theme.danger, in: RoundedRectangle(cornerRadius: 14))
                             }
+                            .disabled(vm.isSendingSOS)
                         } else {
                             Button { vm.start() } label: {
                                 Label("safety.timer.start", systemImage: "timer")
@@ -367,6 +376,15 @@ struct SafetyTimerView: View {
         } message: {
             Text(localization.format("safety.timer.sos_sent.message_format", vm.contactName))
         }
+        .alert("SOS could not be sent", isPresented: Binding(
+            get: { vm.sosError != nil },
+            set: { if !$0 { vm.sosError = nil } }
+        )) {
+            Button("common.retry") { vm.triggerSOS() }
+            Button("common.ok", role: .cancel) { vm.sosError = nil }
+        } message: {
+            Text(vm.sosError ?? "Please check your connection and try again.")
+        }
     }
 }
 
@@ -388,6 +406,8 @@ final class SafetyTimerViewModel: ObservableObject {
     @Published var locationEnabled: Bool = false
     @Published var showExpiredAlert: Bool = false
     @Published var showSOSConfirmation: Bool = false
+    @Published var isSendingSOS: Bool = false
+    @Published var sosError: String?
 
     private var total: TimeInterval = 0
     private var remaining: TimeInterval = 0
@@ -431,30 +451,37 @@ final class SafetyTimerViewModel: ObservableObject {
     }
 
     func triggerSOS() {
+        guard !isSendingSOS else { return }
         stop()
         showExpiredAlert = false
-        // Post to server so backend can trigger SMS/email to the emergency contact.
-        Task {
+        isSendingSOS = true
+        sosError = nil
+        Task { @MainActor in
             struct Req: Encodable {
                 let contact_name: String
                 let contact_phone: String
-                let latitude: Double?
-                let longitude: Double?
+                let lat: Double?
+                let lng: Double?
             }
             let req = Req(
                 contact_name: contactName,
                 contact_phone: contactPhone,
-                latitude: lastLocation?.coordinate.latitude,
-                longitude: lastLocation?.coordinate.longitude
+                lat: lastLocation?.coordinate.latitude,
+                lng: lastLocation?.coordinate.longitude
             )
-            _ = try? await APIClient.shared.request(
-                "/api/safety/sos",
-                method: .POST,
-                body: req,
-                as: OkResponse.self
-            )
+            do {
+                _ = try await APIClient.shared.request(
+                    "/api/safety/sos",
+                    method: .POST,
+                    body: req,
+                    as: OkResponse.self
+                )
+                showSOSConfirmation = true
+            } catch {
+                sosError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            }
+            isSendingSOS = false
         }
-        showSOSConfirmation = true
     }
 
     private func tick() {

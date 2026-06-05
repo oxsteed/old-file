@@ -61,6 +61,10 @@ struct RootShellView: View {
         .onOpenURL { url in
             handleDeepLink(url)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .oxOpenDeepLink)) { note in
+            guard let url = note.userInfo?["url"] as? URL else { return }
+            handleDeepLink(url)
+        }
     }
 
     // MARK: - Deep-link routing
@@ -146,6 +150,10 @@ struct RootShellView: View {
 }
 
 extension Notification.Name {
+    static let oxOpenDeepLink = Notification.Name("ox.open.deepLink")
+}
+
+extension Notification.Name {
     static let oxOpenConversation = Notification.Name("ox.open.conversation")
     static let oxOpenJob = Notification.Name("ox.open.job")
     static let oxOpenBid = Notification.Name("ox.open.bid")
@@ -154,6 +162,7 @@ extension Notification.Name {
 private struct OxTabBar: View {
     @Binding var selection: AppTab
     @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var localization: LocalizationManager
 
     var body: some View {
         HStack(spacing: 0) {
@@ -177,7 +186,7 @@ private struct OxTabBar: View {
         .padding(.bottom, 8)
     }
 
-    private func tabButton(_ value: AppTab, label: LocalizedStringKey, icon: String) -> some View {
+    private func tabButton(_ value: AppTab, label: String, icon: String) -> some View {
         let isSelected = selection == value
         return Button {
             withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {
@@ -187,7 +196,7 @@ private struct OxTabBar: View {
             VStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(.system(size: 18, weight: .semibold))
-                Text(label)
+                Text(localization.localized(label))
                     .font(.system(size: 11, weight: .semibold))
             }
             .foregroundStyle(isSelected ? Theme.accent : Theme.textSecondary)

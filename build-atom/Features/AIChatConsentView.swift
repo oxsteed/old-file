@@ -69,7 +69,7 @@ struct AIChatConsentView: View {
                 Button {
                     onAccept()
                 } label: {
-                    Text("I understand, continue")
+                    Text("ai_chat.continue")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -80,7 +80,7 @@ struct AIChatConsentView: View {
                 Button {
                     onDecline()
                 } label: {
-                    Text("No thanks")
+                    Text("common.cancel")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(Theme.textSecondary)
                         .frame(maxWidth: .infinity)

@@ -120,6 +120,7 @@ struct RootGate: View {
 private struct ForceUpdateView: View {
     let message: String
     let updateURL: URL
+    @State private var browserURL: BrowserURL?
 
     var body: some View {
         VStack(spacing: 24) {
@@ -134,7 +135,7 @@ private struct ForceUpdateView: View {
             .frame(width: 88, height: 88)
 
             VStack(spacing: 8) {
-                Text("Update Required")
+                Text("auth.update_required")
                     .font(.system(size: 24, weight: .heavy))
                     .foregroundStyle(Theme.textPrimary)
 
@@ -145,8 +146,10 @@ private struct ForceUpdateView: View {
                     .padding(.horizontal, 32)
             }
 
-            Link(destination: updateURL) {
-                Text("Update Now")
+            Button {
+                browserURL = BrowserURL(url: updateURL)
+            } label: {
+                Text("auth.update_now")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -154,16 +157,21 @@ private struct ForceUpdateView: View {
                     .background(Theme.accent, in: RoundedRectangle(cornerRadius: 16))
                     .padding(.horizontal, 32)
             }
+            .buttonStyle(.plain)
 
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background.ignoresSafeArea())
+        .sheet(item: $browserURL) { item in
+            SafariBrowserView(url: item.url)
+        }
     }
 }
 
 private struct AppLockView: View {
     var onUnlocked: () -> Void
+    @EnvironmentObject private var localization: LocalizationManager
     @State private var lastError: String?
 
     var body: some View {
@@ -176,11 +184,11 @@ private struct AppLockView: View {
             }
             .frame(width: 76, height: 76)
 
-            Text("Locked")
+            Text("auth.locked")
                 .font(.system(size: 22, weight: .heavy))
                 .foregroundStyle(Theme.textPrimary)
 
-            Text("Unlock with Face ID, Touch ID, or device passcode to continue.")
+            Text("auth.locked_message")
                 .font(.system(size: 13))
                 .foregroundStyle(Theme.textSecondary)
                 .multilineTextAlignment(.center)
@@ -195,7 +203,7 @@ private struct AppLockView: View {
             Button {
                 Task { await unlock() }
             } label: {
-                Text("Unlock")
+                Text("auth.unlock")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -213,15 +221,15 @@ private struct AppLockView: View {
         let ctx = LAContext()
         var err: NSError?
         guard ctx.canEvaluatePolicy(.deviceOwnerAuthentication, error: &err) else {
-            lastError = "Device authentication is not available."
+            lastError = localization.localized("Device authentication is not available.")
             return
         }
         do {
             let ok = try await ctx.evaluatePolicy(.deviceOwnerAuthentication,
-                                                 localizedReason: "Unlock OxSteed")
+                                                 localizedReason: localization.localized("Unlock OxSteed"))
             if ok { onUnlocked() }
         } catch {
-            lastError = "Unlock failed."
+            lastError = localization.localized("Unlock failed.")
         }
     }
 }
@@ -280,7 +288,7 @@ private struct OnboardingFlowView: View {
                             } label: {
                                 HStack {
                                     Image(systemName: p.icon).foregroundStyle(p.color)
-                                    Text(p.rawValue).foregroundStyle(Theme.textPrimary)
+                                    Text(LocalizedStringKey(L10n.PersonaKey.name(for: p))).foregroundStyle(Theme.textPrimary)
                                     Spacer()
                                     if primaryPersona == p {
                                         Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.accent)
@@ -298,7 +306,7 @@ private struct OnboardingFlowView: View {
                     onboardingCard(title: "onboarding.permissions.title", subtitle: "onboarding.permissions.subtitle") {
                         permissionRow(icon: "location.fill",
                                       title: "onboarding.location.title",
-                                      subtitle: Text(verbatim: location.statusText),
+                                      subtitle: Text(LocalizedStringKey(location.statusKey)),
                                       actionTitle: "onboarding.enable") {
                             location.request()
                         }
@@ -446,7 +454,7 @@ private struct PillarChecklistView: View {
         HStack {
             Image(systemName: ok ? "checkmark.circle.fill" : "circle")
                 .foregroundStyle(ok ? Theme.success : Theme.textTertiary)
-            Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+            Text(LocalizedStringKey(title)).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.textPrimary)
             Spacer()
             Text(ok ? "Ready" : "Needs 1 item").font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
         }
@@ -457,7 +465,7 @@ private struct PillarChecklistView: View {
 }
 
 final class OxLocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
-    @Published var statusText: String = "Not determined"
+    @Published var statusKey: String = "Not determined"
 
     private let mgr = CLLocationManager()
 
@@ -484,7 +492,7 @@ final class OxLocationManager: NSObject, ObservableObject, CLLocationManagerDele
         UserDefaults.standard.set(loc.coordinate.latitude, forKey: "ox.location.lat")
         UserDefaults.standard.set(loc.coordinate.longitude, forKey: "ox.location.lng")
         UserDefaults.standard.set(Date(), forKey: "ox.location.updated_at")
-        statusText = "Enabled"
+        statusKey = "Enabled"
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
@@ -493,10 +501,10 @@ final class OxLocationManager: NSObject, ObservableObject, CLLocationManagerDele
 
     private func updateStatusText(_ s: CLAuthorizationStatus) {
         switch s {
-        case .authorizedAlways, .authorizedWhenInUse: statusText = "Enabled"
-        case .denied, .restricted: statusText = "Disabled"
-        case .notDetermined: statusText = "Not determined"
-        @unknown default: statusText = "Unknown"
+        case .authorizedAlways, .authorizedWhenInUse: statusKey = "Enabled"
+        case .denied, .restricted: statusKey = "Disabled"
+        case .notDetermined: statusKey = "Not determined"
+        @unknown default: statusKey = "Unknown"
         }
     }
 }
@@ -519,15 +527,15 @@ struct AuthLandingView: View {
                     Text("OxSteed")
                         .font(.system(size: 32, weight: .heavy))
                         .foregroundStyle(Theme.textPrimary)
-                    Text("Your personal operating system")
+                    Text("auth.tagline")
                         .font(.system(size: 14))
                         .foregroundStyle(Theme.textSecondary)
                 }
                 .padding(.top, 60)
 
                 Picker("", selection: $mode) {
-                    Text("Sign In").tag(Mode.login)
-                    Text("Create Account").tag(Mode.register)
+                    Text("auth.sign_in").tag(Mode.login)
+                    Text("auth.create_account").tag(Mode.register)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal, 20)
@@ -558,34 +566,39 @@ struct LoginForm: View {
     @State private var termsAgreed = false
     @State private var rememberMe = false
     @State private var showForgotPassword = false
+    @State private var browserURL: BrowserURL?
     private let termsURL = URL(string: "https://oxsteed.com/terms")!
     private let privacyURL = URL(string: "https://oxsteed.com/privacy")!
 
     var body: some View {
         VStack(spacing: 14) {
-            OxTextField(title: "Email", text: $email, keyboard: .emailAddress, textContentType: .username)
-            OxTextField(title: "Password", text: $password, secure: true, textContentType: .password)
+            OxTextField(title: "auth.field.email", text: $email, keyboard: .emailAddress, textContentType: .username)
+            OxTextField(title: "auth.field.password", text: $password, secure: true, textContentType: .password)
 
             VStack(alignment: .leading, spacing: 10) {
                 Toggle(isOn: $termsAgreed) {
-                    Text("I agree to the Terms of Service").font(.system(size: 13, weight: .semibold))
+                    Text("auth.agree_terms").font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
                 }
                 .tint(Theme.accent)
 
                 HStack(spacing: 12) {
-                    Link("Terms of Service", destination: termsURL)
+                    Button("auth.terms_of_service") {
+                        browserURL = BrowserURL(url: termsURL)
+                    }
                     Text("•")
                         .foregroundStyle(Theme.textTertiary)
-                    Link("Privacy Policy", destination: privacyURL)
+                    Button("auth.privacy_policy") {
+                        browserURL = BrowserURL(url: privacyURL)
+                    }
                 }
                 .font(.system(size: 12, weight: .semibold))
                 .tint(Theme.accent)
 
-                OxTextField(title: "Full Name (Signature)", text: $agreementName)
+                OxTextField(title: "auth.field.signature_name", text: $agreementName)
 
                 Toggle(isOn: $rememberMe) {
-                    Text("Remember me").font(.system(size: 13, weight: .semibold))
+                    Text("auth.remember_me").font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
                 }
                 .tint(Theme.accent)
@@ -607,7 +620,7 @@ struct LoginForm: View {
             } label: {
                 HStack {
                     if auth.isLoading { ProgressView().tint(.white) }
-                    Text("Sign In")
+                    Text("auth.sign_in")
                         .font(.system(size: 15, weight: .bold))
                 }
                 .frame(maxWidth: .infinity)
@@ -621,7 +634,7 @@ struct LoginForm: View {
                       !termsAgreed ||
                       agreementName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-            Button("Forgot password?") { showForgotPassword = true }
+            Button("auth.forgot_password") { showForgotPassword = true }
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.accent)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -631,6 +644,9 @@ struct LoginForm: View {
             ForgotPasswordView()
                 .presentationDetents([.medium])
                 .presentationBackground(Theme.background)
+        }
+        .sheet(item: $browserURL) { item in
+            SafariBrowserView(url: item.url)
         }
     }
 }
@@ -650,26 +666,26 @@ struct RegisterForm: View {
     var body: some View {
         VStack(spacing: 14) {
             HStack(spacing: 10) {
-                OxTextField(title: "First name", text: $first)
-                OxTextField(title: "Last name", text: $last)
+                OxTextField(title: "auth.field.first_name", text: $first)
+                OxTextField(title: "auth.field.last_name", text: $last)
             }
-            OxTextField(title: "Email", text: $email, keyboard: .emailAddress, textContentType: .emailAddress)
-            OxTextField(title: "Phone (optional)", text: $phone, keyboard: .phonePad)
-            OxTextField(title: "Password (8+ chars)", text: $password, secure: true, textContentType: .newPassword)
+            OxTextField(title: "auth.field.email", text: $email, keyboard: .emailAddress, textContentType: .emailAddress)
+            OxTextField(title: "auth.field.phone_optional", text: $phone, keyboard: .phonePad)
+            OxTextField(title: "auth.field.password_min", text: $password, secure: true, textContentType: .newPassword)
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("Role").sectionTitle()
+                Text("auth.field.role").sectionTitle()
                 Picker("", selection: $role) {
-                    Text("Customer").tag("customer")
-                    Text("Helper").tag("helper")
-                    Text("Business Owner").tag("business_owner")
-                    Text("Consultant").tag("consultant")
-                    Text("Tool Owner").tag("tool_owner")
-                    Text("Franchise Owner").tag("franchise_applicant")
-                    Text("Investor").tag("investor")
+                    Text(LocalizedStringKey(L10n.PersonaKey.name(for: .customer))).tag("customer")
+                    Text(LocalizedStringKey(L10n.PersonaKey.name(for: .helper))).tag("helper")
+                    Text(LocalizedStringKey(L10n.PersonaKey.name(for: .business))).tag("business_owner")
+                    Text(LocalizedStringKey(L10n.PersonaKey.name(for: .consultant))).tag("consultant")
+                    Text(LocalizedStringKey(L10n.PersonaKey.name(for: .toolOwner))).tag("tool_owner")
+                    Text(LocalizedStringKey(L10n.PersonaKey.name(for: .franchise))).tag("franchise_applicant")
+                    Text(LocalizedStringKey(L10n.PersonaKey.name(for: .investor))).tag("investor")
                 }
                 .pickerStyle(.segmented)
-                OxTextField(title: "Referral code (optional)", text: $ref)
+                OxTextField(title: "auth.field.referral_optional", text: $ref)
             }
             .cardStyle(padding: 12)
 
@@ -691,7 +707,7 @@ struct RegisterForm: View {
             } label: {
                 HStack {
                     if auth.isLoading { ProgressView().tint(.white) }
-                    Text("Create Account")
+                    Text("auth.create_account")
                         .font(.system(size: 15, weight: .bold))
                 }
                 .frame(maxWidth: .infinity)
@@ -714,16 +730,16 @@ private struct TwoFactorForm: View {
     var body: some View {
         VStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Two-Factor Verification")
+                Text("auth.two_factor_verification")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(Theme.textPrimary)
-                Text("Enter your 6-digit code to finish signing in.")
+                Text("auth.two_factor_message")
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.textSecondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            OxTextField(title: "Verification code", text: $code, keyboard: .numberPad)
+            OxTextField(title: "auth.field.verification_code", text: $code, keyboard: .numberPad)
 
             if let err = auth.lastError {
                 Text(err).font(.system(size: 12)).foregroundStyle(Theme.danger)
@@ -735,7 +751,7 @@ private struct TwoFactorForm: View {
             } label: {
                 HStack {
                     if auth.isLoading { ProgressView().tint(.white) }
-                    Text("Verify")
+                    Text("auth.verify")
                         .font(.system(size: 15, weight: .bold))
                 }
                 .frame(maxWidth: .infinity)
@@ -745,7 +761,7 @@ private struct TwoFactorForm: View {
             }
             .disabled(auth.isLoading || code.trimmingCharacters(in: .whitespacesAndNewlines).count < 6)
 
-            Button("Back") { auth.cancelTwoFactor() }
+            Button("common.back") { auth.cancelTwoFactor() }
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.accent)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -765,12 +781,12 @@ private struct ForgotPasswordView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 14) {
-                Text("Reset Password")
+                Text("auth.reset_password")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(Theme.textPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                OxTextField(title: "Email", text: $email, keyboard: .emailAddress)
+                OxTextField(title: "auth.field.email", text: $email, keyboard: .emailAddress)
 
                 if let err = auth.lastError {
                     Text(err).font(.system(size: 12)).foregroundStyle(Theme.danger)
@@ -785,7 +801,7 @@ private struct ForgotPasswordView: View {
                 } label: {
                     HStack {
                         if auth.isLoading { ProgressView().tint(.white) }
-                        Text("Send Reset Email")
+                        Text("auth.send_reset_email")
                             .font(.system(size: 15, weight: .bold))
                     }
                     .frame(maxWidth: .infinity)
@@ -795,16 +811,16 @@ private struct ForgotPasswordView: View {
                 }
                 .disabled(auth.isLoading || email.isEmpty)
 
-                Button("I have a reset token") { showReset = true }
+                Button("auth.reset_token_prompt") { showReset = true }
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Theme.accent)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(20)
             .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Forgot Password")
+            .navigationTitle("auth.forgot_password_title")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() }.foregroundStyle(Theme.accent) } }
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("common.done") { dismiss() }.foregroundStyle(Theme.accent) } }
         }
         .sheet(isPresented: $showReset) {
             ResetPasswordView()
@@ -823,13 +839,13 @@ private struct ResetPasswordView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 14) {
-                Text("Enter Reset Token")
+                Text("auth.enter_reset_token")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(Theme.textPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                OxTextField(title: "Token", text: $token)
-                OxTextField(title: "New password", text: $newPassword, secure: true)
+                OxTextField(title: "auth.field.token", text: $token)
+                OxTextField(title: "auth.field.new_password", text: $newPassword, secure: true)
 
                 if let err = auth.lastError {
                     Text(err).font(.system(size: 12)).foregroundStyle(Theme.danger)
@@ -842,9 +858,9 @@ private struct ResetPasswordView: View {
                         if ok { dismiss() }
                     }
                 } label: {
-                    HStack {
-                        if auth.isLoading { ProgressView().tint(.white) }
-                        Text("Set New Password")
+                        HStack {
+                            if auth.isLoading { ProgressView().tint(.white) }
+                            Text("auth.set_new_password")
                             .font(.system(size: 15, weight: .bold))
                     }
                     .frame(maxWidth: .infinity)
@@ -856,9 +872,9 @@ private struct ResetPasswordView: View {
             }
             .padding(20)
             .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Reset Password")
+            .navigationTitle("auth.reset_password")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() }.foregroundStyle(Theme.accent) } }
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("common.done") { dismiss() }.foregroundStyle(Theme.accent) } }
         }
     }
 }
@@ -910,10 +926,10 @@ struct AccountRestoredView: View {
     @EnvironmentObject private var localization: LocalizationManager
 
     private let restoredItems: [(icon: String, title: String, detail: String)] = [
-        ("heart.text.square.fill",              "Life Dashboard",      "Pulse score, sinking funds, spending history, and goals"),
-        ("bubble.left.and.bubble.right.fill",   "Messages",            "All conversations with helpers and customers"),
-        ("hammer.fill",                         "Jobs & Bookings",     "Active jobs, past work history, and quotes"),
-        ("person.fill.checkmark",               "Persona & Settings",  "Your active role, notification preferences, and language"),
+        ("heart.text.square.fill",              "auth.restored.life.title",      "auth.restored.life.detail"),
+        ("bubble.left.and.bubble.right.fill",   "auth.restored.messages.title",  "auth.restored.messages.detail"),
+        ("hammer.fill",                         "auth.restored.jobs.title",      "auth.restored.jobs.detail"),
+        ("person.fill.checkmark",               "auth.restored.settings.title",  "auth.restored.settings.detail"),
     ]
 
     private let itemColors: [Color] = [
@@ -932,10 +948,10 @@ struct AccountRestoredView: View {
                         .font(.system(size: 32, weight: .bold))
                         .foregroundStyle(Theme.success)
                 }
-                Text(localization.format("Welcome back%@!", auth.user?.first_name.flatMap { $0.isEmpty ? nil : ", \($0)" } ?? ""))
+                Text(localization.format("auth.restored.welcome_back", auth.user?.first_name.flatMap { $0.isEmpty ? nil : ", \($0)" } ?? ""))
                     .font(.system(size: 20, weight: .heavy, design: .rounded))
                     .foregroundStyle(Theme.textPrimary)
-                Text("Your account has been fully restored.")
+                Text("auth.restored.title")
                     .font(.system(size: 14))
                     .foregroundStyle(Theme.textSecondary)
             }
@@ -973,7 +989,7 @@ struct AccountRestoredView: View {
 
             // CTA
             Button { onDismiss() } label: {
-                Text("Let's Go")
+                Text("auth.lets_go")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -982,7 +998,7 @@ struct AccountRestoredView: View {
             }
             .buttonStyle(.plain)
 
-            Text("If anything looks missing, pull-to-refresh on any screen to sync the latest data.")
+            Text("auth.restored.sync_hint")
                 .font(.system(size: 11))
                 .foregroundStyle(Theme.textTertiary)
                 .multilineTextAlignment(.center)

@@ -24,7 +24,17 @@
 				3CEA01F469314302139CCCD1 /* OxSteedApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB061BA0E9DAAA38B260BFF0 /* OxSteedApp.swift */; };
 				3CFEBB5321371F657022DAD4 /* SocketManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87399577C0AD9D4A97C5363D /* SocketManager.swift */; };
 				49BB47D5B9055688B7894200 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 39405E38E9540F2917B87835 /* Localizable.strings */; };
-		50F83CA6A0031A2C35BC668E /* Persona.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABACAF22ED3E2B78F1D0367 /* Persona.swift */; };
+			AA11AA11AA11AA11AA11AA01 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = BB22BB22BB22BB22BB22BB01 /* InfoPlist.strings */; };
+			AA11AA11AA11AA11AA11AA02 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = BB22BB22BB22BB22BB22BB02 /* InfoPlist.strings */; };
+			AA11AA11AA11AA11AA11AA03 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = BB22BB22BB22BB22BB22BB03 /* InfoPlist.strings */; };
+			AA11AA11AA11AA11AA11AA04 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = BB22BB22BB22BB22BB22BB04 /* InfoPlist.strings */; };
+			AA11AA11AA11AA11AA11AA05 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = BB22BB22BB22BB22BB22BB05 /* InfoPlist.strings */; };
+			CC33CC33CC33CC33CC33CC01 /* Localizable.stringsdict in Resources */ = {isa = PBXBuildFile; fileRef = DD44DD44DD44DD44DD44DD01 /* Localizable.stringsdict */; };
+			CC33CC33CC33CC33CC33CC02 /* Localizable.stringsdict in Resources */ = {isa = PBXBuildFile; fileRef = DD44DD44DD44DD44DD44DD02 /* Localizable.stringsdict */; };
+			CC33CC33CC33CC33CC33CC03 /* Localizable.stringsdict in Resources */ = {isa = PBXBuildFile; fileRef = DD44DD44DD44DD44DD44DD03 /* Localizable.stringsdict */; };
+			CC33CC33CC33CC33CC33CC04 /* Localizable.stringsdict in Resources */ = {isa = PBXBuildFile; fileRef = DD44DD44DD44DD44DD44DD04 /* Localizable.stringsdict */; };
+			CC33CC33CC33CC33CC33CC05 /* Localizable.stringsdict in Resources */ = {isa = PBXBuildFile; fileRef = DD44DD44DD44DD44DD44DD05 /* Localizable.stringsdict */; };
+			50F83CA6A0031A2C35BC668E /* Persona.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABACAF22ED3E2B78F1D0367 /* Persona.swift */; };
 		51576C3AFE444776F81F3B78 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = BC0B2CE29E342D6FAAEB5E82 /* SocketIO */; };
 		5540AD2047415782B9EE46AD /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3C8C900A3FF295EAD5A5C9D /* L10n.swift */; };
 		568B56BA8B7368C5122CF08F /* PersonaHomes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FEE5BB463B4B1C7AD5E7FC4 /* PersonaHomes.swift */; };
@@ -111,6 +121,16 @@
 		8DC8DD72F6BE755E975270B4 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		921575667DB9E0B03C2822F8 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		9288B0FBF79B086C4C74130F /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Localizable.strings; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		BB22BB22BB22BB22BB22BB01 /* InfoPlist.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = InfoPlist.strings; path = ar.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		BB22BB22BB22BB22BB22BB02 /* InfoPlist.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = InfoPlist.strings; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		BB22BB22BB22BB22BB22BB03 /* InfoPlist.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = InfoPlist.strings; path = es.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		BB22BB22BB22BB22BB22BB04 /* InfoPlist.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = InfoPlist.strings; path = fr.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		BB22BB22BB22BB22BB22BB05 /* InfoPlist.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = InfoPlist.strings; path = ht.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		DD44DD44DD44DD44DD44DD01 /* Localizable.stringsdict */ = {isa = PBXFileReference; lastKnownFileType = text.plist.stringsdict; name = Localizable.stringsdict; path = ar.lproj/Localizable.stringsdict; sourceTree = "<group>"; };
+		DD44DD44DD44DD44DD44DD02 /* Localizable.stringsdict */ = {isa = PBXFileReference; lastKnownFileType = text.plist.stringsdict; name = Localizable.stringsdict; path = en.lproj/Localizable.stringsdict; sourceTree = "<group>"; };
+		DD44DD44DD44DD44DD44DD03 /* Localizable.stringsdict */ = {isa = PBXFileReference; lastKnownFileType = text.plist.stringsdict; name = Localizable.stringsdict; path = es.lproj/Localizable.stringsdict; sourceTree = "<group>"; };
+		DD44DD44DD44DD44DD44DD04 /* Localizable.stringsdict */ = {isa = PBXFileReference; lastKnownFileType = text.plist.stringsdict; name = Localizable.stringsdict; path = fr.lproj/Localizable.stringsdict; sourceTree = "<group>"; };
+		DD44DD44DD44DD44DD44DD05 /* Localizable.stringsdict */ = {isa = PBXFileReference; lastKnownFileType = text.plist.stringsdict; name = Localizable.stringsdict; path = ht.lproj/Localizable.stringsdict; sourceTree = "<group>"; };
 		97A95AC363A6FF42585A2490 /* HomeTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeTabView.swift; sourceTree = "<group>"; };
 		9BE75319ED50F3575E94CDE8 /* AppStores.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStores.swift; sourceTree = "<group>"; };
 			7AC4673EF917FF5713A98FC9 /* LogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStore.swift; sourceTree = "<group>"; };
@@ -194,10 +214,20 @@
 				A1A074A05326F198CFE86F8B /* LaunchScreen.storyboard */,
 				EE2EF3E4FEFB4AD748A4A494 /* Localizable.strings */,
 				9288B0FBF79B086C4C74130F /* Localizable.strings */,
-				39405E38E9540F2917B87835 /* Localizable.strings */,
-				63926029B6FB2EFF0D6D7689 /* Localizable.strings */,
-				8093327178EF507D18BEF108 /* Localizable.strings */,
-				C34AA01FF653E3B7FE188CCD /* App */,
+					39405E38E9540F2917B87835 /* Localizable.strings */,
+					63926029B6FB2EFF0D6D7689 /* Localizable.strings */,
+					8093327178EF507D18BEF108 /* Localizable.strings */,
+					BB22BB22BB22BB22BB22BB01 /* InfoPlist.strings */,
+					BB22BB22BB22BB22BB22BB02 /* InfoPlist.strings */,
+					BB22BB22BB22BB22BB22BB03 /* InfoPlist.strings */,
+					BB22BB22BB22BB22BB22BB04 /* InfoPlist.strings */,
+					BB22BB22BB22BB22BB22BB05 /* InfoPlist.strings */,
+					DD44DD44DD44DD44DD44DD01 /* Localizable.stringsdict */,
+					DD44DD44DD44DD44DD44DD02 /* Localizable.stringsdict */,
+					DD44DD44DD44DD44DD44DD03 /* Localizable.stringsdict */,
+					DD44DD44DD44DD44DD44DD04 /* Localizable.stringsdict */,
+					DD44DD44DD44DD44DD44DD05 /* Localizable.stringsdict */,
+					C34AA01FF653E3B7FE188CCD /* App */,
 				92B41C838993B6DC693D0846 /* Auth */,
 				75B70B9D302C3E3F42DE3029 /* Design */,
 				32E84AB00984C4152CC19F97 /* Features */,
@@ -502,12 +532,22 @@
 				9FBA91454A60DF080807308B /* Assets.xcassets in Resources */,
 				1250B009DEE968E135C1C4D2 /* LaunchScreen.storyboard in Resources */,
 				12F3A8C9D4E5F60718293A4B /* PrivacyInfo.xcprivacy in Resources */,
-				DB7D4A775DD1D048F2C83DEF /* Localizable.strings in Resources */,
-				098263F714A5503C34DCD837 /* Localizable.strings in Resources */,
-				49BB47D5B9055688B7894200 /* Localizable.strings in Resources */,
-				96548A808131C49448770879 /* Localizable.strings in Resources */,
-				07CF32863C72FB5C2C6EF583 /* Localizable.strings in Resources */,
-			);
+					DB7D4A775DD1D048F2C83DEF /* Localizable.strings in Resources */,
+					AA11AA11AA11AA11AA11AA01 /* InfoPlist.strings in Resources */,
+					CC33CC33CC33CC33CC33CC01 /* Localizable.stringsdict in Resources */,
+					098263F714A5503C34DCD837 /* Localizable.strings in Resources */,
+						AA11AA11AA11AA11AA11AA02 /* InfoPlist.strings in Resources */,
+					CC33CC33CC33CC33CC33CC02 /* Localizable.stringsdict in Resources */,
+					49BB47D5B9055688B7894200 /* Localizable.strings in Resources */,
+					AA11AA11AA11AA11AA11AA03 /* InfoPlist.strings in Resources */,
+					CC33CC33CC33CC33CC33CC03 /* Localizable.stringsdict in Resources */,
+					96548A808131C49448770879 /* Localizable.strings in Resources */,
+					AA11AA11AA11AA11AA11AA04 /* InfoPlist.strings in Resources */,
+					CC33CC33CC33CC33CC33CC04 /* Localizable.stringsdict in Resources */,
+					07CF32863C72FB5C2C6EF583 /* Localizable.strings in Resources */,
+					AA11AA11AA11AA11AA11AA05 /* InfoPlist.strings in Resources */,
+					CC33CC33CC33CC33CC33CC05 /* Localizable.stringsdict in Resources */,
+				);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
@@ -656,7 +696,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CURRENT_PROJECT_VERSION = 121;
+				CURRENT_PROJECT_VERSION = 2026060301;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -736,7 +776,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CURRENT_PROJECT_VERSION = 121;
+				CURRENT_PROJECT_VERSION = 2026060301;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;

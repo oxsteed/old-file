@@ -188,6 +188,8 @@ actor APIClient {
         var req = URLRequest(url: url, timeoutInterval: APIConfig.defaultTimeout)
         req.httpMethod = method.rawValue
         req.setValue("application/json", forHTTPHeaderField: "Accept")
+        applyTraceHeaders(to: &req)
+        applyLanguageHeaders(to: &req)
 
         if let body {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -264,6 +266,33 @@ actor APIClient {
 // MARK: - Helpers
 
 struct EmptyResponse: Decodable {}
+
+private func applyTraceHeaders(to request: inout URLRequest) {
+    let info = Bundle.main.infoDictionary
+    request.setValue("ios", forHTTPHeaderField: "X-OxSteed-Platform")
+    request.setValue(info?["CFBundleShortVersionString"] as? String ?? "unknown", forHTTPHeaderField: "X-OxSteed-App-Version")
+    request.setValue(info?["CFBundleVersion"] as? String ?? "unknown", forHTTPHeaderField: "X-OxSteed-Build")
+    if let gitSha = info?["OX_GIT_SHA"] as? String,
+       !gitSha.isEmpty,
+       !gitSha.hasPrefix("$(") {
+        request.setValue(gitSha, forHTTPHeaderField: "X-OxSteed-Git-SHA")
+    }
+    request.setValue(UUID().uuidString, forHTTPHeaderField: "X-Request-ID")
+}
+
+private func preferredLanguageCode() -> String {
+    let stored = UserDefaults.standard.string(forKey: LocalizationManager.storageKey)
+    let preferred = AppLanguage.fromStoredCode(stored)?.bcp47
+        ?? AppLanguage.fromStoredCode(Locale.preferredLanguages.first)?.bcp47
+        ?? AppLanguage.en.rawValue
+    return preferred.isEmpty ? AppLanguage.en.rawValue : preferred
+}
+
+private func applyLanguageHeaders(to request: inout URLRequest) {
+    let language = preferredLanguageCode()
+    request.setValue(language, forHTTPHeaderField: "Accept-Language")
+    request.setValue(language, forHTTPHeaderField: "X-OxSteed-Language")
+}
 
 /// Erases a concrete `Encodable` so we can keep `body: Encodable?` ergonomic.
 private struct AnyEncodable: Encodable {
@@ -426,6 +455,8 @@ actor AuthAPIClient {
         var req = URLRequest(url: url, timeoutInterval: AuthAPIConfig.defaultTimeout)
         req.httpMethod = method.rawValue
         req.setValue("application/json", forHTTPHeaderField: "Accept")
+        applyTraceHeaders(to: &req)
+        applyLanguageHeaders(to: &req)
         if let body {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             req.httpBody = try encoder.encode(AnyEncodable(body))

@@ -69,7 +69,12 @@ enum OxSpotlightManager {
             attrs.contentDescription = conv.last_message
             attrs.domainIdentifier   = conversationDomain
             attrs.relatedUniqueIdentifier = "\(conversationDomain).\(conv.id)"
-            attrs.keywords = [name, "OxSteed", "message", "chat"]
+            attrs.keywords = [
+                name,
+                oxSpotlightLocalized("app.name"),
+                oxSpotlightLocalized("spotlight.keyword.message"),
+                oxSpotlightLocalized("spotlight.keyword.chat")
+            ]
             return CSSearchableItem(
                 uniqueIdentifier: "\(conversationDomain).\(conv.id)",
                 domainIdentifier: conversationDomain,
@@ -89,9 +94,14 @@ enum OxSpotlightManager {
     static func indexProfile(_ user: APIUser) {
         let attrs = CSSearchableItemAttributeSet(contentType: .contact)
         attrs.title              = user.displayName
-        attrs.contentDescription = "Your OxSteed account"
+        attrs.contentDescription = oxSpotlightLocalized("spotlight.profile.description")
         attrs.domainIdentifier   = profileDomain
-        attrs.keywords           = ["OxSteed", "profile", user.email, user.role].compactMap { $0 }
+        attrs.keywords           = [
+            oxSpotlightLocalized("app.name"),
+            oxSpotlightLocalized("spotlight.keyword.profile"),
+            user.email,
+            user.role
+        ].compactMap { $0 }
         let item = CSSearchableItem(
             uniqueIdentifier: "\(profileDomain).\(user.id)",
             domainIdentifier: profileDomain,
@@ -128,7 +138,7 @@ enum OxSpotlightManager {
     /// Creates an NSUserActivity for a conversation (Handoff + search).
     static func activityForConversation(_ conv: APIConversation) -> NSUserActivity {
         let activity = NSUserActivity(activityType: "com.oxsteed.app.viewConversation")
-        activity.title = conv.other_user_name ?? "Conversation"
+        activity.title = conv.other_user_name ?? oxSpotlightLocalized("spotlight.conversation.title")
         activity.userInfo = ["conversationId": conv.id]
         activity.requiredUserInfoKeys = ["conversationId"]
         activity.isEligibleForSearch  = true
@@ -136,6 +146,26 @@ enum OxSpotlightManager {
         activity.becomeCurrent()
         return activity
     }
+}
+
+private func oxSpotlightLocalized(_ key: String) -> String {
+    let rawLanguage = UserDefaults.standard.string(forKey: LocalizationManager.storageKey)
+    let language = rawLanguage == AppLanguage.system.rawValue
+        ? AppLanguage.fromStoredCode(Locale.preferredLanguages.first) ?? .en
+        : AppLanguage.fromStoredCode(rawLanguage) ?? .en
+
+    if let path = Bundle.main.path(forResource: language.rawValue, ofType: "lproj"),
+       let bundle = Bundle(path: path) {
+        let localized = bundle.localizedString(forKey: key, value: key, table: nil)
+        if localized != key { return localized }
+    }
+
+    if let path = Bundle.main.path(forResource: AppLanguage.en.rawValue, ofType: "lproj"),
+       let bundle = Bundle(path: path) {
+        return bundle.localizedString(forKey: key, value: key, table: nil)
+    }
+
+    return Bundle.main.localizedString(forKey: key, value: key, table: nil)
 }
 
 // MARK: - Store integration extensions

@@ -9,6 +9,7 @@
 
 # macOS
 .DS_Store
+.fuse_hidden*
 *.swp
 *.swo
 *~.nib
@@ -37,3 +38,9 @@ web-build/
 *.log
 .env
 .env.local
+.codex_tmp/
+.xcodebuildmcp/
+*.docx
+pngout.png
+swiftui_localized_test
+submission/reports/

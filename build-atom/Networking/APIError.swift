@@ -17,22 +17,42 @@ enum APIError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .invalidURL: return "Bad URL."
-        case .notAuthenticated: return "Please sign in."
-        case .unauthorized: return "Session expired. Please sign in again."
-        case .forbidden(let m): return m ?? "You don't have access."
-        case .notFound: return "Not found."
+        case .invalidURL: return apiErrorLocalized("api.error.invalid_url")
+        case .notAuthenticated: return apiErrorLocalized("api.error.not_authenticated")
+        case .unauthorized: return apiErrorLocalized("api.error.unauthorized")
+        case .forbidden(let m): return m ?? apiErrorLocalized("api.error.forbidden")
+        case .notFound: return apiErrorLocalized("api.error.not_found")
         case .validation(let m, _): return m
         case .rateLimited(let retry):
-            if let retry { return "Too many requests. Try again in \(Int(retry))s." }
-            return "Too many requests. Try again shortly."
-        case .server(_, let m): return m ?? "Server error. Please try again."
-        case .decoding(let m): return "Decode error: \(m)"
+            if let retry { return String(format: apiErrorLocalized("api.error.rate_limited_seconds"), Int(retry)) }
+            return apiErrorLocalized("api.error.rate_limited")
+        case .server(_, let m): return m ?? apiErrorLocalized("api.error.server")
+        case .decoding(let m): return String(format: apiErrorLocalized("api.error.decoding"), m)
         case .network(let m): return m
-        case .offline: return "You're offline."
-        case .unknown: return "Something went wrong."
+        case .offline: return apiErrorLocalized("api.error.offline")
+        case .unknown: return apiErrorLocalized("api.error.unknown")
         }
     }
+}
+
+private func apiErrorLocalized(_ key: String) -> String {
+    let rawLanguage = UserDefaults.standard.string(forKey: LocalizationManager.storageKey)
+    let language = rawLanguage == AppLanguage.system.rawValue
+        ? AppLanguage.fromStoredCode(Locale.preferredLanguages.first) ?? .en
+        : AppLanguage.fromStoredCode(rawLanguage) ?? .en
+
+    if let path = Bundle.main.path(forResource: language.rawValue, ofType: "lproj"),
+       let bundle = Bundle(path: path) {
+        let localized = bundle.localizedString(forKey: key, value: key, table: nil)
+        if localized != key { return localized }
+    }
+
+    if let path = Bundle.main.path(forResource: AppLanguage.en.rawValue, ofType: "lproj"),
+       let bundle = Bundle(path: path) {
+        return bundle.localizedString(forKey: key, value: key, table: nil)
+    }
+
+    return Bundle.main.localizedString(forKey: key, value: key, table: nil)
 }
 
 /// Server error payload shape.

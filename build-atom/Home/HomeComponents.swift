@@ -1,11 +1,12 @@
 import SwiftUI
 
 struct StatTile: View {
-    let label: LocalizedStringKey
+    let label: String
     let value: String
     let trend: String?
     let icon: String
     let color: Color
+    @EnvironmentObject private var localization: LocalizationManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -17,7 +18,7 @@ struct StatTile: View {
                     .background(color.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
                 Spacer()
                 if let trend {
-                    Text(trend)
+                    Text(localization.localized(trend))
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Theme.success)
                 }
@@ -25,7 +26,7 @@ struct StatTile: View {
             Text(value)
                 .font(.system(size: 22, weight: .bold))
                 .foregroundStyle(Theme.textPrimary)
-            Text(label)
+            Text(localization.localized(label))
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(Theme.textSecondary)
         }
@@ -35,19 +36,20 @@ struct StatTile: View {
 }
 
 struct SectionHeader: View {
-    let title: LocalizedStringKey
-    var actionLabel: LocalizedStringKey? = L10n.CommonKey.seeAll
+    let title: String
+    var actionLabel: String? = L10n.CommonKey.seeAll
     var action: (() -> Void)? = nil
+    @EnvironmentObject private var localization: LocalizationManager
 
     var body: some View {
         HStack {
-            Text(title)
+            Text(localization.localized(title))
                 .font(.system(size: 17, weight: .bold))
                 .foregroundStyle(Theme.textPrimary)
             Spacer()
-            if let label = actionLabel {
-                Button(action: { action?() }) {
-                    Text(label)
+            if let label = actionLabel, let action {
+                Button(action: action) {
+                    Text(localization.localized(label))
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Theme.accent)
                 }
@@ -152,9 +154,9 @@ struct AvailableJobRow: View {
 
 struct EmptyStateCard: View {
     let icon: String
-    let title: LocalizedStringKey
-    let message: LocalizedStringKey
-    let cta: LocalizedStringKey
+    let title: String
+    let message: String
+    let cta: String
 
     var body: some View {
         VStack(spacing: 12) {
@@ -352,54 +354,101 @@ struct PersonaDashboard: View {
     }
 
     private var actions: [PersonaAction] {
+        let l = localization
         switch persona {
         case .customer:
             let quoteAction = jobs.myJobs.first(where: { ($0.bid_count ?? 0) > 0 })
             return [
                 quoteAction.map {
-                    .init(title: "Review quotes for \($0.title)", subtitle: "\($0.bid_count ?? 0) proposal(s) ready", due: "Now", icon: "checkmark.seal.fill", color: Theme.accent, destination: .job($0))
-                } ?? .init(title: "Describe your next project", subtitle: "Get matched with a local helper", due: "Start", icon: "plus.circle.fill", color: Theme.accent, destination: .browseJobs),
-                .init(title: "Find trusted local helpers", subtitle: "Browse ratings and availability", due: "Explore", icon: "person.2.fill", color: Theme.pillarHome, destination: .helpers),
-                .init(title: "Plan a household goal", subtitle: "Keep your Life Pulse on track", due: "This week", icon: "target", color: Theme.success, destination: .goals)
+                    .init(title: l.format("home.action.review_quotes_for", $0.title),
+                          subtitle: l.formatPlural("plural.review_quote", $0.bid_count ?? 0),
+                          due: l.localized("home.stamp.now"), icon: "checkmark.seal.fill", color: Theme.accent, destination: .job($0))
+                } ?? .init(title: l.localized("home.action.describe_your_next_project"),
+                           subtitle: l.localized("home.action.get_matched_with_helper"),
+                           due: l.localized("home.stamp.start"), icon: "plus.circle.fill", color: Theme.accent, destination: .browseJobs),
+                .init(title: l.localized("home.action.find_trusted_local_helpers"),
+                      subtitle: l.localized("home.action.browse_ratings_and_availability"),
+                      due: l.localized("home.stamp.explore"), icon: "person.2.fill", color: Theme.pillarHome, destination: .helpers),
+                .init(title: l.localized("home.action.plan_a_household_goal"),
+                      subtitle: l.localized("home.action.keep_life_pulse_on_track"),
+                      due: l.localized("home.stamp.this_week"), icon: "target", color: Theme.success, destination: .goals)
             ]
         case .helper:
             let jobAction = jobs.availableJobs.first.map {
-                PersonaAction(title: "Bid on \($0.title)", subtitle: $0.budgetDisplay, due: "New", icon: "hammer.fill", color: Theme.accent, destination: .job($0))
+                PersonaAction(title: l.format("home.action.bid_on", $0.title),
+                              subtitle: $0.budgetDisplay,
+                              due: l.localized("home.stamp.new"), icon: "hammer.fill", color: Theme.accent, destination: .job($0))
             }
             return [
-                jobAction ?? .init(title: "Search for jobs nearby", subtitle: "New opportunities appear here", due: "Browse", icon: "location.fill", color: Theme.accent, destination: .browseJobs),
-                .init(title: "Update your availability", subtitle: "Keep your calendar bookable", due: "Today", icon: "calendar", color: Theme.pillarHome, destination: .availability),
-                .init(title: "Review payouts", subtitle: "Track earnings and transfers", due: "Wallet", icon: "creditcard.fill", color: Theme.success, destination: .payments)
+                jobAction ?? .init(title: l.localized("home.action.search_for_jobs_nearby"),
+                                   subtitle: l.localized("home.action.new_opportunities_appear_here"),
+                                   due: l.localized("home.stamp.browse"), icon: "location.fill", color: Theme.accent, destination: .browseJobs),
+                .init(title: l.localized("home.action.update_your_availability"),
+                      subtitle: l.localized("home.action.keep_your_calendar_bookable"),
+                      due: l.localized("home.stamp.today"), icon: "calendar", color: Theme.pillarHome, destination: .availability),
+                .init(title: l.localized("home.action.review_payouts"),
+                      subtitle: l.localized("home.action.track_earnings_and_transfers"),
+                      due: l.localized("home.stamp.wallet"), icon: "creditcard.fill", color: Theme.success, destination: .payments)
             ]
         case .business:
             return [
-                .init(title: "Review open work orders", subtitle: "\(activeJobsCount) job(s) in your pipeline", due: "Today", icon: "shippingbox.fill", color: Theme.accent, destination: .browseJobs),
-                .init(title: "Coordinate team schedules", subtitle: "Assign your next appointment", due: "Plan", icon: "person.3.fill", color: Theme.pillarHome, destination: .calendar),
-                .init(title: "Manage payouts", subtitle: "Revenue and transfer status", due: "Finance", icon: "creditcard.fill", color: Theme.success, destination: .payments)
+                .init(title: l.localized("home.action.review_open_work_orders"),
+                      subtitle: l.localized("home.action.assign_your_next_appointment"),
+                      due: l.localized("home.stamp.today"), icon: "shippingbox.fill", color: Theme.accent, destination: .browseJobs),
+                .init(title: l.localized("home.action.coordinate_team_schedules"),
+                      subtitle: l.localized("home.action.assign_your_next_appointment"),
+                      due: l.localized("home.stamp.plan"), icon: "person.3.fill", color: Theme.pillarHome, destination: .calendar),
+                .init(title: l.localized("home.action.manage_payouts"),
+                      subtitle: l.localized("home.action.revenue_and_transfer_status"),
+                      due: l.localized("home.stamp.finance"), icon: "creditcard.fill", color: Theme.success, destination: .payments)
             ]
         case .consultant:
             return [
-                .init(title: "Review client intakes", subtitle: "\(calendar.bookingsIncoming.count) new request(s)", due: "Today", icon: "person.crop.circle.badge.checkmark", color: Theme.pillarPersonal, destination: .calendar),
-                .init(title: "Schedule an advisory session", subtitle: "Manage your booking calendar", due: "Book", icon: "calendar", color: Theme.accent, destination: .calendar),
-                .init(title: "Build your practice", subtitle: "Explore growth programs", due: "Grow", icon: "arrow.up.right.circle.fill", color: Theme.success, destination: .growth)
+                .init(title: l.localized("home.action.review_client_intakes"),
+                      subtitle: l.localized("home.action.manage_your_booking_calendar"),
+                      due: l.localized("home.stamp.today"), icon: "person.crop.circle.badge.checkmark", color: Theme.pillarPersonal, destination: .calendar),
+                .init(title: l.localized("home.action.schedule_an_advisory_session"),
+                      subtitle: l.localized("home.action.manage_your_booking_calendar"),
+                      due: l.localized("home.stamp.book"), icon: "calendar", color: Theme.accent, destination: .calendar),
+                .init(title: l.localized("home.action.build_your_practice"),
+                      subtitle: l.localized("home.action.explore_growth_programs"),
+                      due: l.localized("home.stamp.grow"), icon: "arrow.up.right.circle.fill", color: Theme.success, destination: .growth)
             ]
         case .toolOwner:
             return [
-                .init(title: "Prepare your rental inventory", subtitle: "Catalog tools and deposit rules", due: "Setup", icon: "hammer.fill", color: Theme.pillarCar, destination: .learn),
-                .init(title: "Review payout settings", subtitle: "Be ready to receive rent", due: "Wallet", icon: "creditcard.fill", color: Theme.success, destination: .payments),
-                .init(title: "Grow tool earnings", subtitle: "See owner opportunities", due: "Explore", icon: "arrow.up.right.circle.fill", color: Theme.accent, destination: .growth)
+                .init(title: l.localized("home.action.prepare_your_rental_inventory"),
+                      subtitle: l.localized("home.action.catalog_tools_and_deposit_rules"),
+                      due: l.localized("home.stamp.next"), icon: "hammer.fill", color: Theme.pillarCar, destination: .learn),
+                .init(title: l.localized("home.action.review_payout_settings"),
+                      subtitle: l.localized("home.action.be_ready_to_receive_rent"),
+                      due: l.localized("home.stamp.wallet"), icon: "creditcard.fill", color: Theme.success, destination: .payments),
+                .init(title: l.localized("home.action.grow_tool_earnings"),
+                      subtitle: l.localized("home.action.see_owner_opportunities"),
+                      due: l.localized("home.stamp.explore"), icon: "arrow.up.right.circle.fill", color: Theme.accent, destination: .growth)
             ]
         case .franchise:
             return [
-                .init(title: "Plan territory expansion", subtitle: "Build your local coverage", due: "Strategy", icon: "map.fill", color: Theme.pillarSinking, destination: .growth),
-                .init(title: "Schedule an onboarding review", subtitle: "Compliance and operations", due: "Required", icon: "checkmark.shield.fill", color: Theme.warning, destination: .calendar),
-                .init(title: "Monitor disbursements", subtitle: "Track network earnings", due: "Finance", icon: "creditcard.fill", color: Theme.success, destination: .payments)
+                .init(title: l.localized("home.action.plan_territory_expansion"),
+                      subtitle: l.localized("home.action.build_your_local_coverage"),
+                      due: l.localized("home.stamp.strategy"), icon: "map.fill", color: Theme.pillarSinking, destination: .growth),
+                .init(title: l.localized("home.action.schedule_an_onboarding_review"),
+                      subtitle: l.localized("home.action.compliance_and_operations"),
+                      due: l.localized("home.stamp.required"), icon: "checkmark.shield.fill", color: Theme.warning, destination: .calendar),
+                .init(title: l.localized("home.action.monitor_disbursements"),
+                      subtitle: l.localized("home.action.track_network_earnings"),
+                      due: l.localized("home.stamp.finance"), icon: "creditcard.fill", color: Theme.success, destination: .payments)
             ]
         case .investor:
             return [
-                .init(title: "Review portfolio payments", subtitle: "Track distributions and returns", due: "Now", icon: "chart.pie.fill", color: Theme.success, destination: .payments),
-                .init(title: "Explore growth opportunities", subtitle: "Discover businesses to support", due: "Explore", icon: "sparkles", color: Theme.accent, destination: .growth),
-                .init(title: "Read account alerts", subtitle: "\(notifications.unreadCount) notification(s) waiting", due: "Inbox", icon: "bell.fill", color: Theme.pillarHome, destination: .notifications)
+                .init(title: l.localized("home.action.review_portfolio_payments"),
+                      subtitle: l.localized("home.action.track_distributions_and_returns"),
+                      due: l.localized("home.stamp.now"), icon: "chart.pie.fill", color: Theme.success, destination: .payments),
+                .init(title: l.localized("home.action.explore_growth_opportunities"),
+                      subtitle: l.localized("home.action.discover_businesses_to_support"),
+                      due: l.localized("home.stamp.explore"), icon: "sparkles", color: Theme.accent, destination: .growth),
+                .init(title: l.localized("home.action.read_account_alerts"),
+                      subtitle: l.format("home.action.notifications_waiting", notifications.unreadCount),
+                      due: l.localized("home.stamp.inbox"), icon: "bell.fill", color: Theme.pillarHome, destination: .notifications)
             ]
         }
     }
@@ -445,45 +494,79 @@ struct PersonaDashboard: View {
     }
 
     private var activity: [PersonaActivity] {
+        let l = localization
         switch persona {
         case .customer:
             let jobsActivity = jobs.myJobs.prefix(2).map {
-                PersonaActivity(title: $0.title, subtitle: $0.statusDisplay, stamp: "Job", icon: "hammer.fill", color: $0.statusColor)
+                PersonaActivity(title: $0.title,
+                                subtitle: l.localized($0.statusDisplay),
+                                stamp: l.localized("home.stamp.job"),
+                                icon: "hammer.fill", color: $0.statusColor)
             }
             return jobsActivity + [
-                .init(title: "Your home dashboard is ready", subtitle: "Track projects and Life Pulse here", stamp: "Now", icon: "house.fill", color: Theme.pillarHome)
+                .init(title: l.localized("home.activity.your_home_dashboard_ready"),
+                      subtitle: l.localized("home.activity.track_projects_life_pulse"),
+                      stamp: l.localized("home.stamp.now"), icon: "house.fill", color: Theme.pillarHome)
             ]
         case .helper:
             return [
-                .init(title: "Nearby opportunities", subtitle: "\(jobs.availableJobs.count) job(s) ready to browse", stamp: "Feed", icon: "location.fill", color: Theme.accent),
-                .init(title: "Bids submitted", subtitle: "\(bids.myBids.count) active bid(s)", stamp: "Bids", icon: "hand.raised.fill", color: Theme.pillarGoals),
-                .init(title: "Earnings recorded", subtitle: paymentsTotal, stamp: "Pay", icon: "checkmark.circle.fill", color: Theme.success)
+                .init(title: l.localized("home.activity.nearby_opportunities"),
+                      subtitle: l.formatPlural("plural.item", jobs.availableJobs.count),
+                      stamp: l.localized("home.stamp.feed"), icon: "location.fill", color: Theme.accent),
+                .init(title: l.localized("home.activity.bids_submitted"),
+                      subtitle: l.formatPlural("plural.item", bids.myBids.count),
+                      stamp: l.localized("home.stamp.bids"), icon: "hand.raised.fill", color: Theme.pillarGoals),
+                .init(title: l.localized("home.activity.earnings_recorded"),
+                      subtitle: paymentsTotal,
+                      stamp: l.localized("home.stamp.pay"), icon: "checkmark.circle.fill", color: Theme.success)
             ]
         case .business:
             return [
-                .init(title: "Team operations", subtitle: "\(Samples.team.count) team members visible", stamp: "Team", icon: "person.3.fill", color: Theme.pillarGoals),
-                .init(title: "Open work orders", subtitle: "\(activeJobsCount) active job(s)", stamp: "Jobs", icon: "shippingbox.fill", color: Theme.accent),
-                .init(title: "Payments tracked", subtitle: paymentsTotal, stamp: "Cash", icon: "dollarsign.circle.fill", color: Theme.success)
+                .init(title: l.localized("home.activity.team_operations"),
+                      subtitle: l.formatPlural("plural.item", Samples.team.count),
+                      stamp: l.localized("home.stamp.team"), icon: "person.3.fill", color: Theme.pillarGoals),
+                .init(title: l.localized("home.activity.open_work_orders"),
+                      subtitle: l.formatPlural("plural.item", activeJobsCount),
+                      stamp: l.localized("home.stamp.jobs"), icon: "shippingbox.fill", color: Theme.accent),
+                .init(title: l.localized("home.activity.payments_tracked"),
+                      subtitle: paymentsTotal,
+                      stamp: l.localized("home.stamp.cash"), icon: "dollarsign.circle.fill", color: Theme.success)
             ]
         case .consultant:
             return [
-                .init(title: "Client requests", subtitle: "\(calendar.bookingsIncoming.count) intake(s) ready", stamp: "New", icon: "person.crop.circle.badge.plus", color: Theme.pillarPersonal),
-                .init(title: "Scheduled sessions", subtitle: "\(calendar.appointments.count) on your calendar", stamp: "Plan", icon: "calendar", color: Theme.accent)
+                .init(title: l.localized("home.activity.client_requests"),
+                      subtitle: l.formatPlural("plural.item", calendar.bookingsIncoming.count),
+                      stamp: l.localized("home.stamp.new"), icon: "person.crop.circle.badge.plus", color: Theme.pillarPersonal),
+                .init(title: l.localized("home.activity.scheduled_sessions"),
+                      subtitle: l.formatPlural("plural.item", calendar.appointments.count),
+                      stamp: l.localized("home.stamp.plan"), icon: "calendar", color: Theme.accent)
             ]
         case .toolOwner:
             return [
-                .init(title: "Inventory setup", subtitle: "Add tools to begin renting", stamp: "Next", icon: "hammer.fill", color: Theme.pillarCar),
-                .init(title: "Payout readiness", subtitle: paymentsTotal + " received", stamp: "Pay", icon: "creditcard.fill", color: Theme.success)
+                .init(title: l.localized("home.activity.inventory_setup"),
+                      subtitle: l.localized("home.action.add_tools_to_begin_renting"),
+                      stamp: l.localized("home.stamp.next"), icon: "hammer.fill", color: Theme.pillarCar),
+                .init(title: l.localized("home.activity.payout_readiness"),
+                      subtitle: paymentsTotal,
+                      stamp: l.localized("home.stamp.pay"), icon: "creditcard.fill", color: Theme.success)
             ]
         case .franchise:
             return [
-                .init(title: "Territory setup", subtitle: "Prepare locations and operators", stamp: "Next", icon: "map.fill", color: Theme.pillarSinking),
-                .init(title: "Compliance review", subtitle: "Complete onboarding tasks", stamp: "Due", icon: "checkmark.shield.fill", color: Theme.warning)
+                .init(title: l.localized("home.activity.territory_setup"),
+                      subtitle: l.localized("home.action.prepare_locations_and_operators"),
+                      stamp: l.localized("home.stamp.next"), icon: "map.fill", color: Theme.pillarSinking),
+                .init(title: l.localized("home.activity.compliance_review"),
+                      subtitle: l.localized("home.action.complete_onboarding_tasks"),
+                      stamp: l.localized("home.stamp.due"), icon: "checkmark.shield.fill", color: Theme.warning)
             ]
         case .investor:
             return [
-                .init(title: "Portfolio cash flow", subtitle: paymentsTotal + " recorded", stamp: "Pay", icon: "chart.line.uptrend.xyaxis", color: Theme.success),
-                .init(title: "Notifications", subtitle: "\(notifications.unreadCount) unread update(s)", stamp: "Now", icon: "bell.fill", color: Theme.accent)
+                .init(title: l.localized("home.activity.portfolio_cash_flow"),
+                      subtitle: paymentsTotal,
+                      stamp: l.localized("home.stamp.pay"), icon: "chart.line.uptrend.xyaxis", color: Theme.success),
+                .init(title: l.localized("Notifications"),
+                      subtitle: l.formatPlural("plural.item", notifications.unreadCount),
+                      stamp: l.localized("home.stamp.now"), icon: "bell.fill", color: Theme.accent)
             ]
         }
     }

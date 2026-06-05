@@ -37,7 +37,7 @@ enum NotificationsService {
         }
         let r: Resp = try await APIClient.shared.request("/api/notifications/email")
         var p = NotificationPreferences()
-        p.frequency = r.data.frequency
+        p.frequency = uiFrequency(fromBackend: r.data.frequency)
         p.email_enabled = r.data.emailNotifications
         p.sms_enabled = r.data.smsNotifications
         p.push_enabled = r.data.pushNotifications
@@ -62,7 +62,7 @@ enum NotificationsService {
             let data: Data
         }
 
-        let req = Req(frequency: p.frequency,
+        let req = Req(frequency: backendFrequency(fromUI: p.frequency),
                       emailNotifications: p.email_enabled,
                       // Keep marketing aligned with the master email toggle for now.
                       // (The app UI doesn't expose a separate marketing toggle yet.)
@@ -72,11 +72,25 @@ enum NotificationsService {
         let r: Resp = try await APIClient.shared.request("/api/notifications/email", method: .PUT, body: req)
 
         var out = NotificationPreferences()
-        out.frequency = r.data.frequency
+        out.frequency = uiFrequency(fromBackend: r.data.frequency)
         out.email_enabled = r.data.emailNotifications
         out.sms_enabled = r.data.smsNotifications
         out.push_enabled = r.data.pushNotifications
         return out
+    }
+
+    private static func backendFrequency(fromUI value: String?) -> String? {
+        switch value {
+        case "real_time": return "real-time"
+        default: return value
+        }
+    }
+
+    private static func uiFrequency(fromBackend value: String?) -> String? {
+        switch value {
+        case "real-time": return "real_time"
+        default: return value
+        }
     }
     static func registerPushToken(_ token: String, deviceId: String) async throws {
         struct Req: Encodable {
@@ -92,6 +106,85 @@ enum NotificationsService {
             method: .POST,
             body: Req(token: token, provider: "apns", platform: "ios", device_id: deviceId, app_version: version)
         )
+    }
+}
+
+// MARK: - Settings
+
+enum SettingsService {
+    struct PrivacyCategory: Decodable, Identifiable, Equatable {
+        let category: String
+        let examples: String
+        let purpose: String
+
+        var id: String { category }
+    }
+
+    struct ThirdPartyDisclosure: Decodable, Identifiable, Equatable {
+        let name: String
+        let purpose: String
+        let dataShared: String
+
+        var id: String { name }
+    }
+
+    struct PrivacyDisclosures: Decodable, Equatable {
+        let categories: [PrivacyCategory]
+        let thirdParties: [ThirdPartyDisclosure]
+    }
+
+    struct PrivacySettingsPatch: Encodable {
+        let allow_guest_contact: Bool?
+        let allow_booking: Bool?
+        let allow_scheduling: Bool?
+        let allow_live_chat: Bool?
+    }
+
+    struct PrivacySettingsResponse: Decodable, Equatable {
+        let allow_guest_contact: Bool?
+        let allow_booking: Bool?
+        let allow_scheduling: Bool?
+        let allow_live_chat: Bool?
+    }
+
+    struct SupportTicketResponse: Decodable, Equatable {
+        let ticket_id: String?
+        let ticket_number: String?
+        let message: String?
+    }
+
+    static func privacyDisclosures() async throws -> PrivacyDisclosures {
+        try await APIClient.shared.request("/api/privacy/data-categories", requiresAuth: false)
+    }
+
+    static func updatePrivacySettings(_ patch: PrivacySettingsPatch) async throws -> PrivacySettingsResponse {
+        try await APIClient.shared.request("/api/settings/privacy", method: .PATCH, body: patch)
+    }
+
+    static func exportAccountData() async throws -> Data {
+        try await APIClient.shared.rawData("/api/privacy/export")
+    }
+
+    static func submitAppReport(details: String, contactEmail: String?) async throws -> SupportTicketResponse {
+        struct Req: Encodable {
+            let details: String
+            let contact_email: String?
+            let app_version: String
+            let build_number: String
+            let git_sha: String?
+            let platform: String
+        }
+
+        let info = Bundle.main.infoDictionary
+        let req = Req(
+            details: details,
+            contact_email: contactEmail,
+            app_version: info?["CFBundleShortVersionString"] as? String ?? "unknown",
+            build_number: info?["CFBundleVersion"] as? String ?? "unknown",
+            git_sha: info?["OX_GIT_SHA"] as? String,
+            platform: "ios"
+        )
+        return try await APIClient.shared.request("/api/settings/app-report", method: .POST, body: req)
     }
 }
 
@@ -129,6 +222,10 @@ enum LearnService {
         try await APIClient.shared.request("/api/learn/badges")
     }
 
+    static func mySubmissions() async throws -> APILearnSubmissionsResponse {
+        try await APIClient.shared.request("/api/learn/submissions/mine")
+    }
+
     // MARK: Admin-managed product link overrides
 
     struct ProductLinksResponse: Decodable {
@@ -151,6 +248,10 @@ enum LifeService {
         try await APIClient.shared.request("/api/life/pulse", query: ["window": window])
     }
 
+    static func pulseInsight() async throws -> PulseSummaryResult {
+        try await APIClient.shared.request("/api/life/pulse/insight")
+    }
+
     static func summary() async throws -> APILifeDashboardSummary {
         try await APIClient.shared.request("/api/life/summary")
     }
@@ -161,6 +262,37 @@ enum LifeService {
         if let year { q["year"] = year }
         if let type { q["type"] = type }
         return try await APIClient.shared.request("/api/life/expenses", query: q)
+    }
+
+    static func createExpense(type: String,
+                              amount: Double,
+                              category: String,
+                              description: String?,
+                              occurredAt: String,
+                              frequency: String = "one_time",
+                              isRecurring: Bool = false) async throws -> APILifeExpense {
+        struct Req: Encodable {
+            let type: String
+            let amount: Double
+            let category: String
+            let description: String?
+            let occurred_at: String
+            let frequency: String
+            let is_recurring: Bool
+        }
+        return try await APIClient.shared.request(
+            "/api/life/expenses",
+            method: .POST,
+            body: Req(
+                type: type,
+                amount: amount,
+                category: category,
+                description: description,
+                occurred_at: occurredAt,
+                frequency: frequency,
+                is_recurring: isRecurring
+            )
+        )
     }
 
     static func budgets(month: Int? = nil, year: Int? = nil) async throws -> APILifeBudgetsResponse {
@@ -174,6 +306,47 @@ enum LifeService {
         var q: [String: Any] = [:]
         if let completed { q["completed"] = completed ? "true" : "false" }
         return try await APIClient.shared.request("/api/life/goals", query: q)
+    }
+
+    static func createGoal(title: String,
+                           goalType: String = "life",
+                           targetValue: Double? = nil,
+                           currentValue: Double? = nil,
+                           dueDate: String? = nil,
+                           icon: String? = nil) async throws -> APILifeGoal {
+        struct Req: Encodable {
+            let title: String
+            let goal_type: String
+            let target_value: Double?
+            let current_value: Double?
+            let due_date: String?
+            let icon: String?
+        }
+        return try await APIClient.shared.request(
+            "/api/life/goals",
+            method: .POST,
+            body: Req(
+                title: title,
+                goal_type: goalType,
+                target_value: targetValue,
+                current_value: currentValue,
+                due_date: dueDate,
+                icon: icon
+            )
+        )
+    }
+
+    static func updateGoalCompleted(id: String, isCompleted: Bool) async throws -> APILifeGoal {
+        struct Req: Encodable { let is_completed: Bool }
+        return try await APIClient.shared.request(
+            "/api/life/goals/\(id)",
+            method: .PUT,
+            body: Req(is_completed: isCompleted)
+        )
+    }
+
+    static func deleteGoal(id: String) async throws {
+        try await APIClient.shared.requestVoid("/api/life/goals/\(id)", method: .DELETE)
     }
 
     static func checklist() async throws -> APILifeChecklistResponse {
@@ -191,19 +364,249 @@ enum LifeService {
         return try await APIClient.shared.request("/api/life/home-tasks", query: q)
     }
 
+    static func createHomeTask(title: String,
+                               description: String? = nil,
+                               dueDate: String? = nil,
+                               urgency: String = "medium",
+                               section: String = "home",
+                               isRecurring: Bool = false,
+                               frequency: String? = nil) async throws -> APILifeHomeTask {
+        struct Req: Encodable {
+            let title: String
+            let description: String?
+            let due_date: String?
+            let urgency: String
+            let section: String
+            let is_recurring: Bool
+            let frequency: String?
+        }
+        return try await APIClient.shared.request(
+            "/api/life/home-tasks",
+            method: .POST,
+            body: Req(
+                title: title,
+                description: description,
+                due_date: dueDate,
+                urgency: urgency,
+                section: section,
+                is_recurring: isRecurring,
+                frequency: frequency
+            )
+        )
+    }
+
     static func updateHomeTaskCompleted(id: String, isCompleted: Bool) async throws -> APILifeHomeTask {
         struct Req: Encodable { let is_completed: Bool }
         return try await APIClient.shared.request("/api/life/home-tasks/\(id)", method: .PUT, body: Req(is_completed: isCompleted))
     }
 
+    static func deleteHomeTask(id: String) async throws {
+        try await APIClient.shared.requestVoid("/api/life/home-tasks/\(id)", method: .DELETE)
+    }
+
     static func savedHelpers() async throws -> APILifeSavedHelpersResponse {
         try await APIClient.shared.request("/api/life/saved-helpers")
+    }
+
+    static func saveHelper(helperId: String, note: String? = nil) async throws -> APILifeSavedHelper {
+        struct Req: Encodable {
+            let helper_id: String
+            let note: String?
+        }
+        return try await APIClient.shared.request(
+            "/api/life/saved-helpers",
+            method: .POST,
+            body: Req(helper_id: helperId, note: note)
+        )
+    }
+
+    static func removeSavedHelper(id: String) async throws {
+        try await APIClient.shared.requestVoid("/api/life/saved-helpers/\(id)", method: .DELETE)
+    }
+
+    static func sinkingFunds() async throws -> APILifeSinkingFundsResponse {
+        try await APIClient.shared.request("/api/life/sinking-funds")
+    }
+
+    static func createSinkingFund(clientId: String,
+                                  name: String,
+                                  targetAmount: Double,
+                                  savedAmount: Double,
+                                  targetDate: String,
+                                  paycheckInterval: String,
+                                  icon: String = "banknote.fill",
+                                  color: String = "pillarSinking") async throws -> APILifeSinkingFund {
+        struct Req: Encodable {
+            let client_id: String
+            let name: String
+            let target_amount: Double
+            let saved_amount: Double
+            let target_date: String
+            let paycheck_interval: String
+            let icon: String
+            let color: String
+        }
+        return try await APIClient.shared.request(
+            "/api/life/sinking-funds",
+            method: .POST,
+            body: Req(
+                client_id: clientId,
+                name: name,
+                target_amount: targetAmount,
+                saved_amount: savedAmount,
+                target_date: targetDate,
+                paycheck_interval: paycheckInterval,
+                icon: icon,
+                color: color
+            )
+        )
+    }
+
+    static func updateSinkingFundSavedAmount(id: String, savedAmount: Double) async throws -> APILifeSinkingFund {
+        struct Req: Encodable { let saved_amount: Double }
+        return try await APIClient.shared.request(
+            "/api/life/sinking-funds/\(id)",
+            method: .PUT,
+            body: Req(saved_amount: savedAmount)
+        )
+    }
+
+    static func deleteSinkingFund(id: String) async throws {
+        try await APIClient.shared.requestVoid("/api/life/sinking-funds/\(id)", method: .DELETE)
+    }
+
+    static func vehicles() async throws -> APILifeVehiclesResponse {
+        try await APIClient.shared.request("/api/life/vehicles")
+    }
+
+    static func createVehicle(clientId: String,
+                              vin: String,
+                              year: String,
+                              make: String,
+                              model: String,
+                              mileage: Int,
+                              lastOilChangeMile: Int,
+                              lastServiceDate: String,
+                              notes: String = "") async throws -> APILifeVehicle {
+        struct Req: Encodable {
+            let client_id: String
+            let vin: String
+            let year: String
+            let make: String
+            let model: String
+            let mileage: Int
+            let last_oil_change_mile: Int
+            let last_service_date: String
+            let notes: String
+        }
+        return try await APIClient.shared.request(
+            "/api/life/vehicles",
+            method: .POST,
+            body: Req(
+                client_id: clientId,
+                vin: vin,
+                year: year,
+                make: make,
+                model: model,
+                mileage: mileage,
+                last_oil_change_mile: lastOilChangeMile,
+                last_service_date: lastServiceDate == "—" ? "" : lastServiceDate,
+                notes: notes
+            )
+        )
+    }
+
+    static func updateVehicleMileage(id: String,
+                                     mileage: Int,
+                                     lastOilChangeMile: Int? = nil,
+                                     lastServiceDate: String? = nil) async throws -> APILifeVehicle {
+        struct Req: Encodable {
+            let mileage: Int
+            let last_oil_change_mile: Int?
+            let last_service_date: String?
+        }
+        return try await APIClient.shared.request(
+            "/api/life/vehicles/\(id)",
+            method: .PUT,
+            body: Req(mileage: mileage, last_oil_change_mile: lastOilChangeMile, last_service_date: lastServiceDate)
+        )
+    }
+
+    static func deleteVehicle(id: String) async throws {
+        try await APIClient.shared.requestVoid("/api/life/vehicles/\(id)", method: .DELETE)
+    }
+
+    static func habits() async throws -> APILifeHabitsResponse {
+        try await APIClient.shared.request("/api/life/habits")
+    }
+
+    static func createHabit(clientId: String,
+                            name: String,
+                            icon: String,
+                            streak: Int,
+                            completedToday: Bool,
+                            targetDaysPerWeek: Int) async throws -> APILifeHabit {
+        struct Req: Encodable {
+            let client_id: String
+            let name: String
+            let icon: String
+            let streak: Int
+            let completed_today: Bool
+            let target_days_per_week: Int
+        }
+        return try await APIClient.shared.request(
+            "/api/life/habits",
+            method: .POST,
+            body: Req(
+                client_id: clientId,
+                name: name,
+                icon: icon,
+                streak: streak,
+                completed_today: completedToday,
+                target_days_per_week: targetDaysPerWeek
+            )
+        )
+    }
+
+    static func updateHabit(id: String,
+                            completedToday: Bool,
+                            streak: Int) async throws -> APILifeHabit {
+        struct Req: Encodable {
+            let completed_today: Bool
+            let streak: Int
+        }
+        return try await APIClient.shared.request(
+            "/api/life/habits/\(id)",
+            method: .PUT,
+            body: Req(completed_today: completedToday, streak: streak)
+        )
+    }
+
+    static func deleteHabit(id: String) async throws {
+        try await APIClient.shared.requestVoid("/api/life/habits/\(id)", method: .DELETE)
     }
 }
 
 // MARK: - Discover
 
 enum DiscoverService {
+    static func search(_ query: String,
+                       lat: Double? = nil,
+                       lng: Double? = nil,
+                       radiusMiles: Int? = nil,
+                       limit: Int = 20,
+                       offset: Int = 0) async throws -> APIDiscoverSearchResponse {
+        var q: [String: Any] = [
+            "q": query,
+            "limit": limit,
+            "offset": offset,
+        ]
+        if let lat { q["lat"] = lat }
+        if let lng { q["lng"] = lng }
+        if let radiusMiles { q["radius"] = radiusMiles }
+        return try await AuthAPIClient.shared.request("/api/discover", query: q, requiresAuth: false)
+    }
+
     static func popular(lat: Double? = nil, lng: Double? = nil, radiusMiles: Int? = nil) async throws -> APIDiscoverPopularResponse {
         var q: [String: Any] = [:]
         if let lat { q["lat"] = lat }
@@ -235,6 +638,26 @@ enum GrowthService {
         struct Res: Decodable { let listing: [String: AnyDecodable]? }
         _ = try await AuthAPIClient.shared.request("/api/growth/wholesale/\(listingId)/join", method: .POST) as Res
     }
+
+    static func submitFinancingPreQual(_ request: APIGrowthFinancingPreQualRequest) async throws -> APIGrowthFinancingApplication? {
+        let response: APIGrowthFinancingPreQualResponse = try await AuthAPIClient.shared.request(
+            "/api/growth/financing/pre-qual",
+            method: .POST,
+            body: request
+        )
+        return response.application
+    }
+
+    static func grants(persona: String? = nil) async throws -> [APIGrowthGrant] {
+        var q: [String: Any] = [:]
+        if let persona { q["persona"] = persona }
+        let response: APIGrowthGrantsResponse = try await AuthAPIClient.shared.request(
+            "/api/growth/grants",
+            query: q,
+            requiresAuth: false
+        )
+        return response.grants
+    }
 }
 
 // MARK: - Payments
@@ -254,9 +677,10 @@ enum PaymentsService {
         try await myPayments(limit: limit, offset: offset, status: nil)
     }
 
-    static func myPayments(limit: Int = 25, offset: Int = 0, status: String?) async throws -> PaymentsList {
+    static func myPayments(limit: Int = 25, offset: Int = 0, status: String?, role: String? = nil) async throws -> PaymentsList {
         var q: [String: Any] = ["limit": limit, "offset": offset]
         if let status { q["status"] = status }
+        if let role { q["role"] = role }
         return try await APIClient.shared.request("/api/payments/me", query: q)
     }
     static func connectStatus() async throws -> StripeConnectStatus {
@@ -275,10 +699,57 @@ enum PaymentsService {
 // MARK: - Tool Rentals
 
 enum ToolRentalsService {
+    struct ToolRentalSaveRequest: Encodable {
+        let name: String?
+        let category: String?
+        let description: String?
+        let daily_rate: Double?
+        let hourly_rate: Double?
+        let deposit_amount: Double?
+        let condition: String?
+        let brand: String?
+        let model: String?
+        let is_available: Bool?
+        let requires_deposit: Bool?
+        let delivery_available: Bool?
+        let pickup_only: Bool?
+        let location_city: String?
+        let location_state: String?
+        let owner_rules: String?
+        let replacement_value: Double?
+        let owner_attestation_accepted: Bool?
+    }
+
+    static func browse(limit: Int = 50, offset: Int = 0) async throws -> [APIToolRental] {
+        struct Response: Decodable { let tools: [APIToolRental] }
+        let response: Response = try await APIClient.shared.request(
+            "/api/tool-rentals/browse",
+            query: ["limit": limit, "offset": offset],
+            requiresAuth: false
+        )
+        return response.tools
+    }
+
     static func myTools() async throws -> [APIToolRental] {
         struct Response: Decodable { let tools: [APIToolRental] }
         let r: Response = try await APIClient.shared.request("/api/tool-rentals/me")
         return r.tools
+    }
+
+    static func create(_ req: ToolRentalSaveRequest) async throws -> APIToolRental {
+        struct Response: Decodable { let tool: APIToolRental }
+        let response: Response = try await APIClient.shared.request("/api/tool-rentals", method: .POST, body: req)
+        return response.tool
+    }
+
+    static func update(id: String, _ req: ToolRentalSaveRequest) async throws -> APIToolRental {
+        struct Response: Decodable { let tool: APIToolRental }
+        let response: Response = try await APIClient.shared.request("/api/tool-rentals/\(id)", method: .PUT, body: req)
+        return response.tool
+    }
+
+    static func delete(id: String) async throws {
+        try await APIClient.shared.requestVoid("/api/tool-rentals/\(id)", method: .DELETE)
     }
 }
 
@@ -444,6 +915,21 @@ enum BusinessWorkspaceService {
     static func healthAlerts(_ businessId: Int) async throws -> [BusinessHealthAlert] {
         struct Response: Decodable {
             let alerts: [BusinessHealthAlert]
+
+            private enum CodingKeys: String, CodingKey {
+                case alerts
+            }
+
+            init(from decoder: Decoder) throws {
+                let container = try? decoder.singleValueContainer()
+                if let alerts = try? container?.decode([BusinessHealthAlert].self) {
+                    self.alerts = alerts
+                    return
+                }
+
+                let keyed = try decoder.container(keyedBy: CodingKeys.self)
+                alerts = try keyed.decode([BusinessHealthAlert].self, forKey: .alerts)
+            }
         }
         let response: Response = try await APIClient.shared.request("/api/businesses/\(businessId)/health-alerts")
         return response.alerts
@@ -539,11 +1025,11 @@ enum ReviewsService {
     /// Submit a rating (1–5) and optional comment for a job.
     /// Backend infers reviewer role from the authenticated user.
     static func submit(jobId: String, rating: Int, comment: String?) async throws {
-        struct Req: Encodable { let rating: Int; let comment: String? }
+        struct Req: Encodable { let rating: Int; let body: String? }
         _ = try await APIClient.shared.request(
             "/api/reviews/jobs/\(jobId)",
             method: .POST,
-            body: Req(rating: rating, comment: comment),
+            body: Req(rating: rating, body: comment),
             as: OkResponse.self
         )
     }
@@ -809,6 +1295,7 @@ enum HelperProfileService {
         let service_radius_miles: Int?
         let is_available_now: Bool?
         let ai_knowledge: String?
+        let booking_buffer_minutes: Int?
     }
 
     static func updateCore(_ req: CoreUpdateRequest) async throws {

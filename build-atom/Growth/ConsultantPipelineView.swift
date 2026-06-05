@@ -29,7 +29,7 @@ struct ConsultantPipelineView: View {
         let key = "consulting.status.\(status)"
         let localized = localization.localized(key)
         if localized != key { return localized }
-        return status.replacingOccurrences(of: "_", with: " ").capitalized
+        return localization.localized(status.replacingOccurrences(of: "_", with: " ").capitalized)
     }
 
     private var filtered: [ConsultingReferral] {
@@ -40,8 +40,10 @@ struct ConsultantPipelineView: View {
     private func fmtCents(_ c: Int?) -> String {
         guard let c, c > 0 else { return "—" }
         let d = Double(c) / 100.0
-        if d >= 1_000 { return String(format: "$%.1fK", d / 1_000) }
-        return String(format: "$%.0f", d)
+        if d >= 1_000 {
+            return localization.format("%@K", localization.formatNumber(d / 1_000, fractionDigits: 1))
+        }
+        return localization.formatCurrency(d, fractionDigits: 0)
     }
 
     var body: some View {
@@ -240,10 +242,7 @@ struct ConsultantPipelineView: View {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         if let d = f.date(from: iso) ?? ISO8601DateFormatter().date(from: iso) {
-            let out = DateFormatter()
-            out.dateStyle = .medium
-            out.timeStyle = .none
-            return out.string(from: d)
+            return localization.formatDate(d, dateStyle: .medium, timeStyle: .none)
         }
         return iso.prefix(10).description
     }
@@ -274,7 +273,11 @@ struct ReferralEditSheet: View {
     }
 
 private func label(for status: String) -> String {
-        status.replacingOccurrences(of: "_", with: " ").capitalized
+        let capitalized = status.replacingOccurrences(of: "_", with: " ").capitalized
+        let key = "consulting.status.\(status)"
+        let localized = localization.localized(key)
+        if localized != key { return localized }
+        return localization.localized(capitalized)
     }
 
     var body: some View {

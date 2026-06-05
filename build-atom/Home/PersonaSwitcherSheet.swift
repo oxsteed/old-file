@@ -4,6 +4,8 @@ struct PersonaSwitcherSheet: View {
     @EnvironmentObject var personaStore: PersonaStore
     @EnvironmentObject var auth: AuthStore
     @Environment(\.dismiss) private var dismiss
+    @State private var switchingTo: Persona?
+    @State private var error: String?
 
     var body: some View {
         ScrollView {
@@ -23,17 +25,25 @@ struct PersonaSwitcherSheet: View {
                 VStack(spacing: 10) {
                     ForEach(Persona.allCases) { persona in
                         Button {
-                            personaStore.active = persona
-                            Task { await auth.switchPersona(persona) }
-                            dismiss()
+                            Task { await switchPersona(persona) }
                         } label: {
                             row(for: persona)
                         }
                         .buttonStyle(.plain)
+                        .disabled(switchingTo != nil)
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 30)
+                .padding(.bottom, error == nil ? 30 : 0)
+
+                if let error {
+                    Text(error)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Theme.danger)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 30)
+                }
             }
         }
         .background(Theme.background.ignoresSafeArea())
@@ -41,6 +51,7 @@ struct PersonaSwitcherSheet: View {
 
     private func row(for persona: Persona) -> some View {
         let isActive = persona == personaStore.active
+        let isSwitching = switchingTo == persona
         return HStack(spacing: 14) {
             Image(systemName: persona.icon)
                 .font(.system(size: 18, weight: .semibold))
@@ -56,7 +67,10 @@ struct PersonaSwitcherSheet: View {
                     .foregroundStyle(Theme.textSecondary)
             }
             Spacer()
-            if isActive {
+            if isSwitching {
+                ProgressView()
+                    .tint(Theme.accent)
+            } else if isActive {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(Theme.accent)
                     .font(.system(size: 20))
@@ -75,5 +89,22 @@ struct PersonaSwitcherSheet: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .strokeBorder(isActive ? Theme.accent.opacity(0.5) : Theme.stroke, lineWidth: 1)
         )
+    }
+
+    @MainActor
+    private func switchPersona(_ persona: Persona) async {
+        guard switchingTo == nil else { return }
+        let previous = personaStore.active
+        error = nil
+        switchingTo = persona
+        personaStore.active = persona
+        let succeeded = await auth.switchPersona(persona)
+        switchingTo = nil
+        if succeeded {
+            dismiss()
+        } else {
+            personaStore.active = previous
+            error = auth.lastError ?? "Could not switch workspace. Please try again."
+        }
     }
 }

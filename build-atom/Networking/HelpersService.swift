@@ -12,6 +12,7 @@ enum HelpersService {
                        maxPrice: Int? = nil,
                        minRating: Double? = nil,
                        sort: String? = nil, page: Int = 1, limit: Int = 25) async throws -> [APIHelper] {
+        struct Response: Decodable { let helpers: [APIHelper] }
         var q: [String: Any] = ["page": page, "limit": limit]
         if let query { q["query"] = query }
         if let categories, !categories.isEmpty { q["categories"] = categories.joined(separator: ",") }
@@ -26,7 +27,8 @@ enum HelpersService {
         if let maxPrice { q["maxPrice"] = maxPrice }
         if let minRating { q["minRating"] = minRating }
         if let sort { q["sort"] = sort }
-        return try await APIClient.shared.request("/api/helpers", query: q, requiresAuth: false)
+        let response: Response = try await APIClient.shared.request("/api/helpers", query: q, requiresAuth: false)
+        return response.helpers
     }
 
     /// Generic profile object (server returns lots of optional fields).

@@ -183,9 +183,10 @@ struct SearchJobsIntent: AppIntent {
             )
         }
         let query = [term, cat].filter { !$0.isEmpty }.joined(separator: " ")
+        let displayQuery = query.isEmpty ? oxIntentLocalized("intent.dialog.searching_default_jobs") : query
         return .result(
             dialog: IntentDialog(stringLiteral:
-                "Searching for \(query.isEmpty ? "jobs" : query) on OxSteed.")
+                oxIntentFormat("intent.dialog.searching_jobs", displayQuery))
         )
     }
 }
@@ -212,9 +213,36 @@ struct SearchHelpersIntent: AppIntent {
                 userInfo: ["skill": s]
             )
         }
+        let displaySkill = s.isEmpty
+            ? oxIntentLocalized("intent.dialog.finding_default_helpers")
+            : oxIntentFormat("intent.dialog.finding_helpers_format", s)
         return .result(
             dialog: IntentDialog(stringLiteral:
-                "Finding \(s.isEmpty ? "helpers" : "\(s) helpers") near you.")
+                oxIntentFormat("intent.dialog.finding_helpers", displaySkill))
         )
     }
+}
+
+private func oxIntentLocalized(_ key: String) -> String {
+    let rawLanguage = UserDefaults.standard.string(forKey: LocalizationManager.storageKey)
+    let language = rawLanguage == AppLanguage.system.rawValue
+        ? AppLanguage.fromStoredCode(Locale.preferredLanguages.first) ?? .en
+        : AppLanguage.fromStoredCode(rawLanguage) ?? .en
+
+    if let path = Bundle.main.path(forResource: language.rawValue, ofType: "lproj"),
+       let bundle = Bundle(path: path) {
+        let localized = bundle.localizedString(forKey: key, value: key, table: nil)
+        if localized != key { return localized }
+    }
+
+    if let path = Bundle.main.path(forResource: AppLanguage.en.rawValue, ofType: "lproj"),
+       let bundle = Bundle(path: path) {
+        return bundle.localizedString(forKey: key, value: key, table: nil)
+    }
+
+    return Bundle.main.localizedString(forKey: key, value: key, table: nil)
+}
+
+private func oxIntentFormat(_ key: String, _ args: CVarArg...) -> String {
+    String(format: oxIntentLocalized(key), locale: Locale.autoupdatingCurrent, arguments: args)
 }

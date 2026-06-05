@@ -5,6 +5,15 @@ struct HomeTabView: View {
     @EnvironmentObject var personaStore: PersonaStore
     @EnvironmentObject var notifications: NotificationsStore
     @EnvironmentObject var auth: AuthStore
+    @EnvironmentObject var jobs: JobsStore
+    @EnvironmentObject var bids: BidsStore
+    @EnvironmentObject var messages: MessagesStore
+    @EnvironmentObject var calendar: CalendarStore
+    @EnvironmentObject var payments: PaymentsStore
+    @EnvironmentObject var tools: ToolRentalsStore
+    @EnvironmentObject var localization: LocalizationManager
+    @EnvironmentObject var learn: LearnStore
+    @EnvironmentObject var life: LifeStore
     @State private var showPersonaSheet = false
     @State private var showSettingsSheet = false
     @State private var showNotificationsSheet = false
@@ -25,6 +34,7 @@ struct HomeTabView: View {
                     HomeHeader(
                         persona: persona,
                         isGuest: isGuest,
+                        userName: auth.user?.homeGreetingName,
                         unread: notifications.unreadCount,
                         onTapPersona: {
                             if isGuest { showAuthSheet = true }
@@ -45,7 +55,7 @@ struct HomeTabView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
 
-                    if !isGuest {
+                    if !isGuest && persona != .customer {
                         PersonaDashboard(persona: persona)
                             .padding(.horizontal, 20)
                             .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -168,6 +178,7 @@ struct HomeTabView: View {
 private struct HomeHeader: View {
     let persona: Persona
     let isGuest: Bool
+    let userName: String?
     let unread: Int
     let onTapPersona: () -> Void
     let onTapSearch: () -> Void
@@ -175,6 +186,7 @@ private struct HomeHeader: View {
     let onTapInbox: () -> Void
     let onTapNotifications: () -> Void
     let onTapSettings: () -> Void
+    @EnvironmentObject private var localization: LocalizationManager
 
     var body: some View {
         ZStack {
@@ -191,16 +203,26 @@ private struct HomeHeader: View {
             VStack(alignment: .leading, spacing: 18) {
                 HStack(spacing: 10) {
                     LogoMark()
-                    Text(L10n.appName)
+                    Text(localization.localized(L10n.appName))
                         .font(.system(size: 15, weight: .bold))
                         .tracking(1.1)
                         .foregroundStyle(.white.opacity(0.9))
                     Spacer()
+                    Button(action: onTapSettings) {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 34, height: 34)
+                            .background(.white.opacity(0.15), in: Circle())
+                    }
+                    .accessibilityLabel(localization.localized(L10n.NavigationKey.settings))
+                    .buttonStyle(.plain)
+
                     Button(action: onTapPersona) {
                         HStack(spacing: 6) {
                             Image(systemName: persona.icon)
                                 .font(.system(size: 11, weight: .bold))
-                            Text(isGuest ? L10n.AuthKey.signIn : L10n.PersonaKey.name(for: persona))
+                            Text(localization.localized(isGuest ? L10n.AuthKey.signIn : L10n.PersonaKey.name(for: persona)))
                                 .lineLimit(1)
                             Image(systemName: "chevron.down")
                                 .font(.system(size: 9, weight: .bold))
@@ -215,15 +237,15 @@ private struct HomeHeader: View {
                 }
 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(L10n.greeting)
+                    Text(greetingText)
                         .font(.system(size: 25, weight: .heavy, design: .rounded))
                         .foregroundStyle(.white)
                     if isGuest {
-                        Text("settings.guest.subtitle")
+                        Text(localization.localized("settings.guest.subtitle"))
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(.white.opacity(0.76))
                     } else {
-                        Text(persona.tagline)
+                        Text(localization.localized(persona.tagline))
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(.white.opacity(0.76))
                     }
@@ -235,7 +257,6 @@ private struct HomeHeader: View {
                         HeroActionChip(title: L10n.NavigationKey.map, icon: "map.fill", action: onTapMap)
                         HeroActionChip(title: L10n.CommonKey.inbox, icon: "envelope.fill", action: onTapInbox)
                         HeroActionChip(title: L10n.NavigationKey.alerts, icon: "bell.fill", badge: unread, action: onTapNotifications)
-                        HeroActionChip(title: L10n.NavigationKey.settings, icon: "gearshape.fill", action: onTapSettings)
                     }
                 }
             }
@@ -244,6 +265,28 @@ private struct HomeHeader: View {
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(.white.opacity(0.09), lineWidth: 1))
         .shadow(color: Theme.accent.opacity(0.17), radius: 18, y: 9)
+    }
+
+    private var greetingText: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        let key: String
+        switch hour {
+        case 5..<12:  key = isGuest ? "app.greeting.morning.guest" : "app.greeting.morning"
+        case 12..<18: key = isGuest ? "app.greeting.afternoon.guest" : "app.greeting.afternoon"
+        default:      key = isGuest ? "app.greeting.evening.guest" : "app.greeting.evening"
+        }
+
+        guard !isGuest, let userName, !userName.isEmpty else {
+            return localization.localized(key)
+        }
+        let resolvedName = localization.localized(userName)
+        return localization.format(key, resolvedName)
+    }
+}
+
+private extension APIUser {
+    var homeGreetingName: String {
+        greetingName
     }
 }
 
@@ -258,16 +301,17 @@ private struct LogoMark: View {
 }
 
 private struct HeroActionChip: View {
-    let title: LocalizedStringKey
+    let title: String
     let icon: String
     var badge: Int = 0
     let action: () -> Void
+    @EnvironmentObject private var localization: LocalizationManager
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 5) {
                 Image(systemName: icon)
-                Text(title)
+                Text(localization.localized(title))
                     .lineLimit(1)
                 if badge > 0 {
                     Text("\(badge)")
@@ -280,7 +324,7 @@ private struct HeroActionChip: View {
             }
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(.white.opacity(0.92))
-            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 8)
             .padding(.vertical, 9)
             .background(.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
         }

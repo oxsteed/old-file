@@ -224,16 +224,26 @@ final class LifeDataStore: ObservableObject {
         for key in targets {
             do {
                 switch key {
+                case "money":
+                    try await syncMoneyEntries()
+                    flushed.insert(key)
                 case "homeTasks":
                     try await syncHomeTasks()
+                    flushed.insert(key)
+                case "vehicles":
+                    try await syncVehicles()
+                    flushed.insert(key)
+                case "habits":
+                    try await syncHabits()
                     flushed.insert(key)
                 case "goals":
                     try await syncGoals()
                     flushed.insert(key)
-                default:
-                    // Other pillar types (money, vehicles, habits, funds) are local-only for now;
-                    // mark them flushed so the badge clears.
+                case "sinkingFunds":
+                    try await syncSinkingFunds()
                     flushed.insert(key)
+                default:
+                    break
                 }
             } catch {
                 // Leave key in queue; retry on next connectivity event
@@ -244,6 +254,32 @@ final class LifeDataStore: ObservableObject {
     }
 
     // MARK: - Sync implementations
+
+    private func syncMoneyEntries() async throws {
+        struct Req: Encodable {
+            struct Item: Encodable {
+                let client_id: String
+                let source: String
+                let amount: Double
+                let type: String
+                let date: String
+            }
+            let money_entries: [Item]
+        }
+        let req = Req(money_entries: moneyEntries.map { entry in
+            .init(client_id: entry.id.uuidString,
+                  source: entry.source,
+                  amount: entry.amount,
+                  type: entry.type,
+                  date: entry.date)
+        })
+        _ = try await APIClient.shared.request(
+            "/api/life/expenses/bulk-upsert",
+            method: .POST,
+            body: req,
+            as: OkResponse.self
+        )
+    }
 
     private func syncHomeTasks() async throws {
         // Upsert each local home task via the Life API.
@@ -273,6 +309,68 @@ final class LifeDataStore: ObservableObject {
         )
     }
 
+    private func syncVehicles() async throws {
+        struct Req: Encodable {
+            struct Item: Encodable {
+                let client_id: String
+                let vin: String
+                let year: String
+                let make: String
+                let model: String
+                let mileage: Int
+                let last_oil_change_mile: Int
+                let last_service_date: String
+                let notes: String
+            }
+            let vehicles: [Item]
+        }
+        let req = Req(vehicles: vehicles.map { vehicle in
+            .init(client_id: vehicle.id.uuidString,
+                  vin: vehicle.vin,
+                  year: vehicle.year,
+                  make: vehicle.make,
+                  model: vehicle.model,
+                  mileage: vehicle.mileage,
+                  last_oil_change_mile: vehicle.lastOilChangeMile,
+                  last_service_date: vehicle.lastServiceDate == "—" ? "" : vehicle.lastServiceDate,
+                  notes: vehicle.notes)
+        })
+        _ = try await APIClient.shared.request(
+            "/api/life/vehicles/bulk-upsert",
+            method: .POST,
+            body: req,
+            as: OkResponse.self
+        )
+    }
+
+    private func syncHabits() async throws {
+        struct Req: Encodable {
+            struct Item: Encodable {
+                let client_id: String
+                let name: String
+                let icon: String
+                let streak: Int
+                let completed_today: Bool
+                let target_days_per_week: Int
+            }
+            let habits: [Item]
+        }
+        let req = Req(habits: habits.map { habit in
+            .init(client_id: habit.id.uuidString,
+                  name: habit.name,
+                  icon: habit.icon,
+                  streak: habit.streak,
+                  completed_today: habit.completedToday,
+                  target_days_per_week: habit.target)
+        })
+        _ = try await APIClient.shared.request(
+            "/api/life/habits/bulk-upsert",
+            method: .POST,
+            body: req,
+            as: OkResponse.self
+        )
+    }
+
     private func syncGoals() async throws {
         struct Req: Encodable {
             struct Item: Encodable { let title: String; let tier: String; let is_completed: Bool }
@@ -285,6 +383,66 @@ final class LifeDataStore: ObservableObject {
             body: req,
             as: OkResponse.self
         )
+    }
+
+    private func syncSinkingFunds() async throws {
+        struct Req: Encodable {
+            struct Item: Encodable {
+                let client_id: String
+                let name: String
+                let target_amount: Double
+                let saved_amount: Double
+                let target_date: String
+                let paycheck_interval: String
+                let icon: String
+                let color: String
+            }
+            let sinking_funds: [Item]
+        }
+        let req = Req(sinking_funds: sinkingFunds.map { f in
+            .init(client_id: f.id.uuidString,
+                  name: f.name,
+                  target_amount: f.targetAmount,
+                  saved_amount: f.savedAmount,
+                  target_date: f.targetDate,
+                  paycheck_interval: f.paycheckInterval,
+                  icon: f.icon,
+                  color: f.color)
+        })
+        _ = try await APIClient.shared.request(
+            "/api/life/sinking-funds/bulk-upsert",
+            method: .POST,
+            body: req,
+            as: OkResponse.self
+        )
+    }
+
+    func addGoal(title: String, tier: String) async {
+        goals.append(.init(title: title, tier: tier, completed: false, linkedFundId: nil))
+        await flushPendingSync(keys: ["goals"])
+    }
+
+    func toggleGoal(_ id: UUID) async {
+        guard let idx = goals.firstIndex(where: { $0.id == id }) else { return }
+        goals[idx].completed.toggle()
+        await flushPendingSync(keys: ["goals"])
+    }
+
+    func addSinkingFund(name: String, targetAmount: Double, savedAmount: Double, targetDate: String, paycheckInterval: String) async {
+        sinkingFunds.append(.init(name: name,
+                                  targetAmount: targetAmount,
+                                  savedAmount: savedAmount,
+                                  targetDate: targetDate,
+                                  paycheckInterval: paycheckInterval,
+                                  icon: "banknote.fill",
+                                  color: "pillarSinking"))
+        await flushPendingSync(keys: ["sinkingFunds"])
+    }
+
+    func depositToSinkingFund(_ id: UUID, amount: Double) async {
+        guard amount > 0, let idx = sinkingFunds.firstIndex(where: { $0.id == id }) else { return }
+        sinkingFunds[idx].savedAmount = min(sinkingFunds[idx].targetAmount, sinkingFunds[idx].savedAmount + amount)
+        await flushPendingSync(keys: ["sinkingFunds"])
     }
 
     // MARK: - UserDefaults helpers

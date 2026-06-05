@@ -137,6 +137,24 @@ enum AuthService {
         )
     }
 
+    static func requestEmailVerificationOTP(email: String) async throws {
+        struct Req: Encodable { let email: String; let type: String }
+        try await AuthAPIClient.shared.requestVoid(
+            "/api/auth/otp/request",
+            method: .POST,
+            body: Req(email: email, type: "email_verification")
+        )
+    }
+
+    static func verifyEmailOTP(email: String, otp: String) async throws {
+        struct Req: Encodable { let email: String; let otp: String; let type: String }
+        try await AuthAPIClient.shared.requestVoid(
+            "/api/auth/otp/verify",
+            method: .POST,
+            body: Req(email: email, otp: otp, type: "email_verification")
+        )
+    }
+
     static func resetPassword(token: String, newPassword: String) async throws {
         struct Req: Encodable { let token: String; let password: String }
         try await AuthAPIClient.shared.requestVoid(
@@ -188,11 +206,11 @@ enum AuthService {
     struct DeleteAccountRequest: Encodable { let confirmation: String }
     struct DeleteAccountResponse: Decodable { let success: Bool?; let message: String? }
 
-    static func deleteAccount() async throws -> DeleteAccountResponse {
+    static func deleteAccount(confirmation: String = "DELETE MY ACCOUNT") async throws -> DeleteAccountResponse {
         try await APIClient.shared.request(
             "/api/privacy/delete-account",
             method: .DELETE,
-            body: DeleteAccountRequest(confirmation: "DELETE MY ACCOUNT")
+            body: DeleteAccountRequest(confirmation: confirmation)
         )
     }
 }

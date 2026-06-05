@@ -3,6 +3,7 @@ import SwiftUI
 struct LearnTabView: View {
     @EnvironmentObject private var learn: LearnStore
     @EnvironmentObject private var auth: AuthStore
+    @EnvironmentObject private var localization: LocalizationManager
     @Environment(\.openURL) private var openURL
 
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
@@ -25,6 +26,7 @@ struct LearnTabView: View {
                 // Creator upload banner — visible to helpers, business owners, and consultants
                 if auth.activePersona == .helper || auth.activePersona == .business || auth.activePersona == .consultant {
                     creatorBanner
+                    creatorSubmissionsCard
                 }
 
                 VStack(alignment: .leading, spacing: 12) {
@@ -42,7 +44,7 @@ struct LearnTabView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 12) {
-                    SectionHeader(title: L10n.SectionKey.trendingArea, actionLabel: L10n.CommonKey.seeAll)
+                    SectionHeader(title: L10n.SectionKey.trendingArea, actionLabel: nil)
                     VStack(spacing: 10) {
                         ForEach(trendingGuides.prefix(6), id: \.id) { g in
                             Button {
@@ -76,7 +78,6 @@ struct LearnTabView: View {
                     }
                 )
             }
-            .task { await LearnService.recordView(guideId: g.id) }
             .presentationDetents([.large])
             .presentationBackground(Theme.background)
         }
@@ -117,7 +118,7 @@ struct LearnTabView: View {
                             .frame(maxWidth: .infinity).padding(.vertical, 14)
                             .background(Theme.accent, in: RoundedRectangle(cornerRadius: 14))
                     }
-                    Button("Not now") { showVerifyPrompt = false }
+                    Button("common.not_now") { showVerifyPrompt = false }
                         .font(.system(size: 14)).foregroundStyle(Theme.textSecondary)
                 }
                 .padding(28)
@@ -141,8 +142,8 @@ struct LearnTabView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(L10n.LearnKey.eyebrow).sectionTitle()
-                Text(L10n.LearnKey.title)
+                Text(localization.localized(L10n.LearnKey.eyebrow)).sectionTitle()
+                Text(localization.localized(L10n.LearnKey.title))
                     .font(.system(size: 22, weight: .heavy))
                     .foregroundStyle(Theme.textPrimary)
             }
@@ -154,11 +155,11 @@ struct LearnTabView: View {
         let hero = heroContent(for: auth.activePersona)
         return HStack(alignment: .top, spacing: 14) {
             VStack(alignment: .leading, spacing: 8) {
-                Text(hero.eyebrow).sectionTitle()
-                Text(hero.title)
+                Text(localization.localized(hero.eyebrow)).sectionTitle()
+                Text(localization.localized(hero.title))
                     .font(.system(size: 18, weight: .heavy))
                     .foregroundStyle(Theme.textPrimary)
-                Text(hero.subtitle)
+                Text(localization.localized(hero.subtitle))
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.textSecondary)
             }
@@ -179,9 +180,9 @@ struct LearnTabView: View {
     }
 
     private struct HeroContent {
-        let eyebrow: LocalizedStringKey
-        let title: LocalizedStringKey
-        let subtitle: LocalizedStringKey
+        let eyebrow: String
+        let title: String
+        let subtitle: String
         let tint: Color
     }
 
@@ -424,6 +425,81 @@ struct LearnTabView: View {
             .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.pillarGoals.opacity(0.35), lineWidth: 1))
         }
         .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var creatorSubmissionsCard: some View {
+        if !learn.submissions.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("Creator submissions")
+                        .font(.system(size: 15, weight: .heavy))
+                        .foregroundStyle(Theme.textPrimary)
+                    Spacer()
+                    Text("\(learn.submissions.count)")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Theme.textSecondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Theme.surfaceElevated, in: Capsule())
+                }
+
+                ForEach(learn.submissions.prefix(3)) { submission in
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: submissionStatusIcon(submission.status))
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(submissionStatusColor(submission.status))
+                            .frame(width: 34, height: 34)
+                            .background(submissionStatusColor(submission.status).opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(submission.title ?? "Guide submission")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Theme.textPrimary)
+                                .lineLimit(1)
+                            HStack(spacing: 6) {
+                                Text(localization.localized(submission.status?.capitalized ?? "Pending"))
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(submissionStatusColor(submission.status))
+                                if let category = submission.category {
+                                    Text(LearnGuideCategoryL10n.label(for: category))
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundStyle(Theme.textSecondary)
+                                }
+                            }
+                            if let note = submission.reviewer_note, !note.isEmpty {
+                                Text(note)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Theme.textSecondary)
+                                    .lineLimit(2)
+                            }
+                        }
+                        Spacer()
+                    }
+                    .padding(10)
+                    .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
+                }
+            }
+            .cardStyle(padding: 14)
+        }
+    }
+
+    private func submissionStatusIcon(_ status: String?) -> String {
+        switch status {
+        case "approved": return "checkmark.seal.fill"
+        case "rejected": return "xmark.octagon.fill"
+        case "needs_changes": return "pencil.and.scribble"
+        default: return "clock.fill"
+        }
+    }
+
+    private func submissionStatusColor(_ status: String?) -> Color {
+        switch status {
+        case "approved": return Theme.success
+        case "rejected": return Theme.danger
+        case "needs_changes": return Theme.warning
+        default: return Theme.accent
+        }
     }
 }
 
@@ -748,6 +824,7 @@ import PhotosUI
 /// POSTs to /api/learn/guides/submit — moderated before going live.
 struct SubmitGuideSheet: View {
     @EnvironmentObject var auth: AuthStore
+    @EnvironmentObject var learn: LearnStore
     @Environment(\.dismiss) private var dismiss
 
     @State private var title = ""
@@ -895,7 +972,7 @@ struct SubmitGuideSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 fieldLabel("learn.video.optional_label")
 
-                if let videoURL {
+                if videoURL != nil {
                     HStack(spacing: 10) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(Theme.success)
@@ -1019,6 +1096,7 @@ struct SubmitGuideSheet: View {
                 "/api/learn/guides/submit",
                 method: .POST, body: body, as: Resp.self
             )
+            await learn.refreshSubmissions()
             withAnimation { submitted = true }
         } catch let modErr as ContentModerator.Error {
             if case .blocked(let reason) = modErr { self.error = reason }

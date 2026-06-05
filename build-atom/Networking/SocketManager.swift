@@ -19,12 +19,19 @@ final class OxSocketManager: ObservableObject {
         disconnect()
         manager = SocketManager(
             socketURL: APIConfig.socketURL,
-            config: [.secure(true), .reconnects(true), .reconnectAttempts(10), .reconnectWait(3), .log(false)]
+            config: [
+                .secure(true),
+                .connectParams(["token": token]),
+                .forceWebsockets(true),
+                .reconnects(true),
+                .reconnectAttempts(10),
+                .reconnectWait(3),
+                .log(false)
+            ]
         )
         socket = manager?.defaultSocket
         socket?.on(clientEvent: .connect) { [weak self] _, _ in
             Task { @MainActor in
-                self?.socket?.emit("authenticate", ["token": token])
                 self?.isConnected = true
                 OXLog.info("connected", category: "socket")
             }
@@ -73,6 +80,7 @@ final class OxSocketManager: ObservableObject {
     init() {}
 
     func connect(token: String) {
+        isConnected = false
         OXLog.warn("SocketIO package not resolved — real-time events disabled.", category: "socket")
     }
 

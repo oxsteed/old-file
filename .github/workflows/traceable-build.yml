@@ -1,0 +1,76 @@
+name: Traceable Build
+
+on:
+  push:
+    branches:
+      - main
+      - "release/**"
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  ios:
+    name: iOS build
+    runs-on: macos-15
+    env:
+      XCODE_PROJECT: build-atom.xcodeproj
+      XCODE_SCHEME: build-atom
+      IOS_VERSION: "1.0.0"
+      IOS_BUILD_NUMBER: ${{ github.run_number }}
+      OX_GIT_SHA: ${{ github.sha }}
+      OX_ENVIRONMENT: ci
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Stamp build number
+        run: |
+          xcrun agvtool new-version -all "$IOS_BUILD_NUMBER"
+
+      - name: Build iOS app
+        run: |
+          xcodebuild \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            MARKETING_VERSION="$IOS_VERSION" \
+            CURRENT_PROJECT_VERSION="$IOS_BUILD_NUMBER" \
+            OX_GIT_SHA="$OX_GIT_SHA" \
+            OX_ENVIRONMENT="$OX_ENVIRONMENT" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Tag successful main build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          tag="ios-v${IOS_VERSION}+${IOS_BUILD_NUMBER}"
+          git tag -a "$tag" -m "iOS ${IOS_VERSION} build ${IOS_BUILD_NUMBER} (${GITHUB_SHA})"
+          git push origin "$tag"
+
+  api-settings:
+    name: Settings API checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: 5/server/package-lock.json
+
+      - name: Install API dependencies
+        working-directory: 5/server
+        run: npm ci
+
+      - name: Test Settings/Auth API surfaces
+        working-directory: 5/server
+        run: npm test -- --runInBand __tests__/settingsAppReport.test.js __tests__/authMiddlewareSecurity.test.js

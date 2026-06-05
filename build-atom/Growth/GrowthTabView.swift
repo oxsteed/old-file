@@ -46,7 +46,7 @@ struct GrowthTabView: View {
     @EnvironmentObject private var learn: LearnStore
     @EnvironmentObject private var life: LifeStore
     @EnvironmentObject private var auth: AuthStore
-    @Environment(\.openURL) private var openURL
+    @EnvironmentObject private var localization: LocalizationManager
 
     @StateObject private var location = LocationProvider()
 
@@ -71,6 +71,7 @@ struct GrowthTabView: View {
     @State private var showConsultingIntake = false
     @State private var showFinancing        = false
     @State private var showGrants           = false
+    @State private var safariURL: URL?
 
     // Joined listings — persisted across launches
     @State private var joinedListings: Set<Int> = Set(
@@ -130,10 +131,14 @@ struct GrowthTabView: View {
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Theme.background)
         }
-        .alert("Couldn't join", isPresented: $joinFailed) {
-            Button("OK", role: .cancel) { }
+        .sheet(item: $safariURL) { url in
+            InAppBrowserView(url: url)
+                .ignoresSafeArea()
+        }
+        .alert(LocalizedStringKey(L10n.GrowthKey.joinErrorTitle), isPresented: $joinFailed) {
+            Button("common.ok", role: .cancel) { }
         } message: {
-            Text("Something went wrong joining this deal. Please try again.")
+            Text(LocalizedStringKey(L10n.GrowthKey.joinErrorMessage))
         }
     }
 
@@ -197,10 +202,10 @@ struct GrowthTabView: View {
                 .font(.system(size: 56, weight: .light))
                 .foregroundStyle(Theme.accent)
             VStack(spacing: 8) {
-                Text("Unlock Growth")
+                Text("growth.unlock_growth")
                     .font(.system(size: 22, weight: .heavy))
                     .foregroundStyle(Theme.textPrimary)
-                Text("Sign in to see opportunities near you, programs matched to your goals, and community wholesale deals.")
+                Text(LocalizedStringKey(L10n.GrowthKey.guestSignInSubtitle))
                     .font(.system(size: 14))
                     .foregroundStyle(Theme.textSecondary)
                     .multilineTextAlignment(.center)
@@ -210,7 +215,7 @@ struct GrowthTabView: View {
                 Button {
                     NotificationCenter.default.post(name: .oxSwitchTab, object: nil, userInfo: ["tab": "home"])
                 } label: {
-                    Text("Sign In to Continue")
+                    Text("growth.sign_in_to_continue")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -222,10 +227,10 @@ struct GrowthTabView: View {
                     showConsultingIntake = true
                 } label: {
                     VStack(spacing: 4) {
-                        Text("Business Launch Program")
+                        Text("growth.business_launch_program")
                             .font(.system(size: 15, weight: .bold))
                             .foregroundStyle(Theme.accent)
-                        Text("Fill a short intake form (no account needed)")
+                            Text("growth.fill_intake_prompt")
                             .font(.system(size: 12))
                             .foregroundStyle(Theme.textSecondary)
                     }
@@ -248,7 +253,7 @@ struct GrowthTabView: View {
             Image(systemName: "wifi.slash")
                 .font(.system(size: 28, weight: .light))
                 .foregroundStyle(Theme.textSecondary)
-            Text("Couldn't load Growth content.")
+            Text(LocalizedStringKey(L10n.GrowthKey.loadingErrorTitle))
                 .font(.system(size: 14))
                 .foregroundStyle(Theme.textSecondary)
             Button {
@@ -261,7 +266,7 @@ struct GrowthTabView: View {
                     }
                 }
             } label: {
-                Text("Retry")
+                Text(LocalizedStringKey(L10n.GrowthKey.loadingRetry))
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Theme.accent)
                     .padding(.horizontal, 24).padding(.vertical, 10)
@@ -281,11 +286,11 @@ struct GrowthTabView: View {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 13))
                 .foregroundStyle(Theme.warning)
-            Text("Couldn't load.")
+            Text(LocalizedStringKey(L10n.GrowthKey.noSectionLoad))
                 .font(.system(size: 12))
                 .foregroundStyle(Theme.textSecondary)
             Spacer()
-            Button("Retry", action: retry)
+            Button("common.retry", action: retry)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Theme.accent)
         }
@@ -317,22 +322,22 @@ struct GrowthTabView: View {
             let hasPulse   = life.pulse?.no_data != true
 
             return [
-                GrowthStep(stage: "Step 1", title: "Build your baseline",
-                           description: "Add expenses/income so your Life Pulse is real.",
+                GrowthStep(stage: "Step 1", title: localization.localized(L10n.GrowthKey.stepOneTitle),
+                           description: localization.localized(L10n.GrowthKey.stepOneDescription),
                            progress: hasPulse ? 1.0 : 0.0, isActive: !hasPulse,
                            tapTab: "life"),
-                GrowthStep(stage: "Step 2", title: "Plan ahead",
-                           description: "Create 3 planned needs for the next 30 days.",
+                GrowthStep(stage: "Step 2", title: localization.localized(L10n.GrowthKey.stepTwoTitle),
+                           description: localization.localized(L10n.GrowthKey.stepTwoDescription),
                            progress: min(Double(planned) / 3.0, 1.0),
                            isActive: hasPulse && planned < 3,
                            tapTab: "life"),
-                GrowthStep(stage: "Step 3", title: "Get local help",
-                           description: "Post your first jobs and compare bids.",
+                GrowthStep(stage: "Step 3", title: localization.localized(L10n.GrowthKey.stepThreeTitle),
+                           description: localization.localized(L10n.GrowthKey.stepThreeDescription),
                            progress: min(Double(posted) / 2.0, 1.0),
                            isActive: planned >= 3 && posted < 2,
                            tapTab: "home"),
-                GrowthStep(stage: "Step 4", title: "Lock in savings",
-                           description: "Use Learn guides and trusted helpers to reduce recurring costs.",
+                GrowthStep(stage: "Step 4", title: localization.localized(L10n.GrowthKey.stepFourTitle),
+                           description: localization.localized(L10n.GrowthKey.stepFourDescription),
                            progress: 0.0, isActive: posted >= 2,
                            tapTab: "learn"),
             ]
@@ -343,22 +348,22 @@ struct GrowthTabView: View {
             let badges   = learn.badges.count
 
             return [
-                GrowthStep(stage: "Step 1", title: "Build a skill",
-                           description: "Complete your first guide in Learn.",
+                GrowthStep(stage: "Step 1", title: localization.localized(L10n.GrowthKey.stepOneTitle),
+                           description: localization.localized(L10n.GrowthKey.stepOneDescription),
                            progress: guides > 0 ? 1.0 : 0.0, isActive: guides == 0,
                            tapTab: "learn"),
-                GrowthStep(stage: "Step 2", title: "Side income",
-                           description: "Complete 5 jobs and build rating momentum.",
+                GrowthStep(stage: "Step 2", title: localization.localized(L10n.GrowthKey.stepTwoTitle),
+                           description: localization.localized(L10n.GrowthKey.stepTwoDescription),
                            progress: min(Double(jobsDone) / 5.0, 1.0),
                            isActive: guides > 0 && jobsDone < 5,
                            tapTab: "home"),
-                GrowthStep(stage: "Step 3", title: "Professional credibility",
-                           description: "Earn badges and unlock higher-trust work.",
+                GrowthStep(stage: "Step 3", title: localization.localized(L10n.GrowthKey.stepThreeTitle),
+                           description: localization.localized(L10n.GrowthKey.stepThreeDescription),
                            progress: min(Double(badges) / 3.0, 1.0),
                            isActive: jobsDone >= 5 && badges < 3,
                            tapTab: "learn"),
-                GrowthStep(stage: "Step 4", title: "Scale up",
-                           description: "Use opportunities + tools to take on bigger projects.",
+                GrowthStep(stage: "Step 4", title: localization.localized(L10n.GrowthKey.stepFourTitle),
+                           description: localization.localized(L10n.GrowthKey.stepFourDescription),
                            progress: 0.0, isActive: badges >= 3,
                            tapTab: nil),
             ]
@@ -369,8 +374,8 @@ struct GrowthTabView: View {
 
     private var opportunitiesSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionHeader(title: "Opportunities",
-                          actionLabel: visiblePopular.count > 6 ? "See all" : nil,
+            SectionHeader(title: L10n.GrowthKey.sectionOpportunities,
+                          actionLabel: visiblePopular.count > 6 ? L10n.CommonKey.seeAll : nil,
                           action: visiblePopular.count > 6 ? { showOpportunitiesAll = true } : nil)
             if isLoadingPopular {
                 ProgressView().tint(Theme.textTertiary)
@@ -379,7 +384,7 @@ struct GrowthTabView: View {
             } else if popularError && visiblePopular.isEmpty {
                 sectionErrorView { Task { await loadPopular() } }
             } else if visiblePopular.isEmpty {
-                Text("No nearby opportunities yet — check back soon.")
+                Text(LocalizedStringKey(L10n.GrowthKey.noOpportunities))
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -412,10 +417,11 @@ struct GrowthTabView: View {
     private func openItem(_ item: APIDiscoverItem) {
         guard let raw = item.url?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return }
         if let url = URL(string: raw), url.scheme != nil {
-            openURL(url); return
+            safariURL = url
+            return
         }
         if let url = URL(string: raw, relativeTo: AuthAPIConfig.baseURL)?.absoluteURL {
-            openURL(url)
+            safariURL = url
         }
     }
 
@@ -424,7 +430,7 @@ struct GrowthTabView: View {
     private var programsSection: some View {
         VStack(spacing: 10) {
             SectionHeader(title: L10n.SectionKey.programsForYou,
-                          actionLabel: programs.count > 3 ? "See all" : nil,
+                          actionLabel: programs.count > 3 ? L10n.CommonKey.seeAll : nil,
                           action: programs.count > 3 ? { showProgramsAll = true } : nil)
             if isLoadingPrograms {
                 ProgressView().tint(Theme.textTertiary)
@@ -456,7 +462,7 @@ struct GrowthTabView: View {
         case "consulting_intake": showConsultingIntake = true
         default:
             if let urlStr = program.ctaUrl, let url = URL(string: urlStr) {
-                openURL(url)
+                safariURL = url
             }
         }
     }
@@ -465,17 +471,17 @@ struct GrowthTabView: View {
 
     private var financingSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionHeader(title: "Financing", actionLabel: nil)
+            SectionHeader(title: L10n.GrowthKey.sectionFinancing, actionLabel: nil)
             Button { showFinancing = true } label: {
                 HStack(spacing: 14) {
                     Image(systemName: "dollarsign.circle.fill")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundStyle(Theme.pillarMoney)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Pre-qualify in minutes")
+                        Text("growth.pre_qualify")
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(Theme.textPrimary)
-                        Text("Check your eligibility for equipment loans, working capital, and tool financing — no hard credit pull.")
+                        Text(LocalizedStringKey(L10n.GrowthKey.financingDescription))
                             .font(.system(size: 11))
                             .foregroundStyle(Theme.textSecondary)
                             .lineLimit(3)
@@ -508,7 +514,7 @@ struct GrowthTabView: View {
                         .font(.system(size: 24, weight: .bold))
                         .foregroundStyle(Theme.pillarGoals)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Free money for skilled workers")
+                            Text("growth.free_money")
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(Theme.textPrimary)
                         Text("Federal, state, and nonprofit grants for training, tools, and business startup matched to your trade.")
@@ -546,7 +552,7 @@ struct GrowthTabView: View {
             } else if wholesaleError && wholesale.isEmpty {
                 sectionErrorView { Task { await loadWholesale() } }
             } else if wholesale.isEmpty {
-                Text("Community wholesale deals coming soon.")
+                Text(LocalizedStringKey(L10n.GrowthKey.noWholesale))
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.textSecondary)
                     .padding(.vertical, 4)
@@ -559,7 +565,7 @@ struct GrowthTabView: View {
                                 isJoined: joinedListings.contains(listing.id),
                                 onTap: {
                                     if let urlStr = listing.externalUrl, let url = URL(string: urlStr) {
-                                        openURL(url)
+                                        safariURL = url
                                     }
                                 },
                                 onJoin: { Task { await joinListing(listing) } }
@@ -605,27 +611,27 @@ struct GrowthTabView: View {
         do {
             let persona = auth.activePersona.rawValue
             let fetched = try await GrowthService.programs(persona: persona)
-            programs = fetched.isEmpty ? Self.seedPrograms() : fetched
+            programs = fetched.isEmpty ? seedPrograms() : fetched
         } catch {
             if case APIError.offline = error, popular.isEmpty, programs.isEmpty, wholesale.isEmpty {
                 loadError = true
             }
             if programs.isEmpty {
-                programs = Self.seedPrograms()
+                programs = seedPrograms()
             }
             OXLog.error("programs load failed: \(String(describing: error))", category: "growth")
         }
     }
 
-    private static func seedPrograms() -> [APIGrowthProgram] {
+    private func seedPrograms() -> [APIGrowthProgram] {
         [
             APIGrowthProgram(
                 id: -1,
-                title: "Business Consulting Intake",
-                subtitle: "Turn your skill into a real business. Strategy, setup, branding, and launch — all done for you.",
+                title: localization.localized(L10n.GrowthKey.seedBusinessConsultingTitle),
+                subtitle: localization.localized(L10n.GrowthKey.seedBusinessConsultingSubtitle),
                 iconName: "briefcase.fill",
                 colorKey: "money",
-                ctaLabel: "Start your intake",
+                ctaLabel: localization.localized(L10n.GrowthKey.seedBusinessConsultingCta),
                 ctaUrl: nil,
                 ctaType: "consulting_intake",
                 personaFilter: nil,
@@ -633,11 +639,11 @@ struct GrowthTabView: View {
             ),
             APIGrowthProgram(
                 id: -2,
-                title: "Community Pool Purchasing",
-                subtitle: "Join buying groups to access wholesale prices on materials, tools, and supplies.",
+                title: localization.localized(L10n.GrowthKey.seedWholesaleTitle),
+                subtitle: localization.localized(L10n.GrowthKey.seedWholesaleSubtitle),
                 iconName: "cart.fill.badge.plus",
                 colorKey: "sinking",
-                ctaLabel: "Browse pools",
+                ctaLabel: localization.localized(L10n.GrowthKey.seedWholesaleCta),
                 ctaUrl: nil,
                 ctaType: "tab_growth",
                 personaFilter: nil,
@@ -933,7 +939,7 @@ private struct ProgramCard: View {
                     }
                 }
                 Spacer()
-                Text(program.ctaLabel ?? "Open")
+                Text(program.ctaLabel ?? NSLocalizedString(L10n.GrowthKey.programOpen, comment: ""))
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 14).padding(.vertical, 8)
@@ -980,7 +986,7 @@ private struct WholesaleCard: View {
                 .lineLimit(2)
             if let pct = listing.savePercent {
                 HStack(spacing: 6) {
-                    Text(localization.format("Save %d%%", Int(pct)))
+                    Text(localization.format(L10n.GrowthKey.savePrefix, Int(pct)))
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(Theme.success)
                         .padding(.horizontal, 6).padding(.vertical, 3)
@@ -989,14 +995,14 @@ private struct WholesaleCard: View {
                 }
             }
             if let joined = listing.joinedCount {
-                Text(localization.format("%d joined", joined))
+                Text(localization.format(L10n.GrowthKey.joinedPrefix, joined))
                     .font(.system(size: 10))
                     .foregroundStyle(Theme.textTertiary)
             }
             Spacer()
             // Inner join button takes hit priority; outer .onTapGesture handles card tap
             Button(action: onJoin) {
-                Text(isJoined ? LocalizedStringKey("Joined ✓") : LocalizedStringKey("Join group"))
+                Text(isJoined ? LocalizedStringKey(L10n.GrowthKey.joinedGroupLabel) : LocalizedStringKey(L10n.GrowthKey.joinGroupLabelCta))
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(isJoined ? Theme.success : .white)
                     .frame(maxWidth: .infinity)
@@ -1034,11 +1040,11 @@ private struct OpportunityListSheet: View {
                 .padding(20)
             }
             .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Opportunities")
+            .navigationTitle(LocalizedStringKey(L10n.GrowthKey.sectionOpportunities))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button("common.done") { dismiss() }
                         .foregroundStyle(Theme.accent)
                         .font(.system(size: 15, weight: .semibold))
                 }
@@ -1070,11 +1076,11 @@ private struct ProgramListSheet: View {
                 .padding(20)
             }
             .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Programs for You")
+            .navigationTitle(LocalizedStringKey(L10n.GrowthKey.sectionPrograms))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button("common.done") { dismiss() }
                         .foregroundStyle(Theme.accent)
                         .font(.system(size: 15, weight: .semibold))
                 }
@@ -1095,7 +1101,8 @@ private struct WholesaleListSheet: View {
     @Binding var joined: Set<Int>
     let onJoin: (APIWholesaleListing) async -> Void
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openURL) private var openURL
+    @EnvironmentObject private var localization: LocalizationManager
+    @State private var safariURL: URL?
 
     var body: some View {
         NavigationStack {
@@ -1120,14 +1127,14 @@ private struct WholesaleListSheet: View {
                                 }
                                 HStack(spacing: 8) {
                                     if let pct = listing.savePercent {
-                                        Text("Save \(Int(pct))%")
+                                        Text(localization.format(L10n.GrowthKey.savePrefix, Int(pct)))
                                             .font(.system(size: 11, weight: .bold))
                                             .foregroundStyle(Theme.success)
                                             .padding(.horizontal, 6).padding(.vertical, 2)
                                             .background(Theme.success.opacity(0.15), in: Capsule())
                                     }
                                     if let n = listing.joinedCount {
-                                        Text("\(n) joined")
+                                        Text(localization.format(L10n.GrowthKey.joinedPrefix, n))
                                             .font(.system(size: 11))
                                             .foregroundStyle(Theme.textTertiary)
                                     }
@@ -1136,8 +1143,8 @@ private struct WholesaleListSheet: View {
                             Spacer()
                             VStack(spacing: 6) {
                                 if let urlStr = listing.externalUrl, let url = URL(string: urlStr) {
-                                    Button { openURL(url) } label: {
-                                        Text("View")
+                                    Button { safariURL = url } label: {
+                                        Text("common.view")
                                             .font(.system(size: 12, weight: .bold))
                                             .foregroundStyle(Theme.accent)
                                     }
@@ -1147,7 +1154,7 @@ private struct WholesaleListSheet: View {
                                 Button {
                                     Task { await onJoin(listing) }
                                 } label: {
-                                    Text(isJoined ? "Joined" : "Join")
+                                    Text(isJoined ? LocalizedStringKey(L10n.GrowthKey.joinedLabel) : LocalizedStringKey(L10n.GrowthKey.joinGroupLabelCta))
                                         .font(.system(size: 12, weight: .bold))
                                         .foregroundStyle(isJoined ? Theme.success : .white)
                                         .padding(.horizontal, 12).padding(.vertical, 6)
@@ -1166,17 +1173,21 @@ private struct WholesaleListSheet: View {
                 .padding(20)
             }
             .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Community Wholesale")
+            .navigationTitle(LocalizedStringKey(L10n.GrowthKey.sectionWholesale))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button("common.done") { dismiss() }
                         .foregroundStyle(Theme.accent)
                         .font(.system(size: 15, weight: .semibold))
                 }
             }
             .toolbarBackground(Theme.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
+        }
+        .sheet(item: $safariURL) { url in
+            InAppBrowserView(url: url)
+                .ignoresSafeArea()
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
@@ -1188,6 +1199,7 @@ private struct WholesaleListSheet: View {
 
 struct FinancingApplicationView: View {
     @EnvironmentObject var auth: AuthStore
+    @EnvironmentObject private var localization: LocalizationManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var loanType = "equipment"
@@ -1198,21 +1210,22 @@ struct FinancingApplicationView: View {
     @State private var businessType = "sole_proprietor"
     @State private var isSubmitting = false
     @State private var submitted = false
+    @State private var submittedApplication: APIGrowthFinancingApplication?
     @State private var error: String?
 
     private let loanTypes = [
-        ("equipment", "Equipment / Tools"),
-        ("working_capital", "Working Capital"),
-        ("vehicle", "Vehicle / Fleet"),
-        ("startup", "Business Startup"),
+        ("equipment", L10n.GrowthKey.financingLoanEquipment),
+        ("working_capital", L10n.GrowthKey.financingLoanWorkingCapital),
+        ("vehicle", L10n.GrowthKey.financingLoanVehicle),
+        ("startup", L10n.GrowthKey.financingLoanStartup),
     ]
     private let creditBands = ["< 580", "580–599", "600–649", "650–699", "700–749", "750+"]
     private let bizTypes = [
-        ("sole_proprietor", "Sole Proprietor"),
-        ("llc", "LLC"),
-        ("s_corp", "S-Corp"),
-        ("c_corp", "C-Corp"),
-        ("partnership", "Partnership"),
+        ("sole_proprietor", L10n.GrowthKey.financingBizSoleProprietor),
+        ("llc", L10n.GrowthKey.financingBizLLC),
+        ("s_corp", L10n.GrowthKey.financingBizSCorp),
+        ("c_corp", L10n.GrowthKey.financingBizCCorp),
+        ("partnership", L10n.GrowthKey.financingBizPartnership),
     ]
 
     var body: some View {
@@ -1228,12 +1241,12 @@ struct FinancingApplicationView: View {
                 .padding(20)
             }
             .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Financing Pre-Qualification")
+            .navigationTitle(LocalizedStringKey(L10n.GrowthKey.financingTitle))
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Theme.background, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { dismiss() }.foregroundStyle(Theme.textSecondary)
+                    Button("common.cancel") { dismiss() }.foregroundStyle(Theme.textSecondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     if !submitted {
@@ -1243,7 +1256,7 @@ struct FinancingApplicationView: View {
                             if isSubmitting {
                                 ProgressView().tint(Theme.accent)
                             } else {
-                                Text("Submit")
+                                    Text("common.submit")
                                     .font(.system(size: 15, weight: .bold))
                                     .foregroundStyle(canSubmit ? Theme.accent : Theme.textTertiary)
                             }
@@ -1265,7 +1278,7 @@ struct FinancingApplicationView: View {
             // Disclaimer
             HStack(spacing: 8) {
                 Image(systemName: "lock.shield.fill").foregroundStyle(Theme.success)
-                Text("No hard credit pull. Your information is used only to match you with suitable lenders.")
+                Text(LocalizedStringKey(L10n.GrowthKey.financingDisclaimer))
                     .font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
             }
             .padding(12)
@@ -1273,12 +1286,12 @@ struct FinancingApplicationView: View {
 
             // Loan type
             VStack(alignment: .leading, spacing: 6) {
-                finLabel("What do you need financing for?")
+                finLabel(L10n.GrowthKey.financingQuestionUse)
                 VStack(spacing: 6) {
                     ForEach(loanTypes, id: \.0) { (id, label) in
                         Button { loanType = id } label: {
                             HStack {
-                                Text(label).font(.system(size: 14)).foregroundStyle(Theme.textPrimary)
+                                Text(LocalizedStringKey(label)).font(.system(size: 14)).foregroundStyle(Theme.textPrimary)
                                 Spacer()
                                 if loanType == id {
                                     Image(systemName: "checkmark.circle.fill")
@@ -1298,7 +1311,7 @@ struct FinancingApplicationView: View {
 
             // Amount
             VStack(alignment: .leading, spacing: 6) {
-                finLabel("Amount needed ($)")
+                finLabel(L10n.GrowthKey.financingAmountNeeded)
                 TextField("e.g. 15000", text: $amountNeeded)
                     .keyboardType(.numberPad)
                     .finFieldStyle()
@@ -1306,7 +1319,7 @@ struct FinancingApplicationView: View {
 
             // Months in business
             VStack(alignment: .leading, spacing: 6) {
-                finLabel("Months in business")
+                finLabel(L10n.GrowthKey.financingMonthsInBusiness)
                 TextField("e.g. 24", text: $monthsInBusiness)
                     .keyboardType(.numberPad)
                     .finFieldStyle()
@@ -1314,7 +1327,7 @@ struct FinancingApplicationView: View {
 
             // Annual revenue
             VStack(alignment: .leading, spacing: 6) {
-                finLabel("Estimated annual revenue ($)")
+                finLabel(L10n.GrowthKey.financingAnnualRevenue)
                 TextField("e.g. 80000", text: $annualRevenue)
                     .keyboardType(.numberPad)
                     .finFieldStyle()
@@ -1322,7 +1335,7 @@ struct FinancingApplicationView: View {
 
             // Credit score — radio list (6 bands is too many for a segmented picker)
             VStack(alignment: .leading, spacing: 6) {
-                finLabel("Estimated credit score")
+                finLabel(L10n.GrowthKey.financingCreditScore)
                 VStack(spacing: 6) {
                     ForEach(creditBands, id: \.self) { band in
                         Button { creditScore = band } label: {
@@ -1347,10 +1360,10 @@ struct FinancingApplicationView: View {
 
             // Business type
             VStack(alignment: .leading, spacing: 6) {
-                finLabel("Business structure")
-                Picker("Business type", selection: $businessType) {
+                finLabel(L10n.GrowthKey.financingBusinessStructure)
+                Picker(LocalizedStringKey(L10n.GrowthKey.financingBusinessType), selection: $businessType) {
                     ForEach(bizTypes, id: \.0) { (id, label) in
-                        Text(label).tag(id)
+                        Text(LocalizedStringKey(label)).tag(id)
                     }
                 }
                 .pickerStyle(.menu)
@@ -1362,7 +1375,7 @@ struct FinancingApplicationView: View {
                 Text(error).font(.system(size: 12)).foregroundStyle(Theme.danger)
             }
 
-            Text("By submitting you agree that OxSteed may share your information with partner lenders to generate non-binding pre-qualification offers.")
+            Text(LocalizedStringKey(L10n.GrowthKey.financingTerms))
                 .font(.system(size: 10))
                 .foregroundStyle(Theme.textTertiary)
                 .multilineTextAlignment(.center)
@@ -1375,15 +1388,31 @@ struct FinancingApplicationView: View {
             Image(systemName: "checkmark.seal.fill")
                 .font(.system(size: 56))
                 .foregroundStyle(Theme.success)
-            Text("Application Submitted")
+            Text(LocalizedStringKey(L10n.GrowthKey.financingSubmittedTitle))
                 .font(.system(size: 22, weight: .heavy))
                 .foregroundStyle(Theme.textPrimary)
-            Text("We'll match your profile with lenders and send pre-qualification offers within 1–2 business days.")
+            Text(LocalizedStringKey(L10n.GrowthKey.financingSubmittedCopy))
                 .font(.system(size: 13))
                 .foregroundStyle(Theme.textSecondary)
                 .multilineTextAlignment(.center)
+            if let submittedApplication {
+                VStack(spacing: 8) {
+                    if let status = submittedApplication.status, !status.isEmpty {
+                        Label(localization.localized(status.capitalized), systemImage: "doc.text.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                    }
+                    Text(localization.format(L10n.GrowthKey.financingReferenceFormat, submittedApplication.id))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(12)
+                .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
+            }
             Button { dismiss() } label: {
-                Text("Got it")
+                Text("common.got_it")
                     .font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
                     .frame(maxWidth: .infinity).padding(.vertical, 14)
                     .background(Theme.accent, in: RoundedRectangle(cornerRadius: 14))
@@ -1396,17 +1425,7 @@ struct FinancingApplicationView: View {
         defer { isSubmitting = false }
         error = nil
 
-        struct Req: Encodable {
-            let loan_type: String
-            let amount_needed: Double
-            let months_in_business: Int?
-            let annual_revenue: Double?
-            let credit_score_band: String
-            let business_type: String
-        }
-        struct Resp: Decodable { let ok: Bool }
-
-        let body = Req(
+        let body = APIGrowthFinancingPreQualRequest(
             loan_type: loanType,
             amount_needed: Double(amountNeeded) ?? 0,
             months_in_business: Int(monthsInBusiness),
@@ -1415,20 +1434,19 @@ struct FinancingApplicationView: View {
             business_type: businessType
         )
         do {
-            _ = try await APIClient.shared.request(
-                "/api/growth/financing/pre-qual",
-                method: .POST, body: body, as: Resp.self
-            )
+            submittedApplication = try await GrowthService.submitFinancingPreQual(body)
             withAnimation { submitted = true }
         } catch let modErr as ContentModerator.Error {
             if case .blocked(let reason) = modErr { self.error = reason }
+        } catch APIError.validation(let message, _) {
+            self.error = message
         } catch {
-            self.error = "Could not submit. Please try again."
+            self.error = localization.localized(L10n.GrowthKey.financingErrorSubmit)
         }
     }
 
     private func finLabel(_ text: String) -> some View {
-        Text(text)
+        Text(LocalizedStringKey(text))
             .font(.system(size: 11, weight: .semibold))
             .tracking(0.8).foregroundStyle(Theme.textTertiary).textCase(.uppercase)
     }
@@ -1452,7 +1470,7 @@ struct GrantsDirectoryView: View {
     @EnvironmentObject var auth: AuthStore
     @Environment(\.dismiss) private var dismiss
 
-    @State private var grants: [GrantItem] = []
+    @State private var grants: [APIGrowthGrant] = []
     @State private var isLoading = false
     @State private var filter: GrantFilter = .all
 
@@ -1461,22 +1479,6 @@ struct GrantsDirectoryView: View {
         case federal = "Federal"
         case state = "State"
         case nonprofit = "Nonprofit"
-    }
-
-    struct GrantItem: Identifiable, Decodable {
-        let id: String
-        let name: String
-        let sponsor: String
-        let amount: String          // e.g. "Up to $5,000"
-        let eligibility: String
-        let deadline: String?
-        let applyURL: String?
-        let category: String        // "federal" | "state" | "nonprofit"
-
-        enum CodingKeys: String, CodingKey {
-            case id, name, sponsor, amount, eligibility, deadline, category
-            case applyURL = "apply_url"
-        }
     }
 
     var body: some View {
@@ -1530,14 +1532,14 @@ struct GrantsDirectoryView: View {
             .toolbarBackground(Theme.background, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }.foregroundStyle(Theme.accent)
+                    Button("common.done") { dismiss() }.foregroundStyle(Theme.accent)
                 }
             }
         }
         .task { await loadGrants() }
     }
 
-    private var visibleGrants: [GrantItem] {
+    private var visibleGrants: [APIGrowthGrant] {
         filter == .all ? grants : grants.filter { $0.category == filter.rawValue.lowercased() }
     }
 
@@ -1545,15 +1547,9 @@ struct GrantsDirectoryView: View {
         isLoading = true
         defer { isLoading = false }
 
-        struct Resp: Decodable { let grants: [GrantItem] }
         let persona = auth.activePersona.rawValue.lowercased().replacingOccurrences(of: " ", with: "_")
-        if let resp = try? await APIClient.shared.request(
-            "/api/growth/grants",
-            query: ["persona": persona],
-            requiresAuth: false,
-            as: Resp.self
-        ) {
-            grants = resp.grants
+        if let response = try? await GrowthService.grants(persona: persona) {
+            grants = response
         } else {
             // Fallback seed so the screen is never empty on first launch / offline
             grants = GrantsDirectoryView.seedGrants()
@@ -1561,34 +1557,34 @@ struct GrantsDirectoryView: View {
     }
 
     // Fallback content while server data loads
-    private static func seedGrants() -> [GrantItem] {
+    private static func seedGrants() -> [APIGrowthGrant] {
         [
-            GrantItem(id: "g1", name: "Workforce Innovation & Opportunity Act (WIOA)",
+            APIGrowthGrant(id: "g1", name: "Workforce Innovation & Opportunity Act (WIOA)",
                       sponsor: "U.S. Dept. of Labor", amount: "Up to $10,000",
                       eligibility: "Unemployed or underemployed adults seeking vocational training",
                       deadline: nil, applyURL: "https://www.careeronestop.org/LocalHelp/find-american-job-centers.aspx",
                       category: "federal"),
-            GrantItem(id: "g2", name: "Small Business Innovation Research (SBIR)",
+            APIGrowthGrant(id: "g2", name: "Small Business Innovation Research (SBIR)",
                       sponsor: "SBA", amount: "Up to $275,000",
                       eligibility: "Small businesses with innovative product/service ideas",
                       deadline: nil, applyURL: "https://www.sbir.gov",
                       category: "federal"),
-            GrantItem(id: "g3", name: "Minority Business Development Agency Grants",
+            APIGrowthGrant(id: "g3", name: "Minority Business Development Agency Grants",
                       sponsor: "MBDA", amount: "Varies",
                       eligibility: "Minority-owned small businesses",
                       deadline: nil, applyURL: "https://www.mbda.gov",
                       category: "federal"),
-            GrantItem(id: "g4", name: "Apprenticeship Building America",
+            APIGrowthGrant(id: "g4", name: "Apprenticeship Building America",
                       sponsor: "U.S. Dept. of Labor", amount: "Up to $5,000 per apprentice",
                       eligibility: "Registered apprenticeship sponsors in skilled trades",
                       deadline: nil, applyURL: "https://www.apprenticeship.gov",
                       category: "federal"),
-            GrantItem(id: "g5", name: "Kiva U.S. Microloans",
+            APIGrowthGrant(id: "g5", name: "Kiva U.S. Microloans",
                       sponsor: "Kiva (nonprofit)", amount: "$0–$15,000 (0% interest)",
                       eligibility: "Self-employed workers and micro-businesses",
                       deadline: nil, applyURL: "https://www.kiva.org/borrow",
                       category: "nonprofit"),
-            GrantItem(id: "g6", name: "Accion Opportunity Fund",
+            APIGrowthGrant(id: "g6", name: "Accion Opportunity Fund",
                       sponsor: "Accion (nonprofit)", amount: "$5,000–$100,000",
                       eligibility: "Small business owners in underserved communities",
                       deadline: nil, applyURL: "https://aofund.org",
@@ -1598,8 +1594,8 @@ struct GrantsDirectoryView: View {
 }
 
 private struct GrantCard: View {
-    let grant: GrantsDirectoryView.GrantItem
-    @Environment(\.openURL) private var openURL
+    let grant: APIGrowthGrant
+    @State private var safariURL: URL?
 
     private var categoryColor: Color {
         switch grant.category {
@@ -1622,7 +1618,7 @@ private struct GrantCard: View {
                         .foregroundStyle(Theme.textSecondary)
                 }
                 Spacer()
-                Text(grant.category.capitalized)
+                Text(localization.localized(grant.category.capitalized))
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(categoryColor)
                     .padding(.horizontal, 8).padding(.vertical, 4)
@@ -1643,14 +1639,14 @@ private struct GrantCard: View {
                 .lineLimit(3)
 
             if let deadline = grant.deadline {
-                Label("Deadline: \(deadline)", systemImage: "calendar")
+                Label(localization.format("growth.grant.deadline_format", deadline), systemImage: "calendar")
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.warning)
             }
 
             if let urlStr = grant.applyURL, let url = URL(string: urlStr) {
-                Button { openURL(url) } label: {
-                    Text("Apply / Learn More")
+                Button { safariURL = url } label: {
+                    Text("growth.apply_or_learn_more")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(Theme.accent)
                         .frame(maxWidth: .infinity)
@@ -1662,5 +1658,9 @@ private struct GrantCard: View {
             }
         }
         .cardStyle()
+        .sheet(item: $safariURL) { url in
+            InAppBrowserView(url: url)
+                .ignoresSafeArea()
+        }
     }
 }

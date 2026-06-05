@@ -16,34 +16,34 @@ struct OxSteedShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: PostJobIntent(),
             phrases: [
-                "Post a job on \(.applicationName)",
-                "Request help on \(.applicationName)",
-                "Create a task on \(.applicationName)",
-                "I need help with something on \(.applicationName)"
+                "shortcut.post_job.phrase1 \(.applicationName)",
+                "shortcut.post_job.phrase2 \(.applicationName)",
+                "shortcut.post_job.phrase3 \(.applicationName)",
+                "shortcut.post_job.phrase4 \(.applicationName)"
             ],
-            shortTitle: "Post a Job",
+            shortTitle: LocalizedStringResource("shortcut.post_job.title"),
             systemImageName: "plus.circle.fill"
         )
 
         AppShortcut(
             intent: SearchJobsIntent(),
             phrases: [
-                "Search jobs on \(.applicationName)",
-                "Find a job on \(.applicationName)",
-                "Show jobs on \(.applicationName)"
+                "shortcut.search_jobs.phrase1 \(.applicationName)",
+                "shortcut.search_jobs.phrase2 \(.applicationName)",
+                "shortcut.search_jobs.phrase3 \(.applicationName)"
             ],
-            shortTitle: "Search Jobs",
+            shortTitle: LocalizedStringResource("shortcut.search_jobs.title"),
             systemImageName: "magnifyingglass"
         )
 
         AppShortcut(
             intent: SearchHelpersIntent(),
             phrases: [
-                "Find a helper on \(.applicationName)",
-                "Find a helper on \(.applicationName)",
-                "Search helpers on \(.applicationName)"
+                "shortcut.find_helper.phrase1 \(.applicationName)",
+                "shortcut.find_helper.phrase2 \(.applicationName)",
+                "shortcut.find_helper.phrase3 \(.applicationName)"
             ],
-            shortTitle: "Find a Helper",
+            shortTitle: LocalizedStringResource("shortcut.find_helper.title"),
             systemImageName: "person.fill.checkmark"
         )
 
@@ -52,22 +52,22 @@ struct OxSteedShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: ShowNearbyJobsIntent(),
             phrases: [
-                "Show nearby jobs on \(.applicationName)",
-                "Find work near me on \(.applicationName)",
-                "What jobs are available on \(.applicationName)"
+                "shortcut.nearby_jobs.phrase1 \(.applicationName)",
+                "shortcut.nearby_jobs.phrase2 \(.applicationName)",
+                "shortcut.nearby_jobs.phrase3 \(.applicationName)"
             ],
-            shortTitle: "Nearby Jobs",
+            shortTitle: LocalizedStringResource("shortcut.nearby_jobs.title"),
             systemImageName: "map.fill"
         )
 
         AppShortcut(
             intent: AcceptTaskIntent(),
             phrases: [
-                "Accept a task on \(.applicationName)",
-                "Find work on \(.applicationName)",
-                "Show available tasks on \(.applicationName)"
+                "shortcut.accept_task.phrase1 \(.applicationName)",
+                "shortcut.accept_task.phrase2 \(.applicationName)",
+                "shortcut.accept_task.phrase3 \(.applicationName)"
             ],
-            shortTitle: "Accept Task",
+            shortTitle: LocalizedStringResource("shortcut.accept_task.title"),
             systemImageName: "checkmark.circle.fill"
         )
 
@@ -76,11 +76,11 @@ struct OxSteedShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: MessageCustomerIntent(),
             phrases: [
-                "Open my messages on \(.applicationName)",
-                "Check my inbox on \(.applicationName)",
-                "Message a customer on \(.applicationName)"
+                "shortcut.messages.phrase1 \(.applicationName)",
+                "shortcut.messages.phrase2 \(.applicationName)",
+                "shortcut.messages.phrase3 \(.applicationName)"
             ],
-            shortTitle: "Messages",
+            shortTitle: LocalizedStringResource("shortcut.messages.title"),
             systemImageName: "envelope.fill"
         )
 
@@ -89,11 +89,11 @@ struct OxSteedShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: RequestPayoutIntent(),
             phrases: [
-                "Request a payout on \(.applicationName)",
-                "Get paid on \(.applicationName)",
-                "Withdraw my earnings on \(.applicationName)"
+                "shortcut.request_payout.phrase1 \(.applicationName)",
+                "shortcut.request_payout.phrase2 \(.applicationName)",
+                "shortcut.request_payout.phrase3 \(.applicationName)"
             ],
-            shortTitle: "Request Payout",
+            shortTitle: LocalizedStringResource("shortcut.request_payout.title"),
             systemImageName: "dollarsign.circle.fill"
         )
 
@@ -102,23 +102,23 @@ struct OxSteedShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: ShowPulseDashboardIntent(),
             phrases: [
-                "Show my Pulse on \(.applicationName)",
-                "Open my dashboard on \(.applicationName)",
-                "Check my finances on \(.applicationName)",
-                "Show my spending on \(.applicationName)"
+                "shortcut.pulse_dashboard.phrase1 \(.applicationName)",
+                "shortcut.pulse_dashboard.phrase2 \(.applicationName)",
+                "shortcut.pulse_dashboard.phrase3 \(.applicationName)",
+                "shortcut.pulse_dashboard.phrase4 \(.applicationName)"
             ],
-            shortTitle: "Pulse Dashboard",
+            shortTitle: LocalizedStringResource("shortcut.pulse_dashboard.title"),
             systemImageName: "chart.line.uptrend.xyaxis"
         )
 
         AppShortcut(
             intent: LogExpenseIntent(),
             phrases: [
-                "Log an expense on \(.applicationName)",
-                "Add an expense on \(.applicationName)",
-                "Record a purchase on \(.applicationName)"
+                "shortcut.log_expense.phrase1 \(.applicationName)",
+                "shortcut.log_expense.phrase2 \(.applicationName)",
+                "shortcut.log_expense.phrase3 \(.applicationName)"
             ],
-            shortTitle: "Log Expense",
+            shortTitle: LocalizedStringResource("shortcut.log_expense.title"),
             systemImageName: "plus.forwardslash.minus"
         )
     }

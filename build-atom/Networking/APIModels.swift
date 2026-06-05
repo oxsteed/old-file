@@ -23,18 +23,53 @@ struct APIUser: Codable, Identifiable, Equatable {
     let background_check_passed: Bool?
     let didit_status: String?
     let display_name_preference: String?
+    let business_name: String?
     let preferred_language: String?
+    let allow_guest_contact: Bool?
+    let allow_booking: Bool?
+    let allow_scheduling: Bool?
+    let allow_live_chat: Bool?
     let default_mode: String?
     let avatar_url: String?
     let created_at: String?
     let updated_at: String?
 
     var displayName: String {
-        switch (first_name, last_name) {
-        case (let f?, let l?) where !f.isEmpty && !l.isEmpty: return "\(f) \(l)"
-        case (let f?, _) where !f.isEmpty: return f
-        default: return email
+        switch display_name_preference {
+        case "business_name":
+            if let business = business_name?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !business.isEmpty {
+                return business
+            }
+        case "full_name":
+            let full = [first_name, last_name]
+                .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+            if !full.isEmpty {
+                return full
+            }
+        default:
+            break
         }
+
+        if let firstName = first_name?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !firstName.isEmpty {
+            return firstName
+        }
+        if let business = business_name?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !business.isEmpty {
+            return business
+        }
+        return email
+    }
+
+    var greetingName: String {
+        let display = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !display.isEmpty, !display.contains("@") {
+            return display
+        }
+        return "app.greeting.fallback_name"
     }
 
     /// Map server role into local Persona enum.
@@ -125,8 +160,8 @@ struct APIJob: Decodable, Identifiable, Equatable {
         category_id = try c.decodeIfPresent(String.self, forKey: .category_id)
         status = try c.decodeIfPresent(String.self, forKey: .status)
         budget_type = try c.decodeIfPresent(String.self, forKey: .budget_type)
-        budget_min = try c.decodeIfPresent(Int.self, forKey: .budget_min)
-        budget_max = try c.decodeIfPresent(Int.self, forKey: .budget_max)
+        budget_min = try c.decodeFlexibleIntIfPresent(forKey: .budget_min)
+        budget_max = try c.decodeFlexibleIntIfPresent(forKey: .budget_max)
         currency = try c.decodeIfPresent(String.self, forKey: .currency)
         urgency = try c.decodeIfPresent(String.self, forKey: .urgency)
         location_address = try c.decodeIfPresent(String.self, forKey: .location_address)
@@ -138,14 +173,14 @@ struct APIJob: Decodable, Identifiable, Equatable {
         location_lng = try c.decodeIfPresent(Double.self, forKey: .location_lng) ?? c.decodeIfPresent(Double.self, forKey: .location_approx_lng)
         scheduled_date = try c.decodeIfPresent(String.self, forKey: .scheduled_date)
         scheduled_time = try c.decodeIfPresent(String.self, forKey: .scheduled_time)
-        customer_id = try c.decodeIfPresent(String.self, forKey: .customer_id) ?? c.decodeIfPresent(String.self, forKey: .client_id)
+        customer_id = try c.decodeFlexibleStringIfPresent(forKey: .customer_id) ?? c.decodeFlexibleStringIfPresent(forKey: .client_id)
         customer_name = try c.decodeIfPresent(String.self, forKey: .customer_name) ?? c.decodeIfPresent(String.self, forKey: .client_name)
         customer_rating = try c.decodeIfPresent(Double.self, forKey: .customer_rating)
         bid_count = try c.decodeIfPresent(Int.self, forKey: .bid_count)
-        accepted_bid_id = try c.decodeIfPresent(String.self, forKey: .accepted_bid_id)
-        assigned_helper_id = try c.decodeIfPresent(String.self, forKey: .assigned_helper_id)
+        accepted_bid_id = try c.decodeFlexibleStringIfPresent(forKey: .accepted_bid_id)
+        assigned_helper_id = try c.decodeFlexibleStringIfPresent(forKey: .assigned_helper_id)
         assigned_helper_name = try c.decodeIfPresent(String.self, forKey: .assigned_helper_name)
-        preferred_helper_id = try c.decodeIfPresent(String.self, forKey: .preferred_helper_id)
+        preferred_helper_id = try c.decodeFlexibleStringIfPresent(forKey: .preferred_helper_id)
         required_skills = try c.decodeStringArrayIfPresent(forKey: .required_skills)
         media_urls = try c.decodeIfPresent([String].self, forKey: .media_urls)
         created_at = try c.decodeIfPresent(String.self, forKey: .created_at)
@@ -156,10 +191,10 @@ struct APIJob: Decodable, Identifiable, Equatable {
 
     var budgetDisplay: String {
         guard let min = budget_min, let max = budget_max else {
-            if let min = budget_min { return "$\(min / 100)+" }
+            if let min = budget_min { return "$\(min)+" }
             return "—"
         }
-        return "$\(min / 100) – $\(max / 100)"
+        return "$\(min) – $\(max)"
     }
 
     var statusColor: Color {
@@ -172,9 +207,26 @@ struct APIJob: Decodable, Identifiable, Equatable {
         }
     }
 
+    /// Returns a localization key (or fallback English) suitable for passing to localization.localized().
     var statusDisplay: String {
-        guard let s = status else { return "Open" }
-        return s.replacingOccurrences(of: "_", with: " ").capitalized
+        guard let s = status?.lowercased() else { return "Open" }
+        switch s {
+        case "draft":        return "Draft"
+        case "published":    return "Published"
+        case "pending":      return "Pending"
+        case "matched":      return "Matched"
+        case "assigned":     return "Assigned"
+        case "accepted":     return "Accepted"
+        case "negotiating":  return "Negotiating"
+        case "in_progress":  return "In Progress"
+        case "started":      return "Started"
+        case "completed":    return "Completed"
+        case "cancelled":    return "Cancelled"
+        case "closed":       return "Closed"
+        default:
+            // Capitalize for use as a .strings key; will display as-is if key missing
+            return s.replacingOccurrences(of: "_", with: " ").capitalized
+        }
     }
 
     var locationDisplay: String {
@@ -190,10 +242,10 @@ struct JobCreateRequest: Encodable {
     let title: String
     let description: String
     let category_name: String?
-    let budget_type: String       // "range" | "fixed" | "hourly"
+    let budget_type: String       // "fixed" | "hourly" | "open"
     let budget_min: Int?
     let budget_max: Int?
-    let urgency: String           // low|medium|high
+    let urgency: String           // asap|this_week|next_week|flexible
     let location_city: String
     let location_state: String?
     let location_country: String
@@ -201,9 +253,17 @@ struct JobCreateRequest: Encodable {
     let scheduled_date: String?
     let scheduled_time: String?
     let required_skills: [String]?
+    let media_urls: [String]?
     // Recurring / subscription service
     let is_recurring: Bool?
     let recurrence_interval: String?  // "weekly" | "biweekly" | "monthly"
+
+    enum CodingKeys: String, CodingKey {
+        case title, description, category_name, budget_type, budget_min, budget_max
+        case urgency, location_city, location_state, location_country, location_zip
+        case scheduled_date, scheduled_time, required_skills, media_urls, is_recurring
+        case recurrence_interval = "recurrence"
+    }
 }
 
 // MARK: - Bids
@@ -428,6 +488,60 @@ struct APIAppointment: Codable, Identifiable, Equatable {
     let status: String?
     let notes: String?
     let created_at: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case customer_id, customer_name, helper_id, helper_name, job_id, job_title
+        case service_title, service_description
+        case scheduled_date, scheduled_start_at, scheduled_end_at
+        case scheduled_start_time, scheduled_end_time
+        case location, location_address
+        case notes, customer_notes, created_at, status
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeFlexibleString(forKey: .id)
+        customer_id = try c.decodeIfPresent(String.self, forKey: .customer_id)
+        customer_name = try c.decodeIfPresent(String.self, forKey: .customer_name)
+        helper_id = try c.decodeIfPresent(String.self, forKey: .helper_id)
+        helper_name = try c.decodeIfPresent(String.self, forKey: .helper_name)
+        job_id = try c.decodeIfPresent(String.self, forKey: .job_id)
+        job_title = try c.decodeIfPresent(String.self, forKey: .job_title)
+        service_title = try c.decodeIfPresent(String.self, forKey: .service_title)
+            ?? c.decodeIfPresent(String.self, forKey: .service_description)
+        let backendStart = try c.decodeIfPresent(String.self, forKey: .scheduled_start_time)
+        let backendEnd = try c.decodeIfPresent(String.self, forKey: .scheduled_end_time)
+        scheduled_start_at = try c.decodeIfPresent(String.self, forKey: .scheduled_start_at) ?? backendStart
+        scheduled_end_at = try c.decodeIfPresent(String.self, forKey: .scheduled_end_at) ?? backendEnd
+        scheduled_date = try c.decodeIfPresent(String.self, forKey: .scheduled_date)
+            ?? backendStart.flatMap { String($0.prefix(10)) }
+        location = try c.decodeIfPresent(String.self, forKey: .location)
+            ?? c.decodeIfPresent(String.self, forKey: .location_address)
+        notes = try c.decodeIfPresent(String.self, forKey: .notes)
+            ?? c.decodeIfPresent(String.self, forKey: .customer_notes)
+        status = try c.decodeIfPresent(String.self, forKey: .status)
+        created_at = try c.decodeIfPresent(String.self, forKey: .created_at)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encodeIfPresent(customer_id, forKey: .customer_id)
+        try c.encodeIfPresent(customer_name, forKey: .customer_name)
+        try c.encodeIfPresent(helper_id, forKey: .helper_id)
+        try c.encodeIfPresent(helper_name, forKey: .helper_name)
+        try c.encodeIfPresent(job_id, forKey: .job_id)
+        try c.encodeIfPresent(job_title, forKey: .job_title)
+        try c.encodeIfPresent(service_title, forKey: .service_title)
+        try c.encodeIfPresent(scheduled_date, forKey: .scheduled_date)
+        try c.encodeIfPresent(scheduled_start_at, forKey: .scheduled_start_at)
+        try c.encodeIfPresent(scheduled_end_at, forKey: .scheduled_end_at)
+        try c.encodeIfPresent(location, forKey: .location)
+        try c.encodeIfPresent(notes, forKey: .notes)
+        try c.encodeIfPresent(status, forKey: .status)
+        try c.encodeIfPresent(created_at, forKey: .created_at)
+    }
 }
 
 struct AppointmentCreateRequest: Encodable {
@@ -440,6 +554,43 @@ struct AppointmentCreateRequest: Encodable {
     let scheduled_end_time: String
     let location: String?
     let notes: String?
+
+    enum CodingKeys: String, CodingKey {
+        case helper_id, job_id
+        case service_description
+        case scheduled_start_time, scheduled_end_time
+        case location_address
+        case customer_notes
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encodeIfPresent(helper_id, forKey: .helper_id)
+        try c.encodeIfPresent(job_id, forKey: .job_id)
+        try c.encode(service_title, forKey: .service_description)
+        try c.encode(Self.isoDateTime(date: scheduled_date, time: scheduled_start_time), forKey: .scheduled_start_time)
+        try c.encode(Self.isoDateTime(date: scheduled_date, time: scheduled_end_time), forKey: .scheduled_end_time)
+        try c.encodeIfPresent(location, forKey: .location_address)
+        try c.encodeIfPresent(notes, forKey: .customer_notes)
+    }
+
+    private static func isoDateTime(date: String, time: String) -> String {
+        let parser = DateFormatter()
+        parser.calendar = Calendar(identifier: .iso8601)
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        parser.timeZone = .current
+        parser.dateFormat = "yyyy-MM-dd HH:mm"
+
+        let normalizedTime = time.count == 5 ? time : String(time.prefix(5))
+        guard let value = parser.date(from: "\(date) \(normalizedTime)") else {
+            return "\(date)T\(normalizedTime):00"
+        }
+
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        formatter.timeZone = .current
+        return formatter.string(from: value)
+    }
 }
 
 // MARK: - Bookings
@@ -450,6 +601,10 @@ struct APIBooking: Decodable, Identifiable, Equatable {
     let customer_id: String?
     let helper_id: String?
     let service_name: String?
+    let service_location: String?
+    let description: String?
+    let customer_name: String?
+    let customer_avatar: String?
     let requested_date: String?
     let requested_start_time: String?
     let requested_end_time: String?
@@ -464,8 +619,10 @@ struct APIBooking: Decodable, Identifiable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case id, status
-        case customer_id, helper_id, service_name, requested_date, requested_start_time, requested_end_time, expires_at, created_at
-        case customerId, helperId, serviceName, requestedDate, requestedStartTime, requestedEndTime, expiresAt, createdAt
+        case customer_id, helper_id, service_name, service_location, description, customer_name, customer_avatar
+        case requested_date, requested_start_time, requested_end_time, expires_at, created_at
+        case customerId, helperId, serviceName, serviceLocation, customerName, customerAvatar
+        case requestedDate, requestedStartTime, requestedEndTime, expiresAt, createdAt
         case counter_proposed_at, counter_date, counter_start_time, counter_end_time, counter_message
         case counterProposedAt, counterDate, counterStartTime, counterEndTime, counterMessage
     }
@@ -477,6 +634,10 @@ struct APIBooking: Decodable, Identifiable, Equatable {
         customer_id = try c.decodeIfPresent(String.self, forKey: .customer_id) ?? c.decodeIfPresent(String.self, forKey: .customerId)
         helper_id = try c.decodeIfPresent(String.self, forKey: .helper_id) ?? c.decodeIfPresent(String.self, forKey: .helperId)
         service_name = try c.decodeIfPresent(String.self, forKey: .service_name) ?? c.decodeIfPresent(String.self, forKey: .serviceName)
+        service_location = try c.decodeIfPresent(String.self, forKey: .service_location) ?? c.decodeIfPresent(String.self, forKey: .serviceLocation)
+        description = try c.decodeIfPresent(String.self, forKey: .description)
+        customer_name = try c.decodeIfPresent(String.self, forKey: .customer_name) ?? c.decodeIfPresent(String.self, forKey: .customerName)
+        customer_avatar = try c.decodeIfPresent(String.self, forKey: .customer_avatar) ?? c.decodeIfPresent(String.self, forKey: .customerAvatar)
         requested_date = try c.decodeIfPresent(String.self, forKey: .requested_date) ?? c.decodeIfPresent(String.self, forKey: .requestedDate)
         requested_start_time = try c.decodeIfPresent(String.self, forKey: .requested_start_time) ?? c.decodeIfPresent(String.self, forKey: .requestedStartTime)
         requested_end_time = try c.decodeIfPresent(String.self, forKey: .requested_end_time) ?? c.decodeIfPresent(String.self, forKey: .requestedEndTime)
@@ -552,11 +713,12 @@ struct APINotification: Decodable, Identifiable {
     let title: String?
     let message: String?
     let data: [String: AnyDecodable]?
+    let action_url: String?
     let is_read: Bool?
     let created_at: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, type, title, body, message, data, is_read, created_at
+        case id, type, title, body, message, data, action_url, is_read, created_at
     }
 
     init(id: String,
@@ -564,6 +726,7 @@ struct APINotification: Decodable, Identifiable {
          title: String?,
          message: String?,
          data: [String: AnyDecodable]?,
+         action_url: String? = nil,
          is_read: Bool?,
          created_at: String?) {
         self.id = id
@@ -571,6 +734,7 @@ struct APINotification: Decodable, Identifiable {
         self.title = title
         self.message = message
         self.data = data
+        self.action_url = action_url
         self.is_read = is_read
         self.created_at = created_at
     }
@@ -604,6 +768,7 @@ struct APINotification: Decodable, Identifiable {
         }
 
         data = try c.decodeIfPresent([String: AnyDecodable].self, forKey: .data)
+        action_url = try c.decodeIfPresent(String.self, forKey: .action_url)
         is_read = try c.decodeIfPresent(Bool.self, forKey: .is_read)
         created_at = try c.decodeIfPresent(String.self, forKey: .created_at)
     }
@@ -638,6 +803,37 @@ struct APILearnBadge: Decodable, Equatable, Identifiable {
 
 struct APILearnBadgesResponse: Decodable, Equatable {
     let badges: [APILearnBadge]
+}
+
+struct APILearnSubmission: Decodable, Equatable, Identifiable {
+    let id: String
+    let title: String?
+    let category: String?
+    let difficulty: String?
+    let status: String?
+    let reviewer_note: String?
+    let submitted_at: String?
+    let updated_at: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, category, difficulty, status, reviewer_note, submitted_at, updated_at
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeFlexibleString(forKey: .id)
+        title = try c.decodeIfPresent(String.self, forKey: .title)
+        category = try c.decodeIfPresent(String.self, forKey: .category)
+        difficulty = try c.decodeIfPresent(String.self, forKey: .difficulty)
+        status = try c.decodeIfPresent(String.self, forKey: .status)
+        reviewer_note = try c.decodeIfPresent(String.self, forKey: .reviewer_note)
+        submitted_at = try c.decodeIfPresent(String.self, forKey: .submitted_at)
+        updated_at = try c.decodeIfPresent(String.self, forKey: .updated_at)
+    }
+}
+
+struct APILearnSubmissionsResponse: Decodable, Equatable {
+    let submissions: [APILearnSubmission]
 }
 
 struct APILearnStatsResponse: Decodable, Equatable {
@@ -878,7 +1074,7 @@ struct APILifeSavedHelper: Decodable, Equatable, Identifiable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decodeFlexibleString(forKey: .id)
-        helper_id = try c.decodeIfPresent(String.self, forKey: .helper_id)
+        helper_id = try c.decodeFlexibleStringIfPresent(forKey: .helper_id)
         note = try c.decodeIfPresent(String.self, forKey: .note)
         created_at = try c.decodeIfPresent(String.self, forKey: .created_at)
         display_name = try c.decodeIfPresent(String.self, forKey: .display_name)
@@ -938,6 +1134,123 @@ struct APILifeHomeTasksResponse: Decodable, Equatable {
     let home_tasks: [APILifeHomeTask]
 }
 
+struct APILifeSinkingFund: Decodable, Equatable, Identifiable {
+    let id: String
+    let client_id: String?
+    let name: String
+    let target_amount: Double?
+    let saved_amount: Double?
+    let target_date: String?
+    let paycheck_interval: String?
+    let icon: String?
+    let color: String?
+    let created_at: String?
+    let updated_at: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, client_id, name, target_amount, saved_amount, target_date
+        case paycheck_interval, icon, color, created_at, updated_at
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeFlexibleString(forKey: .id)
+        client_id = try c.decodeFlexibleStringIfPresent(forKey: .client_id)
+        name = (try? c.decode(String.self, forKey: .name)) ?? ""
+        target_amount = try c.decodeFlexibleDoubleIfPresent(forKey: .target_amount)
+        saved_amount = try c.decodeFlexibleDoubleIfPresent(forKey: .saved_amount)
+        target_date = try c.decodeIfPresent(String.self, forKey: .target_date)
+        paycheck_interval = try c.decodeIfPresent(String.self, forKey: .paycheck_interval)
+        icon = try c.decodeIfPresent(String.self, forKey: .icon)
+        color = try c.decodeIfPresent(String.self, forKey: .color)
+        created_at = try c.decodeIfPresent(String.self, forKey: .created_at)
+        updated_at = try c.decodeIfPresent(String.self, forKey: .updated_at)
+    }
+
+    var progress: Double {
+        guard let target = target_amount, target > 0 else { return 0 }
+        return min((saved_amount ?? 0) / target, 1)
+    }
+}
+
+struct APILifeSinkingFundsResponse: Decodable, Equatable {
+    let sinking_funds: [APILifeSinkingFund]
+}
+
+struct APILifeVehicle: Decodable, Equatable, Identifiable {
+    let id: String
+    let client_id: String?
+    let vin: String?
+    let year: String?
+    let make: String
+    let model: String
+    let mileage: Int?
+    let last_oil_change_mile: Int?
+    let last_service_date: String?
+    let notes: String?
+    let created_at: String?
+    let updated_at: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, client_id, vin, year, make, model, mileage
+        case last_oil_change_mile, last_service_date, notes, created_at, updated_at
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeFlexibleString(forKey: .id)
+        client_id = try c.decodeFlexibleStringIfPresent(forKey: .client_id)
+        vin = try c.decodeIfPresent(String.self, forKey: .vin)
+        year = try c.decodeFlexibleStringIfPresent(forKey: .year)
+        make = (try? c.decode(String.self, forKey: .make)) ?? ""
+        model = (try? c.decode(String.self, forKey: .model)) ?? ""
+        mileage = try c.decodeFlexibleIntIfPresent(forKey: .mileage)
+        last_oil_change_mile = try c.decodeFlexibleIntIfPresent(forKey: .last_oil_change_mile)
+        last_service_date = try c.decodeIfPresent(String.self, forKey: .last_service_date)
+        notes = try c.decodeIfPresent(String.self, forKey: .notes)
+        created_at = try c.decodeIfPresent(String.self, forKey: .created_at)
+        updated_at = try c.decodeIfPresent(String.self, forKey: .updated_at)
+    }
+}
+
+struct APILifeVehiclesResponse: Decodable, Equatable {
+    let vehicles: [APILifeVehicle]
+}
+
+struct APILifeHabit: Decodable, Equatable, Identifiable {
+    let id: String
+    let client_id: String?
+    let name: String
+    let icon: String?
+    let streak: Int?
+    let completed_today: Bool?
+    let target_days_per_week: Int?
+    let created_at: String?
+    let updated_at: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, client_id, name, icon, streak, completed_today
+        case target_days_per_week, created_at, updated_at
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeFlexibleString(forKey: .id)
+        client_id = try c.decodeFlexibleStringIfPresent(forKey: .client_id)
+        name = (try? c.decode(String.self, forKey: .name)) ?? ""
+        icon = try c.decodeIfPresent(String.self, forKey: .icon)
+        streak = try c.decodeFlexibleIntIfPresent(forKey: .streak)
+        completed_today = try c.decodeFlexibleBoolIfPresent(forKey: .completed_today)
+        target_days_per_week = try c.decodeFlexibleIntIfPresent(forKey: .target_days_per_week)
+        created_at = try c.decodeIfPresent(String.self, forKey: .created_at)
+        updated_at = try c.decodeIfPresent(String.self, forKey: .updated_at)
+    }
+}
+
+struct APILifeHabitsResponse: Decodable, Equatable {
+    let habits: [APILifeHabit]
+}
+
 // MARK: - Growth
 
 struct APIGrowthProgram: Decodable, Identifiable {
@@ -993,6 +1306,57 @@ struct APIWholesaleResponse: Decodable {
     let listings: [APIWholesaleListing]
 }
 
+struct APIGrowthFinancingPreQualRequest: Encodable {
+    let loan_type: String
+    let amount_needed: Double
+    let months_in_business: Int?
+    let annual_revenue: Double?
+    let credit_score_band: String
+    let business_type: String
+}
+
+struct APIGrowthFinancingApplication: Decodable {
+    let id: String
+    let status: String?
+    let created_at: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, status, created_at
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeFlexibleString(forKey: .id)
+        status = try c.decodeIfPresent(String.self, forKey: .status)
+        created_at = try c.decodeIfPresent(String.self, forKey: .created_at)
+    }
+}
+
+struct APIGrowthFinancingPreQualResponse: Decodable {
+    let ok: Bool
+    let application: APIGrowthFinancingApplication?
+}
+
+struct APIGrowthGrant: Decodable, Identifiable {
+    let id: String
+    let name: String
+    let sponsor: String
+    let amount: String
+    let eligibility: String
+    let deadline: String?
+    let applyURL: String?
+    let category: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, sponsor, amount, eligibility, deadline, category
+        case applyURL = "apply_url"
+    }
+}
+
+struct APIGrowthGrantsResponse: Decodable {
+    let grants: [APIGrowthGrant]
+}
+
 // MARK: - Discover
 
 struct APIDiscoverItem: Decodable, Equatable, Identifiable {
@@ -1001,18 +1365,65 @@ struct APIDiscoverItem: Decodable, Equatable, Identifiable {
     let title: String
     let subtitle: String?
     let url: String?
+    let meta: String?
+    let imageUrl: String?
+    let priceHint: String?
     let distanceMiles: Double?
     let rating: Double?
     let reviewCount: Int?
     let verified: Bool?
     let backgroundChecked: Bool?
+    let availableToday: Bool?
     let freshnessDays: Int?
+    let freshnessKey: String?
+    let matchReasons: [String]?
     let primaryAction: String?
+
+    enum CodingKeys: String, CodingKey {
+        case type, id, title, subtitle, url, meta
+        case imageUrl, priceHint, distanceMiles, rating, reviewCount
+        case verified, backgroundChecked, availableToday
+        case freshnessDays, freshnessKey, matchReasons, primaryAction
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        type = try c.decode(String.self, forKey: .type)
+        id = try c.decodeFlexibleString(forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        subtitle = try c.decodeIfPresent(String.self, forKey: .subtitle)
+        url = try c.decodeIfPresent(String.self, forKey: .url)
+        meta = try c.decodeIfPresent(String.self, forKey: .meta)
+        imageUrl = try c.decodeIfPresent(String.self, forKey: .imageUrl)
+        priceHint = try c.decodeIfPresent(String.self, forKey: .priceHint)
+        distanceMiles = try c.decodeFlexibleDoubleIfPresent(forKey: .distanceMiles)
+        rating = try c.decodeFlexibleDoubleIfPresent(forKey: .rating)
+        reviewCount = try c.decodeIfPresent(Int.self, forKey: .reviewCount)
+        verified = try c.decodeFlexibleBoolIfPresent(forKey: .verified)
+        backgroundChecked = try c.decodeFlexibleBoolIfPresent(forKey: .backgroundChecked)
+        availableToday = try c.decodeFlexibleBoolIfPresent(forKey: .availableToday)
+        freshnessDays = try c.decodeIfPresent(Int.self, forKey: .freshnessDays)
+        freshnessKey = try c.decodeIfPresent(String.self, forKey: .freshnessKey)
+        matchReasons = try c.decodeIfPresent([String].self, forKey: .matchReasons)
+        primaryAction = try c.decodeIfPresent(String.self, forKey: .primaryAction)
+    }
 }
 
 struct APIDiscoverPopularResponse: Decodable, Equatable {
     let results: [APIDiscoverItem]
     let radiusMiles: Int?
+}
+
+struct APIDiscoverSearchResponse: Decodable, Equatable {
+    let query: String
+    let expandedTerms: [String]?
+    let radiusMiles: Int?
+    let results: [APIDiscoverItem]
+    let contentSignature: String?
+    let total: Int?
+    let offset: Int?
+    let limit: Int?
+    let hasMore: Bool?
 }
 
 // MARK: - Payments
@@ -1319,7 +1730,7 @@ struct QuoteLineItem: Codable, Identifiable {
 struct APIHelperQuote: Decodable, Identifiable {
     let id: String
     let job_id: String
-    let helper_id: Int?
+    let helper_id: String?
     let line_items: [QuoteLineItem]
     let tax_rate: Double
     let subtotal_cents: Int
@@ -1337,12 +1748,13 @@ struct APIHelperQuote: Decodable, Identifiable {
     let average_rating: Double?
 
     var statusDisplay: String {
-        switch status {
+        switch status.lowercased() {
         case "sent":      return "Sent"
         case "accepted":  return "Accepted"
         case "declined":  return "Declined"
         case "expired":   return "Expired"
         case "withdrawn": return "Withdrawn"
+        case "draft":     return "Draft"
         default:          return status.capitalized
         }
     }
@@ -1403,6 +1815,61 @@ struct RescheduleRequest: Codable, Identifiable, Equatable {
     let proposed_end_time: String?
     let reason: String?
     let created_at: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, appointment_id, status
+        case proposed_date, proposed_start_time, proposed_end_time
+        case proposed_start, proposed_end
+        case reason, message, created_at
+    }
+
+    init(id: String,
+         appointment_id: String?,
+         status: String?,
+         proposed_date: String?,
+         proposed_start_time: String?,
+         proposed_end_time: String?,
+         reason: String?,
+         created_at: String?) {
+        self.id = id
+        self.appointment_id = appointment_id
+        self.status = status
+        self.proposed_date = proposed_date
+        self.proposed_start_time = proposed_start_time
+        self.proposed_end_time = proposed_end_time
+        self.reason = reason
+        self.created_at = created_at
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeFlexibleString(forKey: .id)
+        appointment_id = try c.decodeIfPresent(String.self, forKey: .appointment_id)
+        status = try c.decodeIfPresent(String.self, forKey: .status)
+        let proposedStart = try c.decodeIfPresent(String.self, forKey: .proposed_start)
+        let proposedEnd = try c.decodeIfPresent(String.self, forKey: .proposed_end)
+        proposed_date = try c.decodeIfPresent(String.self, forKey: .proposed_date)
+            ?? proposedStart.flatMap { String($0.prefix(10)) }
+        proposed_start_time = try c.decodeIfPresent(String.self, forKey: .proposed_start_time)
+            ?? proposedStart
+        proposed_end_time = try c.decodeIfPresent(String.self, forKey: .proposed_end_time)
+            ?? proposedEnd
+        reason = try c.decodeIfPresent(String.self, forKey: .reason)
+            ?? c.decodeIfPresent(String.self, forKey: .message)
+        created_at = try c.decodeIfPresent(String.self, forKey: .created_at)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encodeIfPresent(appointment_id, forKey: .appointment_id)
+        try c.encodeIfPresent(status, forKey: .status)
+        try c.encodeIfPresent(proposed_date, forKey: .proposed_date)
+        try c.encodeIfPresent(proposed_start_time, forKey: .proposed_start_time)
+        try c.encodeIfPresent(proposed_end_time, forKey: .proposed_end_time)
+        try c.encodeIfPresent(reason, forKey: .reason)
+        try c.encodeIfPresent(created_at, forKey: .created_at)
+    }
 }
 
 struct AvailabilityBlock: Codable, Identifiable, Equatable {
@@ -1412,6 +1879,35 @@ struct AvailabilityBlock: Codable, Identifiable, Equatable {
     let end_time: String?
     let is_available: Bool?
     let notes: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, date, start_time, end_time, is_available, type, notes
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeFlexibleString(forKey: .id)
+        start_time = try c.decodeIfPresent(String.self, forKey: .start_time)
+        end_time = try c.decodeIfPresent(String.self, forKey: .end_time)
+        date = try c.decodeIfPresent(String.self, forKey: .date)
+            ?? start_time.flatMap { String($0.prefix(10)) }
+        if let raw = try c.decodeIfPresent(String.self, forKey: .type) {
+            is_available = raw == "available"
+        } else {
+            is_available = try c.decodeFlexibleBoolIfPresent(forKey: .is_available)
+        }
+        notes = try c.decodeIfPresent(String.self, forKey: .notes)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encodeIfPresent(date, forKey: .date)
+        try c.encodeIfPresent(start_time, forKey: .start_time)
+        try c.encodeIfPresent(end_time, forKey: .end_time)
+        try c.encodeIfPresent(is_available, forKey: .is_available)
+        try c.encodeIfPresent(notes, forKey: .notes)
+    }
 }
 
 // MARK: - Chat extras
@@ -1443,6 +1939,13 @@ private extension KeyedDecodingContainer {
         )
     }
 
+    func decodeFlexibleStringIfPresent(forKey key: Key) throws -> String? {
+        if let value = try? decodeIfPresent(String.self, forKey: key) { return value }
+        if let value = try? decodeIfPresent(Int.self, forKey: key) { return String(value) }
+        if let value = try? decodeIfPresent(Double.self, forKey: key) { return String(value) }
+        return nil
+    }
+
     func decodeFlexibleDoubleIfPresent(forKey key: Key) throws -> Double? {
         if let value = try? decodeIfPresent(Double.self, forKey: key) { return value }
         if let value = try? decodeIfPresent(Int.self, forKey: key) { return Double(value) }
@@ -1450,6 +1953,17 @@ private extension KeyedDecodingContainer {
             let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
             if s.isEmpty { return nil }
             return Double(s)
+        }
+        return nil
+    }
+
+    func decodeFlexibleIntIfPresent(forKey key: Key) throws -> Int? {
+        if let value = try? decodeIfPresent(Int.self, forKey: key) { return value }
+        if let value = try? decodeIfPresent(Double.self, forKey: key) { return Int(value) }
+        if let raw = try? decodeIfPresent(String.self, forKey: key) {
+            let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if s.isEmpty { return nil }
+            return Int(s)
         }
         return nil
     }

@@ -239,11 +239,10 @@ struct SubscribeToHelperSheet: View {
 
     private func friendlyTime(_ t: String) -> String {
         let f = DateFormatter()
-        f.locale = Locale.current
+        f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "HH:mm"
         guard let d = f.date(from: t) else { return t }
-        f.dateFormat = "h:mm a"
-        return f.string(from: d)
+        return localization.formatTime(d)
     }
 
     private func subscribe() async {
@@ -284,11 +283,43 @@ struct MySubscriptionsView: View {
             Group {
                 if isLoading && subscriptions.isEmpty {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let loadError, subscriptions.isEmpty {
+                    VStack(spacing: 14) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 34, weight: .bold))
+                            .foregroundStyle(Theme.danger)
+                        Text("recurring.my.error.load_failed")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(Theme.textPrimary)
+                        Text(loadError)
+                            .font(.system(size: 13))
+                            .foregroundStyle(Theme.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 30)
+                        Button {
+                            Task { await load() }
+                        } label: {
+                            Label("common.retry", systemImage: "arrow.clockwise")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 11)
+                                .background(Theme.accent, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if subscriptions.isEmpty {
                     emptyState
                 } else {
                     ScrollView {
                         VStack(spacing: 12) {
+                            if let loadError {
+                                Text(loadError)
+                                    .font(.system(size: 12)).foregroundStyle(Theme.danger)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 20)
+                            }
                             if let actionError {
                                 Text(actionError)
                                     .font(.system(size: 12)).foregroundStyle(Theme.danger)
@@ -347,7 +378,7 @@ struct MySubscriptionsView: View {
 
             HStack(spacing: 16) {
                 if let freq = sub.frequency {
-                    infoChip(icon: "calendar", text: freq.capitalized)
+                    infoChip(icon: "calendar", text: localization.localized("recurring.frequency.\(freq.lowercased())"))
                 }
                 if let day = sub.preferred_day {
                     infoChip(icon: "clock", text: "\(day)s")
@@ -438,8 +469,13 @@ struct MySubscriptionsView: View {
 
     private func load() async {
         isLoading = true
+        loadError = nil
         defer { isLoading = false }
-        subscriptions = (try? await RecurringBookingsService.list()) ?? []
+        do {
+            subscriptions = try await RecurringBookingsService.list()
+        } catch {
+            loadError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
     }
 
     private func cancel(_ sub: APIRecurringBooking) async {

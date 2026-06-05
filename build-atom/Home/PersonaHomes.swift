@@ -5,36 +5,89 @@ import UIKit
 
 // MARK: - Customer
 
+private enum CustomerHomeSheet: Identifiable {
+    case inbox
+    case subscriptions
+    case calendar
+    case payments
+    case notifications
+    case settings
+    case identity
+    case map
+    case invoices
+    case disputes
+    case support
+    case products
+    case sharedCarts
+    case orders
+    case verifyEmail
+    case twoFactor
+    case web(title: String, path: String)
+
+    var id: String {
+        switch self {
+        case .inbox: return "inbox"
+        case .subscriptions: return "subscriptions"
+        case .calendar: return "calendar"
+        case .payments: return "payments"
+        case .notifications: return "notifications"
+        case .settings: return "settings"
+        case .identity: return "identity"
+        case .map: return "map"
+        case .invoices: return "invoices"
+        case .disputes: return "disputes"
+        case .support: return "support"
+        case .products: return "products"
+        case .sharedCarts: return "shared-carts"
+        case .orders: return "orders"
+        case .verifyEmail: return "verify-email"
+        case .twoFactor: return "two-factor"
+        case .web(let title, let path): return "web-\(title)-\(path)"
+        }
+    }
+
+    var titleKey: String {
+        switch self {
+        case .inbox: return "Messages"
+        case .subscriptions: return "Subscriptions"
+        case .calendar: return "Bookings"
+        case .payments: return "Payments"
+        case .notifications: return "Notifications"
+        case .settings: return "Settings"
+        case .identity: return "Identity"
+        case .map: return "Nearby"
+        case .invoices: return "Invoices"
+        case .disputes: return "Disputes"
+        case .support: return "Support"
+        case .products: return "Products"
+        case .sharedCarts: return "Cart & Checkout"
+        case .orders: return "Orders"
+        case .verifyEmail: return "Verify Email"
+        case .twoFactor: return "Two-Factor"
+        case .web(let title, _): return title
+        }
+    }
+
+    var webURL: URL? {
+        guard case .web(_, let path) = self else { return nil }
+        return URL(string: "https://oxsteed.com\(path)")
+    }
+}
+
 struct CustomerHome: View {
     @EnvironmentObject var jobs: JobsStore
     @EnvironmentObject var messages: MessagesStore
+    @EnvironmentObject private var localization: LocalizationManager
     let isGuest: Bool
     let onRequireAuth: () -> Void
-    @State private var showPostJob       = false
-    @State private var showInbox         = false
-    @State private var showSubscriptions = false
+    @State private var postJobPrefill: PostJobPrefill?
+    @State private var activeSheet: CustomerHomeSheet?
+    @State private var activeMoreGroup: CustomerOperationMoreGroup?
 
     var body: some View {
         VStack(spacing: 18) {
-            heroCTA
-
-            if !isGuest {
-                RecommendationFeedView()
-                    .task { await RecommendationsStore.shared.load() }
-            }
-
-            HStack(spacing: 12) {
-                StatTile(label: L10n.StatKey.activeJobs,
-                         value: isGuest
-                            ? "\(jobs.availableJobs.count)"
-                            : "\(jobs.myJobs.filter { ($0.status ?? "") != "completed" && ($0.status ?? "") != "cancelled" }.count)",
-                         trend: nil, icon: "hammer.fill", color: Theme.accent)
-                StatTile(label: L10n.StatKey.openQuotes,
-                         value: isGuest
-                            ? "0"
-                            : "\(jobs.myJobs.reduce(0) { $0 + ($1.bid_count ?? 0) })",
-                         trend: nil, icon: "doc.text.fill", color: Theme.pillarHome)
-            }
+            customerTodayCard
+            customerMetrics
 
             if isGuest {
                 VStack(spacing: 10) {
@@ -63,12 +116,10 @@ struct CustomerHome: View {
             } else {
                 VStack(spacing: 10) {
                     SectionHeader(title: L10n.SectionKey.yourJobs)
-                    if jobs.myJobs.isEmpty {
-                        Text("home.jobs.empty.mine")
-                            .font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
-                            .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8)
+                    if customerJobs.isEmpty {
+                        emptyCustomerJobs
                     } else {
-                        ForEach(jobs.myJobs.prefix(4)) { job in
+                        ForEach(customerJobs.prefix(4)) { job in
                             NavigationLink {
                                 JobDetailView(job: job)
                             } label: { realJobRow(job) }
@@ -78,37 +129,11 @@ struct CustomerHome: View {
                 }
             }
 
-            Button {
-                if isGuest { onRequireAuth() }
-                else { showInbox = true }
-            } label: {
-                HStack {
-                    Image(systemName: "envelope.fill").foregroundStyle(Theme.accent)
-                    Text(L10n.SectionKey.messages).font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Theme.textPrimary)
-                    Spacer()
-                    if !isGuest, !messages.conversations.isEmpty {
-                        Text("\(messages.conversations.count)").font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(Theme.textSecondary)
-                    }
-                    Image(systemName: "chevron.right").foregroundStyle(Theme.textTertiary)
-                }
-                .cardStyle()
-            }
-            .buttonStyle(.plain)
+            customerOperations
 
             if !isGuest {
-                Button { showSubscriptions = true } label: {
-                    HStack {
-                        Image(systemName: "repeat.circle.fill").foregroundStyle(Theme.pillarGoals)
-                        Text("My Subscriptions").font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Theme.textPrimary)
-                        Spacer()
-                        Image(systemName: "chevron.right").foregroundStyle(Theme.textTertiary)
-                    }
-                    .cardStyle()
-                }
-                .buttonStyle(.plain)
+                RecommendationFeedView()
+                    .task { await RecommendationsStore.shared.load() }
             }
         }
         .task {
@@ -119,14 +144,350 @@ struct CustomerHome: View {
                 await messages.loadConversations()
             }
         }
-        .sheet(isPresented: $showPostJob) { PostJobView() }
-        .sheet(isPresented: $showInbox) { InboxView() }
-        .sheet(isPresented: $showSubscriptions) {
-            MySubscriptionsView()
+        .sheet(item: $postJobPrefill) { prefill in
+            PostJobView(prefill: prefill)
+        }
+        .sheet(item: $activeSheet) { sheet in
+            customerSheetDestination(sheet)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Theme.background)
         }
+        .sheet(item: $activeMoreGroup) { group in
+            CustomerOperationMoreSheet(group: group) { item in
+                activeMoreGroup = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    openCustomerOperation(item.destination)
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(Theme.background)
+        }
+    }
+
+    private var activeJobs: [APIJob] {
+        jobs.myJobs.filter { !["completed", "cancelled"].contains(($0.status ?? "").lowercased()) }
+    }
+
+    private var customerJobs: [APIJob] {
+        jobs.myJobs.sorted { lhs, rhs in
+            let leftScore = actionPriority(lhs)
+            let rightScore = actionPriority(rhs)
+            if leftScore != rightScore { return leftScore > rightScore }
+            return (lhs.created_at ?? "") > (rhs.created_at ?? "")
+        }
+    }
+
+    private var actionableQuoteCount: Int {
+        activeJobs.reduce(0) { $0 + ($1.bid_count ?? 0) }
+    }
+
+    private var topActionJob: APIJob? {
+        customerJobs.first { actionPriority($0) > 0 } ?? activeJobs.first
+    }
+
+    private func actionPriority(_ job: APIJob) -> Int {
+        let status = (job.status ?? "").lowercased()
+        if (job.bid_count ?? 0) > 0 && ["published", "open", "pending"].contains(status) { return 4 }
+        if ["assigned", "accepted", "in_progress", "started"].contains(status) { return 3 }
+        if status == "completed" { return 2 }
+        if ["published", "open", "pending"].contains(status) { return 1 }
+        return 0
+    }
+
+    private func nextActionText(for job: APIJob) -> String {
+        let status = (job.status ?? "").lowercased()
+        let bids = job.bid_count ?? 0
+        if bids > 0 && ["published", "open", "pending"].contains(status) {
+            return localization.formatPlural("plural.review_quote", bids)
+        }
+        if ["assigned", "accepted"].contains(status) { return localization.localized("Confirm schedule") }
+        if ["in_progress", "started"].contains(status) { return localization.localized("Track work") }
+        if status == "completed" { return localization.localized("Review job") }
+        if ["published", "open", "pending"].contains(status) { return localization.localized("Waiting for quotes") }
+        return localization.localized(job.statusDisplay)
+    }
+
+    private var customerMetrics: some View {
+        HStack(spacing: 12) {
+            StatTile(label: L10n.StatKey.activeJobs,
+                     value: isGuest ? "\(jobs.availableJobs.count)" : "\(activeJobs.count)",
+                     trend: nil, icon: "hammer.fill", color: Theme.accent)
+            StatTile(label: L10n.StatKey.openQuotes,
+                     value: isGuest ? "0" : "\(actionableQuoteCount)",
+                     trend: nil, icon: "doc.text.fill", color: Theme.pillarHome)
+        }
+    }
+
+    private var customerOperations: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: localization.localized("Customer tools"), actionLabel: nil)
+
+            operationGroup(title: localization.localized("Get work done"),
+                           subtitle: localization.localized("Find help, track requests, and keep every appointment visible."),
+                           items: [
+                            CustomerOperationItem(title: localization.localized("My Jobs"), subtitle: localization.localized("Requests and quotes"), icon: "list.bullet.rectangle.fill", color: Theme.accent, destination: .web(title: "My Jobs", path: "/my-jobs")),
+                            CustomerOperationItem(title: localization.localized("Find Helpers"), subtitle: localization.localized("Profiles and services"), icon: "person.2.fill", color: Theme.accent, destination: nil),
+                            CustomerOperationItem(title: localization.localized("Discover"), subtitle: localization.localized("Businesses and services"), icon: "safari.fill", color: Theme.pillarGoals, destination: .web(title: "Discover", path: "/discover")),
+                            CustomerOperationItem(title: localization.localized("Bookings"), subtitle: localization.localized("Schedule and requests"), icon: "calendar", color: Theme.pillarHome, destination: .calendar),
+                            CustomerOperationItem(title: localization.localized("My Bookings"), subtitle: localization.localized("Helper and rental records"), icon: "calendar.badge.clock", color: Theme.pillarHome, destination: .web(title: "My Bookings", path: "/my-bookings")),
+                            CustomerOperationItem(title: localization.localized("Messages"), subtitle: messagesSubtitle, icon: "envelope.fill", color: Theme.pillarGoals, destination: .inbox),
+                            CustomerOperationItem(title: localization.localized("Nearby Map"), subtitle: localization.localized("Jobs and rentals"), icon: "map.fill", color: Theme.success, destination: .map)
+                           ])
+
+            operationGroup(title: localization.localized("Money and trust"),
+                           subtitle: localization.localized("Payments, records, identity, and help when a job goes sideways."),
+                           items: [
+                            CustomerOperationItem(title: localization.localized("Payments"), subtitle: localization.localized("Escrow and wallet"), icon: "creditcard.fill", color: Theme.success, destination: .payments),
+                            CustomerOperationItem(title: localization.localized("Invoices"), subtitle: localization.localized("Bills and receipts"), icon: "doc.text.fill", color: Theme.pillarCar, destination: .invoices),
+                            CustomerOperationItem(title: localization.localized("Disputes"), subtitle: localization.localized("Resolve job issues"), icon: "exclamationmark.bubble.fill", color: Theme.warning, destination: .disputes),
+                            CustomerOperationItem(title: localization.localized("Support"), subtitle: localization.localized("Escalation help"), icon: "lifepreserver.fill", color: Theme.danger, destination: .support),
+                            CustomerOperationItem(title: localization.localized("Verify Identity"), subtitle: localization.localized("Build account trust"), icon: "checkmark.seal.fill", color: Theme.accent, destination: .identity)
+                           ])
+
+            operationGroup(title: localization.localized("Supplies and account"),
+                           subtitle: localization.localized("Shop products, manage orders, rentals, settings, and notifications."),
+                           items: [
+                            CustomerOperationItem(title: localization.localized("Products"), subtitle: localization.localized("Marketplace"), icon: "shippingbox.fill", color: Theme.pillarGoals, destination: .products),
+                            CustomerOperationItem(title: localization.localized("Cart & Checkout"), subtitle: localization.localized("Shared carts to review"), icon: "cart.fill", color: Theme.success, destination: .sharedCarts),
+                            CustomerOperationItem(title: localization.localized("Orders"), subtitle: localization.localized("Purchases and carts"), icon: "bag.fill", color: Theme.pillarCar, destination: .orders),
+                            CustomerOperationItem(title: localization.localized("Tool Rentals"), subtitle: localization.localized("Rent nearby tools"), icon: "wrench.and.screwdriver.fill", color: Theme.pillarHome, destination: .web(title: "Tool Rentals", path: "/tool-rentals")),
+                            CustomerOperationItem(title: localization.localized("Notifications"), subtitle: localization.localized("Alerts and updates"), icon: "bell.fill", color: Theme.warning, destination: .notifications),
+                            CustomerOperationItem(title: localization.localized("Plans"), subtitle: localization.localized("Membership and upgrades"), icon: "sparkles.rectangle.stack.fill", color: Theme.pillarGoals, destination: .web(title: "Plans", path: "/upgrade")),
+                            CustomerOperationItem(title: localization.localized("Settings"), subtitle: localization.localized("Profile and alerts"), icon: "gearshape.fill", color: Theme.textSecondary, destination: .settings)
+                           ])
+
+            operationGroup(title: localization.localized("Account security"),
+                           subtitle: localization.localized("Verification and security steps that unlock full platform access and build trust with helpers."),
+                           items: [
+                            CustomerOperationItem(title: localization.localized("Verify Email"), subtitle: localization.localized("Confirm your account"), icon: "envelope.badge.shield.half.filled.fill", color: Theme.accent, destination: .verifyEmail),
+                            CustomerOperationItem(title: localization.localized("Two-Factor Auth"), subtitle: localization.localized("Protect sign-in"), icon: "lock.shield.fill", color: Theme.success, destination: .twoFactor),
+                            CustomerOperationItem(title: localization.localized("Verify Identity"), subtitle: localization.localized("Build account trust"), icon: "checkmark.seal.fill", color: Theme.accent, destination: .identity),
+                            CustomerOperationItem(title: localization.localized("Privacy & Safety"), subtitle: localization.localized("Data controls"), icon: "hand.raised.fill", color: Theme.pillarHome, destination: .web(title: "Privacy", path: "/privacy")),
+                            CustomerOperationItem(title: localization.localized("Legal & Policies"), subtitle: localization.localized("Terms, escrow, disputes"), icon: "doc.plaintext.fill", color: Theme.textSecondary, destination: .web(title: "Legal", path: "/terms"))
+                           ])
+
+            if !isGuest {
+                Button { activeSheet = .subscriptions } label: {
+                    HStack {
+                        Image(systemName: "repeat.circle.fill").foregroundStyle(Theme.pillarGoals)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(localization.localized("Recurring Services"))
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Theme.textPrimary)
+                            Text(localization.localized("Subscriptions and repeat jobs"))
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right").foregroundStyle(Theme.textTertiary)
+                    }
+                    .cardStyle()
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var messagesSubtitle: String {
+        if isGuest { return localization.localized("Sign in to chat") }
+        if messages.conversations.isEmpty { return localization.localized("Job conversations") }
+        return localization.formatPlural("plural.conversation", messages.conversations.count)
+    }
+
+    private func operationGroup(title: String, subtitle: String, items: [CustomerOperationItem], visibleCount: Int = 3) -> some View {
+        let visibleItems = Array(items.prefix(visibleCount))
+        let overflowItems = Array(items.dropFirst(visibleCount))
+
+        return VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 15, weight: .heavy))
+                    .foregroundStyle(Theme.textPrimary)
+                Text(subtitle)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                ForEach(visibleItems) { item in
+                    operationTile(item)
+                }
+                if !overflowItems.isEmpty {
+                    Button {
+                        activeMoreGroup = CustomerOperationMoreGroup(
+                            title: title,
+                            subtitle: subtitle,
+                            items: overflowItems
+                        )
+                    } label: {
+                        operationMoreTileLabel(count: overflowItems.count)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(14)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.stroke, lineWidth: 1))
+    }
+
+    @ViewBuilder
+    private func operationTile(_ item: CustomerOperationItem) -> some View {
+        if item.destination == nil {
+            NavigationLink { HelpersBrowseView() } label: {
+                operationTileLabel(item)
+            }
+            .buttonStyle(.plain)
+        } else {
+            Button {
+                openCustomerOperation(item.destination)
+            } label: {
+                operationTileLabel(item)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func operationTileLabel(_ item: CustomerOperationItem) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Image(systemName: item.icon)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(item.color)
+                .frame(width: 30, height: 30)
+                .background(item.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Theme.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Text(item.subtitle)
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.textSecondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
+        .padding(12)
+        .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
+    }
+
+    private func operationMoreTileLabel(count: Int) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "ellipsis.circle.fill")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 30, height: 30)
+                .background(Theme.accent.opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("More")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Theme.textPrimary)
+                Text(localization.formatPlural("plural.more_option", count))
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.textSecondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Theme.textTertiary)
+        }
+        .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
+        .padding(12)
+        .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
+    }
+
+    private func openCustomerOperation(_ destination: CustomerHomeSheet?) {
+        if isGuest {
+            onRequireAuth()
+        } else {
+            activeSheet = destination
+        }
+    }
+
+    @ViewBuilder
+    private func customerSheetDestination(_ sheet: CustomerHomeSheet) -> some View {
+        switch sheet {
+        case .inbox:
+            InboxView()
+        case .subscriptions:
+            MySubscriptionsView()
+        case .calendar:
+            CalendarView()
+        case .payments:
+            PaymentsView()
+        case .notifications:
+            NotificationsView()
+        case .settings:
+            SettingsSheet()
+        case .identity:
+            VerifyIdentityView()
+        case .map:
+            MapBrowseView()
+        case .invoices:
+            CustomerInvoicesView()
+        case .disputes:
+            CustomerDisputesView()
+        case .support:
+            CustomerSupportNativeView()
+        case .products:
+            CustomerProductsView()
+        case .sharedCarts:
+            CustomerSharedCartsView()
+        case .orders:
+            CustomerOrdersView()
+        case .verifyEmail:
+            CustomerVerifyEmailView()
+        case .twoFactor:
+            CustomerTwoFactorView()
+        case .web:
+            if let url = sheet.webURL {
+                InAppBrowserView(url: url)
+                    .ignoresSafeArea()
+            }
+        }
+    }
+
+    private var emptyCustomerJobs: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("No active jobs yet.")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.textPrimary)
+            Text("Post a project, browse trusted helpers, or rebook someone you already know.")
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.textSecondary)
+            HStack(spacing: 10) {
+                Button {
+                    postJobPrefill = PostJobPrefill()
+                } label: {
+                    Label("customer.post_job", systemImage: "plus.circle.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .background(Theme.accent, in: Capsule())
+                }
+                NavigationLink { HelpersBrowseView() } label: {
+                    Label("Find Helpers", systemImage: "person.2.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Theme.accent)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .background(Capsule().strokeBorder(Theme.accent, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
     }
 
     private func realJobRow(_ job: APIJob) -> some View {
@@ -139,59 +500,1291 @@ struct CustomerHome: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(job.title).font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Theme.textPrimary).lineLimit(1)
-                Text(job.category ?? "").font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
-                Text(job.statusDisplay).font(.system(size: 11, weight: .bold))
+                Text(localizedCategoryName(job.category, localization: localization)).font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
+                Text(localization.localized(job.statusDisplay)).font(.system(size: 11, weight: .bold))
                     .foregroundStyle(job.statusColor)
                     .padding(.horizontal, 8).padding(.vertical, 3)
                     .background(job.statusColor.opacity(0.14), in: Capsule())
             }
             Spacer()
-            Text(job.budgetDisplay).font(.system(size: 14, weight: .bold)).foregroundStyle(Theme.textPrimary)
+            VStack(alignment: .trailing, spacing: 6) {
+                Text(job.budgetDisplay).font(.system(size: 14, weight: .bold)).foregroundStyle(Theme.textPrimary)
+                Text(nextActionText(for: job))
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(job.statusColor)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(job.statusColor.opacity(0.14), in: Capsule())
+            }
         }
         .padding(14)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.stroke, lineWidth: 1))
     }
 
-    private var heroCTA: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.CustomerKey.eyebrow).font(.system(size: 11, weight: .bold)).tracking(1.4).foregroundStyle(Theme.accent)
-            Text(L10n.CustomerKey.headline).font(.system(size: 26, weight: .heavy)).foregroundStyle(Theme.textPrimary).lineSpacing(2)
-            Text(L10n.CustomerKey.subhead).font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
+    private var customerTodayCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 10) {
-                Button {
-                    if isGuest { onRequireAuth() } else { showPostJob = true }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "plus").font(.system(size: 12, weight: .bold))
-                        Text(L10n.CustomerKey.postJob).font(.system(size: 13, weight: .bold))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16).padding(.vertical, 11)
-                    .background(Theme.accent, in: Capsule())
+                Image(systemName: "house.fill")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 38, height: 38)
+                    .background(Theme.accent.opacity(0.16), in: RoundedRectangle(cornerRadius: 12))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Customer Today")
+                        .font(.system(size: 18, weight: .heavy))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(todaySubtitle)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.textSecondary)
                 }
+                Spacer()
+            }
+
+            HStack(spacing: 10) {
+                primaryCustomerAction
                 NavigationLink { HelpersBrowseView() } label: {
-                    Text(L10n.CustomerKey.browseHelpers)
-                        .font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.accent)
-                        .padding(.horizontal, 16).padding(.vertical, 11)
+                    Image(systemName: "person.2.fill")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(Theme.accent)
+                        .frame(width: 44, height: 44)
                         .background(Capsule().strokeBorder(Theme.accent, lineWidth: 1.2))
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.top, 4)
+
+            quickProjectChips
+
+            HStack(spacing: 8) {
+                Label("Verified helpers", systemImage: "checkmark.seal.fill")
+                Label("Protected payments", systemImage: "lock.shield.fill")
+            }
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(Theme.textSecondary)
         }
         .padding(20)
-        // Expand the *card itself* to full width before applying the background,
-        // otherwise the background stays sized to the content and looks off-center.
         .frame(maxWidth: .infinity, alignment: .leading)
-        // Give this hero card more presence: reduce the outer side margins
-        // (HomeTabView wraps HomeContent in 20pt horizontal padding).
         .padding(.leading, -8)
         .padding(.trailing, -8)
         .background(RoundedRectangle(cornerRadius: 22, style: .continuous)
             .fill(LinearGradient(colors: [Theme.surface, Theme.surface.opacity(0.6), Theme.accentSoft],
                                  startPoint: .topLeading, endPoint: .bottomTrailing)))
         .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(Theme.stroke, lineWidth: 1))
+    }
+
+    private var todaySubtitle: String {
+        if isGuest { return localization.localized("Browse local work and sign in to post your own project.") }
+        if let job = topActionJob { return localization.format("%@ for %@", nextActionText(for: job), job.title) }
+        return localization.localized("Describe the next repair, errand, or home project.")
+    }
+
+    @ViewBuilder
+    private var primaryCustomerAction: some View {
+        if let job = topActionJob, !isGuest, actionPriority(job) > 1 {
+            NavigationLink { JobDetailView(job: job) } label: {
+                primaryActionLabel(title: nextActionText(for: job), icon: "checkmark.seal.fill")
+            }
+            .buttonStyle(.plain)
+        } else {
+            Button {
+                if isGuest { onRequireAuth() } else { postJobPrefill = PostJobPrefill() }
+            } label: {
+                primaryActionLabel(title: localization.localized("Post Job"), icon: "plus.circle.fill")
+            }
+        }
+    }
+
+    private var quickProjectChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                quickProjectChip("Plumbing", icon: "drop.fill")
+                quickProjectChip("Electrical", icon: "bolt.fill")
+                quickProjectChip("Cleaning", icon: "sparkles")
+                quickProjectChip("Yard Work", icon: "leaf.fill")
+            }
+        }
+    }
+
+    private func quickProjectChip(_ category: String, icon: String) -> some View {
+        Button {
+            if isGuest {
+                onRequireAuth()
+            } else {
+                postJobPrefill = PostJobPrefill(category: category)
+            }
+        } label: {
+            Label(localizedCategoryName(category, localization: localization), systemImage: icon)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Theme.textPrimary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(Theme.surfaceElevated, in: Capsule())
+                .overlay(Capsule().strokeBorder(Theme.stroke, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func primaryActionLabel(title: String, icon: String) -> some View {
+        Label(title, systemImage: icon)
+            .font(.system(size: 14, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .background(Theme.accent, in: Capsule())
+    }
+}
+
+private struct CustomerOperationItem: Identifiable {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let color: Color
+    let destination: CustomerHomeSheet?
+
+    var id: String { title }
+}
+
+private struct CustomerOperationMoreGroup: Identifiable {
+    let title: String
+    let subtitle: String
+    let items: [CustomerOperationItem]
+
+    var id: String { title }
+}
+
+private struct CustomerOperationMoreSheet: View {
+    let group: CustomerOperationMoreGroup
+    let onSelect: (CustomerOperationItem) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(group.subtitle)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    ForEach(group.items) { item in
+                        Button {
+                            dismiss()
+                            onSelect(item)
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: item.icon)
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundStyle(item.color)
+                                    .frame(width: 38, height: 38)
+                                    .background(item.color.opacity(0.14), in: RoundedRectangle(cornerRadius: 12))
+
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(item.title)
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundStyle(Theme.textPrimary)
+                                    Text(item.subtitle)
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(Theme.textSecondary)
+                                        .lineLimit(2)
+                                }
+
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(Theme.textTertiary)
+                            }
+                            .cardStyle(padding: 12)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(18)
+            }
+            .background(Theme.background.ignoresSafeArea())
+            .navigationTitle(group.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("common.done") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+private struct CustomerSharedCart: Decodable, Identifiable, Equatable {
+    let id: String
+    let shareToken: String
+    let cartId: String?
+    let sharedByName: String?
+    let canModify: Bool?
+    let expiresAt: String?
+    let createdAt: String?
+    let name: String?
+    let description: String?
+    let status: String?
+    let subtotalCents: Int?
+    let taxCents: Int?
+    let totalCents: Int?
+    let currency: String?
+    let itemCount: Int?
+    let reviewUrl: String?
+}
+
+private enum CustomerSharedCartsService {
+    struct Response: Decodable {
+        let sharedCarts: [CustomerSharedCart]
+        let count: Int?
+    }
+
+    static func listMine() async throws -> Response {
+        try await APIClient.shared.request("/api/shared-carts/my")
+    }
+}
+
+private struct CustomerSharedCartsView: View {
+    @EnvironmentObject private var localization: LocalizationManager
+    @State private var carts: [CustomerSharedCart] = []
+    @State private var isLoading = true
+    @State private var error: String?
+    @State private var browserURL: URL?
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("Carts helpers have shared with you for review, approval, and checkout.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, minHeight: 160)
+                    } else if let error {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(error)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Theme.danger)
+                            Button("common.retry") {
+                                Task { await load() }
+                            }
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(Theme.accent)
+                        }
+                        .cardStyle()
+                    } else if carts.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Label("No shared carts yet", systemImage: "cart")
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(Theme.textPrimary)
+                            Text("When a helper sends products, parts, or materials for approval, they will appear here.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .cardStyle()
+                    } else {
+                        ForEach(carts) { cart in
+                            Button {
+                                open(cart)
+                            } label: {
+                                sharedCartRow(cart)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .padding(18)
+            }
+            .background(Theme.background.ignoresSafeArea())
+            .navigationTitle("Cart & Checkout")
+            .navigationBarTitleDisplayMode(.inline)
+            .task { await load() }
+            .sheet(item: $browserURL) { url in
+                InAppBrowserView(url: url)
+                    .ignoresSafeArea()
+            }
+        }
+    }
+
+    private func sharedCartRow(_ cart: CustomerSharedCart) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "cart.fill")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(Theme.success)
+                .frame(width: 36, height: 36)
+                .background(Theme.success.opacity(0.14), in: RoundedRectangle(cornerRadius: 12))
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(nonBlank(cart.name) ?? localization.localized("Shared cart"))
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(Theme.textPrimary)
+                    .lineLimit(1)
+                if let description = nonBlank(cart.description) {
+                    Text(description)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(2)
+                }
+                HStack(spacing: 8) {
+                    Text(localizedItemCount(cart.itemCount ?? 0))
+                    Text(totalText(for: cart))
+                    if let sharedBy = nonBlank(cart.sharedByName) {
+                        Text(sharedBy)
+                    }
+                }
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Theme.textSecondary)
+                .lineLimit(1)
+            }
+
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(Theme.textTertiary)
+        }
+        .cardStyle()
+    }
+
+    @MainActor
+    private func load() async {
+        isLoading = true
+        error = nil
+        do {
+            let response = try await CustomerSharedCartsService.listMine()
+            carts = response.sharedCarts
+        } catch {
+            self.error = String(describing: error)
+        }
+        isLoading = false
+    }
+
+    private func open(_ cart: CustomerSharedCart) {
+        let path = nonBlank(cart.reviewUrl) ?? "/shared-cart/\(cart.shareToken)"
+        browserURL = URL(string: path, relativeTo: AuthAPIConfig.baseURL)?.absoluteURL
+    }
+
+    private func totalText(for cart: CustomerSharedCart) -> String {
+        let cents = cart.totalCents ?? cart.subtotalCents ?? 0
+        return localization.formatCents(cents, currencyCode: cart.currency ?? "USD")
+    }
+
+    private func localizedItemCount(_ count: Int) -> String {
+        localization.formatPlural("plural.item", count)
+    }
+
+    private func nonBlank(_ value: String?) -> String? {
+        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
+private struct CustomerInvoice: Decodable, Identifiable, Equatable {
+    let id: String
+    let invoice_number: String?
+    let client_name: String?
+    let status: String?
+    let issued_at: String?
+    let due_at: String?
+    let amount_cents: Int?
+    let business_name: String?
+}
+
+private struct CustomerDispute: Decodable, Identifiable, Equatable {
+    let id: String
+    let job_id: String?
+    let reason: String?
+    let description: String?
+    let status: String?
+    let job_title: String?
+    let created_at: String?
+}
+
+private struct CustomerOrder: Decodable, Identifiable, Equatable {
+    let id: String
+    let status: String?
+    let total_cents: Int?
+    let subtotal_cents: Int?
+    let created_at: String?
+    let updated_at: String?
+}
+
+private struct CustomerProduct: Decodable, Identifiable, Equatable {
+    let id: String
+    let name: String
+    let description: String?
+    let category: String?
+    let price_cents: Int?
+    let product_image_url: String?
+    let avg_rating: Double?
+    let rating_count: Int?
+    let in_carts_count: Int?
+    let affiliate_url: String?
+}
+
+private enum CustomerOperationsService {
+    struct InvoicesResponse: Decodable { let invoices: [CustomerInvoice] }
+    struct DisputesResponse: Decodable { let disputes: [CustomerDispute]? }
+    struct OrdersResponse: Decodable { let data: [CustomerOrder] }
+    struct ProductsResponse: Decodable { let data: [CustomerProduct] }
+    struct SupportStatus: Decodable { let online: Bool?; let availableAgents: Int?; let queueLength: Int? }
+    struct SupportCreateResponse: Decodable { let ticketId: String?; let message: String?; let routedTo: String? }
+    struct TwoFactorStatus: Decodable { let enabled: Bool; let verifiedAt: String?; let backupCodesRemaining: Int? }
+    struct TwoFactorSetup: Decodable { let secret: String; let qrCode: String?; let message: String? }
+    struct TwoFactorVerify: Decodable { let message: String?; let backupCodes: [String]?; let warning: String? }
+
+    static func invoices() async throws -> [CustomerInvoice] {
+        let response: InvoicesResponse = try await APIClient.shared.request("/api/invoices", query: ["limit": 50])
+        return response.invoices
+    }
+
+    static func disputes() async throws -> [CustomerDispute] {
+        let response: DisputesResponse = try await APIClient.shared.request("/api/disputes/my")
+        return response.disputes ?? []
+    }
+
+    static func openDispute(jobId: String, reason: String, description: String) async throws {
+        struct Req: Encodable {
+            let reason: String
+            let description: String
+            let job_type: String
+        }
+        try await APIClient.shared.requestVoid(
+            "/api/disputes/jobs/\(jobId)",
+            method: .POST,
+            body: Req(reason: reason, description: description, job_type: "standard")
+        )
+    }
+
+    static func orders() async throws -> [CustomerOrder] {
+        let response: OrdersResponse = try await APIClient.shared.request("/api/orders", query: ["limit": 50])
+        return response.data
+    }
+
+    static func cancelOrder(_ orderId: String) async throws {
+        try await APIClient.shared.requestVoid("/api/orders/\(orderId)/cancel", method: .POST)
+    }
+
+    static func products(search: String = "") async throws -> [CustomerProduct] {
+        if search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let response: ProductsResponse = try await APIClient.shared.request("/api/marketplace/products/browse", query: ["limit": 40, "sortBy": "in_carts"])
+            return response.data
+        }
+        let response: ProductsResponse = try await APIClient.shared.request("/api/marketplace/products/search", query: ["q": search, "limit": 40])
+        return response.data
+    }
+
+    static func supportStatus() async throws -> SupportStatus {
+        try await APIClient.shared.request("/api/support-routing/status")
+    }
+
+    static func createSupportTicket(category: String, priority: String, message: String) async throws -> SupportCreateResponse {
+        struct Req: Encodable {
+            let category: String
+            let priority: String
+            let message: String
+        }
+        return try await APIClient.shared.request(
+            "/api/support-routing/conversations",
+            method: .POST,
+            body: Req(category: category, priority: priority, message: message)
+        )
+    }
+
+    static func twoFactorStatus() async throws -> TwoFactorStatus {
+        try await APIClient.shared.request("/api/2fa/status")
+    }
+
+    static func setupTwoFactor() async throws -> TwoFactorSetup {
+        try await APIClient.shared.request("/api/2fa/setup", method: .POST)
+    }
+
+    static func verifyTwoFactorSetup(token: String) async throws -> TwoFactorVerify {
+        struct Req: Encodable { let token: String }
+        return try await APIClient.shared.request("/api/2fa/verify-setup", method: .POST, body: Req(token: token))
+    }
+
+    static func disableTwoFactor(token: String) async throws {
+        struct Req: Encodable { let token: String }
+        try await APIClient.shared.requestVoid("/api/2fa/disable", method: .POST, body: Req(token: token))
+    }
+}
+
+private struct CustomerInvoicesView: View {
+    @EnvironmentObject private var localization: LocalizationManager
+    @State private var invoices: [CustomerInvoice] = []
+    @State private var isLoading = true
+    @State private var error: String?
+
+    var body: some View {
+        CustomerNativeListShell(title: "Invoices", subtitle: "Bills and receipts from OxSteed jobs.", isLoading: isLoading, error: error, isEmpty: invoices.isEmpty, emptyTitle: "No invoices yet", retry: { await load() }) {
+            ForEach(invoices) { invoice in
+                nativeInfoRow(icon: "doc.text.fill", color: Theme.pillarCar, title: invoice.invoice_number ?? "Invoice", subtitle: invoice.business_name ?? invoice.client_name ?? "OxSteed invoice", trailing: centsText(invoice.amount_cents, localization: localization), badge: invoice.status)
+            }
+        }
+        .task { await load() }
+    }
+
+    @MainActor private func load() async {
+        isLoading = true; error = nil
+        do { invoices = try await CustomerOperationsService.invoices() }
+        catch { self.error = String(describing: error) }
+        isLoading = false
+    }
+}
+
+private struct CustomerDisputesView: View {
+    @EnvironmentObject private var localization: LocalizationManager
+    @State private var disputes: [CustomerDispute] = []
+    @State private var jobs: [APIJob] = []
+    @State private var isLoading = true
+    @State private var error: String?
+    @State private var showingOpenDispute = false
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("Track job issues, evidence review, and resolution status.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Theme.textSecondary)
+                    Button {
+                        showingOpenDispute = true
+                    } label: {
+                    Label("home.open_dispute", systemImage: "plus.circle.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 13)
+                            .background(Theme.warning, in: RoundedRectangle(cornerRadius: 14))
+                    }
+                    if isLoading {
+                        ProgressView().frame(maxWidth: .infinity, minHeight: 150)
+                    } else if let error {
+                        nativeErrorCard(error) { Task { await load() } }
+                    } else if disputes.isEmpty {
+                        nativeEmptyCard(localization.localized("No disputes open"))
+                    } else {
+                        ForEach(disputes) { dispute in
+                            nativeInfoRow(
+                                icon: "exclamationmark.bubble.fill",
+                                color: Theme.warning,
+                                title: dispute.job_title ?? localization.format("Dispute %@", dispute.id),
+                                subtitle: dispute.description ?? dispute.reason?.humanized ?? localization.localized("Job issue"),
+                                trailing: dateSnippet(dispute.created_at),
+                                badge: dispute.status?.humanized
+                            )
+                        }
+                    }
+                }
+                .padding(18)
+            }
+            .background(Theme.background.ignoresSafeArea())
+            .navigationTitle("Disputes")
+            .navigationBarTitleDisplayMode(.inline)
+            .task { await load() }
+            .sheet(isPresented: $showingOpenDispute) {
+                OpenDisputeSheet(jobs: jobs) {
+                    await load()
+                }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Theme.background)
+            }
+        }
+    }
+
+    @MainActor private func load() async {
+        isLoading = true; error = nil
+        do {
+            async let disputesTask = CustomerOperationsService.disputes()
+            async let jobsTask = JobsService.myJobs(limit: 100)
+            disputes = try await disputesTask
+            let loadedJobs = try await jobsTask
+            jobs = loadedJobs.filter { job in
+                !["cancelled"].contains((job.status ?? "").lowercased())
+            }
+        }
+        catch { self.error = String(describing: error) }
+        isLoading = false
+    }
+}
+
+private struct CustomerOrdersView: View {
+    @EnvironmentObject private var localization: LocalizationManager
+    @State private var orders: [CustomerOrder] = []
+    @State private var isLoading = true
+    @State private var error: String?
+
+    var body: some View {
+        CustomerNativeListShell(title: localization.localized("Orders"), subtitle: localization.localized("Marketplace purchases and order status."), isLoading: isLoading, error: error, isEmpty: orders.isEmpty, emptyTitle: localization.localized("No orders yet"), retry: { await load() }) {
+            ForEach(orders) { order in
+                VStack(alignment: .leading, spacing: 10) {
+                    nativeInfoRow(icon: "bag.fill", color: Theme.pillarCar, title: localization.format("Order %@", String(order.id.prefix(8))), subtitle: dateSnippet(order.created_at), trailing: centsText(order.total_cents ?? order.subtotal_cents, localization: localization), badge: order.status?.humanized)
+                    if ["pending", "paid"].contains((order.status ?? "").lowercased()) {
+                        Button("home.cancel_order") {
+                            Task { await cancel(order) }
+                        }
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Theme.danger)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                }
+            }
+        }
+        .task { await load() }
+    }
+
+    @MainActor private func load() async {
+        isLoading = true; error = nil
+        do { orders = try await CustomerOperationsService.orders() }
+        catch { self.error = String(describing: error) }
+        isLoading = false
+    }
+
+    @MainActor private func cancel(_ order: CustomerOrder) async {
+        error = nil
+        do {
+            try await CustomerOperationsService.cancelOrder(order.id)
+            await load()
+        } catch {
+            self.error = String(describing: error)
+        }
+    }
+}
+
+private struct OpenDisputeSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var localization: LocalizationManager
+    let jobs: [APIJob]
+    let onCreated: () async -> Void
+
+    @State private var selectedJobId = ""
+    @State private var reason = "poor_quality"
+    @State private var description = ""
+    @State private var isSubmitting = false
+    @State private var error: String?
+
+    private let reasons = [
+        "work_not_completed",
+        "poor_quality",
+        "no_show",
+        "overcharged",
+        "property_damage",
+        "safety_concern",
+        "fraud",
+        "other"
+    ]
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    if jobs.isEmpty {
+                        nativeEmptyCard(localization.localized("No eligible jobs found"))
+                    } else {
+                        Picker("Job", selection: $selectedJobId) {
+                            ForEach(jobs) { job in
+                                Text(job.title).tag(job.id)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .onAppear {
+                            if selectedJobId.isEmpty {
+                                selectedJobId = jobs.first?.id ?? ""
+                            }
+                        }
+
+                        Picker(LocalizedStringKey("picker.reason"), selection: $reason) {
+                            ForEach(reasons, id: \.self) { Text($0.humanized).tag($0) }
+                        }
+                        .pickerStyle(.menu)
+
+                        TextEditor(text: $description)
+                            .frame(minHeight: 180)
+                            .padding(10)
+                            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
+
+                        Text("Include what happened, what resolution you want, and any evidence you can provide.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+
+                    if let error {
+                        Text(error)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Theme.danger)
+                    }
+                }
+                .padding(18)
+            }
+            .background(Theme.background.ignoresSafeArea())
+            .navigationTitle("Open Dispute")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("common.cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(isSubmitting ? "common.opening" : "common.open") {
+                        Task { await submit() }
+                    }
+                    .disabled(!canSubmit || isSubmitting)
+                }
+            }
+        }
+    }
+
+    private var canSubmit: Bool {
+        !selectedJobId.isEmpty && description.trimmingCharacters(in: .whitespacesAndNewlines).count >= 20
+    }
+
+    @MainActor private func submit() async {
+        isSubmitting = true; error = nil
+        do {
+            try await CustomerOperationsService.openDispute(jobId: selectedJobId, reason: reason, description: description)
+            await onCreated()
+            dismiss()
+        } catch {
+            self.error = String(describing: error)
+        }
+        isSubmitting = false
+    }
+}
+
+private struct CustomerProductsView: View {
+    @EnvironmentObject private var localization: LocalizationManager
+    @State private var products: [CustomerProduct] = []
+    @State private var search = ""
+    @State private var isLoading = true
+    @State private var error: String?
+    @State private var browserURL: URL?
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("Browse supplies, parts, and kits from the live OxSteed marketplace.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Theme.textSecondary)
+
+                    HStack(spacing: 8) {
+                        TextField("Search products", text: $search)
+                            .textInputAutocapitalization(.never)
+                            .padding(12)
+                            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
+                        Button {
+                            Task { await load() }
+                        } label: {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 44, height: 44)
+                                .background(Theme.accent, in: RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
+
+                    if isLoading {
+                        ProgressView().frame(maxWidth: .infinity, minHeight: 150)
+                    } else if let error {
+                        nativeErrorCard(error) { Task { await load() } }
+                    } else if products.isEmpty {
+                        nativeEmptyCard(localization.localized("No products found"))
+                    } else {
+                        ForEach(products) { product in
+                            Button {
+                                if let raw = product.affiliate_url, let url = URL(string: raw) {
+                                    browserURL = url
+                                }
+                            } label: {
+                                nativeInfoRow(icon: "shippingbox.fill", color: Theme.pillarGoals, title: product.name, subtitle: product.category ?? product.description ?? localization.localized("Marketplace product"), trailing: centsText(product.price_cents, localization: localization), badge: product.avg_rating.map { String(format: "%.1f ★", $0) })
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(product.affiliate_url == nil)
+                        }
+                    }
+                }
+                .padding(18)
+            }
+            .background(Theme.background.ignoresSafeArea())
+            .navigationTitle("Products")
+            .navigationBarTitleDisplayMode(.inline)
+            .task { await load() }
+            .sheet(item: $browserURL) { url in
+                InAppBrowserView(url: url).ignoresSafeArea()
+            }
+        }
+    }
+
+    @MainActor private func load() async {
+        isLoading = true; error = nil
+        do { products = try await CustomerOperationsService.products(search: search) }
+        catch { self.error = String(describing: error) }
+        isLoading = false
+    }
+}
+
+private struct CustomerSupportNativeView: View {
+    @EnvironmentObject private var localization: LocalizationManager
+    @State private var category = "billing"
+    @State private var priority = "normal"
+    @State private var message = ""
+    @State private var statusText = ""
+    @State private var isSubmitting = false
+    @State private var result: String?
+    @State private var error: String?
+
+    private let categories = ["billing", "job", "payment", "safety", "account", "technical", "other"]
+    private let priorities = ["normal", "high", "urgent"]
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(statusText)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.textSecondary)
+                        .cardStyle()
+
+                    Picker(localization.localized("Category"), selection: $category) {
+                        ForEach(categories, id: \.self) { Text(localizedCategory($0)).tag($0) }
+                    }
+                    .pickerStyle(.menu)
+
+                    Picker(localization.localized("Priority"), selection: $priority) {
+                        ForEach(priorities, id: \.self) { Text(localizedPriority($0)).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+
+                    TextEditor(text: $message)
+                        .frame(minHeight: 160)
+                        .padding(10)
+                        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
+
+                    if let result {
+                        Text(result).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.success)
+                    }
+                    if let error {
+                        Text(error).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.danger)
+                    }
+
+                    Button {
+                        Task { await submit() }
+                    } label: {
+                        Label(isSubmitting ? localization.localized("Sending...") : localization.localized("Create Support Ticket"), systemImage: "paperplane.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 13)
+                            .background(canSubmit ? Theme.accent : Theme.textTertiary, in: RoundedRectangle(cornerRadius: 14))
+                    }
+                    .disabled(!canSubmit || isSubmitting)
+                }
+                .padding(18)
+            }
+            .background(Theme.background.ignoresSafeArea())
+            .navigationTitle("Support")
+            .navigationBarTitleDisplayMode(.inline)
+            .task { await loadStatus() }
+        }
+    }
+
+    private var canSubmit: Bool {
+        message.trimmingCharacters(in: .whitespacesAndNewlines).count >= 10
+    }
+
+    private func localizedCategory(_ category: String) -> String {
+        switch category {
+        case "billing": return localization.localized("Billing")
+        case "job": return localization.localized("Job")
+        case "payment": return localization.localized("Payment")
+        case "safety": return localization.localized("Safety")
+        case "account": return localization.localized("Account")
+        case "technical": return localization.localized("Technical")
+        case "other": return localization.localized("Other")
+        default: return category.humanized
+        }
+    }
+
+    private func localizedPriority(_ priority: String) -> String {
+        switch priority {
+        case "normal": return localization.localized("Normal")
+        case "high": return localization.localized("High")
+        case "urgent": return localization.localized("Urgent")
+        default: return priority.humanized
+        }
+    }
+
+    @MainActor private func loadStatus() async {
+        do {
+            let status = try await CustomerOperationsService.supportStatus()
+            let agents = status.availableAgents ?? 0
+            let queue = status.queueLength ?? 0
+            statusText = agents > 0
+                ? localization.format(agents == 1 ? "%d support agent available now." : "%d support agents available now.", agents)
+                : localization.format(queue == 1 ? "Support queue active. %d request waiting." : "Support queue active. %d requests waiting.", queue)
+        } catch {
+            statusText = localization.localized("Support routing is available.")
+        }
+    }
+
+    @MainActor private func submit() async {
+        isSubmitting = true; error = nil; result = nil
+        do {
+            let response = try await CustomerOperationsService.createSupportTicket(category: category, priority: priority, message: message)
+            result = localization.format("Ticket %@ created. %@", response.ticketId ?? "", response.message ?? localization.localized("Support will follow up shortly."))
+            message = ""
+        } catch {
+            self.error = String(describing: error)
+        }
+        isSubmitting = false
+    }
+}
+
+private struct CustomerVerifyEmailView: View {
+    @EnvironmentObject private var localization: LocalizationManager
+    @EnvironmentObject private var auth: AuthStore
+    @State private var otp = ""
+    @State private var sent = false
+    @State private var isLoading = false
+    @State private var message: String?
+    @State private var error: String?
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                Label(auth.user?.email_verified == true ? localization.localized("Email verified") : localization.localized("Verify your email"), systemImage: auth.user?.email_verified == true ? "checkmark.seal.fill" : "envelope.badge.shield.half.filled.fill")
+                    .font(.system(size: 18, weight: .heavy))
+                    .foregroundStyle(auth.user?.email_verified == true ? Theme.success : Theme.textPrimary)
+
+                Text(auth.user?.email ?? localization.localized("Your account email"))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.textSecondary)
+
+                if auth.user?.email_verified != true {
+                    Button(sent ? "auth.send_code_again" : "auth.send_verification_code") {
+                        Task { await requestCode() }
+                    }
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 13)
+                    .background(Theme.accent, in: RoundedRectangle(cornerRadius: 14))
+
+                    TextField(localization.localized("Verification code"), text: $otp)
+                        .keyboardType(.numberPad)
+                        .padding(12)
+                        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
+
+                    Button(isLoading ? "auth.verifying" : "auth.verify_email") {
+                        Task { await verify() }
+                    }
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 13)
+                    .background(otp.isEmpty ? Theme.textTertiary : Theme.success, in: RoundedRectangle(cornerRadius: 14))
+                    .disabled(otp.isEmpty || isLoading)
+                }
+
+                if let message { Text(message).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.success) }
+                if let error { Text(error).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.danger) }
+                Spacer()
+            }
+            .padding(18)
+            .background(Theme.background.ignoresSafeArea())
+            .navigationTitle(Text("auth.verify_email"))
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    @MainActor private func requestCode() async {
+        guard let email = auth.user?.email else { return }
+        isLoading = true; error = nil; message = nil
+        do {
+            try await AuthService.requestEmailVerificationOTP(email: email)
+            sent = true
+            message = localization.localized("Verification code sent.")
+        } catch {
+            self.error = String(describing: error)
+        }
+        isLoading = false
+    }
+
+    @MainActor private func verify() async {
+        guard let email = auth.user?.email else { return }
+        isLoading = true; error = nil; message = nil
+        do {
+            try await AuthService.verifyEmailOTP(email: email, otp: otp)
+            auth.user = try? await AuthService.me()
+            message = localization.localized("Email verified.")
+        } catch {
+            self.error = String(describing: error)
+        }
+        isLoading = false
+    }
+}
+
+private struct CustomerTwoFactorView: View {
+    @EnvironmentObject private var localization: LocalizationManager
+    @State private var status: CustomerOperationsService.TwoFactorStatus?
+    @State private var setup: CustomerOperationsService.TwoFactorSetup?
+    @State private var token = ""
+    @State private var disableToken = ""
+    @State private var backupCodes: [String] = []
+    @State private var isLoading = true
+    @State private var error: String?
+    @State private var message: String?
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Label(status?.enabled == true ? localization.localized("Two-factor is enabled") : localization.localized("Two-factor is off"), systemImage: status?.enabled == true ? "lock.shield.fill" : "lock.open.fill")
+                        .font(.system(size: 18, weight: .heavy))
+                        .foregroundStyle(status?.enabled == true ? Theme.success : Theme.textPrimary)
+
+                    if isLoading {
+                        ProgressView().frame(maxWidth: .infinity, minHeight: 120)
+                    } else if status?.enabled == true {
+                        Text(localization.format("Backup codes remaining: %d", status?.backupCodesRemaining ?? 0))
+                            .font(.system(size: 13))
+                            .foregroundStyle(Theme.textSecondary)
+                        TextField(localization.localized("Current authenticator code"), text: $disableToken)
+                            .keyboardType(.numberPad)
+                            .padding(12)
+                            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+                        Button("twofactor.disable") { Task { await disable() } }
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 13)
+                            .background(Theme.danger, in: RoundedRectangle(cornerRadius: 14))
+                    } else {
+                        if let setup {
+                            if let image = qrImage(from: setup.qrCode) {
+                                Image(uiImage: image)
+                                    .interpolation(.none)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxWidth: 220)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(.white, in: RoundedRectangle(cornerRadius: 14))
+                            }
+                            Text(localization.format("Secret: %@", setup.secret))
+                                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(Theme.textSecondary)
+                                .textSelection(.enabled)
+                            TextField(localization.localized("Authenticator code"), text: $token)
+                                .keyboardType(.numberPad)
+                                .padding(12)
+                                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+                            Button("twofactor.verify_enable") { Task { await verifySetup() } }
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 13)
+                                .background(Theme.success, in: RoundedRectangle(cornerRadius: 14))
+                        } else {
+                            Button("twofactor.setup") { Task { await startSetup() } }
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 13)
+                                .background(Theme.accent, in: RoundedRectangle(cornerRadius: 14))
+                        }
+                    }
+
+                    if !backupCodes.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(localization.localized("Backup codes"))
+                                .font(.system(size: 14, weight: .bold))
+                            ForEach(backupCodes, id: \.self) { code in
+                                Text(code).font(.system(size: 12, design: .monospaced))
+                            }
+                        }
+                        .cardStyle()
+                    }
+
+                    if let message { Text(message).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.success) }
+                    if let error { Text(error).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.danger) }
+                }
+                .padding(18)
+            }
+            .background(Theme.background.ignoresSafeArea())
+            .navigationTitle("Two-Factor")
+            .navigationBarTitleDisplayMode(.inline)
+            .task { await load() }
+        }
+    }
+
+    @MainActor private func load() async {
+        isLoading = true; error = nil
+        do { status = try await CustomerOperationsService.twoFactorStatus() }
+        catch { self.error = String(describing: error) }
+        isLoading = false
+    }
+
+    @MainActor private func startSetup() async {
+        error = nil; message = nil
+        do { setup = try await CustomerOperationsService.setupTwoFactor() }
+        catch { self.error = String(describing: error) }
+    }
+
+    @MainActor private func verifySetup() async {
+        error = nil; message = nil
+        do {
+            let response = try await CustomerOperationsService.verifyTwoFactorSetup(token: token)
+            backupCodes = response.backupCodes ?? []
+            message = response.message ?? localization.localized("Two-factor enabled.")
+            setup = nil
+            await load()
+        } catch {
+            self.error = String(describing: error)
+        }
+    }
+
+    @MainActor private func disable() async {
+        error = nil; message = nil
+        do {
+            try await CustomerOperationsService.disableTwoFactor(token: disableToken)
+            message = localization.localized("Two-factor disabled.")
+            disableToken = ""
+            await load()
+        } catch {
+            self.error = String(describing: error)
+        }
+    }
+
+    private func qrImage(from dataURL: String?) -> UIImage? {
+        guard let raw = dataURL, let comma = raw.firstIndex(of: ",") else { return nil }
+        let b64 = String(raw[raw.index(after: comma)...])
+        guard let data = Data(base64Encoded: b64) else { return nil }
+        return UIImage(data: data)
+    }
+}
+
+private struct CustomerNativeListShell<Content: View>: View {
+    let title: String
+    let subtitle: String
+    let isLoading: Bool
+    let error: String?
+    let isEmpty: Bool
+    let emptyTitle: String
+    let retry: () async -> Void
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(subtitle)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Theme.textSecondary)
+                    if isLoading {
+                        ProgressView().frame(maxWidth: .infinity, minHeight: 150)
+                    } else if let error {
+                        nativeErrorCard(error) { Task { await retry() } }
+                    } else if isEmpty {
+                        nativeEmptyCard(emptyTitle)
+                    } else {
+                        content()
+                    }
+                }
+                .padding(18)
+            }
+            .background(Theme.background.ignoresSafeArea())
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+}
+
+private func nativeInfoRow(icon: String, color: Color, title: String, subtitle: String, trailing: String?, badge: String?) -> some View {
+    HStack(alignment: .top, spacing: 12) {
+        Image(systemName: icon)
+            .font(.system(size: 15, weight: .bold))
+            .foregroundStyle(color)
+            .frame(width: 38, height: 38)
+            .background(color.opacity(0.14), in: RoundedRectangle(cornerRadius: 12))
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(Theme.textPrimary)
+                .lineLimit(1)
+            Text(subtitle)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.textSecondary)
+                .lineLimit(2)
+            if let badge, !badge.isEmpty {
+                Text(badge)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(color)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(color.opacity(0.13), in: Capsule())
+            }
+        }
+        Spacer()
+        if let trailing {
+            Text(trailing)
+                .font(.system(size: 12, weight: .heavy))
+                .foregroundStyle(Theme.textPrimary)
+        }
+    }
+    .cardStyle()
+}
+
+private func nativeErrorCard(_ message: String, retry: @escaping () -> Void) -> some View {
+    VStack(alignment: .leading, spacing: 10) {
+        Text(message)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(Theme.danger)
+        Button("common.retry", action: retry)
+            .font(.system(size: 13, weight: .bold))
+            .foregroundStyle(Theme.accent)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .cardStyle()
+}
+
+private func nativeEmptyCard(_ title: String) -> some View {
+    Label(title, systemImage: "tray")
+        .font(.system(size: 14, weight: .bold))
+        .foregroundStyle(Theme.textSecondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+}
+
+private func centsText(_ cents: Int?, localization: LocalizationManager) -> String? {
+    guard let cents else { return nil }
+    return localization.formatCents(cents)
+}
+
+private func localizedCategoryName(_ category: String?, localization: LocalizationManager) -> String {
+    guard let category, !category.isEmpty else { return "" }
+    return category
+        .components(separatedBy: " - ")
+        .map { localization.localized($0) }
+        .joined(separator: " - ")
+}
+
+private func dateSnippet(_ iso: String?) -> String {
+    guard let iso, !iso.isEmpty else { return "Recent" }
+    return String(iso.prefix(10))
+}
+
+private extension String {
+    var humanized: String {
+        replacingOccurrences(of: "_", with: " ")
+            .split(separator: " ")
+            .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+            .joined(separator: " ")
     }
 }
 
@@ -202,6 +1795,7 @@ struct HelperHome: View {
     @EnvironmentObject var bids: BidsStore
     @EnvironmentObject var payments: PaymentsStore
     @EnvironmentObject var cal: CalendarStore
+    @EnvironmentObject private var localization: LocalizationManager
     @State private var selectedJob: APIJob?
     @State private var jobToReview: APIJob?            // two-way review: helper rates customer
     @State private var locallyReviewedJobIds: Set<String> = {
@@ -215,6 +1809,7 @@ struct HelperHome: View {
             span: MKCoordinateSpan(latitudeDelta: 0.15, longitudeDelta: 0.15)
         )
     )
+    @State private var bidTargetJob: APIJob?   // job the helper is bidding on
 
     enum Mode: String, CaseIterable, Identifiable {
         case list = "List"
@@ -283,6 +1878,7 @@ struct HelperHome: View {
                 }
                 if mode == .list {
                     ForEach(jobs.availableJobs.prefix(10)) { job in
+                        // Tap the row body → job detail; tap the Bid button → bid sheet.
                         Button { selectedJob = job } label: { availableRow(job) }
                             .buttonStyle(.plain)
                     }
@@ -340,6 +1936,12 @@ struct HelperHome: View {
         .sheet(item: $selectedJob) { job in
             NavigationStack { JobDetailView(job: job) }
         }
+        .sheet(item: $bidTargetJob) { job in
+            HelperBidSheet(job: job)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Theme.background)
+        }
         .sheet(item: $jobToReview) { job in
             ReviewSheet(job: job) {
                 // Mark reviewed locally so the prompt disappears immediately
@@ -369,12 +1971,18 @@ struct HelperHome: View {
             }
             .font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.textSecondary)
             HStack {
-                Text(job.category ?? "").font(.system(size: 10, weight: .semibold))
+                Text(localizedCategoryName(job.category, localization: localization)).font(.system(size: 10, weight: .semibold))
                     .padding(.horizontal, 8).padding(.vertical, 4)
                     .background(Theme.surfaceElevated, in: Capsule()).foregroundStyle(Theme.textSecondary)
                 Spacer()
-                Text(L10n.CommonKey.bid).font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
-                    .padding(.horizontal, 14).padding(.vertical, 6).background(Theme.accent, in: Capsule())
+                // "Details" is a plain tap on the row; "Bid" opens the bid sheet directly.
+                Button {
+                    bidTargetJob = job
+                } label: {
+                    Text(L10n.CommonKey.bid).font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
+                        .padding(.horizontal, 14).padding(.vertical, 6).background(Theme.accent, in: Capsule())
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding(14)
@@ -466,7 +2074,7 @@ struct BusinessHome: View {
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "briefcase.fill")
-                            Text(workspace.selectedBusiness?.role.capitalized ?? "Switch")
+                            Text(localization.localized(workspace.selectedBusiness?.role.capitalized ?? "Switch"))
                             Image(systemName: "chevron.down")
                         }
                         .font(.system(size: 12, weight: .semibold))
@@ -666,13 +2274,14 @@ private struct MiniBarChart: View {
 
 struct ConsultantHome: View {
     @StateObject private var store = ConsultingStore.shared
+    @EnvironmentObject private var localization: LocalizationManager
 
     // cents → "$X.XK" / "$X.XM"
     private func fmtCents(_ c: Int) -> String {
         let d = Double(c) / 100.0
-        if d >= 1_000_000 { return String(format: "$%.1fM", d / 1_000_000) }
-        if d >= 1_000    { return String(format: "$%.1fK", d / 1_000) }
-        return String(format: "$%.0f", d)
+        if d >= 1_000_000 { return localization.format("%@M", localization.formatNumber(d / 1_000_000, fractionDigits: 1)) }
+        if d >= 1_000    { return localization.format("%@K", localization.formatNumber(d / 1_000, fractionDigits: 1)) }
+        return localization.formatCurrency(d, fractionDigits: 0)
     }
 
     var body: some View {
@@ -744,7 +2353,7 @@ struct ConsultantHome: View {
                                 .font(.system(size: 13))
                                 .foregroundStyle(Theme.accent)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(item.event_type?.replacingOccurrences(of: "_", with: " ").capitalized ?? "Event")
+                                Text(localization.localized(item.event_type?.replacingOccurrences(of: "_", with: " ").capitalized ?? "Event"))
                                     .font(.system(size: 13, weight: .semibold))
                                     .foregroundStyle(Theme.textPrimary)
                                 if let note = item.note_text, !note.isEmpty {
@@ -777,13 +2386,35 @@ struct ToolOwnerHome: View {
     @EnvironmentObject var payments: PaymentsStore
     @EnvironmentObject var messages: MessagesStore
     @EnvironmentObject var tools: ToolRentalsStore
+    @EnvironmentObject private var localization: LocalizationManager
+    @State private var showAddTool = false
+    @State private var deletingTool: APIToolRental?
+    @State private var showDeleteConfirmation = false
+
+    private var hasPickupRules: Bool {
+        tools.myTools.contains { tool in
+            let rules = tool.owner_rules?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return !rules.isEmpty || tool.pickup_only == true || tool.delivery_available == true
+        }
+    }
+
+    /// Sum of configured deposit amounts across all tools that require a deposit.
+    /// This reflects the deposit pool a renter would need to pay, not real-time
+    /// escrow balances (those require a bookings query).
+    private var configuredDepositDisplay: String {
+        let toolsWithDeposit = tools.myTools.filter { $0.requires_deposit == true }
+        guard !toolsWithDeposit.isEmpty else { return localization.formatCurrency(0, fractionDigits: 0) }
+        let total = toolsWithDeposit.compactMap { $0.deposit_amount }.reduce(0, +)
+        return total > 0 ? localization.formatCurrency(total, fractionDigits: 0) : localization.formatPlural("plural.tool", toolsWithDeposit.count)
+    }
 
     var body: some View {
         VStack(spacing: 18) {
             HStack(spacing: 12) {
-                StatTile(label: L10n.StatKey.toolsOut, value: "\(tools.myTools.count)", trend: tools.myTools.isEmpty ? "Setup" : nil,
+                StatTile(label: L10n.StatKey.toolsOut, value: "\(tools.myTools.count)", trend: tools.myTools.isEmpty ? localization.localized("Setup") : nil,
                          icon: "hammer.fill", color: Theme.pillarCar)
-                StatTile(label: L10n.StatKey.depositsHeld, value: "$0", trend: nil,
+                StatTile(label: L10n.StatKey.depositsHeld, value: configuredDepositDisplay,
+                         trend: tools.myTools.filter { $0.requires_deposit == true }.isEmpty ? nil : localization.localized("Configured"),
                          icon: "lock.fill", color: Theme.warning)
             }
 
@@ -791,32 +2422,88 @@ struct ToolOwnerHome: View {
                 .task { await RecommendationsStore.shared.load() }
 
             VStack(alignment: .leading, spacing: 10) {
-                SectionHeader(title: "Rental launch checklist", actionLabel: nil)
-                WorkspaceChecklistRow(title: "Create tool catalog", subtitle: "Add condition, rates, deposits, and photos", icon: "hammer.fill", color: Theme.pillarCar, isComplete: false)
-                WorkspaceChecklistRow(title: "Set pickup rules", subtitle: "Define handoff windows and return policy", icon: "clock.badge.checkmark", color: Theme.pillarHome, isComplete: false)
-                WorkspaceChecklistRow(title: "Connect payouts", subtitle: "Prepare deposits and rental income", icon: "creditcard.fill", color: Theme.success, isComplete: !payments.payments.isEmpty)
+                SectionHeader(title: localization.localized("Rental launch checklist"), actionLabel: nil)
+                WorkspaceChecklistRow(title: localization.localized("Create tool catalog"), subtitle: localization.localized("Add condition, rates, deposits, and photos"), icon: "hammer.fill", color: Theme.pillarCar, isComplete: !tools.myTools.isEmpty)
+                WorkspaceChecklistRow(title: localization.localized("Set pickup rules"), subtitle: localization.localized("Define handoff windows and return policy"), icon: "clock.badge.checkmark", color: Theme.pillarHome, isComplete: hasPickupRules)
+                WorkspaceChecklistRow(title: localization.localized("Connect payouts"), subtitle: localization.localized("Prepare deposits and rental income"), icon: "creditcard.fill", color: Theme.success, isComplete: !payments.payments.isEmpty)
             }
 
             VStack(alignment: .leading, spacing: 10) {
-                SectionHeader(title: "Tool owner actions", actionLabel: nil)
+                SectionHeader(title: localization.localized("Your tool catalog"), actionLabel: localization.localized("Add")) {
+                    showAddTool = true
+                }
+
+                if let error = tools.lastError {
+                    Text(error)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Theme.danger)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 12)
+                }
+
+                if tools.myTools.isEmpty {
+                    Button {
+                        showAddTool = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundStyle(Theme.accent)
+                                .frame(width: 42, height: 42)
+                                .background(Theme.accent.opacity(0.14), in: RoundedRectangle(cornerRadius: 12))
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(localization.localized("List your first rental tool"))
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundStyle(Theme.textPrimary)
+                                Text(localization.localized("Publish rates, deposits, and pickup rules to the backend."))
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Theme.textSecondary)
+                                    .lineLimit(2)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(Theme.textTertiary)
+                        }
+                        .cardStyle(padding: 12)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    ForEach(tools.myTools.prefix(5)) { tool in
+                        ToolRentalOwnerRow(
+                            tool: tool,
+                            onToggleAvailability: { isAvailable in
+                                Task { await tools.setToolAvailable(tool, isAvailable: isAvailable) }
+                            },
+                            onDelete: {
+                                deletingTool = tool
+                                showDeleteConfirmation = true
+                            }
+                        )
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                SectionHeader(title: localization.localized("Tool owner actions"), actionLabel: nil)
                 HStack(spacing: 12) {
                     WorkspaceNavCard(icon: "graduationcap.fill",
-                                     title: "Rental basics",
-                                     subtitle: "Learn setup",
+                                     title: localization.localized("Rental basics"),
+                                     subtitle: localization.localized("Learn setup"),
                                      color: Theme.pillarGoals) {
                         LearnTabView()
                     }
                     WorkspaceNavCard(icon: "creditcard.fill",
-                                     title: "Payouts",
-                                     subtitle: "$\(payments.payments.reduce(0) { $0 + $1.amount } / 100) received",
+                                     title: localization.localized("Payouts"),
+                                     subtitle: localization.format("$%d received", payments.payments.reduce(0) { $0 + $1.amount } / 100),
                                      color: Theme.success) {
                         PaymentsView()
                     }
                 }
                 WorkspaceInsightCard(icon: "tray.full.fill",
-                                     title: "Rental requests",
-                                     subtitle: "\(messages.conversations.count) inquiry thread(s) will appear here once renters contact you.",
-                                     badge: "Inbox",
+                                     title: localization.localized("Rental requests"),
+                                     subtitle: localization.formatPlural("plural.inquiry_thread", messages.conversations.count),
+                                     badge: localization.localized("Inbox"),
                                      color: Theme.pillarHome)
             }
         }
@@ -825,6 +2512,256 @@ struct ToolOwnerHome: View {
             await messages.loadConversations()
             await tools.loadMyTools()
         }
+        .sheet(isPresented: $showAddTool) {
+            AddToolRentalSheet()
+                .environmentObject(tools)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Theme.background)
+        }
+        .confirmationDialog(localization.localized("Remove this tool listing?"), isPresented: $showDeleteConfirmation) {
+            Button("home.delete_listing", role: .destructive) {
+                if let deletingTool {
+                    Task { await tools.deleteTool(deletingTool) }
+                }
+            }
+            Button("common.cancel", role: .cancel) {}
+        } message: {
+            Text(deletingTool?.name ?? localization.localized("This listing will be removed from your rental catalog."))
+        }
+    }
+}
+
+private struct ToolRentalOwnerRow: View {
+    @EnvironmentObject private var localization: LocalizationManager
+    let tool: APIToolRental
+    let onToggleAvailability: (Bool) -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "wrench.and.screwdriver.fill")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(Theme.pillarCar)
+                .frame(width: 42, height: 42)
+                .background(Theme.pillarCar.opacity(0.16), in: RoundedRectangle(cornerRadius: 12))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(tool.name ?? localization.localized("map.rental_tool"))
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(Theme.textPrimary)
+                    .lineLimit(1)
+                Text([tool.category, toolDailyRateText].compactMap { $0 }.joined(separator: " • "))
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.textSecondary)
+                    .lineLimit(1)
+                Text(locationText)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.textTertiary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 6) {
+                Toggle("", isOn: Binding(
+                    get: { tool.is_available ?? true },
+                    set: { onToggleAvailability($0) }
+                ))
+                .labelsHidden()
+                .tint(Theme.success)
+
+                Button(role: .destructive, action: onDelete) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 13, weight: .bold))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .cardStyle(padding: 12)
+    }
+
+    private var locationText: String {
+        let city = tool.location_city?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let state = tool.location_state?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let joined = [city, state].filter { !$0.isEmpty }.joined(separator: ", ")
+        return joined.isEmpty ? localization.localized("Location not set") : joined
+    }
+
+    private var toolDailyRateText: String? {
+        guard let rate = tool.daily_rate else { return nil }
+        return localization.format("map.rate_per_day", localization.formatCurrency(rate, fractionDigits: 0))
+    }
+}
+
+private struct AddToolRentalSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var localization: LocalizationManager
+    @EnvironmentObject private var tools: ToolRentalsStore
+
+    @State private var name = ""
+    @State private var category = ""
+    @State private var dailyRate = ""
+    @State private var depositAmount = ""
+    @State private var city = ""
+    @State private var state = ""
+    @State private var condition = "good"
+    @State private var rules = ""
+    @State private var requiresDeposit = true
+    @State private var pickupOnly = true
+    @State private var deliveryAvailable = false
+    @State private var attestationAccepted = false
+    @State private var localError: String?
+
+    private let conditions = ["new", "excellent", "good", "fair"]
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    field(localization.localized("Tool name"), text: $name)
+                    field(localization.localized("Category"), text: $category)
+
+                    HStack(spacing: 10) {
+                        field(localization.localized("Daily rate"), text: $dailyRate, keyboard: .decimalPad)
+                        if requiresDeposit {
+                            field(localization.localized("Deposit"), text: $depositAmount, keyboard: .decimalPad)
+                        }
+                    }
+
+                    HStack(spacing: 10) {
+                        field(localization.localized("City"), text: $city)
+                        field(localization.localized("State"), text: $state)
+                    }
+
+                    Picker(localization.localized("Condition"), selection: $condition) {
+                        ForEach(conditions, id: \.self) { value in
+                            Text(localizedCondition(value)).tag(value)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Toggle(localization.localized("Require deposit"), isOn: $requiresDeposit)
+                        .tint(Theme.accent)
+                    Toggle(localization.localized("Pickup only"), isOn: $pickupOnly)
+                        .tint(Theme.accent)
+                    Toggle(localization.localized("Delivery available"), isOn: $deliveryAvailable)
+                        .tint(Theme.accent)
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(localization.localized("Pickup and return rules"))
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(Theme.textSecondary)
+                        TextEditor(text: $rules)
+                            .frame(minHeight: 92)
+                            .padding(10)
+                            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
+                    }
+
+                    Toggle(isOn: $attestationAccepted) {
+                        Text(localization.localized("I confirm this tool is safe, legal to rent, and accurately described."))
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                    }
+                    .tint(Theme.success)
+
+                    if let message = localError ?? tools.lastError {
+                        Text(message)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Theme.danger)
+                    }
+                }
+                .padding(20)
+            }
+            .navigationTitle(Text("List a Tool"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("common.cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("common.save") { Task { await save() } }
+                        .disabled(!canSave || tools.isLoading)
+                }
+            }
+        }
+    }
+
+    private var canSave: Bool {
+        !name.trimmed.isEmpty &&
+        !category.trimmed.isEmpty &&
+        Double(dailyRate) != nil &&
+        !city.trimmed.isEmpty &&
+        attestationAccepted &&
+        (!requiresDeposit || Double(depositAmount) != nil)
+    }
+
+    private func localizedCondition(_ value: String) -> String {
+        switch value {
+        case "new": return localization.localized("New")
+        case "excellent": return localization.localized("Excellent")
+        case "good": return localization.localized("Good")
+        case "fair": return localization.localized("Fair")
+        default: return localization.localized(value.capitalized)
+        }
+    }
+
+    private func save() async {
+        localError = nil
+        guard canSave else {
+            localError = localization.localized("Add a name, category, daily rate, city, and owner acknowledgement.")
+            return
+        }
+
+        let request = ToolRentalsService.ToolRentalSaveRequest(
+            name: name.trimmed,
+            category: category.trimmed,
+            description: nil,
+            daily_rate: Double(dailyRate),
+            hourly_rate: nil,
+            deposit_amount: requiresDeposit ? Double(depositAmount) : nil,
+            condition: condition,
+            brand: nil,
+            model: nil,
+            is_available: true,
+            requires_deposit: requiresDeposit,
+            delivery_available: deliveryAvailable,
+            pickup_only: pickupOnly,
+            location_city: city.trimmed,
+            location_state: state.trimmed.nilIfEmpty,
+            owner_rules: rules.trimmed.nilIfEmpty,
+            replacement_value: nil,
+            owner_attestation_accepted: attestationAccepted
+        )
+
+        if await tools.createTool(request) {
+            dismiss()
+        }
+    }
+
+    private func field(_ title: String, text: Binding<String>, keyboard: UIKeyboardType = .default) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(Theme.textSecondary)
+            TextField(title, text: text)
+                .keyboardType(keyboard)
+                .textInputAutocapitalization(.words)
+                .padding(12)
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
+        }
+    }
+}
+
+private extension String {
+    var trimmed: String {
+        trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var nilIfEmpty: String? {
+        isEmpty ? nil : self
     }
 }
 
@@ -852,8 +2789,8 @@ struct FranchiseHome: View {
 
     private func fmtCents(_ c: Int?) -> String {
         let d = Double(c ?? 0) / 100
-        if d >= 1_000 { return String(format: "$%.1fK", d / 1_000) }
-        return String(format: "$%.0f", d)
+        if d >= 1_000 { return localization.format("%@K", localization.formatNumber(d / 1_000, fractionDigits: 1)) }
+        return localization.formatCurrency(d, fractionDigits: 0)
     }
 
     var body: some View {
@@ -894,6 +2831,21 @@ struct FranchiseHome: View {
                         statusChip("Application", value: app.status ?? "—",           color: Theme.accent)
                         statusChip("Agreement",   value: app.agreement_status ?? "—", color: Theme.pillarGoals)
                         statusChip("Training",    value: app.training_status ?? "—",  color: Theme.pillarHome)
+                    }
+                    if let nextStep = franchiseNextStep(for: app.status) {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "arrow.right.circle.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Theme.accent)
+                                .padding(.top, 1)
+                            Text(nextStep)
+                                .font(.system(size: 12))
+                                .foregroundStyle(Theme.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(10)
+                        .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
                     }
                     if let region = app.desired_region, let city = app.desired_city {
                         Label("\(city), \(region)", systemImage: "map.fill")
@@ -965,6 +2917,29 @@ struct FranchiseHome: View {
         }
     }
 
+    private func franchiseNextStep(for status: String?) -> String? {
+        switch status?.lowercased() {
+        case "inquiry":
+            return "We're reviewing your territory and initial fit. You'll hear from us within 3–5 business days."
+        case "screening":
+            return "Watch your email for a short questionnaire about your background and capital readiness. Reply promptly to keep your application moving."
+        case "application_review":
+            return "Your full application is with our review team. This typically takes 1–2 weeks. Check your email for any clarification requests."
+        case "diligence":
+            return "Diligence is active. You may receive document or reference requests — respond within 48 hours to avoid delays."
+        case "agreement_pending":
+            return "Agreement documents are ready or awaiting your signature. Check your email for a DocuSign link. Contact your coordinator if you haven't received it."
+        case "approved":
+            return "You're approved! Your coordinator will send training materials and a launch checklist within 5 business days."
+        case "launched":
+            return "Your franchise is live. Use the Territory Operations area to manage helpers and track activity."
+        case "rejected":
+            return "This application did not advance. Contact support@oxsteed.com if you have questions or believe there has been an error."
+        default:
+            return nil
+        }
+    }
+
     private func statusChip(_ label: String, value: String, color: Color) -> some View {
         VStack(spacing: 2) {
             Text(label).font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.textTertiary).textCase(.uppercase)
@@ -990,6 +2965,7 @@ struct FranchiseHome: View {
 
 struct InvestorHome: View {
     @EnvironmentObject var notifications: NotificationsStore
+    @EnvironmentObject private var localization: LocalizationManager
 
     @State private var kpis: InvestorService.PlatformKpis?
     @State private var chart: [InvestorService.ChartRow] = []
@@ -1003,15 +2979,34 @@ struct InvestorHome: View {
     // ── Formatters ───────────────────────────────────────────────
     private func fmtCents(_ c: Int?) -> String {
         let d = Double(c ?? 0) / 100
-        if d >= 1_000_000 { return String(format: "$%.1fM", d / 1_000_000) }
-        if d >= 1_000     { return String(format: "$%.1fK", d / 1_000) }
-        return String(format: "$%.0f", d)
+        if d >= 1_000_000 { return localization.format("%@M", localization.formatNumber(d / 1_000_000, fractionDigits: 1)) }
+        if d >= 1_000     { return localization.format("%@K", localization.formatNumber(d / 1_000, fractionDigits: 1)) }
+        return localization.formatCurrency(d, fractionDigits: 0)
     }
     private func fmt(_ n: Int?) -> String { n.map { "\($0)" } ?? "—" }
     private func pct(_ n: Int?)  -> String { n.map { "\($0)%" } ?? "—" }
 
     var body: some View {
         VStack(spacing: 18) {
+
+            // ── Investor context banner ──────────────────────────
+            HStack(spacing: 12) {
+                Image(systemName: "chart.line.uptrend.xyaxis.circle.fill")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(Theme.pillarMoney)
+                    .frame(width: 44, height: 44)
+                    .background(Theme.pillarMoney.opacity(0.14), in: RoundedRectangle(cornerRadius: 12))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Platform Performance View")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("Live KPIs for your OxSteed equity relationship. For investor relations queries contact investor@oxsteed.com.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .cardStyle(padding: 14)
 
             // ── Period picker ────────────────────────────────────
             HStack(spacing: 0) {
@@ -1108,7 +3103,7 @@ struct InvestorHome: View {
                     ForEach(f.pipeline) { stage in
                         let cnt = stage.count ?? 0
                         HStack(spacing: 10) {
-                            Text(stage.status.capitalized)
+                            Text(localization.localized(stage.status.capitalized))
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(Theme.textPrimary)
                                 .frame(width: 72, alignment: .leading)
@@ -1323,6 +3318,7 @@ struct BusinessProductsView: View {
     @EnvironmentObject var workspace: BusinessWorkspaceStore
     @State private var isRefreshing = false
     @State private var showAddProduct = false
+    @State private var actionError: String?
 
     var body: some View {
         NavigationStack {
@@ -1337,7 +3333,7 @@ struct BusinessProductsView: View {
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "plus")
-                                Text("New Product")
+                                Text("home.new_product")
                             }
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(Theme.accent)
@@ -1351,7 +3347,7 @@ struct BusinessProductsView: View {
                         } label: {
                             HStack(spacing: 6) {
                                 if isRefreshing { ProgressView().tint(Theme.accent) }
-                                Text("Refresh")
+                                Text("common.refresh")
                             }
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(Theme.accent)
@@ -1362,6 +3358,12 @@ struct BusinessProductsView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(Theme.textSecondary)
                             .padding(.top, 40)
+                    }
+                    if let actionError {
+                        Text(actionError)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Theme.danger)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     ForEach(workspace.products) { product in
                         VStack(alignment: .leading, spacing: 8) {
@@ -1387,12 +3389,16 @@ struct BusinessProductsView: View {
                             }
                             HStack {
                                 Spacer()
-                                Button(product.isActive == true ? "Pause" : "Activate") {
+                                Button(product.isActive == true ? "home.pause" : "home.activate") {
                                     Task {
-                                        _ = await workspace.setProductActive(
+                                        actionError = nil
+                                        let ok = await workspace.setProductActive(
                                             productId: product.id,
                                             isActive: !(product.isActive == true)
                                         )
+                                        if !ok {
+                                            actionError = workspace.lastError ?? "Product status could not be updated."
+                                        }
                                     }
                                 }
                                 .font(.system(size: 12, weight: .semibold))
@@ -1420,6 +3426,7 @@ struct BusinessProductsView: View {
 struct BusinessLeadsView: View {
     @EnvironmentObject var workspace: BusinessWorkspaceStore
     @State private var showAddLead = false
+    @State private var actionError: String?
     private let leadStatuses = ["new", "contacted", "qualified", "quoted", "won", "lost"]
 
     var body: some View {
@@ -1434,7 +3441,7 @@ struct BusinessLeadsView: View {
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "plus")
-                                Text("New Lead")
+                                Text("home.new_lead")
                             }
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(Theme.accent)
@@ -1446,6 +3453,12 @@ struct BusinessLeadsView: View {
                             .foregroundStyle(Theme.textSecondary)
                             .padding(.top, 40)
                     }
+                    if let actionError {
+                        Text(actionError)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Theme.danger)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     ForEach(workspace.leads) { lead in
                         VStack(alignment: .leading, spacing: 6) {
                             HStack {
@@ -1455,14 +3468,18 @@ struct BusinessLeadsView: View {
                                 Spacer()
                                 Menu {
                                     ForEach(leadStatuses, id: \.self) { status in
-                                        Button(status.capitalized) {
+                                        Button(localization.localized(status.capitalized)) {
                                             Task {
-                                                _ = await workspace.updateLeadStatus(leadId: lead.id, status: status)
+                                                actionError = nil
+                                                let ok = await workspace.updateLeadStatus(leadId: lead.id, status: status)
+                                                if !ok {
+                                                    actionError = workspace.lastError ?? "Lead status could not be updated."
+                                                }
                                             }
                                         }
                                     }
                                 } label: {
-                                    Text((lead.status ?? "new").capitalized)
+                                    Text(localization.localized((lead.status ?? "new").capitalized))
                                         .font(.system(size: 11, weight: .bold))
                                         .foregroundStyle(Theme.accent)
                                         .padding(.horizontal, 10)
@@ -1518,7 +3535,7 @@ struct BusinessHealthAlertsView: View {
                                     .font(.system(size: 15, weight: .semibold))
                                     .foregroundStyle(Theme.textPrimary)
                                 Spacer()
-                                Text((alert.severity ?? "info").capitalized)
+                                Text(localization.localized((alert.severity ?? "info").capitalized))
                                     .font(.system(size: 11, weight: .bold))
                                     .foregroundStyle(Theme.warning)
                             }
@@ -1565,6 +3582,7 @@ private struct AddBusinessLeadSheet: View {
     @State private var budget = ""
     @State private var notes = ""
     @State private var isSaving = false
+    @State private var saveError: String?
 
     var body: some View {
         NavigationStack {
@@ -1585,6 +3603,13 @@ private struct AddBusinessLeadSheet: View {
                             .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
                             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
                             .foregroundStyle(Theme.textPrimary)
+                    }
+
+                    if let saveError {
+                        Text(saveError)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Theme.danger)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
                     Button {
@@ -1609,7 +3634,7 @@ private struct AddBusinessLeadSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Cancel") { dismiss() }.foregroundStyle(Theme.accent)
+                    Button("common.cancel") { dismiss() }.foregroundStyle(Theme.accent)
                 }
             }
             .toolbarBackground(Theme.background, for: .navigationBar)
@@ -1618,6 +3643,7 @@ private struct AddBusinessLeadSheet: View {
 
     private func save() async {
         isSaving = true
+        saveError = nil
         defer { isSaving = false }
         let ok = await workspace.createLead(
             name: name,
@@ -1627,7 +3653,11 @@ private struct AddBusinessLeadSheet: View {
             budgetCents: Int(budget).map { $0 * 100 },
             notes: notes.isEmpty ? nil : notes
         )
-        if ok { dismiss() }
+        if ok {
+            dismiss()
+        } else {
+            saveError = workspace.lastError ?? "Lead could not be created."
+        }
     }
 }
 
@@ -1641,6 +3671,7 @@ private struct AddBusinessProductSheet: View {
     @State private var cost = ""
     @State private var description = ""
     @State private var isSaving = false
+    @State private var saveError: String?
 
     var body: some View {
         NavigationStack {
@@ -1663,12 +3694,19 @@ private struct AddBusinessProductSheet: View {
                             .foregroundStyle(Theme.textPrimary)
                     }
 
+                    if let saveError {
+                        Text(saveError)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Theme.danger)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
                     Button {
                         Task { await save() }
                     } label: {
                         HStack {
                             if isSaving { ProgressView().tint(.white) }
-                            Text("Create Product")
+                            Text("home.create_product")
                                 .font(.system(size: 15, weight: .bold))
                                 .foregroundStyle(.white)
                         }
@@ -1685,7 +3723,7 @@ private struct AddBusinessProductSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Cancel") { dismiss() }.foregroundStyle(Theme.accent)
+                    Button("common.cancel") { dismiss() }.foregroundStyle(Theme.accent)
                 }
             }
             .toolbarBackground(Theme.background, for: .navigationBar)
@@ -1702,6 +3740,7 @@ private struct AddBusinessProductSheet: View {
     private func save() async {
         guard let parsedPrice = Double(price) else { return }
         isSaving = true
+        saveError = nil
         defer { isSaving = false }
         let ok = await workspace.createProduct(
             name: name,
@@ -1711,6 +3750,162 @@ private struct AddBusinessProductSheet: View {
             cost: Double(cost),
             sku: sku
         )
-        if ok { dismiss() }
+        if ok {
+            dismiss()
+        } else {
+            saveError = workspace.lastError ?? "Product could not be created."
+        }
+    }
+}
+
+// MARK: - HelperBidSheet
+
+/// Native bid submission sheet — shown when a helper taps "Bid" on an available job.
+/// Lets the helper enter their amount, message, and estimated hours, then submits
+/// via BidsStore.place() to POST /api/bids.
+struct HelperBidSheet: View {
+    let job: APIJob
+    @EnvironmentObject var bids: BidsStore
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var amountText = ""
+    @State private var message = ""
+    @State private var hoursText = ""
+    @State private var submitted = false
+
+    private var amountCents: Int? {
+        guard let d = Double(amountText.trimmingCharacters(in: .whitespacesAndNewlines)), d > 0 else { return nil }
+        return Int(d * 100)
+    }
+    private var hours: Double? { Double(hoursText.trimmingCharacters(in: .whitespacesAndNewlines)) }
+    private var canSubmit: Bool { amountCents != nil && !bids.isLoading }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 18) {
+
+                    // ── Job summary ──────────────────────────────────
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(job.title)
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundStyle(Theme.textPrimary)
+                        HStack(spacing: 12) {
+                            if let category = job.category {
+                                Label(category, systemImage: "tag.fill")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(Theme.textSecondary)
+                            }
+                            Label(job.budgetDisplay, systemImage: "dollarsign.circle.fill")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(Theme.success)
+                            if let d = job.distance_miles {
+                                Label(String(format: "%.1f mi", d), systemImage: "location.fill")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(Theme.textSecondary)
+                            }
+                        }
+                        if let desc = job.description, !desc.isEmpty {
+                            Text(desc)
+                                .font(.system(size: 13))
+                                .foregroundStyle(Theme.textSecondary)
+                                .lineLimit(4)
+                        }
+                    }
+                    .cardStyle()
+
+                    // ── Bid form ─────────────────────────────────────
+                    if submitted {
+                        VStack(spacing: 14) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 44, weight: .bold))
+                                .foregroundStyle(Theme.success)
+                            Text("Bid submitted!")
+                                .font(.system(size: 20, weight: .heavy))
+                                .foregroundStyle(Theme.textPrimary)
+                            Text("The customer will be notified and can accept or message you from their job detail.")
+                                .font(.system(size: 13))
+                                .foregroundStyle(Theme.textSecondary)
+                                .multilineTextAlignment(.center)
+                            Button("Done") { dismiss() }
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(Theme.accent, in: RoundedRectangle(cornerRadius: 14))
+                        }
+                        .cardStyle()
+                    } else {
+                        VStack(spacing: 14) {
+                            OxTextField(title: "Your bid amount ($)", text: $amountText, keyboard: .decimalPad)
+
+                            OxTextField(title: "Estimated hours (optional)", text: $hoursText, keyboard: .decimalPad)
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Message to customer (optional)")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .tracking(0.8)
+                                    .foregroundStyle(Theme.textTertiary)
+                                    .textCase(.uppercase)
+                                TextEditor(text: $message)
+                                    .scrollContentBackground(.hidden)
+                                    .frame(height: 100)
+                                    .padding(8)
+                                    .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
+                                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
+                                    .foregroundStyle(Theme.textPrimary)
+                                    .font(.system(size: 15))
+                            }
+
+                            if let err = bids.lastError {
+                                Text(err)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Theme.danger)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+
+                            Button {
+                                Task { await submitBid() }
+                            } label: {
+                                HStack {
+                                    if bids.isLoading { ProgressView().tint(.white) }
+                                    Text("Submit Bid")
+                                        .font(.system(size: 15, weight: .bold))
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(canSubmit ? Theme.accent : Theme.textTertiary,
+                                            in: RoundedRectangle(cornerRadius: 14))
+                                .foregroundStyle(.white)
+                            }
+                            .disabled(!canSubmit)
+                        }
+                        .cardStyle()
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+            }
+            .background(Theme.background.ignoresSafeArea())
+            .navigationTitle("Place a Bid")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(Theme.accent)
+                }
+            }
+        }
+    }
+
+    private func submitBid() async {
+        guard let cents = amountCents else { return }
+        let ok = await bids.place(
+            jobId: job.id,
+            amountCents: cents,
+            message: message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : message,
+            hours: hours
+        )
+        if ok { submitted = true }
     }
 }

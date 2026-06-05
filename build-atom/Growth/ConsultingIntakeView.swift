@@ -3,6 +3,8 @@ import SwiftUI
 // MARK: - BusinessConsultingIntakeView
 
 struct BusinessConsultingIntakeView: View {
+    private typealias CI = L10n.ConsultingIntakeKey
+
     @EnvironmentObject private var auth: AuthStore
     @EnvironmentObject private var localization: LocalizationManager
     @Environment(\.dismiss) private var dismiss
@@ -67,13 +69,13 @@ struct BusinessConsultingIntakeView: View {
                 }
             }
             .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Business Launch Program")
+            .navigationTitle(LocalizedStringKey(CI.title))
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Theme.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button(step > 1 ? "Back" : "Cancel") {
+                    Button(step > 1 ? "common.back" : "common.cancel") {
                         if step > 1 { withAnimation { step -= 1 } }
                         else { dismiss() }
                     }
@@ -84,7 +86,7 @@ struct BusinessConsultingIntakeView: View {
                         if isSubmitting {
                             ProgressView().tint(Theme.accent)
                         } else {
-                            Button(step < totalSteps ? "Next" : "Submit") {
+                            Button(step < totalSteps ? "common.next" : "common.submit") {
                                 if step < totalSteps { withAnimation { step += 1 } }
                                 else { Task { await submit() } }
                             }
@@ -156,33 +158,33 @@ struct BusinessConsultingIntakeView: View {
 
     private var stepTitle: String {
         switch step {
-        case 1: return "Your Contact Info"
-        case 2: return "Tell Us About Your Skill"
-        case 3: return "What Do You Need Set Up?"
-        case 4: return "Choose Your Package"
-        case 5: return "Confirm & Submit"
+        case 1: return CI.stepLabel1
+        case 2: return CI.stepLabel2
+        case 3: return CI.stepLabel3
+        case 4: return CI.stepLabel4
+        case 5: return CI.stepLabel5
         default: return ""
         }
     }
 
     private var stepSubtitle: String {
         switch step {
-        case 1: return "Contact"
-        case 2: return "Skill & Business"
-        case 3: return "Setup Needs"
-        case 4: return "Package"
-        case 5: return "Confirm"
+        case 1: return CI.subtitle1
+        case 2: return CI.subtitle2
+        case 3: return CI.subtitle3
+        case 4: return CI.subtitle4
+        case 5: return CI.subtitle5
         default: return ""
         }
     }
 
     private var stepDescription: String {
         switch step {
-        case 1: return "Let us know the best way to reach you."
-        case 2: return "We help people turn skills into real businesses. Tell us what you do so we can customize your plan."
-        case 3: return "Select everything that applies. We handle the implementation so you can focus on your craft."
-        case 4: return "All packages are flat-fee, delivered in 2–4 weeks. No hourly billing. No surprises."
-        case 5: return "Review your answers before submitting. We'll email you a confirmation right away."
+        case 1: return CI.description1
+        case 2: return CI.description2
+        case 3: return CI.description3
+        case 4: return CI.description4
+        case 5: return CI.description5
         default: return ""
         }
     }
@@ -233,8 +235,8 @@ struct BusinessConsultingIntakeView: View {
 
     private var step1: some View {
         VStack(spacing: 14) {
-            intakeField("Email *") {
-                TextField("you@example.com", text: $contactEmail)
+            intakeField(CI.emailLabel) {
+                TextField(LocalizedStringKey(CI.emailPlaceholder), text: $contactEmail)
                     .keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -243,29 +245,29 @@ struct BusinessConsultingIntakeView: View {
             }
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
-                    intakeLabel("First name *")
-                    TextField("First", text: $contactFirstName)
+                    intakeLabel(CI.firstNameLabel)
+                    TextField(LocalizedStringKey(CI.firstNamePlaceholder), text: $contactFirstName)
                         .textContentType(.givenName)
                         .textInputAutocapitalization(.words)
                         .intakeFieldStyle()
                 }
                 VStack(alignment: .leading, spacing: 6) {
-                    intakeLabel("Last name *")
-                    TextField("Last", text: $contactLastName)
+                    intakeLabel(CI.lastNameLabel)
+                    TextField(LocalizedStringKey(CI.lastNamePlaceholder), text: $contactLastName)
                         .textContentType(.familyName)
                         .textInputAutocapitalization(.words)
                         .intakeFieldStyle()
                 }
             }
 
-            intakeField("Phone number *") {
-                TextField("(555) 123-4567", text: $phone)
+            intakeField(CI.phoneLabel) {
+                TextField(LocalizedStringKey(CI.phonePlaceholder), text: $phone)
                     .keyboardType(.phonePad)
                     .intakeFieldStyle()
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                intakeLabel("How did you hear about us?")
+                intakeLabel(CI.referralLabel)
                 VStack(spacing: 6) {
                     ForEach(referralOptions, id: \.value) { opt in
                         radioRow(label: opt.label, value: opt.value, binding: $referralSource)
@@ -276,11 +278,11 @@ struct BusinessConsultingIntakeView: View {
     }
 
     private let referralOptions: [(value: String, label: String)] = [
-        ("marketplace", "OxSteed Marketplace"),
-        ("google", "Google Search"),
-        ("referral", "Referral from a Friend"),
-        ("social", "Social Media"),
-        ("other", "Other"),
+        ("marketplace", CI.contactSourceMarketplace),
+        ("google", CI.contactSourceGoogle),
+        ("referral", CI.contactSourceReferral),
+        ("social", CI.contactSourceSocial),
+        ("other", CI.contactSourceOther),
     ]
 
     // MARK: - Step 2: Your Business
@@ -289,55 +291,55 @@ struct BusinessConsultingIntakeView: View {
         VStack(spacing: 14) {
             // Skill picker
             VStack(alignment: .leading, spacing: 6) {
-                intakeLabel("Primary skill or service *")
-                Picker("Select your skill", selection: $skillSelection) {
-                    Text("Select…").tag("")
+                intakeLabel(CI.skillLabel)
+                Picker(LocalizedStringKey(CI.skillPickerPlaceholder), selection: $skillSelection) {
+                    Text(LocalizedStringKey(CI.skillPickerPlaceholder)).tag("")
                     ForEach(skillOptions, id: \.self) { s in
                         Text(s).tag(s)
                     }
-                    Text("Other - not listed").tag("__other__")
+                    Text(LocalizedStringKey("Other - not listed")).tag("__other__")
                 }
                 .pickerStyle(.menu)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .intakeFieldStyle()
 
                 if skillSelection == "__other__" {
-                    TextField("Describe your skill or service", text: $customSkill)
+                    TextField(LocalizedStringKey(CI.skillPlaceholder), text: $customSkill)
                         .intakeFieldStyle()
                         .padding(.top, 4)
                 }
             }
 
-            intakeField("Who do you want to serve? *") {
-                TextField("e.g. Homeowners in my area, small business owners", text: $targetMarket)
+            intakeField(CI.targetMarketLabel) {
+                TextField(LocalizedStringKey(CI.targetMarketPlaceholder), text: $targetMarket)
                     .intakeFieldStyle()
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                intakeLabel("Have you made money from this skill yet? *")
+                intakeLabel(CI.revenueLabel)
                 VStack(spacing: 6) {
-                    radioRow(label: "No, not yet", value: "no", binding: $hasRevenue)
-                    radioRow(label: "Yes, informally (cash/Venmo)", value: "informal", binding: $hasRevenue)
-                    radioRow(label: "Yes, I have paying clients", value: "formal", binding: $hasRevenue)
+                    radioRow(label: CI.revenueNone, value: "no", binding: $hasRevenue)
+                    radioRow(label: CI.revenueInformal, value: "informal", binding: $hasRevenue)
+                    radioRow(label: CI.revenueFormal, value: "formal", binding: $hasRevenue)
                 }
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                intakeLabel("Have you decided on a business name? *")
+                intakeLabel(CI.businessNameLabel)
                 VStack(spacing: 6) {
-                    radioRow(label: "Yes", value: "yes", binding: $businessNameDecided)
-                    radioRow(label: "No, I need help choosing one", value: "no", binding: $businessNameDecided)
+                    radioRow(label: CI.businessNameYes, value: "yes", binding: $businessNameDecided)
+                    radioRow(label: CI.businessNameNo, value: "no", binding: $businessNameDecided)
                 }
                 if businessNameDecided == "yes" {
-                    TextField("Your business name", text: $businessName)
+                    TextField(LocalizedStringKey(CI.businessNamePlaceholder), text: $businessName)
                         .intakeFieldStyle()
                         .padding(.top, 4)
                 }
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                intakeLabel("Which country will this business operate in? *")
-                Picker("Country", selection: $operatingCountry) {
+                intakeLabel(CI.countryLabel)
+                Picker(LocalizedStringKey(CI.countryPickerLabel), selection: $operatingCountry) {
                     ForEach(Self.countryCodes, id: \.self) { code in
                         Text(Self.countryName(code)).tag(code)
                     }
@@ -347,8 +349,8 @@ struct BusinessConsultingIntakeView: View {
                 .intakeFieldStyle()
             }
 
-            intakeField("State/Province/City *") {
-                TextField("e.g. Texas, Ontario, Port-au-Prince", text: $operatingState)
+            intakeField(CI.regionLabel) {
+                TextField(LocalizedStringKey(CI.regionPlaceholder), text: $operatingState)
                     .intakeFieldStyle()
             }
         }
@@ -364,9 +366,9 @@ struct BusinessConsultingIntakeView: View {
             let selectedItemsCount = selectedSetupItemIds.count
 
             VStack(alignment: .leading, spacing: 10) {
-                intakeField("What phase are you in? (optional)") {
-                    Picker("Select phase", selection: $currentPhase) {
-                        Text("Select a phase").tag("")
+                intakeField(CI.phaseLabel) {
+                    Picker(LocalizedStringKey(CI.phasePickerLabel), selection: $currentPhase) {
+                        Text(LocalizedStringKey(CI.phasePlaceholder)).tag("")
                         ForEach(Self.businessPhases, id: \.id) { phase in
                             Text(localization.format("Phase %d – %@", phase.id, phase.name)).tag(String(phase.id))
                         }
@@ -388,10 +390,10 @@ struct BusinessConsultingIntakeView: View {
                     }
                 )) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(localization.format("Select all setup items (%d / %d items)", selectedItemsCount, allItemsCount))
+                        Text(localization.format(CI.setupAllLabel, selectedItemsCount, allItemsCount))
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(Theme.textPrimary)
-                        Text(LocalizedStringKey("Choose this if you want a full buildout and we can decide priorities together."))
+                        Text(LocalizedStringKey(CI.setupAllHelper))
                             .font(.system(size: 11))
                             .foregroundStyle(Theme.textSecondary)
                     }
@@ -426,16 +428,16 @@ struct BusinessConsultingIntakeView: View {
                 .background(Theme.stroke)
 
             VStack(alignment: .leading, spacing: 6) {
-                intakeLabel("How soon do you need this? *")
+                intakeLabel(CI.setupTimingLabel)
                 VStack(spacing: 6) {
-                    radioRow(label: "Just exploring", value: "exploring", binding: $urgency)
-                    radioRow(label: "Ready to start within 2 weeks", value: "two_weeks", binding: $urgency)
-                    radioRow(label: "I need this done as soon as possible", value: "asap", binding: $urgency)
+                    radioRow(label: CI.urgencyExploring, value: "exploring", binding: $urgency)
+                    radioRow(label: CI.urgencyTwoWeeks, value: "two_weeks", binding: $urgency)
+                    radioRow(label: CI.urgencyAsap, value: "asap", binding: $urgency)
                 }
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                intakeLabel("Anything else we should know? (optional)")
+                intakeLabel(CI.notesLabel)
                 TextEditor(text: $additionalNotes)
                     .frame(minHeight: 80)
                     .font(.system(size: 14))
@@ -455,7 +457,7 @@ struct BusinessConsultingIntakeView: View {
             ForEach(Self.packages) { pkg in
                 packageCard(pkg)
             }
-            Text(LocalizedStringKey("Not sure which fits? Pick the closest one — we'll confirm the right package on your kickoff call. All packages include a 30-minute kickoff call."))
+            Text(LocalizedStringKey(CI.packageDisclaimer))
                 .font(.system(size: 11))
                 .foregroundStyle(Theme.textTertiary)
                 .multilineTextAlignment(.center)
@@ -471,7 +473,7 @@ struct BusinessConsultingIntakeView: View {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 2) {
                         if pkg.popular {
-                            Text("MOST POPULAR")
+                            Text(LocalizedStringKey(CI.mostPopularBadge))
                                 .font(.system(size: 9, weight: .bold))
                                 .tracking(0.8)
                                 .foregroundStyle(Theme.accent)
@@ -486,7 +488,7 @@ struct BusinessConsultingIntakeView: View {
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 1) {
-                        Text("$\(pkg.price)")
+                        Text(localization.formatCurrency(Double(pkg.price), fractionDigits: 0))
                             .font(.system(size: 20, weight: .heavy))
                             .foregroundStyle(selected ? Theme.accent : Theme.textPrimary)
                         Text(LocalizedStringKey(pkg.timeline))
@@ -540,21 +542,21 @@ struct BusinessConsultingIntakeView: View {
             Image(systemName: "checkmark.seal.fill")
                 .font(.system(size: 64))
                 .foregroundStyle(Theme.success)
-            Text(LocalizedStringKey("Application Submitted!"))
+            Text(LocalizedStringKey(CI.submittedHeader))
                 .font(.system(size: 22, weight: .heavy))
                 .foregroundStyle(Theme.textPrimary)
             VStack(spacing: 10) {
-                Text(LocalizedStringKey("We'll review your request and reach out within 24 hours to schedule your kickoff call."))
+                Text(LocalizedStringKey(CI.submittedCopy))
                     .font(.system(size: 14))
                     .foregroundStyle(Theme.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    nextStepRow(n: 1, text: "We review your request (usually within 24 hours)")
-                    nextStepRow(n: 2, text: "You'll receive a link to book your kickoff call")
-                    nextStepRow(n: 3, text: "We send a pre-kickoff questionnaire")
-                    nextStepRow(n: 4, text: "Setup work begins after your kickoff call")
+                    nextStepRow(n: 1, text: CI.submittedStep1)
+                    nextStepRow(n: 2, text: CI.submittedStep2)
+                    nextStepRow(n: 3, text: CI.submittedStep3)
+                    nextStepRow(n: 4, text: CI.submittedStep4)
                 }
                 .padding(16)
                 .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 14))
@@ -562,7 +564,7 @@ struct BusinessConsultingIntakeView: View {
             }
 
             Button { dismiss() } label: {
-                Text("Done")
+                Text("common.done")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -637,7 +639,7 @@ struct BusinessConsultingIntakeView: View {
     private var step5: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Your information")
+                Text(LocalizedStringKey(CI.sectionInfoTitle))
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(Theme.textPrimary)
                 Text("\(contactFirstName) \(contactLastName)")
@@ -650,7 +652,7 @@ struct BusinessConsultingIntakeView: View {
                     .font(.system(size: 13))
                     .foregroundStyle(Theme.textSecondary)
                 if !referralSource.isEmpty {
-                    Text(localization.format("Heard about us: %@", referralLabel(referralSource)))
+                    Text(localization.format(CI.summaryHeard, referralLabel(referralSource)))
                         .font(.system(size: 13))
                         .foregroundStyle(Theme.textSecondary)
                 }
@@ -658,24 +660,24 @@ struct BusinessConsultingIntakeView: View {
             .cardStyle()
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Business")
+                Text(LocalizedStringKey(CI.sectionBusinessTitle))
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(Theme.textPrimary)
-                Text(localization.format("Skill: %@", skillDescription))
+                Text(localization.format(CI.summarySkill, skillDescription))
                     .font(.system(size: 13))
                     .foregroundStyle(Theme.textSecondary)
-                Text(localization.format("Target market: %@", targetMarket))
+                Text(localization.format(CI.summaryMarket, targetMarket))
                     .font(.system(size: 13))
                     .foregroundStyle(Theme.textSecondary)
-                Text(localization.format("Country: %@", Self.countryName(operatingCountry)))
+                Text(localization.format(CI.summaryCountry, Self.countryName(operatingCountry)))
                     .font(.system(size: 13))
                     .foregroundStyle(Theme.textSecondary)
-                Text(localization.format("State/City: %@", operatingState))
+                Text(localization.format(CI.summaryRegion, operatingState))
                     .font(.system(size: 13))
                     .foregroundStyle(Theme.textSecondary)
                 if !currentPhase.isEmpty, let id = Int(currentPhase),
                    let phase = Self.businessPhases.first(where: { $0.id == id }) {
-                    Text(localization.format("Phase: %d – %@", phase.id, phase.name))
+                    Text(localization.format(CI.summaryPhase, phase.id, phase.name))
                         .font(.system(size: 13))
                         .foregroundStyle(Theme.textSecondary)
                 }
@@ -683,25 +685,25 @@ struct BusinessConsultingIntakeView: View {
             .cardStyle()
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Package")
+                Text(LocalizedStringKey(CI.sectionPackageTitle))
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(Theme.textPrimary)
                 if let pkg = Self.packages.first(where: { $0.id == packageSelected }) {
-                    Text(localization.format("%@ ($%d)", pkg.name, pkg.price))
+                    Text(localization.format(CI.summaryPackage, pkg.name, pkg.price))
                         .font(.system(size: 13))
                         .foregroundStyle(Theme.textSecondary)
                 }
-                Text(localization.format("Urgency: %@", urgencyLabel))
+                Text(localization.format(CI.summaryUrgency, urgencyLabel))
                     .font(.system(size: 13))
                     .foregroundStyle(Theme.textSecondary)
-                Text(localization.format("Setup items: %@", setupItemsSummary))
+                Text(localization.format(CI.summaryItems, setupItemsSummary))
                     .font(.system(size: 13))
                     .foregroundStyle(Theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .cardStyle()
 
-            Text("What happens next: we review your request, email you a confirmation, and schedule a kickoff call if needed.")
+            Text(LocalizedStringKey(CI.summaryNext))
                 .font(.system(size: 11))
                 .foregroundStyle(Theme.textTertiary)
                 .multilineTextAlignment(.leading)
@@ -737,15 +739,15 @@ struct BusinessConsultingIntakeView: View {
 
     private var urgencyLabel: String {
         switch urgency {
-        case "exploring": return localization.localized(L10n.ConsultingPipelineKey.urgencyExploring)
-        case "two_weeks": return localization.localized(L10n.ConsultingPipelineKey.urgencyTwoWeeks)
-        case "asap": return localization.localized(L10n.ConsultingPipelineKey.urgencyASAP)
+        case "exploring": return localization.localized("consulting.intake.urgency.exploring")
+        case "two_weeks": return localization.localized("consulting.intake.urgency.two_weeks")
+        case "asap": return localization.localized("consulting.intake.urgency.asap")
         default: return localization.localized("—")
         }
     }
 
     private var setupItemsSummary: String {
-        if selectAllChosen { return localization.localized(L10n.ConsultingPipelineKey.allItems) }
+        if selectAllChosen { return localization.localized("consulting.intake.confirmation.all_items") }
         let ids = Array(selectedSetupItemIds)
         let labels = ids.compactMap { Self.setupItemLabelById[$0] }
         let localizedLabels = labels.map { localization.localized($0) }.sorted()
@@ -833,16 +835,16 @@ struct BusinessConsultingIntakeView: View {
                 as: Resp.self
             )
             if resp.success != true {
-                submitError = resp.message ?? "Could not submit. Please try again."
+                submitError = resp.message ?? localization.localized(CI.submitError)
                 return
             }
             withAnimation { submitted = true }
         } catch let modErr as ContentModerator.Error {
             if case .blocked(let reason) = modErr { submitError = reason }
         } catch let apiErr as APIError {
-            submitError = apiErr.errorDescription ?? "Could not submit. Please try again."
+            submitError = apiErr.errorDescription ?? localization.localized(CI.submitError)
         } catch {
-            submitError = (error as? LocalizedError)?.errorDescription ?? "Could not submit. Please try again."
+            submitError = (error as? LocalizedError)?.errorDescription ?? localization.localized(CI.submitError)
         }
     }
 

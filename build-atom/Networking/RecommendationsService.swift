@@ -30,6 +30,16 @@ enum RecommendationsService {
         )
         return envelope.recommendations
     }
+
+    static func dismiss(id: String, days: Int = 14) async throws {
+        struct Req: Encodable { let days: Int }
+        let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
+        try await APIClient.shared.requestVoid(
+            "/api/recommendations/\(encoded)/dismiss",
+            method: .POST,
+            body: Req(days: days)
+        )
+    }
 }
 
 // MARK: - Store
@@ -71,6 +81,17 @@ final class RecommendationsStore: ObservableObject {
     }
 
     func dismiss(_ id: String) {
+        let previous = recommendations
         recommendations.removeAll { $0.id == id }
+        Task {
+            do {
+                try await RecommendationsService.dismiss(id: id)
+            } catch {
+                await MainActor.run {
+                    recommendations = previous
+                    self.error = error.localizedDescription
+                }
+            }
+        }
     }
 }

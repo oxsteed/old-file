@@ -8,7 +8,7 @@ import FoundationModels
 // Turns raw Pulse / Life financial data into plain-English summaries.
 // Powers the "Ask Pulse" feature on the Life tab dashboard.
 
-struct PulseSummaryResult {
+struct PulseSummaryResult: Codable, Equatable {
     /// 2-3 sentence plain-English overview (e.g. "You've spent $1,240 this month…")
     var overview: String
     /// Top insight or trend worth highlighting
@@ -82,4 +82,3 @@ enum PulseSummarizer {
         }
     }
 }
-

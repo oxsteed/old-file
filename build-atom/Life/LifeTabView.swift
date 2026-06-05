@@ -64,36 +64,27 @@ struct LifeTabView: View {
             ScrollView {
                 VStack(spacing: 18) {
                     LifeHeader()
-                    if auth.user == nil {
-                        VStack(spacing: 12) {
-                            EmptyStateCard(icon: "lock.fill",
-                                           title: "home.pulse.sign_in_to_view",
-                                           message: "Add income, home tasks, or a sinking fund to activate your pulse score.",
-                                           cta: L10n.AuthKey.signIn)
-                            Button {
-                                showAuthSheet = true
-                            } label: {
-                                Text(L10n.AuthKey.signIn)
-                                    .font(.system(size: 15, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 14)
-                                    .background(Theme.accent, in: RoundedRectangle(cornerRadius: 14))
-                            }
-                            .padding(.horizontal, 4)
-                        }
-                    } else {
+
+                    LifePulseCard(pulse: life.pulse, summary: life.summary, isLoading: life.isLoading)
+
+                    if auth.user != nil || OxIntelligenceManager.shared.isAvailable {
+                        AskPulseCard(
+                            insight: pulseInsight,
+                            isLoading: isLoadingInsight,
+                            onAsk: { Task { await loadPulseInsight() } }
+                        )
+                    }
+
+                    LifeUrgencyQueue()
+
+                    if auth.user != nil {
                         let persona = auth.activePersona
-                        LifePulseCard(pulse: life.pulse, summary: life.summary, isLoading: life.isLoading)
-                        // AI Pulse insight card
-                        if OxIntelligenceManager.shared.isAvailable {
-                            AskPulseCard(
-                                insight: pulseInsight,
-                                isLoading: isLoadingInsight,
-                                onAsk: { Task { await loadPulseInsight() } }
-                            )
+
+                        // ── First-run explainer: shown when all pillars are empty ──
+                        if life.isFirstRun {
+                            LifeWelcomeCard()
                         }
-                        LifeUrgencyQueue()
+
                         LifeQuickStats(summary: life.summary, persona: persona)
                         LifeMoneyCard(summary: life.expenseSummary)
                         LifeChecklistCard(items: life.checklist,
@@ -125,9 +116,12 @@ struct LifeTabView: View {
             }
         }
         .task {
-            await life.refresh(window: "1m", section: section.apiValue)
+            if auth.user != nil {
+                await life.refresh(window: "1m", section: section.apiValue)
+            }
         }
         .onChange(of: section) { _, newValue in
+            guard auth.user != nil else { return }
             Task { await life.refresh(window: "1m", section: newValue.apiValue) }
         }
         .sheet(isPresented: $showAuthSheet) {
@@ -139,13 +133,14 @@ struct LifeTabView: View {
     }
 
     private func loadPulseInsight() async {
-        guard let pulse = life.pulse else { return }
         isLoadingInsight = true
         defer { isLoadingInsight = false }
-        pulseInsight = try? await PulseSummarizer.summarize(
-            pulse: pulse,
-            summary: life.summary
-        )
+        if auth.user != nil, let backendInsight = try? await LifeService.pulseInsight() {
+            pulseInsight = backendInsight
+            return
+        }
+        guard let pulse = life.pulse else { return }
+        pulseInsight = try? await PulseSummarizer.summarize(pulse: pulse, summary: life.summary)
     }
 }
 
@@ -290,6 +285,66 @@ struct SixSegmentPulseRing: View {
     }
 }
 
+// MARK: - LifeWelcomeCard
+
+/// Shown to new users when no pillar data exists yet.
+/// Explains what Pulse is and gives two clear first steps.
+private struct LifeWelcomeCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 48, height: 48)
+                    .background(Theme.accentSoft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Welcome to Life")
+                        .font(.system(size: 17, weight: .heavy))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("Your personal operating system")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+
+            Text("Life tracks six pillars of your daily life and gives you a Pulse score — a single number that reflects how on top of things you are across money, home, car, personal habits, goals, and sinking funds.")
+                .font(.system(size: 13))
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(spacing: 8) {
+                welcomeStep(number: "1", icon: "dollarsign.circle.fill", color: Theme.pillarMoney,
+                            title: "Add an expense or income",
+                            subtitle: "Tap Money to log your first entry.")
+                welcomeStep(number: "2", icon: "house.fill", color: Theme.pillarHome,
+                            title: "Add a home task",
+                            subtitle: "Track repairs, cleaning, or maintenance.")
+            }
+        }
+        .cardStyle()
+    }
+
+    private func welcomeStep(number: String, icon: String, color: Color, title: String, subtitle: String) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle().fill(color.opacity(0.15)).frame(width: 36, height: 36)
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(color)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+                Text(subtitle).font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
+            }
+            Spacer()
+        }
+        .padding(10)
+        .background(Theme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.stroke, lineWidth: 1))
+    }
+}
+
 // MARK: - LifePulseCard
 
 private struct LifePulseCard: View {
@@ -345,7 +400,7 @@ private struct LifePulseCard: View {
                 }
             }
 
-            if pulse?.no_data == true {
+            if pulse == nil || pulse?.no_data == true {
                 HStack(spacing: 14) {
                     SixSegmentPulseRing(score: nil, pillarScores: Array(repeating: 0.25, count: 6))
                     VStack(alignment: .leading, spacing: 4) {
@@ -362,7 +417,7 @@ private struct LifePulseCard: View {
 
                     VStack(alignment: .leading, spacing: 8) {
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(pulseLabel(for: pulse?.pulse_score))
+                            Text(localization.localized(pulseLabel(for: pulse?.pulse_score)))
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(Theme.textSecondary)
                             if let net = summary?.finances?.net {
@@ -406,7 +461,7 @@ private struct LifePulseCard: View {
         .cardStyle()
     }
 
-    private func pulseLabel(for score: Int?) -> LocalizedStringKey {
+    private func pulseLabel(for score: Int?) -> String {
         guard let score else { return "—" }
         if score >= 80 { return L10n.LifeKey.onTrack }
         if score >= 60 { return L10n.LifeKey.slipping }
@@ -503,13 +558,13 @@ struct LifeUrgencyQueue: View {
         let pending = lifeData.habits.filter { !$0.completedToday }
         if let worst = pending.max(by: { $0.target < $1.target }) {
             result.append(.init(id: 3, pillar: .personal,
-                                title: "\(worst.name) not done today",
-                                urgencyLabel: "\(pending.count) habit\(pending.count == 1 ? "" : "s") remaining",
+                                title: localization.format("life.urgency.habit_not_done", worst.name),
+                                urgencyLabel: localization.formatPlural("plural.habit_remaining", pending.count),
                                 level: 1))
         } else {
             result.append(.init(id: 3, pillar: .personal,
-                                title: "All habits complete today",
-                                urgencyLabel: "Perfect day",
+                                title: localization.localized("life.urgency.all_habits_complete"),
+                                urgencyLabel: localization.localized("life.urgency.perfect_day"),
                                 level: 0))
         }
 
@@ -518,7 +573,7 @@ struct LifeUrgencyQueue: View {
         if let g = active.first {
             result.append(.init(id: 4, pillar: .goals,
                                 title: g.title,
-                                urgencyLabel: g.tier.capitalized + "-term goal",
+                                urgencyLabel: localization.format("life.urgency.term_goal", localization.localized(g.tier.capitalized)),
                                 level: 1))
         } else if lifeData.goals.isEmpty {
             result.append(.init(id: 4, pillar: .goals,
@@ -598,6 +653,7 @@ struct LifeUrgencyQueue: View {
 
 private struct LifeMoneyCard: View {
     let summary: APILifeExpenseSummary?
+    @EnvironmentObject private var localization: LocalizationManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -619,7 +675,7 @@ private struct LifeMoneyCard: View {
                 .foregroundStyle(color)
                 .frame(width: 34, height: 34)
                 .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 12))
-            Text(value.map { String(format: "$%.0f", $0) } ?? "—")
+            Text(value.map { localization.formatCurrency($0, fractionDigits: 0) } ?? "—")
                 .font(.system(size: 20, weight: .heavy))
                 .foregroundStyle(Theme.textPrimary)
             Text(label).font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
@@ -675,6 +731,7 @@ private struct LifeTasksCard: View {
     @Binding var section: LifeSection
     let tasks: [APILifeHomeTask]
     let onToggle: (APILifeHomeTask) async -> Void
+    @EnvironmentObject private var localization: LocalizationManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -706,14 +763,14 @@ private struct LifeTasksCard: View {
                                             Text(due).foregroundStyle(Theme.textSecondary)
                                         }
                                         if let urgency = task.urgency, !urgency.isEmpty {
-                                            Text(urgency.capitalized).foregroundStyle(Theme.accent)
+                                            Text(localization.localized(urgency.capitalized)).foregroundStyle(Theme.accent)
                                         }
                                     }
                                     .font(.system(size: 11))
                                 }
                                 Spacer()
                                 if let cost = task.estimated_cost {
-                                    Text(String(format: "$%.0f", cost))
+                                    Text(localization.formatCurrency(cost, fractionDigits: 0))
                                         .font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.textSecondary)
                                 }
                             }
@@ -824,8 +881,8 @@ private struct AskPulseCard: View {
                 }
                 Spacer()
                 if insight == nil && !isLoading {
-                    Button(action: onAsk) {
-                        Text("Ask AI")
+                        Button(action: onAsk) {
+                        Text("life.ask_ai")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 12).padding(.vertical, 5)

@@ -24,6 +24,10 @@ enum MessagesService {
         )
     }
 
+    static func conversationMeta(_ conversationId: String) async throws -> APIConversation {
+        try await APIClient.shared.request("/api/messages/conversations/\(conversationId)/meta")
+    }
+
     static func messages(in conversationId: String, limit: Int = 50, offset: Int = 0) async throws -> [APIMessage] {
         let q: [String: Any] = ["limit": limit, "offset": offset]
         return try await APIClient.shared.request("/api/messages/conversations/\(conversationId)", query: q)
