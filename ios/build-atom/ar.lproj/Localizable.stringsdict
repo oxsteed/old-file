@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>plural.review_quote</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>zero</key>
+			<string>لا توجد عروض أسعار للمراجعة</string>
+			<key>one</key>
+			<string>راجع عرض سعر واحد</string>
+			<key>two</key>
+			<string>راجع عرضي سعر</string>
+			<key>few</key>
+			<string>راجع %d عروض أسعار</string>
+			<key>many</key>
+			<string>راجع %d عرض سعر</string>
+			<key>other</key>
+			<string>راجع %d عرض سعر</string>
+		</dict>
+	</dict>
+	<key>plural.more_option</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>zero</key>
+			<string>لا توجد خيارات إضافية</string>
+			<key>one</key>
+			<string>خيار إضافي واحد</string>
+			<key>two</key>
+			<string>خياران إضافيان</string>
+			<key>few</key>
+			<string>%d خيارات إضافية</string>
+			<key>many</key>
+			<string>%d خيارًا إضافيًا</string>
+			<key>other</key>
+			<string>%d خيار إضافي</string>
+		</dict>
+	</dict>
+	<key>plural.item</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>zero</key>
+			<string>لا توجد عناصر</string>
+			<key>one</key>
+			<string>عنصر واحد</string>
+			<key>two</key>
+			<string>عنصران</string>
+			<key>few</key>
+			<string>%d عناصر</string>
+			<key>many</key>
+			<string>%d عنصرًا</string>
+			<key>other</key>
+			<string>%d عنصر</string>
+		</dict>
+	</dict>
+	<key>plural.conversation</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>zero</key>
+			<string>لا توجد محادثات</string>
+			<key>one</key>
+			<string>محادثة واحدة</string>
+			<key>two</key>
+			<string>محادثتان</string>
+			<key>few</key>
+			<string>%d محادثات</string>
+			<key>many</key>
+			<string>%d محادثة</string>
+			<key>other</key>
+			<string>%d محادثة</string>
+		</dict>
+	</dict>
+	<key>plural.inquiry_thread</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>zero</key>
+			<string>لن تظهر أي محادثات استفسار هنا حتى يتواصل معك المستأجرون.</string>
+			<key>one</key>
+			<string>ستظهر محادثة استفسار واحدة هنا عندما يتواصل معك المستأجرون.</string>
+			<key>two</key>
+			<string>ستظهر محادثتا استفسار هنا عندما يتواصل معك المستأجرون.</string>
+			<key>few</key>
+			<string>ستظهر %d محادثات استفسار هنا عندما يتواصل معك المستأجرون.</string>
+			<key>many</key>
+			<string>ستظهر %d محادثة استفسار هنا عندما يتواصل معك المستأجرون.</string>
+			<key>other</key>
+			<string>ستظهر %d محادثة استفسار هنا عندما يتواصل معك المستأجرون.</string>
+		</dict>
+	</dict>
+	<key>plural.tool</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>zero</key>
+			<string>لا توجد أدوات</string>
+			<key>one</key>
+			<string>أداة واحدة</string>
+			<key>two</key>
+			<string>أداتان</string>
+			<key>few</key>
+			<string>%d أدوات</string>
+			<key>many</key>
+			<string>%d أداة</string>
+			<key>other</key>
+			<string>%d أداة</string>
+		</dict>
+	</dict>
+	<key>plural.habit_remaining</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>zero</key>
+			<string>لا توجد عادات متبقية</string>
+			<key>one</key>
+			<string>عادة واحدة متبقية</string>
+			<key>two</key>
+			<string>عادتان متبقيتان</string>
+			<key>few</key>
+			<string>%d عادات متبقية</string>
+			<key>many</key>
+			<string>%d عادة متبقية</string>
+			<key>other</key>
+			<string>%d عادة متبقية</string>
+		</dict>
+	</dict>
+</dict>
+</plist>

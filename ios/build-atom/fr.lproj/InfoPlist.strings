@@ -1,0 +1,8 @@
+"NSCameraUsageDescription" = "OxSteed utilise votre appareil photo pour prendre des photos de travaux.";
+"NSFaceIDUsageDescription" = "OxSteed utilise Face ID / Touch ID pour protéger votre compte.";
+"NSLocationWhenInUseUsageDescription" = "OxSteed utilise votre position pour afficher les travaux et aides à proximité.";
+"NSMicrophoneUsageDescription" = "OxSteed utilise votre microphone pour vous permettre de dicter du texte pour les travaux et les messages.";
+"NSPhotoLibraryUsageDescription" = "OxSteed utilise votre photothèque pour joindre des images aux travaux et aux messages.";
+"NSSiriUsageDescription" = "OxSteed utilise Siri pour vous permettre de publier des travaux, consulter votre Pulse et envoyer des messages aux aides avec votre voix.";
+"NSSpeechRecognitionUsageDescription" = "OxSteed utilise la reconnaissance vocale pour transformer votre voix en texte pour les travaux et les messages.";
+"NSTranslationUsageDescription" = "OxSteed utilise Traduction pour aider les clients et les aides à communiquer entre les langues.";
