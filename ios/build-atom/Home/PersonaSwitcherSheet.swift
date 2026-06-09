@@ -3,6 +3,7 @@ import SwiftUI
 struct PersonaSwitcherSheet: View {
     @EnvironmentObject var personaStore: PersonaStore
     @EnvironmentObject var auth: AuthStore
+    @EnvironmentObject private var localization: LocalizationManager
     @Environment(\.dismiss) private var dismiss
     @State private var switchingTo: Persona?
     @State private var error: String?
@@ -11,10 +12,10 @@ struct PersonaSwitcherSheet: View {
         ScrollView {
             VStack(spacing: 16) {
                 VStack(spacing: 6) {
-                    Text(L10n.PersonaKey.title)
+                    Text(localization.localized(L10n.PersonaKey.title))
                         .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(Theme.textPrimary)
-                    Text(L10n.PersonaKey.subtitle)
+                    Text(localization.localized(L10n.PersonaKey.subtitle))
                         .font(.system(size: 13))
                         .foregroundStyle(Theme.textSecondary)
                         .multilineTextAlignment(.center)
@@ -59,7 +60,7 @@ struct PersonaSwitcherSheet: View {
                 .frame(width: 44, height: 44)
                 .background(persona.color.opacity(0.16), in: RoundedRectangle(cornerRadius: 12))
             VStack(alignment: .leading, spacing: 3) {
-                Text(L10n.PersonaKey.name(for: persona))
+                Text(localization.localized(L10n.PersonaKey.name(for: persona)))
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(Theme.textPrimary)
                 Text(persona.tagline)

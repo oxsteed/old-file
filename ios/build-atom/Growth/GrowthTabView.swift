@@ -184,8 +184,8 @@ struct GrowthTabView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(L10n.GrowthKey.eyebrow).sectionTitle()
-                Text(L10n.GrowthKey.title)
+                Text(localization.localized(L10n.GrowthKey.eyebrow)).sectionTitle()
+                Text(localization.localized(L10n.GrowthKey.title))
                     .font(.system(size: 22, weight: .heavy))
                     .foregroundStyle(Theme.textPrimary)
             }
@@ -302,7 +302,7 @@ struct GrowthTabView: View {
 
     private var ladderCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(L10n.SectionKey.yourLadder)
+            Text(localization.localized(L10n.SectionKey.yourLadder))
                 .font(.system(size: 15, weight: .bold))
                 .foregroundStyle(Theme.textPrimary)
             VStack(spacing: 10) {

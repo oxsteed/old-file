@@ -153,8 +153,8 @@ private struct LifeHeader: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(L10n.LifeKey.eyebrow).sectionTitle()
-                Text(L10n.LifeKey.title)
+                Text(localization.localized(L10n.LifeKey.eyebrow)).sectionTitle()
+                Text(localization.localized(L10n.LifeKey.title))
                     .font(.system(size: 22, weight: .heavy))
                     .foregroundStyle(Theme.textPrimary)
             }
@@ -260,7 +260,7 @@ struct SixSegmentPulseRing: View {
                 Text(score.map(String.init) ?? "—")
                     .font(.system(size: 21, weight: .heavy))
                     .foregroundStyle(centerColor)
-                Text(L10n.LifeKey.pulseLabel)
+                Text(LocalizedStringKey(L10n.LifeKey.pulseLabel))
                     .font(.system(size: 7, weight: .bold))
                     .foregroundStyle(Theme.textTertiary)
                     .tracking(1.2)

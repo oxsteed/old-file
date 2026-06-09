@@ -139,7 +139,7 @@ struct AvailableJobRow: View {
                         .foregroundStyle(Theme.textSecondary)
                 }
                 Spacer()
-                Text(L10n.CommonKey.bid)
+                Text(LocalizedStringKey(L10n.CommonKey.bid))
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 14).padding(.vertical, 6)

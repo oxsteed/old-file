@@ -323,7 +323,7 @@ private func label(for status: String) -> String {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.CommonKey.cancel) { dismiss() }
+                    Button(LocalizedStringKey(L10n.CommonKey.cancel)) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
@@ -345,7 +345,7 @@ private func label(for status: String) -> String {
                         if isSaving {
                             ProgressView()
                         } else {
-                            Text(L10n.CommonKey.save).bold()
+                            Text(localization.localized(L10n.CommonKey.save)).bold()
                         }
                     }
                     .disabled(isSaving)

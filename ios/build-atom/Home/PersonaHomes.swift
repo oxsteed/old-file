@@ -1979,7 +1979,7 @@ struct HelperHome: View {
                 Button {
                     bidTargetJob = job
                 } label: {
-                    Text(L10n.CommonKey.bid).font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
+                    Text(localization.localized(L10n.CommonKey.bid)).font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
                         .padding(.horizontal, 14).padding(.vertical, 6).background(Theme.accent, in: Capsule())
                 }
                 .buttonStyle(.plain)
@@ -2199,7 +2199,7 @@ struct BusinessHome: View {
                         .background(.white, in: RoundedRectangle(cornerRadius: 16))
                         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.stroke, lineWidth: 1))
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(L10n.BusinessKey.cashappTitle)
+                        Text(localization.localized(L10n.BusinessKey.cashappTitle))
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(Theme.textPrimary)
                         Text("Customers can scan this to pay quickly.")

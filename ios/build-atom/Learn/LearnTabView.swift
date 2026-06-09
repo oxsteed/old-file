@@ -221,7 +221,7 @@ struct LearnTabView: View {
     private var searchBar: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass").foregroundStyle(Theme.textTertiary)
-            TextField("", text: $query, prompt: Text(L10n.LearnKey.searchPlaceholder))
+            TextField("", text: $query, prompt: Text(localization.localized(L10n.LearnKey.searchPlaceholder)))
                 .font(.system(size: 13))
                 .foregroundStyle(Theme.textPrimary)
                 .textInputAutocapitalization(.never)
@@ -751,12 +751,12 @@ private struct LearnGuideDetailView: View {
             .padding(20)
         }
         .background(Theme.background.ignoresSafeArea())
-        .navigationTitle(Text(L10n.tab(.learn)))
+        .navigationTitle(Text(LocalizedStringKey(L10n.tab(.learn))))
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Theme.background, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { dismiss() } label: { Text(L10n.SettingsKey.done) }.foregroundStyle(Theme.accent)
+                Button { dismiss() } label: { Text(LocalizedStringKey(L10n.SettingsKey.done)) }.foregroundStyle(Theme.accent)
             }
         }
         .sheet(item: $safariURL) { url in
@@ -865,7 +865,7 @@ struct SubmitGuideSheet: View {
             .toolbarBackground(Theme.background, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button { dismiss() } label: { Text(L10n.CommonKey.cancel) }.foregroundStyle(Theme.textSecondary)
+                    Button { dismiss() } label: { Text(LocalizedStringKey(L10n.CommonKey.cancel)) }.foregroundStyle(Theme.textSecondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     if !submitted {

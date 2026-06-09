@@ -231,7 +231,7 @@ struct VoiceMicButton: View {
                     UIApplication.shared.open(url)
                 }
             }
-            Button(L10n.CommonKey.cancel, role: .cancel) {}
+            Button(LocalizedStringKey(L10n.CommonKey.cancel), role: .cancel) {}
         } message: {
             Text("voice.mic_access.message")
         }
