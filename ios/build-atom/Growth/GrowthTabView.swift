@@ -70,7 +70,6 @@ struct GrowthTabView: View {
     @State private var showProgramsAll      = false
     @State private var showConsultingIntake = false
     @State private var showFinancing        = false
-    @State private var showGrants           = false
     @State private var safariURL: URL?
 
     // Joined listings — persisted across launches
@@ -125,12 +124,6 @@ struct GrowthTabView: View {
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Theme.background)
         }
-        .sheet(isPresented: $showGrants) {
-            GrantsDirectoryView()
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-                .presentationBackground(Theme.background)
-        }
         .sheet(item: $safariURL) { url in
             InAppBrowserView(url: url)
                 .ignoresSafeArea()
@@ -156,7 +149,6 @@ struct GrowthTabView: View {
                     opportunitiesSection
                     programsSection
                     financingSection
-                    grantsSection
                     wholesaleSection
                 }
             }
@@ -498,42 +490,6 @@ struct GrowthTabView: View {
                                              startPoint: .leading, endPoint: .trailing))
                 )
                 .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.pillarMoney.opacity(0.35), lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    // MARK: - Grants
-
-    private var grantsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SectionHeader(title: "Grants & Subsidies", actionLabel: nil)
-            Button { showGrants = true } label: {
-                HStack(spacing: 14) {
-                    Image(systemName: "gift.fill")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundStyle(Theme.pillarGoals)
-                    VStack(alignment: .leading, spacing: 3) {
-                            Text("growth.free_money")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(Theme.textPrimary)
-                        Text("Federal, state, and nonprofit grants for training, tools, and business startup matched to your trade.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Theme.textSecondary)
-                            .lineLimit(3)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(Theme.textTertiary)
-                }
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(LinearGradient(colors: [Theme.surface, Theme.pillarGoals.opacity(0.12)],
-                                             startPoint: .leading, endPoint: .trailing))
-                )
-                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.pillarGoals.opacity(0.35), lineWidth: 1))
             }
             .buttonStyle(.plain)
         }
@@ -1463,205 +1419,3 @@ private extension View {
     }
 }
 
-// MARK: - Grants Directory
-
-/// Static + server-backed directory of grants and subsidies, filtered by persona/trade.
-struct GrantsDirectoryView: View {
-    @EnvironmentObject var auth: AuthStore
-    @Environment(\.dismiss) private var dismiss
-
-    @State private var grants: [APIGrowthGrant] = []
-    @State private var isLoading = false
-    @State private var filter: GrantFilter = .all
-
-    enum GrantFilter: String, CaseIterable {
-        case all = "All"
-        case federal = "Federal"
-        case state = "State"
-        case nonprofit = "Nonprofit"
-    }
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Filter chips
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(GrantFilter.allCases, id: \.self) { f in
-                            let isOn = filter == f
-                            Button { filter = f } label: {
-                                Text(f.rawValue)
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundStyle(isOn ? Theme.textPrimary : Theme.textSecondary)
-                                    .padding(.horizontal, 14).padding(.vertical, 8)
-                                    .background(isOn ? Theme.accentSoft : Theme.surface, in: Capsule())
-                                    .overlay(Capsule().strokeBorder(Theme.stroke, lineWidth: 1))
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, 20).padding(.vertical, 10)
-                }
-                .background(Theme.background)
-
-                if isLoading {
-                    Spacer()
-                    ProgressView().tint(Theme.accent)
-                    Spacer()
-                } else if visibleGrants.isEmpty {
-                    Spacer()
-                    VStack(spacing: 10) {
-                        Image(systemName: "gift").font(.system(size: 32)).foregroundStyle(Theme.textTertiary)
-                        Text("No grants matched your filters.").font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
-                    }
-                    Spacer()
-                } else {
-                    ScrollView {
-                        VStack(spacing: 12) {
-                            ForEach(visibleGrants) { g in
-                                GrantCard(grant: g)
-                            }
-                        }
-                        .padding(20)
-                    }
-                }
-            }
-            .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Grants & Subsidies")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(Theme.background, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("common.done") { dismiss() }.foregroundStyle(Theme.accent)
-                }
-            }
-        }
-        .task { await loadGrants() }
-    }
-
-    private var visibleGrants: [APIGrowthGrant] {
-        filter == .all ? grants : grants.filter { $0.category == filter.rawValue.lowercased() }
-    }
-
-    private func loadGrants() async {
-        isLoading = true
-        defer { isLoading = false }
-
-        let persona = auth.activePersona.rawValue.lowercased().replacingOccurrences(of: " ", with: "_")
-        if let response = try? await GrowthService.grants(persona: persona) {
-            grants = response
-        } else {
-            // Fallback seed so the screen is never empty on first launch / offline
-            grants = GrantsDirectoryView.seedGrants()
-        }
-    }
-
-    // Fallback content while server data loads
-    private static func seedGrants() -> [APIGrowthGrant] {
-        [
-            APIGrowthGrant(id: "g1", name: "Workforce Innovation & Opportunity Act (WIOA)",
-                      sponsor: "U.S. Dept. of Labor", amount: "Up to $10,000",
-                      eligibility: "Unemployed or underemployed adults seeking vocational training",
-                      deadline: nil, applyURL: "https://www.careeronestop.org/LocalHelp/find-american-job-centers.aspx",
-                      category: "federal"),
-            APIGrowthGrant(id: "g2", name: "Small Business Innovation Research (SBIR)",
-                      sponsor: "SBA", amount: "Up to $275,000",
-                      eligibility: "Small businesses with innovative product/service ideas",
-                      deadline: nil, applyURL: "https://www.sbir.gov",
-                      category: "federal"),
-            APIGrowthGrant(id: "g3", name: "Minority Business Development Agency Grants",
-                      sponsor: "MBDA", amount: "Varies",
-                      eligibility: "Minority-owned small businesses",
-                      deadline: nil, applyURL: "https://www.mbda.gov",
-                      category: "federal"),
-            APIGrowthGrant(id: "g4", name: "Apprenticeship Building America",
-                      sponsor: "U.S. Dept. of Labor", amount: "Up to $5,000 per apprentice",
-                      eligibility: "Registered apprenticeship sponsors in skilled trades",
-                      deadline: nil, applyURL: "https://www.apprenticeship.gov",
-                      category: "federal"),
-            APIGrowthGrant(id: "g5", name: "Kiva U.S. Microloans",
-                      sponsor: "Kiva (nonprofit)", amount: "$0–$15,000 (0% interest)",
-                      eligibility: "Self-employed workers and micro-businesses",
-                      deadline: nil, applyURL: "https://www.kiva.org/borrow",
-                      category: "nonprofit"),
-            APIGrowthGrant(id: "g6", name: "Accion Opportunity Fund",
-                      sponsor: "Accion (nonprofit)", amount: "$5,000–$100,000",
-                      eligibility: "Small business owners in underserved communities",
-                      deadline: nil, applyURL: "https://aofund.org",
-                      category: "nonprofit"),
-        ]
-    }
-}
-
-private struct GrantCard: View {
-    let grant: APIGrowthGrant
-    @EnvironmentObject private var localization: LocalizationManager
-    @State private var safariURL: URL?
-
-    private var categoryColor: Color {
-        switch grant.category {
-        case "federal":   return Theme.pillarMoney
-        case "state":     return Theme.pillarHome
-        case "nonprofit": return Theme.pillarGoals
-        default:          return Theme.accent
-        }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(grant.name)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(Theme.textPrimary)
-                    Text(grant.sponsor)
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.textSecondary)
-                }
-                Spacer()
-                Text(localization.localized(grant.category.capitalized))
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(categoryColor)
-                    .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(categoryColor.opacity(0.14), in: Capsule())
-            }
-
-            HStack(spacing: 6) {
-                Image(systemName: "dollarsign.circle.fill").foregroundStyle(Theme.success)
-                    .font(.system(size: 13))
-                Text(grant.amount)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Theme.success)
-            }
-
-            Text(grant.eligibility)
-                .font(.system(size: 12))
-                .foregroundStyle(Theme.textSecondary)
-                .lineLimit(3)
-
-            if let deadline = grant.deadline {
-                Label(localization.format("growth.grant.deadline_format", deadline), systemImage: "calendar")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.warning)
-            }
-
-            if let urlStr = grant.applyURL, let url = URL(string: urlStr) {
-                Button { safariURL = url } label: {
-                    Text("growth.apply_or_learn_more")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(Theme.accent)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(Theme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.accent.opacity(0.3), lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .cardStyle()
-        .sheet(item: $safariURL) { url in
-            InAppBrowserView(url: url)
-                .ignoresSafeArea()
-        }
-    }
-}

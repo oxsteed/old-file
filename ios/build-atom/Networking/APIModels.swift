@@ -1339,26 +1339,6 @@ struct APIGrowthFinancingPreQualResponse: Decodable {
     let application: APIGrowthFinancingApplication?
 }
 
-struct APIGrowthGrant: Decodable, Identifiable {
-    let id: String
-    let name: String
-    let sponsor: String
-    let amount: String
-    let eligibility: String
-    let deadline: String?
-    let applyURL: String?
-    let category: String
-
-    enum CodingKeys: String, CodingKey {
-        case id, name, sponsor, amount, eligibility, deadline, category
-        case applyURL = "apply_url"
-    }
-}
-
-struct APIGrowthGrantsResponse: Decodable {
-    let grants: [APIGrowthGrant]
-}
-
 // MARK: - Discover
 
 struct APIDiscoverItem: Decodable, Equatable, Identifiable {

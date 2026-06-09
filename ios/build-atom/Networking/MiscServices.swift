@@ -647,17 +647,6 @@ enum GrowthService {
         )
         return response.application
     }
-
-    static func grants(persona: String? = nil) async throws -> [APIGrowthGrant] {
-        var q: [String: Any] = [:]
-        if let persona { q["persona"] = persona }
-        let response: APIGrowthGrantsResponse = try await AuthAPIClient.shared.request(
-            "/api/growth/grants",
-            query: q,
-            requiresAuth: false
-        )
-        return response.grants
-    }
 }
 
 // MARK: - Payments
