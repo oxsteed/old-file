@@ -1595,6 +1595,7 @@ struct GrantsDirectoryView: View {
 
 private struct GrantCard: View {
     let grant: APIGrowthGrant
+    @EnvironmentObject private var localization: LocalizationManager
     @State private var safariURL: URL?
 
     private var categoryColor: Color {

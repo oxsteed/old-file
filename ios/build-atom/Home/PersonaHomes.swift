@@ -2051,6 +2051,7 @@ struct BusinessHome: View {
     @EnvironmentObject var jobs: JobsStore
     @EnvironmentObject var messages: MessagesStore
     @EnvironmentObject var notifications: NotificationsStore
+    @EnvironmentObject private var localization: LocalizationManager
     @State private var cashAppHandle = "$OxSteed"
     @State private var didLoadWorkspace = false
 
@@ -3425,6 +3426,7 @@ struct BusinessProductsView: View {
 
 struct BusinessLeadsView: View {
     @EnvironmentObject var workspace: BusinessWorkspaceStore
+    @EnvironmentObject private var localization: LocalizationManager
     @State private var showAddLead = false
     @State private var actionError: String?
     private let leadStatuses = ["new", "contacted", "qualified", "quoted", "won", "lost"]
@@ -3517,6 +3519,7 @@ struct BusinessLeadsView: View {
 
 struct BusinessHealthAlertsView: View {
     @EnvironmentObject var workspace: BusinessWorkspaceStore
+    @EnvironmentObject private var localization: LocalizationManager
 
     var body: some View {
         NavigationStack {

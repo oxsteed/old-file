@@ -2602,6 +2602,7 @@ struct UniversalSearchView: View {
     @EnvironmentObject var jobs: JobsStore
     @EnvironmentObject var messages: MessagesStore
     @EnvironmentObject var auth: AuthStore
+    @EnvironmentObject private var localization: LocalizationManager
     @State private var scope: Scope = .all
     @State private var query = ""
 
@@ -6485,6 +6486,7 @@ private struct ChatSummaryPanel: View {
     let summary: MessageSummaryResult
     let onSelectReply: (String) -> Void
     let onDismiss: () -> Void
+    @EnvironmentObject private var localization: LocalizationManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {

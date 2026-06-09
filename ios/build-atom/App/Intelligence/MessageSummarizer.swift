@@ -53,7 +53,7 @@ enum MessageSummarizer {
         // Build a compact transcript (cap at last 40 messages to keep prompt small)
         let transcript = messages.suffix(40).map { msg in
             let speaker = (msg.sender_id == nil) ? otherPartyName : currentUserName
-            return "\(speaker): \(msg.content ?? "")"
+            return "\(speaker): \(msg.content)"
         }.joined(separator: "\n")
 
         let session = LanguageModelSession(instructions: """

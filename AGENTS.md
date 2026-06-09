@@ -24,6 +24,11 @@
 **Production readiness scaffolding (2026-05-30):** IN PROGRESS
 - Added env templates + runbook + deep health endpoint + payments kill switch/rate limits: `5/PRODUCTION_READINESS.md`, `5/RUNBOOK.md`, `5/server/.env.example`, `5/client/.env.production.example`.
 
+**build-atom iOS localization scope compile fix (2026-06-09):** IN PROGRESS
+- Added missing `LocalizationManager` environment-object declarations in `ios/build-atom/Features/FeatureScreens.swift`, `ios/build-atom/Growth/GrowthTabView.swift`, and `ios/build-atom/Home/PersonaHomes.swift` for child views that already call `localization`.
+- **Warning cleanup:** `ios/build-atom/App/Intelligence/MessageSummarizer.swift` no longer nil-coalesces non-optional `APIMessage.content`.
+- **Verification:** `build_run_sim` for `ios/build-atom.xcodeproj` scheme `build-atom` on iPhone 17 Pro simulator passes, installs bundle `com.oxsteed.app`, and direct `launch_app_sim` loads the OxSteed Home UI.
+
 **OxSteed One iOS auth response decoder fix (2026-05-26):** COMPLETE
 - **Login response contract tolerance:** **`ios/OxSteedOne/Sources/Models/OneAPIModels.swift`** now decodes auth user ids as either server numeric ids or string/UUID ids and keeps optional user decoding from blocking top-level `accessToken`/`refreshToken` extraction, fixing the "Sign in response format was not recognized" failure when the backend returns a valid login envelope.
 - **Verification:** `xcodebuild -project ios/OxSteedOne/OxSteedOne.xcodeproj -scheme OxSteedOne -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath /tmp/OxSteedOneDerived build` passes. `swift build --package-path ios/OxSteedOne` still fails on existing non-iOS package incompatibilities around UIKit/UIApplication/UIImage symbols.
