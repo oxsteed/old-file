@@ -1,0 +1,99 @@
+OxSteed Unified Release Readiness Gate
+Generated: 2026-05-31 22:03:34 UTC
+[PASS] Technical preflight passed
+Generated: 2026-05-31 22:03:34 UTC
+Repo: /Users/oxsteed/Documents/build-atom
+
+=== Required files ===
+[PASS] Info.plist exists
+[PASS] PrivacyInfo.xcprivacy exists
+[PASS] OxSteed.entitlements exists
+[PASS] AppIcon.png exists
+[PASS] Metadata checklist exists
+[PASS] Review notes template exists
+
+=== Info.plist permissions ===
+[PASS] NSCameraUsageDescription present
+[PASS] NSFaceIDUsageDescription present
+[PASS] NSLocationWhenInUseUsageDescription present
+[PASS] NSMicrophoneUsageDescription present
+[PASS] NSPhotoLibraryUsageDescription present
+[PASS] NSSiriUsageDescription present
+[PASS] NSSpeechRecognitionUsageDescription present
+[PASS] ITSAppUsesNonExemptEncryption is false
+
+=== Privacy manifest checks ===
+[PASS] NSPrivacyTracking is false
+[PASS] Required reason API category present: NSPrivacyAccessedAPICategoryFileTimestamp
+[PASS] Required reason API category present: NSPrivacyAccessedAPICategoryUserDefaults
+[PASS] Required reason API category present: NSPrivacyAccessedAPICategorySystemBootTime
+[PASS] Required reason API category present: NSPrivacyAccessedAPICategoryDiskSpace
+[PASS] Data type declared: NSPrivacyCollectedDataTypeName
+[PASS] Data type declared: NSPrivacyCollectedDataTypeEmailAddress
+[PASS] Data type declared: NSPrivacyCollectedDataTypePhoneNumber
+[PASS] Data type declared: NSPrivacyCollectedDataTypePreciseLocation
+[PASS] Data type declared: NSPrivacyCollectedDataTypePhotosorVideos
+[PASS] Data type declared: NSPrivacyCollectedDataTypeUserID
+[PASS] Data type declared: NSPrivacyCollectedDataTypePaymentInfo
+
+=== App icon checks ===
+[PASS] App icon is 1024x1024
+[PASS] App icon has no alpha channel
+
+=== Legal/support URL liveness ===
+[PASS] https://oxsteed.com/privacy reachable (HTTP 200)
+[PASS] https://oxsteed.com/terms reachable (HTTP 200)
+[PASS] https://oxsteed.com/contact reachable (HTTP 200)
+
+=== Archive evidence ===
+[PASS] Archive plist exists at /tmp/OxSteed.xcarchive/Info.plist
+Archive bundle: com.oxsteed.app
+Archive version: 1.0.0 (120)
+Archive signing identity: Apple Development: emile jean philippe (V537ANRRMG)
+[WARN] Archive is not distribution-signed; current identity: Apple Development: emile jean philippe (V537ANRRMG)
+
+=== Exported IPA evidence ===
+[PASS] Exported IPA exists: /tmp/OxSteedExport/OxSteed.ipa
+[PASS] Exported IPA is distribution-signed
+
+=== Summary ===
+PASS: 34
+WARN: 1
+FAIL: 0
+Report: /Users/oxsteed/Documents/build-atom/submission/reports/app_store_preflight_20260531_180334.txt
+Latest preflight report: submission/reports/app_store_preflight_20260531_180334.txt
+[PASS] Manual task tracker exists
+[PASS] Manual evidence validation passed
+Generated: 2026-05-31 22:03:36 UTC
+[PASS] Tracker exists
+TASK asc_metadata status=pending note=False updated=False artifact=submission/appstoreconnect/METADATA_CHECKLIST.md
+TASK asc_review_notes status=pending note=False updated=False artifact=submission/appstoreconnect/APP_REVIEW_NOTES_TEMPLATE.md
+TASK asc_privacy status=pending note=False updated=False artifact=submission/appstoreconnect/PRIVACY_QUESTIONNAIRE_MAPPING.md
+TASK asc_age_rating status=pending note=False updated=False artifact=submission/appstoreconnect/AGE_RATING_MAPPING.md
+TASK asc_accessibility_labels status=pending note=False updated=False artifact=submission/appstoreconnect/ACCESSIBILITY_LABEL_MAPPING.md
+TASK asc_screenshots status=pending note=False updated=False artifact=submission/appstoreconnect/SCREENSHOT_CAPTURE_RUNBOOK.md
+TASK asc_final_submit status=pending note=False updated=False artifact=submission/appstoreconnect/FINAL_SUBMISSION_SEQUENCE.md
+[PASS] No tasks marked done yet; evidence-note requirement deferred
+[PASS] Artifact exists for asc_metadata: submission/appstoreconnect/METADATA_CHECKLIST.md
+[PASS] Artifact exists for asc_review_notes: submission/appstoreconnect/APP_REVIEW_NOTES_TEMPLATE.md
+[PASS] Artifact exists for asc_privacy: submission/appstoreconnect/PRIVACY_QUESTIONNAIRE_MAPPING.md
+[PASS] Artifact exists for asc_age_rating: submission/appstoreconnect/AGE_RATING_MAPPING.md
+[PASS] Artifact exists for asc_accessibility_labels: submission/appstoreconnect/ACCESSIBILITY_LABEL_MAPPING.md
+[PASS] Artifact exists for asc_screenshots: submission/appstoreconnect/SCREENSHOT_CAPTURE_RUNBOOK.md
+[PASS] Artifact exists for asc_final_submit: submission/appstoreconnect/FINAL_SUBMISSION_SEQUENCE.md
+PASS_COUNT=9
+FAIL_COUNT=0
+Report: submission/reports/manual_evidence_validation_20260531_180336.txt
+[FAIL] Manual tasks still pending: 7
+- asc_metadata: Complete App Store Connect metadata [pending]
+- asc_review_notes: Paste review notes with real credentials [pending]
+- asc_privacy: Complete App Privacy questionnaire [pending]
+- asc_age_rating: Complete age rating questionnaire [pending]
+- asc_accessibility_labels: Complete accessibility nutrition labels [pending]
+- asc_screenshots: Upload iPhone and iPad screenshot sets [pending]
+- asc_final_submit: Submit version for review [pending]
+
+READY_FOR_SUBMISSION=false
+PASS_COUNT=3
+FAIL_COUNT=1
+Report: submission/reports/release_readiness_gate_20260531_180334.txt
