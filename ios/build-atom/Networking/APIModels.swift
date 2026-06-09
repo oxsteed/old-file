@@ -932,6 +932,7 @@ struct APILifeDashboardSummary: Decodable, Equatable {
 
 struct APILifeExpense: Decodable, Equatable, Identifiable {
     let id: String
+    let client_id: String?
     let type: String?              // income | expense
     let amount: Double?
     let category: String?
@@ -942,12 +943,13 @@ struct APILifeExpense: Decodable, Equatable, Identifiable {
     let created_at: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, type, amount, category, description, occurred_at, frequency, is_recurring, created_at
+        case id, client_id, type, amount, category, description, occurred_at, frequency, is_recurring, created_at
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decodeFlexibleString(forKey: .id)
+        client_id = try c.decodeFlexibleStringIfPresent(forKey: .client_id)
         type = try c.decodeIfPresent(String.self, forKey: .type)
         amount = try c.decodeFlexibleDoubleIfPresent(forKey: .amount)
         category = try c.decodeIfPresent(String.self, forKey: .category)

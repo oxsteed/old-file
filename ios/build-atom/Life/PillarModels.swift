@@ -124,6 +124,15 @@ final class LifeDataStore: ObservableObject {
     private var isOnline = false
     private var syncTask: Task<Void, Never>?
 
+    /// When true, mutations to the published collections are NOT pushed to the
+    /// server. Used during initial local load/seed and during server hydration
+    /// so seeded demo data and freshly-downloaded data are never echoed back up.
+    private var suppressSync = false
+    /// The user id whose Life data has already been hydrated from the server
+    /// this session. Prevents repeated hydration and forces a re-pull when a
+    /// different account signs in.
+    private var hydratedForUserId: String?
+
     /// iCloud Key-Value Store for cross-device backup.
     /// Used as a secondary mirror: write on every change, restore on first launch on a new device.
     private let icloud = NSUbiquitousKeyValueStore.default
@@ -206,6 +215,7 @@ final class LifeDataStore: ObservableObject {
     // MARK: - Pending sync queue
 
     private func enqueueSync(_ key: String) {
+        guard !suppressSync else { return }
         guard isOnline else {
             pendingKeys.insert(key)
             return
@@ -448,6 +458,9 @@ final class LifeDataStore: ObservableObject {
     // MARK: - UserDefaults helpers
 
     private func loadAll() {
+        // Seeds and restored-local assignments must never be pushed to the server.
+        suppressSync = true
+        defer { suppressSync = false }
         // Prefer local UserDefaults; fall back to iCloud KV (e.g. on a fresh device)
         moneyEntries = load("ox.money", [MoneyEntry].self)
                     ?? icloudLoad("oxicloud.money", [MoneyEntry].self)
@@ -479,6 +492,118 @@ final class LifeDataStore: ObservableObject {
     }
     private func save<T: Encodable>(_ key: String, _ value: T) {
         UserDefaults.standard.set(try? JSONEncoder().encode(value), forKey: key)
+    }
+
+    // MARK: - Server hydration (server is the source of truth once signed in)
+
+    /// Pull the signed-in user's Life data from the backend and replace the
+    /// local collections. Runs once per user id per launch. Seed/demo data is
+    /// only shown to logged-out guests; once a real account is known the server
+    /// is authoritative. Assignments run with `suppressSync` enabled so the
+    /// downloaded data is never echoed back up to the server.
+    func hydrateFromServer(userId: String) async {
+        guard hydratedForUserId != userId else { return }
+
+        suppressSync = true
+        defer { suppressSync = false }
+
+        var loadedAny = false
+
+        if let resp = try? await LifeService.vehicles() {
+            vehicles = resp.vehicles.map { v in
+                var veh = Vehicle(vin: v.vin ?? "",
+                                  year: v.year ?? "",
+                                  make: v.make,
+                                  model: v.model,
+                                  mileage: v.mileage ?? 0,
+                                  lastOilChangeMile: v.last_oil_change_mile ?? 0,
+                                  lastServiceDate: v.last_service_date ?? "",
+                                  notes: v.notes ?? "")
+                if let cid = v.client_id, let uuid = UUID(uuidString: cid) { veh.id = uuid }
+                return veh
+            }
+            loadedAny = true
+        }
+
+        if let resp = try? await LifeService.habits() {
+            habits = resp.habits.map { h in
+                Habit(id: Self.localId(h.client_id),
+                      name: h.name,
+                      icon: h.icon ?? "star.fill",
+                      streak: h.streak ?? 0,
+                      completedToday: h.completed_today ?? false,
+                      target: h.target_days_per_week ?? 7)
+            }
+            loadedAny = true
+        }
+
+        if let resp = try? await LifeService.sinkingFunds() {
+            sinkingFunds = resp.sinking_funds.map { f in
+                SinkingFund(id: Self.localId(f.client_id),
+                            name: f.name,
+                            targetAmount: f.target_amount ?? 0,
+                            savedAmount: f.saved_amount ?? 0,
+                            targetDate: f.target_date ?? "",
+                            paycheckInterval: f.paycheck_interval ?? "monthly",
+                            icon: f.icon ?? "banknote.fill",
+                            color: f.color ?? "pillarSinking")
+            }
+            loadedAny = true
+        }
+
+        if let resp = try? await LifeService.goals() {
+            goals = resp.goals.map { g in
+                Goal(title: g.title,
+                     tier: Self.normalizedTier(g.goal_type),
+                     completed: g.is_completed ?? false,
+                     linkedFundId: nil)
+            }
+            loadedAny = true
+        }
+
+        if let resp = try? await LifeService.homeTasks(section: "home", completed: nil) {
+            homeTasks = resp.home_tasks.map { t in
+                HomeTask(title: t.title,
+                         category: t.section ?? "home",
+                         dueDate: t.due_date ?? "",
+                         completed: t.is_completed ?? false,
+                         isRecurring: (t.frequency.map { $0 != "one_time" && !$0.isEmpty }) ?? false)
+            }
+            loadedAny = true
+        }
+
+        if let resp = try? await LifeService.expenses(limit: 200) {
+            moneyEntries = resp.expenses.map { e in
+                MoneyEntry(id: Self.localId(e.client_id),
+                           source: e.description ?? e.category ?? "",
+                           amount: e.amount ?? 0,
+                           type: e.type ?? "expense",
+                           date: e.occurred_at ?? e.created_at ?? "")
+            }
+            loadedAny = true
+        }
+
+        if loadedAny { hydratedForUserId = userId }
+    }
+
+    /// Clears the hydration marker so the next signed-in user pulls fresh data
+    /// from the server rather than seeing the previous session's records.
+    func resetForLogout() {
+        hydratedForUserId = nil
+    }
+
+    /// Map a server `client_id` back to a stable local UUID, or mint a new one.
+    private static func localId(_ clientId: String?) -> UUID {
+        if let clientId, let uuid = UUID(uuidString: clientId) { return uuid }
+        return UUID()
+    }
+
+    /// Normalize a server goal type onto the local tier vocabulary.
+    private static func normalizedTier(_ goalType: String?) -> String {
+        switch (goalType ?? "").lowercased() {
+        case "short", "mid", "long": return (goalType ?? "").lowercased()
+        default: return "short"
+        }
     }
 
     // MARK: - Seeds (first-launch data so score is never zero)

@@ -132,6 +132,9 @@ final class AuthStore: ObservableObject {
         await AuthService.logout()
         KeychainManager.shared.deleteAll()
         self.user = nil
+        // Forget the hydrated-account marker so the next sign-in re-pulls Life
+        // data from the server instead of showing the previous user's records.
+        LifeDataStore.shared.resetForLogout()
     }
 
     func requestPasswordReset(email: String) async -> Bool {

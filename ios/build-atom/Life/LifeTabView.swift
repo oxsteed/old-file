@@ -52,6 +52,7 @@ enum PillarType: String, Hashable, CaseIterable {
 
 struct LifeTabView: View {
     @EnvironmentObject private var life: LifeStore
+    @EnvironmentObject private var lifeData: LifeDataStore
     @EnvironmentObject private var auth: AuthStore
     @State private var showAuthSheet = false
     @State private var section: LifeSection = .home
@@ -116,7 +117,10 @@ struct LifeTabView: View {
             }
         }
         .task {
-            if auth.user != nil {
+            if let userId = auth.user?.id {
+                // Server is the source of truth once signed in: replace local
+                // seed/demo data with the user's real records before rendering.
+                await lifeData.hydrateFromServer(userId: userId)
                 await life.refresh(window: "1m", section: section.apiValue)
             }
         }

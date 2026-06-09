@@ -162,21 +162,31 @@ exports.recordCompletion = async (req, res, next) => {
     let badgeAwarded = null;
 
     if (isNew) {
-      // Award XP to pulse score (learn_guide category)
-      // pulse_score_events table may not exist yet — fail open so completions
-      // are never blocked by a missing pulse table.
-      await client.query(
-        `INSERT INTO pulse_score_events
-               (user_id, event_type, source, source_id, xp_awarded, metadata)
-         VALUES ($1, 'learn_guide_completion', 'learn', $2, $3, $4)
-         ON CONFLICT DO NOTHING`,
-        [
-          req.user.id,
-          guide_id,
-          xp,
-          JSON.stringify({ guide_id, difficulty: difficulty || 'Easy' }),
-        ],
-      ).catch(() => {}); // fail open if table absent
+      // Award XP to pulse score (learn_guide category).
+      // IMPORTANT: a failed statement aborts the ENTIRE Postgres transaction, so
+      // a bare `.catch(() => {})` does NOT "fail open" — the subsequent COMMIT is
+      // silently turned into a ROLLBACK and the completion above is discarded.
+      // Guard each optional write with a SAVEPOINT so a missing/failing table
+      // rolls back only that statement and the completion still commits.
+      try {
+        await client.query('SAVEPOINT sp_pulse');
+        await client.query(
+          `INSERT INTO pulse_score_events
+                 (user_id, event_type, source, source_id, xp_awarded, metadata)
+           VALUES ($1, 'learn_guide_completion', 'learn', $2, $3, $4)
+           ON CONFLICT DO NOTHING`,
+          [
+            req.user.id,
+            guide_id,
+            xp,
+            JSON.stringify({ guide_id, difficulty: difficulty || 'Easy' }),
+          ],
+        );
+        await client.query('RELEASE SAVEPOINT sp_pulse');
+      } catch (_xpErr) {
+        // Pulse table missing or insert failed — undo just this statement.
+        await client.query('ROLLBACK TO SAVEPOINT sp_pulse').catch(() => {});
+      }
 
       // Check for category badge — all guides in the category now complete?
       const category = GUIDE_CATEGORY[guide_id];
@@ -188,14 +198,20 @@ exports.recordCompletion = async (req, res, next) => {
           [req.user.id, categoryGuides],
         );
         if (completedRows.length === categoryGuides.length) {
-          // All guides in this category done — award badge (fail open)
-          await client.query(
-            `INSERT INTO skill_badges (user_id, category)
-             VALUES ($1, $2)
-             ON CONFLICT DO NOTHING`,
-            [req.user.id, category],
-          ).catch(() => {});
-          badgeAwarded = category;
+          // All guides in this category done — award badge (savepoint-guarded).
+          try {
+            await client.query('SAVEPOINT sp_badge');
+            await client.query(
+              `INSERT INTO skill_badges (user_id, category)
+               VALUES ($1, $2)
+               ON CONFLICT DO NOTHING`,
+              [req.user.id, category],
+            );
+            await client.query('RELEASE SAVEPOINT sp_badge');
+            badgeAwarded = category;
+          } catch (_badgeErr) {
+            await client.query('ROLLBACK TO SAVEPOINT sp_badge').catch(() => {});
+          }
         }
       }
     }
