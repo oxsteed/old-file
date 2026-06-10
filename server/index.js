@@ -709,6 +709,7 @@ const emailPreferencesRoutes = require('./routes/emailPreferences');
 const smsNotificationsRoutes = require('./routes/smsNotifications');
 const templateRoutes = require('./routes/templates');
 const monitoringRoutes = require('./routes/monitoring');
+const countryConfigRoutes = require('./routes/countryConfig');
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/bookings', bookingsRoutes);
 app.use('/api/maintenance-requests', maintenanceRequestsRoutes);
@@ -745,6 +746,7 @@ app.use('/api/payouts', payoutRoutes);
 app.use('/api/notifications/email', emailPreferencesRoutes);
 app.use('/api/notifications/sms', smsNotificationsRoutes);
 app.use('/api/templates', templateRoutes);
+app.use('/api/country-config', countryConfigRoutes);
 app.get('/api/users/:id/profile', getPublicProfile);
 
 // Enterprise monitoring - admin only

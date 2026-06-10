@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-26
+**Last updated:** 2026-06-10
 
 ## Instructions for Every Session
 
@@ -20,6 +20,14 @@
 - 170 backend controllers
 - 281 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
+
+**Pack architecture phase 1 — country packs + persona registry (2026-06-10):** LANDED
+- **Governing docs (new):** `docs/oxsteed-product-definition.md` (4 modes, 9 personas, organic-growth language), `docs/oxsteed-four-tabs-by-persona.md` (tabs customized per persona incl. business sub-roles), `docs/oxsteed-pack-architecture.md` (personas × countries as registered packs — read this before touching persona/country code). Core rule: **anything that varies by persona or country is a pack you register, never a condition you check.**
+- **Backend:** migration `server/migrations/304_country_packs.sql` (`country_packs` table; **US seeded active** with full pack config; **HT, DO, RW, BR seeded coming_soon** with planned packs). `server/services/countryPackService.js` (only reader of the table; 60s cache; fail-open built-in US pack if migration absent), `server/controllers/countryPackController.js`, `server/routes/countryConfig.js` mounted at `/api/country-config` (`GET /countries` public picker list, `GET /?country=XX` public pack, `PATCH /admin/:code` super-admin "flip the flag" — activating a country is a one-row UPDATE, no deploy). `node --check` clean; smoke-tested with stubbed pool.
+- **iOS (`ios/build-atom`):** new `Country/CountryPack.swift` (models + `CountryService` + `CountryStore`; selection at UserDefaults `ox.country.code`; `isPersonaEnabled()` country veto, fail-open), `Country/CountrySelectionView.swift` (Available + Coming soon sections, server-driven), `Models/PersonaRegistry.swift` (`Persona.packId`, `PersonaModule` protocol, 7 modules, **the only place persona identity is switched on**). Wiring: `HomeTabView.HomeContent` resolves homes via registry; `PersonaSwitcherSheet` filters by country veto; `OxSteedApp` registers `CountryStore`; `SettingsSheet` country card; pbxproj target membership added (IDs `C0FFEE01C0DEC0DEC0DE*`); strings in en/es/fr/ht/ar.
+- **Web:** `client/src/api/countryConfig.js` helper (localStorage `oxs:country`); `country.*` namespace (8 keys) in en/es/fr/ht locales.
+- **Not verified here:** migration not executed (no Postgres in sandbox — run `node server/migrate.js` on non-prod); iOS not compiled (run `build_run_sim`, scheme build-atom, confirm the 3 new files build in target).
+- **Next slices:** payment-rail/verification/addressing adapters behind Base interfaces; web country picker UI; move remaining `switch persona` sites (`Home/HomeComponents.swift` `PersonaDashboard`, Growth ladder, Learn heroes) into the registry; admin UI for country packs.
 
 **Production readiness scaffolding (2026-05-30):** IN PROGRESS
 - Added env templates + runbook + deep health endpoint + payments kill switch/rate limits: `5/PRODUCTION_READINESS.md`, `5/RUNBOOK.md`, `5/server/.env.example`, `5/client/.env.production.example`.

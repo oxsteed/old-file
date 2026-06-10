@@ -1671,3 +1671,12 @@
 "recurring.frequency.weekly" = "أسبوعي";
 "recurring.frequency.biweekly" = "كل أسبوعين";
 "recurring.frequency.monthly" = "شهري";
+
+/* Country selection */
+"settings.country" = "البلد";
+"country.title" = "البلد";
+"country.subtitle" = "يتكيف OxSteed مع مكان إقامتك - بما في ذلك المدفوعات واللغات والخدمات.";
+"country.available" = "متاح";
+"country.coming_soon" = "قريبًا";
+"country.coming_soon_badge" = "قريبًا";
+"country.coming_soon_hint" = "نحن نبني هذه التجارب الآن. ستظهر هنا يوم تصبح جاهزة.";

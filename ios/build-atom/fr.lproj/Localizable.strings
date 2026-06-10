@@ -1671,3 +1671,12 @@
 "recurring.frequency.weekly" = "Hebdomadaire";
 "recurring.frequency.biweekly" = "Bihebdomadaire";
 "recurring.frequency.monthly" = "Mensuel";
+
+/* Country selection */
+"settings.country" = "Pays";
+"country.title" = "Pays";
+"country.subtitle" = "OxSteed s'adapte à l'endroit où vous vivez : paiements, langues et services compris.";
+"country.available" = "Disponible";
+"country.coming_soon" = "Bientôt disponible";
+"country.coming_soon_badge" = "Bientôt";
+"country.coming_soon_hint" = "Nous construisons ces expériences en ce moment. Elles apparaîtront ici dès qu'elles seront prêtes.";

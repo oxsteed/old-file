@@ -337,14 +337,9 @@ private struct HomeContent: View {
     let isGuest: Bool
     let onRequireAuth: () -> Void
     var body: some View {
-        switch persona {
-        case .customer: CustomerHome(isGuest: isGuest, onRequireAuth: onRequireAuth)
-        case .helper: HelperHome()
-        case .business: BusinessHome()
-        case .consultant: ConsultantHome()
-        case .toolOwner: ToolOwnerHome()
-        case .franchise: FranchiseHome()
-        case .investor: InvestorHome()
-        }
+        // Persona packs are resolved through the registry — the shell never
+        // switches on persona identity (docs/oxsteed-pack-architecture.md §3.1).
+        PersonaRegistry.module(for: persona)
+            .homeView(isGuest: isGuest, onRequireAuth: onRequireAuth)
     }
 }

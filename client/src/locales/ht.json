@@ -12592,5 +12592,15 @@
     "readinessServices": "Omwen yon sèvis gen kontèks pri oswa rezèvasyon",
     "readinessPhotos": "Foto yo montre travay ou oswa biznis ou",
     "readinessAvailability": "Disponibilite a vizib anvan kliyan yo kontakte ou"
+  },
+  "country": {
+    "title": "Peyi",
+    "subtitle": "OxSteed adapte li ak kote ou rete - peman, lang, ak sèvis ladan l.",
+    "available": "Disponib",
+    "comingSoon": "Ap vini byento",
+    "comingSoonBadge": "Byento",
+    "comingSoonHint": "N ap bati eksperyans sa yo kounye a. Y ap parèt isit la jou yo pare.",
+    "selected": "Peyi ou",
+    "changeCountry": "Chanje peyi"
   }
 }

@@ -47,6 +47,7 @@ struct OxSteedApp: App {
     @StateObject private var learn = LearnStore()
     @StateObject private var recommendations = RecommendationsStore.shared
     @StateObject private var linkRouter = LinkRouter()
+    @StateObject private var country = CountryStore()
 
     var body: some Scene {
         WindowGroup {
@@ -73,6 +74,7 @@ struct OxSteedApp: App {
             .environmentObject(learn)
             .environmentObject(recommendations)
             .environmentObject(linkRouter)
+            .environmentObject(country)
             .environment(\.locale, localization.locale)
             .environment(\.layoutDirection, localization.layoutDirection)
             .environment(\.openURL, OpenURLAction { url in
@@ -83,6 +85,7 @@ struct OxSteedApp: App {
             .preferredColorScheme(colorScheme(for: appearancePref))
             .tint(Theme.accent)
             .id(localization.language)
+            .task { await country.load() }
             .onChange(of: auth.user?.id) { _, _ in
                 if let u = auth.user {
                     if let preferredLanguage = u.preferred_language,

@@ -12592,5 +12592,15 @@
     "readinessServices": "Al menos un servicio tiene contexto de precios o reserva",
     "readinessPhotos": "Las fotos muestran tu trabajo o negocio",
     "readinessAvailability": "La disponibilidad es visible antes de que los clientes te contacten"
+  },
+  "country": {
+    "title": "País",
+    "subtitle": "OxSteed se adapta a donde vives: pagos, idiomas y servicios incluidos.",
+    "available": "Disponible",
+    "comingSoon": "Próximamente",
+    "comingSoonBadge": "Próximamente",
+    "comingSoonHint": "Estamos construyendo estas experiencias ahora. Aparecerán aquí el día que estén listas.",
+    "selected": "Tu país",
+    "changeCountry": "Cambiar país"
   }
 }

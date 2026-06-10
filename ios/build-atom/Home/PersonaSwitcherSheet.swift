@@ -4,6 +4,7 @@ struct PersonaSwitcherSheet: View {
     @EnvironmentObject var personaStore: PersonaStore
     @EnvironmentObject var auth: AuthStore
     @EnvironmentObject private var localization: LocalizationManager
+    @EnvironmentObject private var country: CountryStore
     @Environment(\.dismiss) private var dismiss
     @State private var switchingTo: Persona?
     @State private var error: String?
@@ -24,7 +25,9 @@ struct PersonaSwitcherSheet: View {
                 .padding(.top, 8)
 
                 VStack(spacing: 10) {
-                    ForEach(Persona.allCases) { persona in
+                    // Country pack veto: only personas enabled for the active
+                    // country appear. The packs themselves are unchanged.
+                    ForEach(PersonaRegistry.enabledPersonas(country: country)) { persona in
                         Button {
                             Task { await switchPersona(persona) }
                         } label: {

@@ -1,6 +1,41 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-06-09
+**Last updated:** 2026-06-10
+
+## Pack architecture phase 1 — country packs + persona registry (2026-06-10) — LANDED
+
+Implements the first slice of `docs/oxsteed-pack-architecture.md`: countries and personas as registered packs, never condition checks. **US is active; Haiti, Dominican Republic, Rwanda, Brazil seeded as coming_soon.**
+
+**Docs (new, this session):**
+`docs/oxsteed-product-definition.md` (product in simplest form, 4 modes, 9 personas, organic-growth language system), `docs/oxsteed-four-tabs-by-persona.md` (four tabs customized per persona incl. business sub-roles), `docs/oxsteed-pack-architecture.md` (combined personas × countries pack architecture — the governing doc for this work).
+
+**Backend:**
+- **Migration 304** (`server/migrations/304_country_packs.sql`): `country_packs` table (code CHAR(2) PK, name, flag_emoji, status active/coming_soon/disabled, sort_order, default_locale, currency_code, config JSONB, updated_at trigger). Seeds: **US active** (full pack: en/es, imperial, all 7 personas, stripe_card/stripe_escrow, didit, street_zip, online_first); **HT, DO, RW, BR coming_soon** with planned pack configs (e.g., RW: rw/en/fr, mtn_momo/airtel_money/cash_on_completion, national_id, landmark addressing, offline_first, personas customer/helper/toolOwner).
+- `server/services/countryPackService.js` — the ONLY module reading `country_packs`. `listCountries()` (available + coming_soon, 60s cache), `getCountryConfig(code)` (active → full pack; coming_soon → `{ok:false, reason:'coming_soon'}`), `updateCountryPack()` (super-admin "flip the flag" — activating a country is a one-row UPDATE). **Fail-open:** without migration 304 it serves a built-in US pack so the app keeps working.
+- `server/controllers/countryPackController.js` + `server/routes/countryConfig.js` mounted at **`/api/country-config`**: `GET /countries` (public picker list), `GET /?country=XX` (public pack; default US; also reads `x-oxsteed-country` header), `PATCH /admin/:code` (requireSuperAdmin from adminAuth).
+- Smoke-tested with stubbed pool: fallback list/US config/normalization all behave; `node --check` passes on all touched server files.
+
+**iOS (`ios/build-atom`):**
+- **`Country/CountryPack.swift`** (new): `APICountryListEntry`/`APICountryList`/`APICountryConfig` models, `CountryService` (public endpoints), `CountryStore` (@MainActor ObservableObject; selection persisted at UserDefaults `ox.country.code`, default US; falls back to first active country if saved selection deactivates; `isPersonaEnabled()` = country veto over personas, fail-open).
+- **`Country/CountrySelectionView.swift`** (new): picker — Available section (selectable, checkmark) + Coming soon section (inert rows with badge + hint). Never names a country; fully server-driven.
+- **`Models/PersonaRegistry.swift`** (new): `Persona.packId` (stable contract with `enabled_personas` in country config), `PersonaModule` protocol (homeView), 7 persona modules wrapping the existing homes, `PersonaRegistry.module(for:)` + `enabledPersonas(country:)`. **The only place persona identity is switched on.**
+- Wiring: `HomeTabView.HomeContent` now resolves homes via the registry (persona switch removed); `PersonaSwitcherSheet` lists `PersonaRegistry.enabledPersonas(country:)` (country veto) and takes `CountryStore` env object; `OxSteedApp` registers `CountryStore` as `@StateObject` + environmentObject + `.task { await country.load() }`; `SettingsSheet` adds a `countryCard` (flag + name → CountrySelectionView sheet) after the language card; SettingsSheet #Preview injects `CountryStore`.
+- **`project.pbxproj`**: added Country group + target membership for the 3 new files (IDs `C0FFEE01C0DEC0DEC0DE*`). Brace/paren balance verified on all touched Swift files; **not compiled here** (no Xcode in sandbox) — run `build_run_sim` before merge.
+- **Localizable.strings** (en/es/fr/ht/ar): `settings.country`, `country.title/subtitle/available/coming_soon/coming_soon_badge/coming_soon_hint`.
+
+**Web client:**
+- `client/src/api/countryConfig.js` (new): `listCountries`, `getCountryConfig`, `adminUpdateCountryPack`, `getSelectedCountry`/`setSelectedCountry` (localStorage `oxs:country`, default US).
+- Locales en/es/fr/ht: new top-level `country.*` namespace (8 keys each, JSON validity + parity verified).
+
+**Outstanding (deliberate):**
+1. Migration 304 not executed here (no Postgres in sandbox) — run `node server/migrate.js` on non-prod first.
+2. iOS not compiled in sandbox — verify with `build_run_sim` (scheme build-atom); the 3 new files must appear in the target.
+3. Country pack is wired to the persona switcher only; payment-rail/verification/addressing adapters (`PaymentRail` etc.) are the next slice — currently config data only.
+4. No web country picker UI yet — API helper + locale keys are ready; add a settings section when desired.
+5. `PersonaDashboard` and other `switch persona` sites in `Home/HomeComponents.swift` not yet moved into the registry (HomeContent was the first); migrate opportunistically per pack-architecture doc §8 step 4.
+6. No admin UI for country packs — super-admin PATCH endpoint only.
+
+---
 
 ## build-atom iOS Xcode build unblock + simulator verification (2026-06-09) — LANDED
 

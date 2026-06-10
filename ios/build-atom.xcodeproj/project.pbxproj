@@ -38,6 +38,9 @@
 			CC33CC33CC33CC33CC33CC04 /* Localizable.stringsdict in Resources */ = {isa = PBXBuildFile; fileRef = DD44DD44DD44DD44DD44DD04 /* Localizable.stringsdict */; };
 			CC33CC33CC33CC33CC33CC05 /* Localizable.stringsdict in Resources */ = {isa = PBXBuildFile; fileRef = DD44DD44DD44DD44DD44DD05 /* Localizable.stringsdict */; };
 			50F83CA6A0031A2C35BC668E /* Persona.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABACAF22ED3E2B78F1D0367 /* Persona.swift */; };
+		C0FFEE01C0DEC0DEC0DE1001 /* CountryPack.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE01C0DEC0DEC0DE0001 /* CountryPack.swift */; };
+		C0FFEE01C0DEC0DEC0DE1002 /* CountrySelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE01C0DEC0DEC0DE0002 /* CountrySelectionView.swift */; };
+		C0FFEE01C0DEC0DEC0DE1003 /* PersonaRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE01C0DEC0DEC0DE0003 /* PersonaRegistry.swift */; };
 		51576C3AFE444776F81F3B78 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = BC0B2CE29E342D6FAAEB5E82 /* SocketIO */; };
 		5540AD2047415782B9EE46AD /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3C8C900A3FF295EAD5A5C9D /* L10n.swift */; };
 		568B56BA8B7368C5122CF08F /* PersonaHomes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FEE5BB463B4B1C7AD5E7FC4 /* PersonaHomes.swift */; };
@@ -149,6 +152,9 @@
 			4D2F3A8B91C04D6EAE17B00B /* BusinessHubFinanceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusinessHubFinanceService.swift; sourceTree = "<group>"; };
 			A5417E74FF0C62218A88798F /* APIConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIConfig.swift; sourceTree = "<group>"; };
 		AABACAF22ED3E2B78F1D0367 /* Persona.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persona.swift; sourceTree = "<group>"; };
+		C0FFEE01C0DEC0DEC0DE0001 /* CountryPack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountryPack.swift; sourceTree = "<group>"; };
+		C0FFEE01C0DEC0DEC0DE0002 /* CountrySelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountrySelectionView.swift; sourceTree = "<group>"; };
+		C0FFEE01C0DEC0DEC0DE0003 /* PersonaRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaRegistry.swift; sourceTree = "<group>"; };
 		AACACBBD6998634A04A43FB8 /* PushManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushManager.swift; sourceTree = "<group>"; };
 		B2002E77BD1AB1BE7179335E /* RootShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootShellView.swift; sourceTree = "<group>"; };
 		4D2F3A8B91C04D6EAE17B005 /* BusinessHubViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusinessHubViews.swift; sourceTree = "<group>"; };
@@ -241,6 +247,7 @@
 					DD44DD44DD44DD44DD44DD05 /* Localizable.stringsdict */,
 					C34AA01FF653E3B7FE188CCD /* App */,
 				92B41C838993B6DC693D0846 /* Auth */,
+				C0FFEE01C0DEC0DEC0DE2001 /* Country */,
 				75B70B9D302C3E3F42DE3029 /* Design */,
 				32E84AB00984C4152CC19F97 /* Features */,
 				D599565E15257AA8421A1BB1 /* Growth */,
@@ -305,9 +312,19 @@
 			isa = PBXGroup;
 			children = (
 				AABACAF22ED3E2B78F1D0367 /* Persona.swift */,
+				C0FFEE01C0DEC0DEC0DE0003 /* PersonaRegistry.swift */,
 				822653373F6F347C052A3C83 /* SampleData.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		C0FFEE01C0DEC0DEC0DE2001 /* Country */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE01C0DEC0DEC0DE0001 /* CountryPack.swift */,
+				C0FFEE01C0DEC0DEC0DE0002 /* CountrySelectionView.swift */,
+			);
+			path = Country;
 			sourceTree = "<group>";
 		};
 		58CBA847F13BDEABB881F239 /* Shell */ = {
@@ -616,6 +633,9 @@
 					8F7E6D5C4B3A29180796A5B4 /* ConsultantPipelineView.swift in Sources */,
 					3CEA01F469314302139CCCD1 /* OxSteedApp.swift in Sources */,
 					50F83CA6A0031A2C35BC668E /* Persona.swift in Sources */,
+					C0FFEE01C0DEC0DEC0DE1001 /* CountryPack.swift in Sources */,
+					C0FFEE01C0DEC0DEC0DE1002 /* CountrySelectionView.swift in Sources */,
+					C0FFEE01C0DEC0DEC0DE1003 /* PersonaRegistry.swift in Sources */,
 					568B56BA8B7368C5122CF08F /* PersonaHomes.swift in Sources */,
 					5FAF5C57D421B8941E78F5CB /* PersonaSwitcherSheet.swift in Sources */,
 					7D178C04B6273E5257925959 /* PillarDrillDowns.swift in Sources */,

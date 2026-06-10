@@ -10,8 +10,10 @@ struct SettingsSheet: View {
     @AppStorage("ox.appearance") private var appearancePref = "system"
     @AppStorage("ox.fontSizeCategory") private var fontSizeCategory = "medium"
 
+    @EnvironmentObject private var country: CountryStore
     @State private var showNotifPrefs = false
     @State private var showVortexJoin = false
+    @State private var showCountryPicker = false
     @State private var showExportSheet = false
     @State private var exportItems: [Any] = []
     @State private var showDeleteConfirm = false
@@ -48,6 +50,7 @@ struct SettingsSheet: View {
                     .padding(.horizontal, 4)
 
                     languageCard
+                    countryCard
 
                     if auth.user != nil {
                         Button { showNotifPrefs = true } label: {
@@ -164,6 +167,12 @@ struct SettingsSheet: View {
         .sheet(isPresented: $showVortexJoin) {
             VortexJoinView()
         }
+        .sheet(isPresented: $showCountryPicker) {
+            NavigationStack { CountrySelectionView() }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Theme.background)
+        }
         .sheet(isPresented: $showExportSheet) {
             ActivityShareSheet(items: exportItems)
                 .presentationDetents([.medium])
@@ -210,6 +219,33 @@ struct SettingsSheet: View {
         let b = user.last_name?.first.map { String($0) } ?? ""
         let s = (a + b).uppercased()
         return s.isEmpty ? String(user.email.prefix(1)).uppercased() : s
+    }
+
+    // MARK: - Country
+
+    private var countryCard: some View {
+        Button { showCountryPicker = true } label: {
+            HStack(spacing: 12) {
+                Text(country.selectedEntry?.flag_emoji ?? "🌍")
+                    .font(.system(size: 18))
+                    .frame(width: 36, height: 36)
+                    .background(Theme.accent.opacity(0.16), in: RoundedRectangle(cornerRadius: 10))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(localization.localized("settings.country"))
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(country.selectedEntry?.name ?? country.selectedCode)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Theme.textTertiary)
+            }
+            .cardStyle()
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Language
@@ -798,6 +834,7 @@ private struct ReportProblemView: View {
         .environmentObject(LocalizationManager())
         .environmentObject(AuthStore())
         .environmentObject(OxSocketManager.shared)
+        .environmentObject(CountryStore())
         .preferredColorScheme(.dark)
 }
 
