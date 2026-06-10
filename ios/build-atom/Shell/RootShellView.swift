@@ -163,13 +163,21 @@ private struct OxTabBar: View {
     @Binding var selection: AppTab
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var localization: LocalizationManager
+    @EnvironmentObject private var personaStore: PersonaStore
+    @EnvironmentObject private var auth: AuthStore
+
+    /// Tab labels come from the active persona pack (guests read as Customer).
+    /// The bones never change: same four positions, same icons, persona lingo.
+    private var activePersona: Persona {
+        auth.user == nil ? .customer : personaStore.active
+    }
 
     var body: some View {
         HStack(spacing: 0) {
-            tabButton(.home, label: L10n.tab(.home), icon: "square.grid.2x2.fill")
-            tabButton(.life, label: L10n.tab(.life), icon: "heart.text.square.fill")
-            tabButton(.growth, label: L10n.tab(.growth), icon: "arrow.up.right.circle.fill")
-            tabButton(.learn, label: L10n.tab(.learn), icon: "graduationcap.fill")
+            tabButton(.home, label: PersonaRegistry.tabTitleKey(.home, persona: activePersona), icon: "square.grid.2x2.fill")
+            tabButton(.life, label: PersonaRegistry.tabTitleKey(.life, persona: activePersona), icon: "heart.text.square.fill")
+            tabButton(.growth, label: PersonaRegistry.tabTitleKey(.growth, persona: activePersona), icon: "arrow.up.right.circle.fill")
+            tabButton(.learn, label: PersonaRegistry.tabTitleKey(.learn, persona: activePersona), icon: "graduationcap.fill")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 10)
@@ -212,5 +220,8 @@ private struct OxTabBar: View {
 }
 
 #Preview {
-    RootShellView().environmentObject(PersonaStore())
+    RootShellView()
+        .environmentObject(PersonaStore())
+        .environmentObject(AuthStore())
+        .environmentObject(LocalizationManager())
 }

@@ -27,6 +27,13 @@ Implements the first slice of `docs/oxsteed-pack-architecture.md`: countries and
 - `client/src/api/countryConfig.js` (new): `listCountries`, `getCountryConfig`, `adminUpdateCountryPack`, `getSelectedCountry`/`setSelectedCountry` (localStorage `oxs:country`, default US).
 - Locales en/es/fr/ht: new top-level `country.*` namespace (8 keys each, JSON validity + parity verified).
 
+**Phase 2 — persona-named tabs + per-persona growth ladders (same session):**
+Implements the four-tabs-by-persona doc in the app shell.
+- **`Models/PersonaRegistry.swift`** extended: `tabTitleKey(_:persona:)` (Tab 2 is always `tab.pulse`; Tabs 1/3/4 resolve to `tab.<packId>.home/growth/learn` — key built from packId, no persona switch needed) and `growthLadder(for:signals:)` (`GrowthLadderSignals` + `GrowthLadderStepSpec`; per-persona 4-step ladders as data; customer runs on planning signals hasPulse/planned/posted, all earning personas on guides → 5 jobs → 3 badges → scale; keys `growth.ladder.<packId>.stepN.title/.description`).
+- **`Shell/RootShellView.swift`**: `OxTabBar` takes `PersonaStore` + `AuthStore` env objects; labels resolve via `PersonaRegistry.tabTitleKey` (guests read as Customer). Tab names per persona: Customer Today/Pulse/Plan/Learn · Helper Jobs/Pulse/Level Up/Skills · Business Shop/Pulse/Scale/Academy · Consultant Clients/Pulse/Practice/Playbooks · Tool Owner The Yard/Pulse/Fleet/Workshop · Franchise Territory/Pulse/Expansion/Academy · Investor Portfolio/Pulse/Deal Flow/Diligence. Icons/positions unchanged ("clothes, never bones"). #Preview updated with the new env objects.
+- **`Growth/GrowthTabView.swift`**: `growthLadder` persona switch removed — builds `GrowthLadderSignals` and maps registry specs to `GrowthStep`. `L10n.GrowthKey.step*` constants and the generic `growth.ladder.step*` strings remain but are no longer referenced.
+- **Localizable.strings (en/es/fr/ht/ar)**: 78 new keys each (`tab.pulse`, 21 `tab.<persona>.*`, 56 `growth.ladder.<persona>.*`). Parity + no-dup verified via script across all 5 tables.
+
 **Outstanding (deliberate):**
 1. Migration 304 not executed here (no Postgres in sandbox) — run `node server/migrate.js` on non-prod first.
 2. iOS not compiled in sandbox — verify with `build_run_sim` (scheme build-atom); the 3 new files must appear in the target.
@@ -34,6 +41,8 @@ Implements the first slice of `docs/oxsteed-pack-architecture.md`: countries and
 4. No web country picker UI yet — API helper + locale keys are ready; add a settings section when desired.
 5. `PersonaDashboard` and other `switch persona` sites in `Home/HomeComponents.swift` not yet moved into the registry (HomeContent was the first); migrate opportunistically per pack-architecture doc §8 step 4.
 6. No admin UI for country packs — super-admin PATCH endpoint only.
+7. Business sub-role tabs (Manager Ops Board / Rep Pipeline / Support Queue / Employee My Day from the four-tabs doc §§8–11) not in the app persona enum yet — they exist as web Business Hub role menus (`businessHubRoleMenu.js`); promoting them to app persona packs is a future slice.
+8. Tab 1/3/4 *content* recomposition per persona (e.g., Customer "Your next move" card ordering, Tool Owner Out/Due/Idle strip) is partially existing in the persona homes; the doc's full screen compositions land incrementally — this slice delivered naming, ladders, and registry routing.
 
 ---
 

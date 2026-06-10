@@ -307,58 +307,24 @@ struct GrowthTabView: View {
     }
 
     private var growthLadder: [GrowthStep] {
-        switch auth.activePersona {
-        case .customer:
-            let planned    = life.summary?.planned_needs?.active_count ?? 0
-            let posted     = life.summary?.activity?.active_jobs_posted ?? 0
-            let hasPulse   = life.pulse?.no_data != true
-
-            return [
-                GrowthStep(stage: "Step 1", title: localization.localized(L10n.GrowthKey.stepOneTitle),
-                           description: localization.localized(L10n.GrowthKey.stepOneDescription),
-                           progress: hasPulse ? 1.0 : 0.0, isActive: !hasPulse,
-                           tapTab: "life"),
-                GrowthStep(stage: "Step 2", title: localization.localized(L10n.GrowthKey.stepTwoTitle),
-                           description: localization.localized(L10n.GrowthKey.stepTwoDescription),
-                           progress: min(Double(planned) / 3.0, 1.0),
-                           isActive: hasPulse && planned < 3,
-                           tapTab: "life"),
-                GrowthStep(stage: "Step 3", title: localization.localized(L10n.GrowthKey.stepThreeTitle),
-                           description: localization.localized(L10n.GrowthKey.stepThreeDescription),
-                           progress: min(Double(posted) / 2.0, 1.0),
-                           isActive: planned >= 3 && posted < 2,
-                           tapTab: "home"),
-                GrowthStep(stage: "Step 4", title: localization.localized(L10n.GrowthKey.stepFourTitle),
-                           description: localization.localized(L10n.GrowthKey.stepFourDescription),
-                           progress: 0.0, isActive: posted >= 2,
-                           tapTab: "learn"),
-            ]
-
-        default:
-            let guides   = learn.completions.count
-            let jobsDone = life.summary?.activity?.jobs_completed ?? 0
-            let badges   = learn.badges.count
-
-            return [
-                GrowthStep(stage: "Step 1", title: localization.localized(L10n.GrowthKey.stepOneTitle),
-                           description: localization.localized(L10n.GrowthKey.stepOneDescription),
-                           progress: guides > 0 ? 1.0 : 0.0, isActive: guides == 0,
-                           tapTab: "learn"),
-                GrowthStep(stage: "Step 2", title: localization.localized(L10n.GrowthKey.stepTwoTitle),
-                           description: localization.localized(L10n.GrowthKey.stepTwoDescription),
-                           progress: min(Double(jobsDone) / 5.0, 1.0),
-                           isActive: guides > 0 && jobsDone < 5,
-                           tapTab: "home"),
-                GrowthStep(stage: "Step 3", title: localization.localized(L10n.GrowthKey.stepThreeTitle),
-                           description: localization.localized(L10n.GrowthKey.stepThreeDescription),
-                           progress: min(Double(badges) / 3.0, 1.0),
-                           isActive: jobsDone >= 5 && badges < 3,
-                           tapTab: "learn"),
-                GrowthStep(stage: "Step 4", title: localization.localized(L10n.GrowthKey.stepFourTitle),
-                           description: localization.localized(L10n.GrowthKey.stepFourDescription),
-                           progress: 0.0, isActive: badges >= 3,
-                           tapTab: nil),
-            ]
+        // Ladder shape and lingo live in the persona pack registry
+        // (docs/oxsteed-four-tabs-by-persona.md, Tab 3); this view only
+        // supplies the shared signals and renders the result.
+        let signals = PersonaRegistry.GrowthLadderSignals(
+            hasPulse: life.pulse?.no_data != true,
+            plannedNeeds: life.summary?.planned_needs?.active_count ?? 0,
+            jobsPosted: life.summary?.activity?.active_jobs_posted ?? 0,
+            guidesDone: learn.completions.count,
+            jobsCompleted: life.summary?.activity?.jobs_completed ?? 0,
+            badges: learn.badges.count
+        )
+        return PersonaRegistry.growthLadder(for: auth.activePersona, signals: signals).map { spec in
+            GrowthStep(stage: "Step \(spec.id)",
+                       title: localization.localized(spec.titleKey),
+                       description: localization.localized(spec.descriptionKey),
+                       progress: spec.progress,
+                       isActive: spec.isActive,
+                       tapTab: spec.tapTab)
         }
     }
 

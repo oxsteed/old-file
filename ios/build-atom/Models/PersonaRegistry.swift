@@ -108,4 +108,79 @@ enum PersonaRegistry {
     static func enabledPersonas(country: CountryStore?) -> [Persona] {
         Persona.allCases.filter { country?.isPersonaEnabled($0) ?? true }
     }
+
+    // MARK: - Persona-named tabs (docs/oxsteed-four-tabs-by-persona.md §0)
+    //
+    // The tabs change clothes, never bones: Tab 1 = operate, Tab 2 = Pulse
+    // (constant for everyone), Tab 3 = move up, Tab 4 = get better. Labels
+    // come from the persona pack; positions and icons never move.
+
+    static func tabTitleKey(_ tab: AppTab, persona: Persona) -> String {
+        switch tab {
+        case .life:   return "tab.pulse"                          // the constant
+        case .home:   return "tab.\(persona.packId).home"
+        case .growth: return "tab.\(persona.packId).growth"
+        case .learn:  return "tab.\(persona.packId).learn"
+        }
+    }
+
+    // MARK: - Persona growth ladders (docs/oxsteed-four-tabs-by-persona.md, Tab 3)
+    //
+    // Each pack defines its own 4-step ladder as data. Progress is derived
+    // from shared signals; ladders describe, they never demand — progress
+    // only accumulates (product-definition rule 4).
+
+    struct GrowthLadderSignals {
+        var hasPulse = false
+        var plannedNeeds = 0
+        var jobsPosted = 0
+        var guidesDone = 0
+        var jobsCompleted = 0
+        var badges = 0
+    }
+
+    struct GrowthLadderStepSpec: Identifiable {
+        let id: Int
+        let titleKey: String
+        let descriptionKey: String
+        let progress: Double
+        let isActive: Bool
+        let tapTab: String?
+    }
+
+    static func growthLadder(for persona: Persona, signals s: GrowthLadderSignals) -> [GrowthLadderStepSpec] {
+        let p = persona.packId
+        func key(_ n: Int, _ part: String) -> String { "growth.ladder.\(p).step\(n).\(part)" }
+
+        // Step-completion heuristics. The customer ladder runs on planning
+        // signals; every earning persona runs on learn → do → prove → scale.
+        let steps: [(progress: Double, isActive: Bool, tapTab: String?)]
+        switch persona {
+        case .customer:
+            steps = [
+                (s.hasPulse ? 1.0 : 0.0, !s.hasPulse, "life"),
+                (min(Double(s.plannedNeeds) / 3.0, 1.0), s.hasPulse && s.plannedNeeds < 3, "life"),
+                (min(Double(s.jobsPosted) / 2.0, 1.0), s.plannedNeeds >= 3 && s.jobsPosted < 2, "home"),
+                (0.0, s.jobsPosted >= 2, "learn"),
+            ]
+        default:
+            steps = [
+                (s.guidesDone > 0 ? 1.0 : 0.0, s.guidesDone == 0, "learn"),
+                (min(Double(s.jobsCompleted) / 5.0, 1.0), s.guidesDone > 0 && s.jobsCompleted < 5, "home"),
+                (min(Double(s.badges) / 3.0, 1.0), s.jobsCompleted >= 5 && s.badges < 3, "learn"),
+                (0.0, s.badges >= 3, nil),
+            ]
+        }
+
+        return steps.enumerated().map { idx, step in
+            GrowthLadderStepSpec(
+                id: idx + 1,
+                titleKey: key(idx + 1, "title"),
+                descriptionKey: key(idx + 1, "description"),
+                progress: step.progress,
+                isActive: step.isActive,
+                tapTab: step.tapTab
+            )
+        }
+    }
 }
