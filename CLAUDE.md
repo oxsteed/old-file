@@ -1,6 +1,24 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-26
+**Last updated:** 2026-06-09
+
+## build-atom iOS Xcode build unblock + simulator verification (2026-06-09) — LANDED
+
+Fixed the `build-atom` Xcode target after Settings/Home references exposed missing target membership.
+
+**iOS (`ios/build-atom`):**
+- Added missing `LocalizationManager` environment-object declarations in `Features/FeatureScreens.swift`, `Growth/GrowthTabView.swift`, and `Home/PersonaHomes.swift` for child views that call `localization`.
+- Removed a non-optional `APIMessage.content` nil-coalescing warning in `App/Intelligence/MessageSummarizer.swift`.
+- Made `Networking/APIModels.swift` flexible decoder helpers module-visible so business hub service files can reuse the shared tolerant JSON decoding.
+
+**Xcode target (`ios/build-atom.xcodeproj/project.pbxproj`):**
+- Added target membership for `TeamAccessViews.swift`, `TeamService.swift`, `BusinessHubViews.swift`, `BusinessHubFinanceViews.swift`, `BusinessHubService.swift`, and `BusinessHubFinanceService.swift`.
+
+**Verification:**
+- `build_run_sim` for `ios/build-atom.xcodeproj` scheme `build-atom` on iPhone 17 Pro simulator passes with zero warnings/errors.
+- The build installs bundle `com.oxsteed.app` and loads the OxSteed Home UI on the simulator.
+
+---
 
 ## Learn Mode — 7-persona expansion + 6 management/diagnosis guides (2026-05-26) — LANDED
 

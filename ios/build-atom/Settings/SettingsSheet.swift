@@ -11,6 +11,7 @@ struct SettingsSheet: View {
     @AppStorage("ox.fontSizeCategory") private var fontSizeCategory = "medium"
 
     @State private var showNotifPrefs = false
+    @State private var showVortexJoin = false
     @State private var showExportSheet = false
     @State private var exportItems: [Any] = []
     @State private var showDeleteConfirm = false
@@ -51,6 +52,11 @@ struct SettingsSheet: View {
                     if auth.user != nil {
                         Button { showNotifPrefs = true } label: {
                             settingsRow(icon: "bell.fill", title: L10n.SettingsKey.notifications, color: Theme.pillarHome)
+                        }
+                        .buttonStyle(.plain)
+
+                        Button { showVortexJoin = true } label: {
+                            settingsRow(icon: "qrcode.viewfinder", title: "Join a workspace", color: Theme.accent)
                         }
                         .buttonStyle(.plain)
                     }
@@ -154,6 +160,9 @@ struct SettingsSheet: View {
             NotificationPrefsView()
                 .presentationDetents([.medium])
                 .presentationBackground(Theme.background)
+        }
+        .sheet(isPresented: $showVortexJoin) {
+            VortexJoinView()
         }
         .sheet(isPresented: $showExportSheet) {
             ActivityShareSheet(items: exportItems)

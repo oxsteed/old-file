@@ -2054,6 +2054,15 @@ struct BusinessHome: View {
     @EnvironmentObject private var localization: LocalizationManager
     @State private var cashAppHandle = "$OxSteed"
     @State private var didLoadWorkspace = false
+    @State private var showTeam = false
+    @State private var showVortex = false
+    @State private var showInvoices = false
+    @State private var showServices = false
+    @State private var showClients = false
+    @State private var showExpenses = false
+    @State private var showQuotes = false
+    @State private var showTax = false
+    @State private var showReviews = false
 
     var body: some View {
         VStack(spacing: 18) {
@@ -2072,6 +2081,22 @@ struct BusinessHome: View {
                                 Task { await workspace.selectBusiness(item.business_id) }
                             }
                         }
+                        Divider()
+                        if workspace.selectedBusiness != nil {
+                            Button { showInvoices = true } label: { Label("Invoices", systemImage: "doc.plaintext.fill") }
+                            Button { showQuotes = true } label: { Label("Quotes", systemImage: "doc.text.magnifyingglass") }
+                            Button { showServices = true } label: { Label("Services", systemImage: "list.bullet.rectangle.fill") }
+                            Button { showClients = true } label: { Label("Clients", systemImage: "person.2.crop.square.stack.fill") }
+                            Button { showExpenses = true } label: { Label("Expenses", systemImage: "creditcard.fill") }
+                            Button { showTax = true } label: { Label("Estimated tax", systemImage: "percent") }
+                            Button { showReviews = true } label: { Label("Reviews", systemImage: "star.bubble.fill") }
+                            Button { showTeam = true } label: {
+                                Label("Manage team", systemImage: "person.2.fill")
+                            }
+                        }
+                        Button { showVortex = true } label: {
+                            Label("Join with a code", systemImage: "qrcode.viewfinder")
+                        }
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "briefcase.fill")
@@ -2083,6 +2108,35 @@ struct BusinessHome: View {
                         .padding(.horizontal, 11)
                         .padding(.vertical, 8)
                         .background(Theme.surfaceElevated, in: Capsule())
+                    }
+                    .sheet(isPresented: $showTeam) {
+                        if let bizId = workspace.selectedBusiness?.business_id {
+                            TeamManagementView(businessId: bizId)
+                        }
+                    }
+                    .sheet(isPresented: $showVortex) {
+                        VortexJoinView()
+                    }
+                    .sheet(isPresented: $showInvoices) {
+                        if let bizId = workspace.selectedBusiness?.business_id { BusinessInvoicesView(businessId: bizId) }
+                    }
+                    .sheet(isPresented: $showServices) {
+                        if let bizId = workspace.selectedBusiness?.business_id { BusinessServicesView(businessId: bizId) }
+                    }
+                    .sheet(isPresented: $showClients) {
+                        if let bizId = workspace.selectedBusiness?.business_id { BusinessClientsView(businessId: bizId) }
+                    }
+                    .sheet(isPresented: $showExpenses) {
+                        if let bizId = workspace.selectedBusiness?.business_id { BusinessExpensesView(businessId: bizId) }
+                    }
+                    .sheet(isPresented: $showQuotes) {
+                        if let bizId = workspace.selectedBusiness?.business_id { BusinessQuotesView(businessId: bizId) }
+                    }
+                    .sheet(isPresented: $showTax) {
+                        if let bizId = workspace.selectedBusiness?.business_id { BusinessTaxView(businessId: bizId) }
+                    }
+                    .sheet(isPresented: $showReviews) {
+                        if let bizId = workspace.selectedBusiness?.business_id { BusinessReviewsView(businessId: bizId) }
                     }
                 }
 

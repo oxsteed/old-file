@@ -1910,7 +1910,7 @@ struct TranscriptionResponse: Codable, Equatable {
     let confidence: Double?
 }
 
-private extension KeyedDecodingContainer {
+extension KeyedDecodingContainer {
     func decodeFlexibleString(forKey key: Key) throws -> String {
         if let value = try? decode(String.self, forKey: key) { return value }
         if let value = try? decode(Int.self, forKey: key) { return String(value) }
