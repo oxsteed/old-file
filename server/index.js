@@ -142,6 +142,7 @@ const sharedCartsRoutes = require('./routes/sharedCarts');
 const mobileRoutes = require('./routes/mobile');
 const uploadRoutes = require('./routes/upload');
 const moderationRoutes = require('./routes/moderation');
+const foodRoutes = require('./routes/food');
 // Team / role / Vortex (per OxSteed team-role spec, migration 245)
 const businessTeamRoutes   = require('./routes/businessTeam');
 const vortexAccessRoutes   = require('./routes/vortex');
@@ -734,6 +735,7 @@ app.use('/api/shared-carts', sharedCartsRoutes);
 app.use('/api/mobile', mobileRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/moderation', moderationRoutes);
+app.use('/api/food', foodRoutes);
 app.get('/api/business/:businessId/workspace/mobile-summary', require('./middleware/auth').authenticate, require('./controllers/mobileController').getBusinessMobileSummary);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/admin/orders', adminOrdersRoutes);

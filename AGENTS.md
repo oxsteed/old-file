@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-06-10
+**Last updated:** 2026-06-12
 
 ## Instructions for Every Session
 
@@ -17,9 +17,15 @@
 
 **Codebase metrics:**
 - 410 React JSX/TSX files (includes `AIKnowledgeTab`, `AIPreviewPage` for profile AI)
-- 170 backend controllers
-- 281 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
-- 82 Jest tests (some failing due to test environment constraints)
+- 171 backend controllers
+- 282 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user; `305_oxsteed_food.sql`)
+- 83 Jest tests (some failing due to test environment constraints)
+
+**OxSteed Food iOS + backend foundation (2026-06-12):** IN PROGRESS
+- **Backend:** migration `server/migrations/305_oxsteed_food.sql` adds `food_restaurants`, menu categories/items/modifiers, orders, order items/modifiers, queue/status/payment fields, and restaurant geo/country fields for global participation. `server/controllers/foodController.js` + `server/routes/food.js` mounted at `/api/food`: public restaurant search/details; authenticated restaurant onboarding; menu category/item creation; order creation; restaurant order queue; kitchen/counter status updates.
+- **iOS:** new standalone app workspace `ios/OxSteedFood/OxSteedFood.xcodeproj` scheme `OxSteedFood`, bundle `com.oxsteed.food`, with SwiftUI customer discovery/map/search, menu/cart/fulfillment (`pickup`, `dine_in`, `kiosk`), merchant onboarding/menu staging, counter queue summary, and kitchen display board. Networking points to `/api/food` and falls back to sample data until migration/API are deployed.
+- **Verification:** `node --check server/controllers/foodController.js server/routes/food.js server/index.js` passes. `build_run_sim` for `OxSteedFood` built/installed/launched and screenshot rendered; final `build_sim` passes with zero warnings/errors on iPhone 17 Pro simulator. Targeted Jest file `server/__tests__/foodController.test.js` was added but not executed because `jest` is not installed in `server/node_modules` in this checkout.
+- **Not verified here:** migration not executed against Postgres; live `/api/food` deployed route currently returns 404 in simulator sample mode until migration/server deploy; no Stripe payment-intent wiring for food orders yet.
 
 **Pack architecture phase 1 — country packs + persona registry (2026-06-10):** LANDED
 - **Governing docs (new):** `docs/oxsteed-product-definition.md` (4 modes, 9 personas, organic-growth language), `docs/oxsteed-four-tabs-by-persona.md` (tabs customized per persona incl. business sub-roles), `docs/oxsteed-pack-architecture.md` (personas × countries as registered packs — read this before touching persona/country code). Core rule: **anything that varies by persona or country is a pack you register, never a condition you check.**
@@ -1771,6 +1777,15 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 ---
 
 ## Remaining Work (Prioritized by Production Readiness)
+
+### OXSTEED FOOD FOLLOW-UP
+
+- [ ] Run `node server/migrate.js` in a non-prod database, deploy `/api/food`, then verify the iOS app leaves sample mode and loads live restaurant/menu data.
+- [ ] Wire food order payments to Stripe/mobile payment config and add webhook confirmation for `food_orders.payment_status`.
+- [ ] Add kitchen/counter Socket.IO rooms for `food:order:*` events after confirming the server socket service broadcast API shape.
+- [ ] Add authenticated sign-in/token handoff in `ios/OxSteedFood` instead of the temporary developer token field.
+- [ ] Build restaurant owner menu editing beyond create-only: item availability, modifiers, categories, hours, taxes, prep-time rules, and country/currency pack handling.
+- [ ] Run `npm install` or restore server dependencies, then execute `server/__tests__/foodController.test.js`.
 
 ### TEMPLATE VERTICALIZATION (Now in Progress)
 
