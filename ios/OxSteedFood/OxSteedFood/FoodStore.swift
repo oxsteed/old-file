@@ -2,65 +2,136 @@ import Foundation
 
 @MainActor
 final class FoodStore: ObservableObject {
-    @Published var restaurants: [FoodRestaurant] = FoodSampleData.restaurants
-    @Published var selectedRestaurant: FoodRestaurant = FoodSampleData.restaurants[0]
-    @Published var menu: [FoodMenuSection] = FoodSampleData.menu
+
+    // MARK: - Customer state
+
+    @Published var restaurants: [FoodRestaurant] = []
+    @Published var selectedRestaurant: FoodRestaurant?
+    @Published var menu: [FoodMenuSection] = []
     @Published var cart: [CartLine] = []
-    @Published var activeOrders: [FoodOrder] = FoodSampleData.orders
     @Published var searchText = ""
     @Published var fulfillment = "pickup"
     @Published var tableLabel = ""
+    @Published var guestName = ""
     @Published var isLoading = false
+    @Published var isPlacingOrder = false
     @Published var message: String?
 
-    @Published var draftRestaurantName = ""
-    @Published var draftCuisine = "Fast casual"
-    @Published var draftMenuItemName = ""
-    @Published var draftMenuItemPrice = "1299"
+    /// Set right after a successful order; drives the confirmation screen.
+    @Published var lastPlacedOrder: FoodOrder?
+    @Published var myOrders: [FoodOrder] = []
+    @Published var queueBoard: FoodQueueBoard?
 
-    @Published var accessToken = UserDefaults.standard.string(forKey: "ox.food.accessToken") ?? "" {
+    // MARK: - Merchant state
+
+    @Published var merchantRestaurants: [FoodRestaurant] = []
+    @Published var merchantSelection: FoodRestaurant?
+    @Published var merchantOrders: [FoodOrder] = []
+    @Published var merchantLoaded = false
+
+    // MARK: - Auth state
+
+    @Published var signedInEmail = UserDefaults.standard.string(forKey: "ox.food.email") ?? "" {
+        didSet { UserDefaults.standard.set(signedInEmail, forKey: "ox.food.email") }
+    }
+    @Published private(set) var accessToken = UserDefaults.standard.string(forKey: "ox.food.accessToken") ?? "" {
         didSet { UserDefaults.standard.set(accessToken, forKey: "ox.food.accessToken") }
     }
+    private var refreshToken = UserDefaults.standard.string(forKey: "ox.food.refreshToken") ?? "" {
+        didSet { UserDefaults.standard.set(refreshToken, forKey: "ox.food.refreshToken") }
+    }
+
+    var isSignedIn: Bool { !refreshToken.isEmpty || !accessToken.isEmpty }
 
     var cartTotalCents: Int {
         cart.reduce(0) { $0 + $1.lineTotalCents }
     }
+    var cartItemCount: Int {
+        cart.reduce(0) { $0 + $1.quantity }
+    }
 
-    func loadRestaurants() async {
+    // MARK: - Auth
+
+    func signIn(email: String, password: String) async -> Bool {
+        do {
+            let session = try await FoodAPIClient.shared.login(email: email, password: password)
+            guard let access = session.accessToken, !access.isEmpty else {
+                message = "This account needs extra verification. Sign in once in the main OxSteed app, then try again."
+                return false
+            }
+            accessToken = access
+            refreshToken = session.refreshToken ?? ""
+            signedInEmail = email
+            message = nil
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    func signOut() {
+        accessToken = ""
+        refreshToken = ""
+        signedInEmail = ""
+        merchantRestaurants = []
+        merchantSelection = nil
+        merchantOrders = []
+        merchantLoaded = false
+        myOrders = []
+    }
+
+    /// Runs an authenticated call; on 401, refreshes the access token once and
+    /// retries. Access tokens expire after 15 minutes, so this is what makes
+    /// the app usable for more than one coffee break.
+    private func authed<T>(_ operation: (String) async throws -> T) async throws -> T {
+        do {
+            return try await operation(accessToken)
+        } catch FoodAPIError.unauthorized {
+            guard !refreshToken.isEmpty else { throw FoodAPIError.unauthorized }
+            let session = try await FoodAPIClient.shared.refresh(refreshToken: refreshToken)
+            guard let access = session.accessToken, !access.isEmpty else { throw FoodAPIError.unauthorized }
+            accessToken = access
+            if let rotated = session.refreshToken, !rotated.isEmpty { refreshToken = rotated }
+            return try await operation(accessToken)
+        }
+    }
+
+    // MARK: - Discovery
+
+    func loadRestaurants(latitude: Double? = nil, longitude: Double? = nil) async {
         isLoading = true
         defer { isLoading = false }
         do {
-            let live = try await FoodAPIClient.shared.listRestaurants(search: searchText)
-            restaurants = live.isEmpty ? FoodSampleData.restaurants : live
-            if !restaurants.contains(where: { $0.id == selectedRestaurant.id }) {
-                selectedRestaurant = restaurants[0]
-            }
-            message = live.isEmpty ? "Showing sample restaurants until food tables are migrated." : nil
+            restaurants = try await FoodAPIClient.shared.listRestaurants(
+                search: searchText, latitude: latitude, longitude: longitude
+            )
+            message = nil
         } catch {
-            restaurants = FoodSampleData.restaurants
-            selectedRestaurant = restaurants[0]
-            message = "Sample mode: \(error.localizedDescription)"
+            message = "Could not reach OxSteed Food: \(error.localizedDescription)"
         }
     }
 
     func select(_ restaurant: FoodRestaurant) async {
         selectedRestaurant = restaurant
+        menu = []
         do {
             let detail = try await FoodAPIClient.shared.restaurantDetail(id: restaurant.id)
             selectedRestaurant = detail.restaurant
-            menu = detail.menu.isEmpty ? FoodSampleData.menu : detail.menu
+            var sections = detail.menu
+            if !detail.uncategorizedItems.isEmpty {
+                sections.append(FoodMenuSection(id: -1, name: "More items", description: nil, items: detail.uncategorizedItems))
+            }
+            menu = sections
         } catch {
-            menu = FoodSampleData.menu
-            message = "Sample menu loaded until this restaurant publishes a live menu."
+            message = "Could not load this menu: \(error.localizedDescription)"
         }
     }
 
-    func addToCart(_ item: FoodMenuItem) {
-        if let index = cart.firstIndex(where: { $0.item.id == item.id }) {
-            cart[index].quantity += 1
-        } else {
-            cart.append(CartLine(item: item))
-        }
+    // MARK: - Cart + ordering
+
+    func addToCart(_ line: CartLine) {
+        cart.append(line)
     }
 
     func removeCartLine(_ line: CartLine) {
@@ -68,199 +139,229 @@ final class FoodStore: ObservableObject {
     }
 
     func submitOrder() async {
-        guard !cart.isEmpty else { return }
+        guard let restaurant = selectedRestaurant, !cart.isEmpty else { return }
+        isPlacingOrder = true
+        defer { isPlacingOrder = false }
         do {
             let order = try await FoodAPIClient.shared.createOrder(
-                restaurantId: selectedRestaurant.id,
+                restaurantId: restaurant.id,
                 lines: cart,
                 fulfillment: fulfillment,
-                tableLabel: tableLabel.isEmpty ? nil : tableLabel,
-                token: accessToken
+                tableLabel: fulfillment == "dine_in" && !tableLabel.isEmpty ? tableLabel : nil,
+                guestName: isSignedIn || guestName.isEmpty ? nil : guestName,
+                token: accessToken.isEmpty ? nil : accessToken
             )
-            activeOrders.insert(order, at: 0)
             cart.removeAll()
-            message = "Order #\(order.queueNumber) sent to the kitchen."
+            lastPlacedOrder = order
+            message = nil
         } catch {
-            let sample = FoodSampleData.makeOrder(
-                restaurantId: selectedRestaurant.id,
-                queue: (activeOrders.map(\.queueNumber).max() ?? 200) + 1,
-                total: cartTotalCents,
-                fulfillment: fulfillment,
-                tableLabel: tableLabel.isEmpty ? nil : tableLabel
-            )
-            activeOrders.insert(sample, at: 0)
-            cart.removeAll()
-            message = "Demo order #\(sample.queueNumber) created locally. Add an OxSteed auth token to post live orders."
+            message = "Order failed: \(error.localizedDescription)"
         }
     }
 
-    func updateStatus(_ order: FoodOrder, status: String) async {
+    func loadMyOrders() async {
+        guard isSignedIn else { return }
         do {
-            let updated = try await FoodAPIClient.shared.updateOrderStatus(
-                restaurantId: order.restaurantId,
-                orderId: order.id,
-                status: status,
-                token: accessToken
-            )
-            replaceOrder(updated)
+            myOrders = try await authed { try await FoodAPIClient.shared.myOrders(token: $0) }
         } catch {
-            var local = order
-            local.status = status
-            replaceOrder(local)
-            message = "Status updated locally. Live sync needs a signed-in merchant token."
+            message = error.localizedDescription
         }
     }
 
-    func createDraftRestaurant() {
-        let next = FoodRestaurant(
-            id: Int64((restaurants.map(\.id).max() ?? 10) + 1),
-            businessId: nil,
-            displayName: draftRestaurantName.isEmpty ? "New OxSteed Food Restaurant" : draftRestaurantName,
-            description: "Accepting pickup, table, kiosk, and kitchen-display orders.",
-            cuisineTags: [draftCuisine],
-            coverPhotoUrl: nil,
-            logoUrl: nil,
-            addressCity: "Local",
-            addressState: nil,
-            addressCountry: "US",
-            latitude: nil,
-            longitude: nil,
-            currencyCode: "USD",
-            fulfillmentModes: ["pickup", "dine_in", "kiosk"],
-            acceptsOnlineOrders: true,
-            acceptsInStoreOrders: true,
-            kitchenDisplayEnabled: true,
-            prepTimeMin: 15,
-            distanceKm: nil
-        )
-        restaurants.insert(next, at: 0)
-        selectedRestaurant = next
-        draftRestaurantName = ""
-        message = "Draft restaurant staged. Live publishing uses POST /api/food/restaurants."
-    }
-
-    func addDraftMenuItem() {
-        let cents = Int(draftMenuItemPrice) ?? 0
-        let item = FoodMenuItem(
-            id: Int64(Date().timeIntervalSince1970),
-            categoryId: menu.first?.id,
-            name: draftMenuItemName.isEmpty ? "New menu item" : draftMenuItemName,
-            description: "Configured from the merchant tablet.",
-            imageUrl: nil,
-            priceCents: cents,
-            currencyCode: selectedRestaurant.currencyCode,
-            isAvailable: true,
-            tags: ["New"],
-            allergens: [],
-            modifierGroups: []
-        )
-        if menu.isEmpty {
-            menu = [FoodMenuSection(id: 1, name: "Menu", description: nil, items: [item])]
-        } else {
-            menu[0].items.append(item)
+    func refreshQueueBoard(restaurantId: Int64) async {
+        do {
+            queueBoard = try await FoodAPIClient.shared.queueBoard(restaurantId: restaurantId)
+        } catch {
+            // Queue board polls every few seconds; transient failures are fine.
         }
-        draftMenuItemName = ""
-        message = "Menu item staged. Live publishing uses POST /api/food/restaurants/:id/menu-items."
     }
 
-    private func replaceOrder(_ order: FoodOrder) {
-        if let index = activeOrders.firstIndex(where: { $0.id == order.id }) {
-            activeOrders[index] = order
-        } else {
-            activeOrders.insert(order, at: 0)
+    // MARK: - Merchant
+
+    func loadMerchant() async {
+        guard isSignedIn else { return }
+        do {
+            merchantRestaurants = try await authed { try await FoodAPIClient.shared.myRestaurants(token: $0) }
+            if let current = merchantSelection, let kept = merchantRestaurants.first(where: { $0.id == current.id }) {
+                merchantSelection = kept
+            } else {
+                merchantSelection = merchantRestaurants.first
+            }
+            merchantLoaded = true
+        } catch {
+            merchantLoaded = true
+            message = error.localizedDescription
+        }
+    }
+
+    func loadMerchantOrders() async {
+        guard let restaurant = merchantSelection else { return }
+        do {
+            merchantOrders = try await authed {
+                try await FoodAPIClient.shared.restaurantOrders(restaurantId: restaurant.id, activeOnly: true, token: $0)
+            }
+        } catch {
+            // Polling feed; keep the previous list on transient failure.
+        }
+    }
+
+    func publishRestaurant(name: String, description: String, cuisine: String, city: String, country: String, currency: String) async -> Bool {
+        do {
+            let restaurant = try await authed {
+                try await FoodAPIClient.shared.createRestaurant(
+                    name: name,
+                    description: description.isEmpty ? nil : description,
+                    cuisineTags: cuisine.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty },
+                    city: city.isEmpty ? nil : city,
+                    country: country.isEmpty ? "US" : country,
+                    currency: currency.isEmpty ? "USD" : currency,
+                    latitude: nil,
+                    longitude: nil,
+                    token: $0
+                )
+            }
+            merchantRestaurants.insert(restaurant, at: 0)
+            merchantSelection = restaurant
+            message = "Restaurant created. Add menu items, then press Go Live."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    func setRestaurantStatus(_ status: String) async {
+        guard let restaurant = merchantSelection else { return }
+        do {
+            let updated = try await authed {
+                try await FoodAPIClient.shared.updateRestaurantStatus(restaurantId: restaurant.id, status: status, token: $0)
+            }
+            merchantSelection = updated
+            if let index = merchantRestaurants.firstIndex(where: { $0.id == updated.id }) {
+                merchantRestaurants[index] = updated
+            }
+            message = status == "active" ? "\(updated.displayName) is live." : nil
+        } catch {
+            message = error.localizedDescription
+        }
+    }
+
+    func addMenuItem(name: String, priceText: String, categoryName: String) async -> Bool {
+        guard let restaurant = merchantSelection else { return false }
+        guard let priceValue = Double(priceText.replacingOccurrences(of: ",", with: ".")), priceValue >= 0 else {
+            message = "Enter the price as a number, like 8.99."
+            return false
+        }
+        let priceCents = Int((priceValue * 100).rounded())
+        do {
+            var categoryId: Int64?
+            let trimmedCategory = categoryName.trimmingCharacters(in: .whitespaces)
+            if !trimmedCategory.isEmpty {
+                categoryId = try await authed {
+                    try await FoodAPIClient.shared.createCategory(restaurantId: restaurant.id, name: trimmedCategory, token: $0)
+                }
+            }
+            _ = try await authed {
+                try await FoodAPIClient.shared.createMenuItem(
+                    restaurantId: restaurant.id,
+                    name: name,
+                    priceCents: priceCents,
+                    categoryId: categoryId,
+                    description: nil,
+                    token: $0
+                )
+            }
+            message = "\(name) added to the menu."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    func updateOrderStatus(_ order: FoodOrder, status: String) async {
+        guard let restaurant = merchantSelection else { return }
+        do {
+            let updated = try await authed {
+                try await FoodAPIClient.shared.updateOrderStatus(
+                    restaurantId: restaurant.id, orderId: order.id, status: status, token: $0
+                )
+            }
+            replaceMerchantOrder(updated)
+        } catch {
+            message = error.localizedDescription
+        }
+    }
+
+    func markOrderPaid(_ order: FoodOrder) async {
+        guard let restaurant = merchantSelection else { return }
+        do {
+            let updated = try await authed {
+                try await FoodAPIClient.shared.updateOrderPayment(
+                    restaurantId: restaurant.id, orderId: order.id, paymentStatus: "paid", token: $0
+                )
+            }
+            replaceMerchantOrder(updated)
+        } catch {
+            message = error.localizedDescription
+        }
+    }
+
+    private func replaceMerchantOrder(_ order: FoodOrder) {
+        if let index = merchantOrders.firstIndex(where: { $0.id == order.id }) {
+            if order.isActive {
+                merchantOrders[index] = order
+            } else {
+                merchantOrders.remove(at: index)
+            }
+        } else if order.isActive {
+            merchantOrders.insert(order, at: 0)
         }
     }
 }
 
+/// Sample content for SwiftUI previews only. The live app never substitutes
+/// this for real API data.
 enum FoodSampleData {
-    static let restaurants = [
-        FoodRestaurant(
-            id: 1,
-            businessId: 101,
-            displayName: "Ox Burger Lab",
-            description: "Fast pickup, kiosk ordering, and a live kitchen board.",
-            cuisineTags: ["Burgers", "Coffee", "Breakfast"],
-            coverPhotoUrl: nil,
-            logoUrl: nil,
-            addressCity: "Miami",
-            addressState: "FL",
-            addressCountry: "US",
-            latitude: 25.7617,
-            longitude: -80.1918,
-            currencyCode: "USD",
-            fulfillmentModes: ["pickup", "dine_in", "kiosk"],
-            acceptsOnlineOrders: true,
-            acceptsInStoreOrders: true,
-            kitchenDisplayEnabled: true,
-            prepTimeMin: 12,
-            distanceKm: 1.4
-        ),
-        FoodRestaurant(
-            id: 2,
-            businessId: 102,
-            displayName: "Lakou Bowl",
-            description: "Island bowls, juices, and counter pickup.",
-            cuisineTags: ["Caribbean", "Healthy"],
-            coverPhotoUrl: nil,
-            logoUrl: nil,
-            addressCity: "Port-au-Prince",
-            addressState: nil,
-            addressCountry: "HT",
-            latitude: 18.5944,
-            longitude: -72.3074,
-            currencyCode: "USD",
-            fulfillmentModes: ["pickup", "dine_in"],
-            acceptsOnlineOrders: true,
-            acceptsInStoreOrders: true,
-            kitchenDisplayEnabled: true,
-            prepTimeMin: 18,
-            distanceKm: nil
-        )
-    ]
+    static let restaurant = FoodRestaurant(
+        id: 1,
+        businessId: 101,
+        displayName: "Ox Burger Lab",
+        description: "Fast pickup, kiosk ordering, and a live kitchen board.",
+        cuisineTags: ["Burgers", "Coffee"],
+        coverPhotoUrl: nil,
+        logoUrl: nil,
+        addressCity: "Miami",
+        addressState: "FL",
+        addressCountry: "US",
+        latitude: 25.7617,
+        longitude: -80.1918,
+        currencyCode: "USD",
+        fulfillmentModes: ["pickup", "dine_in", "kiosk"],
+        acceptsOnlineOrders: true,
+        acceptsInStoreOrders: true,
+        kitchenDisplayEnabled: true,
+        prepTimeMin: 12,
+        distanceKm: 1.4,
+        status: "active"
+    )
 
-    static let menu = [
-        FoodMenuSection(id: 1, name: "Popular", description: "Best sellers", items: [
-            FoodMenuItem(id: 11, categoryId: 1, name: "Classic Ox Burger", description: "Double patty, lettuce, tomato, house sauce.", imageUrl: nil, priceCents: 899, currencyCode: "USD", isAvailable: true, tags: ["Popular"], allergens: ["Dairy", "Gluten"], modifierGroups: []),
-            FoodMenuItem(id: 12, categoryId: 1, name: "Crispy Chicken Meal", description: "Chicken sandwich, fries, and drink.", imageUrl: nil, priceCents: 1199, currencyCode: "USD", isAvailable: true, tags: ["Combo"], allergens: ["Gluten"], modifierGroups: []),
-            FoodMenuItem(id: 13, categoryId: 1, name: "Plantain Breakfast Bowl", description: "Egg, avocado, greens, sweet plantains.", imageUrl: nil, priceCents: 1099, currencyCode: "USD", isAvailable: true, tags: ["Breakfast"], allergens: ["Egg"], modifierGroups: [])
-        ]),
-        FoodMenuSection(id: 2, name: "Drinks", description: nil, items: [
-            FoodMenuItem(id: 21, categoryId: 2, name: "Iced Coffee", description: "Cold brew with milk or oat milk.", imageUrl: nil, priceCents: 399, currencyCode: "USD", isAvailable: true, tags: [], allergens: [], modifierGroups: []),
-            FoodMenuItem(id: 22, categoryId: 2, name: "Mango Juice", description: "Fresh mango, lime, and mint.", imageUrl: nil, priceCents: 499, currencyCode: "USD", isAvailable: true, tags: ["Fresh"], allergens: [], modifierGroups: [])
-        ])
-    ]
-
-    static let orders = [
-        makeOrder(restaurantId: 1, queue: 201, total: 1798, fulfillment: "pickup", tableLabel: nil, status: "received"),
-        makeOrder(restaurantId: 1, queue: 202, total: 1199, fulfillment: "dine_in", tableLabel: "Table 8", status: "preparing"),
-        makeOrder(restaurantId: 1, queue: 203, total: 499, fulfillment: "kiosk", tableLabel: "Kiosk 2", status: "ready")
-    ]
-
-    static func makeOrder(
-        restaurantId: Int64,
-        queue: Int,
-        total: Int,
-        fulfillment: String,
-        tableLabel: String?,
-        status: String = "received"
-    ) -> FoodOrder {
-        FoodOrder(
-            id: Int64(queue),
-            restaurantId: restaurantId,
-            status: status,
-            fulfillmentType: fulfillment,
-            orderSource: fulfillment == "kiosk" ? "kiosk" : "mobile",
-            paymentStatus: "requires_payment",
-            queueNumber: queue,
-            totalCents: total,
-            currencyCode: "USD",
-            tableLabel: tableLabel,
-            guestName: nil,
-            createdAt: Date(),
-            promisedAt: Calendar.current.date(byAdding: .minute, value: 12, to: Date()),
-            items: [
-                FoodOrderLine(id: Int64(queue * 10), itemName: "Classic Ox Burger", quantity: 2, lineTotalCents: total, specialInstructions: nil)
-            ]
-        )
-    }
+    static let menuItem = FoodMenuItem(
+        id: 11,
+        categoryId: 1,
+        name: "Classic Ox Burger",
+        description: "Double patty, lettuce, tomato, house sauce.",
+        imageUrl: nil,
+        priceCents: 899,
+        currencyCode: "USD",
+        isAvailable: true,
+        tags: ["Popular"],
+        allergens: ["Dairy", "Gluten"],
+        modifierGroups: [
+            FoodModifierGroup(id: 1, name: "Size", minSelect: 1, maxSelect: 1, isRequired: true, options: [
+                FoodModifier(id: 1, name: "Single", priceDeltaCents: 0, isAvailable: true),
+                FoodModifier(id: 2, name: "Double", priceDeltaCents: 250, isAvailable: true),
+            ])
+        ]
+    )
 }

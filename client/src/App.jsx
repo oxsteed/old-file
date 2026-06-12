@@ -68,6 +68,13 @@ import HelperConversationPage from './pages/HelperConversationPage';
 import HelperGuestInquiryPage from './pages/HelperGuestInquiryPage';
 import PlannedNeedsPage from './pages/PlannedNeedsPage';
 import CarCarePage from './pages/CarCarePage';
+// OxSteed Food - restaurant online + in-store ordering (migration 305)
+import FoodHomePage from './pages/food/FoodHomePage';
+import FoodRestaurantPage from './pages/food/FoodRestaurantPage';
+import FoodMerchantPage from './pages/food/FoodMerchantPage';
+import FoodKitchenPage from './pages/food/FoodKitchenPage';
+import FoodQueueBoardPage from './pages/food/FoodQueueBoardPage';
+import FoodKioskPage from './pages/food/FoodKioskPage';
 // OxSteed Logistics branch
 import LogisticsHomePage    from './pages/logistics/LogisticsHomePage';
 import BuyerDashboardPage   from './pages/logistics/BuyerDashboardPage';
@@ -321,6 +328,16 @@ export default function App() {
                     {/* Financial planning: wrapped in RouteErrorBoundary to isolate crashes */}
                     <Route path="/planned-needs" element={<Guarded><ProtectedRoute><RouteErrorBoundary><PlannedNeedsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/car-care"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><CarCarePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+
+                    {/* OxSteed Food (migration 305): discovery + ordering are public;
+                        queue board + kiosk are public in-store screens; merchant
+                        dashboard and kitchen display require sign-in. */}
+                    <Route path="/food"                       element={<Guarded><RouteErrorBoundary><FoodHomePage /></RouteErrorBoundary></Guarded>} />
+                    <Route path="/food/restaurants/:restaurantId" element={<Guarded><RouteErrorBoundary><FoodRestaurantPage /></RouteErrorBoundary></Guarded>} />
+                    <Route path="/food/queue/:restaurantId"   element={<RouteErrorBoundary><FoodQueueBoardPage /></RouteErrorBoundary>} />
+                    <Route path="/food/kiosk/:restaurantId"   element={<RouteErrorBoundary><FoodKioskPage /></RouteErrorBoundary>} />
+                    <Route path="/food/merchant"              element={<Guarded><ProtectedRoute><RouteErrorBoundary><FoodMerchantPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/food/kitchen/:restaurantId" element={<ProtectedRoute><RouteErrorBoundary><FoodKitchenPage /></RouteErrorBoundary></ProtectedRoute>} />
 
                     {/* OxSteed Logistics branch (migration 247) */}
                     <Route path="/logistics"                  element={<Guarded><RouteErrorBoundary><LogisticsHomePage /></RouteErrorBoundary></Guarded>} />

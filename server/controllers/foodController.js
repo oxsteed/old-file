@@ -8,6 +8,17 @@ const socketService = require('../services/socketService');
 const VALID_FULFILLMENT = new Set(['pickup', 'dine_in', 'delivery', 'kiosk']);
 const VALID_ORDER_SOURCES = new Set(['mobile', 'web', 'kiosk', 'counter', 'tablet']);
 const VALID_STATUS = new Set(['received', 'accepted', 'preparing', 'ready', 'completed', 'cancelled', 'refunded']);
+const VALID_PAYMENT_STATUS = new Set(['unpaid', 'paid', 'refunded']);
+const IN_STORE_SOURCES = new Set(['kiosk', 'counter', 'tablet']);
+// Allowed transitions: target status -> statuses it may come from.
+const ORDER_TRANSITIONS = {
+  accepted: ['received'],
+  preparing: ['received', 'accepted'],
+  ready: ['received', 'accepted', 'preparing'],
+  completed: ['ready'],
+  cancelled: ['received', 'accepted', 'preparing', 'ready'],
+  refunded: ['completed', 'cancelled'],
+};
 
 function normalizeString(value, max = 255) {
   if (typeof value !== 'string') return null;
@@ -388,14 +399,18 @@ exports.createOrder = async (req, res, next) => {
     }
 
     const order = await withTransaction(pool, async (client) => {
+      // FOR UPDATE serializes concurrent orders for the same restaurant so the
+      // per-day queue number below cannot be duplicated under load.
       const { rows: restaurants } = await client.query(
-        `SELECT * FROM food_restaurants WHERE id = $1 AND status = 'active'`,
+        `SELECT * FROM food_restaurants WHERE id = $1 AND status = 'active' FOR UPDATE`,
         [restaurantId]
       );
       const restaurant = restaurants[0];
       if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-      if (!restaurant.accepts_online_orders && req.body.orderSource !== 'kiosk' && req.body.order_source !== 'kiosk') {
-        throw new AppError('Restaurant is not accepting online orders', 409, 'restaurant_not_accepting_orders');
+      const requestedSource = normalizeString(req.body.orderSource || req.body.order_source, 24) || 'mobile';
+      const isInStore = IN_STORE_SOURCES.has(requestedSource);
+      if (isInStore ? !restaurant.accepts_in_store_orders : !restaurant.accepts_online_orders) {
+        throw new AppError('Restaurant is not accepting orders from this channel', 409, 'restaurant_not_accepting_orders');
       }
 
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
@@ -485,7 +500,9 @@ exports.createOrder = async (req, res, next) => {
           normalizeString(req.body.guestEmail || req.body.guest_email, 255),
           orderSource,
           fulfillmentType,
-          total > 0 ? 'requires_payment' : 'paid',
+          // All OxSteed Food payments are settled in store (liability-limiting
+          // model): the platform tracks amounts but never processes charges.
+          'unpaid',
           subtotal,
           tax,
           tip,
@@ -548,6 +565,10 @@ exports.listRestaurantOrders = async (req, res, next) => {
     if (status && VALID_STATUS.has(status)) {
       params.push(status);
       filter = `AND fo.status = $${params.length}`;
+    } else if (req.query.active === '1' || req.query.active === 'true') {
+      // Kitchen-display polling feed: only today's in-flight orders.
+      filter = `AND fo.status IN ('received','accepted','preparing','ready')
+                AND fo.created_at::date = CURRENT_DATE`;
     }
     const { rows } = await pool.query(
       `SELECT fo.*,
@@ -586,7 +607,7 @@ exports.updateOrderStatus = async (req, res, next) => {
     const orderId = parsePositiveInt(req.params.orderId);
     await requireRestaurantAccess(req.user.id, restaurantId);
     const status = normalizeString(req.body.status, 24);
-    if (!VALID_STATUS.has(status)) {
+    if (!VALID_STATUS.has(status) || !ORDER_TRANSITIONS[status]) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported order status' });
     }
 
@@ -602,13 +623,405 @@ exports.updateOrderStatus = async (req, res, next) => {
           SET status = $1,
               ${timestampColumn ? `${timestampColumn} = COALESCE(${timestampColumn}, NOW()),` : ''}
               updated_at = NOW()
-        WHERE id = $2 AND restaurant_id = $3
+        WHERE id = $2 AND restaurant_id = $3 AND status = ANY($4::text[])
         RETURNING *`,
-      [status, orderId, restaurantId]
+      [status, orderId, restaurantId, ORDER_TRANSITIONS[status]]
     );
-    if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+    if (!order) {
+      const { rows: existing } = await pool.query(
+        `SELECT status FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
+        [orderId, restaurantId]
+      );
+      if (!existing[0]) throw new AppError('Order not found', 404, 'order_not_found');
+      throw new AppError(
+        `Cannot move order from '${existing[0].status}' to '${status}'`,
+        409,
+        'illegal_state_transition'
+      );
+    }
 
     emitRestaurantOrder(order.business_id, 'food:order:updated', { order });
+    res.json({ order });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateOrderPayment = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const orderId = parsePositiveInt(req.params.orderId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const paymentStatus = normalizeString(req.body.paymentStatus || req.body.payment_status, 24);
+    if (!VALID_PAYMENT_STATUS.has(paymentStatus)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        paymentStatus: 'Must be one of unpaid, paid, refunded',
+      });
+    }
+    const { rows: [order] } = await pool.query(
+      `UPDATE food_orders
+          SET payment_status = $1, updated_at = NOW()
+        WHERE id = $2 AND restaurant_id = $3
+        RETURNING *`,
+      [paymentStatus, orderId, restaurantId]
+    );
+    if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+    emitRestaurantOrder(order.business_id, 'food:order:updated', { order });
+    res.json({ order });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.listMyRestaurants = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT fr.*
+         FROM food_restaurants fr
+         JOIN businesses b ON b.id = fr.business_id
+        WHERE fr.owner_user_id = $1
+           OR b.user_id = $1
+           OR EXISTS (
+                SELECT 1 FROM business_members bm
+                 WHERE bm.business_id = fr.business_id
+                   AND bm.member_id = $1
+                   AND bm.status = 'active'
+              )
+        ORDER BY fr.created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ restaurants: rows });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const RESTAURANT_PATCH_FIELDS = {
+  displayName: { column: 'display_name', value: (v) => normalizeString(v, 160) },
+  description: { column: 'description', value: (v) => normalizeString(v, 2000) },
+  phone: { column: 'phone', value: (v) => normalizeString(v, 40) },
+  website: { column: 'website', value: (v) => normalizeString(v, 255) },
+  coverPhotoUrl: { column: 'cover_photo_url', value: (v) => normalizeString(v, 1000) },
+  logoUrl: { column: 'logo_url', value: (v) => normalizeString(v, 1000) },
+  addressStreet: { column: 'address_street', value: (v) => normalizeString(v, 255) },
+  addressCity: { column: 'address_city', value: (v) => normalizeString(v, 120) },
+  addressState: { column: 'address_state', value: (v) => normalizeString(v, 120) },
+  addressZip: { column: 'address_zip', value: (v) => normalizeString(v, 40) },
+  addressCountry: { column: 'address_country', value: (v) => normalizeCountry(v) },
+  latitude: { column: 'latitude', value: (v) => (Number.isFinite(Number(v)) ? Number(v) : null) },
+  longitude: { column: 'longitude', value: (v) => (Number.isFinite(Number(v)) ? Number(v) : null) },
+  timezone: { column: 'timezone', value: (v) => normalizeString(v, 80) || 'UTC' },
+  currencyCode: { column: 'currency_code', value: (v) => normalizeCurrency(v) },
+  cuisineTags: { column: 'cuisine_tags', value: (v) => normalizeTextArray(v) },
+  prepTimeMin: { column: 'prep_time_min', value: (v) => parsePositiveInt(v, 15) },
+  acceptsOnlineOrders: { column: 'accepts_online_orders', value: (v) => v !== false },
+  acceptsInStoreOrders: { column: 'accepts_in_store_orders', value: (v) => v !== false },
+  kitchenDisplayEnabled: { column: 'kitchen_display_enabled', value: (v) => v !== false },
+};
+const OWNER_SETTABLE_STATUS = new Set(['draft', 'active', 'paused']);
+
+exports.updateRestaurant = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+
+    const sets = [];
+    const params = [];
+    for (const [key, spec] of Object.entries(RESTAURANT_PATCH_FIELDS)) {
+      const snake = key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+      const raw = req.body[key] !== undefined ? req.body[key] : req.body[snake];
+      if (raw === undefined) continue;
+      params.push(spec.value(raw));
+      sets.push(`${spec.column} = $${params.length}`);
+    }
+    const status = normalizeString(req.body.status, 24);
+    if (status) {
+      if (!OWNER_SETTABLE_STATUS.has(status)) {
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          status: 'Status must be draft, active, or paused',
+        });
+      }
+      params.push(status);
+      sets.push(`status = $${params.length}`);
+    }
+    if (sets.length === 0) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { body: 'No updatable fields provided' });
+    }
+
+    params.push(restaurantId);
+    const { rows: [restaurant] } = await pool.query(
+      `UPDATE food_restaurants SET ${sets.join(', ')}, updated_at = NOW()
+        WHERE id = $${params.length}
+        RETURNING *`,
+      params
+    );
+    res.json({ restaurant });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateMenuCategory = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const categoryId = parsePositiveInt(req.params.categoryId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const { rows: [category] } = await pool.query(
+      `UPDATE food_menu_categories
+          SET name = COALESCE($1, name),
+              description = COALESCE($2, description),
+              sort_order = COALESCE($3, sort_order),
+              is_active = COALESCE($4, is_active),
+              updated_at = NOW()
+        WHERE id = $5 AND restaurant_id = $6
+        RETURNING *`,
+      [
+        normalizeString(req.body.name, 120),
+        normalizeString(req.body.description, 1000),
+        Number.isFinite(Number(req.body.sortOrder ?? req.body.sort_order)) ? Number(req.body.sortOrder ?? req.body.sort_order) : null,
+        typeof (req.body.isActive ?? req.body.is_active) === 'boolean' ? (req.body.isActive ?? req.body.is_active) : null,
+        categoryId,
+        restaurantId,
+      ]
+    );
+    if (!category) throw new AppError('Category not found', 404, 'category_not_found');
+    res.json({ category });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deleteMenuCategory = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const categoryId = parsePositiveInt(req.params.categoryId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const { rowCount } = await pool.query(
+      `DELETE FROM food_menu_categories WHERE id = $1 AND restaurant_id = $2`,
+      [categoryId, restaurantId]
+    );
+    if (!rowCount) throw new AppError('Category not found', 404, 'category_not_found');
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateMenuItem = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const itemId = parsePositiveInt(req.params.itemId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const priceRaw = req.body.priceCents ?? req.body.price_cents;
+    const { rows: [item] } = await pool.query(
+      `UPDATE food_menu_items
+          SET name = COALESCE($1, name),
+              description = COALESCE($2, description),
+              image_url = COALESCE($3, image_url),
+              price_cents = COALESCE($4, price_cents),
+              category_id = COALESCE($5, category_id),
+              is_available = COALESCE($6, is_available),
+              sort_order = COALESCE($7, sort_order),
+              updated_at = NOW()
+        WHERE id = $8 AND restaurant_id = $9
+        RETURNING *`,
+      [
+        normalizeString(req.body.name, 160),
+        normalizeString(req.body.description, 2000),
+        normalizeString(req.body.imageUrl || req.body.image_url, 1000),
+        priceRaw !== undefined ? parseMoneyCents(priceRaw, 'priceCents') : null,
+        parsePositiveInt(req.body.categoryId || req.body.category_id),
+        typeof (req.body.isAvailable ?? req.body.is_available) === 'boolean' ? (req.body.isAvailable ?? req.body.is_available) : null,
+        Number.isFinite(Number(req.body.sortOrder ?? req.body.sort_order)) ? Number(req.body.sortOrder ?? req.body.sort_order) : null,
+        itemId,
+        restaurantId,
+      ]
+    );
+    if (!item) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
+    res.json({ item });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deleteMenuItem = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const itemId = parsePositiveInt(req.params.itemId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const { rowCount } = await pool.query(
+      `DELETE FROM food_menu_items WHERE id = $1 AND restaurant_id = $2`,
+      [itemId, restaurantId]
+    );
+    if (!rowCount) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createModifierGroup = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const itemId = parsePositiveInt(req.params.itemId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const name = normalizeString(req.body.name, 120);
+    if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
+    const options = Array.isArray(req.body.options) ? req.body.options.slice(0, 30) : [];
+
+    const group = await withTransaction(pool, async (client) => {
+      const { rows: items } = await client.query(
+        `SELECT id FROM food_menu_items WHERE id = $1 AND restaurant_id = $2`,
+        [itemId, restaurantId]
+      );
+      if (!items[0]) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
+
+      const minSelect = Math.max(0, parsePositiveInt(req.body.minSelect ?? req.body.min_select, 0) || 0);
+      const maxSelect = Math.max(minSelect, parsePositiveInt(req.body.maxSelect ?? req.body.max_select, 1) || 1);
+      const { rows: [created] } = await client.query(
+        `INSERT INTO food_modifier_groups
+           (restaurant_id, menu_item_id, name, min_select, max_select, is_required, sort_order)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         RETURNING *`,
+        [
+          restaurantId,
+          itemId,
+          name,
+          minSelect,
+          maxSelect,
+          req.body.isRequired === true || req.body.is_required === true,
+          Number.parseInt(req.body.sortOrder || req.body.sort_order || 0, 10) || 0,
+        ]
+      );
+
+      const createdOptions = [];
+      for (let i = 0; i < options.length; i += 1) {
+        const optionName = normalizeString(options[i]?.name, 120);
+        if (!optionName) continue;
+        const delta = Number(options[i]?.priceDeltaCents ?? options[i]?.price_delta_cents ?? 0);
+        const { rows: [option] } = await client.query(
+          `INSERT INTO food_modifiers (modifier_group_id, name, price_delta_cents, sort_order)
+           VALUES ($1,$2,$3,$4)
+           RETURNING *`,
+          [created.id, optionName, Number.isFinite(delta) ? Math.round(delta) : 0, i]
+        );
+        createdOptions.push(option);
+      }
+      return { ...created, options: createdOptions };
+    }, 'food_create_modifier_group');
+
+    res.status(201).json({ modifierGroup: group });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deleteModifierGroup = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const groupId = parsePositiveInt(req.params.groupId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const { rowCount } = await pool.query(
+      `DELETE FROM food_modifier_groups WHERE id = $1 AND restaurant_id = $2`,
+      [groupId, restaurantId]
+    );
+    if (!rowCount) throw new AppError('Modifier group not found', 404, 'modifier_group_not_found');
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Public "now serving" board: today's active queue numbers, no auth so it can
+// run on a wall display or projector inside the restaurant.
+exports.getQueueBoard = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const { rows: restaurants } = await pool.query(
+      `SELECT id, display_name, logo_url FROM food_restaurants WHERE id = $1 AND status IN ('active','paused')`,
+      [restaurantId]
+    );
+    if (!restaurants[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+
+    const { rows } = await pool.query(
+      `SELECT queue_number, status
+         FROM food_orders
+        WHERE restaurant_id = $1
+          AND created_at::date = CURRENT_DATE
+          AND status IN ('received','accepted','preparing','ready')
+        ORDER BY queue_number ASC`,
+      [restaurantId]
+    );
+    res.json({
+      restaurant: restaurants[0],
+      preparing: rows.filter((r) => r.status !== 'ready').map((r) => r.queue_number),
+      ready: rows.filter((r) => r.status === 'ready').map((r) => r.queue_number),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.listMyOrders = async (req, res, next) => {
+  try {
+    const limit = Math.min(parsePositiveInt(req.query.limit, 30), 100);
+    const { rows } = await pool.query(
+      `SELECT fo.*, fr.display_name AS restaurant_name, fr.logo_url AS restaurant_logo_url,
+              COALESCE(json_agg(json_build_object(
+                'id', foi.id,
+                'itemName', foi.item_name,
+                'quantity', foi.quantity,
+                'lineTotalCents', foi.line_total_cents
+              ) ORDER BY foi.id) FILTER (WHERE foi.id IS NOT NULL), '[]') AS items
+         FROM food_orders fo
+         JOIN food_restaurants fr ON fr.id = fo.restaurant_id
+         LEFT JOIN food_order_items foi ON foi.order_id = fo.id
+        WHERE fo.customer_id = $1
+        GROUP BY fo.id, fr.display_name, fr.logo_url
+        ORDER BY fo.created_at DESC
+        LIMIT $2`,
+      [req.user.id, limit]
+    );
+    res.json({ orders: rows });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getOrder = async (req, res, next) => {
+  try {
+    const orderId = parsePositiveInt(req.params.orderId);
+    if (!orderId) throw new AppError('Order not found', 404, 'order_not_found');
+    const { rows } = await pool.query(
+      `SELECT fo.*, fr.display_name AS restaurant_name, fr.prep_time_min,
+              COALESCE(json_agg(json_build_object(
+                'id', foi.id,
+                'itemName', foi.item_name,
+                'quantity', foi.quantity,
+                'lineTotalCents', foi.line_total_cents,
+                'specialInstructions', foi.special_instructions
+              ) ORDER BY foi.id) FILTER (WHERE foi.id IS NOT NULL), '[]') AS items
+         FROM food_orders fo
+         JOIN food_restaurants fr ON fr.id = fo.restaurant_id
+         LEFT JOIN food_order_items foi ON foi.order_id = fo.id
+        WHERE fo.id = $1
+        GROUP BY fo.id, fr.display_name, fr.prep_time_min`,
+      [orderId]
+    );
+    const order = rows[0];
+    if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+
+    const isCustomer = order.customer_id && req.user?.id === order.customer_id;
+    if (!isCustomer) {
+      // Merchant-side staff can also view; everyone else gets a 404 so order
+      // existence is never leaked.
+      try {
+        await requireRestaurantAccess(req.user?.id, order.restaurant_id);
+      } catch (_) {
+        throw new AppError('Order not found', 404, 'order_not_found');
+      }
+    }
     res.json({ order });
   } catch (err) {
     next(err);

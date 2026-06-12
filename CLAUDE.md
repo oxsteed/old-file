@@ -1,6 +1,53 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-06-10
+**Last updated:** 2026-06-12
+
+## OxSteed Food — restaurant online + in-store ordering, full web build (2026-06-12) — LANDED
+
+McDonald's-style ordering on the same backend. A prior session had landed migration **305** (`305_oxsteed_food.sql`: food_restaurants, food_menu_categories, food_menu_items, food_modifier_groups, food_modifiers, food_orders with per-day `queue_number`, food_order_items, food_order_item_modifiers), a partial `foodController.js`, `routes/food.js` mounted at **`/api/food`**, and an iOS skeleton (`ios/OxSteedFood/` — customer browse/order/status). This session hardened the backend and built the entire web surface. **Liability model: the platform never processes food payments — orders track amounts and the merchant marks them paid in store.**
+
+**Backend (`server/controllers/foodController.js` extended to 20 handlers, `server/routes/food.js` rewritten):**
+- `createOrder` fixes: `FOR UPDATE` lock on the restaurant row so concurrent orders can't duplicate the per-day queue number; in-store sources (kiosk/counter/tablet) gate on `accepts_in_store_orders` (online on `accepts_online_orders`); `payment_status` always `'unpaid'` (track-only model); route now `optionalAuth` so kiosk/tablet guests order without an account.
+- `updateOrderStatus`: formal transition map (received→accepted/preparing→ready→completed; cancel from any active; refunded from completed/cancelled) — 409 `illegal_state_transition` with current status on violation.
+- New handlers: `updateOrderPayment` (mark paid/unpaid/refunded in store), `listMyRestaurants` (owner OR business owner OR active business_member), `updateRestaurant` (whitelisted PATCH incl. status draft/active/paused — this is how a merchant goes live), `updateMenuCategory`/`deleteMenuCategory`, `updateMenuItem`/`deleteMenuItem`, `createModifierGroup` (nested options in one transaction)/`deleteModifierGroup`, `getQueueBoard` (**public** — today's active queue numbers split preparing/ready, for a wall display), `listMyOrders` (customer history), `getOrder` (customer or merchant staff; 404 otherwise to avoid leaking existence).
+- `listRestaurantOrders` accepts `?active=1` — today's in-flight orders only (kitchen-display polling feed).
+- Socket: order create/update still broadcast `food:order:*` to the `business_<id>_inbox` room (best effort); web screens poll (5-7s) so no socket dependency.
+
+**Web client (all new, route prefix `/food`):**
+- `client/src/api/food.js` — helpers for all 20 endpoints + `formatFoodMoney(cents, currency)` (Intl).
+- `client/src/pages/food/foodShared.jsx` — `FoodLogo`/`FoodBrand` (same OxSteed mark as the navbar, per product decision) + status-key map.
+- **`/food`** `FoodHomePage.jsx` — Leaflet world map (markers + popups), search (name/description/cuisine), "Near me" geolocation (server-side haversine sort), restaurant cards with distance, merchant CTA.
+- **`/food/restaurants/:id`** `FoodRestaurantPage.jsx` — menu by category, item modal with modifier groups (min/max/required honored), cart bar, review modal (pickup/dine-in + table number, guest name when signed out), order confirmation with giant queue number + pay-in-store note + queue-board link. Exports `ItemModal` (reused by kiosk).
+- **`/food/merchant`** `FoodMerchantPage.jsx` (protected) — onboarding form (address, lat/lng, currency, cuisines), restaurant switcher, 3 tabs: **Orders** (7s polling, advance-status buttons, cancel, Mark paid, links to in-store screens), **Menu** (categories, items, sold-out toggle, delete, modifier-group modal with `Name:cents` quick syntax), **Settings** (Go live / Pause, online/in-store toggles, prep time, in-store screen links).
+- **`/food/kitchen/:id`** `FoodKitchenPage.jsx` (protected) — fullscreen dark KDS, 3 columns New/Preparing/Ready, 5s polling, tap ticket to advance; meant for a kitchen screen/projector.
+- **`/food/queue/:id`** `FoodQueueBoardPage.jsx` (**public**) — "Preparing / Now ready" wall board with giant queue numbers, 5s polling; point a TV at the dining room.
+- **`/food/kiosk/:id`** `FoodKioskPage.jsx` (**public**) — tablet self-order: touch-to-start → eat in / take out → menu grid → review + optional name → places order as `orderSource:'kiosk'` (guest, no login) → giant queue number → auto-resets after 20s for the next customer.
+- `client/src/styles/FoodPages.css` — `fd-*` namespace; app pages use the CSS-var theme (dark-mode aware), the three in-store screens are fixed dark fullscreen.
+- `App.jsx`: 6 routes wired (queue/kiosk public, merchant/kitchen behind ProtectedRoute). `Navbar.jsx`: "OxSteed Food" entry in the Resources dropdown + mobile menu (`food.nav.entry`).
+
+**i18n:** new top-level `food.*` namespace — **159 leaf keys × 5 locales (en/es/fr/ht/ar)**, parity verified by script (appended before the closing brace so locale diffs stay minimal; JSON validity + key-path parity asserted before write).
+
+**Verified:** `node --check` on foodController.js + routes/food.js; stub-pool smoke confirms all 20 handlers exported and routed; esbuild parse on all 8 new client files + App.jsx + Navbar.jsx; 5 locale files JSON-valid with food.* parity. iOS food app paths unchanged (additive API only).
+
+**iOS rebuild (same date, follow-up session):** `ios/OxSteedFood` rewritten from demo-shell to live app — same 6 files, **no pbxproj changes**.
+- **Decoding fixed for live data:** node-postgres serializes BIGINT ids as JSON *strings* while json_agg values arrive as numbers, and timestamps carry fractional seconds the stock `.iso8601` strategy rejects — the old models threw on every live response, which is why the app silently fell back to sample data. `FoodModels.swift` now has tolerant `KeyedDecodingContainer.flex*` helpers + custom `init(from:)` on every model (Decodable conformance declared in extensions so memberwise inits survive for previews).
+- **Real auth:** email/password sign-in against `POST /api/auth/login`, refresh-token rotation via `POST /api/auth/refresh`; `FoodStore.authed{}` retries once on 401 (access tokens live 15 min — the old paste-a-token flow was unusable). Tokens in UserDefaults keys `ox.food.*`.
+- **Customer flow:** Discover (map + search) → item configurator sheet (modifier groups with min/max/required, qty, notes) → cart with pay-at-counter notice → fullscreen confirmation with giant queue number → live `QueueBoardLive` (polls public queue-board every 5s, highlights your number). Guests order without an account (`guestName`); signed-in users get Track-tab history from `/api/food/my/orders`.
+- **Merchant flow:** sign-in card → `/my/restaurants` picker → Go Live / Pause (PATCH status), live-order feed (`?active=1`, 7s poll) with advance/cancel/**Mark paid**, publish restaurant (Form sheet), publish menu items (auto-creates category), fullscreen black `KitchenDisplayView` (New/Preparing/Ready, 5s poll, tap-to-advance tickets with special instructions).
+- Sample data no longer masks errors — failures surface in the message toast; `FoodSampleData` kept for previews only.
+- **Verified:** brace/paren/bracket balance on all 6 Swift files; no stale symbol references; Info.plist `OX_API_BASE_URL` substitution intact (falls back to https://api.oxsteed.com). **Not compiled here (no Xcode in sandbox) — run `build_run_sim` on `ios/OxSteedFood/OxSteedFood.xcodeproj` scheme `OxSteedFood` before merge.**
+
+**Outstanding (deliberate):**
+1. Migration 305 not executed here (no Postgres in sandbox) — run `node server/migrate.js` on non-prod first.
+2. iOS app not compiled in sandbox — `build_run_sim` before merge; uses MapCameraPosition so deployment target must stay ≥ iOS 17. 2FA accounts can't sign in inside the food app (clear message shown; sign-in via main app is the workaround).
+3. Kitchen/queue/kiosk render inside the normal app shell (navbar visible) — merchants should use browser fullscreen; a chrome-less display layout is a follow-up.
+4. Merchant onboarding takes manual lat/lng — wire `geoController.suggest` geocode-on-blur like PostJobPage.
+5. No notification/email fan-out on order events; web screens poll, sockets only hit the business inbox room.
+6. `tax_cents` defaults to 0 (client may pass) — per-restaurant tax-rate config when needed.
+7. Menu item images are URL-only (no upload); restaurant logo/cover likewise.
+8. ES/FR/HT/AR food.* strings are machine translations — review for restaurant terminology.
+
+---
 
 ## Pack architecture phase 1 — country packs + persona registry (2026-06-10) — LANDED
 
