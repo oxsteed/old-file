@@ -62,6 +62,7 @@ const SUPER_NAV = [
   { to: '/admin/super/audit-log/user-actions', icon: ScrollText,    label: 'User Action Log' },
   { to: '/admin/super/one-truth',              icon: Fingerprint,   label: 'One Truth'       },
   { to: '/admin/super/franchises',             icon: Globe,         label: 'Franchise HQ'    },
+  { to: '/admin/super/country-packs',          icon: Globe,         label: 'Country Packs'   },
   { to: '/admin/super/corporate/departments',  icon: Building2,     label: 'Corporate Setup' },
   { to: '/admin/super/mode-policies',          icon: Key,           label: 'Mode Policies'   },
   { to: '/admin/super/mode-approvals',         icon: AlertTriangle, label: 'Mode Approvals'  },

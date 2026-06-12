@@ -34,13 +34,19 @@ Implements the four-tabs-by-persona doc in the app shell.
 - **`Growth/GrowthTabView.swift`**: `growthLadder` persona switch removed — builds `GrowthLadderSignals` and maps registry specs to `GrowthStep`. `L10n.GrowthKey.step*` constants and the generic `growth.ladder.step*` strings remain but are no longer referenced.
 - **Localizable.strings (en/es/fr/ht/ar)**: 78 new keys each (`tab.pulse`, 21 `tab.<persona>.*`, 56 `growth.ladder.<persona>.*`). Parity + no-dup verified via script across all 5 tables.
 
+**Phase 3 — Learn pack data + web country picker + admin country packs (same session):**
+- **`Models/PersonaRegistry.swift`** extended with Learn pack data: `learnHeroTint(for:)`, `learnHomeCategory(for:)`, `learnDifficultyBoost(for:difficulty:)`. **`Learn/LearnTabView.swift`**: `heroContent` tint switch and `personaRank` category/difficulty switches removed — both now read the registry.
+- **Web country picker:** `client/src/pages/Settings/Country.jsx` (new) at route **`/settings/country`** (public — country choice works pre-signup). Available section selectable (persists via `setSelectedCountry`, falls back to first active if saved selection deactivates); Coming soon section inert with badge + hint. Uses the `country.*` locale namespace.
+- **Admin country packs:** `GET /api/country-config/admin` (super-admin; all packs incl. disabled, via `listAllCountryPacks()`), `client/src/admin/pages/super/CountryPacks.jsx` (new) at **`/admin/super/country-packs`** — table with status flips (Activate / Coming soon / Disable, confirm dialog) + expandable config JSON per row. Sidebar entry "Country Packs" in SUPER_NAV; route wired in AdminApp with `superOnly` guard.
+- **Verified:** `node --check` on server files; esbuild parse on Country.jsx, CountryPacks.jsx, App.jsx, AdminApp.jsx, AdminLayout.jsx; Swift brace balance.
+
 **Outstanding (deliberate):**
 1. Migration 304 not executed here (no Postgres in sandbox) — run `node server/migrate.js` on non-prod first.
 2. iOS not compiled in sandbox — verify with `build_run_sim` (scheme build-atom); the 3 new files must appear in the target.
 3. Country pack is wired to the persona switcher only; payment-rail/verification/addressing adapters (`PaymentRail` etc.) are the next slice — currently config data only.
-4. No web country picker UI yet — API helper + locale keys are ready; add a settings section when desired.
-5. `PersonaDashboard` and other `switch persona` sites in `Home/HomeComponents.swift` not yet moved into the registry (HomeContent was the first); migrate opportunistically per pack-architecture doc §8 step 4.
-6. No admin UI for country packs — super-admin PATCH endpoint only.
+4. `PersonaDashboard` metrics/actions switches in `Home/HomeComponents.swift` not yet moved into the registry — they are deeply store-coupled; needs a context-struct refactor (pack-architecture doc §8 step 4).
+5. Web country selection is localStorage-only — wire `getSelectedCountry()` into feature gating (e.g., persona availability on web) when web persona surfaces land.
+6. Admin country packs page edits status only; config JSON editing is read-only (expand row) — add an editor when operational need appears.
 7. Business sub-role tabs (Manager Ops Board / Rep Pipeline / Support Queue / Employee My Day from the four-tabs doc §§8–11) not in the app persona enum yet — they exist as web Business Hub role menus (`businessHubRoleMenu.js`); promoting them to app persona packs is a future slice.
 8. Tab 1/3/4 *content* recomposition per persona (e.g., Customer "Your next move" card ordering, Tool Owner Out/Due/Idle strip) is partially existing in the persona homes; the doc's full screen compositions land incrementally — this slice delivered naming, ladders, and registry routing.
 

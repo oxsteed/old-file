@@ -142,6 +142,18 @@ async function getCountryConfig(codeRaw) {
 }
 
 /**
+ * Super-admin list: every pack, including disabled, with full config.
+ */
+async function listAllCountryPacks() {
+  const { rows } = await pool.query(
+    `SELECT code, name, flag_emoji, status, sort_order, default_locale, currency_code, config, updated_at
+       FROM country_packs
+      ORDER BY CASE status WHEN 'active' THEN 0 WHEN 'coming_soon' THEN 1 ELSE 2 END, sort_order, name`
+  );
+  return rows;
+}
+
+/**
  * Super-admin update: status flip and/or config patch. The "flip the flag"
  * primitive — activating a country is a one-row UPDATE, never a deploy.
  */
@@ -192,4 +204,4 @@ function invalidateCache() {
   cache = { at: 0, list: null, configs: new Map() };
 }
 
-module.exports = { listCountries, getCountryConfig, updateCountryPack, invalidateCache, normalizeCode };
+module.exports = { listCountries, getCountryConfig, listAllCountryPacks, updateCountryPack, invalidateCache, normalizeCode };

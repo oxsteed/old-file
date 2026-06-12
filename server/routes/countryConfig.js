@@ -12,6 +12,7 @@ const ctrl = require('../controllers/countryPackController');
 
 router.get('/countries', generalLimiter, ctrl.listCountries);
 router.get('/', generalLimiter, ctrl.getCountryConfig);
+router.get('/admin', requireSuperAdmin, ctrl.adminListCountryPacks);
 router.patch('/admin/:code', requireSuperAdmin, ctrl.adminUpdateCountryPack);
 
 module.exports = router;

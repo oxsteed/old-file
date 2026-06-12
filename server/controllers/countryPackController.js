@@ -48,6 +48,19 @@ exports.getCountryConfig = async (req, res, next) => {
 };
 
 /**
+ * GET /api/country-config/admin  (super-admin)
+ * Every pack, including disabled, with full config.
+ */
+exports.adminListCountryPacks = async (req, res, next) => {
+  try {
+    const packs = await countryPackService.listAllCountryPacks();
+    res.json({ success: true, data: { packs } });
+  } catch (err) {
+    next(new AppError('Failed to load country packs', 500, 'country_packs_load_failed'));
+  }
+};
+
+/**
  * PATCH /api/country-config/admin/:code  (super-admin)
  * Body: { status?, name?, flag_emoji?, sort_order?, default_locale?, currency_code?, config? }
  * Activating a country is this endpoint with { "status": "active" }.

@@ -148,6 +148,63 @@ enum PersonaRegistry {
         let tapTab: String?
     }
 
+    // MARK: - Learn pack data (docs/oxsteed-four-tabs-by-persona.md, Tab 4)
+    //
+    // Hero tint, home category, and ranking preferences are persona pack
+    // data. The Learn view consumes them; it never switches on persona.
+
+    static func learnHeroTint(for persona: Persona) -> Color {
+        switch persona {
+        case .helper:     return Theme.success
+        case .business:   return Theme.pillarGoals
+        case .investor:   return Theme.pillarMoney
+        case .customer:   return Theme.pillarHome
+        case .consultant: return Theme.pillarPersonal
+        case .toolOwner:  return Theme.pillarCar
+        case .franchise:  return Theme.pillarSinking
+        }
+    }
+
+    /// The guide category that "belongs" to this persona — boosted in
+    /// recommendations and a sensible default filter.
+    static func learnHomeCategory(for persona: Persona) -> String? {
+        switch persona {
+        case .customer:    return "customer"
+        case .helper:      return "helper"
+        case .investor:    return "management"
+        case .business:    return "business"
+        case .consultant:  return "consulting"
+        case .toolOwner:   return "tool-rental"
+        case .franchise:   return "franchise"
+        }
+    }
+
+    /// Recommendation boost by guide difficulty. Helpers benefit from harder
+    /// (higher-XP) material; operations personas prefer actionable Medium
+    /// guides; customers do best with fast wins first.
+    static func learnDifficultyBoost(for persona: Persona, difficulty: String) -> Int {
+        switch persona {
+        case .helper:
+            switch difficulty {
+            case "Hard":   return 30
+            case "Medium": return 22
+            default:       return 12
+            }
+        case .investor, .business, .consultant, .franchise:
+            switch difficulty {
+            case "Medium": return 30
+            case "Easy":   return 20
+            default:       return 10
+            }
+        default:
+            switch difficulty {
+            case "Easy":   return 30
+            case "Medium": return 20
+            default:       return 10
+            }
+        }
+    }
+
     static func growthLadder(for persona: Persona, signals s: GrowthLadderSignals) -> [GrowthLadderStepSpec] {
         let p = persona.packId
         func key(_ n: Int, _ part: String) -> String { "growth.ladder.\(p).step\(n).\(part)" }

@@ -48,6 +48,7 @@ import ForgotPasswordPage from './pages/ForgotPassword';
 import ResetPasswordPage from './pages/ResetPassword';
 import TwoFactorSetup from './pages/Settings/TwoFactorSetup';
 import NotificationSettings from './pages/Settings/Notifications';
+import CountrySettings from './pages/Settings/Country';
 import SettingsPage from './pages/SettingsPage';
 import HelperCancellationSettings from './pages/HelperCancellationSettings';
 import PublicProfile from './pages/PublicProfile';
@@ -301,6 +302,7 @@ export default function App() {
                     <Route path="/settings"       element={<Guarded><ProtectedRoute><SettingsPage /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/2fa"   element={<Guarded><ProtectedRoute><TwoFactorSetup /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/notifications" element={<Guarded><ProtectedRoute><NotificationSettings /></ProtectedRoute></Guarded>} />
+                    <Route path="/settings/country" element={<Guarded><CountrySettings /></Guarded>} />
                     <Route path="/settings/payment-policies" element={<Guarded><ProtectedRoute><HelperCancellationSettings /></ProtectedRoute></Guarded>} />
                     <Route path="/dashboard/edit-profile" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperProfileEditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/business/edit-profile" element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessProfileEditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

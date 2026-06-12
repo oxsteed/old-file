@@ -187,22 +187,12 @@ struct LearnTabView: View {
     }
 
     private func heroContent(for persona: Persona) -> HeroContent {
-        let tint: Color = {
-            switch persona {
-            case .helper:     return Theme.success
-            case .business:   return Theme.pillarGoals
-            case .investor:   return Theme.pillarMoney
-            case .customer:   return Theme.pillarHome
-            case .consultant: return Theme.pillarPersonal
-            case .toolOwner:  return Theme.pillarCar
-            case .franchise:  return Theme.pillarSinking
-            }
-        }()
-        return .init(
+        // Hero tint is persona pack data — resolved via the registry.
+        .init(
             eyebrow: L10n.LearnKey.Hero.eyebrow(for: persona),
             title:   L10n.LearnKey.Hero.title(for: persona),
             subtitle: L10n.LearnKey.Hero.subtitle(for: persona),
-            tint: tint
+            tint: PersonaRegistry.learnHeroTint(for: persona)
         )
     }
 
@@ -330,37 +320,11 @@ struct LearnTabView: View {
     }
 
     private func personaRank(_ g: LearnGuide, persona: Persona) -> Int {
+        // Category affinity and difficulty preferences are persona pack data
+        // (PersonaRegistry); this view only sums the score.
         var score = g.featured ? 100 : 0
-
-        // Boost guides whose category matches the active persona.
-        let personaCategory: String? = switch persona {
-        case .customer:    "customer"
-        case .helper:      "helper"
-        case .investor:    "management"
-        case .business:    "business"
-        case .consultant:  "consulting"
-        case .toolOwner:   "tool-rental"
-        case .franchise:   "franchise"
-        }
-        if let cat = personaCategory, g.category == cat { score += 50 }
-
-        switch persona {
-        case .helper:
-            // Helpers benefit from higher XP / harder material.
-            if g.difficulty == "Hard" { score += 30 }
-            else if g.difficulty == "Medium" { score += 22 }
-            else { score += 12 }
-        case .investor, .business, .consultant, .franchise:
-            // Operations-focused personas prefer Medium difficulty actionable guides.
-            if g.difficulty == "Medium" { score += 30 }
-            else if g.difficulty == "Easy" { score += 20 }
-            else { score += 10 }
-        default:
-            // Customers and others do best with fast wins first.
-            if g.difficulty == "Easy" { score += 30 }
-            else if g.difficulty == "Medium" { score += 20 }
-            else { score += 10 }
-        }
+        if let cat = PersonaRegistry.learnHomeCategory(for: persona), g.category == cat { score += 50 }
+        score += PersonaRegistry.learnDifficultyBoost(for: persona, difficulty: g.difficulty)
         return score
     }
 
