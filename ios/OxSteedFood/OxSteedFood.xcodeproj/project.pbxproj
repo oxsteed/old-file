@@ -10,6 +10,7 @@
 		01325493A78880258C38AE31 /* FoodModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8603F6D64325A6188ADF38F8 /* FoodModels.swift */; };
 		0B0BAF373C678C9330B4F2B8 /* OxSteedFoodApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE92D70BA32C0F29324128FF /* OxSteedFoodApp.swift */; };
 		0F961E9EC1F30AB56BBE135A /* FoodStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADD466BB90F622DA1FDA25C /* FoodStore.swift */; };
+		1D4544E182E49CFCAE340387 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 871E2F0E1965F8D57F212999 /* LaunchScreen.storyboard */; };
 		22A4538CEF1956F339D1F820 /* FoodRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75D7F4165848ED585EEA6D52 /* FoodRootView.swift */; };
 		34191CFDD1394AE84D635CF2 /* FoodTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4D8EEA1D99495BC5585829C /* FoodTheme.swift */; };
 		55BF3A78797C8FB107DF8D1A /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C69C060C350F1CE655E24E77 /* Foundation.framework */; };
@@ -22,6 +23,7 @@
 		303C33AD50E1E2FAD3458660 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		75D7F4165848ED585EEA6D52 /* FoodRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FoodRootView.swift; sourceTree = "<group>"; };
 		8603F6D64325A6188ADF38F8 /* FoodModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FoodModels.swift; sourceTree = "<group>"; };
+		871E2F0E1965F8D57F212999 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		A7CEAAB167A229728ECDCFF4 /* OxSteedFood.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OxSteedFood.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AADD466BB90F622DA1FDA25C /* FoodStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FoodStore.swift; sourceTree = "<group>"; };
 		B18C14720C39BC409CBA6E38 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -72,6 +74,7 @@
 				B18C14720C39BC409CBA6E38 /* Assets.xcassets */,
 				CE26F07EA8DB91389B863691 /* PrivacyInfo.xcprivacy */,
 				303C33AD50E1E2FAD3458660 /* Info.plist */,
+				871E2F0E1965F8D57F212999 /* LaunchScreen.storyboard */,
 			);
 			name = OxSteedFood;
 			path = OxSteedFood;
@@ -150,6 +153,7 @@
 			files = (
 				E41792F772B6D4C38DDD82D8 /* Assets.xcassets in Resources */,
 				F49FFB017408909CE1B5AA4B /* PrivacyInfo.xcprivacy in Resources */,
+				1D4544E182E49CFCAE340387 /* LaunchScreen.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

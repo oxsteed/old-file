@@ -114,8 +114,10 @@ struct DiscoverView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("OxSteed Food")
-                                .font(.system(size: 32, weight: .black))
+                                .font(.system(size: 30, weight: .black))
                                 .foregroundStyle(FoodTheme.ink)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
                             Text("Order ahead or in store. Pay at the counter.")
                                 .font(.system(size: 15, weight: .medium))
                                 .foregroundStyle(FoodTheme.muted)
