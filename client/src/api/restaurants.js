@@ -57,3 +57,22 @@ export const updateSop = (restaurantId, sopId, payload) =>
 
 export const deleteSop = (restaurantId, sopId) =>
   api.delete(`/restaurants/${restaurantId}/sops/${sopId}`);
+
+// ── Inventory (Phase 3) ──────────────────────────────────────────────────────
+export const listInventoryItems = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/inventory/items`, { params }).then((r) => r.data?.items || []);
+
+export const createInventoryItem = (restaurantId, payload) =>
+  api.post(`/restaurants/${restaurantId}/inventory/items`, payload).then((r) => r.data?.item);
+
+export const updateInventoryItem = (restaurantId, itemId, payload) =>
+  api.patch(`/restaurants/${restaurantId}/inventory/items/${itemId}`, payload).then((r) => r.data?.item);
+
+export const deleteInventoryItem = (restaurantId, itemId) =>
+  api.delete(`/restaurants/${restaurantId}/inventory/items/${itemId}`);
+
+export const adjustInventoryItem = (restaurantId, itemId, payload) =>
+  api.post(`/restaurants/${restaurantId}/inventory/items/${itemId}/adjust`, payload).then((r) => r.data?.item);
+
+export const listInventoryAdjustments = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/inventory/adjustments`, { params }).then((r) => r.data?.adjustments || []);

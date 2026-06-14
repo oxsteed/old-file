@@ -12929,6 +12929,48 @@
           "closing": "Closing",
           "safety": "Safety"
         }
+      },
+      "inventory": {
+        "title": "Inventory",
+        "newItem": "New item",
+        "empty": "No inventory items yet. Add your key ingredients and supplies.",
+        "loadError": "Could not load inventory",
+        "saveError": "Could not save item",
+        "confirmDelete": "Delete this item?",
+        "lowStockAlert": "{{count}} item(s) at or below their low-stock threshold.",
+        "low": "Low",
+        "adjust": "Adjust",
+        "nameLabel": "Item name",
+        "namePlaceholder": "e.g. Tomatoes",
+        "categoryLabel": "Category",
+        "unitLabel": "Unit",
+        "quantityLabel": "On hand",
+        "thresholdLabel": "Low-stock at",
+        "adjustTitle": "Adjust stock",
+        "onHand": "On hand",
+        "adjustType": "Type",
+        "countedLabel": "Counted quantity",
+        "amountLabel": "Amount",
+        "noteLabel": "Note (optional)",
+        "apply": "Apply",
+        "category": {
+          "general": "General",
+          "produce": "Produce",
+          "meat": "Meat",
+          "dairy": "Dairy",
+          "dry_goods": "Dry goods",
+          "frozen": "Frozen",
+          "beverage": "Beverage",
+          "packaging": "Packaging",
+          "cleaning": "Cleaning"
+        },
+        "adjType": {
+          "receive": "Receive",
+          "waste": "Waste",
+          "usage": "Usage",
+          "count": "Count",
+          "correction": "Correction"
+        }
       }
     }
   }

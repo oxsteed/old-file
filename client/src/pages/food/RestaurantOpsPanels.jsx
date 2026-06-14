@@ -12,6 +12,7 @@ import {
   addChecklistTask, deleteChecklistTask,
   startChecklistRun, listChecklistRuns, getChecklistRun, toggleRunItem, completeChecklistRun,
   listSops, createSop, updateSop, deleteSop,
+  listInventoryItems, createInventoryItem, deleteInventoryItem, adjustInventoryItem,
 } from '../../api/restaurants';
 
 function apiErr(err, fallback) {
@@ -21,6 +22,12 @@ function apiErr(err, fallback) {
 
 const CHECKLIST_TYPES = ['opening', 'closing', 'cleaning', 'food_safety', 'custom'];
 const SOP_CATEGORIES = ['general', 'kitchen', 'front_of_house', 'cleaning', 'food_safety', 'opening', 'closing', 'safety'];
+const INVENTORY_CATEGORIES = ['general', 'produce', 'meat', 'dairy', 'dry_goods', 'frozen', 'beverage', 'packaging', 'cleaning'];
+
+function fmtQty(q) {
+  const n = Number(q);
+  return Number.isInteger(n) ? String(n) : String(Math.round(n * 1000) / 1000);
+}
 
 // Sensible starter tasks so a new checklist isn't empty (owner edits after).
 const SEED_TASKS = {
@@ -424,5 +431,209 @@ function SopForm({ t, sop, onSave, onCancel }) {
         <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel}>{t('food.common.back', 'Back')}</button>
       </div>
     </form>
+  );
+}
+
+// ── Inventory ─────────────────────────────────────────────────────────────────
+export function InventoryPanel({ t, restaurant }) {
+  const restaurantId = restaurant.id;
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [adjusting, setAdjusting] = useState(null); // item being adjusted
+
+  const load = useCallback(() => {
+    setLoading(true);
+    listInventoryItems(restaurantId)
+      .then(setItems)
+      .catch((err) => toast.error(apiErr(err, t('restaurants.ops.inventory.loadError', 'Could not load inventory'))))
+      .finally(() => setLoading(false));
+  }, [restaurantId, t]);
+  useEffect(() => { load(); }, [load]);
+
+  const create = async (payload) => {
+    try {
+      await createInventoryItem(restaurantId, payload);
+      setShowCreate(false);
+      load();
+    } catch (err) {
+      toast.error(apiErr(err, t('restaurants.ops.inventory.saveError', 'Could not save item')));
+    }
+  };
+  const remove = async (itemId) => {
+    if (!window.confirm(t('restaurants.ops.inventory.confirmDelete', 'Delete this item?'))) return;
+    try {
+      await deleteInventoryItem(restaurantId, itemId);
+      load();
+    } catch (err) {
+      toast.error(apiErr(err, t('common.failedToDelete', 'Failed to delete')));
+    }
+  };
+  const applyAdjust = async (itemId, payload) => {
+    try {
+      await adjustInventoryItem(restaurantId, itemId, payload);
+      setAdjusting(null);
+      load();
+    } catch (err) {
+      toast.error(apiErr(err, t('common.failedToUpdate', 'Failed to update')));
+    }
+  };
+
+  if (loading) return <div className="fd-empty">{t('food.common.loading', 'Loading…')}</div>;
+
+  const lowCount = items.filter((i) => i.is_low).length;
+
+  return (
+    <div>
+      {adjusting && (
+        <AdjustModal t={t} item={adjusting} onClose={() => setAdjusting(null)} onApply={applyAdjust} />
+      )}
+
+      <div className="fd-row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+        <h3 style={{ margin: 0 }}>{t('restaurants.ops.inventory.title', 'Inventory')}</h3>
+        <button type="button" className="fd-btn fd-btn-sm" onClick={() => setShowCreate((s) => !s)}>
+          {showCreate ? t('food.common.back', 'Back') : t('restaurants.ops.inventory.newItem', 'New item')}
+        </button>
+      </div>
+
+      {lowCount > 0 && (
+        <p className="fd-pay-note" style={{ marginTop: 0 }}>
+          {t('restaurants.ops.inventory.lowStockAlert', '{{count}} item(s) at or below their low-stock threshold.', { count: lowCount })}
+        </p>
+      )}
+
+      {showCreate && <NewItemForm t={t} onCancel={() => setShowCreate(false)} onCreate={create} />}
+
+      {items.length === 0 && !showCreate ? (
+        <div className="fd-empty">{t('restaurants.ops.inventory.empty', 'No inventory items yet. Add your key ingredients and supplies.')}</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          {items.map((it) => (
+            <div
+              key={it.id}
+              className="fd-row"
+              style={{
+                justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem',
+                padding: '0.55rem 0.7rem', borderRadius: 8,
+                border: `1px solid ${it.is_low ? 'var(--color-primary, #F97316)' : 'var(--border-color, #e5e7eb)'}`,
+              }}
+            >
+              <div>
+                <strong>{it.name}</strong>{' '}
+                <span className="fd-tag">{t(`restaurants.ops.inventory.category.${it.category}`, it.category)}</span>
+                {it.is_low && <span className="fd-tag" style={{ color: 'var(--color-primary, #F97316)' }}>{t('restaurants.ops.inventory.low', 'Low')}</span>}
+              </div>
+              <div className="fd-row" style={{ alignItems: 'center', gap: '0.5rem' }}>
+                <span className="fd-card-meta">{fmtQty(it.quantity)} {it.unit}</span>
+                <button type="button" className="fd-btn fd-btn-sm" onClick={() => setAdjusting(it)}>{t('restaurants.ops.inventory.adjust', 'Adjust')}</button>
+                <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => remove(it.id)} aria-label={t('common.delete', 'Delete')}>×</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NewItemForm({ t, onCreate, onCancel }) {
+  const [form, setForm] = useState({ name: '', category: 'general', unit: 'ea', quantity: '0', lowStockThreshold: '0' });
+  const [saving, setSaving] = useState(false);
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!form.name.trim()) return;
+    setSaving(true);
+    await onCreate({
+      name: form.name.trim(), category: form.category, unit: form.unit.trim() || 'ea',
+      quantity: Number(form.quantity) || 0, lowStockThreshold: Number(form.lowStockThreshold) || 0,
+    });
+    setSaving(false);
+  };
+
+  return (
+    <form onSubmit={submit} className="fd-card" style={{ padding: '1rem', marginBottom: '1rem' }}>
+      <div className="fd-field">
+        <label htmlFor="inv-name">{t('restaurants.ops.inventory.nameLabel', 'Item name')}</label>
+        <input id="inv-name" value={form.name} onChange={set('name')} placeholder={t('restaurants.ops.inventory.namePlaceholder', 'e.g. Tomatoes')} />
+      </div>
+      <div className="fd-row" style={{ gap: '0.5rem' }}>
+        <div className="fd-field" style={{ flex: 1 }}>
+          <label htmlFor="inv-cat">{t('restaurants.ops.inventory.categoryLabel', 'Category')}</label>
+          <select id="inv-cat" value={form.category} onChange={set('category')}>
+            {INVENTORY_CATEGORIES.map((c) => <option key={c} value={c}>{t(`restaurants.ops.inventory.category.${c}`, c)}</option>)}
+          </select>
+        </div>
+        <div className="fd-field" style={{ width: 90 }}>
+          <label htmlFor="inv-unit">{t('restaurants.ops.inventory.unitLabel', 'Unit')}</label>
+          <input id="inv-unit" value={form.unit} onChange={set('unit')} placeholder="ea" />
+        </div>
+      </div>
+      <div className="fd-row" style={{ gap: '0.5rem' }}>
+        <div className="fd-field" style={{ flex: 1 }}>
+          <label htmlFor="inv-qty">{t('restaurants.ops.inventory.quantityLabel', 'On hand')}</label>
+          <input id="inv-qty" type="number" step="any" value={form.quantity} onChange={set('quantity')} />
+        </div>
+        <div className="fd-field" style={{ flex: 1 }}>
+          <label htmlFor="inv-low">{t('restaurants.ops.inventory.thresholdLabel', 'Low-stock at')}</label>
+          <input id="inv-low" type="number" step="any" value={form.lowStockThreshold} onChange={set('lowStockThreshold')} />
+        </div>
+      </div>
+      <div className="fd-row" style={{ marginTop: '0.5rem' }}>
+        <button type="submit" className="fd-btn fd-btn-sm" disabled={saving || !form.name.trim()}>{t('food.common.save', 'Save')}</button>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onCancel}>{t('food.common.back', 'Back')}</button>
+      </div>
+    </form>
+  );
+}
+
+function AdjustModal({ t, item, onClose, onApply }) {
+  const [type, setType] = useState('receive');
+  const [value, setValue] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    const payload = { type, note };
+    if (type === 'count') payload.quantity = Number(value) || 0;
+    else payload.delta = Number(value) || 0;
+    await onApply(item.id, payload);
+    setBusy(false);
+  };
+
+  return (
+    <div
+      role="dialog" aria-modal="true"
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <form onSubmit={submit} className="fd-card" style={{ width: 'min(26rem, 100%)', padding: '1.25rem' }}>
+        <h3 style={{ marginTop: 0 }}>{t('restaurants.ops.inventory.adjustTitle', 'Adjust stock')}: {item.name}</h3>
+        <p className="fd-card-meta" style={{ marginTop: 0 }}>{t('restaurants.ops.inventory.onHand', 'On hand')}: {fmtQty(item.quantity)} {item.unit}</p>
+        <div className="fd-field">
+          <label htmlFor="adj-type">{t('restaurants.ops.inventory.adjustType', 'Type')}</label>
+          <select id="adj-type" value={type} onChange={(e) => setType(e.target.value)}>
+            {['receive', 'waste', 'usage', 'count', 'correction'].map((ty) => (
+              <option key={ty} value={ty}>{t(`restaurants.ops.inventory.adjType.${ty}`, ty)}</option>
+            ))}
+          </select>
+        </div>
+        <div className="fd-field">
+          <label htmlFor="adj-val">{type === 'count' ? t('restaurants.ops.inventory.countedLabel', 'Counted quantity') : t('restaurants.ops.inventory.amountLabel', 'Amount')}</label>
+          <input id="adj-val" type="number" step="any" value={value} onChange={(e) => setValue(e.target.value)} autoFocus />
+        </div>
+        <div className="fd-field">
+          <label htmlFor="adj-note">{t('restaurants.ops.inventory.noteLabel', 'Note (optional)')}</label>
+          <input id="adj-note" value={note} onChange={(e) => setNote(e.target.value)} />
+        </div>
+        <div className="fd-row" style={{ justifyContent: 'flex-end' }}>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onClose}>{t('food.common.back', 'Cancel')}</button>
+          <button type="submit" className="fd-btn fd-btn-sm" disabled={busy}>{t('restaurants.ops.inventory.apply', 'Apply')}</button>
+        </div>
+      </form>
+    </div>
   );
 }

@@ -12929,6 +12929,48 @@
           "closing": "Cierre",
           "safety": "Seguridad"
         }
+      },
+      "inventory": {
+        "title": "Inventario",
+        "newItem": "Nuevo artículo",
+        "empty": "Aún no hay artículos. Agrega tus ingredientes y suministros clave.",
+        "loadError": "No se pudo cargar el inventario",
+        "saveError": "No se pudo guardar el artículo",
+        "confirmDelete": "¿Eliminar este artículo?",
+        "lowStockAlert": "{{count}} artículo(s) en o por debajo del umbral de stock bajo.",
+        "low": "Bajo",
+        "adjust": "Ajustar",
+        "nameLabel": "Nombre del artículo",
+        "namePlaceholder": "p. ej. Tomates",
+        "categoryLabel": "Categoría",
+        "unitLabel": "Unidad",
+        "quantityLabel": "Disponible",
+        "thresholdLabel": "Stock bajo en",
+        "adjustTitle": "Ajustar stock",
+        "onHand": "Disponible",
+        "adjustType": "Tipo",
+        "countedLabel": "Cantidad contada",
+        "amountLabel": "Cantidad",
+        "noteLabel": "Nota (opcional)",
+        "apply": "Aplicar",
+        "category": {
+          "general": "General",
+          "produce": "Frutas y verduras",
+          "meat": "Carne",
+          "dairy": "Lácteos",
+          "dry_goods": "Secos",
+          "frozen": "Congelados",
+          "beverage": "Bebidas",
+          "packaging": "Empaque",
+          "cleaning": "Limpieza"
+        },
+        "adjType": {
+          "receive": "Recibir",
+          "waste": "Merma",
+          "usage": "Uso",
+          "count": "Conteo",
+          "correction": "Corrección"
+        }
       }
     }
   }

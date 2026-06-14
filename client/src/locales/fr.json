@@ -12929,6 +12929,48 @@
           "closing": "Fermeture",
           "safety": "Sécurité"
         }
+      },
+      "inventory": {
+        "title": "Inventaire",
+        "newItem": "Nouvel article",
+        "empty": "Aucun article pour l'instant. Ajoutez vos ingrédients et fournitures clés.",
+        "loadError": "Impossible de charger l'inventaire",
+        "saveError": "Impossible d'enregistrer l'article",
+        "confirmDelete": "Supprimer cet article ?",
+        "lowStockAlert": "{{count}} article(s) au niveau ou en dessous du seuil de stock bas.",
+        "low": "Bas",
+        "adjust": "Ajuster",
+        "nameLabel": "Nom de l'article",
+        "namePlaceholder": "ex. Tomates",
+        "categoryLabel": "Catégorie",
+        "unitLabel": "Unité",
+        "quantityLabel": "En stock",
+        "thresholdLabel": "Stock bas à",
+        "adjustTitle": "Ajuster le stock",
+        "onHand": "En stock",
+        "adjustType": "Type",
+        "countedLabel": "Quantité comptée",
+        "amountLabel": "Quantité",
+        "noteLabel": "Note (facultatif)",
+        "apply": "Appliquer",
+        "category": {
+          "general": "Général",
+          "produce": "Fruits et légumes",
+          "meat": "Viande",
+          "dairy": "Produits laitiers",
+          "dry_goods": "Produits secs",
+          "frozen": "Surgelés",
+          "beverage": "Boissons",
+          "packaging": "Emballage",
+          "cleaning": "Nettoyage"
+        },
+        "adjType": {
+          "receive": "Réception",
+          "waste": "Perte",
+          "usage": "Utilisation",
+          "count": "Comptage",
+          "correction": "Correction"
+        }
       }
     }
   }

@@ -256,6 +256,7 @@
 				MARKETING_VERSION = 1.0;
 				OX_API_BASE_URL = "https://api.oxsteed.com";
 				PRODUCT_BUNDLE_IDENTIFIER = com.oxsteed.food;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				PRODUCT_NAME = "OxSteed Food";
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
@@ -278,6 +279,7 @@
 				MARKETING_VERSION = 1.0;
 				OX_API_BASE_URL = "https://api.oxsteed.com";
 				PRODUCT_BUNDLE_IDENTIFIER = com.oxsteed.food;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				PRODUCT_NAME = "OxSteed Food";
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;

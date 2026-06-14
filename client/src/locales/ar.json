@@ -12922,6 +12922,48 @@
           "closing": "إغلاق",
           "safety": "السلامة"
         }
+      },
+      "inventory": {
+        "title": "المخزون",
+        "newItem": "عنصر جديد",
+        "empty": "لا توجد عناصر بعد. أضف مكوناتك ولوازمك الأساسية.",
+        "loadError": "تعذّر تحميل المخزون",
+        "saveError": "تعذّر حفظ العنصر",
+        "confirmDelete": "حذف هذا العنصر؟",
+        "lowStockAlert": "{{count}} عنصر عند حد المخزون المنخفض أو دونه.",
+        "low": "منخفض",
+        "adjust": "تعديل",
+        "nameLabel": "اسم العنصر",
+        "namePlaceholder": "مثال: طماطم",
+        "categoryLabel": "الفئة",
+        "unitLabel": "الوحدة",
+        "quantityLabel": "المتوفر",
+        "thresholdLabel": "حد الانخفاض عند",
+        "adjustTitle": "تعديل المخزون",
+        "onHand": "المتوفر",
+        "adjustType": "النوع",
+        "countedLabel": "الكمية المعدودة",
+        "amountLabel": "الكمية",
+        "noteLabel": "ملاحظة (اختياري)",
+        "apply": "تطبيق",
+        "category": {
+          "general": "عام",
+          "produce": "خضار وفواكه",
+          "meat": "لحوم",
+          "dairy": "ألبان",
+          "dry_goods": "سلع جافة",
+          "frozen": "مجمّدات",
+          "beverage": "مشروبات",
+          "packaging": "تغليف",
+          "cleaning": "تنظيف"
+        },
+        "adjType": {
+          "receive": "استلام",
+          "waste": "هدر",
+          "usage": "استخدام",
+          "count": "جرد",
+          "correction": "تصحيح"
+        }
       }
     }
   }

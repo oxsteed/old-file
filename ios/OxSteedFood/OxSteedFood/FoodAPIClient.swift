@@ -82,7 +82,8 @@ actor FoodAPIClient {
         fulfillment: String,
         tableLabel: String?,
         guestName: String?,
-        token: String?
+        token: String?,
+        orderSource: String = "mobile"
     ) async throws -> FoodOrder {
         struct OrderItem: Encodable {
             let menuItemId: Int64
@@ -99,7 +100,7 @@ actor FoodAPIClient {
         }
         let body = Body(
             fulfillmentType: fulfillment,
-            orderSource: "mobile",
+            orderSource: orderSource,
             tableLabel: tableLabel,
             guestName: guestName,
             items: lines.map {

@@ -12929,6 +12929,48 @@
           "closing": "Fèmti",
           "safety": "Sekirite"
         }
+      },
+      "inventory": {
+        "title": "Envantè",
+        "newItem": "Nouvo atik",
+        "empty": "Poko gen atik. Ajoute engredyan ak materyèl kle ou yo.",
+        "loadError": "Pa t kapab chaje envantè a",
+        "saveError": "Pa t kapab anrejistre atik la",
+        "confirmDelete": "Efase atik sa a?",
+        "lowStockAlert": "{{count}} atik nan oswa anba sèy stok ba a.",
+        "low": "Ba",
+        "adjust": "Ajiste",
+        "nameLabel": "Non atik la",
+        "namePlaceholder": "egz. Tomat",
+        "categoryLabel": "Kategori",
+        "unitLabel": "Inite",
+        "quantityLabel": "Disponib",
+        "thresholdLabel": "Stok ba nan",
+        "adjustTitle": "Ajiste stok",
+        "onHand": "Disponib",
+        "adjustType": "Tip",
+        "countedLabel": "Kantite konte",
+        "amountLabel": "Kantite",
+        "noteLabel": "Nòt (opsyonèl)",
+        "apply": "Aplike",
+        "category": {
+          "general": "Jeneral",
+          "produce": "Fwi ak legim",
+          "meat": "Vyann",
+          "dairy": "Pwodwi lèt",
+          "dry_goods": "Pwodwi sèk",
+          "frozen": "Konjle",
+          "beverage": "Bwason",
+          "packaging": "Anbalaj",
+          "cleaning": "Netwayaj"
+        },
+        "adjType": {
+          "receive": "Resevwa",
+          "waste": "Gaspiyaj",
+          "usage": "Itilizasyon",
+          "count": "Konte",
+          "correction": "Korije"
+        }
       }
     }
   }

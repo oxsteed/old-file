@@ -2,6 +2,64 @@
 
 **Last updated:** 2026-06-14
 
+## OxSteed Restaurants — strategic goal: build ALL 8 iOS front-end apps on day 1 (2026-06-14) — DIRECTION
+
+**Decision (supersedes the phased rollout in `docs/OxSteed_Restaurants_8_iOS_App_Vision.docx` §§14–15):** OxSteed Restaurants will ship **all eight iOS front-end experiences up front**, rather than waiting for usage/demand to justify each one. The vision doc recommended starting with one app + display modes and splitting later; that recommendation is **explicitly overridden** — the new goal is full day-1 coverage of the ecosystem.
+
+**Non-negotiable architecture (unchanged):** one shared backend, **one OxSteed ID** login across all apps, one restaurant record shared by every surface, role-based permissions, and **restaurant-/location-level tenant isolation** (no restaurant can see another's data). All apps connect through **OxSteed Network** alongside Marketplace, Logistics, Consulting, and Business Launch. Building 8 apps does **not** mean 8 backends or 8 identity systems — it means 8 front ends on the existing `/api/food` + `/api/restaurants` (and future `restaurant_*`) surface.
+
+**The 8 iOS apps to build (each is a front end on the shared backend):**
+
+| # | App | Primary users | Backend it rides on |
+|---|---|---|---|
+| 1 | Customer Ordering | customers/guests | `/api/food` (discovery, menu, orders, queue) |
+| 2 | Owner / Manager | owners, GMs, multi-location operators | `/api/food` + `/api/restaurants` (orders, menu, Operations, reports) |
+| 3 | POS / Counter | cashiers, counter staff | `/api/food` order create + payment-status |
+| 4 | Kitchen Display | kitchen staff, expediters | `/api/food` order feed + status transitions |
+| 5 | Kiosk + Queue Display | customers, in-store screens | `/api/food` kiosk order + public queue board |
+| 6 | Crew Training + SOP | employees, trainers, managers | `/api/restaurants` checklists/SOPs (live) + training (to build) |
+| 7 | Inventory + Supplier Receiving | inventory staff, managers, suppliers | `/api/restaurants` inventory (to build, migration `restaurant_*`) |
+| 8 | Delivery / Runner | drivers, runners, logistics helpers | OxSteed Logistics + restaurant order link |
+
+**Build rules for the 8-app effort (carry these forward):**
+- **Reuse, don't fork.** Today there is one iOS workspace `ios/OxSteedFood/`. New apps are added as additional iOS targets/apps sharing networking + model + auth code (one `OX_API_BASE_URL`, one OxSteed ID token flow), not as copies with divergent logic.
+- **Additive backend only.** `food_*` tables and `/api/food` stay; new domains (training, inventory, supplier, delivery) land as `restaurant_*` tables + `/api/restaurants/*` (or OxSteed Logistics for app 8). Never rename tables for branding.
+- **External brand is OxSteed Restaurants; `food`/`OxSteedFood` remain internal legacy names.** Surface labels say "OxSteed Restaurants."
+- **Co-branding model:** customer-facing surfaces show the restaurant's own identity with "Powered by OxSteed Restaurants" where appropriate. OxSteed never takes ownership of the restaurant.
+- Apps 4 & 5 (Kitchen Display, Kiosk + Queue) may ship as a focused in-store "Display" target but are still counted among the 8 experiences.
+
+**Status note:** Phase 2 backend for app 6 (Crew Training + SOP) is partly LANDED (checklists + SOP library, migration 306). **App 7 (Inventory) backend is now LANDED** (migration 307, `/api/restaurants/.../inventory`) — see the Phase 3 entry below. Apps 1–5 already have a working web/iOS ordering foundation; app 8 (Delivery) is not built yet.
+
+**iOS brand coherence with the flagship (2026-06-14) — LANDED (needs Xcode build verify):** to make every restaurant app read as one OxSteed brand alongside the flagship `build-atom` app (`com.oxsteed.app`, `Design/Theme.swift`), three additive changes were propagated across `OxSteedFood` + all 8 `OxSteedRestaurants*` apps: (1) **`FoodTheme.swift` color tokens re-pointed to the flagship `Theme` values** — OxSteed orange accent `Color(red:1.00,green:0.46,blue:0.13)` (was a redder `0.96/0.32/0.16`), near-black navy backgrounds (was neutral grey), 18pt card radius (was 8pt). All token names (`background/surface/surfaceRaised/ink/muted/line/flame/basil/saffron/blue`) and `foodCard()` are unchanged so the 1.9k-line `FoodRootView` compiles untouched; `flameDeep`/`flameSoft`/`heroGradient` added (additive). File is byte-identical across all 9 apps. (2) **Shared brand assets copied into each app's `Assets.xcassets`**: flagship `AppIcon.appiconset`, `OxSteedLogo.imageset`, `AccentColor.colorset`. (3) **`ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon`** added to both build configs of all 9 pbxproj files (they had none) so the OxSteed icon applies. **Verify in Xcode** (`build_run_sim` per scheme) — not buildable in the agent sandbox (no `swift`/Xcode). To actually render the shared wordmark *in-app*, point the in-app brand view at `Image("OxSteedLogo")` (follow-up). The proper long-term fix is still the shared Swift package below (these tokens/assets are currently duplicated 9×).
+
+**iOS de-duplication blocker (measured 2026-06-14):** the eight iOS app projects under `ios/OxSteedRestaurants*/` are **byte-identical copies** of five core files (`FoodModels.swift` 420, `FoodAPIClient.swift` 366, `FoodStore.swift` 539, `FoodTheme.swift` 39, `FoodRootView.swift` 1938) — only each `*App.swift` entry point differs — for ~26.5k duplicated Swift LOC. This violates the "share networking/model/auth code, don't fork" rule above. **Fix (requires a local Xcode/Swift toolchain — cannot be done or verified in the agent sandbox):** extract those five files into a shared Swift package (e.g. `ios/OxSteedRestaurantsKit/`, marking shared types `public`), delete the per-app copies, and add the package as a dependency to all 8 targets + `OxSteedFood`. Each app keeps only its distinct `*App.swift` (which sets the locked startup surface). Do this before the apps diverge further. Until then, treat `ios/OxSteedFood/OxSteedFood/*.swift` as the source of truth and propagate any change to all copies.
+
+---
+
+## OxSteed Restaurants — Inventory (Phase 3, App 7 backend + web) (2026-06-14) — LANDED
+
+Additive, non-destructive. Second slice of the restaurant operating system.
+
+- **Migration `307_restaurant_inventory.sql`** (additive, idempotent): `restaurant_inventory_items` (name, category, unit, `quantity NUMERIC(12,3)`, `low_stock_threshold`, sku, supplier_name) and `restaurant_inventory_adjustments` (append-only ledger: `adjustment_type` count/receive/waste/usage/correction, `quantity_delta`, `quantity_after` snapshot). FKs match existing types (`food_restaurants.id` BIGINT, `users.id` UUID). **No `food_*` or 306 table touched.**
+- **`server/controllers/restaurantInventoryController.js`** + 6 routes on **`server/routes/restaurants.js`** (`/:restaurantId/inventory/items` CRUD, `/items/:itemId/adjust`, `/inventory/adjustments`). Same `requireRestaurantAccess` + tenant-isolation pattern as 306. **Stock quantity only changes via `/adjust`** (transaction + `FOR UPDATE`), which writes a ledger row — item edits can't silently change on-hand, keeping stock auditable. `count` sets an absolute on-hand; receive/waste/usage/correction apply a signed delta (clamped ≥ 0). Item authoring = owner/manager; recording adjustments = any active member.
+- **Client:** `client/src/api/restaurants.js` (6 inventory helpers) + `InventoryPanel`/`NewItemForm`/`AdjustModal` in `client/src/pages/food/RestaurantOpsPanels.jsx`. The `FoodMerchantPage` Operations tab now renders **live** Checklists + Inventory + SOP library; only training/audits/reports remain "coming next" placeholders.
+- **i18n:** `restaurants.ops.inventory.*` — 36 keys across all five locales (en/es/fr/ht/ar), parity verified.
+- **Verified:** `node --check` on server files; esbuild syntax on client files; `vite build` exit 0. **Not run:** migration 307 against Postgres (no DB in sandbox) — run `node server/migrate.js` on non-prod first.
+
+---
+
+## OxSteed Restaurants — Operations MVP (Phase 2: checklists + SOPs) (2026-06-14) — LANDED
+
+Additive, non-destructive. First slice of the restaurant operating system beyond ordering.
+
+- **Migration `306_restaurant_operations.sql`** (additive, idempotent): `restaurant_checklists`, `restaurant_checklist_tasks`, `restaurant_checklist_runs`, `restaurant_checklist_run_items`, `restaurant_sops`. FKs match existing types (`food_restaurants.id` BIGINT, `users.id` UUID). **No `food_*` table touched.**
+- **`server/controllers/restaurantOpsController.js`** + **`server/routes/restaurants.js`** mounted at **`/api/restaurants`** (alongside, not replacing, `/api/food`). Checklist template CRUD, task CRUD, run lifecycle (start → snapshot active tasks into run items → toggle items with `FOR UPDATE` → complete), run history, and SOP CRUD. Reuses the **exact** `requireRestaurantAccess` query from `foodController` (owner = `businesses.user_id` OR `food_restaurants.owner_user_id`; else active `business_members` role). Every route nested under `/restaurants/:restaurantId`; every child row verified to belong to that restaurant (tenant isolation). Template/SOP authoring = owner/manager; running checklists = any active member.
+- **Client:** `client/src/api/restaurants.js` (helpers) + `client/src/pages/food/RestaurantOpsPanels.jsx` (`ChecklistsPanel`, `SopsPanel`). The `FoodMerchantPage` Operations tab now renders **live** Checklists + SOP library; inventory/training/audits/reports remain "coming next" placeholders.
+- **i18n:** `restaurants.ops.checklists.*`, `restaurants.ops.sops.*`, `restaurants.ops.moreModules`, `common.failedToDelete` — 65 keys across all five locales (en/es/fr/ht/ar), parity verified.
+- **Verified:** `node --check` on all server files; esbuild syntax on all client files; `vite build` exit 0 (3361 modules). **Not run:** migration 306 against Postgres (no DB in sandbox) — run `node server/migrate.js` on non-prod first.
+
+---
+
 ## OxSteed Restaurants — branch rebrand inside OxSteed Network (2026-06-14) — LANDED
 
 **External brand:** the restaurant branch is now **OxSteed Restaurants** — *"franchise-grade tools for independent restaurants."* The product name everywhere user-facing is **Restaurants**, never "Food."

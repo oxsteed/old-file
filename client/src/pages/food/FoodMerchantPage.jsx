@@ -21,7 +21,7 @@ import {
   formatFoodMoney,
 } from '../../api/food';
 import { FoodBrand, FOOD_STATUS_KEYS } from './foodShared';
-import { ChecklistsPanel, SopsPanel } from './RestaurantOpsPanels';
+import { ChecklistsPanel, SopsPanel, InventoryPanel } from './RestaurantOpsPanels';
 import '../../styles/FoodPages.css';
 
 const NEXT_STATUS = {
@@ -540,8 +540,8 @@ function SettingsTab({ t, restaurant, onUpdated }) {
 // phases (inventory, checklists/SOPs, staff training, quality audits, reports),
 // plus a live link into OxSteed Marketplace to hire help for the restaurant.
 function OperationsTab({ t, restaurant }) {
-  // Checklists + SOPs are live (Phase 2); the rest are "coming next" placeholders.
-  const modules = ['inventory', 'training', 'audits', 'reports'];
+  // Checklists + SOPs (Phase 2) and Inventory (Phase 3) are live; the rest are "coming next".
+  const modules = ['training', 'audits', 'reports'];
 
   // Pre-fill a Marketplace job from the restaurant's context. PostJobPage reads
   // an optional prefill from navigation state; the query param is a harmless
@@ -561,6 +561,9 @@ function OperationsTab({ t, restaurant }) {
       {/* Live modules (Phase 2) */}
       <div style={{ marginTop: '1.25rem' }}>
         <ChecklistsPanel t={t} restaurant={restaurant} />
+      </div>
+      <div style={{ marginTop: '2rem' }}>
+        <InventoryPanel t={t} restaurant={restaurant} />
       </div>
       <div style={{ marginTop: '2rem' }}>
         <SopsPanel t={t} restaurant={restaurant} />

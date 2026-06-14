@@ -1,34 +1,153 @@
 import MapKit
 import SwiftUI
 
-enum FoodTab: Hashable {
-    case discover
-    case order
-    case track
-    case merchant
+enum FoodWorkspace: String, CaseIterable, Identifiable {
+    case customerOrdering
+    case ownerManager
+    case posCounter
+    case kitchenDisplay
+    case kioskQueue
+    case crewTraining
+    case inventoryReceiving
+    case deliveryRunner
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .customerOrdering: return "Customer Ordering"
+        case .ownerManager: return "Owner / Manager"
+        case .posCounter: return "POS / Counter"
+        case .kitchenDisplay: return "Kitchen Display"
+        case .kioskQueue: return "Kiosk + Queue"
+        case .crewTraining: return "Crew Training + SOP"
+        case .inventoryReceiving: return "Inventory + Receiving"
+        case .deliveryRunner: return "Delivery / Runner"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .customerOrdering: return "Discovery, ordering, and live order tracking."
+        case .ownerManager: return "Control center for menus, alerts, and growth."
+        case .posCounter: return "Fast walk-in order entry and kitchen dispatch."
+        case .kitchenDisplay: return "Prep flow, timing, and ticket accuracy."
+        case .kioskQueue: return "Self-ordering and public queue visibility."
+        case .crewTraining: return "Onboarding, SOPs, and shift checklists."
+        case .inventoryReceiving: return "Counts, suppliers, and low-stock discipline."
+        case .deliveryRunner: return "Runner tasks, handoff, and proof workflows."
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .customerOrdering: return "takeoutbag.and.cup.and.straw.fill"
+        case .ownerManager: return "chart.line.uptrend.xyaxis.circle.fill"
+        case .posCounter: return "creditcard.and.123"
+        case .kitchenDisplay: return "flame.fill"
+        case .kioskQueue: return "rectangle.portrait.on.rectangle.portrait.angled.fill"
+        case .crewTraining: return "checklist.checked"
+        case .inventoryReceiving: return "shippingbox.fill"
+        case .deliveryRunner: return "bicycle.circle.fill"
+        }
+    }
+
+    var badge: String {
+        switch self {
+        case .customerOrdering, .ownerManager, .posCounter, .kitchenDisplay, .kioskQueue:
+            return "Live"
+        case .crewTraining, .inventoryReceiving, .deliveryRunner:
+            return "Foundation"
+        }
+    }
+}
+
+struct FoodRuntimeConfig {
+    let appName: String
+    let allowedWorkspaces: [FoodWorkspace]
+    let defaultWorkspace: FoodWorkspace
+
+    static let current = FoodRuntimeConfig(bundle: .main)
+
+    init(bundle: Bundle) {
+        appName = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+            ?? bundle.object(forInfoDictionaryKey: "CFBundleName") as? String
+            ?? "OxSteed Restaurants"
+
+        let allowedRaw = bundle.object(forInfoDictionaryKey: "OX_ALLOWED_WORKSPACES") as? [String] ?? []
+        let parsedAllowed = allowedRaw.compactMap(FoodWorkspace.init(rawValue:))
+        allowedWorkspaces = parsedAllowed.isEmpty ? FoodWorkspace.allCases : parsedAllowed
+
+        if
+            let raw = bundle.object(forInfoDictionaryKey: "OX_DEFAULT_WORKSPACE") as? String,
+            let parsed = FoodWorkspace(rawValue: raw),
+            allowedWorkspaces.contains(parsed)
+        {
+            defaultWorkspace = parsed
+        } else {
+            defaultWorkspace = allowedWorkspaces.first ?? .customerOrdering
+        }
+    }
 }
 
 struct FoodRootView: View {
     @EnvironmentObject private var store: FoodStore
-    @State private var tab: FoodTab = .discover
+    @AppStorage("ox.food.workspace") private var workspaceRawValue = FoodWorkspace.customerOrdering.rawValue
+    private let runtime = FoodRuntimeConfig.current
+
+    private var workspace: FoodWorkspace {
+        get {
+            let parsed = FoodWorkspace(rawValue: workspaceRawValue) ?? runtime.defaultWorkspace
+            return runtime.allowedWorkspaces.contains(parsed) ? parsed : runtime.defaultWorkspace
+        }
+        nonmutating set { workspaceRawValue = newValue.rawValue }
+    }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             FoodTheme.background.ignoresSafeArea()
-            Group {
-                switch tab {
-                case .discover: DiscoverView(tab: $tab)
-                case .order: OrderView()
-                case .track: TrackView()
-                case .merchant: MerchantView()
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.bottom, 78)
 
-            FoodTabBar(tab: $tab)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    FoodWorkspaceHero(appName: runtime.appName, workspace: workspace)
+                    if runtime.allowedWorkspaces.count > 1 {
+                        FoodWorkspaceRail(
+                            workspaces: runtime.allowedWorkspaces,
+                            workspace: Binding(
+                                get: { workspace },
+                                set: { workspace = $0 }
+                            )
+                        )
+                    }
+
+                    switch workspace {
+                    case .customerOrdering:
+                        CustomerWorkspaceView()
+                    case .ownerManager:
+                        OwnerManagerWorkspaceView()
+                    case .posCounter:
+                        POSCounterWorkspaceView()
+                    case .kitchenDisplay:
+                        KitchenDisplayWorkspaceView()
+                    case .kioskQueue:
+                        KioskQueueWorkspaceView()
+                    case .crewTraining:
+                        CrewTrainingWorkspaceView()
+                    case .inventoryReceiving:
+                        InventoryReceivingWorkspaceView()
+                    case .deliveryRunner:
+                        DeliveryRunnerWorkspaceView()
+                    }
+                }
+                .padding(16)
+            }
         }
         .task { await store.loadRestaurants() }
+        .onAppear {
+            if !runtime.allowedWorkspaces.contains(workspace) {
+                workspace = runtime.defaultWorkspace
+            }
+        }
         .fullScreenCover(item: confirmationBinding) { order in
             OrderConfirmationView(order: order)
         }
@@ -57,46 +176,719 @@ struct FoodRootView: View {
     }
 }
 
-private struct FoodTabBar: View {
-    @Binding var tab: FoodTab
+private struct FoodWorkspaceHero: View {
+    let appName: String
+    let workspace: FoodWorkspace
 
     var body: some View {
-        HStack(spacing: 0) {
-            button(.discover, "Discover", "map.fill")
-            button(.order, "Order", "takeoutbag.and.cup.and.straw.fill")
-            button(.track, "Track", "number.circle.fill")
-            button(.merchant, "Merchant", "storefront.fill")
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(appName)
+                        .font(.system(size: 32, weight: .black))
+                        .foregroundStyle(FoodTheme.ink)
+                    Text("Eight specialized front-end experiences. One shared restaurant backend and OxSteed ID.")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(FoodTheme.muted)
+                }
+                Spacer()
+                Label(workspace.badge, systemImage: "checkmark.seal.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(FoodTheme.basil)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(FoodTheme.surfaceRaised)
+                    .clipShape(Capsule())
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(workspace.title)
+                    .font(.system(size: 24, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+                Text(workspace.subtitle)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(FoodTheme.muted)
+            }
         }
-        .padding(8)
-        .background(FoodTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(FoodTheme.line))
-        .shadow(color: .black.opacity(0.14), radius: 16, y: 8)
-        .padding(.horizontal, 16)
-        .padding(.bottom, 10)
+        .foodCard(padding: 18)
+    }
+}
+
+private struct FoodWorkspaceRail: View {
+    let workspaces: [FoodWorkspace]
+    @Binding var workspace: FoodWorkspace
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(workspaces) { item in
+                    Button {
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.88)) {
+                            workspace = item
+                        }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: item.icon)
+                                    .font(.system(size: 18, weight: .bold))
+                                Spacer()
+                                Text(item.badge.uppercased())
+                                    .font(.system(size: 10, weight: .black))
+                            }
+                            Text(item.title)
+                                .font(.system(size: 15, weight: .black))
+                                .multilineTextAlignment(.leading)
+                            Text(item.subtitle)
+                                .font(.system(size: 12, weight: .medium))
+                                .multilineTextAlignment(.leading)
+                                .lineLimit(3)
+                        }
+                        .foregroundStyle(workspace == item ? .white : FoodTheme.ink)
+                        .frame(width: 190, alignment: .leading)
+                        .padding(14)
+                        .background(workspace == item ? FoodTheme.flame : FoodTheme.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(workspace == item ? FoodTheme.flame : FoodTheme.line)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+}
+
+private struct CustomerWorkspaceView: View {
+    @EnvironmentObject private var store: FoodStore
+    @State private var tab = CustomerSubworkspace.discover
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            WorkspaceSectionHeader(
+                title: customerText(
+                    store.customerLanguage,
+                    "Customer ordering app",
+                    "App de pedidos para clientes",
+                    "App de commande client",
+                    "Aplikasyon kliyan pou komann"
+                ),
+                subtitle: customerText(
+                    store.customerLanguage,
+                    "Discovery, menu browsing, cart, and order tracking for pickup and dine-in.",
+                    "Descubrimiento, menu, carrito y seguimiento de pedidos para recoger o comer en el local.",
+                    "Decouverte, menu, panier et suivi des commandes a emporter ou sur place.",
+                    "Dekouvri restoran, gade meni, panier, ak swiv komann pou pran oswa manje sou plas."
+                )
+            )
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(CustomerSubworkspace.allCases) { item in
+                        Button {
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.88)) {
+                                tab = item
+                            }
+                        } label: {
+                            Text(item.title)
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(tab == item ? .white : FoodTheme.ink)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 10)
+                                .background(tab == item ? FoodTheme.flame : FoodTheme.surface)
+                                .clipShape(Capsule())
+                                .overlay(Capsule().stroke(tab == item ? FoodTheme.flame : FoodTheme.line))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            switch tab {
+            case .discover:
+                DiscoverView {
+                    tab = .order
+                }
+            case .order:
+                OrderView()
+            case .track:
+                TrackView()
+            case .perks:
+                CustomerPerksView {
+                    tab = .order
+                }
+            }
+        }
+    }
+}
+
+private enum CustomerSubworkspace: String, CaseIterable, Identifiable {
+    case discover
+    case order
+    case track
+    case perks
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .discover: return "Discover"
+        case .order: return "Order"
+        case .track: return "Track"
+        case .perks: return "Perks"
+        }
+    }
+}
+
+private struct OwnerManagerWorkspaceView: View {
+    @EnvironmentObject private var store: FoodStore
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            WorkspaceSectionHeader(
+                title: "Owner / manager app",
+                subtitle: "Live operations, menu control, growth signals, and shift-readiness alerts."
+            )
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(store.managerKPIs) { kpi in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(kpi.title.uppercased())
+                                .font(.system(size: 11, weight: .black))
+                                .foregroundStyle(managerColor(kpi.color))
+                            Text(kpi.value)
+                                .font(.system(size: 28, weight: .black))
+                                .foregroundStyle(FoodTheme.ink)
+                            Text(kpi.detail)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(FoodTheme.muted)
+                        }
+                        .frame(width: 160, alignment: .leading)
+                        .foodCard(padding: 14)
+                    }
+                }
+            }
+
+            if !store.managerAlerts.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Operational alerts")
+                        .font(.system(size: 18, weight: .black))
+                        .foregroundStyle(FoodTheme.ink)
+                    ForEach(store.managerAlerts) { alert in
+                        HStack(alignment: .top, spacing: 10) {
+                            Circle()
+                                .fill(managerColor(alert.tone))
+                                .frame(width: 10, height: 10)
+                                .padding(.top, 5)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(alert.title)
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundStyle(FoodTheme.ink)
+                                Text(alert.detail)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(FoodTheme.muted)
+                            }
+                        }
+                        .foodCard(padding: 14)
+                    }
+                }
+            }
+
+            MerchantView()
+        }
+    }
+}
+
+private struct POSCounterWorkspaceView: View {
+    @EnvironmentObject private var store: FoodStore
+
+    private var menuItems: [FoodMenuItem] {
+        let liveItems = store.menu.flatMap(\.items)
+        return liveItems.isEmpty ? [FoodSampleData.menuItem] : liveItems
     }
 
-    private func button(_ value: FoodTab, _ title: String, _ icon: String) -> some View {
-        Button {
-            withAnimation(.spring(response: 0.25, dampingFraction: 0.88)) {
-                tab = value
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            WorkspaceSectionHeader(
+                title: "POS / counter app",
+                subtitle: "Fast walk-in order entry, payment-state tracking, and immediate kitchen dispatch."
+            )
+
+            if let restaurant = store.activeRestaurant {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(restaurant.displayName)
+                        .font(.system(size: 20, weight: .black))
+                        .foregroundStyle(FoodTheme.ink)
+                    Text("Use the current restaurant menu to create dine-in or pickup orders.")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(FoodTheme.muted)
+                    Button("Load this menu into POS") {
+                        Task { await store.select(restaurant) }
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .foodCard(padding: 16)
             }
-        } label: {
-            VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 17, weight: .semibold))
-                Text(title)
-                    .font(.system(size: 11, weight: .semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+
+            VStack(alignment: .leading, spacing: 10) {
+                Picker("Fulfillment", selection: $store.counterFulfillment) {
+                    Text("Dine In").tag("dine_in")
+                    Text("Pickup").tag("pickup")
+                }
+                .pickerStyle(.segmented)
+                TextField("Guest or ticket name", text: $store.counterGuestName)
+                    .textFieldStyle(.roundedBorder)
+                if store.counterFulfillment == "dine_in" {
+                    TextField("Table number", text: $store.counterTableLabel)
+                        .textFieldStyle(.roundedBorder)
+                }
             }
-            .foregroundStyle(tab == value ? FoodTheme.flame : FoodTheme.muted)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .background(tab == value ? FoodTheme.flame.opacity(0.12) : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .foodCard(padding: 16)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                ForEach(menuItems) { item in
+                    Button {
+                        store.addCounterLine(item)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(item.name)
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(FoodTheme.ink)
+                            Text(foodMoney(item.priceCents, currency: item.currencyCode))
+                                .font(.system(size: 13, weight: .black))
+                                .foregroundStyle(FoodTheme.basil)
+                            Text(item.description ?? "Quick-add counter favorite")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(FoodTheme.muted)
+                                .lineLimit(2)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .foodCard(padding: 14)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Label("Counter ticket", systemImage: "receipt")
+                        .font(.system(size: 18, weight: .black))
+                        .foregroundStyle(FoodTheme.ink)
+                    Spacer()
+                    Text(foodMoney(store.counterCartTotalCents, currency: store.activeRestaurant?.currencyCode ?? "USD"))
+                        .font(.system(size: 16, weight: .black))
+                        .foregroundStyle(FoodTheme.flame)
+                }
+                if store.counterCart.isEmpty {
+                    Text("Tap menu items to build a walk-in order.")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(FoodTheme.muted)
+                } else {
+                    ForEach(store.counterCart) { line in
+                        HStack {
+                            Text("\(line.quantity)x \(line.item.name)")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(FoodTheme.ink)
+                            Spacer()
+                            Text(foodMoney(line.lineTotalCents, currency: line.item.currencyCode))
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(FoodTheme.ink)
+                            Button {
+                                store.removeCounterLine(line)
+                            } label: {
+                                Image(systemName: "trash")
+                                    .foregroundStyle(FoodTheme.muted)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    Button {
+                        Task { await store.submitCounterOrder() }
+                    } label: {
+                        HStack {
+                            if store.isSubmittingCounterOrder {
+                                ProgressView().controlSize(.small).tint(.white)
+                            }
+                            Text("Send to kitchen")
+                                .font(.system(size: 16, weight: .black))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(FoodTheme.flame)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(store.isSubmittingCounterOrder)
+                }
+            }
+            .foodCard(padding: 16)
         }
-        .buttonStyle(.plain)
+    }
+}
+
+private struct KitchenDisplayWorkspaceView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            WorkspaceSectionHeader(
+                title: "Kitchen display app",
+                subtitle: "Dedicated prep board with live ticket movement and fullscreen kitchen mode."
+            )
+            KitchenDisplayView()
+                .frame(minHeight: 640)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
+}
+
+private struct KioskQueueWorkspaceView: View {
+    @EnvironmentObject private var store: FoodStore
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            WorkspaceSectionHeader(
+                title: "Kiosk + queue display app",
+                subtitle: "Self-ordering mode for guests and a public-ready queue board for the dining room."
+            )
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Kiosk flow", systemImage: "hand.tap.fill")
+                        .font(.system(size: 17, weight: .black))
+                        .foregroundStyle(FoodTheme.ink)
+                    Text("Use the customer ordering workspace for the menu flow, then lock the iPad to this workspace for self-service ordering.")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(FoodTheme.muted)
+                }
+                .foodCard(padding: 14)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Queue board", systemImage: "list.number")
+                        .font(.system(size: 17, weight: .black))
+                        .foregroundStyle(FoodTheme.ink)
+                    Text("Ready for wall-mount display with large queue numbers and 5-second polling.")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(FoodTheme.muted)
+                }
+                .foodCard(padding: 14)
+            }
+
+            if let restaurant = store.activeRestaurant {
+                QueueBoardLive(restaurantId: restaurant.id)
+            }
+        }
+    }
+}
+
+private struct CrewTrainingWorkspaceView: View {
+    @EnvironmentObject private var store: FoodStore
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            WorkspaceSectionHeader(
+                title: "Crew training + SOP app",
+                subtitle: "Role-based onboarding, SOP reinforcement, and opening-shift readiness."
+            )
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Assigned training")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+                ForEach(store.crewTraining) { module in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(module.title)
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(FoodTheme.ink)
+                            Text("\(module.role) · \(module.durationMinutes) min")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(FoodTheme.muted)
+                        }
+                        Spacer()
+                        Text(module.isComplete ? "Complete" : "Due")
+                            .font(.system(size: 11, weight: .black))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(module.isComplete ? FoodTheme.basil : FoodTheme.saffron)
+                            .clipShape(Capsule())
+                    }
+                    .foodCard(padding: 14)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Opening checklist")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+                ForEach(store.openingChecklist) { item in
+                    HStack {
+                        Image(systemName: item.isComplete ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(item.isComplete ? FoodTheme.basil : FoodTheme.muted)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(item.title)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(FoodTheme.ink)
+                            Text(item.station)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(FoodTheme.muted)
+                        }
+                    }
+                    .foodCard(padding: 14)
+                }
+            }
+        }
+    }
+}
+
+private struct InventoryReceivingWorkspaceView: View {
+    @EnvironmentObject private var store: FoodStore
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            WorkspaceSectionHeader(
+                title: "Inventory + supplier receiving app",
+                subtitle: "Par levels, receiving discipline, and visibility into stock risk before service."
+            )
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Inventory snapshot")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+                ForEach(store.inventoryItems) { item in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(item.name)
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(FoodTheme.ink)
+                            Text("Supplier: \(item.supplier)")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(FoodTheme.muted)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("\(Int(item.stockLevel)) \(item.unit)")
+                                .font(.system(size: 15, weight: .black))
+                                .foregroundStyle(FoodTheme.ink)
+                            Text("Par \(Int(item.parLevel))")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(item.stockLevel <= item.parLevel ? FoodTheme.saffron : FoodTheme.basil)
+                        }
+                    }
+                    .foodCard(padding: 14)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Receiving windows")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+                ForEach(store.receivingTasks) { task in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(task.supplier)
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(FoodTheme.ink)
+                        Text(task.etaWindow)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(FoodTheme.blue)
+                        Text(task.notes)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(FoodTheme.muted)
+                    }
+                    .foodCard(padding: 14)
+                }
+            }
+        }
+    }
+}
+
+private struct DeliveryRunnerWorkspaceView: View {
+    @EnvironmentObject private var store: FoodStore
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            WorkspaceSectionHeader(
+                title: "Delivery / runner app",
+                subtitle: "Assigned handoffs, routing discipline, and issue capture for real-world fulfillment."
+            )
+            ForEach(store.runnerTasks) { task in
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "location.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(FoodTheme.flame)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(task.stopName)
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(FoodTheme.ink)
+                        Text("\(task.taskType) · \(task.status)")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(FoodTheme.blue)
+                        Text(task.notes)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(FoodTheme.muted)
+                    }
+                    Spacer()
+                }
+                .foodCard(padding: 14)
+            }
+        }
+    }
+}
+
+private struct CustomerPerksView: View {
+    @EnvironmentObject private var store: FoodStore
+    var startReorder: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(customerText(store.customerLanguage, "Loyalty", "Lealtad", "Fidelite", "Fidelite"))
+                            .font(.system(size: 18, weight: .black))
+                            .foregroundStyle(FoodTheme.ink)
+                        Text(store.loyaltySummary.tierName)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(FoodTheme.flame)
+                    }
+                    Spacer()
+                    Text("\(store.loyaltySummary.points) pts")
+                        .font(.system(size: 24, weight: .black))
+                        .foregroundStyle(FoodTheme.ink)
+                }
+                Text(store.loyaltySummary.rewardSummary)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(FoodTheme.muted)
+            }
+            .foodCard(padding: 16)
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text(customerText(store.customerLanguage, "Offers and rewards", "Ofertas y recompensas", "Offres et recompenses", "Of ak rekonpans"))
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+                ForEach(store.customerOffers) { offer in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(offer.title)
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(FoodTheme.ink)
+                            Spacer()
+                            Text(offer.code)
+                                .font(.system(size: 11, weight: .black))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(FoodTheme.flame)
+                                .clipShape(Capsule())
+                        }
+                        Text(offer.detail)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(FoodTheme.muted)
+                    }
+                    .foodCard(padding: 14)
+                }
+            }
+
+            if !store.favoriteRestaurants.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(customerText(store.customerLanguage, "Favorite restaurants", "Restaurantes favoritos", "Restaurants favoris", "Restoran pi renmen"))
+                        .font(.system(size: 18, weight: .black))
+                        .foregroundStyle(FoodTheme.ink)
+                    ForEach(store.favoriteRestaurants) { restaurant in
+                        Button {
+                            Task {
+                                await store.select(restaurant)
+                                startReorder()
+                            }
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(restaurant.displayName)
+                                        .font(.system(size: 15, weight: .bold))
+                                        .foregroundStyle(FoodTheme.ink)
+                                    Text(restaurant.locationLine)
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundStyle(FoodTheme.muted)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(FoodTheme.muted)
+                            }
+                            .foodCard(padding: 14)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            if !store.recentCustomerOrders.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(customerText(store.customerLanguage, "Reorder", "Volver a pedir", "Commander a nouveau", "Komanse menm komann lan"))
+                        .font(.system(size: 18, weight: .black))
+                        .foregroundStyle(FoodTheme.ink)
+                    ForEach(store.recentCustomerOrders) { template in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(template.restaurantName)
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(FoodTheme.ink)
+                            Text(template.lines.map { "\($0.quantity)x \($0.itemName)" }.joined(separator: ", "))
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(FoodTheme.muted)
+                                .lineLimit(2)
+                            Button(customerText(store.customerLanguage, "Load order", "Cargar pedido", "Charger la commande", "Chaje komann")) {
+                                Task {
+                                    if await store.loadReorderTemplate(template) {
+                                        startReorder()
+                                    }
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        .foodCard(padding: 14)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct WorkspaceSectionHeader: View {
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 24, weight: .black))
+                .foregroundStyle(FoodTheme.ink)
+            Text(subtitle)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(FoodTheme.muted)
+        }
+    }
+}
+
+private func customerText(_ language: FoodCustomerLanguage, _ english: String, _ spanish: String, _ french: String, _ haitianCreole: String) -> String {
+    switch language {
+    case .english:
+        return english
+    case .spanish:
+        return spanish
+    case .french:
+        return french
+    case .haitianCreole:
+        return haitianCreole
+    }
+}
+
+private func managerColor(_ name: String) -> Color {
+    switch name {
+    case "flame", "warning":
+        return FoodTheme.flame
+    case "basil":
+        return FoodTheme.basil
+    case "blue":
+        return FoodTheme.blue
+    case "critical":
+        return .red
+    default:
+        return FoodTheme.saffron
     }
 }
 
@@ -104,8 +896,8 @@ private struct FoodTabBar: View {
 
 struct DiscoverView: View {
     @EnvironmentObject private var store: FoodStore
-    @Binding var tab: FoodTab
     @State private var camera = MapCameraPosition.automatic
+    var openOrder: (() -> Void)? = nil
 
     var body: some View {
         ScrollView {
@@ -113,12 +905,12 @@ struct DiscoverView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("OxSteed Food")
+                            Text("OxSteed Restaurants")
                                 .font(.system(size: 30, weight: .black))
                                 .foregroundStyle(FoodTheme.ink)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.75)
-                            Text("Order ahead or in store. Pay at the counter.")
+                            Text(customerText(store.customerLanguage, "Order ahead or in store. Pay at the counter.", "Pide con anticipacion o en el local. Paga en el mostrador.", "Commandez a l'avance ou sur place. Paiement au comptoir.", "Komannde davans oswa sou plas. Peye nan kontwa a."))
                                 .font(.system(size: 15, weight: .medium))
                                 .foregroundStyle(FoodTheme.muted)
                         }
@@ -143,8 +935,56 @@ struct DiscoverView: View {
                     .padding(12)
                     .background(FoodTheme.surfaceRaised)
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                    HStack(spacing: 12) {
+                        Picker("Language", selection: $store.customerLanguage) {
+                            ForEach(FoodCustomerLanguage.allCases) { language in
+                                Text(language.label).tag(language)
+                            }
+                        }
+                        .pickerStyle(.menu)
+
+                        Toggle(
+                            customerText(store.customerLanguage, "Alerts", "Alertas", "Alertes", "Alèt"),
+                            isOn: $store.customerNotificationsEnabled
+                        )
+                        .toggleStyle(.switch)
+                        .font(.system(size: 12, weight: .semibold))
+                    }
                 }
                 .foodCard(padding: 16)
+
+                if !store.favoriteRestaurants.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(customerText(store.customerLanguage, "Favorites", "Favoritos", "Favoris", "Favori"))
+                            .font(.system(size: 18, weight: .black))
+                            .foregroundStyle(FoodTheme.ink)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                ForEach(store.favoriteRestaurants) { restaurant in
+                                    Button {
+                                        Task {
+                                            await store.select(restaurant)
+                                            openOrder?()
+                                        }
+                                    } label: {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(restaurant.displayName)
+                                                .font(.system(size: 14, weight: .bold))
+                                                .foregroundStyle(FoodTheme.ink)
+                                            Text(restaurant.locationLine)
+                                                .font(.system(size: 11, weight: .medium))
+                                                .foregroundStyle(FoodTheme.muted)
+                                        }
+                                        .frame(width: 180, alignment: .leading)
+                                        .foodCard(padding: 14)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    }
+                }
 
                 Map(position: $camera) {
                     ForEach(store.restaurants) { restaurant in
@@ -157,7 +997,7 @@ struct DiscoverView: View {
                 .frame(height: 240)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay(alignment: .topLeading) {
-                    Label("Restaurants on OxSteed Food", systemImage: "location.fill")
+                    Label("Restaurants on OxSteed Restaurants", systemImage: "location.fill")
                         .font(.system(size: 13, weight: .bold))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
@@ -190,7 +1030,7 @@ struct DiscoverView: View {
                         RestaurantCard(restaurant: restaurant) {
                             Task {
                                 await store.select(restaurant)
-                                tab = .order
+                                openOrder?()
                             }
                         }
                     }
@@ -203,52 +1043,64 @@ struct DiscoverView: View {
 }
 
 private struct RestaurantCard: View {
+    @EnvironmentObject private var store: FoodStore
     let restaurant: FoodRestaurant
     var action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(FoodTheme.flame.opacity(0.14))
-                    Image(systemName: "takeoutbag.and.cup.and.straw.fill")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundStyle(FoodTheme.flame)
-                }
-                .frame(width: 62, height: 62)
-
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(restaurant.displayName)
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(FoodTheme.ink)
-                    if !restaurant.cuisineTags.isEmpty {
-                        Text(restaurant.cuisineTags.joined(separator: " / "))
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(FoodTheme.basil)
+        HStack(spacing: 10) {
+            Button(action: action) {
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(FoodTheme.flame.opacity(0.14))
+                        Image(systemName: "takeoutbag.and.cup.and.straw.fill")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundStyle(FoodTheme.flame)
                     }
-                    Text(restaurant.locationLine.isEmpty ? "Global restaurant" : restaurant.locationLine)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(FoodTheme.muted)
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 5) {
-                    Text("\(restaurant.prepTimeMin)m")
-                        .font(.system(size: 14, weight: .black))
-                        .foregroundStyle(FoodTheme.ink)
-                    if let distanceKm = restaurant.distanceKm {
-                        Text(String(format: "%.1f km", distanceKm))
-                            .font(.system(size: 12, weight: .semibold))
+                    .frame(width: 62, height: 62)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(restaurant.displayName)
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundStyle(FoodTheme.ink)
+                        if !restaurant.cuisineTags.isEmpty {
+                            Text(restaurant.cuisineTags.joined(separator: " / "))
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(FoodTheme.basil)
+                        }
+                        Text(restaurant.locationLine.isEmpty ? "Global restaurant" : restaurant.locationLine)
+                            .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(FoodTheme.muted)
                     }
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(FoodTheme.muted)
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 5) {
+                        Text("\(restaurant.prepTimeMin)m")
+                            .font(.system(size: 14, weight: .black))
+                            .foregroundStyle(FoodTheme.ink)
+                        if let distanceKm = restaurant.distanceKm {
+                            Text(String(format: "%.1f km", distanceKm))
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(FoodTheme.muted)
+                        }
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(FoodTheme.muted)
+                    }
                 }
             }
-            .foodCard()
+            .buttonStyle(.plain)
+            Button {
+                store.toggleFavorite(restaurant)
+            } label: {
+                Image(systemName: store.isFavorite(restaurant) ? "heart.fill" : "heart")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(store.isFavorite(restaurant) ? FoodTheme.flame : FoodTheme.muted)
+                    .frame(width: 34)
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+        .foodCard()
     }
 }
 
@@ -270,9 +1122,25 @@ struct OrderView: View {
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(FoodTheme.muted)
 
+                        HStack {
+                            Button(store.isFavorite(restaurant)
+                                   ? customerText(store.customerLanguage, "Favorited", "Favorito", "Favori", "Favori")
+                                   : customerText(store.customerLanguage, "Add to favorites", "Agregar a favoritos", "Ajouter aux favoris", "Ajoute nan favori")) {
+                                store.toggleFavorite(restaurant)
+                            }
+                            .buttonStyle(.bordered)
+
+                            if let recent = store.recentCustomerOrders.first(where: { $0.restaurantId == restaurant.id }) {
+                                Button(customerText(store.customerLanguage, "Reorder last", "Repetir ultimo", "Recommander", "Refe dènye komann")) {
+                                    Task { _ = await store.loadReorderTemplate(recent) }
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                        }
+
                         Picker("Fulfillment", selection: $store.fulfillment) {
-                            Text("Pickup").tag("pickup")
-                            Text("Dine In").tag("dine_in")
+                            Text(customerText(store.customerLanguage, "Pickup", "Recoger", "A emporter", "Pran")).tag("pickup")
+                            Text(customerText(store.customerLanguage, "Dine In", "Comer aqui", "Sur place", "Manje la")).tag("dine_in")
                         }
                         .pickerStyle(.segmented)
 
@@ -321,10 +1189,10 @@ struct OrderView: View {
                         Image(systemName: "map")
                             .font(.system(size: 34))
                             .foregroundStyle(FoodTheme.muted)
-                        Text("Pick a restaurant first")
+                        Text(customerText(store.customerLanguage, "Pick a restaurant first", "Elige un restaurante primero", "Choisissez d'abord un restaurant", "Chwazi yon restoran anvan"))
                             .font(.system(size: 18, weight: .black))
                             .foregroundStyle(FoodTheme.ink)
-                        Text("Find one on the Discover tab, then build your order here.")
+                        Text(customerText(store.customerLanguage, "Find one on the Discover tab, then build your order here.", "Busca uno en Descubrir y luego arma tu pedido aqui.", "Trouvez-en un dans Decouvrir, puis composez votre commande ici.", "Jwenn youn nan Dekouvri, epi prepare komann ou isit la."))
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(FoodTheme.muted)
                             .multilineTextAlignment(.center)
@@ -433,7 +1301,7 @@ private struct MenuItemSheet: View {
                                     .font(.system(size: 16, weight: .black))
                                     .foregroundStyle(FoodTheme.ink)
                                 if group.isRequired {
-                                    Text("Required")
+                                    Text(customerText(store.customerLanguage, "Required", "Obligatorio", "Obligatoire", "Obligatwa"))
                                         .font(.system(size: 11, weight: .bold))
                                         .foregroundStyle(FoodTheme.flame)
                                 }
@@ -466,7 +1334,7 @@ private struct MenuItemSheet: View {
                     }
 
                     HStack {
-                        Text("Quantity")
+                        Text(customerText(store.customerLanguage, "Quantity", "Cantidad", "Quantite", "Kantite"))
                             .font(.system(size: 16, weight: .bold))
                             .foregroundStyle(FoodTheme.ink)
                         Spacer()
@@ -475,7 +1343,7 @@ private struct MenuItemSheet: View {
                     }
                     .foodCard(padding: 14)
 
-                    TextField("Special instructions (optional)", text: $instructions, axis: .vertical)
+                    TextField(customerText(store.customerLanguage, "Special instructions (optional)", "Instrucciones especiales (opcional)", "Instructions speciales (optionnel)", "Enstriksyon espesyal (opsyonel)"), text: $instructions, axis: .vertical)
                         .textFieldStyle(.roundedBorder)
 
                     Button {
@@ -487,7 +1355,7 @@ private struct MenuItemSheet: View {
                         ))
                         dismiss()
                     } label: {
-                        Text("Add to order · \(foodMoney(unitTotal * quantity, currency: item.currencyCode))")
+                        Text("\(customerText(store.customerLanguage, "Add to order", "Agregar al pedido", "Ajouter a la commande", "Ajoute nan komann")) · \(foodMoney(unitTotal * quantity, currency: item.currencyCode))")
                             .font(.system(size: 16, weight: .black))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 13)
@@ -505,7 +1373,7 @@ private struct MenuItemSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(customerText(store.customerLanguage, "Cancel", "Cancelar", "Annuler", "Anile")) { dismiss() }
                 }
             }
         }
@@ -530,7 +1398,7 @@ private struct CartPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label("Your order", systemImage: "bag.fill")
+                Label(customerText(store.customerLanguage, "Your order", "Tu pedido", "Votre commande", "Komann ou"), systemImage: "bag.fill")
                     .font(.system(size: 20, weight: .black))
                     .foregroundStyle(FoodTheme.ink)
                 Spacer()
@@ -540,7 +1408,7 @@ private struct CartPanel: View {
             }
 
             if store.cart.isEmpty {
-                Text("Add items to start an order.")
+                Text(customerText(store.customerLanguage, "Add items to start an order.", "Agrega articulos para empezar un pedido.", "Ajoutez des articles pour commencer une commande.", "Ajoute atik pou komanse yon komann."))
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(FoodTheme.muted)
             } else {
@@ -570,7 +1438,7 @@ private struct CartPanel: View {
                     }
                 }
 
-                Label("You pay at the restaurant when you pick up.", systemImage: "banknote.fill")
+                Label(customerText(store.customerLanguage, "You pay at the restaurant when you pick up.", "Pagas en el restaurante al recoger.", "Vous payez au restaurant lors du retrait.", "Ou peye nan restoran an lè w ap pran l."), systemImage: "banknote.fill")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(FoodTheme.saffron)
 
@@ -583,7 +1451,7 @@ private struct CartPanel: View {
                                 .controlSize(.small)
                                 .tint(.white)
                         }
-                        Label("Place order", systemImage: "paperplane.fill")
+                        Label(customerText(store.customerLanguage, "Place order", "Hacer pedido", "Passer la commande", "Voye komann"), systemImage: "paperplane.fill")
                     }
                     .font(.system(size: 16, weight: .black))
                     .frame(maxWidth: .infinity)
@@ -615,16 +1483,16 @@ struct OrderConfirmationView: View {
                 Image(systemName: "checkmark.seal.fill")
                     .font(.system(size: 52))
                     .foregroundStyle(FoodTheme.basil)
-                Text("Order placed!")
+                Text(customerText(store.customerLanguage, "Order placed!", "Pedido realizado", "Commande passee", "Komann pase"))
                     .font(.system(size: 28, weight: .black))
                     .foregroundStyle(FoodTheme.ink)
-                Text("Your number")
+                Text(customerText(store.customerLanguage, "Your number", "Tu numero", "Votre numero", "Nimewo ou"))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(FoodTheme.muted)
                 Text("#\(order.queueNumber)")
                     .font(.system(size: 88, weight: .black))
                     .foregroundStyle(FoodTheme.flame)
-                Text("Pay at the counter and watch for your number on the board.")
+                Text(customerText(store.customerLanguage, "Pay at the counter and watch for your number on the board.", "Paga en el mostrador y mira tu numero en la pantalla.", "Payez au comptoir et surveillez votre numero sur l'ecran.", "Peye nan kontwa a epi gade nimewo ou sou tablo a."))
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(FoodTheme.muted)
                     .multilineTextAlignment(.center)
@@ -641,7 +1509,7 @@ struct OrderConfirmationView: View {
                     Button {
                         watchingQueue = true
                     } label: {
-                        Label("Watch the queue", systemImage: "list.number")
+                        Label(customerText(store.customerLanguage, "Watch the queue", "Ver la fila", "Voir la file", "Gade liy la"), systemImage: "list.number")
                             .font(.system(size: 15, weight: .bold))
                     }
                     .buttonStyle(.bordered)
@@ -650,7 +1518,7 @@ struct OrderConfirmationView: View {
                 Button {
                     store.lastPlacedOrder = nil
                 } label: {
-                    Text("Done")
+                    Text(customerText(store.customerLanguage, "Done", "Listo", "Termine", "Fini"))
                         .font(.system(size: 16, weight: .black))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 13)
@@ -674,8 +1542,8 @@ struct QueueBoardLive: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            column("Preparing", numbers: store.queueBoard?.preparing ?? [], color: FoodTheme.saffron)
-            column("Now ready", numbers: store.queueBoard?.ready ?? [], color: FoodTheme.basil)
+            column(customerText(store.customerLanguage, "Preparing", "Preparando", "Preparation", "Ap prepare"), numbers: store.queueBoard?.preparing ?? [], color: FoodTheme.saffron)
+            column(customerText(store.customerLanguage, "Now ready", "Listo ahora", "Pret maintenant", "Pare kounye a"), numbers: store.queueBoard?.ready ?? [], color: FoodTheme.basil)
         }
         .task(id: restaurantId) {
             while !Task.isCancelled {
@@ -691,7 +1559,7 @@ struct QueueBoardLive: View {
                 .font(.system(size: 12, weight: .black))
                 .foregroundStyle(color)
             if numbers.isEmpty {
-                Text("None yet")
+                Text(customerText(store.customerLanguage, "None yet", "Aun no", "Rien pour l'instant", "Poko gen anyen"))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(FoodTheme.muted)
             }
@@ -718,9 +1586,25 @@ struct TrackView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Track")
+                Text(customerText(store.customerLanguage, "Track", "Seguir", "Suivi", "Swiv"))
                     .font(.system(size: 30, weight: .black))
                     .foregroundStyle(FoodTheme.ink)
+
+                HStack {
+                    Label(
+                        customerText(store.customerLanguage, "Notifications", "Notificaciones", "Notifications", "Notifikasyon"),
+                        systemImage: store.customerNotificationsEnabled ? "bell.badge.fill" : "bell.slash.fill"
+                    )
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(store.customerNotificationsEnabled ? FoodTheme.basil : FoodTheme.muted)
+                    Spacer()
+                    if store.customerNotificationsEnabled {
+                        Text(customerText(store.customerLanguage, "Order alerts on", "Alertas activas", "Alertes actives", "Alèt aktive"))
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(FoodTheme.muted)
+                    }
+                }
+                .foodCard(padding: 14)
 
                 if let active = activeOrder {
                     VStack(alignment: .leading, spacing: 10) {
@@ -729,7 +1613,7 @@ struct TrackView: View {
                                 .font(.system(size: 34, weight: .black))
                                 .foregroundStyle(FoodTheme.flame)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(active.restaurantName ?? "Your order")
+                                Text(active.restaurantName ?? customerText(store.customerLanguage, "Your order", "Tu pedido", "Votre commande", "Komann ou"))
                                     .font(.system(size: 16, weight: .bold))
                                     .foregroundStyle(FoodTheme.ink)
                                 Text(active.status.capitalized)
@@ -745,7 +1629,7 @@ struct TrackView: View {
                     }
                     .foodCard(padding: 16)
                 } else {
-                    Text("Place an order and your live queue number will show up here.")
+                    Text(customerText(store.customerLanguage, "Place an order and your live queue number will show up here.", "Haz un pedido y tu numero en vivo aparecera aqui.", "Passez une commande et votre numero apparaitra ici.", "Fè yon komann epi nimewo an dirèk ou ap parèt isit la."))
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(FoodTheme.muted)
                         .frame(maxWidth: .infinity)
@@ -753,11 +1637,11 @@ struct TrackView: View {
                 }
 
                 if store.isSignedIn {
-                    Text("Order history")
+                    Text(customerText(store.customerLanguage, "Order history", "Historial de pedidos", "Historique des commandes", "Istwa komann"))
                         .font(.system(size: 20, weight: .black))
                         .foregroundStyle(FoodTheme.ink)
                     if store.myOrders.isEmpty {
-                        Text("No past orders yet.")
+                        Text(customerText(store.customerLanguage, "No past orders yet.", "Todavia no hay pedidos anteriores.", "Pas encore de commandes precedentes.", "Poko gen ansyen komann."))
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(FoodTheme.muted)
                     }
@@ -788,9 +1672,36 @@ struct TrackView: View {
                         .foodCard()
                     }
                 } else {
-                    Text("Sign in on the Merchant tab to keep your order history.")
+                    Text(customerText(store.customerLanguage, "Sign in on the Merchant tab to keep your order history.", "Inicia sesion para guardar tu historial de pedidos.", "Connectez-vous pour conserver votre historique de commandes.", "Konekte pou konsève istwa komann ou."))
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(FoodTheme.muted)
+                }
+
+                if !store.recentCustomerOrders.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(customerText(store.customerLanguage, "Quick reorder", "Repetir rapido", "Recommande rapide", "Refè komann rapid"))
+                            .font(.system(size: 18, weight: .black))
+                            .foregroundStyle(FoodTheme.ink)
+                        ForEach(store.recentCustomerOrders.prefix(3)) { template in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(template.restaurantName)
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundStyle(FoodTheme.ink)
+                                    Text(template.lines.map { "\($0.quantity)x \($0.itemName)" }.joined(separator: ", "))
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundStyle(FoodTheme.muted)
+                                        .lineLimit(2)
+                                }
+                                Spacer()
+                                Button(customerText(store.customerLanguage, "Load", "Cargar", "Charger", "Chaje")) {
+                                    Task { _ = await store.loadReorderTemplate(template) }
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                            .foodCard(padding: 14)
+                        }
+                    }
                 }
             }
             .padding(16)

@@ -9,6 +9,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const ops = require('../controllers/restaurantOpsController');
+const inventory = require('../controllers/restaurantInventoryController');
 
 // All routes require a signed-in user; the controller verifies the user belongs
 // to the restaurant (and that nested rows belong to it) on every call.
@@ -37,5 +38,13 @@ router.get('/:restaurantId/sops', ops.listSops);
 router.post('/:restaurantId/sops', ops.createSop);
 router.patch('/:restaurantId/sops/:sopId', ops.updateSop);
 router.delete('/:restaurantId/sops/:sopId', ops.deleteSop);
+
+// Inventory (Phase 3, App 7): items + stock-adjustment ledger
+router.get('/:restaurantId/inventory/items', inventory.listItems);
+router.post('/:restaurantId/inventory/items', inventory.createItem);
+router.patch('/:restaurantId/inventory/items/:itemId', inventory.updateItem);
+router.delete('/:restaurantId/inventory/items/:itemId', inventory.deleteItem);
+router.post('/:restaurantId/inventory/items/:itemId/adjust', inventory.adjustItem);
+router.get('/:restaurantId/inventory/adjustments', inventory.listAdjustments);
 
 module.exports = router;
