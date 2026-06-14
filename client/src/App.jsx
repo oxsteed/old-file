@@ -111,6 +111,7 @@ import CompliancePage       from './pages/logistics/CompliancePage';
 import LogisticsFinancePage from './pages/logistics/LogisticsFinancePage';
 import BusinessHubPage from './pages/BusinessHubPage';
 import VortexPage from './pages/VortexPage';
+import NetworkAppsPage from './pages/NetworkAppsPage';
 import AccessGateRecoveryPage from './pages/AccessGateRecoveryPage';
 import VerifyIdentityPage from './pages/VerifyIdentityPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
@@ -391,6 +392,11 @@ export default function App() {
 
                     {/* Vortex - unified workspace + access-code entry point (team-role spec) */}
                     <Route path="/vortex"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><VortexPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+
+                    {/* OxSteed Network — full-page branch launcher (the navbar switcher
+                        is the quick version; this is the standalone page). */}
+                    <Route path="/network"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><NetworkAppsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/network/apps" element={<Guarded><ProtectedRoute><RouteErrorBoundary><NetworkAppsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Access gate recovery link target (public — token-gated server-side) */}
                     <Route path="/access-gate/recovery" element={<RouteErrorBoundary><AccessGateRecoveryPage /></RouteErrorBoundary>} />
                     {/* Critical: Business analytics dashboard with multiple tabs */}

@@ -207,7 +207,7 @@ export default function FoodRestaurantPage() {
         <p className="fd-pay-note">{t('food.order.payInStoreNote')}</p>
         <p>{t('food.order.total')}: <strong>{formatFoodMoney(placedOrder.total_cents, currency)}</strong></p>
         <div className="fd-row" style={{ justifyContent: 'center', marginTop: '1rem' }}>
-          <Link to={`/food/queue/${restaurant.id}`} className="fd-btn fd-btn-secondary">
+          <Link to={`/restaurants/queue/${restaurant.id}`} className="fd-btn fd-btn-secondary">
             {t('food.order.watchQueue')}
           </Link>
           <button type="button" className="fd-btn" onClick={() => setPlacedOrder(null)}>

@@ -6,6 +6,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getNetworkBranches } from '../utils/networkBranches';
 
 /** The 3x3 grid "apps" glyph used on the Network launcher button. */
 function GridGlyph({ size = 16 }) {
@@ -51,20 +52,8 @@ export default function OxSteedNetworkSwitcher({ showSupportWorkspace = false, o
     };
   }, [open]);
 
-  // Branch catalog. `live: false` renders a muted "coming soon"-style row that
-  // still routes to the branch's existing surface.
-  const branches = [
-    { to: '/jobs',                  title: t('network.marketplace.title', 'OxSteed Marketplace'),     hint: t('network.marketplace.hint', 'Hire local helpers, post jobs, compare bids') },
-    { to: '/restaurants',           title: t('network.restaurants.title', 'OxSteed Restaurants'),      hint: t('network.restaurants.hint', 'Franchise-grade tools for independent restaurants') },
-    { to: '/logistics',             title: t('network.logistics.title', 'OxSteed Logistics'),          hint: t('network.logistics.hint', 'Sourcing, pooled orders, shipments') },
-    { to: '/business-launch-status', title: t('network.businessLaunch.title', 'OxSteed Business Launch'), hint: t('network.businessLaunch.hint', 'Start and stand up a new business') },
-    { to: '/consulting',            title: t('network.consulting.title', 'OxSteed Consulting'),        hint: t('network.consulting.hint', 'Expert guidance and advisory sessions') },
-    ...(showSupportWorkspace
-      ? [{ to: '/support/agent',    title: t('network.support.title', 'OxSteed Support Workspace'),    hint: t('network.support.hint', 'Handle tickets and live chats') }]
-      : []),
-    { to: '/vortex',                title: t('network.vortex.title', 'Vortex'),                        hint: t('network.vortex.hint', 'Join or manage your workspaces') },
-    { to: '/settings',              title: t('network.settings.title', 'Settings'),                    hint: t('network.settings.hint', 'Account, billing, notifications, language') },
-  ];
+  // Branch catalog (shared with the /network full-page launcher).
+  const branches = getNetworkBranches(t, { showSupportWorkspace });
 
   const handleClick = () => {
     setOpen(false);
@@ -151,6 +140,19 @@ export default function OxSteedNetworkSwitcher({ showSupportWorkspace = false, o
               </Link>
             ))}
           </div>
+          <Link
+            role="menuitem"
+            to="/network"
+            onClick={handleClick}
+            style={{
+              display: 'block', textAlign: 'center', marginTop: '0.35rem',
+              padding: '0.5rem', borderRadius: 'var(--radius-sm)',
+              fontSize: '0.78rem', fontWeight: 600, textDecoration: 'none',
+              color: 'var(--color-primary, #F97316)',
+            }}
+          >
+            {t('network.seeAll', 'See all branches')}
+          </Link>
         </div>
       )}
     </div>

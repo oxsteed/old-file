@@ -12831,7 +12831,10 @@
     "settings": {
       "title": "Settings",
       "hint": "Account, billing, notifications, language"
-    }
+    },
+    "pageSubtitle": "One OxSteed account. Switch between every OxSteed branch you have access to.",
+    "openBranch": "Open",
+    "seeAll": "See all branches"
   },
   "restaurants": {
     "nav": {

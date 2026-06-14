@@ -1,10 +1,32 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-06-12
+**Last updated:** 2026-06-14
 
-## OxSteed Food — restaurant online + in-store ordering, full web build (2026-06-12) — LANDED
+## OxSteed Restaurants — branch rebrand inside OxSteed Network (2026-06-14) — LANDED
 
-McDonald's-style ordering on the same backend. A prior session had landed migration **305** (`305_oxsteed_food.sql`: food_restaurants, food_menu_categories, food_menu_items, food_modifier_groups, food_modifiers, food_orders with per-day `queue_number`, food_order_items, food_order_item_modifiers), a partial `foodController.js`, `routes/food.js` mounted at **`/api/food`**, and an iOS skeleton (`ios/OxSteedFood/` — customer browse/order/status). This session hardened the backend and built the entire web surface. **Liability model: the platform never processes food payments — orders track amounts and the merchant marks them paid in store.**
+**External brand:** the restaurant branch is now **OxSteed Restaurants** — *"franchise-grade tools for independent restaurants."* The product name everywhere user-facing is **Restaurants**, never "Food."
+
+**Internal/legacy implementation is unchanged and preserved:** the `food_*` database tables (migration 305), the `/api/food` backend mount, `foodController.js` / `routes/food.js`, and the `/food/*` client routes all remain in place and working. These are an internal implementation detail; do **not** rename tables or remove `/api/food` or `/food/*` (the iOS `OxSteedFood` app and any deployed kiosk/queue displays depend on them). New backend tables/routes added later use the `restaurant_*` prefix and `/api/restaurants`.
+
+**This session (additive, non-destructive):**
+- **OxSteed Network app switcher** — `client/src/components/OxSteedNetworkSwitcher.jsx` (navbar dropdown + mobile inline list) and a full-page launcher `client/src/pages/NetworkAppsPage.jsx` at **`/network`** and **`/network/apps`**. Both read the shared branch catalog `client/src/utils/networkBranches.js` (Marketplace, Restaurants, Logistics, Business Launch, Consulting, Support Workspace [conditional], Vortex, Settings) so they never drift. The switcher dropdown links to `/network` ("See all branches").
+- **Navbar** (`client/src/components/Navbar.jsx`) — major branches moved **out of Resources** into the Network switcher; Resources reduced to learning/help (How OxSteed Works, Browse Tools, Learn to DIY) + helper tools.
+- **Client routes** (`client/src/App.jsx`) — canonical **`/restaurants/*`** aliases added (`/restaurants`, `/restaurants/r/:restaurantId`, `/restaurants/queue/:restaurantId`, `/restaurants/kiosk/:restaurantId`, `/restaurants/merchant`, `/restaurants/kitchen/:restaurantId`) pointing at the existing Food page components. **All `/food/*` routes preserved.**
+- **User-facing links prefer `/restaurants/*`** — `FoodHomePage` (storefront cards, "add your restaurant"), `FoodRestaurantPage` (watch-queue), and `FoodMerchantPage` (in-store screen links) now navigate to `/restaurants/*`. The old `/food/*` routes still resolve for any external/legacy links.
+- **Brand wordmark** — `FoodBrand` in `client/src/pages/food/foodShared.jsx` now renders **"OxSteed Restaurants"** (label-overridable).
+- **Operations hub** — new **Operations** tab in `FoodMerchantPage` with "coming next" placeholders (inventory, checklists, staff training, quality audits, reports) and a **"Find help through OxSteed Marketplace"** CTA that pre-fills a job from restaurant context using `restaurant.address_city` / `restaurant.address_state` (links to `/post-job?source=restaurant` with nav-state prefill).
+- **i18n** — `nav.network`, `network.*` (branch titles/hints + `heading`/`pageSubtitle`/`openBranch`/`seeAll`), `restaurants.nav.entry`, `restaurants.ops.*`, and `food.merchant.tab.operations` added across **all five locales (en/es/fr/ht/ar)**; parity verified for the new keys.
+- **Strategy doc** — full 20-section product/architecture/roadmap at `docs/oxsteed-restaurants-strategy.md`.
+
+**Deliberately not done (next phases):** no table renames; no removal of `/food` or `/api/food`; no `restaurant_users`/access middleware, `/network/apps` access-gating, or branch role badges yet (the page lists all branches and each destination enforces its own access); staffed POS, live inventory, checklists, training, audits, and reports are placeholders only; iOS surface label rename pending.
+
+---
+
+## OxSteed Restaurants ordering foundation — restaurant online + in-store ordering, full web build (2026-06-12) — LANDED
+
+> Historical note: this branch was originally scaffolded under the internal name "OxSteed Food." The external brand is now **OxSteed Restaurants** (see the 2026-06-14 entry above). The `food_*` tables and `/api/food` mount described below are the preserved internal implementation.
+
+Franchise-grade ordering for independent restaurants on the same backend. A prior session had landed migration **305** (`305_oxsteed_food.sql`: food_restaurants, food_menu_categories, food_menu_items, food_modifier_groups, food_modifiers, food_orders with per-day `queue_number`, food_order_items, food_order_item_modifiers), a partial `foodController.js`, `routes/food.js` mounted at **`/api/food`**, and an iOS skeleton (`ios/OxSteedFood/` — customer browse/order/status). This session hardened the backend and built the entire web surface. **Liability model: the platform never processes food payments — orders track amounts and the merchant marks them paid in store.**
 
 **Backend (`server/controllers/foodController.js` extended to 20 handlers, `server/routes/food.js` rewritten):**
 - `createOrder` fixes: `FOR UPDATE` lock on the restaurant row so concurrent orders can't duplicate the per-day queue number; in-store sources (kiosk/counter/tablet) gate on `accepts_in_store_orders` (online on `accepts_online_orders`); `payment_status` always `'unpaid'` (track-only model); route now `optionalAuth` so kiosk/tablet guests order without an account.

@@ -190,13 +190,13 @@ function OrdersTab({ t, restaurant }) {
       <div className="fd-row" style={{ justifyContent: 'space-between', marginBottom: '0.8rem' }}>
         <h2 style={{ margin: 0 }}>{t('food.merchant.liveOrders')}</h2>
         <div className="fd-row">
-          <Link to={`/food/kitchen/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">
+          <Link to={`/restaurants/kitchen/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">
             {t('food.merchant.openKitchen')}
           </Link>
-          <Link to={`/food/queue/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">
+          <Link to={`/restaurants/queue/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">
             {t('food.merchant.openQueue')}
           </Link>
-          <Link to={`/food/kiosk/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">
+          <Link to={`/restaurants/kiosk/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">
             {t('food.merchant.openKiosk')}
           </Link>
         </div>
@@ -546,8 +546,8 @@ function OperationsTab({ t, restaurant }) {
   // fallback so the link works even if the prefill contract changes.
   const helpPrefill = {
     title: restaurant?.display_name ? `Help needed at ${restaurant.display_name}` : '',
-    location_city: restaurant?.city || '',
-    location_state: restaurant?.state || '',
+    location_city: restaurant?.address_city || '',
+    location_state: restaurant?.address_state || '',
     source: 'restaurant',
   };
 

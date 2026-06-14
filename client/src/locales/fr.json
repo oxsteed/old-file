@@ -12831,7 +12831,10 @@
     "settings": {
       "title": "Paramètres",
       "hint": "Compte, facturation, notifications, langue"
-    }
+    },
+    "pageSubtitle": "Un seul compte OxSteed. Basculez entre toutes les branches OxSteed auxquelles vous avez accès.",
+    "openBranch": "Ouvrir",
+    "seeAll": "Voir toutes les branches"
   },
   "restaurants": {
     "nav": {

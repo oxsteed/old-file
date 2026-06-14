@@ -12831,7 +12831,10 @@
     "settings": {
       "title": "Paramèt",
       "hint": "Kont, fakti, notifikasyon, lang"
-    }
+    },
+    "pageSubtitle": "Yon sèl kont OxSteed. Chanje ant tout branch OxSteed ou gen aksè yo.",
+    "openBranch": "Ouvri",
+    "seeAll": "Wè tout branch yo"
   },
   "restaurants": {
     "nav": {

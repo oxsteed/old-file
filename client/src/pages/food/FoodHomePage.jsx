@@ -119,7 +119,7 @@ export default function FoodHomePage() {
                 <Popup>
                   <strong>{r.display_name}</strong>
                   <br />
-                  <Link to={`/food/restaurants/${r.id}`}>{t('food.home.viewMenu')}</Link>
+                  <Link to={`/restaurants/r/${r.id}`}>{t('food.home.viewMenu')}</Link>
                 </Popup>
               </CircleMarker>
             ))}
@@ -138,13 +138,13 @@ export default function FoodHomePage() {
       ) : restaurants.length === 0 ? (
         <div className="fd-empty">
           <p>{t('food.home.empty')}</p>
-          <Link to="/food/merchant" className="fd-btn">{t('food.home.addYourRestaurant')}</Link>
+          <Link to="/restaurants/merchant" className="fd-btn">{t('food.home.addYourRestaurant')}</Link>
         </div>
       ) : (
         <>
           <div className="fd-grid">
             {restaurants.map((r) => (
-              <Link key={r.id} to={`/food/restaurants/${r.id}`} className="fd-card">
+              <Link key={r.id} to={`/restaurants/r/${r.id}`} className="fd-card">
                 <h3>{r.display_name}</h3>
                 <div>
                   {(r.cuisine_tags || []).slice(0, 3).map((tag) => (
@@ -163,7 +163,7 @@ export default function FoodHomePage() {
             ))}
           </div>
           <div style={{ marginTop: '1.6rem', textAlign: 'center' }}>
-            <Link to="/food/merchant" className="fd-btn fd-btn-secondary">
+            <Link to="/restaurants/merchant" className="fd-btn fd-btn-secondary">
               {t('food.home.addYourRestaurant')}
             </Link>
           </div>

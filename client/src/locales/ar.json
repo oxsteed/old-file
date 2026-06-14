@@ -12824,7 +12824,10 @@
     "settings": {
       "title": "الإعدادات",
       "hint": "الحساب والفوترة والإشعارات واللغة"
-    }
+    },
+    "pageSubtitle": "حساب OxSteed واحد. تنقّل بين كل فروع OxSteed التي يمكنك الوصول إليها.",
+    "openBranch": "فتح",
+    "seeAll": "عرض كل الفروع"
   },
   "restaurants": {
     "nav": {
