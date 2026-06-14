@@ -392,7 +392,8 @@
     "errorCreating": "Failed to create. Please try again.",
     "done": "Done",
     "failedToCancel": "Failed to cancel. Please try again.",
-    "fillRequiredFields": "Please fill in all required fields."
+    "fillRequiredFields": "Please fill in all required fields.",
+    "failedToDelete": "Échec de la suppression. Veuillez réessayer."
   },
   "jobs": {
     "title": "Détails de la mission",
@@ -12870,6 +12871,64 @@
         "title": "Besoin d'aide dans votre restaurant ?",
         "desc": "Recrutez des aides locales via OxSteed Marketplace : réparations, nettoyage, équipement, enseignes et plus.",
         "cta": "Trouver de l'aide via OxSteed Marketplace"
+      },
+      "moreModules": "Plus d'outils d'exploitation",
+      "checklists": {
+        "title": "Listes de contrôle",
+        "newChecklist": "Nouvelle liste",
+        "empty": "Aucune liste pour l'instant. Créez votre première liste d'ouverture ou de fermeture.",
+        "taskCount": "{{count}} tâches",
+        "start": "Démarrer",
+        "history": "Exécutions récentes",
+        "noRuns": "Aucune exécution terminée pour l'instant.",
+        "loadError": "Impossible de charger les listes",
+        "startError": "Impossible de démarrer la liste",
+        "createError": "Impossible de créer la liste",
+        "confirmDelete": "Supprimer cette liste ?",
+        "nameLabel": "Nom de la liste",
+        "namePlaceholder": "ex. Ouverture du matin",
+        "typeLabel": "Type",
+        "seedTasks": "Ajouter des tâches de démarrage suggérées",
+        "manageTasks": "Tâches",
+        "taskPlaceholder": "Ajouter une tâche…",
+        "runningTitle": "Liste en cours",
+        "markComplete": "Marquer comme terminée",
+        "runCompleted": "Liste terminée",
+        "type": {
+          "opening": "Ouverture",
+          "closing": "Fermeture",
+          "cleaning": "Nettoyage",
+          "food_safety": "Sécurité alimentaire",
+          "custom": "Personnalisée"
+        },
+        "runStatus": {
+          "in_progress": "En cours",
+          "completed": "Terminée",
+          "abandoned": "Abandonnée"
+        }
+      },
+      "sops": {
+        "title": "Bibliothèque de procédures",
+        "newSop": "Nouvelle procédure",
+        "empty": "Aucune procédure pour l'instant. Documentez la façon de travailler de votre équipe.",
+        "loadError": "Impossible de charger les procédures",
+        "saveError": "Impossible d'enregistrer la procédure",
+        "confirmDelete": "Supprimer cette procédure ?",
+        "editTitle": "Modifier la procédure",
+        "titleLabel": "Titre",
+        "categoryLabel": "Catégorie",
+        "bodyLabel": "Procédure",
+        "bodyPlaceholder": "Instructions étape par étape…",
+        "category": {
+          "general": "Général",
+          "kitchen": "Cuisine",
+          "front_of_house": "Salle",
+          "cleaning": "Nettoyage",
+          "food_safety": "Sécurité alimentaire",
+          "opening": "Ouverture",
+          "closing": "Fermeture",
+          "safety": "Sécurité"
+        }
       }
     }
   }

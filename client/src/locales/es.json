@@ -392,7 +392,8 @@
     "errorCreating": "Failed to create. Please try again.",
     "done": "Done",
     "failedToCancel": "Failed to cancel. Please try again.",
-    "fillRequiredFields": "Please fill in all required fields."
+    "fillRequiredFields": "Please fill in all required fields.",
+    "failedToDelete": "No se pudo eliminar. Inténtalo de nuevo."
   },
   "jobs": {
     "title": "Detalles del Trabajo",
@@ -12870,6 +12871,64 @@
         "title": "¿Necesitas ayuda en tu restaurante?",
         "desc": "Contrata ayudantes locales a través de OxSteed Marketplace: reparaciones, limpieza, equipos, rótulos y más.",
         "cta": "Encontrar ayuda en OxSteed Marketplace"
+      },
+      "moreModules": "Más herramientas operativas",
+      "checklists": {
+        "title": "Listas de tareas",
+        "newChecklist": "Nueva lista",
+        "empty": "Aún no hay listas. Crea tu primera lista de apertura o cierre.",
+        "taskCount": "{{count}} tareas",
+        "start": "Iniciar",
+        "history": "Ejecuciones recientes",
+        "noRuns": "Aún no hay ejecuciones completadas.",
+        "loadError": "No se pudieron cargar las listas",
+        "startError": "No se pudo iniciar la lista",
+        "createError": "No se pudo crear la lista",
+        "confirmDelete": "¿Eliminar esta lista?",
+        "nameLabel": "Nombre de la lista",
+        "namePlaceholder": "p. ej. Apertura matutina",
+        "typeLabel": "Tipo",
+        "seedTasks": "Agregar tareas iniciales sugeridas",
+        "manageTasks": "Tareas",
+        "taskPlaceholder": "Agregar una tarea…",
+        "runningTitle": "Ejecutando lista",
+        "markComplete": "Marcar como completada",
+        "runCompleted": "Lista completada",
+        "type": {
+          "opening": "Apertura",
+          "closing": "Cierre",
+          "cleaning": "Limpieza",
+          "food_safety": "Seguridad alimentaria",
+          "custom": "Personalizada"
+        },
+        "runStatus": {
+          "in_progress": "En curso",
+          "completed": "Completada",
+          "abandoned": "Abandonada"
+        }
+      },
+      "sops": {
+        "title": "Biblioteca de procedimientos",
+        "newSop": "Nuevo procedimiento",
+        "empty": "Aún no hay procedimientos. Documenta cómo trabaja tu equipo.",
+        "loadError": "No se pudieron cargar los procedimientos",
+        "saveError": "No se pudo guardar el procedimiento",
+        "confirmDelete": "¿Eliminar este procedimiento?",
+        "editTitle": "Editar procedimiento",
+        "titleLabel": "Título",
+        "categoryLabel": "Categoría",
+        "bodyLabel": "Procedimiento",
+        "bodyPlaceholder": "Instrucciones paso a paso…",
+        "category": {
+          "general": "General",
+          "kitchen": "Cocina",
+          "front_of_house": "Atención al cliente",
+          "cleaning": "Limpieza",
+          "food_safety": "Seguridad alimentaria",
+          "opening": "Apertura",
+          "closing": "Cierre",
+          "safety": "Seguridad"
+        }
       }
     }
   }

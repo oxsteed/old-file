@@ -392,7 +392,8 @@
     "errorCreating": "Failed to create. Please try again.",
     "done": "Done",
     "failedToCancel": "Failed to cancel. Please try again.",
-    "fillRequiredFields": "Please fill in all required fields."
+    "fillRequiredFields": "Please fill in all required fields.",
+    "failedToDelete": "تعذّر الحذف. يرجى المحاولة مرة أخرى."
   },
   "jobs": {
     "title": "Job Details",
@@ -12863,6 +12864,64 @@
         "title": "تحتاج مساعدة في مطعمك؟",
         "desc": "وظّف مساعدين محليين عبر OxSteed Marketplace: إصلاحات، تنظيف، معدات، لافتات والمزيد.",
         "cta": "ابحث عن مساعدة عبر OxSteed Marketplace"
+      },
+      "moreModules": "أدوات تشغيل إضافية",
+      "checklists": {
+        "title": "قوائم المهام",
+        "newChecklist": "قائمة جديدة",
+        "empty": "لا توجد قوائم بعد. أنشئ أول قائمة فتح أو إغلاق.",
+        "taskCount": "{{count}} مهمة",
+        "start": "بدء",
+        "history": "عمليات حديثة",
+        "noRuns": "لا توجد عمليات مكتملة بعد.",
+        "loadError": "تعذّر تحميل القوائم",
+        "startError": "تعذّر بدء القائمة",
+        "createError": "تعذّر إنشاء القائمة",
+        "confirmDelete": "حذف هذه القائمة؟",
+        "nameLabel": "اسم القائمة",
+        "namePlaceholder": "مثال: فتح الصباح",
+        "typeLabel": "النوع",
+        "seedTasks": "إضافة مهام بداية مقترحة",
+        "manageTasks": "المهام",
+        "taskPlaceholder": "أضف مهمة…",
+        "runningTitle": "تنفيذ القائمة",
+        "markComplete": "وضع علامة مكتمل",
+        "runCompleted": "اكتملت القائمة",
+        "type": {
+          "opening": "افتتاح",
+          "closing": "إغلاق",
+          "cleaning": "تنظيف",
+          "food_safety": "سلامة الغذاء",
+          "custom": "مخصّص"
+        },
+        "runStatus": {
+          "in_progress": "قيد التنفيذ",
+          "completed": "مكتملة",
+          "abandoned": "متروكة"
+        }
+      },
+      "sops": {
+        "title": "مكتبة الإجراءات",
+        "newSop": "إجراء جديد",
+        "empty": "لا توجد إجراءات بعد. وثّق طريقة عمل فريقك.",
+        "loadError": "تعذّر تحميل الإجراءات",
+        "saveError": "تعذّر حفظ الإجراء",
+        "confirmDelete": "حذف هذا الإجراء؟",
+        "editTitle": "تعديل الإجراء",
+        "titleLabel": "العنوان",
+        "categoryLabel": "الفئة",
+        "bodyLabel": "الإجراء",
+        "bodyPlaceholder": "تعليمات خطوة بخطوة…",
+        "category": {
+          "general": "عام",
+          "kitchen": "المطبخ",
+          "front_of_house": "صالة الاستقبال",
+          "cleaning": "تنظيف",
+          "food_safety": "سلامة الغذاء",
+          "opening": "افتتاح",
+          "closing": "إغلاق",
+          "safety": "السلامة"
+        }
       }
     }
   }

@@ -392,7 +392,8 @@
     "errorCreating": "Failed to create. Please try again.",
     "done": "Done",
     "failedToCancel": "Failed to cancel. Please try again.",
-    "fillRequiredFields": "Please fill in all required fields."
+    "fillRequiredFields": "Please fill in all required fields.",
+    "failedToDelete": "Echèk pou efase. Tanpri eseye ankò."
   },
   "trial": {
     "active": "Esè aktif",
@@ -12870,6 +12871,64 @@
         "title": "Ou bezwen èd nan restoran ou?",
         "desc": "Anboche èd lokal atravè OxSteed Marketplace: reparasyon, netwayaj, ekipman, ansèy, ak plis ankò.",
         "cta": "Jwenn èd atravè OxSteed Marketplace"
+      },
+      "moreModules": "Plis zouti operasyon",
+      "checklists": {
+        "title": "Lis travay",
+        "newChecklist": "Nouvo lis",
+        "empty": "Poko gen lis. Kreye premye lis ouvèti oswa fèmti ou.",
+        "taskCount": "{{count}} travay",
+        "start": "Kòmanse",
+        "history": "Egzekisyon resan",
+        "noRuns": "Poko gen egzekisyon ki fini.",
+        "loadError": "Pa t kapab chaje lis yo",
+        "startError": "Pa t kapab kòmanse lis la",
+        "createError": "Pa t kapab kreye lis la",
+        "confirmDelete": "Efase lis sa a?",
+        "nameLabel": "Non lis la",
+        "namePlaceholder": "egz. Ouvèti maten",
+        "typeLabel": "Tip",
+        "seedTasks": "Ajoute travay debaz sigjere yo",
+        "manageTasks": "Travay",
+        "taskPlaceholder": "Ajoute yon travay…",
+        "runningTitle": "Lis ap egzekite",
+        "markComplete": "Make kòm fini",
+        "runCompleted": "Lis fini",
+        "type": {
+          "opening": "Ouvèti",
+          "closing": "Fèmti",
+          "cleaning": "Netwayaj",
+          "food_safety": "Sekirite manje",
+          "custom": "Pèsonalize"
+        },
+        "runStatus": {
+          "in_progress": "An kou",
+          "completed": "Fini",
+          "abandoned": "Abandone"
+        }
+      },
+      "sops": {
+        "title": "Bibliyotèk pwosedi",
+        "newSop": "Nouvo pwosedi",
+        "empty": "Poko gen pwosedi. Dokimante kijan ekip ou fè bagay yo.",
+        "loadError": "Pa t kapab chaje pwosedi yo",
+        "saveError": "Pa t kapab anrejistre pwosedi a",
+        "confirmDelete": "Efase pwosedi sa a?",
+        "editTitle": "Modifye pwosedi",
+        "titleLabel": "Tit",
+        "categoryLabel": "Kategori",
+        "bodyLabel": "Pwosedi",
+        "bodyPlaceholder": "Enstriksyon etap pa etap…",
+        "category": {
+          "general": "Jeneral",
+          "kitchen": "Kizin",
+          "front_of_house": "Sal devan",
+          "cleaning": "Netwayaj",
+          "food_safety": "Sekirite manje",
+          "opening": "Ouvèti",
+          "closing": "Fèmti",
+          "safety": "Sekirite"
+        }
       }
     }
   }

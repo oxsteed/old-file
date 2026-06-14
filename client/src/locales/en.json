@@ -392,7 +392,8 @@
     "errorCreating": "Failed to create. Please try again.",
     "done": "Done",
     "failedToCancel": "Failed to cancel. Please try again.",
-    "fillRequiredFields": "Please fill in all required fields."
+    "fillRequiredFields": "Please fill in all required fields.",
+    "failedToDelete": "Failed to delete. Please try again."
   },
   "jobs": {
     "title": "Job Details",
@@ -12870,6 +12871,64 @@
         "title": "Need help at your restaurant?",
         "desc": "Hire local helpers through OxSteed Marketplace — repairs, cleaning, equipment, signage, and more.",
         "cta": "Find help through OxSteed Marketplace"
+      },
+      "moreModules": "More operating tools",
+      "checklists": {
+        "title": "Checklists",
+        "newChecklist": "New checklist",
+        "empty": "No checklists yet. Create your first opening or closing checklist.",
+        "taskCount": "{{count}} tasks",
+        "start": "Start",
+        "history": "Recent runs",
+        "noRuns": "No completed runs yet.",
+        "loadError": "Could not load checklists",
+        "startError": "Could not start checklist",
+        "createError": "Could not create checklist",
+        "confirmDelete": "Delete this checklist?",
+        "nameLabel": "Checklist name",
+        "namePlaceholder": "e.g. Morning opening",
+        "typeLabel": "Type",
+        "seedTasks": "Add suggested starter tasks",
+        "manageTasks": "Tasks",
+        "taskPlaceholder": "Add a task…",
+        "runningTitle": "Running checklist",
+        "markComplete": "Mark complete",
+        "runCompleted": "Checklist completed",
+        "type": {
+          "opening": "Opening",
+          "closing": "Closing",
+          "cleaning": "Cleaning",
+          "food_safety": "Food safety",
+          "custom": "Custom"
+        },
+        "runStatus": {
+          "in_progress": "In progress",
+          "completed": "Completed",
+          "abandoned": "Abandoned"
+        }
+      },
+      "sops": {
+        "title": "SOP library",
+        "newSop": "New SOP",
+        "empty": "No SOPs yet. Document how your team does things.",
+        "loadError": "Could not load SOPs",
+        "saveError": "Could not save SOP",
+        "confirmDelete": "Delete this SOP?",
+        "editTitle": "Edit SOP",
+        "titleLabel": "Title",
+        "categoryLabel": "Category",
+        "bodyLabel": "Procedure",
+        "bodyPlaceholder": "Step-by-step instructions…",
+        "category": {
+          "general": "General",
+          "kitchen": "Kitchen",
+          "front_of_house": "Front of house",
+          "cleaning": "Cleaning",
+          "food_safety": "Food safety",
+          "opening": "Opening",
+          "closing": "Closing",
+          "safety": "Safety"
+        }
       }
     }
   }

@@ -21,6 +21,7 @@ import {
   formatFoodMoney,
 } from '../../api/food';
 import { FoodBrand, FOOD_STATUS_KEYS } from './foodShared';
+import { ChecklistsPanel, SopsPanel } from './RestaurantOpsPanels';
 import '../../styles/FoodPages.css';
 
 const NEXT_STATUS = {
@@ -539,7 +540,8 @@ function SettingsTab({ t, restaurant, onUpdated }) {
 // phases (inventory, checklists/SOPs, staff training, quality audits, reports),
 // plus a live link into OxSteed Marketplace to hire help for the restaurant.
 function OperationsTab({ t, restaurant }) {
-  const modules = ['inventory', 'checklists', 'training', 'audits', 'reports'];
+  // Checklists + SOPs are live (Phase 2); the rest are "coming next" placeholders.
+  const modules = ['inventory', 'training', 'audits', 'reports'];
 
   // Pre-fill a Marketplace job from the restaurant's context. PostJobPage reads
   // an optional prefill from navigation state; the query param is a harmless
@@ -556,12 +558,22 @@ function OperationsTab({ t, restaurant }) {
       <h2>{t('restaurants.ops.title', 'Operations')}</h2>
       <p className="fd-card-meta">{t('restaurants.ops.subtitle', 'Run your restaurant with franchise-grade systems.')}</p>
 
+      {/* Live modules (Phase 2) */}
+      <div style={{ marginTop: '1.25rem' }}>
+        <ChecklistsPanel t={t} restaurant={restaurant} />
+      </div>
+      <div style={{ marginTop: '2rem' }}>
+        <SopsPanel t={t} restaurant={restaurant} />
+      </div>
+
+      {/* Coming-next modules */}
+      <h3 style={{ marginTop: '2rem' }}>{t('restaurants.ops.moreModules', 'More operating tools')}</h3>
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
           gap: '0.75rem',
-          marginTop: '1rem',
+          marginTop: '0.5rem',
         }}
       >
         {modules.map((key) => (
