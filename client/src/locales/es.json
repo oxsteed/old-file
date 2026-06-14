@@ -25,7 +25,8 @@
     "supportWorkspace": "Espacio de soporte",
     "cancellationPolicies": "Políticas de Pago y Cancelación",
     "howOxsteedWorks": "Cómo funciona OxSteed",
-    "learnToDiy": "Aprende a hacerlo tú mismo"
+    "learnToDiy": "Aprende a hacerlo tú mismo",
+    "network": "OxSteed Network"
   },
   "supportAgentPortal": {
     "title": "Espacio de soporte",
@@ -12727,7 +12728,8 @@
       "tab": {
         "orders": "Pedidos",
         "menu": "Menú",
-        "settings": "Configuración"
+        "settings": "Configuración",
+        "operations": "Operaciones"
       },
       "liveOrders": "Pedidos en vivo",
       "noOrders": "No hay pedidos activos ahora.",
@@ -12794,6 +12796,78 @@
       "tapForNext": "Toca en cualquier lugar para el siguiente cliente",
       "nameForOrder": "Nombre para el pedido (opcional)",
       "addMore": "Agregar más platos"
+    }
+  },
+  "network": {
+    "heading": "Cambiar de rama",
+    "marketplace": {
+      "title": "OxSteed Marketplace",
+      "hint": "Contrata ayudantes locales, publica trabajos, compara ofertas"
+    },
+    "restaurants": {
+      "title": "OxSteed Restaurants",
+      "hint": "Herramientas de nivel franquicia para restaurantes independientes"
+    },
+    "logistics": {
+      "title": "OxSteed Logistics",
+      "hint": "Abastecimiento, pedidos agrupados, envíos"
+    },
+    "businessLaunch": {
+      "title": "OxSteed Business Launch",
+      "hint": "Crea y pon en marcha un nuevo negocio"
+    },
+    "consulting": {
+      "title": "OxSteed Consulting",
+      "hint": "Asesoría experta y sesiones de consultoría"
+    },
+    "support": {
+      "title": "OxSteed Support Workspace",
+      "hint": "Gestiona tickets y chats en vivo"
+    },
+    "vortex": {
+      "title": "Vortex",
+      "hint": "Únete o administra tus espacios de trabajo"
+    },
+    "settings": {
+      "title": "Configuración",
+      "hint": "Cuenta, facturación, notificaciones, idioma"
+    }
+  },
+  "restaurants": {
+    "nav": {
+      "entry": "OxSteed Restaurants"
+    },
+    "ops": {
+      "title": "Operaciones",
+      "subtitle": "Opera tu restaurante con sistemas de nivel franquicia.",
+      "comingSoon": "Próximamente",
+      "modules": {
+        "inventory": {
+          "title": "Inventario",
+          "desc": "Controla ingredientes, recetas y alertas de bajo stock."
+        },
+        "checklists": {
+          "title": "Listas y procedimientos",
+          "desc": "Rutinas de apertura, cierre, limpieza y seguridad alimentaria."
+        },
+        "training": {
+          "title": "Capacitación del personal",
+          "desc": "Incorpora empleados con lecciones y cuestionarios asignados."
+        },
+        "audits": {
+          "title": "Auditorías de calidad",
+          "desc": "Inspecciona, registra hallazgos y asigna acciones correctivas."
+        },
+        "reports": {
+          "title": "Informes",
+          "desc": "Análisis de ventas, mano de obra e inventario por ubicación."
+        }
+      },
+      "help": {
+        "title": "¿Necesitas ayuda en tu restaurante?",
+        "desc": "Contrata ayudantes locales a través de OxSteed Marketplace: reparaciones, limpieza, equipos, rótulos y más.",
+        "cta": "Encontrar ayuda en OxSteed Marketplace"
+      }
     }
   }
 }

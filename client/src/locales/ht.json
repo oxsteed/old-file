@@ -25,7 +25,8 @@
     "supportWorkspace": "Espa sipo",
     "cancellationPolicies": "Polisi Peman ak Anile",
     "howOxsteedWorks": "Kijan OxSteed mache",
-    "learnToDiy": "Aprann fè DIY"
+    "learnToDiy": "Aprann fè DIY",
+    "network": "OxSteed Network"
   },
   "supportAgentPortal": {
     "title": "Espa sipo",
@@ -12727,7 +12728,8 @@
       "tab": {
         "orders": "Kòmand",
         "menu": "Meni",
-        "settings": "Paramèt"
+        "settings": "Paramèt",
+        "operations": "Operasyon"
       },
       "liveOrders": "Kòmand an dirèk",
       "noOrders": "Pa gen kòmand aktif kounye a.",
@@ -12794,6 +12796,78 @@
       "tapForNext": "Manyen nenpòt kote pou pwochen kliyan an",
       "nameForOrder": "Non pou kòmand lan (si w vle)",
       "addMore": "Ajoute plis manje"
+    }
+  },
+  "network": {
+    "heading": "Chanje branch",
+    "marketplace": {
+      "title": "OxSteed Marketplace",
+      "hint": "Anboche èd lokal, poste travay, konpare òf yo"
+    },
+    "restaurants": {
+      "title": "OxSteed Restaurants",
+      "hint": "Zouti nivo franchiz pou restoran endepandan"
+    },
+    "logistics": {
+      "title": "OxSteed Logistics",
+      "hint": "Apwovizyònman, kòmand ansanm, ekspedisyon"
+    },
+    "businessLaunch": {
+      "title": "OxSteed Business Launch",
+      "hint": "Lanse epi monte yon nouvo biznis"
+    },
+    "consulting": {
+      "title": "OxSteed Consulting",
+      "hint": "Konsèy ekspè ak sesyon konsiltasyon"
+    },
+    "support": {
+      "title": "OxSteed Support Workspace",
+      "hint": "Jere tikè ak chat an dirèk"
+    },
+    "vortex": {
+      "title": "Vortex",
+      "hint": "Antre oswa jere espas travay ou yo"
+    },
+    "settings": {
+      "title": "Paramèt",
+      "hint": "Kont, fakti, notifikasyon, lang"
+    }
+  },
+  "restaurants": {
+    "nav": {
+      "entry": "OxSteed Restaurants"
+    },
+    "ops": {
+      "title": "Operasyon",
+      "subtitle": "Jere restoran ou ak sistèm nivo franchiz.",
+      "comingSoon": "Ap vini talè",
+      "modules": {
+        "inventory": {
+          "title": "Envantè",
+          "desc": "Swiv engredyan, resèt, ak alèt stok ki ba."
+        },
+        "checklists": {
+          "title": "Lis ak pwosedi",
+          "desc": "Woutin ouvèti, fèmti, netwayaj, ak sekirite manje."
+        },
+        "training": {
+          "title": "Fòmasyon anplwaye",
+          "desc": "Entegre anplwaye ak leson ak kesyon yo bay yo."
+        },
+        "audits": {
+          "title": "Odit kalite",
+          "desc": "Enspekte, anrejistre konsta, bay aksyon korektif."
+        },
+        "reports": {
+          "title": "Rapò",
+          "desc": "Analiz vant, men dèv, ak envantè pa kote."
+        }
+      },
+      "help": {
+        "title": "Ou bezwen èd nan restoran ou?",
+        "desc": "Anboche èd lokal atravè OxSteed Marketplace: reparasyon, netwayaj, ekipman, ansèy, ak plis ankò.",
+        "cta": "Jwenn èd atravè OxSteed Marketplace"
+      }
     }
   }
 }

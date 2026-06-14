@@ -25,7 +25,8 @@
     "supportWorkspace": "Support workspace",
     "cancellationPolicies": "Payment & Cancellation Policies",
     "howOxsteedWorks": "How OxSteed Works",
-    "learnToDiy": "Learn to DIY"
+    "learnToDiy": "Learn to DIY",
+    "network": "OxSteed Network"
   },
   "supportAgentPortal": {
     "title": "Support workspace",
@@ -12727,7 +12728,8 @@
       "tab": {
         "orders": "Orders",
         "menu": "Menu",
-        "settings": "Settings"
+        "settings": "Settings",
+        "operations": "Operations"
       },
       "liveOrders": "Live orders",
       "noOrders": "No active orders right now.",
@@ -12794,6 +12796,78 @@
       "tapForNext": "Tap anywhere for the next customer",
       "nameForOrder": "Name for the order (optional)",
       "addMore": "Add more items"
+    }
+  },
+  "network": {
+    "heading": "Switch branch",
+    "marketplace": {
+      "title": "OxSteed Marketplace",
+      "hint": "Hire local helpers, post jobs, compare bids"
+    },
+    "restaurants": {
+      "title": "OxSteed Restaurants",
+      "hint": "Franchise-grade tools for independent restaurants"
+    },
+    "logistics": {
+      "title": "OxSteed Logistics",
+      "hint": "Sourcing, pooled orders, shipments"
+    },
+    "businessLaunch": {
+      "title": "OxSteed Business Launch",
+      "hint": "Start and stand up a new business"
+    },
+    "consulting": {
+      "title": "OxSteed Consulting",
+      "hint": "Expert guidance and advisory sessions"
+    },
+    "support": {
+      "title": "OxSteed Support Workspace",
+      "hint": "Handle tickets and live chats"
+    },
+    "vortex": {
+      "title": "Vortex",
+      "hint": "Join or manage your workspaces"
+    },
+    "settings": {
+      "title": "Settings",
+      "hint": "Account, billing, notifications, language"
+    }
+  },
+  "restaurants": {
+    "nav": {
+      "entry": "OxSteed Restaurants"
+    },
+    "ops": {
+      "title": "Operations",
+      "subtitle": "Run your restaurant with franchise-grade systems.",
+      "comingSoon": "Coming next",
+      "modules": {
+        "inventory": {
+          "title": "Inventory",
+          "desc": "Track ingredients, recipes, and low-stock alerts."
+        },
+        "checklists": {
+          "title": "Checklists & SOPs",
+          "desc": "Opening, closing, cleaning, and food-safety routines."
+        },
+        "training": {
+          "title": "Staff training",
+          "desc": "Onboard employees with assigned lessons and quizzes."
+        },
+        "audits": {
+          "title": "Quality audits",
+          "desc": "Inspect, log findings, assign corrective actions."
+        },
+        "reports": {
+          "title": "Reports",
+          "desc": "Sales, labor, and inventory analytics by location."
+        }
+      },
+      "help": {
+        "title": "Need help at your restaurant?",
+        "desc": "Hire local helpers through OxSteed Marketplace — repairs, cleaning, equipment, signage, and more.",
+        "cta": "Find help through OxSteed Marketplace"
+      }
     }
   }
 }

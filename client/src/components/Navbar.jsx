@@ -7,6 +7,7 @@ import ThemeToggle from './ThemeToggle';
 import LanguageSelector from './LanguageSelector';
 import BusinessSwitcher from './BusinessSwitcher';
 import ModeSwitcher from './ModeSwitcher';
+import OxSteedNetworkSwitcher from './OxSteedNetworkSwitcher';
 import { routeForMode } from '../utils/modeRouter';
 import '../styles/BusinessSwitcher.css';
 
@@ -204,7 +205,10 @@ export default function Navbar() {
                   <NavLink to="/support/agent" active={isActive('/support/agent')}>{t('nav.supportWorkspace')}</NavLink>
                 )}
 
-                {/* Resources Dropdown */}
+                {/* OxSteed Network — branch switcher (major branches live here) */}
+                <OxSteedNetworkSwitcher showSupportWorkspace={showSupportWorkspaceNav} />
+
+                {/* Resources Dropdown — learning + help content only */}
                 <div ref={resourcesMenuRef} style={{ position: 'relative', display: 'inline-block' }}>
                   <button
                     type="button"
@@ -255,22 +259,6 @@ export default function Navbar() {
                       </Link>
                       <Link
                         role="menuitem"
-                        to="/logistics"
-                        className="ox-nav-resource-option"
-                        onClick={() => setResourcesMenuOpen(false)}
-                      >
-                        <span className="ox-nav-resource-option-title">{t('logistics.nav.entry', 'OxSteed Logistics')}</span>
-                      </Link>
-                      <Link
-                        role="menuitem"
-                        to="/food"
-                        className="ox-nav-resource-option"
-                        onClick={() => setResourcesMenuOpen(false)}
-                      >
-                        <span className="ox-nav-resource-option-title">{t('food.nav.entry', 'OxSteed Food')}</span>
-                      </Link>
-                      <Link
-                        role="menuitem"
                         to="/learn"
                         className="ox-nav-resource-option"
                         onClick={() => setResourcesMenuOpen(false)}
@@ -297,22 +285,6 @@ export default function Navbar() {
                           </Link>
                         </>
                       )}
-                      <Link
-                        role="menuitem"
-                        to="/business-launch-status"
-                        className="ox-nav-resource-option"
-                        onClick={() => setResourcesMenuOpen(false)}
-                      >
-                        <span className="ox-nav-resource-option-title">{t('nav.businessLaunchStatus')}</span>
-                      </Link>
-                      <Link
-                        role="menuitem"
-                        to="/settings"
-                        className="ox-nav-resource-option"
-                        onClick={() => setResourcesMenuOpen(false)}
-                      >
-                        <span className="ox-nav-resource-option-title">{t('nav.settings')}</span>
-                      </Link>
                     </div>
                   )}
                 </div>
@@ -399,9 +371,10 @@ export default function Navbar() {
                 <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('nav.browseJobs')}</MobileNavLink>
                 <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howOxsteedWorks')}</MobileNavLink>
                 <MobileNavLink to="/tool-rentals" onClick={() => setMobileOpen(false)}>{t('toolRentals.browsePage')}</MobileNavLink>
-                <MobileNavLink to="/logistics" onClick={() => setMobileOpen(false)}>{t('logistics.nav.entry', 'OxSteed Logistics')}</MobileNavLink>
-                <MobileNavLink to="/food" onClick={() => setMobileOpen(false)}>{t('food.nav.entry', 'OxSteed Food')}</MobileNavLink>
                 <MobileNavLink to="/learn" onClick={() => setMobileOpen(false)}>{t('nav.learnToDiy')}</MobileNavLink>
+                <div style={{ marginTop: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--color-border)' }}>
+                  <OxSteedNetworkSwitcher mobile showSupportWorkspace={showSupportWorkspaceNav} onNavigate={() => setMobileOpen(false)} />
+                </div>
                 <MobileNavLink to="/post-job" onClick={() => setMobileOpen(false)}>{t('nav.postJob')}</MobileNavLink>
                 <MobileNavLink to={isHelper ? '/helper/messages' : '/messages'} onClick={() => setMobileOpen(false)}>
                   {t('nav.messages')} {unreadMsgs > 0 && (
@@ -418,7 +391,6 @@ export default function Navbar() {
                 </MobileNavLink>
                 {isHelper && <MobileNavLink to="/business-hub" onClick={() => setMobileOpen(false)}>{t('nav.business')}</MobileNavLink>}
                 {isHelper && <MobileNavLink to="/qr-generator" onClick={() => setMobileOpen(false)}>{t('nav.qrGenerator')}</MobileNavLink>}
-                <MobileNavLink to="/settings" onClick={() => setMobileOpen(false)}>{t('nav.settings')}</MobileNavLink>
                 <button
                   onClick={() => { logout(); setMobileOpen(false); }}
                   style={{
@@ -508,6 +480,33 @@ export default function Navbar() {
         .ox-nav-resource-option-title {
           font-size: var(--text-sm);
           font-weight: 500;
+        }
+        .ox-net-option {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.1rem;
+          padding: 0.6rem 0.65rem;
+          border-radius: var(--radius-sm);
+          text-decoration: none;
+          color: var(--color-text);
+          transition: background var(--transition-fast);
+        }
+        .ox-net-option:hover {
+          background: var(--color-surface-2);
+        }
+        .ox-net-option[aria-current="page"] {
+          background: var(--color-surface-2);
+          box-shadow: inset 2px 0 0 var(--color-primary);
+        }
+        .ox-net-option-title {
+          font-size: var(--text-sm);
+          font-weight: 600;
+        }
+        .ox-net-option-hint {
+          font-size: 0.72rem;
+          color: var(--color-text-muted);
+          line-height: 1.3;
         }
       `}</style>
     </nav>

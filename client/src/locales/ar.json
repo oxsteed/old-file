@@ -25,7 +25,8 @@
     "supportWorkspace": "منطقة الدعم",
     "cancellationPolicies": "سياسات الدفع والإلغاء",
     "howOxsteedWorks": "كيف يعمل OxSteed",
-    "learnToDiy": "تعلم القيام بذلك بنفسك"
+    "learnToDiy": "تعلم القيام بذلك بنفسك",
+    "network": "OxSteed Network"
   },
   "supportAgentPortal": {
     "title": "منطقة الدعم",
@@ -12720,7 +12721,8 @@
       "tab": {
         "orders": "الطلبات",
         "menu": "القائمة",
-        "settings": "الإعدادات"
+        "settings": "الإعدادات",
+        "operations": "العمليات"
       },
       "liveOrders": "الطلبات المباشرة",
       "noOrders": "لا توجد طلبات نشطة حاليًا.",
@@ -12787,6 +12789,78 @@
       "tapForNext": "المس أي مكان للزبون التالي",
       "nameForOrder": "اسم الطلب (اختياري)",
       "addMore": "إضافة المزيد"
+    }
+  },
+  "network": {
+    "heading": "تبديل الفرع",
+    "marketplace": {
+      "title": "OxSteed Marketplace",
+      "hint": "وظّف مساعدين محليين، انشر الوظائف، قارن العروض"
+    },
+    "restaurants": {
+      "title": "OxSteed Restaurants",
+      "hint": "أدوات بمستوى الامتياز للمطاعم المستقلة"
+    },
+    "logistics": {
+      "title": "OxSteed Logistics",
+      "hint": "التوريد والطلبات المجمّعة والشحنات"
+    },
+    "businessLaunch": {
+      "title": "OxSteed Business Launch",
+      "hint": "أطلق وأسّس نشاطًا تجاريًا جديدًا"
+    },
+    "consulting": {
+      "title": "OxSteed Consulting",
+      "hint": "إرشاد الخبراء وجلسات استشارية"
+    },
+    "support": {
+      "title": "OxSteed Support Workspace",
+      "hint": "إدارة التذاكر والمحادثات المباشرة"
+    },
+    "vortex": {
+      "title": "Vortex",
+      "hint": "انضم إلى مساحات العمل أو أدِرها"
+    },
+    "settings": {
+      "title": "الإعدادات",
+      "hint": "الحساب والفوترة والإشعارات واللغة"
+    }
+  },
+  "restaurants": {
+    "nav": {
+      "entry": "OxSteed Restaurants"
+    },
+    "ops": {
+      "title": "العمليات",
+      "subtitle": "أدِر مطعمك بأنظمة بمستوى الامتياز.",
+      "comingSoon": "قريبًا",
+      "modules": {
+        "inventory": {
+          "title": "المخزون",
+          "desc": "تتبّع المكونات والوصفات وتنبيهات انخفاض المخزون."
+        },
+        "checklists": {
+          "title": "القوائم والإجراءات",
+          "desc": "روتين الفتح والإغلاق والتنظيف وسلامة الغذاء."
+        },
+        "training": {
+          "title": "تدريب الموظفين",
+          "desc": "أدمج الموظفين بدروس واختبارات مخصصة."
+        },
+        "audits": {
+          "title": "تدقيق الجودة",
+          "desc": "افحص، سجّل الملاحظات، وعيّن الإجراءات التصحيحية."
+        },
+        "reports": {
+          "title": "التقارير",
+          "desc": "تحليلات المبيعات والعمالة والمخزون لكل موقع."
+        }
+      },
+      "help": {
+        "title": "تحتاج مساعدة في مطعمك؟",
+        "desc": "وظّف مساعدين محليين عبر OxSteed Marketplace: إصلاحات، تنظيف، معدات، لافتات والمزيد.",
+        "cta": "ابحث عن مساعدة عبر OxSteed Marketplace"
+      }
     }
   }
 }

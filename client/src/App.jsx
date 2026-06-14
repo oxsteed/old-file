@@ -339,6 +339,17 @@ export default function App() {
                     <Route path="/food/merchant"              element={<Guarded><ProtectedRoute><RouteErrorBoundary><FoodMerchantPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/food/kitchen/:restaurantId" element={<ProtectedRoute><RouteErrorBoundary><FoodKitchenPage /></RouteErrorBoundary></ProtectedRoute>} />
 
+                    {/* OxSteed Restaurants — new branch name for the same operating
+                        surface. The /restaurants/* paths are the canonical routes going
+                        forward; the /food/* paths above are preserved for back-compat
+                        (existing links, QR codes, kiosk/queue displays already deployed). */}
+                    <Route path="/restaurants"                       element={<Guarded><RouteErrorBoundary><FoodHomePage /></RouteErrorBoundary></Guarded>} />
+                    <Route path="/restaurants/r/:restaurantId"       element={<Guarded><RouteErrorBoundary><FoodRestaurantPage /></RouteErrorBoundary></Guarded>} />
+                    <Route path="/restaurants/queue/:restaurantId"   element={<RouteErrorBoundary><FoodQueueBoardPage /></RouteErrorBoundary>} />
+                    <Route path="/restaurants/kiosk/:restaurantId"   element={<RouteErrorBoundary><FoodKioskPage /></RouteErrorBoundary>} />
+                    <Route path="/restaurants/merchant"              element={<Guarded><ProtectedRoute><RouteErrorBoundary><FoodMerchantPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/restaurants/kitchen/:restaurantId" element={<ProtectedRoute><RouteErrorBoundary><FoodKitchenPage /></RouteErrorBoundary></ProtectedRoute>} />
+
                     {/* OxSteed Logistics branch (migration 247) */}
                     <Route path="/logistics"                  element={<Guarded><RouteErrorBoundary><LogisticsHomePage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/logistics/internal/login"   element={<Guarded><LogisticsOperatorLoginPage /></Guarded>} />

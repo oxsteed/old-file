@@ -23,12 +23,12 @@ export function FoodLogo({ size = 32 }) {
   );
 }
 
-export function FoodBrand({ size = 32 }) {
+export function FoodBrand({ size = 32, label = 'Restaurants' }) {
   return (
     <span className="fd-brand-badge">
       <FoodLogo size={size} />
       <span>
-        OxSteed <span className="fd-brand-food">Food</span>
+        OxSteed <span className="fd-brand-food">{label}</span>
       </span>
     </span>
   );

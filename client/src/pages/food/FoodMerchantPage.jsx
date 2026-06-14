@@ -526,9 +526,86 @@ function SettingsTab({ t, restaurant, onUpdated }) {
       <h3 style={{ marginTop: '1.5rem' }}>{t('food.merchant.inStoreScreens')}</h3>
       <p className="fd-card-meta">{t('food.merchant.inStoreScreensHint')}</p>
       <div className="fd-row">
-        <Link to={`/food/kitchen/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKitchen')}</Link>
-        <Link to={`/food/queue/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openQueue')}</Link>
-        <Link to={`/food/kiosk/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKiosk')}</Link>
+        <Link to={`/restaurants/kitchen/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKitchen')}</Link>
+        <Link to={`/restaurants/queue/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openQueue')}</Link>
+        <Link to={`/restaurants/kiosk/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKiosk')}</Link>
+      </div>
+    </div>
+  );
+}
+
+// ── Operations tab ───────────────────────────────────────────────────────────
+// Placeholder hub for the franchise-grade operating modules that land in later
+// phases (inventory, checklists/SOPs, staff training, quality audits, reports),
+// plus a live link into OxSteed Marketplace to hire help for the restaurant.
+function OperationsTab({ t, restaurant }) {
+  const modules = ['inventory', 'checklists', 'training', 'audits', 'reports'];
+
+  // Pre-fill a Marketplace job from the restaurant's context. PostJobPage reads
+  // an optional prefill from navigation state; the query param is a harmless
+  // fallback so the link works even if the prefill contract changes.
+  const helpPrefill = {
+    title: restaurant?.display_name ? `Help needed at ${restaurant.display_name}` : '',
+    location_city: restaurant?.city || '',
+    location_state: restaurant?.state || '',
+    source: 'restaurant',
+  };
+
+  return (
+    <div className="fd-section">
+      <h2>{t('restaurants.ops.title', 'Operations')}</h2>
+      <p className="fd-card-meta">{t('restaurants.ops.subtitle', 'Run your restaurant with franchise-grade systems.')}</p>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+          gap: '0.75rem',
+          marginTop: '1rem',
+        }}
+      >
+        {modules.map((key) => (
+          <div
+            key={key}
+            className="fd-card"
+            style={{ padding: '1rem', opacity: 0.85, position: 'relative' }}
+          >
+            <span
+              className="fd-badge"
+              style={{
+                position: 'absolute', top: '0.75rem', right: '0.75rem',
+                fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase',
+                letterSpacing: '0.04em', color: 'var(--color-primary, #F97316)',
+              }}
+            >
+              {t('restaurants.ops.comingSoon', 'Coming next')}
+            </span>
+            <h3 style={{ margin: '0 0 0.35rem', fontSize: '1rem' }}>
+              {t(`restaurants.ops.modules.${key}.title`, key)}
+            </h3>
+            <p className="fd-card-meta" style={{ margin: 0 }}>
+              {t(`restaurants.ops.modules.${key}.desc`, '')}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* Marketplace help connection */}
+      <div
+        className="fd-card"
+        style={{ marginTop: '1.5rem', padding: '1.25rem', borderLeft: '3px solid var(--color-primary, #F97316)' }}
+      >
+        <h3 style={{ margin: '0 0 0.35rem' }}>{t('restaurants.ops.help.title', 'Need help at your restaurant?')}</h3>
+        <p className="fd-card-meta" style={{ marginTop: 0 }}>
+          {t('restaurants.ops.help.desc', 'Hire local helpers through OxSteed Marketplace — repairs, cleaning, equipment, signage, and more.')}
+        </p>
+        <Link
+          to="/post-job?source=restaurant"
+          state={{ restaurantPrefill: helpPrefill }}
+          className="fd-btn fd-btn-primary"
+        >
+          {t('restaurants.ops.help.cta', 'Find help through OxSteed Marketplace')}
+        </Link>
       </div>
     </div>
   );
@@ -607,7 +684,7 @@ export default function FoodMerchantPage() {
           )}
 
           <div className="fd-tabs" role="tablist">
-            {['orders', 'menu', 'settings'].map((key) => (
+            {['orders', 'menu', 'operations', 'settings'].map((key) => (
               <button
                 key={key}
                 type="button"
@@ -623,6 +700,7 @@ export default function FoodMerchantPage() {
 
           {selected && tab === 'orders' && <OrdersTab t={t} restaurant={selected} />}
           {selected && tab === 'menu' && <MenuTab t={t} restaurant={selected} />}
+          {selected && tab === 'operations' && <OperationsTab t={t} restaurant={selected} />}
           {selected && tab === 'settings' && (
             <SettingsTab
               t={t}
