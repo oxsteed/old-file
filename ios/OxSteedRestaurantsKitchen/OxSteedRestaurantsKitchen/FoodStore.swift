@@ -75,7 +75,10 @@ final class FoodStore: ObservableObject {
         merchantSelection ?? selectedRestaurant ?? merchantRestaurants.first ?? restaurants.first ?? FoodSampleData.restaurant
     }
     var kitchenBoardOrders: [FoodOrder] {
-        merchantOrders.isEmpty ? kitchenSampleOrders : (merchantOrders + kitchenCompletedOrders).uniquedByID()
+        if kitchenConnectionStatus == "Live feed" || !merchantOrders.isEmpty || !kitchenCompletedOrders.isEmpty {
+            return (merchantOrders + kitchenCompletedOrders).uniquedByID()
+        }
+        return kitchenSampleOrders
     }
     var managerKPIs: [FoodManagerKPI] {
         let liveOrders = merchantOrders.filter(\.isActive).count
@@ -132,6 +135,9 @@ final class FoodStore: ObservableObject {
         merchantRestaurants = []
         merchantSelection = nil
         merchantOrders = []
+        kitchenCompletedOrders = FoodKitchenSampleData.orders.filter { $0.status == "completed" }
+        kitchenConnectionStatus = "Sample mode"
+        kitchenLastSyncAt = Date()
         merchantLoaded = false
         myOrders = []
     }
@@ -296,9 +302,21 @@ final class FoodStore: ObservableObject {
             return
         }
         do {
-            merchantOrders = try await authed {
-                try await FoodAPIClient.shared.restaurantOrders(restaurantId: restaurant.id, activeOnly: true, token: $0)
+            let snapshot = try await authed { token in
+                async let activeOrdersTask = FoodAPIClient.shared.restaurantOrders(
+                    restaurantId: restaurant.id,
+                    activeOnly: true,
+                    token: token
+                )
+                async let allOrdersTask = FoodAPIClient.shared.restaurantOrders(
+                    restaurantId: restaurant.id,
+                    activeOnly: false,
+                    token: token
+                )
+                return try await (activeOrdersTask, allOrdersTask)
             }
+            merchantOrders = snapshot.0
+            kitchenCompletedOrders = snapshot.1.filter { $0.status == "completed" }
             kitchenConnectionStatus = "Live feed"
             kitchenLastSyncAt = Date()
         } catch {

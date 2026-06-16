@@ -43,7 +43,9 @@ final class FoodStore: ObservableObject {
     @Published var managerIncidents = FoodManagerSampleData.incidents
     @Published var managerLocations = FoodManagerSampleData.locations
     @Published var managerHelpRequests = FoodManagerSampleData.helpRequests
+    @Published var managerSOPs = FoodManagerSampleData.sops
     @Published var managerSales = FoodManagerSampleData.sales
+    @Published var isSubmittingHelpRequest = false
     @Published private(set) var managerItemAvailabilityOverrides = FoodStore.loadValue([String: Bool].self, key: "ox.food.managerAvailabilityOverrides", default: [:]) {
         didSet { FoodStore.saveValue(managerItemAvailabilityOverrides, key: "ox.food.managerAvailabilityOverrides") }
     }
@@ -120,8 +122,15 @@ final class FoodStore: ObservableObject {
         managerIncidents.filter { $0.severity != "Resolved" }
     }
     var managerCoverageSummary: String {
-        let staffed = managerTeam.filter { $0.shiftStatus == "On shift" }.count
-        return "\(staffed) on shift / \(managerTeam.count) total scheduled"
+        let activeMembers = managerTeam.filter { $0.membershipStatus == "active" }.count
+        let pendingMembers = managerTeam.filter { $0.membershipStatus == "pending" }.count
+        if activeMembers > 0 || pendingMembers > 0 {
+            return pendingMembers > 0
+                ? "\(activeMembers) active / \(pendingMembers) pending team members"
+                : "\(activeMembers) active team member\(activeMembers == 1 ? "" : "s")"
+        }
+        let current = managerTeam.filter { $0.badgeText == "Current" }.count
+        return managerTeam.isEmpty ? "No live team status yet" : "\(current) current / \(managerTeam.count) live roles tracked"
     }
 
     // MARK: - Auth
@@ -315,6 +324,8 @@ final class FoodStore: ObservableObject {
                 merchantSelection = merchantRestaurants.first
             }
             merchantLoaded = true
+            await loadMerchantOrders()
+            await loadManagerOperationalData()
         } catch {
             merchantLoaded = true
             message = error.localizedDescription
@@ -332,6 +343,101 @@ final class FoodStore: ObservableObject {
             }
         } catch {
             // Polling feed; keep the previous list on transient failure.
+        }
+    }
+
+    func loadManagerOperationalData() async {
+        guard let restaurant = merchantSelection else { return }
+        do {
+            let payload = try await authed { token in
+                async let templatesTask = FoodAPIClient.shared.checklistTemplates(restaurantId: restaurant.id, token: token)
+                async let runsTask = FoodAPIClient.shared.checklistRuns(restaurantId: restaurant.id, token: token)
+                async let inventoryTask = FoodAPIClient.shared.inventoryItems(restaurantId: restaurant.id, token: token)
+                async let allOrdersTask = FoodAPIClient.shared.restaurantOrders(restaurantId: restaurant.id, activeOnly: false, token: token)
+                async let helpRequestsTask = FoodAPIClient.shared.helpRequests(restaurantId: restaurant.id, token: token)
+                async let sopsTask = FoodAPIClient.shared.listSops(restaurantId: restaurant.id, token: token)
+                async let teamTask: [BusinessMembershipResponse] = {
+                    guard let businessId = restaurant.businessId else { return [] }
+                    return try await FoodAPIClient.shared.businessMemberships(businessId: businessId, token: token)
+                }()
+
+                var dashboard = try await FoodAPIClient.shared.crewDashboard(restaurantId: restaurant.id, token: token)
+                if dashboard.modules.isEmpty && dashboard.quizzes.isEmpty && dashboard.badges.isEmpty {
+                    dashboard = try await FoodAPIClient.shared.bootstrapCrewDefaults(restaurantId: restaurant.id, token: token)
+                }
+
+                let templates = try await templatesTask
+                let runs = try await runsTask
+                let inventory = try await inventoryTask
+                let allOrders = try await allOrdersTask
+                let helpRequests = try await helpRequestsTask
+                let sops = try await sopsTask
+                let teamMemberships = try await teamTask
+
+                let openingTemplate = Self.openingTemplate(from: templates)
+                let openingRunListItem = openingTemplate.flatMap { template in
+                    runs.first { $0.checklistId == template.id && $0.status != "completed" }
+                        ?? runs.first { $0.checklistId == template.id }
+                }
+                let openingRun: RestaurantChecklistRunResponse?
+                if let openingRunListItem {
+                    openingRun = try await FoodAPIClient.shared.checklistRun(
+                        restaurantId: restaurant.id,
+                        runId: openingRunListItem.id,
+                        token: token
+                    )
+                } else {
+                    openingRun = nil
+                }
+
+                return ManagerOperationalPayload(
+                    dashboard: dashboard,
+                    openingTemplate: openingTemplate,
+                    openingRun: openingRun,
+                    inventoryItems: inventory,
+                    allOrders: allOrders,
+                    helpRequests: helpRequests,
+                    sops: sops,
+                    teamMemberships: teamMemberships
+                )
+            }
+
+            crewTraining = payload.dashboard.modules.map {
+                FoodTrainingModule(
+                    title: $0.title,
+                    role: $0.role,
+                    durationMinutes: $0.durationMinutes,
+                    isComplete: $0.isComplete
+                )
+            }
+            openingChecklist = Self.mapOpeningChecklist(template: payload.openingTemplate, run: payload.openingRun)
+            inventoryItems = payload.inventoryItems.map {
+                FoodInventoryItemSnapshot(
+                    name: $0.name,
+                    stockLevel: $0.quantity,
+                    unit: $0.unit,
+                    parLevel: $0.lowStockThreshold,
+                    supplier: $0.supplierName ?? "Supplier pending"
+                )
+            }
+            managerTeam = Self.mapManagerTeam(memberships: payload.teamMemberships, dashboard: payload.dashboard)
+            managerIncidents = Self.mapManagerIncidents(
+                inventoryItems: inventoryItems,
+                checklistItems: openingChecklist,
+                quizzes: payload.dashboard.quizzes,
+                activeOrders: merchantOrders
+            )
+            managerLocations = Self.mapManagerLocations(
+                restaurants: merchantRestaurants,
+                selectedRestaurantID: restaurant.id,
+                orders: payload.allOrders,
+                openIssueCount: managerIncidents.filter { $0.severity != "Resolved" }.count
+            )
+            managerSales = Self.mapManagerSales(from: payload.allOrders)
+            managerHelpRequests = payload.helpRequests.map(Self.mapManagerHelpRequest(from:))
+            managerSOPs = payload.sops.map(Self.mapManagerSOP(from:))
+        } catch {
+            // Keep live queue/order state even if supporting manager metrics fail.
         }
     }
 
@@ -444,28 +550,234 @@ final class FoodStore: ObservableObject {
     func toggleManagerItemAvailability(_ item: FoodMenuItem) {
         let key = String(item.id)
         let current = managerItemAvailabilityOverrides[key] ?? item.isAvailable
-        managerItemAvailabilityOverrides[key] = !current
-        message = !current ? "\(item.name) marked available for service." : "\(item.name) marked unavailable until prep catches up."
+        let nextValue = !current
+
+        if let restaurant = merchantSelection, isSignedIn {
+            Task {
+                do {
+                    let updated = try await authed {
+                        try await FoodAPIClient.shared.updateMenuItemAvailability(
+                            restaurantId: restaurant.id,
+                            itemId: item.id,
+                            isAvailable: nextValue,
+                            token: $0
+                        )
+                    }
+                    managerItemAvailabilityOverrides.removeValue(forKey: key)
+                    replaceMenuItem(updated)
+                    message = updated.isAvailable
+                        ? "\(updated.name) marked available for service."
+                        : "\(updated.name) marked unavailable until prep catches up."
+                } catch {
+                    managerItemAvailabilityOverrides[key] = nextValue
+                    message = "\(item.name) availability updated locally while sync is unavailable."
+                }
+            }
+            return
+        }
+
+        managerItemAvailabilityOverrides[key] = nextValue
+        message = nextValue ? "\(item.name) marked available for service." : "\(item.name) marked unavailable until prep catches up."
     }
 
-    func addMarketplaceHelpRequest(title: String, details: String, urgency: String) {
+    func updateManagerMenuItem(
+        _ item: FoodMenuItem,
+        name: String,
+        description: String,
+        priceText: String
+    ) async -> Bool {
+        guard let restaurant = merchantSelection else {
+            message = "Select a restaurant before updating the menu."
+            return false
+        }
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            message = "Add an item name."
+            return false
+        }
+        guard let priceValue = Double(priceText.replacingOccurrences(of: ",", with: ".")), priceValue >= 0 else {
+            message = "Enter the price as a number, like 8.99."
+            return false
+        }
+        let priceCents = Int((priceValue * 100).rounded())
+
+        do {
+            let updated = try await authed {
+                try await FoodAPIClient.shared.updateMenuItem(
+                    restaurantId: restaurant.id,
+                    itemId: item.id,
+                    name: trimmedName,
+                    description: description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : description.trimmingCharacters(in: .whitespacesAndNewlines),
+                    priceCents: priceCents,
+                    token: $0
+                )
+            }
+            replaceMenuItem(updated)
+            message = "\(updated.name) updated."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    func deleteManagerMenuItem(_ item: FoodMenuItem) async -> Bool {
+        guard let restaurant = merchantSelection else {
+            message = "Select a restaurant before deleting a menu item."
+            return false
+        }
+
+        do {
+            try await authed {
+                try await FoodAPIClient.shared.deleteMenuItem(
+                    restaurantId: restaurant.id,
+                    itemId: item.id,
+                    token: $0
+                )
+            }
+            removeMenuItem(item.id)
+            managerItemAvailabilityOverrides.removeValue(forKey: String(item.id))
+            message = "\(item.name) removed from the menu."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    func createOpeningChecklist(name: String, firstTask: String) async -> Bool {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedTask = firstTask.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty, !trimmedTask.isEmpty else {
+            message = "Add a checklist name and at least one task."
+            return false
+        }
+        guard let restaurant = merchantSelection else {
+            message = "Select a restaurant before creating a checklist."
+            return false
+        }
+
+        do {
+            let checklist = try await authed {
+                try await FoodAPIClient.shared.createChecklist(
+                    restaurantId: restaurant.id,
+                    name: trimmedName,
+                    checklistType: "opening",
+                    description: "Created from the Manager app",
+                    tasks: [
+                        RestaurantChecklistTaskCreateBody(
+                            label: trimmedTask,
+                            instructions: nil,
+                            requiresNote: false
+                        )
+                    ],
+                    token: $0
+                )
+            }
+            openingChecklist = checklist.tasks.sorted { $0.sortOrder < $1.sortOrder }.map {
+                FoodChecklistItem(
+                    title: $0.label,
+                    station: $0.instructions ?? checklist.name,
+                    isComplete: false
+                )
+            }
+            message = "\(checklist.name) checklist created."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    func createManagerSOP(title: String, category: String, body: String) async -> Bool {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty, !trimmedBody.isEmpty else {
+            message = "Add an SOP title and procedure details."
+            return false
+        }
+        guard let restaurant = merchantSelection else {
+            message = "Select a restaurant before creating an SOP."
+            return false
+        }
+
+        do {
+            let sop = try await authed {
+                try await FoodAPIClient.shared.createSop(
+                    restaurantId: restaurant.id,
+                    title: trimmedTitle,
+                    category: category,
+                    body: trimmedBody,
+                    isPublished: true,
+                    token: $0
+                )
+            }
+            managerSOPs.insert(Self.mapManagerSOP(from: sop), at: 0)
+            message = "\(sop.title) SOP created."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    func addMarketplaceHelpRequest(title: String, details: String, urgency: String) async {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedDetails = details.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty, !trimmedDetails.isEmpty else {
             message = "Add a short title and details before sending a help request."
             return
         }
-        managerHelpRequests.insert(
-            FoodManagerHelpRequest(
-                title: trimmedTitle,
-                detail: trimmedDetails,
-                urgency: urgency,
-                createdAt: Date(),
-                linkedLocation: activeRestaurant?.displayName ?? "Primary location"
-            ),
-            at: 0
-        )
-        message = "Marketplace Help request drafted for \(urgency.lowercased()) follow-up."
+        guard let restaurant = merchantSelection else {
+            message = "Select a restaurant before sending a help request."
+            return
+        }
+
+        isSubmittingHelpRequest = true
+        defer { isSubmittingHelpRequest = false }
+
+        do {
+            let helpRequest = try await authed {
+                try await FoodAPIClient.shared.createHelpRequest(
+                    restaurantId: restaurant.id,
+                    title: trimmedTitle,
+                    detail: trimmedDetails,
+                    urgency: urgency,
+                    linkedLocation: activeRestaurant?.displayName ?? "Primary location",
+                    token: $0
+                )
+            }
+            managerHelpRequests.insert(Self.mapManagerHelpRequest(from: helpRequest), at: 0)
+            message = "Marketplace Help request sent for \(urgency.lowercased()) follow-up."
+        } catch {
+            message = error.localizedDescription
+        }
+    }
+
+    func updateMarketplaceHelpRequest(_ request: FoodManagerHelpRequest, status: String) async {
+        guard let restaurant = merchantSelection else {
+            message = "Select a restaurant before updating a help request."
+            return
+        }
+        guard let index = managerHelpRequests.firstIndex(where: { $0.id == request.id }) else { return }
+
+        let resolutionNote = status == "resolved" ? "Resolved from the Manager app" : nil
+
+        do {
+            let updated = try await authed {
+                try await FoodAPIClient.shared.updateHelpRequest(
+                    restaurantId: restaurant.id,
+                    helpRequestId: request.remoteID,
+                    status: status,
+                    resolutionNote: resolutionNote,
+                    token: $0
+                )
+            }
+            managerHelpRequests[index] = Self.mapManagerHelpRequest(from: updated)
+            message = "\(updated.title) marked \(updated.status.replacingOccurrences(of: "_", with: " "))."
+        } catch {
+            message = error.localizedDescription
+        }
     }
 
     private func replaceMerchantOrder(_ order: FoodOrder) {
@@ -479,6 +791,333 @@ final class FoodStore: ObservableObject {
             merchantOrders.insert(order, at: 0)
         }
     }
+
+    private func replaceMenuItem(_ item: FoodMenuItem) {
+        for sectionIndex in menu.indices {
+            if let itemIndex = menu[sectionIndex].items.firstIndex(where: { $0.id == item.id }) {
+                menu[sectionIndex].items[itemIndex] = item
+                return
+            }
+        }
+    }
+
+    private func removeMenuItem(_ itemId: Int64) {
+        for sectionIndex in menu.indices {
+            menu[sectionIndex].items.removeAll { $0.id == itemId }
+        }
+        menu.removeAll { $0.items.isEmpty && $0.id != -1 }
+    }
+
+    private static func openingTemplate(from templates: [RestaurantChecklistTemplateResponse]) -> RestaurantChecklistTemplateResponse? {
+        templates.first {
+            $0.checklistType.localizedCaseInsensitiveContains("open")
+                || $0.name.localizedCaseInsensitiveContains("open")
+        } ?? templates.first
+    }
+
+    private static func mapOpeningChecklist(
+        template: RestaurantChecklistTemplateResponse?,
+        run: RestaurantChecklistRunResponse?
+    ) -> [FoodChecklistItem] {
+        guard let template else { return FoodOperationsSampleData.openingChecklist }
+        let runItemsByTaskID = Dictionary(
+            uniqueKeysWithValues: (run?.items ?? []).compactMap { item in
+                item.taskId.map { ($0, item) }
+            }
+        )
+        return template.tasks
+            .sorted { $0.sortOrder < $1.sortOrder }
+            .map { task in
+                let runItem = runItemsByTaskID[task.id]
+                return FoodChecklistItem(
+                    title: task.label,
+                    station: task.instructions ?? template.name,
+                    isComplete: runItem?.isDone ?? false
+                )
+            }
+    }
+
+    private static func mapManagerTeam(
+        memberships: [BusinessMembershipResponse],
+        dashboard: RestaurantCrewDashboardResponse
+    ) -> [FoodManagerTeamMember] {
+        if !memberships.isEmpty {
+            return memberships.map { membership in
+                let displayName = [membership.firstName, membership.lastName]
+                    .compactMap { value -> String? in
+                        guard let value, !value.isEmpty else { return nil }
+                        return value
+                    }
+                    .joined(separator: " ")
+                let roleLabel = membership.role.replacingOccurrences(of: "_", with: " ").capitalized
+                let detailLabel: String
+                if let email = membership.userEmail ?? membership.inviteEmail, !email.isEmpty {
+                    detailLabel = email
+                } else if membership.permissions.isEmpty {
+                    detailLabel = "No permission overrides"
+                } else {
+                    detailLabel = "\(membership.permissions.count) permission override\(membership.permissions.count == 1 ? "" : "s")"
+                }
+                let badgeText = membership.status == "active"
+                    ? (membership.permissions.isEmpty ? "Active" : "Permissions")
+                    : "Pending"
+                return FoodManagerTeamMember(
+                    id: UUID(),
+                    membershipID: membership.id,
+                    name: displayName.isEmpty ? (membership.inviteEmail ?? "Pending invite") : displayName,
+                    role: roleLabel,
+                    membershipStatus: membership.status,
+                    detailLabel: detailLabel,
+                    badgeText: badgeText
+                )
+            }
+        }
+
+        let grouped = Dictionary(grouping: dashboard.modules) { $0.role.trimmingCharacters(in: .whitespacesAndNewlines) }
+        let team = grouped.keys.sorted().map { role -> FoodManagerTeamMember in
+            let modules = grouped[role] ?? []
+            let completed = modules.filter(\.isComplete).count
+            let badgeText: String
+            if modules.isEmpty || completed == 0 {
+                badgeText = "Assigned"
+            } else if completed == modules.count {
+                badgeText = "Current"
+            } else {
+                badgeText = "In progress"
+            }
+            return FoodManagerTeamMember(
+                id: UUID(),
+                membershipID: nil,
+                name: "\(role) crew",
+                role: role,
+                membershipStatus: "sample",
+                detailLabel: "\(modules.count) live modules",
+                badgeText: badgeText
+            )
+        }
+        return team.isEmpty ? FoodManagerSampleData.teamMembers : team
+    }
+
+    private static func mapManagerIncidents(
+        inventoryItems: [FoodInventoryItemSnapshot],
+        checklistItems: [FoodChecklistItem],
+        quizzes: [RestaurantCrewQuizResultResponse],
+        activeOrders: [FoodOrder]
+    ) -> [FoodManagerIncident] {
+        var incidents: [FoodManagerIncident] = []
+        let lowStock = inventoryItems.filter { $0.stockLevel <= $0.parLevel }
+        if !lowStock.isEmpty {
+            incidents.append(
+                FoodManagerIncident(
+                    id: UUID(),
+                    title: "Low-stock inventory risk",
+                    detail: "\(lowStock.count) item(s) are at or below par and need receiving or menu updates.",
+                    severity: "Open",
+                    happenedAt: Date()
+                )
+            )
+        }
+        let incompleteChecklist = checklistItems.filter { !$0.isComplete }
+        if !incompleteChecklist.isEmpty {
+            incidents.append(
+                FoodManagerIncident(
+                    id: UUID(),
+                    title: "Opening checklist still incomplete",
+                    detail: "\(incompleteChecklist.count) opening task(s) still need attention before the next rush.",
+                    severity: "Open",
+                    happenedAt: Date()
+                )
+            )
+        }
+        let failedQuizzes = quizzes.filter { !$0.passed || $0.scorePercent < 80 }
+        if !failedQuizzes.isEmpty {
+            incidents.append(
+                FoodManagerIncident(
+                    id: UUID(),
+                    title: "Crew quiz follow-up required",
+                    detail: "\(failedQuizzes.count) live quiz result(s) need retraining or manager review.",
+                    severity: "Open",
+                    happenedAt: Date()
+                )
+            )
+        }
+        if activeOrders.filter({ $0.status == "received" || $0.status == "accepted" }).count >= 4 {
+            incidents.append(
+                FoodManagerIncident(
+                    id: UUID(),
+                    title: "Queue backlog building",
+                    detail: "Several live tickets are still waiting to enter prep. Kitchen attention recommended.",
+                    severity: "Open",
+                    happenedAt: Date()
+                )
+            )
+        }
+        return incidents.isEmpty ? FoodManagerSampleData.incidents : incidents
+    }
+
+    private static func mapManagerLocations(
+        restaurants: [FoodRestaurant],
+        selectedRestaurantID: Int64,
+        orders: [FoodOrder],
+        openIssueCount: Int
+    ) -> [FoodManagerLocationSummary] {
+        let startOfDay = Calendar.current.startOfDay(for: Date())
+        let todaySales = orders.reduce(0) { partial, order in
+            guard let createdAt = order.createdAt, createdAt >= startOfDay else { return partial }
+            return partial + order.totalCents
+        }
+        let locations = restaurants.map { restaurant in
+            let cityBits = [restaurant.addressCity, restaurant.addressState].compactMap { value -> String? in
+                guard let value, !value.isEmpty else { return nil }
+                return value
+            }
+            return FoodManagerLocationSummary(
+                id: UUID(),
+                name: restaurant.displayName,
+                city: cityBits.isEmpty ? restaurant.addressCountry : cityBits.joined(separator: ", "),
+                salesTodayCents: restaurant.id == selectedRestaurantID ? todaySales : 0,
+                openIssues: restaurant.id == selectedRestaurantID ? openIssueCount : 0
+            )
+        }
+        return locations.isEmpty ? FoodManagerSampleData.locations : locations
+    }
+
+    private static func mapManagerSales(from orders: [FoodOrder]) -> [FoodManagerSalesDay] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let formatter = DateFormatter()
+        formatter.dateFormat = "E"
+
+        let days: [Date] = (0..<5).compactMap { offset in
+            calendar.date(byAdding: .day, value: -(4 - offset), to: today)
+        }
+        let sales = days.map { day -> FoodManagerSalesDay in
+            guard let nextDay = calendar.date(byAdding: .day, value: 1, to: day) else {
+                return FoodManagerSalesDay(id: UUID(), label: formatter.string(from: day), netSalesCents: 0, orderCount: 0)
+            }
+            let ordersForDay = orders.filter { order in
+                guard let createdAt = order.createdAt else { return false }
+                return createdAt >= day && createdAt < nextDay
+            }
+            return FoodManagerSalesDay(
+                id: UUID(),
+                label: formatter.string(from: day),
+                netSalesCents: ordersForDay.reduce(0) { $0 + $1.totalCents },
+                orderCount: ordersForDay.count
+            )
+        }
+        let hasLiveSales = sales.contains { $0.netSalesCents > 0 || $0.orderCount > 0 }
+        return hasLiveSales ? sales : FoodManagerSampleData.sales
+    }
+
+    private static func mapManagerHelpRequest(from response: RestaurantHelpRequestResponse) -> FoodManagerHelpRequest {
+        FoodManagerHelpRequest(
+            remoteID: response.id,
+            title: response.title,
+            detail: response.detail,
+            urgency: response.urgency,
+            status: response.status,
+            createdAt: response.createdAt,
+            linkedLocation: response.linkedLocation ?? "Primary location"
+        )
+    }
+
+    private static func mapManagerSOP(from response: RestaurantSOPResponse) -> FoodManagerSOP {
+        FoodManagerSOP(
+            title: response.title,
+            category: response.category.replacingOccurrences(of: "_", with: " ").capitalized,
+            detail: response.body ?? "No SOP body provided.",
+            versionLabel: "v\(response.version)"
+        )
+    }
+
+    func inviteManagerTeamMember(email: String, role: String) async -> Bool {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let restaurant = merchantSelection, let businessId = restaurant.businessId else {
+            message = "Select a restaurant before inviting team members."
+            return false
+        }
+        guard !trimmedEmail.isEmpty else {
+            message = "Add an email address before sending the invite."
+            return false
+        }
+        do {
+            try await authed {
+                try await FoodAPIClient.shared.inviteBusinessMember(
+                    businessId: businessId,
+                    email: trimmedEmail,
+                    role: role,
+                    token: $0
+                )
+            }
+            await loadManagerOperationalData()
+            message = "Team invite sent to \(trimmedEmail)."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    func revokeManagerTeamMember(_ member: FoodManagerTeamMember) async -> Bool {
+        guard let restaurant = merchantSelection,
+              let businessId = restaurant.businessId,
+              let membershipId = member.membershipID else {
+            message = "This team member is not linked to a live membership."
+            return false
+        }
+        do {
+            try await authed {
+                try await FoodAPIClient.shared.revokeBusinessMember(
+                    businessId: businessId,
+                    membershipId: membershipId,
+                    token: $0
+                )
+            }
+            await loadManagerOperationalData()
+            message = "\(member.name) removed from the business team."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    func changeManagerTeamRole(_ member: FoodManagerTeamMember, role: String) async -> Bool {
+        guard let restaurant = merchantSelection,
+              let businessId = restaurant.businessId,
+              let membershipId = member.membershipID else {
+            message = "This team member is not linked to a live membership."
+            return false
+        }
+        do {
+            try await authed {
+                try await FoodAPIClient.shared.changeBusinessMembershipRole(
+                    businessId: businessId,
+                    membershipId: membershipId,
+                    role: role,
+                    token: $0
+                )
+            }
+            await loadManagerOperationalData()
+            message = "\(member.name)'s role updated."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+}
+
+private struct ManagerOperationalPayload {
+    let dashboard: RestaurantCrewDashboardResponse
+    let openingTemplate: RestaurantChecklistTemplateResponse?
+    let openingRun: RestaurantChecklistRunResponse?
+    let inventoryItems: [RestaurantInventoryItemResponse]
+    let allOrders: [FoodOrder]
+    let helpRequests: [RestaurantHelpRequestResponse]
+    let sops: [RestaurantSOPResponse]
+    let teamMemberships: [BusinessMembershipResponse]
 }
 
 struct FoodManagerKPI: Identifiable, Hashable {
@@ -537,10 +1176,12 @@ struct FoodRunnerTask: Identifiable, Hashable {
 
 struct FoodManagerTeamMember: Identifiable, Codable, Hashable {
     let id: UUID
+    let membershipID: Int64?
     var name: String
     var role: String
-    var shiftStatus: String
-    var trainingStatus: String
+    var membershipStatus: String
+    var detailLabel: String
+    var badgeText: String
 }
 
 struct FoodManagerIncident: Identifiable, Codable, Hashable {
@@ -561,26 +1202,54 @@ struct FoodManagerLocationSummary: Identifiable, Codable, Hashable {
 
 struct FoodManagerHelpRequest: Identifiable, Codable, Hashable {
     let id: UUID
+    let remoteID: Int64
     var title: String
     var detail: String
     var urgency: String
+    var status: String
     var createdAt: Date
     var linkedLocation: String
 
     init(
         id: UUID = UUID(),
+        remoteID: Int64 = -1,
         title: String,
         detail: String,
         urgency: String,
+        status: String = "open",
         createdAt: Date,
         linkedLocation: String
     ) {
         self.id = id
+        self.remoteID = remoteID
         self.title = title
         self.detail = detail
         self.urgency = urgency
+        self.status = status
         self.createdAt = createdAt
         self.linkedLocation = linkedLocation
+    }
+}
+
+struct FoodManagerSOP: Identifiable, Codable, Hashable {
+    let id: UUID
+    var title: String
+    var category: String
+    var detail: String
+    var versionLabel: String
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        category: String,
+        detail: String,
+        versionLabel: String
+    ) {
+        self.id = id
+        self.title = title
+        self.category = category
+        self.detail = detail
+        self.versionLabel = versionLabel
     }
 }
 
@@ -624,10 +1293,10 @@ enum FoodOperationsSampleData {
 
 enum FoodManagerSampleData {
     static let teamMembers = [
-        FoodManagerTeamMember(id: UUID(), name: "Ana Rivera", role: "Shift manager", shiftStatus: "On shift", trainingStatus: "Current"),
-        FoodManagerTeamMember(id: UUID(), name: "Marcus Lee", role: "Kitchen lead", shiftStatus: "On shift", trainingStatus: "Current"),
-        FoodManagerTeamMember(id: UUID(), name: "Tia Joseph", role: "Cashier", shiftStatus: "Break at 2:15 PM", trainingStatus: "Quiz due"),
-        FoodManagerTeamMember(id: UUID(), name: "David Chen", role: "Prep cook", shiftStatus: "Starts at 4 PM", trainingStatus: "Assigned"),
+        FoodManagerTeamMember(id: UUID(), membershipID: nil, name: "Ana Rivera", role: "Shift manager", membershipStatus: "sample", detailLabel: "On shift", badgeText: "Current"),
+        FoodManagerTeamMember(id: UUID(), membershipID: nil, name: "Marcus Lee", role: "Kitchen lead", membershipStatus: "sample", detailLabel: "On shift", badgeText: "Current"),
+        FoodManagerTeamMember(id: UUID(), membershipID: nil, name: "Tia Joseph", role: "Cashier", membershipStatus: "sample", detailLabel: "Break at 2:15 PM", badgeText: "Quiz due"),
+        FoodManagerTeamMember(id: UUID(), membershipID: nil, name: "David Chen", role: "Prep cook", membershipStatus: "sample", detailLabel: "Starts at 4 PM", badgeText: "Assigned"),
     ]
 
     static let incidents = [
@@ -641,7 +1310,12 @@ enum FoodManagerSampleData {
     ]
 
     static let helpRequests = [
-        FoodManagerHelpRequest(title: "Urgent fryer maintenance", detail: "Right-side fryer loses temp during lunch rush. Need same-day technician.", urgency: "High", createdAt: Date().addingTimeInterval(-7200), linkedLocation: "Downtown"),
+        FoodManagerHelpRequest(title: "Urgent fryer maintenance", detail: "Right-side fryer loses temp during lunch rush. Need same-day technician.", urgency: "High", status: "open", createdAt: Date().addingTimeInterval(-7200), linkedLocation: "Downtown"),
+    ]
+
+    static let sops = [
+        FoodManagerSOP(title: "Lobby handoff standard", category: "Front Of House", detail: "Confirm guest name, repeat order number, and mark pickup complete only after handoff.", versionLabel: "v2"),
+        FoodManagerSOP(title: "Cold-hold verification", category: "Food Safety", detail: "Record product temperature before each rush and escalate any item above threshold.", versionLabel: "v3"),
     ]
 
     static let sales = [

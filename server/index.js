@@ -390,6 +390,24 @@ io.on('connection', (socket) => {
 // Wire socket service so notificationService can broadcast
 socketService.init(io);
 
+// ── Public restaurant-display namespace ───────────────────
+// Unauthenticated, read-only. In-store TV / kiosk / customer screens connect
+// here (the main namespace requires a JWT) and receive only PII-free order
+// pings, then refetch over REST. A socket can only join a restaurant-display
+// room and do nothing else.
+const restaurantDisplayNs = io.of('/restaurant-display');
+restaurantDisplayNs.on('connection', (socket) => {
+  socket.on('display:join', (restaurantId) => {
+    const id = parseInt(restaurantId, 10);
+    if (Number.isInteger(id) && id > 0) socket.join(`rdisplay_${id}`);
+  });
+  socket.on('display:leave', (restaurantId) => {
+    const id = parseInt(restaurantId, 10);
+    if (Number.isInteger(id) && id > 0) socket.leave(`rdisplay_${id}`);
+  });
+});
+socketService.initRestaurantDisplay(restaurantDisplayNs);
+
 // ── INCIDENT ALERTING ─────────────────────────────────────
 // Enterprise incident detection and alerting
 const incidentAlertService = require('./services/incidentAlertService');

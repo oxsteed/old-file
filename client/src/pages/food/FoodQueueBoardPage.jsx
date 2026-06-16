@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getFoodQueueBoard } from '../../api/food';
+import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import { FoodBrand } from './foodShared';
 import '../../styles/FoodPages.css';
 
@@ -28,8 +29,13 @@ export default function FoodQueueBoardPage() {
   useEffect(() => {
     load();
     timerRef.current = setInterval(load, POLL_MS);
-    return () => clearInterval(timerRef.current);
-  }, [load]);
+    // Live updates (instant) layered over the poll (fallback).
+    const unsubscribe = subscribeRestaurantDisplay(restaurantId, load);
+    return () => {
+      clearInterval(timerRef.current);
+      unsubscribe();
+    };
+  }, [load, restaurantId]);
 
   return (
     <div className="fd-screen">

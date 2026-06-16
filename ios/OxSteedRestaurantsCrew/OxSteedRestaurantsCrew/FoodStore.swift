@@ -45,6 +45,8 @@ final class FoodStore: ObservableObject {
     @Published var inventoryItems = FoodOperationsSampleData.inventoryItems
     @Published var receivingTasks = FoodOperationsSampleData.receivingTasks
     @Published var runnerTasks = FoodOperationsSampleData.runnerTasks
+    @Published private var checklistTemplates: [FoodChecklistTemplateSnapshot] = []
+    @Published private var checklistRunsByChecklistID: [Int64: RestaurantChecklistRunResponse] = [:]
 
     // MARK: - Auth state
 
@@ -147,6 +149,8 @@ final class FoodStore: ObservableObject {
         merchantOrders = []
         merchantLoaded = false
         myOrders = []
+        checklistTemplates = []
+        checklistRunsByChecklistID = [:]
     }
 
     /// Runs an authenticated call; on 401, refreshes the access token once and
@@ -295,6 +299,7 @@ final class FoodStore: ObservableObject {
             } else {
                 merchantSelection = merchantRestaurants.first
             }
+            await loadCrewOperations()
             merchantLoaded = true
         } catch {
             merchantLoaded = true
@@ -428,6 +433,27 @@ final class FoodStore: ObservableObject {
     }
 
     func toggleTrainingModule(_ module: FoodTrainingModule) {
+        if let restaurant = merchantSelection, isSignedIn, let remoteID = module.remoteID {
+            Task {
+                do {
+                    let updated = try await authed {
+                        try await FoodAPIClient.shared.updateCrewTrainingModule(
+                            restaurantId: restaurant.id,
+                            moduleId: remoteID,
+                            isComplete: !module.isComplete,
+                            token: $0
+                        )
+                    }
+                    replaceCrewTrainingModule(updated)
+                    message = updated.isComplete
+                        ? "\(updated.title) marked complete."
+                        : "\(updated.title) reopened for review."
+                } catch {
+                    message = error.localizedDescription
+                }
+            }
+            return
+        }
         guard let index = crewTraining.firstIndex(where: { $0.id == module.id }) else { return }
         crewTraining[index].isComplete.toggle()
         message = crewTraining[index].isComplete
@@ -435,7 +461,156 @@ final class FoodStore: ObservableObject {
             : "\(crewTraining[index].title) reopened for review."
     }
 
+    func createCrewTrainingModule(title: String, role: String, durationMinutes: Int) async -> Bool {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedRole = role.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty, !trimmedRole.isEmpty else {
+            message = "Add both a module title and a crew role."
+            return false
+        }
+
+        if let restaurant = merchantSelection, isSignedIn {
+            do {
+                let created = try await authed {
+                    try await FoodAPIClient.shared.createCrewTrainingModule(
+                        restaurantId: restaurant.id,
+                        title: trimmedTitle,
+                        role: trimmedRole,
+                        durationMinutes: durationMinutes,
+                        token: $0
+                    )
+                }
+                replaceCrewTrainingModule(created)
+                message = "\(created.title) added to crew training."
+                return true
+            } catch {
+                message = error.localizedDescription
+                return false
+            }
+        }
+
+        crewTraining.insert(
+            FoodTrainingModule(
+                remoteID: nil,
+                title: trimmedTitle,
+                role: trimmedRole,
+                durationMinutes: durationMinutes,
+                isComplete: false
+            ),
+            at: 0
+        )
+        message = "Training module drafted locally."
+        return true
+    }
+
+    func createCrewQuizResult(title: String, scorePercent: Int, attempts: Int) async -> Bool {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty else {
+            message = "Add a quiz title before saving the result."
+            return false
+        }
+        let safeScore = max(0, min(100, scorePercent))
+        let safeAttempts = max(1, attempts)
+        let passed = safeScore >= 80
+
+        if let restaurant = merchantSelection, isSignedIn {
+            do {
+                let created = try await authed {
+                    try await FoodAPIClient.shared.createCrewQuizResult(
+                        restaurantId: restaurant.id,
+                        title: trimmedTitle,
+                        scorePercent: safeScore,
+                        attempts: safeAttempts,
+                        passed: passed,
+                        token: $0
+                    )
+                }
+                crewQuizResults.insert(
+                    FoodQuizResult(
+                        remoteID: created.id,
+                        title: created.title,
+                        scorePercent: created.scorePercent,
+                        attempts: created.attempts,
+                        passed: created.passed
+                    ),
+                    at: 0
+                )
+                message = "Quiz result saved for \(created.title)."
+                return true
+            } catch {
+                message = error.localizedDescription
+                return false
+            }
+        }
+
+        crewQuizResults.insert(
+            FoodQuizResult(
+                remoteID: nil,
+                title: trimmedTitle,
+                scorePercent: safeScore,
+                attempts: safeAttempts,
+                passed: passed
+            ),
+            at: 0
+        )
+        message = "Quiz result drafted locally."
+        return true
+    }
+
+    func createCrewBadge(title: String, detail: String, awarded: Bool) async -> Bool {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedDetail = detail.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty, !trimmedDetail.isEmpty else {
+            message = "Add both a badge title and detail."
+            return false
+        }
+
+        if let restaurant = merchantSelection, isSignedIn {
+            do {
+                let created = try await authed {
+                    try await FoodAPIClient.shared.upsertCrewBadge(
+                        restaurantId: restaurant.id,
+                        title: trimmedTitle,
+                        detail: trimmedDetail,
+                        awarded: awarded,
+                        token: $0
+                    )
+                }
+                crewBadges.insert(
+                    FoodCrewBadge(
+                        remoteID: created.id,
+                        title: created.title,
+                        detail: created.detail,
+                        awarded: created.awarded
+                    ),
+                    at: 0
+                )
+                message = "Badge added for crew tracking."
+                return true
+            } catch {
+                message = error.localizedDescription
+                return false
+            }
+        }
+
+        crewBadges.insert(
+            FoodCrewBadge(
+                remoteID: nil,
+                title: trimmedTitle,
+                detail: trimmedDetail,
+                awarded: awarded
+            ),
+            at: 0
+        )
+        message = "Badge drafted locally."
+        return true
+    }
+
     func toggleChecklistItem(_ item: FoodChecklistItem, kind: FoodChecklistKind) {
+        if isSignedIn, merchantSelection != nil, item.remoteChecklistID != nil {
+            Task { await toggleChecklistItemLive(item, kind: kind) }
+            return
+        }
         switch kind {
         case .opening:
             guard let index = openingChecklist.firstIndex(where: { $0.id == item.id }) else { return }
@@ -443,6 +618,215 @@ final class FoodStore: ObservableObject {
         case .closing:
             guard let index = closingChecklist.firstIndex(where: { $0.id == item.id }) else { return }
             closingChecklist[index].isComplete.toggle()
+        }
+    }
+
+    func loadCrewOperations() async {
+        guard let restaurant = merchantSelection else { return }
+        do {
+            let templates = try await authed {
+                try await FoodAPIClient.shared.checklistTemplates(restaurantId: restaurant.id, token: $0)
+            }
+            let sops = try await authed {
+                try await FoodAPIClient.shared.listSops(restaurantId: restaurant.id, token: $0)
+            }
+            let runs = try await authed {
+                try await FoodAPIClient.shared.checklistRuns(restaurantId: restaurant.id, token: $0)
+            }
+            var crewDashboard = try await authed {
+                try await FoodAPIClient.shared.crewDashboard(restaurantId: restaurant.id, token: $0)
+            }
+            if crewDashboard.modules.isEmpty && crewDashboard.quizzes.isEmpty && crewDashboard.badges.isEmpty {
+                crewDashboard = try await authed {
+                    try await FoodAPIClient.shared.bootstrapCrewDefaults(restaurantId: restaurant.id, token: $0)
+                }
+            }
+
+            var detailedRuns: [Int64: RestaurantChecklistRunResponse] = [:]
+            for run in runs where run.status == "in_progress" {
+                if let detail = try? await authed({
+                    try await FoodAPIClient.shared.checklistRun(
+                        restaurantId: restaurant.id,
+                        runId: run.id,
+                        token: $0
+                    )
+                }) {
+                    detailedRuns[detail.checklistId] = detail
+                }
+            }
+
+            checklistTemplates = templates.map {
+                FoodChecklistTemplateSnapshot(
+                    id: $0.id,
+                    name: $0.name,
+                    checklistType: $0.checklistType,
+                    tasks: $0.tasks
+                )
+            }
+            checklistRunsByChecklistID = detailedRuns
+            applyCrewChecklists()
+            applyCrewSOPs(sops)
+            applyCrewTrainingDashboard(crewDashboard)
+        } catch {
+            // Keep the app usable with curated fallback content when the
+            // operations API is not deployed for the current environment.
+        }
+    }
+
+    private func applyCrewTrainingDashboard(_ dashboard: RestaurantCrewDashboardResponse) {
+        if !dashboard.modules.isEmpty {
+            crewTraining = dashboard.modules.map {
+                FoodTrainingModule(
+                    remoteID: $0.id,
+                    title: $0.title,
+                    role: $0.role,
+                    durationMinutes: $0.durationMinutes,
+                    isComplete: $0.isComplete
+                )
+            }
+        }
+        if !dashboard.quizzes.isEmpty {
+            crewQuizResults = dashboard.quizzes.map {
+                FoodQuizResult(
+                    remoteID: $0.id,
+                    title: $0.title,
+                    scorePercent: $0.scorePercent,
+                    attempts: $0.attempts,
+                    passed: $0.passed
+                )
+            }
+        }
+        if !dashboard.badges.isEmpty {
+            crewBadges = dashboard.badges.map {
+                FoodCrewBadge(
+                    remoteID: $0.id,
+                    title: $0.title,
+                    detail: $0.detail,
+                    awarded: $0.awarded
+                )
+            }
+        }
+    }
+
+    private func replaceCrewTrainingModule(_ module: RestaurantCrewTrainingModuleResponse) {
+        let mapped = FoodTrainingModule(
+            remoteID: module.id,
+            title: module.title,
+            role: module.role,
+            durationMinutes: module.durationMinutes,
+            isComplete: module.isComplete
+        )
+        if let index = crewTraining.firstIndex(where: { $0.remoteID == module.id }) {
+            crewTraining[index] = mapped
+        } else {
+            crewTraining.insert(mapped, at: 0)
+        }
+    }
+
+    private func applyCrewChecklists() {
+        if let openingTemplate = checklistTemplates.first(where: { $0.checklistType == "opening" }) {
+            openingChecklist = materializeChecklist(kind: .opening, template: openingTemplate)
+        }
+        if let closingTemplate = checklistTemplates.first(where: { $0.checklistType == "closing" }) {
+            closingChecklist = materializeChecklist(kind: .closing, template: closingTemplate)
+        }
+    }
+
+    private func materializeChecklist(kind: FoodChecklistKind, template: FoodChecklistTemplateSnapshot) -> [FoodChecklistItem] {
+        if let liveRun = checklistRunsByChecklistID[template.id] {
+            return liveRun.items.map {
+                FoodChecklistItem(
+                    remoteChecklistID: template.id,
+                    remoteRunID: liveRun.id,
+                    remoteRunItemID: $0.id,
+                    title: $0.label,
+                    station: template.name,
+                    isComplete: $0.isDone
+                )
+            }
+        }
+        return template.tasks.map {
+            FoodChecklistItem(
+                remoteChecklistID: template.id,
+                remoteRunID: nil,
+                remoteRunItemID: nil,
+                title: $0.label,
+                station: template.name,
+                isComplete: false
+            )
+        }
+    }
+
+    private func applyCrewSOPs(_ sops: [RestaurantSOPResponse]) {
+        let liveDocuments = sops
+            .filter(\.isPublished)
+            .map {
+                FoodSOPDocument(
+                    remoteID: $0.id,
+                    title: $0.title,
+                    category: $0.category.replacingOccurrences(of: "_", with: " ").capitalized,
+                    durationMinutes: max(5, min(20, ($0.body?.count ?? 120) / 90)),
+                    summary: ($0.body?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                        ? $0.body!.trimmingCharacters(in: .whitespacesAndNewlines)
+                        : "Version \($0.version) published for crew reference.")
+                )
+            }
+
+        let cleaning = liveDocuments.filter { ["cleaning", "closing"].contains($0.category.lowercased().replacingOccurrences(of: " ", with: "_")) }
+        if !cleaning.isEmpty {
+            cleaningProcedures = cleaning
+        }
+
+        let safety = liveDocuments.filter { ["food_safety", "safety"].contains($0.category.lowercased().replacingOccurrences(of: " ", with: "_")) }
+        if !safety.isEmpty {
+            foodSafetyProcedures = safety
+        }
+    }
+
+    private func toggleChecklistItemLive(_ item: FoodChecklistItem, kind: FoodChecklistKind) async {
+        guard let restaurant = merchantSelection, let checklistID = item.remoteChecklistID else { return }
+        do {
+            let updatedRun: RestaurantChecklistRunResponse
+            if let runID = item.remoteRunID, let runItemID = item.remoteRunItemID {
+                updatedRun = try await authed {
+                    try await FoodAPIClient.shared.toggleChecklistRunItem(
+                        restaurantId: restaurant.id,
+                        runId: runID,
+                        itemId: runItemID,
+                        isDone: !item.isComplete,
+                        token: $0
+                    )
+                }
+            } else {
+                let newRun = try await authed {
+                    try await FoodAPIClient.shared.startChecklistRun(
+                        restaurantId: restaurant.id,
+                        checklistId: checklistID,
+                        token: $0
+                    )
+                }
+                guard let createdItem = newRun.items.first(where: { $0.label == item.title }) ?? newRun.items.first else {
+                    checklistRunsByChecklistID[checklistID] = newRun
+                    applyCrewChecklists()
+                    return
+                }
+                updatedRun = try await authed {
+                    try await FoodAPIClient.shared.toggleChecklistRunItem(
+                        restaurantId: restaurant.id,
+                        runId: newRun.id,
+                        itemId: createdItem.id,
+                        isDone: true,
+                        token: $0
+                    )
+                }
+            }
+            checklistRunsByChecklistID[checklistID] = updatedRun
+            applyCrewChecklists()
+            message = kind == .opening
+                ? "Opening checklist synced."
+                : "Closing checklist synced."
+        } catch {
+            message = error.localizedDescription
         }
     }
 }
@@ -464,6 +848,7 @@ struct FoodManagerAlert: Identifiable, Hashable {
 
 struct FoodTrainingModule: Identifiable, Hashable {
     let id = UUID()
+    let remoteID: Int64?
     let title: String
     let role: String
     let durationMinutes: Int
@@ -472,6 +857,9 @@ struct FoodTrainingModule: Identifiable, Hashable {
 
 struct FoodChecklistItem: Identifiable, Hashable {
     let id = UUID()
+    let remoteChecklistID: Int64?
+    let remoteRunID: Int64?
+    let remoteRunItemID: Int64?
     let title: String
     let station: String
     var isComplete: Bool
@@ -508,14 +896,23 @@ enum FoodChecklistKind {
 
 struct FoodSOPDocument: Identifiable, Hashable {
     let id = UUID()
+    let remoteID: Int64?
     let title: String
     let category: String
     let durationMinutes: Int
     let summary: String
 }
 
+struct FoodChecklistTemplateSnapshot {
+    let id: Int64
+    let name: String
+    let checklistType: String
+    let tasks: [RestaurantChecklistTaskResponse]
+}
+
 struct FoodCrewBadge: Identifiable, Hashable {
     let id = UUID()
+    let remoteID: Int64?
     let title: String
     let detail: String
     let awarded: Bool
@@ -523,6 +920,7 @@ struct FoodCrewBadge: Identifiable, Hashable {
 
 struct FoodQuizResult: Identifiable, Hashable {
     let id = UUID()
+    let remoteID: Int64?
     let title: String
     let scorePercent: Int
     let attempts: Int
@@ -531,18 +929,18 @@ struct FoodQuizResult: Identifiable, Hashable {
 
 enum FoodOperationsSampleData {
     static let trainingModules = [
-        FoodTrainingModule(title: "Opening line check", role: "Cashier", durationMinutes: 10, isComplete: true),
-        FoodTrainingModule(title: "Allergen handoff protocol", role: "Kitchen", durationMinutes: 14, isComplete: false),
-        FoodTrainingModule(title: "Refund and void policy", role: "Manager", durationMinutes: 8, isComplete: false),
-        FoodTrainingModule(title: "Drive-thru greeting script", role: "Cashier", durationMinutes: 6, isComplete: false),
-        FoodTrainingModule(title: "Expo packaging accuracy", role: "Kitchen", durationMinutes: 12, isComplete: true),
-        FoodTrainingModule(title: "Guest recovery and escalation", role: "Manager", durationMinutes: 9, isComplete: true),
+        FoodTrainingModule(remoteID: nil, title: "Opening line check", role: "Cashier", durationMinutes: 10, isComplete: true),
+        FoodTrainingModule(remoteID: nil, title: "Allergen handoff protocol", role: "Kitchen", durationMinutes: 14, isComplete: false),
+        FoodTrainingModule(remoteID: nil, title: "Refund and void policy", role: "Manager", durationMinutes: 8, isComplete: false),
+        FoodTrainingModule(remoteID: nil, title: "Drive-thru greeting script", role: "Cashier", durationMinutes: 6, isComplete: false),
+        FoodTrainingModule(remoteID: nil, title: "Expo packaging accuracy", role: "Kitchen", durationMinutes: 12, isComplete: true),
+        FoodTrainingModule(remoteID: nil, title: "Guest recovery and escalation", role: "Manager", durationMinutes: 9, isComplete: true),
     ]
 
     static let openingChecklist = [
-        FoodChecklistItem(title: "Hot hold verified above 135F", station: "Expo", isComplete: true),
-        FoodChecklistItem(title: "Kiosk printer paper loaded", station: "Front counter", isComplete: false),
-        FoodChecklistItem(title: "Queue board tested", station: "Dining room", isComplete: true),
+        FoodChecklistItem(remoteChecklistID: nil, remoteRunID: nil, remoteRunItemID: nil, title: "Hot hold verified above 135F", station: "Expo", isComplete: true),
+        FoodChecklistItem(remoteChecklistID: nil, remoteRunID: nil, remoteRunItemID: nil, title: "Kiosk printer paper loaded", station: "Front counter", isComplete: false),
+        FoodChecklistItem(remoteChecklistID: nil, remoteRunID: nil, remoteRunItemID: nil, title: "Queue board tested", station: "Dining room", isComplete: true),
     ]
 
     static let inventoryItems = [
@@ -565,31 +963,31 @@ enum FoodOperationsSampleData {
 
 enum FoodCrewSampleData {
     static let closingChecklist = [
-        FoodChecklistItem(title: "Sanitize prep line and slicer", station: "Kitchen", isComplete: false),
-        FoodChecklistItem(title: "Count register and lock drop bag", station: "Front counter", isComplete: true),
-        FoodChecklistItem(title: "Mop lobby and restock condiments", station: "Dining room", isComplete: false),
+        FoodChecklistItem(remoteChecklistID: nil, remoteRunID: nil, remoteRunItemID: nil, title: "Sanitize prep line and slicer", station: "Kitchen", isComplete: false),
+        FoodChecklistItem(remoteChecklistID: nil, remoteRunID: nil, remoteRunItemID: nil, title: "Count register and lock drop bag", station: "Front counter", isComplete: true),
+        FoodChecklistItem(remoteChecklistID: nil, remoteRunID: nil, remoteRunItemID: nil, title: "Mop lobby and restock condiments", station: "Dining room", isComplete: false),
     ]
 
     static let cleaningProcedures = [
-        FoodSOPDocument(title: "Flat-top breakdown", category: "Cleaning", durationMinutes: 12, summary: "Scrape, cool, degrease, rinse, and sign off before close."),
-        FoodSOPDocument(title: "Dining room sanitizer rotation", category: "Cleaning", durationMinutes: 8, summary: "Refresh buckets every 2 hours and label by station."),
+        FoodSOPDocument(remoteID: nil, title: "Flat-top breakdown", category: "Cleaning", durationMinutes: 12, summary: "Scrape, cool, degrease, rinse, and sign off before close."),
+        FoodSOPDocument(remoteID: nil, title: "Dining room sanitizer rotation", category: "Cleaning", durationMinutes: 8, summary: "Refresh buckets every 2 hours and label by station."),
     ]
 
     static let foodSafetyProcedures = [
-        FoodSOPDocument(title: "Cold hold verification", category: "Food Safety", durationMinutes: 7, summary: "Check every cold unit below 41F and log corrective action."),
-        FoodSOPDocument(title: "Allergen handoff standard", category: "Food Safety", durationMinutes: 10, summary: "Use marked packaging, verbal callout, and expo confirmation."),
+        FoodSOPDocument(remoteID: nil, title: "Cold hold verification", category: "Food Safety", durationMinutes: 7, summary: "Check every cold unit below 41F and log corrective action."),
+        FoodSOPDocument(remoteID: nil, title: "Allergen handoff standard", category: "Food Safety", durationMinutes: 10, summary: "Use marked packaging, verbal callout, and expo confirmation."),
     ]
 
     static let badges = [
-        FoodCrewBadge(title: "Opening Certified", detail: "Can independently run pre-shift setup.", awarded: true),
-        FoodCrewBadge(title: "Food Safety Ready", detail: "Passed sanitation and temp-control checks.", awarded: true),
-        FoodCrewBadge(title: "Trainer Candidate", detail: "Eligible to coach new crew members.", awarded: false),
+        FoodCrewBadge(remoteID: nil, title: "Opening Certified", detail: "Can independently run pre-shift setup.", awarded: true),
+        FoodCrewBadge(remoteID: nil, title: "Food Safety Ready", detail: "Passed sanitation and temp-control checks.", awarded: true),
+        FoodCrewBadge(remoteID: nil, title: "Trainer Candidate", detail: "Eligible to coach new crew members.", awarded: false),
     ]
 
     static let quizResults = [
-        FoodQuizResult(title: "Allergen protocol quiz", scorePercent: 92, attempts: 1, passed: true),
-        FoodQuizResult(title: "Refund and void quiz", scorePercent: 78, attempts: 2, passed: false),
-        FoodQuizResult(title: "Cleaning closeout quiz", scorePercent: 88, attempts: 1, passed: true),
+        FoodQuizResult(remoteID: nil, title: "Allergen protocol quiz", scorePercent: 92, attempts: 1, passed: true),
+        FoodQuizResult(remoteID: nil, title: "Refund and void quiz", scorePercent: 78, attempts: 2, passed: false),
+        FoodQuizResult(remoteID: nil, title: "Cleaning closeout quiz", scorePercent: 88, attempts: 1, passed: true),
     ]
 }
 

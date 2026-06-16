@@ -83,7 +83,10 @@ actor FoodAPIClient {
         tableLabel: String?,
         guestName: String?,
         token: String?,
-        orderSource: String = "mobile"
+        orderSource: String = "mobile",
+        discountCode: String? = nil,
+        discountLabel: String? = nil,
+        discountCents: Int = 0
     ) async throws -> FoodOrder {
         struct OrderItem: Encodable {
             let menuItemId: Int64
@@ -96,6 +99,9 @@ actor FoodAPIClient {
             let orderSource: String
             let tableLabel: String?
             let guestName: String?
+            let discountCode: String?
+            let discountLabel: String?
+            let discountCents: Int
             let items: [OrderItem]
         }
         let body = Body(
@@ -103,6 +109,9 @@ actor FoodAPIClient {
             orderSource: orderSource,
             tableLabel: tableLabel,
             guestName: guestName,
+            discountCode: discountCode,
+            discountLabel: discountLabel,
+            discountCents: max(0, discountCents),
             items: lines.map {
                 OrderItem(
                     menuItemId: $0.item.id,
@@ -268,6 +277,56 @@ actor FoodAPIClient {
         return response.order
     }
 
+    func posDiscounts(restaurantId: Int64, token: String) async throws -> [FoodPOSDiscountResponse] {
+        let response: POSDiscountsEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/pos/discounts",
+            token: token
+        )
+        return response.discounts
+    }
+
+    func posReceiptEvents(restaurantId: Int64, token: String) async throws -> [FoodPOSReceiptEventResponse] {
+        let response: POSReceiptEventsEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/pos/receipt-events",
+            token: token
+        )
+        return response.receiptEvents
+    }
+
+    func createPOSReceiptEvent(
+        restaurantId: Int64,
+        orderId: Int64,
+        queueNumber: Int,
+        guestName: String,
+        totalCents: Int,
+        paymentStatus: String,
+        channel: String,
+        token: String
+    ) async throws -> FoodPOSReceiptEventResponse {
+        struct Body: Encodable {
+            let orderId: Int64
+            let queueNumber: Int
+            let guestName: String
+            let totalCents: Int
+            let paymentStatus: String
+            let channel: String
+        }
+        let response: POSReceiptEventEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/pos/receipt-events",
+            method: "POST",
+            body: Body(
+                orderId: orderId,
+                queueNumber: queueNumber,
+                guestName: guestName,
+                totalCents: totalCents,
+                paymentStatus: paymentStatus,
+                channel: channel
+            ),
+            token: token
+        )
+        return response.receiptEvent
+    }
+
     // MARK: - Core request
 
     private func request<T: Decodable>(
@@ -351,6 +410,76 @@ struct OrderEnvelope: Decodable {
 
 struct OrdersEnvelope: Decodable {
     let orders: [FoodOrder]
+}
+
+struct POSDiscountsEnvelope: Decodable {
+    let discounts: [FoodPOSDiscountResponse]
+}
+
+struct FoodPOSDiscountResponse: Decodable {
+    let code: String?
+    let title: String
+    let percentOff: Double
+
+    enum CodingKeys: String, CodingKey {
+        case code, title
+        case percentOff = "percentOff"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        code = c.flexString(.code)
+        title = c.flexString(.title) ?? "Discount"
+        if let direct = try? c.decode(Double.self, forKey: .percentOff) {
+            percentOff = direct
+        } else if let raw = c.flexString(.percentOff), let parsed = Double(raw) {
+            percentOff = parsed
+        } else {
+            percentOff = 0
+        }
+    }
+}
+
+struct POSReceiptEventsEnvelope: Decodable {
+    let receiptEvents: [FoodPOSReceiptEventResponse]
+}
+
+struct POSReceiptEventEnvelope: Decodable {
+    let receiptEvent: FoodPOSReceiptEventResponse
+}
+
+struct FoodPOSReceiptEventResponse: Decodable {
+    let id: Int64
+    let orderID: Int64
+    let queueNumber: Int
+    let guestName: String
+    let totalCents: Int
+    let paymentStatus: String
+    let channel: String
+    let createdAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case orderID = "food_order_id"
+        case queueNumber = "queue_number"
+        case guestName = "guest_name"
+        case totalCents = "total_cents"
+        case paymentStatus = "payment_status"
+        case channel
+        case createdAt = "created_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        orderID = try c.flexInt64(.orderID)
+        queueNumber = c.flexInt(.queueNumber, default: 0)
+        guestName = c.flexString(.guestName) ?? "Walk-in"
+        totalCents = c.flexInt(.totalCents, default: 0)
+        paymentStatus = c.flexString(.paymentStatus) ?? "unpaid"
+        channel = c.flexString(.channel) ?? "Counter"
+        createdAt = c.flexDateIfPresent(.createdAt) ?? .now
+    }
 }
 
 struct AnyEncodable: Encodable {

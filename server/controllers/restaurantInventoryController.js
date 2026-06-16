@@ -40,6 +40,8 @@ function parseQty(value, field = 'quantity') {
 
 const CATEGORIES = ['general', 'produce', 'meat', 'dairy', 'dry_goods', 'frozen', 'beverage', 'packaging', 'cleaning'];
 const ADJ_TYPES = ['count', 'receive', 'waste', 'usage', 'correction'];
+const PURCHASE_STATUSES = ['pending', 'ordered', 'received', 'cancelled'];
+const ISSUE_STATUSES = ['open', 'monitoring', 'resolved'];
 const MANAGE_ROLES = new Set(['owner', 'manager']);
 
 async function requireRestaurantAccess(userId, restaurantId) {
@@ -257,6 +259,297 @@ exports.listAdjustments = async (req, res, next) => {
       params
     );
     res.json({ adjustments: rows, limit, offset });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── Purchase requests ────────────────────────────────────────────────────────
+exports.listPurchaseRequests = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 50, 1), 100);
+    const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
+
+    const { rows } = await pool.query(
+      `SELECT * FROM restaurant_inventory_purchase_requests
+        WHERE restaurant_id = $1
+        ORDER BY created_at DESC
+        LIMIT $2 OFFSET $3`,
+      [restaurantId, limit, offset]
+    );
+    res.json({ requests: rows, limit, offset });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createPurchaseRequest = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+
+    const itemName = normalizeString(req.body.itemName, 160);
+    if (!itemName) throw new AppError('Validation failed', 400, 'validation_failed', { itemName: 'Item name is required' });
+    const requestedQuantity = parseQty(req.body.requestedQuantity, 'requestedQuantity');
+    if (requestedQuantity === null || requestedQuantity <= 0) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { requestedQuantity: 'Quantity must be greater than zero' });
+    }
+
+    const status = PURCHASE_STATUSES.includes(req.body.status) ? req.body.status : 'pending';
+    const { rows: [request] } = await pool.query(
+      `INSERT INTO restaurant_inventory_purchase_requests
+         (restaurant_id, item_name, requested_quantity, unit, supplier_name, status, eta_window, note, requested_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       RETURNING *`,
+      [
+        restaurantId,
+        itemName,
+        requestedQuantity,
+        normalizeString(req.body.unit, 24) || 'units',
+        normalizeString(req.body.supplierName, 160),
+        status,
+        normalizeString(req.body.etaWindow, 80),
+        normalizeString(req.body.note, 1000),
+        req.user.id,
+      ]
+    );
+    res.status(201).json({ request });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updatePurchaseRequest = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const requestId = parsePositiveInt(req.params.requestId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertManage(restaurant);
+
+    const sets = [];
+    const vals = [];
+    let i = 1;
+    if (req.body.itemName !== undefined) {
+      const itemName = normalizeString(req.body.itemName, 160);
+      if (!itemName) throw new AppError('Validation failed', 400, 'validation_failed', { itemName: 'Item name is required' });
+      sets.push(`item_name = $${i++}`); vals.push(itemName);
+    }
+    if (req.body.requestedQuantity !== undefined) {
+      const requestedQuantity = parseQty(req.body.requestedQuantity, 'requestedQuantity');
+      if (requestedQuantity === null || requestedQuantity <= 0) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { requestedQuantity: 'Quantity must be greater than zero' });
+      }
+      sets.push(`requested_quantity = $${i++}`); vals.push(requestedQuantity);
+    }
+    if (req.body.unit !== undefined) { sets.push(`unit = $${i++}`); vals.push(normalizeString(req.body.unit, 24) || 'units'); }
+    if (req.body.supplierName !== undefined) { sets.push(`supplier_name = $${i++}`); vals.push(normalizeString(req.body.supplierName, 160)); }
+    if (req.body.status !== undefined && PURCHASE_STATUSES.includes(req.body.status)) { sets.push(`status = $${i++}`); vals.push(req.body.status); }
+    if (req.body.etaWindow !== undefined) { sets.push(`eta_window = $${i++}`); vals.push(normalizeString(req.body.etaWindow, 80)); }
+    if (req.body.note !== undefined) { sets.push(`note = $${i++}`); vals.push(normalizeString(req.body.note, 1000)); }
+    if (!sets.length) throw new AppError('No updatable fields provided', 400, 'validation_failed', { body: 'No updatable fields provided' });
+    sets.push('updated_at = NOW()');
+
+    const { rows: [request] } = await pool.query(
+      `UPDATE restaurant_inventory_purchase_requests SET ${sets.join(', ')}
+        WHERE id = $${i++} AND restaurant_id = $${i}
+        RETURNING *`,
+      [...vals, requestId, restaurantId]
+    );
+    if (!request) throw new AppError('Purchase request not found', 404, 'purchase_request_not_found');
+    res.json({ request });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── Supplier issues ─────────────────────────────────────────────────────────
+exports.listSupplierIssues = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 50, 1), 100);
+    const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
+
+    const { rows } = await pool.query(
+      `SELECT * FROM restaurant_inventory_supplier_issues
+        WHERE restaurant_id = $1
+        ORDER BY created_at DESC
+        LIMIT $2 OFFSET $3`,
+      [restaurantId, limit, offset]
+    );
+    res.json({ issues: rows, limit, offset });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createSupplierIssue = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+
+    const supplierName = normalizeString(req.body.supplierName, 160);
+    const issue = normalizeString(req.body.issue, 2000);
+    if (!supplierName) throw new AppError('Validation failed', 400, 'validation_failed', { supplierName: 'Supplier name is required' });
+    if (!issue) throw new AppError('Validation failed', 400, 'validation_failed', { issue: 'Issue details are required' });
+
+    const relatedPurchaseRequestId = parsePositiveInt(req.body.relatedPurchaseRequestId);
+    if (relatedPurchaseRequestId) {
+      const { rows } = await pool.query(
+        `SELECT id FROM restaurant_inventory_purchase_requests
+          WHERE id = $1 AND restaurant_id = $2`,
+        [relatedPurchaseRequestId, restaurantId]
+      );
+      if (!rows[0]) throw new AppError('Related purchase request not found', 404, 'purchase_request_not_found');
+    }
+
+    const status = ISSUE_STATUSES.includes(req.body.status) ? req.body.status : 'open';
+    const { rows: [issueRow] } = await pool.query(
+      `INSERT INTO restaurant_inventory_supplier_issues
+         (restaurant_id, supplier_name, issue, status, related_purchase_request_id, reported_by)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       RETURNING *`,
+      [restaurantId, supplierName, issue, status, relatedPurchaseRequestId, req.user.id]
+    );
+    res.status(201).json({ issue: issueRow });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateSupplierIssue = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const issueId = parsePositiveInt(req.params.issueId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertManage(restaurant);
+
+    const sets = [];
+    const vals = [];
+    let i = 1;
+    if (req.body.supplierName !== undefined) {
+      const supplierName = normalizeString(req.body.supplierName, 160);
+      if (!supplierName) throw new AppError('Validation failed', 400, 'validation_failed', { supplierName: 'Supplier name is required' });
+      sets.push(`supplier_name = $${i++}`); vals.push(supplierName);
+    }
+    if (req.body.issue !== undefined) {
+      const issue = normalizeString(req.body.issue, 2000);
+      if (!issue) throw new AppError('Validation failed', 400, 'validation_failed', { issue: 'Issue details are required' });
+      sets.push(`issue = $${i++}`); vals.push(issue);
+    }
+    if (req.body.status !== undefined && ISSUE_STATUSES.includes(req.body.status)) { sets.push(`status = $${i++}`); vals.push(req.body.status); }
+    if (req.body.relatedPurchaseRequestId !== undefined) {
+      const relatedPurchaseRequestId = parsePositiveInt(req.body.relatedPurchaseRequestId);
+      if (relatedPurchaseRequestId) {
+        const { rows } = await pool.query(
+          `SELECT id FROM restaurant_inventory_purchase_requests
+            WHERE id = $1 AND restaurant_id = $2`,
+          [relatedPurchaseRequestId, restaurantId]
+        );
+        if (!rows[0]) throw new AppError('Related purchase request not found', 404, 'purchase_request_not_found');
+      }
+      sets.push(`related_purchase_request_id = $${i++}`); vals.push(relatedPurchaseRequestId);
+    }
+    if (!sets.length) throw new AppError('No updatable fields provided', 400, 'validation_failed', { body: 'No updatable fields provided' });
+    sets.push('updated_at = NOW()');
+
+    const { rows: [issueRow] } = await pool.query(
+      `UPDATE restaurant_inventory_supplier_issues SET ${sets.join(', ')}
+        WHERE id = $${i++} AND restaurant_id = $${i}
+        RETURNING *`,
+      [...vals, issueId, restaurantId]
+    );
+    if (!issueRow) throw new AppError('Supplier issue not found', 404, 'supplier_issue_not_found');
+    res.json({ issue: issueRow });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── Ingredient to menu mappings ─────────────────────────────────────────────
+exports.listMappings = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const { rows } = await pool.query(
+      `SELECT rim.id,
+              rim.inventory_item_id,
+              rii.name AS inventory_item_name,
+              rim.menu_item_id,
+              fmi.name AS menu_item_name,
+              rim.usage_label
+         FROM restaurant_inventory_item_mappings rim
+         JOIN restaurant_inventory_items rii
+           ON rii.id = rim.inventory_item_id
+          AND rii.restaurant_id = rim.restaurant_id
+         JOIN food_menu_items fmi
+           ON fmi.id = rim.menu_item_id
+          AND fmi.restaurant_id = rim.restaurant_id
+        WHERE rim.restaurant_id = $1
+        ORDER BY rii.name ASC, fmi.name ASC`,
+      [restaurantId]
+    );
+    res.json({ mappings: rows });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.bootstrapMappings = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertManage(restaurant);
+
+    await withTransaction(async (client) => {
+      const { rows: [{ count }] } = await client.query(
+        `SELECT COUNT(*)::int AS count
+           FROM restaurant_inventory_item_mappings
+          WHERE restaurant_id = $1`,
+        [restaurantId]
+      );
+      if (count > 0) return;
+
+      const { rows: inventoryRows } = await client.query(
+        `SELECT id, name, unit
+           FROM restaurant_inventory_items
+          WHERE restaurant_id = $1 AND is_active = TRUE`,
+        [restaurantId]
+      );
+      const { rows: menuRows } = await client.query(
+        `SELECT id, name
+           FROM food_menu_items
+          WHERE restaurant_id = $1
+          ORDER BY sort_order ASC, id ASC`,
+        [restaurantId]
+      );
+      if (!inventoryRows.length || !menuRows.length) return;
+
+      const inventoryByName = new Map(inventoryRows.map((row) => [String(row.name).toLowerCase(), row]));
+      const menuByName = new Map(menuRows.map((row) => [String(row.name).toLowerCase(), row]));
+      const seeds = [
+        ['burger buns', 'classic ox burger', '1 bun'],
+        ['ground beef', 'classic ox burger', '0.33 lb'],
+        ['cold brew', 'cold brew', '12 oz'],
+      ];
+
+      for (const [inventoryName, menuName, usageLabel] of seeds) {
+        const inventoryItem = inventoryByName.get(inventoryName);
+        const menuItem = menuByName.get(menuName);
+        if (!inventoryItem || !menuItem) continue;
+        await client.query(
+          `INSERT INTO restaurant_inventory_item_mappings
+             (restaurant_id, inventory_item_id, menu_item_id, usage_label, created_by)
+           VALUES ($1,$2,$3,$4,$5)
+           ON CONFLICT (restaurant_id, inventory_item_id, menu_item_id) DO NOTHING`,
+          [restaurantId, inventoryItem.id, menuItem.id, usageLabel, req.user.id]
+        );
+      }
+    });
+
+    return exports.listMappings(req, res, next);
   } catch (err) {
     next(err);
   }

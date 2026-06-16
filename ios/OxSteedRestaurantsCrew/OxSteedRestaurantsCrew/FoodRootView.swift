@@ -539,6 +539,15 @@ private struct KioskQueueWorkspaceView: View {
 private struct CrewTrainingWorkspaceView: View {
     @EnvironmentObject private var store: FoodStore
     @State private var tab = CrewSubworkspace.overview
+    @State private var newModuleTitle = ""
+    @State private var newModuleRole = "Cashier"
+    @State private var newModuleDuration = 10
+    @State private var newQuizTitle = ""
+    @State private var newQuizScore = 85
+    @State private var newQuizAttempts = 1
+    @State private var newBadgeTitle = ""
+    @State private var newBadgeDetail = ""
+    @State private var newBadgeAwarded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -626,6 +635,37 @@ private struct CrewTrainingWorkspaceView: View {
 
     private var crewTrainingTab: some View {
         VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Add training module")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+                TextField("Module title", text: $newModuleTitle)
+                    .textFieldStyle(.roundedBorder)
+                Picker("Role", selection: $newModuleRole) {
+                    ForEach(["Cashier", "Kitchen", "Manager"], id: \.self) { role in
+                        Text(role).tag(role)
+                    }
+                }
+                .pickerStyle(.segmented)
+                Stepper("Duration: \(newModuleDuration) min", value: $newModuleDuration, in: 5...60, step: 1)
+                Button("Add module") {
+                    Task {
+                        let created = await store.createCrewTrainingModule(
+                            title: newModuleTitle,
+                            role: newModuleRole,
+                            durationMinutes: newModuleDuration
+                        )
+                        guard created else { return }
+                        newModuleTitle = ""
+                        newModuleRole = "Cashier"
+                        newModuleDuration = 10
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(FoodTheme.flame)
+            }
+            .foodCard(padding: 14)
+
             Text("Training assignments")
                 .font(.system(size: 18, weight: .black))
                 .foregroundStyle(FoodTheme.ink)
@@ -647,6 +687,32 @@ private struct CrewTrainingWorkspaceView: View {
                 }
                 .foodCard(padding: 14)
             }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Record quiz result")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+                TextField("Quiz title", text: $newQuizTitle)
+                    .textFieldStyle(.roundedBorder)
+                Stepper("Score: \(newQuizScore)%", value: $newQuizScore, in: 0...100, step: 1)
+                Stepper("Attempts: \(newQuizAttempts)", value: $newQuizAttempts, in: 1...10, step: 1)
+                Button("Save quiz result") {
+                    Task {
+                        let created = await store.createCrewQuizResult(
+                            title: newQuizTitle,
+                            scorePercent: newQuizScore,
+                            attempts: newQuizAttempts
+                        )
+                        guard created else { return }
+                        newQuizTitle = ""
+                        newQuizScore = 85
+                        newQuizAttempts = 1
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(FoodTheme.blue)
+            }
+            .foodCard(padding: 14)
 
             VStack(alignment: .leading, spacing: 10) {
                 Text("Quiz and confirmation results")
@@ -687,6 +753,34 @@ private struct CrewTrainingWorkspaceView: View {
 
     private var crewCertificationsTab: some View {
         VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Add badge")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+                TextField("Badge title", text: $newBadgeTitle)
+                    .textFieldStyle(.roundedBorder)
+                TextField("Badge detail", text: $newBadgeDetail, axis: .vertical)
+                    .lineLimit(2...4)
+                    .textFieldStyle(.roundedBorder)
+                Toggle("Award immediately", isOn: $newBadgeAwarded)
+                Button("Save badge") {
+                    Task {
+                        let created = await store.createCrewBadge(
+                            title: newBadgeTitle,
+                            detail: newBadgeDetail,
+                            awarded: newBadgeAwarded
+                        )
+                        guard created else { return }
+                        newBadgeTitle = ""
+                        newBadgeDetail = ""
+                        newBadgeAwarded = false
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(FoodTheme.basil)
+            }
+            .foodCard(padding: 14)
+
             Text("Employee certifications and badges")
                 .font(.system(size: 18, weight: .black))
                 .foregroundStyle(FoodTheme.ink)
@@ -1037,14 +1131,9 @@ private struct RestaurantCard: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(FoodTheme.flame.opacity(0.14))
-                    Image(systemName: "takeoutbag.and.cup.and.straw.fill")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundStyle(FoodTheme.flame)
-                }
-                .frame(width: 62, height: 62)
+                RemoteFoodImage(restaurant.coverPhotoUrl, icon: "takeoutbag.and.cup.and.straw.fill", tint: FoodTheme.accent(for: restaurant.id))
+                    .frame(width: 62, height: 62)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(restaurant.displayName)
@@ -1177,6 +1266,11 @@ private struct MenuItemRow: View {
     var body: some View {
         Button(action: configure) {
             HStack(spacing: 12) {
+                RemoteFoodImage(item.imageUrl, icon: "fork.knife")
+                    .frame(width: 58, height: 58)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .saturation(item.isAvailable ? 1 : 0)
+                    .opacity(item.isAvailable ? 1 : 0.55)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(item.name)
                         .font(.system(size: 16, weight: .bold))

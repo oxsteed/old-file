@@ -497,9 +497,10 @@ private struct POSCounterWorkspaceView: View {
                         .textInputAutocapitalization(.characters)
                         .textFieldStyle(.roundedBorder)
                     Button("Apply") {
-                        store.applyCounterCoupon()
+                        Task { await store.applyCounterCoupon() }
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(store.isApplyingCoupon)
                 }
                 if let label = store.counterDiscountLabel, store.counterDiscountCents > 0 {
                     HStack {
@@ -605,19 +606,19 @@ private struct POSCounterWorkspaceView: View {
                 Text("Payment and correction controls")
                     .font(.system(size: 18, weight: .black))
                     .foregroundStyle(FoodTheme.ink)
-                Text("Permissions decide whether this cashier can mark unpaid, refund, or comp tickets.")
+                Text("Permissions decide whether this cashier can mark unpaid, refund, or comp tickets. Recent order history is loaded from the shared restaurant backend when signed in.")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(FoodTheme.muted)
             }
             .foodCard(padding: 16)
 
-            if store.merchantOrders.isEmpty {
-                Text("No active POS tickets yet. Send a counter order first or sign in to load live store orders.")
+            if store.posPaymentOrders.isEmpty {
+                Text("No POS order history yet. Send a counter order first or sign in to load live store orders.")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(FoodTheme.muted)
                     .foodCard(padding: 16)
             } else {
-                ForEach(store.merchantOrders.prefix(6)) { order in
+                ForEach(store.posPaymentOrders.prefix(6)) { order in
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
@@ -656,11 +657,11 @@ private struct POSCounterWorkspaceView: View {
                         }
 
                         HStack(spacing: 8) {
-                            Button("Print receipt") { store.sendReceipt(for: order, channel: "Printed") }
+                            Button("Print receipt") { Task { await store.sendReceipt(for: order, channel: "Printed") } }
                                 .buttonStyle(.bordered)
-                            Button("Text receipt") { store.sendReceipt(for: order, channel: "SMS") }
+                            Button("Text receipt") { Task { await store.sendReceipt(for: order, channel: "SMS") } }
                                 .buttonStyle(.bordered)
-                            Button("Email receipt") { store.sendReceipt(for: order, channel: "Email") }
+                            Button("Email receipt") { Task { await store.sendReceipt(for: order, channel: "Email") } }
                                 .buttonStyle(.bordered)
                         }
 
@@ -681,7 +682,7 @@ private struct POSCounterWorkspaceView: View {
                 Text("Receipt activity")
                     .font(.system(size: 18, weight: .black))
                     .foregroundStyle(FoodTheme.ink)
-                ForEach(store.posRecentReceipts.prefix(6)) { receipt in
+                ForEach(store.posReceiptActivity.prefix(6)) { receipt in
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Order #\(receipt.queueNumber) · \(receipt.channel)")
@@ -1200,14 +1201,9 @@ private struct RestaurantCard: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(FoodTheme.flame.opacity(0.14))
-                    Image(systemName: "takeoutbag.and.cup.and.straw.fill")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundStyle(FoodTheme.flame)
-                }
-                .frame(width: 62, height: 62)
+                RemoteFoodImage(restaurant.coverPhotoUrl, icon: "takeoutbag.and.cup.and.straw.fill", tint: FoodTheme.accent(for: restaurant.id))
+                    .frame(width: 62, height: 62)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(restaurant.displayName)
@@ -1340,6 +1336,11 @@ private struct MenuItemRow: View {
     var body: some View {
         Button(action: configure) {
             HStack(spacing: 12) {
+                RemoteFoodImage(item.imageUrl, icon: "fork.knife")
+                    .frame(width: 58, height: 58)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .saturation(item.isAvailable ? 1 : 0)
+                    .opacity(item.isAvailable ? 1 : 0.55)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(item.name)
                         .font(.system(size: 16, weight: .bold))

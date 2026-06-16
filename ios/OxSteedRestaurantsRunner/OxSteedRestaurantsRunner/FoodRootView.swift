@@ -663,6 +663,16 @@ private struct DeliveryRunnerWorkspaceView: View {
     @State private var issueNotes: [UUID: String] = [:]
     @State private var paymentAmounts: [UUID: String] = [:]
     @State private var paymentNotes: [UUID: String] = [:]
+    @State private var draftOrderReference = ""
+    @State private var draftStopName = ""
+    @State private var draftTaskType = "Delivery"
+    @State private var draftRouteWindow = ""
+    @State private var draftContactRule = ""
+    @State private var draftRequiresProof = true
+    @State private var draftCashCollectionRequired = false
+    @State private var draftNotes = ""
+    @State private var newRuleTitle = ""
+    @State private var newRuleDetail = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -702,6 +712,59 @@ private struct DeliveryRunnerWorkspaceView: View {
             switch tab {
             case .dispatch:
                 VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Create runner task")
+                            .font(.system(size: 18, weight: .black))
+                            .foregroundStyle(FoodTheme.ink)
+                        TextField("Order reference", text: $draftOrderReference)
+                            .textFieldStyle(.roundedBorder)
+                        TextField("Stop name", text: $draftStopName)
+                            .textFieldStyle(.roundedBorder)
+                        Picker("Task type", selection: $draftTaskType) {
+                            Text("Delivery").tag("Delivery")
+                            Text("Customer pickup").tag("Customer pickup")
+                            Text("Catering").tag("Catering")
+                            Text("Logistics").tag("Logistics")
+                            Text("Supplier return").tag("Supplier return")
+                        }
+                        .pickerStyle(.segmented)
+                        TextField("Route window", text: $draftRouteWindow)
+                            .textFieldStyle(.roundedBorder)
+                        TextField("Contact rule", text: $draftContactRule)
+                            .textFieldStyle(.roundedBorder)
+                        TextField("Notes", text: $draftNotes, axis: .vertical)
+                            .lineLimit(2...4)
+                            .textFieldStyle(.roundedBorder)
+                        Toggle("Proof required", isOn: $draftRequiresProof)
+                        Toggle("Cash collection required", isOn: $draftCashCollectionRequired)
+                        Button("Create runner task") {
+                            Task {
+                                let created = await store.createRunnerTask(
+                                    orderReference: draftOrderReference,
+                                    stopName: draftStopName,
+                                    taskType: draftTaskType,
+                                    routeWindow: draftRouteWindow,
+                                    customerContactRule: draftContactRule,
+                                    requiresProof: draftRequiresProof,
+                                    cashCollectionRequired: draftCashCollectionRequired,
+                                    notes: draftNotes
+                                )
+                                guard created else { return }
+                                draftOrderReference = ""
+                                draftStopName = ""
+                                draftTaskType = "Delivery"
+                                draftRouteWindow = ""
+                                draftContactRule = ""
+                                draftRequiresProof = true
+                                draftCashCollectionRequired = false
+                                draftNotes = ""
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(FoodTheme.flame)
+                    }
+                    .foodCard(padding: 16)
+
                     Text("Assigned tasks")
                         .font(.system(size: 22, weight: .black))
                         .foregroundStyle(FoodTheme.ink)
@@ -749,6 +812,31 @@ private struct DeliveryRunnerWorkspaceView: View {
                 }
             case .route:
                 VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Shared contact rules")
+                            .font(.system(size: 18, weight: .black))
+                            .foregroundStyle(FoodTheme.ink)
+                        TextField("Rule title", text: $newRuleTitle)
+                            .textFieldStyle(.roundedBorder)
+                        TextField("Guidance for runners", text: $newRuleDetail, axis: .vertical)
+                            .lineLimit(2...4)
+                            .textFieldStyle(.roundedBorder)
+                        Button("Add contact rule") {
+                            Task {
+                                let created = await store.createRunnerContactRule(
+                                    title: newRuleTitle,
+                                    detail: newRuleDetail
+                                )
+                                guard created else { return }
+                                newRuleTitle = ""
+                                newRuleDetail = ""
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(FoodTheme.blue)
+                    }
+                    .foodCard(padding: 16)
+
                     Text("Route + contact rules")
                         .font(.system(size: 22, weight: .black))
                         .foregroundStyle(FoodTheme.ink)
@@ -1091,14 +1179,9 @@ private struct RestaurantCard: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(FoodTheme.flame.opacity(0.14))
-                    Image(systemName: "takeoutbag.and.cup.and.straw.fill")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundStyle(FoodTheme.flame)
-                }
-                .frame(width: 62, height: 62)
+                RemoteFoodImage(restaurant.coverPhotoUrl, icon: "takeoutbag.and.cup.and.straw.fill", tint: FoodTheme.accent(for: restaurant.id))
+                    .frame(width: 62, height: 62)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(restaurant.displayName)
@@ -1231,6 +1314,11 @@ private struct MenuItemRow: View {
     var body: some View {
         Button(action: configure) {
             HStack(spacing: 12) {
+                RemoteFoodImage(item.imageUrl, icon: "fork.knife")
+                    .frame(width: 58, height: 58)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .saturation(item.isAvailable ? 1 : 0)
+                    .opacity(item.isAvailable ? 1 : 0.55)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(item.name)
                         .font(.system(size: 16, weight: .bold))

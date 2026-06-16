@@ -288,6 +288,7 @@ final class FoodStore: ObservableObject {
             } else {
                 merchantSelection = merchantRestaurants.first
             }
+            await loadLiveInventory()
             merchantLoaded = true
         } catch {
             merchantLoaded = true
@@ -422,12 +423,369 @@ final class FoodStore: ObservableObject {
 
     func adjustInventory(_ item: FoodInventoryItemSnapshot, delta: Double) {
         guard let index = inventoryItems.firstIndex(where: { $0.id == item.id }) else { return }
+        if let restaurant = merchantSelection, let remoteID = item.remoteID, isSignedIn {
+            Task {
+                do {
+                    let updated = try await authed {
+                        try await FoodAPIClient.shared.adjustInventoryItem(
+                            restaurantId: restaurant.id,
+                            itemId: remoteID,
+                            type: "correction",
+                            delta: delta,
+                            note: "Adjusted from Inventory app",
+                            token: $0
+                        )
+                    }
+                    inventoryItems[index].stockLevel = updated.quantity
+                    message = "\(updated.name) adjusted to \(Int(updated.quantity)) \(updated.unit)."
+                    await loadLiveInventory()
+                } catch {
+                    inventoryItems[index].stockLevel = max(0, inventoryItems[index].stockLevel + delta)
+                    message = "\(inventoryItems[index].name) adjusted locally while sync is unavailable."
+                }
+            }
+            return
+        }
         inventoryItems[index].stockLevel = max(0, inventoryItems[index].stockLevel + delta)
         message = "\(inventoryItems[index].name) adjusted to \(Int(inventoryItems[index].stockLevel)) \(inventoryItems[index].unit)."
     }
 
+    func createInventoryItem(
+        name: String,
+        quantityText: String,
+        unit: String,
+        parText: String,
+        supplierName: String
+    ) async -> Bool {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedUnit = unit.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedSupplier = supplierName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            message = "Add an inventory item name."
+            return false
+        }
+        guard let quantity = Double(quantityText), quantity >= 0 else {
+            message = "Enter a valid opening quantity."
+            return false
+        }
+        guard let parLevel = Double(parText), parLevel >= 0 else {
+            message = "Enter a valid par level."
+            return false
+        }
+
+        if let restaurant = merchantSelection, isSignedIn {
+            do {
+                let created = try await authed {
+                    try await FoodAPIClient.shared.createInventoryItem(
+                        restaurantId: restaurant.id,
+                        name: trimmedName,
+                        unit: trimmedUnit.isEmpty ? "ea" : trimmedUnit,
+                        quantity: quantity,
+                        lowStockThreshold: parLevel,
+                        supplierName: trimmedSupplier.isEmpty ? nil : trimmedSupplier,
+                        token: $0
+                    )
+                }
+                inventoryItems.insert(Self.inventorySnapshot(from: created), at: 0)
+                message = "\(created.name) added to inventory."
+                return true
+            } catch {
+                message = error.localizedDescription
+                return false
+            }
+        }
+
+        inventoryItems.insert(
+            FoodInventoryItemSnapshot(
+                remoteID: nil,
+                name: trimmedName,
+                stockLevel: quantity,
+                unit: trimmedUnit.isEmpty ? "ea" : trimmedUnit,
+                parLevel: parLevel,
+                supplier: trimmedSupplier.isEmpty ? "Unassigned" : trimmedSupplier
+            ),
+            at: 0
+        )
+        message = "\(trimmedName) added to inventory."
+        return true
+    }
+
+    func updateInventoryItem(
+        _ item: FoodInventoryItemSnapshot,
+        name: String,
+        unit: String,
+        parText: String,
+        supplierName: String
+    ) async -> Bool {
+        guard let index = inventoryItems.firstIndex(where: { $0.id == item.id }) else { return false }
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedUnit = unit.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedSupplier = supplierName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            message = "Add an inventory item name."
+            return false
+        }
+        guard let parLevel = Double(parText), parLevel >= 0 else {
+            message = "Enter a valid par level."
+            return false
+        }
+
+        if let restaurant = merchantSelection, let remoteID = item.remoteID, isSignedIn {
+            do {
+                let updated = try await authed {
+                    try await FoodAPIClient.shared.updateInventoryItem(
+                        restaurantId: restaurant.id,
+                        itemId: remoteID,
+                        name: trimmedName,
+                        unit: trimmedUnit.isEmpty ? "ea" : trimmedUnit,
+                        lowStockThreshold: parLevel,
+                        supplierName: trimmedSupplier.isEmpty ? nil : trimmedSupplier,
+                        token: $0
+                    )
+                }
+                inventoryItems[index] = Self.inventorySnapshot(from: updated, quantityOverride: inventoryItems[index].stockLevel)
+                message = "\(updated.name) details updated."
+                return true
+            } catch {
+                message = error.localizedDescription
+                return false
+            }
+        }
+
+        inventoryItems[index] = FoodInventoryItemSnapshot(
+            remoteID: item.remoteID,
+            name: trimmedName,
+            stockLevel: inventoryItems[index].stockLevel,
+            unit: trimmedUnit.isEmpty ? "ea" : trimmedUnit,
+            parLevel: parLevel,
+            supplier: trimmedSupplier.isEmpty ? "Unassigned" : trimmedSupplier
+        )
+        message = "\(trimmedName) details updated."
+        return true
+    }
+
+    func deleteInventoryItem(_ item: FoodInventoryItemSnapshot) async -> Bool {
+        guard let index = inventoryItems.firstIndex(where: { $0.id == item.id }) else { return false }
+
+        if let restaurant = merchantSelection, let remoteID = item.remoteID, isSignedIn {
+            do {
+                try await authed {
+                    try await FoodAPIClient.shared.deleteInventoryItem(
+                        restaurantId: restaurant.id,
+                        itemId: remoteID,
+                        token: $0
+                    )
+                }
+                inventoryItems.remove(at: index)
+                message = "\(item.name) removed from inventory."
+                return true
+            } catch {
+                message = error.localizedDescription
+                return false
+            }
+        }
+
+        inventoryItems.remove(at: index)
+        message = "\(item.name) removed from inventory."
+        return true
+    }
+
+    func logInventoryWaste(
+        item: FoodInventoryItemSnapshot,
+        quantityText: String,
+        reason: String
+    ) async -> Bool {
+        guard let index = inventoryItems.firstIndex(where: { $0.id == item.id }) else { return false }
+        let trimmedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let quantity = Double(quantityText), quantity > 0 else {
+            message = "Enter a valid waste quantity."
+            return false
+        }
+        guard !trimmedReason.isEmpty else {
+            message = "Add a reason for the waste entry."
+            return false
+        }
+
+        if let restaurant = merchantSelection, let remoteID = item.remoteID, isSignedIn {
+            do {
+                let updated = try await authed {
+                    try await FoodAPIClient.shared.adjustInventoryItem(
+                        restaurantId: restaurant.id,
+                        itemId: remoteID,
+                        type: "waste",
+                        delta: quantity,
+                        note: trimmedReason,
+                        token: $0
+                    )
+                }
+                inventoryItems[index].stockLevel = updated.quantity
+                inventoryWasteLog.insert(
+                    FoodWasteEntry(
+                        ingredientName: item.name,
+                        quantity: quantity,
+                        unit: item.unit,
+                        reason: trimmedReason
+                    ),
+                    at: 0
+                )
+                message = "Waste logged for \(item.name)."
+                return true
+            } catch {
+                message = error.localizedDescription
+                return false
+            }
+        }
+
+        inventoryItems[index].stockLevel = max(0, inventoryItems[index].stockLevel - quantity)
+        inventoryWasteLog.insert(
+            FoodWasteEntry(
+                ingredientName: item.name,
+                quantity: quantity,
+                unit: item.unit,
+                reason: trimmedReason
+            ),
+            at: 0
+        )
+        message = "Waste logged for \(item.name)."
+        return true
+    }
+
     func markReceivingDelivered(_ task: FoodReceivingTask, receivedQuantity: String) {
         let value = Double(receivedQuantity) ?? 0
+        if let restaurant = merchantSelection,
+           isSignedIn,
+           let matchedItem = inventoryItems.first(where: {
+               $0.supplier == task.supplier && $0.remoteID != nil
+           }),
+           let remoteID = matchedItem.remoteID
+        {
+            Task {
+                do {
+                    _ = try await authed {
+                        try await FoodAPIClient.shared.adjustInventoryItem(
+                            restaurantId: restaurant.id,
+                            itemId: remoteID,
+                            type: value == 0 ? "correction" : "receive",
+                            delta: value == 0 ? 0 : value,
+                            note: task.notes,
+                            token: $0
+                        )
+                    }
+                    await loadLiveInventory()
+                    message = value == 0 ? "Receiving issue logged for \(task.supplier)." : "\(task.supplier) delivery logged."
+                } catch {
+                    appendLocalReceivingLog(task: task, value: value)
+                }
+            }
+            return
+        }
+        appendLocalReceivingLog(task: task, value: value)
+    }
+
+    func loadLiveInventory() async {
+        guard let restaurant = merchantSelection, isSignedIn else { return }
+        do {
+            let items = try await authed {
+                try await FoodAPIClient.shared.inventoryItems(restaurantId: restaurant.id, token: $0)
+            }
+            let adjustments = try await authed {
+                try await FoodAPIClient.shared.inventoryAdjustments(restaurantId: restaurant.id, token: $0)
+            }
+            let requests = try await authed {
+                try await FoodAPIClient.shared.purchaseRequests(restaurantId: restaurant.id, token: $0)
+            }
+            let issues = try await authed {
+                try await FoodAPIClient.shared.supplierIssues(restaurantId: restaurant.id, token: $0)
+            }
+            var mappings = try await authed {
+                try await FoodAPIClient.shared.inventoryMappings(restaurantId: restaurant.id, token: $0)
+            }
+            if mappings.isEmpty {
+                mappings = try await authed {
+                    try await FoodAPIClient.shared.bootstrapInventoryMappings(restaurantId: restaurant.id, token: $0)
+                }
+            }
+
+            if !items.isEmpty {
+                inventoryItems = items.map { Self.inventorySnapshot(from: $0) }
+            }
+
+            let receiveAdjustments = adjustments.filter { $0.adjustmentType == "receive" || $0.adjustmentType == "count" }
+            if !receiveAdjustments.isEmpty {
+                receivingLogs = receiveAdjustments.map { adjustment in
+                    FoodReceivingLog(
+                        supplier: inventoryItems.first(where: { $0.remoteID == adjustment.itemId })?.supplier ?? "Supplier",
+                        itemName: adjustment.itemName,
+                        expectedQuantity: adjustment.quantityAfter,
+                        receivedQuantity: max(0, adjustment.quantityDelta),
+                        status: adjustment.adjustmentType == "receive" ? "Received" : "Counted",
+                        note: adjustment.note ?? "Logged from live inventory ledger."
+                    )
+                }
+            }
+
+            let wasteAdjustments = adjustments.filter { $0.adjustmentType == "waste" }
+            if !wasteAdjustments.isEmpty {
+                inventoryWasteLog = wasteAdjustments.map { adjustment in
+                    FoodWasteEntry(
+                        ingredientName: adjustment.itemName,
+                        quantity: abs(adjustment.quantityDelta),
+                        unit: inventoryItems.first(where: { $0.remoteID == adjustment.itemId })?.unit ?? "units",
+                        reason: adjustment.note ?? "Logged waste"
+                    )
+                }
+            }
+
+            if !requests.isEmpty {
+                purchaseRequests = requests.map {
+                    FoodPurchaseRequest(
+                        remoteID: $0.id,
+                        itemName: $0.itemName,
+                        requestedQuantity: $0.requestedQuantity,
+                        unit: $0.unit,
+                        status: $0.status.capitalized,
+                        supplier: $0.supplierName ?? "Preferred vendor"
+                    )
+                }
+                receivingTasks = requests
+                    .filter { ["pending", "ordered"].contains($0.status) }
+                    .map {
+                        FoodReceivingTask(
+                            supplier: $0.supplierName ?? "Preferred vendor",
+                            etaWindow: $0.etaWindow ?? "Awaiting supplier confirmation",
+                            notes: $0.note ?? "Expected \($0.requestedQuantity.formatted(.number.precision(.fractionLength(0...2)))) \($0.unit) of \($0.itemName)."
+                        )
+                    }
+            }
+
+            if !issues.isEmpty {
+                supplierIssues = issues.map {
+                    FoodSupplierIssue(
+                        remoteID: $0.id,
+                        supplier: $0.supplierName,
+                        issue: $0.issue,
+                        status: $0.status.capitalized
+                    )
+                }
+            }
+
+            if !mappings.isEmpty {
+                inventoryIngredientMappings = mappings.map {
+                    FoodIngredientMapping(
+                        remoteID: $0.id,
+                        ingredientName: $0.inventoryItemName,
+                        menuItemName: $0.menuItemName,
+                        usagePerItem: $0.usageLabel
+                    )
+                }
+            }
+        } catch {
+            // Preserve existing sample-backed state when live inventory modules
+            // are unavailable or migrations have not been run yet.
+        }
+    }
+
+    private func appendLocalReceivingLog(task: FoodReceivingTask, value: Double) {
         receivingLogs.insert(
             FoodReceivingLog(
                 supplier: task.supplier,
@@ -449,11 +807,187 @@ final class FoodStore: ObservableObject {
             message = "Add an item name and quantity for the purchase request."
             return
         }
+        if let restaurant = merchantSelection, isSignedIn {
+            Task {
+                do {
+                    let request = try await authed {
+                        try await FoodAPIClient.shared.createPurchaseRequest(
+                            restaurantId: restaurant.id,
+                            itemName: trimmedName,
+                            requestedQuantity: quantity,
+                            unit: "units",
+                            supplierName: "Preferred vendor",
+                            note: nil,
+                            token: $0
+                        )
+                    }
+                    purchaseRequests.insert(
+                        FoodPurchaseRequest(
+                            remoteID: request.id,
+                            itemName: request.itemName,
+                            requestedQuantity: request.requestedQuantity,
+                            unit: request.unit,
+                            status: request.status.capitalized,
+                            supplier: request.supplierName ?? "Preferred vendor"
+                        ),
+                        at: 0
+                    )
+                    if ["pending", "ordered"].contains(request.status) {
+                        receivingTasks.insert(
+                            FoodReceivingTask(
+                                supplier: request.supplierName ?? "Preferred vendor",
+                                etaWindow: request.etaWindow ?? "Awaiting supplier confirmation",
+                                notes: request.note ?? "Expected \(request.requestedQuantity.formatted(.number.precision(.fractionLength(0...2)))) \(request.unit) of \(request.itemName)."
+                            ),
+                            at: 0
+                        )
+                    }
+                    message = "Purchase request created for \(trimmedName)."
+                } catch {
+                    message = error.localizedDescription
+                }
+            }
+            return
+        }
         purchaseRequests.insert(
-            FoodPurchaseRequest(itemName: trimmedName, requestedQuantity: quantity, unit: "units", status: "Pending", supplier: "Preferred vendor"),
+            FoodPurchaseRequest(remoteID: nil, itemName: trimmedName, requestedQuantity: quantity, unit: "units", status: "Pending", supplier: "Preferred vendor"),
             at: 0
         )
         message = "Purchase request created for \(trimmedName)."
+    }
+
+    func updatePurchaseRequest(_ request: FoodPurchaseRequest, status: String) {
+        guard let index = purchaseRequests.firstIndex(where: { $0.id == request.id }) else { return }
+        guard let restaurant = merchantSelection, let remoteID = request.remoteID, isSignedIn else {
+            purchaseRequests[index] = FoodPurchaseRequest(
+                remoteID: request.remoteID,
+                itemName: request.itemName,
+                requestedQuantity: request.requestedQuantity,
+                unit: request.unit,
+                status: status.capitalized,
+                supplier: request.supplier
+            )
+            message = "\(request.itemName) request marked \(status.replacingOccurrences(of: "_", with: " "))."
+            return
+        }
+
+        Task {
+            do {
+                let updated = try await authed {
+                    try await FoodAPIClient.shared.updatePurchaseRequest(
+                        restaurantId: restaurant.id,
+                        requestId: remoteID,
+                        status: status,
+                        token: $0
+                    )
+                }
+                purchaseRequests[index] = FoodPurchaseRequest(
+                    remoteID: updated.id,
+                    itemName: updated.itemName,
+                    requestedQuantity: updated.requestedQuantity,
+                    unit: updated.unit,
+                    status: updated.status.capitalized,
+                    supplier: updated.supplierName ?? request.supplier
+                )
+                if status == "received" {
+                    receivingTasks.removeAll { $0.supplier == request.supplier && $0.notes.contains(request.itemName) }
+                }
+                message = "\(updated.itemName) request marked \(updated.status.replacingOccurrences(of: "_", with: " "))."
+            } catch {
+                message = error.localizedDescription
+            }
+        }
+    }
+
+    func addSupplierIssue(supplierName: String, issueText: String) {
+        let trimmedSupplier = supplierName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedIssue = issueText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedSupplier.isEmpty, !trimmedIssue.isEmpty else {
+            message = "Add a supplier and issue details."
+            return
+        }
+        if let restaurant = merchantSelection, isSignedIn {
+            Task {
+                do {
+                    let issue = try await authed {
+                        try await FoodAPIClient.shared.createSupplierIssue(
+                            restaurantId: restaurant.id,
+                            supplierName: trimmedSupplier,
+                            issue: trimmedIssue,
+                            token: $0
+                        )
+                    }
+                    supplierIssues.insert(
+                        FoodSupplierIssue(
+                            remoteID: issue.id,
+                            supplier: issue.supplierName,
+                            issue: issue.issue,
+                            status: issue.status.capitalized
+                        ),
+                        at: 0
+                    )
+                    message = "Supplier issue logged for \(trimmedSupplier)."
+                } catch {
+                    message = error.localizedDescription
+                }
+            }
+            return
+        }
+        supplierIssues.insert(
+            FoodSupplierIssue(remoteID: nil, supplier: trimmedSupplier, issue: trimmedIssue, status: "Open"),
+            at: 0
+        )
+        message = "Supplier issue logged for \(trimmedSupplier)."
+    }
+
+    func updateSupplierIssue(_ issue: FoodSupplierIssue, status: String) {
+        guard let index = supplierIssues.firstIndex(where: { $0.id == issue.id }) else { return }
+        guard let restaurant = merchantSelection, let remoteID = issue.remoteID, isSignedIn else {
+            supplierIssues[index] = FoodSupplierIssue(
+                remoteID: issue.remoteID,
+                supplier: issue.supplier,
+                issue: issue.issue,
+                status: status.capitalized
+            )
+            message = "\(issue.supplier) issue marked \(status.replacingOccurrences(of: "_", with: " "))."
+            return
+        }
+
+        Task {
+            do {
+                let updated = try await authed {
+                    try await FoodAPIClient.shared.updateSupplierIssue(
+                        restaurantId: restaurant.id,
+                        issueId: remoteID,
+                        status: status,
+                        token: $0
+                    )
+                }
+                supplierIssues[index] = FoodSupplierIssue(
+                    remoteID: updated.id,
+                    supplier: updated.supplierName,
+                    issue: updated.issue,
+                    status: updated.status.capitalized
+                )
+                message = "\(updated.supplierName) issue marked \(updated.status.replacingOccurrences(of: "_", with: " "))."
+            } catch {
+                message = error.localizedDescription
+            }
+        }
+    }
+
+    private static func inventorySnapshot(
+        from item: RestaurantInventoryItemResponse,
+        quantityOverride: Double? = nil
+    ) -> FoodInventoryItemSnapshot {
+        FoodInventoryItemSnapshot(
+            remoteID: item.id,
+            name: item.name,
+            stockLevel: quantityOverride ?? item.quantity,
+            unit: item.unit,
+            parLevel: item.lowStockThreshold,
+            supplier: item.supplierName ?? "Unassigned"
+        )
     }
 }
 
@@ -489,6 +1023,7 @@ struct FoodChecklistItem: Identifiable, Hashable {
 
 struct FoodInventoryItemSnapshot: Identifiable, Hashable {
     let id = UUID()
+    let remoteID: Int64?
     let name: String
     var stockLevel: Double
     let unit: String
@@ -513,6 +1048,7 @@ struct FoodRunnerTask: Identifiable, Hashable {
 
 struct FoodIngredientMapping: Identifiable, Hashable {
     let id = UUID()
+    let remoteID: Int64?
     let ingredientName: String
     let menuItemName: String
     let usagePerItem: String
@@ -528,6 +1064,7 @@ struct FoodWasteEntry: Identifiable, Hashable {
 
 struct FoodPurchaseRequest: Identifiable, Hashable {
     let id = UUID()
+    let remoteID: Int64?
     let itemName: String
     let requestedQuantity: Double
     let unit: String
@@ -547,6 +1084,7 @@ struct FoodReceivingLog: Identifiable, Hashable {
 
 struct FoodSupplierIssue: Identifiable, Hashable {
     let id = UUID()
+    let remoteID: Int64?
     let supplier: String
     let issue: String
     let status: String
@@ -566,9 +1104,9 @@ enum FoodOperationsSampleData {
     ]
 
     static let inventoryItems = [
-        FoodInventoryItemSnapshot(name: "Burger buns", stockLevel: 38, unit: "ea", parLevel: 48, supplier: "Metro Bake"),
-        FoodInventoryItemSnapshot(name: "Ground beef", stockLevel: 22, unit: "lb", parLevel: 30, supplier: "Prime Supply"),
-        FoodInventoryItemSnapshot(name: "Cold brew", stockLevel: 8, unit: "qt", parLevel: 6, supplier: "Ox Roasters"),
+        FoodInventoryItemSnapshot(remoteID: nil, name: "Burger buns", stockLevel: 38, unit: "ea", parLevel: 48, supplier: "Metro Bake"),
+        FoodInventoryItemSnapshot(remoteID: nil, name: "Ground beef", stockLevel: 22, unit: "lb", parLevel: 30, supplier: "Prime Supply"),
+        FoodInventoryItemSnapshot(remoteID: nil, name: "Cold brew", stockLevel: 8, unit: "qt", parLevel: 6, supplier: "Ox Roasters"),
     ]
 
     static let receivingTasks = [
@@ -585,9 +1123,9 @@ enum FoodOperationsSampleData {
 
 enum FoodInventorySampleData {
     static let ingredientMappings = [
-        FoodIngredientMapping(ingredientName: "Burger buns", menuItemName: "Classic Ox Burger", usagePerItem: "1 bun"),
-        FoodIngredientMapping(ingredientName: "Ground beef", menuItemName: "Classic Ox Burger", usagePerItem: "0.33 lb"),
-        FoodIngredientMapping(ingredientName: "Cold brew concentrate", menuItemName: "Cold Brew", usagePerItem: "12 oz"),
+        FoodIngredientMapping(remoteID: nil, ingredientName: "Burger buns", menuItemName: "Classic Ox Burger", usagePerItem: "1 bun"),
+        FoodIngredientMapping(remoteID: nil, ingredientName: "Ground beef", menuItemName: "Classic Ox Burger", usagePerItem: "0.33 lb"),
+        FoodIngredientMapping(remoteID: nil, ingredientName: "Cold brew concentrate", menuItemName: "Cold Brew", usagePerItem: "12 oz"),
     ]
 
     static let wasteLog = [
@@ -596,8 +1134,8 @@ enum FoodInventorySampleData {
     ]
 
     static let purchaseRequests = [
-        FoodPurchaseRequest(itemName: "Burger buns", requestedQuantity: 120, unit: "ea", status: "Pending", supplier: "Metro Bake"),
-        FoodPurchaseRequest(itemName: "Cleaning sanitizer", requestedQuantity: 4, unit: "gal", status: "Ordered", supplier: "Ops Supply"),
+        FoodPurchaseRequest(remoteID: nil, itemName: "Burger buns", requestedQuantity: 120, unit: "ea", status: "Pending", supplier: "Metro Bake"),
+        FoodPurchaseRequest(remoteID: nil, itemName: "Cleaning sanitizer", requestedQuantity: 4, unit: "gal", status: "Ordered", supplier: "Ops Supply"),
     ]
 
     static let receivingLogs = [
@@ -606,8 +1144,8 @@ enum FoodInventorySampleData {
     ]
 
     static let supplierIssues = [
-        FoodSupplierIssue(supplier: "Prime Supply", issue: "Protein case arrived short by one unit.", status: "Open"),
-        FoodSupplierIssue(supplier: "Ops Supply", issue: "Cleaning wipes delayed to tomorrow.", status: "Monitoring"),
+        FoodSupplierIssue(remoteID: nil, supplier: "Prime Supply", issue: "Protein case arrived short by one unit.", status: "Open"),
+        FoodSupplierIssue(remoteID: nil, supplier: "Ops Supply", issue: "Cleaning wipes delayed to tomorrow.", status: "Monitoring"),
     ]
 }
 

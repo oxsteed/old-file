@@ -4,16 +4,25 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const ctrl = require('../controllers/foodController');
+const kiosk = require('../controllers/restaurantKioskController');
 
 // Public customer discovery + the in-store "now serving" queue board.
 router.get('/restaurants', ctrl.listRestaurants);
 router.get('/restaurants/:restaurantId', ctrl.getRestaurant);
 router.get('/restaurants/:restaurantId/queue-board', ctrl.getQueueBoard);
+router.get('/restaurants/:restaurantId/kiosk-config', kiosk.getPublicKioskConfig);
+router.get('/payment-config', ctrl.getPaymentConfig);
+router.get('/orders/track/:trackingToken', ctrl.getTrackedOrder);
+router.get('/orders/:orderId/checkout/complete', ctrl.completeCheckout);
+router.get('/orders/:orderId/checkout/cancelled', ctrl.cancelCheckout);
 
 // Signed-in customer surface.
 router.get('/my/restaurants', authenticate, ctrl.listMyRestaurants);
 router.get('/my/orders', authenticate, ctrl.listMyOrders);
 router.get('/orders/:orderId', authenticate, ctrl.getOrder);
+router.get('/customer/profile', authenticate, ctrl.getCustomerProfile);
+router.patch('/customer/profile', authenticate, ctrl.updateCustomerProfile);
+router.post('/customer/favorites/:restaurantId/toggle', authenticate, ctrl.toggleCustomerFavoriteRestaurant);
 
 // Merchant onboarding and menu setup.
 router.post('/restaurants', authenticate, ctrl.createRestaurant);

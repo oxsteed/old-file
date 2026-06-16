@@ -599,9 +599,24 @@ private struct CrewTrainingWorkspaceView: View {
 private struct InventoryReceivingWorkspaceView: View {
     @EnvironmentObject private var store: FoodStore
     @State private var tab = InventorySubworkspace.inventory
+    @State private var newItemName = ""
+    @State private var newItemQuantity = ""
+    @State private var newItemUnit = "ea"
+    @State private var newItemParLevel = ""
+    @State private var newItemSupplier = ""
+    @State private var editingInventoryItemID: UUID?
+    @State private var editingItemName = ""
+    @State private var editingItemUnit = ""
+    @State private var editingItemParLevel = ""
+    @State private var editingItemSupplier = ""
     @State private var purchaseItemName = ""
     @State private var purchaseQuantity = ""
+    @State private var supplierIssueName = ""
+    @State private var supplierIssueText = ""
     @State private var receivingQuantities: [UUID: String] = [:]
+    @State private var wasteItemID: UUID?
+    @State private var wasteQuantity = ""
+    @State private var wasteReason = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -656,6 +671,46 @@ private struct InventoryReceivingWorkspaceView: View {
             }
 
             VStack(alignment: .leading, spacing: 10) {
+                Text("Add inventory item")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+                TextField("Item name", text: $newItemName)
+                    .textFieldStyle(.roundedBorder)
+                HStack {
+                    TextField("Opening qty", text: $newItemQuantity)
+                        .textFieldStyle(.roundedBorder)
+                        .keyboardType(.decimalPad)
+                    TextField("Unit", text: $newItemUnit)
+                        .textFieldStyle(.roundedBorder)
+                    TextField("Par", text: $newItemParLevel)
+                        .textFieldStyle(.roundedBorder)
+                        .keyboardType(.decimalPad)
+                }
+                TextField("Supplier", text: $newItemSupplier)
+                    .textFieldStyle(.roundedBorder)
+                Button("Add item") {
+                    Task {
+                        let created = await store.createInventoryItem(
+                            name: newItemName,
+                            quantityText: newItemQuantity,
+                            unit: newItemUnit,
+                            parText: newItemParLevel,
+                            supplierName: newItemSupplier
+                        )
+                        if created {
+                            newItemName = ""
+                            newItemQuantity = ""
+                            newItemUnit = "ea"
+                            newItemParLevel = ""
+                            newItemSupplier = ""
+                        }
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .foodCard(padding: 14)
+
+            VStack(alignment: .leading, spacing: 10) {
                 Text("Inventory item list")
                     .font(.system(size: 18, weight: .black))
                     .foregroundStyle(FoodTheme.ink)
@@ -694,6 +749,50 @@ private struct InventoryReceivingWorkspaceView: View {
                                     .background(FoodTheme.saffron)
                                     .clipShape(Capsule())
                             }
+                            Spacer()
+                            Button(editingInventoryItemID == item.id ? "Cancel" : "Edit") {
+                                if editingInventoryItemID == item.id {
+                                    editingInventoryItemID = nil
+                                } else {
+                                    beginEditing(item)
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            Button("Delete", role: .destructive) {
+                                Task { _ = await store.deleteInventoryItem(item) }
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        if editingInventoryItemID == item.id {
+                            VStack(alignment: .leading, spacing: 10) {
+                                TextField("Item name", text: $editingItemName)
+                                    .textFieldStyle(.roundedBorder)
+                                HStack {
+                                    TextField("Unit", text: $editingItemUnit)
+                                        .textFieldStyle(.roundedBorder)
+                                    TextField("Par", text: $editingItemParLevel)
+                                        .textFieldStyle(.roundedBorder)
+                                        .keyboardType(.decimalPad)
+                                }
+                                TextField("Supplier", text: $editingItemSupplier)
+                                    .textFieldStyle(.roundedBorder)
+                                Button("Save details") {
+                                    Task {
+                                        let saved = await store.updateInventoryItem(
+                                            item,
+                                            name: editingItemName,
+                                            unit: editingItemUnit,
+                                            parText: editingItemParLevel,
+                                            supplierName: editingItemSupplier
+                                        )
+                                        if saved {
+                                            editingInventoryItemID = nil
+                                        }
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                            }
+                            .padding(.top, 4)
                         }
                     }
                     .foodCard(padding: 14)
@@ -799,25 +898,80 @@ private struct InventoryReceivingWorkspaceView: View {
     private var wasteTab: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 10) {
+                Text("Log waste")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+                if store.inventoryItems.isEmpty {
+                    Text("Add inventory items first, then record spoilage, discard, or prep waste here.")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(FoodTheme.muted)
+                } else {
+                    Picker(
+                        "Inventory item",
+                        selection: Binding(
+                            get: { wasteItemID ?? store.inventoryItems.first?.id ?? UUID() },
+                            set: { wasteItemID = $0 }
+                        )
+                    ) {
+                        ForEach(store.inventoryItems) { item in
+                            Text("\(item.name) (\(Int(item.stockLevel)) \(item.unit))").tag(item.id)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    TextField("Waste qty", text: $wasteQuantity)
+                        .textFieldStyle(.roundedBorder)
+                        .keyboardType(.decimalPad)
+                    TextField("Reason", text: $wasteReason)
+                        .textFieldStyle(.roundedBorder)
+
+                    Button("Log waste") {
+                        guard let selectedID = wasteItemID ?? store.inventoryItems.first?.id,
+                              let item = store.inventoryItems.first(where: { $0.id == selectedID }) else { return }
+                        Task {
+                            let logged = await store.logInventoryWaste(
+                                item: item,
+                                quantityText: wasteQuantity,
+                                reason: wasteReason
+                            )
+                            if logged {
+                                wasteQuantity = ""
+                                wasteReason = ""
+                            }
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            .foodCard(padding: 14)
+
+            VStack(alignment: .leading, spacing: 10) {
                 Text("Waste tracking")
                     .font(.system(size: 18, weight: .black))
                     .foregroundStyle(FoodTheme.ink)
-                ForEach(store.inventoryWasteLog) { waste in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(waste.ingredientName)
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(FoodTheme.ink)
-                            Text(waste.reason)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(FoodTheme.muted)
+                if store.inventoryWasteLog.isEmpty {
+                    Text("No waste logged yet.")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(FoodTheme.muted)
+                        .padding(.vertical, 6)
+                } else {
+                    ForEach(store.inventoryWasteLog) { waste in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(waste.ingredientName)
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundStyle(FoodTheme.ink)
+                                Text(waste.reason)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(FoodTheme.muted)
+                            }
+                            Spacer()
+                            Text("\(Int(waste.quantity)) \(waste.unit)")
+                                .font(.system(size: 13, weight: .black))
+                                .foregroundStyle(FoodTheme.saffron)
                         }
-                        Spacer()
-                        Text("\(Int(waste.quantity)) \(waste.unit)")
-                            .font(.system(size: 13, weight: .black))
-                            .foregroundStyle(FoodTheme.saffron)
+                        .foodCard(padding: 14)
                     }
-                    .foodCard(padding: 14)
                 }
             }
 
@@ -861,23 +1015,39 @@ private struct InventoryReceivingWorkspaceView: View {
                     .buttonStyle(.borderedProminent)
                 }
                 ForEach(store.purchaseRequests) { request in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(request.itemName)
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(FoodTheme.ink)
-                            Text("\(Int(request.requestedQuantity)) \(request.unit) · \(request.supplier)")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(FoodTheme.muted)
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(request.itemName)
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundStyle(FoodTheme.ink)
+                                Text("\(Int(request.requestedQuantity)) \(request.unit) · \(request.supplier)")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(FoodTheme.muted)
+                            }
+                            Spacer()
+                            Text(request.status)
+                                .font(.system(size: 11, weight: .black))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(request.status == "Ordered" ? FoodTheme.basil : FoodTheme.blue)
+                                .clipShape(Capsule())
                         }
-                        Spacer()
-                        Text(request.status)
-                            .font(.system(size: 11, weight: .black))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .background(request.status == "Ordered" ? FoodTheme.basil : FoodTheme.blue)
-                            .clipShape(Capsule())
+                        HStack(spacing: 8) {
+                            if request.status != "Ordered" {
+                                Button("Mark Ordered") {
+                                    store.updatePurchaseRequest(request, status: "ordered")
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                            if request.status != "Received" {
+                                Button("Mark Received") {
+                                    store.updatePurchaseRequest(request, status: "received")
+                                }
+                                .buttonStyle(.borderedProminent)
+                            }
+                        }
                     }
                     .foodCard(padding: 14)
                 }
@@ -887,24 +1057,53 @@ private struct InventoryReceivingWorkspaceView: View {
                 Text("Supplier notes and delivery issues")
                     .font(.system(size: 18, weight: .black))
                     .foregroundStyle(FoodTheme.ink)
+                HStack(alignment: .top) {
+                    TextField("Supplier", text: $supplierIssueName)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 130)
+                    TextField("Issue details", text: $supplierIssueText)
+                        .textFieldStyle(.roundedBorder)
+                    Button("Log issue") {
+                        store.addSupplierIssue(supplierName: supplierIssueName, issueText: supplierIssueText)
+                        supplierIssueName = ""
+                        supplierIssueText = ""
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
                 ForEach(store.supplierIssues) { issue in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(issue.supplier)
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(FoodTheme.ink)
-                            Text(issue.issue)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(FoodTheme.muted)
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(issue.supplier)
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundStyle(FoodTheme.ink)
+                                Text(issue.issue)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(FoodTheme.muted)
+                            }
+                            Spacer()
+                            Text(issue.status)
+                                .font(.system(size: 11, weight: .black))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(issue.status == "Open" ? .red : FoodTheme.saffron)
+                                .clipShape(Capsule())
                         }
-                        Spacer()
-                        Text(issue.status)
-                            .font(.system(size: 11, weight: .black))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .background(issue.status == "Open" ? .red : FoodTheme.saffron)
-                            .clipShape(Capsule())
+                        HStack(spacing: 8) {
+                            if issue.status != "Monitoring" {
+                                Button("Monitoring") {
+                                    store.updateSupplierIssue(issue, status: "monitoring")
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                            if issue.status != "Resolved" {
+                                Button("Resolve") {
+                                    store.updateSupplierIssue(issue, status: "resolved")
+                                }
+                                .buttonStyle(.borderedProminent)
+                            }
+                        }
                     }
                     .foodCard(padding: 14)
                 }
@@ -926,6 +1125,14 @@ private struct InventoryReceivingWorkspaceView: View {
         }
         .frame(width: 150, alignment: .leading)
         .foodCard(padding: 14)
+    }
+
+    private func beginEditing(_ item: FoodInventoryItemSnapshot) {
+        editingInventoryItemID = item.id
+        editingItemName = item.name
+        editingItemUnit = item.unit
+        editingItemParLevel = String(Int(item.parLevel))
+        editingItemSupplier = item.supplier == "Unassigned" ? "" : item.supplier
     }
 }
 
@@ -1118,14 +1325,9 @@ private struct RestaurantCard: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(FoodTheme.flame.opacity(0.14))
-                    Image(systemName: "takeoutbag.and.cup.and.straw.fill")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundStyle(FoodTheme.flame)
-                }
-                .frame(width: 62, height: 62)
+                RemoteFoodImage(restaurant.coverPhotoUrl, icon: "takeoutbag.and.cup.and.straw.fill", tint: FoodTheme.accent(for: restaurant.id))
+                    .frame(width: 62, height: 62)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(restaurant.displayName)
@@ -1258,6 +1460,11 @@ private struct MenuItemRow: View {
     var body: some View {
         Button(action: configure) {
             HStack(spacing: 12) {
+                RemoteFoodImage(item.imageUrl, icon: "fork.knife")
+                    .frame(width: 58, height: 58)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .saturation(item.isAvailable ? 1 : 0)
+                    .opacity(item.isAvailable ? 1 : 0.55)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(item.name)
                         .font(.system(size: 16, weight: .bold))

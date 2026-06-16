@@ -252,6 +252,29 @@ function maskPhoneNumber(phoneNumber) {
   return `***-${lastFour}`;
 }
 
+/**
+ * Send an SMS to a raw phone number that is NOT tied to a user account
+ * (e.g. a restaurant guest who ordered at a kiosk without signing in).
+ *
+ * Best-effort: returns null on bad input or when Twilio is not configured;
+ * never throws so callers can fire-and-forget without guarding.
+ *
+ * @param {string} phoneNumber  E.164-ish phone number
+ * @param {string} messageBody  Message text
+ * @returns {Promise<{sid:string,status:string}|null>}
+ */
+async function sendDirectSMS(phoneNumber, messageBody) {
+  try {
+    const phone = (phoneNumber || '').trim();
+    if (!phone || phone.replace(/[^0-9]/g, '').length < 7) return null;
+    if (!messageBody) return null;
+    return await sendTwilioSMS(phone, messageBody);
+  } catch (error) {
+    logger.error('sendDirectSMS failed', { error: error.message });
+    return null;
+  }
+}
+
 module.exports = {
   sendOrderCreatedSMS,
   sendPaymentConfirmedSMS,
@@ -259,6 +282,7 @@ module.exports = {
   sendOrderCancelledSMS,
   sendOrderRefundedSMS,
   sendSMSIfOptedIn,
+  sendDirectSMS,
   requestPhoneVerification,
   verifyPhoneWithOTP,
   getSMSLogs,

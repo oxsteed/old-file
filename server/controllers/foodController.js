@@ -4,11 +4,21 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const socketService = require('../services/socketService');
+const { absoluteUrl } = require('../utils/publicSiteUrl');
+const crypto = require('crypto');
+const logger = require('../utils/logger');
+const notificationService = require('../services/notificationService');
+const smsNotificationService = require('../services/smsNotificationService');
+const emailService = require('../services/emailService');
+
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? require('stripe')(process.env.STRIPE_SECRET_KEY)
+  : null;
 
 const VALID_FULFILLMENT = new Set(['pickup', 'dine_in', 'delivery', 'kiosk']);
 const VALID_ORDER_SOURCES = new Set(['mobile', 'web', 'kiosk', 'counter', 'tablet']);
 const VALID_STATUS = new Set(['received', 'accepted', 'preparing', 'ready', 'completed', 'cancelled', 'refunded']);
-const VALID_PAYMENT_STATUS = new Set(['unpaid', 'paid', 'refunded']);
+const VALID_PAYMENT_STATUS = new Set(['unpaid', 'requires_payment', 'paid', 'failed', 'refunded']);
 const IN_STORE_SOURCES = new Set(['kiosk', 'counter', 'tablet']);
 // Allowed transitions: target status -> statuses it may come from.
 const ORDER_TRANSITIONS = {
@@ -19,6 +29,22 @@ const ORDER_TRANSITIONS = {
   cancelled: ['received', 'accepted', 'preparing', 'ready'],
   refunded: ['completed', 'cancelled'],
 };
+
+function hasRestaurantStripeCheckout() {
+  return Boolean(stripe && process.env.STRIPE_SECRET_KEY);
+}
+
+function isMissingRelationError(err) {
+  return err && (err.code === '42P01' || err.code === '42703');
+}
+
+function toTierLabel(value) {
+  return String(value || 'new')
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
 
 function normalizeString(value, max = 255) {
   if (typeof value !== 'string') return null;
@@ -59,6 +85,200 @@ function parseMoneyCents(value, field = 'priceCents') {
   return Math.round(n);
 }
 
+function safeReturnUrl(value) {
+  const raw = normalizeString(value, 1000);
+  if (!raw) return null;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) return raw;
+  if (raw.startsWith('/')) return absoluteUrl(raw);
+  return null;
+}
+
+function createTrackingToken() {
+  return crypto.randomBytes(18).toString('base64url');
+}
+
+function publicQueueGuestLabel(order) {
+  const tableLabel = normalizeString(order.table_label, 80);
+  if (tableLabel) {
+    return /^table/i.test(tableLabel) ? tableLabel : `Table ${tableLabel}`;
+  }
+  const guestName = normalizeString(order.guest_name, 140);
+  if (guestName) {
+    const first = guestName.split(/\s+/)[0];
+    return first ? first.slice(0, 24) : 'Guest';
+  }
+  return 'Guest';
+}
+
+function checkoutCompletionHtml({ title, detail, actionLabel, actionHref }) {
+  const safeTitle = String(title || 'Payment update');
+  const safeDetail = String(detail || '');
+  const safeActionLabel = actionLabel ? String(actionLabel) : null;
+  const safeActionHref = actionHref ? String(actionHref) : null;
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${safeTitle}</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #111827; color: #f9fafb; margin: 0; padding: 32px 20px; }
+      main { max-width: 560px; margin: 0 auto; background: #1f2937; border-radius: 18px; padding: 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+      h1 { margin: 0 0 12px; font-size: 30px; }
+      p { margin: 0 0 18px; line-height: 1.5; color: #d1d5db; }
+      a { display: inline-block; background: #f97316; color: white; text-decoration: none; padding: 12px 18px; border-radius: 10px; font-weight: 700; }
+      small { display: block; margin-top: 18px; color: #9ca3af; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>${safeTitle}</h1>
+      <p>${safeDetail}</p>
+      ${safeActionLabel && safeActionHref ? `<a href="${safeActionHref}">${safeActionLabel}</a>` : ''}
+      <small>You can return to the OxSteed Restaurants app at any time.</small>
+    </main>
+  </body>
+</html>`;
+}
+
+async function syncFoodOrderPaymentStatus(order) {
+  if (!order || !order.id || !order.stripe_payment_intent_id || !hasRestaurantStripeCheckout()) {
+    return order;
+  }
+  if (!['requires_payment', 'paid', 'failed'].includes(order.payment_status)) {
+    return order;
+  }
+
+  try {
+    const paymentIntent = await stripe.paymentIntents.retrieve(order.stripe_payment_intent_id);
+    const mappedStatus = paymentIntent.status === 'succeeded'
+      ? 'paid'
+      : ['processing', 'requires_capture'].includes(paymentIntent.status)
+        ? 'requires_payment'
+        : ['canceled'].includes(paymentIntent.status)
+          ? 'failed'
+          : order.payment_status;
+
+    if (mappedStatus === order.payment_status) {
+      return order;
+    }
+
+    const { rows: [updated] } = await pool.query(
+      `UPDATE food_orders
+          SET payment_status = $1,
+              updated_at = NOW()
+        WHERE id = $2
+        RETURNING *`,
+      [mappedStatus, order.id]
+    );
+    if (updated) {
+      emitRestaurantOrder(updated.business_id, 'food:order:updated', { order: updated });
+      return updated;
+    }
+    return order;
+  } catch (_) {
+    return order;
+  }
+}
+
+async function createFoodCheckoutSession({
+  order,
+  orderItems,
+  customerEmail,
+  returnUrl,
+}) {
+  if (!hasRestaurantStripeCheckout()) {
+    throw new AppError('Stripe payments are not configured', 503, 'stripe_not_configured');
+  }
+
+  const lineItems = [{
+    quantity: 1,
+    price_data: {
+      currency: String(order.currency_code || 'USD').toLowerCase(),
+      unit_amount: Number(order.total_cents || 0),
+      product_data: {
+        name: `Restaurant order #${order.queue_number}`,
+        description: orderItems
+          .map((item) => `${item.quantity}x ${item.menuItem.name}`)
+          .slice(0, 6)
+          .join(', ')
+          || 'OxSteed Restaurants order',
+      },
+    },
+  }];
+
+  const successUrlBase = absoluteUrl(`/api/food/orders/${order.id}/checkout/complete`);
+  const successUrl = `${successUrlBase}?session_id={CHECKOUT_SESSION_ID}${returnUrl ? `&return_url=${encodeURIComponent(returnUrl)}` : ''}`;
+  const cancelUrlBase = absoluteUrl(`/api/food/orders/${order.id}/checkout/cancelled`);
+  const cancelUrl = `${cancelUrlBase}${returnUrl ? `?return_url=${encodeURIComponent(returnUrl)}` : ''}`;
+
+  const session = await stripe.checkout.sessions.create({
+    mode: 'payment',
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    customer_email: customerEmail || undefined,
+    client_reference_id: String(order.id),
+    line_items: lineItems,
+    metadata: {
+      food_order_id: String(order.id),
+      restaurant_id: String(order.restaurant_id),
+      business_id: String(order.business_id),
+      return_url: returnUrl || '',
+    },
+    payment_intent_data: {
+      metadata: {
+        food_order_id: String(order.id),
+        restaurant_id: String(order.restaurant_id),
+        business_id: String(order.business_id),
+      },
+    },
+  });
+
+  const { rows: [updatedOrder] } = await pool.query(
+    `UPDATE food_orders
+        SET payment_status = 'requires_payment',
+            stripe_payment_intent_id = COALESCE($1, stripe_payment_intent_id),
+            metadata = jsonb_set(
+              jsonb_set(COALESCE(metadata, '{}'::jsonb), '{checkoutSessionId}', to_jsonb($2::text), true),
+              '{paymentMode}',
+              to_jsonb('pay_now'::text),
+              true
+            ),
+            updated_at = NOW()
+      WHERE id = $3
+      RETURNING *`,
+    [
+      typeof session.payment_intent === 'string' ? session.payment_intent : null,
+      session.id,
+      order.id,
+    ]
+  );
+
+  return {
+    order: updatedOrder || order,
+    payment: {
+      mode: 'hosted_checkout',
+      status: 'requires_payment',
+      checkoutUrl: session.url,
+      checkoutSessionId: session.id,
+      expiresAt: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null,
+    },
+  };
+}
+
+exports.getPaymentConfig = async (req, res, next) => {
+  try {
+    res.json({
+      payments: {
+        onlineCheckoutAvailable: hasRestaurantStripeCheckout(),
+        mode: hasRestaurantStripeCheckout() ? 'hosted_checkout' : 'in_store_only',
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 async function requireRestaurantAccess(userId, restaurantId) {
   const { rows } = await pool.query(
     `SELECT fr.*, b.user_id AS business_owner_id,
@@ -90,6 +310,85 @@ function emitRestaurantOrder(businessId, event, payload) {
     if (businessId) socketService.broadcastToBusinessInbox(businessId, event, payload);
   } catch (_) {
     // Socket delivery is best-effort; API writes are authoritative.
+  }
+}
+
+// Ping the public restaurant-display screens (TV / kiosk / customer) that an
+// order changed, so they refetch instantly instead of waiting for the poll.
+// PII-free: only the queue number + status (already public on the board).
+function emitRestaurantDisplay(restaurantId, order) {
+  try {
+    if (!restaurantId) return;
+    socketService.broadcastToRestaurantDisplay(restaurantId, 'food:display:changed', {
+      restaurantId: String(restaurantId),
+      queueNumber: order && order.queue_number != null ? order.queue_number : null,
+      status: order ? order.status : null,
+    });
+  } catch (_) {
+    // best-effort; the 5s poll is the fallback.
+  }
+}
+
+// Notify the customer that their order is ready for pickup.
+//
+// Picks the right channel for who placed the order:
+//   • signed-in customer  → in-app + real-time socket + mobile push + email
+//     (all handled by notificationService.sendNotification by userId)
+//   • guest with a phone  → SMS
+//   • guest with email    → email
+//
+// Best-effort and fully self-contained: every channel skips gracefully when
+// unconfigured and all errors are swallowed, so a missing Twilio/SMTP setup
+// (or a slow provider) can never block or fail the merchant's status tap.
+async function notifyFoodOrderReady(order, restaurant) {
+  try {
+    if (!order) return;
+    const queue = order.queue_number != null ? `#${order.queue_number}` : '';
+    const place = (restaurant && restaurant.display_name) ? restaurant.display_name : 'the restaurant';
+    const title = 'Order ready for pickup';
+    const body = `Your order ${queue} at ${place} is ready for pickup.`.replace(/\s+/g, ' ').trim();
+    const boardUrl = absoluteUrl(`/restaurants/queue/${order.restaurant_id}`);
+    const data = {
+      orderId: String(order.id),
+      restaurantId: String(order.restaurant_id),
+      queueNumber: order.queue_number != null ? String(order.queue_number) : null,
+      status: 'ready',
+    };
+
+    // 1) Signed-in customer — one call covers in-app, socket, push and email.
+    if (order.customer_id) {
+      await notificationService.sendNotification({
+        userId: order.customer_id,
+        type: 'food_order_ready',
+        title,
+        body,
+        data,
+        action_url: boardUrl,
+      });
+      return;
+    }
+
+    // 2) Guest with a phone number — SMS.
+    if (order.guest_phone) {
+      await smsNotificationService.sendDirectSMS(order.guest_phone, `${body} ${boardUrl}`.trim());
+      return;
+    }
+
+    // 3) Guest with only an email.
+    if (order.guest_email) {
+      await emailService.send({
+        to: order.guest_email,
+        subject: `${title} ${queue}`.trim(),
+        html: checkoutCompletionHtml({
+          title,
+          detail: body,
+          actionLabel: 'View the pickup board',
+          actionHref: boardUrl,
+        }),
+      });
+    }
+  } catch (err) {
+    logger.warn('notifyFoodOrderReady failed (non-blocking)', { error: err && err.message, orderId: order && order.id });
   }
 }
 
@@ -392,13 +691,19 @@ exports.createOrder = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId || req.body.restaurantId || req.body.restaurant_id);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const paymentMode = normalizeString(req.body.paymentMode || req.body.payment_mode, 24) || 'pay_at_counter';
+    if (!['pay_at_counter', 'pay_now'].includes(paymentMode)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        paymentMode: 'Must be pay_at_counter or pay_now',
+      });
+    }
 
     const items = Array.isArray(req.body.items) ? req.body.items : [];
     if (items.length === 0) {
       throw new AppError('Validation failed', 400, 'validation_failed', { items: 'At least one item is required' });
     }
 
-    const order = await withTransaction(pool, async (client) => {
+    const createdOrder = await withTransaction(pool, async (client) => {
       // FOR UPDATE serializes concurrent orders for the same restaurant so the
       // per-day queue number below cannot be duplicated under load.
       const { rows: restaurants } = await client.query(
@@ -483,6 +788,20 @@ exports.createOrder = async (req, res, next) => {
         throw new AppError('Validation failed', 400, 'validation_failed', { orderSource: 'Unsupported order source' });
       }
 
+      const trackingToken = createTrackingToken();
+      const discountCode = normalizeString(req.body.discountCode || req.body.discount_code, 40);
+      const discountLabel = normalizeString(req.body.discountLabel || req.body.discount_label, 120);
+      const discountMetadata = discount > 0
+        ? {
+          code: discountCode,
+          label: discountLabel,
+          amountCents: discount,
+        }
+        : null;
+      const metadata = req.body.metadata && typeof req.body.metadata === 'object'
+        ? { ...req.body.metadata, trackingToken, ...(discountMetadata ? { posDiscount: discountMetadata } : {}) }
+        : { trackingToken, ...(discountMetadata ? { posDiscount: discountMetadata } : {}) };
+
       const { rows: [created] } = await client.query(
         `INSERT INTO food_orders
            (restaurant_id, business_id, customer_id, guest_name, guest_phone, guest_email,
@@ -513,7 +832,7 @@ exports.createOrder = async (req, res, next) => {
           queueNumber,
           restaurant.prep_time_min || 15,
           normalizeString(req.body.notes, 1000),
-          req.body.metadata && typeof req.body.metadata === 'object' ? req.body.metadata : {},
+          metadata,
         ]
       );
 
@@ -545,11 +864,38 @@ exports.createOrder = async (req, res, next) => {
         }
       }
 
-      return created;
+      return {
+        order: created,
+        restaurant,
+        normalizedItems,
+        trackingToken,
+      };
     }, 'food_create_order');
 
+    let order = createdOrder.order;
+    let payment = null;
+    if (paymentMode === 'pay_now') {
+      try {
+        const paymentResult = await createFoodCheckoutSession({
+          order,
+          orderItems: createdOrder.normalizedItems,
+          customerEmail: normalizeString(req.user?.email || req.body.guestEmail || req.body.guest_email, 255),
+          returnUrl: safeReturnUrl(req.body.returnUrl || req.body.return_url),
+        });
+        order = paymentResult.order;
+        payment = paymentResult.payment;
+      } catch (paymentErr) {
+        payment = {
+          mode: 'hosted_checkout',
+          status: 'failed',
+          error: paymentErr.message || 'Unable to start online checkout',
+        };
+      }
+    }
+
     emitRestaurantOrder(order.business_id, 'food:order:created', { order });
-    res.status(201).json({ order });
+    emitRestaurantDisplay(order.restaurant_id, order);
+    res.status(201).json({ order, payment, trackingToken: createdOrder.trackingToken });
   } catch (err) {
     next(err);
   }
@@ -595,7 +941,11 @@ exports.listRestaurantOrders = async (req, res, next) => {
         LIMIT 100`,
       params
     );
-    res.json({ orders: rows });
+    const orders = [];
+    for (const row of rows) {
+      orders.push(await syncFoodOrderPaymentStatus(row));
+    }
+    res.json({ orders });
   } catch (err) {
     next(err);
   }
@@ -605,7 +955,7 @@ exports.updateOrderStatus = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     const status = normalizeString(req.body.status, 24);
     if (!VALID_STATUS.has(status) || !ORDER_TRANSITIONS[status]) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported order status' });
@@ -641,6 +991,14 @@ exports.updateOrderStatus = async (req, res, next) => {
     }
 
     emitRestaurantOrder(order.business_id, 'food:order:updated', { order });
+    emitRestaurantDisplay(order.restaurant_id, order);
+
+    // When the kitchen marks an order ready, tell the customer (best-effort,
+    // fire-and-forget so a slow SMS/email provider never delays this response).
+    if (status === 'ready') {
+      notifyFoodOrderReady(order, restaurant);
+    }
+
     res.json({ order });
   } catch (err) {
     next(err);
@@ -655,7 +1013,7 @@ exports.updateOrderPayment = async (req, res, next) => {
     const paymentStatus = normalizeString(req.body.paymentStatus || req.body.payment_status, 24);
     if (!VALID_PAYMENT_STATUS.has(paymentStatus)) {
       throw new AppError('Validation failed', 400, 'validation_failed', {
-        paymentStatus: 'Must be one of unpaid, paid, refunded',
+        paymentStatus: 'Must be one of unpaid, requires_payment, paid, failed, refunded',
       });
     }
     const { rows: [order] } = await pool.query(
@@ -668,6 +1026,96 @@ exports.updateOrderPayment = async (req, res, next) => {
     if (!order) throw new AppError('Order not found', 404, 'order_not_found');
     emitRestaurantOrder(order.business_id, 'food:order:updated', { order });
     res.json({ order });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.completeCheckout = async (req, res, next) => {
+  try {
+    const orderId = parsePositiveInt(req.params.orderId);
+    const sessionId = normalizeString(req.query.session_id, 255);
+    const returnUrl = safeReturnUrl(req.query.return_url);
+    if (!orderId || !sessionId) {
+      throw new AppError('Payment session not found', 404, 'payment_session_not_found');
+    }
+    if (!hasRestaurantStripeCheckout()) {
+      throw new AppError('Stripe payments are not configured', 503, 'stripe_not_configured');
+    }
+
+    const { rows: orderRows } = await pool.query(
+      `SELECT * FROM food_orders WHERE id = $1`,
+      [orderId]
+    );
+    const order = orderRows[0];
+    if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ['payment_intent'] });
+    const linkedOrderId = session.metadata?.food_order_id || session.client_reference_id;
+    if (String(linkedOrderId) !== String(orderId)) {
+      throw new AppError('Payment does not belong to this order', 403, 'payment_order_mismatch');
+    }
+
+    let updatedOrder = order;
+    if (session.payment_status === 'paid') {
+      const paymentIntentId = typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : session.payment_intent?.id || null;
+      const { rows: updatedRows } = await pool.query(
+        `UPDATE food_orders
+            SET payment_status = 'paid',
+                stripe_payment_intent_id = COALESCE($1, stripe_payment_intent_id),
+                updated_at = NOW()
+          WHERE id = $2
+          RETURNING *`,
+        [paymentIntentId, orderId]
+      );
+      updatedOrder = updatedRows[0] || order;
+      emitRestaurantOrder(updatedOrder.business_id, 'food:order:updated', { order: updatedOrder });
+    }
+
+    if (returnUrl) {
+      return res.redirect(returnUrl);
+    }
+
+    res
+      .status(200)
+      .type('html')
+      .send(checkoutCompletionHtml({
+        title: session.payment_status === 'paid' ? 'Payment complete' : 'Checkout received',
+        detail: session.payment_status === 'paid'
+          ? `Order #${updatedOrder.queue_number} has been marked paid.`
+          : `Order #${updatedOrder.queue_number} is still waiting for payment confirmation.`,
+      }));
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.cancelCheckout = async (req, res, next) => {
+  try {
+    const orderId = parsePositiveInt(req.params.orderId);
+    const returnUrl = safeReturnUrl(req.query.return_url);
+    if (!orderId) throw new AppError('Order not found', 404, 'order_not_found');
+
+    const { rows } = await pool.query(
+      `SELECT queue_number FROM food_orders WHERE id = $1`,
+      [orderId]
+    );
+    let order = rows[0];
+    if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+
+    if (returnUrl) {
+      return res.redirect(returnUrl);
+    }
+
+    res
+      .status(200)
+      .type('html')
+      .send(checkoutCompletionHtml({
+        title: 'Checkout cancelled',
+        detail: `Order #${order.queue_number} is still open. You can return to the app to pay later or settle at the counter.`,
+      }));
   } catch (err) {
     next(err);
   }
@@ -945,7 +1393,7 @@ exports.getQueueBoard = async (req, res, next) => {
     if (!restaurants[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
 
     const { rows } = await pool.query(
-      `SELECT queue_number, status
+      `SELECT queue_number, status, guest_name, table_label, fulfillment_type, promised_at
          FROM food_orders
         WHERE restaurant_id = $1
           AND created_at::date = CURRENT_DATE
@@ -957,6 +1405,332 @@ exports.getQueueBoard = async (req, res, next) => {
       restaurant: restaurants[0],
       preparing: rows.filter((r) => r.status !== 'ready').map((r) => r.queue_number),
       ready: rows.filter((r) => r.status === 'ready').map((r) => r.queue_number),
+      preparingEntries: rows
+        .filter((r) => r.status !== 'ready')
+        .map((r) => ({
+          queueNumber: r.queue_number,
+          guestLabel: publicQueueGuestLabel(r),
+          fulfillmentType: r.fulfillment_type,
+          promisedAt: r.promised_at,
+        })),
+      readyEntries: rows
+        .filter((r) => r.status === 'ready')
+        .map((r) => ({
+          queueNumber: r.queue_number,
+          guestLabel: publicQueueGuestLabel(r),
+          fulfillmentType: r.fulfillment_type,
+          promisedAt: r.promised_at,
+        })),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getTrackedOrder = async (req, res, next) => {
+  try {
+    const trackingToken = normalizeString(req.params.trackingToken, 255);
+    if (!trackingToken) throw new AppError('Order not found', 404, 'order_not_found');
+
+    const { rows } = await pool.query(
+      `SELECT fo.*, fr.display_name AS restaurant_name, fr.prep_time_min,
+              COALESCE(json_agg(json_build_object(
+                'id', foi.id,
+                'itemName', foi.item_name,
+                'quantity', foi.quantity,
+                'lineTotalCents', foi.line_total_cents,
+                'specialInstructions', foi.special_instructions
+              ) ORDER BY foi.id) FILTER (WHERE foi.id IS NOT NULL), '[]') AS items
+         FROM food_orders fo
+         JOIN food_restaurants fr ON fr.id = fo.restaurant_id
+         LEFT JOIN food_order_items foi ON foi.order_id = fo.id
+        WHERE fo.metadata->>'trackingToken' = $1
+        GROUP BY fo.id, fr.display_name, fr.prep_time_min`,
+      [trackingToken]
+    );
+    let order = rows[0];
+    if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+    order = await syncFoodOrderPaymentStatus(order);
+    res.json({ order });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getCustomerProfile = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.query.restaurantId || req.query.restaurant_id);
+    let restaurant = null;
+    if (restaurantId) {
+      const { rows } = await pool.query(
+        `SELECT id, business_id, display_name
+           FROM food_restaurants
+          WHERE id = $1 AND status IN ('active', 'paused', 'draft')`,
+        [restaurantId]
+      );
+      restaurant = rows[0] || null;
+    }
+
+    let profile = {
+      preferredLanguage: 'english',
+      notificationsEnabled: false,
+      favoriteRestaurantIds: [],
+      reorderTemplates: [],
+      loyaltySummary: {
+        points: 0,
+        tierName: 'New',
+        rewardSummary: 'Place your first restaurant order to start earning points.',
+      },
+      offers: [],
+    };
+
+    try {
+      const { rows } = await pool.query(
+        `SELECT preferred_language, notifications_enabled
+           FROM food_customer_profiles
+          WHERE user_id = $1`,
+        [req.user.id]
+      );
+      if (rows[0]) {
+        profile.preferredLanguage = rows[0].preferred_language || profile.preferredLanguage;
+        profile.notificationsEnabled = rows[0].notifications_enabled === true;
+      }
+    } catch (err) {
+      if (!isMissingRelationError(err)) throw err;
+    }
+
+    try {
+      const { rows } = await pool.query(
+        `SELECT restaurant_id
+           FROM food_customer_favorite_restaurants
+          WHERE user_id = $1
+          ORDER BY created_at DESC`,
+        [req.user.id]
+      );
+      profile.favoriteRestaurantIds = rows.map((row) => Number(row.restaurant_id));
+    } catch (err) {
+      if (!isMissingRelationError(err)) throw err;
+    }
+
+    const { rows: reorderRows } = await pool.query(
+      `SELECT fo.id, fo.restaurant_id, fr.display_name AS restaurant_name,
+              fo.currency_code, fo.fulfillment_type, fo.created_at,
+              COALESCE(json_agg(json_build_object(
+                'menuItemId', foi.menu_item_id,
+                'itemName', foi.item_name,
+                'quantity', foi.quantity,
+                'modifierIds', COALESCE((
+                  SELECT array_agg(foim.modifier_id ORDER BY foim.id)
+                    FROM food_order_item_modifiers foim
+                   WHERE foim.order_item_id = foi.id
+                     AND foim.modifier_id IS NOT NULL
+                ), ARRAY[]::bigint[]),
+                'specialInstructions', COALESCE(foi.special_instructions, '')
+              ) ORDER BY foi.id) FILTER (WHERE foi.id IS NOT NULL), '[]') AS lines
+         FROM food_orders fo
+         JOIN food_restaurants fr ON fr.id = fo.restaurant_id
+         LEFT JOIN food_order_items foi ON foi.order_id = fo.id
+        WHERE fo.customer_id = $1
+          AND fo.status NOT IN ('cancelled', 'refunded')
+        GROUP BY fo.id, fr.display_name
+        ORDER BY fo.created_at DESC
+        LIMIT 12`,
+      [req.user.id]
+    );
+    profile.reorderTemplates = reorderRows.map((row) => ({
+      id: String(row.id),
+      restaurantId: Number(row.restaurant_id),
+      restaurantName: row.restaurant_name,
+      currencyCode: row.currency_code,
+      fulfillmentType: row.fulfillment_type,
+      createdAt: row.created_at,
+      lines: Array.isArray(row.lines) ? row.lines : [],
+    }));
+
+    if (restaurant?.business_id) {
+      let points = 0;
+      let tierName = 'New';
+      let rewardSummary = 'Keep ordering to unlock your next restaurant reward.';
+
+      try {
+        const { rows } = await pool.query(
+          `SELECT lifetime_bookings, lifetime_spent_cents, loyalty_tier
+             FROM customer_business_profile
+            WHERE business_id = $1 AND customer_id = $2`,
+          [restaurant.business_id, req.user.id]
+        );
+        if (rows[0]) {
+          const spent = Number(rows[0].lifetime_spent_cents || 0);
+          points = Math.max(0, Math.floor(spent / 100));
+          tierName = toTierLabel(rows[0].loyalty_tier);
+        } else {
+          const { rows: fallbackRows } = await pool.query(
+            `SELECT COALESCE(COUNT(*), 0) AS order_count,
+                    COALESCE(SUM(total_cents), 0) AS lifetime_spent_cents
+               FROM food_orders
+              WHERE business_id = $1
+                AND customer_id = $2
+                AND status NOT IN ('cancelled', 'refunded')`,
+            [restaurant.business_id, req.user.id]
+          );
+          const spent = Number(fallbackRows[0]?.lifetime_spent_cents || 0);
+          const count = Number(fallbackRows[0]?.order_count || 0);
+          points = Math.max(0, Math.floor(spent / 100));
+          tierName = count >= 10 ? 'Vip' : count >= 5 ? 'Regular' : count >= 2 ? 'Returning' : 'New';
+        }
+
+        const { rows: tierRows } = await pool.query(
+          `SELECT tier_name, min_points
+             FROM business_loyalty_tiers
+            WHERE business_id = $1
+            ORDER BY min_points ASC`,
+          [restaurant.business_id]
+        );
+        const nextTier = tierRows.find((row) => Number(row.min_points) > points);
+        rewardSummary = nextTier
+          ? `${Math.max(0, Number(nextTier.min_points) - points)} points until ${toTierLabel(nextTier.tier_name)} perks.`
+          : 'Top tier reached for this restaurant. Watch for new surprise offers.';
+      } catch (err) {
+        if (!isMissingRelationError(err)) throw err;
+      }
+
+      profile.loyaltySummary = {
+        points,
+        tierName,
+        rewardSummary,
+      };
+
+      try {
+        const { rows } = await pool.query(
+          `SELECT id, offer_type, discount_percent, discount_cents, valid_until
+             FROM customer_offers
+            WHERE business_id = $1
+              AND is_active = TRUE
+              AND valid_from <= CURRENT_DATE
+              AND valid_until >= CURRENT_DATE
+              AND (customer_id = $2 OR customer_id IS NULL)
+            ORDER BY valid_until ASC, created_at DESC
+            LIMIT 6`,
+          [restaurant.business_id, req.user.id]
+        );
+        profile.offers = rows.map((row) => {
+          const discountPercent = row.discount_percent !== null ? Number(row.discount_percent) : null;
+          const discountCents = row.discount_cents !== null ? Number(row.discount_cents) : null;
+          const title = toTierLabel(row.offer_type).replace('Discount', ' Offer');
+          const detail = discountPercent !== null
+            ? `Save ${discountPercent}% on your next qualifying order before ${row.valid_until}.`
+            : discountCents !== null
+              ? `Save $${(discountCents / 100).toFixed(2)} on your next qualifying order before ${row.valid_until}.`
+              : `Available through ${row.valid_until}.`;
+          return {
+            id: String(row.id),
+            title,
+            detail,
+            code: `OX-${String(row.id).slice(0, 6).toUpperCase()}`,
+          };
+        });
+      } catch (err) {
+        if (!isMissingRelationError(err)) throw err;
+      }
+    }
+
+    res.json({ profile });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateCustomerProfile = async (req, res, next) => {
+  try {
+    const preferredLanguage = normalizeString(req.body.preferredLanguage || req.body.preferred_language, 24);
+    const notificationsEnabled = req.body.notificationsEnabled ?? req.body.notifications_enabled;
+
+    if (!preferredLanguage && typeof notificationsEnabled !== 'boolean') {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        body: 'Provide preferredLanguage and/or notificationsEnabled',
+      });
+    }
+
+    const allowedLanguages = new Set(['english', 'spanish', 'french', 'haitian_creole']);
+    const normalizedLanguage = preferredLanguage && allowedLanguages.has(preferredLanguage)
+      ? preferredLanguage
+      : preferredLanguage
+        ? null
+        : undefined;
+    if (preferredLanguage && !normalizedLanguage) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        preferredLanguage: 'Unsupported language',
+      });
+    }
+
+    const { rows: [profile] } = await pool.query(
+      `INSERT INTO food_customer_profiles (user_id, preferred_language, notifications_enabled)
+       VALUES ($1, COALESCE($2, 'english'), COALESCE($3, FALSE))
+       ON CONFLICT (user_id) DO UPDATE
+          SET preferred_language = COALESCE($2, food_customer_profiles.preferred_language),
+              notifications_enabled = COALESCE($3, food_customer_profiles.notifications_enabled),
+              updated_at = NOW()
+       RETURNING preferred_language, notifications_enabled`,
+      [
+        req.user.id,
+        normalizedLanguage ?? null,
+        typeof notificationsEnabled === 'boolean' ? notificationsEnabled : null,
+      ]
+    );
+    res.json({
+      profile: {
+        preferredLanguage: profile.preferred_language,
+        notificationsEnabled: profile.notifications_enabled === true,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.toggleCustomerFavoriteRestaurant = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const { rows: restaurants } = await pool.query(
+      `SELECT id FROM food_restaurants WHERE id = $1 AND status IN ('active', 'paused', 'draft')`,
+      [restaurantId]
+    );
+    if (!restaurants[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+
+    const { rows: existing } = await pool.query(
+      `SELECT 1
+         FROM food_customer_favorite_restaurants
+        WHERE user_id = $1 AND restaurant_id = $2`,
+      [req.user.id, restaurantId]
+    );
+    let favorited;
+    if (existing[0]) {
+      await pool.query(
+        `DELETE FROM food_customer_favorite_restaurants
+          WHERE user_id = $1 AND restaurant_id = $2`,
+        [req.user.id, restaurantId]
+      );
+      favorited = false;
+    } else {
+      await pool.query(
+        `INSERT INTO food_customer_favorite_restaurants (user_id, restaurant_id)
+         VALUES ($1, $2)`,
+        [req.user.id, restaurantId]
+      );
+      favorited = true;
+    }
+
+    const { rows } = await pool.query(
+      `SELECT restaurant_id
+         FROM food_customer_favorite_restaurants
+        WHERE user_id = $1
+        ORDER BY created_at DESC`,
+      [req.user.id]
+    );
+    res.json({
+      favorited,
+      favoriteRestaurantIds: rows.map((row) => Number(row.restaurant_id)),
     });
   } catch (err) {
     next(err);
@@ -983,7 +1757,11 @@ exports.listMyOrders = async (req, res, next) => {
         LIMIT $2`,
       [req.user.id, limit]
     );
-    res.json({ orders: rows });
+    const orders = [];
+    for (const row of rows) {
+      orders.push(await syncFoodOrderPaymentStatus(row));
+    }
+    res.json({ orders });
   } catch (err) {
     next(err);
   }
@@ -1022,6 +1800,7 @@ exports.getOrder = async (req, res, next) => {
         throw new AppError('Order not found', 404, 'order_not_found');
       }
     }
+    order = await syncFoodOrderPaymentStatus(order);
     res.json({ order });
   } catch (err) {
     next(err);

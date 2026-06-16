@@ -72,9 +72,30 @@ actor FoodAPIClient {
         try await request("/api/food/restaurants/\(restaurantId)/queue-board", requiresAuth: false)
     }
 
+    func kioskConfig(restaurantId: Int64) async throws -> FoodKioskConfigResponse {
+        let envelope: FoodKioskConfigEnvelope = try await request(
+            "/api/food/restaurants/\(restaurantId)/kiosk-config",
+            requiresAuth: false
+        )
+        return envelope.kioskConfig
+    }
+
     // MARK: - Ordering
     // Guests can order (the route is optional-auth); signed-in customers get
-    // the order attached to their history. Payment always happens in store.
+    // the order attached to their history. Customer/kiosk apps can optionally
+    // start a hosted online-checkout flow for the created order.
+
+    func paymentConfig() async throws -> FoodPaymentConfigResponse {
+        try await request("/api/food/payment-config", requiresAuth: false)
+    }
+
+    func trackedOrder(trackingToken: String) async throws -> FoodOrder {
+        let response: OrderEnvelope = try await request(
+            "/api/food/orders/track/\(trackingToken)",
+            requiresAuth: false
+        )
+        return response.order
+    }
 
     func createOrder(
         restaurantId: Int64,
@@ -83,8 +104,9 @@ actor FoodAPIClient {
         tableLabel: String?,
         guestName: String?,
         token: String?,
-        orderSource: String = "mobile"
-    ) async throws -> FoodOrder {
+        orderSource: String = "mobile",
+        paymentMode: String = "pay_at_counter"
+    ) async throws -> FoodCreateOrderResponse {
         struct OrderItem: Encodable {
             let menuItemId: Int64
             let quantity: Int
@@ -94,6 +116,7 @@ actor FoodAPIClient {
         struct Body: Encodable {
             let fulfillmentType: String
             let orderSource: String
+            let paymentMode: String
             let tableLabel: String?
             let guestName: String?
             let items: [OrderItem]
@@ -101,6 +124,7 @@ actor FoodAPIClient {
         let body = Body(
             fulfillmentType: fulfillment,
             orderSource: orderSource,
+            paymentMode: paymentMode,
             tableLabel: tableLabel,
             guestName: guestName,
             items: lines.map {
@@ -112,14 +136,14 @@ actor FoodAPIClient {
                 )
             }
         )
-        let envelope: OrderEnvelope = try await request(
+        let envelope: FoodCreateOrderEnvelope = try await request(
             "/api/food/restaurants/\(restaurantId)/orders",
             method: "POST",
             body: body,
             token: token,
             requiresAuth: false
         )
-        return envelope.order
+        return FoodCreateOrderResponse(order: envelope.order, payment: envelope.payment, trackingToken: envelope.trackingToken)
     }
 
     func myOrders(token: String) async throws -> [FoodOrder] {
@@ -187,6 +211,31 @@ actor FoodAPIClient {
             token: token
         )
         return envelope.restaurant
+    }
+
+    func updateKioskConfig(
+        restaurantId: Int64,
+        preferredLanguage: String,
+        lockedMode: Bool,
+        autoResetSeconds: Int,
+        token: String
+    ) async throws -> FoodKioskConfigResponse {
+        struct Body: Encodable {
+            let preferredLanguage: String
+            let lockedMode: Bool
+            let autoResetSeconds: Int
+        }
+        let envelope: FoodKioskConfigEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/kiosk-config",
+            method: "PATCH",
+            body: Body(
+                preferredLanguage: preferredLanguage,
+                lockedMode: lockedMode,
+                autoResetSeconds: autoResetSeconds
+            ),
+            token: token
+        )
+        return envelope.kioskConfig
     }
 
     func createCategory(restaurantId: Int64, name: String, token: String) async throws -> Int64 {
@@ -351,6 +400,59 @@ struct OrderEnvelope: Decodable {
 
 struct OrdersEnvelope: Decodable {
     let orders: [FoodOrder]
+}
+
+struct FoodPaymentConfigResponse: Decodable {
+    let payments: FoodPaymentsConfig
+}
+
+struct FoodKioskConfigEnvelope: Decodable {
+    let kioskConfig: FoodKioskConfigResponse
+}
+
+struct FoodPaymentsConfig: Decodable {
+    let onlineCheckoutAvailable: Bool
+    let mode: String
+}
+
+struct FoodCreateOrderEnvelope: Decodable {
+    let order: FoodOrder
+    let payment: FoodOrderPaymentResponse?
+    let trackingToken: String?
+}
+
+struct FoodCreateOrderResponse {
+    let order: FoodOrder
+    let payment: FoodOrderPaymentResponse?
+    let trackingToken: String?
+}
+
+struct FoodOrderPaymentResponse: Decodable {
+    let mode: String
+    let status: String
+    let checkoutUrl: String?
+    let checkoutSessionId: String?
+    let expiresAt: Date?
+    let error: String?
+
+    enum CodingKeys: String, CodingKey {
+        case mode
+        case status
+        case checkoutUrl
+        case checkoutSessionId
+        case expiresAt
+        case error
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        mode = c.flexString(.mode) ?? "in_store_only"
+        status = c.flexString(.status) ?? "unpaid"
+        checkoutUrl = c.flexString(.checkoutUrl)
+        checkoutSessionId = c.flexString(.checkoutSessionId)
+        expiresAt = c.flexDateIfPresent(.expiresAt)
+        error = c.flexString(.error)
+    }
 }
 
 struct AnyEncodable: Encodable {

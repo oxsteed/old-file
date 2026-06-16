@@ -19,14 +19,24 @@ final class FoodStore: ObservableObject {
 
     /// Set right after a successful order; drives the confirmation screen.
     @Published var lastPlacedOrder: FoodOrder?
+    @Published var lastPlacedOrderPayment: FoodOrderPaymentResponse?
+    @Published var lastPlacedOrderTrackingToken: String?
     @Published var myOrders: [FoodOrder] = []
     @Published var queueBoard: FoodQueueBoard?
     @Published var lastCounterOrder: FoodOrder?
+    @Published var onlineCheckoutAvailable = false
+    @Published var customerPaymentMode = "pay_at_counter"
     @Published var customerLanguage = FoodCustomerLanguage(rawValue: UserDefaults.standard.string(forKey: "ox.food.customerLanguage") ?? "") ?? .english {
-        didSet { UserDefaults.standard.set(customerLanguage.rawValue, forKey: "ox.food.customerLanguage") }
+        didSet {
+            UserDefaults.standard.set(customerLanguage.rawValue, forKey: "ox.food.customerLanguage")
+            syncCustomerPreferencesIfNeeded()
+        }
     }
     @Published var customerNotificationsEnabled = UserDefaults.standard.bool(forKey: "ox.food.customerNotifications") {
-        didSet { UserDefaults.standard.set(customerNotificationsEnabled, forKey: "ox.food.customerNotifications") }
+        didSet {
+            UserDefaults.standard.set(customerNotificationsEnabled, forKey: "ox.food.customerNotifications")
+            syncCustomerPreferencesIfNeeded()
+        }
     }
     @Published private(set) var favoriteRestaurantIDs = FoodStore.loadValue([Int64].self, key: "ox.food.favoriteRestaurantIDs", default: []) {
         didSet { FoodStore.saveValue(favoriteRestaurantIDs, key: "ox.food.favoriteRestaurantIDs") }
@@ -66,6 +76,7 @@ final class FoodStore: ObservableObject {
     private var refreshToken = UserDefaults.standard.string(forKey: "ox.food.refreshToken") ?? "" {
         didSet { UserDefaults.standard.set(refreshToken, forKey: "ox.food.refreshToken") }
     }
+    private var isApplyingRemoteCustomerProfile = false
 
     var isSignedIn: Bool { !refreshToken.isEmpty || !accessToken.isEmpty }
 
@@ -131,6 +142,7 @@ final class FoodStore: ObservableObject {
             accessToken = access
             refreshToken = session.refreshToken ?? ""
             signedInEmail = email
+            await syncCustomerProfile(restaurantId: selectedRestaurant?.id)
             message = nil
             return true
         } catch {
@@ -148,6 +160,8 @@ final class FoodStore: ObservableObject {
         merchantOrders = []
         merchantLoaded = false
         myOrders = []
+        lastPlacedOrderPayment = nil
+        lastPlacedOrderTrackingToken = nil
     }
 
     private static func loadValue<T: Decodable>(_ type: T.Type, key: String, default fallback: T) -> T {
@@ -196,6 +210,10 @@ final class FoodStore: ObservableObject {
             restaurants = [FoodSampleData.restaurant]
             message = nil
         }
+        await loadPaymentConfig()
+        if isSignedIn {
+            await syncCustomerProfile(restaurantId: selectedRestaurant?.id)
+        }
     }
 
     func select(_ restaurant: FoodRestaurant) async {
@@ -213,6 +231,9 @@ final class FoodStore: ObservableObject {
             menu = [FoodMenuSection(id: 1, name: "Popular", description: "Ready for kiosk, counter, and mobile orders.", items: [FoodSampleData.menuItem])]
             message = nil
         }
+        if isSignedIn {
+            await syncCustomerProfile(restaurantId: restaurant.id)
+        }
     }
 
     func isFavorite(_ restaurant: FoodRestaurant) -> Bool {
@@ -224,6 +245,17 @@ final class FoodStore: ObservableObject {
             favoriteRestaurantIDs.remove(at: index)
         } else {
             favoriteRestaurantIDs.insert(restaurant.id, at: 0)
+        }
+        guard isSignedIn else { return }
+        Task {
+            do {
+                let response = try await authed {
+                    try await FoodAPIClient.shared.toggleFavoriteRestaurant(restaurantId: restaurant.id, token: $0)
+                }
+                favoriteRestaurantIDs = response.favoriteRestaurantIds
+            } catch {
+                message = error.localizedDescription
+            }
         }
     }
 
@@ -243,20 +275,56 @@ final class FoodStore: ObservableObject {
         defer { isPlacingOrder = false }
         do {
             let submittedLines = cart
-            let order = try await FoodAPIClient.shared.createOrder(
+            let response = try await FoodAPIClient.shared.createOrder(
                 restaurantId: restaurant.id,
                 lines: submittedLines,
                 fulfillment: fulfillment,
                 tableLabel: fulfillment == "dine_in" && !tableLabel.isEmpty ? tableLabel : nil,
                 guestName: isSignedIn || guestName.isEmpty ? nil : guestName,
-                token: accessToken.isEmpty ? nil : accessToken
+                token: accessToken.isEmpty ? nil : accessToken,
+                paymentMode: onlineCheckoutAvailable ? customerPaymentMode : "pay_at_counter"
             )
             rememberRecentOrder(restaurant: restaurant, lines: submittedLines, fulfillment: fulfillment)
             cart.removeAll()
-            lastPlacedOrder = order
-            message = nil
+            lastPlacedOrder = response.order
+            lastPlacedOrderPayment = response.payment
+            lastPlacedOrderTrackingToken = response.trackingToken
+            if isSignedIn {
+                await syncCustomerProfile(restaurantId: restaurant.id)
+            }
+            if response.payment?.status == "failed", let error = response.payment?.error {
+                message = error
+            } else {
+                message = nil
+            }
         } catch {
             message = "Order failed: \(error.localizedDescription)"
+        }
+    }
+
+    func loadPaymentConfig() async {
+        do {
+            let config = try await FoodAPIClient.shared.paymentConfig()
+            onlineCheckoutAvailable = config.payments.onlineCheckoutAvailable
+            if !onlineCheckoutAvailable {
+                customerPaymentMode = "pay_at_counter"
+            }
+        } catch {
+            onlineCheckoutAvailable = false
+            customerPaymentMode = "pay_at_counter"
+        }
+    }
+
+    func refreshPlacedOrderIfNeeded() async {
+        guard let trackingToken = lastPlacedOrderTrackingToken else { return }
+        do {
+            let refreshed = try await FoodAPIClient.shared.trackedOrder(trackingToken: trackingToken)
+            lastPlacedOrder = refreshed
+            if refreshed.paymentStatus == "paid" {
+                lastPlacedOrderPayment = nil
+            }
+        } catch {
+            // Best-effort polling for post-checkout refresh.
         }
     }
 
@@ -325,7 +393,7 @@ final class FoodStore: ObservableObject {
         isSubmittingCounterOrder = true
         defer { isSubmittingCounterOrder = false }
         do {
-            let order = try await FoodAPIClient.shared.createOrder(
+            let response = try await FoodAPIClient.shared.createOrder(
                 restaurantId: restaurant.id,
                 lines: counterCart,
                 fulfillment: counterFulfillment,
@@ -334,6 +402,7 @@ final class FoodStore: ObservableObject {
                 token: accessToken.isEmpty ? nil : accessToken,
                 orderSource: "counter"
             )
+            let order = response.order
             counterCart.removeAll()
             counterGuestName = ""
             counterTableLabel = ""
@@ -351,6 +420,7 @@ final class FoodStore: ObservableObject {
         guard isSignedIn else { return }
         do {
             myOrders = try await authed { try await FoodAPIClient.shared.myOrders(token: $0) }
+            await syncCustomerProfile(restaurantId: selectedRestaurant?.id)
         } catch {
             message = error.localizedDescription
         }
@@ -505,6 +575,91 @@ final class FoodStore: ObservableObject {
         } else if order.isActive {
             merchantOrders.insert(order, at: 0)
         }
+    }
+
+    func syncCustomerProfile(restaurantId: Int64?) async {
+        guard isSignedIn else { return }
+        do {
+            let profile = try await authed {
+                try await FoodAPIClient.shared.customerProfile(restaurantId: restaurantId, token: $0)
+            }
+            isApplyingRemoteCustomerProfile = true
+            if let preferredLanguage = profile.preferredLanguage,
+               let parsedLanguage = Self.language(from: preferredLanguage) {
+                customerLanguage = parsedLanguage
+            }
+            if let notificationsEnabled = profile.notificationsEnabled {
+                customerNotificationsEnabled = notificationsEnabled
+            }
+            isApplyingRemoteCustomerProfile = false
+            favoriteRestaurantIDs = profile.favoriteRestaurantIds
+            reorderTemplates = profile.reorderTemplates.map(Self.mapReorderTemplate)
+            if let loyaltySummary = profile.loyaltySummary {
+                self.loyaltySummary = FoodCustomerLoyaltySummary(
+                    points: loyaltySummary.points,
+                    tierName: loyaltySummary.tierName,
+                    rewardSummary: loyaltySummary.rewardSummary
+                )
+            }
+            customerOffers = profile.offers.map {
+                FoodCustomerOffer(
+                    id: UUID(uuidString: $0.id) ?? UUID(),
+                    title: $0.title,
+                    detail: $0.detail,
+                    code: $0.code
+                )
+            }
+        } catch {
+            isApplyingRemoteCustomerProfile = false
+        }
+    }
+
+    private func syncCustomerPreferencesIfNeeded() {
+        guard isSignedIn, !isApplyingRemoteCustomerProfile else { return }
+        let language = customerLanguage.rawValue
+        let notificationsEnabled = customerNotificationsEnabled
+        Task {
+            do {
+                _ = try await authed {
+                    try await FoodAPIClient.shared.updateCustomerProfile(
+                        preferredLanguage: language,
+                        notificationsEnabled: notificationsEnabled,
+                        token: $0
+                    )
+                }
+            } catch {
+                message = error.localizedDescription
+            }
+        }
+    }
+
+    private static func language(from value: String) -> FoodCustomerLanguage? {
+        switch value {
+        case "english": return .english
+        case "spanish": return .spanish
+        case "french": return .french
+        case "haitian_creole": return .haitianCreole
+        default: return FoodCustomerLanguage(rawValue: value)
+        }
+    }
+
+    private static func mapReorderTemplate(_ remote: FoodCustomerReorderTemplateResponse) -> FoodReorderTemplate {
+        FoodReorderTemplate(
+            restaurantId: remote.restaurantId,
+            restaurantName: remote.restaurantName,
+            currencyCode: remote.currencyCode,
+            fulfillmentType: remote.fulfillmentType,
+            createdAt: remote.createdAt ?? Date(),
+            lines: remote.lines.map {
+                FoodReorderLineTemplate(
+                    menuItemId: $0.menuItemId,
+                    itemName: $0.itemName,
+                    quantity: $0.quantity,
+                    modifierIDs: $0.modifierIds,
+                    specialInstructions: $0.specialInstructions
+                )
+            }
+        )
     }
 }
 

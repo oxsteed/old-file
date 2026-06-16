@@ -366,16 +366,30 @@ struct FoodQueueBoard: Hashable {
         var id: Int64
         var displayName: String
     }
+    struct Entry: Hashable {
+        var queueNumber: Int
+        var guestLabel: String
+        var fulfillmentType: String
+        var promisedAt: Date?
+    }
     var restaurant: Header
     var preparing: [Int]
     var ready: [Int]
+    var preparingEntries: [Entry]
+    var readyEntries: [Entry]
 }
 
 extension FoodQueueBoard: Decodable {
-    enum CodingKeys: String, CodingKey { case restaurant, preparing, ready }
+    enum CodingKeys: String, CodingKey { case restaurant, preparing, ready, preparingEntries, readyEntries }
     enum HeaderKeys: String, CodingKey {
         case id
         case displayName = "display_name"
+    }
+    enum EntryKeys: String, CodingKey {
+        case queueNumber = "queueNumber"
+        case guestLabel = "guestLabel"
+        case fulfillmentType = "fulfillmentType"
+        case promisedAt = "promisedAt"
     }
 
     init(from decoder: Decoder) throws {
@@ -384,6 +398,58 @@ extension FoodQueueBoard: Decodable {
         restaurant = Header(id: try h.flexInt64(.id), displayName: h.flexString(.displayName) ?? "Restaurant")
         preparing = (try? c.decode([Int].self, forKey: .preparing)) ?? []
         ready = (try? c.decode([Int].self, forKey: .ready)) ?? []
+        preparingEntries = (try? c.decode([Entry].self, forKey: .preparingEntries)) ?? preparing.map {
+            Entry(queueNumber: $0, guestLabel: "Guest", fulfillmentType: "pickup", promisedAt: nil)
+        }
+        readyEntries = (try? c.decode([Entry].self, forKey: .readyEntries)) ?? ready.map {
+            Entry(queueNumber: $0, guestLabel: "Guest", fulfillmentType: "pickup", promisedAt: nil)
+        }
+    }
+}
+
+extension FoodQueueBoard.Entry: Decodable {
+    private enum CodingKeys: String, CodingKey {
+        case queueNumber = "queueNumber"
+        case guestLabel = "guestLabel"
+        case fulfillmentType = "fulfillmentType"
+        case promisedAt = "promisedAt"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        queueNumber = c.flexInt(.queueNumber, default: 0)
+        guestLabel = c.flexString(.guestLabel) ?? "Guest"
+        fulfillmentType = c.flexString(.fulfillmentType) ?? "pickup"
+        promisedAt = c.flexDateIfPresent(.promisedAt)
+    }
+}
+
+// MARK: - Kiosk configuration
+
+struct FoodKioskConfigResponse: Hashable {
+    var restaurantID: Int64
+    var preferredLanguage: String
+    var lockedMode: Bool
+    var autoResetSeconds: Int
+    var updatedAt: Date?
+}
+
+extension FoodKioskConfigResponse: Decodable {
+    enum CodingKeys: String, CodingKey {
+        case restaurantID = "restaurant_id"
+        case preferredLanguage = "preferred_language"
+        case lockedMode = "locked_mode"
+        case autoResetSeconds = "auto_reset_seconds"
+        case updatedAt = "updated_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        restaurantID = try c.flexInt64(.restaurantID)
+        preferredLanguage = c.flexString(.preferredLanguage) ?? "English"
+        lockedMode = c.flexBool(.lockedMode, default: true)
+        autoResetSeconds = c.flexInt(.autoResetSeconds, default: 8)
+        updatedAt = c.flexDateIfPresent(.updatedAt)
     }
 }
 

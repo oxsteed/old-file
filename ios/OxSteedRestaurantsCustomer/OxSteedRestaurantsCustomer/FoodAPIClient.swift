@@ -74,7 +74,20 @@ actor FoodAPIClient {
 
     // MARK: - Ordering
     // Guests can order (the route is optional-auth); signed-in customers get
-    // the order attached to their history. Payment always happens in store.
+    // the order attached to their history. Customer/kiosk apps can optionally
+    // start a hosted online-checkout flow for the created order.
+
+    func paymentConfig() async throws -> FoodPaymentConfigResponse {
+        try await request("/api/food/payment-config", requiresAuth: false)
+    }
+
+    func trackedOrder(trackingToken: String) async throws -> FoodOrder {
+        let response: OrderEnvelope = try await request(
+            "/api/food/orders/track/\(trackingToken)",
+            requiresAuth: false
+        )
+        return response.order
+    }
 
     func createOrder(
         restaurantId: Int64,
@@ -83,8 +96,9 @@ actor FoodAPIClient {
         tableLabel: String?,
         guestName: String?,
         token: String?,
-        orderSource: String = "mobile"
-    ) async throws -> FoodOrder {
+        orderSource: String = "mobile",
+        paymentMode: String = "pay_at_counter"
+    ) async throws -> FoodCreateOrderResponse {
         struct OrderItem: Encodable {
             let menuItemId: Int64
             let quantity: Int
@@ -94,6 +108,7 @@ actor FoodAPIClient {
         struct Body: Encodable {
             let fulfillmentType: String
             let orderSource: String
+            let paymentMode: String
             let tableLabel: String?
             let guestName: String?
             let items: [OrderItem]
@@ -101,6 +116,7 @@ actor FoodAPIClient {
         let body = Body(
             fulfillmentType: fulfillment,
             orderSource: orderSource,
+            paymentMode: paymentMode,
             tableLabel: tableLabel,
             guestName: guestName,
             items: lines.map {
@@ -112,14 +128,14 @@ actor FoodAPIClient {
                 )
             }
         )
-        let envelope: OrderEnvelope = try await request(
+        let envelope: FoodCreateOrderEnvelope = try await request(
             "/api/food/restaurants/\(restaurantId)/orders",
             method: "POST",
             body: body,
             token: token,
             requiresAuth: false
         )
-        return envelope.order
+        return FoodCreateOrderResponse(order: envelope.order, payment: envelope.payment, trackingToken: envelope.trackingToken)
     }
 
     func myOrders(token: String) async throws -> [FoodOrder] {
@@ -268,6 +284,48 @@ actor FoodAPIClient {
         return response.order
     }
 
+    // MARK: - Customer profile
+
+    func customerProfile(restaurantId: Int64? = nil, token: String) async throws -> FoodCustomerProfileResponse {
+        var query: [URLQueryItem] = []
+        if let restaurantId {
+            query.append(URLQueryItem(name: "restaurantId", value: String(restaurantId)))
+        }
+        let response: FoodCustomerProfileEnvelope = try await request(
+            "/api/food/customer/profile",
+            query: query,
+            token: token
+        )
+        return response.profile
+    }
+
+    func updateCustomerProfile(
+        preferredLanguage: String? = nil,
+        notificationsEnabled: Bool? = nil,
+        token: String
+    ) async throws -> FoodCustomerProfileResponse {
+        struct Body: Encodable {
+            let preferredLanguage: String?
+            let notificationsEnabled: Bool?
+        }
+        let response: FoodCustomerProfileEnvelope = try await request(
+            "/api/food/customer/profile",
+            method: "PATCH",
+            body: Body(preferredLanguage: preferredLanguage, notificationsEnabled: notificationsEnabled),
+            token: token
+        )
+        return response.profile
+    }
+
+    func toggleFavoriteRestaurant(restaurantId: Int64, token: String) async throws -> FoodCustomerFavoriteToggleResponse {
+        try await request(
+            "/api/food/customer/favorites/\(restaurantId)/toggle",
+            method: "POST",
+            body: EmptyBody(),
+            token: token
+        )
+    }
+
     // MARK: - Core request
 
     private func request<T: Decodable>(
@@ -352,6 +410,219 @@ struct OrderEnvelope: Decodable {
 struct OrdersEnvelope: Decodable {
     let orders: [FoodOrder]
 }
+
+struct FoodPaymentConfigResponse: Decodable {
+    let payments: FoodPaymentsConfig
+}
+
+struct FoodPaymentsConfig: Decodable {
+    let onlineCheckoutAvailable: Bool
+    let mode: String
+}
+
+struct FoodCreateOrderEnvelope: Decodable {
+    let order: FoodOrder
+    let payment: FoodOrderPaymentResponse?
+    let trackingToken: String?
+}
+
+struct FoodCreateOrderResponse {
+    let order: FoodOrder
+    let payment: FoodOrderPaymentResponse?
+    let trackingToken: String?
+}
+
+struct FoodOrderPaymentResponse: Decodable {
+    let mode: String
+    let status: String
+    let checkoutUrl: String?
+    let checkoutSessionId: String?
+    let expiresAt: Date?
+    let error: String?
+
+    enum CodingKeys: String, CodingKey {
+        case mode
+        case status
+        case checkoutUrl
+        case checkoutSessionId
+        case expiresAt
+        case error
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        mode = c.flexString(.mode) ?? "in_store_only"
+        status = c.flexString(.status) ?? "unpaid"
+        checkoutUrl = c.flexString(.checkoutUrl)
+        checkoutSessionId = c.flexString(.checkoutSessionId)
+        expiresAt = c.flexDateIfPresent(.expiresAt)
+        error = c.flexString(.error)
+    }
+}
+
+struct FoodCustomerProfileEnvelope: Decodable {
+    let profile: FoodCustomerProfileResponse
+}
+
+struct FoodCustomerProfileResponse: Decodable {
+    let preferredLanguage: String?
+    let notificationsEnabled: Bool?
+    let favoriteRestaurantIds: [Int64]
+    let reorderTemplates: [FoodCustomerReorderTemplateResponse]
+    let loyaltySummary: FoodCustomerLoyaltySummaryResponse?
+    let offers: [FoodCustomerOfferResponse]
+
+    enum CodingKeys: String, CodingKey {
+        case preferredLanguage
+        case notificationsEnabled
+        case favoriteRestaurantIds
+        case reorderTemplates
+        case loyaltySummary
+        case offers
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        preferredLanguage = c.flexString(.preferredLanguage)
+        notificationsEnabled = try? c.decode(Bool.self, forKey: .notificationsEnabled)
+        favoriteRestaurantIds = (try? c.decode([FlexibleInt64].self, forKey: .favoriteRestaurantIds).map(\.value)) ?? []
+        reorderTemplates = (try? c.decode([FoodCustomerReorderTemplateResponse].self, forKey: .reorderTemplates)) ?? []
+        loyaltySummary = try? c.decode(FoodCustomerLoyaltySummaryResponse.self, forKey: .loyaltySummary)
+        offers = (try? c.decode([FoodCustomerOfferResponse].self, forKey: .offers)) ?? []
+    }
+}
+
+struct FoodCustomerFavoriteToggleResponse: Decodable {
+    let favorited: Bool
+    let favoriteRestaurantIds: [Int64]
+
+    enum CodingKeys: String, CodingKey {
+        case favorited
+        case favoriteRestaurantIds
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        favorited = c.flexBool(.favorited, default: false)
+        favoriteRestaurantIds = (try? c.decode([FlexibleInt64].self, forKey: .favoriteRestaurantIds).map(\.value)) ?? []
+    }
+}
+
+struct FoodCustomerReorderTemplateResponse: Decodable {
+    let id: String
+    let restaurantId: Int64
+    let restaurantName: String
+    let currencyCode: String
+    let fulfillmentType: String
+    let createdAt: Date?
+    let lines: [FoodCustomerReorderLineResponse]
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case restaurantId
+        case restaurantName
+        case currencyCode
+        case fulfillmentType
+        case createdAt
+        case lines
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = c.flexString(.id) ?? UUID().uuidString
+        restaurantId = try c.flexInt64(.restaurantId)
+        restaurantName = c.flexString(.restaurantName) ?? "Restaurant"
+        currencyCode = c.flexString(.currencyCode) ?? "USD"
+        fulfillmentType = c.flexString(.fulfillmentType) ?? "pickup"
+        createdAt = c.flexDateIfPresent(.createdAt)
+        lines = (try? c.decode([FoodCustomerReorderLineResponse].self, forKey: .lines)) ?? []
+    }
+}
+
+struct FoodCustomerReorderLineResponse: Decodable {
+    let menuItemId: Int64
+    let itemName: String
+    let quantity: Int
+    let modifierIds: [Int64]
+    let specialInstructions: String
+
+    enum CodingKeys: String, CodingKey {
+        case menuItemId
+        case itemName
+        case quantity
+        case modifierIds
+        case specialInstructions
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        menuItemId = try c.flexInt64(.menuItemId)
+        itemName = c.flexString(.itemName) ?? "Item"
+        quantity = c.flexInt(.quantity, default: 1)
+        modifierIds = (try? c.decode([FlexibleInt64].self, forKey: .modifierIds).map(\.value)) ?? []
+        specialInstructions = c.flexString(.specialInstructions) ?? ""
+    }
+}
+
+struct FoodCustomerLoyaltySummaryResponse: Decodable {
+    let points: Int
+    let tierName: String
+    let rewardSummary: String
+
+    enum CodingKeys: String, CodingKey {
+        case points
+        case tierName
+        case rewardSummary
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        points = c.flexInt(.points, default: 0)
+        tierName = c.flexString(.tierName) ?? "New"
+        rewardSummary = c.flexString(.rewardSummary) ?? ""
+    }
+}
+
+struct FoodCustomerOfferResponse: Decodable {
+    let id: String
+    let title: String
+    let detail: String
+    let code: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, detail, code
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = c.flexString(.id) ?? UUID().uuidString
+        title = c.flexString(.title) ?? "Offer"
+        detail = c.flexString(.detail) ?? ""
+        code = c.flexString(.code) ?? ""
+    }
+}
+
+private struct FlexibleInt64: Decodable {
+    let value: Int64
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let intValue = try? container.decode(Int64.self) {
+            value = intValue
+        } else if let stringValue = try? container.decode(String.self), let parsed = Int64(stringValue) {
+            value = parsed
+        } else if let doubleValue = try? container.decode(Double.self) {
+            value = Int64(doubleValue)
+        } else {
+            throw DecodingError.typeMismatch(
+                Int64.self,
+                DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Expected a numeric id")
+            )
+        }
+    }
+}
+
+private struct EmptyBody: Encodable {}
 
 struct AnyEncodable: Encodable {
     private let encodeBody: (Encoder) throws -> Void

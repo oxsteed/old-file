@@ -268,6 +268,173 @@ actor FoodAPIClient {
         return response.order
     }
 
+    // MARK: - Crew operations
+
+    func checklistTemplates(restaurantId: Int64, token: String) async throws -> [RestaurantChecklistTemplateResponse] {
+        let response: RestaurantChecklistTemplatesEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/checklists",
+            token: token
+        )
+        return response.checklists
+    }
+
+    func checklistRuns(restaurantId: Int64, limit: Int = 20, token: String) async throws -> [RestaurantChecklistRunListItemResponse] {
+        let response: RestaurantChecklistRunsEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/checklist-runs",
+            query: [URLQueryItem(name: "limit", value: String(limit))],
+            token: token
+        )
+        return response.runs
+    }
+
+    func checklistRun(restaurantId: Int64, runId: Int64, token: String) async throws -> RestaurantChecklistRunResponse {
+        let response: RestaurantChecklistRunEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/runs/\(runId)",
+            token: token
+        )
+        return response.run
+    }
+
+    func startChecklistRun(restaurantId: Int64, checklistId: Int64, token: String) async throws -> RestaurantChecklistRunResponse {
+        let response: RestaurantChecklistRunEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/checklists/\(checklistId)/runs",
+            method: "POST",
+            body: EmptyBody(),
+            token: token
+        )
+        return response.run
+    }
+
+    func toggleChecklistRunItem(
+        restaurantId: Int64,
+        runId: Int64,
+        itemId: Int64,
+        isDone: Bool,
+        note: String? = nil,
+        token: String
+    ) async throws -> RestaurantChecklistRunResponse {
+        struct Body: Encodable {
+            let isDone: Bool
+            let note: String?
+        }
+        let response: RestaurantChecklistRunEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/runs/\(runId)/items/\(itemId)",
+            method: "PATCH",
+            body: Body(isDone: isDone, note: note),
+            token: token
+        )
+        return response.run
+    }
+
+    func listSops(restaurantId: Int64, token: String) async throws -> [RestaurantSOPResponse] {
+        let response: RestaurantSOPsEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/sops",
+            token: token
+        )
+        return response.sops
+    }
+
+    func crewDashboard(restaurantId: Int64, token: String) async throws -> RestaurantCrewDashboardResponse {
+        try await request("/api/restaurants/\(restaurantId)/crew/dashboard", token: token)
+    }
+
+    func bootstrapCrewDefaults(restaurantId: Int64, token: String) async throws -> RestaurantCrewDashboardResponse {
+        try await request(
+            "/api/restaurants/\(restaurantId)/crew/bootstrap-defaults",
+            method: "POST",
+            body: EmptyBody(),
+            token: token
+        )
+    }
+
+    func updateCrewTrainingModule(
+        restaurantId: Int64,
+        moduleId: Int64,
+        isComplete: Bool,
+        token: String
+    ) async throws -> RestaurantCrewTrainingModuleResponse {
+        struct Body: Encodable { let isComplete: Bool }
+        let response: RestaurantCrewTrainingModuleEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/crew/modules/\(moduleId)",
+            method: "PATCH",
+            body: Body(isComplete: isComplete),
+            token: token
+        )
+        return response.module
+    }
+
+    func createCrewTrainingModule(
+        restaurantId: Int64,
+        title: String,
+        role: String,
+        durationMinutes: Int,
+        token: String
+    ) async throws -> RestaurantCrewTrainingModuleResponse {
+        struct Body: Encodable {
+            let title: String
+            let role: String
+            let durationMinutes: Int
+        }
+        let response: RestaurantCrewTrainingModuleEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/crew/modules",
+            method: "POST",
+            body: Body(title: title, role: role, durationMinutes: durationMinutes),
+            token: token
+        )
+        return response.module
+    }
+
+    func createCrewQuizResult(
+        restaurantId: Int64,
+        title: String,
+        scorePercent: Int,
+        attempts: Int,
+        passed: Bool,
+        token: String
+    ) async throws -> RestaurantCrewQuizResultResponse {
+        struct Body: Encodable {
+            let title: String
+            let scorePercent: Int
+            let attempts: Int
+            let passed: Bool
+        }
+        let response: RestaurantCrewQuizResultEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/crew/quizzes",
+            method: "POST",
+            body: Body(title: title, scorePercent: scorePercent, attempts: attempts, passed: passed),
+            token: token
+        )
+        return response.quiz
+    }
+
+    func upsertCrewBadge(
+        restaurantId: Int64,
+        badgeId: Int64? = nil,
+        title: String,
+        detail: String,
+        awarded: Bool,
+        token: String
+    ) async throws -> RestaurantCrewBadgeResponse {
+        struct Body: Encodable {
+            let title: String
+            let detail: String
+            let awarded: Bool
+        }
+        let path: String
+        if let badgeId {
+            path = "/api/restaurants/\(restaurantId)/crew/badges/\(badgeId)"
+        } else {
+            path = "/api/restaurants/\(restaurantId)/crew/badges"
+        }
+        let response: RestaurantCrewBadgeEnvelope = try await request(
+            path,
+            method: badgeId == nil ? "POST" : "PATCH",
+            body: Body(title: title, detail: detail, awarded: awarded),
+            token: token
+        )
+        return response.badge
+    }
+
     // MARK: - Core request
 
     private func request<T: Decodable>(
@@ -352,6 +519,268 @@ struct OrderEnvelope: Decodable {
 struct OrdersEnvelope: Decodable {
     let orders: [FoodOrder]
 }
+
+struct RestaurantChecklistTemplatesEnvelope: Decodable {
+    let checklists: [RestaurantChecklistTemplateResponse]
+}
+
+struct RestaurantChecklistTemplateResponse: Decodable {
+    let id: Int64
+    let name: String
+    let checklistType: String
+    let description: String?
+    let isActive: Bool
+    let tasks: [RestaurantChecklistTaskResponse]
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case checklistType = "checklist_type"
+        case description
+        case isActive = "is_active"
+        case tasks
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        name = c.flexString(.name) ?? "Checklist"
+        checklistType = c.flexString(.checklistType) ?? "custom"
+        description = c.flexString(.description)
+        isActive = c.flexBool(.isActive, default: true)
+        tasks = (try? c.decode([RestaurantChecklistTaskResponse].self, forKey: .tasks)) ?? []
+    }
+}
+
+struct RestaurantChecklistTaskResponse: Decodable {
+    let id: Int64
+    let label: String
+    let instructions: String?
+    let requiresNote: Bool
+    let isActive: Bool
+    let sortOrder: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case label
+        case instructions
+        case requiresNote = "requires_note"
+        case isActive = "is_active"
+        case sortOrder = "sort_order"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        label = c.flexString(.label) ?? "Task"
+        instructions = c.flexString(.instructions)
+        requiresNote = c.flexBool(.requiresNote, default: false)
+        isActive = c.flexBool(.isActive, default: true)
+        sortOrder = c.flexInt(.sortOrder, default: 0)
+    }
+}
+
+struct RestaurantChecklistRunsEnvelope: Decodable {
+    let runs: [RestaurantChecklistRunListItemResponse]
+}
+
+struct RestaurantChecklistRunListItemResponse: Decodable {
+    let id: Int64
+    let checklistId: Int64
+    let checklistName: String
+    let checklistType: String
+    let status: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case checklistId = "checklist_id"
+        case checklistName = "checklist_name"
+        case checklistType = "checklist_type"
+        case status
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        checklistId = try c.flexInt64(.checklistId)
+        checklistName = c.flexString(.checklistName) ?? "Checklist"
+        checklistType = c.flexString(.checklistType) ?? "custom"
+        status = c.flexString(.status) ?? "in_progress"
+    }
+}
+
+struct RestaurantChecklistRunEnvelope: Decodable {
+    let run: RestaurantChecklistRunResponse
+}
+
+struct RestaurantChecklistRunResponse: Decodable {
+    let id: Int64
+    let checklistId: Int64
+    let status: String
+    let items: [RestaurantChecklistRunItemResponse]
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case checklistId = "checklist_id"
+        case status
+        case items
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        checklistId = try c.flexInt64(.checklistId)
+        status = c.flexString(.status) ?? "in_progress"
+        items = (try? c.decode([RestaurantChecklistRunItemResponse].self, forKey: .items)) ?? []
+    }
+}
+
+struct RestaurantChecklistRunItemResponse: Decodable {
+    let id: Int64
+    let taskId: Int64?
+    let label: String
+    let note: String?
+    let isDone: Bool
+    let requiresNote: Bool
+    let sortOrder: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case taskId = "task_id"
+        case label
+        case note
+        case isDone = "is_done"
+        case requiresNote = "requires_note"
+        case sortOrder = "sort_order"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        taskId = c.flexInt64IfPresent(.taskId)
+        label = c.flexString(.label) ?? "Task"
+        note = c.flexString(.note)
+        isDone = c.flexBool(.isDone, default: false)
+        requiresNote = c.flexBool(.requiresNote, default: false)
+        sortOrder = c.flexInt(.sortOrder, default: 0)
+    }
+}
+
+struct RestaurantSOPsEnvelope: Decodable {
+    let sops: [RestaurantSOPResponse]
+}
+
+struct RestaurantCrewDashboardResponse: Decodable {
+    let modules: [RestaurantCrewTrainingModuleResponse]
+    let quizzes: [RestaurantCrewQuizResultResponse]
+    let badges: [RestaurantCrewBadgeResponse]
+}
+
+struct RestaurantCrewTrainingModuleEnvelope: Decodable {
+    let module: RestaurantCrewTrainingModuleResponse
+}
+
+struct RestaurantCrewQuizResultEnvelope: Decodable {
+    let quiz: RestaurantCrewQuizResultResponse
+}
+
+struct RestaurantCrewBadgeEnvelope: Decodable {
+    let badge: RestaurantCrewBadgeResponse
+}
+
+struct RestaurantCrewTrainingModuleResponse: Decodable {
+    let id: Int64
+    let title: String
+    let role: String
+    let durationMinutes: Int
+    let isComplete: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, role
+        case durationMinutes = "duration_minutes"
+        case isComplete = "is_complete"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        title = c.flexString(.title) ?? "Training"
+        role = c.flexString(.role) ?? "Crew"
+        durationMinutes = c.flexInt(.durationMinutes, default: 0)
+        isComplete = c.flexBool(.isComplete, default: false)
+    }
+}
+
+struct RestaurantCrewQuizResultResponse: Decodable {
+    let id: Int64
+    let title: String
+    let scorePercent: Int
+    let attempts: Int
+    let passed: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, attempts, passed
+        case scorePercent = "score_percent"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        title = c.flexString(.title) ?? "Quiz"
+        scorePercent = c.flexInt(.scorePercent, default: 0)
+        attempts = c.flexInt(.attempts, default: 0)
+        passed = c.flexBool(.passed, default: false)
+    }
+}
+
+struct RestaurantCrewBadgeResponse: Decodable {
+    let id: Int64
+    let title: String
+    let detail: String
+    let awarded: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, detail, awarded
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        title = c.flexString(.title) ?? "Badge"
+        detail = c.flexString(.detail) ?? ""
+        awarded = c.flexBool(.awarded, default: false)
+    }
+}
+
+struct RestaurantSOPResponse: Decodable {
+    let id: Int64
+    let title: String
+    let category: String
+    let body: String?
+    let version: Int
+    let isPublished: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case category
+        case body
+        case version
+        case isPublished = "is_published"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        title = c.flexString(.title) ?? "SOP"
+        category = c.flexString(.category) ?? "general"
+        body = c.flexString(.body)
+        version = c.flexInt(.version, default: 1)
+        isPublished = c.flexBool(.isPublished, default: true)
+    }
+}
+
+private struct EmptyBody: Encodable {}
 
 struct AnyEncodable: Encodable {
     private let encodeBody: (Encoder) throws -> Void

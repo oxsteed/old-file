@@ -6,6 +6,7 @@ import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { listFoodRestaurantOrders, updateFoodOrderStatus } from '../../api/food';
+import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import { FoodBrand } from './foodShared';
 import '../../styles/FoodPages.css';
 
@@ -31,8 +32,13 @@ export default function FoodKitchenPage() {
   useEffect(() => {
     load();
     timerRef.current = setInterval(load, POLL_MS);
-    return () => clearInterval(timerRef.current);
-  }, [load]);
+    // Live updates (instant) layered over the poll (fallback).
+    const unsubscribe = subscribeRestaurantDisplay(restaurantId, load);
+    return () => {
+      clearInterval(timerRef.current);
+      unsubscribe();
+    };
+  }, [load, restaurantId]);
 
   const advance = async (order) => {
     const next = ADVANCE[order.status];

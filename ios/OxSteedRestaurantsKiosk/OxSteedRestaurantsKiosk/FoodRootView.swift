@@ -593,6 +593,32 @@ private struct KioskQueueWorkspaceView: View {
                         Text("Kreyol").tag("Kreyol")
                     }
                     .pickerStyle(.segmented)
+                    Toggle(isOn: $store.kioskLockedMode) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Lock the guest flow")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(FoodTheme.ink)
+                            Text("Keep ordering in guided kiosk mode instead of a free-browse tablet.")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(FoodTheme.muted)
+                        }
+                    }
+                    Stepper(value: $store.kioskAutoResetSeconds, in: 3...60) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Auto-reset")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundStyle(FoodTheme.ink)
+                                Text("Return the tablet to the start screen after checkout.")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(FoodTheme.muted)
+                            }
+                            Spacer()
+                            Text("\(store.kioskAutoResetSeconds)s")
+                                .font(.system(size: 15, weight: .black))
+                                .foregroundStyle(FoodTheme.flame)
+                        }
+                    }
                 }
                 .foodCard(padding: 16)
             }
@@ -718,20 +744,29 @@ private struct KioskQueueWorkspaceView: View {
                 Text("Now ready")
                     .font(.system(size: 16, weight: .black))
                     .foregroundStyle(FoodTheme.basil)
-                let readyNumbers = store.queueBoard?.ready ?? FoodKioskSampleData.queueBoard.ready
-                if readyNumbers.isEmpty {
+                let readyEntries = store.queueBoard?.readyEntries ?? FoodKioskSampleData.queueBoard.readyEntries
+                if readyEntries.isEmpty {
                     Text("No pickup orders are ready yet.")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(FoodTheme.muted)
                 } else {
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        ForEach(readyNumbers, id: \.self) { number in
-                            Text("#\(number)")
-                                .font(.system(size: 36, weight: .black))
-                                .foregroundStyle(FoodTheme.ink)
-                                .frame(maxWidth: .infinity, minHeight: 92)
-                                .background(FoodTheme.surfaceRaised)
-                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        ForEach(readyEntries, id: \.queueNumber) { entry in
+                            VStack(spacing: 8) {
+                                Text("#\(entry.queueNumber)")
+                                    .font(.system(size: 34, weight: .black))
+                                    .foregroundStyle(FoodTheme.ink)
+                                Text(entry.guestLabel)
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundStyle(FoodTheme.basil)
+                                    .lineLimit(1)
+                                Text(entry.fulfillmentType.replacingOccurrences(of: "_", with: " ").capitalized)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(FoodTheme.muted)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 110)
+                            .background(FoodTheme.surfaceRaised)
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                         }
                     }
                 }
@@ -1059,14 +1094,9 @@ private struct RestaurantCard: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(FoodTheme.flame.opacity(0.14))
-                    Image(systemName: "takeoutbag.and.cup.and.straw.fill")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundStyle(FoodTheme.flame)
-                }
-                .frame(width: 62, height: 62)
+                RemoteFoodImage(restaurant.coverPhotoUrl, icon: "takeoutbag.and.cup.and.straw.fill", tint: FoodTheme.accent(for: restaurant.id))
+                    .frame(width: 62, height: 62)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(restaurant.displayName)
@@ -1116,7 +1146,7 @@ struct OrderView: View {
                         Text(restaurant.displayName)
                             .font(.system(size: 28, weight: .black))
                             .foregroundStyle(FoodTheme.ink)
-                        Text(restaurant.description ?? "Order from this restaurant. Payment happens at the counter.")
+                        Text(restaurant.description ?? "Order from this restaurant. Choose secure checkout now or pay at the counter.")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(FoodTheme.muted)
 
@@ -1133,6 +1163,14 @@ struct OrderView: View {
                         if !store.isSignedIn {
                             TextField("Your name (shown to the kitchen)", text: $store.guestName)
                                 .textFieldStyle(.roundedBorder)
+                        }
+
+                        if store.onlineCheckoutAvailable {
+                            Picker("Payment", selection: $store.kioskPaymentMode) {
+                                Text("Pay now").tag("pay_now")
+                                Text("Pay at counter").tag("pay_at_counter")
+                            }
+                            .pickerStyle(.segmented)
                         }
                     }
                     .foodCard(padding: 16)
@@ -1199,6 +1237,11 @@ private struct MenuItemRow: View {
     var body: some View {
         Button(action: configure) {
             HStack(spacing: 12) {
+                RemoteFoodImage(item.imageUrl, icon: "fork.knife")
+                    .frame(width: 58, height: 58)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .saturation(item.isAvailable ? 1 : 0)
+                    .opacity(item.isAvailable ? 1 : 0.55)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(item.name)
                         .font(.system(size: 16, weight: .bold))
@@ -1454,6 +1497,7 @@ private struct CartPanel: View {
 
 struct OrderConfirmationView: View {
     @EnvironmentObject private var store: FoodStore
+    @Environment(\.openURL) private var openURL
     let order: FoodOrder
     @State private var watchingQueue = false
 
@@ -1474,7 +1518,9 @@ struct OrderConfirmationView: View {
                 Text("#\(order.queueNumber)")
                     .font(.system(size: 88, weight: .black))
                     .foregroundStyle(FoodTheme.flame)
-                Text("Pay at the counter and watch for your number on the board.")
+                Text(store.lastPlacedOrderPayment?.status == "requires_payment"
+                     ? "Complete secure checkout now, then watch for your number on the board."
+                     : "Pay at the counter and watch for your number on the board.")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(FoodTheme.muted)
                     .multilineTextAlignment(.center)
@@ -1482,6 +1528,18 @@ struct OrderConfirmationView: View {
                 Text("Total \(foodMoney(order.totalCents, currency: order.currencyCode))")
                     .font(.system(size: 17, weight: .black))
                     .foregroundStyle(FoodTheme.ink)
+
+                if let checkoutURL = store.lastPlacedOrderPayment?.checkoutUrl,
+                   store.lastPlacedOrderPayment?.status == "requires_payment",
+                   let url = URL(string: checkoutURL) {
+                    Button {
+                        openURL(url)
+                    } label: {
+                        Label("Open secure checkout", systemImage: "creditcard.fill")
+                            .font(.system(size: 15, weight: .bold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
 
                 if watchingQueue {
                     QueueBoardLive(restaurantId: order.restaurantId, highlight: order.queueNumber)
@@ -1499,6 +1557,8 @@ struct OrderConfirmationView: View {
                 Spacer()
                 Button {
                     store.lastPlacedOrder = nil
+                    store.lastPlacedOrderPayment = nil
+                    store.lastPlacedOrderTrackingToken = nil
                 } label: {
                     Text("Done")
                         .font(.system(size: 16, weight: .black))
@@ -1511,6 +1571,12 @@ struct OrderConfirmationView: View {
                 .buttonStyle(.plain)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 18)
+            }
+        }
+        .task(id: store.lastPlacedOrderTrackingToken) {
+            while !Task.isCancelled, store.lastPlacedOrderTrackingToken != nil {
+                await store.refreshPlacedOrderIfNeeded()
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
             }
         }
     }
@@ -1647,6 +1713,12 @@ struct TrackView: View {
         }
         .task { await store.loadMyOrders() }
         .refreshable { await store.loadMyOrders() }
+        .task(id: store.lastPlacedOrderTrackingToken) {
+            while !Task.isCancelled, store.lastPlacedOrderTrackingToken != nil {
+                await store.refreshPlacedOrderIfNeeded()
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+            }
+        }
     }
 
     private var activeOrder: FoodOrder? {

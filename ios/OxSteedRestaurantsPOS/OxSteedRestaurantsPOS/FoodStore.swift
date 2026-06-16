@@ -45,6 +45,9 @@ final class FoodStore: ObservableObject {
     @Published var posDiscounts = FoodPOSSampleData.discounts
     @Published var posRecentReceipts = FoodPOSSampleData.receipts
     @Published var posPermissions = FoodPOSSampleData.permissions
+    @Published var posOrderHistory: [FoodOrder] = []
+    @Published var isApplyingCoupon = false
+    @Published var isSendingReceipt = false
 
     // MARK: - Auth state
 
@@ -104,6 +107,38 @@ final class FoodStore: ObservableObject {
             alerts.append(FoodManagerAlert(title: "Training assignments due", detail: "Crew SOP completions are below target before next shift.", tone: "info"))
         }
         return alerts
+    }
+    var posPaymentOrders: [FoodOrder] {
+        let source = posOrderHistory.isEmpty ? merchantOrders : posOrderHistory
+        return source.sorted { lhs, rhs in
+            let leftDate = lhs.createdAt ?? .distantPast
+            let rightDate = rhs.createdAt ?? .distantPast
+            if leftDate == rightDate {
+                return lhs.queueNumber > rhs.queueNumber
+            }
+            return leftDate > rightDate
+        }
+    }
+    var posReceiptActivity: [FoodPOSReceiptEvent] {
+        let liveEvents = posPaymentOrders.prefix(12).map { order in
+            FoodPOSReceiptEvent(
+                id: "order-\(order.id)-\(Int((order.createdAt ?? .distantPast).timeIntervalSince1970))",
+                orderID: order.id,
+                queueNumber: order.queueNumber,
+                guestName: order.guestName ?? "Walk-in",
+                totalCents: order.totalCents,
+                paymentStatus: order.paymentStatus,
+                channel: receiptChannel(for: order),
+                sentAt: order.createdAt ?? Date.distantPast
+            )
+        }
+        var seen = Set<String>()
+        let merged = (posRecentReceipts + liveEvents).filter { event in
+            let timestamp = Int(event.sentAt.timeIntervalSince1970)
+            let key = "\(event.orderID)-\(event.channel)-\(event.paymentStatus)-\(timestamp)"
+            return seen.insert(key).inserted
+        }
+        return merged.sorted { $0.sentAt > $1.sentAt }
     }
 
     // MARK: - Auth
@@ -239,29 +274,23 @@ final class FoodStore: ObservableObject {
             return
         }
         counterDiscountCents = min(subtotal, Int((Double(subtotal) * discount.percentOff).rounded()))
-        counterDiscountLabel = discount.title
+        counterDiscountLabel = discount.code ?? discount.title
         message = "\(discount.title) applied to this ticket."
     }
 
-    func applyCounterCoupon() {
+    func applyCounterCoupon() async {
         let code = counterCouponCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         guard !code.isEmpty else {
             message = "Enter a coupon code first."
             return
         }
-        let mappedPercent: Double
-        switch code {
-        case "WELCOME10":
-            mappedPercent = 0.10
-        case "LUNCH15":
-            mappedPercent = 0.15
-        case "VIP20":
-            mappedPercent = 0.20
-        default:
-            message = "Coupon code not recognized in this POS sample flow."
+        isApplyingCoupon = true
+        defer { isApplyingCoupon = false }
+        guard let discount = posDiscounts.first(where: { $0.code?.uppercased() == code }) else {
+            message = "Coupon code not recognized for this restaurant."
             return
         }
-        applyCounterDiscount(FoodPOSDiscount(title: code, percentOff: mappedPercent))
+        applyCounterDiscount(discount)
     }
 
     func clearCounterAdjustments() {
@@ -282,7 +311,10 @@ final class FoodStore: ObservableObject {
                 tableLabel: counterFulfillment == "dine_in" && !counterTableLabel.isEmpty ? counterTableLabel : nil,
                 guestName: counterGuestName.isEmpty ? "Walk-in" : counterGuestName,
                 token: accessToken.isEmpty ? nil : accessToken,
-                orderSource: "counter"
+                orderSource: "counter",
+                discountCode: counterCouponCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : counterCouponCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased(),
+                discountLabel: counterDiscountLabel,
+                discountCents: counterDiscountCents
             )
             counterCart.removeAll()
             counterGuestName = ""
@@ -291,6 +323,7 @@ final class FoodStore: ObservableObject {
             lastCounterOrder = order
             posRecentReceipts.insert(
                 FoodPOSReceiptEvent(
+                    id: "counter-\(order.id)-\(Date().timeIntervalSince1970)",
                     orderID: order.id,
                     queueNumber: order.queueNumber,
                     guestName: order.guestName ?? "Walk-in",
@@ -305,6 +338,8 @@ final class FoodStore: ObservableObject {
             if merchantSelection?.id == restaurant.id {
                 merchantOrders.insert(order, at: 0)
             }
+            mergePOSOrderRecord(order)
+            await logPOSReceiptEvent(order: order, channel: "Counter")
         } catch {
             message = "Counter order failed: \(error.localizedDescription)"
         }
@@ -339,6 +374,10 @@ final class FoodStore: ObservableObject {
                 merchantSelection = merchantRestaurants.first
             }
             merchantLoaded = true
+            await loadMerchantOrders()
+            await loadPOSOrderHistory()
+            await loadPOSConfig()
+            await loadPOSReceiptEvents()
         } catch {
             merchantLoaded = true
             message = error.localizedDescription
@@ -353,6 +392,43 @@ final class FoodStore: ObservableObject {
             }
         } catch {
             // Polling feed; keep the previous list on transient failure.
+        }
+    }
+
+    func loadPOSOrderHistory() async {
+        guard let restaurant = merchantSelection else { return }
+        do {
+            posOrderHistory = try await authed {
+                try await FoodAPIClient.shared.restaurantOrders(restaurantId: restaurant.id, activeOnly: false, token: $0)
+            }
+        } catch {
+            // Keep the last known order history on transient failures.
+        }
+    }
+
+    func loadPOSConfig() async {
+        guard let restaurant = merchantSelection else { return }
+        do {
+            let discounts = try await authed {
+                try await FoodAPIClient.shared.posDiscounts(restaurantId: restaurant.id, token: $0)
+            }
+            posDiscounts = discounts.map {
+                FoodPOSDiscount(title: $0.title, percentOff: $0.percentOff, code: $0.code)
+            }
+        } catch {
+            // Keep seeded fallback catalog if the backend route is unavailable.
+        }
+    }
+
+    func loadPOSReceiptEvents() async {
+        guard let restaurant = merchantSelection else { return }
+        do {
+            let events = try await authed {
+                try await FoodAPIClient.shared.posReceiptEvents(restaurantId: restaurant.id, token: $0)
+            }
+            posRecentReceipts = events.map(Self.mapReceiptEvent(from:))
+        } catch {
+            // Keep prior receipt activity on transient failures.
         }
     }
 
@@ -457,8 +533,10 @@ final class FoodStore: ObservableObject {
                 )
             }
             replaceMerchantOrder(updated)
+            mergePOSOrderRecord(updated)
             posRecentReceipts.insert(
                 FoodPOSReceiptEvent(
+                    id: "payment-\(updated.id)-\(Date().timeIntervalSince1970)",
                     orderID: updated.id,
                     queueNumber: updated.queueNumber,
                     guestName: updated.guestName ?? "Walk-in",
@@ -469,15 +547,19 @@ final class FoodStore: ObservableObject {
                 ),
                 at: 0
             )
+            await logPOSReceiptEvent(order: updated, channel: "Payment update")
             message = "Order #\(updated.queueNumber) marked \(paymentStatus)."
         } catch {
             message = error.localizedDescription
         }
     }
 
-    func sendReceipt(for order: FoodOrder, channel: String) {
+    func sendReceipt(for order: FoodOrder, channel: String) async {
+        isSendingReceipt = true
+        defer { isSendingReceipt = false }
         posRecentReceipts.insert(
             FoodPOSReceiptEvent(
+                id: "\(channel)-\(order.id)-\(Date().timeIntervalSince1970)",
                 orderID: order.id,
                 queueNumber: order.queueNumber,
                 guestName: order.guestName ?? "Walk-in",
@@ -488,6 +570,7 @@ final class FoodStore: ObservableObject {
             ),
             at: 0
         )
+        await logPOSReceiptEvent(order: order, channel: channel)
         message = "Receipt queued for \(channel.lowercased()) delivery."
     }
 
@@ -501,6 +584,60 @@ final class FoodStore: ObservableObject {
         } else if order.isActive {
             merchantOrders.insert(order, at: 0)
         }
+    }
+
+    private func mergePOSOrderRecord(_ order: FoodOrder) {
+        if let index = posOrderHistory.firstIndex(where: { $0.id == order.id }) {
+            posOrderHistory[index] = order
+        } else {
+            posOrderHistory.insert(order, at: 0)
+        }
+    }
+
+    private func receiptChannel(for order: FoodOrder) -> String {
+        switch order.paymentStatus {
+        case "paid":
+            return "Counter"
+        case "refunded":
+            return "Refunded"
+        default:
+            return "Order record"
+        }
+    }
+
+    private func logPOSReceiptEvent(order: FoodOrder, channel: String) async {
+        guard let restaurant = merchantSelection else { return }
+        do {
+            let event = try await authed {
+                try await FoodAPIClient.shared.createPOSReceiptEvent(
+                    restaurantId: restaurant.id,
+                    orderId: order.id,
+                    queueNumber: order.queueNumber,
+                    guestName: order.guestName ?? "Walk-in",
+                    totalCents: order.totalCents,
+                    paymentStatus: order.paymentStatus,
+                    channel: channel,
+                    token: $0
+                )
+            }
+            posRecentReceipts.removeAll { $0.orderID == order.id && $0.channel == channel }
+            posRecentReceipts.insert(Self.mapReceiptEvent(from: event), at: 0)
+        } catch {
+            // Keep the optimistic local event visible even if backend logging fails.
+        }
+    }
+
+    private static func mapReceiptEvent(from response: FoodPOSReceiptEventResponse) -> FoodPOSReceiptEvent {
+        FoodPOSReceiptEvent(
+            id: "receipt-\(response.id)",
+            orderID: response.orderID,
+            queueNumber: response.queueNumber,
+            guestName: response.guestName,
+            totalCents: response.totalCents,
+            paymentStatus: response.paymentStatus,
+            channel: response.channel,
+            sentAt: response.createdAt
+        )
     }
 }
 
@@ -562,10 +699,11 @@ struct FoodPOSDiscount: Identifiable, Hashable {
     let id = UUID()
     let title: String
     let percentOff: Double
+    let code: String?
 }
 
 struct FoodPOSReceiptEvent: Identifiable, Hashable {
-    let id = UUID()
+    let id: String
     let orderID: Int64
     let queueNumber: Int
     let guestName: String
@@ -614,14 +752,14 @@ enum FoodOperationsSampleData {
 
 enum FoodPOSSampleData {
     static let discounts = [
-        FoodPOSDiscount(title: "Lunch promo 10%", percentOff: 0.10),
-        FoodPOSDiscount(title: "Service recovery 15%", percentOff: 0.15),
-        FoodPOSDiscount(title: "VIP comp 20%", percentOff: 0.20),
+        FoodPOSDiscount(title: "Welcome 10%", percentOff: 0.10, code: "WELCOME10"),
+        FoodPOSDiscount(title: "Lunch 15%", percentOff: 0.15, code: "LUNCH15"),
+        FoodPOSDiscount(title: "VIP 20%", percentOff: 0.20, code: "VIP20"),
     ]
 
     static let receipts = [
-        FoodPOSReceiptEvent(orderID: 41, queueNumber: 41, guestName: "D. Smith", totalCents: 1899, paymentStatus: "paid", channel: "Printed", sentAt: Date().addingTimeInterval(-1800)),
-        FoodPOSReceiptEvent(orderID: 39, queueNumber: 39, guestName: "Walk-in", totalCents: 1245, paymentStatus: "refunded", channel: "Email", sentAt: Date().addingTimeInterval(-5400)),
+        FoodPOSReceiptEvent(id: "sample-41", orderID: 41, queueNumber: 41, guestName: "D. Smith", totalCents: 1899, paymentStatus: "paid", channel: "Printed", sentAt: Date().addingTimeInterval(-1800)),
+        FoodPOSReceiptEvent(id: "sample-39", orderID: 39, queueNumber: 39, guestName: "Walk-in", totalCents: 1245, paymentStatus: "refunded", channel: "Email", sentAt: Date().addingTimeInterval(-5400)),
     ]
 
     static let permissions = FoodPOSPermissions(

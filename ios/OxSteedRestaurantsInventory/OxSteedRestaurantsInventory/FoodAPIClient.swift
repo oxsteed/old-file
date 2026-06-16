@@ -268,6 +268,238 @@ actor FoodAPIClient {
         return response.order
     }
 
+    // MARK: - Restaurant ops inventory
+
+    func inventoryItems(restaurantId: Int64, token: String) async throws -> [RestaurantInventoryItemResponse] {
+        let response: RestaurantInventoryItemsEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/inventory/items",
+            token: token
+        )
+        return response.items
+    }
+
+    func inventoryAdjustments(restaurantId: Int64, token: String) async throws -> [RestaurantInventoryAdjustmentResponse] {
+        let response: RestaurantInventoryAdjustmentsEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/inventory/adjustments",
+            token: token
+        )
+        return response.adjustments
+    }
+
+    func createInventoryItem(
+        restaurantId: Int64,
+        name: String,
+        unit: String,
+        quantity: Double,
+        lowStockThreshold: Double,
+        supplierName: String?,
+        token: String
+    ) async throws -> RestaurantInventoryItemResponse {
+        struct Body: Encodable {
+            let name: String
+            let unit: String
+            let quantity: Double
+            let lowStockThreshold: Double
+            let supplierName: String?
+        }
+        let response: RestaurantInventoryItemEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/inventory/items",
+            method: "POST",
+            body: Body(
+                name: name,
+                unit: unit,
+                quantity: quantity,
+                lowStockThreshold: lowStockThreshold,
+                supplierName: supplierName
+            ),
+            token: token
+        )
+        return response.item
+    }
+
+    func updateInventoryItem(
+        restaurantId: Int64,
+        itemId: Int64,
+        name: String,
+        unit: String,
+        lowStockThreshold: Double,
+        supplierName: String?,
+        token: String
+    ) async throws -> RestaurantInventoryItemResponse {
+        struct Body: Encodable {
+            let name: String
+            let unit: String
+            let lowStockThreshold: Double
+            let supplierName: String?
+        }
+        let response: RestaurantInventoryItemEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/inventory/items/\(itemId)",
+            method: "PATCH",
+            body: Body(
+                name: name,
+                unit: unit,
+                lowStockThreshold: lowStockThreshold,
+                supplierName: supplierName
+            ),
+            token: token
+        )
+        return response.item
+    }
+
+    func deleteInventoryItem(restaurantId: Int64, itemId: Int64, token: String) async throws {
+        _ = try await request(
+            "/api/restaurants/\(restaurantId)/inventory/items/\(itemId)",
+            method: "DELETE",
+            token: token
+        ) as EmptyResponse
+    }
+
+    func adjustInventoryItem(
+        restaurantId: Int64,
+        itemId: Int64,
+        type: String,
+        delta: Double? = nil,
+        quantity: Double? = nil,
+        note: String? = nil,
+        token: String
+    ) async throws -> RestaurantInventoryItemResponse {
+        struct Body: Encodable {
+            let type: String
+            let delta: Double?
+            let quantity: Double?
+            let note: String?
+        }
+        let response: RestaurantInventoryItemEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/inventory/items/\(itemId)/adjust",
+            method: "POST",
+            body: Body(type: type, delta: delta, quantity: quantity, note: note),
+            token: token
+        )
+        return response.item
+    }
+
+    func purchaseRequests(restaurantId: Int64, token: String) async throws -> [RestaurantInventoryPurchaseRequestResponse] {
+        let response: RestaurantInventoryPurchaseRequestsEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/inventory/purchase-requests",
+            token: token
+        )
+        return response.requests
+    }
+
+    func createPurchaseRequest(
+        restaurantId: Int64,
+        itemName: String,
+        requestedQuantity: Double,
+        unit: String,
+        supplierName: String?,
+        note: String?,
+        token: String
+    ) async throws -> RestaurantInventoryPurchaseRequestResponse {
+        struct Body: Encodable {
+            let itemName: String
+            let requestedQuantity: Double
+            let unit: String
+            let supplierName: String?
+            let note: String?
+        }
+        let response: RestaurantInventoryPurchaseRequestEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/inventory/purchase-requests",
+            method: "POST",
+            body: Body(
+                itemName: itemName,
+                requestedQuantity: requestedQuantity,
+                unit: unit,
+                supplierName: supplierName,
+                note: note
+            ),
+            token: token
+        )
+        return response.request
+    }
+
+    func updatePurchaseRequest(
+        restaurantId: Int64,
+        requestId: Int64,
+        status: String,
+        token: String
+    ) async throws -> RestaurantInventoryPurchaseRequestResponse {
+        struct Body: Encodable { let status: String }
+        let response: RestaurantInventoryPurchaseRequestEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/inventory/purchase-requests/\(requestId)",
+            method: "PATCH",
+            body: Body(status: status),
+            token: token
+        )
+        return response.request
+    }
+
+    func supplierIssues(restaurantId: Int64, token: String) async throws -> [RestaurantInventorySupplierIssueResponse] {
+        let response: RestaurantInventorySupplierIssuesEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/inventory/supplier-issues",
+            token: token
+        )
+        return response.issues
+    }
+
+    func inventoryMappings(restaurantId: Int64, token: String) async throws -> [RestaurantInventoryMappingResponse] {
+        let response: RestaurantInventoryMappingsEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/inventory/mappings",
+            token: token
+        )
+        return response.mappings
+    }
+
+    func bootstrapInventoryMappings(restaurantId: Int64, token: String) async throws -> [RestaurantInventoryMappingResponse] {
+        let response: RestaurantInventoryMappingsEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/inventory/mappings/bootstrap-defaults",
+            method: "POST",
+            body: AnyEncodable(EmptyBody()),
+            token: token
+        )
+        return response.mappings
+    }
+
+    func createSupplierIssue(
+        restaurantId: Int64,
+        supplierName: String,
+        issue: String,
+        relatedPurchaseRequestId: Int64? = nil,
+        token: String
+    ) async throws -> RestaurantInventorySupplierIssueResponse {
+        struct Body: Encodable {
+            let supplierName: String
+            let issue: String
+            let relatedPurchaseRequestId: Int64?
+        }
+        let response: RestaurantInventorySupplierIssueEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/inventory/supplier-issues",
+            method: "POST",
+            body: Body(
+                supplierName: supplierName,
+                issue: issue,
+                relatedPurchaseRequestId: relatedPurchaseRequestId
+            ),
+            token: token
+        )
+        return response.issue
+    }
+
+    func updateSupplierIssue(
+        restaurantId: Int64,
+        issueId: Int64,
+        status: String,
+        token: String
+    ) async throws -> RestaurantInventorySupplierIssueResponse {
+        struct Body: Encodable { let status: String }
+        let response: RestaurantInventorySupplierIssueEnvelope = try await request(
+            "/api/restaurants/\(restaurantId)/inventory/supplier-issues/\(issueId)",
+            method: "PATCH",
+            body: Body(status: status),
+            token: token
+        )
+        return response.issue
+    }
+
     // MARK: - Core request
 
     private func request<T: Decodable>(
@@ -353,6 +585,183 @@ struct OrdersEnvelope: Decodable {
     let orders: [FoodOrder]
 }
 
+struct RestaurantInventoryItemsEnvelope: Decodable {
+    let items: [RestaurantInventoryItemResponse]
+}
+
+struct RestaurantInventoryItemEnvelope: Decodable {
+    let item: RestaurantInventoryItemResponse
+}
+
+struct RestaurantInventoryAdjustmentsEnvelope: Decodable {
+    let adjustments: [RestaurantInventoryAdjustmentResponse]
+}
+
+struct RestaurantInventoryPurchaseRequestsEnvelope: Decodable {
+    let requests: [RestaurantInventoryPurchaseRequestResponse]
+}
+
+struct RestaurantInventoryPurchaseRequestEnvelope: Decodable {
+    let request: RestaurantInventoryPurchaseRequestResponse
+}
+
+struct RestaurantInventorySupplierIssuesEnvelope: Decodable {
+    let issues: [RestaurantInventorySupplierIssueResponse]
+}
+
+struct RestaurantInventorySupplierIssueEnvelope: Decodable {
+    let issue: RestaurantInventorySupplierIssueResponse
+}
+
+struct RestaurantInventoryMappingsEnvelope: Decodable {
+    let mappings: [RestaurantInventoryMappingResponse]
+}
+
+struct RestaurantInventoryItemResponse: Decodable {
+    let id: Int64
+    let name: String
+    let unit: String
+    let quantity: Double
+    let lowStockThreshold: Double
+    let supplierName: String?
+    let isLow: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, unit, quantity, isLow = "is_low"
+        case lowStockThreshold = "low_stock_threshold"
+        case supplierName = "supplier_name"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        name = try c.decode(String.self, forKey: .name)
+        unit = try c.decode(String.self, forKey: .unit)
+        quantity = try c.decodeFlexibleDouble(forKey: .quantity)
+        lowStockThreshold = try c.decodeFlexibleDouble(forKey: .lowStockThreshold)
+        supplierName = try c.decodeIfPresent(String.self, forKey: .supplierName)
+        isLow = (try? c.decode(Bool.self, forKey: .isLow)) ?? false
+    }
+}
+
+struct RestaurantInventoryAdjustmentResponse: Decodable {
+    let id: Int64
+    let itemId: Int64?
+    let itemName: String
+    let adjustmentType: String
+    let quantityDelta: Double
+    let quantityAfter: Double
+    let note: String?
+    let createdAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, note
+        case itemId = "item_id"
+        case itemName = "item_name"
+        case adjustmentType = "adjustment_type"
+        case quantityDelta = "quantity_delta"
+        case quantityAfter = "quantity_after"
+        case createdAt = "created_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        itemId = try? c.flexInt64(.itemId)
+        itemName = try c.decode(String.self, forKey: .itemName)
+        adjustmentType = try c.decode(String.self, forKey: .adjustmentType)
+        quantityDelta = try c.decodeFlexibleDouble(forKey: .quantityDelta)
+        quantityAfter = try c.decodeFlexibleDouble(forKey: .quantityAfter)
+        note = try c.decodeIfPresent(String.self, forKey: .note)
+        createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt)
+    }
+}
+
+struct RestaurantInventoryPurchaseRequestResponse: Decodable {
+    let id: Int64
+    let itemName: String
+    let requestedQuantity: Double
+    let unit: String
+    let supplierName: String?
+    let status: String
+    let etaWindow: String?
+    let note: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, unit, status, note
+        case itemName = "item_name"
+        case requestedQuantity = "requested_quantity"
+        case supplierName = "supplier_name"
+        case etaWindow = "eta_window"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        itemName = try c.decode(String.self, forKey: .itemName)
+        requestedQuantity = try c.decodeFlexibleDouble(forKey: .requestedQuantity)
+        unit = try c.decode(String.self, forKey: .unit)
+        supplierName = try c.decodeIfPresent(String.self, forKey: .supplierName)
+        status = try c.decode(String.self, forKey: .status)
+        etaWindow = try c.decodeIfPresent(String.self, forKey: .etaWindow)
+        note = try c.decodeIfPresent(String.self, forKey: .note)
+    }
+}
+
+struct RestaurantInventorySupplierIssueResponse: Decodable {
+    let id: Int64
+    let supplierName: String
+    let issue: String
+    let status: String
+    let relatedPurchaseRequestId: Int64?
+
+    enum CodingKeys: String, CodingKey {
+        case id, issue, status
+        case supplierName = "supplier_name"
+        case relatedPurchaseRequestId = "related_purchase_request_id"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        supplierName = try c.decode(String.self, forKey: .supplierName)
+        issue = try c.decode(String.self, forKey: .issue)
+        status = try c.decode(String.self, forKey: .status)
+        relatedPurchaseRequestId = try? c.flexInt64(.relatedPurchaseRequestId)
+    }
+}
+
+struct RestaurantInventoryMappingResponse: Decodable {
+    let id: Int64
+    let inventoryItemId: Int64
+    let inventoryItemName: String
+    let menuItemId: Int64
+    let menuItemName: String
+    let usageLabel: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case inventoryItemId = "inventory_item_id"
+        case inventoryItemName = "inventory_item_name"
+        case menuItemId = "menu_item_id"
+        case menuItemName = "menu_item_name"
+        case usageLabel = "usage_label"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        inventoryItemId = try c.flexInt64(.inventoryItemId)
+        inventoryItemName = try c.decode(String.self, forKey: .inventoryItemName)
+        menuItemId = try c.flexInt64(.menuItemId)
+        menuItemName = try c.decode(String.self, forKey: .menuItemName)
+        usageLabel = try c.decode(String.self, forKey: .usageLabel)
+    }
+}
+
+private struct EmptyBody: Encodable {}
+private struct EmptyResponse: Decodable {}
+
 struct AnyEncodable: Encodable {
     private let encodeBody: (Encoder) throws -> Void
 
@@ -362,5 +771,17 @@ struct AnyEncodable: Encodable {
 
     func encode(to encoder: Encoder) throws {
         try encodeBody(encoder)
+    }
+}
+
+private extension KeyedDecodingContainer {
+    func decodeFlexibleDouble(forKey key: Key) throws -> Double {
+        if let value = try? decode(Double.self, forKey: key) { return value }
+        if let value = try? decode(Int.self, forKey: key) { return Double(value) }
+        if let value = try? decode(String.self, forKey: key), let parsed = Double(value) { return parsed }
+        throw DecodingError.typeMismatch(
+            Double.self,
+            DecodingError.Context(codingPath: codingPath + [key], debugDescription: "Expected a numeric value")
+        )
     }
 }

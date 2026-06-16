@@ -122,6 +122,22 @@ function broadcastToBusinessInbox(businessId, event, data) {
   io.to(`business_${businessId}_inbox`).emit(event, data);
 }
 
+// Public, read-only restaurant-display namespace.
+//
+// In-store TV/kiosk/customer screens are NOT authenticated, but the main
+// Socket.IO namespace requires a JWT. So those screens connect to a separate
+// `/restaurant-display` namespace (its own middleware, no auth) and only ever
+// receive PII-free "something changed" pings (queue number + status — data
+// already shown publicly on the wall board). They then refetch over REST.
+let displayNs = null;
+function initRestaurantDisplay(ns) { displayNs = ns; }
+
+function broadcastToRestaurantDisplay(restaurantId, event, data) {
+  if (!displayNs || !restaurantId) return;
+  try { displayNs.to(`rdisplay_${restaurantId}`).emit(event, data); }
+  catch (err) { logger.warn('broadcastToRestaurantDisplay failed', { restaurantId, error: err.message }); }
+}
+
 function broadcastToBusinessCalendar(businessId, event, data) {
   if (!io || !businessId) return;
   io.to(`business_${businessId}_calendar`).emit(event, data);
@@ -152,4 +168,5 @@ module.exports = {
   disconnectUserSockets, getSocketCount, validateConversationAccess,
   joinBusinessRooms, listUserBusinessIds,
   broadcastToBusinessInbox, broadcastToBusinessCalendar, validateBusinessRoomAccess,
+  initRestaurantDisplay, broadcastToRestaurantDisplay,
 };

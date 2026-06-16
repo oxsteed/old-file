@@ -1051,14 +1051,9 @@ private struct RestaurantCard: View {
         HStack(spacing: 10) {
             Button(action: action) {
                 HStack(spacing: 12) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(FoodTheme.flame.opacity(0.14))
-                        Image(systemName: "takeoutbag.and.cup.and.straw.fill")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundStyle(FoodTheme.flame)
-                    }
-                    .frame(width: 62, height: 62)
+                    RemoteFoodImage(restaurant.coverPhotoUrl, icon: "takeoutbag.and.cup.and.straw.fill", tint: FoodTheme.accent(for: restaurant.id))
+                        .frame(width: 62, height: 62)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                     VStack(alignment: .leading, spacing: 5) {
                         Text(restaurant.displayName)
@@ -1067,7 +1062,7 @@ private struct RestaurantCard: View {
                         if !restaurant.cuisineTags.isEmpty {
                             Text(restaurant.cuisineTags.joined(separator: " / "))
                                 .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(FoodTheme.basil)
+                                .foregroundStyle(FoodTheme.accent(for: restaurant.id))
                         }
                         Text(restaurant.locationLine.isEmpty ? "Global restaurant" : restaurant.locationLine)
                             .font(.system(size: 12, weight: .medium))
@@ -1217,6 +1212,11 @@ private struct MenuItemRow: View {
     var body: some View {
         Button(action: configure) {
             HStack(spacing: 12) {
+                RemoteFoodImage(item.imageUrl, icon: "fork.knife")
+                    .frame(width: 58, height: 58)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .saturation(item.isAvailable ? 1 : 0)
+                    .opacity(item.isAvailable ? 1 : 0.55)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(item.name)
                         .font(.system(size: 16, weight: .bold))

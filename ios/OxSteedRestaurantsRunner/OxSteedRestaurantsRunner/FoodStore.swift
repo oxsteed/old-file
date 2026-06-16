@@ -287,6 +287,7 @@ final class FoodStore: ObservableObject {
             } else {
                 merchantSelection = merchantRestaurants.first
             }
+            await loadLiveRunnerDashboard()
             merchantLoaded = true
         } catch {
             merchantLoaded = true
@@ -407,6 +408,105 @@ final class FoodStore: ObservableObject {
         }
     }
 
+    func createRunnerTask(
+        orderReference: String,
+        stopName: String,
+        taskType: String,
+        routeWindow: String,
+        customerContactRule: String,
+        requiresProof: Bool,
+        cashCollectionRequired: Bool,
+        notes: String
+    ) async -> Bool {
+        let trimmedOrderReference = orderReference.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedStopName = stopName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedOrderReference.isEmpty, !trimmedStopName.isEmpty else {
+            message = "Add both an order reference and a stop name."
+            return false
+        }
+
+        guard let restaurant = merchantSelection, isSignedIn else {
+            runnerTasks.insert(
+                FoodRunnerTask(
+                    remoteID: nil,
+                    orderReference: trimmedOrderReference,
+                    stopName: trimmedStopName,
+                    taskType: taskType,
+                    status: "Assigned",
+                    routeWindow: routeWindow.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "TBD" : routeWindow.trimmingCharacters(in: .whitespacesAndNewlines),
+                    customerContactRule: customerContactRule.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Follow restaurant delivery policy." : customerContactRule.trimmingCharacters(in: .whitespacesAndNewlines),
+                    requiresProof: requiresProof,
+                    cashCollectionRequired: cashCollectionRequired,
+                    notes: notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "No extra notes." : notes.trimmingCharacters(in: .whitespacesAndNewlines)
+                ),
+                at: 0
+            )
+            message = "Runner task drafted locally."
+            return true
+        }
+
+        do {
+            let response = try await authed {
+                try await FoodAPIClient.shared.createRunnerTask(
+                    restaurantId: restaurant.id,
+                    orderReference: trimmedOrderReference,
+                    stopName: trimmedStopName,
+                    taskType: taskType,
+                    routeWindow: routeWindow.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : routeWindow.trimmingCharacters(in: .whitespacesAndNewlines),
+                    customerContactRule: customerContactRule.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : customerContactRule.trimmingCharacters(in: .whitespacesAndNewlines),
+                    requiresProof: requiresProof,
+                    cashCollectionRequired: cashCollectionRequired,
+                    notes: notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : notes.trimmingCharacters(in: .whitespacesAndNewlines),
+                    token: $0
+                )
+            }
+            replaceRunnerTask(with: response.task)
+            message = "Runner task created for \(response.task.orderReference)."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    func createRunnerContactRule(title: String, detail: String) async -> Bool {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedDetail = detail.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty, !trimmedDetail.isEmpty else {
+            message = "Add both a title and contact guidance."
+            return false
+        }
+
+        guard let restaurant = merchantSelection, isSignedIn else {
+            runnerContactRules.insert(
+                FoodRunnerContactRule(title: trimmedTitle, detail: trimmedDetail),
+                at: 0
+            )
+            message = "Contact rule drafted locally."
+            return true
+        }
+
+        do {
+            let response = try await authed {
+                try await FoodAPIClient.shared.createRunnerContactRule(
+                    restaurantId: restaurant.id,
+                    title: trimmedTitle,
+                    detail: trimmedDetail,
+                    token: $0
+                )
+            }
+            runnerContactRules.insert(
+                FoodRunnerContactRule(title: response.contactRule.title, detail: response.contactRule.detail),
+                at: 0
+            )
+            message = "Runner contact rule added."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
     private func replaceMerchantOrder(_ order: FoodOrder) {
         if let index = merchantOrders.firstIndex(where: { $0.id == order.id }) {
             if order.isActive {
@@ -420,8 +520,28 @@ final class FoodStore: ObservableObject {
     }
 
     func confirmRunnerPickup(_ task: FoodRunnerTask) {
-        updateRunnerTask(task, status: "Picked up")
-        message = "\(task.orderReference) picked up and in runner custody."
+        guard let restaurant = merchantSelection, let remoteID = task.remoteID, isSignedIn else {
+            updateRunnerTask(task, status: "Picked up")
+            message = "\(task.orderReference) picked up and in runner custody."
+            return
+        }
+        Task {
+            do {
+                let response = try await authed {
+                    try await FoodAPIClient.shared.updateRunnerTaskStatus(
+                        restaurantId: restaurant.id,
+                        taskId: remoteID,
+                        status: "Picked up",
+                        token: $0
+                    )
+                }
+                replaceRunnerTask(with: response.task)
+                message = "\(response.task.orderReference) picked up and in runner custody."
+            } catch {
+                updateRunnerTask(task, status: "Picked up")
+                message = "\(task.orderReference) picked up locally while sync is unavailable."
+            }
+        }
     }
 
     func advanceRunnerTask(_ task: FoodRunnerTask) {
@@ -436,23 +556,74 @@ final class FoodStore: ObservableObject {
         default:
             nextStatus = "Completed"
         }
-        updateRunnerTask(task, status: nextStatus)
-        message = "\(task.orderReference) updated to \(nextStatus.lowercased())."
+
+        guard let restaurant = merchantSelection, let remoteID = task.remoteID, isSignedIn else {
+            updateRunnerTask(task, status: nextStatus)
+            message = "\(task.orderReference) updated to \(nextStatus.lowercased())."
+            return
+        }
+        Task {
+            do {
+                let response = try await authed {
+                    try await FoodAPIClient.shared.updateRunnerTaskStatus(
+                        restaurantId: restaurant.id,
+                        taskId: remoteID,
+                        status: nextStatus,
+                        token: $0
+                    )
+                }
+                replaceRunnerTask(with: response.task)
+                message = "\(response.task.orderReference) updated to \(nextStatus.lowercased())."
+            } catch {
+                updateRunnerTask(task, status: nextStatus)
+                message = "\(task.orderReference) updated locally while sync is unavailable."
+            }
+        }
     }
 
     func logRunnerProof(_ task: FoodRunnerTask, proofNote: String) {
         let trimmed = proofNote.trimmingCharacters(in: .whitespacesAndNewlines)
-        runnerProofs.insert(
-            FoodRunnerProof(
-                orderReference: task.orderReference,
-                stopName: task.stopName,
-                method: task.requiresProof ? "Photo / signature" : "Handoff confirmed",
-                note: trimmed.isEmpty ? "Delivery completed without extra note." : trimmed
-            ),
-            at: 0
-        )
-        updateRunnerTask(task, status: "Completed")
-        message = "Proof logged for \(task.orderReference)."
+        guard let restaurant = merchantSelection, let remoteID = task.remoteID, isSignedIn else {
+            runnerProofs.insert(
+                FoodRunnerProof(
+                    orderReference: task.orderReference,
+                    stopName: task.stopName,
+                    method: task.requiresProof ? "Photo / signature" : "Handoff confirmed",
+                    note: trimmed.isEmpty ? "Delivery completed without extra note." : trimmed
+                ),
+                at: 0
+            )
+            updateRunnerTask(task, status: "Completed")
+            message = "Proof logged for \(task.orderReference)."
+            return
+        }
+        Task {
+            do {
+                let response = try await authed {
+                    try await FoodAPIClient.shared.logRunnerProof(
+                        restaurantId: restaurant.id,
+                        taskId: remoteID,
+                        note: trimmed.isEmpty ? "Delivery completed without extra note." : trimmed,
+                        token: $0
+                    )
+                }
+                runnerProofs.insert(mapRunnerProof(response.proof), at: 0)
+                updateRunnerTask(task, status: "Completed")
+                message = "Proof logged for \(task.orderReference)."
+            } catch {
+                runnerProofs.insert(
+                    FoodRunnerProof(
+                        orderReference: task.orderReference,
+                        stopName: task.stopName,
+                        method: task.requiresProof ? "Photo / signature" : "Handoff confirmed",
+                        note: trimmed.isEmpty ? "Delivery completed without extra note." : trimmed
+                    ),
+                    at: 0
+                )
+                updateRunnerTask(task, status: "Completed")
+                message = "Proof logged locally while sync is unavailable."
+            }
+        }
     }
 
     func reportRunnerIssue(_ task: FoodRunnerTask, note: String) {
@@ -461,17 +632,47 @@ final class FoodStore: ObservableObject {
             message = "Add an issue note before reporting a runner problem."
             return
         }
-        runnerIssueReports.insert(
-            FoodRunnerIssueReport(
-                orderReference: task.orderReference,
-                stopName: task.stopName,
-                severity: "Needs follow-up",
-                note: trimmed
-            ),
-            at: 0
-        )
-        updateRunnerTask(task, status: "Issue")
-        message = "Issue reported for \(task.orderReference)."
+        guard let restaurant = merchantSelection, let remoteID = task.remoteID, isSignedIn else {
+            runnerIssueReports.insert(
+                FoodRunnerIssueReport(
+                    orderReference: task.orderReference,
+                    stopName: task.stopName,
+                    severity: "Needs follow-up",
+                    note: trimmed
+                ),
+                at: 0
+            )
+            updateRunnerTask(task, status: "Issue")
+            message = "Issue reported for \(task.orderReference)."
+            return
+        }
+        Task {
+            do {
+                let response = try await authed {
+                    try await FoodAPIClient.shared.reportRunnerIssue(
+                        restaurantId: restaurant.id,
+                        taskId: remoteID,
+                        note: trimmed,
+                        token: $0
+                    )
+                }
+                runnerIssueReports.insert(mapRunnerIssue(response.issue), at: 0)
+                updateRunnerTask(task, status: "Issue")
+                message = "Issue reported for \(task.orderReference)."
+            } catch {
+                runnerIssueReports.insert(
+                    FoodRunnerIssueReport(
+                        orderReference: task.orderReference,
+                        stopName: task.stopName,
+                        severity: "Needs follow-up",
+                        note: trimmed
+                    ),
+                    at: 0
+                )
+                updateRunnerTask(task, status: "Issue")
+                message = "Issue reported locally while sync is unavailable."
+            }
+        }
     }
 
     func addRunnerPaymentNote(_ task: FoodRunnerTask, amountText: String, note: String) {
@@ -481,15 +682,122 @@ final class FoodStore: ObservableObject {
             message = "Add a cash amount or note before saving payment details."
             return
         }
-        runnerPaymentNotes.insert(
-            FoodRunnerPaymentNote(
-                orderReference: task.orderReference,
-                amount: amount,
-                note: trimmed.isEmpty ? "No extra payment note." : trimmed
-            ),
-            at: 0
+        guard let restaurant = merchantSelection, let remoteID = task.remoteID, isSignedIn else {
+            runnerPaymentNotes.insert(
+                FoodRunnerPaymentNote(
+                    orderReference: task.orderReference,
+                    amount: amount,
+                    note: trimmed.isEmpty ? "No extra payment note." : trimmed
+                ),
+                at: 0
+            )
+            message = "Payment note saved for \(task.orderReference)."
+            return
+        }
+        Task {
+            do {
+                let response = try await authed {
+                    try await FoodAPIClient.shared.logRunnerPaymentNote(
+                        restaurantId: restaurant.id,
+                        taskId: remoteID,
+                        amount: amount,
+                        note: trimmed.isEmpty ? "No extra payment note." : trimmed,
+                        token: $0
+                    )
+                }
+                runnerPaymentNotes.insert(mapRunnerPaymentNote(response.paymentNote), at: 0)
+                message = "Payment note saved for \(task.orderReference)."
+            } catch {
+                runnerPaymentNotes.insert(
+                    FoodRunnerPaymentNote(
+                        orderReference: task.orderReference,
+                        amount: amount,
+                        note: trimmed.isEmpty ? "No extra payment note." : trimmed
+                    ),
+                    at: 0
+                )
+                message = "Payment note saved locally while sync is unavailable."
+            }
+        }
+    }
+
+    func loadLiveRunnerDashboard() async {
+        guard let restaurant = merchantSelection, isSignedIn else { return }
+        do {
+            let dashboard = try await authed {
+                try await FoodAPIClient.shared.runnerDashboard(restaurantId: restaurant.id, token: $0)
+            }
+            if !dashboard.tasks.isEmpty {
+                runnerTasks = dashboard.tasks.map(mapRunnerTask)
+            }
+            if !dashboard.contactRules.isEmpty {
+                runnerContactRules = dashboard.contactRules.map {
+                    FoodRunnerContactRule(title: $0.title, detail: $0.detail)
+                }
+            }
+            if !dashboard.proofs.isEmpty {
+                runnerProofs = dashboard.proofs.map(mapRunnerProof)
+            }
+            if !dashboard.issues.isEmpty {
+                runnerIssueReports = dashboard.issues.map(mapRunnerIssue)
+            }
+            if !dashboard.paymentNotes.isEmpty {
+                runnerPaymentNotes = dashboard.paymentNotes.map(mapRunnerPaymentNote)
+            }
+        } catch {
+            // Keep the verified local fallback dataset if runner migrations or
+            // routes are not yet available in the environment under test.
+        }
+    }
+
+    private func replaceRunnerTask(with response: RunnerTaskResponse) {
+        let mapped = mapRunnerTask(response)
+        if let index = runnerTasks.firstIndex(where: { $0.remoteID == mapped.remoteID }) {
+            runnerTasks[index] = mapped
+        } else {
+            runnerTasks.insert(mapped, at: 0)
+        }
+    }
+
+    private func mapRunnerTask(_ response: RunnerTaskResponse) -> FoodRunnerTask {
+        FoodRunnerTask(
+            remoteID: response.id,
+            orderReference: response.orderReference,
+            stopName: response.stopName,
+            taskType: response.taskType,
+            status: response.status,
+            routeWindow: response.routeWindow ?? "TBD",
+            customerContactRule: response.customerContactRule ?? "Follow restaurant delivery policy.",
+            requiresProof: response.requiresProof,
+            cashCollectionRequired: response.cashCollectionRequired,
+            notes: response.notes ?? "No extra notes."
         )
-        message = "Payment note saved for \(task.orderReference)."
+    }
+
+    private func mapRunnerProof(_ response: RunnerProofResponse) -> FoodRunnerProof {
+        FoodRunnerProof(
+            orderReference: response.orderReference,
+            stopName: response.stopName,
+            method: response.method,
+            note: response.note ?? "No extra note."
+        )
+    }
+
+    private func mapRunnerIssue(_ response: RunnerIssueResponse) -> FoodRunnerIssueReport {
+        FoodRunnerIssueReport(
+            orderReference: response.orderReference,
+            stopName: response.stopName,
+            severity: response.severity,
+            note: response.note
+        )
+    }
+
+    private func mapRunnerPaymentNote(_ response: RunnerPaymentNoteResponse) -> FoodRunnerPaymentNote {
+        FoodRunnerPaymentNote(
+            orderReference: response.orderReference,
+            amount: response.amount,
+            note: response.note ?? "No extra payment note."
+        )
     }
 
     private func updateRunnerTask(_ task: FoodRunnerTask, status: String) {
@@ -546,6 +854,7 @@ struct FoodReceivingTask: Identifiable, Hashable {
 
 struct FoodRunnerTask: Identifiable, Hashable {
     let id = UUID()
+    let remoteID: Int64?
     let orderReference: String
     let stopName: String
     let taskType: String
@@ -611,9 +920,9 @@ enum FoodOperationsSampleData {
     ]
 
     static let runnerTasks = [
-        FoodRunnerTask(orderReference: "Order #42", stopName: "Lobby pickup rack", taskType: "Customer pickup", status: "Ready", routeWindow: "Now", customerContactRule: "Confirm name before handoff. No phone call needed.", requiresProof: false, cashCollectionRequired: false, notes: "Order awaiting lobby handoff."),
-        FoodRunnerTask(orderReference: "Order #51", stopName: "Office park catering", taskType: "Delivery", status: "Assigned", routeWindow: "11:45-12:05", customerContactRule: "Text once on arrival. Front desk drop only.", requiresProof: true, cashCollectionRequired: false, notes: "Proof photo required on drop."),
-        FoodRunnerTask(orderReference: "Task #7", stopName: "Supplier return", taskType: "Logistics", status: "Queued", routeWindow: "14:00-14:30", customerContactRule: "Check in with receiving lead before return handoff.", requiresProof: true, cashCollectionRequired: true, notes: "Return damaged syrup case and collect credit memo."),
+        FoodRunnerTask(remoteID: nil, orderReference: "Order #42", stopName: "Lobby pickup rack", taskType: "Customer pickup", status: "Ready", routeWindow: "Now", customerContactRule: "Confirm name before handoff. No phone call needed.", requiresProof: false, cashCollectionRequired: false, notes: "Order awaiting lobby handoff."),
+        FoodRunnerTask(remoteID: nil, orderReference: "Order #51", stopName: "Office park catering", taskType: "Delivery", status: "Assigned", routeWindow: "11:45-12:05", customerContactRule: "Text once on arrival. Front desk drop only.", requiresProof: true, cashCollectionRequired: false, notes: "Proof photo required on drop."),
+        FoodRunnerTask(remoteID: nil, orderReference: "Task #7", stopName: "Supplier return", taskType: "Logistics", status: "Queued", routeWindow: "14:00-14:30", customerContactRule: "Check in with receiving lead before return handoff.", requiresProof: true, cashCollectionRequired: true, notes: "Return damaged syrup case and collect credit memo."),
     ]
 }
 

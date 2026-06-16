@@ -19,14 +19,32 @@ final class FoodStore: ObservableObject {
 
     /// Set right after a successful order; drives the confirmation screen.
     @Published var lastPlacedOrder: FoodOrder?
+    @Published var lastPlacedOrderPayment: FoodOrderPaymentResponse?
+    @Published var lastPlacedOrderTrackingToken: String?
     @Published var myOrders: [FoodOrder] = []
     @Published var queueBoard: FoodQueueBoard?
     @Published var lastCounterOrder: FoodOrder?
+    @Published var onlineCheckoutAvailable = false
+    @Published var kioskPaymentMode = "pay_now"
     @Published var kioskLanguage = UserDefaults.standard.string(forKey: "ox.food.kioskLanguage") ?? "English" {
-        didSet { UserDefaults.standard.set(kioskLanguage, forKey: "ox.food.kioskLanguage") }
+        didSet {
+            UserDefaults.standard.set(kioskLanguage, forKey: "ox.food.kioskLanguage")
+            scheduleKioskConfigSyncIfNeeded()
+        }
     }
-    @Published var kioskLockedMode = true
-    @Published var kioskAutoResetSeconds = 8
+    @Published var kioskLockedMode = UserDefaults.standard.object(forKey: "ox.food.kioskLockedMode") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(kioskLockedMode, forKey: "ox.food.kioskLockedMode")
+            scheduleKioskConfigSyncIfNeeded()
+        }
+    }
+    @Published var kioskAutoResetSeconds = UserDefaults.standard.object(forKey: "ox.food.kioskAutoResetSeconds") as? Int ?? 8 {
+        didSet {
+            kioskAutoResetSeconds = max(3, min(60, kioskAutoResetSeconds))
+            UserDefaults.standard.set(kioskAutoResetSeconds, forKey: "ox.food.kioskAutoResetSeconds")
+            scheduleKioskConfigSyncIfNeeded()
+        }
+    }
     @Published var kioskConnectionStatus = "Sample board"
 
     // MARK: - Merchant state
@@ -57,6 +75,7 @@ final class FoodStore: ObservableObject {
     private var refreshToken = UserDefaults.standard.string(forKey: "ox.food.refreshToken") ?? "" {
         didSet { UserDefaults.standard.set(refreshToken, forKey: "ox.food.refreshToken") }
     }
+    private var isApplyingRemoteKioskConfig = false
 
     var isSignedIn: Bool { !refreshToken.isEmpty || !accessToken.isEmpty }
 
@@ -132,6 +151,42 @@ final class FoodStore: ObservableObject {
         merchantOrders = []
         merchantLoaded = false
         myOrders = []
+        lastPlacedOrderPayment = nil
+        lastPlacedOrderTrackingToken = nil
+    }
+
+    private func scheduleKioskConfigSyncIfNeeded() {
+        guard !isApplyingRemoteKioskConfig else { return }
+        Task { [weak self] in
+            await self?.persistKioskConfigIfPossible()
+        }
+    }
+
+    private func applyRemoteKioskConfig(_ config: FoodKioskConfigResponse) {
+        isApplyingRemoteKioskConfig = true
+        kioskLanguage = config.preferredLanguage
+        kioskLockedMode = config.lockedMode
+        kioskAutoResetSeconds = config.autoResetSeconds
+        isApplyingRemoteKioskConfig = false
+    }
+
+    private func persistKioskConfigIfPossible() async {
+        guard isSignedIn, let restaurantId = activeRestaurant?.id else { return }
+        do {
+            let config = try await authed {
+                try await FoodAPIClient.shared.updateKioskConfig(
+                    restaurantId: restaurantId,
+                    preferredLanguage: kioskLanguage,
+                    lockedMode: kioskLockedMode,
+                    autoResetSeconds: kioskAutoResetSeconds,
+                    token: $0
+                )
+            }
+            applyRemoteKioskConfig(config)
+        } catch {
+            // Signed-out guest kiosks and restaurants without merchant access keep
+            // the local setting values without surfacing noisy save failures.
+        }
     }
 
     /// Runs an authenticated call; on 401, refreshes the access token once and
@@ -167,6 +222,7 @@ final class FoodStore: ObservableObject {
             restaurants = [FoodSampleData.restaurant]
             message = nil
         }
+        await loadPaymentConfig()
     }
 
     func select(_ restaurant: FoodRestaurant) async {
@@ -201,19 +257,46 @@ final class FoodStore: ObservableObject {
         isPlacingOrder = true
         defer { isPlacingOrder = false }
         do {
-            let order = try await FoodAPIClient.shared.createOrder(
+            let response = try await FoodAPIClient.shared.createOrder(
                 restaurantId: restaurant.id,
                 lines: cart,
                 fulfillment: fulfillment,
                 tableLabel: fulfillment == "dine_in" && !tableLabel.isEmpty ? tableLabel : nil,
                 guestName: isSignedIn || guestName.isEmpty ? nil : guestName,
-                token: accessToken.isEmpty ? nil : accessToken
+                token: accessToken.isEmpty ? nil : accessToken,
+                paymentMode: onlineCheckoutAvailable ? kioskPaymentMode : "pay_at_counter"
             )
             cart.removeAll()
-            lastPlacedOrder = order
-            message = nil
+            lastPlacedOrder = response.order
+            lastPlacedOrderPayment = response.payment
+            lastPlacedOrderTrackingToken = response.trackingToken
+            message = response.payment?.status == "failed" ? response.payment?.error : nil
         } catch {
             message = "Order failed: \(error.localizedDescription)"
+        }
+    }
+
+    func loadPaymentConfig() async {
+        do {
+            let config = try await FoodAPIClient.shared.paymentConfig()
+            onlineCheckoutAvailable = config.payments.onlineCheckoutAvailable
+            kioskPaymentMode = onlineCheckoutAvailable ? "pay_now" : "pay_at_counter"
+        } catch {
+            onlineCheckoutAvailable = false
+            kioskPaymentMode = "pay_at_counter"
+        }
+    }
+
+    func refreshPlacedOrderIfNeeded() async {
+        guard let trackingToken = lastPlacedOrderTrackingToken else { return }
+        do {
+            let refreshed = try await FoodAPIClient.shared.trackedOrder(trackingToken: trackingToken)
+            lastPlacedOrder = refreshed
+            if refreshed.paymentStatus == "paid" {
+                lastPlacedOrderPayment = nil
+            }
+        } catch {
+            // Best-effort polling for guest hosted-checkout returns.
         }
     }
 
@@ -230,7 +313,7 @@ final class FoodStore: ObservableObject {
         isSubmittingCounterOrder = true
         defer { isSubmittingCounterOrder = false }
         do {
-            let order = try await FoodAPIClient.shared.createOrder(
+            let response = try await FoodAPIClient.shared.createOrder(
                 restaurantId: restaurant.id,
                 lines: counterCart,
                 fulfillment: counterFulfillment,
@@ -239,6 +322,7 @@ final class FoodStore: ObservableObject {
                 token: accessToken.isEmpty ? nil : accessToken,
                 orderSource: "counter"
             )
+            let order = response.order
             counterCart.removeAll()
             counterGuestName = ""
             counterTableLabel = ""
@@ -269,10 +353,19 @@ final class FoodStore: ObservableObject {
             queueBoard = FoodKioskSampleData.queueBoard
             kioskConnectionStatus = "Sample board"
         }
+        do {
+            let config = try await FoodAPIClient.shared.kioskConfig(restaurantId: restaurantId)
+            applyRemoteKioskConfig(config)
+        } catch {
+            // Public kiosks can still run from locally persisted settings.
+        }
     }
 
     func bootstrapKiosk() async {
         await loadRestaurants()
+        if isSignedIn {
+            await loadMerchant()
+        }
         if selectedRestaurant == nil, let restaurant = activeRestaurant {
             await select(restaurant)
         }
@@ -514,7 +607,17 @@ enum FoodKioskSampleData {
     static let queueBoard = FoodQueueBoard(
         restaurant: .init(id: 1, displayName: "Ox Burger Lab"),
         preparing: [48, 49, 51],
-        ready: [45, 46, 47]
+        ready: [45, 46, 47],
+        preparingEntries: [
+            .init(queueNumber: 48, guestLabel: "Guest", fulfillmentType: "pickup", promisedAt: nil),
+            .init(queueNumber: 49, guestLabel: "Table 9", fulfillmentType: "dine_in", promisedAt: nil),
+            .init(queueNumber: 51, guestLabel: "Mia", fulfillmentType: "pickup", promisedAt: nil),
+        ],
+        readyEntries: [
+            .init(queueNumber: 45, guestLabel: "D. Smith", fulfillmentType: "pickup", promisedAt: nil),
+            .init(queueNumber: 46, guestLabel: "Table 4", fulfillmentType: "dine_in", promisedAt: nil),
+            .init(queueNumber: 47, guestLabel: "Alex", fulfillmentType: "pickup", promisedAt: nil),
+        ]
     )
 }
 

@@ -300,9 +300,20 @@ private enum CustomerSubworkspace: String, CaseIterable, Identifiable {
 private struct OwnerManagerWorkspaceView: View {
     @EnvironmentObject private var store: FoodStore
     @State private var tab = ManagerSubworkspace.overview
+    @State private var editingMenuItemID: Int64?
+    @State private var editingMenuItemName = ""
+    @State private var editingMenuItemDescription = ""
+    @State private var editingMenuItemPrice = ""
+    @State private var checklistName = ""
+    @State private var checklistFirstTask = ""
+    @State private var sopTitle = ""
+    @State private var sopCategory = "general"
+    @State private var sopBody = ""
     @State private var helpTitle = ""
     @State private var helpDetail = ""
     @State private var helpUrgency = "High"
+    @State private var inviteEmail = ""
+    @State private var inviteRole = "manager"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -480,25 +491,71 @@ private struct OwnerManagerWorkspaceView: View {
                     .font(.system(size: 18, weight: .black))
                     .foregroundStyle(FoodTheme.ink)
                 ForEach(store.activeMenuItems) { item in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(item.name)
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(FoodTheme.ink)
-                            Text(foodMoney(item.priceCents, currency: item.currencyCode))
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(FoodTheme.muted)
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(item.name)
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundStyle(FoodTheme.ink)
+                                Text(foodMoney(item.priceCents, currency: item.currencyCode))
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(FoodTheme.muted)
+                            }
+                            Spacer()
+                            Button(store.isManagerItemAvailable(item) ? "Available" : "86 / Pause") {
+                                store.toggleManagerItemAvailability(item)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(store.isManagerItemAvailable(item) ? .green : .orange)
                         }
-                        Spacer()
-                        Button(store.isManagerItemAvailable(item) ? "Available" : "86 / Pause") {
-                            store.toggleManagerItemAvailability(item)
+                        HStack(spacing: 8) {
+                            Button(editingMenuItemID == item.id ? "Cancel" : "Edit") {
+                                if editingMenuItemID == item.id {
+                                    editingMenuItemID = nil
+                                } else {
+                                    editingMenuItemID = item.id
+                                    editingMenuItemName = item.name
+                                    editingMenuItemDescription = item.description ?? ""
+                                    editingMenuItemPrice = String(format: "%.2f", Double(item.priceCents) / 100.0)
+                                }
+                            }
+                            .buttonStyle(.bordered)
+
+                            Button("Delete", role: .destructive) {
+                                Task { _ = await store.deleteManagerMenuItem(item) }
+                            }
+                            .buttonStyle(.bordered)
                         }
-                        .buttonStyle(.bordered)
-                        .tint(store.isManagerItemAvailable(item) ? .green : .orange)
+                        if editingMenuItemID == item.id {
+                            VStack(alignment: .leading, spacing: 10) {
+                                TextField("Item name", text: $editingMenuItemName)
+                                    .textFieldStyle(.roundedBorder)
+                                TextField("Description", text: $editingMenuItemDescription, axis: .vertical)
+                                    .lineLimit(2...4)
+                                    .textFieldStyle(.roundedBorder)
+                                TextField("Price", text: $editingMenuItemPrice)
+                                    .keyboardType(.decimalPad)
+                                    .textFieldStyle(.roundedBorder)
+                                Button("Save menu item") {
+                                    Task {
+                                        let saved = await store.updateManagerMenuItem(
+                                            item,
+                                            name: editingMenuItemName,
+                                            description: editingMenuItemDescription,
+                                            priceText: editingMenuItemPrice
+                                        )
+                                        if saved {
+                                            editingMenuItemID = nil
+                                        }
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                            }
+                        }
                     }
                     .foodCard(padding: 14)
                 }
-                Text("Availability toggles are local manager-state until the menu update API grows beyond create-only.")
+                Text("Availability, editing, and deletion now sync through the shared restaurant backend when signed in.")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(FoodTheme.muted)
             }
@@ -515,27 +572,102 @@ private struct OwnerManagerWorkspaceView: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(FoodTheme.muted)
             }
-            ForEach(store.managerTeam) { member in
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(member.name)
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(FoodTheme.ink)
-                        Text("\(member.role) · \(member.shiftStatus)")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(FoodTheme.muted)
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Invite team member")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+                TextField("Email address", text: $inviteEmail)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.emailAddress)
+                    .autocorrectionDisabled()
+                    .textFieldStyle(.roundedBorder)
+                Picker("Role", selection: $inviteRole) {
+                    Text("Manager").tag("manager")
+                    Text("Representative").tag("representative")
+                }
+                .pickerStyle(.segmented)
+                Button("Send invite") {
+                    Task {
+                        let invited = await store.inviteManagerTeamMember(email: inviteEmail, role: inviteRole)
+                        if invited {
+                            inviteEmail = ""
+                        }
                     }
-                    Spacer()
-                    Text(member.trainingStatus)
-                        .font(.system(size: 11, weight: .black))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(member.trainingStatus == "Current" ? FoodTheme.basil : FoodTheme.saffron)
-                        .clipShape(Capsule())
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .foodCard(padding: 16)
+
+            ForEach(store.managerTeam) { member in
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(member.name)
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(FoodTheme.ink)
+                            Text("\(member.role) · \(member.detailLabel)")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(FoodTheme.muted)
+                        }
+                        Spacer()
+                        Text(member.badgeText)
+                            .font(.system(size: 11, weight: .black))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(member.membershipStatus == "active" ? FoodTheme.basil : FoodTheme.saffron)
+                            .clipShape(Capsule())
+                    }
+
+                    if member.membershipID != nil {
+                        HStack(spacing: 8) {
+                            Menu("Change role") {
+                                Button("Manager") {
+                                    Task { _ = await store.changeManagerTeamRole(member, role: "manager") }
+                                }
+                                Button("Representative") {
+                                    Task { _ = await store.changeManagerTeamRole(member, role: "representative") }
+                                }
+                                Button("Employee") {
+                                    Task { _ = await store.changeManagerTeamRole(member, role: "employee") }
+                                }
+                                Button("Support agent") {
+                                    Task { _ = await store.changeManagerTeamRole(member, role: "support_agent") }
+                                }
+                            }
+                            .buttonStyle(.bordered)
+
+                            Button("Remove", role: .destructive) {
+                                Task { _ = await store.revokeManagerTeamMember(member) }
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
                 }
                 .foodCard(padding: 14)
             }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Create opening checklist")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+                TextField("Checklist name", text: $checklistName)
+                    .textFieldStyle(.roundedBorder)
+                TextField("First task", text: $checklistFirstTask)
+                    .textFieldStyle(.roundedBorder)
+                Button("Create checklist") {
+                    Task {
+                        let created = await store.createOpeningChecklist(name: checklistName, firstTask: checklistFirstTask)
+                        if created {
+                            checklistName = ""
+                            checklistFirstTask = ""
+                        }
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .foodCard(padding: 16)
 
             VStack(alignment: .leading, spacing: 10) {
                 Text("Checklist completion overview")
@@ -553,6 +685,70 @@ private struct OwnerManagerWorkspaceView: View {
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundStyle(FoodTheme.muted)
                         }
+                    }
+                    .foodCard(padding: 14)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Create SOP")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+                TextField("SOP title", text: $sopTitle)
+                    .textFieldStyle(.roundedBorder)
+                Picker("Category", selection: $sopCategory) {
+                    Text("General").tag("general")
+                    Text("Kitchen").tag("kitchen")
+                    Text("Front of house").tag("front_of_house")
+                    Text("Cleaning").tag("cleaning")
+                    Text("Food safety").tag("food_safety")
+                    Text("Opening").tag("opening")
+                    Text("Closing").tag("closing")
+                    Text("Safety").tag("safety")
+                }
+                .pickerStyle(.menu)
+                TextField("Procedure details", text: $sopBody, axis: .vertical)
+                    .lineLimit(3...6)
+                    .textFieldStyle(.roundedBorder)
+                Button("Create SOP") {
+                    Task {
+                        let created = await store.createManagerSOP(title: sopTitle, category: sopCategory, body: sopBody)
+                        if created {
+                            sopTitle = ""
+                            sopCategory = "general"
+                            sopBody = ""
+                        }
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .foodCard(padding: 16)
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Live SOP library")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+                ForEach(store.managerSOPs) { sop in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(sop.title)
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(FoodTheme.ink)
+                            Spacer()
+                            Text(sop.versionLabel)
+                                .font(.system(size: 11, weight: .black))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(FoodTheme.blue)
+                                .clipShape(Capsule())
+                        }
+                        Text(sop.category)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(FoodTheme.flame)
+                        Text(sop.detail)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(FoodTheme.muted)
                     }
                     .foodCard(padding: 14)
                 }
@@ -665,12 +861,17 @@ private struct OwnerManagerWorkspaceView: View {
                 }
                 .pickerStyle(.segmented)
                 Button("Create Marketplace Help request") {
-                    store.addMarketplaceHelpRequest(title: helpTitle, details: helpDetail, urgency: helpUrgency)
-                    helpTitle = ""
-                    helpDetail = ""
-                    helpUrgency = "High"
+                    Task {
+                        await store.addMarketplaceHelpRequest(title: helpTitle, details: helpDetail, urgency: helpUrgency)
+                        if store.message?.contains("request sent") == true {
+                            helpTitle = ""
+                            helpDetail = ""
+                            helpUrgency = "High"
+                        }
+                    }
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(store.isSubmittingHelpRequest)
             }
             .foodCard(padding: 16)
 
@@ -689,12 +890,29 @@ private struct OwnerManagerWorkspaceView: View {
                             .background(request.urgency == "High" ? .red : FoodTheme.blue)
                             .clipShape(Capsule())
                     }
+                    Text(request.status.replacingOccurrences(of: "_", with: " ").capitalized)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(request.status == "resolved" ? FoodTheme.basil : FoodTheme.saffron)
                     Text(request.linkedLocation)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(FoodTheme.flame)
                     Text(request.detail)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(FoodTheme.muted)
+                    HStack(spacing: 8) {
+                        if request.status != "in_progress" {
+                            Button("In Progress") {
+                                Task { await store.updateMarketplaceHelpRequest(request, status: "in_progress") }
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        if request.status != "resolved" {
+                            Button("Resolve") {
+                                Task { await store.updateMarketplaceHelpRequest(request, status: "resolved") }
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                    }
                 }
                 .foodCard(padding: 14)
             }
@@ -1197,14 +1415,9 @@ private struct RestaurantCard: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(FoodTheme.flame.opacity(0.14))
-                    Image(systemName: "takeoutbag.and.cup.and.straw.fill")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundStyle(FoodTheme.flame)
-                }
-                .frame(width: 62, height: 62)
+                RemoteFoodImage(restaurant.coverPhotoUrl, icon: "takeoutbag.and.cup.and.straw.fill", tint: FoodTheme.accent(for: restaurant.id))
+                    .frame(width: 62, height: 62)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(restaurant.displayName)
@@ -1337,6 +1550,11 @@ private struct MenuItemRow: View {
     var body: some View {
         Button(action: configure) {
             HStack(spacing: 12) {
+                RemoteFoodImage(item.imageUrl, icon: "fork.knife")
+                    .frame(width: 58, height: 58)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .saturation(item.isAvailable ? 1 : 0)
+                    .opacity(item.isAvailable ? 1 : 0.55)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(item.name)
                         .font(.system(size: 16, weight: .bold))

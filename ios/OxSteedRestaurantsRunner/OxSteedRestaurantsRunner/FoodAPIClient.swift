@@ -268,6 +268,118 @@ actor FoodAPIClient {
         return response.order
     }
 
+    // MARK: - Runner operations
+
+    func runnerDashboard(restaurantId: Int64, token: String) async throws -> RunnerDashboardEnvelope {
+        try await request("/api/restaurants/\(restaurantId)/runner/dashboard", token: token)
+    }
+
+    func createRunnerTask(
+        restaurantId: Int64,
+        orderReference: String,
+        stopName: String,
+        taskType: String,
+        routeWindow: String?,
+        customerContactRule: String?,
+        requiresProof: Bool,
+        cashCollectionRequired: Bool,
+        notes: String?,
+        token: String
+    ) async throws -> RunnerTaskEnvelope {
+        struct Body: Encodable {
+            let orderReference: String
+            let stopName: String
+            let taskType: String
+            let routeWindow: String?
+            let customerContactRule: String?
+            let requiresProof: Bool
+            let cashCollectionRequired: Bool
+            let notes: String?
+        }
+        return try await request(
+            "/api/restaurants/\(restaurantId)/runner/tasks",
+            method: "POST",
+            body: Body(
+                orderReference: orderReference,
+                stopName: stopName,
+                taskType: taskType,
+                routeWindow: routeWindow,
+                customerContactRule: customerContactRule,
+                requiresProof: requiresProof,
+                cashCollectionRequired: cashCollectionRequired,
+                notes: notes
+            ),
+            token: token
+        )
+    }
+
+    func createRunnerContactRule(
+        restaurantId: Int64,
+        title: String,
+        detail: String,
+        token: String
+    ) async throws -> RunnerContactRuleEnvelope {
+        struct Body: Encodable {
+            let title: String
+            let detail: String
+        }
+        return try await request(
+            "/api/restaurants/\(restaurantId)/runner/contact-rules",
+            method: "POST",
+            body: Body(title: title, detail: detail),
+            token: token
+        )
+    }
+
+    func updateRunnerTaskStatus(restaurantId: Int64, taskId: Int64, status: String, token: String) async throws -> RunnerTaskEnvelope {
+        struct Body: Encodable { let status: String }
+        return try await request(
+            "/api/restaurants/\(restaurantId)/runner/tasks/\(taskId)/status",
+            method: "PATCH",
+            body: Body(status: status),
+            token: token
+        )
+    }
+
+    func logRunnerProof(restaurantId: Int64, taskId: Int64, note: String, token: String) async throws -> RunnerProofEnvelope {
+        struct Body: Encodable {
+            let method: String
+            let note: String
+        }
+        return try await request(
+            "/api/restaurants/\(restaurantId)/runner/tasks/\(taskId)/proofs",
+            method: "POST",
+            body: Body(method: "Photo / signature", note: note),
+            token: token
+        )
+    }
+
+    func reportRunnerIssue(restaurantId: Int64, taskId: Int64, note: String, token: String) async throws -> RunnerIssueEnvelope {
+        struct Body: Encodable {
+            let severity: String
+            let note: String
+        }
+        return try await request(
+            "/api/restaurants/\(restaurantId)/runner/tasks/\(taskId)/issues",
+            method: "POST",
+            body: Body(severity: "Needs follow-up", note: note),
+            token: token
+        )
+    }
+
+    func logRunnerPaymentNote(restaurantId: Int64, taskId: Int64, amount: Double, note: String, token: String) async throws -> RunnerPaymentNoteEnvelope {
+        struct Body: Encodable {
+            let amount: Double
+            let note: String
+        }
+        return try await request(
+            "/api/restaurants/\(restaurantId)/runner/tasks/\(taskId)/payment-notes",
+            method: "POST",
+            body: Body(amount: amount, note: note),
+            token: token
+        )
+    }
+
     // MARK: - Core request
 
     private func request<T: Decodable>(
@@ -353,6 +465,153 @@ struct OrdersEnvelope: Decodable {
     let orders: [FoodOrder]
 }
 
+struct RunnerDashboardEnvelope: Decodable {
+    let tasks: [RunnerTaskResponse]
+    let contactRules: [RunnerContactRuleResponse]
+    let proofs: [RunnerProofResponse]
+    let issues: [RunnerIssueResponse]
+    let paymentNotes: [RunnerPaymentNoteResponse]
+}
+
+struct RunnerTaskEnvelope: Decodable {
+    let task: RunnerTaskResponse
+}
+
+struct RunnerContactRuleEnvelope: Decodable {
+    let contactRule: RunnerContactRuleResponse
+}
+
+struct RunnerProofEnvelope: Decodable {
+    let proof: RunnerProofResponse
+}
+
+struct RunnerIssueEnvelope: Decodable {
+    let issue: RunnerIssueResponse
+}
+
+struct RunnerPaymentNoteEnvelope: Decodable {
+    let paymentNote: RunnerPaymentNoteResponse
+}
+
+struct RunnerTaskResponse: Decodable {
+    let id: Int64
+    let orderReference: String
+    let stopName: String
+    let taskType: String
+    let status: String
+    let routeWindow: String?
+    let customerContactRule: String?
+    let requiresProof: Bool
+    let cashCollectionRequired: Bool
+    let notes: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, status, notes
+        case orderReference = "order_reference"
+        case stopName = "stop_name"
+        case taskType = "task_type"
+        case routeWindow = "route_window"
+        case customerContactRule = "customer_contact_rule"
+        case requiresProof = "requires_proof"
+        case cashCollectionRequired = "cash_collection_required"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        orderReference = try c.decode(String.self, forKey: .orderReference)
+        stopName = try c.decode(String.self, forKey: .stopName)
+        taskType = try c.decode(String.self, forKey: .taskType)
+        status = try c.decode(String.self, forKey: .status)
+        routeWindow = try c.decodeIfPresent(String.self, forKey: .routeWindow)
+        customerContactRule = try c.decodeIfPresent(String.self, forKey: .customerContactRule)
+        requiresProof = (try? c.decode(Bool.self, forKey: .requiresProof)) ?? false
+        cashCollectionRequired = (try? c.decode(Bool.self, forKey: .cashCollectionRequired)) ?? false
+        notes = try c.decodeIfPresent(String.self, forKey: .notes)
+    }
+}
+
+struct RunnerContactRuleResponse: Decodable {
+    let id: Int64
+    let title: String
+    let detail: String
+
+    enum CodingKeys: String, CodingKey { case id, title, detail }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        title = try c.decode(String.self, forKey: .title)
+        detail = try c.decode(String.self, forKey: .detail)
+    }
+}
+
+struct RunnerProofResponse: Decodable {
+    let id: Int64
+    let orderReference: String
+    let stopName: String
+    let method: String
+    let note: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, method, note
+        case orderReference = "order_reference"
+        case stopName = "stop_name"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        orderReference = try c.decode(String.self, forKey: .orderReference)
+        stopName = try c.decode(String.self, forKey: .stopName)
+        method = try c.decode(String.self, forKey: .method)
+        note = try c.decodeIfPresent(String.self, forKey: .note)
+    }
+}
+
+struct RunnerIssueResponse: Decodable {
+    let id: Int64
+    let orderReference: String
+    let stopName: String
+    let severity: String
+    let note: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, severity, note
+        case orderReference = "order_reference"
+        case stopName = "stop_name"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        orderReference = try c.decode(String.self, forKey: .orderReference)
+        stopName = try c.decode(String.self, forKey: .stopName)
+        severity = try c.decode(String.self, forKey: .severity)
+        note = try c.decode(String.self, forKey: .note)
+    }
+}
+
+struct RunnerPaymentNoteResponse: Decodable {
+    let id: Int64
+    let orderReference: String
+    let amount: Double
+    let note: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, amount, note
+        case orderReference = "order_reference"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        orderReference = try c.decode(String.self, forKey: .orderReference)
+        amount = try c.decodeFlexibleDouble(forKey: .amount)
+        note = try c.decodeIfPresent(String.self, forKey: .note)
+    }
+}
+
 struct AnyEncodable: Encodable {
     private let encodeBody: (Encoder) throws -> Void
 
@@ -362,5 +621,17 @@ struct AnyEncodable: Encodable {
 
     func encode(to encoder: Encoder) throws {
         try encodeBody(encoder)
+    }
+}
+
+private extension KeyedDecodingContainer {
+    func decodeFlexibleDouble(forKey key: Key) throws -> Double {
+        if let value = try? decode(Double.self, forKey: key) { return value }
+        if let value = try? decode(Int.self, forKey: key) { return Double(value) }
+        if let value = try? decode(String.self, forKey: key), let parsed = Double(value) { return parsed }
+        throw DecodingError.typeMismatch(
+            Double.self,
+            DecodingError.Context(codingPath: codingPath + [key], debugDescription: "Expected a numeric value")
+        )
     }
 }
