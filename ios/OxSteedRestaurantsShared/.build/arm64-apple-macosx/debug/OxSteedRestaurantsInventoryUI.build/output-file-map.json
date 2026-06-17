@@ -1,0 +1,47 @@
+{
+  "": {
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/primary.swiftdeps"
+  },
+  "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/Sources/OxSteedRestaurantsInventoryUI/FoodAPIClient.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodAPIClient.d",
+    "object": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodAPIClient.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodAPIClient~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodAPIClient.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodAPIClient.dia"
+  },
+  "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/Sources/OxSteedRestaurantsInventoryUI/FoodModels.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodModels.d",
+    "object": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodModels.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodModels~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodModels.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodModels.dia"
+  },
+  "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/Sources/OxSteedRestaurantsInventoryUI/FoodRootView.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodRootView.d",
+    "object": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodRootView.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodRootView~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodRootView.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodRootView.dia"
+  },
+  "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/Sources/OxSteedRestaurantsInventoryUI/FoodStore.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodStore.d",
+    "object": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodStore.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodStore.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodStore.dia"
+  },
+  "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/Sources/OxSteedRestaurantsInventoryUI/FoodTheme.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodTheme.d",
+    "object": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodTheme.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodTheme~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodTheme.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/FoodTheme.dia"
+  },
+  "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/Sources/OxSteedRestaurantsInventoryUI/OxSteedRestaurantsInventoryShell.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/OxSteedRestaurantsInventoryShell.d",
+    "object": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/OxSteedRestaurantsInventoryShell.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/OxSteedRestaurantsInventoryShell~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/OxSteedRestaurantsInventoryShell.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsInventoryUI.build/OxSteedRestaurantsInventoryShell.dia"
+  }
+}

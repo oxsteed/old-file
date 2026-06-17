@@ -1,14 +1,11 @@
 import SwiftUI
+import OxSteedRestaurantsManagerUI
 
 @main
 struct OxSteedRestaurantsManagerApp: App {
-    @StateObject private var store = FoodStore()
-
     var body: some Scene {
         WindowGroup {
-            FoodRootView()
-                .environmentObject(store)
-                .tint(FoodTheme.flame)
+            OxSteedRestaurantsManagerShell()
         }
     }
 }

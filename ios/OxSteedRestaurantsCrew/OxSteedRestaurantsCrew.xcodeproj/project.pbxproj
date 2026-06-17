@@ -7,28 +7,19 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		01325493A78880258C38AE31 /* FoodModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8603F6D64325A6188ADF38F8 /* FoodModels.swift */; };
 		0B0BAF373C678C9330B4F2B8 /* OxSteedRestaurantsCrewApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE92D70BA32C0F29324128FF /* OxSteedRestaurantsCrewApp.swift */; };
-		0F961E9EC1F30AB56BBE135A /* FoodStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADD466BB90F622DA1FDA25C /* FoodStore.swift */; };
 		1D4544E182E49CFCAE340387 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 871E2F0E1965F8D57F212999 /* LaunchScreen.storyboard */; };
-		22A4538CEF1956F339D1F820 /* FoodRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75D7F4165848ED585EEA6D52 /* FoodRootView.swift */; };
-		34191CFDD1394AE84D635CF2 /* FoodTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4D8EEA1D99495BC5585829C /* FoodTheme.swift */; };
 		55BF3A78797C8FB107DF8D1A /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C69C060C350F1CE655E24E77 /* Foundation.framework */; };
-		CC73B0CECCFE6979613453C7 /* FoodAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9BA1C59B097C288B98EFD6E /* FoodAPIClient.swift */; };
+		C8D28312D516DDCF09C6E9C9 /* OxSteedRestaurantsCrewUI in Frameworks */ = {isa = PBXBuildFile; productRef = 7E78E3FB9B591909F9752685 /* OxSteedRestaurantsCrewUI */; };
 		E41792F772B6D4C38DDD82D8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B18C14720C39BC409CBA6E38 /* Assets.xcassets */; };
 		F49FFB017408909CE1B5AA4B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = CE26F07EA8DB91389B863691 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		303C33AD50E1E2FAD3458660 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		75D7F4165848ED585EEA6D52 /* FoodRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FoodRootView.swift; sourceTree = "<group>"; };
-		8603F6D64325A6188ADF38F8 /* FoodModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FoodModels.swift; sourceTree = "<group>"; };
 		871E2F0E1965F8D57F212999 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		A7CEAAB167A229728ECDCFF4 /* OxSteedRestaurantsCrew.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OxSteedRestaurantsCrew.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		AADD466BB90F622DA1FDA25C /* FoodStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FoodStore.swift; sourceTree = "<group>"; };
 		B18C14720C39BC409CBA6E38 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		B4D8EEA1D99495BC5585829C /* FoodTheme.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FoodTheme.swift; sourceTree = "<group>"; };
-		B9BA1C59B097C288B98EFD6E /* FoodAPIClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FoodAPIClient.swift; sourceTree = "<group>"; };
 		C69C060C350F1CE655E24E77 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		CE26F07EA8DB91389B863691 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		CE92D70BA32C0F29324128FF /* OxSteedRestaurantsCrewApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OxSteedRestaurantsCrewApp.swift; sourceTree = "<group>"; };
@@ -40,6 +31,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				55BF3A78797C8FB107DF8D1A /* Foundation.framework in Frameworks */,
+				C8D28312D516DDCF09C6E9C9 /* OxSteedRestaurantsCrewUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -66,11 +58,6 @@
 			isa = PBXGroup;
 			children = (
 				CE92D70BA32C0F29324128FF /* OxSteedRestaurantsCrewApp.swift */,
-				75D7F4165848ED585EEA6D52 /* FoodRootView.swift */,
-				B4D8EEA1D99495BC5585829C /* FoodTheme.swift */,
-				8603F6D64325A6188ADF38F8 /* FoodModels.swift */,
-				B9BA1C59B097C288B98EFD6E /* FoodAPIClient.swift */,
-				AADD466BB90F622DA1FDA25C /* FoodStore.swift */,
 				B18C14720C39BC409CBA6E38 /* Assets.xcassets */,
 				CE26F07EA8DB91389B863691 /* PrivacyInfo.xcprivacy */,
 				303C33AD50E1E2FAD3458660 /* Info.plist */,
@@ -111,8 +98,12 @@
 			buildRules = (
 			);
 			dependencies = (
+				B188CC93B0957BAD589270BA /* PBXTargetDependency */,
 			);
 			name = OxSteedRestaurantsCrew;
+			packageProductDependencies = (
+				7E78E3FB9B591909F9752685 /* OxSteedRestaurantsCrewUI */,
+			);
 			productName = OxSteedRestaurantsCrew;
 			productReference = A7CEAAB167A229728ECDCFF4 /* OxSteedRestaurantsCrew.app */;
 			productType = "com.apple.product-type.application";
@@ -136,6 +127,9 @@
 			);
 			mainGroup = D30F8796DD8C0F7BAF04D866;
 			minimizedProjectReferenceProxies = 0;
+			packageReferences = (
+				1FF70D3CB282BD410E50CB26 /* XCLocalSwiftPackageReference "OxSteedRestaurantsShared" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6D33D5F8A1D45FF26222D3B7 /* Products */;
 			projectDirPath = "";
@@ -165,15 +159,17 @@
 			buildActionMask = 2147483647;
 			files = (
 				0B0BAF373C678C9330B4F2B8 /* OxSteedRestaurantsCrewApp.swift in Sources */,
-				22A4538CEF1956F339D1F820 /* FoodRootView.swift in Sources */,
-				34191CFDD1394AE84D635CF2 /* FoodTheme.swift in Sources */,
-				01325493A78880258C38AE31 /* FoodModels.swift in Sources */,
-				CC73B0CECCFE6979613453C7 /* FoodAPIClient.swift in Sources */,
-				0F961E9EC1F30AB56BBE135A /* FoodStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B188CC93B0957BAD589270BA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = 7E78E3FB9B591909F9752685 /* OxSteedRestaurantsCrewUI */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		20070F2BEBE1A83A93232201 /* Debug */ = {
@@ -212,7 +208,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = ZBRGSDRRU7;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -244,10 +240,11 @@
 		C66086DBA4B16FAB63D16BF5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = ZBRGSDRRU7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = OxSteedRestaurantsCrew/Info.plist;
@@ -256,7 +253,6 @@
 				MARKETING_VERSION = 1.0;
 				OX_API_BASE_URL = "https://api.oxsteed.com";
 				PRODUCT_BUNDLE_IDENTIFIER = com.oxsteed.restaurants.crew;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				PRODUCT_NAME = "OxSteed Restaurants Crew";
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
@@ -267,10 +263,11 @@
 		CA7A7464374C5C7B5571E1FA /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = ZBRGSDRRU7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = OxSteedRestaurantsCrew/Info.plist;
@@ -279,7 +276,6 @@
 				MARKETING_VERSION = 1.0;
 				OX_API_BASE_URL = "https://api.oxsteed.com";
 				PRODUCT_BUNDLE_IDENTIFIER = com.oxsteed.restaurants.crew;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				PRODUCT_NAME = "OxSteed Restaurants Crew";
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
@@ -324,7 +320,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = ZBRGSDRRU7;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -368,6 +364,21 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		1FF70D3CB282BD410E50CB26 /* XCLocalSwiftPackageReference "OxSteedRestaurantsShared" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../OxSteedRestaurantsShared;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		7E78E3FB9B591909F9752685 /* OxSteedRestaurantsCrewUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1FF70D3CB282BD410E50CB26 /* XCLocalSwiftPackageReference "OxSteedRestaurantsShared" */;
+			productName = OxSteedRestaurantsCrewUI;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = CF65BF77EB9FF71864633E4C /* Project object */;
 }

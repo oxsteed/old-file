@@ -1,0 +1,47 @@
+{
+  "": {
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/primary.swiftdeps"
+  },
+  "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/Sources/OxSteedRestaurantsKioskUI/FoodAPIClient.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodAPIClient.d",
+    "object": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodAPIClient.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodAPIClient~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodAPIClient.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodAPIClient.dia"
+  },
+  "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/Sources/OxSteedRestaurantsKioskUI/FoodModels.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodModels.d",
+    "object": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodModels.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodModels~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodModels.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodModels.dia"
+  },
+  "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/Sources/OxSteedRestaurantsKioskUI/FoodRootView.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodRootView.d",
+    "object": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodRootView.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodRootView~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodRootView.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodRootView.dia"
+  },
+  "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/Sources/OxSteedRestaurantsKioskUI/FoodStore.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodStore.d",
+    "object": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodStore.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodStore.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodStore.dia"
+  },
+  "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/Sources/OxSteedRestaurantsKioskUI/FoodTheme.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodTheme.d",
+    "object": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodTheme.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodTheme~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodTheme.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/FoodTheme.dia"
+  },
+  "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/Sources/OxSteedRestaurantsKioskUI/OxSteedRestaurantsKioskShell.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/OxSteedRestaurantsKioskShell.d",
+    "object": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/OxSteedRestaurantsKioskShell.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/OxSteedRestaurantsKioskShell~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/OxSteedRestaurantsKioskShell.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsKioskUI.build/OxSteedRestaurantsKioskShell.dia"
+  }
+}

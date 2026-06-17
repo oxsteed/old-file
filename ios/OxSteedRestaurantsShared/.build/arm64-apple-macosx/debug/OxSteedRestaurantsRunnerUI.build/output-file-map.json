@@ -1,0 +1,47 @@
+{
+  "": {
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/primary.swiftdeps"
+  },
+  "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/Sources/OxSteedRestaurantsRunnerUI/FoodAPIClient.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodAPIClient.d",
+    "object": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodAPIClient.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodAPIClient~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodAPIClient.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodAPIClient.dia"
+  },
+  "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/Sources/OxSteedRestaurantsRunnerUI/FoodModels.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodModels.d",
+    "object": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodModels.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodModels~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodModels.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodModels.dia"
+  },
+  "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/Sources/OxSteedRestaurantsRunnerUI/FoodRootView.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodRootView.d",
+    "object": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodRootView.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodRootView~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodRootView.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodRootView.dia"
+  },
+  "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/Sources/OxSteedRestaurantsRunnerUI/FoodStore.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodStore.d",
+    "object": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodStore.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodStore.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodStore.dia"
+  },
+  "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/Sources/OxSteedRestaurantsRunnerUI/FoodTheme.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodTheme.d",
+    "object": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodTheme.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodTheme~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodTheme.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/FoodTheme.dia"
+  },
+  "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/Sources/OxSteedRestaurantsRunnerUI/OxSteedRestaurantsRunnerShell.swift": {
+    "dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/OxSteedRestaurantsRunnerShell.d",
+    "object": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/OxSteedRestaurantsRunnerShell.swift.o",
+    "swiftmodule": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/OxSteedRestaurantsRunnerShell~partial.swiftmodule",
+    "swift-dependencies": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/OxSteedRestaurantsRunnerShell.swiftdeps",
+    "diagnostics": "/Users/oxsteed/Documents/GitHub/6/ios/OxSteedRestaurantsShared/.build/arm64-apple-macosx/debug/OxSteedRestaurantsRunnerUI.build/OxSteedRestaurantsRunnerShell.dia"
+  }
+}
