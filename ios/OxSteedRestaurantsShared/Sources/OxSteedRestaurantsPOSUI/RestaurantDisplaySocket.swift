@@ -13,7 +13,7 @@ enum FoodDisplaySocketOrigin {
             if let cleaned = components?.url { return cleaned }
             return parsed
         }
-        return URL(string: "https://api.oxsteed.com")!
+        return URL(string: "https://oxsteed.com")!
     }
 }
 

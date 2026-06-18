@@ -35,7 +35,7 @@ actor FoodAPIClient {
            raw.hasPrefix("http") {
             return url
         }
-        return URL(string: "https://api.oxsteed.com")!
+        return URL(string: "https://oxsteed.com")!
     }
 
     // MARK: - Auth

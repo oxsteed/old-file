@@ -251,7 +251,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				MARKETING_VERSION = 1.0;
-				OX_API_BASE_URL = "https://api.oxsteed.com";
+				OX_API_BASE_URL = "https://oxsteed.com";
 				PRODUCT_BUNDLE_IDENTIFIER = com.oxsteed.restaurants.runner;
 				PRODUCT_NAME = "OxSteed Restaurants Runner";
 				SDKROOT = iphoneos;
@@ -274,7 +274,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				MARKETING_VERSION = 1.0;
-				OX_API_BASE_URL = "https://api.oxsteed.com";
+				OX_API_BASE_URL = "https://oxsteed.com";
 				PRODUCT_BUNDLE_IDENTIFIER = com.oxsteed.restaurants.runner;
 				PRODUCT_NAME = "OxSteed Restaurants Runner";
 				SDKROOT = iphoneos;
