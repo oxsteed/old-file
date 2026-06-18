@@ -44,6 +44,8 @@ final class FoodStore: ObservableObject {
     @Published var managerLocations = FoodManagerSampleData.locations
     @Published var setupProgress: FoodSetupProgress?
     @Published var restaurantLocations: [FoodRestaurantLocation] = []
+    @Published var showOwnerOnboarding = false
+    private var ownerOnboardingSnoozed = false
     @Published var managerHelpRequests = FoodManagerSampleData.helpRequests
     @Published var managerSOPs = FoodManagerSampleData.sops
     @Published var managerSales = FoodManagerSampleData.sales
@@ -185,6 +187,7 @@ final class FoodStore: ObservableObject {
         merchantOrders = []
         merchantLoaded = false
         myOrders = []
+        ownerOnboardingSnoozed = false
     }
 
     /// Runs an authenticated call; on 401, refreshes the access token once and
@@ -340,6 +343,7 @@ final class FoodStore: ObservableObject {
                 await loadSetupProgress(restaurantId: restaurant.id)
             }
             await loadManagerOperationalData()
+            evaluateOwnerOnboardingPresentation()
         } catch {
             merchantLoaded = true
             message = error.localizedDescription
@@ -529,6 +533,103 @@ final class FoodStore: ObservableObject {
             }
         } catch {
             setupProgress = nil
+        }
+    }
+
+    func snoozeOwnerOnboarding() {
+        ownerOnboardingSnoozed = true
+        showOwnerOnboarding = false
+    }
+
+    func evaluateOwnerOnboardingPresentation() {
+        guard isSignedIn, merchantLoaded, !ownerOnboardingSnoozed else { return }
+        if merchantRestaurants.isEmpty {
+            showOwnerOnboarding = true
+            return
+        }
+        guard let restaurant = merchantSelection else { return }
+        if restaurant.status != "active" {
+            showOwnerOnboarding = true
+            return
+        }
+        if !FoodOnboardingPreferences.isDeviceSetupComplete(restaurantId: restaurant.id) {
+            showOwnerOnboarding = true
+        }
+    }
+
+    func updateRestaurantProfile(description: String, cuisineTags: [String]) async -> Bool {
+        guard let restaurant = merchantSelection else { return false }
+        do {
+            let updated = try await authed {
+                try await FoodAPIClient.shared.patchRestaurant(
+                    restaurantId: restaurant.id,
+                    patch: RestaurantPatch(description: description.isEmpty ? nil : description, cuisineTags: cuisineTags.isEmpty ? nil : cuisineTags),
+                    token: $0
+                )
+            }
+            replaceMerchantRestaurant(updated)
+            await loadSetupProgress(restaurantId: updated.id)
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    func updateRestaurantLocation(city: String, latitude: Double?, longitude: Double?) async -> Bool {
+        guard let restaurant = merchantSelection else { return false }
+        do {
+            let updated = try await authed {
+                try await FoodAPIClient.shared.patchRestaurant(
+                    restaurantId: restaurant.id,
+                    patch: RestaurantPatch(
+                        addressCity: city.isEmpty ? nil : city,
+                        latitude: latitude,
+                        longitude: longitude
+                    ),
+                    token: $0
+                )
+            }
+            replaceMerchantRestaurant(updated)
+            if latitude == nil || longitude == nil, !city.isEmpty {
+                _ = await addRestaurantLocation(name: "Main location", city: city)
+            }
+            await loadSetupProgress(restaurantId: updated.id)
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    func updateRestaurantHours(open: String, close: String) async -> Bool {
+        guard let restaurant = merchantSelection else { return false }
+        let hours = FoodOperatingHoursPayload.sameEveryDay(open: open, close: close)
+        do {
+            let updated = try await authed {
+                try await FoodAPIClient.shared.patchRestaurant(
+                    restaurantId: restaurant.id,
+                    patch: RestaurantPatch(
+                        operatingHours: hours,
+                        acceptsInStoreOrders: true,
+                        acceptsOnlineOrders: true
+                    ),
+                    token: $0
+                )
+            }
+            replaceMerchantRestaurant(updated)
+            await loadSetupProgress(restaurantId: updated.id)
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    private func replaceMerchantRestaurant(_ updated: FoodRestaurant) {
+        merchantSelection = updated
+        if let index = merchantRestaurants.firstIndex(where: { $0.id == updated.id }) {
+            merchantRestaurants[index] = updated
         }
     }
 

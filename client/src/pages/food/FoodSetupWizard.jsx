@@ -8,9 +8,10 @@ const STEP_HINTS = {
   hours: 'Set operating hours in Settings so customers know when you are open.',
   menu: 'Add at least one menu item on the Menu tab.',
   publish: 'Press Go live when the checklist is complete.',
+  devices: 'Install Kiosk and Kitchen apps, then run a test order.',
 };
 
-export default function SetupWizard({ restaurant, t, onGoTab }) {
+export default function SetupWizard({ restaurant, t, onGoTab, onStartGuide }) {
   const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -63,6 +64,11 @@ export default function SetupWizard({ restaurant, t, onGoTab }) {
       )}
       {progress.readyToPublish && (
         <p className="fd-pay-note">{t('food.merchant.setupWizardReady', 'All setup steps are done — you can go live from Settings.')}</p>
+      )}
+      {onStartGuide && (
+        <button type="button" className="fd-btn fd-btn-primary fd-btn-sm" onClick={onStartGuide}>
+          {t('food.merchant.setupWizardContinue', 'Continue setup guide')}
+        </button>
       )}
     </section>
   );

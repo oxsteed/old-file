@@ -2400,8 +2400,11 @@ struct MerchantView: View {
                             Text("Create your restaurant, build the menu, and go live - customers worldwide can then find and order from you.")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundStyle(FoodTheme.muted)
-                            Button("Add my restaurant") { showNewRestaurant = true }
+                            Button("Start setup guide") { store.showOwnerOnboarding = true }
                                 .buttonStyle(.borderedProminent)
+                            Button("Add my restaurant") { showNewRestaurant = true }
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(FoodTheme.muted)
                         }
                         .foodCard(padding: 16)
                     }
@@ -2426,6 +2429,10 @@ struct MerchantView: View {
         .refreshable { await store.loadMerchant() }
         .sheet(isPresented: $showNewRestaurant) {
             NewRestaurantSheet()
+        }
+        .fullScreenCover(isPresented: $store.showOwnerOnboarding) {
+            FoodOwnerOnboardingFlow()
+                .environmentObject(store)
         }
         .fullScreenCover(isPresented: $showKitchen) {
             KitchenDisplayView()
@@ -2508,6 +2515,7 @@ private struct SignInCard: View {
                     if await store.signIn(email: email, password: password, agreementName: agreementName) {
                         await store.loadMerchant()
                         await store.loadMyOrders()
+                        store.evaluateOwnerOnboardingPresentation()
                     }
                     working = false
                 }

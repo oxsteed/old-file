@@ -364,4 +364,46 @@ html.dark .fd-paid-pill { color: #86efac; }
 .fd-setup-steps { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.5rem; }
 .fd-setup-step { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.5rem 0; }
 .fd-setup-step.fd-complete { color: var(--text-muted, #64748b); }
+
+.fd-device-setup .fd-device-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+.fd-device-setup .fd-device-check strong { display: block; }
+.fd-device-setup .fd-device-check input { margin-top: 0.2rem; }
+
+.fd-onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.fd-onboarding-panel {
+  width: min(640px, 100%);
+  max-height: min(90vh, 900px);
+  overflow: auto;
+  background: var(--card-bg, #fff);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+}
+.fd-onboarding-header,
+.fd-onboarding-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+.fd-onboarding-footer { border-bottom: 0; border-top: 1px solid var(--border-color, #e5e7eb); }
+.fd-onboarding-body { padding: 1.25rem; }
+.fd-field-grid { display: grid; gap: 0.75rem; }
 .fd-tag-verified { margin-left: 0.4rem; background: #ecfdf5; color: #047857; }

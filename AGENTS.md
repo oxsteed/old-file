@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-06-18 (setup wizard + multi-location)
+**Last updated:** 2026-06-18 (TestFlight refresh)
 
 ## Instructions for Every Session
 
@@ -11,10 +11,28 @@
 
 ---
 
+## Session progress — OxSteed Restaurants TestFlight refresh (2026-06-18)
+
+- **Build number refresh:** bumped all 8 dedicated restaurant iOS app `CURRENT_PROJECT_VERSION` values from `2` to `3` in their `.xcodeproj/project.pbxproj` files (`Customer`, `Manager`, `POS`, `Kitchen`, `Kiosk`, `Crew`, `Inventory`, `Runner`) to avoid duplicate-build rejection in App Store Connect.
+- **Archive + upload verification:** `xcodebuild archive` and `xcodebuild -exportArchive` both succeeded for all 8 dedicated apps at version/build `1.0 (3)` using `DEVELOPMENT_TEAM=ZBRGSDRRU7`, `CODE_SIGN_STYLE=Automatic`, and `ios/build/ExportOptions-TestFlight.plist`. Upload batch logs live in `/tmp/OxSteedTFUploadLogs_20260618_182947/` with per-app archive/export logs; archives were emitted to `/tmp/OxSteedRestaurants{Customer,Manager,POS,Kitchen,Kiosk,Crew,Inventory,Runner}.xcarchive`.
+- **Status now:** the App Store Connect handoff is complete for all 8 apps; remaining release work is Apple-side processing, TestFlight group assignment, and store metadata/screenshots.
+
+---
+
 ## Session progress — OxSteed Restaurants promo management (2026-06-18)
 
 - **B5 merchant promos:** `GET .../promotions/manage` (all promos + use counts), `PATCH .../promotions/:id` (activate/deactivate); web `FoodPromotionsPanel.jsx` on merchant Settings.
 - **Tests:** `server/__tests__/foodPromotions.test.js` (`npm run test:food-promotions`).
+
+---
+
+## Session progress — OxSteed Restaurants onboarding flow (2026-06-18)
+
+- **Manager iOS:** `FoodOwnerOnboardingFlow` — full-screen wizard (welcome → create → profile → location → hours → menu → go live → TestFlight device checklist); auto-opens after sign-in until complete; `Continue setup guide` on checklist card.
+- **Kitchen iOS:** `FoodKitchenOnboardingHint` on KDS first run (tap tickets New → Preparing → Ready).
+- **Web merchant:** `FoodMerchantOnboardingWizard` modal + `FoodDeviceSetupChecklist`; auto-opens on `/food/merchant` until floor setup marked complete.
+- **API:** `patchRestaurant` on Manager iOS for profile/location/hours during wizard steps.
+- **Verified:** Manager + Kitchen Debug simulator builds **BUILD SUCCEEDED**.
 
 ---
 
@@ -141,7 +159,7 @@ Follow-up on 2026-06-18 (production-grade suite pass — phase 3): real-time dis
 
 **Docs added:** `docs/oxsteed-restaurants-system-blueprint.md` (how Toast/Square/McDonald's run the kiosk→KDS→pickup-board→online-notify loop; gap analysis; worldwide strategy — pay-at-counter is the unlock vs payment-bundled incumbents like Toast/Square that are stuck in US/UK/CA) and `docs/oxsteed-restaurants-go-live-today.md` (same-day website-on-tablets pilot runbook + honest TestFlight reality check).
 
-**Highest-priority remaining for pilot readiness:** see **§ OxSteed Restaurants — Remaining Work (Phased Backlog)** below. Short list: (a) App Store Connect metadata / external TestFlight per app, (b) real-time + ready-notification E2E on all surfaces, (c) offline order capture/replay, (d) food reviews + trust, (e) consolidate duplicated iOS Swift files.
+**Highest-priority remaining for pilot readiness:** build `1.0 (3)` is now uploaded for all 8 dedicated restaurant apps; the short list is (a) wait for Apple-side processing, then assign TestFlight groups / metadata per app, (b) real-time + ready-notification E2E on all surfaces, (c) offline order capture/replay, (d) food reviews + trust, (e) consolidate duplicated iOS Swift files.
 
 ---
 
@@ -175,7 +193,7 @@ Follow-up on 2026-06-18 (production-grade suite pass — phase 3): real-time dis
 | B5 | **Promotions & coupon codes** | `[~]` | Apply at checkout + merchant Settings panel (create/list/activate) |
 | B6 | **Verified / trusted restaurant badges** | `[~]` | `is_verified` on restaurant; shown on Discover (iOS + web) |
 | B7 | **Operating hours** (open/closed, “opens at”) | `[~]` | `operating_hours` JSONB + ordering guardrail + Discover hours pill |
-| B8 | **Owner setup wizard** (profile → location → hours → menu → publish) | `[~]` | `setup-progress` API + web/iOS checklist; Go Live gated |
+| B8 | **Owner setup wizard** (profile → location → hours → menu → publish) | `[x]` | iOS `FoodOwnerOnboardingFlow` + web `FoodMerchantOnboardingWizard`; device checklist F8 |
 
 ### Phase C — Real-time, reliability & worldwide
 
@@ -231,7 +249,7 @@ Follow-up on 2026-06-18 (production-grade suite pass — phase 3): real-time dis
 | F5 | **Network app-switcher access gating** (`/network/apps`) | `[ ]` | Strategy Phase 1 follow-up |
 | F6 | **Branch role badges** | `[ ]` | |
 | F7 | **Food E2E test suite** (kiosk → KDS → queue → customer notify) | `[x]` | `server/__tests__/foodOrderLoop.test.js`; `npm run test:food-e2e` |
-| F8 | **Repeatable in-app onboarding playbook** (menu load, QR, tablet lock checklist) | `[ ]` | Documented in go-live runbook only |
+| F8 | **Repeatable in-app onboarding playbook** (menu load, QR, tablet lock checklist) | `[x]` | iOS device step + web `FoodDeviceSetupChecklist`; Kitchen KDS hint |
 
 ### Suggested build order (when picking next task)
 
@@ -2051,7 +2069,7 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 ### OXSTEED RESTAURANTS FOLLOW-UP
 
 - [ ] Run `node server/migrate.js` in a non-prod database, deploy `/api/food`, then verify the iOS app leaves sample mode and loads live restaurant/menu data.
-- [ ] Upload the already-verified archives (`/tmp/OxSteedRestaurantsCustomer.xcarchive`, `/tmp/OxSteedRestaurantsManager.xcarchive`, `/tmp/OxSteedRestaurantsPOS.xcarchive`, `/tmp/OxSteedRestaurantsKitchen.xcarchive`, `/tmp/OxSteedRestaurantsKiosk.xcarchive`, `/tmp/OxSteedRestaurantsCrew.xcarchive`, `/tmp/OxSteedRestaurantsInventory.xcarchive`, `/tmp/OxSteedRestaurantsRunner.xcarchive`) through Xcode Organizer / App Store Connect, then assign TestFlight groups and fill store metadata/screenshots.
+- [ ] After App Store Connect finishes processing uploaded build `1.0 (3)` for `OxSteedRestaurantsCustomer`, `OxSteedRestaurantsManager`, `OxSteedRestaurantsPOS`, `OxSteedRestaurantsKitchen`, `OxSteedRestaurantsKiosk`, `OxSteedRestaurantsCrew`, `OxSteedRestaurantsInventory`, and `OxSteedRestaurantsRunner`, assign TestFlight groups and fill store metadata/screenshots.
 - [ ] Wire food order payments to Stripe/mobile payment config and add webhook confirmation for `food_orders.payment_status`.
 - [ ] Add kitchen/counter Socket.IO rooms for `food:order:*` events after confirming the server socket service broadcast API shape.
 - [ ] Add production-grade operator sign-in/session handoff across the dedicated restaurant apps instead of relying on temporary/dev bootstrap paths where they still exist.

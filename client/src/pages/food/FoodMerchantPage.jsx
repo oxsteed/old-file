@@ -23,6 +23,8 @@ import {
 } from '../../api/food';
 import { FoodBrand, FOOD_STATUS_KEYS } from './foodShared';
 import SetupWizard, { defaultWeekdayHours } from './FoodSetupWizard';
+import DeviceSetupChecklist, { isDeviceSetupComplete } from './FoodDeviceSetupChecklist';
+import MerchantOnboardingWizard, { shouldShowMerchantOnboarding } from './FoodMerchantOnboardingWizard';
 import LocationsPanel from './FoodLocationsPanel';
 import PromotionsPanel from './FoodPromotionsPanel';
 import { ChecklistsPanel, SopsPanel, InventoryPanel } from './RestaurantOpsPanels';
@@ -681,6 +683,7 @@ export default function FoodMerchantPage() {
   const [tab, setTab] = useState('orders');
   const [setupKey, setSetupKey] = useState(0);
   const [showCreate, setShowCreate] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const load = useCallback(() => {
     listMyFoodRestaurants()
@@ -695,15 +698,54 @@ export default function FoodMerchantPage() {
 
   const selected = restaurants.find((r) => r.id === selectedId) || null;
 
+  useEffect(() => {
+    if (loading) return;
+    if (sessionStorage.getItem('ox.food.onboarding.dismissed') === '1') return;
+    if (shouldShowMerchantOnboarding(restaurants, selected)) {
+      setShowOnboarding(true);
+    }
+  }, [loading, restaurants, selected]);
+
+  const refreshRestaurant = useCallback((updated) => {
+    if (!updated?.id) {
+      load();
+      return;
+    }
+    setRestaurants((prev) => {
+      const exists = prev.some((r) => r.id === updated.id);
+      if (exists) return prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r));
+      return [updated, ...prev];
+    });
+    setSetupKey((k) => k + 1);
+  }, [load]);
+
   if (loading) return <div className="fd-page fd-empty">{t('food.common.loading')}</div>;
 
   return (
     <div className="fd-page">
+      {showOnboarding && (
+        <MerchantOnboardingWizard
+          t={t}
+          restaurants={restaurants}
+          selected={selected}
+          onClose={() => {
+            sessionStorage.setItem('ox.food.onboarding.dismissed', '1');
+            setShowOnboarding(false);
+          }}
+          onRefresh={refreshRestaurant}
+          onSelectRestaurant={setSelectedId}
+        />
+      )}
       <div className="fd-hero">
         <FoodBrand size={40} />
         <div>
           <h1 className="fd-hero-title">{t('food.merchant.title')}</h1>
           <p className="fd-hero-sub">{t('food.merchant.subtitle')}</p>
+          {selected && (
+            <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setShowOnboarding(true)}>
+              {t('food.merchant.openSetupGuide', 'Setup guide')}
+            </button>
+          )}
         </div>
       </div>
 
@@ -751,6 +793,15 @@ export default function FoodMerchantPage() {
               restaurant={selected}
               t={t}
               onGoTab={setTab}
+              onStartGuide={() => setShowOnboarding(true)}
+            />
+          )}
+
+          {selected && selected.status === 'active' && (
+            <DeviceSetupChecklist
+              restaurant={selected}
+              t={t}
+              onComplete={() => setSetupKey((k) => k + 1)}
             />
           )}
 

@@ -2002,6 +2002,7 @@ struct KitchenDisplayView: View {
     @EnvironmentObject private var store: FoodStore
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var compactColumn = 0
+    @State private var showKitchenHint = !FoodKitchenOnboardingPreferences.isHintDismissed()
 
     // QSR-style timing thresholds (minutes) drive ticket urgency colouring.
     private let warnAfter: Double = 6
@@ -2016,6 +2017,13 @@ struct KitchenDisplayView: View {
             Color.black.ignoresSafeArea()
             VStack(spacing: 0) {
                 header
+                if showKitchenHint {
+                    FoodKitchenOnboardingHint {
+                        showKitchenHint = false
+                        FoodKitchenOnboardingPreferences.dismissHint()
+                    }
+                    .padding(.top, 8)
+                }
                 Rectangle().fill(Color.white.opacity(0.10)).frame(height: 1)
 
                 if activeTickets.isEmpty && completedTickets.isEmpty {

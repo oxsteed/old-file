@@ -92,9 +92,30 @@ struct FoodSetupWizardCard: View {
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(FoodTheme.muted)
                 }
+                Button("Continue setup guide") {
+                    store.showOwnerOnboarding = true
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(FoodTheme.flame)
             }
             .foodCard(padding: 16)
             .task(id: restaurant.id) { await store.loadSetupProgress(restaurantId: restaurant.id) }
+        } else if restaurant.status == "active",
+                  !FoodOnboardingPreferences.isDeviceSetupComplete(restaurantId: restaurant.id) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Floor device setup")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+                Text("Connect Kiosk and Kitchen tablets, then run a test order.")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(FoodTheme.muted)
+                Button("Continue device setup") {
+                    store.showOwnerOnboarding = true
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(FoodTheme.blue)
+            }
+            .foodCard(padding: 16)
         }
     }
 

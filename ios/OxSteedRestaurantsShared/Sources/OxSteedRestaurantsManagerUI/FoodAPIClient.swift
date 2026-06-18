@@ -204,6 +204,16 @@ actor FoodAPIClient {
         return envelope.restaurant
     }
 
+    func patchRestaurant(restaurantId: Int64, patch: RestaurantPatch, token: String) async throws -> FoodRestaurant {
+        let envelope: RestaurantEnvelope = try await request(
+            "/api/food/restaurants/\(restaurantId)",
+            method: "PATCH",
+            body: patch,
+            token: token
+        )
+        return envelope.restaurant
+    }
+
     func fetchSetupProgress(restaurantId: Int64, token: String) async throws -> FoodSetupProgress {
         try await request("/api/food/restaurants/\(restaurantId)/setup-progress", token: token)
     }
