@@ -10,6 +10,11 @@ const logger = require('../utils/logger');
 const notificationService = require('../services/notificationService');
 const smsNotificationService = require('../services/smsNotificationService');
 const emailService = require('../services/emailService');
+const {
+  evaluateOperatingHours,
+  normalizeBrandAccentHex,
+  normalizeHoursInput,
+} = require('../utils/foodOperatingHours');
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? require('stripe')(process.env.STRIPE_SECRET_KEY)
@@ -95,6 +100,142 @@ function safeReturnUrl(value) {
 
 function createTrackingToken() {
   return crypto.randomBytes(18).toString('base64url');
+}
+
+function attachRestaurantHours(row) {
+  if (!row || typeof row !== 'object') return row;
+  const hours = evaluateOperatingHours(row.operating_hours, row.timezone);
+  return {
+    ...row,
+    is_open: hours.isOpen,
+    hours_message: hours.message,
+    opens_at: hours.opensAt,
+    closes_at: hours.closesAt,
+  };
+}
+
+function normalizeDeliveryAddress(value) {
+  if (!value || typeof value !== 'object') return null;
+  const line1 = normalizeString(value.line1 || value.line_1 || value.street, 255);
+  if (!line1) return null;
+  return {
+    line1,
+    line2: normalizeString(value.line2 || value.line_2, 255),
+    city: normalizeString(value.city, 120),
+    state: normalizeString(value.state, 120),
+    zip: normalizeString(value.postalCode || value.postal_code || value.zip, 40),
+    country: normalizeCountry(value.country),
+    instructions: normalizeString(value.instructions || value.notes, 500),
+    lat: Number.isFinite(Number(value.lat ?? value.latitude)) ? Number(value.lat ?? value.latitude) : null,
+    lng: Number.isFinite(Number(value.lng ?? value.longitude)) ? Number(value.lng ?? value.longitude) : null,
+  };
+}
+
+async function resolveFoodPromotionDiscount(client, restaurantId, code, subtotalCents) {
+  const normalized = normalizeString(code, 40);
+  if (!normalized) return { discountCents: 0, metadata: null, promotionId: null };
+  try {
+    const { rows } = await client.query(
+      `SELECT *
+         FROM food_restaurant_promotions
+        WHERE restaurant_id = $1
+          AND UPPER(code) = UPPER($2)
+          AND is_active = TRUE
+          AND (valid_from IS NULL OR valid_from <= CURRENT_DATE)
+          AND (valid_until IS NULL OR valid_until >= CURRENT_DATE)
+          AND (max_uses IS NULL OR use_count < max_uses)
+        LIMIT 1`,
+      [restaurantId, normalized]
+    );
+    const promo = rows[0];
+    if (!promo) return { discountCents: 0, metadata: null, promotionId: null };
+    if (subtotalCents < Number(promo.min_subtotal_cents || 0)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        discountCode: `Minimum subtotal not met for promotion ${normalized}`,
+      });
+    }
+    let discountCents = Number(promo.discount_cents || 0);
+    if (promo.discount_percent != null) {
+      discountCents = Math.max(
+        discountCents,
+        Math.round(subtotalCents * Number(promo.discount_percent) / 100)
+      );
+    }
+    discountCents = Math.min(subtotalCents, Math.max(0, discountCents));
+    return {
+      discountCents,
+      promotionId: promo.id,
+      metadata: {
+        code: promo.code,
+        label: promo.title,
+        amountCents: discountCents,
+        promotionId: promo.id,
+      },
+    };
+  } catch (err) {
+    if (isMissingRelationError(err)) return { discountCents: 0, metadata: null, promotionId: null };
+    throw err;
+  }
+}
+
+async function maybeCreateDeliveryRunnerTask(client, { order, deliveryAddress, createdBy }) {
+  if (order.fulfillment_type !== 'delivery') return null;
+  try {
+    const stopParts = [
+      deliveryAddress?.line1,
+      deliveryAddress?.city,
+    ].filter(Boolean);
+    const stopName = stopParts.join(', ') || order.guest_name || 'Delivery stop';
+    const { rows: [task] } = await client.query(
+      `INSERT INTO restaurant_runner_tasks
+         (restaurant_id, food_order_id, order_reference, stop_name, task_type, status,
+          route_window, customer_contact_rule, requires_proof, cash_collection_required, created_by)
+       VALUES ($1,$2,$3,$4,'Delivery','Queued',$5,$6,$7,$8,$9)
+       RETURNING *`,
+      [
+        order.restaurant_id,
+        order.id,
+        `#${order.queue_number}`,
+        stopName.slice(0, 200),
+        'ASAP',
+        deliveryAddress?.instructions || 'Deliver to customer address on file.',
+        order.payment_status === 'unpaid',
+        order.payment_status === 'unpaid',
+        createdBy,
+      ]
+    );
+    return task;
+  } catch (err) {
+    if (isMissingRelationError(err)) return null;
+    throw err;
+  }
+}
+
+async function earnFoodLoyaltyOnComplete(client, order) {
+  if (!order.customer_id) return null;
+  const points = Math.max(1, Math.floor(Number(order.total_cents || 0) / 100));
+  try {
+    const { rows: [account] } = await client.query(
+      `INSERT INTO food_loyalty_accounts (restaurant_id, customer_id, points_balance, lifetime_points)
+       VALUES ($1, $2, $3, $3)
+       ON CONFLICT (restaurant_id, customer_id)
+       DO UPDATE SET
+         points_balance = food_loyalty_accounts.points_balance + $3,
+         lifetime_points = food_loyalty_accounts.lifetime_points + $3,
+         updated_at = NOW()
+       RETURNING *`,
+      [order.restaurant_id, order.customer_id, points]
+    );
+    await client.query(
+      `INSERT INTO food_loyalty_ledger (account_id, order_id, delta_points, reason)
+       VALUES ($1, $2, $3, 'order_completed')`,
+      [account.id, order.id, points]
+    );
+    return account;
+  } catch (err) {
+    if (isMissingRelationError(err)) return null;
+    throw err;
+  }
 }
 
 function publicQueueGuestLabel(order) {
@@ -469,6 +610,7 @@ exports.listRestaurants = async (req, res, next) => {
               fr.latitude, fr.longitude, fr.currency_code, fr.fulfillment_modes,
               fr.accepts_online_orders, fr.accepts_in_store_orders,
               fr.kitchen_display_enabled, fr.prep_time_min,
+              fr.brand_accent_hex, fr.operating_hours, fr.timezone, fr.is_verified,
               COALESCE(rr.avg_rating, 0)::float AS avg_rating,
               COALESCE(rr.review_count, 0)::int AS review_count,
               ${distanceSelect}
@@ -485,7 +627,7 @@ exports.listRestaurants = async (req, res, next) => {
       params
     );
 
-    res.json({ restaurants: rows, limit, offset });
+    res.json({ restaurants: rows.map(attachRestaurantHours), limit, offset });
   } catch (err) {
     if (!isMissingRelationError(err)) return next(err);
     try {
@@ -542,7 +684,7 @@ exports.listRestaurants = async (req, res, next) => {
           LIMIT $${params.push(limit)} OFFSET $${params.push(offset)}`,
         params
       );
-      return res.json({ restaurants: rows, limit, offset });
+      return res.json({ restaurants: rows.map(attachRestaurantHours), limit, offset });
     } catch (retryErr) {
       return next(retryErr);
     }
@@ -638,7 +780,7 @@ exports.getRestaurant = async (req, res, next) => {
     }
 
     res.json({
-      restaurant,
+      restaurant: attachRestaurantHours(restaurant),
       menu: categories.map((category) => ({
         ...category,
         items: itemsByCategory.get(category.id) || [],
@@ -846,6 +988,17 @@ exports.createOrder = async (req, res, next) => {
       if (isInStore ? !restaurant.accepts_in_store_orders : !restaurant.accepts_online_orders) {
         throw new AppError('Restaurant is not accepting orders from this channel', 409, 'restaurant_not_accepting_orders');
       }
+      if (!isInStore) {
+        const hoursStatus = evaluateOperatingHours(restaurant.operating_hours, restaurant.timezone);
+        if (!hoursStatus.isOpen) {
+          throw new AppError(
+            hoursStatus.message || 'Restaurant is closed',
+            409,
+            'restaurant_closed',
+            { hoursMessage: hoursStatus.message, opensAt: hoursStatus.opensAt }
+          );
+        }
+      }
 
       const ids = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
       const { rows: menuRows } = await client.query(
@@ -895,19 +1048,6 @@ exports.createOrder = async (req, res, next) => {
       });
 
       const subtotal = normalizedItems.reduce((sum, item) => sum + item.lineTotal, 0);
-      const tax = parseMoneyCents(req.body.taxCents ?? req.body.tax_cents ?? 0, 'taxCents');
-      const tip = parseMoneyCents(req.body.tipCents ?? req.body.tip_cents ?? 0, 'tipCents');
-      const discount = parseMoneyCents(req.body.discountCents ?? req.body.discount_cents ?? 0, 'discountCents');
-      const total = Math.max(0, subtotal + tax + tip - discount);
-
-      const { rows: queueRows } = await client.query(
-        `SELECT COALESCE(MAX(queue_number), 0) + 1 AS next_queue
-           FROM food_orders
-          WHERE restaurant_id = $1 AND created_at::date = CURRENT_DATE`,
-        [restaurantId]
-      );
-      const queueNumber = Number(queueRows[0]?.next_queue || 1);
-
       const fulfillmentType = normalizeString(req.body.fulfillmentType || req.body.fulfillment_type, 24) || 'pickup';
       const orderSource = normalizeString(req.body.orderSource || req.body.order_source, 24) || 'mobile';
       if (!VALID_FULFILLMENT.has(fulfillmentType)) {
@@ -917,19 +1057,69 @@ exports.createOrder = async (req, res, next) => {
         throw new AppError('Validation failed', 400, 'validation_failed', { orderSource: 'Unsupported order source' });
       }
 
-      const trackingToken = createTrackingToken();
+      let deliveryAddress = null;
+      let deliveryFeeCents = 0;
+      if (fulfillmentType === 'delivery') {
+        deliveryAddress = normalizeDeliveryAddress(req.body.deliveryAddress || req.body.delivery_address);
+        if (!deliveryAddress) {
+          throw new AppError('Validation failed', 400, 'validation_failed', {
+            deliveryAddress: 'Delivery address is required for delivery orders',
+          });
+        }
+        const settings = restaurant.settings && typeof restaurant.settings === 'object' ? restaurant.settings : {};
+        deliveryFeeCents = parseMoneyCents(
+          req.body.deliveryFeeCents ?? req.body.delivery_fee_cents ?? settings.deliveryFeeCents ?? settings.delivery_fee_cents ?? 0,
+          'deliveryFeeCents'
+        );
+      }
+
+      const tax = parseMoneyCents(req.body.taxCents ?? req.body.tax_cents ?? 0, 'taxCents');
+      const tip = parseMoneyCents(req.body.tipCents ?? req.body.tip_cents ?? 0, 'tipCents');
+      let discount = parseMoneyCents(req.body.discountCents ?? req.body.discount_cents ?? 0, 'discountCents');
       const discountCode = normalizeString(req.body.discountCode || req.body.discount_code, 40);
-      const discountLabel = normalizeString(req.body.discountLabel || req.body.discount_label, 120);
+      let discountLabel = normalizeString(req.body.discountLabel || req.body.discount_label, 120);
+      let promotionId = null;
+      if (discountCode) {
+        const promoResult = await resolveFoodPromotionDiscount(client, restaurantId, discountCode, subtotal);
+        if (promoResult.discountCents > 0) {
+          discount = promoResult.discountCents;
+          discountLabel = promoResult.metadata?.label || discountLabel;
+          promotionId = promoResult.promotionId;
+        }
+      }
+      const total = Math.max(0, subtotal + tax + tip + deliveryFeeCents - discount);
+
+      const { rows: queueRows } = await client.query(
+        `SELECT COALESCE(MAX(queue_number), 0) + 1 AS next_queue
+           FROM food_orders
+          WHERE restaurant_id = $1 AND created_at::date = CURRENT_DATE`,
+        [restaurantId]
+      );
+      const queueNumber = Number(queueRows[0]?.next_queue || 1);
+
+      const trackingToken = createTrackingToken();
       const discountMetadata = discount > 0
         ? {
           code: discountCode,
           label: discountLabel,
           amountCents: discount,
+          ...(promotionId ? { promotionId } : {}),
         }
         : null;
       const metadata = req.body.metadata && typeof req.body.metadata === 'object'
-        ? { ...req.body.metadata, trackingToken, ...(clientOrderId ? { clientOrderId } : {}), ...(discountMetadata ? { posDiscount: discountMetadata } : {}) }
-        : { trackingToken, ...(clientOrderId ? { clientOrderId } : {}), ...(discountMetadata ? { posDiscount: discountMetadata } : {}) };
+        ? {
+          ...req.body.metadata,
+          trackingToken,
+          ...(clientOrderId ? { clientOrderId } : {}),
+          ...(discountMetadata ? { posDiscount: discountMetadata, promotion: discountMetadata } : {}),
+          ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),
+        }
+        : {
+          trackingToken,
+          ...(clientOrderId ? { clientOrderId } : {}),
+          ...(discountMetadata ? { posDiscount: discountMetadata, promotion: discountMetadata } : {}),
+          ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),
+        };
 
       const { rows: [created] } = await client.query(
         `INSERT INTO food_orders
@@ -993,12 +1183,28 @@ exports.createOrder = async (req, res, next) => {
         }
       }
 
+      if (promotionId) {
+        await client.query(
+          `UPDATE food_restaurant_promotions
+              SET use_count = use_count + 1, updated_at = NOW()
+            WHERE id = $1 AND restaurant_id = $2`,
+          [promotionId, restaurantId]
+        );
+      }
+
+      const runnerTask = await maybeCreateDeliveryRunnerTask(client, {
+        order: created,
+        deliveryAddress,
+        createdBy: req.user?.id || null,
+      });
+
       return {
         order: created,
         restaurant,
         normalizedItems,
         trackingToken,
         replayed: false,
+        runnerTask,
       };
     }, 'food_create_order');
 
@@ -1033,6 +1239,7 @@ exports.createOrder = async (req, res, next) => {
       payment,
       trackingToken: createdOrder.trackingToken,
       replayed: Boolean(createdOrder.replayed),
+      runnerTask: createdOrder.runnerTask || null,
     });
   } catch (err) {
     next(err);
@@ -1135,6 +1342,11 @@ exports.updateOrderStatus = async (req, res, next) => {
     // fire-and-forget so a slow SMS/email provider never delays this response).
     if (status === 'ready') {
       notifyFoodOrderReady(order, restaurant);
+    }
+    if (status === 'completed') {
+      await withTransaction(pool, async (client) => {
+        await earnFoodLoyaltyOnComplete(client, order);
+      }, 'food_loyalty_earn');
     }
 
     res.json({ order });
@@ -1303,6 +1515,9 @@ const RESTAURANT_PATCH_FIELDS = {
   acceptsOnlineOrders: { column: 'accepts_online_orders', value: (v) => v !== false },
   acceptsInStoreOrders: { column: 'accepts_in_store_orders', value: (v) => v !== false },
   kitchenDisplayEnabled: { column: 'kitchen_display_enabled', value: (v) => v !== false },
+  brandAccentHex: { column: 'brand_accent_hex', value: (v) => normalizeBrandAccentHex(v) },
+  operatingHours: { column: 'operating_hours', value: (v) => normalizeHoursInput(v) },
+  isVerified: { column: 'is_verified', value: (v) => v === true },
 };
 const OWNER_SETTABLE_STATUS = new Set(['draft', 'active', 'paused']);
 
@@ -1691,46 +1906,67 @@ exports.getCustomerProfile = async (req, res, next) => {
       let tierName = 'New';
       let rewardSummary = 'Keep ordering to unlock your next restaurant reward.';
 
-      try {
-        const { rows } = await pool.query(
-          `SELECT lifetime_bookings, lifetime_spent_cents, loyalty_tier
-             FROM customer_business_profile
-            WHERE business_id = $1 AND customer_id = $2`,
-          [restaurant.business_id, req.user.id]
-        );
-        if (rows[0]) {
-          const spent = Number(rows[0].lifetime_spent_cents || 0);
-          points = Math.max(0, Math.floor(spent / 100));
-          tierName = toTierLabel(rows[0].loyalty_tier);
-        } else {
-          const { rows: fallbackRows } = await pool.query(
-            `SELECT COALESCE(COUNT(*), 0) AS order_count,
-                    COALESCE(SUM(total_cents), 0) AS lifetime_spent_cents
-               FROM food_orders
-              WHERE business_id = $1
-                AND customer_id = $2
-                AND status NOT IN ('cancelled', 'refunded')`,
+      if (restaurantId) {
+        try {
+          const { rows: loyaltyRows } = await pool.query(
+            `SELECT points_balance, lifetime_points
+               FROM food_loyalty_accounts
+              WHERE restaurant_id = $1 AND customer_id = $2`,
+            [restaurantId, req.user.id]
+          );
+          if (loyaltyRows[0]) {
+            points = Number(loyaltyRows[0].points_balance || 0);
+            const lifetime = Number(loyaltyRows[0].lifetime_points || 0);
+            tierName = lifetime >= 500 ? 'Vip' : lifetime >= 200 ? 'Regular' : lifetime >= 50 ? 'Returning' : 'New';
+            rewardSummary = `${points} points ready — keep ordering to unlock perks.`;
+          }
+        } catch (err) {
+          if (!isMissingRelationError(err)) throw err;
+        }
+      }
+
+      if (points === 0) {
+        try {
+          const { rows } = await pool.query(
+            `SELECT lifetime_bookings, lifetime_spent_cents, loyalty_tier
+               FROM customer_business_profile
+              WHERE business_id = $1 AND customer_id = $2`,
             [restaurant.business_id, req.user.id]
           );
-          const spent = Number(fallbackRows[0]?.lifetime_spent_cents || 0);
-          const count = Number(fallbackRows[0]?.order_count || 0);
-          points = Math.max(0, Math.floor(spent / 100));
-          tierName = count >= 10 ? 'Vip' : count >= 5 ? 'Regular' : count >= 2 ? 'Returning' : 'New';
-        }
+          if (rows[0]) {
+            const spent = Number(rows[0].lifetime_spent_cents || 0);
+            points = Math.max(0, Math.floor(spent / 100));
+            tierName = toTierLabel(rows[0].loyalty_tier);
+          } else {
+            const { rows: fallbackRows } = await pool.query(
+              `SELECT COALESCE(COUNT(*), 0) AS order_count,
+                      COALESCE(SUM(total_cents), 0) AS lifetime_spent_cents
+                 FROM food_orders
+                WHERE business_id = $1
+                  AND customer_id = $2
+                  AND status NOT IN ('cancelled', 'refunded')`,
+              [restaurant.business_id, req.user.id]
+            );
+            const spent = Number(fallbackRows[0]?.lifetime_spent_cents || 0);
+            const count = Number(fallbackRows[0]?.order_count || 0);
+            points = Math.max(0, Math.floor(spent / 100));
+            tierName = count >= 10 ? 'Vip' : count >= 5 ? 'Regular' : count >= 2 ? 'Returning' : 'New';
+          }
 
-        const { rows: tierRows } = await pool.query(
-          `SELECT tier_name, min_points
-             FROM business_loyalty_tiers
-            WHERE business_id = $1
-            ORDER BY min_points ASC`,
-          [restaurant.business_id]
-        );
-        const nextTier = tierRows.find((row) => Number(row.min_points) > points);
-        rewardSummary = nextTier
-          ? `${Math.max(0, Number(nextTier.min_points) - points)} points until ${toTierLabel(nextTier.tier_name)} perks.`
-          : 'Top tier reached for this restaurant. Watch for new surprise offers.';
-      } catch (err) {
-        if (!isMissingRelationError(err)) throw err;
+          const { rows: tierRows } = await pool.query(
+            `SELECT tier_name, min_points
+               FROM business_loyalty_tiers
+              WHERE business_id = $1
+              ORDER BY min_points ASC`,
+            [restaurant.business_id]
+          );
+          const nextTier = tierRows.find((row) => Number(row.min_points) > points);
+          rewardSummary = nextTier
+            ? `${Math.max(0, Number(nextTier.min_points) - points)} points until ${toTierLabel(nextTier.tier_name)} perks.`
+            : 'Top tier reached for this restaurant. Watch for new surprise offers.';
+        } catch (err) {
+          if (!isMissingRelationError(err)) throw err;
+        }
       }
 
       profile.loyaltySummary = {
@@ -1740,36 +1976,66 @@ exports.getCustomerProfile = async (req, res, next) => {
       };
 
       try {
-        const { rows } = await pool.query(
-          `SELECT id, offer_type, discount_percent, discount_cents, valid_until
-             FROM customer_offers
-            WHERE business_id = $1
-              AND is_active = TRUE
-              AND valid_from <= CURRENT_DATE
-              AND valid_until >= CURRENT_DATE
-              AND (customer_id = $2 OR customer_id IS NULL)
-            ORDER BY valid_until ASC, created_at DESC
-            LIMIT 6`,
-          [restaurant.business_id, req.user.id]
-        );
-        profile.offers = rows.map((row) => {
-          const discountPercent = row.discount_percent !== null ? Number(row.discount_percent) : null;
-          const discountCents = row.discount_cents !== null ? Number(row.discount_cents) : null;
-          const title = toTierLabel(row.offer_type).replace('Discount', ' Offer');
-          const detail = discountPercent !== null
-            ? `Save ${discountPercent}% on your next qualifying order before ${row.valid_until}.`
-            : discountCents !== null
-              ? `Save $${(discountCents / 100).toFixed(2)} on your next qualifying order before ${row.valid_until}.`
-              : `Available through ${row.valid_until}.`;
-          return {
+        const { rows: promoRows } = restaurantId
+          ? await pool.query(
+            `SELECT id, code, title, description, discount_percent, discount_cents, valid_until
+               FROM food_restaurant_promotions
+              WHERE restaurant_id = $1
+                AND is_active = TRUE
+                AND (valid_from IS NULL OR valid_from <= CURRENT_DATE)
+                AND (valid_until IS NULL OR valid_until >= CURRENT_DATE)
+              ORDER BY valid_until ASC NULLS LAST, created_at DESC
+              LIMIT 6`,
+            [restaurantId]
+          )
+          : { rows: [] };
+        if (promoRows.length) {
+          profile.offers = promoRows.map((row) => ({
             id: String(row.id),
-            title,
-            detail,
-            code: `OX-${String(row.id).slice(0, 6).toUpperCase()}`,
-          };
-        });
+            title: row.title,
+            detail: row.description || 'Use this code at checkout.',
+            code: row.code,
+            discountPercent: row.discount_percent !== null ? Number(row.discount_percent) : null,
+            discountCents: row.discount_cents !== null ? Number(row.discount_cents) : null,
+          }));
+        }
       } catch (err) {
         if (!isMissingRelationError(err)) throw err;
+      }
+
+      if (!profile.offers.length) {
+        try {
+          const { rows } = await pool.query(
+            `SELECT id, offer_type, discount_percent, discount_cents, valid_until
+               FROM customer_offers
+              WHERE business_id = $1
+                AND is_active = TRUE
+                AND valid_from <= CURRENT_DATE
+                AND valid_until >= CURRENT_DATE
+                AND (customer_id = $2 OR customer_id IS NULL)
+              ORDER BY valid_until ASC, created_at DESC
+              LIMIT 6`,
+            [restaurant.business_id, req.user.id]
+          );
+          profile.offers = rows.map((row) => {
+            const discountPercent = row.discount_percent !== null ? Number(row.discount_percent) : null;
+            const discountCents = row.discount_cents !== null ? Number(row.discount_cents) : null;
+            const title = toTierLabel(row.offer_type).replace('Discount', ' Offer');
+            const detail = discountPercent !== null
+              ? `Save ${discountPercent}% on your next qualifying order before ${row.valid_until}.`
+              : discountCents !== null
+                ? `Save $${(discountCents / 100).toFixed(2)} on your next qualifying order before ${row.valid_until}.`
+                : `Available through ${row.valid_until}.`;
+            return {
+              id: String(row.id),
+              title,
+              detail,
+              code: `OX-${String(row.id).slice(0, 6).toUpperCase()}`,
+            };
+          });
+        } catch (err) {
+          if (!isMissingRelationError(err)) throw err;
+        }
       }
     }
 
@@ -1933,8 +2199,6 @@ exports.getOrder = async (req, res, next) => {
 
     const isCustomer = order.customer_id && req.user?.id === order.customer_id;
     if (!isCustomer) {
-      // Merchant-side staff can also view; everyone else gets a 404 so order
-      // existence is never leaked.
       try {
         await requireRestaurantAccess(req.user?.id, order.restaurant_id);
       } catch (_) {
@@ -1944,6 +2208,76 @@ exports.getOrder = async (req, res, next) => {
     order = await syncFoodOrderPaymentStatus(order);
     res.json({ order });
   } catch (err) {
+    next(err);
+  }
+};
+
+exports.listRestaurantPromotions = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    try {
+      const { rows } = await pool.query(
+        `SELECT id, code, title, description, discount_percent, discount_cents,
+                min_subtotal_cents, valid_from, valid_until
+           FROM food_restaurant_promotions
+          WHERE restaurant_id = $1
+            AND is_active = TRUE
+            AND (valid_from IS NULL OR valid_from <= CURRENT_DATE)
+            AND (valid_until IS NULL OR valid_until >= CURRENT_DATE)
+          ORDER BY created_at DESC
+          LIMIT 20`,
+        [restaurantId]
+      );
+      return res.json({ promotions: rows });
+    } catch (err) {
+      if (isMissingRelationError(err)) return res.json({ promotions: [] });
+      throw err;
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createRestaurantPromotion = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const code = normalizeString(req.body.code, 40);
+    const title = normalizeString(req.body.title, 120);
+    if (!code || !title) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        code: 'Code is required',
+        title: 'Title is required',
+      });
+    }
+    const discountPercent = req.body.discountPercent ?? req.body.discount_percent;
+    const discountCents = req.body.discountCents ?? req.body.discount_cents;
+    const { rows: [promotion] } = await pool.query(
+      `INSERT INTO food_restaurant_promotions
+         (restaurant_id, code, title, description, discount_percent, discount_cents,
+          min_subtotal_cents, valid_from, valid_until, max_uses, is_active)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       RETURNING *`,
+      [
+        restaurantId,
+        code.toUpperCase(),
+        title,
+        normalizeString(req.body.description, 2000),
+        discountPercent != null ? Number(discountPercent) : null,
+        discountCents != null ? parseMoneyCents(discountCents, 'discountCents') : null,
+        parseMoneyCents(req.body.minSubtotalCents ?? req.body.min_subtotal_cents ?? 0, 'minSubtotalCents'),
+        req.body.validFrom || req.body.valid_from || null,
+        req.body.validUntil || req.body.valid_until || null,
+        parsePositiveInt(req.body.maxUses ?? req.body.max_uses),
+        req.body.isActive !== false,
+      ]
+    );
+    res.status(201).json({ promotion });
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      return next(new AppError('Promotions are not available yet', 503, 'promotions_unavailable'));
+    }
     next(err);
   }
 };

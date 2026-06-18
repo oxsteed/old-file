@@ -125,6 +125,25 @@ enum FoodTheme {
 
     static func accent(for seed: Int64) -> Color { accent(for: String(seed)) }
 
+    static func accent(for seed: String, brandHex: String?) -> Color {
+        if let brandHex, let parsed = color(fromHex: brandHex) { return parsed }
+        return accent(for: seed)
+    }
+
+    static func accent(for seed: Int64, brandHex: String?) -> Color {
+        accent(for: String(seed), brandHex: brandHex)
+    }
+
+    private static func color(fromHex hex: String) -> Color? {
+        var cleaned = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleaned.hasPrefix("#") { cleaned.removeFirst() }
+        guard cleaned.count == 6, let value = UInt64(cleaned, radix: 16) else { return nil }
+        let r = Double((value >> 16) & 0xFF) / 255
+        let g = Double((value >> 8) & 0xFF) / 255
+        let b = Double(value & 0xFF) / 255
+        return Color(red: r, green: g, blue: b)
+    }
+
     // MARK: - Spacing & radius scale
     enum Space {
         static let xs: CGFloat = 4

@@ -98,7 +98,9 @@ actor FoodAPIClient {
         token: String?,
         orderSource: String = "mobile",
         paymentMode: String = "pay_at_counter",
-        clientOrderId: String? = nil
+        clientOrderId: String? = nil,
+        discountCode: String? = nil,
+        deliveryAddress: FoodDeliveryAddress? = nil
     ) async throws -> FoodCreateOrderResponse {
         struct OrderItem: Encodable {
             let menuItemId: Int64
@@ -114,10 +116,14 @@ actor FoodAPIClient {
             let guestName: String?
             let items: [OrderItem]
             let clientOrderId: String?
+            let discountCode: String?
+            let deliveryAddress: FoodDeliveryAddress?
 
             enum CodingKeys: String, CodingKey {
                 case fulfillmentType, orderSource, paymentMode, tableLabel, guestName, items
                 case clientOrderId = "client_order_id"
+                case discountCode = "discount_code"
+                case deliveryAddress = "delivery_address"
             }
         }
         let body = Body(
@@ -134,7 +140,9 @@ actor FoodAPIClient {
                     specialInstructions: $0.specialInstructions.isEmpty ? nil : $0.specialInstructions
                 )
             },
-            clientOrderId: clientOrderId
+            clientOrderId: clientOrderId,
+            discountCode: discountCode,
+            deliveryAddress: deliveryAddress
         )
         let envelope: FoodCreateOrderEnvelope = try await request(
             "/api/food/restaurants/\(restaurantId)/orders",

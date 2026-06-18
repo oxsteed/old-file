@@ -1,5 +1,6 @@
 import Foundation
 import CoreLocation
+import SwiftUI
 
 // MARK: - Tolerant JSON decoding
 //
@@ -102,6 +103,14 @@ struct FoodRestaurant: Identifiable, Hashable {
     var status: String
     var avgRating: Double
     var reviewCount: Int
+    var brandAccentHex: String?
+    var isOpen: Bool?
+    var hoursMessage: String?
+    var isVerified: Bool
+
+    var accentColor: Color {
+        FoodTheme.accent(for: id, brandHex: brandAccentHex)
+    }
 
     var coordinate: CLLocationCoordinate2D? {
         guard let latitude, let longitude else { return nil }
@@ -137,6 +146,10 @@ extension FoodRestaurant: Decodable {
         case status
         case avgRating = "avg_rating"
         case reviewCount = "review_count"
+        case brandAccentHex = "brand_accent_hex"
+        case isOpen = "is_open"
+        case hoursMessage = "hours_message"
+        case isVerified = "is_verified"
     }
 
     init(from decoder: Decoder) throws {
@@ -165,6 +178,10 @@ extension FoodRestaurant: Decodable {
         status = c.flexString(.status) ?? "active"
         avgRating = c.flexDoubleIfPresent(.avgRating) ?? 0
         reviewCount = c.flexInt(.reviewCount, default: 0)
+        brandAccentHex = c.flexString(.brandAccentHex)
+        isOpen = try? c.decode(Bool.self, forKey: .isOpen)
+        hoursMessage = c.flexString(.hoursMessage)
+        isVerified = c.flexBool(.isVerified, default: false)
     }
 }
 
@@ -343,6 +360,16 @@ extension FoodOrder: Decodable {
         items = (try? c.decode([FoodOrderLine].self, forKey: .items)) ?? []
         hasReview = c.flexBool(.hasReview, default: false)
     }
+}
+
+struct FoodDeliveryAddress: Codable, Hashable {
+    let line1: String
+    var line2: String?
+    var city: String?
+    var state: String?
+    var zip: String?
+    var country: String?
+    var instructions: String?
 }
 
 struct FoodOrderReview: Identifiable, Hashable {

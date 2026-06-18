@@ -22,6 +22,12 @@ export const placeFoodOrder = (restaurantId, payload) =>
     trackingToken: r.data?.trackingToken,
   }));
 
+export const listFoodPromotions = (restaurantId) =>
+  api.get(`/food/restaurants/${restaurantId}/promotions`).then((r) => r.data?.promotions || []);
+
+export const createFoodPromotion = (restaurantId, payload) =>
+  api.post(`/food/restaurants/${restaurantId}/promotions`, payload).then((r) => r.data?.promotion);
+
 export const getTrackedFoodOrder = (trackingToken) =>
   api.get(`/food/orders/track/${trackingToken}`).then((r) => r.data?.order);
 

@@ -10,6 +10,7 @@ const kiosk = require('../controllers/restaurantKioskController');
 router.get('/restaurants', ctrl.listRestaurants);
 router.get('/restaurants/:restaurantId', ctrl.getRestaurant);
 router.get('/restaurants/:restaurantId/queue-board', ctrl.getQueueBoard);
+router.get('/restaurants/:restaurantId/promotions', ctrl.listRestaurantPromotions);
 router.get('/restaurants/:restaurantId/kiosk-config', kiosk.getPublicKioskConfig);
 router.get('/payment-config', ctrl.getPaymentConfig);
 router.get('/orders/track/:trackingToken', ctrl.getTrackedOrder);
@@ -28,6 +29,7 @@ router.post('/customer/favorites/:restaurantId/toggle', authenticate, ctrl.toggl
 // Merchant onboarding and menu setup.
 router.post('/restaurants', authenticate, ctrl.createRestaurant);
 router.patch('/restaurants/:restaurantId', authenticate, ctrl.updateRestaurant);
+router.post('/restaurants/:restaurantId/promotions', authenticate, ctrl.createRestaurantPromotion);
 router.post('/restaurants/:restaurantId/categories', authenticate, ctrl.createMenuCategory);
 router.patch('/restaurants/:restaurantId/categories/:categoryId', authenticate, ctrl.updateMenuCategory);
 router.delete('/restaurants/:restaurantId/categories/:categoryId', authenticate, ctrl.deleteMenuCategory);

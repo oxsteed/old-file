@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-06-18 (offline order capture + idempotent replay)
+**Last updated:** 2026-06-18 (growth ops: hours, promos, loyalty, delivery→runner)
 
 ## Instructions for Every Session
 
@@ -8,6 +8,17 @@
 2. **After completing meaningful work**, update this file - revise "Current Status", "Remaining Work", update file paths.
 3. **Commit AGENTS.md changes** in the same commit as the work it documents.
 4. **Keep it accurate and terse** - do not pad with summaries of work you didn't personally verify.
+
+---
+
+## Session progress — OxSteed Restaurants growth ops (2026-06-18)
+
+Follow-up on 2026-06-18 (gap-list implementation pass): **Verified on macOS:** `xcodebuild` Debug simulator build passed for `OxSteedRestaurantsCustomer`. `node --check server/controllers/foodController.js server/utils/foodOperatingHours.js` passes.
+
+- **318 — hours, brand, promos, loyalty, verified:** `server/migrations/318_food_growth_ops.sql`; `operating_hours` + closed guard in `createOrder`; `brand_accent_hex` + `is_verified`; `food_restaurant_promotions` with checkout apply; `food_loyalty_accounts`/`food_loyalty_ledger` earn on `status=completed`.
+- **Delivery → runner (E6/E7):** delivery orders require `delivery_address`; fee in metadata; auto `restaurant_runner_tasks` row on create.
+- **Customer iOS + web:** hours/verified on Discover; coupon code + delivery fields wired; `FoodTheme.accent(..., brandHex:)` byte-identical all 8 apps.
+- **Remaining from gap list:** setup wizard, multi-location, POS rush/KDS stations, MapKit runner, permissions matrix, code consolidation (F1/F2), full E2E suite, A1/A5/A6 go-to-market.
 
 ---
 
@@ -113,7 +124,7 @@ Follow-up on 2026-06-18 (production-grade suite pass — phase 3): real-time dis
 |---|------|--------|-------|
 | A1 | **Ready notification E2E** (push/SMS/email on `status=ready`) | `[~]` | `notifyFoodOrderReady` in `foodController.js`; needs Twilio/push/email env + device proof |
 | A2 | **Real-time on all surfaces** | `[~]` | Socket on iOS Customer/Kiosk/Kitchen/Manager/POS Track+queue + web KDS/queue/Merchant/kiosk+confirmation; poll kept as floor everywhere |
-| A3 | **Migrations 305–317 run in prod Postgres** | `[ ]` | 316 adds `food_reviews`; 317 adds client-order dedup index |
+| A3 | **Migrations 305–318 run in prod Postgres** | `[ ]` | 316 reviews; 317 client-order dedup; 318 hours/brand/promos/loyalty |
 | A4 | **Stripe checkout in real Stripe env** | `[~]` | Build-verified only |
 | A5 | **App Store Connect metadata + external TestFlight** | `[ ]` | Internal TF done; per-app store listing / review pending |
 | A6 | **On-device pilot QA** (1 restaurant, 4 tablets) | `[ ]` | Kiosk lock via Guided Access/MDM (operational) |
@@ -127,10 +138,10 @@ Follow-up on 2026-06-18 (production-grade suite pass — phase 3): real-time dis
 | B1 | **Food order reviews + star ratings** | `[x]` | `food_reviews` + `POST /api/food/orders/:orderId/review` |
 | B2 | **Review prompt after completed order** | `[x]` | iOS `OrderReviewPromptCard` on Track; guest via tracking token |
 | B3 | **Aggregated rating on Discover** (`avg_rating`, `review_count`) | `[x]` | On list + detail API; stars on iOS `RestaurantCard` |
-| B4 | **Loyalty program (earn/redeem)** | `[~]` | Customer Perks UI + thin profile loyalty; no `loyalty_accounts` / ledger |
-| B5 | **Promotions & coupon codes** | `[~]` | POS has discount catalog; no customer-facing `restaurant_promotions` |
-| B6 | **Verified / trusted restaurant badges** | `[ ]` | Strategy trust feature |
-| B7 | **Operating hours** (open/closed, “opens at”) | `[ ]` | Not on `food_restaurants`; no ordering guardrail |
+| B4 | **Loyalty program (earn/redeem)** | `[~]` | `food_loyalty_accounts` + ledger; earn on order completed; profile reads ledger |
+| B5 | **Promotions & coupon codes** | `[~]` | `food_restaurant_promotions` + apply at checkout (iOS coupon + POS) |
+| B6 | **Verified / trusted restaurant badges** | `[~]` | `is_verified` on restaurant; shown on Discover (iOS + web) |
+| B7 | **Operating hours** (open/closed, “opens at”) | `[~]` | `operating_hours` JSONB + ordering guardrail + Discover hours pill |
 | B8 | **Owner setup wizard** (profile → location → hours → menu → staff → publish) | `[~]` | Today: form + Go Live, not guided wizard |
 
 ### Phase C — Real-time, reliability & worldwide
@@ -148,7 +159,7 @@ Follow-up on 2026-06-18 (production-grade suite pass — phase 3): real-time dis
 |---|------|--------|-------|
 | D1 | **Multi-location** (`restaurant_locations`, per-site dashboards) | `[~]` | Manager share bars only; one storefront ≈ one row today |
 | D2 | **Manager location drill-down sheet** | `[ ]` | Overview comparison without detail |
-| D3 | **Backend brand accent** (`brand_accent_hex` on restaurant) | `[ ]` | Still `FoodTheme.accent(for:)` seed |
+| D3 | **Backend brand accent** (`brand_accent_hex` on restaurant) | `[~]` | Column + PATCH + `FoodTheme.accent(..., brandHex:)` |
 | D4 | **Fine-grained permissions** (`restaurant_users`, `menu.*` / `pos.*` / `kitchen.*`) | `[ ]` | Cashier vs manager not enforced app-wide |
 | D5 | **Recipe → auto stock decrement on order** | `[ ]` | Mappings exist; no order-driven decrement |
 | D6 | **Full supplier PO lifecycle** | `[~]` | Purchase requests + issues; not full PO workflow |
@@ -172,8 +183,8 @@ Follow-up on 2026-06-18 (production-grade suite pass — phase 3): real-time dis
 | E3 | **Kiosk true i18n** (localized strings per language chip) | `[~]` | Language preference stored; copy not fully translated |
 | E4 | **Inventory barcode scan receiving** | `[ ]` | Mockup Scan buttons; no scanner flow |
 | E5 | **Runner MapKit / GPS / turn-by-turn** | `[ ]` | Route list only |
-| E6 | **Delivery as end-to-end product** | `[~]` | `delivery` fulfillment type exists |
-| E7 | **Food order → auto-create runner task** | `[ ]` | Runner API has `food_order_id`; createOrder does not dispatch |
+| E6 | **Delivery as end-to-end product** | `[~]` | Address required on delivery orders; fee in metadata |
+| E7 | **Food order → auto-create runner task** | `[~]` | Auto `restaurant_runner_tasks` row on delivery createOrder |
 | E8 | **Disputes / refunds customer UX** | `[~]` | Status fields exist |
 
 ### Phase F — Engineering & platform debt

@@ -3220,6 +3220,15 @@ private struct RestaurantCard: View {
                             label: String(format: "%.1f (%d)", restaurant.avgRating, restaurant.reviewCount)
                         )
                     }
+                    if restaurant.isVerified {
+                        DiscoverSpotlightPill(icon: "checkmark.seal.fill", label: "Verified")
+                    }
+                    if let hoursMessage = restaurant.hoursMessage, !hoursMessage.isEmpty {
+                        DiscoverSpotlightPill(
+                            icon: (restaurant.isOpen ?? true) ? "door.left.hand.open" : "moon.fill",
+                            label: hoursMessage
+                        )
+                    }
                     DiscoverSpotlightPill(icon: "clock.fill", label: "\(restaurant.prepTimeMin) min")
                     if let distanceKm = restaurant.distanceKm {
                         DiscoverSpotlightPill(icon: "location.fill", label: String(format: "%.1f km", distanceKm))

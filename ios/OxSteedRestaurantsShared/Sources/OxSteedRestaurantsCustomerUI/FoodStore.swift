@@ -13,6 +13,10 @@ final class FoodStore: ObservableObject {
     @Published var fulfillment = "pickup"
     @Published var tableLabel = ""
     @Published var guestName = ""
+    @Published var orderCouponCode = ""
+    @Published var deliveryAddressLine1 = ""
+    @Published var deliveryCity = ""
+    @Published var deliveryInstructions = ""
     @Published var isLoading = false
     @Published var isPlacingOrder = false
     @Published var message: String?
@@ -277,6 +281,18 @@ final class FoodStore: ObservableObject {
         defer { isPlacingOrder = false }
         let submittedLines = cart
         let clientOrderId = UUID().uuidString
+        let coupon = orderCouponCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        let deliveryAddress: FoodDeliveryAddress? = fulfillment == "delivery"
+            ? FoodDeliveryAddress(
+                line1: deliveryAddressLine1.trimmingCharacters(in: .whitespacesAndNewlines),
+                line2: nil,
+                city: deliveryCity.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : deliveryCity.trimmingCharacters(in: .whitespacesAndNewlines),
+                state: nil,
+                zip: nil,
+                country: selectedRestaurant?.addressCountry,
+                instructions: deliveryInstructions.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : deliveryInstructions.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+            : nil
         do {
             let response = try await FoodAPIClient.shared.createOrder(
                 restaurantId: restaurant.id,
@@ -286,7 +302,9 @@ final class FoodStore: ObservableObject {
                 guestName: isSignedIn || guestName.isEmpty ? nil : guestName,
                 token: accessToken.isEmpty ? nil : accessToken,
                 paymentMode: onlineCheckoutAvailable ? customerPaymentMode : "pay_at_counter",
-                clientOrderId: clientOrderId
+                clientOrderId: clientOrderId,
+                discountCode: coupon.isEmpty ? nil : coupon.uppercased(),
+                deliveryAddress: deliveryAddress?.line1.isEmpty == false ? deliveryAddress : nil
             )
             FoodOfflineOrderQueue.remove(id: clientOrderId)
             refreshPendingOfflineOrders()
@@ -938,7 +956,11 @@ enum FoodSampleData {
         distanceKm: 1.4,
         status: "active",
         avgRating: 4.8,
-        reviewCount: 128
+        reviewCount: 128,
+        brandAccentHex: "#FF8800",
+        isOpen: true,
+        hoursMessage: "Open until 10:00 PM",
+        isVerified: true
     )
 
     static let menuItem = FoodMenuItem(

@@ -147,6 +147,7 @@ export default function FoodHomePage() {
               <Link key={r.id} to={`/restaurants/r/${r.id}`} className="fd-card">
                 <h3>
                   {r.display_name}
+                  {r.is_verified && <span className="fd-tag fd-tag-verified">Verified</span>}
                   {Number(r.review_count) > 0 && (
                     <span className="fd-card-rating">
                       ★ {Number(r.avg_rating || 0).toFixed(1)} ({Number(r.review_count)})
@@ -161,6 +162,11 @@ export default function FoodHomePage() {
                 <span className="fd-card-meta">
                   {[r.address_city, r.address_state, r.address_country].filter(Boolean).join(', ')}
                 </span>
+                {r.hours_message && (
+                  <span className="fd-card-meta">
+                    {r.is_open === false ? 'Closed' : 'Open'} · {r.hours_message}
+                  </span>
+                )}
                 {r.distance_km != null && (
                   <span className="fd-card-meta">
                     {t('food.home.kmAway', { km: Number(r.distance_km).toFixed(1) })}
