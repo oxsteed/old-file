@@ -65,12 +65,40 @@ enum FoodWorkspace: String, CaseIterable, Identifiable {
         switch self {
         case .customerOrdering: return FoodTheme.flame
         case .ownerManager: return FoodTheme.blue
-        case .posCounter: return FoodTheme.flame
+        case .posCounter: return FoodTheme.basil
         case .kitchenDisplay: return FoodTheme.coral
-        case .kioskQueue: return FoodTheme.basil
-        case .crewTraining: return FoodTheme.grape
-        case .inventoryReceiving: return FoodTheme.saffron
-        case .deliveryRunner: return FoodTheme.blue
+        case .kioskQueue: return FoodTheme.grape
+        case .crewTraining: return FoodTheme.teal
+        case .inventoryReceiving: return FoodTheme.flame
+        case .deliveryRunner: return FoodTheme.basil
+        }
+    }
+
+    /// Short name shown in the dedicated-app dark header.
+    var shortTitle: String {
+        switch self {
+        case .customerOrdering: return "Restaurants"
+        case .ownerManager: return "Manager"
+        case .posCounter: return "POS"
+        case .kitchenDisplay: return "Kitchen"
+        case .kioskQueue: return "Display"
+        case .crewTraining: return "Crew"
+        case .inventoryReceiving: return "Inventory"
+        case .deliveryRunner: return "Runner"
+        }
+    }
+
+    /// Subtitle under the short title in the dedicated-app header.
+    var shellSubtitle: String {
+        switch self {
+        case .customerOrdering: return "Customer Ordering"
+        case .ownerManager: return "Owner Control Center"
+        case .posCounter: return "Counter Ordering"
+        case .kitchenDisplay: return "Kitchen Display"
+        case .kioskQueue: return "Kiosk + Queue Board"
+        case .crewTraining: return "Training + SOPs"
+        case .inventoryReceiving: return "Stock + Suppliers"
+        case .deliveryRunner: return "Delivery + Logistics"
         }
     }
 
@@ -211,43 +239,81 @@ struct FoodRootView: View {
         nonmutating set { workspaceRawValue = newValue.rawValue }
     }
 
+    private var isDedicatedRoleApp: Bool {
+        runtime.allowedWorkspaces.count == 1
+    }
+    private var shellContextLine: String? {
+        guard let restaurant = store.activeRestaurant else { return nil }
+        return "\(restaurant.displayName) · Today"
+    }
+
+    private var shellLiveState: FoodLiveState {
+        store.activeRestaurant == nil ? .syncing : .live
+    }
+
+    @ViewBuilder
+    private var workspaceContent: some View {
+        switch workspace {
+        case .customerOrdering:
+            CustomerWorkspaceView()
+        case .ownerManager:
+            OwnerManagerWorkspaceView()
+        case .posCounter:
+            POSCounterWorkspaceView()
+        case .kitchenDisplay:
+            KitchenDisplayWorkspaceView()
+        case .kioskQueue:
+            KioskQueueWorkspaceView()
+        case .crewTraining:
+            CrewTrainingWorkspaceView()
+        case .inventoryReceiving:
+            InventoryReceivingWorkspaceView()
+        case .deliveryRunner:
+            DeliveryRunnerWorkspaceView()
+        }
+    }
+
     var body: some View {
-        ZStack {
-            FoodTheme.background.ignoresSafeArea()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    FoodWorkspaceHero(appName: runtime.appName, workspace: workspace)
-                    if runtime.allowedWorkspaces.count > 1 {
-                        FoodWorkspaceRail(
-                            workspaces: runtime.allowedWorkspaces,
-                            workspace: Binding(
-                                get: { workspace },
-                                set: { workspace = $0 }
-                            )
-                        )
-                    }
-
-                    switch workspace {
-                    case .customerOrdering:
-                        CustomerWorkspaceView()
-                    case .ownerManager:
-                        OwnerManagerWorkspaceView()
-                    case .posCounter:
-                        POSCounterWorkspaceView()
-                    case .kitchenDisplay:
-                        KitchenDisplayWorkspaceView()
-                    case .kioskQueue:
-                        KioskQueueWorkspaceView()
-                    case .crewTraining:
-                        CrewTrainingWorkspaceView()
-                    case .inventoryReceiving:
-                        InventoryReceivingWorkspaceView()
-                    case .deliveryRunner:
-                        DeliveryRunnerWorkspaceView()
+        Group {
+            if isDedicatedRoleApp {
+                FoodRoleAppShell(
+                    appName: runtime.appName,
+                    roleTitle: workspace.shortTitle,
+                    roleSubtitle: workspace.shellSubtitle,
+                    accent: workspace.accent,
+                    logoURL: store.activeRestaurant?.logoUrl,
+                    contextLine: shellContextLine,
+                    liveState: shellLiveState
+                ) {
+                    ScrollView {
+                        workspaceContent
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 8)
+                            .foodDedicatedScrollPadding()
                     }
                 }
-                .padding(16)
+            } else {
+                ZStack {
+                    FoodTheme.background.ignoresSafeArea()
+
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 18) {
+                            FoodWorkspaceHero(appName: runtime.appName, workspace: workspace)
+                            if runtime.allowedWorkspaces.count > 1 {
+                                FoodWorkspaceRail(
+                                    workspaces: runtime.allowedWorkspaces,
+                                    workspace: Binding(
+                                        get: { workspace },
+                                        set: { workspace = $0 }
+                                    )
+                                )
+                            }
+
+                            workspaceContent
+                        }
+                        .padding(16)
+                    }
+                }
             }
         }
         .task { await store.loadRestaurants() }
@@ -1918,10 +1984,16 @@ private struct NewRestaurantSheet: View {
 
 struct KitchenDisplayView: View {
     @EnvironmentObject private var store: FoodStore
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var compactColumn = 0
 
     // QSR-style timing thresholds (minutes) drive ticket urgency colouring.
     private let warnAfter: Double = 6
     private let lateAfter: Double = 10
+
+    private var useCompactColumns: Bool {
+        horizontalSizeClass == .compact
+    }
 
     var body: some View {
         ZStack {
@@ -1939,13 +2011,9 @@ struct KitchenDisplayView: View {
                     )
                     .frame(maxHeight: .infinity)
                 } else {
-                    HStack(alignment: .top, spacing: 10) {
-                        column("NEW", FoodTheme.saffron, newTickets, "tray.full.fill")
-                        column("COOKING", FoodTheme.flame, cookingTickets, "flame.fill")
-                        column("READY", FoodTheme.basil, readyTickets, "bell.fill")
-                    }
-                    .padding(10)
-                    .frame(maxHeight: .infinity)
+                    ticketBoard
+                        .padding(10)
+                        .frame(maxHeight: .infinity)
 
                     if !completedTickets.isEmpty {
                         recentlyCompletedStrip
@@ -1954,9 +2022,42 @@ struct KitchenDisplayView: View {
             }
         }
         .task(id: store.merchantSelection?.id) {
-            while !Task.isCancelled {
+            guard let restaurantId = store.merchantSelection?.id else { return }
+            await RestaurantDisplayRefresh.run(restaurantId: restaurantId, intervalSeconds: 4) {
                 await store.loadMerchantOrders()
-                try? await Task.sleep(nanoseconds: 4_000_000_000)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var ticketBoard: some View {
+        if useCompactColumns {
+            VStack(spacing: 10) {
+                Picker("Column", selection: $compactColumn) {
+                    Text("NEW (\(newTickets.count))").tag(0)
+                    Text("COOKING (\(cookingTickets.count))").tag(1)
+                    Text("READY (\(readyTickets.count))").tag(2)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 4)
+
+                Group {
+                    switch compactColumn {
+                    case 0:
+                        column("NEW", FoodTheme.saffron, newTickets, "tray.full.fill")
+                    case 1:
+                        column("COOKING", FoodTheme.flame, cookingTickets, "flame.fill")
+                    default:
+                        column("READY", FoodTheme.basil, readyTickets, "bell.fill")
+                    }
+                }
+                .frame(maxHeight: .infinity)
+            }
+        } else {
+            HStack(alignment: .top, spacing: 10) {
+                column("NEW", FoodTheme.saffron, newTickets, "tray.full.fill")
+                column("COOKING", FoodTheme.flame, cookingTickets, "flame.fill")
+                column("READY", FoodTheme.basil, readyTickets, "bell.fill")
             }
         }
     }

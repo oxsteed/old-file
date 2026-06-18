@@ -97,7 +97,8 @@ actor FoodAPIClient {
         guestName: String?,
         token: String?,
         orderSource: String = "mobile",
-        paymentMode: String = "pay_at_counter"
+        paymentMode: String = "pay_at_counter",
+        clientOrderId: String? = nil
     ) async throws -> FoodCreateOrderResponse {
         struct OrderItem: Encodable {
             let menuItemId: Int64
@@ -112,6 +113,12 @@ actor FoodAPIClient {
             let tableLabel: String?
             let guestName: String?
             let items: [OrderItem]
+            let clientOrderId: String?
+
+            enum CodingKeys: String, CodingKey {
+                case fulfillmentType, orderSource, paymentMode, tableLabel, guestName, items
+                case clientOrderId = "client_order_id"
+            }
         }
         let body = Body(
             fulfillmentType: fulfillment,
@@ -126,10 +133,65 @@ actor FoodAPIClient {
                     modifierIds: $0.modifiers.map(\.id),
                     specialInstructions: $0.specialInstructions.isEmpty ? nil : $0.specialInstructions
                 )
-            }
+            },
+            clientOrderId: clientOrderId
         )
         let envelope: FoodCreateOrderEnvelope = try await request(
             "/api/food/restaurants/\(restaurantId)/orders",
+            method: "POST",
+            body: body,
+            token: token,
+            requiresAuth: false
+        )
+        return FoodCreateOrderResponse(order: envelope.order, payment: envelope.payment, trackingToken: envelope.trackingToken)
+    }
+
+    func createPendingOrder(_ pending: FoodPendingOrder, token: String?) async throws -> FoodCreateOrderResponse {
+        struct OrderItem: Encodable {
+            let menuItemId: Int64
+            let quantity: Int
+            let modifierIds: [Int64]
+            let specialInstructions: String?
+        }
+        struct Body: Encodable {
+            let fulfillmentType: String
+            let orderSource: String
+            let paymentMode: String
+            let tableLabel: String?
+            let guestName: String?
+            let discountCode: String?
+            let discountLabel: String?
+            let discountCents: Int
+            let items: [OrderItem]
+            let clientOrderId: String
+
+            enum CodingKeys: String, CodingKey {
+                case fulfillmentType, orderSource, paymentMode, tableLabel, guestName, items
+                case discountCode, discountLabel, discountCents
+                case clientOrderId = "client_order_id"
+            }
+        }
+        let body = Body(
+            fulfillmentType: pending.fulfillment,
+            orderSource: pending.orderSource,
+            paymentMode: pending.paymentMode,
+            tableLabel: pending.tableLabel,
+            guestName: pending.guestName,
+            discountCode: pending.discountCode,
+            discountLabel: pending.discountLabel,
+            discountCents: max(0, pending.discountCents),
+            items: pending.lines.map {
+                OrderItem(
+                    menuItemId: $0.menuItemId,
+                    quantity: $0.quantity,
+                    modifierIds: $0.modifierIds,
+                    specialInstructions: $0.specialInstructions
+                )
+            },
+            clientOrderId: pending.id
+        )
+        let envelope: FoodCreateOrderEnvelope = try await request(
+            "/api/food/restaurants/\(pending.restaurantId)/orders",
             method: "POST",
             body: body,
             token: token,
@@ -146,6 +208,33 @@ actor FoodAPIClient {
     func order(id: Int64, token: String) async throws -> FoodOrder {
         let response: OrderEnvelope = try await request("/api/food/orders/\(id)", token: token)
         return response.order
+    }
+
+    func submitOrderReview(
+        orderId: Int64,
+        rating: Int,
+        body: String?,
+        trackingToken: String? = nil,
+        token: String? = nil
+    ) async throws {
+        struct Body: Encodable {
+            let rating: Int
+            let body: String?
+            let trackingToken: String?
+
+            enum CodingKeys: String, CodingKey {
+                case rating, body
+                case trackingToken = "tracking_token"
+            }
+        }
+        struct Response: Decodable { let review: FoodOrderReview }
+        let _: Response = try await request(
+            "/api/food/orders/\(orderId)/review",
+            method: "POST",
+            body: Body(rating: rating, body: body, trackingToken: trackingToken),
+            token: token,
+            requiresAuth: false
+        )
     }
 
     // MARK: - Merchant

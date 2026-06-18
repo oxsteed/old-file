@@ -16,6 +16,7 @@ final class FoodStore: ObservableObject {
     @Published var isLoading = false
     @Published var isPlacingOrder = false
     @Published var message: String?
+    @Published private(set) var pendingOfflineOrders: [FoodPendingOrder] = []
 
     /// Set right after a successful order; drives the confirmation screen.
     @Published var lastPlacedOrder: FoodOrder?
@@ -315,19 +316,27 @@ final class FoodStore: ObservableObject {
         guard let restaurant = activeRestaurant, !counterCart.isEmpty else { return }
         isSubmittingCounterOrder = true
         defer { isSubmittingCounterOrder = false }
+        let submittedLines = counterCart
+        let discountCode = counterCouponCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? nil
+            : counterCouponCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let clientOrderId = UUID().uuidString
         do {
             let order = try await FoodAPIClient.shared.createOrder(
                 restaurantId: restaurant.id,
-                lines: counterCart,
+                lines: submittedLines,
                 fulfillment: counterFulfillment,
                 tableLabel: counterFulfillment == "dine_in" && !counterTableLabel.isEmpty ? counterTableLabel : nil,
                 guestName: counterGuestName.isEmpty ? "Walk-in" : counterGuestName,
                 token: accessToken.isEmpty ? nil : accessToken,
                 orderSource: "counter",
-                discountCode: counterCouponCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : counterCouponCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased(),
+                discountCode: discountCode,
                 discountLabel: counterDiscountLabel,
-                discountCents: counterDiscountCents
+                discountCents: counterDiscountCents,
+                clientOrderId: clientOrderId
             )
+            FoodOfflineOrderQueue.remove(id: clientOrderId)
+            refreshPendingOfflineOrders()
             counterCart.removeAll()
             counterGuestName = ""
             counterTableLabel = ""
@@ -353,8 +362,57 @@ final class FoodStore: ObservableObject {
             mergePOSOrderRecord(order)
             await logPOSReceiptEvent(order: order, channel: "Counter")
         } catch {
-            message = "Counter order failed: \(error.localizedDescription)"
+            if FoodOfflineOrderQueue.isNetworkFailure(error) {
+                _ = FoodOfflineOrderQueue.enqueue(
+                    id: clientOrderId,
+                    restaurant: restaurant,
+                    lines: submittedLines,
+                    fulfillment: counterFulfillment,
+                    tableLabel: counterFulfillment == "dine_in" && !counterTableLabel.isEmpty ? counterTableLabel : nil,
+                    guestName: counterGuestName.isEmpty ? "Walk-in" : counterGuestName,
+                    orderSource: "counter",
+                    paymentMode: "pay_at_counter",
+                    discountCode: discountCode,
+                    discountLabel: counterDiscountLabel,
+                    discountCents: counterDiscountCents
+                )
+                refreshPendingOfflineOrders()
+                counterCart.removeAll()
+                counterGuestName = ""
+                counterTableLabel = ""
+                clearCounterAdjustments()
+                message = "Offline — counter order saved and will send when connection returns."
+            } else {
+                message = "Counter order failed: \(error.localizedDescription)"
+            }
         }
+    }
+
+    func refreshPendingOfflineOrders() {
+        pendingOfflineOrders = FoodOfflineOrderQueue.load()
+    }
+
+    func replayPendingOfflineOrders() async {
+        refreshPendingOfflineOrders()
+        guard !pendingOfflineOrders.isEmpty else { return }
+        for pending in pendingOfflineOrders {
+            do {
+                let order = try await FoodAPIClient.shared.createPendingOrder(
+                    pending,
+                    token: accessToken.isEmpty ? nil : accessToken
+                )
+                FoodOfflineOrderQueue.remove(id: pending.id)
+                if lastCounterOrder == nil {
+                    lastCounterOrder = order
+                }
+                message = "Offline counter order #\(order.queueNumber) sent."
+            } catch {
+                if !FoodOfflineOrderQueue.isNetworkFailure(error) {
+                    FoodOfflineOrderQueue.bumpAttempt(id: pending.id)
+                }
+            }
+        }
+        refreshPendingOfflineOrders()
     }
 
     func loadMyOrders() async {

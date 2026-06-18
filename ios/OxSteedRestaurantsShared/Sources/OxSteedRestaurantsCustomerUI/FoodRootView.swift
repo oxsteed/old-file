@@ -108,55 +108,70 @@ struct FoodRootView: View {
     }
 
     var body: some View {
-        ZStack {
-            FoodTheme.background.ignoresSafeArea()
-
+        Group {
             if isDedicatedCustomerApp {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        CustomerAppHero(appName: runtime.appName)
+                FoodRoleAppShell(
+                    appName: "OxSteed",
+                    roleTitle: "Restaurants",
+                    roleSubtitle: "Customer Ordering",
+                    accent: FoodTheme.flame,
+                    logoURL: store.selectedRestaurant?.logoUrl ?? store.restaurants.first?.logoUrl,
+                    contextLine: CustomerDaypart.current.greeting(store.customerLanguage),
+                    liveState: .live
+                ) {
+                    ScrollView {
                         CustomerWorkspaceView()
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 8)
+                            .foodDedicatedScrollPadding()
                     }
-                    .padding(16)
                 }
             } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 18) {
-                        FoodWorkspaceHero(appName: runtime.appName, workspace: workspace)
-                        if runtime.allowedWorkspaces.count > 1 {
-                            FoodWorkspaceRail(
-                                workspaces: runtime.allowedWorkspaces,
-                                workspace: Binding(
-                                    get: { workspace },
-                                    set: { workspace = $0 }
-                                )
-                            )
-                        }
+                ZStack {
+                    FoodTheme.background.ignoresSafeArea()
 
-                        switch workspace {
-                        case .customerOrdering:
-                            CustomerWorkspaceView()
-                        case .ownerManager:
-                            OwnerManagerWorkspaceView()
-                        case .posCounter:
-                            POSCounterWorkspaceView()
-                        case .kitchenDisplay:
-                            KitchenDisplayWorkspaceView()
-                        case .kioskQueue:
-                            KioskQueueWorkspaceView()
-                        case .crewTraining:
-                            CrewTrainingWorkspaceView()
-                        case .inventoryReceiving:
-                            InventoryReceivingWorkspaceView()
-                        case .deliveryRunner:
-                            DeliveryRunnerWorkspaceView()
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 18) {
+                            FoodWorkspaceHero(appName: runtime.appName, workspace: workspace)
+                            if runtime.allowedWorkspaces.count > 1 {
+                                FoodWorkspaceRail(
+                                    workspaces: runtime.allowedWorkspaces,
+                                    workspace: Binding(
+                                        get: { workspace },
+                                        set: { workspace = $0 }
+                                    )
+                                )
+                            }
+
+                            switch workspace {
+                            case .customerOrdering:
+                                CustomerWorkspaceView()
+                            case .ownerManager:
+                                OwnerManagerWorkspaceView()
+                            case .posCounter:
+                                POSCounterWorkspaceView()
+                            case .kitchenDisplay:
+                                KitchenDisplayWorkspaceView()
+                            case .kioskQueue:
+                                KioskQueueWorkspaceView()
+                            case .crewTraining:
+                                CrewTrainingWorkspaceView()
+                            case .inventoryReceiving:
+                                InventoryReceivingWorkspaceView()
+                            case .deliveryRunner:
+                                DeliveryRunnerWorkspaceView()
+                            }
                         }
+                        .padding(16)
                     }
-                    .padding(16)
                 }
             }
         }
-        .task { await store.loadRestaurants() }
+        .task {
+            await store.loadRestaurants()
+            store.refreshPendingOfflineOrders()
+            await store.replayPendingOfflineOrders()
+        }
         .onAppear {
             if !runtime.allowedWorkspaces.contains(workspace) {
                 workspace = runtime.defaultWorkspace
@@ -392,6 +407,19 @@ private enum CustomerDaypart {
         case 14..<17: return .afternoon
         case 17..<22: return .dinner
         default: return .lateNight
+        }
+    }
+
+    func greeting(_ language: FoodCustomerLanguage) -> String {
+        switch self {
+        case .breakfast:
+            return customerText(language, "Good morning", "Buenos dias", "Bonjour", "Bonjou")
+        case .lunch, .afternoon:
+            return customerText(language, "Good afternoon", "Buenas tardes", "Bon apres-midi", "Bon apremidi")
+        case .dinner:
+            return customerText(language, "Good evening", "Buenas noches", "Bonsoir", "Bon aswe")
+        case .lateNight:
+            return customerText(language, "Late-night run", "Pedido nocturno", "Commande tardive", "Komann lannuit")
         }
     }
 
@@ -877,21 +905,39 @@ private struct CustomerWorkspaceView: View {
         }
     }
 
+    private var tabBinding: Binding<CustomerSubworkspace> {
+        Binding(
+            get: { CustomerSubworkspace(rawValue: tabRawValue) ?? .discover },
+            set: { tabRawValue = $0.rawValue }
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            CustomerCommandCenter(
-                tab: tab,
-                language: store.customerLanguage,
-                featuredActionTitle: featuredActionTitle,
-                featuredActionSubtitle: featuredActionSubtitle,
-                cartCount: store.cartItemCount,
-                liveOrderLabel: liveOrderLabel,
-                action: { selected in
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.88)) {
-                        tab = selected
+            if !FoodAppShell.isDedicated {
+                CustomerCommandCenter(
+                    tab: tab,
+                    language: store.customerLanguage,
+                    featuredActionTitle: featuredActionTitle,
+                    featuredActionSubtitle: featuredActionSubtitle,
+                    cartCount: store.cartItemCount,
+                    liveOrderLabel: liveOrderLabel,
+                    action: { selected in
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.88)) {
+                            tab = selected
+                        }
                     }
+                )
+            } else if tab == .discover {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(CustomerDaypart.current.greeting(store.customerLanguage))
+                        .font(.system(size: 28, weight: .black, design: .rounded))
+                        .foregroundStyle(FoodTheme.ink)
+                    Text(customerText(store.customerLanguage, "What would you like today?", "Que te gustaria hoy?", "Que souhaitez-vous aujourd'hui?", "Kisa ou ta renmen jodi a?"))
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(FoodTheme.muted)
                 }
-            )
+            }
 
             ZStack {
                 switch tab {
@@ -914,6 +960,13 @@ private struct CustomerWorkspaceView: View {
                                     removal: .opacity.combined(with: .move(edge: .leading))))
             .animation(.spring(response: 0.32, dampingFraction: 0.9), value: tab)
         }
+        .foodDedicatedTabBar(
+            selection: tabBinding,
+            accent: FoodTheme.flame,
+            items: CustomerSubworkspace.allCases.map {
+                FoodTabDescriptor(id: $0, title: $0.tabBarTitle, icon: $0.icon)
+            }
+        )
     }
 }
 
@@ -1085,6 +1138,16 @@ private enum CustomerSubworkspace: String, CaseIterable, Identifiable {
         case .perks: return "gift.fill"
         }
     }
+
+    var tabBarTitle: String {
+        switch self {
+        case .discover: return "Home"
+        case .order: return "Menu"
+        case .track: return "Orders"
+        case .perks: return "Rewards"
+        }
+    }
+
     func subtitle(for language: FoodCustomerLanguage) -> String {
         switch self {
         case .discover:
@@ -2519,10 +2582,14 @@ struct DiscoverView: View {
                     VStack(spacing: 8) {
                         CustomerBrandIllustration(style: .emptyState, animate: true)
                             .frame(width: 104, height: 104)
-                        Text("No restaurants found")
+                        Text(store.discoverLoadFailed
+                            ? customerText(store.customerLanguage, "Could not load restaurants", "No se pudieron cargar restaurantes", "Impossible de charger les restaurants", "Pa t kapab chaje restoran yo")
+                            : customerText(store.customerLanguage, "No restaurants found", "No se encontraron restaurantes", "Aucun restaurant trouve", "Pa gen restoran"))
                             .font(.system(size: 16, weight: .bold))
                             .foregroundStyle(FoodTheme.ink)
-                        Text("Try a different search, or add your own restaurant from the Merchant tab.")
+                        Text(store.discoverLoadFailed
+                            ? customerText(store.customerLanguage, "Check your connection and try again.", "Revisa tu conexion e intenta de nuevo.", "Verifiez votre connexion et reessayez.", "Verifye koneksyon ou epi eseye ankò.")
+                            : customerText(store.customerLanguage, "Try a different search, or add your own restaurant from the Merchant tab.", "Prueba otra busqueda o agrega tu restaurante desde Merchant.", "Essayez une autre recherche ou ajoutez votre restaurant via Merchant.", "Eseye yon lòt rechèch oswa ajoute restoran ou nan Merchant."))
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(FoodTheme.muted)
                             .multilineTextAlignment(.center)
@@ -3146,6 +3213,12 @@ private struct RestaurantCard: View {
                 HStack(spacing: 8) {
                     if !restaurant.cuisineTags.isEmpty {
                         DiscoverSpotlightPill(icon: palette.icon, label: restaurant.cuisineTags.prefix(2).joined(separator: " • "))
+                    }
+                    if restaurant.reviewCount > 0 {
+                        DiscoverSpotlightPill(
+                            icon: "star.fill",
+                            label: String(format: "%.1f (%d)", restaurant.avgRating, restaurant.reviewCount)
+                        )
                     }
                     DiscoverSpotlightPill(icon: "clock.fill", label: "\(restaurant.prepTimeMin) min")
                     if let distanceKm = restaurant.distanceKm {
@@ -4439,9 +4512,8 @@ struct QueueBoardLive: View {
             column(customerText(store.customerLanguage, "Now ready", "Listo ahora", "Pret maintenant", "Pare kounye a"), numbers: store.queueBoard?.ready ?? [], color: FoodTheme.basil)
         }
         .task(id: restaurantId) {
-            while !Task.isCancelled {
+            await RestaurantDisplayRefresh.run(restaurantId: restaurantId) {
                 await store.refreshQueueBoard(restaurantId: restaurantId)
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
             }
         }
     }
@@ -4531,6 +4603,11 @@ struct TrackView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
 
                     OrderProgressCard(order: active, language: store.customerLanguage)
+
+                    if active.status == "completed" && !active.hasReview {
+                        OrderReviewPromptCard(order: active, language: store.customerLanguage)
+                            .environmentObject(store)
+                    }
 
                     HStack(spacing: 12) {
                         TrackingSnapshotCard(
@@ -4626,12 +4703,22 @@ struct TrackView: View {
         }
         .task { await store.loadMyOrders() }
         .refreshable { await store.loadMyOrders() }
-        .task(id: store.lastPlacedOrderTrackingToken) {
-            while !Task.isCancelled, store.lastPlacedOrderTrackingToken != nil {
-                await store.refreshPlacedOrderIfNeeded()
-                try? await Task.sleep(nanoseconds: 4_000_000_000)
+        .task(id: activeTrackKey) {
+            guard let order = activeOrder, order.isActive || order.status == "completed" else { return }
+            await RestaurantDisplayRefresh.run(restaurantId: order.restaurantId, intervalSeconds: 4) {
+                if store.lastPlacedOrderTrackingToken != nil {
+                    await store.refreshPlacedOrderIfNeeded()
+                }
+                if store.isSignedIn {
+                    await store.loadMyOrders()
+                }
             }
         }
+    }
+
+    private var activeTrackKey: String {
+        guard let order = activeOrder else { return "none" }
+        return "\(order.id)-\(order.status)-\(order.hasReview)"
     }
 
     private var activeOrder: FoodOrder? {
@@ -5164,6 +5251,70 @@ private struct ConfirmationTimelineRow: View {
             }
             Spacer()
         }
+    }
+}
+
+private struct OrderReviewPromptCard: View {
+    @EnvironmentObject private var store: FoodStore
+    let order: FoodOrder
+    let language: FoodCustomerLanguage
+
+    @State private var rating = 5
+    @State private var bodyText = ""
+    @State private var isSubmitting = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(customerText(language, "How was your order?", "Como estuvo tu pedido?", "Comment etait votre commande?", "Kijan komann ou te ye?"))
+                .font(.system(size: 18, weight: .black))
+                .foregroundStyle(FoodTheme.ink)
+            Text(customerText(language, "Rate your experience to help other diners.", "Califica tu experiencia para ayudar a otros.", "Notez votre experience pour aider les autres.", "Evalye eksperyans ou pou ede lòt moun."))
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(FoodTheme.muted)
+
+            HStack(spacing: 10) {
+                ForEach(1...5, id: \.self) { star in
+                    Button {
+                        rating = star
+                    } label: {
+                        Image(systemName: star <= rating ? "star.fill" : "star")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundStyle(star <= rating ? FoodTheme.saffron : FoodTheme.line)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            TextField(
+                customerText(language, "Optional comment", "Comentario opcional", "Commentaire optionnel", "Kòmantè opsyonèl"),
+                text: $bodyText,
+                axis: .vertical
+            )
+            .lineLimit(3...5)
+            .padding(12)
+            .background(FoodTheme.surfaceRaised)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            Button {
+                guard !isSubmitting else { return }
+                isSubmitting = true
+                Task {
+                    let ok = await store.submitOrderReview(orderId: order.id, rating: rating, body: bodyText)
+                    isSubmitting = false
+                    if !ok { return }
+                }
+            } label: {
+                Text(isSubmitting
+                    ? customerText(language, "Submitting...", "Enviando...", "Envoi...", "Ap voye...")
+                    : customerText(language, "Submit review", "Enviar reseña", "Envoyer l'avis", "Voye revi"))
+                    .font(.system(size: 15, weight: .black))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(FoodTheme.flame)
+            .disabled(isSubmitting)
+        }
+        .foodCard(padding: 16)
     }
 }
 

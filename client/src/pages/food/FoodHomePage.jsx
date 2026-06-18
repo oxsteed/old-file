@@ -145,7 +145,14 @@ export default function FoodHomePage() {
           <div className="fd-grid">
             {restaurants.map((r) => (
               <Link key={r.id} to={`/restaurants/r/${r.id}`} className="fd-card">
-                <h3>{r.display_name}</h3>
+                <h3>
+                  {r.display_name}
+                  {Number(r.review_count) > 0 && (
+                    <span className="fd-card-rating">
+                      ★ {Number(r.avg_rating || 0).toFixed(1)} ({Number(r.review_count)})
+                    </span>
+                  )}
+                </h3>
                 <div>
                   {(r.cuisine_tags || []).slice(0, 3).map((tag) => (
                     <span key={tag} className="fd-tag">{tag}</span>

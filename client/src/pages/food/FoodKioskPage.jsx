@@ -6,8 +6,14 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getFoodRestaurant, placeFoodOrder, formatFoodMoney } from '../../api/food';
+import {
+  enqueueFoodOrder,
+  isFoodNetworkFailure,
+  replayPendingFoodOrders,
+} from '../../api/foodOfflineQueue';
 import { FoodBrand } from './foodShared';
 import { ItemModal } from './FoodRestaurantPage';
+import FoodOrderConfirmation from './FoodOrderConfirmation';
 import '../../styles/FoodPages.css';
 
 const RESET_AFTER_MS = 20000;
@@ -23,11 +29,29 @@ export default function FoodKioskPage() {
   const [guestName, setGuestName] = useState('');
   const [placing, setPlacing] = useState(false);
   const [placedOrder, setPlacedOrder] = useState(null);
+  const [trackingToken, setTrackingToken] = useState(null);
   const [orderError, setOrderError] = useState(false);
+  const [offlineSaved, setOfflineSaved] = useState(false);
   const resetTimer = useRef(null);
 
   useEffect(() => {
     getFoodRestaurant(restaurantId).then(setData).catch(() => setData(null));
+  }, [restaurantId]);
+
+  useEffect(() => {
+    const replay = async () => {
+      const sent = await replayPendingFoodOrders(placeFoodOrder);
+      const match = sent.find((entry) => String(entry.pending?.restaurantId) === String(restaurantId));
+      if (match?.order) {
+        setPlacedOrder(match.order);
+        setTrackingToken(match.trackingToken || null);
+        setStep('done');
+        resetTimer.current = setTimeout(resetAll, 60000);
+      }
+    };
+    replay();
+    window.addEventListener('online', replay);
+    return () => window.removeEventListener('online', replay);
   }, [restaurantId]);
 
   const resetAll = () => {
@@ -36,7 +60,9 @@ export default function FoodKioskPage() {
     setCart([]);
     setGuestName('');
     setPlacedOrder(null);
+    setTrackingToken(null);
     setOrderError(false);
+    setOfflineSaved(false);
     setActiveItem(null);
   };
 
@@ -57,27 +83,60 @@ export default function FoodKioskPage() {
   const submit = async () => {
     setPlacing(true);
     setOrderError(false);
+    setOfflineSaved(false);
+    const clientOrderId = crypto.randomUUID();
+    const payload = {
+      orderSource: 'kiosk',
+      fulfillmentType: fulfillment,
+      guestName: guestName.trim() || undefined,
+      client_order_id: clientOrderId,
+      items: cart.map((line) => ({
+        menuItemId: line.menuItemId,
+        quantity: line.quantity,
+        modifierIds: line.modifierIds,
+        specialInstructions: line.specialInstructions,
+      })),
+    };
     try {
-      const order = await placeFoodOrder(restaurantId, {
-        orderSource: 'kiosk',
-        fulfillmentType: fulfillment,
-        guestName: guestName.trim() || undefined,
-        items: cart.map((line) => ({
-          menuItemId: line.menuItemId,
-          quantity: line.quantity,
-          modifierIds: line.modifierIds,
-          specialInstructions: line.specialInstructions,
-        })),
-      });
+      const { order, trackingToken: token } = await placeFoodOrder(restaurantId, payload);
       setPlacedOrder(order);
+      setTrackingToken(token || null);
       setStep('done');
-      resetTimer.current = setTimeout(resetAll, RESET_AFTER_MS);
-    } catch {
-      setOrderError(true);
+      resetTimer.current = setTimeout(resetAll, 60000);
+    } catch (error) {
+      if (isFoodNetworkFailure(error)) {
+        enqueueFoodOrder({
+          id: clientOrderId,
+          restaurantId,
+          orderSource: 'kiosk',
+          fulfillmentType: fulfillment,
+          guestName: guestName.trim() || undefined,
+          paymentMode: 'pay_at_counter',
+          items: payload.items,
+        });
+        setCart([]);
+        setOfflineSaved(true);
+        setStep('offline');
+      } else {
+        setOrderError(true);
+      }
     } finally {
       setPlacing(false);
     }
   };
+
+  if (step === 'offline') {
+    return (
+      <div className="fd-kiosk-start">
+        <FoodBrand size={84} />
+        <h1>{data?.restaurant?.display_name}</h1>
+        <p>{t('food.kiosk.offlineSaved')}</p>
+        <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={resetAll}>
+          {t('food.kiosk.startOver')}
+        </button>
+      </div>
+    );
+  }
 
   if (!data?.restaurant) {
     return (
@@ -130,15 +189,15 @@ export default function FoodKioskPage() {
 
   if (step === 'done' && placedOrder) {
     return (
-      <div className="fd-kiosk-start" onClick={resetAll} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && resetAll()}>
-        <FoodBrand size={64} />
-        <h1>{t('food.kiosk.thanks')}</h1>
-        <p>{t('food.order.yourNumber')}</p>
-        <div className="fd-queue-big">#{placedOrder.queue_number}</div>
-        <p>{t('food.order.payInStoreNote')}</p>
-        <p>{t('food.order.total')}: <strong>{formatFoodMoney(placedOrder.total_cents, currency)}</strong></p>
-        <p style={{ fontSize: '0.95rem', color: '#94a3b8' }}>{t('food.kiosk.tapForNext')}</p>
-      </div>
+      <FoodOrderConfirmation
+        restaurantId={restaurantId}
+        order={placedOrder}
+        trackingToken={trackingToken}
+        currency={currency}
+        variant="kiosk"
+        onDismiss={resetAll}
+        dismissLabel={t('food.kiosk.startOver')}
+      />
     );
   }
 

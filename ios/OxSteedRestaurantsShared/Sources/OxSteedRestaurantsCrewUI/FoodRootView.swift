@@ -65,12 +65,40 @@ enum FoodWorkspace: String, CaseIterable, Identifiable {
         switch self {
         case .customerOrdering: return FoodTheme.flame
         case .ownerManager: return FoodTheme.blue
-        case .posCounter: return FoodTheme.flame
+        case .posCounter: return FoodTheme.basil
         case .kitchenDisplay: return FoodTheme.coral
-        case .kioskQueue: return FoodTheme.basil
-        case .crewTraining: return FoodTheme.grape
-        case .inventoryReceiving: return FoodTheme.saffron
-        case .deliveryRunner: return FoodTheme.blue
+        case .kioskQueue: return FoodTheme.grape
+        case .crewTraining: return FoodTheme.teal
+        case .inventoryReceiving: return FoodTheme.flame
+        case .deliveryRunner: return FoodTheme.basil
+        }
+    }
+
+    /// Short name shown in the dedicated-app dark header.
+    var shortTitle: String {
+        switch self {
+        case .customerOrdering: return "Restaurants"
+        case .ownerManager: return "Manager"
+        case .posCounter: return "POS"
+        case .kitchenDisplay: return "Kitchen"
+        case .kioskQueue: return "Display"
+        case .crewTraining: return "Crew"
+        case .inventoryReceiving: return "Inventory"
+        case .deliveryRunner: return "Runner"
+        }
+    }
+
+    /// Subtitle under the short title in the dedicated-app header.
+    var shellSubtitle: String {
+        switch self {
+        case .customerOrdering: return "Customer Ordering"
+        case .ownerManager: return "Owner Control Center"
+        case .posCounter: return "Counter Ordering"
+        case .kitchenDisplay: return "Kitchen Display"
+        case .kioskQueue: return "Kiosk + Queue Board"
+        case .crewTraining: return "Training + SOPs"
+        case .inventoryReceiving: return "Stock + Suppliers"
+        case .deliveryRunner: return "Delivery + Logistics"
         }
     }
 
@@ -211,43 +239,81 @@ struct FoodRootView: View {
         nonmutating set { workspaceRawValue = newValue.rawValue }
     }
 
+    private var isDedicatedRoleApp: Bool {
+        runtime.allowedWorkspaces.count == 1
+    }
+    private var shellContextLine: String? {
+        guard let restaurant = store.activeRestaurant else { return nil }
+        return "\(restaurant.displayName) · Today"
+    }
+
+    private var shellLiveState: FoodLiveState {
+        store.activeRestaurant == nil ? .syncing : .live
+    }
+
+    @ViewBuilder
+    private var workspaceContent: some View {
+        switch workspace {
+        case .customerOrdering:
+            CustomerWorkspaceView()
+        case .ownerManager:
+            OwnerManagerWorkspaceView()
+        case .posCounter:
+            POSCounterWorkspaceView()
+        case .kitchenDisplay:
+            KitchenDisplayWorkspaceView()
+        case .kioskQueue:
+            KioskQueueWorkspaceView()
+        case .crewTraining:
+            CrewTrainingWorkspaceView()
+        case .inventoryReceiving:
+            InventoryReceivingWorkspaceView()
+        case .deliveryRunner:
+            DeliveryRunnerWorkspaceView()
+        }
+    }
+
     var body: some View {
-        ZStack {
-            FoodTheme.background.ignoresSafeArea()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    FoodWorkspaceHero(appName: runtime.appName, workspace: workspace)
-                    if runtime.allowedWorkspaces.count > 1 {
-                        FoodWorkspaceRail(
-                            workspaces: runtime.allowedWorkspaces,
-                            workspace: Binding(
-                                get: { workspace },
-                                set: { workspace = $0 }
-                            )
-                        )
-                    }
-
-                    switch workspace {
-                    case .customerOrdering:
-                        CustomerWorkspaceView()
-                    case .ownerManager:
-                        OwnerManagerWorkspaceView()
-                    case .posCounter:
-                        POSCounterWorkspaceView()
-                    case .kitchenDisplay:
-                        KitchenDisplayWorkspaceView()
-                    case .kioskQueue:
-                        KioskQueueWorkspaceView()
-                    case .crewTraining:
-                        CrewTrainingWorkspaceView()
-                    case .inventoryReceiving:
-                        InventoryReceivingWorkspaceView()
-                    case .deliveryRunner:
-                        DeliveryRunnerWorkspaceView()
+        Group {
+            if isDedicatedRoleApp {
+                FoodRoleAppShell(
+                    appName: runtime.appName,
+                    roleTitle: workspace.shortTitle,
+                    roleSubtitle: workspace.shellSubtitle,
+                    accent: workspace.accent,
+                    logoURL: store.activeRestaurant?.logoUrl,
+                    contextLine: shellContextLine,
+                    liveState: shellLiveState
+                ) {
+                    ScrollView {
+                        workspaceContent
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 8)
+                            .foodDedicatedScrollPadding()
                     }
                 }
-                .padding(16)
+            } else {
+                ZStack {
+                    FoodTheme.background.ignoresSafeArea()
+
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 18) {
+                            FoodWorkspaceHero(appName: runtime.appName, workspace: workspace)
+                            if runtime.allowedWorkspaces.count > 1 {
+                                FoodWorkspaceRail(
+                                    workspaces: runtime.allowedWorkspaces,
+                                    workspace: Binding(
+                                        get: { workspace },
+                                        set: { workspace = $0 }
+                                    )
+                                )
+                            }
+
+                            workspaceContent
+                        }
+                        .padding(16)
+                    }
+                }
             }
         }
         .task { await store.loadRestaurants() }
@@ -668,6 +734,7 @@ private struct KioskQueueWorkspaceView: View {
 private struct CrewTrainingWorkspaceView: View {
     @EnvironmentObject private var store: FoodStore
     @State private var tab = CrewSubworkspace.overview
+    @State private var activeQuiz: FoodCrewQuizDefinition?
     @State private var newModuleTitle = ""
     @State private var newModuleRole = "Cashier"
     @State private var newModuleDuration = 10
@@ -680,23 +747,25 @@ private struct CrewTrainingWorkspaceView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 12) {
-                FoodOperationalStat(label: "Complete", value: "\(store.crewCompletionRate)%", detail: "Assignments done", tint: FoodTheme.basil)
-                FoodOperationalStat(label: "Due", value: "\(store.crewOutstandingModules.count)", detail: "Modules still outstanding", tint: FoodTheme.saffron)
-                FoodOperationalStat(label: "Badges", value: "\(store.crewBadges.filter(\.awarded).count)", detail: "Certifications earned", tint: FoodTheme.grape)
-            }
+            if !FoodAppShell.isDedicated {
+                HStack(spacing: 12) {
+                    FoodOperationalStat(label: "Complete", value: "\(store.crewCompletionRate)%", detail: "Assignments done", tint: FoodTheme.basil)
+                    FoodOperationalStat(label: "Due", value: "\(store.crewOutstandingModules.count)", detail: "Modules still outstanding", tint: FoodTheme.saffron)
+                    FoodOperationalStat(label: "Badges", value: "\(store.crewBadges.filter(\.awarded).count)", detail: "Certifications earned", tint: FoodTheme.teal)
+                }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(CrewSubworkspace.allCases) { item in
-                        Button {
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.88)) {
-                                tab = item
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(CrewSubworkspace.allCases) { item in
+                            Button {
+                                withAnimation(.spring(response: 0.25, dampingFraction: 0.88)) {
+                                    tab = item
+                                }
+                            } label: {
+                                FoodModeCard(title: item.title, detail: item.detail, icon: item.icon, tint: FoodTheme.teal, isSelected: tab == item)
                             }
-                        } label: {
-                            FoodModeCard(title: item.title, detail: item.detail, icon: item.icon, tint: FoodTheme.grape, isSelected: tab == item)
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -714,10 +783,39 @@ private struct CrewTrainingWorkspaceView: View {
                 crewCertificationsTab
             }
         }
+        .foodDedicatedTabBar(
+            selection: $tab,
+            accent: FoodTheme.teal,
+            items: CrewSubworkspace.allCases.map {
+                FoodTabDescriptor(id: $0, title: $0.tabBarTitle, icon: $0.icon)
+            }
+        )
+        .sheet(item: $activeQuiz) { quiz in
+            CrewQuizTakeView(definition: quiz)
+        }
     }
 
     private var crewOverview: some View {
         VStack(alignment: .leading, spacing: 16) {
+            if let next = store.crewOutstandingModules.first {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Start here")
+                        .font(.system(size: 20, weight: .black))
+                        .foregroundStyle(FoodTheme.ink)
+                    FoodPriorityCard(
+                        eyebrow: store.crewSelectedRole,
+                        title: next.title,
+                        detail: "\(next.durationMinutes) min module still due before shift readiness is complete.",
+                        tint: FoodTheme.saffron,
+                        icon: "book.closed.fill"
+                    )
+                    Button(next.isComplete ? "Review module" : "Mark complete") {
+                        store.toggleTrainingModule(next)
+                    }
+                    .buttonStyle(PrimaryActionButtonStyle(tint: FoodTheme.grape, fullWidth: true))
+                }
+            }
+
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     crewMetricCard(title: "Completion", value: "\(store.crewCompletionRate)%", detail: "Current assignments")
@@ -809,6 +907,37 @@ private struct CrewTrainingWorkspaceView: View {
                     .buttonStyle(.bordered)
                 }
                 .foodCard(padding: 14)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Take a certification quiz")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+                Text("Answer real SOP questions, then sync your score to the crew dashboard.")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(FoodTheme.muted)
+                ForEach(FoodCrewQuizDefinition.catalog) { quiz in
+                    Button {
+                        activeQuiz = quiz
+                    } label: {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(quiz.title)
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundStyle(FoodTheme.ink)
+                                Text("\(quiz.questions.count) questions · pass \(quiz.passingScore)%")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(FoodTheme.muted)
+                            }
+                            Spacer()
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundStyle(FoodTheme.grape)
+                        }
+                        .foodCard(padding: 14)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
 
             VStack(alignment: .leading, spacing: 10) {
@@ -1003,6 +1132,104 @@ private struct CrewTrainingWorkspaceView: View {
     }
 }
 
+private struct CrewQuizTakeView: View {
+    @EnvironmentObject private var store: FoodStore
+    @Environment(\.dismiss) private var dismiss
+    let definition: FoodCrewQuizDefinition
+
+    @State private var step = 0
+    @State private var selectedIndex: Int?
+    @State private var correctCount = 0
+    @State private var finished = false
+    @State private var saving = false
+
+    private var question: FoodCrewQuizQuestion { definition.questions[step] }
+    private var scorePercent: Int {
+        guard !definition.questions.isEmpty else { return 0 }
+        return Int((Double(correctCount) / Double(definition.questions.count)) * 100.0)
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                if finished {
+                    VStack(spacing: 14) {
+                        Image(systemName: scorePercent >= definition.passingScore ? "checkmark.seal.fill" : "arrow.counterclockwise.circle.fill")
+                            .font(.system(size: 48))
+                            .foregroundStyle(scorePercent >= definition.passingScore ? FoodTheme.basil : FoodTheme.saffron)
+                        Text("\(scorePercent)%")
+                            .font(.system(size: 44, weight: .black, design: .rounded))
+                        Text(scorePercent >= definition.passingScore ? "Certification passed" : "Review SOP and retry")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(FoodTheme.muted)
+                        Button("Save result") {
+                            saving = true
+                            Task {
+                                _ = await store.createCrewQuizResult(
+                                    title: definition.title,
+                                    scorePercent: scorePercent,
+                                    attempts: 1
+                                )
+                                saving = false
+                                dismiss()
+                            }
+                        }
+                        .buttonStyle(PrimaryActionButtonStyle(tint: FoodTheme.grape))
+                        .disabled(saving)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    Text("Question \(step + 1) of \(definition.questions.count)")
+                        .font(.foodMicro)
+                        .foregroundStyle(FoodTheme.muted)
+                    Text(question.prompt)
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(FoodTheme.ink)
+                    ForEach(Array(question.choices.enumerated()), id: \.offset) { index, choice in
+                        Button {
+                            selectedIndex = index
+                        } label: {
+                            HStack {
+                                Image(systemName: selectedIndex == index ? "largecircle.fill.circle" : "circle")
+                                    .foregroundStyle(FoodTheme.grape)
+                                Text(choice.text)
+                                    .foregroundStyle(FoodTheme.ink)
+                                    .multilineTextAlignment(.leading)
+                                Spacer()
+                            }
+                            .padding(12)
+                            .background(FoodTheme.surfaceRaised)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Spacer()
+                    Button(step + 1 == definition.questions.count ? "Finish quiz" : "Next question") {
+                        if selectedIndex == question.correctIndex { correctCount += 1 }
+                        if step + 1 == definition.questions.count {
+                            finished = true
+                        } else {
+                            step += 1
+                            selectedIndex = nil
+                        }
+                    }
+                    .buttonStyle(PrimaryActionButtonStyle(tint: FoodTheme.grape))
+                    .disabled(selectedIndex == nil)
+                }
+            }
+            .padding(16)
+            .background(FoodTheme.background)
+            .navigationTitle(definition.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
 private enum CrewSubworkspace: String, CaseIterable, Identifiable {
     case overview
     case training
@@ -1029,6 +1256,16 @@ private enum CrewSubworkspace: String, CaseIterable, Identifiable {
         case .sops: return "doc.text.fill"
         case .checklists: return "checklist.checked"
         case .certs: return "rosette"
+        }
+    }
+
+    var tabBarTitle: String {
+        switch self {
+        case .overview: return "Today"
+        case .training: return "Learn"
+        case .sops: return "SOPs"
+        case .checklists: return "Lists"
+        case .certs: return "Profile"
         }
     }
 

@@ -17,7 +17,13 @@ export const getFoodQueueBoard = (restaurantId) =>
 
 // ── Customer ─────────────────────────────────────────────────────────────────
 export const placeFoodOrder = (restaurantId, payload) =>
-  api.post(`/food/restaurants/${restaurantId}/orders`, payload).then((r) => r.data?.order);
+  api.post(`/food/restaurants/${restaurantId}/orders`, payload).then((r) => ({
+    order: r.data?.order,
+    trackingToken: r.data?.trackingToken,
+  }));
+
+export const getTrackedFoodOrder = (trackingToken) =>
+  api.get(`/food/orders/track/${trackingToken}`).then((r) => r.data?.order);
 
 export const listMyFoodOrders = () =>
   api.get('/food/my/orders').then((r) => r.data?.orders || []);
@@ -73,6 +79,11 @@ export const updateFoodOrderPayment = (restaurantId, orderId, paymentStatus) =>
   api
     .patch(`/food/restaurants/${restaurantId}/orders/${orderId}/payment`, { paymentStatus })
     .then((r) => r.data?.order);
+
+export const submitFoodOrderReview = (orderId, { rating, body, trackingToken } = {}) =>
+  api
+    .post(`/food/orders/${orderId}/review`, { rating, body, tracking_token: trackingToken })
+    .then((r) => r.data?.review);
 
 // ── Shared formatting ────────────────────────────────────────────────────────
 export function formatFoodMoney(cents, currency = 'USD') {

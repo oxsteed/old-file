@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
 import {
   listMyFoodRestaurants,
   createFoodRestaurant,
@@ -154,8 +155,12 @@ function OrdersTab({ t, restaurant }) {
   useEffect(() => {
     load();
     timerRef.current = setInterval(load, 7000);
-    return () => clearInterval(timerRef.current);
-  }, [load]);
+    const unsubscribe = subscribeRestaurantDisplay(restaurant.id, load);
+    return () => {
+      clearInterval(timerRef.current);
+      unsubscribe();
+    };
+  }, [load, restaurant.id]);
 
   const advance = async (order) => {
     const next = NEXT_STATUS[order.status];

@@ -62,6 +62,12 @@ enum FoodTheme {
     static let blue    = Color(red: 0.38, green: 0.66, blue: 1.00)  // info blue
     static let grape   = Color(red: 0.62, green: 0.48, blue: 1.00)  // accent violet
     static let coral   = Color(red: 1.00, green: 0.40, blue: 0.46)  // alert / danger
+    static let teal    = Color(red: 0.16, green: 0.70, blue: 0.74)  // crew / training
+
+    /// Fixed dark header used by dedicated role-app shells.
+    static let shellNavy = Color(red: 0.05, green: 0.06, blue: 0.11)
+    static let shellInk  = Color.white
+    static let shellMuted = Color.white.opacity(0.62)
 
     // MARK: Gradients
     static let heroGradient = LinearGradient(
@@ -733,10 +739,10 @@ struct FoodNetworkFootnote: View {
     }
 }
 
-/// A circular brand monogram derived from the restaurant name, tinted with
-/// the restaurant's stable accent. Keeps each storefront looking like itself.
+/// A circular brand mark — uses the restaurant logo when available, otherwise a monogram.
 struct FoodBrandMark: View {
     let name: String
+    var logoURL: String? = nil
     var accent: Color = FoodTheme.flame
     var size: CGFloat = 46
 
@@ -747,17 +753,338 @@ struct FoodBrandMark: View {
     }
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
-                .fill(
-                    LinearGradient(colors: [accent.opacity(0.95), accent.opacity(0.7)],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing)
-                )
-            Text(monogram)
-                .font(.system(size: size * 0.42, weight: .black, design: .rounded))
-                .foregroundStyle(.white)
+        Group {
+            if let logoURL, !logoURL.isEmpty {
+                RemoteFoodImage(logoURL, icon: "fork.knife", tint: accent)
+                    .frame(width: size, height: size)
+                    .clipShape(RoundedRectangle(cornerRadius: size * 0.3, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
+                            .stroke(accent.opacity(0.25), lineWidth: 1)
+                    )
+            } else {
+                ZStack {
+                    RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
+                        .fill(
+                            LinearGradient(colors: [accent.opacity(0.95), accent.opacity(0.7)],
+                                           startPoint: .topLeading, endPoint: .bottomTrailing)
+                        )
+                    Text(monogram)
+                        .font(.system(size: size * 0.42, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                }
+                .frame(width: size, height: size)
+                .foodShadow(.soft)
+            }
         }
-        .frame(width: size, height: size)
+    }
+}
+
+// MARK: - Dedicated role-app shell (mockup-grade chrome)
+
+/// True when this binary is locked to a single workspace (dedicated App Store app).
+enum FoodAppShell {
+    static var isDedicated: Bool {
+        let allowed = Bundle.main.object(forInfoDictionaryKey: "OX_ALLOWED_WORKSPACES") as? [String] ?? []
+        return allowed.count == 1
+    }
+}
+
+/// One tab in the floating bottom bar.
+struct FoodTabDescriptor<ID: Hashable>: Identifiable {
+    let id: ID
+    let title: String
+    let icon: String
+}
+
+/// Dark header + white sheet body — the production shell for dedicated apps.
+struct FoodRoleAppShell<Content: View>: View {
+    let appName: String
+    let roleTitle: String
+    let roleSubtitle: String
+    let accent: Color
+    var logoURL: String? = nil
+    var contextLine: String? = nil
+    var liveState: FoodLiveState? = nil
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        ZStack {
+            FoodTheme.shellNavy.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                header
+                accentRule
+                sheetBody
+            }
+        }
+    }
+
+    private var header: some View {
+        HStack(alignment: .center, spacing: 12) {
+            FoodBrandMark(name: appName, logoURL: logoURL, accent: FoodTheme.flame, size: 42)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(roleTitle)
+                    .font(.system(size: 22, weight: .black, design: .rounded))
+                    .foregroundStyle(FoodTheme.shellInk)
+                    .lineLimit(1)
+                Text(roleSubtitle)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(FoodTheme.shellMuted)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            if let liveState {
+                FoodLiveBadge(state: liveState)
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 8)
+        .padding(.bottom, 14)
+    }
+
+    private var accentRule: some View {
+        Rectangle()
+            .fill(accent)
+            .frame(height: 3)
+    }
+
+    private var sheetBody: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let contextLine, !contextLine.isEmpty {
+                Text(contextLine)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(FoodTheme.muted)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 18)
+                    .padding(.bottom, 4)
+            }
+
+            content()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(FoodTheme.surface)
+        .clipShape(
+            UnevenRoundedRectangle(
+                topLeadingRadius: FoodTheme.Radius.xl,
+                bottomLeadingRadius: 0,
+                bottomTrailingRadius: 0,
+                topTrailingRadius: FoodTheme.Radius.xl,
+                style: .continuous
+            )
+        )
+        .ignoresSafeArea(edges: .bottom)
+    }
+}
+
+/// Floating pill tab bar for dedicated role apps.
+struct FoodFloatingTabBar<ID: Hashable>: View {
+    @Binding var selection: ID
+    let accent: Color
+    let items: [FoodTabDescriptor<ID>]
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(items) { item in
+                let selected = selection == item.id
+                Button {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                        selection = item.id
+                    }
+                } label: {
+                    VStack(spacing: 5) {
+                        ZStack {
+                            Circle()
+                                .fill(selected ? accent : FoodTheme.surfaceRaised)
+                                .frame(width: 34, height: 34)
+                            Image(systemName: item.icon)
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(selected ? Color.white : FoodTheme.muted)
+                        }
+                        Text(item.title)
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(selected ? accent : FoodTheme.muted)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 10)
+        .background(
+            Capsule(style: .continuous)
+                .fill(FoodTheme.surface)
+                .foodShadow(.medium)
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .stroke(FoodTheme.line, lineWidth: 1)
+        )
+    }
+}
+
+extension View {
+    /// Attach the floating tab bar when running as a dedicated single-role app.
+    @ViewBuilder
+    func foodDedicatedTabBar<ID: Hashable>(
+        selection: Binding<ID>,
+        accent: Color,
+        items: [FoodTabDescriptor<ID>]
+    ) -> some View {
+        if FoodAppShell.isDedicated {
+            safeAreaInset(edge: .bottom, spacing: 0) {
+                FoodFloatingTabBar(selection: selection, accent: accent, items: items)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 6)
+            }
+        } else {
+            self
+        }
+    }
+
+    /// Extra bottom padding when dedicated tabs are pinned.
+    @ViewBuilder
+    func foodDedicatedScrollPadding() -> some View {
+        if FoodAppShell.isDedicated {
+            padding(.bottom, 4)
+        } else {
+            self
+        }
+    }
+}
+
+/// Wide attention banner with left accent bar — matches mockup "Needs attention" rows.
+struct FoodAttentionBanner: View {
+    let title: String
+    var detail: String? = nil
+    let tint: Color
+    var actionTitle: String? = nil
+    var action: (() -> Void)? = nil
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .fill(tint)
+                .frame(width: 5)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.foodSubhead)
+                    .foregroundStyle(FoodTheme.ink)
+                    .lineLimit(2)
+                if let detail {
+                    Text(detail)
+                        .font(.foodCaption)
+                        .foregroundStyle(FoodTheme.muted)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            if let actionTitle, let action {
+                Button(action: action) {
+                    Text(actionTitle)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Capsule(style: .continuous).fill(tint))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(16)
+        .background(FoodTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous)
+                .stroke(FoodTheme.line, lineWidth: 1)
+        )
         .foodShadow(.soft)
+    }
+}
+
+/// Compact KPI tile for 2×2 summary grids.
+struct FoodKPITile: View {
+    let value: String
+    let label: String
+    let tint: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(value)
+                .font(.system(size: 26, weight: .black, design: .rounded))
+                .foregroundStyle(tint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(label)
+                .font(.foodCaption)
+                .foregroundStyle(FoodTheme.muted)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(FoodTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous)
+                .stroke(FoodTheme.line, lineWidth: 1)
+        )
+    }
+}
+
+/// 2×2 KPI grid helper.
+struct FoodKPIGrid: View {
+    let tiles: [(value: String, label: String, tint: Color)]
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+            ForEach(Array(tiles.enumerated()), id: \.offset) { _, tile in
+                FoodKPITile(value: tile.value, label: tile.label, tint: tile.tint)
+            }
+        }
+    }
+}
+
+/// Quick-action row with chevron — mockup-style navigation list item.
+struct FoodQuickActionRow: View {
+    let title: String
+    let detail: String
+    let tint: Color
+    var action: (() -> Void)? = nil
+
+    var body: some View {
+        Button {
+            action?()
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.foodSubhead)
+                        .foregroundStyle(FoodTheme.ink)
+                    Text(detail)
+                        .font(.foodCaption)
+                        .foregroundStyle(FoodTheme.muted)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(tint)
+            }
+            .padding(16)
+            .background(FoodTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous)
+                    .stroke(FoodTheme.line, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(action == nil)
     }
 }

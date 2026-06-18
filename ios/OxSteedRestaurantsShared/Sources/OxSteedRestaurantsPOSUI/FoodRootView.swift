@@ -65,12 +65,40 @@ enum FoodWorkspace: String, CaseIterable, Identifiable {
         switch self {
         case .customerOrdering: return FoodTheme.flame
         case .ownerManager: return FoodTheme.blue
-        case .posCounter: return FoodTheme.flame
+        case .posCounter: return FoodTheme.basil
         case .kitchenDisplay: return FoodTheme.coral
-        case .kioskQueue: return FoodTheme.basil
-        case .crewTraining: return FoodTheme.grape
-        case .inventoryReceiving: return FoodTheme.saffron
-        case .deliveryRunner: return FoodTheme.blue
+        case .kioskQueue: return FoodTheme.grape
+        case .crewTraining: return FoodTheme.teal
+        case .inventoryReceiving: return FoodTheme.flame
+        case .deliveryRunner: return FoodTheme.basil
+        }
+    }
+
+    /// Short name shown in the dedicated-app dark header.
+    var shortTitle: String {
+        switch self {
+        case .customerOrdering: return "Restaurants"
+        case .ownerManager: return "Manager"
+        case .posCounter: return "POS"
+        case .kitchenDisplay: return "Kitchen"
+        case .kioskQueue: return "Display"
+        case .crewTraining: return "Crew"
+        case .inventoryReceiving: return "Inventory"
+        case .deliveryRunner: return "Runner"
+        }
+    }
+
+    /// Subtitle under the short title in the dedicated-app header.
+    var shellSubtitle: String {
+        switch self {
+        case .customerOrdering: return "Customer Ordering"
+        case .ownerManager: return "Owner Control Center"
+        case .posCounter: return "Counter Ordering"
+        case .kitchenDisplay: return "Kitchen Display"
+        case .kioskQueue: return "Kiosk + Queue Board"
+        case .crewTraining: return "Training + SOPs"
+        case .inventoryReceiving: return "Stock + Suppliers"
+        case .deliveryRunner: return "Delivery + Logistics"
         }
     }
 
@@ -211,46 +239,88 @@ struct FoodRootView: View {
         nonmutating set { workspaceRawValue = newValue.rawValue }
     }
 
+    private var isDedicatedRoleApp: Bool {
+        runtime.allowedWorkspaces.count == 1
+    }
+    private var shellContextLine: String? {
+        guard let restaurant = store.activeRestaurant else { return nil }
+        return "\(restaurant.displayName) · Today"
+    }
+
+    private var shellLiveState: FoodLiveState {
+        store.activeRestaurant == nil ? .syncing : .live
+    }
+
+    @ViewBuilder
+    private var workspaceContent: some View {
+        switch workspace {
+        case .customerOrdering:
+            CustomerWorkspaceView()
+        case .ownerManager:
+            OwnerManagerWorkspaceView()
+        case .posCounter:
+            POSCounterWorkspaceView()
+        case .kitchenDisplay:
+            KitchenDisplayWorkspaceView()
+        case .kioskQueue:
+            KioskQueueWorkspaceView()
+        case .crewTraining:
+            CrewTrainingWorkspaceView()
+        case .inventoryReceiving:
+            InventoryReceivingWorkspaceView()
+        case .deliveryRunner:
+            DeliveryRunnerWorkspaceView()
+        }
+    }
+
     var body: some View {
-        ZStack {
-            FoodTheme.background.ignoresSafeArea()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    FoodWorkspaceHero(appName: runtime.appName, workspace: workspace)
-                    if runtime.allowedWorkspaces.count > 1 {
-                        FoodWorkspaceRail(
-                            workspaces: runtime.allowedWorkspaces,
-                            workspace: Binding(
-                                get: { workspace },
-                                set: { workspace = $0 }
-                            )
-                        )
-                    }
-
-                    switch workspace {
-                    case .customerOrdering:
-                        CustomerWorkspaceView()
-                    case .ownerManager:
-                        OwnerManagerWorkspaceView()
-                    case .posCounter:
-                        POSCounterWorkspaceView()
-                    case .kitchenDisplay:
-                        KitchenDisplayWorkspaceView()
-                    case .kioskQueue:
-                        KioskQueueWorkspaceView()
-                    case .crewTraining:
-                        CrewTrainingWorkspaceView()
-                    case .inventoryReceiving:
-                        InventoryReceivingWorkspaceView()
-                    case .deliveryRunner:
-                        DeliveryRunnerWorkspaceView()
+        Group {
+            if isDedicatedRoleApp {
+                FoodRoleAppShell(
+                    appName: runtime.appName,
+                    roleTitle: workspace.shortTitle,
+                    roleSubtitle: workspace.shellSubtitle,
+                    accent: workspace.accent,
+                    logoURL: store.activeRestaurant?.logoUrl,
+                    contextLine: shellContextLine,
+                    liveState: shellLiveState
+                ) {
+                    ScrollView {
+                        workspaceContent
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 8)
+                            .foodDedicatedScrollPadding()
                     }
                 }
-                .padding(16)
+            } else {
+                ZStack {
+                    FoodTheme.background.ignoresSafeArea()
+
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 18) {
+                            FoodWorkspaceHero(appName: runtime.appName, workspace: workspace)
+                            if runtime.allowedWorkspaces.count > 1 {
+                                FoodWorkspaceRail(
+                                    workspaces: runtime.allowedWorkspaces,
+                                    workspace: Binding(
+                                        get: { workspace },
+                                        set: { workspace = $0 }
+                                    )
+                                )
+                            }
+
+                            workspaceContent
+                        }
+                        .padding(16)
+                    }
+                }
             }
         }
-        .task { await store.loadRestaurants() }
+        .task {
+            await store.loadRestaurants()
+            store.refreshPendingOfflineOrders()
+            await store.replayPendingOfflineOrders()
+        }
         .onAppear {
             if !runtime.allowedWorkspaces.contains(workspace) {
                 workspace = runtime.defaultWorkspace
@@ -497,27 +567,29 @@ private struct POSCounterWorkspaceView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 8) {
-                FoodCountChip(count: store.counterCartItemCount, label: "in ticket", tint: FoodTheme.flame)
-                FoodCountChip(
-                    count: store.merchantOrders.filter { $0.paymentStatus != "paid" }.count,
-                    label: "open tabs",
-                    tint: FoodTheme.saffron
-                )
-                Spacer(minLength: 0)
-            }
+            if !FoodAppShell.isDedicated {
+                HStack(spacing: 8) {
+                    FoodCountChip(count: store.counterCartItemCount, label: "in ticket", tint: FoodTheme.basil)
+                    FoodCountChip(
+                        count: store.merchantOrders.filter { $0.paymentStatus != "paid" }.count,
+                        label: "open tabs",
+                        tint: FoodTheme.saffron
+                    )
+                    Spacer(minLength: 0)
+                }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(POSSubworkspace.allCases) { item in
-                        Button {
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.88)) {
-                                tab = item
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(POSSubworkspace.allCases) { item in
+                            Button {
+                                withAnimation(.spring(response: 0.25, dampingFraction: 0.88)) {
+                                    tab = item
+                                }
+                            } label: {
+                                FoodModeCard(title: item.title, detail: item.detail, icon: item.icon, tint: FoodTheme.basil, isSelected: tab == item)
                             }
-                        } label: {
-                            FoodModeCard(title: item.title, detail: item.detail, icon: item.icon, tint: FoodTheme.flame, isSelected: tab == item)
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -531,6 +603,13 @@ private struct POSCounterWorkspaceView: View {
                 queueView
             }
         }
+        .foodDedicatedTabBar(
+            selection: $tab,
+            accent: FoodTheme.basil,
+            items: POSSubworkspace.allCases.map {
+                FoodTabDescriptor(id: $0, title: $0.tabBarTitle, icon: $0.icon)
+            }
+        )
         .task {
             if store.isSignedIn {
                 await store.loadMerchant()
@@ -909,6 +988,14 @@ private enum POSSubworkspace: String, CaseIterable, Identifiable {
         case .newTicket: return "plus.viewfinder"
         case .payments: return "creditcard.fill"
         case .queue: return "list.number"
+        }
+    }
+
+    var tabBarTitle: String {
+        switch self {
+        case .newTicket: return "Order"
+        case .payments: return "Pay"
+        case .queue: return "Queue"
         }
     }
 
@@ -1867,9 +1954,8 @@ struct QueueBoardLive: View {
             column("Now ready", numbers: store.queueBoard?.ready ?? [], color: FoodTheme.basil)
         }
         .task(id: restaurantId) {
-            while !Task.isCancelled {
+            await RestaurantDisplayRefresh.run(restaurantId: restaurantId) {
                 await store.refreshQueueBoard(restaurantId: restaurantId)
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
             }
         }
     }

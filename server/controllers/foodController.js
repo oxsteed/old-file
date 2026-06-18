@@ -365,12 +365,24 @@ async function notifyFoodOrderReady(order, restaurant) {
         data,
         action_url: boardUrl,
       });
+      logger.info('notifyFoodOrderReady sent', {
+        orderId: order.id,
+        restaurantId: order.restaurant_id,
+        channel: 'notification_service',
+        customerId: order.customer_id,
+      });
       return;
     }
 
     // 2) Guest with a phone number — SMS.
     if (order.guest_phone) {
-      await smsNotificationService.sendDirectSMS(order.guest_phone, `${body} ${boardUrl}`.trim());
+      const smsResult = await smsNotificationService.sendDirectSMS(order.guest_phone, `${body} ${boardUrl}`.trim());
+      logger.info('notifyFoodOrderReady sent', {
+        orderId: order.id,
+        restaurantId: order.restaurant_id,
+        channel: 'sms',
+        delivered: Boolean(smsResult),
+      });
       return;
     }
 
@@ -386,7 +398,19 @@ async function notifyFoodOrderReady(order, restaurant) {
           actionHref: boardUrl,
         }),
       });
+      logger.info('notifyFoodOrderReady sent', {
+        orderId: order.id,
+        restaurantId: order.restaurant_id,
+        channel: 'email',
+        guestEmail: order.guest_email,
+      });
+      return;
     }
+
+    logger.info('notifyFoodOrderReady skipped (no reachable guest channel)', {
+      orderId: order.id,
+      restaurantId: order.restaurant_id,
+    });
   } catch (err) {
     logger.warn('notifyFoodOrderReady failed (non-blocking)', { error: err && err.message, orderId: order && order.id });
   }
@@ -445,8 +469,16 @@ exports.listRestaurants = async (req, res, next) => {
               fr.latitude, fr.longitude, fr.currency_code, fr.fulfillment_modes,
               fr.accepts_online_orders, fr.accepts_in_store_orders,
               fr.kitchen_display_enabled, fr.prep_time_min,
+              COALESCE(rr.avg_rating, 0)::float AS avg_rating,
+              COALESCE(rr.review_count, 0)::int AS review_count,
               ${distanceSelect}
          FROM food_restaurants fr
+         LEFT JOIN LATERAL (
+           SELECT ROUND(AVG(r.rating)::numeric, 1) AS avg_rating,
+                  COUNT(*)::int AS review_count
+             FROM food_reviews r
+            WHERE r.restaurant_id = fr.id
+         ) rr ON true
         WHERE ${filters.join(' AND ')}
         ORDER BY ${orderBy}
         LIMIT $${params.push(limit)} OFFSET $${params.push(offset)}`,
@@ -455,7 +487,65 @@ exports.listRestaurants = async (req, res, next) => {
 
     res.json({ restaurants: rows, limit, offset });
   } catch (err) {
-    next(err);
+    if (!isMissingRelationError(err)) return next(err);
+    try {
+      const limit = Math.min(parsePositiveInt(req.query.limit, 30), 100);
+      const offset = Math.max(parsePositiveInt(req.query.offset, 0) || 0, 0);
+      const params = [];
+      const filters = [`fr.status = 'active'`];
+      const q = normalizeString(req.query.q || req.query.search, 120);
+      if (q) {
+        params.push(`%${q}%`);
+        filters.push(`(fr.display_name ILIKE $${params.length} OR fr.description ILIKE $${params.length} OR EXISTS (
+          SELECT 1 FROM unnest(fr.cuisine_tags) tag WHERE tag ILIKE $${params.length}
+        ))`);
+      }
+      const cuisine = normalizeString(req.query.cuisine, 60);
+      if (cuisine) {
+        params.push(cuisine);
+        filters.push(`$${params.length} = ANY(fr.cuisine_tags)`);
+      }
+      const country = req.query.country ? normalizeCountry(req.query.country) : null;
+      if (country) {
+        params.push(country);
+        filters.push(`fr.address_country = $${params.length}`);
+      }
+      const lat = Number(req.query.lat);
+      const lng = Number(req.query.lng);
+      const hasGeo = Number.isFinite(lat) && Number.isFinite(lng);
+      let distanceSelect = 'NULL::double precision AS distance_km';
+      let orderBy = 'fr.display_name ASC';
+      if (hasGeo) {
+        params.push(lat);
+        const latIndex = params.length;
+        params.push(lng);
+        distanceSelect = `(6371 * acos(LEAST(1, GREATEST(-1,
+          cos(radians($${latIndex})) * cos(radians(fr.latitude)) *
+          cos(radians(fr.longitude) - radians($${params.length})) +
+          sin(radians($${latIndex})) * sin(radians(fr.latitude))
+        )))) AS distance_km`;
+        filters.push('fr.latitude IS NOT NULL AND fr.longitude IS NOT NULL');
+        orderBy = 'distance_km ASC, fr.display_name ASC';
+      }
+      const { rows } = await pool.query(
+        `SELECT fr.id, fr.business_id, fr.display_name, fr.slug, fr.description,
+                fr.cuisine_tags, fr.cover_photo_url, fr.logo_url,
+                fr.address_city, fr.address_state, fr.address_country,
+                fr.latitude, fr.longitude, fr.currency_code, fr.fulfillment_modes,
+                fr.accepts_online_orders, fr.accepts_in_store_orders,
+                fr.kitchen_display_enabled, fr.prep_time_min,
+                0::float AS avg_rating, 0::int AS review_count,
+                ${distanceSelect}
+           FROM food_restaurants fr
+          WHERE ${filters.join(' AND ')}
+          ORDER BY ${orderBy}
+          LIMIT $${params.push(limit)} OFFSET $${params.push(offset)}`,
+        params
+      );
+      return res.json({ restaurants: rows, limit, offset });
+    } catch (retryErr) {
+      return next(retryErr);
+    }
   }
 };
 
@@ -470,6 +560,21 @@ exports.getRestaurant = async (req, res, next) => {
     );
     const restaurant = restaurants[0];
     if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+
+    try {
+      const { rows: ratingRows } = await pool.query(
+        `SELECT COALESCE(ROUND(AVG(rating)::numeric, 1), 0)::float AS avg_rating,
+                COUNT(*)::int AS review_count
+           FROM food_reviews WHERE restaurant_id = $1`,
+        [restaurantId]
+      );
+      restaurant.avg_rating = ratingRows[0]?.avg_rating ?? 0;
+      restaurant.review_count = ratingRows[0]?.review_count ?? 0;
+    } catch (err) {
+      if (!isMissingRelationError(err)) throw err;
+      restaurant.avg_rating = 0;
+      restaurant.review_count = 0;
+    }
 
     const { rows: categories } = await pool.query(
       `SELECT id, name, description, sort_order
@@ -703,7 +808,31 @@ exports.createOrder = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', { items: 'At least one item is required' });
     }
 
+    const clientOrderId = normalizeString(req.body.clientOrderId || req.body.client_order_id, 120);
+
     const createdOrder = await withTransaction(pool, async (client) => {
+      if (clientOrderId) {
+        const { rows: existingOrders } = await client.query(
+          `SELECT * FROM food_orders
+            WHERE restaurant_id = $1 AND metadata->>'clientOrderId' = $2
+            LIMIT 1`,
+          [restaurantId, clientOrderId]
+        );
+        if (existingOrders[0]) {
+          const { rows: restaurants } = await client.query(
+            `SELECT * FROM food_restaurants WHERE id = $1`,
+            [restaurantId]
+          );
+          const existing = existingOrders[0];
+          return {
+            order: existing,
+            restaurant: restaurants[0],
+            trackingToken: existing.metadata?.trackingToken || existing.metadata?.tracking_token || null,
+            replayed: true,
+          };
+        }
+      }
+
       // FOR UPDATE serializes concurrent orders for the same restaurant so the
       // per-day queue number below cannot be duplicated under load.
       const { rows: restaurants } = await client.query(
@@ -799,8 +928,8 @@ exports.createOrder = async (req, res, next) => {
         }
         : null;
       const metadata = req.body.metadata && typeof req.body.metadata === 'object'
-        ? { ...req.body.metadata, trackingToken, ...(discountMetadata ? { posDiscount: discountMetadata } : {}) }
-        : { trackingToken, ...(discountMetadata ? { posDiscount: discountMetadata } : {}) };
+        ? { ...req.body.metadata, trackingToken, ...(clientOrderId ? { clientOrderId } : {}), ...(discountMetadata ? { posDiscount: discountMetadata } : {}) }
+        : { trackingToken, ...(clientOrderId ? { clientOrderId } : {}), ...(discountMetadata ? { posDiscount: discountMetadata } : {}) };
 
       const { rows: [created] } = await client.query(
         `INSERT INTO food_orders
@@ -869,12 +998,13 @@ exports.createOrder = async (req, res, next) => {
         restaurant,
         normalizedItems,
         trackingToken,
+        replayed: false,
       };
     }, 'food_create_order');
 
     let order = createdOrder.order;
     let payment = null;
-    if (paymentMode === 'pay_now') {
+    if (!createdOrder.replayed && paymentMode === 'pay_now') {
       try {
         const paymentResult = await createFoodCheckoutSession({
           order,
@@ -893,9 +1023,17 @@ exports.createOrder = async (req, res, next) => {
       }
     }
 
-    emitRestaurantOrder(order.business_id, 'food:order:created', { order });
-    emitRestaurantDisplay(order.restaurant_id, order);
-    res.status(201).json({ order, payment, trackingToken: createdOrder.trackingToken });
+    if (!createdOrder.replayed) {
+      emitRestaurantOrder(order.business_id, 'food:order:created', { order });
+      emitRestaurantDisplay(order.restaurant_id, order);
+    }
+    const statusCode = createdOrder.replayed ? 200 : 201;
+    res.status(statusCode).json({
+      order,
+      payment,
+      trackingToken: createdOrder.trackingToken,
+      replayed: Boolean(createdOrder.replayed),
+    });
   } catch (err) {
     next(err);
   }
@@ -1434,6 +1572,7 @@ exports.getTrackedOrder = async (req, res, next) => {
 
     const { rows } = await pool.query(
       `SELECT fo.*, fr.display_name AS restaurant_name, fr.prep_time_min,
+              EXISTS (SELECT 1 FROM food_reviews rv WHERE rv.order_id = fo.id) AS has_review,
               COALESCE(json_agg(json_build_object(
                 'id', foi.id,
                 'itemName', foi.item_name,
@@ -1742,6 +1881,7 @@ exports.listMyOrders = async (req, res, next) => {
     const limit = Math.min(parsePositiveInt(req.query.limit, 30), 100);
     const { rows } = await pool.query(
       `SELECT fo.*, fr.display_name AS restaurant_name, fr.logo_url AS restaurant_logo_url,
+              EXISTS (SELECT 1 FROM food_reviews rv WHERE rv.order_id = fo.id) AS has_review,
               COALESCE(json_agg(json_build_object(
                 'id', foi.id,
                 'itemName', foi.item_name,
@@ -1773,6 +1913,7 @@ exports.getOrder = async (req, res, next) => {
     if (!orderId) throw new AppError('Order not found', 404, 'order_not_found');
     const { rows } = await pool.query(
       `SELECT fo.*, fr.display_name AS restaurant_name, fr.prep_time_min,
+              EXISTS (SELECT 1 FROM food_reviews rv WHERE rv.order_id = fo.id) AS has_review,
               COALESCE(json_agg(json_build_object(
                 'id', foi.id,
                 'itemName', foi.item_name,
@@ -1787,7 +1928,7 @@ exports.getOrder = async (req, res, next) => {
         GROUP BY fo.id, fr.display_name, fr.prep_time_min`,
       [orderId]
     );
-    const order = rows[0];
+    let order = rows[0];
     if (!order) throw new AppError('Order not found', 404, 'order_not_found');
 
     const isCustomer = order.customer_id && req.user?.id === order.customer_id;
@@ -1803,6 +1944,57 @@ exports.getOrder = async (req, res, next) => {
     order = await syncFoodOrderPaymentStatus(order);
     res.json({ order });
   } catch (err) {
+    next(err);
+  }
+};
+
+exports.createOrderReview = async (req, res, next) => {
+  try {
+    const orderId = parsePositiveInt(req.params.orderId);
+    const rating = parsePositiveInt(req.body.rating);
+    const body = normalizeString(req.body.body, 2000);
+    const trackingToken = normalizeString(req.body.trackingToken || req.body.tracking_token, 255);
+    if (!orderId || !rating || rating < 1 || rating > 5) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        rating: 'Must be an integer from 1 to 5',
+      });
+    }
+
+    let order;
+    if (req.user?.id) {
+      const { rows } = await pool.query(
+        `SELECT * FROM food_orders WHERE id = $1 AND customer_id = $2`,
+        [orderId, req.user.id]
+      );
+      order = rows[0];
+    } else if (trackingToken) {
+      const { rows } = await pool.query(
+        `SELECT * FROM food_orders WHERE id = $1 AND metadata->>'trackingToken' = $2`,
+        [orderId, trackingToken]
+      );
+      order = rows[0];
+    }
+    if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+    if (order.status !== 'completed') {
+      throw new AppError('Only completed orders can be reviewed', 409, 'order_not_reviewable');
+    }
+
+    const customerId = req.user?.id || order.customer_id || null;
+    const { rows: [review] } = await pool.query(
+      `INSERT INTO food_reviews (restaurant_id, order_id, customer_id, rating, body)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (order_id) DO NOTHING
+       RETURNING id, restaurant_id, order_id, customer_id, rating, body, created_at`,
+      [order.restaurant_id, orderId, customerId, rating, body]
+    );
+    if (!review) {
+      throw new AppError('Review already submitted for this order', 409, 'review_exists');
+    }
+    res.status(201).json({ review });
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      return next(new AppError('Reviews are not available yet', 503, 'reviews_unavailable'));
+    }
     next(err);
   }
 };

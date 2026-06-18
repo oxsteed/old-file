@@ -16,6 +16,9 @@ final class FoodStore: ObservableObject {
     @Published var isLoading = false
     @Published var isPlacingOrder = false
     @Published var message: String?
+    /// True when the discover API failed (distinct from an honest empty list).
+    @Published var discoverLoadFailed = false
+    @Published private(set) var pendingOfflineOrders: [FoodPendingOrder] = []
 
     /// Set right after a successful order; drives the confirmation screen.
     @Published var lastPlacedOrder: FoodOrder?
@@ -93,7 +96,7 @@ final class FoodStore: ObservableObject {
         counterCart.reduce(0) { $0 + $1.quantity }
     }
     var activeRestaurant: FoodRestaurant? {
-        merchantSelection ?? selectedRestaurant ?? merchantRestaurants.first ?? restaurants.first ?? FoodSampleData.restaurant
+        merchantSelection ?? selectedRestaurant ?? merchantRestaurants.first ?? restaurants.first
     }
     var favoriteRestaurants: [FoodRestaurant] {
         restaurants.filter { favoriteRestaurantIDs.contains($0.id) }
@@ -202,13 +205,12 @@ final class FoodStore: ObservableObject {
             restaurants = try await FoodAPIClient.shared.listRestaurants(
                 search: searchText, latitude: latitude, longitude: longitude
             )
-            if restaurants.isEmpty {
-                restaurants = [FoodSampleData.restaurant]
-            }
+            discoverLoadFailed = false
             message = nil
         } catch {
-            restaurants = [FoodSampleData.restaurant]
-            message = nil
+            restaurants = []
+            discoverLoadFailed = true
+            message = "Could not load restaurants. Check your connection and try again."
         }
         await loadPaymentConfig()
         if isSignedIn {
@@ -228,8 +230,8 @@ final class FoodStore: ObservableObject {
             }
             menu = sections
         } catch {
-            menu = [FoodMenuSection(id: 1, name: "Popular", description: "Ready for kiosk, counter, and mobile orders.", items: [FoodSampleData.menuItem])]
-            message = nil
+            menu = []
+            message = "Could not load the menu. Pull to refresh or try again."
         }
         if isSignedIn {
             await syncCustomerProfile(restaurantId: restaurant.id)
@@ -273,8 +275,9 @@ final class FoodStore: ObservableObject {
         guard let restaurant = selectedRestaurant, !cart.isEmpty else { return }
         isPlacingOrder = true
         defer { isPlacingOrder = false }
+        let submittedLines = cart
+        let clientOrderId = UUID().uuidString
         do {
-            let submittedLines = cart
             let response = try await FoodAPIClient.shared.createOrder(
                 restaurantId: restaurant.id,
                 lines: submittedLines,
@@ -282,8 +285,11 @@ final class FoodStore: ObservableObject {
                 tableLabel: fulfillment == "dine_in" && !tableLabel.isEmpty ? tableLabel : nil,
                 guestName: isSignedIn || guestName.isEmpty ? nil : guestName,
                 token: accessToken.isEmpty ? nil : accessToken,
-                paymentMode: onlineCheckoutAvailable ? customerPaymentMode : "pay_at_counter"
+                paymentMode: onlineCheckoutAvailable ? customerPaymentMode : "pay_at_counter",
+                clientOrderId: clientOrderId
             )
+            FoodOfflineOrderQueue.remove(id: clientOrderId)
+            refreshPendingOfflineOrders()
             rememberRecentOrder(restaurant: restaurant, lines: submittedLines, fulfillment: fulfillment)
             cart.removeAll()
             lastPlacedOrder = response.order
@@ -298,8 +304,51 @@ final class FoodStore: ObservableObject {
                 message = nil
             }
         } catch {
-            message = "Order failed: \(error.localizedDescription)"
+            if FoodOfflineOrderQueue.isNetworkFailure(error) {
+                _ = FoodOfflineOrderQueue.enqueue(
+                    id: clientOrderId,
+                    restaurant: restaurant,
+                    lines: submittedLines,
+                    fulfillment: fulfillment,
+                    tableLabel: fulfillment == "dine_in" && !tableLabel.isEmpty ? tableLabel : nil,
+                    guestName: isSignedIn || guestName.isEmpty ? nil : guestName,
+                    orderSource: "mobile",
+                    paymentMode: onlineCheckoutAvailable ? customerPaymentMode : "pay_at_counter"
+                )
+                refreshPendingOfflineOrders()
+                cart.removeAll()
+                message = "You're offline — order saved and will send when connection returns."
+            } else {
+                message = "Order failed: \(error.localizedDescription)"
+            }
         }
+    }
+
+    func refreshPendingOfflineOrders() {
+        pendingOfflineOrders = FoodOfflineOrderQueue.load()
+    }
+
+    func replayPendingOfflineOrders() async {
+        refreshPendingOfflineOrders()
+        guard !pendingOfflineOrders.isEmpty else { return }
+        for pending in pendingOfflineOrders {
+            do {
+                let response = try await FoodAPIClient.shared.createPendingOrder(
+                    pending,
+                    token: accessToken.isEmpty ? nil : accessToken
+                )
+                FoodOfflineOrderQueue.remove(id: pending.id)
+                if lastPlacedOrder == nil {
+                    lastPlacedOrder = response.order
+                    lastPlacedOrderTrackingToken = response.trackingToken
+                }
+            } catch {
+                if !FoodOfflineOrderQueue.isNetworkFailure(error) {
+                    FoodOfflineOrderQueue.bumpAttempt(id: pending.id)
+                }
+            }
+        }
+        refreshPendingOfflineOrders()
     }
 
     func loadPaymentConfig() async {
@@ -351,9 +400,11 @@ final class FoodStore: ObservableObject {
     }
 
     func loadReorderTemplate(_ template: FoodReorderTemplate) async -> Bool {
-        let restaurant = restaurants.first(where: { $0.id == template.restaurantId })
-            ?? (selectedRestaurant?.id == template.restaurantId ? selectedRestaurant : nil)
-            ?? FoodSampleData.restaurant
+        guard let restaurant = restaurants.first(where: { $0.id == template.restaurantId })
+            ?? (selectedRestaurant?.id == template.restaurantId ? selectedRestaurant : nil) else {
+            message = "That restaurant is no longer available."
+            return false
+        }
         await select(restaurant)
         guard !menu.isEmpty else { return false }
 
@@ -431,6 +482,40 @@ final class FoodStore: ObservableObject {
             queueBoard = try await FoodAPIClient.shared.queueBoard(restaurantId: restaurantId)
         } catch {
             // Queue board polls every few seconds; transient failures are fine.
+        }
+    }
+
+    func submitOrderReview(orderId: Int64, rating: Int, body: String = "") async -> Bool {
+        do {
+            let token = isSignedIn ? accessToken : nil
+            let tracking = lastPlacedOrder?.id == orderId ? lastPlacedOrderTrackingToken : nil
+            try await FoodAPIClient.shared.submitOrderReview(
+                orderId: orderId,
+                rating: rating,
+                body: body.isEmpty ? nil : body,
+                trackingToken: tracking,
+                token: token
+            )
+            markOrderReviewed(orderId)
+            await loadRestaurants()
+            message = "Thanks for your review!"
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    private func markOrderReviewed(_ orderId: Int64) {
+        if var placed = lastPlacedOrder, placed.id == orderId {
+            placed.hasReview = true
+            lastPlacedOrder = placed
+        }
+        myOrders = myOrders.map { order in
+            guard order.id == orderId else { return order }
+            var updated = order
+            updated.hasReview = true
+            return updated
         }
     }
 
@@ -851,7 +936,9 @@ enum FoodSampleData {
         kitchenDisplayEnabled: true,
         prepTimeMin: 12,
         distanceKm: 1.4,
-        status: "active"
+        status: "active",
+        avgRating: 4.8,
+        reviewCount: 128
     )
 
     static let menuItem = FoodMenuItem(

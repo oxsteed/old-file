@@ -16,12 +16,30 @@ let package = Package(
         .library(name: "OxSteedRestaurantsInventoryUI", targets: ["OxSteedRestaurantsInventoryUI"]),
         .library(name: "OxSteedRestaurantsRunnerUI", targets: ["OxSteedRestaurantsRunnerUI"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/socketio/socket.io-client-swift", from: "16.1.0"),
+    ],
     targets: [
-        .target(name: "OxSteedRestaurantsCustomerUI"),
-        .target(name: "OxSteedRestaurantsManagerUI"),
-        .target(name: "OxSteedRestaurantsPOSUI"),
-        .target(name: "OxSteedRestaurantsKitchenUI"),
-        .target(name: "OxSteedRestaurantsKioskUI"),
+        .target(
+            name: "OxSteedRestaurantsCustomerUI",
+            dependencies: [.product(name: "SocketIO", package: "socket.io-client-swift")]
+        ),
+        .target(
+            name: "OxSteedRestaurantsManagerUI",
+            dependencies: [.product(name: "SocketIO", package: "socket.io-client-swift")]
+        ),
+        .target(
+            name: "OxSteedRestaurantsPOSUI",
+            dependencies: [.product(name: "SocketIO", package: "socket.io-client-swift")]
+        ),
+        .target(
+            name: "OxSteedRestaurantsKitchenUI",
+            dependencies: [.product(name: "SocketIO", package: "socket.io-client-swift")]
+        ),
+        .target(
+            name: "OxSteedRestaurantsKioskUI",
+            dependencies: [.product(name: "SocketIO", package: "socket.io-client-swift")]
+        ),
         .target(name: "OxSteedRestaurantsCrewUI"),
         .target(name: "OxSteedRestaurantsInventoryUI"),
         .target(name: "OxSteedRestaurantsRunnerUI"),

@@ -16,6 +16,7 @@ final class FoodStore: ObservableObject {
     @Published var isLoading = false
     @Published var isPlacingOrder = false
     @Published var message: String?
+    @Published private(set) var pendingOfflineOrders: [FoodPendingOrder] = []
 
     /// Set right after a successful order; drives the confirmation screen.
     @Published var lastPlacedOrder: FoodOrder?
@@ -256,24 +257,72 @@ final class FoodStore: ObservableObject {
         guard let restaurant = selectedRestaurant, !cart.isEmpty else { return }
         isPlacingOrder = true
         defer { isPlacingOrder = false }
+        let submittedLines = cart
+        let clientOrderId = UUID().uuidString
         do {
             let response = try await FoodAPIClient.shared.createOrder(
                 restaurantId: restaurant.id,
-                lines: cart,
+                lines: submittedLines,
                 fulfillment: fulfillment,
                 tableLabel: fulfillment == "dine_in" && !tableLabel.isEmpty ? tableLabel : nil,
                 guestName: isSignedIn || guestName.isEmpty ? nil : guestName,
                 token: accessToken.isEmpty ? nil : accessToken,
-                paymentMode: onlineCheckoutAvailable ? kioskPaymentMode : "pay_at_counter"
+                paymentMode: onlineCheckoutAvailable ? kioskPaymentMode : "pay_at_counter",
+                clientOrderId: clientOrderId
             )
+            FoodOfflineOrderQueue.remove(id: clientOrderId)
+            refreshPendingOfflineOrders()
             cart.removeAll()
             lastPlacedOrder = response.order
             lastPlacedOrderPayment = response.payment
             lastPlacedOrderTrackingToken = response.trackingToken
             message = response.payment?.status == "failed" ? response.payment?.error : nil
         } catch {
-            message = "Order failed: \(error.localizedDescription)"
+            if FoodOfflineOrderQueue.isNetworkFailure(error) {
+                _ = FoodOfflineOrderQueue.enqueue(
+                    id: clientOrderId,
+                    restaurant: restaurant,
+                    lines: submittedLines,
+                    fulfillment: fulfillment,
+                    tableLabel: fulfillment == "dine_in" && !tableLabel.isEmpty ? tableLabel : nil,
+                    guestName: isSignedIn || guestName.isEmpty ? nil : guestName,
+                    orderSource: "kiosk",
+                    paymentMode: onlineCheckoutAvailable ? kioskPaymentMode : "pay_at_counter"
+                )
+                refreshPendingOfflineOrders()
+                cart.removeAll()
+                message = "Offline — order saved and will send when connection returns."
+            } else {
+                message = "Order failed: \(error.localizedDescription)"
+            }
         }
+    }
+
+    func refreshPendingOfflineOrders() {
+        pendingOfflineOrders = FoodOfflineOrderQueue.load()
+    }
+
+    func replayPendingOfflineOrders() async {
+        refreshPendingOfflineOrders()
+        guard !pendingOfflineOrders.isEmpty else { return }
+        for pending in pendingOfflineOrders {
+            do {
+                let response = try await FoodAPIClient.shared.createPendingOrder(
+                    pending,
+                    token: accessToken.isEmpty ? nil : accessToken
+                )
+                FoodOfflineOrderQueue.remove(id: pending.id)
+                if lastPlacedOrder == nil {
+                    lastPlacedOrder = response.order
+                    lastPlacedOrderTrackingToken = response.trackingToken
+                }
+            } catch {
+                if !FoodOfflineOrderQueue.isNetworkFailure(error) {
+                    FoodOfflineOrderQueue.bumpAttempt(id: pending.id)
+                }
+            }
+        }
+        refreshPendingOfflineOrders()
     }
 
     func loadPaymentConfig() async {

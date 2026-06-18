@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { getFoodRestaurant, placeFoodOrder, formatFoodMoney } from '../../api/food';
-import { FoodBrand } from './foodShared';
+import FoodOrderConfirmation from './FoodOrderConfirmation';
 import '../../styles/FoodPages.css';
 
 export function ItemModal({ item, currency, onClose, onAdd, t }) {
@@ -140,6 +140,7 @@ export default function FoodRestaurantPage() {
   const [guestName, setGuestName] = useState('');
   const [placing, setPlacing] = useState(false);
   const [placedOrder, setPlacedOrder] = useState(null);
+  const [trackingToken, setTrackingToken] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -162,7 +163,7 @@ export default function FoodRestaurantPage() {
     if (cart.length === 0) return;
     setPlacing(true);
     try {
-      const order = await placeFoodOrder(restaurantId, {
+      const { order, trackingToken: token } = await placeFoodOrder(restaurantId, {
         orderSource: 'web',
         fulfillmentType: fulfillment,
         tableLabel: fulfillment === 'dine_in' ? tableLabel.trim() || undefined : undefined,
@@ -175,6 +176,7 @@ export default function FoodRestaurantPage() {
         })),
       });
       setPlacedOrder(order);
+      setTrackingToken(token || null);
       setCart([]);
       setCartOpen(false);
     } catch (err) {
@@ -199,22 +201,29 @@ export default function FoodRestaurantPage() {
 
   if (placedOrder) {
     return (
-      <div className="fd-page fd-confirm">
-        <FoodBrand size={48} />
-        <h2>{t('food.order.confirmedTitle')}</h2>
-        <p>{t('food.order.yourNumber')}</p>
-        <div className="fd-queue-big">#{placedOrder.queue_number}</div>
-        <p className="fd-pay-note">{t('food.order.payInStoreNote')}</p>
-        <p>{t('food.order.total')}: <strong>{formatFoodMoney(placedOrder.total_cents, currency)}</strong></p>
+      <FoodOrderConfirmation
+        restaurantId={restaurant.id}
+        order={placedOrder}
+        trackingToken={trackingToken}
+        currency={currency}
+        variant="page"
+      >
         <div className="fd-row" style={{ justifyContent: 'center', marginTop: '1rem' }}>
           <Link to={`/restaurants/queue/${restaurant.id}`} className="fd-btn fd-btn-secondary">
             {t('food.order.watchQueue')}
           </Link>
-          <button type="button" className="fd-btn" onClick={() => setPlacedOrder(null)}>
+          <button
+            type="button"
+            className="fd-btn"
+            onClick={() => {
+              setPlacedOrder(null);
+              setTrackingToken(null);
+            }}
+          >
             {t('food.order.orderAgain')}
           </button>
         </div>
-      </div>
+      </FoodOrderConfirmation>
     );
   }
 

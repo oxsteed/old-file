@@ -100,6 +100,8 @@ struct FoodRestaurant: Identifiable, Hashable {
     var prepTimeMin: Int
     var distanceKm: Double?
     var status: String
+    var avgRating: Double
+    var reviewCount: Int
 
     var coordinate: CLLocationCoordinate2D? {
         guard let latitude, let longitude else { return nil }
@@ -133,6 +135,8 @@ extension FoodRestaurant: Decodable {
         case prepTimeMin = "prep_time_min"
         case distanceKm = "distance_km"
         case status
+        case avgRating = "avg_rating"
+        case reviewCount = "review_count"
     }
 
     init(from decoder: Decoder) throws {
@@ -159,6 +163,8 @@ extension FoodRestaurant: Decodable {
         // The public list endpoint omits status (it only returns active rows);
         // merchant endpoints include it.
         status = c.flexString(.status) ?? "active"
+        avgRating = c.flexDoubleIfPresent(.avgRating) ?? 0
+        reviewCount = c.flexInt(.reviewCount, default: 0)
     }
 }
 
@@ -289,6 +295,7 @@ struct FoodOrder: Identifiable, Hashable {
     var createdAt: Date?
     var promisedAt: Date?
     var items: [FoodOrderLine]
+    var hasReview: Bool
 
     var isActive: Bool {
         ["received", "accepted", "preparing", "ready"].contains(status)
@@ -313,6 +320,7 @@ extension FoodOrder: Decodable {
         case createdAt = "created_at"
         case promisedAt = "promised_at"
         case items
+        case hasReview = "has_review"
     }
 
     init(from decoder: Decoder) throws {
@@ -333,6 +341,36 @@ extension FoodOrder: Decodable {
         createdAt = c.flexDateIfPresent(.createdAt)
         promisedAt = c.flexDateIfPresent(.promisedAt)
         items = (try? c.decode([FoodOrderLine].self, forKey: .items)) ?? []
+        hasReview = c.flexBool(.hasReview, default: false)
+    }
+}
+
+struct FoodOrderReview: Identifiable, Hashable {
+    let id: Int64
+    var restaurantId: Int64
+    var orderId: Int64
+    var rating: Int
+    var body: String?
+    var createdAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case restaurantId = "restaurant_id"
+        case orderId = "order_id"
+        case rating, body
+        case createdAt = "created_at"
+    }
+}
+
+extension FoodOrderReview: Decodable {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.flexInt64(.id)
+        restaurantId = try c.flexInt64(.restaurantId)
+        orderId = try c.flexInt64(.orderId)
+        rating = c.flexInt(.rating, default: 5)
+        body = c.flexString(.body)
+        createdAt = c.flexDateIfPresent(.createdAt)
     }
 }
 

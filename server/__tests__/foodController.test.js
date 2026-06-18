@@ -104,6 +104,35 @@ describe('food controller', () => {
     expect(res.body.order.queue_number).toBe(5);
   });
 
+  test('replays an existing order when client_order_id matches', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 100,
+          restaurant_id: 3,
+          queue_number: 5,
+          metadata: { clientOrderId: 'offline-abc', trackingToken: 'track-xyz' },
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: 3, business_id: 42, currency_code: 'USD' }],
+      });
+
+    const res = await request(buildApp())
+      .post('/api/food/restaurants/3/orders')
+      .send({
+        client_order_id: 'offline-abc',
+        fulfillmentType: 'pickup',
+        items: [{ menuItemId: 11, quantity: 1 }],
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.replayed).toBe(true);
+    expect(res.body.order.id).toBe(100);
+    expect(res.body.trackingToken).toBe('track-xyz');
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+
   test('updates order status through restaurant-scoped access', async () => {
     mockQuery
       .mockResolvedValueOnce({
@@ -121,5 +150,71 @@ describe('food controller', () => {
     expect(mockQuery.mock.calls[0][0]).toMatch(/JOIN businesses b ON b.id = fr.business_id/);
     expect(mockQuery.mock.calls[1][0]).toMatch(/WHERE id = \$2 AND restaurant_id = \$3/);
     expect(res.body.order.status).toBe('ready');
+  });
+
+  test('creates a review for a completed customer order', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => {
+      req.user = { id: '00000000-0000-4000-8000-000000000123' };
+      next();
+    });
+    app.post('/api/food/orders/:orderId/review', ctrl.createOrderReview);
+    app.use(errorHandler);
+
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 100,
+          restaurant_id: 3,
+          customer_id: '00000000-0000-4000-8000-000000000123',
+          status: 'completed',
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 1,
+          restaurant_id: 3,
+          order_id: 100,
+          customer_id: '00000000-0000-4000-8000-000000000123',
+          rating: 5,
+          body: 'Great',
+        }],
+      });
+
+    const res = await request(app)
+      .post('/api/food/orders/100/review')
+      .send({ rating: 5, body: 'Great' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.review.rating).toBe(5);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/INSERT INTO food_reviews/);
+  });
+
+  test('rejects review when order is not completed', async () => {
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => {
+      req.user = { id: '00000000-0000-4000-8000-000000000123' };
+      next();
+    });
+    app.post('/api/food/orders/:orderId/review', ctrl.createOrderReview);
+    app.use(errorHandler);
+
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 100,
+        restaurant_id: 3,
+        customer_id: '00000000-0000-4000-8000-000000000123',
+        status: 'preparing',
+      }],
+    });
+
+    const res = await request(app)
+      .post('/api/food/orders/100/review')
+      .send({ rating: 4 });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error?.code).toBe('order_not_reviewable');
   });
 });

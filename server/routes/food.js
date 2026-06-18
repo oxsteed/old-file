@@ -13,6 +13,7 @@ router.get('/restaurants/:restaurantId/queue-board', ctrl.getQueueBoard);
 router.get('/restaurants/:restaurantId/kiosk-config', kiosk.getPublicKioskConfig);
 router.get('/payment-config', ctrl.getPaymentConfig);
 router.get('/orders/track/:trackingToken', ctrl.getTrackedOrder);
+router.post('/orders/:orderId/review', optionalAuth, ctrl.createOrderReview);
 router.get('/orders/:orderId/checkout/complete', ctrl.completeCheckout);
 router.get('/orders/:orderId/checkout/cancelled', ctrl.cancelCheckout);
 

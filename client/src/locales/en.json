@@ -12664,7 +12664,15 @@
       "tableLabel": "Table number",
       "guestName": "Your name (optional)",
       "placing": "Placing...",
-      "placeOrder": "Place order"
+      "placeOrder": "Place order",
+      "liveStatus": "Status",
+      "readyForPickup": "Your order is ready — head to the counter!",
+      "rateExperience": "How was your order?",
+      "rateHint": "Your rating helps other diners choose with confidence.",
+      "reviewOptional": "Optional comment (500 characters max)",
+      "submitReview": "Submit review",
+      "reviewThanks": "Thanks for your review!",
+      "reviewError": "We couldn't save your review. Please try again."
     },
     "status": {
       "received": "Received",
@@ -12796,7 +12804,8 @@
       "thanks": "Thank you!",
       "tapForNext": "Tap anywhere for the next customer",
       "nameForOrder": "Name for the order (optional)",
-      "addMore": "Add more items"
+      "addMore": "Add more items",
+      "offlineSaved": "You're offline — order saved and will send when connection returns."
     }
   },
   "network": {

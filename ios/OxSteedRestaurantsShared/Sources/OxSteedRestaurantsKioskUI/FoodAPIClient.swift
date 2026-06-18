@@ -105,7 +105,8 @@ actor FoodAPIClient {
         guestName: String?,
         token: String?,
         orderSource: String = "mobile",
-        paymentMode: String = "pay_at_counter"
+        paymentMode: String = "pay_at_counter",
+        clientOrderId: String? = nil
     ) async throws -> FoodCreateOrderResponse {
         struct OrderItem: Encodable {
             let menuItemId: Int64
@@ -120,6 +121,12 @@ actor FoodAPIClient {
             let tableLabel: String?
             let guestName: String?
             let items: [OrderItem]
+            let clientOrderId: String?
+
+            enum CodingKeys: String, CodingKey {
+                case fulfillmentType, orderSource, paymentMode, tableLabel, guestName, items
+                case clientOrderId = "client_order_id"
+            }
         }
         let body = Body(
             fulfillmentType: fulfillment,
@@ -134,10 +141,58 @@ actor FoodAPIClient {
                     modifierIds: $0.modifiers.map(\.id),
                     specialInstructions: $0.specialInstructions.isEmpty ? nil : $0.specialInstructions
                 )
-            }
+            },
+            clientOrderId: clientOrderId
         )
         let envelope: FoodCreateOrderEnvelope = try await request(
             "/api/food/restaurants/\(restaurantId)/orders",
+            method: "POST",
+            body: body,
+            token: token,
+            requiresAuth: false
+        )
+        return FoodCreateOrderResponse(order: envelope.order, payment: envelope.payment, trackingToken: envelope.trackingToken)
+    }
+
+    func createPendingOrder(_ pending: FoodPendingOrder, token: String?) async throws -> FoodCreateOrderResponse {
+        struct OrderItem: Encodable {
+            let menuItemId: Int64
+            let quantity: Int
+            let modifierIds: [Int64]
+            let specialInstructions: String?
+        }
+        struct Body: Encodable {
+            let fulfillmentType: String
+            let orderSource: String
+            let paymentMode: String
+            let tableLabel: String?
+            let guestName: String?
+            let items: [OrderItem]
+            let clientOrderId: String
+
+            enum CodingKeys: String, CodingKey {
+                case fulfillmentType, orderSource, paymentMode, tableLabel, guestName, items
+                case clientOrderId = "client_order_id"
+            }
+        }
+        let body = Body(
+            fulfillmentType: pending.fulfillment,
+            orderSource: pending.orderSource,
+            paymentMode: pending.paymentMode,
+            tableLabel: pending.tableLabel,
+            guestName: pending.guestName,
+            items: pending.lines.map {
+                OrderItem(
+                    menuItemId: $0.menuItemId,
+                    quantity: $0.quantity,
+                    modifierIds: $0.modifierIds,
+                    specialInstructions: $0.specialInstructions
+                )
+            },
+            clientOrderId: pending.id
+        )
+        let envelope: FoodCreateOrderEnvelope = try await request(
+            "/api/food/restaurants/\(pending.restaurantId)/orders",
             method: "POST",
             body: body,
             token: token,

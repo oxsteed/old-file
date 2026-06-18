@@ -65,12 +65,40 @@ enum FoodWorkspace: String, CaseIterable, Identifiable {
         switch self {
         case .customerOrdering: return FoodTheme.flame
         case .ownerManager: return FoodTheme.blue
-        case .posCounter: return FoodTheme.flame
+        case .posCounter: return FoodTheme.basil
         case .kitchenDisplay: return FoodTheme.coral
-        case .kioskQueue: return FoodTheme.basil
-        case .crewTraining: return FoodTheme.grape
-        case .inventoryReceiving: return FoodTheme.saffron
-        case .deliveryRunner: return FoodTheme.blue
+        case .kioskQueue: return FoodTheme.grape
+        case .crewTraining: return FoodTheme.teal
+        case .inventoryReceiving: return FoodTheme.flame
+        case .deliveryRunner: return FoodTheme.basil
+        }
+    }
+
+    /// Short name shown in the dedicated-app dark header.
+    var shortTitle: String {
+        switch self {
+        case .customerOrdering: return "Restaurants"
+        case .ownerManager: return "Manager"
+        case .posCounter: return "POS"
+        case .kitchenDisplay: return "Kitchen"
+        case .kioskQueue: return "Display"
+        case .crewTraining: return "Crew"
+        case .inventoryReceiving: return "Inventory"
+        case .deliveryRunner: return "Runner"
+        }
+    }
+
+    /// Subtitle under the short title in the dedicated-app header.
+    var shellSubtitle: String {
+        switch self {
+        case .customerOrdering: return "Customer Ordering"
+        case .ownerManager: return "Owner Control Center"
+        case .posCounter: return "Counter Ordering"
+        case .kitchenDisplay: return "Kitchen Display"
+        case .kioskQueue: return "Kiosk + Queue Board"
+        case .crewTraining: return "Training + SOPs"
+        case .inventoryReceiving: return "Stock + Suppliers"
+        case .deliveryRunner: return "Delivery + Logistics"
         }
     }
 
@@ -211,46 +239,88 @@ struct FoodRootView: View {
         nonmutating set { workspaceRawValue = newValue.rawValue }
     }
 
+    private var isDedicatedRoleApp: Bool {
+        runtime.allowedWorkspaces.count == 1
+    }
+    private var shellContextLine: String? {
+        guard let restaurant = store.activeRestaurant else { return nil }
+        return "\(restaurant.displayName) · Today"
+    }
+
+    private var shellLiveState: FoodLiveState {
+        store.activeRestaurant == nil ? .syncing : .live
+    }
+
+    @ViewBuilder
+    private var workspaceContent: some View {
+        switch workspace {
+        case .customerOrdering:
+            CustomerWorkspaceView()
+        case .ownerManager:
+            OwnerManagerWorkspaceView()
+        case .posCounter:
+            POSCounterWorkspaceView()
+        case .kitchenDisplay:
+            KitchenDisplayWorkspaceView()
+        case .kioskQueue:
+            KioskQueueWorkspaceView()
+        case .crewTraining:
+            CrewTrainingWorkspaceView()
+        case .inventoryReceiving:
+            InventoryReceivingWorkspaceView()
+        case .deliveryRunner:
+            DeliveryRunnerWorkspaceView()
+        }
+    }
+
     var body: some View {
-        ZStack {
-            FoodTheme.background.ignoresSafeArea()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    FoodWorkspaceHero(appName: runtime.appName, workspace: workspace)
-                    if runtime.allowedWorkspaces.count > 1 {
-                        FoodWorkspaceRail(
-                            workspaces: runtime.allowedWorkspaces,
-                            workspace: Binding(
-                                get: { workspace },
-                                set: { workspace = $0 }
-                            )
-                        )
-                    }
-
-                    switch workspace {
-                    case .customerOrdering:
-                        CustomerWorkspaceView()
-                    case .ownerManager:
-                        OwnerManagerWorkspaceView()
-                    case .posCounter:
-                        POSCounterWorkspaceView()
-                    case .kitchenDisplay:
-                        KitchenDisplayWorkspaceView()
-                    case .kioskQueue:
-                        KioskQueueWorkspaceView()
-                    case .crewTraining:
-                        CrewTrainingWorkspaceView()
-                    case .inventoryReceiving:
-                        InventoryReceivingWorkspaceView()
-                    case .deliveryRunner:
-                        DeliveryRunnerWorkspaceView()
+        Group {
+            if isDedicatedRoleApp {
+                FoodRoleAppShell(
+                    appName: runtime.appName,
+                    roleTitle: workspace.shortTitle,
+                    roleSubtitle: workspace.shellSubtitle,
+                    accent: workspace.accent,
+                    logoURL: store.activeRestaurant?.logoUrl,
+                    contextLine: shellContextLine,
+                    liveState: shellLiveState
+                ) {
+                    ScrollView {
+                        workspaceContent
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 8)
+                            .foodDedicatedScrollPadding()
                     }
                 }
-                .padding(16)
+            } else {
+                ZStack {
+                    FoodTheme.background.ignoresSafeArea()
+
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 18) {
+                            FoodWorkspaceHero(appName: runtime.appName, workspace: workspace)
+                            if runtime.allowedWorkspaces.count > 1 {
+                                FoodWorkspaceRail(
+                                    workspaces: runtime.allowedWorkspaces,
+                                    workspace: Binding(
+                                        get: { workspace },
+                                        set: { workspace = $0 }
+                                    )
+                                )
+                            }
+
+                            workspaceContent
+                        }
+                        .padding(16)
+                    }
+                }
             }
         }
-        .task { await store.loadRestaurants() }
+        .task {
+            await store.loadRestaurants()
+            store.refreshPendingOfflineOrders()
+            await store.replayPendingOfflineOrders()
+        }
         .onAppear {
             if !runtime.allowedWorkspaces.contains(workspace) {
                 workspace = runtime.defaultWorkspace
@@ -639,26 +709,28 @@ private struct KioskQueueWorkspaceView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 10) {
-                FoodLiveBadge(state: FoodLiveBadge.from(store.kioskConnectionStatus))
-                FoodPill(text: store.kioskLanguage, systemImage: "globe", tint: FoodTheme.blue)
-                if store.kioskLockedMode {
-                    FoodPill(text: "Locked", systemImage: "lock.fill", tint: FoodTheme.flame)
-                }
-                Spacer(minLength: 0)
-            }
-
-            ScrollView(.horizontal, showsIndicators: false) {
+            if !FoodAppShell.isDedicated {
                 HStack(spacing: 10) {
-                    ForEach(KioskSubworkspace.allCases) { item in
-                        Button {
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.88)) {
-                                tab = item
+                    FoodLiveBadge(state: FoodLiveBadge.from(store.kioskConnectionStatus))
+                    FoodPill(text: store.kioskLanguage, systemImage: "globe", tint: FoodTheme.grape)
+                    if store.kioskLockedMode {
+                        FoodPill(text: "Locked", systemImage: "lock.fill", tint: FoodTheme.flame)
+                    }
+                    Spacer(minLength: 0)
+                }
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(KioskSubworkspace.allCases) { item in
+                            Button {
+                                withAnimation(.spring(response: 0.25, dampingFraction: 0.88)) {
+                                    tab = item
+                                }
+                            } label: {
+                                FoodModeCard(title: item.title, detail: item.detail, icon: item.icon, tint: FoodTheme.grape, isSelected: tab == item)
                             }
-                        } label: {
-                            FoodModeCard(title: item.title, detail: item.detail, icon: item.icon, tint: FoodTheme.basil, isSelected: tab == item)
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -672,6 +744,13 @@ private struct KioskQueueWorkspaceView: View {
                 pickupBoardView
             }
         }
+        .foodDedicatedTabBar(
+            selection: $tab,
+            accent: FoodTheme.grape,
+            items: KioskSubworkspace.allCases.map {
+                FoodTabDescriptor(id: $0, title: $0.tabBarTitle, icon: $0.icon)
+            }
+        )
         .task {
             await store.bootstrapKiosk()
         }
@@ -730,7 +809,7 @@ private struct KioskQueueWorkspaceView: View {
         let name = store.activeRestaurant?.displayName ?? "Order here"
         let accent = store.activeRestaurant.map { FoodTheme.accent(for: "\($0.id)") } ?? FoodTheme.basil
         return HStack(spacing: 14) {
-            FoodBrandMark(name: name, accent: accent, size: 54)
+            FoodBrandMark(name: name, logoURL: store.activeRestaurant?.logoUrl, accent: accent, size: 54)
             VStack(alignment: .leading, spacing: 3) {
                 Text("WELCOME — ORDER HERE")
                     .font(.foodMicro)
@@ -897,19 +976,39 @@ private struct KioskQueueWorkspaceView: View {
 
     private var queueBoardView: some View {
         VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Dining room queue board")
-                    .font(.system(size: 18, weight: .black))
-                    .foregroundStyle(FoodTheme.ink)
-                Text("Public display for preparing and ready order numbers.")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(FoodTheme.muted)
+            let name = store.activeRestaurant?.displayName ?? "Order status"
+            let accent = store.activeRestaurant.map { FoodTheme.accent(for: "\($0.id)") } ?? FoodTheme.basil
+
+            HStack(spacing: 14) {
+                FoodBrandMark(name: name, logoURL: store.activeRestaurant?.logoUrl, accent: accent, size: 52)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("DINING ROOM QUEUE")
+                        .font(.foodMicro)
+                        .foregroundStyle(FoodTheme.muted)
+                    Text(name)
+                        .font(.system(size: 26, weight: .black, design: .rounded))
+                        .foregroundStyle(FoodTheme.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Text("Preparing and ready numbers update live.")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(FoodTheme.muted)
+                }
+                Spacer(minLength: 0)
+                FoodLiveBadge(state: FoodLiveBadge.from(store.kioskConnectionStatus))
             }
-            .foodCard(padding: 16)
+            .foodCard(padding: 18)
 
             if let restaurant = store.activeRestaurant {
                 QueueBoardLive(restaurantId: restaurant.id)
-                    .frame(minHeight: 240)
+                    .frame(minHeight: 380)
+            } else {
+                FoodEmptyState(
+                    icon: "building.2.fill",
+                    title: "Select a restaurant",
+                    detail: "Load a restaurant menu in staff controls to activate the queue board.",
+                    tint: FoodTheme.basil
+                )
             }
         }
     }
@@ -995,6 +1094,8 @@ private enum KioskSubworkspace: String, CaseIterable, Identifiable {
         case .pickup: return "takeoutbag.and.cup.and.straw.fill"
         }
     }
+
+    var tabBarTitle: String { title }
 
     var detail: String {
         switch self {
@@ -1796,9 +1897,8 @@ struct QueueBoardLive: View {
             column("Now ready", numbers: store.queueBoard?.ready ?? [], color: FoodTheme.basil)
         }
         .task(id: restaurantId) {
-            while !Task.isCancelled {
+            await RestaurantDisplayRefresh.run(restaurantId: restaurantId) {
                 await store.refreshQueueBoard(restaurantId: restaurantId)
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
             }
         }
     }

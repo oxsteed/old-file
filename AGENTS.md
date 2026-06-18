@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-06-18
+**Last updated:** 2026-06-18 (offline order capture + idempotent replay)
 
 ## Instructions for Every Session
 
@@ -8,6 +8,27 @@
 2. **After completing meaningful work**, update this file - revise "Current Status", "Remaining Work", update file paths.
 3. **Commit AGENTS.md changes** in the same commit as the work it documents.
 4. **Keep it accurate and terse** - do not pad with summaries of work you didn't personally verify.
+
+---
+
+## Session progress — OxSteed Restaurants offline capture (2026-06-18)
+
+Follow-up on 2026-06-18 (C1 offline order capture): **Verified on macOS:** `xcodebuild` Debug simulator build passed for `OxSteedRestaurantsCustomer`, `OxSteedRestaurantsPOS`, and `OxSteedRestaurantsKiosk`. `node --check server/controllers/foodController.js client/src/api/foodOfflineQueue.js` passes.
+
+- **C1 — offline order capture + replay + dedup:** migration `server/migrations/317_food_order_client_id.sql`; `createOrder` accepts `client_order_id`, returns existing order with `replayed: true` (HTTP 200); fixed `let payment = null` bug in pay-now path. iOS `FoodOfflineOrderQueue.swift` on Customer/POS/Kiosk with enqueue-on-network-failure + startup/`online` replay. Web `client/src/api/foodOfflineQueue.js` + kiosk integration with `client_order_id`.
+- **A1 — ready notification logging:** structured per-channel `logger.info` in `notifyFoodOrderReady` (notification_service / sms / email / skipped).
+- **Remaining:** run migrations **316 + 317** in deployed Postgres; A1 E2E proof with real Twilio/push/SMTP; device QA.
+
+---
+
+## Session progress — OxSteed Restaurants pilot loop + reviews (2026-06-18)
+
+Follow-up on 2026-06-18 (pilot loop + reviews MVP): **Verified on macOS:** `xcodebuild` Debug simulator build passed for `OxSteedRestaurantsCustomer` after these edits; all 8 schemes passed in prior session same day. `node --check server/controllers/foodController.js server/routes/food.js server/index.js` passes.
+
+- **A7 — honest Customer discover empty states:** `FoodStore.loadRestaurants` no longer substitutes `FoodSampleData.restaurant` on API fail/empty; `discoverLoadFailed` drives retry UI. Menu/reorder paths also stop silently faking sample content.
+- **A2 — real-time socket expansion:** `RestaurantDisplaySocket.swift` + SocketIO dep added to **Manager** and **POS**; `QueueBoardLive` uses `RestaurantDisplayRefresh`. Customer **Track** tab uses socket + poll. Web **Merchant live orders**, **kiosk done**, and **restaurant confirmation** use `useLiveFoodOrder` + `subscribeRestaurantDisplay`.
+- **B1–B3 — food reviews MVP:** migration `server/migrations/316_food_reviews.sql`; `POST /api/food/orders/:orderId/review`; iOS + web review prompts; stars on Discover (iOS + web home).
+- **Remaining:** run migration **316** in deployed Postgres; A1 E2E proof; device QA.
 
 ---
 
@@ -25,6 +46,38 @@ Follow-up on 2026-06-18 (production-grade suite pass): a workflow- and productio
 
 Follow-up on 2026-06-18 (macOS verification catch-up): the missing native verification was completed on macOS with XcodeBuildMCP against booted simulator `iPhone 17 Pro` `B3145305-585E-4A45-BE2E-FEDBBE8AC2CC` (iOS 26.5). `build_sim` passed for all 8 dedicated schemes: `OxSteedRestaurantsCustomer`, `OxSteedRestaurantsManager`, `OxSteedRestaurantsPOS`, `OxSteedRestaurantsKitchen`, `OxSteedRestaurantsKiosk`, `OxSteedRestaurantsCrew`, `OxSteedRestaurantsInventory`, and `OxSteedRestaurantsRunner`. `build_run_sim` also passed for `OxSteedRestaurantsKitchen`, confirming the app launches on phone-width hardware. The phone-width KDS is functional but visually cramped: all three columns remain present on `iPhone 17 Pro`, but ticket text wraps aggressively and the narrow layout still deserves an adaptive follow-up before treating phone KDS as polished.
 
+Follow-up on 2026-06-18 (production-grade suite pass — phase 2): continued the workflow/product push across all 8 dedicated apps with role-first shells and task-priority first screens. **Verified on macOS:** `xcodebuild -project ios/OxSteedRestaurants*/… -scheme OxSteedRestaurants* -configuration Debug -destination 'generic/platform=iOS Simulator' build` passed for all 8 schemes after these edits.
+
+Follow-up on 2026-06-18 (production-grade suite pass — phase 4): mockup-grade visual shell across all 8 dedicated apps. **Verified on macOS:** all 8 `xcodebuild` Debug simulator builds passed after these edits.
+
+- **Shared role-app chrome (`FoodTheme.swift`, byte-identical all 8):** new `FoodRoleAppShell` (dark navy header + accent rule + white sheet body), `FoodFloatingTabBar` + `FoodTabDescriptor`, `FoodAttentionBanner`, `FoodKPIGrid`/`FoodKPITile`, `FoodQuickActionRow`, `FoodAppShell.isDedicated`, and fixed per-role accent tokens (`teal` for Crew, `grape` for Kiosk, `basil` for POS/Runner, etc.).
+- **All 8 dedicated apps:** `FoodRootView` now wraps single-role binaries in `FoodRoleAppShell` with role title/subtitle, restaurant context line, live badge, and logo when available. Horizontal `FoodModeCard` rails hide on dedicated apps; navigation moves to the floating bottom tab bar.
+- **Manager:** dedicated overview uses wide `FoodAttentionBanner` + 2×2 KPI grid + quick-action chevron rows (mockup-aligned home screen).
+- **Customer:** replaces gradient `CustomerAppHero` with the shared shell; discover tab shows daypart greeting inside the sheet; tabs become Home / Menu / Orders / Rewards.
+- **Inventory / Runner:** stock-risk and next-stop surfaces use `FoodAttentionBanner` styling on dedicated builds.
+- **Kitchen:** rejoins the shared shell (KDS lives inside the white sheet instead of a bare fullscreen scroll).
+- **Remaining:** (a) backend brand accent hex; (b) Runner MapKit; (c) consolidate 8 `FoodRootView.swift` copies; (d) device visual QA on Kitchen phone KDS inside new shell.
+
+Follow-up on 2026-06-18 (production-grade suite pass — phase 3): real-time display socket, logo-aware branding, interactive crew quizzes, and runner/manager workflow depth. **Verified on macOS:** all 8 `xcodebuild` Debug simulator builds passed after these edits.
+
+- **Real-time `/restaurant-display` on iOS (Customer, Kiosk, Kitchen):** added `RestaurantDisplaySocket.swift` + `socket.io-client-swift` SPM dependency to `OxSteedRestaurantsCustomerUI`, `OxSteedRestaurantsKioskUI`, and `OxSteedRestaurantsKitchenUI`. `RestaurantDisplayRefresh.run` keeps the existing 5s/4s poll as the floor and refetches immediately on `food:display:changed` pings — same pattern as `client/src/api/restaurantDisplaySocket.js`. Wired into `QueueBoardLive` (Customer + Kiosk) and `KitchenDisplayView` order polling.
+- **Logo-aware branding (all 8 apps):** `FoodBrandMark` now accepts optional `logoURL` and renders `RemoteFoodImage` when the restaurant publishes `logo_url` from `/api/food`; falls back to monogram. Kiosk welcome/queue headers pass `store.activeRestaurant?.logoUrl`. `FoodTheme.swift` remains byte-identical across all 8 targets.
+- **Crew — interactive quizzes:** new `FoodCrewQuizCatalog.swift` with 3 production SOP quizzes (allergen, cold hold, refund/void). Training tab launches `CrewQuizTakeView` (multiple choice → score → sync via existing `createCrewQuizResult` API).
+- **Runner — route clarity:** Route tab now shows a numbered **Today's route** timeline with the next stop highlighted before contact-rule cards.
+- **Manager — multi-location comparison:** Overview location rows now include a sales share bar and "% of network sales today" for quick cross-site comparison.
+- **Remaining (narrowed further):** (a) dedicated brand accent hex from backend (still seed-based via `FoodTheme.accent(for:)`); (b) Runner live map/geocoding; (c) consolidate 8 diverged `FoodRootView.swift` copies; (d) extend display socket to Manager/POS queue views if desired; (e) backend-stored quiz question banks (iOS catalog is client-side for now).
+
+- **Dedicated role-app shells (7 operational apps):** when `OX_ALLOWED_WORKSPACES` locks an app to one role (`Info.plist`), `FoodRootView` now skips the meta `FoodWorkspaceHero` and opens directly on the role workspace — matching the Customer app's dedicated-shell pattern. Each app now answers "what do I do now?" within the first scroll, not after marketing chrome.
+- **Kitchen (fullscreen + adaptive KDS):** the Kitchen app now launches edge-to-edge into `KitchenDisplayView` (no scroll wrapper, no rounded inset). On compact width (`horizontalSizeClass == .compact`), the 3-column board collapses to a segmented **NEW / COOKING / READY** picker so phone-width KDS is usable instead of cramming three columns side-by-side.
+- **Manager:** Overview tab now leads with a **"What needs attention now"** strip — horizontal `FoodPriorityCard`s for live alerts and inventory stock-risk, or an "All clear" card when nothing is urgent.
+- **POS:** unchanged structurally this pass (already had ticket bar + New Ticket/Payments/Queue tabs); inherits dedicated-shell improvement.
+- **Kiosk:** Queue board mode now opens with a branded restaurant header (`FoodBrandMark` + live badge) and taller `QueueBoardLive` (380pt min) for dining-room readability.
+- **Crew:** Overview tab now surfaces a **"Start here"** card for the next outstanding training module with one-tap completion.
+- **Inventory:** Inventory tab now surfaces the top **stock-risk** item via `FoodPriorityCard` before counts/adjustments.
+- **Runner:** Dispatch tab now surfaces a **NEXT STOP** hero card (stop name, route window, contact rule, proof/cash pills, confirm-pickup + advance actions) before the task list.
+- **Customer:** audited; no structural changes this pass (already consumer-grade dedicated shell).
+- **Remaining (narrowed further):** (a) dedicated brand accent hex from backend (still seed-based via `FoodTheme.accent(for:)`); (b) Runner live map/geocoding; (c) consolidate 8 diverged `FoodRootView.swift` copies; (d) backend-stored quiz question banks; (e) Manager location drill-down sheets.
+
 - **Shared design system (`FoodTheme.swift`, additive, propagated byte-identical to all 8):** added production operational primitives — `FoodLiveState`/`FoodLiveBadge` (pulsing LIVE/SYNCING/OFFLINE), `FoodCountChip`, `FoodUrgency` (on-time→watch→late tier helper with `tier(elapsedMinutes:warnAfter:lateAfter:promisedPassed:)`), `FoodEmptyState` (confident "all caught up" states), `FoodNetworkFootnote` ("Powered by OxSteed Restaurants"), and `FoodBrandMark` (restaurant-monogram tile tinted with the per-restaurant accent). No existing token renamed.
 - **Shared operational hero rework (7 operational apps; byte-identical shell head, md5 `fdfed24e…`):** the first screen was a marketing pitch ("Eight specialized front-end experiences. One shared restaurant backend…", a repeated "Independent brand, shared network" `FoodBrandMessageCard`, and meta "primaryMoments" cards describing the product to itself). `FoodWorkspaceHero` now leads with the **restaurant's own brand** (`FoodBrandMark` + restaurant name in its own accent), the role/app in one line, a live badge, and a "{operatorLabel} · Powered by OxSteed Restaurants" footnote — restaurant-first identity, OxSteed as the enabling network. The Customer app is unaffected (it uses its own `CustomerAppHero`; the meta `FoodWorkspaceHero` is dead code there).
 - **Kitchen (KDS) — `KitchenDisplayView`/`KitchenTicket` rewrite:** the app now opens straight into the board (dropped the brand-message preamble + redundant stat stack). Real KDS behavior: side-by-side **NEW / COOKING / READY** columns, a live header (per-column counts, **oldest-ticket** minutes, monospaced clock, connection `FoodLiveBadge`), **time-based urgency tiers** colouring the whole ticket (border + accent bar + timer), promised-time countdown ("due 4m" / "3m over"), large **bump** + **recall (bump-back)** controls, a recently-completed **recall strip**, bigger item text with highlighted modifier notes, and a confident empty state. Poll cadence 4s.
@@ -32,7 +85,7 @@ Follow-up on 2026-06-18 (macOS verification catch-up): the missing native verifi
 - **Kiosk / Queue — guest-first:** guest ordering now leads with a branded **welcome banner** + large **language chips** (English/Español/Français/Kreyol); operator settings (lock, auto-reset, reload menu) moved into a quiet **"Staff controls"** disclosure so the public screen isn't an admin panel; primary "Place order" uses the shared button style; empty cart uses `FoodEmptyState`; the public `QueueBoardLive` numbers were enlarged to **40pt** for distance readability.
 - **Manager / Inventory / Crew / Runner:** removed the verbose "X app" section headers + meta `FoodBrandMessageCard` (and Runner's duplicate description line) so each opens directly on its **operational stat row** (Alerts/Menu/Sites; Low/Waste/Requests; Complete/Due/Badges; Assigned/Proof/Issues) → role tab rail → work — surfacing "what needs attention now" first. Deeper per-tab workflow already existed (live backends per the entries above) and was preserved.
 - **Customer:** audited and confirmed already consumer-grade (dedicated `CustomerAppHero`, discovery/order/track/perks, hosted checkout, daypart theming, cuisine art direction); it inherits the new shared primitives via the byte-identical theme. No regressions introduced.
-- **Remaining (narrowed):** (a) Kitchen KDS phone-width behavior is now **verified on `iPhone 17 Pro` simulator** but still visually cramped — the 3-column board fits, yet narrow cards/text wrapping should be adapted before phone KDS is considered production-polished; (b) per-restaurant brand colour/logo still derived from a seed (`FoodTheme.accent(for:)`) pending a real backend brand field; (c) deeper Manager multi-location comparison, Crew quiz-taking UX, and Runner live map/route remain follow-ups; (d) the now-unused `FoodWorkspace.brandPromise`/`primaryMoments`/`badge` + `FoodWorkspaceMoment` are still declared (harmless) and can be pruned later.
+- **Remaining (narrowed):** (a) Kitchen phone KDS now uses compact segmented columns on `iPhone`-width hardware — verified building, still worth visual QA on device; (b) per-restaurant brand colour/logo still derived from a seed (`FoodTheme.accent(for:)`) pending a real backend brand field; (c) deeper Manager multi-location comparison, Crew interactive quiz-taking UX, and Runner live map/route remain follow-ups; (d) the now-unused `FoodWorkspace.brandPromise`/`primaryMoments`/`badge` + `FoodWorkspaceMoment` are still declared (harmless) and can be pruned later; (e) duplicate `FoodRootView.swift` per package target still drifts — consolidate when feasible.
 
 **0. Shared iOS package extraction + archive readiness (now 8 apps).** The duplicated per-app `FoodAPIClient.swift`, `FoodModels.swift`, `FoodStore.swift`, `FoodTheme.swift`, and `FoodRootView.swift` files were consolidated under one local Swift package at `ios/OxSteedRestaurantsShared/Package.swift` with one library product per remaining app shell (`OxSteedRestaurantsCustomerUI`, `...RunnerUI`). The deleted legacy `OxSteedFood` app and `OxSteedFoodLegacyUI` package target were removed on 2026-06-18. Each remaining app target now keeps only its local `*App.swift`, assets, and plist, and imports the matching shared package shell. Strict Swift 6 package compilation needed one additive fix in every packaged `FoodModels.swift`: `FoodDates` formatter singletons are now `nonisolated(unsafe)` so package-backed simulator/archive builds stay clean without changing decode behavior.
 
@@ -44,7 +97,109 @@ Follow-up on 2026-06-18 (macOS verification catch-up): the missing native verifi
 
 **Docs added:** `docs/oxsteed-restaurants-system-blueprint.md` (how Toast/Square/McDonald's run the kiosk→KDS→pickup-board→online-notify loop; gap analysis; worldwide strategy — pay-at-counter is the unlock vs payment-bundled incumbents like Toast/Square that are stuck in US/UK/CA) and `docs/oxsteed-restaurants-go-live-today.md` (same-day website-on-tablets pilot runbook + honest TestFlight reality check).
 
-**Highest-priority remaining for pilot readiness:** the simulator/archive/package work and initial TestFlight transport are now verified; the big follow-ups are (a) finish App Store Connect metadata/TestFlight group assignment and wait for Apple-side processing/review availability per app, (b) extend real-time order pushes to kiosk/customer pages (the server namespace and web KDS/queue wiring are done, kiosk/customer iOS/web still rely on polling in places), and (c) add offline order capture/replay for restaurant ordering surfaces.
+**Highest-priority remaining for pilot readiness:** see **§ OxSteed Restaurants — Remaining Work (Phased Backlog)** below. Short list: (a) App Store Connect metadata / external TestFlight per app, (b) real-time + ready-notification E2E on all surfaces, (c) offline order capture/replay, (d) food reviews + trust, (e) consolidate duplicated iOS Swift files.
+
+---
+
+## OxSteed Restaurants — Remaining Work (Phased Backlog)
+
+**Last audited:** 2026-06-18. **Legend:** `[ ]` not started · `[~]` partial (UI/API scaffold exists, not production-complete) · `[x]` done (see session progress above).
+
+**What already ships (not on this list):** restaurant onboarding (draft → menu → Go Live), customer discover/order/track, KDS + queue board + kiosk, `/restaurant-display` socket on iOS Customer/Kiosk/Kitchen, hosted Stripe checkout option, checklists/SOPs/inventory/crew/runner/help backends (varying depth), Phase 4 visual shell on all 8 apps.
+
+### Phase A — Pilot loop (ship one real restaurant)
+
+| # | Item | Status | Notes |
+|---|------|--------|-------|
+| A1 | **Ready notification E2E** (push/SMS/email on `status=ready`) | `[~]` | `notifyFoodOrderReady` in `foodController.js`; needs Twilio/push/email env + device proof |
+| A2 | **Real-time on all surfaces** | `[~]` | Socket on iOS Customer/Kiosk/Kitchen/Manager/POS Track+queue + web KDS/queue/Merchant/kiosk+confirmation; poll kept as floor everywhere |
+| A3 | **Migrations 305–317 run in prod Postgres** | `[ ]` | 316 adds `food_reviews`; 317 adds client-order dedup index |
+| A4 | **Stripe checkout in real Stripe env** | `[~]` | Build-verified only |
+| A5 | **App Store Connect metadata + external TestFlight** | `[ ]` | Internal TF done; per-app store listing / review pending |
+| A6 | **On-device pilot QA** (1 restaurant, 4 tablets) | `[ ]` | Kiosk lock via Guided Access/MDM (operational) |
+| A7 | **Empty-state honesty** (no silent `FoodSampleData` when API empty) | `[x]` | Customer discover/menu/reorder no longer fakes sample data |
+| A8 | **Kitchen phone KDS QA** in Phase 4 shell | `[~]` | Builds; needs visual QA on hardware |
+
+### Phase B — Customer trust & repeat visits
+
+| # | Item | Status | Notes |
+|---|------|--------|-------|
+| B1 | **Food order reviews + star ratings** | `[x]` | `food_reviews` + `POST /api/food/orders/:orderId/review` |
+| B2 | **Review prompt after completed order** | `[x]` | iOS `OrderReviewPromptCard` on Track; guest via tracking token |
+| B3 | **Aggregated rating on Discover** (`avg_rating`, `review_count`) | `[x]` | On list + detail API; stars on iOS `RestaurantCard` |
+| B4 | **Loyalty program (earn/redeem)** | `[~]` | Customer Perks UI + thin profile loyalty; no `loyalty_accounts` / ledger |
+| B5 | **Promotions & coupon codes** | `[~]` | POS has discount catalog; no customer-facing `restaurant_promotions` |
+| B6 | **Verified / trusted restaurant badges** | `[ ]` | Strategy trust feature |
+| B7 | **Operating hours** (open/closed, “opens at”) | `[ ]` | Not on `food_restaurants`; no ordering guardrail |
+| B8 | **Owner setup wizard** (profile → location → hours → menu → staff → publish) | `[~]` | Today: form + Go Live, not guided wizard |
+
+### Phase C — Real-time, reliability & worldwide
+
+| # | Item | Status | Notes |
+|---|------|--------|-------|
+| C1 | **Offline order capture + replay + dedup** | `[x]` | `317` + `client_order_id`; iOS Customer/POS/Kiosk + web kiosk localStorage replay |
+| C2 | **Extend `/restaurant-display` socket** to Manager + POS + remaining web/iOS poll surfaces | `[x]` | Manager/POS iOS + web Merchant + kiosk/confirmation done |
+| C3 | **Customer Track tab live socket** | `[x]` | `RestaurantDisplayRefresh` on Track |
+| C4 | **Local payment rails** (M-Pesa, Pix, etc.) | `[ ]` | Optional add-on per country; pay-at-counter remains default |
+
+### Phase D — Operator depth (franchise-grade modules)
+
+| # | Item | Status | Notes |
+|---|------|--------|-------|
+| D1 | **Multi-location** (`restaurant_locations`, per-site dashboards) | `[~]` | Manager share bars only; one storefront ≈ one row today |
+| D2 | **Manager location drill-down sheet** | `[ ]` | Overview comparison without detail |
+| D3 | **Backend brand accent** (`brand_accent_hex` on restaurant) | `[ ]` | Still `FoodTheme.accent(for:)` seed |
+| D4 | **Fine-grained permissions** (`restaurant_users`, `menu.*` / `pos.*` / `kitchen.*`) | `[ ]` | Cashier vs manager not enforced app-wide |
+| D5 | **Recipe → auto stock decrement on order** | `[ ]` | Mappings exist; no order-driven decrement |
+| D6 | **Full supplier PO lifecycle** | `[~]` | Purchase requests + issues; not full PO workflow |
+| D7 | **Employee scheduling / shifts** | `[ ]` | Team visibility only |
+| D8 | **Crew quiz backend question bank** | `[~]` | iOS `FoodCrewQuizCatalog` client-side only |
+| D9 | **Training-gated checklist sign-off** | `[ ]` | Checklists exist; no “trained staff only” gate |
+| D10 | **Quality audits + corrective actions** | `[ ]` | No `audits` / `audit_findings` / `corrective_actions` |
+| D11 | **Food-safety / HACCP as dedicated compliance product** | `[~]` | Checklist type exists |
+| D12 | **Labor reports** (hours, labor % of sales) | `[ ]` | |
+| D13 | **Inventory variance / reorder analytics** | `[ ]` | |
+| D14 | **Sales reports export + deep drill-down** | `[~]` | KPIs exist; no export |
+| D15 | **Marketplace Help → job bid/hire round-trip** | `[~]` | Intake + status; no full Marketplace loop in restaurant UI |
+| D16 | **AI ops assistant** | `[ ]` | Strategy module 25 |
+
+### Phase E — Role-app product polish
+
+| # | Item | Status | Notes |
+|---|------|--------|-------|
+| E1 | **POS rush UX** (combos, quick-picks, forced-modifier flow) | `[ ]` | |
+| E2 | **Kitchen station routing** (grill / fry / expo) | `[ ]` | |
+| E3 | **Kiosk true i18n** (localized strings per language chip) | `[~]` | Language preference stored; copy not fully translated |
+| E4 | **Inventory barcode scan receiving** | `[ ]` | Mockup Scan buttons; no scanner flow |
+| E5 | **Runner MapKit / GPS / turn-by-turn** | `[ ]` | Route list only |
+| E6 | **Delivery as end-to-end product** | `[~]` | `delivery` fulfillment type exists |
+| E7 | **Food order → auto-create runner task** | `[ ]` | Runner API has `food_order_id`; createOrder does not dispatch |
+| E8 | **Disputes / refunds customer UX** | `[~]` | Status fields exist |
+
+### Phase F — Engineering & platform debt
+
+| # | Item | Status | Notes |
+|---|------|--------|-------|
+| F1 | **Consolidate 8× `FoodRootView.swift`** into shared package | `[ ]` | Drift risk; only `FoodTheme.swift` is byte-identical today |
+| F2 | **Consolidate 8× `FoodStore` / `FoodAPIClient` / `FoodModels`** | `[ ]` | Same duplication problem |
+| F3 | **Prune dead `FoodWorkspace.brandPromise` / `primaryMoments` / `FoodWorkspaceMoment`** | `[ ]` | Harmless but noisy |
+| F4 | **Canonical `/api/restaurants/*` API** (finish transition off `/api/food`) | `[~]` | Both mounted |
+| F5 | **Network app-switcher access gating** (`/network/apps`) | `[ ]` | Strategy Phase 1 follow-up |
+| F6 | **Branch role badges** | `[ ]` | |
+| F7 | **Food E2E test suite** (kiosk → KDS → queue → customer notify) | `[ ]` | |
+| F8 | **Repeatable in-app onboarding playbook** (menu load, QR, tablet lock checklist) | `[ ]` | Documented in go-live runbook only |
+
+### Suggested build order (when picking next task)
+
+1. **A1 + A2 + C1** — feels instant + works on bad Wi‑Fi (pilot credibility)
+2. **B1–B3** — reviews on Discover (trust)
+3. **B7 + B8 + D1** — hours, wizard, multi-location (real operators)
+4. **E6 + E7** — delivery ↔ runner loop
+5. **E1 + E2** — POS/Kitchen rush polish
+6. **F1 + F2** — stop 8-way drift before next feature wave
+7. **D10 + B4 + B5** — audits, loyalty, promos (growth layer)
+
+**Related docs:** `docs/oxsteed-restaurants-strategy.md` (modules 10–25), `docs/oxsteed-restaurants-system-blueprint.md` (gap analysis — note: blueprint “ready notification MISSING” is stale; code exists but A1 E2E remains open), `docs/oxsteed-restaurants-design-benchmarks.md`, `docs/oxsteed-restaurants-go-live-today.md`.
 
 ---
 

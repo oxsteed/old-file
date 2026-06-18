@@ -65,12 +65,40 @@ enum FoodWorkspace: String, CaseIterable, Identifiable {
         switch self {
         case .customerOrdering: return FoodTheme.flame
         case .ownerManager: return FoodTheme.blue
-        case .posCounter: return FoodTheme.flame
+        case .posCounter: return FoodTheme.basil
         case .kitchenDisplay: return FoodTheme.coral
-        case .kioskQueue: return FoodTheme.basil
-        case .crewTraining: return FoodTheme.grape
-        case .inventoryReceiving: return FoodTheme.saffron
-        case .deliveryRunner: return FoodTheme.blue
+        case .kioskQueue: return FoodTheme.grape
+        case .crewTraining: return FoodTheme.teal
+        case .inventoryReceiving: return FoodTheme.flame
+        case .deliveryRunner: return FoodTheme.basil
+        }
+    }
+
+    /// Short name shown in the dedicated-app dark header.
+    var shortTitle: String {
+        switch self {
+        case .customerOrdering: return "Restaurants"
+        case .ownerManager: return "Manager"
+        case .posCounter: return "POS"
+        case .kitchenDisplay: return "Kitchen"
+        case .kioskQueue: return "Display"
+        case .crewTraining: return "Crew"
+        case .inventoryReceiving: return "Inventory"
+        case .deliveryRunner: return "Runner"
+        }
+    }
+
+    /// Subtitle under the short title in the dedicated-app header.
+    var shellSubtitle: String {
+        switch self {
+        case .customerOrdering: return "Customer Ordering"
+        case .ownerManager: return "Owner Control Center"
+        case .posCounter: return "Counter Ordering"
+        case .kitchenDisplay: return "Kitchen Display"
+        case .kioskQueue: return "Kiosk + Queue Board"
+        case .crewTraining: return "Training + SOPs"
+        case .inventoryReceiving: return "Stock + Suppliers"
+        case .deliveryRunner: return "Delivery + Logistics"
         }
     }
 
@@ -211,43 +239,81 @@ struct FoodRootView: View {
         nonmutating set { workspaceRawValue = newValue.rawValue }
     }
 
+    private var isDedicatedRoleApp: Bool {
+        runtime.allowedWorkspaces.count == 1
+    }
+    private var shellContextLine: String? {
+        guard let restaurant = store.activeRestaurant else { return nil }
+        return "\(restaurant.displayName) · Today"
+    }
+
+    private var shellLiveState: FoodLiveState {
+        store.activeRestaurant == nil ? .syncing : .live
+    }
+
+    @ViewBuilder
+    private var workspaceContent: some View {
+        switch workspace {
+        case .customerOrdering:
+            CustomerWorkspaceView()
+        case .ownerManager:
+            OwnerManagerWorkspaceView()
+        case .posCounter:
+            POSCounterWorkspaceView()
+        case .kitchenDisplay:
+            KitchenDisplayWorkspaceView()
+        case .kioskQueue:
+            KioskQueueWorkspaceView()
+        case .crewTraining:
+            CrewTrainingWorkspaceView()
+        case .inventoryReceiving:
+            InventoryReceivingWorkspaceView()
+        case .deliveryRunner:
+            DeliveryRunnerWorkspaceView()
+        }
+    }
+
     var body: some View {
-        ZStack {
-            FoodTheme.background.ignoresSafeArea()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    FoodWorkspaceHero(appName: runtime.appName, workspace: workspace)
-                    if runtime.allowedWorkspaces.count > 1 {
-                        FoodWorkspaceRail(
-                            workspaces: runtime.allowedWorkspaces,
-                            workspace: Binding(
-                                get: { workspace },
-                                set: { workspace = $0 }
-                            )
-                        )
-                    }
-
-                    switch workspace {
-                    case .customerOrdering:
-                        CustomerWorkspaceView()
-                    case .ownerManager:
-                        OwnerManagerWorkspaceView()
-                    case .posCounter:
-                        POSCounterWorkspaceView()
-                    case .kitchenDisplay:
-                        KitchenDisplayWorkspaceView()
-                    case .kioskQueue:
-                        KioskQueueWorkspaceView()
-                    case .crewTraining:
-                        CrewTrainingWorkspaceView()
-                    case .inventoryReceiving:
-                        InventoryReceivingWorkspaceView()
-                    case .deliveryRunner:
-                        DeliveryRunnerWorkspaceView()
+        Group {
+            if isDedicatedRoleApp {
+                FoodRoleAppShell(
+                    appName: runtime.appName,
+                    roleTitle: workspace.shortTitle,
+                    roleSubtitle: workspace.shellSubtitle,
+                    accent: workspace.accent,
+                    logoURL: store.activeRestaurant?.logoUrl,
+                    contextLine: shellContextLine,
+                    liveState: shellLiveState
+                ) {
+                    ScrollView {
+                        workspaceContent
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 8)
+                            .foodDedicatedScrollPadding()
                     }
                 }
-                .padding(16)
+            } else {
+                ZStack {
+                    FoodTheme.background.ignoresSafeArea()
+
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 18) {
+                            FoodWorkspaceHero(appName: runtime.appName, workspace: workspace)
+                            if runtime.allowedWorkspaces.count > 1 {
+                                FoodWorkspaceRail(
+                                    workspaces: runtime.allowedWorkspaces,
+                                    workspace: Binding(
+                                        get: { workspace },
+                                        set: { workspace = $0 }
+                                    )
+                                )
+                            }
+
+                            workspaceContent
+                        }
+                        .padding(16)
+                    }
+                }
             }
         }
         .task { await store.loadRestaurants() }
@@ -805,23 +871,25 @@ private struct DeliveryRunnerWorkspaceView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 12) {
-                FoodOperationalStat(label: "Assigned", value: "\(store.assignedRunnerTasks.count)", detail: "Open tasks on the route", tint: FoodTheme.blue)
-                FoodOperationalStat(label: "Proof", value: "\(store.proofPendingTasks.count)", detail: "Stops pending proof", tint: FoodTheme.saffron)
-                FoodOperationalStat(label: "Issues", value: "\(store.runnerTasks.filter { $0.status.lowercased().contains("issue") || $0.status.lowercased().contains("failed") }.count)", detail: "Tasks needing escalation", tint: FoodTheme.coral)
-            }
-
-            ScrollView(.horizontal, showsIndicators: false) {
+            if !FoodAppShell.isDedicated {
                 HStack(spacing: 12) {
-                    ForEach(RunnerSubworkspace.allCases) { item in
-                        Button {
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
-                                tab = item
+                    FoodOperationalStat(label: "Assigned", value: "\(store.assignedRunnerTasks.count)", detail: "Open tasks on the route", tint: FoodTheme.basil)
+                    FoodOperationalStat(label: "Proof", value: "\(store.proofPendingTasks.count)", detail: "Stops pending proof", tint: FoodTheme.saffron)
+                    FoodOperationalStat(label: "Issues", value: "\(store.runnerTasks.filter { $0.status.lowercased().contains("issue") || $0.status.lowercased().contains("failed") }.count)", detail: "Tasks needing escalation", tint: FoodTheme.coral)
+                }
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(RunnerSubworkspace.allCases) { item in
+                            Button {
+                                withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+                                    tab = item
+                                }
+                            } label: {
+                                FoodModeCard(title: item.title, detail: item.detail, icon: item.icon, tint: FoodTheme.basil, isSelected: tab == item)
                             }
-                        } label: {
-                            FoodModeCard(title: item.title, detail: item.detail, icon: item.icon, tint: FoodTheme.blue, isSelected: tab == item)
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -829,6 +897,10 @@ private struct DeliveryRunnerWorkspaceView: View {
             switch tab {
             case .dispatch:
                 VStack(alignment: .leading, spacing: 12) {
+                    if let next = store.assignedRunnerTasks.first {
+                        runnerNextStopCard(next)
+                    }
+
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Create runner task")
                             .font(.system(size: 18, weight: .black))
@@ -929,6 +1001,43 @@ private struct DeliveryRunnerWorkspaceView: View {
                 }
             case .route:
                 VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Today's route")
+                            .font(.system(size: 22, weight: .black))
+                            .foregroundStyle(FoodTheme.ink)
+                        ForEach(Array(store.assignedRunnerTasks.enumerated()), id: \.element.id) { index, task in
+                            HStack(alignment: .top, spacing: 12) {
+                                ZStack {
+                                    Circle()
+                                        .fill(index == 0 ? FoodTheme.blue : FoodTheme.surfaceRaised)
+                                    Text("\(index + 1)")
+                                        .font(.system(size: 14, weight: .black))
+                                        .foregroundStyle(index == 0 ? .white : FoodTheme.ink)
+                                }
+                                .frame(width: 34, height: 34)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(task.stopName)
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundStyle(FoodTheme.ink)
+                                    Text("\(task.orderReference) · \(task.routeWindow)")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(index == 0 ? FoodTheme.blue : FoodTheme.muted)
+                                    Text(task.customerContactRule)
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundStyle(FoodTheme.muted)
+                                        .lineLimit(2)
+                                }
+                                Spacer(minLength: 0)
+                                if index == 0 {
+                                    Text("NEXT")
+                                        .font(.foodMicro)
+                                        .foregroundStyle(FoodTheme.blue)
+                                }
+                            }
+                            .foodCard(padding: 14)
+                        }
+                    }
+
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Shared contact rules")
                             .font(.system(size: 18, weight: .black))
@@ -1114,6 +1223,81 @@ private struct DeliveryRunnerWorkspaceView: View {
                 }
             }
         }
+        .foodDedicatedTabBar(
+            selection: $tab,
+            accent: FoodTheme.basil,
+            items: RunnerSubworkspace.allCases.map {
+                FoodTabDescriptor(id: $0, title: $0.tabBarTitle, icon: $0.icon)
+            }
+        )
+    }
+
+    private func runnerNextStopCard(_ task: FoodRunnerTask) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if FoodAppShell.isDedicated {
+                Text("Current assignment")
+                    .font(.system(size: 22, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+            }
+            HStack {
+                Text("NEXT STOP")
+                    .font(.foodMicro)
+                    .foregroundStyle(FoodTheme.basil)
+                Spacer()
+                if task.requiresProof {
+                    FoodPill(text: "Proof required", systemImage: "camera.fill", tint: FoodTheme.saffron)
+                }
+                if task.cashCollectionRequired {
+                    FoodPill(text: "Collect cash", systemImage: "banknote.fill", tint: FoodTheme.flame)
+                }
+            }
+
+            HStack(alignment: .top, spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(FoodTheme.blue.opacity(0.16))
+                    Image(systemName: "location.fill")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(FoodTheme.blue)
+                }
+                .frame(width: 54, height: 54)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(task.stopName)
+                        .font(.system(size: 24, weight: .black, design: .rounded))
+                        .foregroundStyle(FoodTheme.ink)
+                    Text("\(task.orderReference) · \(task.taskType)")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(FoodTheme.flame)
+                    Text("Window: \(task.routeWindow)")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(FoodTheme.blue)
+                    if !task.customerContactRule.isEmpty {
+                        Text(task.customerContactRule)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(FoodTheme.muted)
+                    }
+                    if !task.notes.isEmpty {
+                        Text(task.notes)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(FoodTheme.muted)
+                    }
+                }
+            }
+
+            HStack(spacing: 10) {
+                Button("Confirm pickup") {
+                    store.confirmRunnerPickup(task)
+                }
+                .buttonStyle(PrimaryActionButtonStyle(tint: FoodTheme.flame, fullWidth: false))
+
+                Button("Advance stop") {
+                    store.advanceRunnerTask(task)
+                }
+                .buttonStyle(SecondaryActionButtonStyle(tint: FoodTheme.blue, fullWidth: false))
+            }
+        }
+        .foodCard(padding: 18)
     }
 
     private func runnerMetricCard(title: String, value: String, detail: String) -> some View {
@@ -1163,6 +1347,15 @@ private enum RunnerSubworkspace: String, CaseIterable, Identifiable {
         case .route: return "map.fill"
         case .proof: return "camera.fill"
         case .issues: return "exclamationmark.bubble.fill"
+        }
+    }
+
+    var tabBarTitle: String {
+        switch self {
+        case .dispatch: return "Run"
+        case .route: return "Map"
+        case .proof: return "Proof"
+        case .issues: return "Issues"
         }
     }
 
