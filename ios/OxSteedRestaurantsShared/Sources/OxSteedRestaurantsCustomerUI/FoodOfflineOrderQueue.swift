@@ -20,6 +20,7 @@ struct FoodPendingOrder: Codable, Identifiable, Hashable {
     let discountCode: String?
     let discountLabel: String?
     let discountCents: Int
+    let loyaltyPointsToRedeem: Int?
     let createdAt: Date
     var attemptCount: Int
 }
@@ -49,7 +50,8 @@ enum FoodOfflineOrderQueue {
         paymentMode: String,
         discountCode: String? = nil,
         discountLabel: String? = nil,
-        discountCents: Int = 0
+        discountCents: Int = 0,
+        loyaltyPointsToRedeem: Int? = nil
     ) -> FoodPendingOrder {
         let pending = FoodPendingOrder(
             id: id,
@@ -71,6 +73,7 @@ enum FoodOfflineOrderQueue {
             discountCode: discountCode,
             discountLabel: discountLabel,
             discountCents: discountCents,
+            loyaltyPointsToRedeem: loyaltyPointsToRedeem,
             createdAt: Date(),
             attemptCount: 0
         )

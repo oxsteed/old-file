@@ -25,6 +25,8 @@ const VALID_ORDER_SOURCES = new Set(['mobile', 'web', 'kiosk', 'counter', 'table
 const VALID_STATUS = new Set(['received', 'accepted', 'preparing', 'ready', 'completed', 'cancelled', 'refunded']);
 const VALID_PAYMENT_STATUS = new Set(['unpaid', 'requires_payment', 'paid', 'failed', 'refunded']);
 const IN_STORE_SOURCES = new Set(['kiosk', 'counter', 'tablet']);
+const FOOD_LOYALTY_MIN_REDEEM_POINTS = 100;
+const FOOD_LOYALTY_CENTS_PER_POINT = 1;
 // Allowed transitions: target status -> statuses it may come from.
 const ORDER_TRANSITIONS = {
   accepted: ['received'],
@@ -236,6 +238,61 @@ async function earnFoodLoyaltyOnComplete(client, order) {
     if (isMissingRelationError(err)) return null;
     throw err;
   }
+}
+
+async function resolveFoodLoyaltyRedemption(client, restaurantId, customerId, subtotalCents, existingDiscountCents, requestedPoints) {
+  const empty = { pointsRedeemed: 0, discountCents: 0, accountId: null, metadata: null };
+  if (!customerId || requestedPoints < FOOD_LOYALTY_MIN_REDEEM_POINTS) return empty;
+
+  const maxDiscountableCents = Math.max(0, subtotalCents - existingDiscountCents);
+  if (maxDiscountableCents === 0) return empty;
+
+  try {
+    const { rows: [account] } = await client.query(
+      `SELECT id, points_balance
+         FROM food_loyalty_accounts
+        WHERE restaurant_id = $1 AND customer_id = $2
+        FOR UPDATE`,
+      [restaurantId, customerId]
+    );
+    if (!account) return empty;
+
+    const balance = Number(account.points_balance || 0);
+    const maxPointsBySubtotal = Math.floor(maxDiscountableCents / FOOD_LOYALTY_CENTS_PER_POINT);
+    const pointsRedeemed = Math.min(requestedPoints, balance, maxPointsBySubtotal);
+    if (pointsRedeemed < FOOD_LOYALTY_MIN_REDEEM_POINTS) return empty;
+
+    const discountCents = pointsRedeemed * FOOD_LOYALTY_CENTS_PER_POINT;
+    return {
+      pointsRedeemed,
+      discountCents,
+      accountId: account.id,
+      metadata: {
+        pointsRedeemed,
+        discountCents,
+        label: `Loyalty (${pointsRedeemed} pts)`,
+      },
+    };
+  } catch (err) {
+    if (isMissingRelationError(err)) return empty;
+    throw err;
+  }
+}
+
+async function deductFoodLoyaltyOnOrder(client, { accountId, orderId, pointsRedeemed }) {
+  if (!accountId || pointsRedeemed <= 0) return;
+  await client.query(
+    `UPDATE food_loyalty_accounts
+        SET points_balance = points_balance - $1,
+            updated_at = NOW()
+      WHERE id = $2`,
+    [pointsRedeemed, accountId]
+  );
+  await client.query(
+    `INSERT INTO food_loyalty_ledger (account_id, order_id, delta_points, reason)
+     VALUES ($1, $2, $3, 'order_redeem')`,
+    [accountId, orderId, -pointsRedeemed]
+  );
 }
 
 function publicQueueGuestLabel(order) {
@@ -1087,6 +1144,32 @@ exports.createOrder = async (req, res, next) => {
           promotionId = promoResult.promotionId;
         }
       }
+
+      let loyaltyPointsRedeemed = 0;
+      let loyaltyRedemption = null;
+      let loyaltyAccountId = null;
+      const requestedLoyaltyPoints = parsePositiveInt(
+        req.body.loyaltyPointsToRedeem ?? req.body.loyalty_points_to_redeem,
+        0
+      ) || 0;
+      if (requestedLoyaltyPoints > 0 && req.user?.id) {
+        const loyaltyResult = await resolveFoodLoyaltyRedemption(
+          client,
+          restaurantId,
+          req.user.id,
+          subtotal,
+          discount,
+          requestedLoyaltyPoints
+        );
+        if (loyaltyResult.discountCents > 0) {
+          loyaltyPointsRedeemed = loyaltyResult.pointsRedeemed;
+          loyaltyRedemption = loyaltyResult.metadata;
+          loyaltyAccountId = loyaltyResult.accountId;
+          discount += loyaltyResult.discountCents;
+          if (!discountLabel) discountLabel = loyaltyResult.metadata?.label || null;
+        }
+      }
+
       const total = Math.max(0, subtotal + tax + tip + deliveryFeeCents - discount);
 
       const { rows: queueRows } = await client.query(
@@ -1104,6 +1187,7 @@ exports.createOrder = async (req, res, next) => {
           label: discountLabel,
           amountCents: discount,
           ...(promotionId ? { promotionId } : {}),
+          ...(loyaltyRedemption ? { loyaltyRedemption } : {}),
         }
         : null;
       const metadata = req.body.metadata && typeof req.body.metadata === 'object'
@@ -1112,12 +1196,14 @@ exports.createOrder = async (req, res, next) => {
           trackingToken,
           ...(clientOrderId ? { clientOrderId } : {}),
           ...(discountMetadata ? { posDiscount: discountMetadata, promotion: discountMetadata } : {}),
+          ...(loyaltyRedemption ? { loyaltyRedemption } : {}),
           ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),
         }
         : {
           trackingToken,
           ...(clientOrderId ? { clientOrderId } : {}),
           ...(discountMetadata ? { posDiscount: discountMetadata, promotion: discountMetadata } : {}),
+          ...(loyaltyRedemption ? { loyaltyRedemption } : {}),
           ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),
         };
 
@@ -1190,6 +1276,14 @@ exports.createOrder = async (req, res, next) => {
             WHERE id = $1 AND restaurant_id = $2`,
           [promotionId, restaurantId]
         );
+      }
+
+      if (loyaltyPointsRedeemed > 0 && loyaltyAccountId) {
+        await deductFoodLoyaltyOnOrder(client, {
+          accountId: loyaltyAccountId,
+          orderId: created.id,
+          pointsRedeemed: loyaltyPointsRedeemed,
+        });
       }
 
       const runnerTask = await maybeCreateDeliveryRunnerTask(client, {
@@ -2278,6 +2372,92 @@ exports.createRestaurantPromotion = async (req, res, next) => {
     if (isMissingRelationError(err)) {
       return next(new AppError('Promotions are not available yet', 503, 'promotions_unavailable'));
     }
+    next(err);
+  }
+};
+
+exports.listMerchantRestaurantPromotions = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    try {
+      const { rows } = await pool.query(
+        `SELECT id, code, title, description, discount_percent, discount_cents,
+                min_subtotal_cents, valid_from, valid_until, max_uses, use_count,
+                is_active, created_at, updated_at
+           FROM food_restaurant_promotions
+          WHERE restaurant_id = $1
+          ORDER BY created_at DESC
+          LIMIT 50`,
+        [restaurantId]
+      );
+      return res.json({ promotions: rows });
+    } catch (err) {
+      if (isMissingRelationError(err)) return res.json({ promotions: [] });
+      throw err;
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateRestaurantPromotion = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const promotionId = parsePositiveInt(req.params.promotionId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+
+    const sets = ['updated_at = NOW()'];
+    const params = [];
+
+    if (req.body.isActive !== undefined || req.body.is_active !== undefined) {
+      params.push(req.body.isActive !== false && req.body.is_active !== false);
+      sets.push(`is_active = $${params.length}`);
+    }
+    if (req.body.title !== undefined) {
+      const title = normalizeString(req.body.title, 120);
+      if (!title) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { title: 'Title is required' });
+      }
+      params.push(title);
+      sets.push(`title = $${params.length}`);
+    }
+    if (req.body.description !== undefined) {
+      params.push(normalizeString(req.body.description, 2000));
+      sets.push(`description = $${params.length}`);
+    }
+    if (req.body.validUntil !== undefined || req.body.valid_until !== undefined) {
+      params.push(req.body.validUntil || req.body.valid_until || null);
+      sets.push(`valid_until = $${params.length}`);
+    }
+    if (req.body.maxUses !== undefined || req.body.max_uses !== undefined) {
+      params.push(parsePositiveInt(req.body.maxUses ?? req.body.max_uses));
+      sets.push(`max_uses = $${params.length}`);
+    }
+
+    if (sets.length === 1) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { body: 'No supported fields to update' });
+    }
+
+    params.push(promotionId, restaurantId);
+
+    try {
+      const { rows: [promotion] } = await pool.query(
+        `UPDATE food_restaurant_promotions
+            SET ${sets.join(', ')}
+          WHERE id = $${params.length - 1} AND restaurant_id = $${params.length}
+          RETURNING *`,
+        params
+      );
+      if (!promotion) throw new AppError('Promotion not found', 404, 'promotion_not_found');
+      return res.json({ promotion });
+    } catch (err) {
+      if (isMissingRelationError(err)) {
+        return next(new AppError('Promotions are not available yet', 503, 'promotions_unavailable'));
+      }
+      throw err;
+    }
+  } catch (err) {
     next(err);
   }
 };

@@ -392,6 +392,8 @@ extension FoodQueueBoard: Decodable {
 struct FoodAuthSession: Decodable {
     let accessToken: String?
     let refreshToken: String?
+    let requiresTwoFactor: Bool?
+    let mfaToken: String?
 }
 
 // MARK: - Cart

@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { Mail, Phone, MapPin, User, ChevronRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import api from '../api/axios';
+import { persistSessionPayload } from '../api/auth';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
 import OTPInput from '../components/registration/OTPInput';
@@ -191,12 +192,8 @@ export default function JoinPage() {
         token: registrationToken,
         otp: code,
       });
-      if (data?.accessToken) {
-        localStorage.setItem('accessToken', data.accessToken);
-        localStorage.setItem('refreshToken', data.refreshToken);
-      }
+      persistSessionPayload(data);
       if (data?.user) {
-        localStorage.setItem('user', JSON.stringify(data.user));
         setUser(data.user);
       }
       toast.success(t('register.verifiedToast'));

@@ -146,9 +146,17 @@ function formatAuthUser(user) {
 
 async function register(req, res, next) {
   try {
-    const { email, password, first_name, last_name, phone, role, language = 'en', ref } = req.body;
+    const body = req.body || {};
+    const email = body.email;
+    const password = body.password;
+    const first_name = body.first_name ?? body.firstName;
+    const last_name = body.last_name ?? body.lastName;
+    const phone = body.phone;
+    const role = body.role;
+    const language = body.language;
+    const ref = body.ref;
 
-    const errs = validate(req.body, {
+    const errs = validate({ email, password, first_name, last_name, phone }, {
       email:      [rules.required, rules.email, rules.maxLen(254)],
       password:   [rules.required, rules.minLen(8), rules.maxLen(128)],
       first_name: [rules.required, rules.minLen(1), rules.maxLen(50), rules.noScript],

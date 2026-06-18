@@ -11,6 +11,28 @@
 
 ---
 
+## Session progress — OxSteed Restaurants promo management (2026-06-18)
+
+- **B5 merchant promos:** `GET .../promotions/manage` (all promos + use counts), `PATCH .../promotions/:id` (activate/deactivate); web `FoodPromotionsPanel.jsx` on merchant Settings.
+- **Tests:** `server/__tests__/foodPromotions.test.js` (`npm run test:food-promotions`).
+
+---
+
+## Session progress — OxSteed Restaurants loyalty redeem (2026-06-18)
+
+- **B4 redeem:** `loyalty_points_to_redeem` on `POST .../orders` — 1 pt = 1¢, min 100 pts, capped at subtotal; ledger `order_redeem` debit in same transaction.
+- **Customer iOS:** cart toggle “Use loyalty points” when signed in with ≥100 pts; passes through offline replay queue.
+- **Tests:** `server/__tests__/foodLoyalty.test.js` (`npm run test:food-loyalty`).
+
+---
+
+## Session progress — OxSteed Restaurants F7 food E2E (2026-06-18)
+
+- **F7 food order loop test:** `server/__tests__/foodOrderLoop.test.js` — server-side integration covering kiosk create → KDS active feed → preparing → ready → `/restaurant-display` pings → guest SMS / signed-in push / guest email notify paths + illegal transition guard + ready→completed.
+- **Run:** `cd server && npm run test:food-e2e` (5 tests, all passing).
+
+---
+
 ## Session progress — OxSteed Restaurants wizard + locations (2026-06-18)
 
 Follow-up: **Verified on macOS:** `OxSteedRestaurantsManager` + `OxSteedRestaurantsCustomer` Debug simulator builds passed. `node --check` on touched server files passes.
@@ -149,8 +171,8 @@ Follow-up on 2026-06-18 (production-grade suite pass — phase 3): real-time dis
 | B1 | **Food order reviews + star ratings** | `[x]` | `food_reviews` + `POST /api/food/orders/:orderId/review` |
 | B2 | **Review prompt after completed order** | `[x]` | iOS `OrderReviewPromptCard` on Track; guest via tracking token |
 | B3 | **Aggregated rating on Discover** (`avg_rating`, `review_count`) | `[x]` | On list + detail API; stars on iOS `RestaurantCard` |
-| B4 | **Loyalty program (earn/redeem)** | `[~]` | `food_loyalty_accounts` + ledger; earn on order completed; profile reads ledger |
-| B5 | **Promotions & coupon codes** | `[~]` | `food_restaurant_promotions` + apply at checkout (iOS coupon + POS) |
+| B4 | **Loyalty program (earn/redeem)** | `[~]` | Earn on complete + redeem at checkout (`loyalty_points_to_redeem`); iOS cart toggle |
+| B5 | **Promotions & coupon codes** | `[~]` | Apply at checkout + merchant Settings panel (create/list/activate) |
 | B6 | **Verified / trusted restaurant badges** | `[~]` | `is_verified` on restaurant; shown on Discover (iOS + web) |
 | B7 | **Operating hours** (open/closed, “opens at”) | `[~]` | `operating_hours` JSONB + ordering guardrail + Discover hours pill |
 | B8 | **Owner setup wizard** (profile → location → hours → menu → publish) | `[~]` | `setup-progress` API + web/iOS checklist; Go Live gated |
@@ -208,7 +230,7 @@ Follow-up on 2026-06-18 (production-grade suite pass — phase 3): real-time dis
 | F4 | **Canonical `/api/restaurants/*` API** (finish transition off `/api/food`) | `[~]` | Both mounted |
 | F5 | **Network app-switcher access gating** (`/network/apps`) | `[ ]` | Strategy Phase 1 follow-up |
 | F6 | **Branch role badges** | `[ ]` | |
-| F7 | **Food E2E test suite** (kiosk → KDS → queue → customer notify) | `[ ]` | |
+| F7 | **Food E2E test suite** (kiosk → KDS → queue → customer notify) | `[x]` | `server/__tests__/foodOrderLoop.test.js`; `npm run test:food-e2e` |
 | F8 | **Repeatable in-app onboarding playbook** (menu load, QR, tablet lock checklist) | `[ ]` | Documented in go-live runbook only |
 
 ### Suggested build order (when picking next task)

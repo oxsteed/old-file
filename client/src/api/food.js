@@ -28,6 +28,12 @@ export const listFoodPromotions = (restaurantId) =>
 export const createFoodPromotion = (restaurantId, payload) =>
   api.post(`/food/restaurants/${restaurantId}/promotions`, payload).then((r) => r.data?.promotion);
 
+export const listMerchantFoodPromotions = (restaurantId) =>
+  api.get(`/food/restaurants/${restaurantId}/promotions/manage`).then((r) => r.data?.promotions || []);
+
+export const updateFoodPromotion = (restaurantId, promotionId, payload) =>
+  api.patch(`/food/restaurants/${restaurantId}/promotions/${promotionId}`, payload).then((r) => r.data?.promotion);
+
 export const getFoodSetupProgress = (restaurantId) =>
   api.get(`/food/restaurants/${restaurantId}/setup-progress`).then((r) => r.data);
 

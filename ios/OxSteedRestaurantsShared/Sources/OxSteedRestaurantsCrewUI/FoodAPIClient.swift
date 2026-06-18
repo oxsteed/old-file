@@ -40,9 +40,24 @@ actor FoodAPIClient {
 
     // MARK: - Auth
 
-    func login(email: String, password: String) async throws -> FoodAuthSession {
-        struct Body: Encodable { let email: String; let password: String }
-        return try await request("/api/auth/login", method: "POST", body: Body(email: email, password: password), requiresAuth: false)
+    func login(email: String, password: String, agreementName: String) async throws -> FoodAuthSession {
+        struct Body: Encodable {
+            let email: String
+            let password: String
+            let termsAgreed: Bool
+            let agreementName: String
+        }
+        return try await request(
+            "/api/auth/login",
+            method: "POST",
+            body: Body(
+                email: email,
+                password: password,
+                termsAgreed: true,
+                agreementName: agreementName
+            ),
+            requiresAuth: false
+        )
     }
 
     func refresh(refreshToken: String) async throws -> FoodAuthSession {
@@ -483,8 +498,10 @@ actor FoodAPIClient {
     /// ({ error: { message } } or { message }).
     private static func serverMessage(from data: Data) -> String? {
         guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        if let error = object["error"] as? String { return error }
         if let error = object["error"] as? [String: Any], let message = error["message"] as? String { return message }
         if let message = object["message"] as? String { return message }
+        if let code = object["code"] as? String { return code.replacingOccurrences(of: "_", with: " ") }
         return nil
     }
 }

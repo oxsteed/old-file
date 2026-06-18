@@ -10,6 +10,7 @@ import { Mail, Phone, MapPin, Briefcase, ChevronRight, AlertCircle } from 'lucid
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import { persistSessionPayload } from '../../api/auth';
 import { useAuth } from '../../context/AuthContext';
 import AvatarUpload from './AvatarUpload';
 import OTPInput from './OTPInput';
@@ -163,13 +164,9 @@ export default function AccountForm({ role, onSuccess }: Props) {
     try {
       const endpoint = role === 'helper' ? '/helper-registration/verify-otp' : '/auth/register/verify-otp';
       const { data } = await api.post(endpoint, { token: registrationToken, otp: code });
-      if (data.accessToken) {
-        localStorage.setItem('accessToken', data.accessToken);
-        localStorage.setItem('refreshToken', data.refreshToken);
-        if (data.user) {
-          localStorage.setItem('user', JSON.stringify(data.user));
-          setUser(data.user);
-        }
+      persistSessionPayload(data);
+      if (data.user) {
+        setUser(data.user);
       }
       setOtpVerified(true);
       toast.success(t('register.verifiedToast'));

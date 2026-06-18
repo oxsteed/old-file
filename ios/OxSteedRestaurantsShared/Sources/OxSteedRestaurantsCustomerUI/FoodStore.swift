@@ -14,6 +14,7 @@ final class FoodStore: ObservableObject {
     @Published var tableLabel = ""
     @Published var guestName = ""
     @Published var orderCouponCode = ""
+    @Published var useLoyaltyPoints = false
     @Published var deliveryAddressLine1 = ""
     @Published var deliveryCity = ""
     @Published var deliveryInstructions = ""
@@ -90,6 +91,17 @@ final class FoodStore: ObservableObject {
     var cartTotalCents: Int {
         cart.reduce(0) { $0 + $1.lineTotalCents }
     }
+    static let loyaltyMinRedeemPoints = 100
+    var loyaltyRedeemablePoints: Int {
+        guard isSignedIn, loyaltySummary.points >= Self.loyaltyMinRedeemPoints else { return 0 }
+        return min(loyaltySummary.points, cartTotalCents)
+    }
+    var loyaltyRedeemDiscountCents: Int {
+        useLoyaltyPoints ? loyaltyRedeemablePoints : 0
+    }
+    var cartTotalAfterLoyaltyCents: Int {
+        max(0, cartTotalCents - loyaltyRedeemDiscountCents)
+    }
     var cartItemCount: Int {
         cart.reduce(0) { $0 + $1.quantity }
     }
@@ -139,9 +151,17 @@ final class FoodStore: ObservableObject {
 
     // MARK: - Auth
 
-    func signIn(email: String, password: String) async -> Bool {
+    func signIn(email: String, password: String, agreementName: String) async -> Bool {
         do {
-            let session = try await FoodAPIClient.shared.login(email: email, password: password)
+            let session = try await FoodAPIClient.shared.login(
+                email: email,
+                password: password,
+                agreementName: agreementName.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+            if session.requiresTwoFactor == true {
+                message = "Two-factor authentication is enabled. Sign in at oxsteed.com first, then return here."
+                return false
+            }
             guard let access = session.accessToken, !access.isEmpty else {
                 message = "This account needs extra verification. Sign in once in the main OxSteed app, then try again."
                 return false
@@ -304,12 +324,14 @@ final class FoodStore: ObservableObject {
                 paymentMode: onlineCheckoutAvailable ? customerPaymentMode : "pay_at_counter",
                 clientOrderId: clientOrderId,
                 discountCode: coupon.isEmpty ? nil : coupon.uppercased(),
-                deliveryAddress: deliveryAddress?.line1.isEmpty == false ? deliveryAddress : nil
+                deliveryAddress: deliveryAddress?.line1.isEmpty == false ? deliveryAddress : nil,
+                loyaltyPointsToRedeem: useLoyaltyPoints ? loyaltyRedeemablePoints : nil
             )
             FoodOfflineOrderQueue.remove(id: clientOrderId)
             refreshPendingOfflineOrders()
             rememberRecentOrder(restaurant: restaurant, lines: submittedLines, fulfillment: fulfillment)
             cart.removeAll()
+            useLoyaltyPoints = false
             lastPlacedOrder = response.order
             lastPlacedOrderPayment = response.payment
             lastPlacedOrderTrackingToken = response.trackingToken
@@ -331,7 +353,8 @@ final class FoodStore: ObservableObject {
                     tableLabel: fulfillment == "dine_in" && !tableLabel.isEmpty ? tableLabel : nil,
                     guestName: isSignedIn || guestName.isEmpty ? nil : guestName,
                     orderSource: "mobile",
-                    paymentMode: onlineCheckoutAvailable ? customerPaymentMode : "pay_at_counter"
+                    paymentMode: onlineCheckoutAvailable ? customerPaymentMode : "pay_at_counter",
+                    loyaltyPointsToRedeem: useLoyaltyPoints ? loyaltyRedeemablePoints : nil
                 )
                 refreshPendingOfflineOrders()
                 cart.removeAll()

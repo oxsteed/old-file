@@ -24,6 +24,7 @@ import {
 import { FoodBrand, FOOD_STATUS_KEYS } from './foodShared';
 import SetupWizard, { defaultWeekdayHours } from './FoodSetupWizard';
 import LocationsPanel from './FoodLocationsPanel';
+import PromotionsPanel from './FoodPromotionsPanel';
 import { ChecklistsPanel, SopsPanel, InventoryPanel } from './RestaurantOpsPanels';
 import '../../styles/FoodPages.css';
 
@@ -566,6 +567,8 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
       </div>
 
       <LocationsPanel t={t} restaurant={restaurant} onChanged={onSetupChanged} />
+
+      <PromotionsPanel t={t} restaurant={restaurant} />
 
       <h3 style={{ marginTop: '1.5rem' }}>{t('food.merchant.inStoreScreens')}</h3>
       <p className="fd-card-meta">{t('food.merchant.inStoreScreensHint')}</p>

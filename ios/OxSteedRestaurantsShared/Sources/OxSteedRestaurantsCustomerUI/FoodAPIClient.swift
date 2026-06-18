@@ -40,9 +40,24 @@ actor FoodAPIClient {
 
     // MARK: - Auth
 
-    func login(email: String, password: String) async throws -> FoodAuthSession {
-        struct Body: Encodable { let email: String; let password: String }
-        return try await request("/api/auth/login", method: "POST", body: Body(email: email, password: password), requiresAuth: false)
+    func login(email: String, password: String, agreementName: String) async throws -> FoodAuthSession {
+        struct Body: Encodable {
+            let email: String
+            let password: String
+            let termsAgreed: Bool
+            let agreementName: String
+        }
+        return try await request(
+            "/api/auth/login",
+            method: "POST",
+            body: Body(
+                email: email,
+                password: password,
+                termsAgreed: true,
+                agreementName: agreementName
+            ),
+            requiresAuth: false
+        )
     }
 
     func refresh(refreshToken: String) async throws -> FoodAuthSession {
@@ -100,7 +115,8 @@ actor FoodAPIClient {
         paymentMode: String = "pay_at_counter",
         clientOrderId: String? = nil,
         discountCode: String? = nil,
-        deliveryAddress: FoodDeliveryAddress? = nil
+        deliveryAddress: FoodDeliveryAddress? = nil,
+        loyaltyPointsToRedeem: Int? = nil
     ) async throws -> FoodCreateOrderResponse {
         struct OrderItem: Encodable {
             let menuItemId: Int64
@@ -118,12 +134,14 @@ actor FoodAPIClient {
             let clientOrderId: String?
             let discountCode: String?
             let deliveryAddress: FoodDeliveryAddress?
+            let loyaltyPointsToRedeem: Int?
 
             enum CodingKeys: String, CodingKey {
                 case fulfillmentType, orderSource, paymentMode, tableLabel, guestName, items
                 case clientOrderId = "client_order_id"
                 case discountCode = "discount_code"
                 case deliveryAddress = "delivery_address"
+                case loyaltyPointsToRedeem = "loyalty_points_to_redeem"
             }
         }
         let body = Body(
@@ -142,7 +160,8 @@ actor FoodAPIClient {
             },
             clientOrderId: clientOrderId,
             discountCode: discountCode,
-            deliveryAddress: deliveryAddress
+            deliveryAddress: deliveryAddress,
+            loyaltyPointsToRedeem: loyaltyPointsToRedeem
         )
         let envelope: FoodCreateOrderEnvelope = try await request(
             "/api/food/restaurants/\(restaurantId)/orders",
@@ -170,6 +189,7 @@ actor FoodAPIClient {
             let discountCode: String?
             let discountLabel: String?
             let discountCents: Int
+            let loyaltyPointsToRedeem: Int?
             let items: [OrderItem]
             let clientOrderId: String
 
@@ -177,6 +197,7 @@ actor FoodAPIClient {
                 case fulfillmentType, orderSource, paymentMode, tableLabel, guestName, items
                 case discountCode, discountLabel, discountCents
                 case clientOrderId = "client_order_id"
+                case loyaltyPointsToRedeem = "loyalty_points_to_redeem"
             }
         }
         let body = Body(
@@ -188,6 +209,7 @@ actor FoodAPIClient {
             discountCode: pending.discountCode,
             discountLabel: pending.discountLabel,
             discountCents: max(0, pending.discountCents),
+            loyaltyPointsToRedeem: pending.loyaltyPointsToRedeem,
             items: pending.lines.map {
                 OrderItem(
                     menuItemId: $0.menuItemId,
@@ -471,8 +493,10 @@ actor FoodAPIClient {
     /// ({ error: { message } } or { message }).
     private static func serverMessage(from data: Data) -> String? {
         guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        if let error = object["error"] as? String { return error }
         if let error = object["error"] as? [String: Any], let message = error["message"] as? String { return message }
         if let message = object["message"] as? String { return message }
+        if let code = object["code"] as? String { return code.replacingOccurrences(of: "_", with: " ") }
         return nil
     }
 }

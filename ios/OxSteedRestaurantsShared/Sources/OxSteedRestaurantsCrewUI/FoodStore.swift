@@ -122,9 +122,17 @@ final class FoodStore: ObservableObject {
 
     // MARK: - Auth
 
-    func signIn(email: String, password: String) async -> Bool {
+    func signIn(email: String, password: String, agreementName: String) async -> Bool {
         do {
-            let session = try await FoodAPIClient.shared.login(email: email, password: password)
+            let session = try await FoodAPIClient.shared.login(
+                email: email,
+                password: password,
+                agreementName: agreementName.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+            if session.requiresTwoFactor == true {
+                message = "Two-factor authentication is enabled. Sign in at oxsteed.com first, then return here."
+                return false
+            }
             guard let access = session.accessToken, !access.isEmpty else {
                 message = "This account needs extra verification. Sign in once in the main OxSteed app, then try again."
                 return false

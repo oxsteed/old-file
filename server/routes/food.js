@@ -32,6 +32,8 @@ router.post('/restaurants', authenticate, ctrl.createRestaurant);
 router.patch('/restaurants/:restaurantId', authenticate, ctrl.updateRestaurant);
 router.get('/restaurants/:restaurantId/setup-progress', authenticate, ctrl.getRestaurantSetupProgress);
 router.post('/restaurants/:restaurantId/promotions', authenticate, ctrl.createRestaurantPromotion);
+router.get('/restaurants/:restaurantId/promotions/manage', authenticate, ctrl.listMerchantRestaurantPromotions);
+router.patch('/restaurants/:restaurantId/promotions/:promotionId', authenticate, ctrl.updateRestaurantPromotion);
 router.post('/restaurants/:restaurantId/locations', authenticate, ctrl.createRestaurantLocation);
 router.patch('/restaurants/:restaurantId/locations/:locationId', authenticate, ctrl.updateRestaurantLocation);
 router.post('/restaurants/:restaurantId/categories', authenticate, ctrl.createMenuCategory);

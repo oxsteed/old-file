@@ -4133,9 +4133,29 @@ private struct CartPanel: View {
                         .foregroundStyle(FoodTheme.muted)
                 }
                 Spacer()
-                Text(foodMoney(store.cartTotalCents, currency: store.selectedRestaurant?.currencyCode ?? "USD"))
+                Text(foodMoney(store.useLoyaltyPoints ? store.cartTotalAfterLoyaltyCents : store.cartTotalCents, currency: store.selectedRestaurant?.currencyCode ?? "USD"))
                     .font(.system(size: 22, weight: .black))
                     .foregroundStyle(FoodTheme.flame)
+            }
+
+            if store.isSignedIn && store.loyaltyRedeemablePoints >= FoodStore.loyaltyMinRedeemPoints {
+                Toggle(isOn: $store.useLoyaltyPoints) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(customerText(store.customerLanguage, "Use loyalty points", "Usar puntos", "Utiliser les points", "Itilize pwen"))
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(FoodTheme.ink)
+                        Text(customerText(
+                            store.customerLanguage,
+                            "\(store.loyaltyRedeemablePoints) pts · save \(foodMoney(store.loyaltyRedeemDiscountCents, currency: store.selectedRestaurant?.currencyCode ?? "USD"))",
+                            "\(store.loyaltyRedeemablePoints) pts · ahorra \(foodMoney(store.loyaltyRedeemDiscountCents, currency: store.selectedRestaurant?.currencyCode ?? "USD"))",
+                            "\(store.loyaltyRedeemablePoints) pts · economisez \(foodMoney(store.loyaltyRedeemDiscountCents, currency: store.selectedRestaurant?.currencyCode ?? "USD"))",
+                            "\(store.loyaltyRedeemablePoints) pwen · ekonomi \(foodMoney(store.loyaltyRedeemDiscountCents, currency: store.selectedRestaurant?.currencyCode ?? "USD"))"
+                        ))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(FoodTheme.muted)
+                    }
+                }
+                .tint(FoodTheme.basil)
             }
 
             if store.cart.isEmpty {
@@ -5548,7 +5568,13 @@ private struct SignInCard: View {
     @EnvironmentObject private var store: FoodStore
     @State private var email = ""
     @State private var password = ""
+    @State private var agreementName = ""
+    @State private var termsAgreed = false
     @State private var working = false
+
+    private var canSubmit: Bool {
+        !email.isEmpty && !password.isEmpty && termsAgreed && Self.isValidFullName(agreementName)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -5565,10 +5591,14 @@ private struct SignInCard: View {
                 .textFieldStyle(.roundedBorder)
             SecureField("Password", text: $password)
                 .textFieldStyle(.roundedBorder)
+            TextField("Full name (must match account)", text: $agreementName)
+                .textFieldStyle(.roundedBorder)
+            Toggle("I agree to the Terms of Service and Privacy Policy", isOn: $termsAgreed)
+                .font(.system(size: 13, weight: .medium))
             Button {
                 working = true
                 Task {
-                    if await store.signIn(email: email, password: password) {
+                    if await store.signIn(email: email, password: password, agreementName: agreementName) {
                         await store.loadMerchant()
                         await store.loadMyOrders()
                     }
@@ -5582,9 +5612,15 @@ private struct SignInCard: View {
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .disabled(working || email.isEmpty || password.isEmpty)
+            .disabled(working || !canSubmit)
         }
         .foodCard(padding: 16)
+    }
+
+    private static func isValidFullName(_ name: String) -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let words = trimmed.split(whereSeparator: { $0.isWhitespace })
+        return trimmed.count >= 5 && words.count >= 2
     }
 }
 

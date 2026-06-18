@@ -2187,7 +2187,13 @@ private struct SignInCard: View {
     @EnvironmentObject private var store: FoodStore
     @State private var email = ""
     @State private var password = ""
+    @State private var agreementName = ""
+    @State private var termsAgreed = false
     @State private var working = false
+
+    private var canSubmit: Bool {
+        !email.isEmpty && !password.isEmpty && termsAgreed && Self.isValidFullName(agreementName)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -2204,10 +2210,14 @@ private struct SignInCard: View {
                 .textFieldStyle(.roundedBorder)
             SecureField("Password", text: $password)
                 .textFieldStyle(.roundedBorder)
+            TextField("Full name (must match account)", text: $agreementName)
+                .textFieldStyle(.roundedBorder)
+            Toggle("I agree to the Terms of Service and Privacy Policy", isOn: $termsAgreed)
+                .font(.system(size: 13, weight: .medium))
             Button {
                 working = true
                 Task {
-                    if await store.signIn(email: email, password: password) {
+                    if await store.signIn(email: email, password: password, agreementName: agreementName) {
                         await store.loadMerchant()
                         await store.loadMyOrders()
                     }
@@ -2221,9 +2231,15 @@ private struct SignInCard: View {
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .disabled(working || email.isEmpty || password.isEmpty)
+            .disabled(working || !canSubmit)
         }
         .foodCard(padding: 16)
+    }
+
+    private static func isValidFullName(_ name: String) -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let words = trimmed.split(whereSeparator: { $0.isWhitespace })
+        return trimmed.count >= 5 && words.count >= 2
     }
 }
 

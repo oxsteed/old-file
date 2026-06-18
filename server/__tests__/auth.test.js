@@ -114,6 +114,43 @@ describe('POST /api/auth/register', () => {
     expect(res.body).toHaveProperty('refreshToken');
     expect(res.body.user).toMatchObject({ email: 'test@example.com' });
   });
+
+  test('accepts camelCase firstName and lastName from legacy clients', async () => {
+    const insertedUser = { id: 43, email: 'camel@example.com', role: 'customer' };
+    const fullUser = {
+      id: 43, first_name: 'Camel', last_name: 'Case',
+      email: 'camel@example.com', phone: null, role: 'customer',
+      email_verified: false, is_verified: false,
+      onboarding_status: 'registered', onboarding_completed: false,
+      contact_completed: false, profile_completed: false, tier_selected: false,
+      w9_completed: false, terms_accepted: false, membership_tier: 'free',
+      city: null, state: null, zip_code: null,
+      trial_started_at: null, trial_ends_at: null,
+      didit_status: 'pending', didit_verified_at: null,
+      didit_enforcement_required: false,
+      id_verified: false, background_check_passed: false,
+    };
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [insertedUser] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [fullUser] });
+
+    const res = await request(buildApp())
+      .post('/api/auth/register')
+      .send({
+        email: 'camel@example.com',
+        password: 'SecurePass123!',
+        firstName: 'Camel',
+        lastName: 'Case',
+        role: 'customer',
+      });
+
+    expect(res.status).toBe(201);
+    expect(mockQuery.mock.calls[1][1][2]).toBe('Camel');
+    expect(mockQuery.mock.calls[1][1][3]).toBe('Case');
+  });
 });
 
 // ── POST /api/auth/register/accept-terms ─────────────────────────────────────
@@ -197,6 +234,18 @@ describe('POST /api/auth/register/start', () => {
 
 // ── POST /api/auth/login ──────────────────────────────────────────────────────
 describe('POST /api/auth/login', () => {
+  test('returns 400 when termsAgreed is missing for non-admin users', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ role: 'customer' }] });
+
+    const res = await request(buildApp())
+      .post('/api/auth/login')
+      .send({ email: 'user@example.com', password: 'SecurePass123!' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('validation_failed');
+    expect(res.body.fields?.termsAgreed).toBeTruthy();
+  });
+
   test('returns 400 when fields are missing', async () => {
     const res = await request(buildApp())
       .post('/api/auth/login')
