@@ -11,6 +11,7 @@ router.get('/restaurants', ctrl.listRestaurants);
 router.get('/restaurants/:restaurantId', ctrl.getRestaurant);
 router.get('/restaurants/:restaurantId/queue-board', ctrl.getQueueBoard);
 router.get('/restaurants/:restaurantId/promotions', ctrl.listRestaurantPromotions);
+router.get('/restaurants/:restaurantId/locations', optionalAuth, ctrl.listRestaurantLocations);
 router.get('/restaurants/:restaurantId/kiosk-config', kiosk.getPublicKioskConfig);
 router.get('/payment-config', ctrl.getPaymentConfig);
 router.get('/orders/track/:trackingToken', ctrl.getTrackedOrder);
@@ -29,7 +30,10 @@ router.post('/customer/favorites/:restaurantId/toggle', authenticate, ctrl.toggl
 // Merchant onboarding and menu setup.
 router.post('/restaurants', authenticate, ctrl.createRestaurant);
 router.patch('/restaurants/:restaurantId', authenticate, ctrl.updateRestaurant);
+router.get('/restaurants/:restaurantId/setup-progress', authenticate, ctrl.getRestaurantSetupProgress);
 router.post('/restaurants/:restaurantId/promotions', authenticate, ctrl.createRestaurantPromotion);
+router.post('/restaurants/:restaurantId/locations', authenticate, ctrl.createRestaurantLocation);
+router.patch('/restaurants/:restaurantId/locations/:locationId', authenticate, ctrl.updateRestaurantLocation);
 router.post('/restaurants/:restaurantId/categories', authenticate, ctrl.createMenuCategory);
 router.patch('/restaurants/:restaurantId/categories/:categoryId', authenticate, ctrl.updateMenuCategory);
 router.delete('/restaurants/:restaurantId/categories/:categoryId', authenticate, ctrl.deleteMenuCategory);

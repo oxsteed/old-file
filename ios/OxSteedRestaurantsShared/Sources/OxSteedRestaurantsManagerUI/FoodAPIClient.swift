@@ -189,6 +189,43 @@ actor FoodAPIClient {
         return envelope.restaurant
     }
 
+    func fetchSetupProgress(restaurantId: Int64, token: String) async throws -> FoodSetupProgress {
+        try await request("/api/food/restaurants/\(restaurantId)/setup-progress", token: token)
+    }
+
+    func listLocations(restaurantId: Int64, token: String) async throws -> [FoodRestaurantLocation] {
+        struct Envelope: Decodable { let locations: [FoodRestaurantLocation] }
+        let envelope: Envelope = try await request("/api/food/restaurants/\(restaurantId)/locations", token: token)
+        return envelope.locations
+    }
+
+    func createLocation(
+        restaurantId: Int64,
+        name: String,
+        city: String?,
+        isPrimary: Bool,
+        token: String
+    ) async throws -> FoodRestaurantLocation {
+        struct Body: Encodable {
+            let name: String
+            let addressCity: String?
+            let isPrimary: Bool
+            enum CodingKeys: String, CodingKey {
+                case name
+                case addressCity = "address_city"
+                case isPrimary = "is_primary"
+            }
+        }
+        struct Envelope: Decodable { let location: FoodRestaurantLocation }
+        let envelope: Envelope = try await request(
+            "/api/food/restaurants/\(restaurantId)/locations",
+            method: "POST",
+            body: Body(name: name, addressCity: city, isPrimary: isPrimary),
+            token: token
+        )
+        return envelope.location
+    }
+
     func createCategory(restaurantId: Int64, name: String, token: String) async throws -> Int64 {
         struct Body: Encodable { let name: String }
         struct Envelope: Decodable {

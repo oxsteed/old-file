@@ -359,3 +359,9 @@ html.dark .fd-paid-pill { color: #86efac; }
   background: #1e293b; color: #fff; font-size: 1.3rem; font-weight: 800; cursor: pointer;
 }
 .fd-kiosk-choice.fd-selected { border-color: #f97316; background: rgba(249, 115, 22, 0.18); }
+
+.fd-setup-wizard { border: 1px solid var(--border-color, #e5e7eb); border-radius: 12px; margin-bottom: 1rem; }
+.fd-setup-steps { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.5rem; }
+.fd-setup-step { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.5rem 0; }
+.fd-setup-step.fd-complete { color: var(--text-muted, #64748b); }
+.fd-tag-verified { margin-left: 0.4rem; background: #ecfdf5; color: #047857; }

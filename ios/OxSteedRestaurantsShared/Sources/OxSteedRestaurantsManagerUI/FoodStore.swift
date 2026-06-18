@@ -42,6 +42,8 @@ final class FoodStore: ObservableObject {
     @Published var managerTeam = FoodManagerSampleData.teamMembers
     @Published var managerIncidents = FoodManagerSampleData.incidents
     @Published var managerLocations = FoodManagerSampleData.locations
+    @Published var setupProgress: FoodSetupProgress?
+    @Published var restaurantLocations: [FoodRestaurantLocation] = []
     @Published var managerHelpRequests = FoodManagerSampleData.helpRequests
     @Published var managerSOPs = FoodManagerSampleData.sops
     @Published var managerSales = FoodManagerSampleData.sales
@@ -325,6 +327,10 @@ final class FoodStore: ObservableObject {
             }
             merchantLoaded = true
             await loadMerchantOrders()
+            if let restaurant = merchantSelection {
+                await loadRestaurantLocations(restaurantId: restaurant.id)
+                await loadSetupProgress(restaurantId: restaurant.id)
+            }
             await loadManagerOperationalData()
         } catch {
             merchantLoaded = true
@@ -433,6 +439,24 @@ final class FoodStore: ObservableObject {
                 orders: payload.allOrders,
                 openIssueCount: managerIncidents.filter { $0.severity != "Resolved" }.count
             )
+            if !restaurantLocations.isEmpty {
+                let todaySales = payload.allOrders.reduce(0) { partial, order in
+                    guard let createdAt = order.createdAt, createdAt >= Calendar.current.startOfDay(for: Date()) else { return partial }
+                    return partial + order.totalCents
+                }
+                let issues = managerIncidents.filter { $0.severity != "Resolved" }.count
+                managerLocations = restaurantLocations.map { loc in
+                    FoodManagerLocationSummary(
+                        id: UUID(),
+                        backendLocationId: loc.id,
+                        restaurantId: loc.restaurantId,
+                        name: loc.name,
+                        city: [loc.addressCity, loc.addressState].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", "),
+                        salesTodayCents: loc.restaurantId == restaurant.id ? todaySales : 0,
+                        openIssues: loc.restaurantId == restaurant.id ? issues : 0
+                    )
+                }
+            }
             managerSales = Self.mapManagerSales(from: payload.allOrders)
             managerHelpRequests = payload.helpRequests.map(Self.mapManagerHelpRequest(from:))
             managerSOPs = payload.sops.map(Self.mapManagerSOP(from:))
@@ -468,6 +492,10 @@ final class FoodStore: ObservableObject {
 
     func setRestaurantStatus(_ status: String) async {
         guard let restaurant = merchantSelection else { return }
+        if status == "active", let progress = setupProgress, !progress.readyToPublish {
+            message = "Complete the setup checklist before going live."
+            return
+        }
         do {
             let updated = try await authed {
                 try await FoodAPIClient.shared.updateRestaurantStatus(restaurantId: restaurant.id, status: status, token: $0)
@@ -477,8 +505,62 @@ final class FoodStore: ObservableObject {
                 merchantRestaurants[index] = updated
             }
             message = status == "active" ? "\(updated.displayName) is live." : nil
+            if status == "active" {
+                await loadSetupProgress(restaurantId: updated.id)
+            }
         } catch {
             message = error.localizedDescription
+        }
+    }
+
+    func loadSetupProgress(restaurantId: Int64) async {
+        guard isSignedIn else { return }
+        do {
+            setupProgress = try await authed {
+                try await FoodAPIClient.shared.fetchSetupProgress(restaurantId: restaurantId, token: $0)
+            }
+        } catch {
+            setupProgress = nil
+        }
+    }
+
+    func backendLocation(for summary: FoodManagerLocationSummary) -> FoodRestaurantLocation? {
+        guard let backendId = summary.backendLocationId else { return nil }
+        return restaurantLocations.first { $0.id == backendId }
+    }
+
+    func loadRestaurantLocations(restaurantId: Int64) async {
+        guard isSignedIn else { return }
+        do {
+            restaurantLocations = try await authed {
+                try await FoodAPIClient.shared.listLocations(restaurantId: restaurantId, token: $0)
+            }
+        } catch {
+            restaurantLocations = []
+        }
+    }
+
+    func addRestaurantLocation(name: String, city: String) async -> Bool {
+        guard let restaurant = merchantSelection else { return false }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        do {
+            let location = try await authed {
+                try await FoodAPIClient.shared.createLocation(
+                    restaurantId: restaurant.id,
+                    name: trimmed,
+                    city: city.isEmpty ? nil : city,
+                    isPrimary: restaurantLocations.isEmpty,
+                    token: $0
+                )
+            }
+            restaurantLocations.insert(location, at: 0)
+            await loadSetupProgress(restaurantId: restaurant.id)
+            message = "Location added."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
         }
     }
 
@@ -966,18 +1048,21 @@ final class FoodStore: ObservableObject {
             guard let createdAt = order.createdAt, createdAt >= startOfDay else { return partial }
             return partial + order.totalCents
         }
-        let locations = restaurants.map { restaurant in
+        let locations = restaurants.flatMap { restaurant -> [FoodManagerLocationSummary] in
             let cityBits = [restaurant.addressCity, restaurant.addressState].compactMap { value -> String? in
                 guard let value, !value.isEmpty else { return nil }
                 return value
             }
-            return FoodManagerLocationSummary(
+            let base = FoodManagerLocationSummary(
                 id: UUID(),
+                backendLocationId: nil,
+                restaurantId: restaurant.id,
                 name: restaurant.displayName,
                 city: cityBits.isEmpty ? restaurant.addressCountry : cityBits.joined(separator: ", "),
                 salesTodayCents: restaurant.id == selectedRestaurantID ? todaySales : 0,
                 openIssues: restaurant.id == selectedRestaurantID ? openIssueCount : 0
             )
+            return [base]
         }
         return locations.isEmpty ? FoodManagerSampleData.locations : locations
     }
@@ -1194,6 +1279,8 @@ struct FoodManagerIncident: Identifiable, Codable, Hashable {
 
 struct FoodManagerLocationSummary: Identifiable, Codable, Hashable {
     let id: UUID
+    var backendLocationId: Int64?
+    var restaurantId: Int64?
     var name: String
     var city: String
     var salesTodayCents: Int
@@ -1305,8 +1392,8 @@ enum FoodManagerSampleData {
     ]
 
     static let locations = [
-        FoodManagerLocationSummary(id: UUID(), name: "Ox Burger Lab - Downtown", city: "Miami, FL", salesTodayCents: 182400, openIssues: 1),
-        FoodManagerLocationSummary(id: UUID(), name: "Ox Burger Lab - Wynwood", city: "Miami, FL", salesTodayCents: 143900, openIssues: 0),
+        FoodManagerLocationSummary(id: UUID(), backendLocationId: nil, restaurantId: nil, name: "Ox Burger Lab - Downtown", city: "Miami, FL", salesTodayCents: 182400, openIssues: 1),
+        FoodManagerLocationSummary(id: UUID(), backendLocationId: nil, restaurantId: nil, name: "Ox Burger Lab - Wynwood", city: "Miami, FL", salesTodayCents: 143900, openIssues: 0),
     ]
 
     static let helpRequests = [

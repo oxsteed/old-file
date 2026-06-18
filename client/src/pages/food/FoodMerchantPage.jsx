@@ -22,6 +22,8 @@ import {
   formatFoodMoney,
 } from '../../api/food';
 import { FoodBrand, FOOD_STATUS_KEYS } from './foodShared';
+import SetupWizard, { defaultWeekdayHours } from './FoodSetupWizard';
+import LocationsPanel from './FoodLocationsPanel';
 import { ChecklistsPanel, SopsPanel, InventoryPanel } from './RestaurantOpsPanels';
 import '../../styles/FoodPages.css';
 
@@ -468,15 +470,19 @@ function MenuTab({ t, restaurant }) {
 }
 
 // ── Settings tab ─────────────────────────────────────────────────────────────
-function SettingsTab({ t, restaurant, onUpdated }) {
+function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
   const [saving, setSaving] = useState(false);
   const [prep, setPrep] = useState(restaurant.prep_time_min || 15);
+  const [openTime, setOpenTime] = useState('11:00');
+  const [closeTime, setCloseTime] = useState('22:00');
+  const [brandHex, setBrandHex] = useState(restaurant.brand_accent_hex || '');
 
   const patch = async (payload) => {
     setSaving(true);
     try {
       const updated = await updateFoodRestaurant(restaurant.id, payload);
       onUpdated(updated);
+      onSetupChanged?.();
       toast.success(t('food.common.saved'));
     } catch (err) {
       toast.error(apiErrorMessage(err, t('food.merchant.menuError')));
@@ -528,6 +534,38 @@ function SettingsTab({ t, restaurant, onUpdated }) {
           {t('food.common.save')}
         </button>
       </div>
+
+      <h3 style={{ marginTop: '1.5rem' }}>{t('food.merchant.hoursTitle', 'Operating hours')}</h3>
+      <div className="fd-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div className="fd-field" style={{ maxWidth: 120 }}>
+          <label htmlFor="fd-open">{t('food.merchant.openTime', 'Opens')}</label>
+          <input id="fd-open" type="time" value={openTime} onChange={(e) => setOpenTime(e.target.value)} />
+        </div>
+        <div className="fd-field" style={{ maxWidth: 120 }}>
+          <label htmlFor="fd-close">{t('food.merchant.closeTime', 'Closes')}</label>
+          <input id="fd-close" type="time" value={closeTime} onChange={(e) => setCloseTime(e.target.value)} />
+        </div>
+        <button
+          type="button"
+          className="fd-btn fd-btn-sm"
+          disabled={saving}
+          onClick={() => patch({ operatingHours: defaultWeekdayHours(openTime, closeTime) })}
+        >
+          {t('food.merchant.saveHours', 'Save hours')}
+        </button>
+      </div>
+
+      <div className="fd-row" style={{ alignItems: 'flex-end', marginTop: '1rem' }}>
+        <div className="fd-field" style={{ maxWidth: 160 }}>
+          <label htmlFor="fd-brand">{t('food.merchant.brandAccent', 'Brand accent (#RRGGBB)')}</label>
+          <input id="fd-brand" value={brandHex} onChange={(e) => setBrandHex(e.target.value)} placeholder="#FF8800" maxLength={7} />
+        </div>
+        <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => patch({ brandAccentHex: brandHex.trim() || null })}>
+          {t('food.common.save')}
+        </button>
+      </div>
+
+      <LocationsPanel t={t} restaurant={restaurant} onChanged={onSetupChanged} />
 
       <h3 style={{ marginTop: '1.5rem' }}>{t('food.merchant.inStoreScreens')}</h3>
       <p className="fd-card-meta">{t('food.merchant.inStoreScreensHint')}</p>
@@ -638,6 +676,7 @@ export default function FoodMerchantPage() {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
   const [tab, setTab] = useState('orders');
+  const [setupKey, setSetupKey] = useState(0);
   const [showCreate, setShowCreate] = useState(false);
 
   const load = useCallback(() => {
@@ -703,6 +742,15 @@ export default function FoodMerchantPage() {
             <p className="fd-pay-note">{t('food.merchant.notLiveHint')}</p>
           )}
 
+          {selected && (
+            <SetupWizard
+              key={`${selected.id}-${setupKey}`}
+              restaurant={selected}
+              t={t}
+              onGoTab={setTab}
+            />
+          )}
+
           <div className="fd-tabs" role="tablist">
             {['orders', 'menu', 'operations', 'settings'].map((key) => (
               <button
@@ -728,6 +776,7 @@ export default function FoodMerchantPage() {
               onUpdated={(updated) =>
                 setRestaurants((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
               }
+              onSetupChanged={() => setSetupKey((k) => k + 1)}
             />
           )}
         </>

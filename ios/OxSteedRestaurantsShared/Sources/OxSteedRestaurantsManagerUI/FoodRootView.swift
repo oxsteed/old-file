@@ -510,6 +510,7 @@ private struct OwnerManagerWorkspaceView: View {
     @State private var helpUrgency = "High"
     @State private var inviteEmail = ""
     @State private var inviteRole = "manager"
+    @State private var selectedLocation: FoodManagerLocationSummary?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -561,6 +562,15 @@ private struct OwnerManagerWorkspaceView: View {
                 await store.loadMerchant()
                 await store.loadMerchantOrders()
             }
+        }
+        .sheet(item: $selectedLocation) { location in
+            let totalSales = max(store.managerLocations.map(\.salesTodayCents).reduce(0, +), 1)
+            FoodManagerLocationDetailSheet(
+                location: location,
+                backendLocation: store.backendLocation(for: location),
+                totalNetworkSalesCents: totalSales,
+                onViewOrders: { tab = .orders }
+            )
         }
     }
 
@@ -739,44 +749,56 @@ private struct OwnerManagerWorkspaceView: View {
                     .foregroundStyle(FoodTheme.ink)
                 let totalSales = max(store.managerLocations.map(\.salesTodayCents).reduce(0, +), 1)
                 ForEach(store.managerLocations) { location in
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(location.name)
-                                    .font(.system(size: 15, weight: .bold))
-                                    .foregroundStyle(FoodTheme.ink)
-                                Text(location.city)
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(FoodTheme.muted)
-                            }
-                            Spacer()
-                            VStack(alignment: .trailing, spacing: 4) {
-                                Text(foodMoney(location.salesTodayCents))
-                                    .font(.system(size: 14, weight: .black))
-                                    .foregroundStyle(FoodTheme.basil)
-                                Text("\(location.openIssues) open issues")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(location.openIssues > 0 ? FoodTheme.saffron : FoodTheme.muted)
-                            }
-                        }
-                        GeometryReader { proxy in
-                            ZStack(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(FoodTheme.flame.opacity(0.12))
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(FoodTheme.flame)
-                                    .frame(width: max(8, proxy.size.width * CGFloat(location.salesTodayCents) / CGFloat(totalSales)))
-                            }
-                        }
-                        .frame(height: 8)
-                        Text("\(Int(Double(location.salesTodayCents) / Double(totalSales) * 100))% of network sales today")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(FoodTheme.muted)
+                    Button {
+                        selectedLocation = location
+                    } label: {
+                        locationSnapshotCard(location, totalSales: totalSales)
                     }
-                    .foodCard(padding: 14)
+                    .buttonStyle(.plain)
                 }
             }
         }
+    }
+
+    private func locationSnapshotCard(_ location: FoodManagerLocationSummary, totalSales: Int) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(location.name)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(FoodTheme.ink)
+                    Text(location.city)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(FoodTheme.muted)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(foodMoney(location.salesTodayCents))
+                        .font(.system(size: 14, weight: .black))
+                        .foregroundStyle(FoodTheme.basil)
+                    Text("\(location.openIssues) open issues")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(location.openIssues > 0 ? FoodTheme.saffron : FoodTheme.muted)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(FoodTheme.muted.opacity(0.6))
+            }
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(FoodTheme.flame.opacity(0.12))
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(FoodTheme.flame)
+                        .frame(width: max(8, proxy.size.width * CGFloat(location.salesTodayCents) / CGFloat(totalSales)))
+                }
+            }
+            .frame(height: 8)
+            Text("\(Int(Double(location.salesTodayCents) / Double(totalSales) * 100))% of network sales today")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(FoodTheme.muted)
+        }
+        .foodCard(padding: 14)
     }
 
     private var managerOrders: some View {
@@ -1121,21 +1143,29 @@ private struct OwnerManagerWorkspaceView: View {
                     .font(.system(size: 18, weight: .black))
                     .foregroundStyle(FoodTheme.ink)
                 ForEach(store.managerLocations) { location in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(location.name)
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(FoodTheme.ink)
-                            Text(location.city)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(FoodTheme.muted)
+                    Button {
+                        selectedLocation = location
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(location.name)
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundStyle(FoodTheme.ink)
+                                Text(location.city)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(FoodTheme.muted)
+                            }
+                            Spacer()
+                            Text(foodMoney(location.salesTodayCents))
+                                .font(.system(size: 14, weight: .black))
+                                .foregroundStyle(FoodTheme.basil)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(FoodTheme.muted.opacity(0.6))
                         }
-                        Spacer()
-                        Text(foodMoney(location.salesTodayCents))
-                            .font(.system(size: 14, weight: .black))
-                            .foregroundStyle(FoodTheme.basil)
+                        .foodCard(padding: 14)
                     }
-                    .foodCard(padding: 14)
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -2379,6 +2409,7 @@ struct MerchantView: View {
                     if !store.merchantRestaurants.isEmpty {
                         restaurantPicker
                         if let restaurant = store.merchantSelection {
+                            FoodSetupWizardCard(restaurant: restaurant)
                             statusCard(restaurant)
                             MerchantOrdersCard(showKitchen: $showKitchen)
                             AddMenuItemCard()

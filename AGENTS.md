@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-06-18 (growth ops: hours, promos, loyalty, delivery→runner)
+**Last updated:** 2026-06-18 (setup wizard + multi-location)
 
 ## Instructions for Every Session
 
@@ -8,6 +8,17 @@
 2. **After completing meaningful work**, update this file - revise "Current Status", "Remaining Work", update file paths.
 3. **Commit AGENTS.md changes** in the same commit as the work it documents.
 4. **Keep it accurate and terse** - do not pad with summaries of work you didn't personally verify.
+
+---
+
+## Session progress — OxSteed Restaurants wizard + locations (2026-06-18)
+
+Follow-up: **Verified on macOS:** `OxSteedRestaurantsManager` + `OxSteedRestaurantsCustomer` Debug simulator builds passed. `node --check` on touched server files passes.
+
+- **B8 setup wizard:** `GET /api/food/restaurants/:id/setup-progress`; web `FoodSetupWizard.jsx` checklist; Manager `FoodSetupWizardCard`; Go Live blocked until profile/location/hours/menu complete.
+- **D1 multi-location:** migration `319_restaurant_locations.sql`; location CRUD API; web `FoodLocationsPanel.jsx`; Manager loads API locations into overview snapshot.
+- **D2 location drill-down:** Manager Overview + Reports location rows open `FoodManagerLocationDetailSheet` (sales, issues, network share, jump to orders).
+- **Settings enhancements (web):** operating hours editor + brand accent hex on merchant Settings tab.
 
 ---
 
@@ -124,7 +135,7 @@ Follow-up on 2026-06-18 (production-grade suite pass — phase 3): real-time dis
 |---|------|--------|-------|
 | A1 | **Ready notification E2E** (push/SMS/email on `status=ready`) | `[~]` | `notifyFoodOrderReady` in `foodController.js`; needs Twilio/push/email env + device proof |
 | A2 | **Real-time on all surfaces** | `[~]` | Socket on iOS Customer/Kiosk/Kitchen/Manager/POS Track+queue + web KDS/queue/Merchant/kiosk+confirmation; poll kept as floor everywhere |
-| A3 | **Migrations 305–318 run in prod Postgres** | `[ ]` | 316 reviews; 317 client-order dedup; 318 hours/brand/promos/loyalty |
+| A3 | **Migrations 305–319 run in prod Postgres** | `[ ]` | 316–319 reviews/dedup/growth/locations |
 | A4 | **Stripe checkout in real Stripe env** | `[~]` | Build-verified only |
 | A5 | **App Store Connect metadata + external TestFlight** | `[ ]` | Internal TF done; per-app store listing / review pending |
 | A6 | **On-device pilot QA** (1 restaurant, 4 tablets) | `[ ]` | Kiosk lock via Guided Access/MDM (operational) |
@@ -142,7 +153,7 @@ Follow-up on 2026-06-18 (production-grade suite pass — phase 3): real-time dis
 | B5 | **Promotions & coupon codes** | `[~]` | `food_restaurant_promotions` + apply at checkout (iOS coupon + POS) |
 | B6 | **Verified / trusted restaurant badges** | `[~]` | `is_verified` on restaurant; shown on Discover (iOS + web) |
 | B7 | **Operating hours** (open/closed, “opens at”) | `[~]` | `operating_hours` JSONB + ordering guardrail + Discover hours pill |
-| B8 | **Owner setup wizard** (profile → location → hours → menu → staff → publish) | `[~]` | Today: form + Go Live, not guided wizard |
+| B8 | **Owner setup wizard** (profile → location → hours → menu → publish) | `[~]` | `setup-progress` API + web/iOS checklist; Go Live gated |
 
 ### Phase C — Real-time, reliability & worldwide
 
@@ -157,8 +168,8 @@ Follow-up on 2026-06-18 (production-grade suite pass — phase 3): real-time dis
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| D1 | **Multi-location** (`restaurant_locations`, per-site dashboards) | `[~]` | Manager share bars only; one storefront ≈ one row today |
-| D2 | **Manager location drill-down sheet** | `[ ]` | Overview comparison without detail |
+| D1 | **Multi-location** (`restaurant_locations`, per-site dashboards) | `[~]` | Migration 319 + CRUD API + merchant locations panel |
+| D2 | **Manager location drill-down sheet** | `[~]` | Tap location on Overview/Reports → detail sheet + jump to orders |
 | D3 | **Backend brand accent** (`brand_accent_hex` on restaurant) | `[~]` | Column + PATCH + `FoodTheme.accent(..., brandHex:)` |
 | D4 | **Fine-grained permissions** (`restaurant_users`, `menu.*` / `pos.*` / `kitchen.*`) | `[ ]` | Cashier vs manager not enforced app-wide |
 | D5 | **Recipe → auto stock decrement on order** | `[ ]` | Mappings exist; no order-driven decrement |

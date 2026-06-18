@@ -28,6 +28,15 @@ export const listFoodPromotions = (restaurantId) =>
 export const createFoodPromotion = (restaurantId, payload) =>
   api.post(`/food/restaurants/${restaurantId}/promotions`, payload).then((r) => r.data?.promotion);
 
+export const getFoodSetupProgress = (restaurantId) =>
+  api.get(`/food/restaurants/${restaurantId}/setup-progress`).then((r) => r.data);
+
+export const listFoodLocations = (restaurantId) =>
+  api.get(`/food/restaurants/${restaurantId}/locations`).then((r) => r.data?.locations || []);
+
+export const createFoodLocation = (restaurantId, payload) =>
+  api.post(`/food/restaurants/${restaurantId}/locations`, payload).then((r) => r.data?.location);
+
 export const getTrackedFoodOrder = (trackingToken) =>
   api.get(`/food/orders/track/${trackingToken}`).then((r) => r.data?.order);
 

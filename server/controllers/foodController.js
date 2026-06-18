@@ -2332,3 +2332,214 @@ exports.createOrderReview = async (req, res, next) => {
     next(err);
   }
 };
+
+async function buildRestaurantSetupProgress(restaurantId, restaurant) {
+  let menuCount = 0;
+  let locationCount = 0;
+  try {
+    const { rows: menuRows } = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM food_menu_items WHERE restaurant_id = $1`,
+      [restaurantId]
+    );
+    menuCount = Number(menuRows[0]?.count || 0);
+  } catch (err) {
+    if (!isMissingRelationError(err)) throw err;
+  }
+  try {
+    const { rows: locationRows } = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM restaurant_locations WHERE restaurant_id = $1 AND status = 'active'`,
+      [restaurantId]
+    );
+    locationCount = Number(locationRows[0]?.count || 0);
+  } catch (err) {
+    if (!isMissingRelationError(err)) throw err;
+  }
+
+  const hours = normalizeHoursInput(restaurant.operating_hours);
+  const hasHours = Boolean(hours.weekly && Object.keys(hours.weekly).length > 0);
+  const hasProfile = Boolean(
+    normalizeString(restaurant.display_name, 160)
+    && (normalizeString(restaurant.description, 2000) || (Array.isArray(restaurant.cuisine_tags) && restaurant.cuisine_tags.length))
+  );
+  const hasLocation = Boolean(
+    locationCount > 0
+    || (normalizeString(restaurant.address_city, 120)
+      && Number.isFinite(Number(restaurant.latitude))
+      && Number.isFinite(Number(restaurant.longitude)))
+  );
+
+  const steps = [
+    { id: 'profile', title: 'Restaurant profile', complete: hasProfile },
+    { id: 'location', title: 'Location', complete: hasLocation },
+    { id: 'hours', title: 'Operating hours', complete: hasHours },
+    { id: 'menu', title: 'Menu items', complete: menuCount > 0 },
+    { id: 'publish', title: 'Go live', complete: restaurant.status === 'active' },
+  ];
+  const readyToPublish = steps.slice(0, 4).every((step) => step.complete);
+  const nextStep = steps.find((step) => !step.complete && step.id !== 'publish') || null;
+  return { steps, readyToPublish, nextStepId: nextStep?.id || null, menuItemCount: menuCount, locationCount };
+}
+
+exports.getRestaurantSetupProgress = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const { rows } = await pool.query(`SELECT * FROM food_restaurants WHERE id = $1`, [restaurantId]);
+    const restaurant = rows[0];
+    if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const progress = await buildRestaurantSetupProgress(restaurantId, restaurant);
+    res.json(progress);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.listRestaurantLocations = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    let isMerchant = false;
+    if (req.user?.id) {
+      try {
+        await requireRestaurantAccess(req.user.id, restaurantId);
+        isMerchant = true;
+      } catch (_) {
+        isMerchant = false;
+      }
+    }
+    if (!isMerchant) {
+      const { rows: restaurants } = await pool.query(
+        `SELECT id FROM food_restaurants WHERE id = $1 AND status = 'active'`,
+        [restaurantId]
+      );
+      if (!restaurants[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    }
+    try {
+      const { rows } = await pool.query(
+        `SELECT id, restaurant_id, name, address_street, address_city, address_state, address_zip,
+                address_country, latitude, longitude, timezone, phone, is_primary, status,
+                operating_hours, created_at, updated_at
+           FROM restaurant_locations
+          WHERE restaurant_id = $1 ${isMerchant ? '' : "AND status = 'active'"}
+          ORDER BY is_primary DESC, name ASC`,
+        [restaurantId]
+      );
+      return res.json({ locations: rows.map(attachRestaurantHours) });
+    } catch (err) {
+      if (isMissingRelationError(err)) return res.json({ locations: [] });
+      throw err;
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createRestaurantLocation = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const name = normalizeString(req.body.name, 160);
+    if (!name) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Location name is required' });
+    }
+    const isPrimary = req.body.isPrimary === true || req.body.is_primary === true;
+    if (isPrimary) {
+      await pool.query(
+        `UPDATE restaurant_locations SET is_primary = FALSE, updated_at = NOW() WHERE restaurant_id = $1`,
+        [restaurantId]
+      );
+    }
+    const { rows: [location] } = await pool.query(
+      `INSERT INTO restaurant_locations
+         (restaurant_id, name, address_street, address_city, address_state, address_zip,
+          address_country, latitude, longitude, timezone, phone, is_primary, status, operating_hours)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+       RETURNING *`,
+      [
+        restaurantId,
+        name,
+        normalizeString(req.body.addressStreet || req.body.address_street, 255),
+        normalizeString(req.body.addressCity || req.body.address_city, 120),
+        normalizeString(req.body.addressState || req.body.address_state, 120),
+        normalizeString(req.body.addressZip || req.body.address_zip, 40),
+        normalizeCountry(req.body.addressCountry || req.body.address_country),
+        Number.isFinite(Number(req.body.latitude)) ? Number(req.body.latitude) : null,
+        Number.isFinite(Number(req.body.longitude)) ? Number(req.body.longitude) : null,
+        normalizeString(req.body.timezone, 80) || 'UTC',
+        normalizeString(req.body.phone, 40),
+        isPrimary,
+        normalizeString(req.body.status, 24) || 'active',
+        normalizeHoursInput(req.body.operatingHours || req.body.operating_hours),
+      ]
+    );
+    res.status(201).json({ location: attachRestaurantHours(location) });
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      return next(new AppError('Locations are not available yet', 503, 'locations_unavailable'));
+    }
+    next(err);
+  }
+};
+
+exports.updateRestaurantLocation = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const locationId = parsePositiveInt(req.params.locationId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const { rows: existing } = await pool.query(
+      `SELECT * FROM restaurant_locations WHERE id = $1 AND restaurant_id = $2`,
+      [locationId, restaurantId]
+    );
+    if (!existing[0]) throw new AppError('Location not found', 404, 'location_not_found');
+
+    if (req.body.isPrimary === true || req.body.is_primary === true) {
+      await pool.query(
+        `UPDATE restaurant_locations SET is_primary = FALSE, updated_at = NOW() WHERE restaurant_id = $1`,
+        [restaurantId]
+      );
+    }
+
+    const { rows: [location] } = await pool.query(
+      `UPDATE restaurant_locations
+          SET name = COALESCE($1, name),
+              address_street = COALESCE($2, address_street),
+              address_city = COALESCE($3, address_city),
+              address_state = COALESCE($4, address_state),
+              address_zip = COALESCE($5, address_zip),
+              address_country = COALESCE($6, address_country),
+              latitude = COALESCE($7, latitude),
+              longitude = COALESCE($8, longitude),
+              timezone = COALESCE($9, timezone),
+              phone = COALESCE($10, phone),
+              is_primary = COALESCE($11, is_primary),
+              status = COALESCE($12, status),
+              operating_hours = COALESCE($13, operating_hours),
+              updated_at = NOW()
+        WHERE id = $14 AND restaurant_id = $15
+        RETURNING *`,
+      [
+        normalizeString(req.body.name, 160),
+        normalizeString(req.body.addressStreet || req.body.address_street, 255),
+        normalizeString(req.body.addressCity || req.body.address_city, 120),
+        normalizeString(req.body.addressState || req.body.address_state, 120),
+        normalizeString(req.body.addressZip || req.body.address_zip, 40),
+        req.body.addressCountry || req.body.address_country ? normalizeCountry(req.body.addressCountry || req.body.address_country) : null,
+        Number.isFinite(Number(req.body.latitude)) ? Number(req.body.latitude) : null,
+        Number.isFinite(Number(req.body.longitude)) ? Number(req.body.longitude) : null,
+        normalizeString(req.body.timezone, 80),
+        normalizeString(req.body.phone, 40),
+        typeof (req.body.isPrimary ?? req.body.is_primary) === 'boolean' ? (req.body.isPrimary ?? req.body.is_primary) : null,
+        normalizeString(req.body.status, 24),
+        req.body.operatingHours || req.body.operating_hours ? normalizeHoursInput(req.body.operatingHours || req.body.operating_hours) : null,
+        locationId,
+        restaurantId,
+      ]
+    );
+    res.json({ location: attachRestaurantHours(location) });
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      return next(new AppError('Locations are not available yet', 503, 'locations_unavailable'));
+    }
+    next(err);
+  }
+};
