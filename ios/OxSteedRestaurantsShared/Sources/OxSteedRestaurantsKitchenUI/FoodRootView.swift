@@ -60,6 +60,114 @@ enum FoodWorkspace: String, CaseIterable, Identifiable {
             return "Foundation"
         }
     }
+
+    var accent: Color {
+        switch self {
+        case .customerOrdering: return FoodTheme.flame
+        case .ownerManager: return FoodTheme.blue
+        case .posCounter: return FoodTheme.flame
+        case .kitchenDisplay: return FoodTheme.coral
+        case .kioskQueue: return FoodTheme.basil
+        case .crewTraining: return FoodTheme.grape
+        case .inventoryReceiving: return FoodTheme.saffron
+        case .deliveryRunner: return FoodTheme.blue
+        }
+    }
+
+    var operatorLabel: String {
+        switch self {
+        case .customerOrdering: return "Guest-facing growth"
+        case .ownerManager: return "Operator command center"
+        case .posCounter: return "Counter execution"
+        case .kitchenDisplay: return "Back-of-house execution"
+        case .kioskQueue: return "Public in-store flow"
+        case .crewTraining: return "Training discipline"
+        case .inventoryReceiving: return "Cost control"
+        case .deliveryRunner: return "Last-mile execution"
+        }
+    }
+
+    var brandPromise: String {
+        switch self {
+        case .customerOrdering:
+            return "Each restaurant keeps its own voice, menu, and promotions while OxSteed supplies the ordering engine."
+        case .ownerManager:
+            return "Independent operators get franchise-grade visibility without handing their identity to a marketplace."
+        case .posCounter:
+            return "Walk-in guests should feel the same speed and consistency they expect from a national chain."
+        case .kitchenDisplay:
+            return "Kitchen staff need one unmistakable next action per ticket, not a cluttered dashboard."
+        case .kioskQueue:
+            return "The dining room should broadcast confidence: order here, watch progress, pick up fast."
+        case .crewTraining:
+            return "Independent crews deserve the same repeatable SOP and onboarding rhythm big brands use."
+        case .inventoryReceiving:
+            return "Operators need stock truth early enough to avoid waste, outs, and surprise margin loss."
+        case .deliveryRunner:
+            return "Runners need the next stop, the proof rule, and the escalation path without digging."
+        }
+    }
+
+    var primaryMoments: [FoodWorkspaceMoment] {
+        switch self {
+        case .customerOrdering:
+            return [
+                FoodWorkspaceMoment(label: "Discover", title: "Show nearby brands fast", detail: "Discovery and offers should beat blank-list anxiety in the first screen.", icon: "sparkles"),
+                FoodWorkspaceMoment(label: "Order", title: "Keep checkout momentum visible", detail: "A live cart and clear fulfillment choice should follow the guest while browsing.", icon: "cart.fill"),
+                FoodWorkspaceMoment(label: "Track", title: "Explain what happens next", detail: "Status needs to read like a guided journey, not raw queue data.", icon: "clock.badge.checkmark")
+            ]
+        case .ownerManager:
+            return [
+                FoodWorkspaceMoment(label: "Today", title: "Surface the few issues that matter", detail: "Leaders should spot revenue risk, labor risk, and service blockers immediately.", icon: "chart.line.uptrend.xyaxis"),
+                FoodWorkspaceMoment(label: "Act", title: "Move from alert to fix in one tap", detail: "Menus, checklists, staffing, and help requests should be adjacent to the problem.", icon: "bolt.badge.clock"),
+                FoodWorkspaceMoment(label: "Scale", title: "Compare locations without losing brand control", detail: "Multi-unit visibility should still feel like independent restaurants inside one network.", icon: "building.2.crop.circle")
+            ]
+        case .posCounter:
+            return [
+                FoodWorkspaceMoment(label: "Speed", title: "Build a ticket with almost no thinking", detail: "Big tappable products, clear modifiers, and visible totals keep the line moving.", icon: "hand.tap.fill"),
+                FoodWorkspaceMoment(label: "Collect", title: "Show payment state without ambiguity", detail: "Cashiers need to know what was paid, comped, or still open at a glance.", icon: "creditcard.fill"),
+                FoodWorkspaceMoment(label: "Send", title: "Get the kitchen the right ticket", detail: "Modifiers, notes, and fulfillment type must be impossible to miss.", icon: "paperplane.fill")
+            ]
+        case .kitchenDisplay:
+            return [
+                FoodWorkspaceMoment(label: "See", title: "Sort work by what is on fire now", detail: "The board should make delayed, new, and ready tickets visually obvious.", icon: "flame.fill"),
+                FoodWorkspaceMoment(label: "Move", title: "Advance status with one deliberate action", detail: "Large, low-error controls matter more than secondary analytics mid-rush.", icon: "arrow.right.circle.fill"),
+                FoodWorkspaceMoment(label: "Finish", title: "Protect handoff accuracy", detail: "Pickup context and notes need to stay attached until the ticket leaves the line.", icon: "checkmark.seal.fill")
+            ]
+        case .kioskQueue:
+            return [
+                FoodWorkspaceMoment(label: "Order", title: "Let guests self-serve confidently", detail: "Language, menu cards, and checkout cues should work from across the counter.", icon: "rectangle.and.hand.point.up.left.fill"),
+                FoodWorkspaceMoment(label: "Wait", title: "Show progress publicly", detail: "Preparing and ready states need to be legible from a distance in noisy rooms.", icon: "list.number"),
+                FoodWorkspaceMoment(label: "Reset", title: "Return the screen to ready mode automatically", detail: "The device should always be prepared for the next guest without staff babysitting.", icon: "arrow.counterclockwise.circle.fill")
+            ]
+        case .crewTraining:
+            return [
+                FoodWorkspaceMoment(label: "Learn", title: "Turn onboarding into a daily habit", detail: "Lessons, SOPs, and quizzes should feel actionable, not buried in admin UI.", icon: "book.closed.fill"),
+                FoodWorkspaceMoment(label: "Check", title: "Tie training to live shift readiness", detail: "Opening, closing, and food-safety work should sit beside completion state.", icon: "checklist.checked"),
+                FoodWorkspaceMoment(label: "Earn", title: "Make progress visible", detail: "Badges and scores reinforce consistency the way large chains do.", icon: "rosette")
+            ]
+        case .inventoryReceiving:
+            return [
+                FoodWorkspaceMoment(label: "Count", title: "Catch low stock before service", detail: "Par gaps and ingredient risk should rise above routine counts.", icon: "shippingbox.fill"),
+                FoodWorkspaceMoment(label: "Receive", title: "Log deliveries where they happen", detail: "Receiving should take seconds so teams actually keep it accurate.", icon: "tray.full.fill"),
+                FoodWorkspaceMoment(label: "Protect", title: "Track waste and supplier issues together", detail: "Cost leakage becomes obvious when waste, requests, and issues share one loop.", icon: "exclamationmark.triangle.fill")
+            ]
+        case .deliveryRunner:
+            return [
+                FoodWorkspaceMoment(label: "Route", title: "Make the next stop unmistakable", detail: "Assigned work should read like a route, not a list of cards to decipher.", icon: "map.fill"),
+                FoodWorkspaceMoment(label: "Confirm", title: "Capture proof without slowing handoff", detail: "Photos, notes, and cash collection rules should be one motion away.", icon: "camera.fill"),
+                FoodWorkspaceMoment(label: "Escalate", title: "Report issues while still in the field", detail: "Runners need a fast path for delays, customer contact rules, and failed deliveries.", icon: "exclamationmark.bubble.fill")
+            ]
+        }
+    }
+}
+
+struct FoodWorkspaceMoment: Identifiable {
+    let id = UUID()
+    let label: String
+    let title: String
+    let detail: String
+    let icon: String
 }
 
 struct FoodRuntimeConfig {
@@ -177,40 +285,79 @@ struct FoodRootView: View {
 }
 
 private struct FoodWorkspaceHero: View {
+    @EnvironmentObject private var store: FoodStore
     let appName: String
     let workspace: FoodWorkspace
 
+    // Restaurant-first identity: the storefront leads, OxSteed is the network.
+    private var restaurantName: String? {
+        let name = store.activeRestaurant?.displayName ?? ""
+        return name.isEmpty ? nil : name
+    }
+    private var brandAccent: Color {
+        if let r = store.activeRestaurant { return FoodTheme.accent(for: "\(r.id)") }
+        return workspace.accent
+    }
+    private var liveState: FoodLiveState {
+        store.activeRestaurant == nil ? .syncing : .live
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(appName)
-                        .font(.system(size: 32, weight: .black))
+        VStack(alignment: .leading, spacing: 14) {
+            // Brand + role row — answers "whose restaurant" and "which surface".
+            HStack(alignment: .center, spacing: 13) {
+                FoodBrandMark(name: restaurantName ?? appName, accent: brandAccent, size: 48)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(restaurantName ?? appName)
+                        .font(.system(size: 22, weight: .black, design: .rounded))
                         .foregroundStyle(FoodTheme.ink)
-                    Text("Eight specialized front-end experiences. One shared restaurant backend and OxSteed ID.")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(FoodTheme.muted)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    HStack(spacing: 6) {
+                        Image(systemName: workspace.icon)
+                            .font(.system(size: 11, weight: .bold))
+                        Text(workspace.title.uppercased())
+                            .font(.foodMicro)
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(brandAccent)
                 }
-                Spacer()
-                Label(workspace.badge, systemImage: "checkmark.seal.fill")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(FoodTheme.basil)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(FoodTheme.surfaceRaised)
-                    .clipShape(Capsule())
+
+                Spacer(minLength: 8)
+
+                FoodLiveBadge(state: liveState)
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(workspace.title)
-                    .font(.system(size: 24, weight: .black))
-                    .foregroundStyle(FoodTheme.ink)
-                Text(workspace.subtitle)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(FoodTheme.muted)
-            }
+            // One line on what this surface is for — operational, not marketing.
+            Text(workspace.subtitle)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(FoodTheme.inkSoft)
+                .fixedSize(horizontal: false, vertical: true)
+
+            FoodNetworkFootnote(leading: workspace.operatorLabel)
         }
-        .foodCard(padding: 18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: FoodTheme.Radius.xl, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            brandAccent.opacity(0.22),
+                            FoodTheme.surface,
+                            FoodTheme.surface
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: FoodTheme.Radius.xl, style: .continuous)
+                .stroke(brandAccent.opacity(0.20), lineWidth: 1)
+        )
+        .foodShadow(.medium)
     }
 }
 
@@ -227,30 +374,12 @@ private struct FoodWorkspaceRail: View {
                             workspace = item
                         }
                     } label: {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Image(systemName: item.icon)
-                                    .font(.system(size: 18, weight: .bold))
-                                Spacer()
-                                Text(item.badge.uppercased())
-                                    .font(.system(size: 10, weight: .black))
-                            }
-                            Text(item.title)
-                                .font(.system(size: 15, weight: .black))
-                                .multilineTextAlignment(.leading)
-                            Text(item.subtitle)
-                                .font(.system(size: 12, weight: .medium))
-                                .multilineTextAlignment(.leading)
-                                .lineLimit(3)
-                        }
-                        .foregroundStyle(workspace == item ? .white : FoodTheme.ink)
-                        .frame(width: 190, alignment: .leading)
-                        .padding(14)
-                        .background(workspace == item ? FoodTheme.flame : FoodTheme.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(workspace == item ? FoodTheme.flame : FoodTheme.line)
+                        FoodModeCard(
+                            title: item.title,
+                            detail: item.subtitle,
+                            icon: item.icon,
+                            tint: item.accent,
+                            isSelected: workspace == item
                         )
                     }
                     .buttonStyle(.plain)
@@ -487,49 +616,17 @@ private struct POSCounterWorkspaceView: View {
 private struct KitchenDisplayWorkspaceView: View {
     @EnvironmentObject private var store: FoodStore
 
+    // A kitchen screen IS the board. No marketing preamble — the prep board
+    // dominates the surface and carries its own live header + metrics.
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            WorkspaceSectionHeader(
-                title: "Kitchen display app",
-                subtitle: "Dedicated prep board with live ticket movement and fullscreen kitchen mode."
+        KitchenDisplayView()
+            .frame(minHeight: 720)
+            .clipShape(RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous)
+                    .stroke(FoodTheme.line, lineWidth: 1)
             )
-            HStack(spacing: 12) {
-                statusChip(
-                    title: store.kitchenConnectionStatus,
-                    icon: store.kitchenConnectionStatus == "Live feed" ? "dot.radiowaves.left.and.right" : "wifi.slash",
-                    color: store.kitchenConnectionStatus == "Live feed" ? FoodTheme.basil : FoodTheme.saffron
-                )
-                statusChip(
-                    title: store.kitchenFullscreenLocked ? "Locked mode" : "Windowed",
-                    icon: store.kitchenFullscreenLocked ? "lock.fill" : "lock.open",
-                    color: FoodTheme.flame
-                )
-                if let lastSyncAt = store.kitchenLastSyncAt {
-                    statusChip(
-                        title: "Synced \(lastSyncAt.formatted(date: .omitted, time: .shortened))",
-                        icon: "clock.arrow.circlepath",
-                        color: FoodTheme.blue
-                    )
-                }
-            }
-            KitchenDisplayView()
-                .frame(minHeight: 640)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        }
-        .task {
-            await store.bootstrapKitchenBoard()
-        }
-    }
-
-    private func statusChip(title: String, icon: String, color: Color) -> some View {
-        Label(title, systemImage: icon)
-            .font(.system(size: 12, weight: .bold))
-            .foregroundStyle(color)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 9)
-            .background(FoodTheme.surface)
-            .clipShape(Capsule())
-            .overlay(Capsule().stroke(FoodTheme.line))
+            .task { await store.bootstrapKitchenBoard() }
     }
 }
 
@@ -1822,198 +1919,353 @@ private struct NewRestaurantSheet: View {
 struct KitchenDisplayView: View {
     @EnvironmentObject private var store: FoodStore
 
-    private let columns = [
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12)
-    ]
+    // QSR-style timing thresholds (minutes) drive ticket urgency colouring.
+    private let warnAfter: Double = 6
+    private let lateAfter: Double = 10
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Kitchen Display")
-                                .font(.system(size: 30, weight: .black))
-                                .foregroundStyle(.white)
-                            Text(store.activeRestaurant?.displayName ?? "OxSteed Restaurants")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(.gray)
-                        }
-                        Spacer()
-                        VStack(alignment: .trailing, spacing: 4) {
-                            Text("Kitchen-only mode")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(.white)
-                            Text("Tap tickets to advance prep flow")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.gray)
-                        }
-                    }
+            VStack(spacing: 0) {
+                header
+                Rectangle().fill(Color.white.opacity(0.10)).frame(height: 1)
 
-                    ForEach(kitchenColumns, id: \.title) { column in
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack {
-                                Text("\(column.title) (\(column.orders.count))")
-                                    .font(.system(size: 16, weight: .black))
-                                    .foregroundStyle(column.color)
-                                Spacer()
-                                if column.title == "Preparing" {
-                                    Text("\(delayedOrders.count) delayed")
-                                        .font(.system(size: 11, weight: .black))
-                                        .foregroundStyle(delayedOrders.isEmpty ? .gray : .red)
-                                }
-                            }
-                            if column.orders.isEmpty {
-                                Text("Nothing here")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(.gray)
-                            }
-                            LazyVGrid(columns: columns, spacing: 12) {
-                                ForEach(column.orders) { order in
-                                    KitchenTicket(order: order)
-                                }
-                            }
-                        }
+                if activeTickets.isEmpty && completedTickets.isEmpty {
+                    FoodEmptyState(
+                        icon: "checkmark.seal.fill",
+                        title: "All caught up",
+                        detail: "No open tickets on the line. New orders appear here automatically.",
+                        tint: FoodTheme.basil
+                    )
+                    .frame(maxHeight: .infinity)
+                } else {
+                    HStack(alignment: .top, spacing: 10) {
+                        column("NEW", FoodTheme.saffron, newTickets, "tray.full.fill")
+                        column("COOKING", FoodTheme.flame, cookingTickets, "flame.fill")
+                        column("READY", FoodTheme.basil, readyTickets, "bell.fill")
+                    }
+                    .padding(10)
+                    .frame(maxHeight: .infinity)
+
+                    if !completedTickets.isEmpty {
+                        recentlyCompletedStrip
                     }
                 }
-                .padding(16)
             }
         }
         .task(id: store.merchantSelection?.id) {
             while !Task.isCancelled {
                 await store.loadMerchantOrders()
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
             }
         }
     }
 
-    private var kitchenColumns: [(title: String, color: Color, orders: [FoodOrder])] {
-        let sorted = store.kitchenBoardOrders.sorted { $0.queueNumber < $1.queueNumber }
-        return [
-            ("New", FoodTheme.saffron, sorted.filter { $0.status == "received" || $0.status == "accepted" }),
-            ("Preparing", FoodTheme.flame, sorted.filter { $0.status == "preparing" }),
-            ("Ready", FoodTheme.basil, sorted.filter { $0.status == "ready" }),
-            ("Completed", FoodTheme.blue, sorted.filter { $0.status == "completed" })
-        ]
+    // MARK: Live header
+    private var header: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("KITCHEN DISPLAY")
+                    .font(.system(size: 12, weight: .black))
+                    .tracking(1.5)
+                    .foregroundStyle(.white.opacity(0.55))
+                Text(store.activeRestaurant?.displayName ?? "OxSteed Restaurants")
+                    .font(.system(size: 21, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+
+            HStack(spacing: 8) {
+                metric("\(newTickets.count)", "NEW", FoodTheme.saffron)
+                metric("\(cookingTickets.count)", "COOKING", FoodTheme.flame)
+                metric("\(readyTickets.count)", "READY", FoodTheme.basil)
+                if let oldest = oldestActiveMinutes {
+                    metric("\(oldest)m", "OLDEST", oldest >= Int(lateAfter) ? FoodTheme.coral : .white)
+                }
+            }
+
+            TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                Text(ctx.date.formatted(date: .omitted, time: .standard))
+                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.75))
+            }
+
+            FoodLiveBadge(state: FoodLiveBadge.from(store.kitchenConnectionStatus))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
 
-    private var delayedOrders: [FoodOrder] {
-        store.kitchenBoardOrders.filter { order in
-            guard order.status == "preparing" else { return false }
-            if let promisedAt = order.promisedAt {
-                return promisedAt < Date()
-            }
-            guard let createdAt = order.createdAt else { return false }
-            return Date().timeIntervalSince(createdAt) > 8 * 60
+    private func metric(_ value: String, _ label: String, _ tint: Color) -> some View {
+        VStack(spacing: 1) {
+            Text(value)
+                .font(.system(size: 20, weight: .black, design: .rounded))
+                .foregroundStyle(tint)
+                .contentTransition(.numericText())
+            Text(label)
+                .font(.system(size: 9, weight: .black))
+                .foregroundStyle(.white.opacity(0.5))
         }
+        .frame(minWidth: 54)
+        .padding(.vertical, 6)
+        .background(Color.white.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    // MARK: Status column
+    private func column(_ title: String, _ tint: Color, _ orders: [FoodOrder], _ icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: icon).font(.system(size: 12, weight: .bold))
+                Text(title).font(.system(size: 14, weight: .black))
+                Spacer()
+                Text("\(orders.count)").font(.system(size: 14, weight: .black))
+            }
+            .foregroundStyle(tint)
+            .padding(.horizontal, 4)
+
+            if orders.isEmpty {
+                Text("—")
+                    .font(.system(size: 16, weight: .black))
+                    .foregroundStyle(.white.opacity(0.20))
+                    .frame(maxWidth: .infinity, minHeight: 64)
+            } else {
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 10) {
+                        ForEach(orders) { order in
+                            KitchenTicket(order: order, warnAfter: warnAfter, lateAfter: lateAfter)
+                        }
+                    }
+                    .padding(.bottom, 8)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(10)
+        .background(Color.white.opacity(0.03))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(tint.opacity(0.25), lineWidth: 1)
+        )
+    }
+
+    // MARK: Recently completed (recall path)
+    private var recentlyCompletedStrip: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("RECENTLY COMPLETED · tap to recall")
+                .font(.system(size: 10, weight: .black))
+                .foregroundStyle(.white.opacity(0.40))
+                .padding(.horizontal, 14)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(completedTickets.prefix(12)) { order in
+                        Button {
+                            Task { await store.updateOrderStatus(order, status: "ready") }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "arrow.uturn.backward").font(.system(size: 10, weight: .bold))
+                                Text("#\(order.queueNumber)").font(.system(size: 14, weight: .black))
+                            }
+                            .foregroundStyle(.white.opacity(0.8))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.white.opacity(0.08))
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 14)
+            }
+        }
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(0.02))
+    }
+
+    // MARK: Derived data
+    private var sortedActive: [FoodOrder] {
+        store.kitchenBoardOrders.sorted { $0.queueNumber < $1.queueNumber }
+    }
+    private var newTickets: [FoodOrder] {
+        sortedActive.filter { ["received", "accepted", "placed", "new"].contains($0.status) }
+    }
+    private var cookingTickets: [FoodOrder] { sortedActive.filter { $0.status == "preparing" } }
+    private var readyTickets: [FoodOrder] { sortedActive.filter { $0.status == "ready" } }
+    private var activeTickets: [FoodOrder] { newTickets + cookingTickets + readyTickets }
+    private var completedTickets: [FoodOrder] {
+        store.kitchenBoardOrders.filter { $0.status == "completed" }
+            .sorted { $0.queueNumber > $1.queueNumber }
+    }
+    private var oldestActiveMinutes: Int? {
+        activeTickets.compactMap { order -> Int? in
+            guard let c = order.createdAt else { return nil }
+            return max(0, Int(Date().timeIntervalSince(c) / 60))
+        }.max()
     }
 }
 
 private struct KitchenTicket: View {
     @EnvironmentObject private var store: FoodStore
     let order: FoodOrder
+    var warnAfter: Double = 6
+    var lateAfter: Double = 10
 
+    private var elapsedMinutes: Double {
+        guard let c = order.createdAt else { return 0 }
+        return max(0, Date().timeIntervalSince(c) / 60)
+    }
+    private var promisedPassed: Bool {
+        guard let p = order.promisedAt else { return false }
+        return p < Date() && order.status != "ready" && order.status != "completed"
+    }
+    private var urgency: FoodUrgency {
+        if order.status == "ready" { return .onTime }
+        return FoodUrgency.tier(
+            elapsedMinutes: elapsedMinutes,
+            warnAfter: warnAfter,
+            lateAfter: lateAfter,
+            promisedPassed: promisedPassed
+        )
+    }
     private var advance: (String, String)? {
         switch order.status {
-        case "received", "accepted": return ("Start", "preparing")
-        case "preparing": return ("Ready", "ready")
-        case "ready": return ("Done", "completed")
+        case "received", "accepted", "placed", "new": return ("START", "preparing")
+        case "preparing": return ("READY", "ready")
+        case "ready": return ("DONE", "completed")
         default: return nil
         }
     }
-
-    private var elapsedText: String {
-        let reference = order.createdAt ?? Date()
-        let minutes = max(0, Int(Date().timeIntervalSince(reference) / 60))
-        return "\(minutes)m active"
-    }
-
-    private var isDelayed: Bool {
-        if let promisedAt = order.promisedAt {
-            return promisedAt < Date() && order.status != "ready" && order.status != "completed"
+    private var recall: String? {
+        switch order.status {
+        case "preparing": return "received"
+        case "ready": return "preparing"
+        default: return nil
         }
-        guard let createdAt = order.createdAt else { return false }
-        return Date().timeIntervalSince(createdAt) > 8 * 60 && order.status == "preparing"
+    }
+    private var fulfillmentLabel: String {
+        order.tableLabel ?? order.fulfillmentType.replacingOccurrences(of: "_", with: " ").capitalized
+    }
+    private var fulfillmentIcon: String {
+        let f = order.fulfillmentType.lowercased()
+        if f.contains("deliver") { return "bicycle" }
+        if f.contains("dine") || order.tableLabel != nil { return "fork.knife" }
+        if f.contains("pickup") || f.contains("takeout") { return "bag.fill" }
+        return "tray.fill"
+    }
+    private var timerText: String {
+        if let p = order.promisedAt, order.status != "completed" {
+            let diff = Int(p.timeIntervalSinceNow / 60)
+            return diff >= 0 ? "due \(diff)m" : "\(-diff)m over"
+        }
+        return "\(Int(elapsedMinutes))m"
+    }
+    private var advanceColor: Color {
+        switch order.status {
+        case "preparing": return FoodTheme.basil
+        case "ready": return FoodTheme.blue
+        default: return FoodTheme.flame
+        }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
+            HStack(alignment: .firstTextBaseline) {
                 Text("#\(order.queueNumber)")
-                    .font(.system(size: 28, weight: .black))
+                    .font(.system(size: 30, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
                 Spacer()
-                Text(order.status.uppercased())
-                    .font(.system(size: 10, weight: .black))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 4)
-                    .background(statusColor(order.status))
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
+                Text(timerText)
+                    .font(.system(size: 14, weight: .black, design: .rounded))
+                    .foregroundStyle(urgency.tint)
             }
 
-            HStack {
-                Text(order.tableLabel ?? order.fulfillmentType.replacingOccurrences(of: "_", with: " ").capitalized)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(.gray)
-                Spacer()
-                Text(elapsedText)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(isDelayed ? .red : .gray)
+            HStack(spacing: 6) {
+                Image(systemName: fulfillmentIcon).font(.system(size: 11, weight: .bold))
+                Text(fulfillmentLabel).font(.system(size: 13, weight: .bold))
+                if let g = order.guestName, !g.isEmpty {
+                    Text("· \(g)")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(FoodTheme.blue)
+                        .lineLimit(1)
+                }
             }
+            .foregroundStyle(.white.opacity(0.7))
 
-            if isDelayed {
-                Label("Delayed ticket", systemImage: "exclamationmark.triangle.fill")
+            if urgency == .late {
+                Label("LATE TICKET", systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 11, weight: .black))
-                    .foregroundStyle(.red)
+                    .foregroundStyle(FoodTheme.coral)
             }
 
-            if let guestName = order.guestName, !guestName.isEmpty {
-                Text(guestName)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(FoodTheme.blue)
-            }
-
-            ForEach(order.items) { item in
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("\(item.quantity)x \(item.itemName)")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white)
-                    Text(foodMoney(item.lineTotalCents, currency: order.currencyCode))
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(.gray)
-                    if let note = item.specialInstructions, !note.isEmpty {
-                        Text(note)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(FoodTheme.saffron)
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(order.items) { item in
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("\(item.quantity)×")
+                            .font(.system(size: 16, weight: .black, design: .rounded))
+                            .foregroundStyle(urgency.tint)
+                            .frame(minWidth: 28, alignment: .leading)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.itemName)
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(.white)
+                            if let note = item.specialInstructions, !note.isEmpty {
+                                Label(note, systemImage: "pencil.line")
+                                    .font(.system(size: 13, weight: .heavy))
+                                    .foregroundStyle(FoodTheme.saffron)
+                            }
+                        }
+                        Spacer(minLength: 0)
                     }
                 }
             }
 
-            if let (label, status) = advance {
-                Button {
-                    Task { await store.updateOrderStatus(order, status: status) }
-                } label: {
-                    Text(label)
-                        .font(.system(size: 14, weight: .black))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(statusColor(order.status))
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
+            HStack(spacing: 8) {
+                if let recall {
+                    Button {
+                        Task { await store.updateOrderStatus(order, status: recall) }
+                    } label: {
+                        Image(systemName: "arrow.uturn.backward")
+                            .font(.system(size: 14, weight: .black))
+                            .foregroundStyle(.white.opacity(0.7))
+                            .frame(width: 46, height: 42)
+                            .background(Color.white.opacity(0.08))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+                if let (label, status) = advance {
+                    Button {
+                        Task { await store.updateOrderStatus(order, status: status) }
+                    } label: {
+                        Text(label)
+                            .font(.system(size: 15, weight: .black))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(advanceColor)
+                            .foregroundStyle(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
         .padding(12)
-        .background(Color(white: 0.10))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .background(Color(white: 0.11))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(isDelayed ? Color.red : Color(white: 0.22), lineWidth: isDelayed ? 2 : 1)
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(urgency.tint.opacity(urgency == .onTime ? 0.30 : 0.9),
+                        lineWidth: urgency == .late ? 3 : 1.5)
         )
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(urgency.tint)
+                .frame(width: 4)
+                .padding(.vertical, 10)
+        }
     }
 }
 

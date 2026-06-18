@@ -5,7 +5,7 @@ import UIKit
 //
 // This file is the single source of visual truth for every OxSteed
 // Restaurants surface (Customer, Manager, POS, Kitchen, Kiosk, Crew,
-// Inventory, Runner) plus the internal OxSteedFood app. It is kept
+// Inventory, Runner). It is kept
 // byte-identical across all of those targets, so a change here lifts
 // every screen in every app at once.
 //
@@ -285,6 +285,166 @@ extension FoodSectionHeader where Trailing == EmptyView {
     }
 }
 
+// MARK: - Shared role shell components
+
+struct FoodPriorityCard: View {
+    let eyebrow: String
+    let title: String
+    let detail: String
+    let tint: Color
+    var icon: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(tint.opacity(0.16))
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(tint)
+                }
+                .frame(width: 38, height: 38)
+
+                Spacer()
+
+                Text(eyebrow.uppercased())
+                    .font(.foodMicro)
+                    .foregroundStyle(tint)
+            }
+
+            Text(title)
+                .font(.foodSubhead)
+                .foregroundStyle(FoodTheme.ink)
+                .lineLimit(2)
+
+            Text(detail)
+                .font(.foodCaption)
+                .foregroundStyle(FoodTheme.muted)
+                .lineLimit(3)
+        }
+        .frame(width: 196, alignment: .leading)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous)
+                .fill(FoodTheme.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous)
+                .stroke(tint.opacity(0.22), lineWidth: 1)
+        )
+        .foodShadow(.soft)
+    }
+}
+
+struct FoodOperationalStat: View {
+    let label: String
+    let value: String
+    let detail: String
+    let tint: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label.uppercased())
+                .font(.foodMicro)
+                .foregroundStyle(tint)
+            Text(value)
+                .font(.system(size: 28, weight: .black, design: .rounded))
+                .foregroundStyle(FoodTheme.ink)
+            Text(detail)
+                .font(.foodCaption)
+                .foregroundStyle(FoodTheme.muted)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(FoodTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous)
+                .stroke(FoodTheme.line, lineWidth: 1)
+        )
+    }
+}
+
+struct FoodModeCard: View {
+    let title: String
+    let detail: String
+    let icon: String
+    let tint: Color
+    let isSelected: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center) {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .bold))
+                Spacer()
+                if isSelected {
+                    Text("NOW")
+                        .font(.foodMicro)
+                }
+            }
+
+            Text(title)
+                .font(.foodSubhead)
+                .lineLimit(2)
+
+            Text(detail)
+                .font(.foodCaption)
+                .lineLimit(3)
+        }
+        .foregroundStyle(isSelected ? Color.white : FoodTheme.ink)
+        .frame(width: 188, alignment: .leading)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous)
+                .fill(isSelected ? AnyShapeStyle(LinearGradient(colors: [tint.opacity(0.9), tint], startPoint: .topLeading, endPoint: .bottomTrailing)) : AnyShapeStyle(FoodTheme.surface))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous)
+                .stroke(isSelected ? tint : FoodTheme.line, lineWidth: 1)
+        )
+        .foodShadow(isSelected ? .medium : .soft)
+    }
+}
+
+struct FoodBrandMessageCard: View {
+    let title: String
+    let detail: String
+    let tint: Color
+    var icon: String = "storefront.fill"
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: FoodTheme.Radius.md, style: .continuous)
+                    .fill(tint.opacity(0.14))
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(tint)
+            }
+            .frame(width: 42, height: 42)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.foodSubhead)
+                    .foregroundStyle(FoodTheme.ink)
+                Text(detail)
+                    .font(.foodCaption)
+                    .foregroundStyle(FoodTheme.muted)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .background(FoodTheme.surfaceRaised)
+        .clipShape(RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous)
+                .stroke(FoodTheme.line, lineWidth: 1)
+        )
+    }
+}
+
 // MARK: - Button styles
 
 /// Filled, gradient primary action button — the main call to action.
@@ -394,5 +554,210 @@ struct FoodImagePlaceholder: View {
                 .font(.system(size: 26, weight: .semibold))
                 .foregroundStyle(tint.opacity(0.85))
         }
+    }
+}
+
+// MARK: - Operational primitives (production shared kit)
+//
+// These are additive, used across the operational apps (KDS, POS, Kiosk,
+// Manager, Inventory, Runner) to keep live-status, counts, urgency and
+// empty states consistent and production-grade. None of them replace an
+// existing token, so they cannot break call sites that predate them.
+
+/// Connectivity / freshness states for an always-on operational surface.
+enum FoodLiveState: Equatable {
+    case live          // real feed, fresh
+    case syncing       // connecting / reconnecting
+    case offline       // no live feed; using cached/sample data
+
+    var label: String {
+        switch self {
+        case .live: return "LIVE"
+        case .syncing: return "SYNCING"
+        case .offline: return "OFFLINE"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .live: return FoodTheme.basil
+        case .syncing: return FoodTheme.saffron
+        case .offline: return FoodTheme.coral
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .live: return "dot.radiowaves.left.and.right"
+        case .syncing: return "arrow.triangle.2.circlepath"
+        case .offline: return "wifi.slash"
+        }
+    }
+}
+
+/// Small pulsing live/sync/offline badge for operational headers.
+struct FoodLiveBadge: View {
+    let state: FoodLiveState
+    var detail: String? = nil
+    @State private var pulse = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(state.tint)
+                .frame(width: 7, height: 7)
+                .scaleEffect(state == .live && pulse ? 1.5 : 1)
+                .opacity(state == .live && pulse ? 0.4 : 1)
+                .animation(state == .live ? .easeInOut(duration: 0.9).repeatForever(autoreverses: true) : .default, value: pulse)
+            Text(detail.map { "\(state.label) · \($0)" } ?? state.label)
+                .font(.foodMicro)
+                .foregroundStyle(state.tint)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Capsule(style: .continuous).fill(state.tint.opacity(0.14)))
+        .overlay(Capsule(style: .continuous).stroke(state.tint.opacity(0.30), lineWidth: 1))
+        .onAppear { pulse = true }
+    }
+
+    static func from(_ text: String) -> FoodLiveState {
+        let lower = text.lowercased()
+        if lower.contains("live") { return .live }
+        if lower.contains("recon") || lower.contains("sync") || lower.contains("connect") { return .syncing }
+        return .offline
+    }
+}
+
+/// A big count chip — used for KDS columns, queue counters, alert counts.
+struct FoodCountChip: View {
+    let count: Int
+    let label: String
+    var tint: Color = FoodTheme.flame
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("\(count)")
+                .font(.system(size: 22, weight: .black, design: .rounded))
+                .foregroundStyle(tint)
+                .contentTransition(.numericText())
+            Text(label.uppercased())
+                .font(.foodMicro)
+                .foregroundStyle(FoodTheme.muted)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(FoodTheme.surfaceRaised)
+        .clipShape(Capsule(style: .continuous))
+        .overlay(Capsule(style: .continuous).stroke(tint.opacity(0.20), lineWidth: 1))
+    }
+}
+
+/// Time-based urgency tiers for live tickets / tasks / stock risk.
+/// On-time → warning → late, with an explicit colour + short label.
+enum FoodUrgency: Equatable {
+    case onTime
+    case warning
+    case late
+
+    var tint: Color {
+        switch self {
+        case .onTime: return FoodTheme.basil
+        case .warning: return FoodTheme.saffron
+        case .late: return FoodTheme.coral
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .onTime: return "On time"
+        case .warning: return "Watch"
+        case .late: return "Late"
+        }
+    }
+
+    /// Derive urgency from elapsed minutes against soft/hard thresholds,
+    /// or directly from a promised-time breach.
+    static func tier(elapsedMinutes: Double, warnAfter: Double, lateAfter: Double, promisedPassed: Bool = false) -> FoodUrgency {
+        if promisedPassed || elapsedMinutes >= lateAfter { return .late }
+        if elapsedMinutes >= warnAfter { return .warning }
+        return .onTime
+    }
+}
+
+/// Consistent, non-demo empty state. Production apps need a confident
+/// "you're caught up" rather than a stray "Nothing here" string.
+struct FoodEmptyState: View {
+    let icon: String
+    let title: String
+    var detail: String? = nil
+    var tint: Color = FoodTheme.basil
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ZStack {
+                Circle().fill(tint.opacity(0.14))
+                Image(systemName: icon)
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(tint)
+            }
+            .frame(width: 56, height: 56)
+            Text(title)
+                .font(.foodSubhead)
+                .foregroundStyle(FoodTheme.ink)
+                .multilineTextAlignment(.center)
+            if let detail {
+                Text(detail)
+                    .font(.foodCaption)
+                    .foregroundStyle(FoodTheme.muted)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 28)
+        .padding(.horizontal, 20)
+    }
+}
+
+/// "Powered by OxSteed" network footnote — reinforces that the restaurant
+/// owns its brand and OxSteed is the enabling network, not the owner.
+struct FoodNetworkFootnote: View {
+    var leading: String? = nil
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "bolt.horizontal.circle.fill")
+                .font(.system(size: 11, weight: .bold))
+            Text(leading.map { "\($0) · Powered by OxSteed Restaurants" } ?? "Powered by OxSteed Restaurants")
+                .font(.foodMicro)
+        }
+        .foregroundStyle(FoodTheme.faint)
+    }
+}
+
+/// A circular brand monogram derived from the restaurant name, tinted with
+/// the restaurant's stable accent. Keeps each storefront looking like itself.
+struct FoodBrandMark: View {
+    let name: String
+    var accent: Color = FoodTheme.flame
+    var size: CGFloat = 46
+
+    private var monogram: String {
+        let words = name.split(separator: " ").prefix(2)
+        let letters = words.compactMap { $0.first }.map(String.init).joined()
+        return letters.isEmpty ? "OX" : letters.uppercased()
+    }
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
+                .fill(
+                    LinearGradient(colors: [accent.opacity(0.95), accent.opacity(0.7)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                )
+            Text(monogram)
+                .font(.system(size: size * 0.42, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+        }
+        .frame(width: size, height: size)
+        .foodShadow(.soft)
     }
 }

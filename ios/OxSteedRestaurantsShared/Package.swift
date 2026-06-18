@@ -7,7 +7,6 @@ let package = Package(
         .iOS(.v17),
     ],
     products: [
-        .library(name: "OxSteedFoodLegacyUI", targets: ["OxSteedFoodLegacyUI"]),
         .library(name: "OxSteedRestaurantsCustomerUI", targets: ["OxSteedRestaurantsCustomerUI"]),
         .library(name: "OxSteedRestaurantsManagerUI", targets: ["OxSteedRestaurantsManagerUI"]),
         .library(name: "OxSteedRestaurantsPOSUI", targets: ["OxSteedRestaurantsPOSUI"]),
@@ -18,7 +17,6 @@ let package = Package(
         .library(name: "OxSteedRestaurantsRunnerUI", targets: ["OxSteedRestaurantsRunnerUI"]),
     ],
     targets: [
-        .target(name: "OxSteedFoodLegacyUI"),
         .target(name: "OxSteedRestaurantsCustomerUI"),
         .target(name: "OxSteedRestaurantsManagerUI"),
         .target(name: "OxSteedRestaurantsPOSUI"),

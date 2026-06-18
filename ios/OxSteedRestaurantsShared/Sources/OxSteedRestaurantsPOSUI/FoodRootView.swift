@@ -60,6 +60,114 @@ enum FoodWorkspace: String, CaseIterable, Identifiable {
             return "Foundation"
         }
     }
+
+    var accent: Color {
+        switch self {
+        case .customerOrdering: return FoodTheme.flame
+        case .ownerManager: return FoodTheme.blue
+        case .posCounter: return FoodTheme.flame
+        case .kitchenDisplay: return FoodTheme.coral
+        case .kioskQueue: return FoodTheme.basil
+        case .crewTraining: return FoodTheme.grape
+        case .inventoryReceiving: return FoodTheme.saffron
+        case .deliveryRunner: return FoodTheme.blue
+        }
+    }
+
+    var operatorLabel: String {
+        switch self {
+        case .customerOrdering: return "Guest-facing growth"
+        case .ownerManager: return "Operator command center"
+        case .posCounter: return "Counter execution"
+        case .kitchenDisplay: return "Back-of-house execution"
+        case .kioskQueue: return "Public in-store flow"
+        case .crewTraining: return "Training discipline"
+        case .inventoryReceiving: return "Cost control"
+        case .deliveryRunner: return "Last-mile execution"
+        }
+    }
+
+    var brandPromise: String {
+        switch self {
+        case .customerOrdering:
+            return "Each restaurant keeps its own voice, menu, and promotions while OxSteed supplies the ordering engine."
+        case .ownerManager:
+            return "Independent operators get franchise-grade visibility without handing their identity to a marketplace."
+        case .posCounter:
+            return "Walk-in guests should feel the same speed and consistency they expect from a national chain."
+        case .kitchenDisplay:
+            return "Kitchen staff need one unmistakable next action per ticket, not a cluttered dashboard."
+        case .kioskQueue:
+            return "The dining room should broadcast confidence: order here, watch progress, pick up fast."
+        case .crewTraining:
+            return "Independent crews deserve the same repeatable SOP and onboarding rhythm big brands use."
+        case .inventoryReceiving:
+            return "Operators need stock truth early enough to avoid waste, outs, and surprise margin loss."
+        case .deliveryRunner:
+            return "Runners need the next stop, the proof rule, and the escalation path without digging."
+        }
+    }
+
+    var primaryMoments: [FoodWorkspaceMoment] {
+        switch self {
+        case .customerOrdering:
+            return [
+                FoodWorkspaceMoment(label: "Discover", title: "Show nearby brands fast", detail: "Discovery and offers should beat blank-list anxiety in the first screen.", icon: "sparkles"),
+                FoodWorkspaceMoment(label: "Order", title: "Keep checkout momentum visible", detail: "A live cart and clear fulfillment choice should follow the guest while browsing.", icon: "cart.fill"),
+                FoodWorkspaceMoment(label: "Track", title: "Explain what happens next", detail: "Status needs to read like a guided journey, not raw queue data.", icon: "clock.badge.checkmark")
+            ]
+        case .ownerManager:
+            return [
+                FoodWorkspaceMoment(label: "Today", title: "Surface the few issues that matter", detail: "Leaders should spot revenue risk, labor risk, and service blockers immediately.", icon: "chart.line.uptrend.xyaxis"),
+                FoodWorkspaceMoment(label: "Act", title: "Move from alert to fix in one tap", detail: "Menus, checklists, staffing, and help requests should be adjacent to the problem.", icon: "bolt.badge.clock"),
+                FoodWorkspaceMoment(label: "Scale", title: "Compare locations without losing brand control", detail: "Multi-unit visibility should still feel like independent restaurants inside one network.", icon: "building.2.crop.circle")
+            ]
+        case .posCounter:
+            return [
+                FoodWorkspaceMoment(label: "Speed", title: "Build a ticket with almost no thinking", detail: "Big tappable products, clear modifiers, and visible totals keep the line moving.", icon: "hand.tap.fill"),
+                FoodWorkspaceMoment(label: "Collect", title: "Show payment state without ambiguity", detail: "Cashiers need to know what was paid, comped, or still open at a glance.", icon: "creditcard.fill"),
+                FoodWorkspaceMoment(label: "Send", title: "Get the kitchen the right ticket", detail: "Modifiers, notes, and fulfillment type must be impossible to miss.", icon: "paperplane.fill")
+            ]
+        case .kitchenDisplay:
+            return [
+                FoodWorkspaceMoment(label: "See", title: "Sort work by what is on fire now", detail: "The board should make delayed, new, and ready tickets visually obvious.", icon: "flame.fill"),
+                FoodWorkspaceMoment(label: "Move", title: "Advance status with one deliberate action", detail: "Large, low-error controls matter more than secondary analytics mid-rush.", icon: "arrow.right.circle.fill"),
+                FoodWorkspaceMoment(label: "Finish", title: "Protect handoff accuracy", detail: "Pickup context and notes need to stay attached until the ticket leaves the line.", icon: "checkmark.seal.fill")
+            ]
+        case .kioskQueue:
+            return [
+                FoodWorkspaceMoment(label: "Order", title: "Let guests self-serve confidently", detail: "Language, menu cards, and checkout cues should work from across the counter.", icon: "rectangle.and.hand.point.up.left.fill"),
+                FoodWorkspaceMoment(label: "Wait", title: "Show progress publicly", detail: "Preparing and ready states need to be legible from a distance in noisy rooms.", icon: "list.number"),
+                FoodWorkspaceMoment(label: "Reset", title: "Return the screen to ready mode automatically", detail: "The device should always be prepared for the next guest without staff babysitting.", icon: "arrow.counterclockwise.circle.fill")
+            ]
+        case .crewTraining:
+            return [
+                FoodWorkspaceMoment(label: "Learn", title: "Turn onboarding into a daily habit", detail: "Lessons, SOPs, and quizzes should feel actionable, not buried in admin UI.", icon: "book.closed.fill"),
+                FoodWorkspaceMoment(label: "Check", title: "Tie training to live shift readiness", detail: "Opening, closing, and food-safety work should sit beside completion state.", icon: "checklist.checked"),
+                FoodWorkspaceMoment(label: "Earn", title: "Make progress visible", detail: "Badges and scores reinforce consistency the way large chains do.", icon: "rosette")
+            ]
+        case .inventoryReceiving:
+            return [
+                FoodWorkspaceMoment(label: "Count", title: "Catch low stock before service", detail: "Par gaps and ingredient risk should rise above routine counts.", icon: "shippingbox.fill"),
+                FoodWorkspaceMoment(label: "Receive", title: "Log deliveries where they happen", detail: "Receiving should take seconds so teams actually keep it accurate.", icon: "tray.full.fill"),
+                FoodWorkspaceMoment(label: "Protect", title: "Track waste and supplier issues together", detail: "Cost leakage becomes obvious when waste, requests, and issues share one loop.", icon: "exclamationmark.triangle.fill")
+            ]
+        case .deliveryRunner:
+            return [
+                FoodWorkspaceMoment(label: "Route", title: "Make the next stop unmistakable", detail: "Assigned work should read like a route, not a list of cards to decipher.", icon: "map.fill"),
+                FoodWorkspaceMoment(label: "Confirm", title: "Capture proof without slowing handoff", detail: "Photos, notes, and cash collection rules should be one motion away.", icon: "camera.fill"),
+                FoodWorkspaceMoment(label: "Escalate", title: "Report issues while still in the field", detail: "Runners need a fast path for delays, customer contact rules, and failed deliveries.", icon: "exclamationmark.bubble.fill")
+            ]
+        }
+    }
+}
+
+struct FoodWorkspaceMoment: Identifiable {
+    let id = UUID()
+    let label: String
+    let title: String
+    let detail: String
+    let icon: String
 }
 
 struct FoodRuntimeConfig {
@@ -177,40 +285,79 @@ struct FoodRootView: View {
 }
 
 private struct FoodWorkspaceHero: View {
+    @EnvironmentObject private var store: FoodStore
     let appName: String
     let workspace: FoodWorkspace
 
+    // Restaurant-first identity: the storefront leads, OxSteed is the network.
+    private var restaurantName: String? {
+        let name = store.activeRestaurant?.displayName ?? ""
+        return name.isEmpty ? nil : name
+    }
+    private var brandAccent: Color {
+        if let r = store.activeRestaurant { return FoodTheme.accent(for: "\(r.id)") }
+        return workspace.accent
+    }
+    private var liveState: FoodLiveState {
+        store.activeRestaurant == nil ? .syncing : .live
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(appName)
-                        .font(.system(size: 32, weight: .black))
+        VStack(alignment: .leading, spacing: 14) {
+            // Brand + role row — answers "whose restaurant" and "which surface".
+            HStack(alignment: .center, spacing: 13) {
+                FoodBrandMark(name: restaurantName ?? appName, accent: brandAccent, size: 48)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(restaurantName ?? appName)
+                        .font(.system(size: 22, weight: .black, design: .rounded))
                         .foregroundStyle(FoodTheme.ink)
-                    Text("Eight specialized front-end experiences. One shared restaurant backend and OxSteed ID.")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(FoodTheme.muted)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    HStack(spacing: 6) {
+                        Image(systemName: workspace.icon)
+                            .font(.system(size: 11, weight: .bold))
+                        Text(workspace.title.uppercased())
+                            .font(.foodMicro)
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(brandAccent)
                 }
-                Spacer()
-                Label(workspace.badge, systemImage: "checkmark.seal.fill")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(FoodTheme.basil)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(FoodTheme.surfaceRaised)
-                    .clipShape(Capsule())
+
+                Spacer(minLength: 8)
+
+                FoodLiveBadge(state: liveState)
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(workspace.title)
-                    .font(.system(size: 24, weight: .black))
-                    .foregroundStyle(FoodTheme.ink)
-                Text(workspace.subtitle)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(FoodTheme.muted)
-            }
+            // One line on what this surface is for — operational, not marketing.
+            Text(workspace.subtitle)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(FoodTheme.inkSoft)
+                .fixedSize(horizontal: false, vertical: true)
+
+            FoodNetworkFootnote(leading: workspace.operatorLabel)
         }
-        .foodCard(padding: 18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: FoodTheme.Radius.xl, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            brandAccent.opacity(0.22),
+                            FoodTheme.surface,
+                            FoodTheme.surface
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: FoodTheme.Radius.xl, style: .continuous)
+                .stroke(brandAccent.opacity(0.20), lineWidth: 1)
+        )
+        .foodShadow(.medium)
     }
 }
 
@@ -227,30 +374,12 @@ private struct FoodWorkspaceRail: View {
                             workspace = item
                         }
                     } label: {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Image(systemName: item.icon)
-                                    .font(.system(size: 18, weight: .bold))
-                                Spacer()
-                                Text(item.badge.uppercased())
-                                    .font(.system(size: 10, weight: .black))
-                            }
-                            Text(item.title)
-                                .font(.system(size: 15, weight: .black))
-                                .multilineTextAlignment(.leading)
-                            Text(item.subtitle)
-                                .font(.system(size: 12, weight: .medium))
-                                .multilineTextAlignment(.leading)
-                                .lineLimit(3)
-                        }
-                        .foregroundStyle(workspace == item ? .white : FoodTheme.ink)
-                        .frame(width: 190, alignment: .leading)
-                        .padding(14)
-                        .background(workspace == item ? FoodTheme.flame : FoodTheme.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(workspace == item ? FoodTheme.flame : FoodTheme.line)
+                        FoodModeCard(
+                            title: item.title,
+                            detail: item.subtitle,
+                            icon: item.icon,
+                            tint: item.accent,
+                            isSelected: workspace == item
                         )
                     }
                     .buttonStyle(.plain)
@@ -368,10 +497,15 @@ private struct POSCounterWorkspaceView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            WorkspaceSectionHeader(
-                title: "POS / counter app",
-                subtitle: "Fast walk-in order entry, payment-state tracking, and immediate kitchen dispatch."
-            )
+            HStack(spacing: 8) {
+                FoodCountChip(count: store.counterCartItemCount, label: "in ticket", tint: FoodTheme.flame)
+                FoodCountChip(
+                    count: store.merchantOrders.filter { $0.paymentStatus != "paid" }.count,
+                    label: "open tabs",
+                    tint: FoodTheme.saffron
+                )
+                Spacer(minLength: 0)
+            }
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
@@ -381,14 +515,7 @@ private struct POSCounterWorkspaceView: View {
                                 tab = item
                             }
                         } label: {
-                            Text(item.title)
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundStyle(tab == item ? .white : FoodTheme.ink)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 10)
-                                .background(tab == item ? FoodTheme.flame : FoodTheme.surface)
-                                .clipShape(Capsule())
-                                .overlay(Capsule().stroke(tab == item ? FoodTheme.flame : FoodTheme.line))
+                            FoodModeCard(title: item.title, detail: item.detail, icon: item.icon, tint: FoodTheme.flame, isSelected: tab == item)
                         }
                         .buttonStyle(.plain)
                     }
@@ -420,23 +547,11 @@ private struct POSCounterWorkspaceView: View {
         }
     }
 
+    private var currency: String { store.activeRestaurant?.currencyCode ?? "USD" }
+
     private var newTicketView: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if let restaurant = store.activeRestaurant {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(restaurant.displayName)
-                        .font(.system(size: 20, weight: .black))
-                        .foregroundStyle(FoodTheme.ink)
-                    Text("Counter mode for walk-in orders, pickup corrections, and kitchen dispatch.")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(FoodTheme.muted)
-                    Button("Refresh current menu") {
-                        Task { await store.select(restaurant) }
-                    }
-                    .buttonStyle(.bordered)
-                }
-                .foodCard(padding: 16)
-            }
+            posTicketBar
 
             VStack(alignment: .leading, spacing: 10) {
                 Picker("Fulfillment", selection: $store.counterFulfillment) {
@@ -445,14 +560,19 @@ private struct POSCounterWorkspaceView: View {
                     Text("Delivery").tag("delivery")
                 }
                 .pickerStyle(.segmented)
-                TextField("Guest or ticket name", text: $store.counterGuestName)
-                    .textFieldStyle(.roundedBorder)
-                if store.counterFulfillment == "dine_in" {
-                    TextField("Table number", text: $store.counterTableLabel)
+                HStack(spacing: 10) {
+                    TextField("Guest or ticket name", text: $store.counterGuestName)
                         .textFieldStyle(.roundedBorder)
+                    if store.counterFulfillment == "dine_in" {
+                        TextField("Table", text: $store.counterTableLabel)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 96)
+                    }
                 }
             }
-            .foodCard(padding: 16)
+            .foodCard(padding: 14)
+
+            FoodSectionHeader("Tap to add", subtitle: store.activeRestaurant?.displayName)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 ForEach(menuItems) { item in
@@ -461,143 +581,204 @@ private struct POSCounterWorkspaceView: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(item.name)
-                                .font(.system(size: 15, weight: .bold))
+                                .font(.system(size: 16, weight: .bold))
                                 .foregroundStyle(FoodTheme.ink)
-                            Text(foodMoney(item.priceCents, currency: item.currencyCode))
-                                .font(.system(size: 13, weight: .black))
-                                .foregroundStyle(FoodTheme.basil)
-                            Text(item.description ?? "Configure modifiers, notes, and quantity.")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(FoodTheme.muted)
                                 .lineLimit(2)
+                            Text(foodMoney(item.priceCents, currency: item.currencyCode))
+                                .font(.system(size: 15, weight: .black))
+                                .foregroundStyle(FoodTheme.flame)
+                            Spacer(minLength: 0)
+                            HStack(spacing: 4) {
+                                Image(systemName: "plus.circle.fill")
+                                Text("Add").font(.foodCaption)
+                            }
+                            .foregroundStyle(FoodTheme.basil)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity, minHeight: 104, alignment: .leading)
                         .foodCard(padding: 14)
                     }
                     .buttonStyle(.plain)
                 }
             }
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Discounts and coupons")
-                    .font(.system(size: 18, weight: .black))
+            discountsCard
+
+            ticketPanel
+        }
+    }
+
+    // A persistent ticket bar — the running total + the rush-critical
+    // "Send to kitchen" action stay at the top of the counter surface.
+    private var posTicketBar: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(store.counterCartItemCount) item\(store.counterCartItemCount == 1 ? "" : "s")")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(FoodTheme.muted)
+                Text(foodMoney(store.counterCartTotalCents, currency: currency))
+                    .font(.system(size: 26, weight: .black, design: .rounded))
                     .foregroundStyle(FoodTheme.ink)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(store.posDiscounts) { discount in
-                            Button(discount.title) {
-                                store.applyCounterDiscount(discount)
-                            }
-                            .buttonStyle(.bordered)
-                        }
+                    .contentTransition(.numericText())
+            }
+            Spacer(minLength: 8)
+            Button {
+                Task { await store.submitCounterOrder() }
+            } label: {
+                HStack(spacing: 8) {
+                    if store.isSubmittingCounterOrder {
+                        ProgressView().controlSize(.small).tint(.white)
+                    } else {
+                        Image(systemName: "paperplane.fill")
                     }
+                    Text("Send to kitchen")
                 }
-                HStack {
-                    TextField("Coupon code", text: $store.counterCouponCode)
-                        .textInputAutocapitalization(.characters)
-                        .textFieldStyle(.roundedBorder)
-                    Button("Apply") {
-                        Task { await store.applyCounterCoupon() }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(store.isApplyingCoupon)
-                }
-                if let label = store.counterDiscountLabel, store.counterDiscountCents > 0 {
-                    HStack {
-                        Label("\(label) active", systemImage: "tag.fill")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(FoodTheme.basil)
-                        Spacer()
-                        Button("Clear") { store.clearCounterAdjustments() }
+            }
+            .buttonStyle(PrimaryActionButtonStyle(tint: FoodTheme.flame, fullWidth: false))
+            .disabled(store.counterCart.isEmpty || store.isSubmittingCounterOrder)
+            .opacity(store.counterCart.isEmpty ? 0.5 : 1)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous)
+                .fill(FoodTheme.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous)
+                .stroke(FoodTheme.flame.opacity(0.30), lineWidth: 1.5)
+        )
+        .foodShadow(.medium)
+    }
+
+    private var discountsCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            FoodSectionHeader("Discounts & coupons")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(store.posDiscounts) { discount in
+                        Button(discount.title) { store.applyCounterDiscount(discount) }
                             .buttonStyle(.bordered)
                     }
                 }
             }
-            .foodCard(padding: 16)
-
-            VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                TextField("Coupon code", text: $store.counterCouponCode)
+                    .textInputAutocapitalization(.characters)
+                    .textFieldStyle(.roundedBorder)
+                Button("Apply") { Task { await store.applyCounterCoupon() } }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(store.isApplyingCoupon)
+            }
+            if let label = store.counterDiscountLabel, store.counterDiscountCents > 0 {
                 HStack {
-                    Label("Counter ticket", systemImage: "receipt")
-                        .font(.system(size: 18, weight: .black))
-                        .foregroundStyle(FoodTheme.ink)
+                    Label("\(label) active", systemImage: "tag.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(FoodTheme.basil)
                     Spacer()
-                    Text(foodMoney(store.counterCartTotalCents, currency: store.activeRestaurant?.currencyCode ?? "USD"))
-                        .font(.system(size: 16, weight: .black))
-                        .foregroundStyle(FoodTheme.flame)
+                    Button("Clear") { store.clearCounterAdjustments() }
+                        .buttonStyle(.bordered)
                 }
-                if store.counterCart.isEmpty {
-                    Text("Tap menu items to build a walk-in order.")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(FoodTheme.muted)
-                } else {
-                    ForEach(store.counterCart) { line in
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text("\(line.quantity)x \(line.item.name)")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(FoodTheme.ink)
-                                Spacer()
-                                Text(foodMoney(line.lineTotalCents, currency: line.item.currencyCode))
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundStyle(FoodTheme.ink)
-                                Button {
-                                    store.removeCounterLine(line)
-                                } label: {
-                                    Image(systemName: "trash")
-                                        .foregroundStyle(FoodTheme.muted)
+            }
+        }
+        .foodCard(padding: 16)
+    }
+
+    private var ticketPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("Ticket detail", systemImage: "receipt")
+                    .font(.system(size: 16, weight: .black))
+                    .foregroundStyle(FoodTheme.ink)
+                Spacer()
+                if !store.counterCart.isEmpty {
+                    Button(role: .destructive) {
+                        for line in store.counterCart { store.removeCounterLine(line) }
+                    } label: {
+                        Text("Clear").font(.foodCaption)
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+
+            if store.counterCart.isEmpty {
+                FoodEmptyState(
+                    icon: "cart",
+                    title: "Empty ticket",
+                    detail: "Tap a product above to start a walk-in order.",
+                    tint: FoodTheme.flame
+                )
+            } else {
+                ForEach(store.counterCart) { line in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 10) {
+                            HStack(spacing: 0) {
+                                Button { store.adjustCounterLine(line, by: -1) } label: {
+                                    Image(systemName: "minus").frame(width: 34, height: 34)
+                                }
+                                .buttonStyle(.plain)
+                                Text("\(line.quantity)")
+                                    .font(.system(size: 15, weight: .black))
+                                    .frame(minWidth: 26)
+                                Button { store.adjustCounterLine(line, by: 1) } label: {
+                                    Image(systemName: "plus").frame(width: 34, height: 34)
                                 }
                                 .buttonStyle(.plain)
                             }
-                            if !line.modifiers.isEmpty {
-                                Text(line.modifiers.map(\.name).joined(separator: ", "))
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(FoodTheme.blue)
+                            .foregroundStyle(FoodTheme.flame)
+                            .background(FoodTheme.surfaceRaised)
+                            .clipShape(Capsule())
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(line.item.name)
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundStyle(FoodTheme.ink)
+                                if !line.modifierSummary.isEmpty {
+                                    Text(line.modifierSummary)
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundStyle(FoodTheme.blue)
+                                }
+                                if !line.specialInstructions.isEmpty {
+                                    Text(line.specialInstructions)
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundStyle(FoodTheme.muted)
+                                }
                             }
-                            if !line.specialInstructions.isEmpty {
-                                Text(line.specialInstructions)
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(FoodTheme.muted)
-                            }
+                            Spacer(minLength: 0)
+                            Text(foodMoney(line.lineTotalCents, currency: line.item.currencyCode))
+                                .font(.system(size: 14, weight: .black))
+                                .foregroundStyle(FoodTheme.ink)
                         }
+                        Divider()
                     }
-                    Divider()
+                }
+
+                HStack {
+                    Text("Subtotal")
+                    Spacer()
+                    Text(foodMoney(store.counterCartSubtotalCents, currency: currency))
+                }
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(FoodTheme.muted)
+
+                if store.counterDiscountCents > 0 {
                     HStack {
-                        Text("Subtotal")
+                        Text(store.counterDiscountLabel ?? "Discount")
                         Spacer()
-                        Text(foodMoney(store.counterCartSubtotalCents, currency: store.activeRestaurant?.currencyCode ?? "USD"))
+                        Text("-\(foodMoney(store.counterDiscountCents, currency: currency))")
                     }
                     .font(.system(size: 13, weight: .semibold))
-                    if store.counterDiscountCents > 0 {
-                        HStack {
-                            Text(store.counterDiscountLabel ?? "Discount")
-                            Spacer()
-                            Text("-\(foodMoney(store.counterDiscountCents, currency: store.activeRestaurant?.currencyCode ?? "USD"))")
-                        }
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(FoodTheme.basil)
-                    }
-                    Button {
-                        Task { await store.submitCounterOrder() }
-                    } label: {
-                        HStack {
-                            if store.isSubmittingCounterOrder {
-                                ProgressView().controlSize(.small).tint(.white)
-                            }
-                            Text("Send to kitchen")
-                                .font(.system(size: 16, weight: .black))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(FoodTheme.flame)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(store.isSubmittingCounterOrder)
+                    .foregroundStyle(FoodTheme.basil)
+                }
+
+                HStack {
+                    Text("Total").font(.system(size: 15, weight: .black)).foregroundStyle(FoodTheme.ink)
+                    Spacer()
+                    Text(foodMoney(store.counterCartTotalCents, currency: currency))
+                        .font(.system(size: 16, weight: .black))
+                        .foregroundStyle(FoodTheme.flame)
                 }
             }
-            .foodCard(padding: 16)
         }
+        .foodCard(padding: 16)
     }
 
     private var paymentsView: some View {
@@ -720,6 +901,22 @@ private enum POSSubworkspace: String, CaseIterable, Identifiable {
         case .newTicket: return "New Ticket"
         case .payments: return "Payments"
         case .queue: return "Queue"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .newTicket: return "plus.viewfinder"
+        case .payments: return "creditcard.fill"
+        case .queue: return "list.number"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .newTicket: return "Build a walk-in or pickup order with minimal taps."
+        case .payments: return "Collect, refund, and confirm receipt actions."
+        case .queue: return "Watch counter progress and kitchen handoff state."
         }
     }
 }

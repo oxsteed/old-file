@@ -267,6 +267,18 @@ final class FoodStore: ObservableObject {
         counterCart.removeAll { $0.id == line.id }
     }
 
+    /// Adjust a counter line quantity by +/- without re-opening the item sheet.
+    /// Removing the last unit drops the line entirely.
+    func adjustCounterLine(_ line: CartLine, by delta: Int) {
+        guard let idx = counterCart.firstIndex(where: { $0.id == line.id }) else { return }
+        let next = counterCart[idx].quantity + delta
+        if next <= 0 {
+            counterCart.remove(at: idx)
+        } else {
+            counterCart[idx].quantity = next
+        }
+    }
+
     func applyCounterDiscount(_ discount: FoodPOSDiscount) {
         let subtotal = counterCartSubtotalCents
         guard subtotal > 0 else {
