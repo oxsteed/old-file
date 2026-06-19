@@ -69,53 +69,53 @@ struct FoodSetupWizardCard: View {
 
     var body: some View {
         if restaurant.status != "active", let progress = store.setupProgress {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Setup checklist")
-                    .font(.system(size: 18, weight: .black))
-                    .foregroundStyle(FoodTheme.ink)
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Opening checklist")
+                            .font(.foodHeadline)
+                            .foregroundStyle(FoodTheme.ink)
+                        Text("A few scenes left before guests walk in.")
+                            .font(.foodCaption)
+                            .foregroundStyle(FoodTheme.muted)
+                    }
+                    Spacer()
+                    Text("\(progress.steps.filter { $0.id != "publish" && $0.complete }.count)/4")
+                        .font(.foodPrice)
+                        .foregroundStyle(FoodTheme.flame)
+                }
                 ForEach(progress.steps.filter { $0.id != "publish" }) { step in
-                    HStack {
-                        Image(systemName: step.complete ? "checkmark.circle.fill" : "circle")
+                    HStack(spacing: 10) {
+                        Image(systemName: step.complete ? "checkmark.circle.fill" : "circle.dashed")
                             .foregroundStyle(step.complete ? FoodTheme.basil : FoodTheme.muted)
                         Text(step.title)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(FoodTheme.ink)
+                            .font(.foodCallout)
+                            .foregroundStyle(step.complete ? FoodTheme.muted : FoodTheme.ink)
                         Spacer()
                     }
                 }
-                if progress.readyToPublish {
-                    Text("All setup steps complete — tap Go Live when ready.")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(FoodTheme.basil)
-                } else if let next = progress.nextStepId {
-                    Text(hint(for: next))
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(FoodTheme.muted)
-                }
-                Button("Continue setup guide") {
+                Button("Resume opening night") {
                     store.showOwnerOnboarding = true
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(FoodTheme.flame)
+                .buttonStyle(PrimaryActionButtonStyle())
             }
-            .foodCard(padding: 16)
+            .foodCardElevated(padding: 18)
             .task(id: restaurant.id) { await store.loadSetupProgress(restaurantId: restaurant.id) }
         } else if restaurant.status == "active",
                   !FoodOnboardingPreferences.isDeviceSetupComplete(restaurantId: restaurant.id) {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Floor device setup")
-                    .font(.system(size: 18, weight: .black))
+                Text("Wire the floor")
+                    .font(.foodHeadline)
                     .foregroundStyle(FoodTheme.ink)
-                Text("Connect Kiosk and Kitchen tablets, then run a test order.")
-                    .font(.system(size: 13, weight: .medium))
+                Text("Kiosk, Kitchen, queue board — four taps and you're in service.")
+                    .font(.foodCaption)
                     .foregroundStyle(FoodTheme.muted)
                 Button("Continue device setup") {
                     store.showOwnerOnboarding = true
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(FoodTheme.blue)
+                .buttonStyle(PrimaryActionButtonStyle(tint: FoodTheme.teal))
             }
-            .foodCard(padding: 16)
+            .foodCardElevated(padding: 18)
         }
     }
 

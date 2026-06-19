@@ -378,19 +378,23 @@ html.dark .fd-paid-pill { color: #86efac; }
   position: fixed;
   inset: 0;
   z-index: 1200;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(8, 10, 18, 0.72);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1rem;
 }
+.fd-onboarding-opening .fd-onboarding-panel {
+  background: linear-gradient(165deg, #12151f 0%, #0c0e14 55%, #141820 100%);
+  color: #f4f5f8;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
 .fd-onboarding-panel {
   width: min(640px, 100%);
   max-height: min(90vh, 900px);
   overflow: auto;
-  background: var(--card-bg, #fff);
-  border-radius: 16px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+  border-radius: 20px;
   display: flex;
   flex-direction: column;
 }
@@ -401,9 +405,100 @@ html.dark .fd-paid-pill { color: #86efac; }
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
-.fd-onboarding-footer { border-bottom: 0; border-top: 1px solid var(--border-color, #e5e7eb); }
-.fd-onboarding-body { padding: 1.25rem; }
+.fd-onboarding-footer { border-bottom: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.fd-onboarding-body { padding: 0 1.25rem 1.25rem; }
+.fd-onboarding-brand { display: flex; align-items: center; gap: 0.65rem; }
+.fd-onboarding-flame { font-size: 1.25rem; }
+.fd-onboarding-eyebrow { margin: 0; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55; }
+.fd-onboarding-brand-name { margin: 0; font-weight: 700; font-size: 0.95rem; }
+.fd-onboarding-spine {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0 1.25rem 0.75rem;
+}
+.fd-onboarding-spine-dot {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+.fd-onboarding-spine-dot.fd-active {
+  background: linear-gradient(90deg, #ff751f, #ff9a4d);
+}
+.fd-onboarding-hero { padding: 0.5rem 0 1.25rem; }
+.fd-onboarding-scene-icon {
+  display: inline-flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(255, 117, 31, 0.15);
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+}
+.fd-onboarding-hero h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.fd-onboarding-scene-sub { margin: 0; opacity: 0.72; line-height: 1.5; }
+.fd-onboarding-restaurant { margin: 0.75rem 0 0; font-weight: 600; color: #ff9a4d; }
+.fd-onboarding-form-wrap {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 1rem;
+}
+.fd-onboarding-form-wrap .fd-field label { color: rgba(255, 255, 255, 0.5); font-size: 0.75rem; }
+.fd-onboarding-form-wrap input,
+.fd-onboarding-form-wrap textarea {
+  background: rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+.fd-onboarding-form-wrap input:focus,
+.fd-onboarding-form-wrap textarea:focus {
+  border-color: #ff751f;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 117, 31, 0.2);
+}
+.fd-onboarding-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.fd-onboarding-chips li {
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  font-weight: 600;
+}
+.fd-open-sign {
+  text-align: center;
+  font-size: 2.75rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  padding: 2rem 1rem;
+  border-radius: 16px;
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+}
+.fd-open-sign--live {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+}
+.fd-btn-ghost {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.55);
+}
 .fd-field-grid { display: grid; gap: 0.75rem; }
 .fd-tag-verified { margin-left: 0.4rem; background: #ecfdf5; color: #047857; }

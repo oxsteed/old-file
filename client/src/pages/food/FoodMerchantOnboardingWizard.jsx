@@ -1,5 +1,5 @@
-// Full-screen owner onboarding wizard (web) — mirrors Manager iOS flow.
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+// Full-screen owner onboarding — "Opening Night" creative flow (web).
+import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   createFoodRestaurant,
@@ -11,6 +11,18 @@ import { defaultWeekdayHours } from './FoodSetupWizard';
 import DeviceSetupChecklist, { isDeviceSetupComplete } from './FoodDeviceSetupChecklist';
 
 const STEPS = ['welcome', 'create', 'profile', 'location', 'hours', 'menu', 'publish', 'devices', 'done'];
+
+const SCENE_META = {
+  welcome: { headline: 'Run the room.', sub: 'One path from empty kitchen to a live floor.', icon: '✦' },
+  create: { headline: 'What are we opening?', sub: 'Start with a name — the rest follows.', icon: '◎' },
+  profile: { headline: 'Tell guests who you are.', sub: 'Personality travels further than a logo alone.', icon: '❝' },
+  location: { headline: 'Put yourself on the map.', sub: 'City and coordinates for nearby discovery.', icon: '⌖' },
+  hours: { headline: 'When do doors open?', sub: 'Same rhythm every day for now.', icon: '◷' },
+  menu: { headline: 'Plate something real.', sub: 'One dish is enough for a first real order.', icon: '◈' },
+  publish: { headline: 'Flip the sign to OPEN.', sub: 'Live means findable.', icon: '⚡' },
+  devices: { headline: 'Wire the floor.', sub: 'Kiosk, kitchen, queue — then one test loop.', icon: '▣' },
+  done: { headline: "You're in service.", sub: 'Guests order. Kitchen fires. The board tells the story.', icon: '✓' },
+};
 
 function apiErrorMessage(err, fallback) {
   const message = err?.response?.data?.error?.message || err?.response?.data?.message || err?.response?.data?.error;
@@ -38,6 +50,8 @@ export default function MerchantOnboardingWizard({
   const [menuForm, setMenuForm] = useState({ name: '', price: '' });
 
   const restaurant = selected;
+  const stepIndex = STEPS.indexOf(step);
+  const scene = SCENE_META[step] || SCENE_META.welcome;
 
   const loadProgress = useCallback(() => {
     if (!restaurant?.id || restaurant.status === 'active') {
@@ -49,9 +63,7 @@ export default function MerchantOnboardingWizard({
       .catch(() => setProgress(null));
   }, [restaurant?.id, restaurant?.status]);
 
-  useEffect(() => {
-    loadProgress();
-  }, [loadProgress]);
+  useEffect(() => { loadProgress(); }, [loadProgress]);
 
   useEffect(() => {
     if (restaurants.length === 0) {
@@ -85,19 +97,6 @@ export default function MerchantOnboardingWizard({
       longitude: restaurant.longitude ?? '',
     });
   }, [restaurant]);
-
-  const stepIndex = STEPS.indexOf(step);
-  const stepTitle = useMemo(() => ({
-    welcome: t('food.onboarding.welcome', 'Welcome'),
-    create: t('food.onboarding.create', 'Your restaurant'),
-    profile: t('food.onboarding.profile', 'Profile'),
-    location: t('food.onboarding.location', 'Location'),
-    hours: t('food.onboarding.hours', 'Hours'),
-    menu: t('food.onboarding.menu', 'Menu'),
-    publish: t('food.onboarding.publish', 'Go live'),
-    devices: t('food.onboarding.devices', 'Floor devices'),
-    done: t('food.onboarding.done', 'Ready'),
-  }[step]), [step, t]);
 
   const patchRestaurant = async (body) => {
     const updated = await updateFoodRestaurant(restaurant.id, body);
@@ -194,125 +193,142 @@ export default function MerchantOnboardingWizard({
   };
 
   return (
-    <div className="fd-onboarding-overlay" role="dialog" aria-modal="true" aria-labelledby="fd-onboarding-title">
+    <div className="fd-onboarding-overlay fd-onboarding-opening" role="dialog" aria-modal="true" aria-labelledby="fd-onboarding-title">
       <div className="fd-onboarding-panel">
         <header className="fd-onboarding-header">
-          <div>
-            <p className="fd-card-meta">{t('food.onboarding.title', 'Restaurant setup')}</p>
-            <h2 id="fd-onboarding-title">{stepTitle}</h2>
-            {restaurant && <p className="fd-card-meta">{restaurant.display_name}</p>}
+          <div className="fd-onboarding-brand">
+            <span className="fd-onboarding-flame" aria-hidden>🔥</span>
+            <div>
+              <p className="fd-onboarding-eyebrow">Opening Night</p>
+              <p className="fd-onboarding-brand-name">OxSteed Restaurants</p>
+            </div>
           </div>
-          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={onClose}>
-            {t('food.onboarding.later', 'Later')}
+          <button type="button" className="fd-btn fd-btn-ghost fd-btn-sm" onClick={onClose}>
+            {t('food.onboarding.later', 'Not now')}
           </button>
         </header>
 
+        {step !== 'done' && (
+          <div className="fd-onboarding-spine" aria-hidden>
+            {STEPS.filter((s) => s !== 'done').map((s, i) => (
+              <span key={s} className={`fd-onboarding-spine-dot${i <= stepIndex ? ' fd-active' : ''}`} />
+            ))}
+          </div>
+        )}
+
         <div className="fd-onboarding-body">
-          {step === 'welcome' && (
-            <p>{t('food.onboarding.welcomeBody', 'Set up your menu, go live, then connect Kiosk and Kitchen tablets so guests can order and cooks see tickets.')}</p>
-          )}
+          <div className="fd-onboarding-hero">
+            <span className="fd-onboarding-scene-icon" aria-hidden>{scene.icon}</span>
+            <h2 id="fd-onboarding-title">{scene.headline}</h2>
+            <p className="fd-onboarding-scene-sub">{scene.sub}</p>
+            {restaurant && step !== 'welcome' && step !== 'create' && (
+              <p className="fd-onboarding-restaurant">{restaurant.display_name}</p>
+            )}
+          </div>
 
-          {step === 'create' && (
-            <div className="fd-field-grid">
-              <div className="fd-field">
-                <label>{t('food.merchant.name')} *</label>
-                <input value={createForm.displayName} onChange={(e) => setCreateForm((f) => ({ ...f, displayName: e.target.value }))} />
-              </div>
-              <div className="fd-field">
-                <label>{t('food.merchant.description')}</label>
-                <textarea value={createForm.description} onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))} rows={3} />
-              </div>
-              <div className="fd-field">
-                <label>{t('food.merchant.cuisineTags')}</label>
-                <input value={createForm.cuisine} onChange={(e) => setCreateForm((f) => ({ ...f, cuisine: e.target.value }))} />
-              </div>
-              <div className="fd-field">
-                <label>{t('food.merchant.city')}</label>
-                <input value={createForm.addressCity} onChange={(e) => setCreateForm((f) => ({ ...f, addressCity: e.target.value }))} />
-              </div>
-            </div>
-          )}
+          <div className="fd-onboarding-form-wrap">
+            {step === 'welcome' && (
+              <ul className="fd-onboarding-chips">
+                <li>Kiosk at the counter</li>
+                <li>Kitchen on the line</li>
+                <li>Queue on the wall</li>
+              </ul>
+            )}
 
-          {step === 'profile' && (
-            <div className="fd-field-grid">
-              <div className="fd-field">
-                <label>{t('food.merchant.description')}</label>
-                <textarea value={profileForm.description} onChange={(e) => setProfileForm((f) => ({ ...f, description: e.target.value }))} rows={3} />
+            {step === 'create' && (
+              <div className="fd-field-grid">
+                <div className="fd-field">
+                  <label>{t('food.merchant.name')} *</label>
+                  <input value={createForm.displayName} onChange={(e) => setCreateForm((f) => ({ ...f, displayName: e.target.value }))} />
+                </div>
+                <div className="fd-field">
+                  <label>{t('food.merchant.description')}</label>
+                  <textarea value={createForm.description} onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))} rows={3} />
+                </div>
+                <div className="fd-field">
+                  <label>{t('food.merchant.cuisineTags')}</label>
+                  <input value={createForm.cuisine} onChange={(e) => setCreateForm((f) => ({ ...f, cuisine: e.target.value }))} />
+                </div>
+                <div className="fd-field">
+                  <label>{t('food.merchant.city')}</label>
+                  <input value={createForm.addressCity} onChange={(e) => setCreateForm((f) => ({ ...f, addressCity: e.target.value }))} />
+                </div>
               </div>
-              <div className="fd-field">
-                <label>{t('food.merchant.cuisineTags')}</label>
-                <input value={profileForm.cuisine} onChange={(e) => setProfileForm((f) => ({ ...f, cuisine: e.target.value }))} />
-              </div>
-            </div>
-          )}
+            )}
 
-          {step === 'location' && (
-            <div className="fd-field-grid">
-              <div className="fd-field">
-                <label>{t('food.merchant.city')}</label>
-                <input value={locationForm.city} onChange={(e) => setLocationForm((f) => ({ ...f, city: e.target.value }))} />
+            {step === 'profile' && (
+              <div className="fd-field-grid">
+                <div className="fd-field">
+                  <label>{t('food.merchant.description')}</label>
+                  <textarea value={profileForm.description} onChange={(e) => setProfileForm((f) => ({ ...f, description: e.target.value }))} rows={3} />
+                </div>
+                <div className="fd-field">
+                  <label>{t('food.merchant.cuisineTags')}</label>
+                  <input value={profileForm.cuisine} onChange={(e) => setProfileForm((f) => ({ ...f, cuisine: e.target.value }))} />
+                </div>
               </div>
-              <div className="fd-field">
-                <label>{t('food.merchant.latitude', 'Latitude')}</label>
-                <input value={locationForm.latitude} onChange={(e) => setLocationForm((f) => ({ ...f, latitude: e.target.value }))} />
-              </div>
-              <div className="fd-field">
-                <label>{t('food.merchant.longitude', 'Longitude')}</label>
-                <input value={locationForm.longitude} onChange={(e) => setLocationForm((f) => ({ ...f, longitude: e.target.value }))} />
-              </div>
-            </div>
-          )}
+            )}
 
-          {step === 'hours' && (
-            <div className="fd-field-grid">
-              <div className="fd-field">
-                <label>{t('food.onboarding.opens', 'Opens')}</label>
-                <input value={hoursForm.open} onChange={(e) => setHoursForm((f) => ({ ...f, open: e.target.value }))} />
+            {step === 'location' && (
+              <div className="fd-field-grid">
+                <div className="fd-field">
+                  <label>{t('food.merchant.city')}</label>
+                  <input value={locationForm.city} onChange={(e) => setLocationForm((f) => ({ ...f, city: e.target.value }))} />
+                </div>
+                <div className="fd-field">
+                  <label>{t('food.merchant.latitude', 'Latitude')}</label>
+                  <input value={locationForm.latitude} onChange={(e) => setLocationForm((f) => ({ ...f, latitude: e.target.value }))} />
+                </div>
+                <div className="fd-field">
+                  <label>{t('food.merchant.longitude', 'Longitude')}</label>
+                  <input value={locationForm.longitude} onChange={(e) => setLocationForm((f) => ({ ...f, longitude: e.target.value }))} />
+                </div>
               </div>
-              <div className="fd-field">
-                <label>{t('food.onboarding.closes', 'Closes')}</label>
-                <input value={hoursForm.close} onChange={(e) => setHoursForm((f) => ({ ...f, close: e.target.value }))} />
+            )}
+
+            {step === 'hours' && (
+              <div className="fd-field-grid">
+                <div className="fd-field">
+                  <label>{t('food.onboarding.opens', 'Opens')}</label>
+                  <input value={hoursForm.open} onChange={(e) => setHoursForm((f) => ({ ...f, open: e.target.value }))} />
+                </div>
+                <div className="fd-field">
+                  <label>{t('food.onboarding.closes', 'Closes')}</label>
+                  <input value={hoursForm.close} onChange={(e) => setHoursForm((f) => ({ ...f, close: e.target.value }))} />
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {step === 'menu' && (
-            <div className="fd-field-grid">
-              {(progress?.menuItemCount || 0) > 0 && (
-                <p className="fd-pay-note">{t('food.onboarding.menuExists', '{{count}} item(s) already on menu', { count: progress.menuItemCount })}</p>
-              )}
-              <div className="fd-field">
-                <label>{t('food.merchant.itemName', 'Item name')}</label>
-                <input value={menuForm.name} onChange={(e) => setMenuForm((f) => ({ ...f, name: e.target.value }))} />
+            {step === 'menu' && (
+              <div className="fd-field-grid">
+                {(progress?.menuItemCount || 0) > 0 && (
+                  <p className="fd-pay-note">{t('food.onboarding.menuExists', '{{count}} item(s) already on menu', { count: progress.menuItemCount })}</p>
+                )}
+                <div className="fd-field">
+                  <label>{t('food.merchant.itemName', 'Item name')}</label>
+                  <input value={menuForm.name} onChange={(e) => setMenuForm((f) => ({ ...f, name: e.target.value }))} />
+                </div>
+                <div className="fd-field">
+                  <label>{t('food.merchant.price', 'Price')}</label>
+                  <input value={menuForm.price} onChange={(e) => setMenuForm((f) => ({ ...f, price: e.target.value }))} placeholder="8.99" />
+                </div>
               </div>
-              <div className="fd-field">
-                <label>{t('food.merchant.price', 'Price')}</label>
-                <input value={menuForm.price} onChange={(e) => setMenuForm((f) => ({ ...f, price: e.target.value }))} placeholder="8.99" />
+            )}
+
+            {step === 'publish' && (
+              <div className={`fd-open-sign${progress?.readyToPublish ? ' fd-open-sign--live' : ''}`}>
+                {progress?.readyToPublish ? 'OPEN' : 'CLOSED'}
               </div>
-            </div>
-          )}
+            )}
 
-          {step === 'publish' && (
-            <div>
-              {progress?.readyToPublish || restaurant?.status === 'active' ? (
-                <p>{t('food.onboarding.publishReady', 'Everything is ready. Going live makes your restaurant visible to customers.')}</p>
-              ) : (
-                <p className="fd-pay-note">{STEP_HINT(progress?.nextStepId, t)}</p>
-              )}
-            </div>
-          )}
-
-          {step === 'devices' && restaurant && (
-            <DeviceSetupChecklist
-              restaurant={restaurant}
-              t={t}
-              onComplete={() => setStep('done')}
-            />
-          )}
-
-          {step === 'done' && (
-            <p>{t('food.onboarding.doneBody', 'Your restaurant floor is configured. Guests can order, kitchen sees tickets, and the queue board shows progress.')}</p>
-          )}
+            {step === 'devices' && restaurant && (
+              <DeviceSetupChecklist
+                restaurant={restaurant}
+                t={t}
+                onComplete={() => setStep('done')}
+              />
+            )}
+          </div>
         </div>
 
         <footer className="fd-onboarding-footer">
@@ -321,7 +337,7 @@ export default function MerchantOnboardingWizard({
               {t('food.common.back', 'Back')}
             </button>
           )}
-          {step !== 'devices' && (
+          {step !== 'devices' && step !== 'done' && (
             <button type="button" className="fd-btn fd-btn-primary" onClick={handlePrimary} disabled={working}>
               {primaryLabel(step, t, restaurant)}
             </button>
@@ -333,7 +349,7 @@ export default function MerchantOnboardingWizard({
           )}
           {step === 'done' && (
             <button type="button" className="fd-btn fd-btn-primary" onClick={onClose}>
-              {t('food.onboarding.finish', 'Done')}
+              {t('food.onboarding.finish', 'Enter Manager')}
             </button>
           )}
         </footer>
@@ -342,21 +358,10 @@ export default function MerchantOnboardingWizard({
   );
 }
 
-function STEP_HINT(nextStepId, t) {
-  const hints = {
-    profile: t('food.merchant.setupWizardProfile', 'Add description and cuisine tags.'),
-    location: t('food.merchant.setupWizardLocation', 'Set city and coordinates.'),
-    hours: t('food.merchant.setupWizardHours', 'Set operating hours.'),
-    menu: t('food.merchant.setupWizardMenu', 'Add at least one menu item.'),
-  };
-  return hints[nextStepId] || t('food.merchant.setupIncomplete', 'Complete remaining steps.');
-}
-
 function primaryLabel(step, t, restaurant) {
-  if (step === 'welcome') return t('food.onboarding.getStarted', 'Get started');
+  if (step === 'welcome') return t('food.onboarding.begin', 'Begin opening night');
   if (step === 'create') return t('food.merchant.createRestaurant', 'Create restaurant');
   if (step === 'publish') return restaurant?.status === 'active' ? t('food.common.continue', 'Continue') : t('food.merchant.goLive', 'Go live');
-  if (step === 'done') return t('food.onboarding.finish', 'Done');
   return t('food.onboarding.saveContinue', 'Save & continue');
 }
 

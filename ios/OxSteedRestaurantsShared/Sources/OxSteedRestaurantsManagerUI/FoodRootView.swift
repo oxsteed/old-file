@@ -229,6 +229,9 @@ struct FoodRuntimeConfig {
 struct FoodRootView: View {
     @EnvironmentObject private var store: FoodStore
     @AppStorage("ox.food.workspace") private var workspaceRawValue = FoodWorkspace.customerOrdering.rawValue
+    @StateObject private var prototypeSession = FoodPrototypeSession()
+    @State private var showAppLauncher = false
+    @State private var showPrototypeSettings = false
     private let runtime = FoodRuntimeConfig.current
 
     private var workspace: FoodWorkspace {
@@ -241,6 +244,10 @@ struct FoodRootView: View {
 
     private var isDedicatedRoleApp: Bool {
         runtime.allowedWorkspaces.count == 1
+    }
+
+    private var isPrototypeSuite: Bool {
+        runtime.allowedWorkspaces.count > 1
     }
 
     private var shellContextLine: String? {
@@ -297,22 +304,43 @@ struct FoodRootView: View {
                 ZStack {
                     FoodTheme.background.ignoresSafeArea()
 
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 18) {
-                            FoodWorkspaceHero(appName: runtime.appName, workspace: workspace)
-                            if runtime.allowedWorkspaces.count > 1 {
-                                FoodWorkspaceRail(
-                                    workspaces: runtime.allowedWorkspaces,
-                                    workspace: Binding(
-                                        get: { workspace },
-                                        set: { workspace = $0 }
-                                    )
-                                )
-                            }
-
-                            workspaceContent
+                    VStack(spacing: 0) {
+                        if isPrototypeSuite, prototypeSession.isComplete {
+                            FoodPrototypeUtilityBar(
+                                restaurantName: prototypeSession.selectedRestaurantName,
+                                city: prototypeSession.selectedRestaurantCity,
+                                onLauncher: { showAppLauncher = true },
+                                onSettings: { showPrototypeSettings = true }
+                            )
+                            .padding(.horizontal, 16)
+                            .padding(.top, 16)
+                            .padding(.bottom, 6)
                         }
-                        .padding(16)
+
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 18) {
+                                FoodWorkspaceHero(appName: runtime.appName, workspace: workspace)
+                                if runtime.allowedWorkspaces.count > 1 {
+                                    FoodWorkspaceRail(
+                                        workspaces: runtime.allowedWorkspaces,
+                                        workspace: Binding(
+                                            get: { workspace },
+                                            set: { workspace = $0 }
+                                        )
+                                    )
+                                }
+
+                                workspaceContent
+                            }
+                            .padding(16)
+                        }
+                    }
+
+                    if isPrototypeSuite, !prototypeSession.isComplete {
+                        FoodPrototypeFlow(session: prototypeSession) { destination, role in
+                            prototypeSession.selectedRole = role
+                            workspace = destination
+                        }
                     }
                 }
             }
@@ -325,6 +353,30 @@ struct FoodRootView: View {
         }
         .fullScreenCover(item: confirmationBinding) { order in
             OrderConfirmationView(order: order)
+        }
+        .sheet(isPresented: $showAppLauncher) {
+            FoodPrototypeAppLauncherSheet(
+                workspace: Binding(
+                    get: { workspace },
+                    set: { workspace = $0 }
+                ),
+                role: prototypeSession.selectedRole,
+                onClose: { showAppLauncher = false }
+            )
+        }
+        .sheet(isPresented: $showPrototypeSettings) {
+            FoodPrototypeSettingsSheet(
+                session: prototypeSession,
+                workspace: Binding(
+                    get: { workspace },
+                    set: { workspace = $0 }
+                ),
+                onLogout: {
+                    prototypeSession.reset()
+                    showPrototypeSettings = false
+                    workspace = .customerOrdering
+                }
+            )
         }
         .overlay(alignment: .bottom) {
             if let message = store.message {

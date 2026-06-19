@@ -67,7 +67,7 @@ struct RestaurantPatch: Encodable {
     }
 }
 
-// MARK: - Owner onboarding wizard
+// MARK: - Journey steps
 
 enum FoodOwnerOnboardingStep: Int, CaseIterable, Identifiable {
     case welcome
@@ -82,327 +82,533 @@ enum FoodOwnerOnboardingStep: Int, CaseIterable, Identifiable {
 
     var id: Int { rawValue }
 
-    var title: String {
+    /// Short label on the journey spine.
+    var spineLabel: String {
         switch self {
-        case .welcome: return "Welcome"
-        case .createRestaurant: return "Your restaurant"
-        case .profile: return "Profile"
-        case .location: return "Location"
+        case .welcome: return "Start"
+        case .createRestaurant: return "Name"
+        case .profile: return "Story"
+        case .location: return "Place"
         case .hours: return "Hours"
         case .menu: return "Menu"
-        case .publish: return "Go live"
-        case .devices: return "Floor devices"
-        case .complete: return "You're ready"
+        case .publish: return "Live"
+        case .devices: return "Floor"
+        case .complete: return "Go"
         }
     }
+
+    var icon: String {
+        switch self {
+        case .welcome: return "sparkles"
+        case .createRestaurant: return "storefront.fill"
+        case .profile: return "text.quote"
+        case .location: return "mappin.and.ellipse"
+        case .hours: return "clock.badge.checkmark"
+        case .menu: return "fork.knife"
+        case .publish: return "bolt.horizontal.fill"
+        case .devices: return "ipad.and.iphone"
+        case .complete: return "seal.fill"
+        }
+    }
+
+    var accent: Color {
+        switch self {
+        case .welcome: return FoodTheme.flame
+        case .createRestaurant: return FoodTheme.ember
+        case .profile: return FoodTheme.grape
+        case .location: return FoodTheme.blue
+        case .hours: return FoodTheme.saffron
+        case .menu: return FoodTheme.basil
+        case .publish: return FoodTheme.flame
+        case .devices: return FoodTheme.teal
+        case .complete: return FoodTheme.basil
+        }
+    }
+
+    var headline: String {
+        switch self {
+        case .welcome: return "Run the room."
+        case .createRestaurant: return "What are we opening?"
+        case .profile: return "Tell guests who you are."
+        case .location: return "Put yourself on the map."
+        case .hours: return "When do doors open?"
+        case .menu: return "Plate something real."
+        case .publish: return "Flip the sign to OPEN."
+        case .devices: return "Wire the floor."
+        case .complete: return "You're in service."
+        }
+    }
+
+    var subhead: String {
+        switch self {
+        case .welcome:
+            return "One guided path from empty kitchen to a live floor — kiosk, tickets, queue board, all talking."
+        case .createRestaurant:
+            return "Start with a name. Everything else can grow from here."
+        case .profile:
+            return "A line of personality goes a long way in Discover."
+        case .location:
+            return "City plus coordinates help nearby hungry people find you."
+        case .hours:
+            return "Set a rhythm for now — fine-tune per day later."
+        case .menu:
+            return "One honest item is enough to run your first real order."
+        case .publish:
+            return "Going live is the moment customers can actually find you."
+        case .devices:
+            return "Four checkboxes between you and a full service loop."
+        case .complete:
+            return "Guests order. Kitchen fires. The board tells the story."
+        }
+    }
+
+    /// Steps shown on the horizontal journey (excludes terminal states).
+    static var journeySteps: [FoodOwnerOnboardingStep] {
+        [.welcome, .createRestaurant, .profile, .location, .hours, .menu, .publish, .devices]
+    }
 }
+
+// MARK: - Owner onboarding — "Opening Night"
 
 struct FoodOwnerOnboardingFlow: View {
     @EnvironmentObject private var store: FoodStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var step: FoodOwnerOnboardingStep = .welcome
     @State private var working = false
+    @State private var appeared = false
 
-    // Create / profile
     @State private var restaurantName = ""
     @State private var restaurantDescription = ""
     @State private var cuisineText = ""
     @State private var city = ""
     @State private var country = "US"
     @State private var currency = "USD"
-
-    // Location coords
     @State private var latitudeText = ""
     @State private var longitudeText = ""
-
-    // Hours
     @State private var openTime = "11:00"
     @State private var closeTime = "22:00"
-
-    // Menu
     @State private var menuItemName = ""
     @State private var menuItemPrice = ""
 
-    // Device checklist
     @State private var deviceKioskInstalled = false
     @State private var deviceKitchenInstalled = false
     @State private var deviceQueueDisplay = false
     @State private var deviceTestOrder = false
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    progressHeader
-                    stepContent
-                    navigationButtons
-                }
-                .padding(20)
-            }
-            .background(FoodTheme.background.ignoresSafeArea())
-            .navigationTitle("Restaurant setup")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Later") {
-                        store.snoozeOwnerOnboarding()
-                        dismiss()
+        ZStack {
+            OnboardingCanvas(accent: step.accent)
+            VStack(spacing: 0) {
+                topBar
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: FoodTheme.Space.xl) {
+                        if step != .complete {
+                            OnboardingJourneySpine(current: step)
+                        }
+                        sceneHero
+                        stepContent
+                            .id(step)
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .move(edge: .trailing)),
+                                removal: .opacity.combined(with: .move(edge: .leading))
+                            ))
                     }
+                    .padding(.horizontal, FoodTheme.Space.xl)
+                    .padding(.bottom, 120)
                 }
             }
-            .task { await bootstrapStep() }
+            VStack {
+                Spacer()
+                bottomBar
+            }
+        }
+        .preferredColorScheme(.dark)
+        .task { await bootstrapStep() }
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.55)) { appeared = true }
         }
     }
 
-    private var progressHeader: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(step.title)
-                .font(.system(size: 28, weight: .black, design: .rounded))
-                .foregroundStyle(FoodTheme.ink)
-            if let restaurant = store.merchantSelection {
-                Text(restaurant.displayName)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(FoodTheme.muted)
+    // MARK: Chrome
+
+    private var topBar: some View {
+        HStack {
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(FoodTheme.flame.opacity(0.2))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(FoodTheme.flame)
+                }
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Opening Night")
+                        .font(.foodMicro)
+                        .foregroundStyle(FoodTheme.shellMuted)
+                    Text("OxSteed Restaurants")
+                        .font(.foodCallout)
+                        .foregroundStyle(FoodTheme.shellInk)
+                }
             }
-            if let progress = store.setupProgress, store.merchantSelection?.status != "active" {
-                let done = progress.steps.filter { $0.id != "publish" && $0.complete }.count
-                Text("\(done) of 4 setup steps complete")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(FoodTheme.basil)
+            Spacer()
+            Button("Not now") {
+                store.snoozeOwnerOnboarding()
+                dismiss()
+            }
+            .font(.foodCaption)
+            .foregroundStyle(FoodTheme.shellMuted)
+        }
+        .padding(.horizontal, FoodTheme.Space.xl)
+        .padding(.vertical, FoodTheme.Space.lg)
+    }
+
+    private var sceneHero: some View {
+        VStack(alignment: .leading, spacing: FoodTheme.Space.md) {
+            ZStack {
+                Circle()
+                    .fill(step.accent.opacity(0.18))
+                    .frame(width: 64, height: 64)
+                    .blur(radius: 2)
+                Image(systemName: step.icon)
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(step.accent)
+                    .symbolEffect(.bounce, value: step)
+            }
+            Text(step.headline)
+                .font(.foodDisplay)
+                .foregroundStyle(FoodTheme.shellInk)
+                .opacity(appeared ? 1 : 0)
+                .offset(y: appeared ? 0 : 12)
+            Text(step.subhead)
+                .font(.foodBody)
+                .foregroundStyle(FoodTheme.shellMuted)
+                .fixedSize(horizontal: false, vertical: true)
+            if let restaurant = store.merchantSelection, step != .welcome && step != .createRestaurant {
+                HStack(spacing: 8) {
+                    FoodBrandMark(name: restaurant.displayName, logoURL: restaurant.logoUrl, accent: step.accent, size: 32)
+                    Text(restaurant.displayName)
+                        .font(.foodCallout)
+                        .foregroundStyle(FoodTheme.shellInk.opacity(0.9))
+                }
+                .padding(.top, 4)
             }
         }
+        .animation(.spring(response: 0.45, dampingFraction: 0.82), value: step)
     }
 
     @ViewBuilder
     private var stepContent: some View {
         switch step {
-        case .welcome:
-            welcomeStep
-        case .createRestaurant:
-            createRestaurantStep
-        case .profile:
-            profileStep
-        case .location:
-            locationStep
-        case .hours:
-            hoursStep
-        case .menu:
-            menuStep
-        case .publish:
-            publishStep
-        case .devices:
-            devicesStep
-        case .complete:
-            completeStep
+        case .welcome: welcomeScene
+        case .createRestaurant: formCard { createFields }
+        case .profile: formCard { profileFields }
+        case .location: formCard { locationFields }
+        case .hours: formCard { hoursFields }
+        case .menu: formCard { menuFields }
+        case .publish: publishScene
+        case .devices: devicesScene
+        case .complete: completeScene
         }
     }
 
-    private var welcomeStep: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Set up your restaurant in a few minutes.")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(FoodTheme.ink)
-            Text("You'll add your menu, go live, then connect the Kiosk and Kitchen apps so guests can order and cooks see tickets.")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(FoodTheme.muted)
-            Label("Use the same OxSteed account on every staff device.", systemImage: "person.2.fill")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(FoodTheme.blue)
-        }
-        .foodCard(padding: 16)
-    }
-
-    private var createRestaurantStep: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            TextField("Restaurant name", text: $restaurantName)
-                .textFieldStyle(.roundedBorder)
-            TextField("Short description", text: $restaurantDescription, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
-            TextField("Cuisines (comma separated)", text: $cuisineText)
-                .textFieldStyle(.roundedBorder)
-            TextField("City", text: $city)
-                .textFieldStyle(.roundedBorder)
-            HStack {
-                TextField("Country", text: $country)
-                    .textFieldStyle(.roundedBorder)
-                TextField("Currency", text: $currency)
-                    .textFieldStyle(.roundedBorder)
+    private var bottomBar: some View {
+        VStack(spacing: FoodTheme.Space.sm) {
+            if working {
+                ProgressView()
+                    .tint(step.accent)
             }
-        }
-        .foodCard(padding: 16)
-    }
-
-    private var profileStep: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Help customers recognize you in Discover.")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(FoodTheme.muted)
-            TextField("Description", text: $restaurantDescription, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
-            TextField("Cuisines (comma separated)", text: $cuisineText)
-                .textFieldStyle(.roundedBorder)
-        }
-        .foodCard(padding: 16)
-    }
-
-    private var locationStep: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Set your city and map coordinates so nearby customers find you.")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(FoodTheme.muted)
-            TextField("City", text: $city)
-                .textFieldStyle(.roundedBorder)
-            TextField("Latitude (e.g. 25.7617)", text: $latitudeText)
-                .keyboardType(.decimalPad)
-                .textFieldStyle(.roundedBorder)
-            TextField("Longitude (e.g. -80.1918)", text: $longitudeText)
-                .keyboardType(.decimalPad)
-                .textFieldStyle(.roundedBorder)
-        }
-        .foodCard(padding: 16)
-    }
-
-    private var hoursStep: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Same hours every day for now — you can customize later in Settings.")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(FoodTheme.muted)
-            TextField("Opens", text: $openTime)
-                .textFieldStyle(.roundedBorder)
-            TextField("Closes", text: $closeTime)
-                .textFieldStyle(.roundedBorder)
-        }
-        .foodCard(padding: 16)
-    }
-
-    private var menuStep: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Add at least one item so guests can place an order.")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(FoodTheme.muted)
-            if let count = store.setupProgress?.menuItemCount, count > 0 {
-                Label("\(count) menu item(s) on your menu", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(FoodTheme.basil)
-            }
-            TextField("Item name", text: $menuItemName)
-                .textFieldStyle(.roundedBorder)
-            TextField("Price (e.g. 8.99)", text: $menuItemPrice)
-                .keyboardType(.decimalPad)
-                .textFieldStyle(.roundedBorder)
-        }
-        .foodCard(padding: 16)
-    }
-
-    private var publishStep: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if store.setupProgress?.readyToPublish == true {
-                Text("Everything is ready. Going live makes your restaurant visible to customers.")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(FoodTheme.muted)
-                Button {
-                    Task { await goLive() }
-                } label: {
-                    Label("Go live now", systemImage: "bolt.fill")
-                        .frame(maxWidth: .infinity)
+            HStack(spacing: FoodTheme.Space.md) {
+                if canGoBack {
+                    Button("Back") { goBack() }
+                        .buttonStyle(SecondaryActionButtonStyle(tint: FoodTheme.shellMuted, fullWidth: false))
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(FoodTheme.basil)
-                .disabled(working)
-            } else {
-                Text("Complete the previous steps before going live.")
-                    .font(.system(size: 14, weight: .medium))
+                Button(primaryButtonTitle) {
+                    Task { await handlePrimaryAction() }
+                }
+                .buttonStyle(PrimaryActionButtonStyle(tint: step.accent))
+                .disabled(working || !canAdvance)
+            }
+        }
+        .padding(.horizontal, FoodTheme.Space.xl)
+        .padding(.vertical, FoodTheme.Space.lg)
+        .background(
+            LinearGradient(
+                colors: [FoodTheme.shellNavy.opacity(0), FoodTheme.shellNavy.opacity(0.92), FoodTheme.shellNavy],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea(edges: .bottom)
+        )
+    }
+
+    // MARK: Scenes
+
+    private var welcomeScene: some View {
+        VStack(alignment: .leading, spacing: FoodTheme.Space.lg) {
+            HStack(spacing: FoodTheme.Space.md) {
+                welcomeChip(icon: "rectangle.portrait.on.rectangle.portrait.angled", label: "Kiosk orders", tint: FoodTheme.grape)
+                welcomeChip(icon: "flame.fill", label: "Kitchen tickets", tint: FoodTheme.coral)
+            }
+            welcomeChip(icon: "tv.fill", label: "Queue on the wall", tint: FoodTheme.blue)
+            Text("Same OxSteed account on every tablet. No duplicate logins, no mystery.")
+                .font(.foodCaption)
+                .foregroundStyle(FoodTheme.faint)
+        }
+    }
+
+    private func welcomeChip(icon: String, label: String, tint: Color) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(tint)
+                .frame(width: 32, height: 32)
+                .background(tint.opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            Text(label)
+                .font(.foodCallout)
+                .foregroundStyle(FoodTheme.shellInk.opacity(0.88))
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(FoodTheme.surface.opacity(0.55))
+        .clipShape(RoundedRectangle(cornerRadius: FoodTheme.Radius.md, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: FoodTheme.Radius.md, style: .continuous)
+                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+        )
+    }
+
+    private var publishScene: some View {
+        VStack(spacing: FoodTheme.Space.xl) {
+            ZStack {
+                RoundedRectangle(cornerRadius: FoodTheme.Radius.xl, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: store.setupProgress?.readyToPublish == true
+                                ? [FoodTheme.basil.opacity(0.35), FoodTheme.shellNavy]
+                                : [FoodTheme.saffron.opacity(0.2), FoodTheme.shellNavy],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(height: 140)
+                VStack(spacing: 8) {
+                    Text(store.setupProgress?.readyToPublish == true ? "OPEN" : "CLOSED")
+                        .font(.system(size: 44, weight: .black, design: .rounded))
+                        .foregroundStyle(store.setupProgress?.readyToPublish == true ? FoodTheme.basil : FoodTheme.saffron)
+                    Text(store.setupProgress?.readyToPublish == true ? "Ready for guests" : "Still setting up")
+                        .font(.foodCaption)
+                        .foregroundStyle(FoodTheme.shellMuted)
+                }
+            }
+            if store.setupProgress?.readyToPublish != true, let next = store.setupProgress?.nextStepId {
+                Text(hint(for: next))
+                    .font(.foodBody)
                     .foregroundStyle(FoodTheme.saffron)
-                if let next = store.setupProgress?.nextStepId {
-                    Text(hint(for: next))
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(FoodTheme.muted)
-                }
             }
         }
-        .foodCard(padding: 16)
     }
 
-    private var devicesStep: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Install these TestFlight apps on your in-store tablets:")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(FoodTheme.muted)
-            deviceRow(
-                title: "OxSteed Restaurants Kiosk",
-                detail: "Guest self-ordering + Queue tab for the waiting-area TV",
+    private var devicesScene: some View {
+        VStack(spacing: FoodTheme.Space.md) {
+            deviceCard(
+                title: "Kiosk at the counter",
+                detail: "Guests order without an account",
+                icon: "hand.tap.fill",
                 isOn: $deviceKioskInstalled
             )
-            deviceRow(
-                title: "OxSteed Restaurants Kitchen",
-                detail: "Sign in as staff — tickets appear in New → tap to Preparing → Ready",
+            deviceCard(
+                title: "Kitchen on the line",
+                detail: "Tickets land in New — tap to advance",
+                icon: "flame.fill",
                 isOn: $deviceKitchenInstalled
             )
-            deviceRow(
-                title: "Queue display running",
-                detail: "On Kiosk app, open the Queue tab on your dining-room tablet",
+            deviceCard(
+                title: "Queue on the wall",
+                detail: "Kiosk → Queue tab faces the dining room",
+                icon: "list.number",
                 isOn: $deviceQueueDisplay
             )
-            deviceRow(
-                title: "Test order completed",
-                detail: "Place one order on Kiosk and advance it on Kitchen",
+            deviceCard(
+                title: "One test order",
+                detail: "Kiosk → Kitchen → board, end to end",
+                icon: "arrow.triangle.2.circlepath",
                 isOn: $deviceTestOrder
             )
-            Text("Restaurant ID for support: \(store.merchantSelection?.id ?? 0)")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(FoodTheme.muted)
+            Text("ID \(store.merchantSelection?.id ?? 0) · keep handy for support")
+                .font(.foodMicro)
+                .foregroundStyle(FoodTheme.faint)
+                .frame(maxWidth: .infinity, alignment: .center)
         }
-        .foodCard(padding: 16)
     }
 
-    private func deviceRow(title: String, detail: String, isOn: Binding<Bool>) -> some View {
-        Toggle(isOn: isOn) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(FoodTheme.ink)
-                Text(detail)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(FoodTheme.muted)
+    private func deviceCard(title: String, detail: String, icon: String, isOn: Binding<Bool>) -> some View {
+        Button {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
+                isOn.wrappedValue.toggle()
+            }
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(isOn.wrappedValue ? FoodTheme.basil.opacity(0.22) : FoodTheme.surfaceRaised.opacity(0.6))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: isOn.wrappedValue ? "checkmark" : icon)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(isOn.wrappedValue ? FoodTheme.basil : FoodTheme.shellMuted)
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.foodSubhead)
+                        .foregroundStyle(FoodTheme.shellInk)
+                    Text(detail)
+                        .font(.foodCaption)
+                        .foregroundStyle(FoodTheme.shellMuted)
+                }
+                Spacer()
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous)
+                    .fill(isOn.wrappedValue ? FoodTheme.basil.opacity(0.08) : Color.white.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: FoodTheme.Radius.lg, style: .continuous)
+                    .stroke(isOn.wrappedValue ? FoodTheme.basil.opacity(0.45) : Color.white.opacity(0.07), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var completeScene: some View {
+        VStack(spacing: FoodTheme.Space.xl) {
+            ZStack {
+                Circle()
+                    .fill(FoodTheme.basil.opacity(0.15))
+                    .frame(width: 120, height: 120)
+                    .blur(radius: 8)
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 56, weight: .bold))
+                    .foregroundStyle(FoodTheme.basil)
+            }
+            .frame(maxWidth: .infinity)
+            VStack(spacing: 8) {
+                Text("First service is yours.")
+                    .font(.foodTitle)
+                    .foregroundStyle(FoodTheme.shellInk)
+                Text("Come back to Manager anytime for menus, pauses, and reports.")
+                    .font(.foodBody)
+                    .foregroundStyle(FoodTheme.shellMuted)
+                    .multilineTextAlignment(.center)
             }
         }
-        .tint(FoodTheme.basil)
+        .padding(.vertical, FoodTheme.Space.xxl)
     }
 
-    private var completeStep: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Your restaurant floor is configured.", systemImage: "party.popper.fill")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(FoodTheme.basil)
-            Text("Guests can order from the Kiosk. Kitchen sees tickets. The queue board shows Preparing and Ready numbers.")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(FoodTheme.muted)
+    // MARK: Forms
+
+    private func formCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: FoodTheme.Space.md) {
+            content()
         }
-        .foodCard(padding: 16)
+        .padding(FoodTheme.Space.lg)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: FoodTheme.Radius.xl, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: FoodTheme.Radius.xl, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
     }
 
-    private var navigationButtons: some View {
-        HStack(spacing: 12) {
-            if step != .welcome && step != .complete {
-                Button("Back") { step = previousStep() }
-                    .buttonStyle(.bordered)
+    private var createFields: some View {
+        Group {
+            OnboardingField("Restaurant name", text: $restaurantName, accent: step.accent)
+            OnboardingField("Short description", text: $restaurantDescription, accent: step.accent, axis: .vertical)
+            OnboardingField("Cuisines · comma separated", text: $cuisineText, accent: step.accent)
+            OnboardingField("City", text: $city, accent: step.accent)
+            HStack(spacing: FoodTheme.Space.md) {
+                OnboardingField("Country", text: $country, accent: step.accent)
+                OnboardingField("Currency", text: $currency, accent: step.accent)
+            }
+        }
+    }
+
+    private var profileFields: some View {
+        Group {
+            OnboardingField("What makes this place yours?", text: $restaurantDescription, accent: step.accent, axis: .vertical)
+            OnboardingField("Cuisine tags", text: $cuisineText, accent: step.accent)
+        }
+    }
+
+    private var locationFields: some View {
+        Group {
+            OnboardingField("City", text: $city, accent: step.accent)
+            OnboardingField("Latitude", text: $latitudeText, accent: step.accent, keyboard: .decimalPad)
+            OnboardingField("Longitude", text: $longitudeText, accent: step.accent, keyboard: .decimalPad)
+        }
+    }
+
+    private var hoursFields: some View {
+        Group {
+            HStack(spacing: FoodTheme.Space.md) {
+                OnboardingField("Opens", text: $openTime, accent: step.accent)
+                OnboardingField("Closes", text: $closeTime, accent: step.accent)
+            }
+            Text("Every day for now — you can split weekdays later.")
+                .font(.foodMicro)
+                .foregroundStyle(FoodTheme.faint)
+        }
+    }
+
+    private var menuFields: some View {
+        Group {
+            if let count = store.setupProgress?.menuItemCount, count > 0 {
+                FoodPill(text: "\(count) item\(count == 1 ? "" : "s") already live", systemImage: "checkmark", tint: FoodTheme.basil, filled: true)
+            }
+            OnboardingField("Dish name", text: $menuItemName, accent: step.accent)
+            OnboardingField("Price · e.g. 8.99", text: $menuItemPrice, accent: step.accent, keyboard: .decimalPad)
+            if !menuItemName.isEmpty, let price = Double(menuItemPrice.replacingOccurrences(of: ",", with: ".")) {
+                menuPreview(name: menuItemName, price: price)
+            }
+        }
+    }
+
+    private func menuPreview(name: String, price: Double) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Preview")
+                    .font(.foodMicro)
+                    .foregroundStyle(FoodTheme.faint)
+                Text(name)
+                    .font(.foodSubhead)
+                    .foregroundStyle(FoodTheme.shellInk)
             }
             Spacer()
-            Button(primaryButtonTitle) {
-                Task { await handlePrimaryAction() }
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(FoodTheme.flame)
-            .disabled(working || !canAdvance)
+            Text(String(format: "$%.2f", price))
+                .font(.foodPrice)
+                .foregroundStyle(FoodTheme.basil)
         }
+        .padding(14)
+        .background(FoodTheme.basil.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: FoodTheme.Radius.md, style: .continuous))
+    }
+
+    // MARK: Navigation state
+
+    private var canGoBack: Bool {
+        step != .welcome && step != .complete
     }
 
     private var primaryButtonTitle: String {
         switch step {
-        case .welcome: return "Get started"
+        case .welcome: return "Begin opening night"
         case .createRestaurant: return "Create restaurant"
-        case .complete: return "Done"
-        case .devices: return "Mark floor setup complete"
+        case .publish: return store.setupProgress?.readyToPublish == true ? "Go live" : "Continue"
+        case .devices: return "Floor is ready"
+        case .complete: return "Enter Manager"
         default: return "Save & continue"
         }
     }
@@ -416,10 +622,26 @@ struct FoodOwnerOnboardingFlow: View {
             return hasItem || (!menuItemName.isEmpty && !menuItemPrice.isEmpty)
         case .devices:
             return deviceKioskInstalled && deviceKitchenInstalled && deviceQueueDisplay && deviceTestOrder
+        case .publish:
+            return store.setupProgress?.readyToPublish == true || store.merchantSelection?.status == "active"
         default:
             return true
         }
     }
+
+    private func goBack() {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.86)) {
+            step = previousStep()
+        }
+    }
+
+    private func advance(to next: FoodOwnerOnboardingStep) {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.86)) {
+            step = next
+        }
+    }
+
+    // MARK: Logic (unchanged)
 
     private func bootstrapStep() async {
         await store.loadMerchant()
@@ -459,23 +681,13 @@ struct FoodOwnerOnboardingFlow: View {
         FoodOwnerOnboardingStep(rawValue: max(0, step.rawValue - 1)) ?? .welcome
     }
 
-    private func nextStep() -> FoodOwnerOnboardingStep {
-        if step == .welcome && store.merchantRestaurants.isEmpty {
-            return .createRestaurant
-        }
-        if step == .publish && store.merchantSelection?.status == "active" {
-            return .devices
-        }
-        return FoodOwnerOnboardingStep(rawValue: min(FoodOwnerOnboardingStep.allCases.count - 1, step.rawValue + 1)) ?? .complete
-    }
-
     private func handlePrimaryAction() async {
         working = true
         defer { working = false }
 
         switch step {
         case .welcome:
-            step = store.merchantRestaurants.isEmpty ? .createRestaurant : initialStep()
+            advance(to: store.merchantRestaurants.isEmpty ? .createRestaurant : initialStep())
         case .createRestaurant:
             if await store.publishRestaurant(
                 name: restaurantName,
@@ -486,7 +698,7 @@ struct FoodOwnerOnboardingFlow: View {
                 currency: currency
             ) {
                 await store.loadSetupProgress(restaurantId: store.merchantSelection?.id ?? 0)
-                step = .profile
+                advance(to: .profile)
             }
         case .profile:
             if await store.updateRestaurantProfile(
@@ -494,29 +706,29 @@ struct FoodOwnerOnboardingFlow: View {
                 cuisineTags: cuisineText.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
             ) {
                 await refreshProgress()
-                step = .location
+                advance(to: .location)
             }
         case .location:
             let lat = Double(latitudeText.trimmingCharacters(in: .whitespaces))
             let lng = Double(longitudeText.trimmingCharacters(in: .whitespaces))
             if await store.updateRestaurantLocation(city: city, latitude: lat, longitude: lng) {
                 await refreshProgress()
-                step = .hours
+                advance(to: .hours)
             }
         case .hours:
             if await store.updateRestaurantHours(open: openTime, close: closeTime) {
                 await refreshProgress()
-                step = .menu
+                advance(to: .menu)
             }
         case .menu:
             if (store.setupProgress?.menuItemCount ?? 0) == 0 {
                 guard await store.addMenuItem(name: menuItemName, priceText: menuItemPrice, categoryName: "Menu") else { return }
             }
             await refreshProgress()
-            step = .publish
+            advance(to: .publish)
         case .publish:
             if store.merchantSelection?.status == "active" {
-                step = .devices
+                advance(to: .devices)
             } else if store.setupProgress?.readyToPublish == true {
                 await goLive()
             }
@@ -524,7 +736,7 @@ struct FoodOwnerOnboardingFlow: View {
             if let id = store.merchantSelection?.id {
                 FoodOnboardingPreferences.markDeviceSetupComplete(restaurantId: id)
             }
-            step = .complete
+            advance(to: .complete)
         case .complete:
             store.showOwnerOnboarding = false
             dismiss()
@@ -534,7 +746,7 @@ struct FoodOwnerOnboardingFlow: View {
     private func goLive() async {
         await store.setRestaurantStatus("active")
         if store.merchantSelection?.status == "active" {
-            step = .devices
+            advance(to: .devices)
         }
     }
 
@@ -551,6 +763,118 @@ struct FoodOwnerOnboardingFlow: View {
         case "hours": return "Configure operating hours."
         case "menu": return "Add at least one menu item."
         default: return "Complete remaining setup steps."
+        }
+    }
+}
+
+// MARK: - Onboarding components
+
+private struct OnboardingCanvas: View {
+    let accent: Color
+
+    var body: some View {
+        ZStack {
+            FoodTheme.shellNavy.ignoresSafeArea()
+            RadialGradient(
+                colors: [accent.opacity(0.22), FoodTheme.shellNavy.opacity(0)],
+                center: .topTrailing,
+                startRadius: 20,
+                endRadius: 340
+            )
+            .ignoresSafeArea()
+            RadialGradient(
+                colors: [FoodTheme.flame.opacity(0.12), .clear],
+                center: .bottomLeading,
+                startRadius: 10,
+                endRadius: 280
+            )
+            .ignoresSafeArea()
+        }
+    }
+}
+
+private struct OnboardingJourneySpine: View {
+    let current: FoodOwnerOnboardingStep
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(FoodOwnerOnboardingStep.journeySteps) { item in
+                    let active = item.rawValue <= current.rawValue
+                    let isCurrent = item == current
+                    VStack(spacing: 6) {
+                        ZStack {
+                            Circle()
+                                .fill(isCurrent ? item.accent : (active ? item.accent.opacity(0.25) : Color.white.opacity(0.06)))
+                                .frame(width: isCurrent ? 34 : 28, height: isCurrent ? 34 : 28)
+                            if active && !isCurrent {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 10, weight: .black))
+                                    .foregroundStyle(item.accent)
+                            } else {
+                                Image(systemName: item.icon)
+                                    .font(.system(size: isCurrent ? 13 : 11, weight: .bold))
+                                    .foregroundStyle(isCurrent ? Color.white : FoodTheme.faint)
+                            }
+                        }
+                        Text(item.spineLabel)
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(isCurrent ? item.accent : FoodTheme.faint)
+                    }
+                    .animation(.spring(response: 0.35, dampingFraction: 0.8), value: current)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+}
+
+private struct OnboardingField: View {
+    let label: String
+    @Binding var text: String
+    var accent: Color = FoodTheme.flame
+    var axis: Axis = .horizontal
+    var keyboard: UIKeyboardType = .default
+    @FocusState private var focused: Bool
+
+    init(
+        _ label: String,
+        text: Binding<String>,
+        accent: Color = FoodTheme.flame,
+        axis: Axis = .horizontal,
+        keyboard: UIKeyboardType = .default
+    ) {
+        self.label = label
+        self._text = text
+        self.accent = accent
+        self.axis = axis
+        self.keyboard = keyboard
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.foodMicro)
+                .foregroundStyle(FoodTheme.faint)
+            Group {
+                if axis == .vertical {
+                    TextField(label, text: $text, axis: .vertical)
+                        .lineLimit(3...6)
+                } else {
+                    TextField(label, text: $text)
+                }
+            }
+            .font(.foodBody)
+            .foregroundStyle(FoodTheme.shellInk)
+            .keyboardType(keyboard)
+            .focused($focused)
+            .padding(14)
+            .background(FoodTheme.surfaceSunken.opacity(0.85))
+            .clipShape(RoundedRectangle(cornerRadius: FoodTheme.Radius.md, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: FoodTheme.Radius.md, style: .continuous)
+                    .stroke(focused ? accent.opacity(0.75) : Color.white.opacity(0.08), lineWidth: focused ? 2 : 1)
+            )
         }
     }
 }

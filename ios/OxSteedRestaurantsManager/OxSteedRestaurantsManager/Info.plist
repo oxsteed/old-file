@@ -28,12 +28,19 @@
 	<string>OxSteed Restaurants Manager uses your location to show nearby restaurants.</string>
 	<key>OX_ALLOWED_WORKSPACES</key>
 	<array>
+		<string>customerOrdering</string>
 		<string>ownerManager</string>
+		<string>posCounter</string>
+		<string>kitchenDisplay</string>
+		<string>kioskQueue</string>
+		<string>crewTraining</string>
+		<string>inventoryReceiving</string>
+		<string>deliveryRunner</string>
 	</array>
 	<key>OX_API_BASE_URL</key>
 	<string>$(OX_API_BASE_URL)</string>
 	<key>OX_DEFAULT_WORKSPACE</key>
-	<string>ownerManager</string>
+	<string>customerOrdering</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
