@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-06-18
+**Last updated:** 2026-06-20
 
 ## Instructions for Every Session
 
@@ -8,6 +8,17 @@
 2. **After completing meaningful work**, update this file - revise "Current Status", "Remaining Work", update file paths.
 3. **Commit AGENTS.md changes** in the same commit as the work it documents.
 4. **Keep it accurate and terse** - do not pad with summaries of work you didn't personally verify.
+
+---
+
+## Restaurants Issue-Resolution Backend
+
+- Customer app issue links should connect to the dedicated case system, not generic support links.
+- Customer endpoints live at `/api/restaurants/support/cases*`.
+- Restaurant owner/manager app endpoints live at `/api/restaurants/:restaurantId/support/*`.
+- OxSteed admin oversight endpoints live at `/api/admin/restaurants/support/*`.
+- Canonical implementation files: `server/controllers/restaurantSupportController.js`, `server/routes/restaurantSupport.js`, `server/routes/adminRestaurantSupport.js`, migration `server/migrations/320_restaurant_support_cases.sql`.
+- Preserve the model: restaurant-managed first where appropriate, OxSteed oversight always, OxSteed escalation for payment, delivery, safety, trust, repeated, or unresolved cases.
 
 ---
 

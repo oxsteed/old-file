@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-06-19 (standalone auth)
+**Last updated:** 2026-06-20 (restaurant issue-resolution backend)
 
 ## Instructions for Every Session
 
@@ -8,6 +8,15 @@
 2. **After completing meaningful work**, update this file - revise "Current Status", "Remaining Work", update file paths.
 3. **Commit AGENTS.md changes** in the same commit as the work it documents.
 4. **Keep it accurate and terse** - do not pad with summaries of work you didn't personally verify.
+
+---
+
+## Session progress — Restaurants issue-resolution backend (2026-06-20)
+
+- **Case-management backend added:** `server/migrations/320_restaurant_support_cases.sql` creates restaurant support cases, customer/restaurant/OxSteed messages, audit events, attachments, policies, assignments, and notification-event placeholders.
+- **API surface:** `server/routes/restaurantSupport.js` exposes customer endpoints at `/api/restaurants/support/cases*` and restaurant-owner endpoints at `/api/restaurants/:restaurantId/support/*`; `server/routes/adminRestaurantSupport.js` exposes OxSteed oversight at `/api/admin/restaurants/support/*`.
+- **Controller:** `server/controllers/restaurantSupportController.js` implements issue routing, SLA due times, severity/priority, restaurant access checks, customer/restaurant/admin actions, audit logging, notification placeholder records, and metrics.
+- **Verified:** `node --check server/controllers/restaurantSupportController.js server/routes/restaurantSupport.js server/routes/adminRestaurantSupport.js server/index.js` passes; focused Jest coverage lives in `server/__tests__/restaurantSupport.test.js`.
 
 ---
 
