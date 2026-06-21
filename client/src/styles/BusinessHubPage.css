@@ -602,6 +602,8 @@
 }
 .bh-role-manager      { background: #312e81; color: #c7d2fe; }
 .bh-role-representative { background: #14532d; color: #bbf7d0; }
+.bh-role-employee { background: #1e3a8a; color: #bfdbfe; }
+.bh-role-support_agent { background: #78350f; color: #fde68a; }
 
 /* Status badges */
 .bh-status-badge {
@@ -627,6 +629,41 @@
 .bh-btn-danger-sm:hover { background: rgba(248,113,113,0.1); }
 
 /* ── Vortex tokens ───────────────────────────────────────── */
+.bh-vortex-method {
+  border: 1px solid rgba(249,115,22,0.18);
+}
+.bh-vortex-method-new {
+  background:
+    radial-gradient(circle at top right, rgba(249,115,22,0.12), transparent 34%),
+    var(--card-bg);
+}
+.bh-vortex-method-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.bh-vortex-method-eyebrow {
+  margin: 0 0 0.25rem;
+  color: #f97316;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.bh-vortex-method-pill,
+.bh-vortex-approval-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(249,115,22,0.12);
+  color: #fb923c;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
 .bh-team-vortex-desc {
   font-size: 0.85rem;
   color: var(--muted-text);
@@ -648,6 +685,29 @@
   color: var(--app-text);
   font-size: 0.875rem;
   cursor: pointer;
+}
+.bh-input {
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--app-text);
+  font-size: 0.875rem;
+}
+.bh-vortex-label-input {
+  min-width: min(100%, 240px);
+  flex: 1 1 240px;
+}
+.bh-vortex-approval-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted-text);
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+.bh-vortex-approval-toggle input {
+  accent-color: #f97316;
 }
 .bh-vortex-tokens {
   display: flex;
@@ -682,6 +742,11 @@
   letter-spacing: 0.04em;
   color: var(--app-text);
 }
+.bh-vortex-code-strong {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #fb923c;
+}
 .bh-vortex-status {
   font-size: 0.78rem;
   font-weight: 600;
@@ -707,6 +772,14 @@ html:not(.dark) .bh-role-manager {
 html:not(.dark) .bh-role-representative {
   background: #dcfce7;
   color: #166534;
+}
+html:not(.dark) .bh-role-employee {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+html:not(.dark) .bh-role-support_agent {
+  background: #fef3c7;
+  color: #92400e;
 }
 html:not(.dark) .bh-status-active {
   background: #dcfce7;

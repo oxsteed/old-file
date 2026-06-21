@@ -65,6 +65,11 @@ import {
   listBusinessMaintenanceRequests,
   updateMaintenanceRequest,
 } from '../api/maintenanceRequests';
+import {
+  createAccessCode,
+  listAccessCodes,
+  revokeAccessCode,
+} from '../api/vortex';
 import { getPropertyOperationsWorkspace } from '../api/propertyOperations';
 import { getTradesOperationsWorkspace } from '../api/tradesOperations';
 import { getBeautyOperationsWorkspace } from '../api/beautyOperations';
@@ -187,6 +192,9 @@ function BusinessHubInner() {
   const [vortexTokens, setVortexTokens]   = useState([]);
   const [tokenForm, setTokenForm]         = useState({ role: 'representative', expires_in: '7d' });
   const [generatingToken, setGeneratingToken] = useState(false);
+  const [accessCodes, setAccessCodes]     = useState([]);
+  const [accessCodeForm, setAccessCodeForm] = useState({ role: 'employee', label: '', requires_approval: true });
+  const [generatingAccessCode, setGeneratingAccessCode] = useState(false);
 
   // profile tab
   const [profileForm, setProfileForm] = useState(null);   // null = not loaded
@@ -243,6 +251,7 @@ function BusinessHubInner() {
         setMaintenanceData({ requests: [], stats: null });
         setMembers([]);
         setVortexTokens([]);
+        setAccessCodes([]);
       } else {
         // URL param (routeBusinessId) wins; fall back to localStorage, then first owned.
         const fromUrl = routeBusinessId && merged.find(b => String(b.id) === routeBusinessId) ? routeBusinessId : null;
@@ -428,16 +437,18 @@ function BusinessHubInner() {
     if (!bizId) return;
     setMembersLoading(true);
     try {
-      const [m, inv, managed, tokens] = await Promise.all([
+      const [m, inv, managed, tokens, codes] = await Promise.all([
         listMembers(bizId),
         listMyInvitations(),
         listManagedBusinesses(),
         listVortexTokens(bizId).catch(() => []),
+        listAccessCodes(bizId).catch(() => []),
       ]);
       setMembers(m);
       setInvitations(inv);
       setManagedBiz(managed);
       setVortexTokens(tokens);
+      setAccessCodes(codes);
     } catch { toast.error(t('businessHub.toastLoadTeamFail')); }
     finally { setMembersLoading(false); }
   }, [bizId, t]);
@@ -838,6 +849,39 @@ function BusinessHubInner() {
       const tokens = await listVortexTokens(bizId).catch(() => []);
       setVortexTokens(tokens);
     } catch { toast.error(t('businessHub.toastTokenRevokeFail')); }
+  }
+
+  async function handleCreateAccessCode() {
+    if (!bizId) return;
+    setGeneratingAccessCode(true);
+    try {
+      const label = accessCodeForm.label.trim();
+      await createAccessCode(bizId, {
+        role: accessCodeForm.role,
+        label: label || null,
+        requires_approval: accessCodeForm.requires_approval,
+      });
+      toast.success(t('businessHub.toastAccessCodeCreated'));
+      setAccessCodeForm(current => ({ ...current, label: '' }));
+      const codes = await listAccessCodes(bizId).catch(() => []);
+      setAccessCodes(codes);
+    } catch (e) {
+      toast.error(e?.response?.data?.error || t('businessHub.toastAccessCodeCreateFail'));
+    } finally {
+      setGeneratingAccessCode(false);
+    }
+  }
+
+  async function handleRevokeAccessCode(codeId) {
+    if (!bizId) return;
+    try {
+      await revokeAccessCode(bizId, codeId);
+      toast.success(t('businessHub.toastAccessCodeRevoked'));
+      const codes = await listAccessCodes(bizId).catch(() => []);
+      setAccessCodes(codes);
+    } catch {
+      toast.error(t('businessHub.toastAccessCodeRevokeFail'));
+    }
   }
 
   // ── invoice line items helpers ────────────────────────────────────────────
@@ -1665,10 +1709,16 @@ function BusinessHubInner() {
                 managedBiz={managedBiz}
                 vortexTokens={vortexTokens}
                 tokenForm={tokenForm}
+                accessCodes={accessCodes}
+                accessCodeForm={accessCodeForm}
                 onTokenFormChange={(patch) => setTokenForm(f => ({ ...f, ...patch }))}
+                onAccessCodeFormChange={(patch) => setAccessCodeForm(f => ({ ...f, ...patch }))}
                 onGenerateToken={handleGenerateToken}
                 generatingToken={generatingToken}
+                onCreateAccessCode={handleCreateAccessCode}
+                generatingAccessCode={generatingAccessCode}
                 onRevokeToken={handleRevokeToken}
+                onRevokeAccessCode={handleRevokeAccessCode}
                 onInvite={() => { setForm({ invite_email: '', invite_role: 'representative' }); setFormErr(''); setModal('invite-member'); }}
                 onRevoke={handleRevokeMember}
                 onAccept={handleAcceptInvitation}
@@ -3318,20 +3368,31 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
 
 function TeamTab({
   members, invitations, managedBiz,
-  vortexTokens, tokenForm, onTokenFormChange, onGenerateToken, generatingToken, onRevokeToken,
+  vortexTokens, tokenForm, accessCodes, accessCodeForm,
+  onTokenFormChange, onAccessCodeFormChange,
+  onGenerateToken, generatingToken, onCreateAccessCode, generatingAccessCode,
+  onRevokeToken, onRevokeAccessCode,
   onInvite, onRevoke, onAccept, onDecline,
 }) {
   const { t } = useTranslation();
   const roleLabel = (role) => {
     if (role === 'manager') return t('businessHub.roleManager');
     if (role === 'representative') return t('businessHub.roleRepresentative');
+    if (role === 'employee') return t('businessHub.roleEmployee');
+    if (role === 'support_agent') return t('businessHub.roleSupportAgent');
     return role;
   };
 
   const [copiedTokenId, setCopiedTokenId] = useState(null);
+  const [copiedAccessCodeId, setCopiedAccessCodeId] = useState(null);
 
-  function copyToken(token, tokenId) {
+  function copyToken(token, tokenId, kind = 'legacy') {
     navigator.clipboard.writeText(token).then(() => {
+      if (kind === 'access') {
+        setCopiedAccessCodeId(tokenId);
+        setTimeout(() => setCopiedAccessCodeId(prev => prev === tokenId ? null : prev), 1500);
+        return;
+      }
       setCopiedTokenId(tokenId);
       setTimeout(() => setCopiedTokenId(prev => prev === tokenId ? null : prev), 1500);
     });
@@ -3396,8 +3457,90 @@ function TeamTab({
         </div>
       )}
 
-      {/* ── Vortex token generator ────────────────────────────────────────── */}
+      {/* ── New Vortex access codes for restaurant apps ─────────────────── */}
+      <div className="bh-team-section bh-vortex-method bh-vortex-method-new">
+        <div className="bh-vortex-method-title-row">
+          <div>
+            <p className="bh-vortex-method-eyebrow">{t('businessHub.vortexNewMethodLabel')}</p>
+            <h3 className="bh-team-heading">{t('businessHub.accessCodeSection')}</h3>
+          </div>
+          <span className="bh-vortex-method-pill">{t('businessHub.vortexRecommended')}</span>
+        </div>
+        <p className="bh-team-vortex-desc">
+          {t('businessHub.accessCodeDesc')}
+        </p>
+        <div className="bh-team-vortex-gen">
+          <select
+            className="bh-select"
+            value={accessCodeForm.role}
+            onChange={e => onAccessCodeFormChange({ role: e.target.value })}
+          >
+            <option value="employee">{t('businessHub.roleEmployee')}</option>
+            <option value="manager">{t('businessHub.roleManager')}</option>
+            <option value="representative">{t('businessHub.roleRepresentative')}</option>
+            <option value="support_agent">{t('businessHub.roleSupportAgent')}</option>
+          </select>
+          <input
+            className="bh-input bh-vortex-label-input"
+            type="text"
+            value={accessCodeForm.label}
+            placeholder={t('businessHub.accessCodeLabelPlaceholder')}
+            onChange={e => onAccessCodeFormChange({ label: e.target.value })}
+          />
+          <label className="bh-vortex-approval-toggle">
+            <input
+              type="checkbox"
+              checked={accessCodeForm.requires_approval}
+              onChange={e => onAccessCodeFormChange({ requires_approval: e.target.checked })}
+            />
+            <span>{t('businessHub.accessCodeRequireApproval')}</span>
+          </label>
+          <button className="bh-btn primary" onClick={onCreateAccessCode} disabled={generatingAccessCode}>
+            {generatingAccessCode ? t('businessHub.btnCreatingAccessCode') : t('businessHub.btnCreateAccessCode')}
+          </button>
+        </div>
+
+        {accessCodes.length > 0 && (
+          <div className="bh-vortex-tokens">
+            {accessCodes.map(code => (
+              <div key={code.id} className={`bh-vortex-token-row ${code.is_active ? 'bh-vortex-active' : 'bh-vortex-revoked'}`}>
+                <div className="bh-vortex-token-info">
+                  <code className="bh-vortex-code bh-vortex-code-strong">{code.code}</code>
+                  <span className={`bh-role-badge bh-role-${code.role}`}>{roleLabel(code.role)}</span>
+                  {code.label && <span className="bh-vortex-used-by">{code.label}</span>}
+                  <span className="bh-vortex-status" style={{ color: code.is_active ? '#4ade80' : '#ef4444' }}>
+                    {code.is_active ? t('businessHub.vortexStatusActive') : t('businessHub.vortexStatusRevoked')}
+                  </span>
+                  <span className="bh-vortex-expires">
+                    {t('businessHub.accessCodeUses', { count: code.uses ?? 0 })}
+                  </span>
+                  {code.requires_approval && (
+                    <span className="bh-vortex-approval-badge">{t('businessHub.accessCodeApprovalRequired')}</span>
+                  )}
+                </div>
+                <div className="bh-vortex-token-actions">
+                  {code.is_active && (
+                    <>
+                      <button
+                        className="bh-btn"
+                        onClick={() => copyToken(code.code, code.id, 'access')}
+                        style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                      >
+                        {copiedAccessCodeId === code.id ? t('businessHub.btnCopied') : t('businessHub.btnCopy')}
+                      </button>
+                      <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevokeAccessCode(code.id)}>{t('businessHub.btnRevoke')}</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Legacy Vortex token generator ───────────────────────────────── */}
       <div className="bh-team-section">
+        <p className="bh-vortex-method-eyebrow">{t('businessHub.vortexLegacyMethodLabel')}</p>
         <h3 className="bh-team-heading">{t('businessHub.vortexSection')}</h3>
         <p className="bh-team-vortex-desc">
           {t('businessHub.vortexDesc')}
