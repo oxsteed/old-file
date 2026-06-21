@@ -12791,7 +12791,61 @@
       "enableInStore": "Louvri kòmand nan restoran an",
       "prepTimeMin": "Tan preparasyon (minit)",
       "inStoreScreens": "Ekran nan restoran an",
-      "inStoreScreensHint": "Louvri yo sou yon ekran kwizin oswa pwojektè, yon televizyon devan kliyan yo, ak yon tablèt pou kliyan kòmande poukont yo."
+      "inStoreScreensHint": "Louvri yo sou yon ekran kwizin oswa pwojektè, yon televizyon devan kliyan yo, ak yon tablèt pou kliyan kòmande poukont yo.",
+      "landing": {
+        "eyebrow": "OxSteed Restaurants",
+        "headline": "Zouti nivo franchise pou restoran endepandan",
+        "sub": "Kòmanse menm jou a. Aksepte kòmand nan kontwa, kiosk, afichaj kwizin, ak sou entènèt — tout nan yon sèl backend pataje.",
+        "cta": "Ajoute restoran ou",
+        "f1Title": "Konfigirasyon menm jou",
+        "f1Desc": "Ajoute meni ou epi kòmanse aksepte kòmand nan kèk èdtan.",
+        "f2Title": "Kòmand sou plizyè ekran",
+        "f2Desc": "Kontwa, kiosk, KDS, ak sou entènèt — tout senkronize otomatikman.",
+        "f3Title": "Mak endepandan",
+        "f3Desc": "Non ou, idantite ou. Alimante pa OxSteed Restaurants dèyè.",
+        "f4Title": "Pare pou lemond",
+        "f4Desc": "Meni plizyè lang ak sipò peman entènasyonal depi premye jou a.",
+        "step1": "Ajoute restoran ou",
+        "step2": "Bati meni ou",
+        "step3": "Pibliye epi aksepte kòmand"
+      }
+    },
+    "onboarding": {
+      "eyebrow": "Sware Ouvèti",
+      "later": "Pa kounye a",
+      "begin": "Kòmanse sware ouvèti",
+      "saveContinue": "Sove epi kontinye",
+      "finish": "Antre nan tablo de bò",
+      "hoursHint": "Aplike lendi jiska vandredi pa defò. Ou ka ajiste jounen endividyèl pi ta.",
+      "opens": "Ouvri",
+      "closes": "Fèmen",
+      "menuExists": "{{count}} atik deja nan meni ou",
+      "menuSkip": "— ou ka kontinye oswa ajoute yon lòt.",
+      "menuFirstHint": "Ajoute premye plat ou. Ou ka bati meni konplè a depi tablo de bò.",
+      "doneMessage": "{{name}} kounye a vizib. Kliyan yo ka jwenn ou epi kòmande kounye a.",
+      "alreadyLive": "Restoran ou deja aktif.",
+      "chip1": "Mak ou, sal ou — nou jere enfrastriktè a",
+      "chip2": "Kyòsk, ekran kwizin ak tablo atant enkli",
+      "chip3": "Konfigirasyon menm jou a, aktif depi ou vire pankat la",
+      "scene": {
+        "welcome": { "headline": "Dirije sal la.", "sub": "Yon chemen depi kwizin vid rive nan sèvis an dirèk." },
+        "create": { "headline": "Kisa nou ap ouvri?", "sub": "Kòmanse ak yon non — rès la swiv." },
+        "profile": { "headline": "Di kliyan ki moun ou ye.", "sub": "Pèsonalite a vwayaje pi lwen pase yon logo sèlman." },
+        "location": { "headline": "Mete tèt ou sou kat la.", "sub": "Ede kliyan ki toupre ak aplikasyon livrezon jwenn ou." },
+        "hours": { "headline": "Ki lè pòt yo ouvri?", "sub": "Fikse orè regilye ou — ou ka chanje l nenpòt ki lè." },
+        "menu": { "headline": "Mete yon bagay reyèl sou meni.", "sub": "Yon atik ase pou pran premye vrè kòmand ou." },
+        "publish": { "headline": "Vire pankat la sou OUVÈ.", "sub": "Aktif vle di kliyan ki toupre ka jwenn ou." },
+        "devices": { "headline": "Konekte sal la.", "sub": "Kyòsk, ekran kwizin, tablo atant — epi yon sik tès." },
+        "done": { "headline": "Ou an sèvis.", "sub": "Kliyan kòmande. Kwizin ap travay. Tablo a rakonte istwa a." }
+      },
+      "readiness": {
+        "restaurant": "Restoran kreye",
+        "description": "Deskripsyon ajoute",
+        "location": "Vil oswa adrès fikse",
+        "menu": "Omwen yon atik nan meni",
+        "ready": "Tout bagay sanble bon — pare pou mete an liy.",
+        "incomplete": "Ranpli etap sa yo pou mete an liy."
+      }
     },
     "kds": {
       "title": "Ekran kwizin",

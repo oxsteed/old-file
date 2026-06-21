@@ -12791,7 +12791,61 @@
       "enableInStore": "Activer les commandes sur place",
       "prepTimeMin": "Temps de préparation (minutes)",
       "inStoreScreens": "Écrans en magasin",
-      "inStoreScreensHint": "Ouvrez-les sur un écran de cuisine ou un projecteur, un téléviseur face à vos clients et une tablette pour les commandes en libre-service."
+      "inStoreScreensHint": "Ouvrez-les sur un écran de cuisine ou un projecteur, un téléviseur face à vos clients et une tablette pour les commandes en libre-service.",
+      "landing": {
+        "eyebrow": "OxSteed Restaurants",
+        "headline": "Outils de niveau franchise pour restaurants indépendants",
+        "sub": "Lancez-vous le même jour. Acceptez des commandes au comptoir, en kiosque, sur l'écran cuisine et en ligne — depuis un seul backend partagé.",
+        "cta": "Ajouter votre restaurant",
+        "f1Title": "Configuration le jour même",
+        "f1Desc": "Ajoutez votre menu et commencez à accepter des commandes en quelques heures.",
+        "f2Title": "Commandes multi-surfaces",
+        "f2Desc": "Comptoir, kiosque, KDS et en ligne — tout synchronisé automatiquement.",
+        "f3Title": "Marque indépendante",
+        "f3Desc": "Votre nom, votre identité. Propulsé par OxSteed Restaurants en arrière-plan.",
+        "f4Title": "Prêt pour le monde entier",
+        "f4Desc": "Menus multilingues et prise en charge des paiements internationaux dès le premier jour.",
+        "step1": "Ajoutez votre restaurant",
+        "step2": "Créez votre menu",
+        "step3": "Mettez en ligne et acceptez des commandes"
+      }
+    },
+    "onboarding": {
+      "eyebrow": "Nuit d'ouverture",
+      "later": "Pas maintenant",
+      "begin": "Commencer la nuit d'ouverture",
+      "saveContinue": "Enregistrer et continuer",
+      "finish": "Accéder au tableau de bord",
+      "hoursHint": "Appliqué du lundi au vendredi par défaut. Vous pouvez ajuster les jours individuels plus tard.",
+      "opens": "Ouvre",
+      "closes": "Ferme",
+      "menuExists": "{{count}} article(s) déjà dans votre menu",
+      "menuSkip": "— vous pouvez continuer ou en ajouter un autre.",
+      "menuFirstHint": "Ajoutez votre premier plat. Vous pouvez compléter le menu depuis le tableau de bord.",
+      "doneMessage": "{{name}} est maintenant visible. Les clients peuvent vous trouver et commander dès maintenant.",
+      "alreadyLive": "Votre restaurant est déjà en ligne.",
+      "chip1": "Votre marque, votre salle — nous gérons l'infrastructure",
+      "chip2": "Kiosque, écran cuisine et panneau de file inclus",
+      "chip3": "Configuration le jour même, en ligne dès que vous retournez le panneau",
+      "scene": {
+        "welcome": { "headline": "Gérez la salle.", "sub": "Un chemin de la cuisine vide au service en direct." },
+        "create": { "headline": "Qu'est-ce qu'on ouvre ?", "sub": "Commencez par un nom — le reste suit." },
+        "profile": { "headline": "Présentez-vous aux clients.", "sub": "La personnalité porte plus loin qu'un logo seul." },
+        "location": { "headline": "Mettez-vous sur la carte.", "sub": "Aidez les clients à proximité et les apps de livraison à vous trouver." },
+        "hours": { "headline": "Quand les portes ouvrent-elles ?", "sub": "Définissez vos horaires — vous pouvez les modifier à tout moment." },
+        "menu": { "headline": "Proposez quelque chose de réel.", "sub": "Un article suffit pour prendre votre première vraie commande." },
+        "publish": { "headline": "Retournez le panneau sur OUVERT.", "sub": "En ligne signifie visible de chaque client à proximité." },
+        "devices": { "headline": "Connectez la salle.", "sub": "Kiosque, écran cuisine, panneau de file — puis un cycle de test." },
+        "done": { "headline": "Vous êtes en service.", "sub": "Les clients commandent. La cuisine travaille. Le panneau raconte l'histoire." }
+      },
+      "readiness": {
+        "restaurant": "Restaurant créé",
+        "description": "Description ajoutée",
+        "location": "Ville ou adresse configurée",
+        "menu": "Au moins un article dans le menu",
+        "ready": "Tout semble bon — prêt à mettre en ligne.",
+        "incomplete": "Complétez ces étapes pour mettre en ligne."
+      }
     },
     "kds": {
       "title": "Écran cuisine",

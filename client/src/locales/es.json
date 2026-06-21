@@ -12791,7 +12791,61 @@
       "enableInStore": "Activar pedidos en el local",
       "prepTimeMin": "Tiempo de preparación (minutos)",
       "inStoreScreens": "Pantallas en el local",
-      "inStoreScreensHint": "Ábrelas en una pantalla de cocina o proyector, un TV frente a tus clientes y una tableta para auto-pedidos."
+      "inStoreScreensHint": "Ábrelas en una pantalla de cocina o proyector, un TV frente a tus clientes y una tableta para auto-pedidos.",
+      "landing": {
+        "eyebrow": "OxSteed Restaurants",
+        "headline": "Herramientas de nivel franquicia para restaurantes independientes",
+        "sub": "Salga en vivo el mismo día. Acepta pedidos en el mostrador, kiosco, pantalla de cocina y en línea, todo desde un backend compartido.",
+        "cta": "Agregar tu restaurante",
+        "f1Title": "Configuración el mismo día",
+        "f1Desc": "Agrega tu menú y empieza a aceptar pedidos en horas.",
+        "f2Title": "Pedidos en múltiples pantallas",
+        "f2Desc": "Mostrador, kiosco, KDS y en línea — todo sincronizado automáticamente.",
+        "f3Title": "Marca independiente",
+        "f3Desc": "Tu nombre, tu identidad. Impulsado por OxSteed Restaurants en segundo plano.",
+        "f4Title": "Listo para el mundo",
+        "f4Desc": "Menús en varios idiomas y soporte de pago internacional desde el primer día.",
+        "step1": "Agrega tu restaurante",
+        "step2": "Crea tu menú",
+        "step3": "Publica y acepta pedidos"
+      }
+    },
+    "onboarding": {
+      "eyebrow": "Noche de apertura",
+      "later": "Ahora no",
+      "begin": "Comenzar la noche de apertura",
+      "saveContinue": "Guardar y continuar",
+      "finish": "Entrar al panel",
+      "hoursHint": "Se aplica de lunes a viernes por defecto. Puedes ajustar días individuales más tarde.",
+      "opens": "Abre",
+      "closes": "Cierra",
+      "menuExists": "{{count}} artículo(s) ya en tu menú",
+      "menuSkip": "— puedes continuar o agregar otro.",
+      "menuFirstHint": "Agrega tu primer plato. Puedes construir el menú completo desde el panel.",
+      "doneMessage": "{{name}} ya es visible. Los clientes pueden encontrarte y ordenar ahora mismo.",
+      "alreadyLive": "Tu restaurante ya está en línea.",
+      "chip1": "Tu marca, tu sala — nosotros gestionamos la infraestructura",
+      "chip2": "Quiosco, pantalla de cocina y tablero de cola incluidos",
+      "chip3": "Configuración el mismo día, en vivo en cuanto volteas el letrero",
+      "scene": {
+        "welcome": { "headline": "Dirige el espacio.", "sub": "Un camino desde la cocina vacía hasta el piso en vivo." },
+        "create": { "headline": "¿Qué estamos abriendo?", "sub": "Empieza con un nombre — lo demás viene solo." },
+        "profile": { "headline": "Cuéntales a los clientes quién eres.", "sub": "La personalidad viaja más lejos que un logo." },
+        "location": { "headline": "Ponte en el mapa.", "sub": "Ayuda a los clientes cercanos y a las apps de entrega a encontrarte." },
+        "hours": { "headline": "¿Cuándo abren las puertas?", "sub": "Establece tu horario regular — puedes cambiarlo en cualquier momento." },
+        "menu": { "headline": "Pon algo real en el menú.", "sub": "Un artículo es suficiente para tomar tu primer pedido real." },
+        "publish": { "headline": "Voltea el letrero a ABIERTO.", "sub": "En vivo significa visible para cada cliente cercano." },
+        "devices": { "headline": "Conecta el piso.", "sub": "Quiosco, pantalla de cocina, tablero de cola — luego un ciclo de prueba." },
+        "done": { "headline": "Estás en servicio.", "sub": "Los clientes ordenan. La cocina trabaja. El tablero cuenta la historia." }
+      },
+      "readiness": {
+        "restaurant": "Restaurante creado",
+        "description": "Descripción añadida",
+        "location": "Ciudad o dirección configurada",
+        "menu": "Al menos un artículo en el menú",
+        "ready": "Todo se ve bien — listo para ir en vivo.",
+        "incomplete": "Completa estos pasos para ir en vivo."
+      }
     },
     "kds": {
       "title": "Pantalla de cocina",

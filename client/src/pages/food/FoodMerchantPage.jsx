@@ -28,6 +28,7 @@ import MerchantOnboardingWizard, { shouldShowMerchantOnboarding } from './FoodMe
 import LocationsPanel from './FoodLocationsPanel';
 import PromotionsPanel from './FoodPromotionsPanel';
 import { ChecklistsPanel, SopsPanel, InventoryPanel } from './RestaurantOpsPanels';
+import PageShell from '../../components/PageShell';
 import '../../styles/FoodPages.css';
 
 const NEXT_STATUS = {
@@ -674,6 +675,53 @@ function OperationsTab({ t, restaurant }) {
   );
 }
 
+// ── Merchant landing (no restaurant yet) ─────────────────────────────────────
+const LANDING_FEATURES = [
+  { icon: '⚡', tk: 'f1' },
+  { icon: '🍽️', tk: 'f2' },
+  { icon: '🎯', tk: 'f3' },
+  { icon: '🌍', tk: 'f4' },
+];
+function MerchantLanding({ t, onStart }) {
+  return (
+    <div className="fd-merchant-landing">
+      <div className="fd-merchant-landing-pitch">
+        <span className="fd-merchant-landing-eyebrow">{t('food.merchant.landing.eyebrow', 'OxSteed Restaurants')}</span>
+        <h2 className="fd-merchant-landing-headline">{t('food.merchant.landing.headline', 'Franchise-grade tools for independent restaurants')}</h2>
+        <p className="fd-merchant-landing-sub">{t('food.merchant.landing.sub', 'Go live the same day. Accept orders at the counter, kiosk, kitchen display, and online — all from one shared backend.')}</p>
+        <button type="button" className="fd-btn fd-merchant-landing-cta" onClick={onStart}>
+          {t('food.merchant.landing.cta', 'Add your restaurant')}
+        </button>
+      </div>
+
+      <div className="fd-merchant-landing-features">
+        {LANDING_FEATURES.map(({ icon, tk }) => (
+          <div key={tk} className="fd-merchant-landing-feature">
+            <span className="fd-merchant-landing-icon">{icon}</span>
+            <h3>{t(`food.merchant.landing.${tk}Title`, '')}</h3>
+            <p>{t(`food.merchant.landing.${tk}Desc`, '')}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="fd-merchant-landing-steps">
+        {[1, 2, 3].map((n, i) => (
+          <React.Fragment key={n}>
+            {i > 0 && <div className="fd-merchant-step-arrow" aria-hidden="true">→</div>}
+            <div className="fd-merchant-step">
+              <span className="fd-merchant-step-num">{n}</span>
+              <span>{t(`food.merchant.landing.step${n}`, `Step ${n}`)}</span>
+            </div>
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Tab icon map ──────────────────────────────────────────────────────────────
+const TAB_ICONS = { orders: '🧾', menu: '🍴', operations: '⚙️', settings: '🔧' };
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function FoodMerchantPage() {
   const { t } = useTranslation();
@@ -719,10 +767,22 @@ export default function FoodMerchantPage() {
     setSetupKey((k) => k + 1);
   }, [load]);
 
-  if (loading) return <div className="fd-page fd-empty">{t('food.common.loading')}</div>;
+  if (loading) {
+    return (
+      <PageShell>
+        <div className="fd-empty fd-merchant-loading">
+          <span className="fd-merchant-loading-dot" />
+          <span className="fd-merchant-loading-dot" />
+          <span className="fd-merchant-loading-dot" />
+        </div>
+      </PageShell>
+    );
+  }
+
+  const hasDashboard = restaurants.length > 0 && !showCreate;
 
   return (
-    <div className="fd-page">
+    <PageShell>
       {showOnboarding && (
         <MerchantOnboardingWizard
           t={t}
@@ -736,105 +796,153 @@ export default function FoodMerchantPage() {
           onSelectRestaurant={setSelectedId}
         />
       )}
-      <div className="fd-hero">
-        <FoodBrand size={40} />
-        <div>
-          <h1 className="fd-hero-title">{t('food.merchant.title')}</h1>
-          <p className="fd-hero-sub">{t('food.merchant.subtitle')}</p>
-          {selected && (
-            <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setShowOnboarding(true)}>
-              {t('food.merchant.openSetupGuide', 'Setup guide')}
-            </button>
+
+      {/* ── Merchant hero ── */}
+      <div className={`fd-merchant-hero${hasDashboard ? ' fd-merchant-hero--dashboard' : ''}`}>
+        <div className="fd-merchant-hero-inner">
+          <div className="fd-merchant-hero-brand">
+            <FoodBrand size={38} />
+            <div>
+              <h1 className="fd-merchant-hero-title">
+                {hasDashboard && selected ? selected.display_name : t('food.merchant.title')}
+              </h1>
+              <p className="fd-merchant-hero-sub">
+                {hasDashboard && selected
+                  ? (selected.address_city
+                      ? `${selected.address_city}${selected.address_state ? `, ${selected.address_state}` : ''}`
+                      : t('food.merchant.subtitle'))
+                  : t('food.merchant.subtitle')}
+              </p>
+            </div>
+          </div>
+          {hasDashboard && selected && (
+            <div className="fd-merchant-hero-actions">
+              <span className={`fd-merchant-status-badge fd-mstatus-${selected.status}`}>
+                {t(`food.restaurantStatus.${selected.status}`, selected.status)}
+              </span>
+              <button
+                type="button"
+                className="fd-btn fd-btn-secondary fd-btn-sm"
+                onClick={() => setShowOnboarding(true)}
+              >
+                {t('food.merchant.openSetupGuide', 'Setup guide')}
+              </button>
+            </div>
           )}
         </div>
       </div>
 
-      {restaurants.length === 0 || showCreate ? (
-        <>
-          {restaurants.length > 0 && (
-            <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setShowCreate(false)}>
-              {t('food.common.back')}
-            </button>
-          )}
-          <CreateRestaurantForm
-            t={t}
-            onCreated={(restaurant) => {
-              setShowCreate(false);
-              setSelectedId(restaurant.id);
-              load();
-            }}
-          />
-        </>
-      ) : (
-        <>
-          <div className="fd-row" style={{ marginBottom: '0.5rem' }}>
-            <select
-              value={selectedId || ''}
-              onChange={(e) => setSelectedId(Number(e.target.value))}
-              style={{ padding: '0.5rem 0.7rem', borderRadius: 8, border: '1px solid var(--border-color, #e5e7eb)', background: 'var(--card-bg, #fff)', color: 'inherit' }}
-              aria-label={t('food.merchant.selectRestaurant')}
-            >
-              {restaurants.map((r) => (
-                <option key={r.id} value={r.id}>{r.display_name}</option>
-              ))}
-            </select>
-            <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setShowCreate(true)}>
-              {t('food.merchant.addAnother')}
-            </button>
-          </div>
-
-          {selected && selected.status !== 'active' && (
-            <p className="fd-pay-note">{t('food.merchant.notLiveHint')}</p>
-          )}
-
-          {selected && (
-            <SetupWizard
-              key={`${selected.id}-${setupKey}`}
-              restaurant={selected}
-              t={t}
-              onGoTab={setTab}
-              onStartGuide={() => setShowOnboarding(true)}
-            />
-          )}
-
-          {selected && selected.status === 'active' && (
-            <DeviceSetupChecklist
-              restaurant={selected}
-              t={t}
-              onComplete={() => setSetupKey((k) => k + 1)}
-            />
-          )}
-
-          <div className="fd-tabs" role="tablist">
-            {['orders', 'menu', 'operations', 'settings'].map((key) => (
+      {/* ── Page body ── */}
+      <div className="fd-merchant-body">
+        {!hasDashboard ? (
+          /* ── No-restaurant landing / create form ── */
+          restaurants.length === 0 && !showCreate ? (
+            <MerchantLanding t={t} onStart={() => setShowOnboarding(true)} />
+          ) : (
+            <>
+              {restaurants.length > 0 && (
+                <button
+                  type="button"
+                  className="fd-btn fd-btn-secondary fd-btn-sm"
+                  style={{ marginBottom: '1rem' }}
+                  onClick={() => setShowCreate(false)}
+                >
+                  {t('food.common.back')}
+                </button>
+              )}
+              <CreateRestaurantForm
+                t={t}
+                onCreated={(restaurant) => {
+                  setShowCreate(false);
+                  setSelectedId(restaurant.id);
+                  load();
+                }}
+              />
+            </>
+          )
+        ) : (
+          /* ── Dashboard ── */
+          <>
+            {/* Restaurant picker bar */}
+            <div className="fd-merchant-picker-bar">
+              <div className="fd-merchant-picker-left">
+                {restaurants.length > 1 && (
+                  <select
+                    value={selectedId || ''}
+                    onChange={(e) => setSelectedId(Number(e.target.value))}
+                    className="fd-merchant-picker-select"
+                    aria-label={t('food.merchant.selectRestaurant')}
+                  >
+                    {restaurants.map((r) => (
+                      <option key={r.id} value={r.id}>{r.display_name}</option>
+                    ))}
+                  </select>
+                )}
+                {selected && selected.status !== 'active' && (
+                  <span className="fd-pay-note fd-merchant-not-live">{t('food.merchant.notLiveHint')}</span>
+                )}
+              </div>
               <button
-                key={key}
                 type="button"
-                role="tab"
-                aria-selected={tab === key}
-                className={`fd-tab${tab === key ? ' fd-active' : ''}`}
-                onClick={() => setTab(key)}
+                className="fd-btn fd-btn-secondary fd-btn-sm"
+                onClick={() => setShowCreate(true)}
               >
-                {t(`food.merchant.tab.${key}`)}
+                + {t('food.merchant.addAnother')}
               </button>
-            ))}
-          </div>
+            </div>
 
-          {selected && tab === 'orders' && <OrdersTab t={t} restaurant={selected} />}
-          {selected && tab === 'menu' && <MenuTab t={t} restaurant={selected} />}
-          {selected && tab === 'operations' && <OperationsTab t={t} restaurant={selected} />}
-          {selected && tab === 'settings' && (
-            <SettingsTab
-              t={t}
-              restaurant={selected}
-              onUpdated={(updated) =>
-                setRestaurants((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
-              }
-              onSetupChanged={() => setSetupKey((k) => k + 1)}
-            />
-          )}
-        </>
-      )}
-    </div>
+            {/* Setup wizard + device checklist */}
+            {selected && (
+              <SetupWizard
+                key={`${selected.id}-${setupKey}`}
+                restaurant={selected}
+                t={t}
+                onGoTab={setTab}
+                onStartGuide={() => setShowOnboarding(true)}
+              />
+            )}
+            {selected && selected.status === 'active' && (
+              <DeviceSetupChecklist
+                restaurant={selected}
+                t={t}
+                onComplete={() => setSetupKey((k) => k + 1)}
+              />
+            )}
+
+            {/* Tab navigation */}
+            <div className="fd-tabs fd-merchant-tabs" role="tablist">
+              {['orders', 'menu', 'operations', 'settings'].map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === key}
+                  className={`fd-tab${tab === key ? ' fd-active' : ''}`}
+                  onClick={() => setTab(key)}
+                >
+                  <span className="fd-tab-icon" aria-hidden="true">{TAB_ICONS[key]}</span>
+                  {t(`food.merchant.tab.${key}`)}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab content */}
+            {selected && tab === 'orders' && <OrdersTab t={t} restaurant={selected} />}
+            {selected && tab === 'menu' && <MenuTab t={t} restaurant={selected} />}
+            {selected && tab === 'operations' && <OperationsTab t={t} restaurant={selected} />}
+            {selected && tab === 'settings' && (
+              <SettingsTab
+                t={t}
+                restaurant={selected}
+                onUpdated={(updated) =>
+                  setRestaurants((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
+                }
+                onSetupChanged={() => setSetupKey((k) => k + 1)}
+              />
+            )}
+          </>
+        )}
+      </div>
+    </PageShell>
   );
 }
