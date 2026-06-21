@@ -1,5 +1,5 @@
 // OxSteed Food - restaurant menu + cart + order placement (pay in store).
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -132,6 +132,8 @@ export default function FoodRestaurantPage() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeSection, setActiveSection] = useState(null);
+  const sectionRefs = useRef({});
   const [activeItem, setActiveItem] = useState(null);
   const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
@@ -152,6 +154,23 @@ export default function FoodRestaurantPage() {
       alive = false;
     };
   }, [restaurantId]);
+
+  // IntersectionObserver — track the active menu section for the sticky nav rail.
+  useEffect(() => {
+    if (!data) return;
+    const targets = Object.values(sectionRefs.current).filter(Boolean);
+    if (targets.length === 0) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) setActiveSection(entry.target.id);
+        });
+      },
+      { rootMargin: '-20% 0px -70% 0px' }
+    );
+    targets.forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+  }, [data]);
 
   const currency = data?.restaurant?.currency_code || 'USD';
   const cartTotal = useMemo(
@@ -236,6 +255,19 @@ export default function FoodRestaurantPage() {
 
   return (
     <div className="fd-page" style={{ paddingBottom: cart.length ? '6rem' : undefined }}>
+      {/* Cover banner */}
+      {(restaurant.cover_photo_url || restaurant.image_url) ? (
+        <div className="fd-cover-banner">
+          <img
+            src={restaurant.cover_photo_url || restaurant.image_url}
+            alt=""
+            className="fd-cover-img"
+          />
+        </div>
+      ) : (
+        <div className="fd-cover-banner fd-cover-placeholder" aria-hidden="true" />
+      )}
+
       <div className="fd-rest-header">
         {restaurant.logo_url ? (
           <img src={restaurant.logo_url} alt="" className="fd-rest-logo" />
@@ -252,6 +284,25 @@ export default function FoodRestaurantPage() {
         </div>
       </div>
 
+      {/* Sticky section nav rail */}
+      {sections.length > 1 && (
+        <nav className="fd-section-nav" aria-label={t('food.restaurant.menuSections')}>
+          {sections.map((section) => (
+            <button
+              key={section.id}
+              type="button"
+              className={`fd-section-nav-item${activeSection === `section-${section.id}` ? ' fd-section-nav-item--active' : ''}`}
+              onClick={() => {
+                const el = sectionRefs.current[section.id];
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            >
+              {section.name}
+            </button>
+          ))}
+        </nav>
+      )}
+
       {!restaurant.accepts_online_orders && (
         <p className="fd-pay-note">{t('food.restaurant.onlineClosed')}</p>
       )}
@@ -259,7 +310,11 @@ export default function FoodRestaurantPage() {
       {sections.length === 0 && <div className="fd-empty">{t('food.restaurant.noMenu')}</div>}
 
       {sections.map((section) => (
-        <section key={section.id}>
+        <section
+          key={section.id}
+          id={`section-${section.id}`}
+          ref={(el) => { sectionRefs.current[section.id] = el; }}
+        >
           <h2 className="fd-cat-title">{section.name}</h2>
           {(section.items || []).map((item) => (
             <div
@@ -272,12 +327,17 @@ export default function FoodRestaurantPage() {
                 e.key === 'Enter' && item.is_available && restaurant.accepts_online_orders && setActiveItem(item)
               }
             >
-              <div>
+              <div className="fd-item-info">
                 <h4>{item.name}</h4>
                 {item.description && <p>{item.description}</p>}
                 {!item.is_available && <p>{t('food.restaurant.soldOut')}</p>}
+                <span className="fd-price">{formatFoodMoney(item.price_cents, currency)}</span>
               </div>
-              <span className="fd-price">{formatFoodMoney(item.price_cents, currency)}</span>
+              {item.image_url ? (
+                <img src={item.image_url} alt="" className="fd-item-thumb" loading="lazy" />
+              ) : (
+                <div className="fd-item-thumb-placeholder" aria-hidden="true" />
+              )}
             </div>
           ))}
         </section>

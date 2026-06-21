@@ -12635,7 +12635,20 @@
       "viewMenu": "Ver menú",
       "empty": "Aún no hay restaurantes aquí. ¿Tienes uno?",
       "addYourRestaurant": "Agrega tu restaurante",
-      "kmAway": "A {{km}} km"
+      "kmAway": "A {{km}} km",
+      "verified": "Verificado",
+      "open": "Abierto",
+      "closed": "Cerrado",
+      "filterByCuisine": "Filtrar por cocina",
+      "orderAgainTitle": "Pedir de nuevo",
+      "reorderHint": "Toca para pedir",
+      "featuredTitle": "Destacados",
+      "nearbyTitle": "Cerca de ti",
+      "resultsTitle": "Resultados",
+      "allTitle": "Todos los restaurantes",
+      "showMap": "Mostrar mapa",
+      "hideMap": "Ocultar mapa",
+      "restaurant": "Restaurante"
     },
     "restaurant": {
       "notFound": "No encontramos ese restaurante.",
@@ -12643,7 +12656,9 @@
       "prepTime": "Aprox. {{min}} min de preparación",
       "onlineClosed": "Este restaurante no acepta pedidos en línea ahora. Aún puedes pedir en el local.",
       "noMenu": "El menú se está preparando. Vuelve pronto.",
-      "soldOut": "Agotado"
+      "soldOut": "Agotado",
+      "menuSections": "Secciones del menú",
+      "jumpTo": "Ir a"
     },
     "order": {
       "specialInstructions": "Instrucciones especiales (opcional)",

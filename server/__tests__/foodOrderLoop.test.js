@@ -278,6 +278,32 @@ describe('food order loop E2E (F7)', () => {
     expect(smsNotificationService.sendDirectSMS).not.toHaveBeenCalled();
   });
 
+  test('delivery order status sync marks runner task ready', async () => {
+    const app = buildApp();
+    mockQuery
+      .mockResolvedValueOnce(mockRestaurantAccess())
+      .mockResolvedValueOnce({
+        rows: [orderRow({
+          status: 'ready',
+          fulfillment_type: 'delivery',
+          metadata: {
+            trackingToken: 'track-delivery-1',
+            deliveryAddress: { line1: '123 Main St', city: 'Columbus' },
+          },
+        })],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 901, status: 'Assigned', food_order_id: ORDER_ID }] })
+      .mockResolvedValueOnce({ rows: [{ id: 901, status: 'Ready', food_order_id: ORDER_ID }] });
+
+    const readyRes = await request(app)
+      .patch(`/api/food/restaurants/${RESTAURANT_ID}/orders/${ORDER_ID}/status`)
+      .send({ status: 'ready' });
+
+    expect(readyRes.status).toBe(200);
+    expect(readyRes.body.runnerTask.status).toBe('Ready');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE restaurant_runner_tasks/.test(sql))).toBe(true);
+  });
+
   test('guest email receives ready email when no phone or account', async () => {
     const app = buildApp();
     mockKioskCreateOrderQueries({

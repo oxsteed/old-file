@@ -502,3 +502,195 @@ html.dark .fd-paid-pill { color: #86efac; }
 }
 .fd-field-grid { display: grid; gap: 0.75rem; }
 .fd-tag-verified { margin-left: 0.4rem; background: #ecfdf5; color: #047857; }
+
+/* ── Open / closed status tags ── */
+.fd-tag-open { background: #d1fae5; color: #047857; }
+.fd-tag-closed { background: #fee2e2; color: #b91c1c; }
+html.dark .fd-tag-open { background: rgba(52,211,153,0.15); color: #34d399; }
+html.dark .fd-tag-closed { background: rgba(239,68,68,0.15); color: #f87171; }
+
+/* ── Cover photo on discovery card ── */
+.fd-card-cover {
+  width: calc(100% + 2rem);
+  margin: -1rem -1rem 0.75rem;
+  height: 136px;
+  object-fit: cover;
+  border-radius: 12px 12px 0 0;
+  display: block;
+  background: var(--border-color, #334155);
+}
+.fd-card-body { flex: 1; min-width: 0; }
+.fd-card-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.35rem; }
+.fd-card-meta-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.3rem; }
+.fd-card-rating-count { opacity: 0.65; font-size: 0.8rem; }
+
+/* ── Horizontal scroll row ── */
+.fd-section { margin-bottom: 1.8rem; }
+.fd-section-label {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+  color: var(--app-text);
+}
+.fd-h-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.fd-h-scroll::-webkit-scrollbar { display: none; }
+.fd-h-scroll-inner {
+  display: flex;
+  gap: 1rem;
+  padding-bottom: 0.25rem;
+}
+.fd-h-scroll-inner .fd-card {
+  flex: 0 0 210px;
+  min-width: 0;
+}
+
+/* ── Cuisine filter chips ── */
+.fd-cuisine-chips {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.1rem;
+}
+.fd-cuisine-chips::-webkit-scrollbar { display: none; }
+.fd-cuisine-chip {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--border-color, #334155);
+  background: transparent;
+  color: var(--app-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.fd-cuisine-chip:hover { border-color: #f97316; color: #f97316; }
+.fd-cuisine-chip--active { background: #f97316; border-color: #f97316; color: #fff; }
+
+/* ── Reorder compact cards ── */
+.fd-reorder-card {
+  flex: 0 0 132px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.85rem 0.75rem;
+  border-radius: 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color, #334155);
+  text-decoration: none;
+  color: var(--app-text);
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.fd-reorder-card:hover { box-shadow: 0 4px 16px rgba(249,115,22,0.18); border-color: #f97316; }
+.fd-reorder-logo {
+  width: 52px; height: 52px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+.fd-reorder-logo-placeholder {
+  width: 52px; height: 52px;
+  border-radius: 12px;
+  background: rgba(249,115,22,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+.fd-reorder-name {
+  font-size: 0.82rem; font-weight: 700;
+  text-align: center; line-height: 1.3;
+  word-break: break-word;
+}
+.fd-reorder-hint { font-size: 0.72rem; color: var(--muted-text); }
+
+/* ── Map toggle row ── */
+.fd-map-toggle-row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.1rem;
+}
+
+/* ── Restaurant page: cover banner ── */
+.fd-cover-banner {
+  width: calc(100% + 2rem);
+  margin: -1rem -1rem 1.25rem;
+  height: 200px;
+  overflow: hidden;
+  position: relative;
+}
+.fd-cover-img {
+  width: 100%; height: 100%;
+  object-fit: cover; display: block;
+}
+.fd-cover-placeholder {
+  width: 100%; height: 100%;
+  background: linear-gradient(135deg, rgba(249,115,22,0.22) 0%, rgba(234,88,12,0.12) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.5rem;
+}
+
+/* ── Sticky section nav rail ── */
+.fd-section-nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--app-bg, #0f172a);
+  border-bottom: 1px solid var(--border-color, #334155);
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -1rem 1.25rem;
+  padding: 0 0.5rem;
+}
+.fd-section-nav::-webkit-scrollbar { display: none; }
+.fd-section-nav-item {
+  flex: 0 0 auto;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted-text);
+  cursor: pointer;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  background: transparent;
+  white-space: nowrap;
+  transition: color 0.15s, border-bottom-color 0.15s;
+}
+.fd-section-nav-item:hover { color: var(--app-text); }
+.fd-section-nav-item--active { color: #f97316; border-bottom-color: #f97316; }
+
+/* ── Menu item thumbnail ── */
+.fd-item-info { flex: 1; min-width: 0; }
+.fd-item-thumb {
+  flex: 0 0 72px;
+  width: 72px; height: 72px;
+  border-radius: 10px;
+  object-fit: cover;
+  margin-left: 0.9rem;
+  background: var(--border-color, #334155);
+  align-self: flex-start;
+}
+.fd-item-thumb-placeholder {
+  flex: 0 0 72px;
+  width: 72px; height: 72px;
+  border-radius: 10px;
+  background: rgba(249,115,22,0.07);
+  margin-left: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  align-self: flex-start;
+}

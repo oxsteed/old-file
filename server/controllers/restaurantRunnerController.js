@@ -2,6 +2,7 @@
 
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
+const { withTransaction } = require('../utils/transaction');
 
 function parsePositiveInt(value) {
   const n = Number.parseInt(value, 10);
@@ -35,6 +36,17 @@ function parseAmount(value, field = 'amount') {
 const MANAGE_ROLES = new Set(['owner', 'manager']);
 const TASK_TYPES = new Set(['Delivery', 'Customer pickup', 'Catering', 'Logistics', 'Supplier return']);
 const TASK_STATUSES = new Set(['Queued', 'Assigned', 'Ready', 'Picked up', 'En route', 'Completed', 'Issue', 'Cancelled']);
+const TASK_INITIAL_STATUSES = new Set(['Queued', 'Assigned', 'Ready']);
+const TASK_TRANSITIONS = {
+  Queued: new Set(['Assigned', 'Cancelled']),
+  Assigned: new Set(['Ready', 'Issue', 'Cancelled']),
+  Ready: new Set(['Picked up', 'Issue', 'Cancelled']),
+  'Picked up': new Set(['En route', 'Issue']),
+  'En route': new Set(['Completed', 'Issue']),
+  Issue: new Set(['Assigned', 'Ready', 'Picked up', 'En route', 'Cancelled']),
+  Completed: new Set(),
+  Cancelled: new Set(),
+};
 
 async function requireRestaurantAccess(userId, restaurantId) {
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
@@ -77,6 +89,14 @@ async function assertTask(restaurantId, taskId) {
   const task = rows[0];
   if (!task) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
   return task;
+}
+
+function assertTaskActor(restaurant, task, userId) {
+  if (MANAGE_ROLES.has(restaurant.effective_role)) return true;
+  if (!task.assigned_to || String(task.assigned_to) !== String(userId)) {
+    throw new AppError('This runner task is assigned to another user', 403, 'runner_task_not_assigned');
+  }
+  return false;
 }
 
 exports.getDashboard = async (req, res, next) => {
@@ -158,7 +178,35 @@ exports.createTask = async (req, res, next) => {
       });
     }
     const taskType = TASK_TYPES.has(req.body.taskType) ? req.body.taskType : 'Delivery';
-    const status = TASK_STATUSES.has(req.body.status) ? req.body.status : 'Assigned';
+    const foodOrderId = parsePositiveInt(req.body.foodOrderId);
+    const assignedTo = req.body.assignedTo || null;
+    if (foodOrderId) {
+      const { rows: [order] } = await pool.query(
+        `SELECT id, fulfillment_type FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
+        [foodOrderId, restaurantId]
+      );
+      if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+      if (taskType === 'Delivery' && order.fulfillment_type !== 'delivery') {
+        throw new AppError('Delivery tasks must reference a delivery order', 409, 'runner_order_not_delivery');
+      }
+    }
+    if (assignedTo) {
+      try {
+        await requireRestaurantAccess(assignedTo, restaurantId);
+      } catch (err) {
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          assignedTo: 'Assigned runner must be active at this restaurant',
+        });
+      }
+    }
+    if (req.body.status && !TASK_INITIAL_STATUSES.has(req.body.status)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        status: 'A new runner task must start as Queued, Assigned, or Ready',
+      });
+    }
+    let status = TASK_INITIAL_STATUSES.has(req.body.status) ? req.body.status : (assignedTo ? 'Assigned' : 'Queued');
+    if (status === 'Assigned' && !assignedTo) status = 'Queued';
+    if (status === 'Queued' && assignedTo) status = 'Assigned';
 
     const { rows: [task] } = await pool.query(
       `INSERT INTO restaurant_runner_tasks
@@ -169,17 +217,17 @@ exports.createTask = async (req, res, next) => {
        RETURNING *`,
       [
         restaurantId,
-        parsePositiveInt(req.body.foodOrderId),
+        foodOrderId,
         orderReference,
         stopName,
         taskType,
         status,
         normalizeString(req.body.routeWindow, 80),
         normalizeString(req.body.customerContactRule, 2000),
-        asBool(req.body.requiresProof),
+        taskType === 'Delivery' ? true : asBool(req.body.requiresProof),
         asBool(req.body.cashCollectionRequired),
         normalizeString(req.body.notes, 2000),
-        req.body.assignedTo || null,
+        assignedTo,
         req.user.id,
       ]
     );
@@ -221,12 +269,27 @@ exports.updateTaskStatus = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertTask(restaurantId, taskId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const currentTask = await assertTask(restaurantId, taskId);
+    assertTaskActor(restaurant, currentTask, req.user.id);
 
     const status = TASK_STATUSES.has(req.body.status) ? req.body.status : null;
     if (!status) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported status' });
+    }
+    if (status !== currentTask.status && !TASK_TRANSITIONS[currentTask.status]?.has(status)) {
+      throw new AppError(
+        `Runner task cannot move from ${currentTask.status} to ${status}`,
+        409,
+        'illegal_runner_status_transition'
+      );
+    }
+    if (status === 'Completed' && currentTask.requires_proof) {
+      const { rows: [proof] } = await pool.query(
+        `SELECT 1 FROM restaurant_runner_proofs WHERE restaurant_id = $1 AND task_id = $2 LIMIT 1`,
+        [restaurantId, taskId]
+      );
+      if (!proof) throw new AppError('Handoff proof is required before completion', 409, 'runner_proof_required');
     }
 
     const { rows: [task] } = await pool.query(
@@ -234,11 +297,21 @@ exports.updateTaskStatus = async (req, res, next) => {
           SET status = $1,
               picked_up_at = CASE WHEN $1 = 'Picked up' AND picked_up_at IS NULL THEN NOW() ELSE picked_up_at END,
               completed_at = CASE WHEN $1 = 'Completed' THEN NOW() ELSE completed_at END,
+              handoff_at = CASE WHEN $1 = 'Completed' THEN COALESCE(handoff_at, NOW()) ELSE handoff_at END,
               updated_at = NOW()
         WHERE restaurant_id = $2 AND id = $3
         RETURNING *`,
       [status, restaurantId, taskId]
     );
+    if (status === 'Completed' && task.food_order_id) {
+      await pool.query(
+        `UPDATE food_orders
+            SET status = 'completed', completed_at = COALESCE(completed_at, NOW()), updated_at = NOW()
+          WHERE id = $1 AND restaurant_id = $2 AND fulfillment_type = 'delivery'
+            AND status IN ('accepted','preparing','ready')`,
+        [task.food_order_id, restaurantId]
+      );
+    }
     res.json({ task });
   } catch (err) {
     next(err);
@@ -249,29 +322,41 @@ exports.logProof = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertTask(restaurantId, taskId);
-
-    const { rows: [proof] } = await pool.query(
-      `INSERT INTO restaurant_runner_proofs
-         (restaurant_id, task_id, method, note, created_by)
-       VALUES ($1,$2,$3,$4,$5)
-       RETURNING *`,
-      [
-        restaurantId,
-        taskId,
-        normalizeString(req.body.method, 40) || 'Photo / signature',
-        normalizeString(req.body.note, 2000),
-        req.user.id,
-      ]
-    );
-    await pool.query(
-      `UPDATE restaurant_runner_tasks
-          SET status = 'Completed', completed_at = NOW(), updated_at = NOW()
-        WHERE restaurant_id = $1 AND id = $2`,
-      [restaurantId, taskId]
-    );
-    res.status(201).json({ proof });
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const task = await assertTask(restaurantId, taskId);
+    assertTaskActor(restaurant, task, req.user.id);
+    if (!['Picked up', 'En route', 'Issue'].includes(task.status)) {
+      throw new AppError('Proof can only complete an active handoff', 409, 'runner_proof_not_allowed');
+    }
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [proof] } = await client.query(
+        `INSERT INTO restaurant_runner_proofs
+           (restaurant_id, task_id, method, note, created_by)
+         VALUES ($1,$2,$3,$4,$5)
+         RETURNING *`,
+        [restaurantId, taskId, normalizeString(req.body.method, 40) || 'Photo / signature',
+          normalizeString(req.body.note, 2000), req.user.id]
+      );
+      const { rows: [updatedTask] } = await client.query(
+        `UPDATE restaurant_runner_tasks
+            SET status = 'Completed', completed_at = NOW(), handoff_at = COALESCE(handoff_at, NOW()), updated_at = NOW()
+          WHERE restaurant_id = $1 AND id = $2 AND status = $3
+          RETURNING *`,
+        [restaurantId, taskId, task.status]
+      );
+      if (!updatedTask) throw new AppError('Runner task changed before proof was submitted', 409, 'runner_task_conflict');
+      if (updatedTask.food_order_id) {
+        await client.query(
+          `UPDATE food_orders
+              SET status = 'completed', completed_at = COALESCE(completed_at, NOW()), updated_at = NOW()
+            WHERE id = $1 AND restaurant_id = $2 AND fulfillment_type = 'delivery'
+              AND status IN ('accepted','preparing','ready')`,
+          [updatedTask.food_order_id, restaurantId]
+        );
+      }
+      return { proof, task: updatedTask };
+    });
+    res.status(201).json(result);
   } catch (err) {
     next(err);
   }
@@ -281,8 +366,12 @@ exports.reportIssue = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertTask(restaurantId, taskId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const task = await assertTask(restaurantId, taskId);
+    assertTaskActor(restaurant, task, req.user.id);
+    if (['Completed', 'Cancelled'].includes(task.status)) {
+      throw new AppError('A terminal runner task cannot report a new issue', 409, 'runner_task_terminal');
+    }
 
     const note = normalizeString(req.body.note, 2000);
     if (!note) throw new AppError('Validation failed', 400, 'validation_failed', { note: 'Issue note is required' });
@@ -316,8 +405,9 @@ exports.logPaymentNote = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const taskId = parsePositiveInt(req.params.taskId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertTask(restaurantId, taskId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const task = await assertTask(restaurantId, taskId);
+    assertTaskActor(restaurant, task, req.user.id);
 
     const { rows: [paymentNote] } = await pool.query(
       `INSERT INTO restaurant_runner_payment_notes

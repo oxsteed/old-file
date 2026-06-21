@@ -15,6 +15,7 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
+const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
 
 function parsePositiveInt(value) {
   const n = Number.parseInt(value, 10);
@@ -104,6 +105,14 @@ exports.createItem = async (req, res, next) => {
     const name = normalizeString(req.body.name, 160);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
     const category = CATEGORIES.includes(req.body.category) ? req.body.category : 'general';
+    const quantity = parseQty(req.body.quantity) ?? 0;
+    const lowStockThreshold = parseQty(req.body.lowStockThreshold, 'lowStockThreshold') ?? 0;
+    if (quantity < 0 || lowStockThreshold < 0) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        quantity: quantity < 0 ? 'Quantity cannot be negative' : undefined,
+        lowStockThreshold: lowStockThreshold < 0 ? 'Threshold cannot be negative' : undefined,
+      });
+    }
 
     const { rows: [item] } = await pool.query(
       `INSERT INTO restaurant_inventory_items
@@ -113,8 +122,8 @@ exports.createItem = async (req, res, next) => {
       [
         restaurantId, name, category,
         normalizeString(req.body.unit, 24) || 'ea',
-        parseQty(req.body.quantity) ?? 0,
-        parseQty(req.body.lowStockThreshold, 'lowStockThreshold') ?? 0,
+        quantity,
+        lowStockThreshold,
         normalizeString(req.body.sku, 60),
         normalizeString(req.body.supplierName, 160),
         req.user.id,
@@ -143,7 +152,13 @@ exports.updateItem = async (req, res, next) => {
     }
     if (req.body.category !== undefined && CATEGORIES.includes(req.body.category)) { sets.push(`category = $${i++}`); vals.push(req.body.category); }
     if (req.body.unit !== undefined) { sets.push(`unit = $${i++}`); vals.push(normalizeString(req.body.unit, 24) || 'ea'); }
-    if (req.body.lowStockThreshold !== undefined) { sets.push(`low_stock_threshold = $${i++}`); vals.push(parseQty(req.body.lowStockThreshold, 'lowStockThreshold') ?? 0); }
+    if (req.body.lowStockThreshold !== undefined) {
+      const threshold = parseQty(req.body.lowStockThreshold, 'lowStockThreshold') ?? 0;
+      if (threshold < 0) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { lowStockThreshold: 'Threshold cannot be negative' });
+      }
+      sets.push(`low_stock_threshold = $${i++}`); vals.push(threshold);
+    }
     if (req.body.sku !== undefined) { sets.push(`sku = $${i++}`); vals.push(normalizeString(req.body.sku, 60)); }
     if (req.body.supplierName !== undefined) { sets.push(`supplier_name = $${i++}`); vals.push(normalizeString(req.body.supplierName, 160)); }
     if (req.body.isActive !== undefined) { sets.push(`is_active = $${i++}`); vals.push(req.body.isActive !== false); }
@@ -152,14 +167,23 @@ exports.updateItem = async (req, res, next) => {
     if (!sets.length) throw new AppError('No updatable fields provided', 400, 'validation_failed', { body: 'No updatable fields provided' });
     sets.push('updated_at = NOW()');
 
-    const { rows: [item] } = await pool.query(
-      `UPDATE restaurant_inventory_items SET ${sets.join(', ')}
-        WHERE id = $${i++} AND restaurant_id = $${i}
-        RETURNING *`,
-      [...vals, itemId, restaurantId]
-    );
-    if (!item) throw new AppError('Item not found', 404, 'inventory_item_not_found');
-    res.json({ item });
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [item] } = await client.query(
+        `UPDATE restaurant_inventory_items SET ${sets.join(', ')}
+          WHERE id = $${i++} AND restaurant_id = $${i}
+          RETURNING *`,
+        [...vals, itemId, restaurantId]
+      );
+      if (!item) throw new AppError('Item not found', 404, 'inventory_item_not_found');
+      const affectsAvailability = req.body.lowStockThreshold !== undefined || req.body.isActive !== undefined;
+      const availability = affectsAvailability
+        ? await syncMappedMenuAvailability(client, restaurantId, {
+          inventoryItemId: itemId, apply: true, createdBy: req.user.id,
+        })
+        : { changes: [], applied: false };
+      return { item, availability };
+    });
+    res.json(result);
   } catch (err) {
     next(err);
   }
@@ -171,12 +195,15 @@ exports.deleteItem = async (req, res, next) => {
     const itemId = parsePositiveInt(req.params.itemId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     assertManage(restaurant);
-    const { rowCount } = await pool.query(
-      `DELETE FROM restaurant_inventory_items WHERE id = $1 AND restaurant_id = $2`,
-      [itemId, restaurantId]
-    );
-    if (!rowCount) throw new AppError('Item not found', 404, 'inventory_item_not_found');
-    res.json({ ok: true });
+    const availability = await withTransaction(pool, async (client) => {
+      const { rowCount } = await client.query(
+        `DELETE FROM restaurant_inventory_items WHERE id = $1 AND restaurant_id = $2`,
+        [itemId, restaurantId]
+      );
+      if (!rowCount) throw new AppError('Item not found', 404, 'inventory_item_not_found');
+      return syncMappedMenuAvailability(client, restaurantId, { apply: true, createdBy: req.user.id });
+    });
+    res.json({ ok: true, availability });
   } catch (err) {
     next(err);
   }
@@ -194,7 +221,7 @@ exports.adjustItem = async (req, res, next) => {
     const type = ADJ_TYPES.includes(req.body.type) ? req.body.type : null;
     if (!type) throw new AppError('Validation failed', 400, 'validation_failed', { type: 'Unsupported adjustment type' });
 
-    const result = await withTransaction(async (client) => {
+    const result = await withTransaction(pool, async (client) => {
       const { rows: [item] } = await client.query(
         `SELECT * FROM restaurant_inventory_items
           WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
@@ -213,8 +240,13 @@ exports.adjustItem = async (req, res, next) => {
       } else {
         const d = parseQty(req.body.delta, 'delta');
         if (d === null) throw new AppError('Validation failed', 400, 'validation_failed', { delta: 'Delta is required' });
-        // receive is positive; waste/usage subtract; correction can be either.
-        const signed = (type === 'waste' || type === 'usage') ? -Math.abs(d) : d;
+        if (d === 0 || (type !== 'correction' && d < 0)) {
+          throw new AppError('Validation failed', 400, 'validation_failed', {
+            delta: type === 'correction' ? 'Correction delta cannot be zero' : 'Delta must be greater than zero',
+          });
+        }
+        // Receive adds; waste/usage subtract; only correction may be signed.
+        const signed = (type === 'waste' || type === 'usage') ? -d : d;
         after = Math.max(0, Math.round((current + signed) * 1000) / 1000);
         delta = Math.round((after - current) * 1000) / 1000;
       }
@@ -230,9 +262,20 @@ exports.adjustItem = async (req, res, next) => {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
         [restaurantId, itemId, item.name, type, delta, after, normalizeString(req.body.note, 1000), req.user.id]
       );
-      return updated;
+      const availability = await syncMappedMenuAvailability(client, restaurantId, {
+        inventoryItemId: itemId,
+        apply: true,
+        createdBy: req.user.id,
+      });
+      return { item: updated, availability };
     });
-    res.json({ item: { ...result, is_low: Number(result.quantity) <= Number(result.low_stock_threshold) && Number(result.low_stock_threshold) > 0 } });
+    res.json({
+      item: {
+        ...result.item,
+        is_low: Number(result.item.quantity) <= Number(result.item.low_stock_threshold) && Number(result.item.low_stock_threshold) > 0,
+      },
+      availability: result.availability,
+    });
   } catch (err) {
     next(err);
   }
@@ -479,7 +522,9 @@ exports.listMappings = async (req, res, next) => {
               rii.name AS inventory_item_name,
               rim.menu_item_id,
               fmi.name AS menu_item_name,
-              rim.usage_label
+              rim.usage_label,
+              rim.required_quantity,
+              rim.auto_manage
          FROM restaurant_inventory_item_mappings rim
          JOIN restaurant_inventory_items rii
            ON rii.id = rim.inventory_item_id
@@ -497,13 +542,96 @@ exports.listMappings = async (req, res, next) => {
   }
 };
 
+exports.upsertMapping = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertManage(restaurant);
+    const inventoryItemId = parsePositiveInt(req.body.inventoryItemId || req.body.inventory_item_id);
+    const menuItemId = parsePositiveInt(req.body.menuItemId || req.body.menu_item_id);
+    const usageLabel = normalizeString(req.body.usageLabel || req.body.usage_label, 120);
+    const requiredQuantity = parseQty(req.body.requiredQuantity ?? req.body.required_quantity ?? 0.001, 'requiredQuantity');
+    if (!inventoryItemId || !menuItemId || !usageLabel) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        inventoryItemId: 'Inventory item is required',
+        menuItemId: 'Menu item is required',
+        usageLabel: 'Usage label is required',
+      });
+    }
+    if (requiredQuantity === null || requiredQuantity <= 0) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        requiredQuantity: 'Required quantity must be greater than zero',
+      });
+    }
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [ownership] } = await client.query(
+        `SELECT EXISTS(
+                  SELECT 1 FROM restaurant_inventory_items
+                   WHERE id = $2 AND restaurant_id = $1 AND is_active = TRUE
+                ) AS inventory_exists,
+                EXISTS(
+                  SELECT 1 FROM food_menu_items WHERE id = $3 AND restaurant_id = $1
+                ) AS menu_exists`,
+        [restaurantId, inventoryItemId, menuItemId]
+      );
+      if (!ownership.inventory_exists) throw new AppError('Inventory item not found', 404, 'inventory_item_not_found');
+      if (!ownership.menu_exists) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
+      const { rows: [mapping] } = await client.query(
+        `INSERT INTO restaurant_inventory_item_mappings
+           (restaurant_id, inventory_item_id, menu_item_id, usage_label,
+            required_quantity, auto_manage, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         ON CONFLICT (restaurant_id, inventory_item_id, menu_item_id)
+         DO UPDATE SET usage_label = EXCLUDED.usage_label,
+                       required_quantity = EXCLUDED.required_quantity,
+                       auto_manage = EXCLUDED.auto_manage,
+                       updated_at = NOW()
+         RETURNING *`,
+        [restaurantId, inventoryItemId, menuItemId, usageLabel, requiredQuantity,
+          req.body.autoManage !== false && req.body.auto_manage !== false, req.user.id]
+      );
+      const availability = await syncMappedMenuAvailability(client, restaurantId, {
+        menuItemId, apply: true, createdBy: req.user.id,
+      });
+      return { mapping, availability };
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deleteMapping = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const mappingId = parsePositiveInt(req.params.mappingId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertManage(restaurant);
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [mapping] } = await client.query(
+        `DELETE FROM restaurant_inventory_item_mappings
+          WHERE id = $1 AND restaurant_id = $2 RETURNING *`,
+        [mappingId, restaurantId]
+      );
+      if (!mapping) throw new AppError('Inventory mapping not found', 404, 'inventory_mapping_not_found');
+      const availability = await syncMappedMenuAvailability(client, restaurantId, {
+        menuItemId: mapping.menu_item_id, apply: true, createdBy: req.user.id,
+      });
+      return { mapping, availability };
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.bootstrapMappings = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     assertManage(restaurant);
 
-    await withTransaction(async (client) => {
+    await withTransaction(pool, async (client) => {
       const { rows: [{ count }] } = await client.query(
         `SELECT COUNT(*)::int AS count
            FROM restaurant_inventory_item_mappings
@@ -530,23 +658,27 @@ exports.bootstrapMappings = async (req, res, next) => {
       const inventoryByName = new Map(inventoryRows.map((row) => [String(row.name).toLowerCase(), row]));
       const menuByName = new Map(menuRows.map((row) => [String(row.name).toLowerCase(), row]));
       const seeds = [
-        ['burger buns', 'classic ox burger', '1 bun'],
-        ['ground beef', 'classic ox burger', '0.33 lb'],
-        ['cold brew', 'cold brew', '12 oz'],
+        ['burger buns', 'classic ox burger', '1 bun', 1],
+        ['ground beef', 'classic ox burger', '0.33 lb', 0.33],
+        ['cold brew', 'cold brew', '12 oz', 12],
       ];
 
-      for (const [inventoryName, menuName, usageLabel] of seeds) {
+      for (const [inventoryName, menuName, usageLabel, requiredQuantity] of seeds) {
         const inventoryItem = inventoryByName.get(inventoryName);
         const menuItem = menuByName.get(menuName);
         if (!inventoryItem || !menuItem) continue;
         await client.query(
           `INSERT INTO restaurant_inventory_item_mappings
-             (restaurant_id, inventory_item_id, menu_item_id, usage_label, created_by)
-           VALUES ($1,$2,$3,$4,$5)
+             (restaurant_id, inventory_item_id, menu_item_id, usage_label, required_quantity, created_by)
+           VALUES ($1,$2,$3,$4,$5,$6)
            ON CONFLICT (restaurant_id, inventory_item_id, menu_item_id) DO NOTHING`,
-          [restaurantId, inventoryItem.id, menuItem.id, usageLabel, req.user.id]
+          [restaurantId, inventoryItem.id, menuItem.id, usageLabel, requiredQuantity, req.user.id]
         );
       }
+    });
+
+    await withTransaction(pool, async (client) => {
+      await syncMappedMenuAvailability(client, restaurantId, { apply: true, createdBy: req.user.id });
     });
 
     return exports.listMappings(req, res, next);

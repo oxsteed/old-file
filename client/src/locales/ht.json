@@ -12635,7 +12635,20 @@
       "viewMenu": "Gade meni an",
       "empty": "Poko gen restoran isit la. Ou gen youn?",
       "addYourRestaurant": "Ajoute restoran w lan",
-      "kmAway": "{{km}} km de w"
+      "kmAway": "{{km}} km de w",
+      "verified": "Verifye",
+      "open": "Louvri",
+      "closed": "Fèmen",
+      "filterByCuisine": "Filtre pa kalite manje",
+      "orderAgainTitle": "Rekomande",
+      "reorderHint": "Klike pou rekomande",
+      "featuredTitle": "Vedèt",
+      "nearbyTitle": "Pre ou",
+      "resultsTitle": "Rezilta",
+      "allTitle": "Tout restoran yo",
+      "showMap": "Montre kat",
+      "hideMap": "Kache kat",
+      "restaurant": "Restoran"
     },
     "restaurant": {
       "notFound": "Nou pa t jwenn restoran sa a.",
@@ -12643,7 +12656,9 @@
       "prepTime": "Anviwon {{min}} minit preparasyon",
       "onlineClosed": "Restoran sa a pa pran kòmand sou entènèt kounye a. Ou ka toujou kòmande nan restoran an.",
       "noMenu": "Meni an ap prepare. Tounen talè.",
-      "soldOut": "Fini"
+      "soldOut": "Fini",
+      "menuSections": "Seksyon meni",
+      "jumpTo": "Ale nan"
     },
     "order": {
       "specialInstructions": "Enstriksyon espesyal (si w vle)",

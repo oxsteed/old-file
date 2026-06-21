@@ -40,7 +40,6 @@ async function migrate() {
 
   logger.info('Migration runner started', { totalFiles: files.length, alreadyApplied: appliedSet.size });
 
-  let failedCount = 0;
   for (const file of files) {
     if (appliedSet.has(file)) {
       logger.info('Migration already applied, skipping', { filename: file });
@@ -65,22 +64,16 @@ async function migrate() {
       // Rollback any open transaction on this client
       try { await migClient.query('ROLLBACK'); } catch (e) { /* ignore */ }
       migClient.release();
-      failedCount++;
-      // Continue to next migration instead of exiting
-      logger.warn('Continuing despite migration failure', { filename: file });
+      throw new Error(`Migration ${file} failed: ${err.message}`, { cause: err });
     }
   }
 
-  if (failedCount > 0) {
-    logger.warn('Migration completed with ' + failedCount + ' failure(s). Some features may not work.');
-  } else {
-    logger.info('All migrations complete');
-  }
+  logger.info('All migrations complete');
   await pool.end();
 }
 
-migrate().catch(err => {
+migrate().catch(async (err) => {
   logger.error('Migration process failed: ' + err.message);
-  // Do not exit - let the server start anyway
-  process.exit(0);
+  await pool.end().catch(() => {});
+  process.exitCode = 1;
 });

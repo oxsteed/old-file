@@ -26,6 +26,9 @@ router.get('/orders/:orderId', authenticate, ctrl.getOrder);
 router.get('/customer/profile', authenticate, ctrl.getCustomerProfile);
 router.patch('/customer/profile', authenticate, ctrl.updateCustomerProfile);
 router.post('/customer/favorites/:restaurantId/toggle', authenticate, ctrl.toggleCustomerFavoriteRestaurant);
+router.get('/customer/favorite-items', authenticate, ctrl.listCustomerFavoriteItems);
+router.put('/customer/favorite-items/sync', authenticate, ctrl.syncCustomerFavoriteItems);
+router.post('/customer/favorite-items/:restaurantId/:itemId/toggle', authenticate, ctrl.toggleCustomerFavoriteItem);
 
 // Merchant onboarding and menu setup.
 router.post('/restaurants', authenticate, ctrl.createRestaurant);

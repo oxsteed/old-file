@@ -12635,7 +12635,20 @@
       "viewMenu": "View menu",
       "empty": "No restaurants here yet. Own one?",
       "addYourRestaurant": "Add your restaurant",
-      "kmAway": "{{km}} km away"
+      "kmAway": "{{km}} km away",
+      "verified": "Verified",
+      "open": "Open",
+      "closed": "Closed",
+      "filterByCuisine": "Filter by cuisine",
+      "orderAgainTitle": "Order again",
+      "reorderHint": "Tap to reorder",
+      "featuredTitle": "Featured",
+      "nearbyTitle": "Near you",
+      "resultsTitle": "Results",
+      "allTitle": "All restaurants",
+      "showMap": "Show map",
+      "hideMap": "Hide map",
+      "restaurant": "Restaurant"
     },
     "restaurant": {
       "notFound": "We couldn't find that restaurant.",
@@ -12643,7 +12656,9 @@
       "prepTime": "About {{min}} min prep",
       "onlineClosed": "This restaurant is not taking online orders right now. You can still order in store.",
       "noMenu": "The menu is being set up. Check back soon.",
-      "soldOut": "Sold out"
+      "soldOut": "Sold out",
+      "menuSections": "Menu sections",
+      "jumpTo": "Jump to"
     },
     "order": {
       "specialInstructions": "Special instructions (optional)",

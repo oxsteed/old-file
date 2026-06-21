@@ -10,6 +10,7 @@ const logger = require('../utils/logger');
 const notificationService = require('../services/notificationService');
 const smsNotificationService = require('../services/smsNotificationService');
 const emailService = require('../services/emailService');
+const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const {
   evaluateOperatingHours,
   normalizeBrandAccentHex,
@@ -133,6 +134,16 @@ function normalizeDeliveryAddress(value) {
   };
 }
 
+function distanceMeters(lat1, lng1, lat2, lng2) {
+  const toRadians = (degrees) => degrees * Math.PI / 180;
+  const earthRadiusMeters = 6371000;
+  const dLat = toRadians(lat2 - lat1);
+  const dLng = toRadians(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * earthRadiusMeters * Math.asin(Math.sqrt(a));
+}
+
 async function resolveFoodPromotionDiscount(client, restaurantId, code, subtotalCents) {
   const normalized = normalizeString(code, 40);
   if (!normalized) return { discountCents: 0, metadata: null, promotionId: null };
@@ -183,6 +194,22 @@ async function resolveFoodPromotionDiscount(client, restaurantId, code, subtotal
 async function maybeCreateDeliveryRunnerTask(client, { order, deliveryAddress, createdBy }) {
   if (order.fulfillment_type !== 'delivery') return null;
   try {
+    await client.query(
+      `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+      [`runner-task:${order.restaurant_id}:${order.id}`]
+    );
+    const { rows: existingTasks } = await client.query(
+      `SELECT *
+         FROM restaurant_runner_tasks
+        WHERE restaurant_id = $1
+          AND food_order_id = $2
+          AND task_type = 'Delivery'
+        ORDER BY created_at DESC
+        LIMIT 1`,
+      [order.restaurant_id, order.id]
+    );
+    if (existingTasks[0]) return existingTasks[0];
+
     const stopParts = [
       deliveryAddress?.line1,
       deliveryAddress?.city,
@@ -201,12 +228,52 @@ async function maybeCreateDeliveryRunnerTask(client, { order, deliveryAddress, c
         stopName.slice(0, 200),
         'ASAP',
         deliveryAddress?.instructions || 'Deliver to customer address on file.',
-        order.payment_status === 'unpaid',
+        true,
         order.payment_status === 'unpaid',
         createdBy,
       ]
     );
     return task;
+  } catch (err) {
+    if (isMissingRelationError(err)) return null;
+    throw err;
+  }
+}
+
+function runnerStatusForOrderStatus(status) {
+  if (status === 'ready') return 'Ready';
+  if (status === 'completed') return 'Completed';
+  if (status === 'cancelled' || status === 'refunded') return 'Cancelled';
+  return null;
+}
+
+async function syncDeliveryRunnerTaskForOrderStatus(client, { order, createdBy }) {
+  if (order.fulfillment_type !== 'delivery') return null;
+  try {
+    const deliveryAddress = order.metadata?.deliveryAddress || order.metadata?.delivery_address || null;
+    const runnerTask = ['accepted', 'preparing', 'ready'].includes(order.status)
+      ? await maybeCreateDeliveryRunnerTask(client, { order, deliveryAddress, createdBy })
+      : null;
+    const runnerStatus = runnerStatusForOrderStatus(order.status);
+    if (!runnerStatus) return runnerTask;
+
+    const { rows: [updatedTask] } = await client.query(
+      `UPDATE restaurant_runner_tasks
+          SET status = CASE
+                WHEN $3 = 'Ready' AND status IN ('Queued','Assigned') THEN 'Ready'
+                WHEN $3 = 'Completed' THEN 'Completed'
+                WHEN $3 = 'Cancelled' AND status <> 'Completed' THEN 'Cancelled'
+                ELSE status
+              END,
+              completed_at = CASE WHEN $3 = 'Completed' THEN COALESCE(completed_at, NOW()) ELSE completed_at END,
+              updated_at = NOW()
+        WHERE restaurant_id = $1
+          AND food_order_id = $2
+          AND task_type = 'Delivery'
+        RETURNING *`,
+      [order.restaurant_id, order.id, runnerStatus]
+    );
+    return updatedTask || runnerTask;
   } catch (err) {
     if (isMissingRelationError(err)) return null;
     throw err;
@@ -501,6 +568,14 @@ async function requireRestaurantAccess(userId, restaurantId) {
     throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   }
   return restaurant;
+}
+
+const RESTAURANT_MANAGE_ROLES = new Set(['owner', 'manager']);
+
+function assertRestaurantManage(restaurant) {
+  if (!RESTAURANT_MANAGE_ROLES.has(restaurant.effective_role)) {
+    throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
+  }
 }
 
 function emitRestaurantOrder(businessId, event, payload) {
@@ -935,7 +1010,8 @@ exports.createRestaurant = async (req, res, next) => {
 exports.createMenuCategory = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertRestaurantManage(restaurant);
     const name = normalizeString(req.body.name, 120);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
 
@@ -961,6 +1037,7 @@ exports.createMenuItem = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertRestaurantManage(restaurant);
     const name = normalizeString(req.body.name, 160);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
 
@@ -968,8 +1045,9 @@ exports.createMenuItem = async (req, res, next) => {
     const { rows: [item] } = await pool.query(
       `INSERT INTO food_menu_items
          (restaurant_id, category_id, name, description, image_url, price_cents,
-          currency_code, is_available, sort_order, tags, allergens)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+          currency_code, is_available, manual_available, inventory_available,
+          inventory_availability_state, sort_order, tags, allergens)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,TRUE,'available',$9,$10,$11)
        RETURNING *`,
       [
         restaurantId,
@@ -1110,6 +1188,9 @@ exports.createOrder = async (req, res, next) => {
       if (!VALID_FULFILLMENT.has(fulfillmentType)) {
         throw new AppError('Validation failed', 400, 'validation_failed', { fulfillmentType: 'Unsupported fulfillment type' });
       }
+      if (!Array.isArray(restaurant.fulfillment_modes) || !restaurant.fulfillment_modes.includes(fulfillmentType)) {
+        throw new AppError('This fulfillment mode is not available', 409, 'fulfillment_mode_unavailable');
+      }
       if (!VALID_ORDER_SOURCES.has(orderSource)) {
         throw new AppError('Validation failed', 400, 'validation_failed', { orderSource: 'Unsupported order source' });
       }
@@ -1123,14 +1204,32 @@ exports.createOrder = async (req, res, next) => {
             deliveryAddress: 'Delivery address is required for delivery orders',
           });
         }
+        if (Number(restaurant.delivery_radius_meters || 0) > 0) {
+          if (![restaurant.latitude, restaurant.longitude, deliveryAddress.lat, deliveryAddress.lng]
+            .every((coordinate) => Number.isFinite(Number(coordinate)))) {
+            throw new AppError('Delivery coordinates are required to verify the delivery area', 400, 'delivery_coordinates_required');
+          }
+          const deliveryDistanceMeters = distanceMeters(
+            Number(restaurant.latitude),
+            Number(restaurant.longitude),
+            Number(deliveryAddress.lat),
+            Number(deliveryAddress.lng)
+          );
+          if (deliveryDistanceMeters > Number(restaurant.delivery_radius_meters)) {
+            throw new AppError('Delivery address is outside this restaurant\'s delivery area', 409, 'outside_delivery_area', {
+              deliveryDistanceMeters: Math.round(deliveryDistanceMeters),
+              deliveryRadiusMeters: Number(restaurant.delivery_radius_meters),
+            });
+          }
+          deliveryAddress.distanceMeters = Math.round(deliveryDistanceMeters);
+        }
         const settings = restaurant.settings && typeof restaurant.settings === 'object' ? restaurant.settings : {};
         deliveryFeeCents = parseMoneyCents(
-          req.body.deliveryFeeCents ?? req.body.delivery_fee_cents ?? settings.deliveryFeeCents ?? settings.delivery_fee_cents ?? 0,
+          settings.deliveryFeeCents ?? settings.delivery_fee_cents ?? 0,
           'deliveryFeeCents'
         );
       }
 
-      const tax = parseMoneyCents(req.body.taxCents ?? req.body.tax_cents ?? 0, 'taxCents');
       const tip = parseMoneyCents(req.body.tipCents ?? req.body.tip_cents ?? 0, 'tipCents');
       let discount = parseMoneyCents(req.body.discountCents ?? req.body.discount_cents ?? 0, 'discountCents');
       const discountCode = normalizeString(req.body.discountCode || req.body.discount_code, 40);
@@ -1170,7 +1269,12 @@ exports.createOrder = async (req, res, next) => {
         }
       }
 
-      const total = Math.max(0, subtotal + tax + tip + deliveryFeeCents - discount);
+      const taxableSubtotal = Math.max(0, subtotal - discount);
+      const taxRateBps = Math.max(0, Math.min(10000, Number(restaurant.tax_rate_bps || 0)));
+      const serviceFeeBps = Math.max(0, Math.min(10000, Number(restaurant.service_fee_bps || 0)));
+      const tax = Math.round(taxableSubtotal * taxRateBps / 10000);
+      const serviceFeeCents = Math.round(taxableSubtotal * serviceFeeBps / 10000);
+      const total = Math.max(0, taxableSubtotal + tax + serviceFeeCents + tip + deliveryFeeCents);
 
       const { rows: queueRows } = await client.query(
         `SELECT COALESCE(MAX(queue_number), 0) + 1 AS next_queue
@@ -1198,6 +1302,7 @@ exports.createOrder = async (req, res, next) => {
           ...(discountMetadata ? { posDiscount: discountMetadata, promotion: discountMetadata } : {}),
           ...(loyaltyRedemption ? { loyaltyRedemption } : {}),
           ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),
+          pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents },
         }
         : {
           trackingToken,
@@ -1205,15 +1310,17 @@ exports.createOrder = async (req, res, next) => {
           ...(discountMetadata ? { posDiscount: discountMetadata, promotion: discountMetadata } : {}),
           ...(loyaltyRedemption ? { loyaltyRedemption } : {}),
           ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),
+          pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents },
         };
 
       const { rows: [created] } = await client.query(
         `INSERT INTO food_orders
            (restaurant_id, business_id, customer_id, guest_name, guest_phone, guest_email,
             order_source, fulfillment_type, payment_status, subtotal_cents, tax_cents,
+            service_fee_cents, delivery_fee_cents, tax_rate_bps, service_fee_bps,
             tip_cents, discount_cents, total_cents, currency_code, table_label,
             queue_number, promised_at, notes, metadata)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,NOW() + ($18 || ' minutes')::interval,$19,$20)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW() + ($22 || ' minutes')::interval,$23,$24)
          RETURNING *`,
         [
           restaurantId,
@@ -1229,6 +1336,10 @@ exports.createOrder = async (req, res, next) => {
           'unpaid',
           subtotal,
           tax,
+          serviceFeeCents,
+          deliveryFeeCents,
+          taxRateBps,
+          serviceFeeBps,
           tip,
           discount,
           total,
@@ -1269,6 +1380,12 @@ exports.createOrder = async (req, res, next) => {
         }
       }
 
+      const printerJobs = await enqueueKitchenPrinterJobs(client, {
+        restaurantId,
+        orderId: created.id,
+        createdBy: req.user?.id || null,
+      });
+
       if (promotionId) {
         await client.query(
           `UPDATE food_restaurant_promotions
@@ -1299,6 +1416,7 @@ exports.createOrder = async (req, res, next) => {
         trackingToken,
         replayed: false,
         runnerTask,
+        printerJobs,
       };
     }, 'food_create_order');
 
@@ -1399,6 +1517,20 @@ exports.updateOrderStatus = async (req, res, next) => {
     if (!VALID_STATUS.has(status) || !ORDER_TRANSITIONS[status]) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported order status' });
     }
+    if (status === 'completed') {
+      const { rows: [deliveryOrder] } = await pool.query(
+        `SELECT fulfillment_type FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
+        [orderId, restaurantId]
+      );
+      if (!deliveryOrder) throw new AppError('Order not found', 404, 'order_not_found');
+      if (deliveryOrder.fulfillment_type === 'delivery') {
+        throw new AppError(
+          'Complete delivery orders through Runner handoff or proof submission',
+          409,
+          'runner_handoff_required'
+        );
+      }
+    }
 
     const timestampColumn = {
       accepted: 'accepted_at',
@@ -1432,6 +1564,11 @@ exports.updateOrderStatus = async (req, res, next) => {
     emitRestaurantOrder(order.business_id, 'food:order:updated', { order });
     emitRestaurantDisplay(order.restaurant_id, order);
 
+    const runnerTask = await syncDeliveryRunnerTaskForOrderStatus(pool, {
+      order,
+      createdBy: req.user?.id || null,
+    });
+
     // When the kitchen marks an order ready, tell the customer (best-effort,
     // fire-and-forget so a slow SMS/email provider never delays this response).
     if (status === 'ready') {
@@ -1443,7 +1580,7 @@ exports.updateOrderStatus = async (req, res, next) => {
       }, 'food_loyalty_earn');
     }
 
-    res.json({ order });
+    res.json({ order, runnerTask });
   } catch (err) {
     next(err);
   }
@@ -1461,15 +1598,19 @@ exports.updateOrderPayment = async (req, res, next) => {
       });
     }
     const { rows: [order] } = await pool.query(
-      `UPDATE food_orders
-          SET payment_status = $1, updated_at = NOW()
-        WHERE id = $2 AND restaurant_id = $3
-        RETURNING *`,
-      [paymentStatus, orderId, restaurantId]
+      `SELECT id FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
+      [orderId, restaurantId]
     );
     if (!order) throw new AppError('Order not found', 404, 'order_not_found');
-    emitRestaurantOrder(order.business_id, 'food:order:updated', { order });
-    res.json({ order });
+    throw new AppError(
+      'Record payments and refunds through the ledger-backed POS payment endpoints',
+      409,
+      'payment_transaction_required',
+      {
+        createPaymentPath: `/api/restaurants/${restaurantId}/pos/orders/${orderId}/payments`,
+        paymentStatusPath: `/api/restaurants/${restaurantId}/pos/payments/:paymentId`,
+      }
+    );
   } catch (err) {
     next(err);
   }
@@ -1611,14 +1752,14 @@ const RESTAURANT_PATCH_FIELDS = {
   kitchenDisplayEnabled: { column: 'kitchen_display_enabled', value: (v) => v !== false },
   brandAccentHex: { column: 'brand_accent_hex', value: (v) => normalizeBrandAccentHex(v) },
   operatingHours: { column: 'operating_hours', value: (v) => normalizeHoursInput(v) },
-  isVerified: { column: 'is_verified', value: (v) => v === true },
 };
 const OWNER_SETTABLE_STATUS = new Set(['draft', 'active', 'paused']);
 
 exports.updateRestaurant = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurantAccess = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertRestaurantManage(restaurantAccess);
 
     const sets = [];
     const params = [];
@@ -1660,7 +1801,8 @@ exports.updateMenuCategory = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const categoryId = parsePositiveInt(req.params.categoryId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertRestaurantManage(restaurant);
     const { rows: [category] } = await pool.query(
       `UPDATE food_menu_categories
           SET name = COALESCE($1, name),
@@ -1690,7 +1832,8 @@ exports.deleteMenuCategory = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const categoryId = parsePositiveInt(req.params.categoryId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertRestaurantManage(restaurant);
     const { rowCount } = await pool.query(
       `DELETE FROM food_menu_categories WHERE id = $1 AND restaurant_id = $2`,
       [categoryId, restaurantId]
@@ -1706,7 +1849,8 @@ exports.updateMenuItem = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const itemId = parsePositiveInt(req.params.itemId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertRestaurantManage(restaurant);
     const priceRaw = req.body.priceCents ?? req.body.price_cents;
     const { rows: [item] } = await pool.query(
       `UPDATE food_menu_items
@@ -1715,7 +1859,11 @@ exports.updateMenuItem = async (req, res, next) => {
               image_url = COALESCE($3, image_url),
               price_cents = COALESCE($4, price_cents),
               category_id = COALESCE($5, category_id),
-              is_available = COALESCE($6, is_available),
+              manual_available = COALESCE($6, manual_available),
+              is_available = CASE
+                WHEN $6::boolean IS NULL THEN is_available
+                ELSE $6 AND inventory_available
+              END,
               sort_order = COALESCE($7, sort_order),
               updated_at = NOW()
         WHERE id = $8 AND restaurant_id = $9
@@ -1743,7 +1891,8 @@ exports.deleteMenuItem = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const itemId = parsePositiveInt(req.params.itemId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertRestaurantManage(restaurant);
     const { rowCount } = await pool.query(
       `DELETE FROM food_menu_items WHERE id = $1 AND restaurant_id = $2`,
       [itemId, restaurantId]
@@ -1759,7 +1908,8 @@ exports.createModifierGroup = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const itemId = parsePositiveInt(req.params.itemId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertRestaurantManage(restaurant);
     const name = normalizeString(req.body.name, 120);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
     const options = Array.isArray(req.body.options) ? req.body.options.slice(0, 30) : [];
@@ -1815,7 +1965,8 @@ exports.deleteModifierGroup = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const groupId = parsePositiveInt(req.params.groupId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertRestaurantManage(restaurant);
     const { rowCount } = await pool.query(
       `DELETE FROM food_modifier_groups WHERE id = $1 AND restaurant_id = $2`,
       [groupId, restaurantId]
@@ -1923,6 +2074,7 @@ exports.getCustomerProfile = async (req, res, next) => {
       preferredLanguage: 'english',
       notificationsEnabled: false,
       favoriteRestaurantIds: [],
+      favoriteItemIds: [],
       reorderTemplates: [],
       loyaltySummary: {
         points: 0,
@@ -1956,6 +2108,19 @@ exports.getCustomerProfile = async (req, res, next) => {
         [req.user.id]
       );
       profile.favoriteRestaurantIds = rows.map((row) => Number(row.restaurant_id));
+    } catch (err) {
+      if (!isMissingRelationError(err)) throw err;
+    }
+
+    try {
+      const { rows } = await pool.query(
+        `SELECT menu_item_id
+           FROM food_customer_favorite_items
+          WHERE customer_id = $1
+          ORDER BY created_at DESC`,
+        [req.user.id]
+      );
+      profile.favoriteItemIds = rows.map((row) => Number(row.menu_item_id));
     } catch (err) {
       if (!isMissingRelationError(err)) throw err;
     }
@@ -2236,6 +2401,196 @@ exports.toggleCustomerFavoriteRestaurant = async (req, res, next) => {
   }
 };
 
+exports.listCustomerFavoriteItems = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT cfi.menu_item_id,
+              cfi.restaurant_id,
+              cfi.created_at,
+              fmi.name AS item_name,
+              fmi.description,
+              fmi.image_url,
+              fmi.price_cents,
+              fmi.currency_code,
+              fmi.is_available,
+              fr.display_name AS restaurant_name
+         FROM food_customer_favorite_items cfi
+         JOIN food_menu_items fmi
+           ON fmi.id = cfi.menu_item_id
+          AND fmi.restaurant_id = cfi.restaurant_id
+         JOIN food_restaurants fr ON fr.id = cfi.restaurant_id
+        WHERE cfi.customer_id = $1
+        ORDER BY cfi.created_at DESC
+        LIMIT 500`,
+      [req.user.id]
+    );
+    res.json({
+      favoriteItems: rows.map((row) => ({
+        menuItemId: Number(row.menu_item_id),
+        restaurantId: Number(row.restaurant_id),
+        restaurantName: row.restaurant_name,
+        name: row.item_name,
+        description: row.description,
+        imageUrl: row.image_url,
+        priceCents: Number(row.price_cents || 0),
+        currencyCode: row.currency_code,
+        isAvailable: row.is_available === true,
+        createdAt: row.created_at,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.toggleCustomerFavoriteItem = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId || req.body.restaurantId || req.body.restaurant_id);
+    const itemId = parsePositiveInt(req.params.itemId || req.body.itemId || req.body.item_id);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    if (!itemId) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
+
+    const { rows: items } = await pool.query(
+      `SELECT id, restaurant_id
+         FROM food_menu_items
+        WHERE id = $1 AND restaurant_id = $2`,
+      [itemId, restaurantId]
+    );
+    if (!items[0]) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
+
+    const result = await withTransaction(pool, async (client) => {
+      await client.query(
+        `SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`,
+        [String(req.user.id), String(itemId)]
+      );
+      const { rows: existing } = await client.query(
+        `SELECT 1
+           FROM food_customer_favorite_items
+          WHERE customer_id = $1 AND menu_item_id = $2`,
+        [req.user.id, itemId]
+      );
+      let favorited;
+      if (existing[0]) {
+        await client.query(
+          `DELETE FROM food_customer_favorite_items
+            WHERE customer_id = $1 AND menu_item_id = $2`,
+          [req.user.id, itemId]
+        );
+        favorited = false;
+      } else {
+        await client.query(
+          `INSERT INTO food_customer_favorite_items (customer_id, restaurant_id, menu_item_id)
+           VALUES ($1, $2, $3)`,
+          [req.user.id, restaurantId, itemId]
+        );
+        favorited = true;
+      }
+      const { rows } = await client.query(
+        `SELECT menu_item_id, restaurant_id, created_at
+           FROM food_customer_favorite_items
+          WHERE customer_id = $1
+          ORDER BY created_at DESC, id DESC`,
+        [req.user.id]
+      );
+      return { favorited, rows };
+    });
+    res.json({
+      favorited: result.favorited,
+      favoriteItemIds: result.rows.map((row) => Number(row.menu_item_id)),
+      favorites: result.rows.map((row) => ({
+        restaurantId: Number(row.restaurant_id),
+        menuItemId: Number(row.menu_item_id),
+        createdAt: row.created_at,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.syncCustomerFavoriteItems = async (req, res, next) => {
+  try {
+    const mode = normalizeString(req.body.mode, 16) || 'merge';
+    if (!['merge', 'replace'].includes(mode)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { mode: 'Mode must be merge or replace' });
+    }
+    const input = Array.isArray(req.body.favorites)
+      ? req.body.favorites
+      : Array.isArray(req.body.items)
+        ? req.body.items
+        : [];
+    if (input.length > 500) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { favorites: 'No more than 500 favorites may be synced at once' });
+    }
+    const unique = new Map();
+    for (const value of input) {
+      const restaurantId = parsePositiveInt(value?.restaurantId || value?.restaurant_id);
+      const menuItemId = parsePositiveInt(value?.menuItemId || value?.menu_item_id || value?.itemId || value?.item_id);
+      if (!restaurantId || !menuItemId) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { favorites: 'Every favorite requires restaurantId and menuItemId' });
+      }
+      unique.set(String(menuItemId), { restaurantId, menuItemId });
+    }
+    const favorites = Array.from(unique.values());
+    const result = await withTransaction(pool, async (client) => {
+      await client.query(
+        `SELECT pg_advisory_xact_lock(hashtext($1))`,
+        [`favorite-sync:${req.user.id}`]
+      );
+      if (favorites.length) {
+        const restaurantIds = favorites.map((favorite) => favorite.restaurantId);
+        const menuItemIds = favorites.map((favorite) => favorite.menuItemId);
+        const { rows: validRows } = await client.query(
+          `SELECT fmi.id AS menu_item_id, fmi.restaurant_id
+             FROM food_menu_items fmi
+             JOIN unnest($1::bigint[], $2::bigint[]) requested(restaurant_id, menu_item_id)
+               ON requested.restaurant_id = fmi.restaurant_id
+              AND requested.menu_item_id = fmi.id`,
+          [restaurantIds, menuItemIds]
+        );
+        if (validRows.length !== favorites.length) {
+          throw new AppError('One or more favorite items no longer exist', 400, 'favorite_item_invalid');
+        }
+      }
+      if (mode === 'replace') {
+        await client.query(
+          `DELETE FROM food_customer_favorite_items WHERE customer_id = $1`,
+          [req.user.id]
+        );
+      }
+      for (const favorite of favorites) {
+        await client.query(
+          `INSERT INTO food_customer_favorite_items (customer_id, restaurant_id, menu_item_id)
+           VALUES ($1,$2,$3)
+           ON CONFLICT (customer_id, menu_item_id)
+           DO UPDATE SET restaurant_id = EXCLUDED.restaurant_id`,
+          [req.user.id, favorite.restaurantId, favorite.menuItemId]
+        );
+      }
+      const { rows } = await client.query(
+        `SELECT restaurant_id, menu_item_id, created_at
+           FROM food_customer_favorite_items
+          WHERE customer_id = $1
+          ORDER BY created_at DESC, id DESC`,
+        [req.user.id]
+      );
+      return rows;
+    });
+    res.json({
+      mode,
+      syncedAt: new Date().toISOString(),
+      favoriteItemIds: result.map((row) => Number(row.menu_item_id)),
+      favorites: result.map((row) => ({
+        restaurantId: Number(row.restaurant_id),
+        menuItemId: Number(row.menu_item_id),
+        createdAt: row.created_at,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.listMyOrders = async (req, res, next) => {
   try {
     const limit = Math.min(parsePositiveInt(req.query.limit, 30), 100);
@@ -2336,7 +2691,8 @@ exports.listRestaurantPromotions = async (req, res, next) => {
 exports.createRestaurantPromotion = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertRestaurantManage(restaurant);
     const code = normalizeString(req.body.code, 40);
     const title = normalizeString(req.body.title, 120);
     if (!code || !title) {
@@ -2405,7 +2761,8 @@ exports.updateRestaurantPromotion = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const promotionId = parsePositiveInt(req.params.promotionId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertRestaurantManage(restaurant);
 
     const sets = ['updated_at = NOW()'];
     const params = [];
@@ -2617,7 +2974,8 @@ exports.listRestaurantLocations = async (req, res, next) => {
 exports.createRestaurantLocation = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertRestaurantManage(restaurant);
     const name = normalizeString(req.body.name, 160);
     if (!name) {
       throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Location name is required' });
@@ -2665,7 +3023,8 @@ exports.updateRestaurantLocation = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const locationId = parsePositiveInt(req.params.locationId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertRestaurantManage(restaurant);
     const { rows: existing } = await pool.query(
       `SELECT * FROM restaurant_locations WHERE id = $1 AND restaurant_id = $2`,
       [locationId, restaurantId]

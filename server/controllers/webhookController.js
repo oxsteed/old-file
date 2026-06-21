@@ -9,6 +9,12 @@ if (!process.env.STRIPE_SECRET_KEY) {
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
 const { recalculateBadges } = require('./verificationController');
+const { withTransaction } = require('../utils/transaction');
+const {
+  applyStripePaymentIntent,
+  applyStripeRefund,
+  applyStripeChargeRefund,
+} = require('../services/restaurantPosPaymentLedgerService');
 
 async function beginWebhookEvent(provider, event) {
   if (!event?.id) return { shouldProcess: true };
@@ -313,6 +319,7 @@ exports.stripeWebhook = async (req, res, next) => {
           );
           logger.info(`[Stripe] PaymentIntent ${pi.id} authorized - job ${jobId} funds held`);
         }
+        await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
         break;
       }
 
@@ -360,6 +367,7 @@ exports.stripeWebhook = async (req, res, next) => {
           );
           logger.info(`[Stripe] PaymentIntent ${pi.id} succeeded - order ${orderId} marked as paid`);
         }
+        await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
         break;
       }
 
@@ -393,6 +401,21 @@ exports.stripeWebhook = async (req, res, next) => {
             }).catch(e => logger.warn('Failed to send payment failed notification to customer', { error: e.message }));
           }
         }
+        await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
+        break;
+      }
+
+      case 'payment_intent.canceled': {
+        const pi = event.data.object;
+        await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
+        break;
+      }
+
+      case 'refund.created':
+      case 'refund.updated':
+      case 'refund.failed': {
+        const refund = event.data.object;
+        await withTransaction(db, (client) => applyStripeRefund(client, refund));
         break;
       }
 
@@ -408,6 +431,7 @@ exports.stripeWebhook = async (req, res, next) => {
           );
           logger.info(`[Stripe] Charge refunded for PaymentIntent ${piId}`);
         }
+        await withTransaction(db, (client) => applyStripeChargeRefund(client, charge));
         break;
       }
 
