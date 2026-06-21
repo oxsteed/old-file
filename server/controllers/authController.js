@@ -35,6 +35,11 @@ const SELF_SELECTABLE_MODES = Object.freeze([
   'helper',
   'logistics',
   'business_owner',
+  'restaurant_customer',
+  'restaurant_owner',
+  'restaurant_manager',
+  'restaurant_staff',
+  'restaurant_runner',
   'consultant',
   'tool_owner',
   'franchise_applicant',
@@ -46,6 +51,10 @@ const SELF_SELECTABLE_MODES = Object.freeze([
 const MODES_REQUIRING_HELPER_ROLE = new Set([
   'helper',
   'business_owner',
+  'restaurant_owner',
+  'restaurant_manager',
+  'restaurant_staff',
+  'restaurant_runner',
   'consultant',
   'tool_owner',
 ]);
@@ -267,7 +276,17 @@ res.status(201).json({ user: formatAuthUser(fullRows[0]), ...tokens });
 // LOGIN - Updated to support 2FA
 async function login(req, res, next) {
   try {
-    const { email, password, rememberMe, termsAgreed, agreementName } = req.body;
+    const { email, password, rememberMe, termsAgreed, agreementName, operatingMode, defaultMode, default_mode } = req.body;
+    const requestedOperatingModeRaw = operatingMode ?? defaultMode ?? default_mode;
+    const requestedOperatingMode = normalizeDefaultMode(requestedOperatingModeRaw);
+    if (requestedOperatingModeRaw !== undefined && requestedOperatingModeRaw !== null && requestedOperatingMode === null) {
+      throw new AppError(
+        'Invalid operating mode',
+        400,
+        'invalid_mode',
+        { operatingMode: `Must be one of: ${SELF_SELECTABLE_MODES.join(', ')}` },
+      );
+    }
 
     const errs = validate(req.body, {
       email:    [rules.required, rules.email],
@@ -318,7 +337,7 @@ async function login(req, res, next) {
       throw new AppError('Invalid email or password', 401, 'auth_failed');
     }
 
-    const user = rows[0];
+    let user = rows[0];
     if (!user.is_active) {
       throw new AppError('Your account has been deactivated', 403, 'account_deactivated');
     }
@@ -354,6 +373,26 @@ async function login(req, res, next) {
         message: 'Please provide your 2FA code to complete login.'
       });
     }
+    if (!isAdminUser && requestedOperatingMode && requestedOperatingMode !== user.default_mode) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const updatedUser = await modeRoleUtil.applyModeSwitch(client, user.id, requestedOperatingMode);
+        if (!updatedUser) {
+          await client.query('ROLLBACK');
+          throw new AppError('Mode changed during sign in. Please try again.', 409, 'state_conflict');
+        }
+        await modeRoleUtil.invalidateUserSessions(client, user.id);
+        await client.query('COMMIT');
+        user = updatedUser;
+      } catch (modeErr) {
+        try { await client.query('ROLLBACK'); } catch (_) { /* ignore */ }
+        throw modeErr;
+      } finally {
+        client.release();
+      }
+    }
+
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     const sessionSql = rememberMe
