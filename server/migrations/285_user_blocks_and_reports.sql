@@ -30,6 +30,50 @@ CREATE TABLE IF NOT EXISTS content_reports (
   CONSTRAINT no_self_report CHECK (reporter_id <> reported_user_id)
 );
 
+-- Migration 005 created content_reports with target_type/target_id instead of
+-- content_type/content_id. CREATE TABLE IF NOT EXISTS does not reconcile an
+-- existing table, so upgrade that legacy shape before creating new indexes.
+ALTER TABLE content_reports
+  ADD COLUMN IF NOT EXISTS reported_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS content_type VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS content_id VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS target_type VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS target_id UUID,
+  ADD COLUMN IF NOT EXISTS action_taken TEXT;
+
+UPDATE content_reports
+SET
+  content_type = COALESCE(content_type, target_type),
+  content_id = COALESCE(content_id, target_id::text),
+  reported_user_id = COALESCE(
+    reported_user_id,
+    CASE WHEN target_type IN ('user', 'profile') THEN target_id ELSE NULL END
+  )
+WHERE content_type IS NULL
+   OR content_id IS NULL
+   OR reported_user_id IS NULL;
+
+-- Legacy target columns only support UUID-backed content. New report types use
+-- the text content_id column, while the API continues filling both when it can.
+ALTER TABLE content_reports
+  ALTER COLUMN target_type DROP NOT NULL,
+  ALTER COLUMN target_id DROP NOT NULL,
+  ALTER COLUMN content_type SET NOT NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'content_reports'::regclass
+      AND conname = 'no_self_report'
+  ) THEN
+    ALTER TABLE content_reports
+      ADD CONSTRAINT no_self_report
+      CHECK (reporter_id <> reported_user_id) NOT VALID;
+  END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS idx_content_reports_reporter ON content_reports (reporter_id);
 CREATE INDEX IF NOT EXISTS idx_content_reports_reported_user ON content_reports (reported_user_id);
 CREATE INDEX IF NOT EXISTS idx_content_reports_status ON content_reports (status);

@@ -6,6 +6,7 @@ const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const pool = require('../db');
 const logger = require('../utils/logger');
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const {
   getConversations,
   getGuestInquiries,
@@ -89,8 +90,8 @@ router.post('/conversations/:conversationId/attachments', upload.single('file'),
 // POST /api/messages/users/:userId/block - Block a user
 router.post('/users/:userId/block', strictLimiter, async (req, res) => {
   const blockerId  = req.user.id;
-  const blockedId  = parseInt(req.params.userId, 10);
-  if (!blockedId || blockerId === blockedId) {
+  const blockedId  = req.params.userId;
+  if (!UUID_PATTERN.test(blockedId) || String(blockerId) === blockedId) {
     return res.status(400).json({ error: 'Invalid user ID' });
   }
   try {
@@ -111,7 +112,10 @@ router.post('/users/:userId/block', strictLimiter, async (req, res) => {
 // DELETE /api/messages/users/:userId/block - Unblock a user
 router.delete('/users/:userId/block', async (req, res) => {
   const blockerId = req.user.id;
-  const blockedId = parseInt(req.params.userId, 10);
+  const blockedId = req.params.userId;
+  if (!UUID_PATTERN.test(blockedId) || String(blockerId) === blockedId) {
+    return res.status(400).json({ error: 'Invalid user ID' });
+  }
   try {
     await pool.query(
       'DELETE FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2',
@@ -160,20 +164,37 @@ router.post('/report', strictLimiter, async (req, res) => {
   if (!validReasons.includes(reason)) {
     return res.status(400).json({ error: 'Invalid reason', validReasons });
   }
-  if (reportedUserId && reporterId === parseInt(reportedUserId, 10)) {
+  if (reportedUserId && !UUID_PATTERN.test(reportedUserId)) {
+    return res.status(400).json({ error: 'Invalid reported user ID' });
+  }
+  if (reportedUserId && String(reporterId) === reportedUserId) {
     return res.status(400).json({ error: 'Cannot report yourself' });
   }
+
+  const targetId = contentId || reportedUserId;
+  if (!targetId) {
+    return res.status(400).json({ error: 'A content ID or reported user ID is required' });
+  }
+  if (!UUID_PATTERN.test(targetId)) {
+    return res.status(400).json({ error: 'Invalid content ID' });
+  }
+
+  // Keep the original admin moderation fields populated while exposing the
+  // richer mobile-report fields added by migration 285.
+  const targetType = contentType === 'profile' ? 'user' : contentType;
 
   try {
     await pool.query(
       `INSERT INTO content_reports
-         (reporter_id, reported_user_id, content_type, content_id, reason, description)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
+         (reporter_id, reported_user_id, content_type, content_id,
+          target_type, target_id, reason, description)
+       VALUES ($1, $2, $3, $4, $5, $4, $6, $7)`,
       [
         reporterId,
         reportedUserId || null,
         contentType,
-        contentId || null,
+        targetId,
+        targetType,
         reason,
         description || null,
       ]
