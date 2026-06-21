@@ -16,6 +16,7 @@ function buildApp() {
     next();
   });
   app.get('/api/food/restaurants', ctrl.listRestaurants);
+  app.get('/api/food/markets', ctrl.listMarkets);
   app.post('/api/food/restaurants', ctrl.createRestaurant);
   app.post('/api/food/restaurants/:restaurantId/orders', ctrl.createOrder);
   app.patch('/api/food/restaurants/:restaurantId/orders/:orderId/status', ctrl.updateOrderStatus);
@@ -39,6 +40,50 @@ describe('food controller', () => {
     expect(mockQuery.mock.calls[0][0]).toMatch(/FROM food_restaurants fr/);
     expect(mockQuery.mock.calls[0][0]).toMatch(/address_country/);
     expect(mockQuery.mock.calls[0][1]).toContain('US');
+  });
+
+  test('returns available markets grouped by city and country', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          address_country: 'United States',
+          address_city: 'Columbus',
+          currency_code: 'USD',
+          restaurant_count: '3',
+        },
+        {
+          address_country: 'CA',
+          address_city: 'Montreal',
+          currency_code: 'CAD',
+          restaurant_count: '1',
+        },
+      ],
+    });
+
+    const res = await request(buildApp()).get('/api/food/markets');
+
+    expect(res.status).toBe(200);
+    expect(res.body.markets).toEqual([
+      {
+        city: 'Columbus',
+        country: 'USA',
+        countryCode: 'US',
+        currencyCode: 'USD',
+        distanceUnit: 'miles',
+        flag: '🇺🇸',
+        restaurantCount: 3,
+      },
+      {
+        city: 'Montreal',
+        country: 'Canada',
+        countryCode: 'CA',
+        currencyCode: 'CAD',
+        distanceUnit: 'kilometers',
+        flag: '🇨🇦',
+        restaurantCount: 1,
+      },
+    ]);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/GROUP BY fr\.address_country, fr\.address_city/);
   });
 
   test('creates a restaurant and backing business in one transaction', async () => {

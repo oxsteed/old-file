@@ -689,6 +689,98 @@ async function notifyFoodOrderReady(order, restaurant) {
   }
 }
 
+function countryCodeFromAddressCountry(rawCountry) {
+  if (!rawCountry) return null;
+  const normalized = String(rawCountry).trim();
+  if (normalized.length === 2) return normalized.toUpperCase();
+
+  const lower = normalized.toLowerCase();
+  if (lower === 'usa') return 'US';
+  if (['u.s.', 'united states', 'united states of america'].includes(lower)) return 'US';
+  if (['uk', 'u.k.', 'united kingdom', 'great britain', 'england'].includes(lower)) return 'GB';
+  if (['uae', 'united arab emirates'].includes(lower)) return 'AE';
+  return null;
+}
+
+function countryNameFromCode(code, raw) {
+  const fallback = (raw || 'USA').trim();
+  switch (code?.toUpperCase()) {
+  case 'US': return 'USA';
+  case 'CA': return 'Canada';
+  case 'FR': return 'France';
+  case 'HT': return 'Haiti';
+  case 'GB': return 'UK';
+  case 'AE': return 'UAE';
+  case 'NG': return 'Nigeria';
+  case 'BR': return 'Brazil';
+  case 'DO': return 'Dominican Republic';
+  default: return fallback;
+  }
+}
+
+function countryFlagFromCode(code, raw) {
+  switch ((code || '').toUpperCase()) {
+  case 'US': return '🇺🇸';
+  case 'CA': return '🇨🇦';
+  case 'FR': return '🇫🇷';
+  case 'HT': return '🇭🇹';
+  case 'GB': return '🇬🇧';
+  case 'AE': return '🇦🇪';
+  case 'NG': return '🇳🇬';
+  case 'BR': return '🇧🇷';
+  case 'DO': return '🇩🇴';
+  default: return '🏳️';
+  }
+}
+
+function distanceUnitFromCountry(code) {
+  switch ((code || '').toUpperCase()) {
+  case 'US':
+  case 'GB':
+    return 'miles';
+  default:
+    return 'kilometers';
+  }
+}
+
+function normalizeMarketCurrency(rawCurrency) {
+  return normalizeCurrency(rawCurrency);
+}
+
+exports.listMarkets = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT NULLIF(trim(fr.address_country), '') AS address_country,
+              NULLIF(trim(fr.address_city), '') AS address_city,
+              COALESCE(NULLIF(trim(fr.currency_code), ''), 'USD') AS currency_code,
+              COUNT(*)::int AS restaurant_count
+         FROM food_restaurants fr
+        WHERE fr.status = 'active'
+          AND NULLIF(trim(fr.address_city), '') IS NOT NULL
+          AND NULLIF(trim(fr.address_country), '') IS NOT NULL
+        GROUP BY fr.address_country, fr.address_city
+        ORDER BY restaurant_count DESC, address_city ASC`,
+    );
+
+    const markets = rows.map((row) => {
+      const countryCode = countryCodeFromAddressCountry(row.address_country) || 'US';
+      return {
+        city: row.address_city,
+        country: countryNameFromCode(countryCode, row.address_country),
+        countryCode,
+        currencyCode: normalizeMarketCurrency(row.currency_code),
+        distanceUnit: distanceUnitFromCountry(countryCode),
+        flag: countryFlagFromCode(countryCode, row.address_country),
+        restaurantCount: Number(row.restaurant_count || 0),
+      };
+    });
+
+    res.json({ markets });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.listRestaurants = async (req, res, next) => {
   try {
     const limit = Math.min(parsePositiveInt(req.query.limit, 30), 100);

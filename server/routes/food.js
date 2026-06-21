@@ -7,6 +7,7 @@ const ctrl = require('../controllers/foodController');
 const kiosk = require('../controllers/restaurantKioskController');
 
 // Public customer discovery + the in-store "now serving" queue board.
+router.get('/markets', ctrl.listMarkets);
 router.get('/restaurants', ctrl.listRestaurants);
 router.get('/restaurants/:restaurantId', ctrl.getRestaurant);
 router.get('/restaurants/:restaurantId/queue-board', ctrl.getQueueBoard);
@@ -48,9 +49,9 @@ router.delete('/restaurants/:restaurantId/menu-items/:itemId', authenticate, ctr
 router.post('/restaurants/:restaurantId/menu-items/:itemId/modifier-groups', authenticate, ctrl.createModifierGroup);
 router.delete('/restaurants/:restaurantId/modifier-groups/:groupId', authenticate, ctrl.deleteModifierGroup);
 
-// Ordering. optionalAuth lets in-store kiosk/tablet guests order without an
-// account; signed-in customers get the order attached to their history.
-router.post('/restaurants/:restaurantId/orders', optionalAuth, ctrl.createOrder);
+// Ordering. Customers can browse as guests, but must sign in before submitting
+// an order so the restaurant has an accountable customer record.
+router.post('/restaurants/:restaurantId/orders', authenticate, ctrl.createOrder);
 
 // Merchant order operations (kitchen feed, status flow, in-store payment).
 router.get('/restaurants/:restaurantId/orders', authenticate, ctrl.listRestaurantOrders);
