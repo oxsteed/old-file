@@ -1,4 +1,4 @@
-// OxSteed Food - customer discovery: map + search for restaurants worldwide.
+// OxSteed Restaurants — customer discovery: search, browse, and order from restaurants worldwide.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -9,18 +9,52 @@ import { useAuth } from '../../context/AuthContext';
 import { FoodBrand } from './foodShared';
 import '../../styles/FoodPages.css';
 
-const DEFAULT_CENTER = [25.0, -40.0]; // Mid-Atlantic world view until we know better.
+const DEFAULT_CENTER = [25.0, -40.0];
 const DEFAULT_ZOOM = 2;
 
-/** Reusable restaurant card used in both grid and horizontal scroll sections. */
+// Static cuisine categories — always shown, even before restaurants load.
+const CUISINE_ICONS = [
+  { key: 'Pizza',       icon: '🍕' },
+  { key: 'Burgers',     icon: '🍔' },
+  { key: 'Asian',       icon: '🍜' },
+  { key: 'Mexican',     icon: '🌮' },
+  { key: 'Sushi',       icon: '🍱' },
+  { key: 'Chicken',     icon: '🍗' },
+  { key: 'Seafood',     icon: '🦞' },
+  { key: 'Vegan',       icon: '🥗' },
+  { key: 'Desserts',    icon: '🍦' },
+  { key: 'Breakfast',   icon: '🥞' },
+  { key: 'Indian',      icon: '🍛' },
+  { key: 'Italian',     icon: '🍝' },
+];
+
+/** Skeleton card — shows while loading. */
+function SkeletonCard() {
+  return (
+    <div className="fd-card fd-skeleton-card" aria-hidden="true">
+      <div className="fd-skeleton-cover" />
+      <div className="fd-card-body">
+        <div className="fd-skeleton-line fd-skeleton-title" />
+        <div className="fd-skeleton-line fd-skeleton-short" />
+        <div className="fd-skeleton-line fd-skeleton-shorter" />
+      </div>
+    </div>
+  );
+}
+
+/** Restaurant card — used in grid and horizontal scroll sections. */
 function RestaurantCard({ r, t }) {
   const cover = r.cover_photo_url || r.image_url;
   const cityLine = [r.address_city, r.address_state, r.address_country].filter(Boolean).join(', ');
 
   return (
     <Link to={`/restaurants/r/${r.id}`} className="fd-card">
-      {cover && (
+      {cover ? (
         <img src={cover} alt="" className="fd-card-cover" loading="lazy" />
+      ) : (
+        <div className="fd-card-cover fd-card-cover-placeholder">
+          <span>🍽️</span>
+        </div>
       )}
       <div className="fd-card-body">
         <h3>
@@ -67,14 +101,13 @@ export default function FoodHomePage() {
   const [query, setQuery] = useState('');
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [geo, setGeo] = useState(null); // { lat, lng }
+  const [geo, setGeo] = useState(null);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState(false);
   const [activeCuisine, setActiveCuisine] = useState(null);
   const [showMap, setShowMap] = useState(false);
   const [recentOrders, setRecentOrders] = useState([]);
 
-  // Featured = top-rated restaurants captured on first load; never overwritten by search.
   const featuredRef = useRef([]);
   const isFirstLoad = useRef(true);
 
@@ -97,11 +130,8 @@ export default function FoodHomePage() {
     }
   }, []);
 
-  useEffect(() => {
-    load({});
-  }, [load]);
+  useEffect(() => { load({}); }, [load]);
 
-  // Reorder shortcuts — fetch once after auth is known.
   useEffect(() => {
     if (!user) return;
     listMyFoodOrders()
@@ -110,8 +140,7 @@ export default function FoodHomePage() {
         const seen = new Set();
         const deduped = orders
           .filter((o) => {
-            if (!o.restaurant_id) return false;
-            if (seen.has(o.restaurant_id)) return false;
+            if (!o.restaurant_id || seen.has(o.restaurant_id)) return false;
             seen.add(o.restaurant_id);
             return true;
           })
@@ -148,26 +177,23 @@ export default function FoodHomePage() {
 
   const mapCenter = useMemo(() => {
     if (geo) return [geo.lat, geo.lng];
-    const withCoords = restaurants.find((r) => r.latitude != null && r.longitude != null);
-    if (withCoords) return [Number(withCoords.latitude), Number(withCoords.longitude)];
+    const w = restaurants.find((r) => r.latitude != null);
+    if (w) return [Number(w.latitude), Number(w.longitude)];
     return DEFAULT_CENTER;
   }, [geo, restaurants]);
 
-  // Unique cuisine tags across all loaded + featured restaurants.
-  const cuisines = useMemo(() => {
+  const cuisinesFromData = useMemo(() => {
     const all = [...restaurants, ...featuredRef.current];
     const tags = new Set();
-    all.forEach((r) => (r.cuisine_tags || []).forEach((t) => tags.add(t)));
+    all.forEach((r) => (r.cuisine_tags || []).forEach((tag) => tags.add(tag)));
     return Array.from(tags).slice(0, 14);
   }, [restaurants]);
 
-  // Grid filtered by active cuisine chip.
   const displayedRestaurants = useMemo(() => {
     if (!activeCuisine) return restaurants;
     return restaurants.filter((r) => (r.cuisine_tags || []).includes(activeCuisine));
   }, [restaurants, activeCuisine]);
 
-  // Nearby: only when geo active, sorted by distance.
   const nearbyRestaurants = useMemo(() => {
     if (!geo) return [];
     return [...restaurants]
@@ -176,7 +202,6 @@ export default function FoodHomePage() {
       .slice(0, 8);
   }, [geo, restaurants]);
 
-  // Match recent order restaurant_id to full restaurant data when available.
   const reorderRestaurants = useMemo(() => {
     if (!user || !recentOrders.length) return [];
     return recentOrders.map((order) => {
@@ -194,44 +219,77 @@ export default function FoodHomePage() {
   const hasReorder = reorderRestaurants.length > 0;
   const hasFeatured = !isSearching && featured.length > 0;
   const hasNearby = !isSearching && nearbyRestaurants.length > 0;
+  const hasData = restaurants.length > 0;
+
+  // Use data-driven cuisine chips if available, else fall back to static icons for filtering UI
+  const showStaticCuisines = !hasData && !isSearching;
+  const filterCuisines = cuisinesFromData.length > 1 ? cuisinesFromData : [];
 
   return (
-    <div className="fd-page">
-      <div className="fd-hero">
-        <FoodBrand size={44} />
-        <div>
-          <h1 className="fd-hero-title">{t('food.home.title')}</h1>
-          <p className="fd-hero-sub">{t('food.home.subtitle')}</p>
+    <div className="fd-page fd-home-page">
+
+      {/* ── Hero banner ── */}
+      <div className="fd-home-hero">
+        <div className="fd-home-hero-inner">
+          <div className="fd-home-hero-brand">
+            <FoodBrand size={52} />
+          </div>
+          <h1 className="fd-home-hero-title">{t('food.home.title')}</h1>
+          <p className="fd-home-hero-sub">{t('food.home.subtitle')}</p>
+
+          {/* Search bar lives inside the hero */}
+          <form className="fd-home-searchbar" onSubmit={search}>
+            <div className="fd-home-search-input-wrap">
+              <span className="fd-home-search-icon" aria-hidden="true">🔍</span>
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t('food.home.searchPlaceholder')}
+                aria-label={t('food.home.searchPlaceholder')}
+              />
+            </div>
+            <button type="submit" className="fd-btn fd-home-search-btn">
+              {t('food.home.searchBtn')}
+            </button>
+            <button
+              type="button"
+              className="fd-btn fd-btn-secondary fd-home-near-btn"
+              onClick={useMyLocation}
+              disabled={locating}
+            >
+              {locating ? t('food.home.locating') : `📍 ${t('food.home.nearMe')}`}
+            </button>
+          </form>
         </div>
       </div>
 
-      <form className="fd-searchbar" onSubmit={search}>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t('food.home.searchPlaceholder')}
-          aria-label={t('food.home.searchPlaceholder')}
-        />
-        <button type="submit" className="fd-btn">{t('food.home.searchBtn')}</button>
-        <button
-          type="button"
-          className="fd-btn fd-btn-secondary"
-          onClick={useMyLocation}
-          disabled={locating}
-        >
-          {locating ? t('food.home.locating') : t('food.home.nearMe')}
-        </button>
-      </form>
+      {/* ── Cuisine category strip — always visible ── */}
+      <div className="fd-home-categories">
+        {CUISINE_ICONS.map(({ key, icon }) => {
+          const isActive = activeCuisine === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              className={`fd-home-cat-btn${isActive ? ' fd-home-cat-btn--active' : ''}`}
+              onClick={() => setActiveCuisine(isActive ? null : key)}
+            >
+              <span className="fd-home-cat-icon">{icon}</span>
+              <span className="fd-home-cat-label">{key}</span>
+            </button>
+          );
+        })}
+      </div>
 
-      {/* Map toggle */}
+      {/* ── Map toggle ── */}
       <div className="fd-map-toggle-row">
         <button
           type="button"
           className="fd-btn fd-btn-secondary fd-btn-sm"
           onClick={() => setShowMap((v) => !v)}
         >
-          {showMap ? t('food.home.hideMap') : t('food.home.showMap')}
+          {showMap ? `🗺️ ${t('food.home.hideMap')}` : `🗺️ ${t('food.home.showMap')}`}
         </button>
       </div>
 
@@ -257,8 +315,7 @@ export default function FoodHomePage() {
                   pathOptions={{ color: '#f97316', fillColor: '#f97316', fillOpacity: 0.85 }}
                 >
                   <Popup>
-                    <strong>{r.display_name}</strong>
-                    <br />
+                    <strong>{r.display_name}</strong><br />
                     <Link to={`/restaurants/r/${r.id}`}>{t('food.home.viewMenu')}</Link>
                   </Popup>
                 </CircleMarker>
@@ -267,23 +324,53 @@ export default function FoodHomePage() {
         </div>
       )}
 
+      {/* ── Content area ── */}
       {loading ? (
-        <div className="fd-empty">{t('food.common.loading')}</div>
+        /* Skeleton loading state */
+        <div className="fd-home-content">
+          <div className="fd-section">
+            <div className="fd-skeleton-label" />
+            <div className="fd-grid">
+              {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+            </div>
+          </div>
+        </div>
       ) : error ? (
-        <div className="fd-empty">
-          {t('food.common.loadError')}{' '}
-          <button type="button" className="fd-btn fd-btn-sm" onClick={search}>
+        <div className="fd-home-empty">
+          <div className="fd-home-empty-icon">⚠️</div>
+          <h2>{t('food.common.loadError')}</h2>
+          <button type="button" className="fd-btn" onClick={search}>
             {t('food.common.retry')}
           </button>
         </div>
-      ) : restaurants.length === 0 ? (
-        <div className="fd-empty">
-          <p>{t('food.home.empty')}</p>
-          <Link to="/restaurants/merchant" className="fd-btn">{t('food.home.addYourRestaurant')}</Link>
+      ) : !hasData ? (
+        /* Rich empty state */
+        <div className="fd-home-empty">
+          <div className="fd-home-empty-art">
+            <div className="fd-home-empty-plate">🍽️</div>
+            <div className="fd-home-empty-ring" />
+          </div>
+          <h2 className="fd-home-empty-title">{t('food.home.empty')}</h2>
+          <p className="fd-home-empty-sub">{t('food.home.emptySub')}</p>
+          <div className="fd-home-empty-actions">
+            <Link to="/restaurants/merchant" className="fd-btn">
+              {t('food.home.addYourRestaurant')}
+            </Link>
+            <a
+              href="mailto:restaurants@oxsteed.com"
+              className="fd-btn fd-btn-secondary"
+            >
+              {t('food.home.suggestRestaurant')}
+            </a>
+          </div>
+          <div className="fd-home-empty-soon">
+            <span className="fd-home-empty-soon-dot" />
+            {t('food.home.launchingSoon')}
+          </div>
         </div>
       ) : (
-        <>
-          {/* Order again section — auth-only */}
+        <div className="fd-home-content">
+          {/* Order again */}
           {hasReorder && (
             <div className="fd-section">
               <h2 className="fd-section-label">{t('food.home.orderAgainTitle')}</h2>
@@ -305,10 +392,10 @@ export default function FoodHomePage() {
             </div>
           )}
 
-          {/* Featured — top-rated restaurants (hidden during search) */}
+          {/* Featured */}
           {hasFeatured && (
             <div className="fd-section">
-              <h2 className="fd-section-label">{t('food.home.featuredTitle')}</h2>
+              <h2 className="fd-section-label">⭐ {t('food.home.featuredTitle')}</h2>
               <div className="fd-h-scroll">
                 <div className="fd-h-scroll-inner">
                   {featured.map((r) => <RestaurantCard key={r.id} r={r} t={t} />)}
@@ -317,10 +404,10 @@ export default function FoodHomePage() {
             </div>
           )}
 
-          {/* Nearby — geo-conditional (hidden during search) */}
+          {/* Nearby */}
           {hasNearby && (
             <div className="fd-section">
-              <h2 className="fd-section-label">{t('food.home.nearbyTitle')}</h2>
+              <h2 className="fd-section-label">📍 {t('food.home.nearbyTitle')}</h2>
               <div className="fd-h-scroll">
                 <div className="fd-h-scroll-inner">
                   {nearbyRestaurants.map((r) => <RestaurantCard key={r.id} r={r} t={t} />)}
@@ -329,13 +416,9 @@ export default function FoodHomePage() {
             </div>
           )}
 
-          {/* Cuisine filter chips */}
-          {cuisines.length > 1 && (
-            <div
-              className="fd-cuisine-chips"
-              role="group"
-              aria-label={t('food.home.filterByCuisine')}
-            >
+          {/* Data-driven cuisine filter chips (supplement static row) */}
+          {filterCuisines.length > 1 && (
+            <div className="fd-cuisine-chips" role="group" aria-label={t('food.home.filterByCuisine')}>
               <button
                 type="button"
                 className={`fd-cuisine-chip${activeCuisine === null ? ' fd-cuisine-chip--active' : ''}`}
@@ -343,7 +426,7 @@ export default function FoodHomePage() {
               >
                 {t('food.home.allTitle')}
               </button>
-              {cuisines.map((c) => (
+              {filterCuisines.map((c) => (
                 <button
                   key={c}
                   type="button"
@@ -356,24 +439,35 @@ export default function FoodHomePage() {
             </div>
           )}
 
-          {/* Main restaurant grid */}
+          {/* Main grid */}
           <div className="fd-section">
             <h2 className="fd-section-label">
               {isSearching ? t('food.home.resultsTitle') : t('food.home.allTitle')}
             </h2>
-            <div className="fd-grid">
-              {displayedRestaurants.map((r) => (
-                <RestaurantCard key={r.id} r={r} t={t} />
-              ))}
-            </div>
+            {displayedRestaurants.length > 0 ? (
+              <div className="fd-grid">
+                {displayedRestaurants.map((r) => <RestaurantCard key={r.id} r={r} t={t} />)}
+              </div>
+            ) : (
+              <div className="fd-empty-filter">
+                <p>{t('food.home.noResultsForFilter', { cuisine: activeCuisine || query })}</p>
+                <button
+                  type="button"
+                  className="fd-btn fd-btn-secondary fd-btn-sm"
+                  onClick={() => { setActiveCuisine(null); setQuery(''); load({}); }}
+                >
+                  {t('food.home.clearFilter')}
+                </button>
+              </div>
+            )}
           </div>
 
-          <div style={{ marginTop: '0.5rem', textAlign: 'center' }}>
+          <div className="fd-home-footer-cta">
             <Link to="/restaurants/merchant" className="fd-btn fd-btn-secondary">
               {t('food.home.addYourRestaurant')}
             </Link>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

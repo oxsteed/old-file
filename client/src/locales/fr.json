@@ -12648,7 +12648,12 @@
       "allTitle": "Tous les restaurants",
       "showMap": "Afficher la carte",
       "hideMap": "Masquer la carte",
-      "restaurant": "Restaurant"
+      "restaurant": "Restaurant",
+      "emptySub": "Soyez parmi les premiers restaurants à rejoindre OxSteed dans votre ville.",
+      "suggestRestaurant": "Suggérer un restaurant",
+      "launchingSoon": "Bientôt disponible dans votre ville",
+      "noResultsForFilter": "Aucun restaurant ne correspond à ce filtre.",
+      "clearFilter": "Effacer le filtre"
     },
     "restaurant": {
       "notFound": "Nous n'avons pas trouvé ce restaurant.",

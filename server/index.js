@@ -151,6 +151,7 @@ const restaurantRoutes = require('./routes/restaurants');
 const businessTeamRoutes   = require('./routes/businessTeam');
 const vortexAccessRoutes   = require('./routes/vortex');
 const meWorkspaceRoutes    = require('./routes/meWorkspace');
+const runnerWorkspaceRoutes = require('./routes/runner');
 // OxSteed corporate hierarchy (migration 246)
 const corporateRolesRoutes = require('./routes/corporateRoles');
 const internalWorkspaceRoutes = require('./routes/internalWorkspaces');
@@ -605,6 +606,7 @@ app.get(['/.well-known/apple-app-site-association', '/apple-app-site-association
 
 // ── API ROUTES ───────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
+app.use('/api/runner', runnerWorkspaceRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/jobs', jobRoutes);

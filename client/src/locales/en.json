@@ -12648,7 +12648,12 @@
       "allTitle": "All restaurants",
       "showMap": "Show map",
       "hideMap": "Hide map",
-      "restaurant": "Restaurant"
+      "restaurant": "Restaurant",
+      "emptySub": "Be among the first restaurants to join OxSteed in your city.",
+      "suggestRestaurant": "Suggest a restaurant",
+      "launchingSoon": "Launching in your city soon",
+      "noResultsForFilter": "No restaurants match that filter.",
+      "clearFilter": "Clear filter"
     },
     "restaurant": {
       "notFound": "We couldn't find that restaurant.",

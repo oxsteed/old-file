@@ -322,8 +322,12 @@ exports.setWorkspaceContext = async (req, res, next) => {
       return sendError(res, 401, 'Authentication required.', 'auth_required');
     }
     const businessId = parseInt(req.body.business_id, 10);
+    const restaurantId = req.body.restaurant_id == null ? null : parseInt(req.body.restaurant_id, 10);
     if (!Number.isFinite(businessId)) {
       return sendError(res, 400, 'Invalid business id.', 'invalid_business_id');
+    }
+    if (req.body.restaurant_id != null && !Number.isFinite(restaurantId)) {
+      return sendError(res, 400, 'Invalid restaurant id.', 'invalid_restaurant_id');
     }
 
     // Verify the user actually has access
@@ -344,16 +348,27 @@ exports.setWorkspaceContext = async (req, res, next) => {
     if (acc.rowCount === 0 || !acc.rows[0].effective_role) {
       return sendError(res, 404, 'Business not found.', 'business_not_found');
     }
+    if (restaurantId != null) {
+      const restaurant = await pool.query(
+        `SELECT 1 FROM food_restaurants
+          WHERE id = $1 AND business_id = $2 AND status = 'active'`,
+        [restaurantId, businessId]
+      );
+      if (restaurant.rowCount === 0) {
+        return sendError(res, 404, 'Restaurant not found.', 'restaurant_not_found');
+      }
+    }
 
     await pool.query(
-      `INSERT INTO user_workspace_contexts (user_id, business_id, membership_id, last_selected_at)
-       VALUES ($1, $2, $3, NOW())
+      `INSERT INTO user_workspace_contexts (user_id, business_id, membership_id, restaurant_id, last_selected_at)
+       VALUES ($1, $2, $3, $4, NOW())
        ON CONFLICT (user_id, business_id) DO UPDATE
          SET membership_id = EXCLUDED.membership_id,
+             restaurant_id = EXCLUDED.restaurant_id,
              last_selected_at = NOW()`,
-      [req.user.id, businessId, acc.rows[0].membership_id]
+      [req.user.id, businessId, acc.rows[0].membership_id, restaurantId]
     );
-    res.json({ data: { ok: true, business_id: businessId, role: acc.rows[0].effective_role } });
+    res.json({ data: { ok: true, business_id: businessId, restaurant_id: restaurantId, role: acc.rows[0].effective_role } });
   } catch (err) {
     next(err);
   }

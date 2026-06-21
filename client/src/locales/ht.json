@@ -12648,7 +12648,12 @@
       "allTitle": "Tout restoran yo",
       "showMap": "Montre kat",
       "hideMap": "Kache kat",
-      "restaurant": "Restoran"
+      "restaurant": "Restoran",
+      "emptySub": "Se youn nan premye restoran ki rantre nan OxSteed nan vil ou.",
+      "suggestRestaurant": "Sijere yon restoran",
+      "launchingSoon": "Ap vini byento nan vil ou",
+      "noResultsForFilter": "Pa gen restoran ki koresponn ak filtè sa a.",
+      "clearFilter": "Efase filtè"
     },
     "restaurant": {
       "notFound": "Nou pa t jwenn restoran sa a.",
