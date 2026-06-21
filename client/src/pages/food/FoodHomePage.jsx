@@ -7,6 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import { listFoodRestaurants, listMyFoodOrders } from '../../api/food';
 import { useAuth } from '../../context/AuthContext';
 import { FoodBrand } from './foodShared';
+import PageShell from '../../components/PageShell';
 import '../../styles/FoodPages.css';
 
 const DEFAULT_CENTER = [25.0, -40.0];
@@ -226,7 +227,8 @@ export default function FoodHomePage() {
   const filterCuisines = cuisinesFromData.length > 1 ? cuisinesFromData : [];
 
   return (
-    <div className="fd-page fd-home-page">
+    <PageShell>
+    <div className="fd-home-page">
 
       {/* ── Hero banner ── */}
       <div className="fd-home-hero">
@@ -470,5 +472,6 @@ export default function FoodHomePage() {
         </div>
       )}
     </div>
+    </PageShell>
   );
 }

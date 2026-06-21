@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { getFoodRestaurant, placeFoodOrder, formatFoodMoney } from '../../api/food';
 import FoodOrderConfirmation from './FoodOrderConfirmation';
+import PageShell from '../../components/PageShell';
 import '../../styles/FoodPages.css';
 
 export function ItemModal({ item, currency, onClose, onAdd, t }) {
@@ -206,13 +207,15 @@ export default function FoodRestaurantPage() {
     }
   };
 
-  if (loading) return <div className="fd-page fd-empty">{t('food.common.loading')}</div>;
+  if (loading) return <PageShell><div className="fd-empty">{t('food.common.loading')}</div></PageShell>;
   if (!data?.restaurant) {
     return (
-      <div className="fd-page fd-empty">
-        <p>{t('food.restaurant.notFound')}</p>
-        <Link to="/food" className="fd-btn">{t('food.common.backToFood')}</Link>
-      </div>
+      <PageShell>
+        <div className="fd-empty">
+          <p>{t('food.restaurant.notFound')}</p>
+          <Link to="/food" className="fd-btn">{t('food.common.backToFood')}</Link>
+        </div>
+      </PageShell>
     );
   }
 
@@ -254,7 +257,8 @@ export default function FoodRestaurantPage() {
   ];
 
   return (
-    <div className="fd-page" style={{ paddingBottom: cart.length ? '6rem' : undefined }}>
+    <PageShell>
+    <div className="fd-restaurant-page" style={{ paddingBottom: cart.length ? '6rem' : undefined }}>
       {/* Cover banner */}
       {(restaurant.cover_photo_url || restaurant.image_url) ? (
         <div className="fd-cover-banner">
@@ -435,5 +439,6 @@ export default function FoodRestaurantPage() {
         </div>
       )}
     </div>
+    </PageShell>
   );
 }
