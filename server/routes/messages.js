@@ -6,7 +6,7 @@ const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const pool = require('../db');
 const logger = require('../utils/logger');
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ID_PATTERN = /^(?:[1-9][0-9]*|[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
 const {
   getConversations,
   getGuestInquiries,
@@ -91,7 +91,7 @@ router.post('/conversations/:conversationId/attachments', upload.single('file'),
 router.post('/users/:userId/block', strictLimiter, async (req, res) => {
   const blockerId  = req.user.id;
   const blockedId  = req.params.userId;
-  if (!UUID_PATTERN.test(blockedId) || String(blockerId) === blockedId) {
+  if (!ID_PATTERN.test(blockedId) || String(blockerId) === blockedId) {
     return res.status(400).json({ error: 'Invalid user ID' });
   }
   try {
@@ -113,7 +113,7 @@ router.post('/users/:userId/block', strictLimiter, async (req, res) => {
 router.delete('/users/:userId/block', async (req, res) => {
   const blockerId = req.user.id;
   const blockedId = req.params.userId;
-  if (!UUID_PATTERN.test(blockedId) || String(blockerId) === blockedId) {
+  if (!ID_PATTERN.test(blockedId) || String(blockerId) === blockedId) {
     return res.status(400).json({ error: 'Invalid user ID' });
   }
   try {
@@ -164,7 +164,7 @@ router.post('/report', strictLimiter, async (req, res) => {
   if (!validReasons.includes(reason)) {
     return res.status(400).json({ error: 'Invalid reason', validReasons });
   }
-  if (reportedUserId && !UUID_PATTERN.test(reportedUserId)) {
+  if (reportedUserId && !ID_PATTERN.test(reportedUserId)) {
     return res.status(400).json({ error: 'Invalid reported user ID' });
   }
   if (reportedUserId && String(reporterId) === reportedUserId) {
@@ -175,7 +175,7 @@ router.post('/report', strictLimiter, async (req, res) => {
   if (!targetId) {
     return res.status(400).json({ error: 'A content ID or reported user ID is required' });
   }
-  if (!UUID_PATTERN.test(targetId)) {
+  if (!ID_PATTERN.test(targetId)) {
     return res.status(400).json({ error: 'Invalid content ID' });
   }
 
@@ -188,7 +188,15 @@ router.post('/report', strictLimiter, async (req, res) => {
       `INSERT INTO content_reports
          (reporter_id, reported_user_id, content_type, content_id,
           target_type, target_id, reason, description)
-       VALUES ($1, $2, $3, $4, $5, $4, $6, $7)`,
+       VALUES (
+         $1, $2, $3, $4, $5,
+         CASE
+           WHEN $4::text ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+             THEN $4::uuid
+           ELSE NULL
+         END,
+         $6, $7
+       )`,
       [
         reporterId,
         reportedUserId || null,
