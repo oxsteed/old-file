@@ -9,13 +9,14 @@
 //
 // Capabilities: item CRUD, stock adjustments (count/receive/waste/usage/
 // correction) written to an append-only ledger, low-stock listing, and
-// adjustment history. Item authoring = owner/manager; recording adjustments
-// (counts/receiving/waste) is open to any active member (e.g. inventory staff).
+// adjustment history. Access is governed by inventory.view, inventory.update,
+// and inventory.manage team permissions after restaurant membership is proven.
 
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
+const { getEffectivePermissions, hasAny } = require('../services/permissionsService');
 
 function parsePositiveInt(value) {
   const n = Number.parseInt(value, 10);
@@ -45,7 +46,6 @@ const PURCHASE_STATUSES = ['pending', 'approved', 'ordered', 'received', 'delive
 const ISSUE_STATUSES = ['open', 'monitoring', 'in_progress', 'resolved'];
 const URGENCY_LEVELS = ['low', 'medium', 'high', 'urgent'];
 const ISSUE_TYPES = ['short_delivery', 'wrong_item', 'poor_quality', 'late_delivery', 'damaged', 'billing', 'other'];
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function parseOperationId(value) {
@@ -68,7 +68,12 @@ async function requireRestaurantAccess(userId, restaurantId) {
                  WHERE bm.business_id = fr.business_id AND bm.member_id = $2 AND bm.status = 'active'
                  LIMIT 1
               )
-            END AS effective_role
+            END AS effective_role,
+            (
+              SELECT bm.id FROM business_members bm
+               WHERE bm.business_id = fr.business_id AND bm.member_id = $2 AND bm.status = 'active'
+               LIMIT 1
+            ) AS membership_id
        FROM food_restaurants fr
        JOIN businesses b ON b.id = fr.business_id
       WHERE fr.id = $1`,
@@ -81,17 +86,29 @@ async function requireRestaurantAccess(userId, restaurantId) {
   return restaurant;
 }
 
-function assertManage(restaurant) {
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
-    throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
+async function requireInventoryPermission(userId, restaurant, permissions) {
+  if (restaurant.effective_role === 'owner') return;
+  const result = await getEffectivePermissions({
+    businessId: restaurant.business_id,
+    userId,
+    role: restaurant.effective_role,
+    membershipId: restaurant.membership_id || null,
+  });
+  if (!hasAny(result.permissions, permissions)) {
+    throw new AppError('You do not have permission to access restaurant inventory', 403, 'forbidden');
   }
 }
+
+const VIEW_INVENTORY = ['inventory.view', 'inventory.update', 'inventory.manage'];
+const UPDATE_INVENTORY = ['inventory.update', 'inventory.manage'];
+const MANAGE_INVENTORY = ['inventory.manage'];
 
 // ── Items ───────────────────────────────────────────────────────────────────
 exports.listItems = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
     const lowOnly = req.query.lowStock === '1' || req.query.lowStock === 'true';
 
     const { rows } = await pool.query(
@@ -103,10 +120,18 @@ exports.listItems = async (req, res, next) => {
                   FILTER (WHERE fmi.id IS NOT NULL), '[]'::jsonb
               ) AS affected_menu_items
          FROM restaurant_inventory_items i
-         LEFT JOIN restaurant_inventory_storage_areas a ON a.id = i.storage_area_id
-         LEFT JOIN restaurant_inventory_suppliers s ON s.id = i.supplier_id
-         LEFT JOIN restaurant_inventory_item_mappings m ON m.inventory_item_id = i.id
-         LEFT JOIN food_menu_items fmi ON fmi.id = m.menu_item_id
+         LEFT JOIN restaurant_inventory_storage_areas a
+           ON a.id = i.storage_area_id
+          AND a.restaurant_id = i.restaurant_id
+         LEFT JOIN restaurant_inventory_suppliers s
+           ON s.id = i.supplier_id
+          AND s.restaurant_id = i.restaurant_id
+         LEFT JOIN restaurant_inventory_item_mappings m
+           ON m.inventory_item_id = i.id
+          AND m.restaurant_id = i.restaurant_id
+         LEFT JOIN food_menu_items fmi
+           ON fmi.id = m.menu_item_id
+          AND fmi.restaurant_id = i.restaurant_id
         WHERE i.restaurant_id = $1 AND i.is_active = TRUE
           ${lowOnly ? 'AND i.quantity <= i.reorder_point AND i.reorder_point > 0' : ''}
         GROUP BY i.id, a.name, s.name
@@ -123,7 +148,7 @@ exports.createItem = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
 
     const name = normalizeString(req.body.name, 160);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
@@ -192,7 +217,7 @@ exports.updateItem = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const itemId = parsePositiveInt(req.params.itemId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
 
     const sets = [];
     const vals = [];
@@ -295,7 +320,7 @@ exports.deleteItem = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const itemId = parsePositiveInt(req.params.itemId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
     const availability = await withTransaction(pool, async (client) => {
       const { rowCount } = await client.query(
         `DELETE FROM restaurant_inventory_items WHERE id = $1 AND restaurant_id = $2`,
@@ -317,7 +342,8 @@ exports.adjustItem = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const itemId = parsePositiveInt(req.params.itemId);
-    await requireRestaurantAccess(req.user.id, restaurantId); // any active member may record
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, UPDATE_INVENTORY);
 
     const type = ADJ_TYPES.includes(req.body.type) ? req.body.type : null;
     if (!type) throw new AppError('Validation failed', 400, 'validation_failed', { type: 'Unsupported adjustment type' });
@@ -329,7 +355,9 @@ exports.adjustItem = async (req, res, next) => {
         const { rows: [existing] } = await client.query(
           `SELECT a.*, i.*
              FROM restaurant_inventory_adjustments a
-             JOIN restaurant_inventory_items i ON i.id = a.item_id
+             JOIN restaurant_inventory_items i
+               ON i.id = a.item_id
+              AND i.restaurant_id = a.restaurant_id
             WHERE a.restaurant_id = $1 AND a.client_operation_id = $2`,
           [restaurantId, clientOperationId]
         );
@@ -404,7 +432,8 @@ exports.adjustItem = async (req, res, next) => {
 exports.listAdjustments = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 50, 1), 100);
     const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
     const itemId = parsePositiveInt(req.query.itemId);
@@ -436,7 +465,8 @@ exports.listAdjustments = async (req, res, next) => {
 exports.listPurchaseRequests = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 50, 1), 100);
     const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
 
@@ -458,7 +488,8 @@ exports.listPurchaseRequests = async (req, res, next) => {
 exports.createPurchaseRequest = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, UPDATE_INVENTORY);
 
     const itemName = normalizeString(req.body.itemName, 160);
     if (!itemName) throw new AppError('Validation failed', 400, 'validation_failed', { itemName: 'Item name is required' });
@@ -503,7 +534,7 @@ exports.updatePurchaseRequest = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const requestId = parsePositiveInt(req.params.requestId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
 
     const sets = [];
     const vals = [];
@@ -547,7 +578,8 @@ exports.updatePurchaseRequest = async (req, res, next) => {
 exports.listSupplierIssues = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 50, 1), 100);
     const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
 
@@ -569,7 +601,8 @@ exports.listSupplierIssues = async (req, res, next) => {
 exports.createSupplierIssue = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, UPDATE_INVENTORY);
 
     const supplierName = normalizeString(req.body.supplierName, 160);
     const issue = normalizeString(req.body.issue, 2000);
@@ -623,7 +656,7 @@ exports.updateSupplierIssue = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const issueId = parsePositiveInt(req.params.issueId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
 
     const sets = [];
     const vals = [];
@@ -679,7 +712,8 @@ exports.updateSupplierIssue = async (req, res, next) => {
 exports.listMappings = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
     const { rows } = await pool.query(
       `SELECT rim.id,
               rim.inventory_item_id,
@@ -710,7 +744,7 @@ exports.upsertMapping = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
     const inventoryItemId = parsePositiveInt(req.body.inventoryItemId || req.body.inventory_item_id);
     const menuItemId = parsePositiveInt(req.body.menuItemId || req.body.menu_item_id);
     const usageLabel = normalizeString(req.body.usageLabel || req.body.usage_label, 120);
@@ -770,7 +804,7 @@ exports.deleteMapping = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const mappingId = parsePositiveInt(req.params.mappingId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
     const result = await withTransaction(pool, async (client) => {
       const { rows: [mapping] } = await client.query(
         `DELETE FROM restaurant_inventory_item_mappings
@@ -793,7 +827,7 @@ exports.bootstrapMappings = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertManage(restaurant);
+    await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
 
     await withTransaction(pool, async (client) => {
       const { rows: [{ count }] } = await client.query(

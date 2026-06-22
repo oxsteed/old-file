@@ -75,6 +75,10 @@ import FoodMerchantPage from './pages/food/FoodMerchantPage';
 import FoodKitchenPage from './pages/food/FoodKitchenPage';
 import FoodQueueBoardPage from './pages/food/FoodQueueBoardPage';
 import FoodKioskPage from './pages/food/FoodKioskPage';
+import RestaurantPOSPage from './pages/food/RestaurantPOSPage';
+import RestaurantInventoryPage from './pages/food/RestaurantInventoryPage';
+import RestaurantCrewPage from './pages/food/RestaurantCrewPage';
+import RestaurantRunnerPage from './pages/food/RestaurantRunnerPage';
 // OxSteed Logistics branch
 import LogisticsHomePage    from './pages/logistics/LogisticsHomePage';
 import BuyerDashboardPage   from './pages/logistics/BuyerDashboardPage';

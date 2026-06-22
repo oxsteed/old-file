@@ -8,8 +8,13 @@ const { errorHandler } = require('../middleware/errorHandler');
 jest.mock('../services/restaurantInventoryAvailabilityService', () => ({
   syncMappedMenuAvailability: jest.fn().mockResolvedValue({ changes: [], applied: true }),
 }));
+jest.mock('../services/permissionsService', () => ({
+  getEffectivePermissions: jest.fn().mockResolvedValue({ permissions: new Set(['inventory.view', 'inventory.update']), raw: {} }),
+  hasAny: (permissionSet, requested) => requested.some((permission) => permissionSet.has(permission)),
+}));
 
 const operations = require('../controllers/restaurantInventoryOperationsController');
+const permissions = require('../services/permissionsService');
 
 const USER_ID = '00000000-0000-4000-8000-000000000123';
 const RESTAURANT_ID = 9;
@@ -46,7 +51,13 @@ function app() {
   return server;
 }
 
-beforeEach(() => resetMocks());
+beforeEach(() => {
+  resetMocks();
+  permissions.getEffectivePermissions.mockResolvedValue({
+    permissions: new Set(['inventory.view', 'inventory.update']),
+    raw: {},
+  });
+});
 
 describe('restaurant Inventory operations backend', () => {
   test('returns the live dashboard contract scoped to the authenticated restaurant', async () => {
@@ -99,7 +110,7 @@ describe('restaurant Inventory operations backend', () => {
   });
 
   test('requires owner or manager access to create suppliers', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [access({ effective_role: 'employee' })] });
+    mockQuery.mockResolvedValueOnce({ rows: [access({ effective_role: 'employee', membership_id: 88 })] });
 
     const response = await request(app())
       .post(`/api/restaurants/${RESTAURANT_ID}/inventory/suppliers`)
@@ -126,7 +137,7 @@ describe('restaurant Inventory operations backend', () => {
   });
 
   test('restricts transfer lifecycle changes to restaurant managers', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [access({ effective_role: 'employee' })] });
+    mockQuery.mockResolvedValueOnce({ rows: [access({ effective_role: 'employee', membership_id: 88 })] });
 
     const response = await request(app())
       .patch(`/api/restaurants/${RESTAURANT_ID}/inventory/transfers/12`)

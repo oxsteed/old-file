@@ -4,8 +4,8 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
+const { getEffectivePermissions, hasAny } = require('../services/permissionsService');
 
-const MANAGE_ROLES = new Set(['owner', 'manager']);
 const AREA_TYPES = new Set(['dry_storage', 'walk_in_cooler', 'freezer', 'bar', 'packaging', 'receiving', 'prep', 'other']);
 const SUPPLIER_STATUSES = new Set(['active', 'inactive', 'issue_reported']);
 const TRANSFER_STATUSES = new Set(['pending', 'completed', 'cancelled']);
@@ -52,7 +52,13 @@ async function restaurantAccess(userId, restaurantId, client = pool) {
                    AND bm.member_id = $2 AND bm.status = 'active'
                  LIMIT 1
               )
-            END AS effective_role
+            END AS effective_role,
+            (
+              SELECT bm.id FROM business_members bm
+               WHERE bm.business_id = fr.business_id
+                 AND bm.member_id = $2 AND bm.status = 'active'
+               LIMIT 1
+            ) AS membership_id
        FROM food_restaurants fr
        JOIN businesses b ON b.id = fr.business_id
       WHERE fr.id = $1`,
@@ -64,11 +70,22 @@ async function restaurantAccess(userId, restaurantId, client = pool) {
   return restaurant;
 }
 
-function requireManager(restaurant) {
-  if (!MANAGE_ROLES.has(restaurant.effective_role)) {
-    throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
+async function requireInventoryPermission(userId, restaurant, permissions) {
+  if (restaurant.effective_role === 'owner') return;
+  const result = await getEffectivePermissions({
+    businessId: restaurant.business_id,
+    userId,
+    role: restaurant.effective_role,
+    membershipId: restaurant.membership_id || null,
+  });
+  if (!hasAny(result.permissions, permissions)) {
+    throw new AppError('You do not have permission to access restaurant inventory', 403, 'forbidden');
   }
 }
+
+const VIEW_INVENTORY = ['inventory.view', 'inventory.update', 'inventory.manage'];
+const UPDATE_INVENTORY = ['inventory.update', 'inventory.manage'];
+const MANAGE_INVENTORY = ['inventory.manage'];
 
 async function receiptWithLines(client, restaurantId, receiptId) {
   const { rows: [receipt] } = await client.query(
@@ -76,7 +93,9 @@ async function receiptWithLines(client, restaurantId, receiptId) {
        jsonb_agg(to_jsonb(l) ORDER BY l.id) FILTER (WHERE l.id IS NOT NULL), '[]'::jsonb
      ) AS lines
        FROM restaurant_inventory_receipts r
-       LEFT JOIN restaurant_inventory_receipt_lines l ON l.receipt_id = r.id
+       LEFT JOIN restaurant_inventory_receipt_lines l
+         ON l.receipt_id = r.id
+        AND l.restaurant_id = r.restaurant_id
       WHERE r.restaurant_id = $1 AND r.id = $2
       GROUP BY r.id`,
     [restaurantId, receiptId]
@@ -88,6 +107,7 @@ exports.getDashboard = async (req, res, next) => {
   try {
     const restaurantId = positiveInt(req.params.restaurantId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
     const [locationResult, riskResult, activityResult, prioritiesResult, impactsResult] = await Promise.all([
       pool.query(
         `SELECT name, address_city, address_state
@@ -123,8 +143,12 @@ exports.getDashboard = async (req, res, next) => {
                 i.critical_level, a.name AS area_name,
                 COUNT(m.id)::int AS affected_menu_count
            FROM restaurant_inventory_items i
-           LEFT JOIN restaurant_inventory_storage_areas a ON a.id = i.storage_area_id
-           LEFT JOIN restaurant_inventory_item_mappings m ON m.inventory_item_id = i.id
+           LEFT JOIN restaurant_inventory_storage_areas a
+             ON a.id = i.storage_area_id
+            AND a.restaurant_id = i.restaurant_id
+           LEFT JOIN restaurant_inventory_item_mappings m
+             ON m.inventory_item_id = i.id
+            AND m.restaurant_id = i.restaurant_id
           WHERE i.restaurant_id = $1 AND i.is_active = TRUE
             AND (i.quantity <= 0 OR (i.reorder_point > 0 AND i.quantity <= i.reorder_point)
                  OR i.last_counted_at IS NULL OR i.last_counted_at < NOW() - INTERVAL '7 days')
@@ -183,7 +207,8 @@ exports.getDashboard = async (req, res, next) => {
 exports.getReports = async (req, res, next) => {
   try {
     const restaurantId = positiveInt(req.params.restaurantId);
-    await restaurantAccess(req.user.id, restaurantId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
     const [wasteDaily, wasteSummary, countSummary, varianceDaily, topWasted, deliverySummary, deliverySuppliers] = await Promise.all([
       pool.query(
         `SELECT created_at::date AS day,
@@ -240,7 +265,9 @@ exports.getReports = async (req, res, next) => {
                      THEN ROUND(100 * SUM(l.accepted_quantity) / SUM(l.expected_quantity))
                      ELSE 100 END AS fill_rate
            FROM restaurant_inventory_receipts r
-           LEFT JOIN restaurant_inventory_receipt_lines l ON l.receipt_id = r.id
+           LEFT JOIN restaurant_inventory_receipt_lines l
+             ON l.receipt_id = r.id
+            AND l.restaurant_id = r.restaurant_id
           WHERE r.restaurant_id = $1
             AND r.received_at >= date_trunc('week', CURRENT_DATE)`,
         [restaurantId]
@@ -249,7 +276,9 @@ exports.getReports = async (req, res, next) => {
         `SELECT r.supplier_name, COUNT(l.id)::int AS lines,
                 COUNT(l.id) FILTER (WHERE l.received_quantity > l.accepted_quantity)::int AS issue_lines
            FROM restaurant_inventory_receipts r
-           LEFT JOIN restaurant_inventory_receipt_lines l ON l.receipt_id = r.id
+           LEFT JOIN restaurant_inventory_receipt_lines l
+             ON l.receipt_id = r.id
+            AND l.restaurant_id = r.restaurant_id
           WHERE r.restaurant_id = $1
             AND r.received_at >= date_trunc('week', CURRENT_DATE)
           GROUP BY r.supplier_name ORDER BY lines DESC, r.supplier_name LIMIT 8`,
@@ -277,14 +306,18 @@ exports.getReports = async (req, res, next) => {
 exports.listAreas = async (req, res, next) => {
   try {
     const restaurantId = positiveInt(req.params.restaurantId);
-    await restaurantAccess(req.user.id, restaurantId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
     const { rows } = await pool.query(
       `SELECT a.*, COUNT(i.id)::int AS item_count,
               COUNT(i.id) FILTER (WHERE i.quantity <= i.reorder_point AND i.reorder_point > 0)::int AS critical_count,
               MAX(i.last_counted_at) AS last_counted_at,
               TRIM(CONCAT(u.first_name, ' ', u.last_name)) AS responsible_party
          FROM restaurant_inventory_storage_areas a
-         LEFT JOIN restaurant_inventory_items i ON i.storage_area_id = a.id AND i.is_active = TRUE
+         LEFT JOIN restaurant_inventory_items i
+           ON i.storage_area_id = a.id
+          AND i.restaurant_id = a.restaurant_id
+          AND i.is_active = TRUE
          LEFT JOIN users u ON u.id = a.responsible_user_id
         WHERE a.restaurant_id = $1 AND a.is_active = TRUE
         GROUP BY a.id, u.first_name, u.last_name
@@ -299,7 +332,7 @@ exports.createArea = async (req, res, next) => {
   try {
     const restaurantId = positiveInt(req.params.restaurantId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
-    requireManager(restaurant);
+    await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
     const name = text(req.body.name, 160);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
     const areaType = AREA_TYPES.has(req.body.areaType) ? req.body.areaType : 'other';
@@ -320,12 +353,16 @@ exports.createArea = async (req, res, next) => {
 exports.listSuppliers = async (req, res, next) => {
   try {
     const restaurantId = positiveInt(req.params.restaurantId);
-    await restaurantAccess(req.user.id, restaurantId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
     const { rows } = await pool.query(
       `SELECT s.*, COUNT(DISTINCT i.id)::int AS item_count,
               COUNT(DISTINCT si.id) FILTER (WHERE si.status IN ('open','monitoring','in_progress'))::int AS open_issue_count
          FROM restaurant_inventory_suppliers s
-         LEFT JOIN restaurant_inventory_items i ON i.supplier_id = s.id AND i.is_active = TRUE
+         LEFT JOIN restaurant_inventory_items i
+           ON i.supplier_id = s.id
+          AND i.restaurant_id = s.restaurant_id
+          AND i.is_active = TRUE
          LEFT JOIN restaurant_inventory_supplier_issues si
            ON si.restaurant_id = s.restaurant_id AND LOWER(si.supplier_name) = LOWER(s.name)
         WHERE s.restaurant_id = $1 AND s.is_active = TRUE
@@ -340,7 +377,7 @@ exports.createSupplier = async (req, res, next) => {
   try {
     const restaurantId = positiveInt(req.params.restaurantId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
-    requireManager(restaurant);
+    await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
     const name = text(req.body.name, 160);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
     const status = SUPPLIER_STATUSES.has(req.body.status) ? req.body.status : 'active';
@@ -366,7 +403,8 @@ exports.createSupplier = async (req, res, next) => {
 exports.listTransfers = async (req, res, next) => {
   try {
     const restaurantId = positiveInt(req.params.restaurantId);
-    await restaurantAccess(req.user.id, restaurantId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
     const { rows } = await pool.query(
       `SELECT t.*, TRIM(CONCAT(u.first_name, ' ', u.last_name)) AS transferred_by_name
          FROM restaurant_inventory_transfers t
@@ -381,7 +419,8 @@ exports.listTransfers = async (req, res, next) => {
 exports.createTransfer = async (req, res, next) => {
   try {
     const restaurantId = positiveInt(req.params.restaurantId);
-    await restaurantAccess(req.user.id, restaurantId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, UPDATE_INVENTORY);
     const itemId = positiveInt(req.body.itemId);
     const amount = quantity(req.body.quantity);
     if (!itemId || amount <= 0) throw new AppError('Validation failed', 400, 'validation_failed', { itemId: 'Item is required', quantity: 'Must be greater than zero' });
@@ -432,7 +471,7 @@ exports.updateTransfer = async (req, res, next) => {
     const restaurantId = positiveInt(req.params.restaurantId);
     const transferId = positiveInt(req.params.transferId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
-    requireManager(restaurant);
+    await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
     if (!transferId) throw new AppError('Transfer not found', 404, 'inventory_transfer_not_found');
     if (!TRANSFER_STATUSES.has(req.body.status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', {
@@ -454,12 +493,15 @@ exports.updateTransfer = async (req, res, next) => {
 exports.listReceipts = async (req, res, next) => {
   try {
     const restaurantId = positiveInt(req.params.restaurantId);
-    await restaurantAccess(req.user.id, restaurantId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
     const { rows } = await pool.query(
       `SELECT r.*, TRIM(CONCAT(u.first_name, ' ', u.last_name)) AS received_by_name,
               COALESCE(jsonb_agg(to_jsonb(l) ORDER BY l.id) FILTER (WHERE l.id IS NOT NULL), '[]'::jsonb) AS lines
          FROM restaurant_inventory_receipts r
-         LEFT JOIN restaurant_inventory_receipt_lines l ON l.receipt_id = r.id
+         LEFT JOIN restaurant_inventory_receipt_lines l
+           ON l.receipt_id = r.id
+          AND l.restaurant_id = r.restaurant_id
          LEFT JOIN users u ON u.id = r.received_by
         WHERE r.restaurant_id = $1
         GROUP BY r.id, u.first_name, u.last_name
@@ -473,7 +515,8 @@ exports.listReceipts = async (req, res, next) => {
 exports.createReceipt = async (req, res, next) => {
   try {
     const restaurantId = positiveInt(req.params.restaurantId);
-    await restaurantAccess(req.user.id, restaurantId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, UPDATE_INVENTORY);
     const supplierName = text(req.body.supplierName, 160);
     const lines = Array.isArray(req.body.lines) ? req.body.lines : [];
     if (!supplierName || !lines.length) {
