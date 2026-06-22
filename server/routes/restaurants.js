@@ -71,6 +71,7 @@ router.delete('/:restaurantId/sops/:sopId', ops.deleteSop);
 // Inventory (Phase 3, App 7): items + stock-adjustment ledger
 router.get('/:restaurantId/inventory/dashboard', inventoryOperations.getDashboard);
 router.get('/:restaurantId/inventory/reports', inventoryOperations.getReports);
+router.get('/:restaurantId/inventory/audit-events', inventoryOperations.listAuditEvents);
 router.get('/:restaurantId/inventory/items', inventory.listItems);
 router.post('/:restaurantId/inventory/items', inventory.createItem);
 router.patch('/:restaurantId/inventory/items/:itemId', inventory.updateItem);

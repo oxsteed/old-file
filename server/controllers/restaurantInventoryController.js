@@ -17,6 +17,7 @@ const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
 const { getEffectivePermissions, hasAny } = require('../services/permissionsService');
+const { logInventoryAudit } = require('../services/restaurantInventoryAuditService');
 
 function parsePositiveInt(value) {
   const n = Number.parseInt(value, 10);
@@ -103,6 +104,19 @@ const VIEW_INVENTORY = ['inventory.view', 'inventory.update', 'inventory.manage'
 const UPDATE_INVENTORY = ['inventory.update', 'inventory.manage'];
 const MANAGE_INVENTORY = ['inventory.manage'];
 
+function auditEntry(restaurant, eventType, entityType, entityId, req, metadata = {}, clientOperationId = null) {
+  return {
+    restaurantId: Number(restaurant.id),
+    businessId: restaurant.business_id,
+    eventType,
+    entityType,
+    entityId,
+    actorUserId: req.user.id,
+    clientOperationId,
+    metadata,
+  };
+}
+
 // ── Items ───────────────────────────────────────────────────────────────────
 exports.listItems = async (req, res, next) => {
   try {
@@ -184,28 +198,37 @@ exports.createItem = async (req, res, next) => {
       }
     }
 
-    const { rows: [item] } = await pool.query(
-      `INSERT INTO restaurant_inventory_items
-         (restaurant_id, name, category, unit, quantity, low_stock_threshold,
-          reorder_point, critical_level, par_level, sku, supplier_name,
-          supplier_id, storage_area_id, unit_cost, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-       RETURNING *`,
-      [
-        restaurantId, name, category,
-        normalizeString(req.body.unit, 24) || 'ea',
-        quantity,
-        reorderPoint,
-        criticalLevel,
-        parLevel,
-        normalizeString(req.body.sku, 60),
-        normalizeString(req.body.supplierName, 160),
-        supplierId,
-        storageAreaId,
-        unitCost,
-        req.user.id,
-      ]
-    );
+    const item = await withTransaction(pool, async (client) => {
+      const { rows: [created] } = await client.query(
+        `INSERT INTO restaurant_inventory_items
+           (restaurant_id, name, category, unit, quantity, low_stock_threshold,
+            reorder_point, critical_level, par_level, sku, supplier_name,
+            supplier_id, storage_area_id, unit_cost, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+         RETURNING *`,
+        [
+          restaurantId, name, category,
+          normalizeString(req.body.unit, 24) || 'ea',
+          quantity,
+          reorderPoint,
+          criticalLevel,
+          parLevel,
+          normalizeString(req.body.sku, 60),
+          normalizeString(req.body.supplierName, 160),
+          supplierId,
+          storageAreaId,
+          unitCost,
+          req.user.id,
+        ]
+      );
+      await logInventoryAudit(client, auditEntry(restaurant, 'item_created', 'item', created.id, req, {
+        name: created.name,
+        category: created.category,
+        quantity: created.quantity,
+        unit: created.unit,
+      }));
+      return created;
+    });
     res.status(201).json({ item });
   } catch (err) {
     next(err);
@@ -307,6 +330,9 @@ exports.updateItem = async (req, res, next) => {
           inventoryItemId: itemId, apply: true, createdBy: req.user.id,
         })
         : { changes: [], applied: false };
+      await logInventoryAudit(client, auditEntry(restaurant, 'item_updated', 'item', item.id, req, {
+        changedFields: sets.filter((set) => !set.startsWith('updated_at')).map((set) => set.split(' = ')[0]),
+      }));
       return { item, availability };
     });
     res.json(result);
@@ -322,12 +348,17 @@ exports.deleteItem = async (req, res, next) => {
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
     const availability = await withTransaction(pool, async (client) => {
-      const { rowCount } = await client.query(
-        `DELETE FROM restaurant_inventory_items WHERE id = $1 AND restaurant_id = $2`,
+      const { rows: [item] } = await client.query(
+        `DELETE FROM restaurant_inventory_items WHERE id = $1 AND restaurant_id = $2 RETURNING id, name, category`,
         [itemId, restaurantId]
       );
-      if (!rowCount) throw new AppError('Item not found', 404, 'inventory_item_not_found');
-      return syncMappedMenuAvailability(client, restaurantId, { apply: true, createdBy: req.user.id });
+      if (!item) throw new AppError('Item not found', 404, 'inventory_item_not_found');
+      const syncResult = await syncMappedMenuAvailability(client, restaurantId, { apply: true, createdBy: req.user.id });
+      await logInventoryAudit(client, auditEntry(restaurant, 'item_deleted', 'item', item.id, req, {
+        name: item.name,
+        category: item.category,
+      }));
+      return syncResult;
     });
     res.json({ ok: true, availability });
   } catch (err) {
@@ -414,6 +445,15 @@ exports.adjustItem = async (req, res, next) => {
         apply: true,
         createdBy: req.user.id,
       });
+      await logInventoryAudit(client, auditEntry(restaurant, 'stock_adjusted', 'item', itemId, req, {
+        itemName: item.name,
+        adjustmentType: type,
+        quantityBefore: current,
+        quantityDelta: delta,
+        quantityAfter: after,
+        reason: normalizeString(req.body.reason, 120),
+        note: normalizeString(req.body.note, 1000),
+      }, clientOperationId));
       return { item: updated, availability, replayed: false };
     });
     res.json({
@@ -521,6 +561,13 @@ exports.createPurchaseRequest = async (req, res, next) => {
           normalizeString(req.body.supplierName, 160), status, normalizeString(req.body.etaWindow, 80),
           normalizeString(req.body.note, 1000), req.user.id, estimatedCost, urgency, clientOperationId]
       );
+      await logInventoryAudit(client, auditEntry(restaurant, 'purchase_request_created', 'purchase_request', request.id, req, {
+        itemName: request.item_name,
+        requestedQuantity: request.requested_quantity,
+        unit: request.unit,
+        status: request.status,
+        urgency: request.urgency,
+      }, clientOperationId));
       return { request, replayed: false };
     });
     res.status(result.replayed ? 200 : 201).json(result);
@@ -561,13 +608,21 @@ exports.updatePurchaseRequest = async (req, res, next) => {
     if (!sets.length) throw new AppError('No updatable fields provided', 400, 'validation_failed', { body: 'No updatable fields provided' });
     sets.push('updated_at = NOW()');
 
-    const { rows: [request] } = await pool.query(
-      `UPDATE restaurant_inventory_purchase_requests SET ${sets.join(', ')}
-        WHERE id = $${i++} AND restaurant_id = $${i}
-        RETURNING *`,
-      [...vals, requestId, restaurantId]
-    );
-    if (!request) throw new AppError('Purchase request not found', 404, 'purchase_request_not_found');
+    const request = await withTransaction(pool, async (client) => {
+      const { rows: [updated] } = await client.query(
+        `UPDATE restaurant_inventory_purchase_requests SET ${sets.join(', ')}
+          WHERE id = $${i++} AND restaurant_id = $${i}
+          RETURNING *`,
+        [...vals, requestId, restaurantId]
+      );
+      if (!updated) throw new AppError('Purchase request not found', 404, 'purchase_request_not_found');
+      await logInventoryAudit(client, auditEntry(restaurant, 'purchase_request_updated', 'purchase_request', updated.id, req, {
+        status: updated.status,
+        urgency: updated.urgency,
+        changedFields: sets.filter((set) => !set.startsWith('updated_at')).map((set) => set.split(' = ')[0]),
+      }));
+      return updated;
+    });
     res.json({ request });
   } catch (err) {
     next(err);
@@ -643,6 +698,12 @@ exports.createSupplierIssue = async (req, res, next) => {
         [restaurantId, supplierName, issue, status, relatedPurchaseRequestId, req.user.id,
           issueType, normalizeString(req.body.deliveryReference, 120), JSON.stringify(affectedItemNames), clientOperationId]
       );
+      await logInventoryAudit(client, auditEntry(restaurant, 'supplier_issue_created', 'supplier_issue', issueRow.id, req, {
+        supplierName: issueRow.supplier_name,
+        issueType: issueRow.issue_type,
+        status: issueRow.status,
+        affectedItemNames,
+      }, clientOperationId));
       return { issue: issueRow, replayed: false };
     });
     res.status(result.replayed ? 200 : 201).json(result);
@@ -695,13 +756,22 @@ exports.updateSupplierIssue = async (req, res, next) => {
     if (!sets.length) throw new AppError('No updatable fields provided', 400, 'validation_failed', { body: 'No updatable fields provided' });
     sets.push('updated_at = NOW()');
 
-    const { rows: [issueRow] } = await pool.query(
-      `UPDATE restaurant_inventory_supplier_issues SET ${sets.join(', ')}
-        WHERE id = $${i++} AND restaurant_id = $${i}
-        RETURNING *`,
-      [...vals, issueId, restaurantId]
-    );
-    if (!issueRow) throw new AppError('Supplier issue not found', 404, 'supplier_issue_not_found');
+    const issueRow = await withTransaction(pool, async (client) => {
+      const { rows: [updated] } = await client.query(
+        `UPDATE restaurant_inventory_supplier_issues SET ${sets.join(', ')}
+          WHERE id = $${i++} AND restaurant_id = $${i}
+          RETURNING *`,
+        [...vals, issueId, restaurantId]
+      );
+      if (!updated) throw new AppError('Supplier issue not found', 404, 'supplier_issue_not_found');
+      await logInventoryAudit(client, auditEntry(restaurant, 'supplier_issue_updated', 'supplier_issue', updated.id, req, {
+        supplierName: updated.supplier_name,
+        issueType: updated.issue_type,
+        status: updated.status,
+        changedFields: sets.filter((set) => !set.startsWith('updated_at')).map((set) => set.split(' = ')[0]),
+      }));
+      return updated;
+    });
     res.json({ issue: issueRow });
   } catch (err) {
     next(err);
@@ -791,6 +861,13 @@ exports.upsertMapping = async (req, res, next) => {
       const availability = await syncMappedMenuAvailability(client, restaurantId, {
         menuItemId, apply: true, createdBy: req.user.id,
       });
+      await logInventoryAudit(client, auditEntry(restaurant, 'mapping_upserted', 'mapping', mapping.id, req, {
+        inventoryItemId: mapping.inventory_item_id,
+        menuItemId: mapping.menu_item_id,
+        usageLabel: mapping.usage_label,
+        requiredQuantity: mapping.required_quantity,
+        autoManage: mapping.auto_manage,
+      }));
       return { mapping, availability };
     });
     res.status(201).json(result);
@@ -815,6 +892,10 @@ exports.deleteMapping = async (req, res, next) => {
       const availability = await syncMappedMenuAvailability(client, restaurantId, {
         menuItemId: mapping.menu_item_id, apply: true, createdBy: req.user.id,
       });
+      await logInventoryAudit(client, auditEntry(restaurant, 'mapping_deleted', 'mapping', mapping.id, req, {
+        inventoryItemId: mapping.inventory_item_id,
+        menuItemId: mapping.menu_item_id,
+      }));
       return { mapping, availability };
     });
     res.json(result);
@@ -873,6 +954,9 @@ exports.bootstrapMappings = async (req, res, next) => {
           [restaurantId, inventoryItem.id, menuItem.id, usageLabel, requiredQuantity, req.user.id]
         );
       }
+      await logInventoryAudit(client, auditEntry(restaurant, 'mappings_bootstrapped', 'mapping', null, req, {
+        seedCount: seeds.length,
+      }));
     });
 
     await withTransaction(pool, async (client) => {

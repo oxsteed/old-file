@@ -5,6 +5,7 @@ const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
 const { getEffectivePermissions, hasAny } = require('../services/permissionsService');
+const { logInventoryAudit } = require('../services/restaurantInventoryAuditService');
 
 const AREA_TYPES = new Set(['dry_storage', 'walk_in_cooler', 'freezer', 'bar', 'packaging', 'receiving', 'prep', 'other']);
 const SUPPLIER_STATUSES = new Set(['active', 'inactive', 'issue_reported']);
@@ -86,6 +87,19 @@ async function requireInventoryPermission(userId, restaurant, permissions) {
 const VIEW_INVENTORY = ['inventory.view', 'inventory.update', 'inventory.manage'];
 const UPDATE_INVENTORY = ['inventory.update', 'inventory.manage'];
 const MANAGE_INVENTORY = ['inventory.manage'];
+
+function auditEntry(restaurant, eventType, entityType, entityId, req, metadata = {}, clientOperationId = null) {
+  return {
+    restaurantId: Number(restaurant.id),
+    businessId: restaurant.business_id,
+    eventType,
+    entityType,
+    entityId,
+    actorUserId: req.user.id,
+    clientOperationId,
+    metadata,
+  };
+}
 
 async function receiptWithLines(client, restaurantId, receiptId) {
   const { rows: [receipt] } = await client.query(
@@ -303,6 +317,50 @@ exports.getReports = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+exports.listAuditEvents = async (req, res, next) => {
+  try {
+    const restaurantId = positiveInt(req.params.restaurantId);
+    const restaurant = await restaurantAccess(req.user.id, restaurantId);
+    await requireInventoryPermission(req.user.id, restaurant, VIEW_INVENTORY);
+
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 50, 1), 200);
+    const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
+    const entityType = text(req.query.entityType, 60);
+    const entityId = positiveInt(req.query.entityId);
+    const eventType = text(req.query.eventType, 80);
+    const params = [restaurantId];
+    const where = ['e.restaurant_id = $1'];
+
+    if (entityType) {
+      params.push(entityType);
+      where.push(`e.entity_type = $${params.length}`);
+    }
+    if (entityId) {
+      params.push(entityId);
+      where.push(`e.entity_id = $${params.length}`);
+    }
+    if (eventType) {
+      params.push(eventType);
+      where.push(`e.event_type = $${params.length}`);
+    }
+    params.push(limit, offset);
+
+    const { rows } = await pool.query(
+      `SELECT e.*,
+              NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), '') AS actor_name,
+              u.email AS actor_email
+         FROM restaurant_inventory_audit_events e
+         LEFT JOIN users u ON u.id = e.actor_user_id
+        WHERE ${where.join(' AND ')}
+        ORDER BY e.created_at DESC
+        LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params
+    );
+
+    res.json({ events: rows, limit, offset });
+  } catch (error) { next(error); }
+};
+
 exports.listAreas = async (req, res, next) => {
   try {
     const restaurantId = positiveInt(req.params.restaurantId);
@@ -336,16 +394,23 @@ exports.createArea = async (req, res, next) => {
     const name = text(req.body.name, 160);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
     const areaType = AREA_TYPES.has(req.body.areaType) ? req.body.areaType : 'other';
-    const { rows: [area] } = await pool.query(
-      `INSERT INTO restaurant_inventory_storage_areas
-         (restaurant_id, name, area_type, temperature_range, responsible_user_id, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6)
-       ON CONFLICT (restaurant_id, name) DO UPDATE
-         SET area_type = EXCLUDED.area_type, temperature_range = EXCLUDED.temperature_range,
-             responsible_user_id = EXCLUDED.responsible_user_id, is_active = TRUE, updated_at = NOW()
-       RETURNING *`,
-      [restaurantId, name, areaType, text(req.body.temperatureRange, 80), req.body.responsibleUserId || null, req.user.id]
-    );
+    const area = await withTransaction(pool, async (client) => {
+      const { rows: [upserted] } = await client.query(
+        `INSERT INTO restaurant_inventory_storage_areas
+           (restaurant_id, name, area_type, temperature_range, responsible_user_id, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (restaurant_id, name) DO UPDATE
+           SET area_type = EXCLUDED.area_type, temperature_range = EXCLUDED.temperature_range,
+               responsible_user_id = EXCLUDED.responsible_user_id, is_active = TRUE, updated_at = NOW()
+        RETURNING *`,
+        [restaurantId, name, areaType, text(req.body.temperatureRange, 80), req.body.responsibleUserId || null, req.user.id]
+      );
+      await logInventoryAudit(client, auditEntry(restaurant, 'area_upserted', 'area', upserted.id, req, {
+        name: upserted.name,
+        areaType: upserted.area_type,
+      }));
+      return upserted;
+    });
     res.status(201).json({ area });
   } catch (error) { next(error); }
 };
@@ -383,19 +448,27 @@ exports.createSupplier = async (req, res, next) => {
     const status = SUPPLIER_STATUSES.has(req.body.status) ? req.body.status : 'active';
     const leadTimeDays = Math.max(0, Number.parseInt(req.body.leadTimeDays, 10) || 0);
     const rating = req.body.rating == null ? null : Math.max(0, Math.min(5, Number(req.body.rating)));
-    const { rows: [supplier] } = await pool.query(
-      `INSERT INTO restaurant_inventory_suppliers
-         (restaurant_id, name, category, contact_name, phone, email, lead_time_days, status, rating, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-       ON CONFLICT (restaurant_id, name) DO UPDATE
-         SET category = EXCLUDED.category, contact_name = EXCLUDED.contact_name,
-             phone = EXCLUDED.phone, email = EXCLUDED.email,
-             lead_time_days = EXCLUDED.lead_time_days, status = EXCLUDED.status,
-             rating = EXCLUDED.rating, is_active = TRUE, updated_at = NOW()
-       RETURNING *`,
-      [restaurantId, name, text(req.body.category, 160), text(req.body.contactName, 160),
-        text(req.body.phone, 40), text(req.body.email, 320), leadTimeDays, status, rating, req.user.id]
-    );
+    const supplier = await withTransaction(pool, async (client) => {
+      const { rows: [upserted] } = await client.query(
+        `INSERT INTO restaurant_inventory_suppliers
+           (restaurant_id, name, category, contact_name, phone, email, lead_time_days, status, rating, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+         ON CONFLICT (restaurant_id, name) DO UPDATE
+           SET category = EXCLUDED.category, contact_name = EXCLUDED.contact_name,
+               phone = EXCLUDED.phone, email = EXCLUDED.email,
+               lead_time_days = EXCLUDED.lead_time_days, status = EXCLUDED.status,
+               rating = EXCLUDED.rating, is_active = TRUE, updated_at = NOW()
+         RETURNING *`,
+        [restaurantId, name, text(req.body.category, 160), text(req.body.contactName, 160),
+          text(req.body.phone, 40), text(req.body.email, 320), leadTimeDays, status, rating, req.user.id]
+      );
+      await logInventoryAudit(client, auditEntry(restaurant, 'supplier_upserted', 'supplier', upserted.id, req, {
+        name: upserted.name,
+        status: upserted.status,
+        category: upserted.category,
+      }));
+      return upserted;
+    });
     res.status(201).json({ supplier });
   } catch (error) { next(error); }
 };
@@ -460,6 +533,15 @@ exports.createTransfer = async (req, res, next) => {
         [restaurantId, item.id, item.name, amount, item.unit, fromAreaId, toAreaId,
           fromName, toName, status, text(req.body.note, 1000), req.user.id, clientOperationId]
       );
+      await logInventoryAudit(client, auditEntry(restaurant, 'transfer_created', 'transfer', transfer.id, req, {
+        itemId: transfer.item_id,
+        itemName: transfer.item_name,
+        quantity: transfer.quantity,
+        unit: transfer.unit,
+        fromAreaName: transfer.from_area_name,
+        toAreaName: transfer.to_area_name,
+        status: transfer.status,
+      }, clientOperationId));
       return { transfer, replayed: false };
     });
     res.status(result.replayed ? 200 : 201).json(result);
@@ -478,14 +560,20 @@ exports.updateTransfer = async (req, res, next) => {
         status: 'Status must be pending, completed, or cancelled',
       });
     }
-    const { rows: [transfer] } = await pool.query(
-      `UPDATE restaurant_inventory_transfers
-          SET status = $1, updated_at = NOW()
-        WHERE id = $2 AND restaurant_id = $3
-        RETURNING *`,
-      [req.body.status, transferId, restaurantId]
-    );
-    if (!transfer) throw new AppError('Transfer not found', 404, 'inventory_transfer_not_found');
+    const transfer = await withTransaction(pool, async (client) => {
+      const { rows: [updated] } = await client.query(
+        `UPDATE restaurant_inventory_transfers
+            SET status = $1, updated_at = NOW()
+          WHERE id = $2 AND restaurant_id = $3
+          RETURNING *`,
+        [req.body.status, transferId, restaurantId]
+      );
+      if (!updated) throw new AppError('Transfer not found', 404, 'inventory_transfer_not_found');
+      await logInventoryAudit(client, auditEntry(restaurant, 'transfer_updated', 'transfer', updated.id, req, {
+        status: updated.status,
+      }));
+      return updated;
+    });
     res.json({ transfer });
   } catch (error) { next(error); }
 };
@@ -551,6 +639,7 @@ exports.createReceipt = async (req, res, next) => {
         [restaurantId, supplierId, supplierName, text(req.body.invoiceNumber, 120),
           text(req.body.generalNote, 2000), req.user.id, clientOperationId]
       );
+      const auditLines = [];
       for (const [index, line] of lines.entries()) {
         const itemId = positiveInt(line.itemId);
         if (!itemId) throw new AppError('Validation failed', 400, 'validation_failed', { [`lines.${index}.itemId`]: 'Item is required' });
@@ -563,6 +652,15 @@ exports.createReceipt = async (req, res, next) => {
           [itemId, restaurantId]
         );
         if (!item) throw new AppError('Item not found', 404, 'inventory_item_not_found');
+        auditLines.push({
+          itemId: item.id,
+          itemName: item.name,
+          expectedQuantity: expected,
+          receivedQuantity: received,
+          acceptedQuantity: accepted,
+          unit: item.unit,
+          issueType: text(line.issueType, 32),
+        });
         await client.query(
           `INSERT INTO restaurant_inventory_receipt_lines
              (receipt_id, restaurant_id, item_id, item_name, expected_quantity,
@@ -596,6 +694,14 @@ exports.createReceipt = async (req, res, next) => {
           [supplierId, restaurantId]
         );
       }
+      await logInventoryAudit(client, auditEntry(restaurant, 'receipt_created', 'receipt', receipt.id, req, {
+        supplierId,
+        supplierName: receipt.supplier_name,
+        invoiceNumber: receipt.invoice_number,
+        lineCount: auditLines.length,
+        acceptedLineCount: auditLines.filter((line) => line.acceptedQuantity > 0).length,
+        lines: auditLines.slice(0, 50),
+      }, clientOperationId));
       return { receipt: await receiptWithLines(client, restaurantId, receipt.id), replayed: false };
     });
     res.status(result.replayed ? 200 : 201).json(result);

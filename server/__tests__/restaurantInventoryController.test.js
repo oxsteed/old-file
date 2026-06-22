@@ -142,4 +142,40 @@ describe('restaurant Inventory item backend', () => {
     expect(response.body.code).toBe('forbidden');
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE restaurant_inventory_items/.test(sql))).toBe(false);
   });
+
+  test('writes an audit event when stock is adjusted', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access()] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 5,
+          restaurant_id: RESTAURANT_ID,
+          name: 'Chicken',
+          quantity: '8',
+          low_stock_threshold: '2',
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 5,
+          restaurant_id: RESTAURANT_ID,
+          name: 'Chicken',
+          quantity: '4',
+          low_stock_threshold: '2',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 99, event_type: 'stock_adjusted' }] });
+
+    const response = await request(app())
+      .post(`/api/restaurants/${RESTAURANT_ID}/inventory/items/5/adjust`)
+      .send({ type: 'count', quantity: 4, reason: 'closing_count' });
+
+    expect(response.status).toBe(200);
+    const auditCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO restaurant_inventory_audit_events/.test(sql));
+    expect(auditCall).toBeTruthy();
+    expect(auditCall[1][2]).toBe('stock_adjusted');
+    expect(auditCall[1][3]).toBe('item');
+    expect(auditCall[1][4]).toBe(5);
+  });
 });

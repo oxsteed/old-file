@@ -42,6 +42,7 @@ function app() {
   });
   server.get('/api/restaurants/:restaurantId/inventory/dashboard', operations.getDashboard);
   server.get('/api/restaurants/:restaurantId/inventory/reports', operations.getReports);
+  server.get('/api/restaurants/:restaurantId/inventory/audit-events', operations.listAuditEvents);
   server.get('/api/restaurants/:restaurantId/inventory/areas', operations.listAreas);
   server.post('/api/restaurants/:restaurantId/inventory/suppliers', operations.createSupplier);
   server.post('/api/restaurants/:restaurantId/inventory/transfers', operations.createTransfer);
@@ -107,6 +108,32 @@ describe('restaurant Inventory operations backend', () => {
     expect(response.body.counts.minor).toBe(2);
     expect(response.body.deliveries.fill_rate).toBe('96');
     expect(mockQuery.mock.calls.slice(1).every(([, params]) => params[0] === RESTAURANT_ID)).toBe(true);
+  });
+
+  test('lists restaurant-scoped inventory audit events with actor details', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [access()] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 99,
+          restaurant_id: RESTAURANT_ID,
+          event_type: 'stock_adjusted',
+          entity_type: 'item',
+          entity_id: 5,
+          actor_name: 'Emile Jean Philippe',
+          actor_email: 'owner@example.com',
+        }],
+      });
+
+    const response = await request(app())
+      .get(`/api/restaurants/${RESTAURANT_ID}/inventory/audit-events?entityType=item&entityId=5`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.events[0].event_type).toBe('stock_adjusted');
+    expect(response.body.events[0].actor_name).toBe('Emile Jean Philippe');
+    const auditSql = mockQuery.mock.calls[1][0];
+    expect(auditSql).toMatch(/restaurant_inventory_audit_events/);
+    expect(mockQuery.mock.calls[1][1][0]).toBe(RESTAURANT_ID);
   });
 
   test('requires owner or manager access to create suppliers', async () => {
