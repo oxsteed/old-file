@@ -109,6 +109,20 @@ function safeJson(value, fallback = {}) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : fallback;
 }
 
+function normalizeBusinessSnapshot(row, fallbackId = null) {
+  const business = safeJson(row?.business, row || {});
+  return {
+    id: business.id || fallbackId,
+    business_name: business.business_name || business.name || null,
+    business_type: business.business_type || null,
+    is_primary: business.is_primary ?? false,
+    is_active: business.is_active ?? true,
+    country: business.country || business.address_country || null,
+    city: business.city || business.address_city || null,
+    state: business.state || business.address_state || null,
+  };
+}
+
 function normalizeCountry(value) {
   const raw = normalizeString(value, 2);
   return raw ? raw.toUpperCase() : null;
@@ -425,8 +439,8 @@ async function buildBootstrapPayload(user, restaurantId, query = {}) {
         [restaurantId]
       ),
       pool.query(
-        `SELECT id, business_name, business_type, is_primary, is_active, country, city, state
-           FROM businesses
+        `SELECT to_jsonb(b) AS business
+           FROM businesses b
           WHERE id = $1
           LIMIT 1`,
         [restaurant.business_id]
@@ -467,7 +481,7 @@ async function buildBootstrapPayload(user, restaurantId, query = {}) {
         preferredLanguage: user.preferred_language || null,
       },
       restaurant: snapshot,
-      business: businessRows[0] || {
+      business: businessRows[0] ? normalizeBusinessSnapshot(businessRows[0], restaurant.business_id) : {
         id: restaurant.business_id,
         business_name: null,
       },
@@ -527,7 +541,7 @@ exports.discoverBootstrap = async (req, res, next) => {
               fr.accepts_online_orders, fr.accepts_in_store_orders, fr.kitchen_display_enabled,
               fr.prep_time_min, fr.delivery_radius_meters, fr.tax_rate_bps, fr.service_fee_bps,
               fr.online_order_pause_reason, fr.settings, fr.timezone, fr.currency_code,
-              b.business_name, b.is_primary AS business_is_primary,
+              b.business_name, FALSE AS business_is_primary,
               CASE
                 WHEN b.user_id = $1 OR fr.owner_user_id = $1 THEN 'owner'
                 ELSE bm.role
