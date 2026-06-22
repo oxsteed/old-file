@@ -10,6 +10,7 @@ const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const ops = require('../controllers/restaurantOpsController');
 const inventory = require('../controllers/restaurantInventoryController');
+const inventoryOperations = require('../controllers/restaurantInventoryOperationsController');
 const runner = require('../controllers/restaurantRunnerController');
 const crew = require('../controllers/restaurantCrewController');
 const help = require('../controllers/restaurantHelpController');
@@ -68,6 +69,8 @@ router.patch('/:restaurantId/sops/:sopId', ops.updateSop);
 router.delete('/:restaurantId/sops/:sopId', ops.deleteSop);
 
 // Inventory (Phase 3, App 7): items + stock-adjustment ledger
+router.get('/:restaurantId/inventory/dashboard', inventoryOperations.getDashboard);
+router.get('/:restaurantId/inventory/reports', inventoryOperations.getReports);
 router.get('/:restaurantId/inventory/items', inventory.listItems);
 router.post('/:restaurantId/inventory/items', inventory.createItem);
 router.patch('/:restaurantId/inventory/items/:itemId', inventory.updateItem);
@@ -85,6 +88,15 @@ router.patch('/:restaurantId/inventory/purchase-requests/:requestId', inventory.
 router.get('/:restaurantId/inventory/supplier-issues', inventory.listSupplierIssues);
 router.post('/:restaurantId/inventory/supplier-issues', inventory.createSupplierIssue);
 router.patch('/:restaurantId/inventory/supplier-issues/:issueId', inventory.updateSupplierIssue);
+router.get('/:restaurantId/inventory/areas', inventoryOperations.listAreas);
+router.post('/:restaurantId/inventory/areas', inventoryOperations.createArea);
+router.get('/:restaurantId/inventory/suppliers', inventoryOperations.listSuppliers);
+router.post('/:restaurantId/inventory/suppliers', inventoryOperations.createSupplier);
+router.get('/:restaurantId/inventory/transfers', inventoryOperations.listTransfers);
+router.post('/:restaurantId/inventory/transfers', inventoryOperations.createTransfer);
+router.patch('/:restaurantId/inventory/transfers/:transferId', inventoryOperations.updateTransfer);
+router.get('/:restaurantId/inventory/receipts', inventoryOperations.listReceipts);
+router.post('/:restaurantId/inventory/receipts', inventoryOperations.createReceipt);
 
 // Crew training / certifications (App 6)
 router.get('/:restaurantId/crew/dashboard', crew.getDashboard);

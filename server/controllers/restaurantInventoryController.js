@@ -41,9 +41,21 @@ function parseQty(value, field = 'quantity') {
 
 const CATEGORIES = ['general', 'produce', 'meat', 'dairy', 'dry_goods', 'frozen', 'beverage', 'packaging', 'cleaning'];
 const ADJ_TYPES = ['count', 'receive', 'waste', 'usage', 'correction'];
-const PURCHASE_STATUSES = ['pending', 'ordered', 'received', 'cancelled'];
-const ISSUE_STATUSES = ['open', 'monitoring', 'resolved'];
+const PURCHASE_STATUSES = ['pending', 'approved', 'ordered', 'received', 'delivered', 'rejected', 'cancelled'];
+const ISSUE_STATUSES = ['open', 'monitoring', 'in_progress', 'resolved'];
+const URGENCY_LEVELS = ['low', 'medium', 'high', 'urgent'];
+const ISSUE_TYPES = ['short_delivery', 'wrong_item', 'poor_quality', 'late_delivery', 'damaged', 'billing', 'other'];
 const MANAGE_ROLES = new Set(['owner', 'manager']);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function parseOperationId(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const id = String(value).trim();
+  if (!UUID_RE.test(id)) {
+    throw new AppError('Validation failed', 400, 'validation_failed', { clientOperationId: 'Must be a UUID' });
+  }
+  return id;
+}
 
 async function requireRestaurantAccess(userId, restaurantId) {
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
@@ -83,11 +95,22 @@ exports.listItems = async (req, res, next) => {
     const lowOnly = req.query.lowStock === '1' || req.query.lowStock === 'true';
 
     const { rows } = await pool.query(
-      `SELECT *, (quantity <= low_stock_threshold AND low_stock_threshold > 0) AS is_low
-         FROM restaurant_inventory_items
-        WHERE restaurant_id = $1 AND is_active = TRUE
-          ${lowOnly ? 'AND quantity <= low_stock_threshold AND low_stock_threshold > 0' : ''}
-        ORDER BY name ASC`,
+      `SELECT i.*, a.name AS area_name,
+              COALESCE(s.name, i.supplier_name) AS supplier_display_name,
+              (i.quantity <= i.reorder_point AND i.reorder_point > 0) AS is_low,
+              COALESCE(
+                jsonb_agg(DISTINCT jsonb_build_object('id', fmi.id, 'name', fmi.name))
+                  FILTER (WHERE fmi.id IS NOT NULL), '[]'::jsonb
+              ) AS affected_menu_items
+         FROM restaurant_inventory_items i
+         LEFT JOIN restaurant_inventory_storage_areas a ON a.id = i.storage_area_id
+         LEFT JOIN restaurant_inventory_suppliers s ON s.id = i.supplier_id
+         LEFT JOIN restaurant_inventory_item_mappings m ON m.inventory_item_id = i.id
+         LEFT JOIN food_menu_items fmi ON fmi.id = m.menu_item_id
+        WHERE i.restaurant_id = $1 AND i.is_active = TRUE
+          ${lowOnly ? 'AND i.quantity <= i.reorder_point AND i.reorder_point > 0' : ''}
+        GROUP BY i.id, a.name, s.name
+        ORDER BY i.name ASC`,
       [restaurantId]
     );
     res.json({ items: rows });
@@ -106,26 +129,55 @@ exports.createItem = async (req, res, next) => {
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
     const category = CATEGORIES.includes(req.body.category) ? req.body.category : 'general';
     const quantity = parseQty(req.body.quantity) ?? 0;
-    const lowStockThreshold = parseQty(req.body.lowStockThreshold, 'lowStockThreshold') ?? 0;
-    if (quantity < 0 || lowStockThreshold < 0) {
+    const reorderPoint = parseQty(req.body.reorderPoint ?? req.body.lowStockThreshold, 'reorderPoint') ?? 0;
+    const criticalLevel = parseQty(req.body.criticalLevel, 'criticalLevel') ?? 0;
+    const parLevel = parseQty(req.body.parLevel, 'parLevel') ?? 0;
+    const unitCost = parseQty(req.body.unitCost, 'unitCost') ?? 0;
+    if ([quantity, reorderPoint, criticalLevel, parLevel, unitCost].some((value) => value < 0)) {
       throw new AppError('Validation failed', 400, 'validation_failed', {
         quantity: quantity < 0 ? 'Quantity cannot be negative' : undefined,
-        lowStockThreshold: lowStockThreshold < 0 ? 'Threshold cannot be negative' : undefined,
+        reorderPoint: reorderPoint < 0 ? 'Threshold cannot be negative' : undefined,
+        criticalLevel: criticalLevel < 0 ? 'Threshold cannot be negative' : undefined,
+        parLevel: parLevel < 0 ? 'Par cannot be negative' : undefined,
+        unitCost: unitCost < 0 ? 'Cost cannot be negative' : undefined,
       });
+    }
+    const supplierId = parsePositiveInt(req.body.supplierId);
+    const storageAreaId = parsePositiveInt(req.body.storageAreaId);
+    if (supplierId || storageAreaId) {
+      const { rows: [ownership] } = await pool.query(
+        `SELECT ($2::bigint IS NULL OR EXISTS(
+                  SELECT 1 FROM restaurant_inventory_suppliers WHERE id = $2 AND restaurant_id = $1
+                )) AS supplier_ok,
+                ($3::bigint IS NULL OR EXISTS(
+                  SELECT 1 FROM restaurant_inventory_storage_areas WHERE id = $3 AND restaurant_id = $1
+                )) AS area_ok`,
+        [restaurantId, supplierId, storageAreaId]
+      );
+      if (!ownership.supplier_ok || !ownership.area_ok) {
+        throw new AppError('Inventory reference not found', 404, 'inventory_reference_not_found');
+      }
     }
 
     const { rows: [item] } = await pool.query(
       `INSERT INTO restaurant_inventory_items
-         (restaurant_id, name, category, unit, quantity, low_stock_threshold, sku, supplier_name, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         (restaurant_id, name, category, unit, quantity, low_stock_threshold,
+          reorder_point, critical_level, par_level, sku, supplier_name,
+          supplier_id, storage_area_id, unit_cost, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        RETURNING *`,
       [
         restaurantId, name, category,
         normalizeString(req.body.unit, 24) || 'ea',
         quantity,
-        lowStockThreshold,
+        reorderPoint,
+        criticalLevel,
+        parLevel,
         normalizeString(req.body.sku, 60),
         normalizeString(req.body.supplierName, 160),
+        supplierId,
+        storageAreaId,
+        unitCost,
         req.user.id,
       ]
     );
@@ -158,9 +210,55 @@ exports.updateItem = async (req, res, next) => {
         throw new AppError('Validation failed', 400, 'validation_failed', { lowStockThreshold: 'Threshold cannot be negative' });
       }
       sets.push(`low_stock_threshold = $${i++}`); vals.push(threshold);
+      if (req.body.reorderPoint === undefined) {
+        sets.push(`reorder_point = $${i++}`); vals.push(threshold);
+      }
+    }
+    if (req.body.reorderPoint !== undefined) {
+      const threshold = parseQty(req.body.reorderPoint, 'reorderPoint') ?? 0;
+      if (threshold < 0) throw new AppError('Validation failed', 400, 'validation_failed', { reorderPoint: 'Threshold cannot be negative' });
+      sets.push(`reorder_point = $${i++}`); vals.push(threshold);
+      sets.push(`low_stock_threshold = $${i++}`); vals.push(threshold);
+    }
+    if (req.body.criticalLevel !== undefined) {
+      const threshold = parseQty(req.body.criticalLevel, 'criticalLevel') ?? 0;
+      if (threshold < 0) throw new AppError('Validation failed', 400, 'validation_failed', { criticalLevel: 'Threshold cannot be negative' });
+      sets.push(`critical_level = $${i++}`); vals.push(threshold);
+    }
+    if (req.body.parLevel !== undefined) {
+      const par = parseQty(req.body.parLevel, 'parLevel') ?? 0;
+      if (par < 0) throw new AppError('Validation failed', 400, 'validation_failed', { parLevel: 'Par cannot be negative' });
+      sets.push(`par_level = $${i++}`); vals.push(par);
+    }
+    if (req.body.unitCost !== undefined) {
+      const unitCost = parseQty(req.body.unitCost, 'unitCost') ?? 0;
+      if (unitCost < 0) throw new AppError('Validation failed', 400, 'validation_failed', { unitCost: 'Cost cannot be negative' });
+      sets.push(`unit_cost = $${i++}`); vals.push(unitCost);
     }
     if (req.body.sku !== undefined) { sets.push(`sku = $${i++}`); vals.push(normalizeString(req.body.sku, 60)); }
     if (req.body.supplierName !== undefined) { sets.push(`supplier_name = $${i++}`); vals.push(normalizeString(req.body.supplierName, 160)); }
+    if (req.body.supplierId !== undefined) {
+      const supplierId = parsePositiveInt(req.body.supplierId);
+      if (supplierId) {
+        const { rows: [supplier] } = await pool.query(
+          `SELECT id FROM restaurant_inventory_suppliers WHERE id = $1 AND restaurant_id = $2`,
+          [supplierId, restaurantId]
+        );
+        if (!supplier) throw new AppError('Supplier not found', 404, 'supplier_not_found');
+      }
+      sets.push(`supplier_id = $${i++}`); vals.push(supplierId);
+    }
+    if (req.body.storageAreaId !== undefined) {
+      const storageAreaId = parsePositiveInt(req.body.storageAreaId);
+      if (storageAreaId) {
+        const { rows: [area] } = await pool.query(
+          `SELECT id FROM restaurant_inventory_storage_areas WHERE id = $1 AND restaurant_id = $2`,
+          [storageAreaId, restaurantId]
+        );
+        if (!area) throw new AppError('Storage area not found', 404, 'storage_area_not_found');
+      }
+      sets.push(`storage_area_id = $${i++}`); vals.push(storageAreaId);
+    }
     if (req.body.isActive !== undefined) { sets.push(`is_active = $${i++}`); vals.push(req.body.isActive !== false); }
     // NOTE: quantity is intentionally NOT editable here — it only changes via
     // /adjust so every change is ledgered. This keeps stock auditable.
@@ -175,7 +273,10 @@ exports.updateItem = async (req, res, next) => {
         [...vals, itemId, restaurantId]
       );
       if (!item) throw new AppError('Item not found', 404, 'inventory_item_not_found');
-      const affectsAvailability = req.body.lowStockThreshold !== undefined || req.body.isActive !== undefined;
+      const affectsAvailability = req.body.lowStockThreshold !== undefined
+        || req.body.reorderPoint !== undefined
+        || req.body.criticalLevel !== undefined
+        || req.body.isActive !== undefined;
       const availability = affectsAvailability
         ? await syncMappedMenuAvailability(client, restaurantId, {
           inventoryItemId: itemId, apply: true, createdBy: req.user.id,
@@ -220,8 +321,20 @@ exports.adjustItem = async (req, res, next) => {
 
     const type = ADJ_TYPES.includes(req.body.type) ? req.body.type : null;
     if (!type) throw new AppError('Validation failed', 400, 'validation_failed', { type: 'Unsupported adjustment type' });
+    const clientOperationId = parseOperationId(req.body.clientOperationId);
 
     const result = await withTransaction(pool, async (client) => {
+      if (clientOperationId) {
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`inventory-adjustment:${restaurantId}:${clientOperationId}`]);
+        const { rows: [existing] } = await client.query(
+          `SELECT a.*, i.*
+             FROM restaurant_inventory_adjustments a
+             JOIN restaurant_inventory_items i ON i.id = a.item_id
+            WHERE a.restaurant_id = $1 AND a.client_operation_id = $2`,
+          [restaurantId, clientOperationId]
+        );
+        if (existing) return { item: existing, availability: { changes: [], applied: false }, replayed: true };
+      }
       const { rows: [item] } = await client.query(
         `SELECT * FROM restaurant_inventory_items
           WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
@@ -252,22 +365,28 @@ exports.adjustItem = async (req, res, next) => {
       }
 
       const { rows: [updated] } = await client.query(
-        `UPDATE restaurant_inventory_items SET quantity = $1, updated_at = NOW()
+        `UPDATE restaurant_inventory_items
+            SET quantity = $1,
+                last_counted_at = CASE WHEN $3 = 'count' THEN NOW() ELSE last_counted_at END,
+                updated_at = NOW()
           WHERE id = $2 RETURNING *`,
-        [after, itemId]
+        [after, itemId, type]
       );
       await client.query(
         `INSERT INTO restaurant_inventory_adjustments
-           (restaurant_id, item_id, item_name, adjustment_type, quantity_delta, quantity_after, note, adjusted_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-        [restaurantId, itemId, item.name, type, delta, after, normalizeString(req.body.note, 1000), req.user.id]
+           (restaurant_id, item_id, item_name, adjustment_type, quantity_delta,
+            quantity_after, note, reason, adjusted_by, client_operation_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [restaurantId, itemId, item.name, type, delta, after,
+          normalizeString(req.body.note, 1000), normalizeString(req.body.reason, 120),
+          req.user.id, clientOperationId]
       );
       const availability = await syncMappedMenuAvailability(client, restaurantId, {
         inventoryItemId: itemId,
         apply: true,
         createdBy: req.user.id,
       });
-      return { item: updated, availability };
+      return { item: updated, availability, replayed: false };
     });
     res.json({
       item: {
@@ -275,6 +394,7 @@ exports.adjustItem = async (req, res, next) => {
         is_low: Number(result.item.quantity) <= Number(result.item.low_stock_threshold) && Number(result.item.low_stock_threshold) > 0,
       },
       availability: result.availability,
+      replayed: result.replayed,
     });
   } catch (err) {
     next(err);
@@ -295,9 +415,14 @@ exports.listAdjustments = async (req, res, next) => {
     params.push(limit, offset);
 
     const { rows } = await pool.query(
-      `SELECT * FROM restaurant_inventory_adjustments
-        WHERE ${where}
-        ORDER BY created_at DESC
+      `SELECT a.*, COALESCE(i.unit, 'unit') AS unit,
+              COALESCE(i.category, 'general') AS category,
+              NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), '') AS adjusted_by_name
+         FROM restaurant_inventory_adjustments a
+         LEFT JOIN restaurant_inventory_items i ON i.id = a.item_id AND i.restaurant_id = a.restaurant_id
+         LEFT JOIN users u ON u.id = a.adjusted_by
+        WHERE ${where.replaceAll('restaurant_id', 'a.restaurant_id').replaceAll('item_id', 'a.item_id')}
+        ORDER BY a.created_at DESC
         LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params
     );
@@ -316,9 +441,11 @@ exports.listPurchaseRequests = async (req, res, next) => {
     const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
 
     const { rows } = await pool.query(
-      `SELECT * FROM restaurant_inventory_purchase_requests
-        WHERE restaurant_id = $1
-        ORDER BY created_at DESC
+      `SELECT r.*, NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), '') AS requested_by_name
+         FROM restaurant_inventory_purchase_requests r
+         LEFT JOIN users u ON u.id = r.requested_by
+        WHERE r.restaurant_id = $1
+        ORDER BY r.created_at DESC
         LIMIT $2 OFFSET $3`,
       [restaurantId, limit, offset]
     );
@@ -341,24 +468,31 @@ exports.createPurchaseRequest = async (req, res, next) => {
     }
 
     const status = PURCHASE_STATUSES.includes(req.body.status) ? req.body.status : 'pending';
-    const { rows: [request] } = await pool.query(
-      `INSERT INTO restaurant_inventory_purchase_requests
-         (restaurant_id, item_name, requested_quantity, unit, supplier_name, status, eta_window, note, requested_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-       RETURNING *`,
-      [
-        restaurantId,
-        itemName,
-        requestedQuantity,
-        normalizeString(req.body.unit, 24) || 'units',
-        normalizeString(req.body.supplierName, 160),
-        status,
-        normalizeString(req.body.etaWindow, 80),
-        normalizeString(req.body.note, 1000),
-        req.user.id,
-      ]
-    );
-    res.status(201).json({ request });
+    const urgency = URGENCY_LEVELS.includes(req.body.urgency) ? req.body.urgency : 'medium';
+    const estimatedCost = req.body.estimatedCost == null ? null : parseQty(req.body.estimatedCost, 'estimatedCost');
+    const clientOperationId = parseOperationId(req.body.clientOperationId);
+    const result = await withTransaction(pool, async (client) => {
+      if (clientOperationId) {
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`inventory-request:${restaurantId}:${clientOperationId}`]);
+        const { rows: [existing] } = await client.query(
+          `SELECT * FROM restaurant_inventory_purchase_requests WHERE restaurant_id = $1 AND client_operation_id = $2`,
+          [restaurantId, clientOperationId]
+        );
+        if (existing) return { request: existing, replayed: true };
+      }
+      const { rows: [request] } = await client.query(
+        `INSERT INTO restaurant_inventory_purchase_requests
+           (restaurant_id, item_name, requested_quantity, unit, supplier_name, status,
+            eta_window, note, requested_by, estimated_cost, urgency, client_operation_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         RETURNING *`,
+        [restaurantId, itemName, requestedQuantity, normalizeString(req.body.unit, 24) || 'units',
+          normalizeString(req.body.supplierName, 160), status, normalizeString(req.body.etaWindow, 80),
+          normalizeString(req.body.note, 1000), req.user.id, estimatedCost, urgency, clientOperationId]
+      );
+      return { request, replayed: false };
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
   } catch (err) {
     next(err);
   }
@@ -391,6 +525,8 @@ exports.updatePurchaseRequest = async (req, res, next) => {
     if (req.body.status !== undefined && PURCHASE_STATUSES.includes(req.body.status)) { sets.push(`status = $${i++}`); vals.push(req.body.status); }
     if (req.body.etaWindow !== undefined) { sets.push(`eta_window = $${i++}`); vals.push(normalizeString(req.body.etaWindow, 80)); }
     if (req.body.note !== undefined) { sets.push(`note = $${i++}`); vals.push(normalizeString(req.body.note, 1000)); }
+    if (req.body.estimatedCost !== undefined) { sets.push(`estimated_cost = $${i++}`); vals.push(req.body.estimatedCost == null ? null : parseQty(req.body.estimatedCost, 'estimatedCost')); }
+    if (req.body.urgency !== undefined && URGENCY_LEVELS.includes(req.body.urgency)) { sets.push(`urgency = $${i++}`); vals.push(req.body.urgency); }
     if (!sets.length) throw new AppError('No updatable fields provided', 400, 'validation_failed', { body: 'No updatable fields provided' });
     sets.push('updated_at = NOW()');
 
@@ -416,9 +552,11 @@ exports.listSupplierIssues = async (req, res, next) => {
     const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
 
     const { rows } = await pool.query(
-      `SELECT * FROM restaurant_inventory_supplier_issues
-        WHERE restaurant_id = $1
-        ORDER BY created_at DESC
+      `SELECT i.*, NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), '') AS reported_by_name
+         FROM restaurant_inventory_supplier_issues i
+         LEFT JOIN users u ON u.id = i.reported_by
+        WHERE i.restaurant_id = $1
+        ORDER BY i.created_at DESC
         LIMIT $2 OFFSET $3`,
       [restaurantId, limit, offset]
     );
@@ -449,14 +587,32 @@ exports.createSupplierIssue = async (req, res, next) => {
     }
 
     const status = ISSUE_STATUSES.includes(req.body.status) ? req.body.status : 'open';
-    const { rows: [issueRow] } = await pool.query(
-      `INSERT INTO restaurant_inventory_supplier_issues
-         (restaurant_id, supplier_name, issue, status, related_purchase_request_id, reported_by)
-       VALUES ($1,$2,$3,$4,$5,$6)
-       RETURNING *`,
-      [restaurantId, supplierName, issue, status, relatedPurchaseRequestId, req.user.id]
-    );
-    res.status(201).json({ issue: issueRow });
+    const issueType = ISSUE_TYPES.includes(req.body.issueType) ? req.body.issueType : 'other';
+    const affectedItemNames = Array.isArray(req.body.affectedItemNames)
+      ? req.body.affectedItemNames.map((name) => normalizeString(name, 160)).filter(Boolean).slice(0, 100)
+      : [];
+    const clientOperationId = parseOperationId(req.body.clientOperationId);
+    const result = await withTransaction(pool, async (client) => {
+      if (clientOperationId) {
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`inventory-issue:${restaurantId}:${clientOperationId}`]);
+        const { rows: [existing] } = await client.query(
+          `SELECT * FROM restaurant_inventory_supplier_issues WHERE restaurant_id = $1 AND client_operation_id = $2`,
+          [restaurantId, clientOperationId]
+        );
+        if (existing) return { issue: existing, replayed: true };
+      }
+      const { rows: [issueRow] } = await client.query(
+        `INSERT INTO restaurant_inventory_supplier_issues
+           (restaurant_id, supplier_name, issue, status, related_purchase_request_id,
+            reported_by, issue_type, delivery_reference, affected_item_names, client_operation_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)
+         RETURNING *`,
+        [restaurantId, supplierName, issue, status, relatedPurchaseRequestId, req.user.id,
+          issueType, normalizeString(req.body.deliveryReference, 120), JSON.stringify(affectedItemNames), clientOperationId]
+      );
+      return { issue: issueRow, replayed: false };
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
   } catch (err) {
     next(err);
   }
@@ -483,6 +639,14 @@ exports.updateSupplierIssue = async (req, res, next) => {
       sets.push(`issue = $${i++}`); vals.push(issue);
     }
     if (req.body.status !== undefined && ISSUE_STATUSES.includes(req.body.status)) { sets.push(`status = $${i++}`); vals.push(req.body.status); }
+    if (req.body.issueType !== undefined && ISSUE_TYPES.includes(req.body.issueType)) { sets.push(`issue_type = $${i++}`); vals.push(req.body.issueType); }
+    if (req.body.deliveryReference !== undefined) { sets.push(`delivery_reference = $${i++}`); vals.push(normalizeString(req.body.deliveryReference, 120)); }
+    if (req.body.affectedItemNames !== undefined) {
+      const names = Array.isArray(req.body.affectedItemNames)
+        ? req.body.affectedItemNames.map((name) => normalizeString(name, 160)).filter(Boolean).slice(0, 100)
+        : [];
+      sets.push(`affected_item_names = $${i++}::jsonb`); vals.push(JSON.stringify(names));
+    }
     if (req.body.relatedPurchaseRequestId !== undefined) {
       const relatedPurchaseRequestId = parsePositiveInt(req.body.relatedPurchaseRequestId);
       if (relatedPurchaseRequestId) {
