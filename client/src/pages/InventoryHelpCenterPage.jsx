@@ -106,7 +106,7 @@ const APP_GUIDES = {
     setupSteps: [
       ['Join the restaurant workspace', 'Use the correct Vortex code or owner/manager sign-in for the restaurant where this POS is used.', KeyRound],
       ['Choose register context', 'Confirm restaurant, station, staff member, language, and service mode before taking orders.', CreditCard],
-      ['Connect payment and cash workflows', 'Verify payment provider, receipt flow, taxes, discounts, and cash drawer expectations.', ReceiptText],
+      ['Connect payment and cash workflows', 'Verify payment provider, receipt flow, taxes, discounts, and cash drawer expectations.', Receipt],
       ['Check sync before service', 'Use Sync Status before opening if the POS has been offline or used during a network outage.', Cloud],
     ],
     workflows: [
