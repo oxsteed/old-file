@@ -143,6 +143,7 @@ import OrderHistoryPage from './pages/OrderHistoryPage';
 import OrderDetailsPage from './pages/OrderDetailsPage';
 import SupportEscalationPage from './pages/SupportEscalationPage';
 import SupportAgentPortalPage from './pages/SupportAgentPortalPage';
+import StatusPage from './pages/StatusPage';
 import MyJobsPage from './pages/MyJobsPage';
 import MyBidsPage from './pages/MyBidsPage';
 import EnforcementPolicyPage from './pages/EnforcementPolicyPage';
@@ -187,6 +188,9 @@ function Guarded({ children }) {
 }
 
 export default function App() {
+  const isStatusHost = typeof window !== 'undefined'
+    && window.location.hostname.toLowerCase() === 'status.oxsteed.com';
+
   return (
     <HelmetProvider>
       <LanguageProvider>
@@ -212,7 +216,8 @@ export default function App() {
                     {/* ── Impersonation landing (super-admin only, new tab) ── */}
                     <Route path="/impersonate"             element={<ImpersonatePage />} />
                     {/* ── Public routes ────────────────────────────────────── */}
-                    <Route path="/"                        element={<Guarded><HomePage /></Guarded>} />
+                    <Route path="/"                        element={<Guarded>{isStatusHost ? <StatusPage /> : <HomePage />}</Guarded>} />
+                    <Route path="/status"                  element={<Guarded><StatusPage /></Guarded>} />
                     <Route path="/login"                   element={<Guarded><Login /></Guarded>} />
                     <Route path="/investor/login"          element={<Guarded><InvestorLoginPage /></Guarded>} />
                     <Route path="/register/customer"       element={<Guarded><CustomerRegister /></Guarded>} />
@@ -268,6 +273,7 @@ export default function App() {
                     <Route path="/orders/:id"             element={<Guarded><ProtectedRoute><RouteErrorBoundary><OrderDetailsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* ── Support & Help ───────────────────────────────────── */}
+                    <Route path="/support"                element={<Guarded><SupportEscalationPage /></Guarded>} />
                     <Route path="/support/escalation"     element={<Guarded><SupportEscalationPage /></Guarded>} />
                     <Route path="/support/agent" element={<Guarded><ProtectedRoute><SupportAgentPortalPage /></ProtectedRoute></Guarded>} />
 
@@ -353,7 +359,11 @@ export default function App() {
                     <Route path="/restaurants/queue/:restaurantId"   element={<RouteErrorBoundary><FoodQueueBoardPage /></RouteErrorBoundary>} />
                     <Route path="/restaurants/kiosk/:restaurantId"   element={<RouteErrorBoundary><FoodKioskPage /></RouteErrorBoundary>} />
                     <Route path="/restaurants/merchant"              element={<Guarded><ProtectedRoute><RouteErrorBoundary><FoodMerchantPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
-                    <Route path="/restaurants/kitchen/:restaurantId" element={<ProtectedRoute><RouteErrorBoundary><FoodKitchenPage /></RouteErrorBoundary></ProtectedRoute>} />
+                    <Route path="/restaurants/kitchen/:restaurantId"   element={<ProtectedRoute><RouteErrorBoundary><FoodKitchenPage /></RouteErrorBoundary></ProtectedRoute>} />
+                    <Route path="/restaurants/pos/:restaurantId"       element={<ProtectedRoute><RouteErrorBoundary><RestaurantPOSPage /></RouteErrorBoundary></ProtectedRoute>} />
+                    <Route path="/restaurants/inventory/:restaurantId" element={<ProtectedRoute><RouteErrorBoundary><RestaurantInventoryPage /></RouteErrorBoundary></ProtectedRoute>} />
+                    <Route path="/restaurants/crew/:restaurantId"      element={<ProtectedRoute><RouteErrorBoundary><RestaurantCrewPage /></RouteErrorBoundary></ProtectedRoute>} />
+                    <Route path="/restaurants/runner/:restaurantId"    element={<ProtectedRoute><RouteErrorBoundary><RestaurantRunnerPage /></RouteErrorBoundary></ProtectedRoute>} />
 
                     {/* OxSteed Logistics branch (migration 247) */}
                     <Route path="/logistics"                  element={<Guarded><RouteErrorBoundary><LogisticsHomePage /></RouteErrorBoundary></Guarded>} />
@@ -425,8 +435,8 @@ export default function App() {
                     <Route path="*" element={<NotFoundPage />} />
                   </Routes>
                 </TermsGate>
-                <CookieConsent />
-                <SupportWidget />
+                {!isStatusHost && <CookieConsent />}
+                {!isStatusHost && <SupportWidget />}
                 </AuthProvider>
               </RouterAwareErrorBoundary>
             </CookieConsentProvider>
