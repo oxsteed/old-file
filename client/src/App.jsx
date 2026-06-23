@@ -144,6 +144,7 @@ import OrderDetailsPage from './pages/OrderDetailsPage';
 import SupportEscalationPage from './pages/SupportEscalationPage';
 import SupportAgentPortalPage from './pages/SupportAgentPortalPage';
 import StatusPage from './pages/StatusPage';
+import InventoryHelpCenterPage from './pages/InventoryHelpCenterPage';
 import MyJobsPage from './pages/MyJobsPage';
 import MyBidsPage from './pages/MyBidsPage';
 import EnforcementPolicyPage from './pages/EnforcementPolicyPage';
@@ -230,6 +231,7 @@ export default function App() {
                     <Route path="/reset-password/:token"   element={<Guarded><ResetPasswordPage /></Guarded>} />
                     <Route path="/how-it-works"            element={<Guarded><FeatureGuidePage /></Guarded>} />
                     <Route path="/features"                element={<Guarded><FeatureGuidePage /></Guarded>} />
+                    <Route path="/help/inventory"          element={<Guarded><InventoryHelpCenterPage /></Guarded>} />
                     <Route path="/learn"                   element={<Guarded><LearnModePage /></Guarded>} />
                     <Route path="/translator"              element={<Guarded><TranslatorWorkspacePage /></Guarded>} />
                     <Route path="/about"                   element={<Guarded><AboutPage /></Guarded>} />
