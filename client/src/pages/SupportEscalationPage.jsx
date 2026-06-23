@@ -21,6 +21,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
+import './SupportEscalationPage.css';
 
 export default function SupportEscalationPage() {
   const { t } = useTranslation();
@@ -249,7 +250,7 @@ export default function SupportEscalationPage() {
       />
       <Navbar />
 
-      <main className="flex-1">
+      <main className="flex-1 support-escalation-page">
         {phase === 'checking' && (
           <PageFrame>
             <Hero

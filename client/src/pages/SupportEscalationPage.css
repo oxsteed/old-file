@@ -1,0 +1,75 @@
+.support-escalation-page {
+  color-scheme: dark;
+}
+
+/* The global light-mode bridge remaps Tailwind dark utility classes across the
+   site. This page is intentionally a dark escalation surface, so keep its
+   ticket panels readable when the navbar/theme toggle switches to light mode. */
+html:not(.dark) .support-escalation-page .text-white,
+[data-theme="light"] .support-escalation-page .text-white {
+  color: #ffffff !important;
+}
+
+html:not(.dark) .support-escalation-page .text-slate-100,
+[data-theme="light"] .support-escalation-page .text-slate-100 {
+  color: #f1f5f9 !important;
+}
+
+html:not(.dark) .support-escalation-page .text-slate-200,
+[data-theme="light"] .support-escalation-page .text-slate-200 {
+  color: #e2e8f0 !important;
+}
+
+html:not(.dark) .support-escalation-page .text-slate-300,
+[data-theme="light"] .support-escalation-page .text-slate-300 {
+  color: #cbd5e1 !important;
+}
+
+html:not(.dark) .support-escalation-page .text-slate-400,
+[data-theme="light"] .support-escalation-page .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+html:not(.dark) .support-escalation-page .text-slate-500,
+[data-theme="light"] .support-escalation-page .text-slate-500 {
+  color: #64748b !important;
+}
+
+html:not(.dark) .support-escalation-page .bg-slate-950,
+html:not(.dark) .support-escalation-page .bg-slate-950\/30,
+[data-theme="light"] .support-escalation-page .bg-slate-950,
+[data-theme="light"] .support-escalation-page .bg-slate-950\/30 {
+  background-color: rgba(2, 6, 23, 0.3) !important;
+}
+
+html:not(.dark) .support-escalation-page .bg-slate-900,
+html:not(.dark) .support-escalation-page .bg-slate-900\/70,
+[data-theme="light"] .support-escalation-page .bg-slate-900,
+[data-theme="light"] .support-escalation-page .bg-slate-900\/70 {
+  background-color: rgba(15, 23, 42, 0.7) !important;
+}
+
+html:not(.dark) .support-escalation-page .bg-slate-800,
+[data-theme="light"] .support-escalation-page .bg-slate-800 {
+  background-color: #1e293b !important;
+}
+
+html:not(.dark) .support-escalation-page .border-slate-700,
+html:not(.dark) .support-escalation-page .border-slate-700\/70,
+[data-theme="light"] .support-escalation-page .border-slate-700,
+[data-theme="light"] .support-escalation-page .border-slate-700\/70 {
+  border-color: rgba(51, 65, 85, 0.7) !important;
+}
+
+html:not(.dark) .support-escalation-page input,
+html:not(.dark) .support-escalation-page textarea,
+[data-theme="light"] .support-escalation-page input,
+[data-theme="light"] .support-escalation-page textarea {
+  color: #ffffff !important;
+  color-scheme: dark;
+}
+
+html:not(.dark) .support-escalation-page ::placeholder,
+[data-theme="light"] .support-escalation-page ::placeholder {
+  color: #64748b !important;
+}
