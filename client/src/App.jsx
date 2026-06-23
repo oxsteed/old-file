@@ -231,7 +231,15 @@ export default function App() {
                     <Route path="/reset-password/:token"   element={<Guarded><ResetPasswordPage /></Guarded>} />
                     <Route path="/how-it-works"            element={<Guarded><FeatureGuidePage /></Guarded>} />
                     <Route path="/features"                element={<Guarded><FeatureGuidePage /></Guarded>} />
-                    <Route path="/help/inventory"          element={<Guarded><InventoryHelpCenterPage /></Guarded>} />
+                    <Route path="/help/crew"               element={<Guarded><InventoryHelpCenterPage appKey="crew" /></Guarded>} />
+                    <Route path="/help/display"            element={<Guarded><InventoryHelpCenterPage appKey="display" /></Guarded>} />
+                    <Route path="/help/inventory"          element={<Guarded><InventoryHelpCenterPage appKey="inventory" /></Guarded>} />
+                    <Route path="/help/kitchen"            element={<Guarded><InventoryHelpCenterPage appKey="kitchen" /></Guarded>} />
+                    <Route path="/help/manager"            element={<Guarded><InventoryHelpCenterPage appKey="manager" /></Guarded>} />
+                    <Route path="/help/pos"                element={<Guarded><InventoryHelpCenterPage appKey="pos" /></Guarded>} />
+                    <Route path="/help/restaurant"         element={<Guarded><InventoryHelpCenterPage appKey="restaurant" /></Guarded>} />
+                    <Route path="/help/runner"             element={<Guarded><InventoryHelpCenterPage appKey="runner" /></Guarded>} />
+                    <Route path="/help/:restaurantAppHelpSlug" element={<Guarded><InventoryHelpCenterPage /></Guarded>} />
                     <Route path="/learn"                   element={<Guarded><LearnModePage /></Guarded>} />
                     <Route path="/translator"              element={<Guarded><TranslatorWorkspacePage /></Guarded>} />
                     <Route path="/about"                   element={<Guarded><AboutPage /></Guarded>} />
