@@ -133,6 +133,7 @@ html.dark .lx-btn-secondary:hover { background: #334155; }
 .lx-table tr:hover td { background: #f8fafc; }
 html.dark .lx-table th { background: #1e293b; }
 html.dark .lx-table tr:hover td { background: #1e293b; }
+html.dark .lx-moq-bar-wrap { background: #1e293b; }
 
 /* CTA block */
 .lx-cta-block {

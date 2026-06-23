@@ -1970,3 +1970,30 @@ html.dark .fd-runner-offer { background: #1e293b; }
 @media (max-width: 480px) {
   .fd-inv-kpis { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── Light / dark mode regression fixes ──────────────────────────────────── */
+/* Cart bar is a user-facing overlay, not a wall-display — needs light bg    */
+html:not(.dark) .fd-cartbar {
+  background: var(--card-bg, #fff);
+  color: var(--app-text, #111827);
+  border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+/* .fd-screen/.fd-kds-col are intentional fullscreen wall-display components  */
+/* Keep them dark in light mode — these are KDS / queue / kiosk screens       */
+html:not(.dark) .fd-screen { background: #1e293b; color: #f8fafc; }
+html:not(.dark) .fd-kds-col { background: #1e293b; }
+
+/* Onboarding modal panel — user-facing, should follow theme */
+html:not(.dark) .fd-onboarding-opening .fd-onboarding-panel {
+  background: var(--card-bg, #fff);
+  color: var(--app-text, #111827);
+  border-color: var(--border-color, #e5e7eb);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+/* Verified badge — needs dark-mode variant */
+html.dark .fd-tag-verified { background: rgba(52, 211, 153, 0.15); color: #34d399; }
+
+/* Star rating button — too light gray on white background in light mode */
+html:not(.dark) .fd-star-btn { color: #9ca3af; }

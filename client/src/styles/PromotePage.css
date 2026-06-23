@@ -1648,3 +1648,10 @@ html.dark .promote-signature-preview {
     break-inside: avoid;
   }
 }
+
+/* ── Light / dark mode regression fixes ─────────────────────────────────── */
+/* Code block is hardcoded dark — give it a softer dark in light mode too   */
+html:not(.dark) .promote-code-block {
+  background: #1e293b;
+  /* keep dark-panel code block intentionally dark in both modes for legibility */
+}

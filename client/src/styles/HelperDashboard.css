@@ -414,6 +414,12 @@ html:not(.dark) .status-badge {
 }
 html:not(.dark) .muted { color: #64748b; }
 
+/* Plan status badges — dark-mode token colors invisible on white backgrounds */
+html:not(.dark) .plan-status.active { background: rgba(16, 185, 129, 0.15); color: #065f46; }
+html:not(.dark) .plan-status.free   { background: rgba(107, 114, 128, 0.12); color: #4b5563; }
+/* Stat labels — #9ca3af is too pale on white */
+html:not(.dark) .stat-label { color: #4b5563; }
+
 /* ── Responsive ──────────────────────────────────────── */
 @media (max-width: 640px) {
   .helper-dashboard {
