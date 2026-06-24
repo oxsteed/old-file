@@ -898,11 +898,13 @@ async function startRegistration(req, res) {
     // Country defaults to 'US' so existing US-only clients (helper signup,
     // older builds) keep working without sending a country field.
     const countryCode = countriesUtil.normalizeCountry(country, 'US');
-    // Region casing: known region-list countries (US, CA, AU, IN, GB, DE, FR)
-    // expect uppercase; for free-text regions we keep the user's casing.
-    const stateTrim = countriesUtil.hasRegions(countryCode)
-      ? String(state || '').trim().toUpperCase()
-      : String(state || '').trim();
+    const rawState = String(state || '').trim();
+    const regionList = countriesUtil.getRegions(countryCode);
+    const usesRegionCodes = Array.isArray(regionList)
+      && regionList.every((region) => /^[A-Z]{2,3}$/.test(String(region)));
+    // Code-based region lists (US, CA, AU, IN) normalize to uppercase.
+    // Name-based lists (GB, DE, FR) must keep exact casing to validate.
+    const stateTrim = usesRegionCodes ? rawState.toUpperCase() : rawState;
     const normalized = {
       email: String(email || '').trim().toLowerCase(),
       password,
@@ -928,9 +930,9 @@ async function startRegistration(req, res) {
       city: [rules.required, rules.minLen(1), rules.maxLen(100), rules.noScript],
       country: [rules.required, rules.country],
       state: [rules.required, rules.maxLen(100), rules.regionFor(countryCode), rules.noScript],
-      // For countries without a postal code (HK, HT) zip is allowed to be
-      // empty; for everyone else it must match the country's regex.
-      zip: countriesUtil.hasPostalCode(countryCode)
+      // For countries without a required postal code (HK, HT, or no backend
+      // postal pattern) zip is allowed to be empty.
+      zip: countriesUtil.requiresPostalCode(countryCode)
         ? [rules.required, rules.maxLen(20), rules.postalFor(countryCode)]
         : [rules.maxLen(20)],
     });

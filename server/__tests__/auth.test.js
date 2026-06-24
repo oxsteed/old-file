@@ -207,6 +207,61 @@ describe('POST /api/auth/register/start', () => {
     expect(insertArgs[9]).toBe('OH');
   });
 
+  test('accepts exact-cased predefined region names', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 124 }] });
+
+    const res = await request(buildApp())
+      .post('/api/auth/register/start')
+      .send({
+        email: 'fr-customer@example.com',
+        password: 'SecurePass123!',
+        firstName: 'French',
+        lastName: 'Customer',
+        phone: '+33123456789',
+        addressLine1: '10 Rue Example',
+        city: 'Paris',
+        country: 'FR',
+        state: 'Île-de-France',
+        zip: '75001',
+        ageConfirmed: true,
+        defaultMode: 'restaurant_staff',
+      });
+
+    expect(res.status).toBe(200);
+    const insertArgs = mockQuery.mock.calls[1][1];
+    expect(insertArgs[9]).toBe('Île-de-France');
+    expect(insertArgs[14]).toBe('restaurant_staff');
+  });
+
+  test('allows empty postal code when the selected country does not require one', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 125 }] });
+
+    const res = await request(buildApp())
+      .post('/api/auth/register/start')
+      .send({
+        email: 'haiti-customer@example.com',
+        password: 'SecurePass123!',
+        firstName: 'Haiti',
+        lastName: 'Customer',
+        phone: '+50937000000',
+        addressLine1: '1 Rue Example',
+        city: 'Port-au-Prince',
+        country: 'HT',
+        state: 'Ouest',
+        zip: '',
+        ageConfirmed: true,
+      });
+
+    expect(res.status).toBe(200);
+    const insertArgs = mockQuery.mock.calls[1][1];
+    expect(insertArgs[6]).toBe('');
+    expect(insertArgs[10]).toBe('HT');
+  });
+
   test('returns 400 for DB field length overflow instead of 500', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // check existing email

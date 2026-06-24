@@ -162,6 +162,11 @@ function hasPostalCode(country) {
   return String(country || '').toUpperCase() in POSTAL_RULES;
 }
 
+function requiresPostalCode(country) {
+  const rule = POSTAL_RULES[String(country || '').toUpperCase()];
+  return Boolean(rule?.regex);
+}
+
 function getDefaultCurrency(country) {
   return COUNTRY_META[String(country || '').toUpperCase()]?.currency || 'USD';
 }
@@ -196,6 +201,7 @@ module.exports = {
   getRegions,
   isValidPostal,
   hasPostalCode,
+  requiresPostalCode,
   getDefaultCurrency,
   getCountryName,
   getDialCode,
