@@ -41,6 +41,10 @@ const IcoCar       = (p) => <Ico {...p}><rect x="1" y="11" width="22" height="9"
 const IcoCalendar  = (p) => <Ico {...p}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Ico>;
 const IcoWrench    = (p) => <Ico {...p}><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></Ico>;
 const DASHBOARD_TABS = new Set(['pulse', 'money', 'home', 'goals', 'personalcare', 'carcare', 'skills']);
+const SHOW_LEGACY_CUSTOMER_RECOMMENDATIONS = false;
+const SHOW_LEGACY_CUSTOMER_DASHBOARD_TABS = false;
+const SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS = false;
+const VISIBLE_CUSTOMER_DASHBOARD_TABS = ['pulse'];
 
 // ── Shared UI ─────────────────────────────────────────────────────────────
 const Tag = ({ text, color = 'orange' }) => {
@@ -797,8 +801,9 @@ export default function Dashboard() {
           <TrialBanner />
         </div>
 
-        <RecommendationFeed title="What to do next" />
+        {SHOW_LEGACY_CUSTOMER_RECOMMENDATIONS && <RecommendationFeed title="What to do next" />}
 
+        {SHOW_LEGACY_CUSTOMER_DASHBOARD_TABS && (
         <div className="flex items-center gap-1 overflow-x-auto pb-2 mb-8 border-b border-gray-800" style={{
           WebkitOverflowScrolling: 'touch',
           scrollBehavior: 'smooth',
@@ -812,7 +817,7 @@ export default function Dashboard() {
               { id: 'personalcare', label: t('dashboard.tabs.personalCare'), icon: IcoHeart },
               { id: 'carcare',      label: t('dashboard.tabs.carCare'),      icon: IcoCar },
               { id: 'skills',       label: t('dashboard.tabs.skillsTools'),  icon: IcoBriefcase },
-            ].map(tabDef => (
+            ].filter((tabDef) => VISIBLE_CUSTOMER_DASHBOARD_TABS.includes(tabDef.id)).map(tabDef => (
               <button
                 key={tabDef.id}
                 onClick={() => selectTab(tabDef.id)}
@@ -829,6 +834,7 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
+        )}
 
         {/* ═══════ PULSE ═══════ */}
         {tab==='pulse' && (<>
@@ -840,6 +846,7 @@ export default function Dashboard() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            {SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS && (
             <button type="button" onClick={() => selectTab('money')} className="text-left group">
               <Card className="flex flex-col justify-between h-full group-hover:border-orange-500/50 transition-colors">
                 <div>
@@ -853,6 +860,7 @@ export default function Dashboard() {
                 </p>
               </Card>
             </button>
+            )}
 
             <Link to="/messages" className="group">
               <Card className="flex flex-col justify-between h-full group-hover:border-orange-500/50 transition-colors">
@@ -870,6 +878,8 @@ export default function Dashboard() {
               </Card>
             </Link>
 
+            {SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS && (
+            <>
             <button type="button" onClick={openHomeTask} className="text-left group">
               <Card className="flex flex-col justify-between h-full group-hover:border-orange-500/50 transition-colors">
                 <div>
@@ -899,10 +909,12 @@ export default function Dashboard() {
                 </p>
               </Card>
             </button>
+            </>
+            )}
           </div>
 
           {/* Life Pulse Score - powered by the unified engine (30-day horizon) */}
-          {life.financialPulse && (() => {
+          {SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS && life.financialPulse && (() => {
             const fp = life.financialPulse;
             // No data entered yet - show onboarding prompt instead of a fabricated score
             if (fp.no_data) {
@@ -1097,7 +1109,7 @@ export default function Dashboard() {
               {to:'/planned-needs',  Ic:IcoClock,       l:t('dashboard.plannedNeeds.title'),     c:'text-purple-400',
                 badge: s?.planned_needs?.activating_soon_count || 0},
               {to:'/tool-rentals',   Ic:IcoSearch,      l:t('toolRentals.browsePage'),           c:'text-indigo-400'},
-            ].map((a,i)=>(
+            ].filter((a) => SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS || !['/planned-needs', '/tool-rentals'].includes(a.to)).map((a,i)=>(
               <Link key={i} to={a.to} className="relative bg-gray-900/50 border border-gray-700/40 rounded-2xl p-4 hover:border-gray-600 hover:-translate-y-0.5 transition-all group flex items-center gap-3">
                 <a.Ic size={18} cls={a.c}/><span className="text-sm font-medium text-gray-300 group-hover:text-white transition">{a.l}</span>
                 {a.badge>0&&<span className="absolute top-2 right-2 bg-orange-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">{a.badge}</span>}
@@ -1106,7 +1118,7 @@ export default function Dashboard() {
           </div>
 
           {/* Planned Needs snapshot */}
-          {(s?.planned_needs?.active_count > 0 || !loading) && (
+          {SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS && (s?.planned_needs?.active_count > 0 || !loading) && (
             <Card className="mb-6">
               <CardHeader
                 icon={IcoClock}
@@ -1187,6 +1199,8 @@ export default function Dashboard() {
                       <p className="text-xl font-bold text-orange-400">{life.community.active_helpers}</p>
                       <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.activeHelpers')}</p>
                     </div>
+                    {SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS && (
+                    <>
                     <div className="text-center p-3 bg-gray-800/30 rounded-xl">
                       <p className="text-xl font-bold text-blue-400">{life.community.tools_for_rent}</p>
                       <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.toolsForRent', { defaultValue: 'Tools for Rent' })}</p>
@@ -1195,6 +1209,8 @@ export default function Dashboard() {
                       <p className="text-xl font-bold text-purple-400">{life.community.products_for_sale}</p>
                       <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.productsForSale', { defaultValue: 'Products for Sale' })}</p>
                     </div>
+                    </>
+                    )}
                   </div>
                   {life.community.top_categories?.length > 0 && (
                     <div className="mt-4 flex items-center gap-2 flex-wrap">
@@ -1240,7 +1256,7 @@ export default function Dashboard() {
           )}
 
           {/* Upgrade CTA */}
-          {isFreeTier && (
+          {SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS && isFreeTier && (
             <div className="bg-gradient-to-r from-orange-500/10 via-orange-600/5 to-transparent border border-orange-500/20 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div><div className="flex items-center gap-2 mb-1"><IcoZap size={18} cls="text-orange-400"/><h3 className="text-lg font-bold text-white">{t('dashboard.upgrade.title')}</h3></div><p className="text-sm text-gray-400">{t('dashboard.upgrade.subtitle')}</p></div>
               <Link to="/upgrade" className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2.5 rounded-xl transition whitespace-nowrap text-sm">{t('dashboard.upgrade.viewPlans')}</Link>

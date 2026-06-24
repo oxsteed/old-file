@@ -20,6 +20,17 @@ import {
   routeForMode,
 } from '../utils/modeRouter';
 
+const FOCUSED_MODE_SWITCHER_MODES = new Set([
+  'customer',
+  'helper',
+  'business_owner',
+  'business_manager',
+  'business_representative',
+  'business_employee',
+  'business_support_agent',
+  'admin',
+]);
+
 export default function ModeSwitcher({ compact = false }) {
   const { t } = useTranslation();
   const { user, switchRole } = useAuth();
@@ -49,6 +60,14 @@ export default function ModeSwitcher({ compact = false }) {
   const availableModes = useMemo(
     () => getAvailableModesForUser(user, { memberships }),
     [user, memberships],
+  );
+
+  // Source of truth for "current mode": the user object. No localStorage drift.
+  const current = user?.default_mode ||
+    (['helper', 'helper_pro', 'broker'].includes(user?.role) ? 'helper' : 'customer');
+  const visibleModes = useMemo(
+    () => availableModes.filter((mode) => FOCUSED_MODE_SWITCHER_MODES.has(mode) || mode === current),
+    [availableModes, current],
   );
 
   // Close on outside click / Escape
@@ -88,11 +107,8 @@ export default function ModeSwitcher({ compact = false }) {
 
   // Don't render for logged-out users or when there's only one option.
   if (!user) return null;
-  if (availableModes.length <= 1) return null;
+  if (visibleModes.length <= 1) return null;
 
-  // Source of truth for "current mode": the user object. No localStorage drift.
-  const current = user.default_mode ||
-    (['helper', 'helper_pro', 'broker'].includes(user.role) ? 'helper' : 'customer');
   const currentMeta = MODE_CATALOG[current] || MODE_CATALOG.customer;
   const currentLabel = t(currentMeta.labelKey, { defaultValue: current });
 
@@ -168,7 +184,7 @@ export default function ModeSwitcher({ compact = false }) {
           >
             {t('modeSwitcher.switchTo')}
           </div>
-          {availableModes.map((m) => {
+          {visibleModes.map((m) => {
             const meta = MODE_CATALOG[m] || {};
             const isCurrent = m === current;
             return (

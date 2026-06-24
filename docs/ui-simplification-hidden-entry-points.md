@@ -65,3 +65,40 @@ No routes or page components were deleted. The items below were only removed fro
   - Visible modes: Customer, Helper, Business Owner.
   - Hidden modes: Investor, Logistics, Consultant, Tool Owner, Franchise Applicant, Life Only.
   - Restore by adding the mode keys back into `VISIBLE_SIGNUP_MODES`.
+
+## Mode Switcher
+
+- Hidden non-core modes from the signed-in navbar mode switcher.
+  - File: `client/src/components/ModeSwitcher.jsx`
+  - Visible modes: Customer, Helper, Business Owner, granted business roles, Admin.
+  - Hidden modes: Investor, Logistics, Consultant, Tool Owner, Franchise Applicant, Life.
+  - Restore by adding the mode keys back into `FOCUSED_MODE_SWITCHER_MODES`.
+
+## Customer Dashboard
+
+- Hidden the "What to do next" recommendation card area.
+  - File: `client/src/pages/Dashboard.jsx`
+  - This removes visible prompts like Learn guides from the main customer dashboard.
+  - Restore by setting `SHOW_LEGACY_CUSTOMER_RECOMMENDATIONS` to `true`.
+
+- Hidden the legacy customer dashboard tab bar.
+  - File: `client/src/pages/Dashboard.jsx`
+  - Hidden tabs: Money, Home, Goals, Personal Care, Car Care, Skills & Tools.
+  - Restore by setting `SHOW_LEGACY_CUSTOMER_DASHBOARD_TABS` to `true` and adding desired tab IDs to `VISIBLE_CUSTOMER_DASHBOARD_TABS`.
+
+- Hidden personal-life dashboard widgets from the pulse overview.
+  - File: `client/src/pages/Dashboard.jsx`
+  - Hidden widgets: Net This Month, This Week, Goals Progress, Financial Pulse, Planned Needs snapshot, Community+ upgrade CTA.
+  - Restore by setting `SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS` to `true`.
+
+- Hidden non-core customer dashboard quick actions.
+  - File: `client/src/pages/Dashboard.jsx`
+  - Hidden buttons: Planned Needs, Browse Tools.
+  - Remaining buttons: Post a New Job, My Jobs, Browse Helpers, Messages.
+  - Restore by setting `SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS` to `true` or by removing the quick-action filter.
+
+- Hidden non-core Community Pulse stats.
+  - File: `client/src/pages/Dashboard.jsx`
+  - Hidden stats: Tools for Rent, Products for Sale.
+  - Remaining stats: New Helpers This Week, Active Helpers.
+  - Restore by setting `SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS` to `true`.
