@@ -66,7 +66,7 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
             <p style={styles.message}>
               {i18next.t('errorBoundary.message')}
             </p>
-            {import.meta.env.DEV && this.state.error && (
+                    {this.state.error && (
               <pre style={styles.errorDetail}>
                 {this.state.error.message}\n{this.state.error.stack}
               </pre>
