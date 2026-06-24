@@ -49,6 +49,23 @@ const IcoCalendar  = (p) => <Ico {...p}><rect x="3" y="4" width="18" height="18"
 const IcoWrench    = (p) => <Ico {...p}><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></Ico>;
 const IcoFileText  = (p) => <Ico {...p}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></Ico>;
 
+const SHOW_LEGACY_HELPER_RECOMMENDATIONS = false;
+const SHOW_LEGACY_HELPER_GROWTH_CENTER = false;
+const SHOW_LEGACY_HELPER_LIFE_TABS = false;
+const SHOW_LEGACY_HELPER_PRODUCTS_TAB = false;
+const FOCUSED_HELPER_DASHBOARD_TABS = new Set([
+  'pulse',
+  'editprofile',
+  'availability',
+  'aiKnowledge',
+  'earnings',
+  'jobs',
+  'skills',
+  'invoices',
+  'bids',
+  'reviews',
+]);
+
 // ── Shared UI ─────────────────────────────────────────────────────────────
 const Tag = ({ text, color = 'orange' }) => {
   const m = { orange:'bg-orange-500/15 text-orange-400', green:'bg-emerald-500/15 text-emerald-400', red:'bg-red-500/15 text-red-400', gray:'bg-gray-700/40 text-gray-400', blue:'bg-blue-500/15 text-blue-400', purple:'bg-purple-500/15 text-purple-400' };
@@ -99,7 +116,10 @@ export default function HelperDashboard() {
   const [error, setError] = useState(false);
   const [welcomeMsg] = useState(location.state?.message||null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [tab, setTab] = useState(() => searchParams.get('tab') || 'pulse');
+  const [tab, setTab] = useState(() => {
+    const requestedTab = searchParams.get('tab') || 'pulse';
+    return FOCUSED_HELPER_DASHBOARD_TABS.has(requestedTab) ? requestedTab : 'pulse';
+  });
   useEffect(()=>{
     if(searchParams.get('subscribed')==='true'){
       toast.success(t('helperDashboard.proActivated'));
@@ -115,7 +135,8 @@ export default function HelperDashboard() {
   },[]);
 
   useEffect(() => {
-    const urlTab = searchParams.get('tab') || 'pulse';
+    const requestedTab = searchParams.get('tab') || 'pulse';
+    const urlTab = FOCUSED_HELPER_DASHBOARD_TABS.has(requestedTab) ? requestedTab : 'pulse';
     if (urlTab === tab) return;
     const n = new URLSearchParams(searchParams);
     if (tab === 'pulse') n.delete('tab');
@@ -1125,13 +1146,17 @@ export default function HelperDashboard() {
     { id: 'aiKnowledge',  label: t('helperDashboard.tabs.aiKnowledge') },
     { id: 'earnings',     label: t('helperDashboard.tabs.earnings') },
     { id: 'jobs',         label: t('helperDashboard.tabs.findJobs') },
-    { id: 'money',        label: t('dashboard.tabs.money') },
-    { id: 'home',         label: t('dashboard.tabs.home') },
-    { id: 'goals',        label: t('dashboard.tabs.goals') },
-    { id: 'personalcare', label: t('dashboard.tabs.personalCare') },
-    { id: 'carcare',      label: t('dashboard.tabs.carCare') },
+    ...(SHOW_LEGACY_HELPER_LIFE_TABS ? [
+      { id: 'money',        label: t('dashboard.tabs.money') },
+      { id: 'home',         label: t('dashboard.tabs.home') },
+      { id: 'goals',        label: t('dashboard.tabs.goals') },
+      { id: 'personalcare', label: t('dashboard.tabs.personalCare') },
+      { id: 'carcare',      label: t('dashboard.tabs.carCare') },
+    ] : []),
     { id: 'skills',       label: t('dashboard.tabs.skillsTools') },
-    { id: 'products',     label: t('dashboard.tabs.products') },
+    ...(SHOW_LEGACY_HELPER_PRODUCTS_TAB ? [
+      { id: 'products',     label: t('dashboard.tabs.products') },
+    ] : []),
     { id: 'invoices',     label: t('helperDashboard.tabs.invoices') },
     { id: 'bids',         label: t('helperDashboard.tabs.myBids') },
     { id: 'reviews',      label: t('helperDashboard.tabs.reviews') },
@@ -1167,7 +1192,7 @@ export default function HelperDashboard() {
           </div>
           <HelperOffersCard />
 
-          <RecommendationFeed title="What to do next" />
+          {SHOW_LEGACY_HELPER_RECOMMENDATIONS && <RecommendationFeed title="What to do next" />}
 
           {welcomeMsg&&<div className="mb-5 flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-medium"><span>🎉</span><span>{welcomeMsg}</span></div>}
 
@@ -1215,6 +1240,7 @@ export default function HelperDashboard() {
             </Btn>
           </div>
 
+          {SHOW_LEGACY_HELPER_GROWTH_CENTER && (
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-8 bg-orange-500/10 border border-orange-500/25 rounded-2xl p-5">
             <div>
               <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold mb-1">Growth Center</p>
@@ -1227,6 +1253,7 @@ export default function HelperDashboard() {
               Open Growth Center
             </Link>
           </div>
+          )}
 
           {/* Tabs */}
           {tabs.length>1&&(

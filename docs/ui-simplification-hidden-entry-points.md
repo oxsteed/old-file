@@ -102,3 +102,24 @@ No routes or page components were deleted. The items below were only removed fro
   - Hidden stats: Tools for Rent, Products for Sale.
   - Remaining stats: New Helpers This Week, Active Helpers.
   - Restore by setting `SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS` to `true`.
+
+## Helper Dashboard
+
+- Hidden the helper "What to do next" recommendation card area.
+  - File: `client/src/pages/HelperDashboard.jsx`
+  - This removes visible prompts like Learn guides from the helper dashboard.
+  - Restore by setting `SHOW_LEGACY_HELPER_RECOMMENDATIONS` to `true`.
+
+- Hidden the helper Growth Center promo card.
+  - File: `client/src/pages/HelperDashboard.jsx`
+  - Hidden button: Open Growth Center.
+  - Restore by setting `SHOW_LEGACY_HELPER_GROWTH_CENTER` to `true`.
+
+- Hidden personal-life helper dashboard tabs.
+  - File: `client/src/pages/HelperDashboard.jsx`
+  - Hidden tabs: Money, Home, Goals, Personal Care, Car Care.
+  - Restore by setting `SHOW_LEGACY_HELPER_LIFE_TABS` to `true` and adding the tab IDs back into `FOCUSED_HELPER_DASHBOARD_TABS`.
+
+- Hidden the helper Products tab.
+  - File: `client/src/pages/HelperDashboard.jsx`
+  - Restore by setting `SHOW_LEGACY_HELPER_PRODUCTS_TAB` to `true` and adding `products` back into `FOCUSED_HELPER_DASHBOARD_TABS`.

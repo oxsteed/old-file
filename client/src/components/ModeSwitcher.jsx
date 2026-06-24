@@ -103,7 +103,7 @@ export default function ModeSwitcher({ compact = false }) {
       setSwitching(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [switchRole, navigate, t, switching]);
+  }, [switchRole, navigate, t, switching, current]);
 
   // Don't render for logged-out users or when there's only one option.
   if (!user) return null;
