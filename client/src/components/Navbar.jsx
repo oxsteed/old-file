@@ -11,6 +11,9 @@ import OxSteedNetworkSwitcher from './OxSteedNetworkSwitcher';
 import { routeForMode } from '../utils/modeRouter';
 import '../styles/BusinessSwitcher.css';
 
+const SHOW_LEGACY_NAV_RESOURCES = false;
+const SHOW_NETWORK_BRANCH_SWITCHER = false;
+
 /** The OxSteed brand icon (4-arrow clockwise ring with inner circle) */
 function OxSteedIcon({ size = 24 }) {
   return (
@@ -181,6 +184,7 @@ export default function Navbar() {
             {user ? (
               <>
                 <NavLink to="/jobs" active={isActive('/jobs')}>{t('nav.browseJobs')}</NavLink>
+                <NavLink to="/restaurants" active={isActive('/restaurants')}>{t('network.restaurants.title', 'OxSteed Restaurants')}</NavLink>
                 <NavLink to="/post-job" active={isActive('/post-job')}>{t('nav.postJob')}</NavLink>
                 <NavLink to={isHelper ? '/helper/messages' : '/messages'} active={isActive('/messages') || isActive('/helper/messages')}>
                   {t('nav.messages')}
@@ -206,9 +210,12 @@ export default function Navbar() {
                 )}
 
                 {/* OxSteed Network — branch switcher (major branches live here) */}
-                <OxSteedNetworkSwitcher showSupportWorkspace={showSupportWorkspaceNav} />
+                {SHOW_NETWORK_BRANCH_SWITCHER && (
+                  <OxSteedNetworkSwitcher showSupportWorkspace={showSupportWorkspaceNav} />
+                )}
 
                 {/* Resources Dropdown — learning + help content only */}
+                {SHOW_LEGACY_NAV_RESOURCES && (
                 <div ref={resourcesMenuRef} style={{ position: 'relative', display: 'inline-block' }}>
                   <button
                     type="button"
@@ -288,6 +295,7 @@ export default function Navbar() {
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* Role badge removed — the ModeSwitcher is now the sole
                     indicator of the user's account type. */}
@@ -303,7 +311,10 @@ export default function Navbar() {
               <>
                 <NavLink to="/login" active={isActive('/login')}>{t('nav.signIn')}</NavLink>
                 <NavLink to="/jobs" active={isActive('/jobs')}>{t('nav.browseJobs')}</NavLink>
-                <NavLink to="/how-it-works" active={isActive('/how-it-works')}>{t('nav.howItWorks')}</NavLink>
+                <NavLink to="/restaurants" active={isActive('/restaurants')}>{t('network.restaurants.title', 'OxSteed Restaurants')}</NavLink>
+                {SHOW_LEGACY_NAV_RESOURCES && (
+                  <NavLink to="/how-it-works" active={isActive('/how-it-works')}>{t('nav.howItWorks')}</NavLink>
+                )}
                 {/* Unified signup CTA — replaces the customer/helper dropdown.
                     Mode picker now lives inside /join itself. The customer/
                     helper register pages are still mounted in App.jsx for
@@ -369,12 +380,19 @@ export default function Navbar() {
                   <MobileNavLink to="/support/agent" onClick={() => setMobileOpen(false)}>{t('nav.supportWorkspace')}</MobileNavLink>
                 )}
                 <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('nav.browseJobs')}</MobileNavLink>
-                <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howOxsteedWorks')}</MobileNavLink>
-                <MobileNavLink to="/tool-rentals" onClick={() => setMobileOpen(false)}>{t('toolRentals.browsePage')}</MobileNavLink>
-                <MobileNavLink to="/learn" onClick={() => setMobileOpen(false)}>{t('nav.learnToDiy')}</MobileNavLink>
-                <div style={{ marginTop: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--color-border)' }}>
-                  <OxSteedNetworkSwitcher mobile showSupportWorkspace={showSupportWorkspaceNav} onNavigate={() => setMobileOpen(false)} />
-                </div>
+                <MobileNavLink to="/restaurants" onClick={() => setMobileOpen(false)}>{t('network.restaurants.title', 'OxSteed Restaurants')}</MobileNavLink>
+                {SHOW_LEGACY_NAV_RESOURCES && (
+                  <>
+                    <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howOxsteedWorks')}</MobileNavLink>
+                    <MobileNavLink to="/tool-rentals" onClick={() => setMobileOpen(false)}>{t('toolRentals.browsePage')}</MobileNavLink>
+                    <MobileNavLink to="/learn" onClick={() => setMobileOpen(false)}>{t('nav.learnToDiy')}</MobileNavLink>
+                  </>
+                )}
+                {SHOW_NETWORK_BRANCH_SWITCHER && (
+                  <div style={{ marginTop: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--color-border)' }}>
+                    <OxSteedNetworkSwitcher mobile showSupportWorkspace={showSupportWorkspaceNav} onNavigate={() => setMobileOpen(false)} />
+                  </div>
+                )}
                 <MobileNavLink to="/post-job" onClick={() => setMobileOpen(false)}>{t('nav.postJob')}</MobileNavLink>
                 <MobileNavLink to={isHelper ? '/helper/messages' : '/messages'} onClick={() => setMobileOpen(false)}>
                   {t('nav.messages')} {unreadMsgs > 0 && (
@@ -390,7 +408,7 @@ export default function Navbar() {
                   )}
                 </MobileNavLink>
                 {isHelper && <MobileNavLink to="/business-hub" onClick={() => setMobileOpen(false)}>{t('nav.business')}</MobileNavLink>}
-                {isHelper && <MobileNavLink to="/qr-generator" onClick={() => setMobileOpen(false)}>{t('nav.qrGenerator')}</MobileNavLink>}
+                {SHOW_LEGACY_NAV_RESOURCES && isHelper && <MobileNavLink to="/qr-generator" onClick={() => setMobileOpen(false)}>{t('nav.qrGenerator')}</MobileNavLink>}
                 <button
                   onClick={() => { logout(); setMobileOpen(false); }}
                   style={{
@@ -416,7 +434,10 @@ export default function Navbar() {
               <>
                 <MobileNavLink to="/login" onClick={() => setMobileOpen(false)}>{t('nav.signIn')}</MobileNavLink>
                 <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('nav.browseJobs')}</MobileNavLink>
-                <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howItWorks')}</MobileNavLink>
+                <MobileNavLink to="/restaurants" onClick={() => setMobileOpen(false)}>{t('network.restaurants.title', 'OxSteed Restaurants')}</MobileNavLink>
+                {SHOW_LEGACY_NAV_RESOURCES && (
+                  <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howItWorks')}</MobileNavLink>
+                )}
                 <div
                   style={{
                     marginTop: 'var(--space-2)',

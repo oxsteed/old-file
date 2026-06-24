@@ -7,9 +7,14 @@
 // knows whether the user is a support agent).
 
 export function getNetworkBranches(t, { showSupportWorkspace = false } = {}) {
-  return [
+  // Public simplification: keep the launcher focused on the two active
+  // business angles while preserving the legacy routes/components elsewhere.
+  const focusedBranches = [
     { key: 'marketplace',    to: '/jobs',                    title: t('network.marketplace.title', 'OxSteed Marketplace'),     hint: t('network.marketplace.hint', 'Hire local helpers, post jobs, compare bids') },
     { key: 'restaurants',    to: '/restaurants',             title: t('network.restaurants.title', 'OxSteed Restaurants'),      hint: t('network.restaurants.hint', 'Franchise-grade tools for independent restaurants') },
+  ];
+
+  const hiddenLegacyBranches = [
     { key: 'logistics',      to: '/logistics',               title: t('network.logistics.title', 'OxSteed Logistics'),          hint: t('network.logistics.hint', 'Sourcing, pooled orders, shipments') },
     { key: 'businessLaunch', to: '/business-launch-status',  title: t('network.businessLaunch.title', 'OxSteed Business Launch'), hint: t('network.businessLaunch.hint', 'Start and stand up a new business') },
     { key: 'consulting',     to: '/consulting',              title: t('network.consulting.title', 'OxSteed Consulting'),        hint: t('network.consulting.hint', 'Expert guidance and advisory sessions') },
@@ -19,4 +24,7 @@ export function getNetworkBranches(t, { showSupportWorkspace = false } = {}) {
     { key: 'vortex',         to: '/vortex',                  title: t('network.vortex.title', 'Vortex'),                        hint: t('network.vortex.hint', 'Join or manage your workspaces') },
     { key: 'settings',       to: '/settings',                title: t('network.settings.title', 'Settings'),                    hint: t('network.settings.hint', 'Account, billing, notifications, language') },
   ];
+
+  void hiddenLegacyBranches;
+  return focusedBranches;
 }

@@ -7,6 +7,8 @@ import { useCookieConsentContext } from '../context/CookieConsentContext';
 import { useTranslation } from 'react-i18next';
 import { routeForMode } from '../utils/modeRouter';
 
+const SHOW_FOOTER_UTILITY_PILLS = false;
+
 export default function Footer() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -228,6 +230,7 @@ export default function Footer() {
             </button>
           </div>
 
+          {SHOW_FOOTER_UTILITY_PILLS && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.65rem' }}>
             <button
               type="button"
@@ -263,6 +266,7 @@ export default function Footer() {
               {t('footer.consulting')}
             </button>
           </div>
+          )}
         </div>
 
         <div style={{

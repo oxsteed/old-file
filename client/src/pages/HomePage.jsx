@@ -9,6 +9,9 @@ import { useAuth } from '../context/AuthContext';
 import Hero from '../components/Hero';
 import LiveHelpersHeroCard from '../components/LiveHelpersHeroCard';
 
+const SHOW_DISCOVER_SEARCH_TAB = false;
+const SHOW_BUSINESS_ASCENSION_CONSULTING = false;
+
 const SKILL_SLUGS = [
   { slug: 'electrical',   icon: '⚡' },
   { slug: 'plumbing',     icon: '🚿' },
@@ -319,13 +322,15 @@ function HomeSearch() {
         >
           {t('homePage.search.browseJobs')}
         </button>
-        <button
-          type="button" role="tab" aria-selected={mode === 'discover'}
-          className={`hp-search-tab${mode === 'discover' ? ' hp-search-tab--active' : ''}`}
-          onClick={() => setMode('discover')}
-        >
-          {t('homePage.search.discoverAll')}
-        </button>
+        {SHOW_DISCOVER_SEARCH_TAB && (
+          <button
+            type="button" role="tab" aria-selected={mode === 'discover'}
+            className={`hp-search-tab${mode === 'discover' ? ' hp-search-tab--active' : ''}`}
+            onClick={() => setMode('discover')}
+          >
+            {t('homePage.search.discoverAll')}
+          </button>
+        )}
       </div>
 
       {/* ── Search form ───────────────────────────────────────────────────── */}
@@ -563,6 +568,7 @@ export default function HomePage() {
       </section>
 
       {/* -- Business Ascension Consulting Section -- */}
+      {SHOW_BUSINESS_ASCENSION_CONSULTING && (
       <section className="hp-section hp-consulting-section">
         <div className="hp-container">
           <div className="hp-consulting-intro">
@@ -603,6 +609,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      )}
 
       {/* -- Helper CTA -- */}
       <section className="hp-section hp-cta-section">

@@ -36,6 +36,7 @@ import {
 } from '../utils/modeRouter';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const VISIBLE_SIGNUP_MODES = ['customer', 'helper', 'business_owner'];
 
 export default function JoinPage() {
   const navigate = useNavigate();
@@ -59,7 +60,7 @@ export default function JoinPage() {
     zipCode: '',
     password: '',
     termsAccepted: false,
-    defaultMode: SELF_SELECTABLE_MODES.includes(presetMode) ? presetMode : 'customer',
+    defaultMode: VISIBLE_SIGNUP_MODES.includes(presetMode) ? presetMode : 'customer',
   });
   const [errors, setErrors] = useState({});
   const [emailAvailable, setEmailAvailable] = useState(null);
@@ -124,7 +125,7 @@ export default function JoinPage() {
     }
     if (scorePassword(form.password) < 3) e.password = t('register.errorPassword');
     if (!form.termsAccepted) e.termsAccepted = t('register.errorTerms');
-    if (!SELF_SELECTABLE_MODES.includes(form.defaultMode)) e.defaultMode = t('join.errorMode');
+    if (!SELF_SELECTABLE_MODES.includes(form.defaultMode) || !VISIBLE_SIGNUP_MODES.includes(form.defaultMode)) e.defaultMode = t('join.errorMode');
     setErrors(e);
     return Object.keys(e).length === 0;
   }, [form, emailAvailable, t]);
@@ -271,7 +272,7 @@ export default function JoinPage() {
                     onChange={(e) => set('defaultMode', e.target.value)}
                     className={`${inputBase} px-3 ${errors.defaultMode ? 'border-red-500' : ''}`}
                   >
-                    {SELF_SELECTABLE_MODES.map((m) => {
+                    {VISIBLE_SIGNUP_MODES.map((m) => {
                       const meta = MODE_CATALOG[m];
                       return (
                         <option key={m} value={m}>
