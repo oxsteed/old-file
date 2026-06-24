@@ -17,8 +17,7 @@ async function checkAndAlertNewLogin(userId, ipAddress, userAgent) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const { rows: recentLogins } = await pool.query(
       `SELECT DISTINCT ip_address FROM user_login_history
-       WHERE user_id = $1 AND created_at > $2 AND success = TRUE
-       ORDER BY created_at DESC`,
+       WHERE user_id = $1 AND created_at > $2 AND success = TRUE`
       [userId, thirtyDaysAgo]
     ).catch(err => {
       logger.warn('Failed to query login history', { userId, error: err.message });
