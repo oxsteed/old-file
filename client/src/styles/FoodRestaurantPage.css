@@ -26,13 +26,11 @@
 
 /* ---- Scroll root ---- */
 .rp-root {
-  height: 100vh;
-  overflow-y: auto;
   overflow-x: hidden;
   background: var(--rp-bg);
-  -webkit-overflow-scrolling: touch;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   color: var(--rp-text);
+  min-height: calc(100vh - 3.75rem);
 }
 
 .rp-page-wrap {
@@ -42,7 +40,7 @@
 /* ---- Sticky nav bar (mobile only) ---- */
 .rp-nav {
   position: sticky;
-  top: 0;
+  top: 3.75rem;   /* sits below the site navbar */
   z-index: 50;
   height: 48px;
   background: rgba(255, 255, 255, 0.9);
@@ -389,7 +387,7 @@
 /* ---- Sticky search ---- */
 .rp-sticky-search {
   position: sticky;
-  top: 48px;
+  top: calc(3.75rem + 48px);   /* site nav + mobile rp-nav */
   z-index: 40;
   background: var(--rp-white);
   border-bottom: 1px solid var(--rp-border);
@@ -472,7 +470,7 @@
 /* ---- Tab bar ---- */
 .rp-tab-bar {
   position: sticky;
-  top: 156px;
+  top: calc(3.75rem + 156px);   /* site nav + rp-nav + search/diet rows */
   z-index: 39;
   background: var(--rp-white);
   border-bottom: 1px solid var(--rp-border);
@@ -1380,12 +1378,12 @@
   /* separator gone on desktop */
   .rp-separator { display: none; }
 
-  /* sticky search moves to top: 0 since no nav */
-  .rp-sticky-search { top: 0; }
+  /* sticky search below site navbar */
+  .rp-sticky-search { top: 3.75rem; }
 
   /* tab bar has rounded top */
   .rp-tab-bar {
-    top: 108px;
+    top: calc(3.75rem + 108px);
     border-radius: 12px 12px 0 0;
     border: 1px solid var(--rp-border);
     border-bottom: none;
@@ -1403,7 +1401,7 @@
   .rp-sidebar {
     display: block;
     position: sticky;
-    top: 16px;
+    top: calc(3.75rem + 16px);
   }
 
   /* panel has border on desktop */

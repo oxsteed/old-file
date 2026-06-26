@@ -10,6 +10,8 @@ import {
   formatFoodMoney,
   listFoodPromotions,
 } from '../../api/food';
+import Navbar from '../../components/Navbar';
+import Footer from '../../components/Footer';
 import FoodOrderConfirmation from './FoodOrderConfirmation';
 import '../../styles/FoodRestaurantPage.css';
 
@@ -499,6 +501,8 @@ export default function FoodRestaurantPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
+    <>
+    <Navbar />
     <div className="rp-root">
       <div className="rp-page-wrap">
 
@@ -1158,5 +1162,7 @@ export default function FoodRestaurantPage() {
         />
       )}
     </div>
+    <Footer />
+    </>
   );
 }
