@@ -325,6 +325,7 @@ describe('restaurant app-flow backend', () => {
   test('creates POS orders in the same food_orders flow', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 55, restaurant_id: RESTAURANT_ID, status: 'open', staff_user_id: USER_ID }] })
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }] })
       .mockResolvedValueOnce({ rows: [{ next_queue: 12 }] })
@@ -361,8 +362,10 @@ describe('restaurant app-flow backend', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, restaurant_id: RESTAURANT_ID, total_cents: 899, payment_status: 'unpaid' }] })
+      .mockResolvedValueOnce({ rows: [{ paid_cents: 0, refunded_cents: 0 }] })
       .mockResolvedValueOnce({ rows: [{ id: 501, amount_cents: 899, payment_type: 'cash' }] })
-      .mockResolvedValueOnce({ rows: [{ paid_cents: 899, refunded_cents: 0 }] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, total_cents: 899, payment_status: 'unpaid', pos_ticket_state: 'open' }] })
+      .mockResolvedValueOnce({ rows: [{ paid_cents: 899, refunded_cents: 0, pending_payments: 0 }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, payment_status: 'paid', pos_ticket_state: 'closed' }] });
 
     const res = await request(buildApp())
@@ -405,9 +408,11 @@ describe('restaurant app-flow backend', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, restaurant_id: RESTAURANT_ID, business_id: BUSINESS_ID, status: 'received', payment_status: 'unpaid', order_source: 'counter', fulfillment_type: 'pickup', currency_code: 'USD', metadata: {} }] })
-      .mockResolvedValueOnce({ rows: [{ id: 201, line_total_cents: 500 }] })
+      .mockResolvedValueOnce({ rows: [{ payment_count: 0 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 201, line_total_cents: 500, order_item_count: 2 }] })
       .mockResolvedValueOnce({ rows: [{ next_queue: 13 }] })
       .mockResolvedValueOnce({ rows: [{ id: 101, queue_number: 13 }] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ subtotal_cents: 399 }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, subtotal_cents: 399, total_cents: 399 }] })
@@ -424,8 +429,11 @@ describe('restaurant app-flow backend', () => {
 
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
-      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID }, { id: 101 }] })
-      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [
+        { id: ORDER_ID, status: 'received', payment_status: 'unpaid', pos_ticket_state: 'open', currency_code: 'USD', fulfillment_type: 'pickup', tax_rate_bps: 0, service_fee_bps: 0 },
+        { id: 101, status: 'received', payment_status: 'unpaid', pos_ticket_state: 'open', currency_code: 'USD', fulfillment_type: 'pickup', tax_rate_bps: 0, service_fee_bps: 0 },
+      ] })
+      .mockResolvedValueOnce({ rows: [{ payment_count: 0 }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ subtotal_cents: 899 }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, total_cents: 899 }] })
@@ -531,6 +539,8 @@ describe('restaurant app-flow backend', () => {
 
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 31 }] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID }] })
       .mockResolvedValueOnce({ rows: [{ id: 51, status: 'queued', job_type: 'kitchen_ticket' }] });
 
     const printRes = await request(buildApp())
@@ -617,7 +627,8 @@ describe('restaurant app-flow backend', () => {
   test('creates runner settlement for delivery fee and tip reconciliation', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
-      .mockResolvedValueOnce({ rows: [{ id: 901, food_order_id: ORDER_ID, assigned_to: USER_ID }] })
+      .mockResolvedValueOnce({ rows: [{ id: 901, food_order_id: ORDER_ID, assigned_to: USER_ID, task_status: 'Completed', handoff_at: '2026-06-21T04:10:00.000Z' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1100, status: 'pending' }] })
       .mockResolvedValueOnce({ rows: [{ id: 1101, task_id: 901, delivery_fee_cents: 300, tip_cents: 200, status: 'approved' }] });
 
     const res = await request(buildApp())
@@ -678,6 +689,7 @@ describe('restaurant app-flow backend', () => {
 
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 11, restaurant_id: RESTAURANT_ID }] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ menu_item_id: 11 }] });

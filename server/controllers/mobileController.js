@@ -1,6 +1,8 @@
 const pool = require('../db');
 const AppError = require('../utils/appError');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
+const countriesUtil = require('../utils/countries');
+const modeRoleUtil = require('../utils/modeRole');
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? require('stripe')(process.env.STRIPE_SECRET_KEY)
@@ -29,6 +31,350 @@ function firstNumber(rows, key, fallback = 0) {
   const value = rows?.[0]?.[key];
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function parseLimit(value, fallback = 12, max = 50) {
+  const parsed = Number.parseInt(String(value), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(max, parsed);
+}
+
+const SUPPORTED_LANGUAGES = [
+  { code: 'en', name: 'English', nativeName: 'English', flag: '🇺🇸', direction: 'ltr' },
+  { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸', direction: 'ltr' },
+  { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷', direction: 'ltr' },
+  { code: 'ht', name: 'Haitian Creole', nativeName: 'Kreyòl Ayisyen', flag: '🇭🇹', direction: 'ltr' },
+  { code: 'ar', name: 'Arabic', nativeName: 'العربية', flag: '🇸🇦', direction: 'rtl' },
+];
+
+const SUPPORTED_COUNTRIES = [
+  { code: 'US', name: 'United States', flag: '🇺🇸', currencyCode: 'USD', distanceUnit: 'miles', languages: ['en', 'es'] },
+  { code: 'CA', name: 'Canada', flag: '🇨🇦', currencyCode: 'CAD', distanceUnit: 'kilometers', languages: ['en', 'fr'] },
+  { code: 'MX', name: 'Mexico', flag: '🇲🇽', currencyCode: 'MXN', distanceUnit: 'kilometers', languages: ['es'] },
+  { code: 'DO', name: 'Dominican Republic', flag: '🇩🇴', currencyCode: 'DOP', distanceUnit: 'kilometers', languages: ['es'] },
+  { code: 'HT', name: 'Haiti', flag: '🇭🇹', currencyCode: 'HTG', distanceUnit: 'kilometers', languages: ['ht', 'fr'] },
+  { code: 'FR', name: 'France', flag: '🇫🇷', currencyCode: 'EUR', distanceUnit: 'kilometers', languages: ['fr'] },
+  { code: 'GB', name: 'United Kingdom', flag: '🇬🇧', currencyCode: 'GBP', distanceUnit: 'miles', languages: ['en'] },
+  { code: 'AE', name: 'United Arab Emirates', flag: '🇦🇪', currencyCode: 'AED', distanceUnit: 'kilometers', languages: ['ar', 'en'] },
+  { code: 'SA', name: 'Saudi Arabia', flag: '🇸🇦', currencyCode: 'SAR', distanceUnit: 'kilometers', languages: ['ar'] },
+  { code: 'EG', name: 'Egypt', flag: '🇪🇬', currencyCode: 'EGP', distanceUnit: 'kilometers', languages: ['ar'] },
+  { code: 'MA', name: 'Morocco', flag: '🇲🇦', currencyCode: 'MAD', distanceUnit: 'kilometers', languages: ['ar', 'fr'] },
+  { code: 'NG', name: 'Nigeria', flag: '🇳🇬', currencyCode: 'NGN', distanceUnit: 'kilometers', languages: ['en'] },
+];
+
+function countryCodeFromAddressCountry(rawCountry) {
+  if (!rawCountry) return null;
+  const normalized = String(rawCountry).trim();
+  if (normalized.length === 2) return normalized.toUpperCase();
+
+  const lower = normalized.toLowerCase();
+  if (lower === 'usa') return 'US';
+  if (['u.s.', 'united states', 'united states of america'].includes(lower)) return 'US';
+  if (['uk', 'u.k.', 'united kingdom', 'great britain', 'england'].includes(lower)) return 'GB';
+  if (['uae', 'united arab emirates'].includes(lower)) return 'AE';
+  if (['haiti', 'haïti'].includes(lower)) return 'HT';
+  return null;
+}
+
+function countryMeta(rawCountry, fallbackCurrency = 'USD') {
+  const code = countryCodeFromAddressCountry(rawCountry) || String(rawCountry || 'US').trim().slice(0, 2).toUpperCase() || 'US';
+  const known = SUPPORTED_COUNTRIES.find((country) => country.code === code);
+  return known || {
+    code,
+    name: String(rawCountry || code).trim(),
+    flag: '🏳️',
+    currencyCode: fallbackCurrency || 'USD',
+    distanceUnit: ['US', 'GB'].includes(code) ? 'miles' : 'kilometers',
+    languages: [],
+  };
+}
+
+function normalizeCountryFilter(value) {
+  const raw = normalizeString(value, 80);
+  if (!raw) return null;
+  return countryCodeFromAddressCountry(raw) || raw.toUpperCase();
+}
+
+function buildPublicFilters(query = {}) {
+  return {
+    limit: parseLimit(query.limit, 12, 50),
+    city: normalizeString(query.city, 100),
+    country: normalizeCountryFilter(query.country),
+    q: normalizeString(query.q || query.search, 120),
+    category: normalizeString(query.category, 120),
+    language: normalizeString(query.language || query.lang, 8),
+  };
+}
+
+function normalizeSupportedLanguage(raw, fallback = null) {
+  const parsed = String(raw || '')
+    .split(',')[0]
+    .trim()
+    .split(/[-_]/)[0]
+    .toLowerCase();
+  return SUPPORTED_LANGUAGES.some((language) => language.code === parsed) ? parsed : fallback;
+}
+
+function ownProperty(object, key) {
+  return Object.prototype.hasOwnProperty.call(object || {}, key);
+}
+
+function bodyString(body, camelKey, snakeKey, maxLength) {
+  if (ownProperty(body, camelKey)) return normalizeString(body[camelKey], maxLength);
+  if (ownProperty(body, snakeKey)) return normalizeString(body[snakeKey], maxLength);
+  return undefined;
+}
+
+function diditIdentityRequired(user) {
+  const status = user.didit_status || 'pending';
+  return Boolean(user.didit_enforcement_required) && status !== 'verified';
+}
+
+function formatMobileProfile(user) {
+  const countryCode = countriesUtil.normalizeCountry(user.country || user.address_country, 'US');
+  return {
+    id: user.id,
+    firstName: user.first_name,
+    lastName: user.last_name,
+    fullName: [user.first_name, user.last_name].filter(Boolean).join(' ').trim(),
+    email: user.email,
+    phone: user.phone || null,
+    role: user.role,
+    mode: {
+      defaultMode: user.default_mode || 'customer',
+      role: user.role,
+      selfSelectableModes: modeRoleUtil.SELF_SELECTABLE_MODES,
+      grantedModes: modeRoleUtil.GRANTED_MODES,
+    },
+    preferences: {
+      language: user.preferred_language || 'en',
+      country: countryCode,
+      countryName: countriesUtil.getCountryName(countryCode),
+      currencyCode: countriesUtil.getDefaultCurrency(countryCode),
+    },
+    address: {
+      line1: user.address_line1 || null,
+      city: user.city || null,
+      state: user.state || null,
+      zip: user.zip_code || null,
+      country: countryCode,
+    },
+    verification: {
+      emailVerified: Boolean(user.email_verified),
+      accountVerified: Boolean(user.is_verified),
+      idVerified: Boolean(user.id_verified),
+      backgroundCheckPassed: Boolean(user.background_check_passed),
+      diditStatus: user.didit_status || 'pending',
+      diditVerifiedAt: user.didit_verified_at || null,
+      diditEnforcementRequired: Boolean(user.didit_enforcement_required),
+      identityVerificationRequired: diditIdentityRequired(user),
+    },
+    membership: {
+      tier: user.membership_tier || null,
+      onboardingStatus: user.onboarding_status || null,
+      onboardingCompleted: Boolean(user.onboarding_completed),
+      onboardingStep: user.onboarding_step || null,
+    },
+  };
+}
+
+function addCountryCondition(where, params, column, country) {
+  if (!country) return;
+  params.push(country);
+  where.push(`UPPER(${column}) = $${params.length}`);
+}
+
+async function getPublicMarkets() {
+  const rows = await safeQuery(
+    `SELECT NULLIF(trim(fr.address_country), '') AS address_country,
+            NULLIF(trim(fr.address_city), '') AS address_city,
+            COALESCE(NULLIF(trim(fr.currency_code), ''), 'USD') AS currency_code,
+            COUNT(*)::int AS restaurant_count
+       FROM food_restaurants fr
+      WHERE fr.status = 'active'
+        AND COALESCE(fr.accepts_online_orders, TRUE) = TRUE
+        AND NULLIF(trim(fr.address_city), '') IS NOT NULL
+        AND NULLIF(trim(fr.address_country), '') IS NOT NULL
+      GROUP BY fr.address_country, fr.address_city, fr.currency_code
+      ORDER BY restaurant_count DESC, address_city ASC`,
+  );
+
+  return rows.map((row) => {
+    const meta = countryMeta(row.address_country, row.currency_code);
+    return {
+      city: row.address_city,
+      country: meta.name,
+      countryCode: meta.code,
+      currencyCode: row.currency_code || meta.currencyCode,
+      distanceUnit: meta.distanceUnit,
+      flag: meta.flag,
+      restaurantCount: Number(row.restaurant_count || 0),
+    };
+  });
+}
+
+async function getPublicRestaurants(filters) {
+  const params = [];
+  const where = [`fr.status = 'active'`];
+  if (filters.city) {
+    params.push(`%${filters.city}%`);
+    where.push(`fr.address_city ILIKE $${params.length}`);
+  }
+  addCountryCondition(where, params, 'fr.address_country', filters.country);
+  if (filters.q) {
+    params.push(`%${filters.q}%`);
+    where.push(`(fr.display_name ILIKE $${params.length} OR fr.description ILIKE $${params.length} OR EXISTS (
+      SELECT 1 FROM unnest(fr.cuisine_tags) tag WHERE tag ILIKE $${params.length}
+    ))`);
+  }
+  params.push(filters.limit);
+
+  return safeQuery(
+    `SELECT fr.id, fr.business_id, fr.display_name, fr.slug, fr.description,
+            fr.cuisine_tags, fr.cover_photo_url, fr.logo_url,
+            fr.address_city, fr.address_state, fr.address_country,
+            fr.currency_code, fr.fulfillment_modes,
+            fr.accepts_online_orders, fr.accepts_in_store_orders,
+            fr.prep_time_min, fr.brand_accent_hex, fr.operating_hours,
+            fr.timezone, fr.is_verified
+       FROM food_restaurants fr
+      WHERE ${where.join(' AND ')}
+      ORDER BY fr.is_verified DESC NULLS LAST, fr.display_name ASC
+      LIMIT $${params.length}`,
+    params
+  );
+}
+
+async function getPublicMenuHighlights(filters) {
+  const params = [];
+  const where = [`fr.status = 'active'`, `fmi.is_available = TRUE`];
+  if (filters.city) {
+    params.push(`%${filters.city}%`);
+    where.push(`fr.address_city ILIKE $${params.length}`);
+  }
+  addCountryCondition(where, params, 'fr.address_country', filters.country);
+  if (filters.q) {
+    params.push(`%${filters.q}%`);
+    where.push(`(fmi.name ILIKE $${params.length} OR fmi.description ILIKE $${params.length} OR fr.display_name ILIKE $${params.length})`);
+  }
+  params.push(Math.min(filters.limit, 20));
+
+  return safeQuery(
+    `SELECT fmi.id, fmi.restaurant_id, fmi.name, fmi.description,
+            fmi.price_cents, fmi.currency_code, fmi.image_url, fmi.tags,
+            fr.display_name AS restaurant_name,
+            fr.address_city AS restaurant_city,
+            fr.address_country AS restaurant_country
+       FROM food_menu_items fmi
+       JOIN food_restaurants fr ON fr.id = fmi.restaurant_id
+      WHERE ${where.join(' AND ')}
+      ORDER BY COALESCE(fmi.sort_order, 9999), fmi.name ASC
+      LIMIT $${params.length}`,
+    params
+  );
+}
+
+async function getPublicJobs(filters) {
+  const params = [];
+  const where = [`u.is_active = TRUE`, `j.deleted_at IS NULL`, `j.status IN ('published', 'matched')`];
+  if (filters.city) {
+    params.push(`%${filters.city}%`);
+    where.push(`j.location_city ILIKE $${params.length}`);
+  }
+  if (filters.country) {
+    params.push(`%${filters.country}%`);
+    where.push(`j.location_country ILIKE $${params.length}`);
+  }
+  if (filters.category) {
+    params.push(filters.category);
+    where.push(`j.category_name = $${params.length}`);
+  }
+  if (filters.q) {
+    params.push(`%${filters.q}%`);
+    where.push(`(j.title ILIKE $${params.length} OR j.description ILIKE $${params.length} OR j.category_name ILIKE $${params.length})`);
+  }
+  params.push(filters.limit);
+
+  return safeQuery(
+    `SELECT j.id, j.title, j.description, j.category_name, j.status,
+            j.budget_type, j.budget_min, j.budget_max, j.is_urgent,
+            j.location_city, j.location_state, j.location_country,
+            j.created_at, j.expires_at, j.bid_count,
+            u.first_name || ' ' || u.last_name AS client_name
+       FROM jobs j
+       JOIN users u ON j.client_id = u.id
+      WHERE ${where.join(' AND ')}
+      ORDER BY j.is_urgent DESC NULLS LAST, j.created_at DESC
+      LIMIT $${params.length}`,
+    params
+  );
+}
+
+async function getPublicHelpers(filters) {
+  const params = [];
+  const where = [
+    `u.deleted_at IS NULL`,
+    `u.is_active = TRUE`,
+    `u.email_verified = TRUE`,
+    `u.onboarding_completed = TRUE`,
+    `u.role IN ('helper', 'helper_pro', 'broker')`,
+    `COALESCE(hp.is_listed, TRUE) = TRUE`,
+  ];
+  if (filters.city) {
+    params.push(`%${filters.city}%`);
+    where.push(`hp.service_city ILIKE $${params.length}`);
+  }
+  if (filters.country) {
+    params.push(`%${filters.country}%`);
+    where.push(`hp.service_country ILIKE $${params.length}`);
+  }
+  if (filters.q) {
+    params.push(`%${filters.q}%`);
+    where.push(`(u.first_name ILIKE $${params.length} OR u.last_name ILIKE $${params.length} OR hp.profile_headline ILIKE $${params.length} OR hp.bio_short ILIKE $${params.length})`);
+  }
+  params.push(filters.limit);
+
+  return safeQuery(
+    `SELECT u.id,
+            u.first_name || ' ' || u.last_name AS display_name,
+            hp.profile_headline, hp.bio_short,
+            hp.service_city, hp.service_state, hp.service_country,
+            hp.avg_rating, hp.total_reviews,
+            hp.is_background_checked, hp.is_identity_verified,
+            hp.profile_photo_url, hp.hourly_rate_min, hp.response_time_hours
+       FROM users u
+       JOIN helper_profiles hp ON hp.user_id = u.id
+      WHERE ${where.join(' AND ')}
+      ORDER BY hp.search_rank_boost DESC NULLS LAST, hp.avg_rating DESC NULLS LAST, u.created_at DESC
+      LIMIT $${params.length}`,
+    params
+  );
+}
+
+function publicPayload({ filters, markets, restaurants, menuHighlights, jobs, helpers }) {
+  const protectedActions = [
+    'place_order',
+    'save_favorite',
+    'post_job',
+    'send_message',
+    'view_order_history',
+    'manage_profile',
+  ];
+
+  return {
+    success: true,
+    data: {
+      filters,
+      languages: SUPPORTED_LANGUAGES,
+      countries: SUPPORTED_COUNTRIES,
+      protectedActions,
+      markets,
+      restaurants,
+      menuHighlights,
+      jobs,
+      helpers,
+    },
+  };
 }
 
 function requireStripe() {
@@ -291,6 +637,155 @@ exports.confirmBookingPayment = async (req, res, next) => {
     res.json({ success: true, data: { booking: rows[0], paymentIntentId, status: 'paid' } });
   } catch (err) {
     next(err);
+  }
+};
+
+exports.getPublicBootstrap = async (req, res, next) => {
+  try {
+    const filters = buildPublicFilters(req.query);
+    const [markets, restaurants, menuHighlights, jobs, helpers] = await Promise.all([
+      getPublicMarkets(),
+      getPublicRestaurants(filters),
+      getPublicMenuHighlights(filters),
+      getPublicJobs(filters),
+      getPublicHelpers(filters),
+    ]);
+
+    res.json(publicPayload({ filters, markets, restaurants, menuHighlights, jobs, helpers }));
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getPublicNearby = async (req, res, next) => {
+  try {
+    const filters = buildPublicFilters(req.query);
+    const [restaurants, menuHighlights, jobs, helpers] = await Promise.all([
+      getPublicRestaurants(filters),
+      getPublicMenuHighlights(filters),
+      getPublicJobs(filters),
+      getPublicHelpers(filters),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        filters,
+        restaurants,
+        menuHighlights,
+        jobs,
+        helpers,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getMobileProfile = async (req, res, next) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        profile: formatMobileProfile(req.user),
+        languages: SUPPORTED_LANGUAGES,
+        countries: SUPPORTED_COUNTRIES,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateMobileProfile = async (req, res, next) => {
+  let client;
+  try {
+    const body = req.body || {};
+    const preferredLanguageInput = body.preferredLanguage ?? body.preferred_language ?? body.language;
+    const preferredLanguage = preferredLanguageInput === undefined
+      ? undefined
+      : normalizeSupportedLanguage(preferredLanguageInput);
+    if (preferredLanguageInput !== undefined && !preferredLanguage) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        preferredLanguage: 'Supported languages are en, es, fr, ht, and ar',
+      });
+    }
+
+    const countryInput = body.country ?? body.countryCode ?? body.country_code;
+    let country = undefined;
+    if (countryInput !== undefined) {
+      country = String(countryInput || '').trim().toUpperCase();
+      if (!countriesUtil.isValidCountry(country)) {
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          country: 'Unsupported country code',
+        });
+      }
+    }
+
+    const requestedMode = body.defaultMode ?? body.default_mode ?? body.mode;
+    const defaultMode = requestedMode === undefined ? undefined : normalizeString(requestedMode, 80);
+    if (defaultMode !== undefined && !modeRoleUtil.isSelfSelectableMode(defaultMode)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        defaultMode: 'Unsupported account mode',
+      });
+    }
+
+    const phone = bodyString(body, 'phone', 'phone', 40);
+    const addressLine1 = bodyString(body, 'addressLine1', 'address_line1', 255);
+    const city = bodyString(body, 'city', 'city', 120);
+    const state = bodyString(body, 'state', 'state', 120);
+    const zip = bodyString(body, 'zip', 'zip_code', 40);
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    let modeSwitched = false;
+    if (defaultMode !== undefined && defaultMode !== req.user.default_mode) {
+      await modeRoleUtil.applyModeSwitch(client, req.user.id, defaultMode);
+      modeSwitched = true;
+    }
+
+    const { rows: [updated] } = await client.query(
+      `UPDATE users
+          SET phone = CASE WHEN $1::text IS NULL THEN phone ELSE $1 END,
+              preferred_language = CASE WHEN $2::text IS NULL THEN preferred_language ELSE $2 END,
+              country = CASE WHEN $3::text IS NULL THEN country ELSE $3 END,
+              address_line1 = CASE WHEN $4::text IS NULL THEN address_line1 ELSE $4 END,
+              city = CASE WHEN $5::text IS NULL THEN city ELSE $5 END,
+              state = CASE WHEN $6::text IS NULL THEN state ELSE $6 END,
+              zip_code = CASE WHEN $7::text IS NULL THEN zip_code ELSE $7 END,
+              updated_at = NOW()
+        WHERE id = $8
+        RETURNING *`,
+      [
+        phone === undefined ? null : phone,
+        preferredLanguage === undefined ? null : preferredLanguage,
+        country === undefined ? null : country,
+        addressLine1 === undefined ? null : addressLine1,
+        city === undefined ? null : city,
+        state === undefined ? null : state,
+        zip === undefined ? null : zip,
+        req.user.id,
+      ]
+    );
+    if (!updated) {
+      throw new AppError('Profile not found', 404, 'profile_not_found');
+    }
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      data: {
+        profile: formatMobileProfile(updated),
+        modeSwitched,
+      },
+    });
+  } catch (err) {
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch (_) { /* ignore */ }
+    }
+    next(err);
+  } finally {
+    if (client) client.release();
   }
 };
 

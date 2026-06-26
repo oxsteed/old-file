@@ -48,7 +48,11 @@ jest.mock('pg', () => {
 });
 
 // ── Mock external services ────────────────────────────────────────────────────
-jest.mock('../utils/email',  () => ({ sendOTPEmail: jest.fn().mockResolvedValue(true), sendPasswordResetEmail: jest.fn().mockResolvedValue(true) }));
+jest.mock('../utils/email',  () => ({
+  sendOTPEmail: jest.fn().mockResolvedValue(true),
+  sendPasswordResetEmail: jest.fn().mockResolvedValue(true),
+  sendEmail: jest.fn().mockResolvedValue(true),
+}));
 jest.mock('../utils/sms',    () => ({ sendOTPSMS:   jest.fn().mockResolvedValue(true) }));
 jest.mock('../services/socketService', () => ({ init: jest.fn(), emit: jest.fn() }));
 jest.mock('../services/feeService',    () => ({ reloadFeeConfig: jest.fn().mockResolvedValue(true), getFeeConfig: jest.fn().mockReturnValue({ platform_fee_pct: 10 }) }));

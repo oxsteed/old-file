@@ -94,7 +94,7 @@ async function authenticate(req, res, next) {
          u.contact_completed, u.profile_completed,
          u.tier_selected, u.w9_completed, u.terms_accepted,
          u.membership_tier, u.id_verified, u.background_check_passed,
-         u.city, u.state, u.zip_code,
+         u.address_line1, u.city, u.state, u.zip_code, u.country,
          u.preferred_language,
          u.display_name_preference, u.is_active,
          u.didit_status, u.didit_verified_at,
@@ -135,6 +135,7 @@ async function authenticate(req, res, next) {
       '/api/privacy',
       '/api/geo',
       '/api/support',
+      '/api/mobile/profile',
     ];
     const fullPath = `${req.baseUrl || ''}${req.path || ''}` || req.originalUrl?.split('?')[0] || '';
     const isDiditExempt =

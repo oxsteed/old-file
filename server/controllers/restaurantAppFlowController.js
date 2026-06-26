@@ -329,7 +329,7 @@ async function recalcOrderTotals(client, orderId) {
 }
 
 async function assertMutablePosOrders(client, restaurantId, orders) {
-  const invalid = orders.find((order) => !['open', 'held'].includes(order.pos_ticket_state)
+  const invalid = orders.find((order) => !['open', 'held'].includes(order.pos_ticket_state || 'open')
     || !['unpaid', 'requires_payment'].includes(order.payment_status)
     || ['cancelled', 'refunded', 'completed'].includes(order.status));
   if (invalid) {
@@ -2426,7 +2426,7 @@ exports.recordPosPayment = async (req, res, next) => {
     if (!POS_PAYMENT_STATUSES.has(status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported payment status' });
     }
-    if (status !== 'recorded') {
+    if (!['recorded', 'captured'].includes(status)) {
       throw new AppError('Manual payments can only be recorded as settled', 409, 'invalid_manual_payment_status');
     }
     const amountCents = parseCents(req.body.amountCents ?? req.body.amount_cents, 'amountCents');
@@ -2443,7 +2443,9 @@ exports.recordPosPayment = async (req, res, next) => {
       if (['voided', 'refunded'].includes(order.pos_ticket_state) || order.status === 'cancelled') {
         throw new AppError('This ticket cannot accept payments', 409, 'ticket_not_payable');
       }
-      await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, MANAGE_ROLES.has(restaurant.effective_role));
+      if (shiftId || !MANAGE_ROLES.has(restaurant.effective_role)) {
+        await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, MANAGE_ROLES.has(restaurant.effective_role));
+      }
       const { rows: [ledger] } = await client.query(
         `SELECT COALESCE(SUM(amount_cents) FILTER (
                         WHERE payment_type <> 'refund' AND status IN ('recorded','captured')
@@ -4051,6 +4053,7 @@ async function persistCrewProof({
   userId,
   proofType,
   storageKey,
+  fileUrl,
   fileName,
   fileSize,
   contentType,
@@ -4058,7 +4061,7 @@ async function persistCrewProof({
   note,
   metadata,
 }) {
-  const privateReference = `private://${storageKey}`;
+  const privateReference = storageKey ? `private://${storageKey}` : fileUrl;
   return withTransaction(pool, async (client) => {
     const { rows: [proof] } = await client.query(
       `INSERT INTO restaurant_crew_task_proofs
@@ -4072,7 +4075,7 @@ async function persistCrewProof({
         userId,
         proofType,
         privateReference,
-        storageKey,
+        storageKey || null,
         fileName,
         fileSize,
         contentType,
@@ -4145,8 +4148,10 @@ exports.addCrewTaskProof = async (req, res, next) => {
     const taskId = parsePositiveInt(req.params.taskId);
     const task = await loadCrewProofTask(req.user.id, restaurantId, taskId);
     const storageKey = normalizeString(req.body.storageKey || req.body.storage_key, 1000);
+    const fileUrl = normalizeString(req.body.fileUrl || req.body.file_url, 1000);
     const allowedPrefix = `user-uploads/${req.user.id}/`;
-    if (!storageKey || !storageKey.startsWith(allowedPrefix)) {
+    const hasDirectUrl = fileUrl && /^https?:\/\//i.test(fileUrl);
+    if (!hasDirectUrl && (!storageKey || !storageKey.startsWith(allowedPrefix))) {
       throw new AppError(
         'Upload the proof first and provide its authenticated storage key',
         400,
@@ -4164,6 +4169,7 @@ exports.addCrewTaskProof = async (req, res, next) => {
       userId: req.user.id,
       proofType,
       storageKey,
+      fileUrl: hasDirectUrl ? fileUrl : null,
       fileName: normalizeString(req.body.fileName || req.body.file_name, 255),
       fileSize: parsePositiveInt(req.body.fileSize || req.body.file_size),
       contentType: normalizeString(req.body.contentType || req.body.content_type, 160),

@@ -4,6 +4,11 @@ const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const mobileController = require('../controllers/mobileController');
 
+router.get('/public/bootstrap', mobileController.getPublicBootstrap);
+router.get('/public/nearby', mobileController.getPublicNearby);
+
+router.get('/profile', authenticate, mobileController.getMobileProfile);
+router.patch('/profile', authenticate, mobileController.updateMobileProfile);
 router.post('/push-token', authenticate, mobileController.registerPushToken);
 router.delete('/push-token', authenticate, mobileController.unregisterPushToken);
 router.get('/feed', authenticate, mobileController.getFeed);

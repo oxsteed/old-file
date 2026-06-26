@@ -2,8 +2,9 @@
 const express = require('express');
 const router = express.Router();
 
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, optionalAuth } = require('../middleware/auth');
 const supportAgentsController = require('../controllers/supportAgentsController');
+const supportTicketController = require('../controllers/supportController');
 const agentShiftsController = require('../controllers/agentShiftsController');
 const supportConversationsController = require('../controllers/supportConversationsController');
 const conversationAssignmentController = require('../controllers/conversationAssignmentController');
@@ -24,8 +25,17 @@ const supportAgentPortalController = require('../controllers/supportAgentPortalC
 const db = require('../db');
 const { randomUUID } = require('crypto');
 
+// Public/customer ticket entry point. Guests can create tickets, and signed-in
+// users are linked automatically when a valid bearer token is present.
+router.post('/request', optionalAuth, supportTicketController.submitSupportRequest);
+
 // All routes require authentication
 router.use(requireAuth);
+
+// Authenticated customer ticket lifecycle.
+router.get('/my-tickets', supportTicketController.getMyTickets);
+router.get('/my-tickets/:ticketId', supportTicketController.getMyTicket);
+router.post('/my-tickets/:ticketId/reply', supportTicketController.replyToMyTicket);
 
 // ============================================
 // AGENT SELF-SERVICE PORTAL (must precede /:businessId/*)
