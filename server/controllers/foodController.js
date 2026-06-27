@@ -78,6 +78,32 @@ function normalizeTextArray(value, maxItems = 12) {
     .slice(0, maxItems);
 }
 
+// Restaurant-level dietary capabilities used by the customer dietary filter.
+// Canonical values are lowercase + underscore-separated; common variants are
+// folded in so older/looser clients still resolve correctly.
+const DIETARY_TAG_ALIASES = {
+  vegan: 'vegan',
+  vegetarian: 'vegetarian',
+  veg: 'vegetarian',
+  gluten_free: 'gluten_free',
+  'gluten-free': 'gluten_free',
+  glutenfree: 'gluten_free',
+  gf: 'gluten_free',
+  halal: 'halal',
+};
+const ALLOWED_DIETARY_TAGS = new Set(['vegan', 'vegetarian', 'gluten_free', 'halal']);
+
+function normalizeDietaryTags(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  for (const item of value) {
+    const key = String(item || '').trim().toLowerCase().replace(/\s+/g, '_');
+    const canonical = DIETARY_TAG_ALIASES[key] || key;
+    if (ALLOWED_DIETARY_TAGS.has(canonical)) seen.add(canonical);
+  }
+  return Array.from(seen);
+}
+
 function parsePositiveInt(value, fallback = null) {
   const n = Number.parseInt(String(value), 10);
   return Number.isFinite(n) && n > 0 ? n : fallback;
@@ -835,6 +861,7 @@ exports.listRestaurants = async (req, res, next) => {
               fr.accepts_online_orders, fr.accepts_in_store_orders,
               fr.kitchen_display_enabled, fr.prep_time_min,
               fr.brand_accent_hex, fr.operating_hours, fr.timezone, fr.is_verified,
+              fr.dietary_tags,
               COALESCE(rr.avg_rating, 0)::float AS avg_rating,
               COALESCE(rr.review_count, 0)::int AS review_count,
               ${distanceSelect}
@@ -900,6 +927,7 @@ exports.listRestaurants = async (req, res, next) => {
                 fr.latitude, fr.longitude, fr.currency_code, fr.fulfillment_modes,
                 fr.accepts_online_orders, fr.accepts_in_store_orders,
                 fr.kitchen_display_enabled, fr.prep_time_min,
+                fr.dietary_tags,
                 0::float AS avg_rating, 0::int AS review_count,
                 ${distanceSelect}
            FROM food_restaurants fr
@@ -1838,6 +1866,7 @@ const RESTAURANT_PATCH_FIELDS = {
   timezone: { column: 'timezone', value: (v) => normalizeString(v, 80) || 'UTC' },
   currencyCode: { column: 'currency_code', value: (v) => normalizeCurrency(v) },
   cuisineTags: { column: 'cuisine_tags', value: (v) => normalizeTextArray(v) },
+  dietaryTags: { column: 'dietary_tags', value: (v) => normalizeDietaryTags(v) },
   prepTimeMin: { column: 'prep_time_min', value: (v) => parsePositiveInt(v, 15) },
   acceptsOnlineOrders: { column: 'accepts_online_orders', value: (v) => v !== false },
   acceptsInStoreOrders: { column: 'accepts_in_store_orders', value: (v) => v !== false },
