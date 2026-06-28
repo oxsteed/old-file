@@ -1,7 +1,11 @@
 'use strict';
 
+const crypto = require('crypto');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
+
+const MAX_WALLET_ENTRY_CENTS = Math.max(1, Number.parseInt(process.env.FOOD_WALLET_MAX_ENTRY_CENTS || '250000', 10));
+const MAX_WALLET_BALANCE_CENTS = Math.max(MAX_WALLET_ENTRY_CENTS, Number.parseInt(process.env.FOOD_WALLET_MAX_BALANCE_CENTS || '1000000', 10));
 
 function normalizeString(value, max = 255) {
   if (typeof value !== 'string') return null;
@@ -16,6 +20,15 @@ function normalizeCurrency(value) {
 
 function normalizeMetadata(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
+function stableStringify(value) {
+  if (value === null || value === undefined) return 'null';
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
 }
 
 function toWalletAmount(amountCents) {
@@ -35,6 +48,12 @@ function formatLedgerRow(row) {
     referenceType: row.reference_type || null,
     referenceId: row.reference_id || null,
     createdAt: row.created_at,
+    postedAt: row.posted_at || row.created_at,
+    sequence: row.entry_sequence === null || row.entry_sequence === undefined ? null : Number(row.entry_sequence),
+    correlationId: row.correlation_id || null,
+    actorType: row.actor_type || null,
+    entryHash: row.entry_hash || null,
+    previousEntryHash: row.previous_entry_hash || null,
     metadata: row.metadata && typeof row.metadata === 'object' ? row.metadata : {},
   };
 }
@@ -51,6 +70,8 @@ function formatWallet(accountRow, transactionRows = []) {
     balance: toWalletAmount(accountRow.balance_cents),
     status: accountRow.status,
     updatedAt: accountRow.updated_at,
+    ledgerVersion: Number(accountRow.ledger_version || 0),
+    lastEntryHash: accountRow.last_entry_hash || null,
     transactions: transactionRows.map(formatLedgerRow),
   };
 }
@@ -81,6 +102,11 @@ async function getOrCreateWalletAccount(client, {
   if (!rows[0]) {
     throw new AppError('Wallet account not found', 404, 'wallet_not_found');
   }
+  if (rows[0].status !== 'active') {
+    throw new AppError('Wallet account is not active', 409, 'wallet_inactive', {
+      status: rows[0].status,
+    });
+  }
   return rows[0];
 }
 
@@ -103,7 +129,7 @@ async function findExistingLedgerEntry(client, {
     if (rows[0]) return rows[0];
   }
 
-  if (referenceType && referenceId && entryType === 'debit') {
+  if (referenceType && referenceId) {
     const { rows } = await client.query(
       `SELECT *
          FROM food_customer_wallet_ledger
@@ -131,12 +157,19 @@ async function applyWalletLedgerEntry(client, {
   referenceId,
   idempotencyKey,
   createdByUserId = null,
+  correlationId = null,
+  actorType = 'system',
   metadata = {},
 }) {
   const normalizedAmount = Math.round(Number(amountCents || 0));
   if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
     throw new AppError('Validation failed', 400, 'validation_failed', {
       amountCents: 'Amount must be a positive number of cents',
+    });
+  }
+  if (normalizedAmount > MAX_WALLET_ENTRY_CENTS) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      amountCents: `Amount exceeds maximum per-entry limit of ${MAX_WALLET_ENTRY_CENTS} cents`,
     });
   }
 
@@ -151,6 +184,13 @@ async function applyWalletLedgerEntry(client, {
     customerId,
     currencyCode,
   });
+  const normalizedCurrency = normalizeCurrency(currencyCode);
+  if (account.currency_code && normalizeCurrency(account.currency_code) !== normalizedCurrency) {
+    throw new AppError('Wallet currency mismatch', 409, 'wallet_currency_mismatch', {
+      expectedCurrencyCode: normalizeCurrency(account.currency_code),
+      receivedCurrencyCode: normalizedCurrency,
+    });
+  }
 
   const existingEntry = await findExistingLedgerEntry(client, {
     accountId: account.id,
@@ -181,15 +221,52 @@ async function applyWalletLedgerEntry(client, {
       }
     );
   }
+  if (nextBalance > MAX_WALLET_BALANCE_CENTS) {
+    throw new AppError('Wallet balance limit exceeded', 409, 'wallet_balance_limit_exceeded', {
+      balanceCents: String(account.balance_cents || 0),
+      requestedCents: String(normalizedAmount),
+      maxBalanceCents: String(MAX_WALLET_BALANCE_CENTS),
+    });
+  }
+
+  const nextSequence = Number(account.ledger_version || 0) + 1;
+  const previousEntryHash = normalizeString(account.last_entry_hash, 128);
+  const normalizedCorrelationId = normalizeString(correlationId, 120);
+  const normalizedActorType = normalizeString(actorType, 40) || 'system';
+  const normalizedDescription = normalizeString(description, 255);
+  const normalizedReferenceType = normalizeString(referenceType, 60);
+  const normalizedReferenceId = normalizeString(referenceId, 120);
+  const normalizedIdempotencyKey = normalizeString(idempotencyKey, 120);
+  const normalizedMetadata = normalizeMetadata(metadata);
+  const entryHash = crypto.createHash('sha256').update(stableStringify({
+    accountId: account.id,
+    restaurantId,
+    customerId,
+    entryType,
+    amountCents: normalizedAmount,
+    balanceAfterCents: nextBalance,
+    currencyCode: normalizedCurrency,
+    sequence: nextSequence,
+    previousEntryHash,
+    referenceType: normalizedReferenceType,
+    referenceId: normalizedReferenceId,
+    correlationId: normalizedCorrelationId,
+    createdByUserId,
+    actorType: normalizedActorType,
+    metadata: normalizedMetadata,
+  })).digest('hex');
 
   const { rows: updatedRows } = await client.query(
     `UPDATE food_customer_wallet_accounts
         SET balance_cents = $1,
             currency_code = $2,
+            ledger_version = $3,
+            last_entry_hash = $4,
+            last_posted_at = NOW(),
             updated_at = NOW()
-      WHERE id = $3
+      WHERE id = $5
       RETURNING *`,
-    [nextBalance, normalizeCurrency(currencyCode), account.id]
+    [nextBalance, normalizedCurrency, nextSequence, entryHash, account.id]
   );
   const updatedAccount = updatedRows[0];
 
@@ -197,9 +274,10 @@ async function applyWalletLedgerEntry(client, {
     `INSERT INTO food_customer_wallet_ledger
        (account_id, restaurant_id, customer_id, entry_type, amount_cents, balance_after_cents,
         currency_code, description, reference_type, reference_id, idempotency_key,
-        created_by_user_id, metadata)
+        created_by_user_id, metadata, entry_sequence, previous_entry_hash, entry_hash,
+        correlation_id, actor_type)
      VALUES
-       ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb)
+       ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14, $15, $16, $17, $18)
      RETURNING *`,
     [
       updatedAccount.id,
@@ -208,13 +286,18 @@ async function applyWalletLedgerEntry(client, {
       entryType,
       normalizedAmount,
       nextBalance,
-      normalizeCurrency(currencyCode),
-      normalizeString(description, 255),
-      normalizeString(referenceType, 60),
-      normalizeString(referenceId, 120),
-      normalizeString(idempotencyKey, 120),
+      normalizedCurrency,
+      normalizedDescription,
+      normalizedReferenceType,
+      normalizedReferenceId,
+      normalizedIdempotencyKey,
       createdByUserId,
-      JSON.stringify(normalizeMetadata(metadata)),
+      JSON.stringify(normalizedMetadata),
+      nextSequence,
+      previousEntryHash,
+      entryHash,
+      normalizedCorrelationId,
+      normalizedActorType,
     ]
   );
 
@@ -231,6 +314,84 @@ async function creditFoodWallet(client, args) {
 
 async function debitFoodWallet(client, args) {
   return applyWalletLedgerEntry(client, { ...args, entryType: 'debit' });
+}
+
+async function refundFoodWallet(client, args) {
+  return applyWalletLedgerEntry(client, { ...args, entryType: 'refund' });
+}
+
+async function refundWalletDebitForReference(client, {
+  restaurantId,
+  customerId,
+  currencyCode = 'USD',
+  orderReferenceId,
+  description,
+  createdByUserId = null,
+  correlationId = null,
+  actorType = 'system',
+  metadata = {},
+}) {
+  const account = await getOrCreateWalletAccount(client, {
+    restaurantId,
+    customerId,
+    currencyCode,
+  });
+  const { rows: debitRows } = await client.query(
+    `SELECT *
+       FROM food_customer_wallet_ledger
+      WHERE account_id = $1
+        AND entry_type = 'debit'
+        AND reference_type = 'food_order'
+        AND reference_id = $2
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [account.id, normalizeString(orderReferenceId, 120)]
+  );
+  const debitEntry = debitRows[0];
+  if (!debitEntry) {
+    return { refunded: false, reason: 'debit_not_found' };
+  }
+
+  const refundReferenceId = normalizeString(orderReferenceId, 120);
+  const { rows: existingRefundRows } = await client.query(
+    `SELECT *
+       FROM food_customer_wallet_ledger
+      WHERE account_id = $1
+        AND entry_type = 'refund'
+        AND reference_type = 'food_order_refund'
+        AND reference_id = $2
+      LIMIT 1`,
+    [account.id, refundReferenceId]
+  );
+  if (existingRefundRows[0]) {
+    return { refunded: false, reason: 'already_refunded', entry: existingRefundRows[0] };
+  }
+
+  const result = await refundFoodWallet(client, {
+    restaurantId,
+    customerId,
+    currencyCode: normalizeCurrency(currencyCode || debitEntry.currency_code),
+    amountCents: Number(debitEntry.amount_cents || 0),
+    description,
+    referenceType: 'food_order_refund',
+    referenceId: refundReferenceId,
+    idempotencyKey: normalizeString(correlationId, 120) || `food-order-refund:${refundReferenceId}`,
+    createdByUserId,
+    correlationId,
+    actorType,
+    metadata: {
+      ...normalizeMetadata(metadata),
+      originalDebitEntryId: String(debitEntry.id),
+      originalReferenceType: debitEntry.reference_type,
+      originalReferenceId: debitEntry.reference_id,
+    },
+  });
+
+  return {
+    refunded: true,
+    entry: result.entry,
+    account: result.account,
+  };
 }
 
 async function loadWalletAccountsForUser(userId, {
@@ -276,6 +437,8 @@ async function loadWalletAccountsForUser(userId, {
 module.exports = {
   creditFoodWallet,
   debitFoodWallet,
+  refundFoodWallet,
+  refundWalletDebitForReference,
   formatWallet,
   formatLedgerRow,
   loadWalletAccountsForUser,

@@ -141,6 +141,10 @@ exports.loadCustomerWallet = async (req, res, next) => {
     const referenceId = normalizeString(req.body.referenceId || req.body.reference_id, 120)
       || idempotencyKey
       || `${restaurantId}:${customer.id}:${amountCents}`;
+    const correlationId = normalizeString(
+      req.body.correlationId || req.body.correlation_id || idempotencyKey || `wallet-load:${restaurantId}:${customer.id}:${amountCents}`,
+      120
+    );
 
     const result = await withTransaction(pool, async (client) => {
       return creditFoodWallet(client, {
@@ -153,11 +157,15 @@ exports.loadCustomerWallet = async (req, res, next) => {
         referenceId,
         idempotencyKey,
         createdByUserId: req.user.id,
+        correlationId,
+        actorType: 'restaurant_staff',
         metadata: {
           source: 'merchant_load',
           restaurantName: restaurant.display_name,
           customerEmail: customer.email,
           note: note || null,
+          loadedByUserId: req.user.id,
+          requestIp: req.ip || null,
         },
       });
     }, 'food_wallet_load_customer');

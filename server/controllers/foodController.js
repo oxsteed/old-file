@@ -11,7 +11,7 @@ const notificationService = require('../services/notificationService');
 const smsNotificationService = require('../services/smsNotificationService');
 const emailService = require('../services/emailService');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
-const { debitFoodWallet } = require('../services/foodWalletService');
+const { debitFoodWallet, refundWalletDebitForReference } = require('../services/foodWalletService');
 const {
   evaluateOperatingHours,
   normalizeBrandAccentHex,
@@ -1422,6 +1422,7 @@ exports.createOrder = async (req, res, next) => {
         ? {
           ...req.body.metadata,
           trackingToken,
+          paymentMode,
           ...(clientOrderId ? { clientOrderId } : {}),
           ...(discountMetadata ? { posDiscount: discountMetadata, promotion: discountMetadata } : {}),
           ...(loyaltyRedemption ? { loyaltyRedemption } : {}),
@@ -1430,6 +1431,7 @@ exports.createOrder = async (req, res, next) => {
         }
         : {
           trackingToken,
+          paymentMode,
           ...(clientOrderId ? { clientOrderId } : {}),
           ...(discountMetadata ? { posDiscount: discountMetadata, promotion: discountMetadata } : {}),
           ...(loyaltyRedemption ? { loyaltyRedemption } : {}),
@@ -1681,29 +1683,65 @@ exports.updateOrderStatus = async (req, res, next) => {
       ready: 'ready_at',
       completed: 'completed_at',
       cancelled: 'cancelled_at',
+      refunded: 'cancelled_at',
     }[status];
 
-    const { rows: [order] } = await pool.query(
-      `UPDATE food_orders
-          SET status = $1,
-              ${timestampColumn ? `${timestampColumn} = COALESCE(${timestampColumn}, NOW()),` : ''}
-              updated_at = NOW()
-        WHERE id = $2 AND restaurant_id = $3 AND status = ANY($4::text[])
-        RETURNING *`,
-      [status, orderId, restaurantId, ORDER_TRANSITIONS[status]]
-    );
-    if (!order) {
-      const { rows: existing } = await pool.query(
-        `SELECT status FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
-        [orderId, restaurantId]
+    const transitionResult = await withTransaction(pool, async (client) => {
+      const { rows: [order] } = await client.query(
+        `UPDATE food_orders
+            SET status = $1,
+                ${timestampColumn ? `${timestampColumn} = COALESCE(${timestampColumn}, NOW()),` : ''}
+                payment_status = CASE
+                  WHEN $1 IN ('cancelled', 'refunded')
+                    AND COALESCE(metadata->>'paymentMode', '') = 'wallet_credit'
+                    AND payment_status = 'paid'
+                    THEN 'refunded'
+                  ELSE payment_status
+                END,
+                updated_at = NOW()
+          WHERE id = $2 AND restaurant_id = $3 AND status = ANY($4::text[])
+          RETURNING *`,
+        [status, orderId, restaurantId, ORDER_TRANSITIONS[status]]
       );
-      if (!existing[0]) throw new AppError('Order not found', 404, 'order_not_found');
-      throw new AppError(
-        `Cannot move order from '${existing[0].status}' to '${status}'`,
-        409,
-        'illegal_state_transition'
-      );
-    }
+      if (!order) {
+        const { rows: existing } = await client.query(
+          `SELECT status FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
+          [orderId, restaurantId]
+        );
+        if (!existing[0]) throw new AppError('Order not found', 404, 'order_not_found');
+        throw new AppError(
+          `Cannot move order from '${existing[0].status}' to '${status}'`,
+          409,
+          'illegal_state_transition'
+        );
+      }
+
+      let walletRefund = null;
+      const paymentMode = order.metadata && typeof order.metadata === 'object'
+        ? order.metadata.paymentMode || order.metadata.payment_mode || null
+        : null;
+      if (['cancelled', 'refunded'].includes(status) && paymentMode === 'wallet_credit' && order.customer_id) {
+        const refundResult = await refundWalletDebitForReference(client, {
+          restaurantId,
+          customerId: order.customer_id,
+          currencyCode: normalizeCurrency(order.currency_code),
+          orderReferenceId: String(order.id),
+          description: `Refund for order #${order.queue_number || order.id}`,
+          createdByUserId: req.user?.id || null,
+          correlationId: `food-order-status:${order.id}:${status}`,
+          actorType: 'restaurant_staff',
+          metadata: {
+            orderId: order.id,
+            orderStatus: status,
+            restaurantId,
+          },
+        });
+        walletRefund = refundResult.refunded ? refundResult.entry : null;
+      }
+
+      return { order, walletRefund };
+    }, 'food_update_order_status');
+    const order = transitionResult.order;
 
     emitRestaurantOrder(order.business_id, 'food:order:updated', { order });
     emitRestaurantDisplay(order.restaurant_id, order);
@@ -1724,7 +1762,7 @@ exports.updateOrderStatus = async (req, res, next) => {
       }, 'food_loyalty_earn');
     }
 
-    res.json({ order, runnerTask });
+    res.json({ order, runnerTask, walletRefund: transitionResult.walletRefund || null });
   } catch (err) {
     next(err);
   }
