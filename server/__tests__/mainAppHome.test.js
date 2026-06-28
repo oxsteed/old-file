@@ -189,4 +189,45 @@ describe('main app home dashboard contract', () => {
     expect(res.body.featuredHelpers[0].hasLocation).toBe(true);
     expect(res.body.popularRestaurants[0].hasLocation).toBe(true);
   });
+
+  test('degrades a failed section instead of returning a 500 home feed', async () => {
+    mockQuery
+      .mockRejectedValueOnce(Object.assign(new Error('column fr.avg_rating does not exist'), { code: '42703' }))
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp()).get('/api/main-app/home');
+
+    expect(res.status).toBe(200);
+    expect(res.body.featuredHelpers).toEqual([]);
+    expect(res.body.popularRestaurants).toEqual([]);
+    expect(res.body.activity).toEqual([]);
+    expect(res.body.summary).toEqual({
+      activeJobs: 0,
+      orders: 0,
+      earningsCents: 0,
+    });
+    expect(res.body.walletSummary).toEqual({
+      totalWallets: 0,
+      activeWallets: 0,
+      lockedWallets: 0,
+      balances: [],
+    });
+    expect(res.body.contract.sections).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'featuredHelpers',
+          status: 'degraded',
+          errorCode: 'schema_mismatch',
+          count: 0,
+        }),
+        expect.objectContaining({
+          key: 'popularRestaurants',
+          status: 'ok',
+          errorCode: null,
+          count: 0,
+        }),
+      ])
+    );
+  });
 });

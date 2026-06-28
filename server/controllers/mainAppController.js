@@ -31,6 +31,55 @@ function iconForBidAmount(amount) {
   return Number(amount || 0) >= 100 ? 'hammer.fill' : 'hand.raised.fill';
 }
 
+function defaultSummary() {
+  return {
+    activeJobs: 0,
+    orders: 0,
+    earningsCents: 0,
+  };
+}
+
+function defaultWalletSummary() {
+  return {
+    totalWallets: 0,
+    activeWallets: 0,
+    lockedWallets: 0,
+    balances: [],
+  };
+}
+
+function publicHomeErrorCode(err) {
+  const message = String(err?.message || '');
+  const code = String(err?.code || '');
+  if (code === '42703' || code === '42P01' || /column .* does not exist/i.test(message) || /relation .* does not exist/i.test(message)) {
+    return 'schema_mismatch';
+  }
+  return 'unavailable';
+}
+
+async function loadHomeSection(key, fallback, loader) {
+  try {
+    const data = await loader();
+    return {
+      key,
+      data,
+      status: 'ok',
+      errorCode: null,
+    };
+  } catch (err) {
+    console.warn(`[main-app/home] ${key} degraded`, {
+      code: err?.code,
+      message: err?.message,
+    });
+    return {
+      key,
+      data: fallback,
+      status: 'degraded',
+      errorCode: publicHomeErrorCode(err),
+    };
+  }
+}
+
 async function queryFeaturedHelpers(limit) {
   const { rows } = await pool.query(
     `SELECT u.id,
@@ -82,8 +131,9 @@ async function queryPopularRestaurants(limit) {
               ELSE 'Restaurant'
             END AS cuisine,
             COALESCE(fr.avg_rating, 0)::float AS rating,
-            fr.estimated_delivery_minutes,
-            fr.price_level,
+            COALESCE(fr.rating_count, 0)::int AS review_count,
+            COALESCE(fr.estimated_delivery_minutes, fr.prep_time_min, 30)::int AS estimated_delivery_minutes,
+            COALESCE(fr.price_level, 'mid') AS price_level,
             fr.logo_url,
             fr.cover_photo_url,
             fr.dietary_tags,
@@ -103,7 +153,7 @@ async function queryPopularRestaurants(limit) {
        ) promo ON TRUE
       WHERE fr.status = 'active'
         AND COALESCE(fr.accepts_online_orders, TRUE) = TRUE
-      ORDER BY COALESCE(fr.avg_rating, 0) DESC, fr.created_at DESC
+      ORDER BY COALESCE(fr.avg_rating, 0) DESC, COALESCE(fr.rating_count, 0) DESC, fr.created_at DESC
       LIMIT $1`,
     [limit]
   );
@@ -113,6 +163,7 @@ async function queryPopularRestaurants(limit) {
     name: row.name,
     cuisine: row.cuisine,
     rating: Number(row.rating || 0),
+    reviewCount: Number(row.review_count || 0),
     estimatedDeliveryMinutes: Number(row.estimated_delivery_minutes || 30),
     priceLevel: row.price_level || 'mid',
     logoUrl: row.logo_url || null,
@@ -282,7 +333,14 @@ async function queryUserActivity(userId, limit) {
   }));
 }
 
-function buildDashboardContract({ helpers, restaurants, activity, walletSummary }) {
+function contractStatus(result) {
+  return {
+    status: result.status,
+    errorCode: result.errorCode,
+  };
+}
+
+function buildDashboardContract({ helpers, restaurants, activity, summaryResult, walletResult, helpersResult, restaurantsResult, activityResult }) {
   return {
     version: 'main-home-v1',
     generatedAt: new Date().toISOString(),
@@ -292,26 +350,31 @@ function buildDashboardContract({ helpers, restaurants, activity, walletSummary 
         key: 'summary',
         source: 'jobs + food_orders + completed helper jobs',
         count: 1,
+        ...contractStatus(summaryResult),
       },
       {
         key: 'walletSummary',
         source: 'food_customer_wallet_accounts',
-        count: walletSummary.totalWallets,
+        count: walletResult.data.totalWallets,
+        ...contractStatus(walletResult),
       },
       {
         key: 'featuredHelpers',
         source: 'users + helper_profiles',
         count: helpers.length,
+        ...contractStatus(helpersResult),
       },
       {
         key: 'popularRestaurants',
         source: 'food_restaurants + food_restaurant_promotions',
         count: restaurants.length,
+        ...contractStatus(restaurantsResult),
       },
       {
         key: 'activity',
         source: 'bids + jobs + food_orders',
         count: activity.length,
+        ...contractStatus(activityResult),
       },
     ],
   };
@@ -323,23 +386,35 @@ exports.getHomeDashboard = async (req, res, next) => {
     const restaurantLimit = parseLimit(req.query.restaurants, 4, 8);
     const activityLimit = parseLimit(req.query.activity, 5, 10);
 
-    const [helpers, restaurants, activity, summary, walletSummary] = await Promise.all([
-      queryFeaturedHelpers(helperLimit),
-      queryPopularRestaurants(restaurantLimit),
-      req.user ? queryUserActivity(req.user.id, activityLimit) : queryPublicActivity(activityLimit),
-      req.user ? queryUserSummary(req.user.id) : Promise.resolve({
-        activeJobs: 0,
-        orders: 0,
-        earningsCents: 0,
-      }),
-      req.user ? queryUserWalletSummary(req.user.id) : Promise.resolve({
-        totalWallets: 0,
-        activeWallets: 0,
-        lockedWallets: 0,
-        balances: [],
-      }),
+    const [helpersResult, restaurantsResult, activityResult, summaryResult, walletResult] = await Promise.all([
+      loadHomeSection('featuredHelpers', [], () => queryFeaturedHelpers(helperLimit)),
+      loadHomeSection('popularRestaurants', [], () => queryPopularRestaurants(restaurantLimit)),
+      loadHomeSection('activity', [], () => (
+        req.user ? queryUserActivity(req.user.id, activityLimit) : queryPublicActivity(activityLimit)
+      )),
+      loadHomeSection('summary', defaultSummary(), () => (
+        req.user ? queryUserSummary(req.user.id) : Promise.resolve(defaultSummary())
+      )),
+      loadHomeSection('walletSummary', defaultWalletSummary(), () => (
+        req.user ? queryUserWalletSummary(req.user.id) : Promise.resolve(defaultWalletSummary())
+      )),
     ]);
-    const contract = buildDashboardContract({ helpers, restaurants, activity, walletSummary });
+
+    const helpers = helpersResult.data;
+    const restaurants = restaurantsResult.data;
+    const activity = activityResult.data;
+    const summary = summaryResult.data;
+    const walletSummary = walletResult.data;
+    const contract = buildDashboardContract({
+      helpers,
+      restaurants,
+      activity,
+      summaryResult,
+      walletResult,
+      helpersResult,
+      restaurantsResult,
+      activityResult,
+    });
 
     res.json({
       contract,

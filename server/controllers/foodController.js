@@ -26,6 +26,16 @@ const VALID_FULFILLMENT = new Set(['pickup', 'dine_in', 'delivery', 'kiosk']);
 const VALID_ORDER_SOURCES = new Set(['mobile', 'web', 'kiosk', 'counter', 'tablet']);
 const VALID_STATUS = new Set(['received', 'accepted', 'preparing', 'ready', 'completed', 'cancelled', 'refunded']);
 const VALID_PAYMENT_STATUS = new Set(['unpaid', 'requires_payment', 'paid', 'failed', 'refunded']);
+const PRICE_LEVEL_ALIASES = {
+  cheap: 'cheap',
+  budget: 'cheap',
+  value: 'cheap',
+  mid: 'mid',
+  moderate: 'mid',
+  standard: 'mid',
+  expensive: 'expensive',
+  premium: 'expensive',
+};
 const IN_STORE_SOURCES = new Set(['kiosk', 'counter', 'tablet']);
 const FOOD_LOYALTY_MIN_REDEEM_POINTS = 100;
 const FOOD_LOYALTY_CENTS_PER_POINT = 1;
@@ -69,6 +79,11 @@ function normalizeCountry(value) {
 function normalizeCurrency(value) {
   const raw = normalizeString(value, 3);
   return raw ? raw.toUpperCase() : 'USD';
+}
+
+function normalizePriceLevel(value) {
+  const raw = normalizeString(value, 16);
+  return PRICE_LEVEL_ALIASES[raw] || 'mid';
 }
 
 function normalizeTextArray(value, maxItems = 12) {
@@ -861,18 +876,15 @@ exports.listRestaurants = async (req, res, next) => {
               fr.latitude, fr.longitude, fr.currency_code, fr.fulfillment_modes,
               fr.accepts_online_orders, fr.accepts_in_store_orders,
               fr.kitchen_display_enabled, fr.prep_time_min,
+              COALESCE(fr.estimated_delivery_minutes, fr.prep_time_min, 30)::int AS estimated_delivery_minutes,
+              fr.price_level,
               fr.brand_accent_hex, fr.operating_hours, fr.timezone, fr.is_verified,
               fr.dietary_tags,
-              COALESCE(rr.avg_rating, 0)::float AS avg_rating,
-              COALESCE(rr.review_count, 0)::int AS review_count,
+              COALESCE(fr.avg_rating, 0)::float AS avg_rating,
+              COALESCE(fr.rating_count, 0)::int AS review_count,
+              COALESCE(fr.rating_count, 0)::int AS total_reviews,
               ${distanceSelect}
          FROM food_restaurants fr
-         LEFT JOIN LATERAL (
-           SELECT ROUND(AVG(r.rating)::numeric, 1) AS avg_rating,
-                  COUNT(*)::int AS review_count
-             FROM food_reviews r
-            WHERE r.restaurant_id = fr.id
-         ) rr ON true
         WHERE ${filters.join(' AND ')}
         ORDER BY ${orderBy}
         LIMIT $${params.push(limit)} OFFSET $${params.push(offset)}`,
@@ -929,7 +941,10 @@ exports.listRestaurants = async (req, res, next) => {
                 fr.accepts_online_orders, fr.accepts_in_store_orders,
                 fr.kitchen_display_enabled, fr.prep_time_min,
                 fr.dietary_tags,
+                fr.prep_time_min AS estimated_delivery_minutes,
+                'mid'::text AS price_level,
                 0::float AS avg_rating, 0::int AS review_count,
+                0::int AS total_reviews,
                 ${distanceSelect}
            FROM food_restaurants fr
           WHERE ${filters.join(' AND ')}
@@ -1091,8 +1106,9 @@ exports.createRestaurant = async (req, res, next) => {
            (business_id, owner_user_id, display_name, cuisine_tags, description, phone, website,
             address_street, address_city, address_state, address_zip, address_country,
             latitude, longitude, timezone, currency_code, fulfillment_modes,
-            accepts_online_orders, accepts_in_store_orders, kitchen_display_enabled, status, prep_time_min)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+            accepts_online_orders, accepts_in_store_orders, kitchen_display_enabled, status, prep_time_min,
+            estimated_delivery_minutes, price_level, dietary_tags)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
          RETURNING *`,
         [
           businessId,
@@ -1117,6 +1133,9 @@ exports.createRestaurant = async (req, res, next) => {
           req.body.kitchenDisplayEnabled !== false,
           req.body.status === 'active' ? 'active' : 'draft',
           parsePositiveInt(req.body.prepTimeMin || req.body.prep_time_min, 15),
+          parsePositiveInt(req.body.estimatedDeliveryMinutes || req.body.estimated_delivery_minutes, parsePositiveInt(req.body.prepTimeMin || req.body.prep_time_min, 15)),
+          normalizePriceLevel(req.body.priceLevel || req.body.price_level),
+          normalizeDietaryTags(req.body.dietaryTags || req.body.dietary_tags),
         ]
       );
       return restaurant;
@@ -1930,6 +1949,8 @@ const RESTAURANT_PATCH_FIELDS = {
   cuisineTags: { column: 'cuisine_tags', value: (v) => normalizeTextArray(v) },
   dietaryTags: { column: 'dietary_tags', value: (v) => normalizeDietaryTags(v) },
   prepTimeMin: { column: 'prep_time_min', value: (v) => parsePositiveInt(v, 15) },
+  estimatedDeliveryMinutes: { column: 'estimated_delivery_minutes', value: (v) => parsePositiveInt(v, 30) },
+  priceLevel: { column: 'price_level', value: (v) => normalizePriceLevel(v) },
   acceptsOnlineOrders: { column: 'accepts_online_orders', value: (v) => v !== false },
   acceptsInStoreOrders: { column: 'accepts_in_store_orders', value: (v) => v !== false },
   kitchenDisplayEnabled: { column: 'kitchen_display_enabled', value: (v) => v !== false },
