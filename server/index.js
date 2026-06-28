@@ -145,6 +145,7 @@ const mobileRoutes = require('./routes/mobile');
 const uploadRoutes = require('./routes/upload');
 const moderationRoutes = require('./routes/moderation');
 const foodRoutes = require('./routes/food');
+const mainAppRoutes = require('./routes/mainApp');
 // OxSteed Restaurants — canonical ops surface (Phase 2: checklists + SOPs, migration 306)
 const restaurantRoutes = require('./routes/restaurants');
 // Team / role / Vortex (per OxSteed team-role spec, migration 245)
@@ -759,6 +760,7 @@ app.use('/api/shared-carts', sharedCartsRoutes);
 app.use('/api/mobile', mobileRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/moderation', moderationRoutes);
+app.use('/api/main-app', mainAppRoutes);
 app.use('/api/food', foodRoutes);
 app.use('/api/restaurants', restaurantSupportRoutes);
 app.use('/api/admin/restaurants/support', adminRestaurantSupportRoutes);

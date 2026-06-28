@@ -4,6 +4,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const ctrl = require('../controllers/foodController');
+const walletCtrl = require('../controllers/foodWalletController');
 const kiosk = require('../controllers/restaurantKioskController');
 
 // Public customer discovery + the in-store "now serving" queue board.
@@ -26,6 +27,8 @@ router.get('/my/orders', authenticate, ctrl.listMyOrders);
 router.get('/orders/:orderId', authenticate, ctrl.getOrder);
 router.get('/customer/profile', authenticate, ctrl.getCustomerProfile);
 router.patch('/customer/profile', authenticate, ctrl.updateCustomerProfile);
+router.get('/customer/wallets', authenticate, walletCtrl.listCustomerWallets);
+router.get('/customer/wallets/:restaurantId', authenticate, walletCtrl.getCustomerWallet);
 router.post('/customer/favorites/:restaurantId/toggle', authenticate, ctrl.toggleCustomerFavoriteRestaurant);
 router.get('/customer/favorite-items', authenticate, ctrl.listCustomerFavoriteItems);
 router.put('/customer/favorite-items/sync', authenticate, ctrl.syncCustomerFavoriteItems);
@@ -48,6 +51,7 @@ router.patch('/restaurants/:restaurantId/menu-items/:itemId', authenticate, ctrl
 router.delete('/restaurants/:restaurantId/menu-items/:itemId', authenticate, ctrl.deleteMenuItem);
 router.post('/restaurants/:restaurantId/menu-items/:itemId/modifier-groups', authenticate, ctrl.createModifierGroup);
 router.delete('/restaurants/:restaurantId/modifier-groups/:groupId', authenticate, ctrl.deleteModifierGroup);
+router.post('/restaurants/:restaurantId/customer-wallet-loads', authenticate, walletCtrl.loadCustomerWallet);
 
 // Ordering. Customers can browse as guests, but must sign in before submitting
 // an order so the restaurant has an accountable customer record.

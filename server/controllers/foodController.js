@@ -11,6 +11,7 @@ const notificationService = require('../services/notificationService');
 const smsNotificationService = require('../services/smsNotificationService');
 const emailService = require('../services/emailService');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
+const { debitFoodWallet } = require('../services/foodWalletService');
 const {
   evaluateOperatingHours,
   normalizeBrandAccentHex,
@@ -1194,9 +1195,9 @@ exports.createOrder = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId || req.body.restaurantId || req.body.restaurant_id);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const paymentMode = normalizeString(req.body.paymentMode || req.body.payment_mode, 24) || 'pay_at_counter';
-    if (!['pay_at_counter', 'pay_now'].includes(paymentMode)) {
+    if (!['pay_at_counter', 'pay_now', 'wallet_credit'].includes(paymentMode)) {
       throw new AppError('Validation failed', 400, 'validation_failed', {
-        paymentMode: 'Must be pay_at_counter or pay_now',
+        paymentMode: 'Must be pay_at_counter, pay_now, or wallet_credit',
       });
     }
 
@@ -1307,6 +1308,9 @@ exports.createOrder = async (req, res, next) => {
       const orderSource = normalizeString(req.body.orderSource || req.body.order_source, 24) || 'mobile';
       if (!VALID_FULFILLMENT.has(fulfillmentType)) {
         throw new AppError('Validation failed', 400, 'validation_failed', { fulfillmentType: 'Unsupported fulfillment type' });
+      }
+      if (paymentMode === 'wallet_credit' && fulfillmentType !== 'delivery') {
+        throw new AppError('Wallet credit is only available for delivery orders', 409, 'wallet_credit_delivery_only');
       }
       if (!Array.isArray(restaurant.fulfillment_modes) || !restaurant.fulfillment_modes.includes(fulfillmentType)) {
         throw new AppError('This fulfillment mode is not available', 409, 'fulfillment_mode_unavailable');
@@ -1451,9 +1455,7 @@ exports.createOrder = async (req, res, next) => {
           normalizeString(req.body.guestEmail || req.body.guest_email, 255),
           orderSource,
           fulfillmentType,
-          // All OxSteed Food payments are settled in store (liability-limiting
-          // model): the platform tracks amounts but never processes charges.
-          'unpaid',
+          paymentMode === 'wallet_credit' ? 'paid' : 'unpaid',
           subtotal,
           tax,
           serviceFeeCents,
@@ -1498,6 +1500,28 @@ exports.createOrder = async (req, res, next) => {
             [orderItem.id, modifier.id, modifier.name, modifier.price_delta_cents]
           );
         }
+      }
+
+      if (paymentMode === 'wallet_credit') {
+        if (!req.user?.id) {
+          throw new AppError('Authentication required', 401, 'authentication_required');
+        }
+        await debitFoodWallet(client, {
+          restaurantId,
+          customerId: req.user.id,
+          currencyCode: normalizeCurrency(restaurant.currency_code),
+          amountCents: total,
+          description: `Order #${created.id} · Delivery`,
+          referenceType: 'food_order',
+          referenceId: String(created.id),
+          idempotencyKey: `food-order:${created.id}:wallet-credit`,
+          createdByUserId: req.user.id,
+          metadata: {
+            orderId: created.id,
+            fulfillmentType,
+            orderSource,
+          },
+        });
       }
 
       const printerJobs = await enqueueKitchenPrinterJobs(client, {
