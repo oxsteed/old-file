@@ -42,7 +42,12 @@ function defaultSummary() {
     activeJobs: 0,
     orders: 0,
     earningsCents: 0,
+    earningsCurrencyCode: 'USD',
   };
+}
+
+function formatCurrencyDetail(currencyCode, cents) {
+  return `${currencyCode || 'USD'} ${(Number(cents || 0) / 100).toFixed(2)}`;
 }
 
 function defaultWalletSummary() {
@@ -198,6 +203,9 @@ async function queryPopularRestaurants(limit) {
             fr.temporarily_closed_until,
             COALESCE(fr.minimum_order_cents, 0)::int AS minimum_order_cents,
             COALESCE(fr.delivery_fee_cents, 0)::int AS delivery_fee_cents,
+            COALESCE(fr.currency_code, 'USD') AS currency_code,
+            COALESCE(fr.accepts_online_orders, TRUE) AS accepts_online_orders,
+            COALESCE(fr.fulfillment_modes, ARRAY['pickup']::text[]) AS fulfillment_modes,
             fr.service_area_radius_meters,
             COALESCE(fr.order_count, 0)::int AS order_count,
             fr.last_ordered_at,
@@ -249,6 +257,12 @@ async function queryPopularRestaurants(limit) {
     temporarilyClosedUntil: row.temporarily_closed_until || null,
     minimumOrderCents: Number(row.minimum_order_cents || 0),
     deliveryFeeCents: Number(row.delivery_fee_cents || 0),
+    currencyCode: row.currency_code || 'USD',
+    acceptsOnlineOrders: Boolean(row.accepts_online_orders),
+    isOrderable: Boolean(row.accepts_online_orders) && Boolean(row.is_accepting_orders_now),
+    pickupEnabled: Array.isArray(row.fulfillment_modes) ? row.fulfillment_modes.includes('pickup') : true,
+    deliveryEnabled: Array.isArray(row.fulfillment_modes) ? row.fulfillment_modes.includes('delivery') : false,
+    dineInEnabled: Array.isArray(row.fulfillment_modes) ? row.fulfillment_modes.includes('dine_in') : false,
     serviceAreaRadiusMeters: row.service_area_radius_meters === null ? null : Number(row.service_area_radius_meters),
     orderCount: Number(row.order_count || 0),
     lastOrderedAt: row.last_ordered_at || null,
@@ -268,6 +282,8 @@ async function queryPublicActivity(limit) {
     `SELECT b.id,
             b.job_id,
             b.amount,
+            b.amount_cents,
+            COALESCE(b.currency_code, j.currency_code, 'USD') AS currency_code,
             b.created_at,
             COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), 'A helper') AS helper_name,
             COALESCE(j.title, 'Job') AS job_title
@@ -283,8 +299,8 @@ async function queryPublicActivity(limit) {
   return rows.map((row) => ({
     id: `bid-${row.id}`,
     title: `${row.helper_name} placed a bid`,
-    subtitle: `${row.job_title} • $${Number(row.amount || 0).toFixed(0)}`,
-    icon: iconForBidAmount(row.amount),
+    subtitle: `${row.job_title} • ${formatCurrencyDetail(row.currency_code, row.amount_cents ?? centsFromDecimalDollars(row.amount))}`,
+    icon: iconForBidAmount(row.amount_cents ? Number(row.amount_cents) / 100 : row.amount),
     tintKey: 'primary',
     timeAgo: row.created_at,
   }));
@@ -315,11 +331,22 @@ async function queryUserSummary(userId) {
       [userId]
     ),
     pool.query(
-      `SELECT COALESCE(SUM(COALESCE(budget_max, budget_min, 0) * 100), 0)::bigint AS earnings_cents
+      `SELECT COALESCE(currency_code, 'USD') AS currency_code,
+              COALESCE(SUM(COALESCE(
+                helper_payout_cents,
+                job_value_cents,
+                final_price_cents,
+                budget_max_cents,
+                budget_min_cents,
+                ROUND(COALESCE(helper_payout, job_value, final_price, budget_max, budget_min, 0) * 100)::int
+              )), 0)::bigint AS earnings_cents
          FROM jobs
         WHERE assigned_helper_id = $1
           AND deleted_at IS NULL
-          AND status = 'completed'`,
+          AND status = 'completed'
+        GROUP BY COALESCE(currency_code, 'USD')
+        ORDER BY earnings_cents DESC
+        LIMIT 1`,
       [userId]
     ),
   ]);
@@ -328,6 +355,7 @@ async function queryUserSummary(userId) {
     activeJobs: Number(jobRow?.active_jobs || 0),
     orders: Number(foodOrderRow?.total_orders || 0),
     earningsCents: Number(earningsRow?.earnings_cents || 0),
+    earningsCurrencyCode: earningsRow?.currency_code || 'USD',
   };
 }
 
@@ -407,14 +435,29 @@ async function queryProfileTotals(userId) {
                 WHERE assigned_helper_id = $1
                   AND status = 'completed'
               )::int AS jobs_completed,
-              COALESCE(SUM(COALESCE(helper_payout, job_value, final_price, budget_max, budget_min, 0)) FILTER (
+              COALESCE(SUM(COALESCE(
+                helper_payout_cents,
+                job_value_cents,
+                final_price_cents,
+                budget_max_cents,
+                budget_min_cents,
+                ROUND(COALESCE(helper_payout, job_value, final_price, budget_max, budget_min, 0) * 100)::int
+              )) FILTER (
                 WHERE assigned_helper_id = $1
                   AND status = 'completed'
-              ), 0) AS earned_dollars,
-              COALESCE(SUM(COALESCE(customer_total, final_price, job_value, budget_max, budget_min, 0)) FILTER (
+              ), 0)::bigint AS earned_cents,
+              COALESCE(SUM(COALESCE(
+                customer_total_cents,
+                final_price_cents,
+                job_value_cents,
+                budget_max_cents,
+                budget_min_cents,
+                ROUND(COALESCE(customer_total, final_price, job_value, budget_max, budget_min, 0) * 100)::int
+              )) FILTER (
                 WHERE client_id = $1
                   AND status = 'completed'
-              ), 0) AS spent_job_dollars
+              ), 0)::bigint AS spent_job_cents,
+              COALESCE(MAX(currency_code), 'USD') AS currency_code
          FROM jobs
         WHERE deleted_at IS NULL
           AND (assigned_helper_id = $1 OR client_id = $1)`,
@@ -432,8 +475,8 @@ async function queryProfileTotals(userId) {
     ),
   ]);
 
-  const earnedCents = centsFromDecimalDollars(jobRow?.earned_dollars);
-  const spentJobCents = centsFromDecimalDollars(jobRow?.spent_job_dollars);
+  const earnedCents = Number(jobRow?.earned_cents || 0);
+  const spentJobCents = Number(jobRow?.spent_job_cents || 0);
   const spentFoodCents = Number(foodOrderRow?.spent_food_cents || 0);
 
   return {
@@ -441,6 +484,7 @@ async function queryProfileTotals(userId) {
     ordersPlaced: Number(foodOrderRow?.orders_placed || 0),
     totalEarnedCents: earnedCents,
     totalSpentCents: spentJobCents + spentFoodCents,
+    currencyCode: jobRow?.currency_code || 'USD',
   };
 }
 
@@ -454,7 +498,15 @@ async function queryProfileWeeklyEarnings(userId) {
               ) AS day
      )
      SELECT to_char(days.day, 'Dy') AS label,
-            COALESCE(SUM(COALESCE(j.helper_payout, j.job_value, j.final_price, j.budget_max, j.budget_min, 0)), 0) AS earned_dollars
+            COALESCE(SUM(COALESCE(
+              j.helper_payout_cents,
+              j.job_value_cents,
+              j.final_price_cents,
+              j.budget_max_cents,
+              j.budget_min_cents,
+              ROUND(COALESCE(j.helper_payout, j.job_value, j.final_price, j.budget_max, j.budget_min, 0) * 100)::int
+            )), 0)::bigint AS earned_cents,
+            COALESCE(MAX(j.currency_code), 'USD') AS currency_code
        FROM days
        LEFT JOIN jobs j
          ON j.assigned_helper_id = $1
@@ -469,7 +521,8 @@ async function queryProfileWeeklyEarnings(userId) {
 
   return rows.map((row) => ({
     label: row.label,
-    amountCents: centsFromDecimalDollars(row.earned_dollars),
+    amountCents: Number(row.earned_cents || 0),
+    currencyCode: row.currency_code || 'USD',
   }));
 }
 
@@ -563,7 +616,13 @@ async function queryUserActivity(userId, limit) {
            CONCAT('bid-', b.id) AS id,
            b.created_at AS event_at,
            CONCAT(COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), 'A helper'), ' placed a bid') AS title,
-           CONCAT(COALESCE(j.title, 'Job'), ' • $', ROUND(COALESCE(b.amount, 0))::text) AS subtitle,
+           CONCAT(
+             COALESCE(j.title, 'Job'),
+             ' • ',
+             COALESCE(b.currency_code, j.currency_code, 'USD'),
+             ' ',
+             ROUND(COALESCE(b.amount_cents, ROUND(COALESCE(b.amount, 0) * 100)::int, 0) / 100.0)::text
+           ) AS subtitle,
            'hand.raised.fill' AS icon,
            'primary' AS tint_key
            FROM bids b
@@ -581,7 +640,7 @@ async function queryUserActivity(userId, limit) {
              WHEN fo.status = 'ready' THEN 'Order ready'
              ELSE 'Food order updated'
            END AS title,
-           CONCAT(COALESCE(fr.display_name, 'Restaurant'), ' • $', ROUND(COALESCE(fo.total_cents, 0) / 100.0)::text) AS subtitle,
+           CONCAT(COALESCE(fr.display_name, 'Restaurant'), ' • ', COALESCE(fo.currency_code, 'USD'), ' ', ROUND(COALESCE(fo.total_cents, 0) / 100.0)::text) AS subtitle,
            CASE
              WHEN fo.status = 'completed' THEN 'checkmark.seal.fill'
              WHEN fo.fulfillment_type = 'delivery' THEN 'bicycle'
@@ -653,7 +712,10 @@ async function queryActivityNotifications(userId, limit) {
 async function queryActivityBids(userId, limit) {
   const { rows } = await pool.query(
     `SELECT b.id,
+            b.job_id,
             b.amount,
+            b.amount_cents,
+            COALESCE(b.currency_code, j.currency_code, 'USD') AS currency_code,
             b.status,
             b.created_at,
             b.helper_id,
@@ -679,8 +741,8 @@ async function queryActivityBids(userId, limit) {
       type: 'bid',
       title: isHelper ? 'Bid sent' : `${row.helper_name} placed a bid`,
       subtitle: row.job_title,
-      detail: `$${Number(row.amount || 0).toFixed(0)} • ${row.status || 'pending'}`,
-      icon: iconForBidAmount(row.amount),
+      detail: `${formatCurrencyDetail(row.currency_code, row.amount_cents ?? centsFromDecimalDollars(row.amount))} • ${row.status || 'pending'}`,
+      icon: iconForBidAmount(row.amount_cents ? Number(row.amount_cents) / 100 : row.amount),
       tintKey: 'primary',
       eventAt: toIso(row.created_at),
       isUnread: false,
@@ -721,7 +783,7 @@ async function queryActivityFoodOrders(userId, limit) {
       type: 'order',
       title,
       subtitle: row.restaurant_name,
-      detail: `${row.currency_code || 'USD'} ${(Number(row.total_cents || 0) / 100).toFixed(2)} • ${row.fulfillment_type || 'pickup'}`,
+      detail: `${formatCurrencyDetail(row.currency_code, row.total_cents)} • ${row.fulfillment_type || 'pickup'}`,
       icon: row.fulfillment_type === 'delivery' ? 'bicycle' : 'bag.fill',
       tintKey: row.status === 'completed' ? 'success' : 'accent',
       eventAt: toIso(row.created_at),
@@ -912,6 +974,7 @@ exports.getProfileSummary = async (req, res, next) => {
         ordersPlaced: totals.ordersPlaced,
         totalEarnedCents: totals.totalEarnedCents,
         totalSpentCents: totals.totalSpentCents,
+        currencyCode: totals.currencyCode || 'USD',
       },
       earningsWeekly: weeklyEarnings,
     });

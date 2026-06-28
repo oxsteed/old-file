@@ -131,6 +131,32 @@ describe('POST /api/jobs', () => {
     expect(res.body).toHaveProperty('id');
   });
 
+  test('stores app budget payload with currency and canonical cents', async () => {
+    const newJob = {
+      id: 45,
+      title: validBody.title,
+      status: 'published',
+      client_id: 1,
+      currency_code: 'GHS',
+      budget_min_cents: 8500,
+      budget_max_cents: 8500,
+    };
+    mockAuth(MOCK_USER_CUSTOMER, { rows: [newJob] });
+
+    const res = await auth(
+      request(buildApp()).post('/api/jobs').send({
+        ...validBody,
+        budget: 85,
+        currency_code: 'ghs',
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(mockQuery.mock.calls[1][1][32]).toBe('GHS');
+    expect(mockQuery.mock.calls[1][1][33]).toBe(8500);
+    expect(mockQuery.mock.calls[1][1][34]).toBe(8500);
+  });
+
   test('creates job with uploaded media urls from the iOS payload', async () => {
     const mediaUrls = [
       'https://cdn.oxsteed.com/jobs/fence-before.jpg',

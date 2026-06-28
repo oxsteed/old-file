@@ -27,7 +27,7 @@ exports.createJob = async (req, res, next) => {
     const {
       title, description,
       category_id, category_name, category,
-      budget_type, budget_min, budget_max,
+      budget_type, budget, budget_min, budget_max, currency_code,
       urgency, site_access, job_type_label, notes,
       location_address, location_city, location_state, location_zip, location_country,
       location_lat, location_lng,
@@ -97,9 +97,15 @@ exports.createJob = async (req, res, next) => {
     }
 
     // ── Resolve budget ────────────────────────────────────────────────────────────────────────────
-    const resolvedBudgetType = budget_type || 'open';
-    const resolvedBudgetMin  = resolvedBudgetType !== 'open' ? (budget_min  || null) : null;
-    const resolvedBudgetMax  = resolvedBudgetType !== 'open' ? (budget_max  || null) : null;
+    const singleBudget = budget !== undefined && budget !== null && budget !== '' ? Number(budget) : null;
+    const minBudget = budget_min !== undefined && budget_min !== null && budget_min !== '' ? Number(budget_min) : singleBudget;
+    const maxBudget = budget_max !== undefined && budget_max !== null && budget_max !== '' ? Number(budget_max) : singleBudget;
+    const resolvedBudgetType = budget_type || (singleBudget !== null ? 'fixed' : 'open');
+    const resolvedBudgetMin  = resolvedBudgetType !== 'open' ? (Number.isFinite(minBudget) ? minBudget : null) : null;
+    const resolvedBudgetMax  = resolvedBudgetType !== 'open' ? (Number.isFinite(maxBudget) ? maxBudget : null) : null;
+    const resolvedCurrencyCode = String(currency_code || 'USD').trim().toUpperCase().slice(0, 3);
+    const budgetMinCents = resolvedBudgetMin === null ? null : Math.round(resolvedBudgetMin * 100);
+    const budgetMaxCents = resolvedBudgetMax === null ? null : Math.round(resolvedBudgetMax * 100);
     const isUrgent           = (urgency === 'asap') || (priority === 'urgent');
 
     // ── Fuzz public coords ───────────────────────────────────────────────────────────────────────────
@@ -159,6 +165,7 @@ exports.createJob = async (req, res, next) => {
           scheduled_date, scheduled_time, recurrence,
           preferred_helper_id, preferred_helper_name,
           private_notes,
+          currency_code, budget_min_cents, budget_max_cents,
           status, expires_at
        )
        VALUES (
@@ -168,6 +175,7 @@ exports.createJob = async (req, res, next) => {
           ${hasGeo ? `ST_SetSRID(ST_MakePoint($20::float,$19::float),4326)::geography` : 'NULL'},
           $21,$22,$23,$24,$25,
           $26,$27,$28,$29,$30,$31,$32,
+          $33,$34,$35,
           'published', now() + interval '30 days'
        )
        RETURNING *`,
@@ -185,6 +193,7 @@ exports.createJob = async (req, res, next) => {
         scheduled_date || null, scheduledTimestamp || null, recurrence || 'none',
         preferred_helper_id || null, preferred_helper_name || null,
         private_notes || null,
+        resolvedCurrencyCode, budgetMinCents, budgetMaxCents,
       ]
     );
 

@@ -55,6 +55,9 @@ describe('main app home dashboard contract', () => {
           rating: 4.8,
           estimated_delivery_minutes: 25,
           price_level: 'mid',
+          currency_code: 'USD',
+          accepts_online_orders: true,
+          fulfillment_modes: ['pickup', 'delivery'],
           logo_url: null,
           cover_photo_url: null,
           dietary_tags: ['halal'],
@@ -90,6 +93,7 @@ describe('main app home dashboard contract', () => {
       activeJobs: 0,
       orders: 0,
       earningsCents: 0,
+      earningsCurrencyCode: 'USD',
     });
     expect(res.body.walletSummary).toEqual({
       totalWallets: 0,
@@ -129,6 +133,9 @@ describe('main app home dashboard contract', () => {
           rating: 4.8,
           estimated_delivery_minutes: 25,
           price_level: 'mid',
+          currency_code: 'USD',
+          accepts_online_orders: true,
+          fulfillment_modes: ['pickup', 'delivery'],
           logo_url: null,
           cover_photo_url: null,
           dietary_tags: ['halal'],
@@ -149,7 +156,7 @@ describe('main app home dashboard contract', () => {
       })
       .mockResolvedValueOnce({ rows: [{ active_jobs: 2 }] })
       .mockResolvedValueOnce({ rows: [{ total_orders: 4 }] })
-      .mockResolvedValueOnce({ rows: [{ earnings_cents: 12500 }] })
+      .mockResolvedValueOnce({ rows: [{ earnings_cents: 12500, currency_code: 'USD' }] })
       .mockResolvedValueOnce({
         rows: [{
           currency_code: 'USD',
@@ -177,6 +184,7 @@ describe('main app home dashboard contract', () => {
       activeJobs: 2,
       orders: 4,
       earningsCents: 12500,
+      earningsCurrencyCode: 'USD',
     });
     expect(res.body.walletSummary).toEqual({
       totalWallets: 2,
@@ -214,6 +222,7 @@ describe('main app home dashboard contract', () => {
       activeJobs: 0,
       orders: 0,
       earningsCents: 0,
+      earningsCurrencyCode: 'USD',
     });
     expect(res.body.walletSummary).toEqual({
       totalWallets: 0,
@@ -268,6 +277,8 @@ describe('main app activity feed contract', () => {
           client_id: user.id,
           job_title: 'Assemble IKEA wardrobe',
           helper_name: 'Diego Ramos',
+          amount_cents: 9500,
+          currency_code: 'USD',
         }],
       })
       .mockResolvedValueOnce({
@@ -394,8 +405,9 @@ describe('main app activity feed contract', () => {
       .mockResolvedValueOnce({
         rows: [{
           jobs_completed: 4,
-          earned_dollars: '275.50',
-          spent_job_dollars: '120.00',
+          earned_cents: '27550',
+          spent_job_cents: '12000',
+          currency_code: 'USD',
         }],
       })
       .mockResolvedValueOnce({
@@ -406,13 +418,13 @@ describe('main app activity feed contract', () => {
       })
       .mockResolvedValueOnce({
         rows: [
-          { label: 'Mon', earned_dollars: '0' },
-          { label: 'Tue', earned_dollars: '125.25' },
-          { label: 'Wed', earned_dollars: '0' },
-          { label: 'Thu', earned_dollars: '150.25' },
-          { label: 'Fri', earned_dollars: '0' },
-          { label: 'Sat', earned_dollars: '0' },
-          { label: 'Sun', earned_dollars: '0' },
+          { label: 'Mon', earned_cents: '0', currency_code: 'USD' },
+          { label: 'Tue', earned_cents: '12525', currency_code: 'USD' },
+          { label: 'Wed', earned_cents: '0', currency_code: 'USD' },
+          { label: 'Thu', earned_cents: '15025', currency_code: 'USD' },
+          { label: 'Fri', earned_cents: '0', currency_code: 'USD' },
+          { label: 'Sat', earned_cents: '0', currency_code: 'USD' },
+          { label: 'Sun', earned_cents: '0', currency_code: 'USD' },
         ],
       });
 
@@ -428,6 +440,7 @@ describe('main app activity feed contract', () => {
       reviewCount: 8,
       totalEarnedCents: 27550,
       totalSpentCents: 16850,
+      currencyCode: 'USD',
       jobsCompleted: 4,
       ordersPlaced: 2,
     }));
@@ -438,8 +451,8 @@ describe('main app activity feed contract', () => {
       'manager',
     ]));
     expect(res.body.earningsWeekly).toEqual(expect.arrayContaining([
-      { label: 'Tue', amountCents: 12525 },
-      { label: 'Thu', amountCents: 15025 },
+      { label: 'Tue', amountCents: 12525, currencyCode: 'USD' },
+      { label: 'Thu', amountCents: 15025, currencyCode: 'USD' },
     ]));
   });
 });
