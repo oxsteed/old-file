@@ -33,8 +33,8 @@ describe('main app home dashboard contract', () => {
           hourly_rate: 35,
           is_online: true,
           is_verified: true,
-          latitude: 40.1,
-          longitude: -83.0,
+          latitude: null,
+          longitude: null,
           avatarSymbol: 'sparkles',
           tintKey: 'secondary',
         }],
@@ -68,6 +68,15 @@ describe('main app home dashboard contract', () => {
     const res = await request(buildApp()).get('/api/main-app/home');
 
     expect(res.status).toBe(200);
+    expect(res.body.contract.version).toBe('main-home-v1');
+    expect(res.body.contract.dataSource).toBe('production');
+    expect(res.body.contract.sections).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'featuredHelpers', source: 'users + helper_profiles', count: 1 }),
+        expect.objectContaining({ key: 'popularRestaurants', source: 'food_restaurants + food_restaurant_promotions', count: 1 }),
+        expect.objectContaining({ key: 'activity', source: 'bids + jobs + food_orders', count: 1 }),
+      ])
+    );
     expect(res.body.context.isAuthenticated).toBe(false);
     expect(res.body.summary).toEqual({
       activeJobs: 0,
@@ -76,11 +85,15 @@ describe('main app home dashboard contract', () => {
     });
     expect(res.body.walletSummary).toEqual({
       totalWallets: 0,
+      activeWallets: 0,
+      lockedWallets: 0,
       balances: [],
     });
     expect(Array.isArray(res.body.featuredHelpers)).toBe(true);
     expect(Array.isArray(res.body.popularRestaurants)).toBe(true);
     expect(Array.isArray(res.body.activity)).toBe(true);
+    expect(res.body.featuredHelpers[0].hasLocation).toBe(false);
+    expect(res.body.popularRestaurants[0].hasLocation).toBe(true);
   });
 
   test('returns authenticated summary and activity for signed-in users', async () => {
@@ -133,13 +146,23 @@ describe('main app home dashboard contract', () => {
         rows: [{
           currency_code: 'USD',
           wallet_count: 2,
-          balance_cents: 4150,
+          active_wallet_count: 1,
+          locked_wallet_count: 1,
+          total_balance_cents: 6150,
+          available_balance_cents: 4150,
+          locked_balance_cents: 2000,
         }],
       });
 
     const res = await request(buildApp(user)).get('/api/main-app/home');
 
     expect(res.status).toBe(200);
+    expect(res.body.contract.version).toBe('main-home-v1');
+    expect(res.body.contract.sections).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'walletSummary', source: 'food_customer_wallet_accounts', count: 2 }),
+      ])
+    );
     expect(res.body.context.isAuthenticated).toBe(true);
     expect(res.body.context.userId).toBe(user.id);
     expect(res.body.summary).toEqual({
@@ -149,12 +172,21 @@ describe('main app home dashboard contract', () => {
     });
     expect(res.body.walletSummary).toEqual({
       totalWallets: 2,
+      activeWallets: 1,
+      lockedWallets: 1,
       balances: [{
         currencyCode: 'USD',
         walletCount: 2,
+        activeWalletCount: 1,
+        lockedWalletCount: 1,
         balanceCents: 4150,
+        availableBalanceCents: 4150,
+        lockedBalanceCents: 2000,
+        totalBalanceCents: 6150,
       }],
     });
     expect(res.body.activity[0].id).toBe('food-order-200');
+    expect(res.body.featuredHelpers[0].hasLocation).toBe(true);
+    expect(res.body.popularRestaurants[0].hasLocation).toBe(true);
   });
 });

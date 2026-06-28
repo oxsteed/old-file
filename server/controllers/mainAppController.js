@@ -66,6 +66,7 @@ async function queryFeaturedHelpers(limit) {
     isVerified: Boolean(row.is_verified),
     latitude: row.latitude === null ? null : Number(row.latitude),
     longitude: row.longitude === null ? null : Number(row.longitude),
+    hasLocation: row.latitude !== null && row.longitude !== null,
     avatarSymbol: avatarSymbolForHeadline(row.headline),
     tintKey: tintKeyForHeadline(row.headline),
   }));
@@ -119,6 +120,7 @@ async function queryPopularRestaurants(limit) {
     dietaryTags: Array.isArray(row.dietary_tags) ? row.dietary_tags : [],
     latitude: row.latitude === null ? null : Number(row.latitude),
     longitude: row.longitude === null ? null : Number(row.longitude),
+    hasLocation: row.latitude !== null && row.longitude !== null,
     promo: row.promo_title || null,
   }));
 }
@@ -194,10 +196,14 @@ async function queryUserWalletSummary(userId) {
   const { rows } = await pool.query(
     `SELECT currency_code,
             COUNT(*)::int AS wallet_count,
-            COALESCE(SUM(balance_cents), 0)::bigint AS balance_cents
+            COUNT(*) FILTER (WHERE status = 'active')::int AS active_wallet_count,
+            COUNT(*) FILTER (WHERE status = 'suspended')::int AS locked_wallet_count,
+            COALESCE(SUM(balance_cents), 0)::bigint AS total_balance_cents,
+            COALESCE(SUM(balance_cents) FILTER (WHERE status = 'active'), 0)::bigint AS available_balance_cents,
+            COALESCE(SUM(balance_cents) FILTER (WHERE status = 'suspended'), 0)::bigint AS locked_balance_cents
        FROM food_customer_wallet_accounts
       WHERE customer_id = $1
-        AND status = 'active'
+        AND status <> 'closed'
       GROUP BY currency_code
       ORDER BY currency_code`,
     [userId]
@@ -205,10 +211,17 @@ async function queryUserWalletSummary(userId) {
 
   return {
     totalWallets: rows.reduce((sum, row) => sum + Number(row.wallet_count || 0), 0),
+    activeWallets: rows.reduce((sum, row) => sum + Number(row.active_wallet_count || 0), 0),
+    lockedWallets: rows.reduce((sum, row) => sum + Number(row.locked_wallet_count || 0), 0),
     balances: rows.map((row) => ({
       currencyCode: row.currency_code || 'USD',
       walletCount: Number(row.wallet_count || 0),
-      balanceCents: Number(row.balance_cents || 0),
+      activeWalletCount: Number(row.active_wallet_count || 0),
+      lockedWalletCount: Number(row.locked_wallet_count || 0),
+      balanceCents: Number(row.available_balance_cents || 0),
+      availableBalanceCents: Number(row.available_balance_cents || 0),
+      lockedBalanceCents: Number(row.locked_balance_cents || 0),
+      totalBalanceCents: Number(row.total_balance_cents || 0),
     })),
   };
 }
@@ -269,6 +282,41 @@ async function queryUserActivity(userId, limit) {
   }));
 }
 
+function buildDashboardContract({ helpers, restaurants, activity, walletSummary }) {
+  return {
+    version: 'main-home-v1',
+    generatedAt: new Date().toISOString(),
+    dataSource: 'production',
+    sections: [
+      {
+        key: 'summary',
+        source: 'jobs + food_orders + completed helper jobs',
+        count: 1,
+      },
+      {
+        key: 'walletSummary',
+        source: 'food_customer_wallet_accounts',
+        count: walletSummary.totalWallets,
+      },
+      {
+        key: 'featuredHelpers',
+        source: 'users + helper_profiles',
+        count: helpers.length,
+      },
+      {
+        key: 'popularRestaurants',
+        source: 'food_restaurants + food_restaurant_promotions',
+        count: restaurants.length,
+      },
+      {
+        key: 'activity',
+        source: 'bids + jobs + food_orders',
+        count: activity.length,
+      },
+    ],
+  };
+}
+
 exports.getHomeDashboard = async (req, res, next) => {
   try {
     const helperLimit = parseLimit(req.query.helpers, 4, 8);
@@ -286,11 +334,15 @@ exports.getHomeDashboard = async (req, res, next) => {
       }),
       req.user ? queryUserWalletSummary(req.user.id) : Promise.resolve({
         totalWallets: 0,
+        activeWallets: 0,
+        lockedWallets: 0,
         balances: [],
       }),
     ]);
+    const contract = buildDashboardContract({ helpers, restaurants, activity, walletSummary });
 
     res.json({
+      contract,
       context: {
         isAuthenticated: Boolean(req.user),
         userId: req.user?.id || null,
