@@ -52,6 +52,7 @@ router.delete('/restaurants/:restaurantId/menu-items/:itemId', authenticate, ctr
 router.post('/restaurants/:restaurantId/menu-items/:itemId/modifier-groups', authenticate, ctrl.createModifierGroup);
 router.delete('/restaurants/:restaurantId/modifier-groups/:groupId', authenticate, ctrl.deleteModifierGroup);
 router.post('/restaurants/:restaurantId/customer-wallet-loads', authenticate, walletCtrl.loadCustomerWallet);
+router.get('/restaurants/:restaurantId/customer-wallet-integrity', authenticate, walletCtrl.verifyCustomerWalletIntegrity);
 
 // Ordering. Customers can browse as guests, but must sign in before submitting
 // an order so the restaurant has an accountable customer record.

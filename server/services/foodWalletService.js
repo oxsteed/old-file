@@ -6,6 +6,8 @@ const { AppError } = require('../middleware/errorHandler');
 
 const MAX_WALLET_ENTRY_CENTS = Math.max(1, Number.parseInt(process.env.FOOD_WALLET_MAX_ENTRY_CENTS || '250000', 10));
 const MAX_WALLET_BALANCE_CENTS = Math.max(MAX_WALLET_ENTRY_CENTS, Number.parseInt(process.env.FOOD_WALLET_MAX_BALANCE_CENTS || '1000000', 10));
+const LEGACY_WALLET_HASH_ALGORITHM = 'sha256_v0';
+const CURRENT_WALLET_HASH_ALGORITHM = 'hmac_sha256_v1';
 
 function normalizeString(value, max = 255) {
   if (typeof value !== 'string') return null;
@@ -31,6 +33,62 @@ function stableStringify(value) {
   return JSON.stringify(value);
 }
 
+function getWalletLedgerSecret() {
+  const secret = process.env.FOOD_WALLET_LEDGER_HMAC_SECRET || process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('Missing FOOD_WALLET_LEDGER_HMAC_SECRET or JWT_SECRET for wallet ledger hashing');
+  }
+  return secret;
+}
+
+function buildWalletHashPayload({
+  accountId,
+  restaurantId,
+  customerId,
+  entryType,
+  amountCents,
+  balanceAfterCents,
+  currencyCode,
+  sequence,
+  previousEntryHash,
+  referenceType,
+  referenceId,
+  correlationId,
+  createdByUserId,
+  actorType,
+  metadata,
+}) {
+  return {
+    accountId,
+    restaurantId,
+    customerId,
+    entryType,
+    amountCents,
+    balanceAfterCents,
+    currencyCode,
+    sequence,
+    previousEntryHash,
+    referenceType,
+    referenceId,
+    correlationId,
+    createdByUserId,
+    actorType,
+    metadata,
+  };
+}
+
+function computeWalletEntryHash(payload, algorithm = CURRENT_WALLET_HASH_ALGORITHM) {
+  const data = stableStringify(buildWalletHashPayload(payload));
+  switch (algorithm) {
+    case LEGACY_WALLET_HASH_ALGORITHM:
+      return crypto.createHash('sha256').update(data).digest('hex');
+    case CURRENT_WALLET_HASH_ALGORITHM:
+      return crypto.createHmac('sha256', getWalletLedgerSecret()).update(data).digest('hex');
+    default:
+      throw new Error(`Unsupported wallet hash algorithm: ${algorithm}`);
+  }
+}
+
 function toWalletAmount(amountCents) {
   return Number(amountCents || 0) / 100;
 }
@@ -52,6 +110,7 @@ function formatLedgerRow(row) {
     sequence: row.entry_sequence === null || row.entry_sequence === undefined ? null : Number(row.entry_sequence),
     correlationId: row.correlation_id || null,
     actorType: row.actor_type || null,
+    hashAlgorithm: row.hash_algorithm || null,
     entryHash: row.entry_hash || null,
     previousEntryHash: row.previous_entry_hash || null,
     metadata: row.metadata && typeof row.metadata === 'object' ? row.metadata : {},
@@ -238,7 +297,7 @@ async function applyWalletLedgerEntry(client, {
   const normalizedReferenceId = normalizeString(referenceId, 120);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 120);
   const normalizedMetadata = normalizeMetadata(metadata);
-  const entryHash = crypto.createHash('sha256').update(stableStringify({
+  const entryHash = computeWalletEntryHash({
     accountId: account.id,
     restaurantId,
     customerId,
@@ -254,7 +313,7 @@ async function applyWalletLedgerEntry(client, {
     createdByUserId,
     actorType: normalizedActorType,
     metadata: normalizedMetadata,
-  })).digest('hex');
+  }, CURRENT_WALLET_HASH_ALGORITHM);
 
   const { rows: updatedRows } = await client.query(
     `UPDATE food_customer_wallet_accounts
@@ -275,9 +334,9 @@ async function applyWalletLedgerEntry(client, {
        (account_id, restaurant_id, customer_id, entry_type, amount_cents, balance_after_cents,
         currency_code, description, reference_type, reference_id, idempotency_key,
         created_by_user_id, metadata, entry_sequence, previous_entry_hash, entry_hash,
-        correlation_id, actor_type)
+        correlation_id, actor_type, hash_algorithm)
      VALUES
-       ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14, $15, $16, $17, $18)
+       ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14, $15, $16, $17, $18, $19)
      RETURNING *`,
     [
       updatedAccount.id,
@@ -298,6 +357,7 @@ async function applyWalletLedgerEntry(client, {
       entryHash,
       normalizedCorrelationId,
       normalizedActorType,
+      CURRENT_WALLET_HASH_ALGORITHM,
     ]
   );
 
@@ -434,12 +494,163 @@ async function loadWalletAccountsForUser(userId, {
   return wallets;
 }
 
+async function verifyWalletIntegrityForCustomer(restaurantId, customerId) {
+  const { rows: accountRows } = await pool.query(
+    `SELECT a.*,
+            fr.display_name AS restaurant_name,
+            fr.logo_url AS restaurant_logo_url
+       FROM food_customer_wallet_accounts a
+       JOIN food_restaurants fr ON fr.id = a.restaurant_id
+      WHERE a.restaurant_id = $1
+        AND a.customer_id = $2
+      LIMIT 1`,
+    [restaurantId, customerId]
+  );
+  const account = accountRows[0];
+  if (!account) {
+    throw new AppError('Wallet account not found', 404, 'wallet_not_found');
+  }
+
+  const { rows: entryRows } = await pool.query(
+    `SELECT *
+       FROM food_customer_wallet_ledger
+      WHERE account_id = $1
+      ORDER BY entry_sequence ASC NULLS LAST, created_at ASC, id ASC`,
+    [account.id]
+  );
+
+  const issues = [];
+  let runningBalance = 0;
+  let expectedPreviousHash = null;
+  let expectedSequence = 1;
+
+  for (const row of entryRows) {
+    const rowSequence = row.entry_sequence === null || row.entry_sequence === undefined
+      ? null
+      : Number(row.entry_sequence);
+    if (rowSequence !== expectedSequence) {
+      issues.push({
+        code: 'sequence_gap',
+        entryId: String(row.id),
+        expectedSequence,
+        actualSequence: rowSequence,
+      });
+    }
+
+    const previousEntryHash = row.previous_entry_hash || null;
+    if (previousEntryHash !== expectedPreviousHash) {
+      issues.push({
+        code: 'previous_hash_mismatch',
+        entryId: String(row.id),
+        expectedPreviousHash,
+        actualPreviousHash: previousEntryHash,
+      });
+    }
+
+    const direction = row.entry_type === 'debit' ? -1 : 1;
+    runningBalance += direction * Number(row.amount_cents || 0);
+    if (runningBalance !== Number(row.balance_after_cents || 0)) {
+      issues.push({
+        code: 'balance_mismatch',
+        entryId: String(row.id),
+        expectedBalanceCents: runningBalance,
+        actualBalanceCents: Number(row.balance_after_cents || 0),
+      });
+      runningBalance = Number(row.balance_after_cents || 0);
+    }
+
+    const hashAlgorithm = normalizeString(row.hash_algorithm, 40) || LEGACY_WALLET_HASH_ALGORITHM;
+    let expectedHash = null;
+    try {
+      expectedHash = computeWalletEntryHash({
+        accountId: row.account_id,
+        restaurantId: row.restaurant_id,
+        customerId: row.customer_id,
+        entryType: row.entry_type,
+        amountCents: Number(row.amount_cents || 0),
+        balanceAfterCents: Number(row.balance_after_cents || 0),
+        currencyCode: normalizeCurrency(row.currency_code),
+        sequence: rowSequence,
+        previousEntryHash,
+        referenceType: row.reference_type || null,
+        referenceId: row.reference_id || null,
+        correlationId: row.correlation_id || null,
+        createdByUserId: row.created_by_user_id || null,
+        actorType: row.actor_type || 'system',
+        metadata: row.metadata && typeof row.metadata === 'object' ? row.metadata : {},
+      }, hashAlgorithm);
+    } catch (err) {
+      issues.push({
+        code: 'unsupported_hash_algorithm',
+        entryId: String(row.id),
+        hashAlgorithm,
+        message: err.message,
+      });
+    }
+
+    if (expectedHash && (row.entry_hash || null) !== expectedHash) {
+      issues.push({
+        code: 'entry_hash_mismatch',
+        entryId: String(row.id),
+        hashAlgorithm,
+        expectedEntryHash: expectedHash,
+        actualEntryHash: row.entry_hash || null,
+      });
+    } else if (!expectedHash) {
+      issues.push({
+        code: 'entry_hash_unverifiable',
+        entryId: String(row.id),
+        hashAlgorithm,
+      });
+    }
+
+    expectedPreviousHash = row.entry_hash || expectedHash;
+    expectedSequence += 1;
+  }
+
+  if (Number(account.balance_cents || 0) !== runningBalance) {
+    issues.push({
+      code: 'account_balance_mismatch',
+      expectedBalanceCents: runningBalance,
+      actualBalanceCents: Number(account.balance_cents || 0),
+    });
+  }
+  if (Number(account.ledger_version || 0) !== entryRows.length) {
+    issues.push({
+      code: 'ledger_version_mismatch',
+      expectedLedgerVersion: entryRows.length,
+      actualLedgerVersion: Number(account.ledger_version || 0),
+    });
+  }
+  if ((account.last_entry_hash || null) !== expectedPreviousHash) {
+    issues.push({
+      code: 'account_last_hash_mismatch',
+      expectedLastEntryHash: expectedPreviousHash,
+      actualLastEntryHash: account.last_entry_hash || null,
+    });
+  }
+
+  return {
+    wallet: formatWallet(account, entryRows.slice().reverse()),
+    valid: issues.length === 0,
+    checkedAt: new Date().toISOString(),
+    entryCount: entryRows.length,
+    currentHashAlgorithm: CURRENT_WALLET_HASH_ALGORITHM,
+    legacyHashAlgorithm: LEGACY_WALLET_HASH_ALGORITHM,
+    issues,
+  };
+}
+
 module.exports = {
   creditFoodWallet,
   debitFoodWallet,
   refundFoodWallet,
   refundWalletDebitForReference,
+  verifyWalletIntegrityForCustomer,
   formatWallet,
   formatLedgerRow,
   loadWalletAccountsForUser,
+  computeWalletEntryHash,
+  CURRENT_WALLET_HASH_ALGORITHM,
+  LEGACY_WALLET_HASH_ALGORITHM,
 };

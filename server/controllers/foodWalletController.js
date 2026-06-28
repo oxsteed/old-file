@@ -3,9 +3,11 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
+const { logFoodWalletOperatorAudit } = require('../services/foodWalletAuditService');
 const {
   creditFoodWallet,
   loadWalletAccountsForUser,
+  verifyWalletIntegrityForCustomer,
 } = require('../services/foodWalletService');
 
 function normalizeString(value, max = 255) {
@@ -51,31 +53,47 @@ function parsePositiveMoneyCents(body) {
 
 async function requireRestaurantAccess(userId, restaurantId) {
   const { rows } = await pool.query(
-    `SELECT fr.id, fr.business_id, fr.owner_user_id, fr.display_name, fr.currency_code
+    `SELECT fr.id, fr.business_id, fr.owner_user_id, fr.display_name, fr.currency_code,
+            CASE
+              WHEN b.user_id = $2 OR fr.owner_user_id = $2 THEN 'owner'
+              ELSE (
+                SELECT bm.role
+                  FROM business_members bm
+                 WHERE bm.business_id = fr.business_id
+                   AND bm.member_id = $2
+                   AND bm.status = 'active'
+                 LIMIT 1
+              )
+            END AS effective_role
        FROM food_restaurants fr
        JOIN businesses b ON b.id = fr.business_id
-       LEFT JOIN business_members bm
-         ON bm.business_id = fr.business_id
-        AND bm.member_id = $2
-        AND bm.status = 'active'
       WHERE fr.id = $1
-        AND (
-          b.user_id = $2
-          OR fr.owner_user_id = $2
-          OR bm.member_id = $2
-        )
       LIMIT 1`,
     [restaurantId, userId]
   );
-  if (!rows[0]) {
+  if (!rows[0] || !rows[0].effective_role) {
     throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   }
   return rows[0];
 }
 
-async function resolveCustomer(body) {
-  const customerId = normalizeString(body.customerId || body.customer_id, 80);
-  const customerEmail = normalizeString(body.customerEmail || body.customer_email, 255)?.toLowerCase();
+const WALLET_OPERATOR_ROLES = new Set(['owner', 'manager']);
+
+function assertWalletOperator(restaurant) {
+  if (!WALLET_OPERATOR_ROLES.has(restaurant.effective_role)) {
+    throw new AppError('Owner or manager access required', 403, 'forbidden');
+  }
+}
+
+function extractCustomerLookup(source = {}) {
+  return {
+    customerId: normalizeString(source.customerId || source.customer_id, 80),
+    customerEmail: normalizeString(source.customerEmail || source.customer_email, 255)?.toLowerCase(),
+  };
+}
+
+async function resolveCustomer(source) {
+  const { customerId, customerEmail } = extractCustomerLookup(source);
   if (!customerId && !customerEmail) {
     throw new AppError('Validation failed', 400, 'validation_failed', {
       customerId: 'customerId or customerEmail is required',
@@ -107,6 +125,55 @@ exports.listCustomerWallets = async (req, res, next) => {
   }
 };
 
+exports.verifyCustomerWalletIntegrity = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) {
+      throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    }
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertWalletOperator(restaurant);
+    const customer = await resolveCustomer(req.query);
+    const audit = await verifyWalletIntegrityForCustomer(restaurantId, customer.id);
+    const correlationId = normalizeString(
+      req.query.correlationId || req.query.correlation_id || `wallet-integrity:${restaurantId}:${customer.id}:${Date.now()}`,
+      120
+    );
+    await withTransaction(pool, async (client) => {
+      await logFoodWalletOperatorAudit(client, {
+        restaurantId,
+        businessId: restaurant.business_id,
+        walletAccountId: audit.wallet.accountId,
+        customerId: customer.id,
+        operatorUserId: req.user.id,
+        actionType: 'integrity_check',
+        amountCents: null,
+        currencyCode: audit.wallet.currencyCode,
+        correlationId,
+        requestIp: req.ip || null,
+        metadata: {
+          valid: audit.valid,
+          issueCount: audit.issues.length,
+          issueCodes: audit.issues.map((issue) => issue.code),
+          checkedAt: audit.checkedAt,
+          requestedCustomerEmail: customer.email,
+        },
+      });
+    }, 'food_wallet_integrity_audit');
+    res.json({
+      customer: {
+        id: customer.id,
+        firstName: customer.first_name,
+        lastName: customer.last_name,
+        email: customer.email,
+      },
+      audit,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.getCustomerWallet = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -130,6 +197,7 @@ exports.loadCustomerWallet = async (req, res, next) => {
       throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     }
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertWalletOperator(restaurant);
     const customer = await resolveCustomer(req.body);
     const amountCents = parsePositiveMoneyCents(req.body);
     const currencyCode = normalizeCurrency(req.body.currencyCode || req.body.currency_code || restaurant.currency_code);
@@ -147,7 +215,7 @@ exports.loadCustomerWallet = async (req, res, next) => {
     );
 
     const result = await withTransaction(pool, async (client) => {
-      return creditFoodWallet(client, {
+      const walletResult = await creditFoodWallet(client, {
         restaurantId,
         customerId: customer.id,
         currencyCode,
@@ -168,6 +236,29 @@ exports.loadCustomerWallet = async (req, res, next) => {
           requestIp: req.ip || null,
         },
       });
+      if (!walletResult.replayed) {
+        await logFoodWalletOperatorAudit(client, {
+          restaurantId,
+          businessId: restaurant.business_id,
+          walletAccountId: walletResult.account.id,
+          customerId: customer.id,
+          operatorUserId: req.user.id,
+          actionType: 'merchant_load',
+          amountCents,
+          currencyCode,
+          correlationId,
+          requestIp: req.ip || null,
+          metadata: {
+            replayed: false,
+            referenceId,
+            idempotencyKey: idempotencyKey || null,
+            note: note || null,
+            restaurantName: restaurant.display_name,
+            customerEmail: customer.email,
+          },
+        });
+      }
+      return walletResult;
     }, 'food_wallet_load_customer');
 
     const wallets = await loadWalletAccountsForUser(customer.id, {

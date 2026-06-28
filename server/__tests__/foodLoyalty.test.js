@@ -41,6 +41,7 @@ function restaurantRow() {
     prep_time_min: 12,
     operating_hours: null,
     timezone: 'America/New_York',
+    fulfillment_modes: ['pickup', 'delivery'],
   };
 }
 
@@ -94,9 +95,11 @@ describe('food loyalty redeem (B4)', () => {
     expect(res.body.order.total_cents).toBe(399);
     expect(mockQuery.mock.calls[2][0]).toMatch(/FROM food_loyalty_accounts/);
     expect(mockQuery.mock.calls[2][0]).toMatch(/FOR UPDATE/);
-    expect(mockQuery.mock.calls[6][0]).toMatch(/UPDATE food_loyalty_accounts/);
-    expect(mockQuery.mock.calls[7][0]).toMatch(/INSERT INTO food_loyalty_ledger/);
-    expect(mockQuery.mock.calls[7][1]).toEqual([ACCOUNT_ID, 200, -500]);
+    const loyaltyAccountUpdateCall = mockQuery.mock.calls.find(([sql]) => /UPDATE food_loyalty_accounts/.test(sql));
+    const loyaltyLedgerInsertCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO food_loyalty_ledger/.test(sql));
+    expect(loyaltyAccountUpdateCall?.[0]).toMatch(/UPDATE food_loyalty_accounts/);
+    expect(loyaltyLedgerInsertCall?.[0]).toMatch(/INSERT INTO food_loyalty_ledger/);
+    expect(loyaltyLedgerInsertCall?.[1]).toEqual([ACCOUNT_ID, 200, -500]);
   });
 
   test('caps redemption at subtotal and ignores requests below minimum', async () => {

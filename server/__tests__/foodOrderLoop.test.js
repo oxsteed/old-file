@@ -66,6 +66,7 @@ function restaurantRow(overrides = {}) {
     prep_time_min: 12,
     operating_hours: null,
     timezone: 'America/New_York',
+    fulfillment_modes: ['pickup', 'delivery'],
     ...overrides,
   };
 }
