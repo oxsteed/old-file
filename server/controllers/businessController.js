@@ -8,6 +8,10 @@ const countriesUtil = require('../utils/countries');
 const { AppError } = require('../middleware/errorHandler');
 const { invalidateHelperContext } = require('../services/helperContext');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
+const {
+  listBusinessCategories: getBusinessCategoryCatalog,
+  normalizeBusinessCategory,
+} = require('../services/businessCategories');
 
 // ── IRS quarterly tax due dates (fixed schedule) ─────────────────────────────
 const TAX_DUE_DATES = {
@@ -39,7 +43,8 @@ function round2(n) { return Math.round((n || 0) * 100) / 100; }
 async function listBusinesses(req, res, next) {
   try {
     const { rows } = await pool.query(
-      `SELECT id, business_name, business_type, description, website, phone,
+      `SELECT id, business_name, business_type, industry_category, business_mode,
+              description, website, phone,
               address_city, address_state, address_country, is_primary, is_active,
               tax_rate, logo_url, created_at,
               COALESCE(active_template, 'default') AS active_template
@@ -54,13 +59,24 @@ async function listBusinesses(req, res, next) {
   }
 }
 
+async function listBusinessCategories(_req, res) {
+  return res.json({
+    categories: getBusinessCategoryCatalog(),
+    contract: {
+      version: 'business-categories-v1',
+      generatedAt: new Date().toISOString(),
+      dataSource: 'backend-catalog',
+    },
+  });
+}
+
 // ── Add a business ────────────────────────────────────────────────────────────
 async function addBusiness(req, res, next) {
   try {
     const {
       business_name, business_type, ein, description, website, phone,
       address_street, address_city, address_state, address_zip,
-      address_country, tax_rate,
+      address_country, tax_rate, industry_category, business_mode,
     } = req.body;
 
     const fields = {};
@@ -75,6 +91,14 @@ async function addBusiness(req, res, next) {
     const normalizedState = (address_state && countriesUtil.hasRegions(country))
       ? String(address_state).toUpperCase().trim()
       : (address_state || null);
+    const category = normalizeBusinessCategory({
+      industryCategory: industry_category,
+      businessMode: business_mode,
+      businessType: business_type,
+    });
+    if (category.error) {
+      throw new AppError(category.error, 400, 'unsupported_business_category');
+    }
 
     const { rows: existing } = await pool.query(
       'SELECT COUNT(*) as count FROM businesses WHERE user_id = $1',
@@ -86,15 +110,17 @@ async function addBusiness(req, res, next) {
       `INSERT INTO businesses
          (user_id, business_name, business_type, ein, description, website, phone,
           address_street, address_city, address_state, address_zip, address_country,
-          is_primary, tax_rate)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+          is_primary, tax_rate, industry_category, business_mode)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
        RETURNING *`,
       [
-        req.user.id, business_name.trim(), business_type || null, ein || null,
+        req.user.id, business_name.trim(), category.businessType, ein || null,
         description || null, website || null, phone || null,
         address_street || null, address_city || null, normalizedState,
         address_zip || null, country, isPrimary,
         tax_rate != null ? parseFloat(tax_rate) : 25.00,
+        category.industryCategory,
+        category.businessMode,
       ]
     );
 
@@ -119,6 +145,7 @@ async function updateBusiness(req, res, next) {
       business_name, business_type, ein, description, website, phone,
       address_street, address_city, address_state, address_zip,
       address_country,
+      industry_category, business_mode,
       is_active, tax_rate,
       // Public-profile fields
       logo_url, cover_photo_url,
@@ -141,6 +168,14 @@ async function updateBusiness(req, res, next) {
     const normalizedState = (address_state && countriesUtil.hasRegions(effectiveCountry))
       ? String(address_state).toUpperCase().trim()
       : (address_state ?? undefined);
+    const category = normalizeBusinessCategory({
+      industryCategory: industry_category,
+      businessMode: business_mode,
+      businessType: business_type,
+    });
+    if (category.error) {
+      throw new AppError(category.error, 400, 'unsupported_business_category');
+    }
 
     const isOwner = req.user.id === ownerId;
     const logoExplicitNull = clear_logo_url === true;
@@ -167,11 +202,13 @@ async function updateBusiness(req, res, next) {
            tax_rate        = CASE WHEN $16::boolean THEN COALESCE($12, tax_rate) ELSE tax_rate END,
            logo_url        = CASE WHEN $17::boolean THEN NULL ELSE COALESCE($13, logo_url) END,
            cover_photo_url = CASE WHEN $18::boolean THEN NULL ELSE COALESCE($14, cover_photo_url) END,
+           industry_category = COALESCE($20, industry_category),
+           business_mode     = COALESCE($21, business_mode),
            updated_at      = NOW()
        WHERE id = $15
        RETURNING *`,
       [
-        business_name, business_type,
+        business_name, category.businessType,
         sensitiveEin !== undefined ? sensitiveEin : null,
         description, website, phone,
         address_street, address_city,
@@ -187,6 +224,8 @@ async function updateBusiness(req, res, next) {
         coverExplicitNull,
         // $19 - only update country when the client sent a normalized value
         countriesUtil.normalizeCountry(address_country) || null,
+        category.industryCategory,
+        category.businessMode,
       ]
     );
 
@@ -864,6 +903,8 @@ async function getBusinessProfileForEditor(req, res) {
          b.id,
          b.business_name,
          b.business_type,
+         b.industry_category,
+         b.business_mode,
          b.description,
          b.website,
          b.phone,
@@ -891,7 +932,7 @@ async function getBusinessProfileForEditor(req, res) {
 }
 
 module.exports = {
-  listBusinesses, addBusiness, updateBusiness, setPrimary, deleteBusiness,
+  listBusinesses, listBusinessCategories, addBusiness, updateBusiness, setPrimary, deleteBusiness,
   uploadBusinessPhotos,
   getBusinessPublicProfile,
   getBusinessProfileForEditor,

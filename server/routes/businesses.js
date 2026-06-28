@@ -6,7 +6,7 @@ const upload  = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 
 const {
-  listBusinesses, addBusiness, updateBusiness, setPrimary, deleteBusiness,
+  listBusinesses, listBusinessCategories, addBusiness, updateBusiness, setPrimary, deleteBusiness,
   uploadBusinessPhotos,
   getBusinessPublicProfile,
   getBusinessProfileForEditor,
@@ -58,6 +58,7 @@ router.get('/invoices/public/:token', getPublicInvoice);
 
 // ── Vortex redeem (no business id - must be before /:id routes) ───────────────
 router.post('/vortex/redeem',                authenticate, redeemToken);
+router.get('/categories',                    listBusinessCategories);
 
 // ── Member invitations (must come before /:id routes) ─────────────────────────
 router.get('/invitations',                   authenticate, listMyInvitations);
