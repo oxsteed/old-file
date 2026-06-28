@@ -86,6 +86,33 @@ function normalizePriceLevel(value) {
   return PRICE_LEVEL_ALIASES[raw] || 'mid';
 }
 
+function normalizeBoolean(value, fallback = false) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+  }
+  return fallback;
+}
+
+function parseNonNegativeInt(value, fallback = 0) {
+  const n = Number.parseInt(String(value), 10);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
+function parseOptionalPositiveInt(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = Number.parseInt(String(value), 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function parseOptionalFutureDate(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function normalizeTextArray(value, maxItems = 12) {
   if (!Array.isArray(value)) return [];
   return value
@@ -150,10 +177,15 @@ function createTrackingToken() {
 function attachRestaurantHours(row) {
   if (!row || typeof row !== 'object') return row;
   const hours = evaluateOperatingHours(row.operating_hours, row.timezone);
+  const closureUntil = row.temporarily_closed_until ? new Date(row.temporarily_closed_until) : null;
+  const isTemporarilyClosed = closureUntil && !Number.isNaN(closureUntil.getTime()) && closureUntil > new Date();
+  const acceptsNow = row.is_accepting_orders_now !== false;
   return {
     ...row,
-    is_open: hours.isOpen,
-    hours_message: hours.message,
+    is_open: hours.isOpen && acceptsNow && !isTemporarilyClosed,
+    hours_message: isTemporarilyClosed
+      ? `Temporarily closed until ${closureUntil.toISOString()}`
+      : hours.message,
     opens_at: hours.opensAt,
     closes_at: hours.closesAt,
   };
@@ -828,7 +860,10 @@ exports.listRestaurants = async (req, res, next) => {
     const limit = Math.min(parsePositiveInt(req.query.limit, 30), 100);
     const offset = Math.max(parsePositiveInt(req.query.offset, 0) || 0, 0);
     const params = [];
-    const filters = [`fr.status = 'active'`];
+    const filters = [
+      `fr.status = 'active'`,
+      `fr.discovery_status = 'visible'`,
+    ];
 
     const q = normalizeString(req.query.q || req.query.search, 120);
     if (q) {
@@ -854,7 +889,7 @@ exports.listRestaurants = async (req, res, next) => {
     const lng = Number(req.query.lng);
     const hasGeo = Number.isFinite(lat) && Number.isFinite(lng);
     let distanceSelect = 'NULL::double precision AS distance_km';
-    let orderBy = 'fr.display_name ASC';
+    let orderBy = 'fr.is_featured DESC, fr.featured_rank ASC, fr.avg_rating DESC, fr.rating_count DESC, fr.order_count DESC, fr.display_name ASC';
     if (hasGeo) {
       params.push(lat);
       const latIndex = params.length;
@@ -866,7 +901,7 @@ exports.listRestaurants = async (req, res, next) => {
         sin(radians($${latIndex})) * sin(radians(fr.latitude))
       )))) AS distance_km`;
       filters.push('fr.latitude IS NOT NULL AND fr.longitude IS NOT NULL');
-      orderBy = 'distance_km ASC, fr.display_name ASC';
+      orderBy = 'distance_km ASC, fr.is_featured DESC, fr.featured_rank ASC, fr.avg_rating DESC, fr.display_name ASC';
     }
 
     const { rows } = await pool.query(
@@ -878,6 +913,11 @@ exports.listRestaurants = async (req, res, next) => {
               fr.kitchen_display_enabled, fr.prep_time_min,
               COALESCE(fr.estimated_delivery_minutes, fr.prep_time_min, 30)::int AS estimated_delivery_minutes,
               fr.price_level,
+              fr.is_featured, fr.featured_rank, fr.discovery_status,
+              fr.is_accepting_orders_now, fr.temporarily_closed_until,
+              fr.minimum_order_cents, fr.delivery_fee_cents,
+              fr.service_area_radius_meters, fr.order_count,
+              fr.last_ordered_at, fr.last_reviewed_at,
               fr.brand_accent_hex, fr.operating_hours, fr.timezone, fr.is_verified,
               fr.dietary_tags,
               COALESCE(fr.avg_rating, 0)::float AS avg_rating,
@@ -1107,8 +1147,10 @@ exports.createRestaurant = async (req, res, next) => {
             address_street, address_city, address_state, address_zip, address_country,
             latitude, longitude, timezone, currency_code, fulfillment_modes,
             accepts_online_orders, accepts_in_store_orders, kitchen_display_enabled, status, prep_time_min,
-            estimated_delivery_minutes, price_level, dietary_tags)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
+            estimated_delivery_minutes, price_level, dietary_tags,
+            is_accepting_orders_now, temporarily_closed_until, minimum_order_cents,
+            delivery_fee_cents, service_area_radius_meters)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)
          RETURNING *`,
         [
           businessId,
@@ -1136,6 +1178,11 @@ exports.createRestaurant = async (req, res, next) => {
           parsePositiveInt(req.body.estimatedDeliveryMinutes || req.body.estimated_delivery_minutes, parsePositiveInt(req.body.prepTimeMin || req.body.prep_time_min, 15)),
           normalizePriceLevel(req.body.priceLevel || req.body.price_level),
           normalizeDietaryTags(req.body.dietaryTags || req.body.dietary_tags),
+          normalizeBoolean(req.body.isAcceptingOrdersNow ?? req.body.is_accepting_orders_now, true),
+          parseOptionalFutureDate(req.body.temporarilyClosedUntil ?? req.body.temporarily_closed_until),
+          parseNonNegativeInt(req.body.minimumOrderCents ?? req.body.minimum_order_cents, 0),
+          parseNonNegativeInt(req.body.deliveryFeeCents ?? req.body.delivery_fee_cents, 0),
+          parseOptionalPositiveInt(req.body.serviceAreaRadiusMeters ?? req.body.service_area_radius_meters),
         ]
       );
       return restaurant;
@@ -1951,6 +1998,11 @@ const RESTAURANT_PATCH_FIELDS = {
   prepTimeMin: { column: 'prep_time_min', value: (v) => parsePositiveInt(v, 15) },
   estimatedDeliveryMinutes: { column: 'estimated_delivery_minutes', value: (v) => parsePositiveInt(v, 30) },
   priceLevel: { column: 'price_level', value: (v) => normalizePriceLevel(v) },
+  isAcceptingOrdersNow: { column: 'is_accepting_orders_now', value: (v) => normalizeBoolean(v, true) },
+  temporarilyClosedUntil: { column: 'temporarily_closed_until', value: (v) => parseOptionalFutureDate(v) },
+  minimumOrderCents: { column: 'minimum_order_cents', value: (v) => parseNonNegativeInt(v, 0) },
+  deliveryFeeCents: { column: 'delivery_fee_cents', value: (v) => parseNonNegativeInt(v, 0) },
+  serviceAreaRadiusMeters: { column: 'service_area_radius_meters', value: (v) => parseOptionalPositiveInt(v) },
   acceptsOnlineOrders: { column: 'accepts_online_orders', value: (v) => v !== false },
   acceptsInStoreOrders: { column: 'accepts_in_store_orders', value: (v) => v !== false },
   kitchenDisplayEnabled: { column: 'kitchen_display_enabled', value: (v) => v !== false },

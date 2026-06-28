@@ -134,6 +134,17 @@ async function queryPopularRestaurants(limit) {
             COALESCE(fr.rating_count, 0)::int AS review_count,
             COALESCE(fr.estimated_delivery_minutes, fr.prep_time_min, 30)::int AS estimated_delivery_minutes,
             COALESCE(fr.price_level, 'mid') AS price_level,
+            COALESCE(fr.is_featured, FALSE) AS is_featured,
+            COALESCE(fr.featured_rank, 1000)::int AS featured_rank,
+            COALESCE(fr.discovery_status, 'visible') AS discovery_status,
+            COALESCE(fr.is_accepting_orders_now, TRUE) AS is_accepting_orders_now,
+            fr.temporarily_closed_until,
+            COALESCE(fr.minimum_order_cents, 0)::int AS minimum_order_cents,
+            COALESCE(fr.delivery_fee_cents, 0)::int AS delivery_fee_cents,
+            fr.service_area_radius_meters,
+            COALESCE(fr.order_count, 0)::int AS order_count,
+            fr.last_ordered_at,
+            fr.last_reviewed_at,
             fr.logo_url,
             fr.cover_photo_url,
             fr.dietary_tags,
@@ -152,8 +163,16 @@ async function queryPopularRestaurants(limit) {
           LIMIT 1
        ) promo ON TRUE
       WHERE fr.status = 'active'
+        AND COALESCE(fr.discovery_status, 'visible') = 'visible'
         AND COALESCE(fr.accepts_online_orders, TRUE) = TRUE
-      ORDER BY COALESCE(fr.avg_rating, 0) DESC, COALESCE(fr.rating_count, 0) DESC, fr.created_at DESC
+        AND COALESCE(fr.is_accepting_orders_now, TRUE) = TRUE
+        AND (fr.temporarily_closed_until IS NULL OR fr.temporarily_closed_until <= NOW())
+      ORDER BY COALESCE(fr.is_featured, FALSE) DESC,
+               COALESCE(fr.featured_rank, 1000) ASC,
+               COALESCE(fr.avg_rating, 0) DESC,
+               COALESCE(fr.rating_count, 0) DESC,
+               COALESCE(fr.order_count, 0) DESC,
+               fr.created_at DESC
       LIMIT $1`,
     [limit]
   );
@@ -166,6 +185,17 @@ async function queryPopularRestaurants(limit) {
     reviewCount: Number(row.review_count || 0),
     estimatedDeliveryMinutes: Number(row.estimated_delivery_minutes || 30),
     priceLevel: row.price_level || 'mid',
+    isFeatured: Boolean(row.is_featured),
+    featuredRank: Number(row.featured_rank || 1000),
+    discoveryStatus: row.discovery_status || 'visible',
+    isAcceptingOrdersNow: Boolean(row.is_accepting_orders_now),
+    temporarilyClosedUntil: row.temporarily_closed_until || null,
+    minimumOrderCents: Number(row.minimum_order_cents || 0),
+    deliveryFeeCents: Number(row.delivery_fee_cents || 0),
+    serviceAreaRadiusMeters: row.service_area_radius_meters === null ? null : Number(row.service_area_radius_meters),
+    orderCount: Number(row.order_count || 0),
+    lastOrderedAt: row.last_ordered_at || null,
+    lastReviewedAt: row.last_reviewed_at || null,
     logoUrl: row.logo_url || null,
     bannerUrl: row.cover_photo_url || null,
     dietaryTags: Array.isArray(row.dietary_tags) ? row.dietary_tags : [],
