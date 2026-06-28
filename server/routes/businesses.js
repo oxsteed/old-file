@@ -76,6 +76,7 @@ router.get('/:id/profile-edit', authenticate, getBusinessProfileForEditor);
 router.get('/',            authenticate, listBusinesses);
 router.post('/',           authenticate, addBusiness);
 router.put('/:id',         authenticate, updateBusiness);
+router.patch('/:id',       authenticate, updateBusiness);
 router.put('/:id/primary', authenticate, setPrimary);
 router.put('/:id/photos',  authenticate,
   upload.fields([{ name: 'logo', maxCount: 1 }, { name: 'cover', maxCount: 1 }]),

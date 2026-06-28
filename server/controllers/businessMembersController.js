@@ -48,7 +48,8 @@ async function inviteMember(req, res) {
     const biz = await ownedBusiness(req.user.id, req.params.id);
     if (!biz) return res.status(404).json({ error: 'Business not found' });
 
-    const { email, role } = req.body;
+    const { role } = req.body;
+    const email = req.body.email || req.body.invite_email;
     if (!email?.trim()) return res.status(400).json({ error: 'Email is required' });
     if (!['manager', 'representative'].includes(role)) {
       return res.status(400).json({ error: 'Role must be manager or representative' });

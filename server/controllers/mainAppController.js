@@ -574,6 +574,241 @@ function buildProfileContract(sources) {
   };
 }
 
+function buildBusinessHubContract(count) {
+  return {
+    version: 'main-business-hub-v1',
+    generatedAt: new Date().toISOString(),
+    dataSource: 'production',
+    sources: [
+      {
+        key: 'businesses',
+        source: 'businesses + business_members + business_invoices + business_clients + food_restaurants',
+        status: 'ok',
+        count,
+      },
+    ],
+  };
+}
+
+function businessHubCapabilities({ role, isOwner }) {
+  const normalizedRole = String(role || '').toLowerCase();
+  const owner = Boolean(isOwner) || normalizedRole === 'owner';
+  const manager = normalizedRole === 'manager';
+  return {
+    canEditProfile: owner || manager,
+    canManageFinance: owner || manager,
+    canInviteTeam: owner,
+    canApproveWalletLoads: owner || manager,
+    canManageRestaurant: owner || manager,
+  };
+}
+
+function businessHubPermissions(capabilities) {
+  const permissions = ['business.view'];
+  if (capabilities.canEditProfile) permissions.push('business.edit');
+  if (capabilities.canManageFinance) permissions.push('finance.view', 'finance.manage');
+  if (capabilities.canInviteTeam) permissions.push('team.invite', 'team.manage');
+  if (capabilities.canManageRestaurant) permissions.push('restaurant.view', 'restaurant.manage');
+  if (capabilities.canApproveWalletLoads) permissions.push('restaurant.wallet.approve');
+  return permissions;
+}
+
+function normalizeBusinessHubRow(row) {
+  const role = row.role || (row.is_owner ? 'owner' : 'representative');
+  const capabilities = businessHubCapabilities({ role, isOwner: row.is_owner });
+  const restaurants = Array.isArray(row.restaurants) ? row.restaurants : [];
+  const currencyCode = row.currency_code || restaurants[0]?.currency_code || 'USD';
+  return {
+    id: String(row.id),
+    business_name: row.business_name,
+    business_type: row.business_type || null,
+    description: row.description || null,
+    website: row.website || null,
+    phone: row.phone || null,
+    address_city: row.address_city || null,
+    address_state: row.address_state || null,
+    address_country: row.address_country || null,
+    address_zip: row.address_zip || null,
+    is_primary: Boolean(row.is_primary),
+    is_active: row.is_active !== false,
+    tax_rate: row.tax_rate === null || row.tax_rate === undefined ? null : Number(row.tax_rate),
+    logo_url: row.logo_url || null,
+    created_at: toIso(row.created_at),
+    role,
+    is_owner: Boolean(row.is_owner),
+    membership_id: row.membership_id === null || row.membership_id === undefined ? null : String(row.membership_id),
+    permissions: businessHubPermissions(capabilities),
+    capabilities,
+    restaurants: restaurants.map((restaurant) => ({
+      id: String(restaurant.id),
+      display_name: restaurant.display_name,
+      status: restaurant.status || 'draft',
+      currency_code: restaurant.currency_code || currencyCode,
+      is_accepting_orders_now: restaurant.is_accepting_orders_now !== false,
+    })),
+    summary: {
+      revenue_cents: Number(row.revenue_cents || 0),
+      outstanding_cents: Number(row.outstanding_cents || 0),
+      invoice_count: Number(row.invoice_count || 0),
+      open_invoice_count: Number(row.open_invoice_count || 0),
+      client_count: Number(row.client_count || 0),
+      team_count: Number(row.team_count || 0),
+      pending_invite_count: Number(row.pending_invite_count || 0),
+      restaurant_count: Number(row.restaurant_count || 0),
+      pending_wallet_approvals: Number(row.pending_wallet_approvals || 0),
+      unread_messages: Number(row.unread_messages || 0),
+      currency_code: currencyCode,
+    },
+  };
+}
+
+async function queryBusinessHub(userId) {
+  const { rows } = await pool.query(
+    `WITH accessible AS (
+       SELECT b.id,
+              b.user_id,
+              b.business_name,
+              b.business_type,
+              b.description,
+              b.website,
+              b.phone,
+              b.address_city,
+              b.address_state,
+              b.address_country,
+              b.address_zip,
+              b.is_primary,
+              b.is_active,
+              b.tax_rate,
+              b.logo_url,
+              b.created_at,
+              NULL::bigint AS membership_id,
+              'owner'::text AS role,
+              TRUE AS is_owner
+         FROM businesses b
+        WHERE b.user_id = $1
+          AND b.deleted_at IS NULL
+          AND COALESCE(b.is_active, TRUE) = TRUE
+
+       UNION ALL
+
+       SELECT b.id,
+              b.user_id,
+              b.business_name,
+              b.business_type,
+              b.description,
+              b.website,
+              b.phone,
+              b.address_city,
+              b.address_state,
+              b.address_country,
+              b.address_zip,
+              b.is_primary,
+              b.is_active,
+              b.tax_rate,
+              b.logo_url,
+              b.created_at,
+              bm.id::bigint AS membership_id,
+              bm.role,
+              FALSE AS is_owner
+         FROM business_members bm
+         JOIN businesses b ON b.id = bm.business_id
+        WHERE bm.member_id = $1
+          AND bm.status = 'active'
+          AND b.user_id <> $1
+          AND b.deleted_at IS NULL
+          AND COALESCE(b.is_active, TRUE) = TRUE
+     ),
+     invoice_stats AS (
+       SELECT business_id,
+              COUNT(*)::int AS invoice_count,
+              COUNT(*) FILTER (WHERE status NOT IN ('paid', 'cancelled'))::int AS open_invoice_count,
+              COALESCE(ROUND(SUM(total) FILTER (WHERE status = 'paid') * 100), 0)::bigint AS revenue_cents,
+              COALESCE(ROUND(SUM(GREATEST(total - COALESCE(amount_paid, 0), 0)) FILTER (WHERE status NOT IN ('paid', 'cancelled')) * 100), 0)::bigint AS outstanding_cents
+         FROM business_invoices
+        GROUP BY business_id
+     ),
+     client_stats AS (
+       SELECT business_id,
+              COUNT(*)::int AS client_count
+         FROM business_clients
+        WHERE deleted_at IS NULL
+        GROUP BY business_id
+     ),
+     member_stats AS (
+       SELECT business_id,
+              COUNT(*) FILTER (WHERE status = 'active')::int AS team_count,
+              COUNT(*) FILTER (WHERE status = 'pending')::int AS pending_invite_count
+         FROM business_members
+        WHERE status <> 'revoked'
+        GROUP BY business_id
+     ),
+     restaurant_stats AS (
+       SELECT business_id,
+              COUNT(*)::int AS restaurant_count,
+              COALESCE(MAX(currency_code) FILTER (WHERE currency_code IS NOT NULL), 'USD') AS currency_code,
+              COALESCE(
+                json_agg(
+                  json_build_object(
+                    'id', id::text,
+                    'display_name', display_name,
+                    'status', status,
+                    'currency_code', COALESCE(currency_code, 'USD'),
+                    'is_accepting_orders_now', COALESCE(is_accepting_orders_now, TRUE)
+                  )
+                  ORDER BY display_name
+                ),
+                '[]'::json
+              ) AS restaurants
+         FROM food_restaurants
+        WHERE business_id IS NOT NULL
+          AND status IN ('draft', 'paused', 'active')
+        GROUP BY business_id
+     ),
+     wallet_request_stats AS (
+       SELECT business_id,
+              COUNT(*) FILTER (WHERE status = 'pending')::int AS pending_wallet_approvals
+         FROM food_customer_wallet_load_requests
+        WHERE business_id IS NOT NULL
+        GROUP BY business_id
+     ),
+     message_stats AS (
+       SELECT c.business_id,
+              COUNT(m.id) FILTER (
+                WHERE m.sender_id <> $1
+                  AND COALESCE(m.is_read, FALSE) = FALSE
+              )::int AS unread_messages
+         FROM conversations c
+         LEFT JOIN messages m ON m.conversation_id = c.id
+        WHERE c.business_id IS NOT NULL
+        GROUP BY c.business_id
+     )
+     SELECT a.*,
+            COALESCE(inv.invoice_count, 0)::int AS invoice_count,
+            COALESCE(inv.open_invoice_count, 0)::int AS open_invoice_count,
+            COALESCE(inv.revenue_cents, 0)::bigint AS revenue_cents,
+            COALESCE(inv.outstanding_cents, 0)::bigint AS outstanding_cents,
+            COALESCE(cl.client_count, 0)::int AS client_count,
+            COALESCE(ms.team_count, 0)::int AS team_count,
+            COALESCE(ms.pending_invite_count, 0)::int AS pending_invite_count,
+            COALESCE(rs.restaurant_count, 0)::int AS restaurant_count,
+            COALESCE(wrs.pending_wallet_approvals, 0)::int AS pending_wallet_approvals,
+            COALESCE(msg.unread_messages, 0)::int AS unread_messages,
+            COALESCE(rs.currency_code, 'USD') AS currency_code,
+            COALESCE(rs.restaurants, '[]'::json) AS restaurants
+       FROM accessible a
+       LEFT JOIN invoice_stats inv ON inv.business_id = a.id
+       LEFT JOIN client_stats cl ON cl.business_id = a.id
+       LEFT JOIN member_stats ms ON ms.business_id = a.id
+       LEFT JOIN restaurant_stats rs ON rs.business_id = a.id
+       LEFT JOIN wallet_request_stats wrs ON wrs.business_id = a.id
+       LEFT JOIN message_stats msg ON msg.business_id = a.id
+      ORDER BY a.is_primary DESC, a.is_owner DESC, a.business_name ASC`,
+    [userId]
+  );
+
+  return rows.map(normalizeBusinessHubRow);
+}
+
 async function queryUserWalletSummary(userId) {
   const { rows } = await pool.query(
     `SELECT currency_code,
@@ -977,6 +1212,40 @@ exports.getProfileSummary = async (req, res, next) => {
         currencyCode: totals.currencyCode || 'USD',
       },
       earningsWeekly: weeklyEarnings,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getBusinessHub = async (req, res, next) => {
+  try {
+    const businesses = await queryBusinessHub(req.user.id);
+    const totals = businesses.reduce((acc, business) => {
+      acc.revenueCents += business.summary.revenue_cents;
+      acc.outstandingCents += business.summary.outstanding_cents;
+      acc.invoiceCount += business.summary.invoice_count;
+      acc.clientCount += business.summary.client_count;
+      acc.teamCount += business.summary.team_count;
+      acc.restaurantCount += business.summary.restaurant_count;
+      acc.pendingWalletApprovals += business.summary.pending_wallet_approvals;
+      acc.unreadMessages += business.summary.unread_messages;
+      return acc;
+    }, {
+      revenueCents: 0,
+      outstandingCents: 0,
+      invoiceCount: 0,
+      clientCount: 0,
+      teamCount: 0,
+      restaurantCount: 0,
+      pendingWalletApprovals: 0,
+      unreadMessages: 0,
+    });
+
+    return res.json({
+      contract: buildBusinessHubContract(businesses.length),
+      businesses,
+      totals,
     });
   } catch (err) {
     next(err);

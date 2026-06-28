@@ -22,6 +22,10 @@ function buildApp(user = null) {
     if (!req.user) return res.status(401).json({ error: 'No token provided' });
     return ctrl.getProfileSummary(req, res, next);
   });
+  app.get('/api/main-app/business-hub', (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: 'No token provided' });
+    return ctrl.getBusinessHub(req, res, next);
+  });
   app.use(errorHandler);
   return app;
 }
@@ -246,6 +250,88 @@ describe('main app home dashboard contract', () => {
         }),
       ])
     );
+  });
+});
+
+describe('main app business hub contract', () => {
+  const user = { id: '00000000-0000-4000-8000-000000000456' };
+
+  test('returns production business profiles with summary and capabilities', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 8,
+        user_id: user.id,
+        business_name: 'Bon Pate',
+        business_type: 'restaurant',
+        description: 'Fresh food all day',
+        website: null,
+        phone: '937-727-2030',
+        address_city: 'Columbus',
+        address_state: 'OH',
+        address_country: 'US',
+        address_zip: '43215',
+        is_primary: true,
+        is_active: true,
+        tax_rate: '7.50',
+        logo_url: null,
+        created_at: '2026-06-20T12:00:00.000Z',
+        membership_id: null,
+        role: 'owner',
+        is_owner: true,
+        invoice_count: 3,
+        open_invoice_count: 1,
+        revenue_cents: '125000',
+        outstanding_cents: '25000',
+        client_count: 12,
+        team_count: 4,
+        pending_invite_count: 1,
+        restaurant_count: 1,
+        pending_wallet_approvals: 2,
+        unread_messages: 5,
+        currency_code: 'USD',
+        restaurants: [{
+          id: '15',
+          display_name: 'Bon Pate',
+          status: 'active',
+          currency_code: 'USD',
+          is_accepting_orders_now: true,
+        }],
+      }],
+    });
+
+    const res = await request(buildApp(user)).get('/api/main-app/business-hub');
+
+    expect(res.status).toBe(200);
+    expect(res.body.contract.version).toBe('main-business-hub-v1');
+    expect(res.body.businesses).toHaveLength(1);
+    expect(res.body.businesses[0]).toEqual(expect.objectContaining({
+      id: '8',
+      business_name: 'Bon Pate',
+      role: 'owner',
+      is_owner: true,
+      permissions: expect.arrayContaining(['business.view', 'business.edit', 'team.invite', 'restaurant.wallet.approve']),
+      summary: expect.objectContaining({
+        revenue_cents: 125000,
+        invoice_count: 3,
+        client_count: 12,
+        restaurant_count: 1,
+        pending_wallet_approvals: 2,
+        currency_code: 'USD',
+      }),
+    }));
+    expect(res.body.businesses[0].capabilities).toEqual(expect.objectContaining({
+      canEditProfile: true,
+      canInviteTeam: true,
+      canApproveWalletLoads: true,
+    }));
+    expect(res.body.totals).toEqual(expect.objectContaining({
+      revenueCents: 125000,
+      invoiceCount: 3,
+      clientCount: 12,
+      restaurantCount: 1,
+      pendingWalletApprovals: 2,
+      unreadMessages: 5,
+    }));
   });
 });
 
