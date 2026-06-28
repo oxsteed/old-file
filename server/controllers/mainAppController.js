@@ -8,6 +8,12 @@ function parseLimit(value, fallback = 4, max = 12) {
   return Math.min(max, parsed);
 }
 
+function toIso(value) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toISOString();
+}
+
 function tintKeyForHeadline(headline = '') {
   const value = String(headline).toLowerCase();
   if (value.includes('clean')) return 'secondary';
@@ -55,6 +61,57 @@ function publicHomeErrorCode(err) {
     return 'schema_mismatch';
   }
   return 'unavailable';
+}
+
+async function loadActivitySource(key, loader) {
+  try {
+    return {
+      key,
+      data: await loader(),
+      status: 'ok',
+      errorCode: null,
+    };
+  } catch (err) {
+    console.warn(`[main-app/activity] ${key} degraded`, {
+      code: err?.code,
+      message: err?.message,
+    });
+    return {
+      key,
+      data: [],
+      status: 'degraded',
+      errorCode: publicHomeErrorCode(err),
+    };
+  }
+}
+
+function activityTypeFromNotification(type = '') {
+  const value = String(type).toLowerCase();
+  if (value.includes('bid')) return 'bid';
+  if (value.includes('order') || value.includes('food')) return 'order';
+  if (value.includes('message') || value.includes('chat')) return 'message';
+  if (value.includes('booking') || value.includes('appointment')) return 'booking';
+  return 'booking';
+}
+
+function iconForActivityType(type) {
+  switch (type) {
+    case 'bid': return 'hand.raised.fill';
+    case 'order': return 'bicycle';
+    case 'message': return 'bubble.left.fill';
+    case 'booking':
+    default: return 'checkmark.seal.fill';
+  }
+}
+
+function tintForActivityType(type) {
+  switch (type) {
+    case 'bid': return 'primary';
+    case 'order': return 'accent';
+    case 'message': return 'secondary';
+    case 'booking':
+    default: return 'success';
+  }
 }
 
 async function loadHomeSection(key, fallback, loader) {
@@ -209,6 +266,7 @@ async function queryPopularRestaurants(limit) {
 async function queryPublicActivity(limit) {
   const { rows } = await pool.query(
     `SELECT b.id,
+            b.job_id,
             b.amount,
             b.created_at,
             COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), 'A helper') AS helper_name,
@@ -362,6 +420,256 @@ async function queryUserActivity(userId, limit) {
     timeAgo: row.event_at,
   }));
 }
+
+async function queryActivityNotifications(userId, limit) {
+  const { rows } = await pool.query(
+    `SELECT id,
+            type,
+            title,
+            body,
+            data,
+            data->>'action_url' AS action_url,
+            is_read,
+            created_at
+       FROM notifications
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT $2`,
+    [userId, limit]
+  );
+
+  return rows.map((row) => {
+    const type = activityTypeFromNotification(row.type);
+    return {
+      id: `notification-${row.id}`,
+      source: 'notification',
+      sourceId: String(row.id),
+      type,
+      title: row.title || 'Notification',
+      subtitle: row.body || '',
+      detail: null,
+      icon: iconForActivityType(type),
+      tintKey: tintForActivityType(type),
+      eventAt: toIso(row.created_at),
+      isUnread: row.is_read !== true,
+      actionLabel: row.is_read === true ? null : 'View',
+      actionUrl: row.action_url || null,
+      canMarkRead: true,
+      canDelete: true,
+    };
+  });
+}
+
+async function queryActivityBids(userId, limit) {
+  const { rows } = await pool.query(
+    `SELECT b.id,
+            b.amount,
+            b.status,
+            b.created_at,
+            b.helper_id,
+            j.client_id,
+            COALESCE(j.title, 'Job') AS job_title,
+            COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), 'A helper') AS helper_name
+       FROM bids b
+       JOIN jobs j ON j.id = b.job_id
+       JOIN users u ON u.id = b.helper_id
+      WHERE j.deleted_at IS NULL
+        AND (j.client_id = $1 OR b.helper_id = $1)
+      ORDER BY b.created_at DESC
+      LIMIT $2`,
+    [userId, limit]
+  );
+
+  return rows.map((row) => {
+    const isHelper = String(row.helper_id) === String(userId);
+    return {
+      id: `bid-${row.id}`,
+      source: 'bid',
+      sourceId: String(row.id),
+      type: 'bid',
+      title: isHelper ? 'Bid sent' : `${row.helper_name} placed a bid`,
+      subtitle: row.job_title,
+      detail: `$${Number(row.amount || 0).toFixed(0)} • ${row.status || 'pending'}`,
+      icon: iconForBidAmount(row.amount),
+      tintKey: 'primary',
+      eventAt: toIso(row.created_at),
+      isUnread: false,
+      actionLabel: 'View Bid',
+      actionUrl: `/jobs/${row.job_id || ''}`,
+      canMarkRead: false,
+      canDelete: false,
+    };
+  });
+}
+
+async function queryActivityFoodOrders(userId, limit) {
+  const { rows } = await pool.query(
+    `SELECT fo.id,
+            fo.status,
+            fo.fulfillment_type,
+            fo.total_cents,
+            fo.currency_code,
+            fo.created_at,
+            COALESCE(fr.display_name, 'Restaurant') AS restaurant_name
+       FROM food_orders fo
+       LEFT JOIN food_restaurants fr ON fr.id = fo.restaurant_id
+      WHERE fo.customer_id = $1
+      ORDER BY fo.created_at DESC
+      LIMIT $2`,
+    [userId, limit]
+  );
+
+  return rows.map((row) => {
+    let title = 'Food order updated';
+    if (row.status === 'completed') title = 'Order delivered';
+    if (row.status === 'ready') title = 'Order ready';
+    if (row.status === 'received') title = 'Order received';
+    return {
+      id: `food-order-${row.id}`,
+      source: 'food_order',
+      sourceId: String(row.id),
+      type: 'order',
+      title,
+      subtitle: row.restaurant_name,
+      detail: `${row.currency_code || 'USD'} ${(Number(row.total_cents || 0) / 100).toFixed(2)} • ${row.fulfillment_type || 'pickup'}`,
+      icon: row.fulfillment_type === 'delivery' ? 'bicycle' : 'bag.fill',
+      tintKey: row.status === 'completed' ? 'success' : 'accent',
+      eventAt: toIso(row.created_at),
+      isUnread: false,
+      actionLabel: 'View Order',
+      actionUrl: `/food/orders/${row.id}`,
+      canMarkRead: false,
+      canDelete: false,
+    };
+  });
+}
+
+async function queryActivityBookings(userId, limit) {
+  const { rows } = await pool.query(
+    `SELECT a.id,
+            a.status,
+            a.service_description,
+            a.scheduled_start_time,
+            a.created_at,
+            a.customer_id,
+            COALESCE(NULLIF(TRIM(helper.first_name || ' ' || helper.last_name), ''), 'Helper') AS helper_name,
+            COALESCE(NULLIF(TRIM(customer.first_name || ' ' || customer.last_name), ''), 'Customer') AS customer_name
+       FROM appointments a
+       LEFT JOIN users helper ON helper.id = a.helper_id
+       LEFT JOIN users customer ON customer.id = a.customer_id
+      WHERE a.customer_id = $1 OR a.helper_id = $1
+      ORDER BY COALESCE(a.updated_at, a.created_at) DESC
+      LIMIT $2`,
+    [userId, limit]
+  );
+
+  return rows.map((row) => {
+    const isCustomer = String(row.customer_id) === String(userId);
+    return {
+      id: `booking-${row.id}`,
+      source: 'booking',
+      sourceId: String(row.id),
+      type: 'booking',
+      title: `Booking ${row.status || 'updated'}`,
+      subtitle: row.service_description || (isCustomer ? row.helper_name : row.customer_name),
+      detail: row.scheduled_start_time ? `Scheduled ${toIso(row.scheduled_start_time)}` : null,
+      icon: 'checkmark.seal.fill',
+      tintKey: row.status === 'cancelled' ? 'secondary' : 'success',
+      eventAt: toIso(row.created_at),
+      isUnread: false,
+      actionLabel: 'View Booking',
+      actionUrl: `/calendar/appointments/${row.id}`,
+      canMarkRead: false,
+      canDelete: false,
+    };
+  });
+}
+
+async function queryActivityMessages(userId, limit) {
+  const { rows } = await pool.query(
+    `SELECT m.id,
+            m.content,
+            m.is_read,
+            m.created_at,
+            m.sender_id,
+            c.id AS conversation_id,
+            c.job_id,
+            COALESCE(j.title, 'Conversation') AS job_title,
+            COALESCE(NULLIF(TRIM(sender.first_name || ' ' || sender.last_name), ''), 'Someone') AS sender_name
+       FROM messages m
+       JOIN conversations c ON c.id = m.conversation_id
+       LEFT JOIN jobs j ON j.id = c.job_id
+       JOIN users sender ON sender.id = m.sender_id
+      WHERE (c.customer_id = $1 OR c.helper_id = $1)
+        AND COALESCE(c.status, 'active') <> 'blocked'
+        AND c.archived_at IS NULL
+      ORDER BY m.created_at DESC
+      LIMIT $2`,
+    [userId, limit]
+  );
+
+  return rows.map((row) => {
+    const sentByCurrentUser = String(row.sender_id) === String(userId);
+    return {
+      id: `message-${row.id}`,
+      source: 'message',
+      sourceId: String(row.id),
+      type: 'message',
+      title: sentByCurrentUser ? 'Message sent' : `Message from ${row.sender_name}`,
+      subtitle: row.job_title,
+      detail: row.content,
+      icon: 'bubble.left.fill',
+      tintKey: 'secondary',
+      eventAt: toIso(row.created_at),
+      isUnread: !sentByCurrentUser && row.is_read !== true,
+      actionLabel: sentByCurrentUser ? 'Open Chat' : 'Reply',
+      actionUrl: `/messages/conversations/${row.conversation_id}`,
+      canMarkRead: false,
+      canDelete: false,
+    };
+  });
+}
+
+exports.getActivityFeed = async (req, res, next) => {
+  try {
+    const limit = parseLimit(req.query.limit, 30, 100);
+    const sourceLimit = Math.min(50, Math.max(limit, 20));
+    const userId = req.user.id;
+
+    const [notifications, bids, foodOrders, bookings, messages] = await Promise.all([
+      loadActivitySource('notifications', () => queryActivityNotifications(userId, sourceLimit)),
+      loadActivitySource('bids', () => queryActivityBids(userId, sourceLimit)),
+      loadActivitySource('foodOrders', () => queryActivityFoodOrders(userId, sourceLimit)),
+      loadActivitySource('bookings', () => queryActivityBookings(userId, sourceLimit)),
+      loadActivitySource('messages', () => queryActivityMessages(userId, sourceLimit)),
+    ]);
+
+    const sources = [notifications, bids, foodOrders, bookings, messages];
+    const events = sources
+      .flatMap((source) => source.data)
+      .sort((a, b) => new Date(b.eventAt || 0) - new Date(a.eventAt || 0))
+      .slice(0, limit);
+
+    res.json({
+      contract: {
+        version: 'main-activity-v1',
+        generatedAt: new Date().toISOString(),
+        dataSource: 'production',
+        sources: sources.map((source) => ({
+          key: source.key,
+          status: source.status,
+          errorCode: source.errorCode,
+          count: source.data.length,
+        })),
+      },
+      events,
+      unreadCount: events.filter((event) => event.isUnread).length,
+      limit,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
 
 function contractStatus(result) {
   return {

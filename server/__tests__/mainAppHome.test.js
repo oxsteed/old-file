@@ -14,6 +14,10 @@ function buildApp(user = null) {
     next();
   });
   app.get('/api/main-app/home', ctrl.getHomeDashboard);
+  app.get('/api/main-app/activity', (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: 'No token provided' });
+    return ctrl.getActivityFeed(req, res, next);
+  });
   app.use(errorHandler);
   return app;
 }
@@ -227,6 +231,137 @@ describe('main app home dashboard contract', () => {
           errorCode: null,
           count: 0,
         }),
+      ])
+    );
+  });
+});
+
+describe('main app activity feed contract', () => {
+  const user = { id: '00000000-0000-4000-8000-000000000456' };
+
+  test('combines notifications, bids, food orders, bookings, and messages', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 7,
+          type: 'order_update',
+          title: 'Order ready',
+          body: 'Your order is ready for pickup.',
+          data: {},
+          action_url: '/food/orders/44',
+          is_read: false,
+          created_at: '2026-06-28T13:10:00.000Z',
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'bid-1',
+          job_id: 'job-1',
+          amount: 95,
+          status: 'pending',
+          created_at: '2026-06-28T13:09:00.000Z',
+          helper_id: 'helper-1',
+          client_id: user.id,
+          job_title: 'Assemble IKEA wardrobe',
+          helper_name: 'Diego Ramos',
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 44,
+          status: 'ready',
+          fulfillment_type: 'pickup',
+          total_cents: 1899,
+          currency_code: 'USD',
+          created_at: '2026-06-28T13:08:00.000Z',
+          restaurant_name: 'Bon Pate',
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 20,
+          status: 'confirmed',
+          service_description: 'Weekly cleaning',
+          scheduled_start_time: '2026-06-29T14:00:00.000Z',
+          created_at: '2026-06-28T13:07:00.000Z',
+          customer_id: user.id,
+          helper_name: 'Maya Chen',
+          customer_name: 'Emile',
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'message-1',
+          content: 'I can be there at 9am.',
+          is_read: false,
+          created_at: '2026-06-28T13:06:00.000Z',
+          sender_id: 'helper-1',
+          conversation_id: 'conversation-1',
+          job_id: 'job-1',
+          job_title: 'Assemble IKEA wardrobe',
+          sender_name: 'Diego Ramos',
+        }],
+      });
+
+    const res = await request(buildApp(user)).get('/api/main-app/activity');
+
+    expect(res.status).toBe(200);
+    expect(res.body.contract.version).toBe('main-activity-v1');
+    expect(res.body.contract.sources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'notifications', status: 'ok', count: 1 }),
+        expect.objectContaining({ key: 'bids', status: 'ok', count: 1 }),
+        expect.objectContaining({ key: 'foodOrders', status: 'ok', count: 1 }),
+        expect.objectContaining({ key: 'bookings', status: 'ok', count: 1 }),
+        expect.objectContaining({ key: 'messages', status: 'ok', count: 1 }),
+      ])
+    );
+    expect(res.body.events.map((event) => event.source)).toEqual([
+      'notification',
+      'bid',
+      'food_order',
+      'booking',
+      'message',
+    ]);
+    expect(res.body.events[0]).toEqual(expect.objectContaining({
+      id: 'notification-7',
+      type: 'order',
+      isUnread: true,
+      canMarkRead: true,
+      canDelete: true,
+    }));
+    expect(res.body.unreadCount).toBe(2);
+  });
+
+  test('degrades one activity source without losing the rest of the feed', async () => {
+    mockQuery
+      .mockRejectedValueOnce(Object.assign(new Error('relation notifications does not exist'), { code: '42P01' }))
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'message-1',
+          content: 'Real message',
+          is_read: false,
+          created_at: '2026-06-28T13:06:00.000Z',
+          sender_id: 'helper-1',
+          conversation_id: 'conversation-1',
+          job_id: null,
+          job_title: 'Conversation',
+          sender_name: 'Diego Ramos',
+        }],
+      });
+
+    const res = await request(buildApp(user)).get('/api/main-app/activity');
+
+    expect(res.status).toBe(200);
+    expect(res.body.events).toHaveLength(1);
+    expect(res.body.events[0]).toEqual(expect.objectContaining({ source: 'message', title: 'Message from Diego Ramos' }));
+    expect(res.body.contract.sources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'notifications', status: 'degraded', errorCode: 'schema_mismatch' }),
+        expect.objectContaining({ key: 'messages', status: 'ok', count: 1 }),
       ])
     );
   });
