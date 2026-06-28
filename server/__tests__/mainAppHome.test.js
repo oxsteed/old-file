@@ -74,6 +74,10 @@ describe('main app home dashboard contract', () => {
       orders: 0,
       earningsCents: 0,
     });
+    expect(res.body.walletSummary).toEqual({
+      totalWallets: 0,
+      balances: [],
+    });
     expect(Array.isArray(res.body.featuredHelpers)).toBe(true);
     expect(Array.isArray(res.body.popularRestaurants)).toBe(true);
     expect(Array.isArray(res.body.activity)).toBe(true);
@@ -124,7 +128,14 @@ describe('main app home dashboard contract', () => {
       })
       .mockResolvedValueOnce({ rows: [{ active_jobs: 2 }] })
       .mockResolvedValueOnce({ rows: [{ total_orders: 4 }] })
-      .mockResolvedValueOnce({ rows: [{ earnings_cents: 12500 }] });
+      .mockResolvedValueOnce({ rows: [{ earnings_cents: 12500 }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          currency_code: 'USD',
+          wallet_count: 2,
+          balance_cents: 4150,
+        }],
+      });
 
     const res = await request(buildApp(user)).get('/api/main-app/home');
 
@@ -135,6 +146,14 @@ describe('main app home dashboard contract', () => {
       activeJobs: 2,
       orders: 4,
       earningsCents: 12500,
+    });
+    expect(res.body.walletSummary).toEqual({
+      totalWallets: 2,
+      balances: [{
+        currencyCode: 'USD',
+        walletCount: 2,
+        balanceCents: 4150,
+      }],
     });
     expect(res.body.activity[0].id).toBe('food-order-200');
   });

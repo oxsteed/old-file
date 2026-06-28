@@ -190,6 +190,29 @@ async function queryUserSummary(userId) {
   };
 }
 
+async function queryUserWalletSummary(userId) {
+  const { rows } = await pool.query(
+    `SELECT currency_code,
+            COUNT(*)::int AS wallet_count,
+            COALESCE(SUM(balance_cents), 0)::bigint AS balance_cents
+       FROM food_customer_wallet_accounts
+      WHERE customer_id = $1
+        AND status = 'active'
+      GROUP BY currency_code
+      ORDER BY currency_code`,
+    [userId]
+  );
+
+  return {
+    totalWallets: rows.reduce((sum, row) => sum + Number(row.wallet_count || 0), 0),
+    balances: rows.map((row) => ({
+      currencyCode: row.currency_code || 'USD',
+      walletCount: Number(row.wallet_count || 0),
+      balanceCents: Number(row.balance_cents || 0),
+    })),
+  };
+}
+
 async function queryUserActivity(userId, limit) {
   const { rows } = await pool.query(
     `SELECT *
@@ -252,7 +275,7 @@ exports.getHomeDashboard = async (req, res, next) => {
     const restaurantLimit = parseLimit(req.query.restaurants, 4, 8);
     const activityLimit = parseLimit(req.query.activity, 5, 10);
 
-    const [helpers, restaurants, activity, summary] = await Promise.all([
+    const [helpers, restaurants, activity, summary, walletSummary] = await Promise.all([
       queryFeaturedHelpers(helperLimit),
       queryPopularRestaurants(restaurantLimit),
       req.user ? queryUserActivity(req.user.id, activityLimit) : queryPublicActivity(activityLimit),
@@ -260,6 +283,10 @@ exports.getHomeDashboard = async (req, res, next) => {
         activeJobs: 0,
         orders: 0,
         earningsCents: 0,
+      }),
+      req.user ? queryUserWalletSummary(req.user.id) : Promise.resolve({
+        totalWallets: 0,
+        balances: [],
       }),
     ]);
 
@@ -269,6 +296,7 @@ exports.getHomeDashboard = async (req, res, next) => {
         userId: req.user?.id || null,
       },
       summary,
+      walletSummary,
       featuredHelpers: helpers,
       popularRestaurants: restaurants,
       activity,

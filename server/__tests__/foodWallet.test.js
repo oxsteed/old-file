@@ -46,6 +46,7 @@ function buildOrderApp() {
     next();
   });
   app.post('/api/food/restaurants/:restaurantId/orders', foodController.createOrder);
+  app.get('/api/food/customer/wallets/:restaurantId/integrity', walletController.verifyMyWalletIntegrity);
   app.use(errorHandler);
   return app;
 }
@@ -59,6 +60,7 @@ function buildMerchantApp() {
   });
   app.patch('/api/food/restaurants/:restaurantId/orders/:orderId/status', foodController.updateOrderStatus);
   app.post('/api/food/restaurants/:restaurantId/customer-wallet-loads', walletController.loadCustomerWallet);
+  app.patch('/api/food/restaurants/:restaurantId/customer-wallet-status', walletController.updateCustomerWalletStatus);
   app.get('/api/food/restaurants/:restaurantId/customer-wallet-integrity', walletController.verifyCustomerWalletIntegrity);
   app.use(errorHandler);
   return app;
@@ -188,6 +190,85 @@ describe('food wallet security wiring', () => {
     expect(res.status).toBe(201);
     expect(res.body.order.payment_status).toBe('paid');
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_customer_wallet_ledger/.test(sql))).toBe(true);
+  });
+
+  test('wallet-funded delivery is rejected when the wallet is suspended', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (/FROM food_restaurants WHERE id = \$1 AND status = 'active' FOR UPDATE/.test(sql)) {
+        return { rows: [restaurantRow()] };
+      }
+      if (/FROM food_menu_items/.test(sql)) {
+        return {
+          rows: [{
+            id: MENU_ITEM_ID,
+            name: 'Classic Burger',
+            price_cents: 899,
+            currency_code: 'USD',
+            is_available: true,
+          }],
+        };
+      }
+      if (/SELECT COALESCE\(MAX\(queue_number\), 0\) \+ 1 AS next_queue/.test(sql)) {
+        return { rows: [{ next_queue: 3 }] };
+      }
+      if (/INSERT INTO food_orders/.test(sql)) {
+        return {
+          rows: [{
+            id: 200,
+            restaurant_id: RESTAURANT_ID,
+            business_id: BUSINESS_ID,
+            customer_id: CUSTOMER_ID,
+            fulfillment_type: 'delivery',
+            payment_status: 'paid',
+            queue_number: 3,
+            status: 'received',
+            subtotal_cents: 899,
+            total_cents: 899,
+            metadata: { paymentMode: 'wallet_credit' },
+          }],
+        };
+      }
+      if (/INSERT INTO food_order_items/.test(sql)) {
+        return { rows: [{ id: 901 }] };
+      }
+      if (/INSERT INTO food_customer_wallet_accounts/.test(sql)) {
+        return { rows: [], rowCount: 1 };
+      }
+      if (/FROM food_customer_wallet_accounts a/.test(sql) && /FOR UPDATE/.test(sql)) {
+        return {
+          rows: [{
+            id: ACCOUNT_ID,
+            restaurant_id: RESTAURANT_ID,
+            customer_id: CUSTOMER_ID,
+            currency_code: 'USD',
+            balance_cents: 2500,
+            status: 'suspended',
+            ledger_version: 0,
+            last_entry_hash: null,
+          }],
+        };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    const res = await request(buildOrderApp())
+      .post(`/api/food/restaurants/${RESTAURANT_ID}/orders`)
+      .send({
+        fulfillmentType: 'delivery',
+        paymentMode: 'wallet_credit',
+        deliveryAddress: {
+          line1: '123 Main Street',
+          city: 'Columbus',
+          state: 'Ohio',
+          postalCode: '43215',
+          country: 'US',
+        },
+        items: [{ menuItemId: MENU_ITEM_ID, quantity: 1 }],
+      });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('wallet_inactive');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_customer_wallet_ledger/.test(sql))).toBe(false);
   });
 
   test('cancelled wallet-funded orders write a refund ledger entry', async () => {
@@ -595,6 +676,100 @@ describe('food wallet security wiring', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_customer_wallet_operator_audit_events/.test(sql))).toBe(true);
   });
 
+  test('owner can suspend a customer wallet with audit logging', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (/SELECT fr\.id, fr\.business_id, fr\.owner_user_id/.test(sql)) {
+        return {
+          rows: [{
+            id: RESTAURANT_ID,
+            business_id: BUSINESS_ID,
+            owner_user_id: OWNER_ID,
+            display_name: 'Ox Burger Lab',
+            currency_code: 'USD',
+            effective_role: 'owner',
+          }],
+        };
+      }
+      if (/SELECT id, first_name, last_name, email/.test(sql) && /FROM users/.test(sql)) {
+        return {
+          rows: [{
+            id: CUSTOMER_ID,
+            first_name: 'Test',
+            last_name: 'Customer',
+            email: 'customer@example.com',
+          }],
+        };
+      }
+      if (/FROM food_customer_wallet_accounts a/.test(sql) && /FOR UPDATE/.test(sql)) {
+        return {
+          rows: [{
+            id: ACCOUNT_ID,
+            restaurant_id: RESTAURANT_ID,
+            customer_id: CUSTOMER_ID,
+            currency_code: 'USD',
+            balance_cents: 2500,
+            status: 'active',
+            ledger_version: 1,
+            last_entry_hash: 'hash-1',
+          }],
+        };
+      }
+      if (/UPDATE food_customer_wallet_accounts/.test(sql)) {
+        return {
+          rows: [{
+            id: ACCOUNT_ID,
+            restaurant_id: RESTAURANT_ID,
+            customer_id: CUSTOMER_ID,
+            currency_code: 'USD',
+            balance_cents: 2500,
+            status: 'suspended',
+            ledger_version: 1,
+            last_entry_hash: 'hash-1',
+            updated_at: new Date().toISOString(),
+          }],
+        };
+      }
+      if (/INSERT INTO food_customer_wallet_operator_audit_events/.test(sql)) {
+        return { rows: [{ id: 101, action_type: 'wallet_suspended' }], rowCount: 1 };
+      }
+      if (/SELECT a\.\*,\s*fr\.display_name AS restaurant_name/.test(sql) && /WHERE a\.customer_id = \$1/.test(sql)) {
+        return {
+          rows: [{
+            id: ACCOUNT_ID,
+            restaurant_id: RESTAURANT_ID,
+            customer_id: CUSTOMER_ID,
+            currency_code: 'USD',
+            balance_cents: 2500,
+            status: 'suspended',
+            ledger_version: 1,
+            last_entry_hash: 'hash-1',
+            updated_at: new Date().toISOString(),
+            restaurant_name: 'Ox Burger Lab',
+            restaurant_logo_url: null,
+          }],
+        };
+      }
+      if (/SELECT \*/.test(sql) && /FROM food_customer_wallet_ledger/.test(sql) && /ORDER BY created_at DESC/.test(sql)) {
+        return { rows: [] };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    const res = await request(buildMerchantApp())
+      .patch(`/api/food/restaurants/${RESTAURANT_ID}/customer-wallet-status`)
+      .send({
+        customerId: CUSTOMER_ID,
+        status: 'suspended',
+        reason: 'Customer reported unauthorized activity',
+        correlationId: 'status-change-1',
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.wallet.status).toBe('suspended');
+    expect(res.body.changed).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_customer_wallet_operator_audit_events/.test(sql))).toBe(true);
+  });
+
   test('wallet integrity endpoint writes an operator audit event on successful checks', async () => {
     const createdAt = new Date('2026-06-28T12:00:00.000Z').toISOString();
     const firstHash = computeWalletEntryHash({
@@ -692,6 +867,174 @@ describe('food wallet security wiring', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.audit.valid).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_customer_wallet_operator_audit_events/.test(sql))).toBe(true);
+  });
+
+  test('customer wallet integrity endpoint verifies only the signed-in customer wallet', async () => {
+    const createdAt = new Date('2026-06-28T12:00:00.000Z').toISOString();
+    const firstHash = computeWalletEntryHash({
+      accountId: ACCOUNT_ID,
+      restaurantId: RESTAURANT_ID,
+      customerId: CUSTOMER_ID,
+      entryType: 'credit',
+      amountCents: 1000,
+      balanceAfterCents: 1000,
+      currencyCode: 'USD',
+      sequence: 1,
+      previousEntryHash: null,
+      referenceType: 'merchant_load',
+      referenceId: 'seed-load',
+      correlationId: 'seed-load',
+      createdByUserId: OWNER_ID,
+      actorType: 'restaurant_staff',
+      metadata: { source: 'merchant_load' },
+    }, CURRENT_WALLET_HASH_ALGORITHM);
+
+    mockQuery.mockImplementation(async (sql) => {
+      if (/SELECT a\.\*,\s*fr\.display_name AS restaurant_name/.test(sql) && /WHERE a\.restaurant_id = \$1/.test(sql)) {
+        return {
+          rows: [{
+            id: ACCOUNT_ID,
+            restaurant_id: RESTAURANT_ID,
+            customer_id: CUSTOMER_ID,
+            restaurant_name: 'Ox Burger Lab',
+            restaurant_logo_url: null,
+            currency_code: 'USD',
+            balance_cents: 1000,
+            status: 'active',
+            ledger_version: 1,
+            last_entry_hash: firstHash,
+            updated_at: createdAt,
+          }],
+        };
+      }
+      if (/SELECT \*/.test(sql) && /FROM food_customer_wallet_ledger/.test(sql) && /ORDER BY entry_sequence ASC/.test(sql)) {
+        return {
+          rows: [{
+            id: 1,
+            account_id: ACCOUNT_ID,
+            restaurant_id: RESTAURANT_ID,
+            customer_id: CUSTOMER_ID,
+            entry_type: 'credit',
+            amount_cents: 1000,
+            balance_after_cents: 1000,
+            currency_code: 'USD',
+            reference_type: 'merchant_load',
+            reference_id: 'seed-load',
+            correlation_id: 'seed-load',
+            created_by_user_id: OWNER_ID,
+            actor_type: 'restaurant_staff',
+            metadata: { source: 'merchant_load' },
+            entry_sequence: 1,
+            previous_entry_hash: null,
+            hash_algorithm: CURRENT_WALLET_HASH_ALGORITHM,
+            entry_hash: firstHash,
+            created_at: createdAt,
+          }],
+        };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    const res = await request(buildOrderApp())
+      .get(`/api/food/customer/wallets/${RESTAURANT_ID}/integrity`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.audit.valid).toBe(true);
+    expect(res.body.audit.wallet.restaurantId).toBe(String(RESTAURANT_ID));
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_customer_wallet_operator_audit_events/.test(sql))).toBe(false);
+  });
+
+  test('customer wallet integrity endpoint suspends active wallets when ledger verification fails', async () => {
+    const createdAt = new Date('2026-06-28T12:00:00.000Z').toISOString();
+    const firstHash = computeWalletEntryHash({
+      accountId: ACCOUNT_ID,
+      restaurantId: RESTAURANT_ID,
+      customerId: CUSTOMER_ID,
+      entryType: 'credit',
+      amountCents: 1000,
+      balanceAfterCents: 1000,
+      currencyCode: 'USD',
+      sequence: 1,
+      previousEntryHash: null,
+      referenceType: 'merchant_load',
+      referenceId: 'seed-load',
+      correlationId: 'seed-load',
+      createdByUserId: OWNER_ID,
+      actorType: 'restaurant_staff',
+      metadata: { source: 'merchant_load' },
+    }, CURRENT_WALLET_HASH_ALGORITHM);
+
+    mockQuery.mockImplementation(async (sql) => {
+      if (/SELECT a\.\*,\s*fr\.display_name AS restaurant_name/.test(sql) && /WHERE a\.restaurant_id = \$1/.test(sql)) {
+        return {
+          rows: [{
+            id: ACCOUNT_ID,
+            restaurant_id: RESTAURANT_ID,
+            customer_id: CUSTOMER_ID,
+            restaurant_name: 'Ox Burger Lab',
+            restaurant_logo_url: null,
+            currency_code: 'USD',
+            balance_cents: 1500,
+            status: 'active',
+            ledger_version: 1,
+            last_entry_hash: firstHash,
+            updated_at: createdAt,
+          }],
+        };
+      }
+      if (/SELECT \*/.test(sql) && /FROM food_customer_wallet_ledger/.test(sql) && /ORDER BY entry_sequence ASC/.test(sql)) {
+        return {
+          rows: [{
+            id: 1,
+            account_id: ACCOUNT_ID,
+            restaurant_id: RESTAURANT_ID,
+            customer_id: CUSTOMER_ID,
+            entry_type: 'credit',
+            amount_cents: 1000,
+            balance_after_cents: 1000,
+            currency_code: 'USD',
+            reference_type: 'merchant_load',
+            reference_id: 'seed-load',
+            correlation_id: 'seed-load',
+            created_by_user_id: OWNER_ID,
+            actor_type: 'restaurant_staff',
+            metadata: { source: 'merchant_load' },
+            entry_sequence: 1,
+            previous_entry_hash: null,
+            hash_algorithm: CURRENT_WALLET_HASH_ALGORITHM,
+            entry_hash: firstHash,
+            created_at: createdAt,
+          }],
+        };
+      }
+      if (/UPDATE food_customer_wallet_accounts/.test(sql) && /status = 'active'/.test(sql)) {
+        return {
+          rows: [{
+            id: ACCOUNT_ID,
+            restaurant_id: RESTAURANT_ID,
+            customer_id: CUSTOMER_ID,
+            currency_code: 'USD',
+            balance_cents: 1500,
+            status: 'suspended',
+          }],
+        };
+      }
+      if (/INSERT INTO food_customer_wallet_operator_audit_events/.test(sql)) {
+        return { rows: [{ id: 102, action_type: 'wallet_integrity_failed_lock' }], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    const res = await request(buildOrderApp())
+      .get(`/api/food/customer/wallets/${RESTAURANT_ID}/integrity`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.audit.valid).toBe(false);
+    expect(res.body.audit.locked).toBe(true);
+    expect(res.body.audit.wallet.status).toBe('suspended');
+    expect(res.body.audit.issueCodes).toContain('account_balance_mismatch');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_customer_wallet_accounts/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_customer_wallet_operator_audit_events/.test(sql))).toBe(true);
   });
 

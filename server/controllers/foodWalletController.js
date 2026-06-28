@@ -114,10 +114,79 @@ async function resolveCustomer(source) {
   return rows[0];
 }
 
+async function loadWalletAccountForOperator(client, restaurantId, customerId) {
+  const { rows } = await client.query(
+    `SELECT a.*,
+            fr.display_name AS restaurant_name,
+            fr.logo_url AS restaurant_logo_url
+       FROM food_customer_wallet_accounts a
+       JOIN food_restaurants fr ON fr.id = a.restaurant_id
+      WHERE a.restaurant_id = $1
+        AND a.customer_id = $2
+      FOR UPDATE`,
+    [restaurantId, customerId]
+  );
+  if (!rows[0]) {
+    throw new AppError('Wallet account not found', 404, 'wallet_not_found');
+  }
+  return rows[0];
+}
+
+async function lockWalletAfterIntegrityFailure({
+  audit,
+  restaurantId,
+  businessId = null,
+  customerId,
+  operatorUserId = null,
+  correlationId,
+  requestIp,
+  initiatedBy,
+}) {
+  if (audit.valid || audit.wallet.status !== 'active') {
+    return false;
+  }
+
+  return withTransaction(pool, async (client) => {
+    const { rows: [updated] } = await client.query(
+      `UPDATE food_customer_wallet_accounts
+          SET status = 'suspended',
+              updated_at = NOW()
+        WHERE id = $1
+          AND status = 'active'
+        RETURNING *`,
+      [audit.wallet.accountId]
+    );
+    if (!updated) return false;
+
+    await logFoodWalletOperatorAudit(client, {
+      restaurantId,
+      businessId,
+      walletAccountId: audit.wallet.accountId,
+      customerId,
+      operatorUserId,
+      actionType: 'wallet_integrity_failed_lock',
+      amountCents: null,
+      currencyCode: audit.wallet.currencyCode,
+      correlationId,
+      requestIp,
+      metadata: {
+        initiatedBy,
+        valid: false,
+        issueCount: audit.issues.length,
+        issueCodes: audit.issues.map((issue) => issue.code),
+        checkedAt: audit.checkedAt,
+      },
+    });
+    audit.wallet.status = 'suspended';
+    return true;
+  }, 'food_wallet_integrity_failure_lock');
+}
+
 exports.listCustomerWallets = async (req, res, next) => {
   try {
     const wallets = await loadWalletAccountsForUser(req.user.id, {
       transactionLimit: 8,
+      includeInactive: true,
     });
     res.json({ wallets });
   } catch (err) {
@@ -139,6 +208,16 @@ exports.verifyCustomerWalletIntegrity = async (req, res, next) => {
       req.query.correlationId || req.query.correlation_id || `wallet-integrity:${restaurantId}:${customer.id}:${Date.now()}`,
       120
     );
+    const locked = await lockWalletAfterIntegrityFailure({
+      audit,
+      restaurantId,
+      businessId: restaurant.business_id,
+      customerId: customer.id,
+      operatorUserId: req.user.id,
+      correlationId,
+      requestIp: req.ip || null,
+      initiatedBy: 'operator_integrity_check',
+    });
     await withTransaction(pool, async (client) => {
       await logFoodWalletOperatorAudit(client, {
         restaurantId,
@@ -157,6 +236,7 @@ exports.verifyCustomerWalletIntegrity = async (req, res, next) => {
           issueCodes: audit.issues.map((issue) => issue.code),
           checkedAt: audit.checkedAt,
           requestedCustomerEmail: customer.email,
+          locked,
         },
       });
     }, 'food_wallet_integrity_audit');
@@ -168,6 +248,51 @@ exports.verifyCustomerWalletIntegrity = async (req, res, next) => {
         email: customer.email,
       },
       audit,
+      locked,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.verifyMyWalletIntegrity = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) {
+      throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    }
+
+    const audit = await verifyWalletIntegrityForCustomer(restaurantId, req.user.id);
+    const correlationId = `customer-wallet-integrity:${restaurantId}:${req.user.id}:${Date.now()}`;
+    const locked = await lockWalletAfterIntegrityFailure({
+      audit,
+      restaurantId,
+      customerId: req.user.id,
+      correlationId,
+      requestIp: req.ip || null,
+      initiatedBy: 'customer_integrity_check',
+    });
+    res.json({
+      audit: {
+        valid: audit.valid,
+        checkedAt: audit.checkedAt,
+        entryCount: audit.entryCount,
+        issueCount: audit.issues.length,
+        issueCodes: audit.issues.map((issue) => issue.code),
+        currentHashAlgorithm: audit.currentHashAlgorithm,
+        locked,
+        wallet: {
+          id: audit.wallet.id,
+          accountId: audit.wallet.accountId,
+          restaurantId: audit.wallet.restaurantId,
+          restaurantName: audit.wallet.restaurantName,
+          currencyCode: audit.wallet.currencyCode,
+          balanceCents: audit.wallet.balanceCents,
+          status: audit.wallet.status,
+          ledgerVersion: audit.wallet.ledgerVersion,
+          lastEntryHash: audit.wallet.lastEntryHash,
+        },
+      },
     });
   } catch (err) {
     next(err);
@@ -183,6 +308,7 @@ exports.getCustomerWallet = async (req, res, next) => {
     const wallets = await loadWalletAccountsForUser(req.user.id, {
       restaurantId,
       transactionLimit: 25,
+      includeInactive: true,
     });
     res.json({ wallet: wallets[0] || null });
   } catch (err) {
@@ -275,6 +401,104 @@ exports.loadCustomerWallet = async (req, res, next) => {
         email: customer.email,
       },
       replayed: Boolean(result.replayed),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateCustomerWalletStatus = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) {
+      throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    }
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertWalletOperator(restaurant);
+    const customer = await resolveCustomer(req.body);
+    const nextStatus = normalizeString(req.body.status, 20);
+    if (!['active', 'suspended'].includes(nextStatus)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        status: 'Status must be active or suspended',
+      });
+    }
+    const reason = normalizeString(req.body.reason, 500);
+    if (nextStatus === 'suspended' && !reason) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        reason: 'Reason is required when suspending a wallet',
+      });
+    }
+    const correlationId = normalizeString(
+      req.body.correlationId || req.body.correlation_id || `wallet-status:${restaurantId}:${customer.id}:${Date.now()}`,
+      120
+    );
+
+    const result = await withTransaction(pool, async (client) => {
+      const account = await loadWalletAccountForOperator(client, restaurantId, customer.id);
+      if (account.status === 'closed') {
+        throw new AppError('Closed wallets cannot be reactivated', 409, 'wallet_closed');
+      }
+      if (account.status === nextStatus) {
+        return { account, changed: false };
+      }
+
+      const { rows: [updated] } = await client.query(
+        `UPDATE food_customer_wallet_accounts
+            SET status = $1,
+                updated_at = NOW()
+          WHERE id = $2
+          RETURNING *`,
+        [nextStatus, account.id]
+      );
+      await logFoodWalletOperatorAudit(client, {
+        restaurantId,
+        businessId: restaurant.business_id,
+        walletAccountId: account.id,
+        customerId: customer.id,
+        operatorUserId: req.user.id,
+        actionType: nextStatus === 'suspended' ? 'wallet_suspended' : 'wallet_reactivated',
+        amountCents: null,
+        currencyCode: account.currency_code,
+        correlationId,
+        requestIp: req.ip || null,
+        metadata: {
+          previousStatus: account.status,
+          nextStatus,
+          reason: reason || null,
+          customerEmail: customer.email,
+          restaurantName: restaurant.display_name,
+        },
+      });
+      return { account: updated, changed: true };
+    }, 'food_wallet_update_status');
+
+    const wallets = await loadWalletAccountsForUser(customer.id, {
+      restaurantId,
+      transactionLimit: 25,
+      includeInactive: true,
+    });
+
+    res.json({
+      wallet: wallets[0] || {
+        id: String(result.account.restaurant_id),
+        accountId: String(result.account.id),
+        restaurantId: String(result.account.restaurant_id),
+        restaurantName: restaurant.display_name,
+        currencyCode: result.account.currency_code,
+        balanceCents: Number(result.account.balance_cents || 0),
+        balance: Number(result.account.balance_cents || 0) / 100,
+        status: result.account.status,
+        ledgerVersion: Number(result.account.ledger_version || 0),
+        lastEntryHash: result.account.last_entry_hash || null,
+        transactions: [],
+      },
+      customer: {
+        id: customer.id,
+        firstName: customer.first_name,
+        lastName: customer.last_name,
+        email: customer.email,
+      },
+      changed: result.changed,
     });
   } catch (err) {
     next(err);

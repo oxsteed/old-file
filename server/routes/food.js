@@ -29,6 +29,7 @@ router.get('/customer/profile', authenticate, ctrl.getCustomerProfile);
 router.patch('/customer/profile', authenticate, ctrl.updateCustomerProfile);
 router.get('/customer/wallets', authenticate, walletCtrl.listCustomerWallets);
 router.get('/customer/wallets/:restaurantId', authenticate, walletCtrl.getCustomerWallet);
+router.get('/customer/wallets/:restaurantId/integrity', authenticate, walletCtrl.verifyMyWalletIntegrity);
 router.post('/customer/favorites/:restaurantId/toggle', authenticate, ctrl.toggleCustomerFavoriteRestaurant);
 router.get('/customer/favorite-items', authenticate, ctrl.listCustomerFavoriteItems);
 router.put('/customer/favorite-items/sync', authenticate, ctrl.syncCustomerFavoriteItems);
@@ -52,6 +53,7 @@ router.delete('/restaurants/:restaurantId/menu-items/:itemId', authenticate, ctr
 router.post('/restaurants/:restaurantId/menu-items/:itemId/modifier-groups', authenticate, ctrl.createModifierGroup);
 router.delete('/restaurants/:restaurantId/modifier-groups/:groupId', authenticate, ctrl.deleteModifierGroup);
 router.post('/restaurants/:restaurantId/customer-wallet-loads', authenticate, walletCtrl.loadCustomerWallet);
+router.patch('/restaurants/:restaurantId/customer-wallet-status', authenticate, walletCtrl.updateCustomerWalletStatus);
 router.get('/restaurants/:restaurantId/customer-wallet-integrity', authenticate, walletCtrl.verifyCustomerWalletIntegrity);
 
 // Ordering. Customers can browse as guests, but must sign in before submitting

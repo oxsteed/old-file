@@ -457,6 +457,7 @@ async function refundWalletDebitForReference(client, {
 async function loadWalletAccountsForUser(userId, {
   restaurantId = null,
   transactionLimit = 10,
+  includeInactive = false,
 } = {}) {
   const params = [userId];
   let filter = '';
@@ -470,9 +471,9 @@ async function loadWalletAccountsForUser(userId, {
             fr.display_name AS restaurant_name,
             fr.logo_url AS restaurant_logo_url
        FROM food_customer_wallet_accounts a
-       JOIN food_restaurants fr ON fr.id = a.restaurant_id
+      JOIN food_restaurants fr ON fr.id = a.restaurant_id
       WHERE a.customer_id = $1
-        AND a.status <> 'closed'
+        AND ${includeInactive ? `a.status <> 'closed'` : `a.status = 'active'`}
         ${filter}
       ORDER BY a.updated_at DESC`,
     params
