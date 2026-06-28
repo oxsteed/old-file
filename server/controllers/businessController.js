@@ -6,6 +6,7 @@ const logger = require('../utils/logger');
 const { ownedBusiness, canEditProfile, canManageBusinessFinance } = require('../utils/businessOwnership');
 const countriesUtil = require('../utils/countries');
 const { AppError } = require('../middleware/errorHandler');
+const { withTransaction } = require('../utils/transaction');
 const { invalidateHelperContext } = require('../services/helperContext');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 const {
@@ -39,6 +40,45 @@ function currentQuarter() {
 
 function round2(n) { return Math.round((n || 0) * 100) / 100; }
 
+async function ensureDraftFoodRestaurantForBusiness(client, business, ownerUserId) {
+  if (!business || business.business_mode !== 'food') return null;
+
+  const { rows: existing } = await client.query(
+    `SELECT id FROM food_restaurants WHERE business_id = $1 LIMIT 1`,
+    [business.id]
+  );
+  if (existing[0]) return existing[0];
+
+  const country = countriesUtil.normalizeCountry(business.address_country, 'US');
+  const currencyCode = countriesUtil.getDefaultCurrency(country);
+  const cuisineTags = business.business_type ? [business.business_type] : [];
+  const { rows: [restaurant] } = await client.query(
+    `INSERT INTO food_restaurants
+       (business_id, owner_user_id, display_name, cuisine_tags, description, phone, website,
+        address_street, address_city, address_state, address_zip, address_country,
+        currency_code, fulfillment_modes, accepts_online_orders, accepts_in_store_orders,
+        kitchen_display_enabled, status)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,ARRAY['pickup','dine_in','kiosk']::text[],TRUE,TRUE,TRUE,'draft')
+     RETURNING id`,
+    [
+      business.id,
+      ownerUserId,
+      business.business_name,
+      cuisineTags,
+      business.description || null,
+      business.phone || null,
+      business.website || null,
+      business.address_street || null,
+      business.address_city || null,
+      business.address_state || null,
+      business.address_zip || null,
+      country,
+      currencyCode,
+    ]
+  );
+  return restaurant;
+}
+
 // ── List user's businesses ────────────────────────────────────────────────────
 async function listBusinesses(req, res, next) {
   try {
@@ -46,7 +86,7 @@ async function listBusinesses(req, res, next) {
       `SELECT id, business_name, business_type, industry_category, business_mode,
               description, website, phone,
               address_city, address_state, address_country, is_primary, is_active,
-              tax_rate, logo_url, created_at,
+              is_listed, tax_rate, logo_url, created_at,
               COALESCE(active_template, 'default') AS active_template
        FROM businesses
        WHERE user_id = $1
@@ -100,29 +140,33 @@ async function addBusiness(req, res, next) {
       throw new AppError(category.error, 400, 'unsupported_business_category');
     }
 
-    const { rows: existing } = await pool.query(
-      'SELECT COUNT(*) as count FROM businesses WHERE user_id = $1',
-      [req.user.id]
-    );
-    const isPrimary = parseInt(existing[0].count) === 0;
+    const { biz } = await withTransaction(pool, async (client) => {
+      const { rows: existing } = await client.query(
+        'SELECT COUNT(*) as count FROM businesses WHERE user_id = $1',
+        [req.user.id]
+      );
+      const isPrimary = parseInt(existing[0].count) === 0;
 
-    const { rows: [biz] } = await pool.query(
-      `INSERT INTO businesses
-         (user_id, business_name, business_type, ein, description, website, phone,
-          address_street, address_city, address_state, address_zip, address_country,
-          is_primary, tax_rate, industry_category, business_mode)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
-       RETURNING *`,
-      [
-        req.user.id, business_name.trim(), category.businessType, ein || null,
-        description || null, website || null, phone || null,
-        address_street || null, address_city || null, normalizedState,
-        address_zip || null, country, isPrimary,
-        tax_rate != null ? parseFloat(tax_rate) : 25.00,
-        category.industryCategory,
-        category.businessMode,
-      ]
-    );
+      const { rows: [createdBusiness] } = await client.query(
+        `INSERT INTO businesses
+           (user_id, business_name, business_type, ein, description, website, phone,
+            address_street, address_city, address_state, address_zip, address_country,
+            is_primary, tax_rate, industry_category, business_mode)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+         RETURNING *`,
+        [
+          req.user.id, business_name.trim(), category.businessType, ein || null,
+          description || null, website || null, phone || null,
+          address_street || null, address_city || null, normalizedState,
+          address_zip || null, country, isPrimary,
+          tax_rate != null ? parseFloat(tax_rate) : 25.00,
+          category.industryCategory,
+          category.businessMode,
+        ]
+      );
+      await ensureDraftFoodRestaurantForBusiness(client, createdBusiness, req.user.id);
+      return { biz: createdBusiness };
+    }, 'business_create');
 
     return res.status(201).json({ business: biz });
   } catch (err) {
@@ -146,7 +190,7 @@ async function updateBusiness(req, res, next) {
       address_street, address_city, address_state, address_zip,
       address_country,
       industry_category, business_mode,
-      is_active, tax_rate,
+      is_active, is_listed, tax_rate,
       // Public-profile fields
       logo_url, cover_photo_url,
       clear_logo_url, clear_cover_photo_url,
@@ -184,6 +228,7 @@ async function updateBusiness(req, res, next) {
     const sensitiveEin = isOwner ? ein : undefined;
     const sensitiveTax = isOwner ? tax_rate : undefined;
     const sensitiveActive = isOwner && is_active != null ? is_active : null;
+    const listingVisibility = typeof is_listed === 'boolean' ? is_listed : null;
 
     const { rows: [biz] } = await pool.query(
       `UPDATE businesses
@@ -204,6 +249,7 @@ async function updateBusiness(req, res, next) {
            cover_photo_url = CASE WHEN $18::boolean THEN NULL ELSE COALESCE($14, cover_photo_url) END,
            industry_category = COALESCE($20, industry_category),
            business_mode     = COALESCE($21, business_mode),
+           is_listed         = COALESCE($22, is_listed),
            updated_at      = NOW()
        WHERE id = $15
        RETURNING *`,
@@ -226,10 +272,15 @@ async function updateBusiness(req, res, next) {
         countriesUtil.normalizeCountry(address_country) || null,
         category.industryCategory,
         category.businessMode,
+        listingVisibility,
       ]
     );
 
     if (!biz) throw new AppError('Business not found', 404, 'not_found');
+
+    if (biz.business_mode === 'food') {
+      await ensureDraftFoodRestaurantForBusiness(pool, biz, ownerId);
+    }
 
     if (req.body.ai_knowledge !== undefined) {
       const raw = req.body.ai_knowledge;

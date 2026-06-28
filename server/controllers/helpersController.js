@@ -376,6 +376,8 @@ async function listHelpers(req, res, next) {
     if (pageNum === 1) {
       const bizConditions = [
         'b.is_active = TRUE',
+        `(b.business_mode IN ('services_marketplace', 'retail')
+          OR (b.business_mode IS NULL AND COALESCE(b.industry_category, 'services') != 'food'))`,
         // Visibility is controlled by the business's own flag - independent of
         // the owner's helper_profile.is_listed. See migration 214.
         'COALESCE(b.is_listed, TRUE) = TRUE',
@@ -409,12 +411,17 @@ async function listHelpers(req, res, next) {
       // Category filter: check if owner has skills in the requested categories
       if (categoryList.length > 0) {
         bizParams.push(categoryList);
-        bizConditions.push(`EXISTS (
-          SELECT 1 FROM helper_skills hs
-          JOIN categories c ON c.id = hs.category_id
-          WHERE hs.user_id = b.user_id AND c.name = ANY($${bIdx})
+        const categoryParamIndex = bIdx++;
+        bizParams.push(categoryList.map((category) => category.toLowerCase()));
+        const subtypeParamIndex = bIdx++;
+        bizConditions.push(`(
+          EXISTS (
+            SELECT 1 FROM helper_skills hs
+            JOIN categories c ON c.id = hs.category_id
+            WHERE hs.user_id = b.user_id AND c.name = ANY($${categoryParamIndex})
+          )
+          OR LOWER(COALESCE(b.business_type, '')) = ANY($${subtypeParamIndex})
         )`);
-        bIdx++;
       }
 
       const bizWhere = bizConditions.join(' AND ');
@@ -423,7 +430,7 @@ async function listHelpers(req, res, next) {
       // verification badge from the businesses row itself (per migration 214).
       const { rows: bizRows } = await pool.query(
         `SELECT
-           b.id, b.business_name,
+           b.id, b.business_name, b.business_type, b.industry_category, b.business_mode,
            b.profile_headline AS tagline,
            b.description       AS about,
            b.logo_url          AS profile_photo_url,
@@ -509,8 +516,8 @@ async function listHelpers(req, res, next) {
         jobsCompleted:    0,
         verified:         !!b.is_verified,
         backgroundChecked:false,
-        categories:       bizCategoriesByOwner[b.owner_id] ? [...bizCategoriesByOwner[b.owner_id]] : [],
-        skills:           bizSkillsByOwner[b.owner_id] ? [...bizSkillsByOwner[b.owner_id]] : [],
+        categories:       bizCategoriesByOwner[b.owner_id] ? [...bizCategoriesByOwner[b.owner_id]] : [b.business_type].filter(Boolean),
+        skills:           bizSkillsByOwner[b.owner_id] ? [...bizSkillsByOwner[b.owner_id]] : [b.business_type].filter(Boolean),
         licenses:         [],
         insurance:        [],
         topServices:      servicesByBusinessId[b.id] ? [...servicesByBusinessId[b.id]] : [],
