@@ -18,6 +18,10 @@ function buildApp(user = null) {
     if (!req.user) return res.status(401).json({ error: 'No token provided' });
     return ctrl.getActivityFeed(req, res, next);
   });
+  app.get('/api/main-app/profile-summary', (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: 'No token provided' });
+    return ctrl.getProfileSummary(req, res, next);
+  });
   app.use(errorHandler);
   return app;
 }
@@ -364,5 +368,78 @@ describe('main app activity feed contract', () => {
         expect.objectContaining({ key: 'messages', status: 'ok', count: 1 }),
       ])
     );
+  });
+
+  test('returns production profile summary for signed-in users', async () => {
+    const user = { id: '00000000-0000-4000-8000-000000000456' };
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: user.id,
+          first_name: 'Emile',
+          last_name: 'Jean Philippe',
+          email: 'emile@example.com',
+          username: 'emilejp',
+          role: 'helper',
+          default_mode: 'helper',
+          created_at: '2026-05-03T12:00:00.000Z',
+          avg_rating: '4.75',
+          total_reviews: 8,
+          completed_jobs_count: 3,
+          has_helper_profile: true,
+          owns_business: true,
+          business_member_roles: ['manager'],
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          jobs_completed: 4,
+          earned_dollars: '275.50',
+          spent_job_dollars: '120.00',
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          orders_placed: 2,
+          spent_food_cents: '4850',
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          { label: 'Mon', earned_dollars: '0' },
+          { label: 'Tue', earned_dollars: '125.25' },
+          { label: 'Wed', earned_dollars: '0' },
+          { label: 'Thu', earned_dollars: '150.25' },
+          { label: 'Fri', earned_dollars: '0' },
+          { label: 'Sat', earned_dollars: '0' },
+          { label: 'Sun', earned_dollars: '0' },
+        ],
+      });
+
+    const res = await request(buildApp(user)).get('/api/main-app/profile-summary');
+
+    expect(res.status).toBe(200);
+    expect(res.body.contract.version).toBe('main-profile-summary-v1');
+    expect(res.body.account).toEqual(expect.objectContaining({
+      name: 'Emile Jean Philippe',
+      handle: '@emilejp',
+      activeRole: 'helper',
+      rating: 4.75,
+      reviewCount: 8,
+      totalEarnedCents: 27550,
+      totalSpentCents: 16850,
+      jobsCompleted: 4,
+      ordersPlaced: 2,
+    }));
+    expect(res.body.account.enabledRoles).toEqual(expect.arrayContaining([
+      'customer',
+      'helper',
+      'restaurantOwner',
+      'manager',
+    ]));
+    expect(res.body.earningsWeekly).toEqual(expect.arrayContaining([
+      { label: 'Tue', amountCents: 12525 },
+      { label: 'Thu', amountCents: 15025 },
+    ]));
   });
 });

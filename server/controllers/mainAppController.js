@@ -331,6 +331,196 @@ async function queryUserSummary(userId) {
   };
 }
 
+function roleFromBusinessMember(role) {
+  const value = String(role || '').toLowerCase();
+  if (value === 'manager') return 'manager';
+  if (value === 'employee' || value === 'representative' || value === 'support_agent') return 'staff';
+  return null;
+}
+
+function normalizeUserRole(role) {
+  const value = String(role || '').toLowerCase();
+  if (value === 'helper' || value === 'helper_pro' || value === 'broker') return 'helper';
+  if (value === 'restaurant_owner') return 'restaurantOwner';
+  if (value === 'restaurant_manager') return 'manager';
+  if (value === 'restaurant_staff') return 'staff';
+  if (value === 'restaurant_runner') return 'runner';
+  return 'customer';
+}
+
+function memberSinceLabel(createdAt) {
+  const date = createdAt ? new Date(createdAt) : null;
+  if (!date || Number.isNaN(date.getTime())) return 'Member';
+  return `Member since ${date.getUTCFullYear()}`;
+}
+
+function centsFromDecimalDollars(value) {
+  return Math.round(Number(value || 0) * 100);
+}
+
+async function queryProfileIdentity(userId) {
+  const { rows } = await pool.query(
+    `SELECT u.id,
+            u.first_name,
+            u.last_name,
+            u.email,
+            u.username,
+            u.role,
+            u.default_mode,
+            u.created_at,
+            hp.avg_rating,
+            hp.total_reviews,
+            hp.completed_jobs_count,
+            EXISTS (
+              SELECT 1
+                FROM helper_profiles hp2
+               WHERE hp2.user_id = u.id
+            ) AS has_helper_profile,
+            EXISTS (
+              SELECT 1
+                FROM businesses b
+               WHERE b.user_id = u.id
+                 AND COALESCE(b.is_active, true) = true
+            ) AS owns_business,
+            COALESCE((
+              SELECT ARRAY_AGG(DISTINCT bm.role)
+                FROM business_members bm
+               WHERE bm.member_id = u.id
+                 AND COALESCE(bm.status, 'active') = 'active'
+            ), ARRAY[]::text[]) AS business_member_roles
+       FROM users u
+       LEFT JOIN helper_profiles hp ON hp.user_id = u.id
+      WHERE u.id = $1
+      LIMIT 1`,
+    [userId]
+  );
+  return rows[0] || null;
+}
+
+async function queryProfileTotals(userId) {
+  const [
+    { rows: [jobRow] },
+    { rows: [foodOrderRow] },
+  ] = await Promise.all([
+    pool.query(
+      `SELECT COUNT(*) FILTER (
+                WHERE assigned_helper_id = $1
+                  AND status = 'completed'
+              )::int AS jobs_completed,
+              COALESCE(SUM(COALESCE(helper_payout, job_value, final_price, budget_max, budget_min, 0)) FILTER (
+                WHERE assigned_helper_id = $1
+                  AND status = 'completed'
+              ), 0) AS earned_dollars,
+              COALESCE(SUM(COALESCE(customer_total, final_price, job_value, budget_max, budget_min, 0)) FILTER (
+                WHERE client_id = $1
+                  AND status = 'completed'
+              ), 0) AS spent_job_dollars
+         FROM jobs
+        WHERE deleted_at IS NULL
+          AND (assigned_helper_id = $1 OR client_id = $1)`,
+      [userId]
+    ),
+    pool.query(
+      `SELECT COUNT(*) FILTER (WHERE status <> 'cancelled')::int AS orders_placed,
+              COALESCE(SUM(total_cents) FILTER (
+                WHERE status <> 'cancelled'
+                  AND payment_status IN ('paid', 'refunded')
+              ), 0)::bigint AS spent_food_cents
+         FROM food_orders
+        WHERE customer_id = $1`,
+      [userId]
+    ),
+  ]);
+
+  const earnedCents = centsFromDecimalDollars(jobRow?.earned_dollars);
+  const spentJobCents = centsFromDecimalDollars(jobRow?.spent_job_dollars);
+  const spentFoodCents = Number(foodOrderRow?.spent_food_cents || 0);
+
+  return {
+    jobsCompleted: Number(jobRow?.jobs_completed || 0),
+    ordersPlaced: Number(foodOrderRow?.orders_placed || 0),
+    totalEarnedCents: earnedCents,
+    totalSpentCents: spentJobCents + spentFoodCents,
+  };
+}
+
+async function queryProfileWeeklyEarnings(userId) {
+  const { rows } = await pool.query(
+    `WITH days AS (
+       SELECT generate_series(
+                date_trunc('week', NOW())::date,
+                date_trunc('week', NOW())::date + INTERVAL '6 days',
+                INTERVAL '1 day'
+              ) AS day
+     )
+     SELECT to_char(days.day, 'Dy') AS label,
+            COALESCE(SUM(COALESCE(j.helper_payout, j.job_value, j.final_price, j.budget_max, j.budget_min, 0)), 0) AS earned_dollars
+       FROM days
+       LEFT JOIN jobs j
+         ON j.assigned_helper_id = $1
+        AND j.deleted_at IS NULL
+        AND j.status = 'completed'
+        AND COALESCE(j.completed_at, j.updated_at, j.created_at) >= days.day
+        AND COALESCE(j.completed_at, j.updated_at, j.created_at) < days.day + INTERVAL '1 day'
+      GROUP BY days.day
+      ORDER BY days.day`,
+    [userId]
+  );
+
+  return rows.map((row) => ({
+    label: row.label,
+    amountCents: centsFromDecimalDollars(row.earned_dollars),
+  }));
+}
+
+function buildEnabledRoles(identity) {
+  const roles = new Set(['customer']);
+  const userRole = String(identity?.role || '').toLowerCase();
+
+  if (identity?.has_helper_profile || ['helper', 'helper_pro', 'broker'].includes(userRole)) {
+    roles.add('helper');
+  }
+  if (identity?.owns_business || userRole === 'restaurant_owner') {
+    roles.add('restaurantOwner');
+  }
+  if (userRole === 'restaurant_runner') {
+    roles.add('runner');
+  }
+
+  for (const role of identity?.business_member_roles || []) {
+    const mapped = roleFromBusinessMember(role);
+    if (mapped) roles.add(mapped);
+  }
+
+  return Array.from(roles);
+}
+
+function activeProfileRole(identity, enabledRoles) {
+  const modeRole = normalizeUserRole(identity?.default_mode || identity?.role);
+  if (enabledRoles.includes(modeRole)) return modeRole;
+  const directRole = normalizeUserRole(identity?.role);
+  if (enabledRoles.includes(directRole)) return directRole;
+  return enabledRoles[0] || 'customer';
+}
+
+function profileHandle(identity) {
+  const username = String(identity?.username || '').trim();
+  if (username) return username.startsWith('@') ? username : `@${username}`;
+  const first = String(identity?.first_name || '').trim().toLowerCase();
+  const last = String(identity?.last_name || '').trim().toLowerCase();
+  const handle = `${first}${last}`.replace(/[^a-z0-9_]/g, '');
+  return handle ? `@${handle}` : '@user';
+}
+
+function buildProfileContract(sources) {
+  return {
+    version: 'main-profile-summary-v1',
+    generatedAt: new Date().toISOString(),
+    dataSource: 'production',
+    sources,
+  };
+}
+
 async function queryUserWalletSummary(userId) {
   const { rows } = await pool.query(
     `SELECT currency_code,
@@ -665,6 +855,65 @@ exports.getActivityFeed = async (req, res, next) => {
       events,
       unreadCount: events.filter((event) => event.isUnread).length,
       limit,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getProfileSummary = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const [identity, totals, weeklyEarnings] = await Promise.all([
+      queryProfileIdentity(userId),
+      queryProfileTotals(userId),
+      queryProfileWeeklyEarnings(userId),
+    ]);
+
+    if (!identity) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const enabledRoles = buildEnabledRoles(identity);
+    const activeRole = activeProfileRole(identity, enabledRoles);
+    const fullName = [identity.first_name, identity.last_name].filter(Boolean).join(' ').trim() || 'OxSteed User';
+
+    return res.json({
+      contract: buildProfileContract([
+        {
+          key: 'identity',
+          source: 'users + helper_profiles + businesses + business_members',
+          status: 'ok',
+          count: 1,
+        },
+        {
+          key: 'totals',
+          source: 'jobs + food_orders',
+          status: 'ok',
+          count: 1,
+        },
+        {
+          key: 'weeklyEarnings',
+          source: 'completed helper jobs grouped by current week',
+          status: 'ok',
+          count: weeklyEarnings.length,
+        },
+      ]),
+      account: {
+        name: fullName,
+        handle: profileHandle(identity),
+        avatarSymbol: 'person.crop.circle.fill',
+        memberSince: memberSinceLabel(identity.created_at),
+        activeRole,
+        enabledRoles,
+        rating: Number(identity.avg_rating || 0),
+        reviewCount: Number(identity.total_reviews || 0),
+        jobsCompleted: Math.max(Number(identity.completed_jobs_count || 0), totals.jobsCompleted),
+        ordersPlaced: totals.ordersPlaced,
+        totalEarnedCents: totals.totalEarnedCents,
+        totalSpentCents: totals.totalSpentCents,
+      },
+      earningsWeekly: weeklyEarnings,
     });
   } catch (err) {
     next(err);
