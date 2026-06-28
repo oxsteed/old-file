@@ -59,6 +59,172 @@ function defaultWalletSummary() {
   };
 }
 
+function normalizeCurrency(value) {
+  return String(value || 'USD').toUpperCase();
+}
+
+function centsFromDollars(value) {
+  return Math.round(Number(value || 0) * 100);
+}
+
+function moneyStatus(value) {
+  const status = String(value || '').toLowerCase();
+  if (['paid', 'completed', 'released', 'refunded', 'captured'].includes(status)) return 'completed';
+  if (['failed', 'cancelled', 'denied'].includes(status)) return 'failed';
+  return 'pending';
+}
+
+function transactionTypeForSource(sourceType, amountCents = 0) {
+  const source = String(sourceType || '').toLowerCase();
+  if (source.includes('payout') || source.includes('withdraw')) return 'Withdrawal';
+  if (source.includes('refund')) return 'Refund';
+  if (source.includes('referral')) return 'Referral';
+  if (source.includes('food')) return 'Food Order';
+  if (source.includes('wallet') || source.includes('credit') || source.includes('promo')) return 'Credit';
+  if (source.includes('job') || source.includes('payment')) return Number(amountCents) >= 0 ? 'Job Earned' : 'Job Paid';
+  return Number(amountCents) >= 0 ? 'Credit' : 'Job Paid';
+}
+
+function sourceTypeFromTransactionType(type) {
+  switch (String(type || '').toLowerCase()) {
+    case 'job earned':
+    case 'job paid':
+      return 'job';
+    case 'food order':
+      return 'food_order';
+    case 'withdrawal':
+      return 'payout';
+    case 'refund':
+      return 'refund';
+    case 'referral':
+      return 'referral';
+    case 'credit':
+    default:
+      return 'wallet';
+  }
+}
+
+function serializeTransaction(row) {
+  const amountCents = Number(row.amount_cents || 0);
+  const sourceType = row.source_type || sourceTypeFromTransactionType(row.type);
+  return {
+    id: String(row.id),
+    type: row.type || transactionTypeForSource(sourceType, amountCents),
+    title: row.title || row.description || 'OxSteed transaction',
+    subtitle: row.subtitle || '',
+    amountCents: Math.abs(amountCents),
+    signedAmountCents: amountCents,
+    isCredit: amountCents >= 0,
+    currencyCode: normalizeCurrency(row.currency_code || row.currency),
+    status: moneyStatus(row.status),
+    reference: row.reference || '',
+    sourceType,
+    sourceId: row.source_id ? String(row.source_id) : null,
+    date: toIso(row.created_at || row.event_at || row.requested_at),
+    disputable: amountCents < 0 && !['payout', 'withdrawal'].includes(String(sourceType).toLowerCase()),
+  };
+}
+
+async function queryMainAppTransactions(userId, limit) {
+  const queries = await Promise.allSettled([
+    pool.query(
+      `SELECT CONCAT('ledger-', id) AS id,
+              source_type,
+              description AS title,
+              COALESCE(metadata->>'subtitle', source_type) AS subtitle,
+              amount_cents,
+              UPPER(currency) AS currency_code,
+              'completed' AS status,
+              COALESCE(metadata->>'reference', stripe_payment_intent_id, stripe_transfer_id, stripe_charge_id, job_id::text, id::text) AS reference,
+              job_id::text AS source_id,
+              created_at
+         FROM platform_ledger
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        LIMIT $2`,
+      [userId, limit]
+    ),
+    pool.query(
+      `SELECT CONCAT('payment-', p.id) AS id,
+              CASE WHEN p.payee_id = $1 THEN 'job_payment' ELSE 'job_paid' END AS source_type,
+              COALESCE(j.title, 'OxSteed job payment') AS title,
+              CASE WHEN p.payee_id = $1 THEN 'Earnings from completed work' ELSE 'Payment for hired work' END AS subtitle,
+              CASE WHEN p.payee_id = $1 THEN ROUND(COALESCE(p.helper_payout, p.amount) * 100)::int ELSE -ROUND(p.amount * 100)::int END AS amount_cents,
+              UPPER(COALESCE(p.currency, 'USD')) AS currency_code,
+              p.status,
+              COALESCE(p.stripe_payment_intent_id, p.stripe_transfer_id, p.id::text) AS reference,
+              p.job_id::text AS source_id,
+              p.created_at
+         FROM payments p
+         LEFT JOIN jobs j ON j.id = p.job_id
+        WHERE p.payer_id = $1 OR p.payee_id = $1
+        ORDER BY p.created_at DESC
+        LIMIT $2`,
+      [userId, limit]
+    ),
+    pool.query(
+      `SELECT CONCAT('food-order-', fo.id) AS id,
+              'food_order' AS source_type,
+              COALESCE(fr.display_name, 'Food order') AS title,
+              CONCAT(INITCAP(fo.fulfillment_type), ' · ', fo.status) AS subtitle,
+              -fo.total_cents AS amount_cents,
+              UPPER(fo.currency_code) AS currency_code,
+              CASE WHEN fo.payment_status = 'paid' THEN 'completed' ELSE fo.payment_status END AS status,
+              CONCAT('FOOD-', fo.id) AS reference,
+              fo.id::text AS source_id,
+              fo.created_at
+         FROM food_orders fo
+         LEFT JOIN food_restaurants fr ON fr.id = fo.restaurant_id
+        WHERE fo.customer_id = $1
+        ORDER BY fo.created_at DESC
+        LIMIT $2`,
+      [userId, limit]
+    ),
+    pool.query(
+      `SELECT CONCAT('wallet-', l.id) AS id,
+              CONCAT('food_wallet_', l.entry_type) AS source_type,
+              COALESCE(l.description, 'Restaurant wallet') AS title,
+              COALESCE(fr.display_name, 'OxSteed Food') AS subtitle,
+              CASE WHEN l.entry_type IN ('credit', 'refund') THEN l.amount_cents ELSE -l.amount_cents END AS amount_cents,
+              UPPER(l.currency_code) AS currency_code,
+              'completed' AS status,
+              COALESCE(l.reference_id, l.id::text) AS reference,
+              l.reference_id AS source_id,
+              l.created_at
+         FROM food_customer_wallet_ledger l
+         LEFT JOIN food_restaurants fr ON fr.id = l.restaurant_id
+        WHERE l.customer_id = $1
+        ORDER BY l.created_at DESC
+        LIMIT $2`,
+      [userId, limit]
+    ),
+    pool.query(
+      `SELECT CONCAT('payout-', id) AS id,
+              'payout' AS source_type,
+              'Withdrawal request' AS title,
+              INITCAP(REPLACE(payout_method, '_', ' ')) AS subtitle,
+              -amount_cents AS amount_cents,
+              UPPER(currency_code) AS currency_code,
+              status,
+              CONCAT('PO-', id) AS reference,
+              id::text AS source_id,
+              requested_at AS created_at
+         FROM main_app_payout_requests
+        WHERE user_id = $1
+        ORDER BY requested_at DESC
+        LIMIT $2`,
+      [userId, limit]
+    ),
+  ]);
+
+  return queries
+    .filter((result) => result.status === 'fulfilled')
+    .flatMap((result) => result.value.rows)
+    .map(serializeTransaction)
+    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+    .slice(0, limit);
+}
+
 function publicHomeErrorCode(err) {
   const message = String(err?.message || '');
   const code = String(err?.code || '');
@@ -1355,6 +1521,474 @@ exports.getHomeDashboard = async (req, res, next) => {
       featuredHelpers: helpers,
       popularRestaurants: restaurants,
       activity,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getTransactionHistory = async (req, res, next) => {
+  try {
+    const limit = parseLimit(req.query.limit, 100, 200);
+    const transactions = await queryMainAppTransactions(req.user.id, limit);
+    const totalInCents = transactions
+      .filter((transaction) => transaction.isCredit)
+      .reduce((sum, transaction) => sum + transaction.amountCents, 0);
+    const totalOutCents = transactions
+      .filter((transaction) => !transaction.isCredit)
+      .reduce((sum, transaction) => sum + transaction.amountCents, 0);
+
+    res.json({
+      contract: {
+        version: 'main-money-transactions-v1',
+        generatedAt: new Date().toISOString(),
+        dataSource: 'production',
+        sources: ['platform_ledger', 'payments', 'food_orders', 'food_customer_wallet_ledger', 'main_app_payout_requests'],
+      },
+      summary: {
+        totalInCents,
+        totalOutCents,
+        netCents: totalInCents - totalOutCents,
+        currencyCode: transactions[0]?.currencyCode || 'USD',
+      },
+      transactions,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getPayoutSummary = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const [jobsResult, requestsResult] = await Promise.all([
+      pool.query(
+        `SELECT
+            COALESCE(SUM(CASE WHEN payout_status IN ('earned', 'not_ready') THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS available_cents,
+            COALESCE(SUM(CASE WHEN payout_status IN ('pending', 'processing') THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS pending_cents,
+            COALESCE(SUM(CASE WHEN payout_status = 'paid' THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS paid_cents,
+            COALESCE(MAX(currency_code), 'USD') AS currency_code
+           FROM jobs
+          WHERE assigned_helper_id = $1
+            AND status = 'completed'`,
+        [userId]
+      ),
+      pool.query(
+        `SELECT id, amount_cents, currency_code, payout_method, status, note, requested_at, processed_at
+           FROM main_app_payout_requests
+          WHERE user_id = $1
+          ORDER BY requested_at DESC
+          LIMIT 25`,
+        [userId]
+      ),
+    ]);
+
+    const row = jobsResult.rows[0] || {};
+    res.json({
+      contract: { version: 'main-payouts-v1', generatedAt: new Date().toISOString(), dataSource: 'production' },
+      summary: {
+        availableCents: Number(row.available_cents || 0),
+        pendingCents: Number(row.pending_cents || 0),
+        paidCents: Number(row.paid_cents || 0),
+        currencyCode: normalizeCurrency(row.currency_code),
+        minimumWithdrawalCents: 1000,
+      },
+      requests: requestsResult.rows.map((request) => ({
+        id: String(request.id),
+        amountCents: Number(request.amount_cents || 0),
+        currencyCode: normalizeCurrency(request.currency_code),
+        payoutMethod: request.payout_method,
+        status: request.status,
+        note: request.note || null,
+        requestedAt: toIso(request.requested_at),
+        processedAt: toIso(request.processed_at),
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.requestPayout = async (req, res, next) => {
+  try {
+    const amountCents = Number(req.body.amountCents ?? req.body.amount_cents ?? 0);
+    const payoutMethod = String(req.body.payoutMethod || req.body.payout_method || 'bank_transfer');
+    const allowedMethods = new Set(['bank_transfer', 'instant_debit', 'wallet_credit']);
+    if (!Number.isFinite(amountCents) || amountCents < 1000) {
+      return res.status(400).json({ error: { code: 'minimum_payout', message: 'Minimum withdrawal is 1000 cents.' } });
+    }
+    if (!allowedMethods.has(payoutMethod)) {
+      return res.status(400).json({ error: { code: 'invalid_payout_method', message: 'Unsupported payout method.' } });
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO main_app_payout_requests (user_id, amount_cents, currency_code, payout_method, note, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, amount_cents, currency_code, payout_method, status, note, requested_at, processed_at`,
+      [
+        req.user.id,
+        Math.round(amountCents),
+        normalizeCurrency(req.body.currencyCode || req.body.currency_code),
+        payoutMethod,
+        req.body.note || null,
+        JSON.stringify({ client: 'oxsteed-main-ios' }),
+      ]
+    );
+
+    const request = rows[0];
+    res.status(201).json({
+      request: {
+        id: String(request.id),
+        amountCents: Number(request.amount_cents || 0),
+        currencyCode: normalizeCurrency(request.currency_code),
+        payoutMethod: request.payout_method,
+        status: request.status,
+        note: request.note || null,
+        requestedAt: toIso(request.requested_at),
+        processedAt: toIso(request.processed_at),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getReferralDashboard = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+          u.referral_code,
+          COALESCE(u.referrals_count, 0)::int AS referrals_count,
+          COALESCE(u.referral_conversions_count, 0)::int AS referral_conversions_count,
+          COALESCE(json_agg(
+            json_build_object(
+              'id', r.id,
+              'name', COALESCE(NULLIF(TRIM(r.first_name || ' ' || r.last_name), ''), 'OxSteed member'),
+              'joinedAt', r.created_at,
+              'status', CASE WHEN r.email_verified THEN 'Rewarded' ELSE 'Joined' END
+            )
+            ORDER BY r.created_at DESC
+          ) FILTER (WHERE r.id IS NOT NULL), '[]') AS referred_users
+         FROM users u
+         LEFT JOIN users r ON r.referred_by = u.id
+        WHERE u.id = $1
+        GROUP BY u.id`,
+      [req.user.id]
+    );
+
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    const row = rows[0];
+    const appUrl = process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com';
+    const code = row.referral_code || '';
+    const rewards = await pool.query(
+      `SELECT COALESCE(SUM(amount_cents), 0)::bigint AS earned_cents
+         FROM platform_ledger
+        WHERE user_id = $1
+          AND source_type IN ('referral_credit', 'promo_credit')`,
+      [req.user.id]
+    );
+
+    res.json({
+      referralCode: code,
+      shareUrl: `${appUrl}/join?ref=${encodeURIComponent(code)}`,
+      friendRewardCents: Number(process.env.REFERRAL_REFEREE_CREDIT_CENTS || 250),
+      rewardPerReferralCents: Number(process.env.REFERRAL_REFERRER_CREDIT_CENTS || 500),
+      totalEarnedCents: Number(rewards.rows[0]?.earned_cents || 0),
+      stats: {
+        invited: Number(row.referrals_count || 0),
+        joined: Number(row.referral_conversions_count || 0),
+      },
+      referrals: row.referred_users || [],
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+function serializePromo(row) {
+  return {
+    id: String(row.voucher_id || row.id || row.code),
+    code: row.code,
+    title: row.title || row.description || `${row.code} discount`,
+    description: row.description || 'OxSteed voucher',
+    discountType: String(row.discount_type || '').includes('percent') ? 'percent' : 'fixed',
+    discountValue: Number(row.discount_value || row.discount_amount || 0),
+    expiresAt: toIso(row.expires_at || row.end_date),
+    category: row.category || 'all',
+    status: row.voucher_status || row.status || 'active',
+    isUsed: ['used', 'revoked'].includes(String(row.voucher_status || '').toLowerCase()),
+  };
+}
+
+exports.getPromoWallet = async (req, res, next) => {
+  try {
+    const [available, wallet] = await Promise.all([
+      pool.query(
+        `SELECT id, code, COALESCE(description, code) AS title, description,
+                discount_type,
+                CASE WHEN discount_type = 'percentage' THEN discount_amount ELSE discount_amount / 100.0 END AS discount_value,
+                end_date, 'all' AS category, status
+           FROM discount_codes
+          WHERE status = 'active'
+            AND (start_date IS NULL OR start_date <= NOW())
+            AND (end_date IS NULL OR end_date >= NOW())
+          ORDER BY created_at DESC
+          LIMIT 50`
+      ),
+      pool.query(
+        `SELECT v.id AS voucher_id, v.code, v.status AS voucher_status, v.redeemed_at,
+                d.description AS title, d.description, d.discount_type,
+                CASE WHEN d.discount_type = 'percentage' THEN d.discount_amount ELSE d.discount_amount / 100.0 END AS discount_value,
+                d.end_date, 'all' AS category
+           FROM main_app_user_vouchers v
+           LEFT JOIN discount_codes d ON d.id = v.discount_code_id
+          WHERE v.user_id = $1
+          ORDER BY v.redeemed_at DESC
+          LIMIT 50`,
+        [req.user.id]
+      ),
+    ]);
+
+    const walletCodes = new Set(wallet.rows.map((row) => String(row.code).toUpperCase()));
+    const promos = [
+      ...wallet.rows.map(serializePromo),
+      ...available.rows.filter((row) => !walletCodes.has(String(row.code).toUpperCase())).map(serializePromo),
+    ];
+
+    res.json({ contract: { version: 'main-promos-v1', generatedAt: new Date().toISOString() }, promos });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.redeemPromoCode = async (req, res, next) => {
+  try {
+    const code = String(req.body.code || '').trim().toUpperCase();
+    if (!code) return res.status(400).json({ error: { code: 'code_required', message: 'Promo code is required.' } });
+
+    const found = await pool.query(
+      `SELECT id, code, description, discount_type, discount_amount, end_date
+         FROM discount_codes
+        WHERE UPPER(code) = $1
+          AND status = 'active'
+          AND (start_date IS NULL OR start_date <= NOW())
+          AND (end_date IS NULL OR end_date >= NOW())
+        LIMIT 1`,
+      [code]
+    );
+    if (!found.rows.length) {
+      return res.status(404).json({ error: { code: 'invalid_promo', message: 'Invalid or expired promo code.' } });
+    }
+
+    const promo = found.rows[0];
+    const inserted = await pool.query(
+      `INSERT INTO main_app_user_vouchers (user_id, discount_code_id, code, source, status)
+       VALUES ($1, $2, $3, 'manual', 'active')
+       ON CONFLICT (user_id, code)
+       DO UPDATE SET status = CASE WHEN main_app_user_vouchers.status = 'used' THEN main_app_user_vouchers.status ELSE 'active' END
+       RETURNING id, code, status AS voucher_status, redeemed_at`,
+      [req.user.id, promo.id, promo.code]
+    );
+
+    res.status(201).json({
+      promo: serializePromo({
+        ...promo,
+        voucher_id: inserted.rows[0].id,
+        voucher_status: inserted.rows[0].voucher_status,
+        title: promo.description,
+        discount_value: promo.discount_type === 'percentage' ? promo.discount_amount : Number(promo.discount_amount || 0) / 100,
+        category: 'all',
+      }),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getDisputeRefunds = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, source_type, source_id, transaction_reference, reason, details, refund_method,
+              requested_refund_cents, currency_code, status, opened_at, resolved_at
+         FROM main_app_payment_disputes
+        WHERE user_id = $1
+        ORDER BY opened_at DESC
+        LIMIT 100`,
+      [req.user.id]
+    );
+    res.json({
+      disputes: rows.map((row) => ({
+        id: String(row.id),
+        sourceType: row.source_type,
+        sourceId: row.source_id || null,
+        transactionReference: row.transaction_reference || null,
+        reason: row.reason,
+        details: row.details,
+        refundMethod: row.refund_method,
+        requestedRefundCents: row.requested_refund_cents === null ? null : Number(row.requested_refund_cents),
+        currencyCode: normalizeCurrency(row.currency_code),
+        status: row.status,
+        openedAt: toIso(row.opened_at),
+        resolvedAt: toIso(row.resolved_at),
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createDisputeRefund = async (req, res, next) => {
+  try {
+    const reason = String(req.body.reason || '').trim();
+    const details = String(req.body.details || '').trim();
+    if (!reason || !details) {
+      return res.status(400).json({ error: { code: 'missing_dispute_details', message: 'Reason and details are required.' } });
+    }
+    const sourceType = String(req.body.sourceType || req.body.source_type || 'other');
+    const validSourceTypes = new Set(['job', 'food_order', 'service_booking', 'wallet', 'payment', 'other']);
+    const { rows } = await pool.query(
+      `INSERT INTO main_app_payment_disputes
+        (user_id, source_type, source_id, transaction_reference, reason, details, refund_method,
+         requested_refund_cents, currency_code, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING id, source_type, source_id, transaction_reference, reason, details, refund_method,
+                 requested_refund_cents, currency_code, status, opened_at, resolved_at`,
+      [
+        req.user.id,
+        validSourceTypes.has(sourceType) ? sourceType : 'other',
+        req.body.sourceId || req.body.source_id || null,
+        req.body.transactionReference || req.body.transaction_reference || null,
+        reason,
+        details,
+        req.body.refundMethod || req.body.refund_method || 'original',
+        req.body.requestedRefundCents ?? req.body.requested_refund_cents ?? null,
+        normalizeCurrency(req.body.currencyCode || req.body.currency_code),
+        JSON.stringify({ client: 'oxsteed-main-ios' }),
+      ]
+    );
+    res.status(201).json({ dispute: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getReceivedReviews = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT r.id, r.job_id, r.reviewer_id, r.reviewee_id, r.rating, r.comment, r.response,
+              r.is_public, r.created_at, u.first_name AS reviewer_first_name, u.last_name AS reviewer_last_name
+         FROM reviews r
+         LEFT JOIN users u ON u.id = r.reviewer_id
+        WHERE r.reviewee_id = $1
+          AND r.is_public = TRUE
+        ORDER BY r.created_at DESC
+        LIMIT 100`,
+      [req.user.id]
+    );
+    res.json({
+      reviews: rows.map((row) => ({
+        id: String(row.id),
+        jobId: row.job_id ? String(row.job_id) : '',
+        reviewerId: row.reviewer_id ? String(row.reviewer_id) : '',
+        revieweeId: row.reviewee_id ? String(row.reviewee_id) : '',
+        rating: Number(row.rating || 0),
+        comment: row.comment || '',
+        response: row.response || null,
+        isPublic: row.is_public !== false,
+        createdAt: toIso(row.created_at),
+        reviewerFirstName: row.reviewer_first_name || 'Anonymous',
+        reviewerLastName: row.reviewer_last_name || '',
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getHelperEarningsDashboard = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const [summaryResult, jobsResult, weeklyResult, monthlyResult, payoutResult] = await Promise.all([
+      pool.query(
+        `SELECT COALESCE(SUM(COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0)), 0)::bigint AS lifetime_cents,
+                COALESCE(SUM(CASE WHEN completed_at >= date_trunc('week', NOW()) THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS week_cents,
+                COALESCE(SUM(CASE WHEN completed_at >= date_trunc('month', NOW()) THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS month_cents,
+                COUNT(*)::int AS completed_jobs,
+                COALESCE(MAX(currency_code), 'USD') AS currency_code
+           FROM jobs
+          WHERE assigned_helper_id = $1
+            AND status = 'completed'`,
+        [userId]
+      ),
+      pool.query(
+        `SELECT id, title, completed_at,
+                COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0)::bigint AS amount_cents,
+                currency_code, payout_status
+           FROM jobs
+          WHERE assigned_helper_id = $1
+            AND status = 'completed'
+          ORDER BY completed_at DESC NULLS LAST, created_at DESC
+          LIMIT 50`,
+        [userId]
+      ),
+      pool.query(
+        `SELECT date_trunc('week', completed_at)::date AS period,
+                COALESCE(SUM(COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0)), 0)::bigint AS amount_cents
+           FROM jobs
+          WHERE assigned_helper_id = $1
+            AND status = 'completed'
+            AND completed_at >= NOW() - INTERVAL '12 weeks'
+          GROUP BY 1
+          ORDER BY 1 DESC`,
+        [userId]
+      ),
+      pool.query(
+        `SELECT date_trunc('month', completed_at)::date AS period,
+                COALESCE(SUM(COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0)), 0)::bigint AS amount_cents
+           FROM jobs
+          WHERE assigned_helper_id = $1
+            AND status = 'completed'
+            AND completed_at >= NOW() - INTERVAL '12 months'
+          GROUP BY 1
+          ORDER BY 1 DESC`,
+        [userId]
+      ),
+      pool.query(
+        `SELECT
+            COALESCE(SUM(CASE WHEN payout_status IN ('earned', 'not_ready') THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS available_cents,
+            COALESCE(SUM(CASE WHEN payout_status IN ('pending', 'processing') THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS pending_cents,
+            COALESCE(SUM(CASE WHEN payout_status = 'paid' THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS paid_cents
+           FROM jobs
+          WHERE assigned_helper_id = $1
+            AND status = 'completed'`,
+        [userId]
+      ),
+    ]);
+
+    const summary = summaryResult.rows[0] || {};
+    const payout = payoutResult.rows[0] || {};
+    res.json({
+      contract: { version: 'main-helper-earnings-v1', generatedAt: new Date().toISOString(), dataSource: 'production' },
+      summary: {
+        lifetimeCents: Number(summary.lifetime_cents || 0),
+        weekCents: Number(summary.week_cents || 0),
+        monthCents: Number(summary.month_cents || 0),
+        completedJobs: Number(summary.completed_jobs || 0),
+        currencyCode: normalizeCurrency(summary.currency_code),
+        availableCents: Number(payout.available_cents || 0),
+        pendingCents: Number(payout.pending_cents || 0),
+        paidCents: Number(payout.paid_cents || 0),
+      },
+      jobs: jobsResult.rows.map((job) => ({
+        id: String(job.id),
+        title: job.title || 'Completed job',
+        completedAt: toIso(job.completed_at),
+        amountCents: Number(job.amount_cents || 0),
+        currencyCode: normalizeCurrency(job.currency_code),
+        payoutStatus: job.payout_status || 'not_ready',
+      })),
+      weekly: weeklyResult.rows.map((row) => ({ period: toIso(row.period), amountCents: Number(row.amount_cents || 0) })),
+      monthly: monthlyResult.rows.map((row) => ({ period: toIso(row.period), amountCents: Number(row.amount_cents || 0) })),
     });
   } catch (err) {
     next(err);

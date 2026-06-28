@@ -133,6 +133,7 @@ router.delete('/:id/vortex-tokens/:tokenId',    authenticate, revokeToken);
 
 // ── Business content (services, gallery, policies, faqs, hours) ────────────────
 // SERVICES
+router.get('/:businessId/services/manage',       authenticate, getBusinessServices);
 router.get('/:businessId/services',              getBusinessServices);
 router.post('/:businessId/services',             authenticate, createBusinessService);
 router.put('/:businessId/services/:serviceId',   authenticate, updateBusinessService);

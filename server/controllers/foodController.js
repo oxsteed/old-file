@@ -234,8 +234,49 @@ async function resolveFoodPromotionDiscount(client, restaurantId, code, subtotal
         LIMIT 1`,
       [restaurantId, normalized]
     );
-    const promo = rows[0];
-    if (!promo) return { discountCents: 0, metadata: null, promotionId: null };
+    let promo = rows[0];
+    if (!promo) {
+      const global = await client.query(
+        `SELECT id, code, description AS title, discount_type, discount_amount,
+                max_discount_cents, min_order_cents
+           FROM discount_codes
+          WHERE UPPER(code) = UPPER($1)
+            AND status = 'active'
+            AND (start_date IS NULL OR start_date <= NOW())
+            AND (end_date IS NULL OR end_date >= NOW())
+            AND (usage_limit IS NULL OR usage_count < usage_limit)
+          LIMIT 1`,
+        [normalized]
+      );
+      promo = global.rows[0];
+      if (!promo) return { discountCents: 0, metadata: null, promotionId: null };
+      if (subtotalCents < Number(promo.min_order_cents || 0)) {
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          discountCode: `Minimum subtotal not met for promotion ${normalized}`,
+        });
+      }
+      let discountCents = 0;
+      if (promo.discount_type === 'percentage') {
+        discountCents = Math.round(subtotalCents * Number(promo.discount_amount || 0) / 100);
+        if (promo.max_discount_cents != null) {
+          discountCents = Math.min(discountCents, Number(promo.max_discount_cents || 0));
+        }
+      } else {
+        discountCents = Number(promo.discount_amount || 0);
+      }
+      discountCents = Math.min(subtotalCents, Math.max(0, discountCents));
+      return {
+        discountCents,
+        promotionId: null,
+        metadata: {
+          code: promo.code,
+          label: promo.title || promo.description || promo.code,
+          amountCents: discountCents,
+          discountCodeId: promo.id,
+          source: 'discount_codes',
+        },
+      };
+    }
     if (subtotalCents < Number(promo.min_subtotal_cents || 0)) {
       throw new AppError('Validation failed', 400, 'validation_failed', {
         discountCode: `Minimum subtotal not met for promotion ${normalized}`,
@@ -1378,7 +1419,10 @@ exports.createOrder = async (req, res, next) => {
       if (paymentMode === 'wallet_credit' && fulfillmentType !== 'delivery') {
         throw new AppError('Wallet credit is only available for delivery orders', 409, 'wallet_credit_delivery_only');
       }
-      if (!Array.isArray(restaurant.fulfillment_modes) || !restaurant.fulfillment_modes.includes(fulfillmentType)) {
+      const restaurantFulfillmentModes = Array.isArray(restaurant.fulfillment_modes) && restaurant.fulfillment_modes.length
+        ? restaurant.fulfillment_modes
+        : ['pickup'];
+      if (!restaurantFulfillmentModes.includes(fulfillmentType)) {
         throw new AppError('This fulfillment mode is not available', 409, 'fulfillment_mode_unavailable');
       }
       if (!VALID_ORDER_SOURCES.has(orderSource)) {
@@ -1425,12 +1469,14 @@ exports.createOrder = async (req, res, next) => {
       const discountCode = normalizeString(req.body.discountCode || req.body.discount_code, 40);
       let discountLabel = normalizeString(req.body.discountLabel || req.body.discount_label, 120);
       let promotionId = null;
+      let discountSourceMetadata = null;
       if (discountCode) {
         const promoResult = await resolveFoodPromotionDiscount(client, restaurantId, discountCode, subtotal);
         if (promoResult.discountCents > 0) {
           discount = promoResult.discountCents;
           discountLabel = promoResult.metadata?.label || discountLabel;
           promotionId = promoResult.promotionId;
+          discountSourceMetadata = promoResult.metadata;
         }
       }
 
@@ -1480,6 +1526,7 @@ exports.createOrder = async (req, res, next) => {
           code: discountCode,
           label: discountLabel,
           amountCents: discount,
+          ...(discountSourceMetadata || {}),
           ...(promotionId ? { promotionId } : {}),
           ...(loyaltyRedemption ? { loyaltyRedemption } : {}),
         }
@@ -1604,6 +1651,13 @@ exports.createOrder = async (req, res, next) => {
               SET use_count = use_count + 1, updated_at = NOW()
             WHERE id = $1 AND restaurant_id = $2`,
           [promotionId, restaurantId]
+        );
+      } else if (discountMetadata?.discountCodeId) {
+        await client.query(
+          `UPDATE discount_codes
+              SET usage_count = usage_count + 1, updated_at = NOW()
+            WHERE id = $1`,
+          [discountMetadata.discountCodeId]
         );
       }
 

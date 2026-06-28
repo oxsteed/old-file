@@ -966,7 +966,7 @@ async function getBusinessProfileForEditor(req, res) {
          b.address_country,
          b.logo_url,
          b.cover_photo_url,         COALESCE(b.profile_headline, hp.profile_headline) AS profile_headline,
-         hp.service_radius_miles,
+         b.service_radius_miles,
          hp.bio_short,
          b.ai_knowledge
        FROM businesses b
