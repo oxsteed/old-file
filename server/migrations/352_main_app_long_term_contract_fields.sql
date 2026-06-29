@@ -4,6 +4,19 @@
 -- permissions, trust, and translation metadata without removing legacy columns.
 
 ALTER TABLE jobs
+  -- Keep legacy decimal money columns present because older controllers and
+  -- admin/reporting queries still use them as fallbacks while the mobile app
+  -- moves to durable cents-based fields.
+  ADD COLUMN IF NOT EXISTS budget_min NUMERIC(10, 2),
+  ADD COLUMN IF NOT EXISTS budget_max NUMERIC(10, 2),
+  ADD COLUMN IF NOT EXISTS final_price NUMERIC(10, 2),
+  ADD COLUMN IF NOT EXISTS job_value NUMERIC(10, 2),
+  ADD COLUMN IF NOT EXISTS customer_total NUMERIC(10, 2),
+  ADD COLUMN IF NOT EXISTS helper_payout NUMERIC(10, 2),
+  ADD COLUMN IF NOT EXISTS platform_fee NUMERIC(10, 2),
+  ADD COLUMN IF NOT EXISTS protection_fee NUMERIC(10, 2),
+  ADD COLUMN IF NOT EXISTS broker_fee NUMERIC(10, 2),
+  ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS currency_code CHAR(3) NOT NULL DEFAULT 'USD',
   ADD COLUMN IF NOT EXISTS budget_min_cents INTEGER,
   ADD COLUMN IF NOT EXISTS budget_max_cents INTEGER,
