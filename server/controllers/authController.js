@@ -846,10 +846,10 @@ async function checkEmail(req, res) {
 
 async function checkZip(req, res) {
   try {
-    const { zip } = req.body;
-    if (!zip) return res.status(400).json({ error: 'Zip code required' });
-    if (!/^\d{5}(-\d{4})?$/.test(zip)) return res.status(400).json({ error: 'Invalid zip code format' });
-    res.json({ inMarket: true });
+    const zip = String(req.body?.zip || '').trim();
+    // Deprecated non-blocking probe. Signup is international, so postal/ZIP
+    // availability is no longer used to gate account creation.
+    res.json({ inMarket: true, supported: true, available: true, zip: zip || null });
   } catch (err) {
     logger.error('Check zip error', { err });
     res.status(500).json({ error: 'Failed to check zip code' });
@@ -930,11 +930,9 @@ async function startRegistration(req, res) {
       city: [rules.required, rules.minLen(1), rules.maxLen(100), rules.noScript],
       country: [rules.required, rules.country],
       state: [rules.required, rules.maxLen(100), rules.regionFor(countryCode), rules.noScript],
-      // For countries without a required postal code (HK, HT, or no backend
-      // postal pattern) zip is allowed to be empty.
-      zip: countriesUtil.requiresPostalCode(countryCode)
-        ? [rules.required, rules.maxLen(20), rules.postalFor(countryCode)]
-        : [rules.maxLen(20)],
+      // Postal/ZIP is collected when available, but never gates international
+      // signup. Market availability is checked later by product surfaces.
+      zip: [rules.maxLen(20), rules.noScript],
     });
     if (errs) return res.status(400).json({ error: 'validation_failed', fields: errs });
 

@@ -175,8 +175,51 @@ describe('POST /api/auth/register/accept-terms', () => {
   });
 });
 
+// ── POST /api/auth/check-zip ──────────────────────────────────────────────────
+describe('POST /api/auth/check-zip', () => {
+  test('is non-blocking for international signup compatibility', async () => {
+    const res = await request(buildApp())
+      .post('/api/auth/check-zip')
+      .send({ zip: '' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(expect.objectContaining({
+      inMarket: true,
+      supported: true,
+      available: true,
+      zip: null,
+    }));
+  });
+});
+
 // ── POST /api/auth/register/start ─────────────────────────────────────────────
 describe('POST /api/auth/register/start', () => {
+  test('does not require postal code for signup or market availability', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 122 }] });
+
+    const res = await request(buildApp())
+      .post('/api/auth/register/start')
+      .send({
+        email: 'no-zip@example.com',
+        password: 'SecurePass123!',
+        firstName: 'No',
+        lastName: 'Zip',
+        phone: '+15551112222',
+        addressLine1: '123 Main St',
+        city: 'Springfield',
+        state: 'OH',
+        country: 'US',
+        zip: '',
+        ageConfirmed: true,
+      });
+
+    expect(res.status).toBe(200);
+    const insertArgs = mockQuery.mock.calls[1][1];
+    expect(insertArgs[6]).toBe('');
+  });
+
   test('normalizes and stores trimmed registration fields', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // check existing email
