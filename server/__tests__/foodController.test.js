@@ -148,6 +148,51 @@ describe('food controller', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_order_items/.test(sql))).toBe(true);
   });
 
+  test('rejects online checkout mode while card checkout is coming soon', async () => {
+    const res = await request(buildApp())
+      .post('/api/food/restaurants/3/orders')
+      .send({
+        fulfillmentType: 'pickup',
+        paymentMode: 'pay_now',
+        items: [{ menuItemId: 11, quantity: 1 }],
+      });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('payment_mode_coming_soon');
+    expect(res.body.error).toMatch(/coming soon/i);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('rejects discount codes on pay-at-counter orders during restaurant-credit launch', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 3,
+          business_id: 42,
+          accepts_online_orders: true,
+          currency_code: 'USD',
+          prep_time_min: 12,
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }],
+      });
+
+    const res = await request(buildApp())
+      .post('/api/food/restaurants/3/orders')
+      .send({
+        fulfillmentType: 'pickup',
+        paymentMode: 'pay_at_counter',
+        discountCode: 'FOOD10',
+        items: [{ menuItemId: 11, quantity: 1 }],
+      });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('discount_requires_wallet_credit');
+    expect(mockQuery.mock.calls.some(([sql]) => /MAX\(queue_number\)/.test(sql))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_orders/.test(sql))).toBe(false);
+  });
+
   test('replays an existing order when client_order_id matches', async () => {
     mockQuery
       .mockResolvedValueOnce({

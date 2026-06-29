@@ -70,6 +70,32 @@ CREATE INDEX IF NOT EXISTS idx_main_app_payment_disputes_user
 CREATE INDEX IF NOT EXISTS idx_main_app_payment_disputes_source
   ON main_app_payment_disputes(source_type, source_id);
 
+CREATE TABLE IF NOT EXISTS main_app_data_export_requests (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status VARCHAR(24) NOT NULL DEFAULT 'queued'
+    CHECK (status IN ('queued', 'processing', 'ready', 'failed', 'expired')),
+  requested_sections TEXT[] NOT NULL DEFAULT ARRAY[
+    'profile',
+    'jobs',
+    'food_orders',
+    'messages',
+    'reviews',
+    'payments'
+  ]::text[],
+  delivery_email VARCHAR(255),
+  download_url TEXT,
+  expires_at TIMESTAMPTZ,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_main_app_data_export_requests_user
+  ON main_app_data_export_requests(user_id, requested_at DESC);
+
 CREATE OR REPLACE FUNCTION trg_touch_main_app_money_surfaces()
 RETURNS trigger AS $$
 BEGIN
@@ -94,6 +120,15 @@ BEGIN
   ) THEN
     CREATE TRIGGER trg_main_app_payment_disputes_updated_at
       BEFORE UPDATE ON main_app_payment_disputes
+      FOR EACH ROW
+      EXECUTE FUNCTION trg_touch_main_app_money_surfaces();
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'trg_main_app_data_export_requests_updated_at'
+  ) THEN
+    CREATE TRIGGER trg_main_app_data_export_requests_updated_at
+      BEFORE UPDATE ON main_app_data_export_requests
       FOR EACH ROW
       EXECUTE FUNCTION trg_touch_main_app_money_surfaces();
   END IF;

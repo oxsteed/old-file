@@ -6,6 +6,7 @@ const { fuzzCoords } = require('../models/jobModel');
 const { withTransaction, withJobTransaction } = require('../utils/transaction');
 const { captureAuthorizedPaymentWithClient } = require('../services/paymentCaptureService');
 const { AppError } = require('../middleware/errorHandler');
+const { envFlagEnabled } = require('../middleware/featureFlags');
 const { sendNotification, sendBulkNotification } = require('../services/notificationService');
 const {
   translateRecordForRequest,
@@ -19,6 +20,10 @@ function isTier3EscrowJob(jobRow) {
   const label = String(jobRow?.job_type_label || '').toLowerCase();
   const jt = String(jobRow?.job_type || '').toLowerCase();
   return label.includes('tier3') || label.includes('escrow') || jt.includes('tier3') || jt.includes('escrow');
+}
+
+function platformJobPaymentsEnabled() {
+  return envFlagEnabled('FEATURE_PAYMENTS_ENABLED', false);
 }
 
 // Create a new job (wizard publish)
@@ -517,6 +522,14 @@ exports.assignHelper = async (req, res, next) => {
       });
     }
 
+    if (payment_method === 'oxsteed' && !platformJobPaymentsEnabled()) {
+      throw new AppError(
+        'Protected OxSteed job payments are coming soon. Use direct customer-helper payment for now.',
+        503,
+        'platform_job_payments_coming_soon'
+      );
+    }
+
     // Validate customer-chosen times if provided
     const customerStart = scheduled_start ? new Date(scheduled_start) : null;
     const customerEnd   = scheduled_end   ? new Date(scheduled_end)   : null;
@@ -585,13 +598,20 @@ exports.assignHelper = async (req, res, next) => {
 
       let helperPolicies = helperPoliciesResult.rows[0];
 
-      // If helper has no policies, create defaults (oxsteed_enabled = true)
+      // If helper has no policies, create launch defaults: direct payment enabled,
+      // platform-managed OxSteed payments disabled until protected payments launch.
       if (!helperPolicies) {
         const insertResult = await client.query(
           `INSERT INTO helper_cancellation_policies (helper_id, oxsteed_enabled, custom_enabled, custom_policy)
-           VALUES ($1, TRUE, FALSE, '{}')
+           VALUES ($1, FALSE, TRUE, $2)
            RETURNING *`,
-          [bid.helper_id]
+          [
+            bid.helper_id,
+            JSON.stringify({
+              terms: 'Customer and helper arrange payment directly. OxSteed does not collect or hold job payment yet.',
+              payment_mode: 'direct',
+            }),
+          ]
         );
         helperPolicies = insertResult.rows[0];
       }

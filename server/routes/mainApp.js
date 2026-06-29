@@ -9,6 +9,7 @@ router.get('/home', optionalAuth, ctrl.getHomeDashboard);
 router.get('/activity', authenticate, ctrl.getActivityFeed);
 router.get('/profile-summary', authenticate, ctrl.getProfileSummary);
 router.get('/business-hub', authenticate, ctrl.getBusinessHub);
+router.get('/billing', authenticate, ctrl.getBillingHub);
 router.get('/transactions', authenticate, ctrl.getTransactionHistory);
 router.get('/payouts/summary', authenticate, ctrl.getPayoutSummary);
 router.post('/payouts', authenticate, ctrl.requestPayout);
@@ -19,5 +20,8 @@ router.get('/disputes', authenticate, ctrl.getDisputeRefunds);
 router.post('/disputes', authenticate, ctrl.createDisputeRefund);
 router.get('/reviews/received', authenticate, ctrl.getReceivedReviews);
 router.get('/earnings', authenticate, ctrl.getHelperEarningsDashboard);
+router.get('/tax-documents', authenticate, ctrl.getTaxDocuments);
+router.post('/data-export', authenticate, ctrl.requestDataExport);
+router.post('/support-reports', authenticate, ctrl.createSupportReport);
 
 module.exports = router;

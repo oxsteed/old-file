@@ -208,7 +208,7 @@ describe('POST /api/jobs', () => {
 
 // ── POST /api/jobs/assign ─────────────────────────────────────────────────────
 describe('POST /api/jobs/assign', () => {
-  test('customer accepts a pending bid with OxSteed payment and assigns the job', async () => {
+  test('customer accepts a pending bid with direct payment and assigns the job', async () => {
     mockAuth(
       MOCK_USER_CUSTOMER,
       {
@@ -238,7 +238,17 @@ describe('POST /api/jobs/assign', () => {
         }],
       },
       { rows: [] },
-      { rows: [{ helper_id: 2, oxsteed_enabled: true, custom_enabled: false, custom_policy: {} }] },
+      {
+        rows: [{
+          helper_id: 2,
+          oxsteed_enabled: false,
+          custom_enabled: true,
+          custom_policy: {
+            terms: 'Customer and helper arrange payment directly. OxSteed does not collect or hold job payment yet.',
+            payment_mode: 'direct',
+          },
+        }],
+      },
       { rows: [], rowCount: 1 },
       { rows: [], rowCount: 1 },
       {
@@ -254,13 +264,27 @@ describe('POST /api/jobs/assign', () => {
     );
 
     const res = await auth(
-      request(buildApp()).post('/api/jobs/assign').send({ bid_id: 20, payment_method: 'oxsteed' })
+      request(buildApp()).post('/api/jobs/assign').send({ bid_id: 20, payment_method: 'off_platform' })
     );
 
     expect(res.status).toBe(200);
     expect(res.body.job.status).toBe('accepted');
     expect(res.body.job.assigned_helper_id).toBe(2);
     expect(res.body.bid.status).toBe('accepted');
+    const acceptBidCall = mockQuery.mock.calls.find(([sql]) => String(sql).includes('payment_method = $1'));
+    expect(acceptBidCall[1][0]).toBe('off_platform');
+    expect(JSON.parse(acceptBidCall[1][1]).type).toBe('custom');
+  });
+
+  test('rejects protected OxSteed job payment while platform job payments are coming soon', async () => {
+    mockAuth(MOCK_USER_CUSTOMER);
+
+    const res = await auth(
+      request(buildApp()).post('/api/jobs/assign').send({ bid_id: 20, payment_method: 'oxsteed' })
+    );
+
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('platform_job_payments_coming_soon');
   });
 });
 

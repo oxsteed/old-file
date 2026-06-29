@@ -1302,9 +1302,12 @@ exports.createOrder = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId || req.body.restaurantId || req.body.restaurant_id);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const paymentMode = normalizeString(req.body.paymentMode || req.body.payment_mode, 24) || 'pay_at_counter';
-    if (!['pay_at_counter', 'pay_now', 'wallet_credit'].includes(paymentMode)) {
+    if (!['pay_at_counter', 'wallet_credit'].includes(paymentMode)) {
+      if (paymentMode === 'pay_now') {
+        throw new AppError('Online card checkout is coming soon. Use restaurant credit delivery or pay at the restaurant.', 409, 'payment_mode_coming_soon');
+      }
       throw new AppError('Validation failed', 400, 'validation_failed', {
-        paymentMode: 'Must be pay_at_counter, pay_now, or wallet_credit',
+        paymentMode: 'Must be pay_at_counter or wallet_credit',
       });
     }
 
@@ -1471,6 +1474,9 @@ exports.createOrder = async (req, res, next) => {
       let promotionId = null;
       let discountSourceMetadata = null;
       if (discountCode) {
+        if (paymentMode !== 'wallet_credit') {
+          throw new AppError('Discount codes are currently limited to restaurant-credit food orders', 409, 'discount_requires_wallet_credit');
+        }
         const promoResult = await resolveFoodPromotionDiscount(client, restaurantId, discountCode, subtotal);
         if (promoResult.discountCents > 0) {
           discount = promoResult.discountCents;

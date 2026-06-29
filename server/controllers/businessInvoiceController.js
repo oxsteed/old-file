@@ -53,7 +53,7 @@ async function listInvoices(req, res) {
     const { rows } = await pool.query(`
       SELECT id, invoice_number, client_name, client_email, client_company,
              status, issue_date, due_date, subtotal, total, amount_paid,
-             invoice_tax_rate, notes, job_id, sent_at, paid_at, created_at
+             invoice_tax_rate, currency_code, notes, job_id, sent_at, paid_at, created_at
       FROM business_invoices
       WHERE business_id = $1
         ${statusClause}
@@ -120,18 +120,25 @@ async function createInvoice(req, res) {
     const invoice_number = await nextInvoiceNumber(client, access.id);
     const { subtotal, tax_amount, total } = computeTotals(line_items, invoice_tax_rate);
     const public_token = randomUUID();
+    const { rows: [businessCurrency] } = await client.query(
+      `SELECT COALESCE(NULLIF(currency_code, ''), 'USD') AS currency_code
+       FROM businesses
+       WHERE id = $1`,
+      [access.id]
+    );
+    const currency_code = businessCurrency?.currency_code || 'USD';
 
     const { rows: [inv] } = await client.query(`
       INSERT INTO business_invoices
         (user_id, business_id, invoice_number, client_name, client_email, client_company,
-         status, due_date, subtotal, invoice_tax_rate, tax_amount, total, line_items, notes, job_id, public_token)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+         status, due_date, subtotal, invoice_tax_rate, tax_amount, total, currency_code, line_items, notes, job_id, public_token)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
       RETURNING *
     `, [
       access.owner_id, access.id, invoice_number,
       client_name.trim(), client_email || null, client_company || null,
       status, due_date || null,
-      subtotal, parseFloat(invoice_tax_rate), tax_amount, total,
+      subtotal, parseFloat(invoice_tax_rate), tax_amount, total, currency_code,
       JSON.stringify(line_items), notes || null, job_id || null,
       public_token,
     ]);

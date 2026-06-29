@@ -1611,41 +1611,10 @@ exports.getPayoutSummary = async (req, res, next) => {
 
 exports.requestPayout = async (req, res, next) => {
   try {
-    const amountCents = Number(req.body.amountCents ?? req.body.amount_cents ?? 0);
-    const payoutMethod = String(req.body.payoutMethod || req.body.payout_method || 'bank_transfer');
-    const allowedMethods = new Set(['bank_transfer', 'instant_debit', 'wallet_credit']);
-    if (!Number.isFinite(amountCents) || amountCents < 1000) {
-      return res.status(400).json({ error: { code: 'minimum_payout', message: 'Minimum withdrawal is 1000 cents.' } });
-    }
-    if (!allowedMethods.has(payoutMethod)) {
-      return res.status(400).json({ error: { code: 'invalid_payout_method', message: 'Unsupported payout method.' } });
-    }
-
-    const { rows } = await pool.query(
-      `INSERT INTO main_app_payout_requests (user_id, amount_cents, currency_code, payout_method, note, metadata)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, amount_cents, currency_code, payout_method, status, note, requested_at, processed_at`,
-      [
-        req.user.id,
-        Math.round(amountCents),
-        normalizeCurrency(req.body.currencyCode || req.body.currency_code),
-        payoutMethod,
-        req.body.note || null,
-        JSON.stringify({ client: 'oxsteed-main-ios' }),
-      ]
-    );
-
-    const request = rows[0];
-    res.status(201).json({
-      request: {
-        id: String(request.id),
-        amountCents: Number(request.amount_cents || 0),
-        currencyCode: normalizeCurrency(request.currency_code),
-        payoutMethod: request.payout_method,
-        status: request.status,
-        note: request.note || null,
-        requestedAt: toIso(request.requested_at),
-        processedAt: toIso(request.processed_at),
+    res.status(503).json({
+      error: {
+        code: 'payouts_coming_soon',
+        message: 'Platform-managed withdrawals are coming soon. Restaurant credit, pay-at-restaurant, and direct user payment arrangements remain available where clearly labeled.',
       },
     });
   } catch (err) {
@@ -1709,12 +1678,13 @@ function serializePromo(row) {
   return {
     id: String(row.voucher_id || row.id || row.code),
     code: row.code,
-    title: row.title || row.description || `${row.code} discount`,
-    description: row.description || 'OxSteed voucher',
+    title: row.title || row.description || `${row.code} restaurant credit voucher`,
+    description: row.description || 'Eligible restaurant-credit food order voucher. Service booking and card checkout promo support is coming soon.',
     discountType: String(row.discount_type || '').includes('percent') ? 'percent' : 'fixed',
     discountValue: Number(row.discount_value || row.discount_amount || 0),
     expiresAt: toIso(row.expires_at || row.end_date),
-    category: row.category || 'all',
+    category: row.category || 'food',
+    applicabilityNote: 'Eligible restaurant-credit food orders only. Service booking and card checkout promo support is coming soon.',
     status: row.voucher_status || row.status || 'active',
     isUsed: ['used', 'revoked'].includes(String(row.voucher_status || '').toLowerCase()),
   };
@@ -1727,7 +1697,7 @@ exports.getPromoWallet = async (req, res, next) => {
         `SELECT id, code, COALESCE(description, code) AS title, description,
                 discount_type,
                 CASE WHEN discount_type = 'percentage' THEN discount_amount ELSE discount_amount / 100.0 END AS discount_value,
-                end_date, 'all' AS category, status
+                end_date, 'food' AS category, status
            FROM discount_codes
           WHERE status = 'active'
             AND (start_date IS NULL OR start_date <= NOW())
@@ -1739,7 +1709,7 @@ exports.getPromoWallet = async (req, res, next) => {
         `SELECT v.id AS voucher_id, v.code, v.status AS voucher_status, v.redeemed_at,
                 d.description AS title, d.description, d.discount_type,
                 CASE WHEN d.discount_type = 'percentage' THEN d.discount_amount ELSE d.discount_amount / 100.0 END AS discount_value,
-                d.end_date, 'all' AS category
+                d.end_date, 'food' AS category
            FROM main_app_user_vouchers v
            LEFT JOIN discount_codes d ON d.id = v.discount_code_id
           WHERE v.user_id = $1
@@ -1797,7 +1767,7 @@ exports.redeemPromoCode = async (req, res, next) => {
         voucher_status: inserted.rows[0].voucher_status,
         title: promo.description,
         discount_value: promo.discount_type === 'percentage' ? promo.discount_amount : Number(promo.discount_amount || 0) / 100,
-        category: 'all',
+        category: 'food',
       }),
     });
   } catch (err) {
@@ -1989,6 +1959,267 @@ exports.getHelperEarningsDashboard = async (req, res, next) => {
       })),
       weekly: weeklyResult.rows.map((row) => ({ period: toIso(row.period), amountCents: Number(row.amount_cents || 0) })),
       monthly: monthlyResult.rows.map((row) => ({ period: toIso(row.period), amountCents: Number(row.amount_cents || 0) })),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getBillingHub = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const [profileResult, payoutResult, ownerMethodsResult, payoutMethodsResult, transactions] = await Promise.allSettled([
+      pool.query(
+        `SELECT id, first_name, last_name, email, stripe_customer_id, country, preferred_currency
+           FROM users
+          WHERE id = $1
+          LIMIT 1`,
+        [userId]
+      ),
+      pool.query(
+        `SELECT
+            COALESCE(SUM(CASE WHEN payout_status IN ('earned', 'not_ready') THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS available_cents,
+            COALESCE(SUM(CASE WHEN payout_status IN ('pending', 'processing') THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS pending_cents,
+            COALESCE(SUM(CASE WHEN payout_status = 'paid' THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS paid_cents,
+            COALESCE(MAX(currency_code), 'USD') AS currency_code
+           FROM jobs
+          WHERE assigned_helper_id = $1
+            AND status = 'completed'
+            AND deleted_at IS NULL`,
+        [userId]
+      ),
+      pool.query(
+        `SELECT id, payment_type, payment_identifier, is_active, updated_at
+           FROM owner_payment_methods
+          WHERE owner_id = $1
+          ORDER BY is_active DESC, updated_at DESC`,
+        [userId]
+      ),
+      pool.query(
+        `SELECT id, method_type, status, is_primary, account_holder_name, bank_name,
+                account_last_four, routing_number_last_four, account_type, paypal_email,
+                stripe_account_id, verified_at, updated_at
+           FROM payout_methods
+          WHERE helper_id = $1
+          ORDER BY is_primary DESC, updated_at DESC`,
+        [userId]
+      ),
+      queryMainAppTransactions(userId, 8),
+    ]);
+
+    const profile = profileResult.status === 'fulfilled' ? profileResult.value.rows[0] : null;
+    const payout = payoutResult.status === 'fulfilled' ? payoutResult.value.rows[0] : {};
+    const ownerMethods = ownerMethodsResult.status === 'fulfilled' ? ownerMethodsResult.value.rows : [];
+    const payoutMethods = payoutMethodsResult.status === 'fulfilled' ? payoutMethodsResult.value.rows : [];
+
+    const savedPaymentMethods = ownerMethods.map((method) => ({
+      id: String(method.id),
+      type: method.payment_type,
+      label: method.payment_type === 'bank_transfer' ? 'Bank transfer' : method.payment_type.replace(/_/g, ' '),
+      detail: method.payment_identifier,
+      isActive: method.is_active !== false,
+      updatedAt: toIso(method.updated_at),
+    }));
+
+    const payoutMethodRows = payoutMethods.map((method) => ({
+      id: String(method.id),
+      type: method.method_type,
+      label: method.method_type === 'bank_account' ? (method.bank_name || 'Bank account') : method.method_type.replace(/_/g, ' '),
+      detail: method.method_type === 'bank_account'
+        ? `•••• ${method.account_last_four || '----'}`
+        : method.paypal_email || method.stripe_account_id || 'Connected payout method',
+      status: method.status || 'pending',
+      isPrimary: method.is_primary === true,
+      verifiedAt: toIso(method.verified_at),
+      updatedAt: toIso(method.updated_at),
+    }));
+
+    const currencyCode = normalizeCurrency(profile?.preferred_currency || payout?.currency_code);
+    res.json({
+      contract: { version: 'main-billing-v1', generatedAt: new Date().toISOString(), dataSource: 'production' },
+      profile: {
+        billingName: [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'OxSteed user',
+        billingEmail: profile?.email || '',
+        country: profile?.country || null,
+        currencyCode,
+        hasStripeCustomer: Boolean(profile?.stripe_customer_id),
+      },
+      balances: {
+        availableCents: Number(payout?.available_cents || 0),
+        pendingCents: Number(payout?.pending_cents || 0),
+        paidCents: Number(payout?.paid_cents || 0),
+        currencyCode,
+      },
+      savedPaymentMethods,
+      payoutMethods: payoutMethodRows,
+      recentTransactions: transactions.status === 'fulfilled' ? transactions.value : [],
+      capabilities: {
+        secureCardVault: false,
+        payoutRequests: false,
+        directPaymentInstructions: savedPaymentMethods.length > 0,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getTaxDocuments = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `WITH earnings AS (
+         SELECT EXTRACT(YEAR FROM COALESCE(completed_at, updated_at, created_at))::int AS tax_year,
+                COALESCE(MAX(currency_code), 'USD') AS currency_code,
+                COALESCE(SUM(COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0)), 0)::bigint AS earned_cents,
+                COUNT(*)::int AS completed_jobs,
+                MAX(COALESCE(completed_at, updated_at, created_at)) AS last_activity_at
+           FROM jobs
+          WHERE assigned_helper_id = $1
+            AND status = 'completed'
+            AND deleted_at IS NULL
+          GROUP BY 1
+       )
+       SELECT tax_year, currency_code, earned_cents, completed_jobs, last_activity_at
+         FROM earnings
+        ORDER BY tax_year DESC`,
+      [req.user.id]
+    );
+
+    const currentYear = new Date().getUTCFullYear();
+    const earnedYears = new Set(rows.map((row) => Number(row.tax_year)));
+    const yearRows = [
+      ...rows,
+      ...[currentYear, currentYear - 1].filter((year) => !earnedYears.has(year)).map((year) => ({
+        tax_year: year,
+        currency_code: 'USD',
+        earned_cents: 0,
+        completed_jobs: 0,
+        last_activity_at: null,
+      })),
+    ].sort((a, b) => Number(b.tax_year) - Number(a.tax_year));
+
+    const documents = yearRows.flatMap((row) => {
+      const earnedCents = Number(row.earned_cents || 0);
+      const year = Number(row.tax_year);
+      const base = {
+        year,
+        earnedCents,
+        currencyCode: normalizeCurrency(row.currency_code),
+        completedJobs: Number(row.completed_jobs || 0),
+        lastActivityAt: toIso(row.last_activity_at),
+      };
+      const annualSummary = {
+        id: `summary-${year}`,
+        title: 'Annual Earnings Summary',
+        type: 'annual_summary',
+        status: earnedCents > 0 ? 'available' : 'not_available',
+        downloadAvailable: earnedCents > 0,
+        ...base,
+      };
+      const form1099 = {
+        id: `1099-${year}`,
+        title: '1099 Tax Form',
+        type: 'form_1099',
+        status: earnedCents >= 60000 ? 'available' : 'not_required',
+        downloadAvailable: earnedCents >= 60000,
+        ...base,
+      };
+      return [annualSummary, form1099];
+    });
+
+    res.json({
+      contract: { version: 'main-tax-documents-v1', generatedAt: new Date().toISOString(), dataSource: 'production' },
+      thresholdCents: 60000,
+      documents,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.requestDataExport = async (req, res, next) => {
+  try {
+    const sections = Array.isArray(req.body.sections) && req.body.sections.length
+      ? req.body.sections.map((section) => String(section).trim()).filter(Boolean)
+      : ['profile', 'jobs', 'food_orders', 'messages', 'reviews', 'payments'];
+    const deliveryEmail = String(req.body.deliveryEmail || req.body.delivery_email || req.user.email || '').trim() || null;
+
+    const { rows } = await pool.query(
+      `INSERT INTO main_app_data_export_requests
+        (user_id, requested_sections, delivery_email, metadata)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, status, requested_sections, delivery_email, requested_at, completed_at, expires_at, download_url`,
+      [req.user.id, sections, deliveryEmail, JSON.stringify({ client: 'oxsteed-main-ios' })]
+    );
+
+    const request = rows[0];
+    res.status(201).json({
+      exportRequest: {
+        id: String(request.id),
+        status: request.status,
+        sections: request.requested_sections || [],
+        deliveryEmail: request.delivery_email || null,
+        requestedAt: toIso(request.requested_at),
+        completedAt: toIso(request.completed_at),
+        expiresAt: toIso(request.expires_at),
+        downloadUrl: request.download_url || null,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createSupportReport = async (req, res, next) => {
+  try {
+    const category = String(req.body.category || 'general').trim();
+    const details = String(req.body.details || req.body.description || '').trim();
+    if (!details) {
+      return res.status(400).json({ error: { code: 'missing_report_details', message: 'Report details are required.' } });
+    }
+
+    const user = await pool.query(
+      `SELECT first_name, last_name, email FROM users WHERE id = $1 LIMIT 1`,
+      [req.user.id]
+    );
+    const profile = user.rows[0] || {};
+    const name = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'OxSteed user';
+    const email = profile.email || req.user.email || 'support@oxsteed.com';
+    const priority = /payment|safety|fraud|charge|refund/i.test(category) ? 'high' : 'normal';
+    const subject = `OxSteed Main report: ${category}`;
+
+    const ticketResult = await pool.query(
+      `INSERT INTO support_tickets
+        (user_id, name, email, subject, category, priority, source, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, 'direct', $7)
+       RETURNING id, ticket_number, status, priority, created_at`,
+      [
+        req.user.id,
+        name,
+        email,
+        subject,
+        category.toLowerCase().replace(/\s+/g, '_'),
+        priority,
+        JSON.stringify({ app: 'oxsteed-main-ios', category }),
+      ]
+    );
+    const ticket = ticketResult.rows[0];
+
+    await pool.query(
+      `INSERT INTO support_messages
+        (ticket_id, sender_id, sender_name, sender_email, content, is_internal, is_from_admin)
+       VALUES ($1, $2, $3, $4, $5, FALSE, FALSE)`,
+      [ticket.id, req.user.id, name, email, details]
+    );
+
+    res.status(201).json({
+      ticket: {
+        id: String(ticket.id),
+        ticketNumber: Number(ticket.ticket_number),
+        status: ticket.status,
+        priority: ticket.priority,
+        createdAt: toIso(ticket.created_at),
+      },
     });
   } catch (err) {
     next(err);
