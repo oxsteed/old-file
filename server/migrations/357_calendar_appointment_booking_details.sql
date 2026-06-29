@@ -22,6 +22,30 @@ ALTER TABLE appointments
   ADD COLUMN IF NOT EXISTS attachment_count INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS booking_metadata JSONB NOT NULL DEFAULT '{}'::jsonb;
 
+-- Migration 193 installed an overlap trigger using an older appointment schema
+-- (`scheduled_start_at` / `ends_at`). Any UPDATE on appointments can fire that
+-- function and crash deploys. Replace it here with the current schema names
+-- before the normalization backfill below updates existing rows.
+DROP TRIGGER IF EXISTS trigger_prevent_overlap ON appointments;
+
+CREATE OR REPLACE FUNCTION check_appointment_overlap()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status IN ('requested', 'confirmed', 'in_progress') AND EXISTS(
+    SELECT 1
+      FROM appointments a
+     WHERE a.helper_id = NEW.helper_id
+       AND a.id IS DISTINCT FROM NEW.id
+       AND a.status IN ('requested', 'confirmed', 'in_progress')
+       AND NEW.scheduled_start_time < a.scheduled_end_time
+       AND NEW.scheduled_end_time > a.scheduled_start_time
+  ) THEN
+    RAISE EXCEPTION 'Helper unavailable at this time - slot already booked';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 UPDATE appointments
    SET currency_code = COALESCE(NULLIF(currency_code, ''), 'USD'),
        booking_urgency = COALESCE(NULLIF(booking_urgency, ''), 'normal'),
@@ -73,6 +97,13 @@ BEGIN
     ALTER TABLE appointments
       ADD CONSTRAINT appointments_payment_expectation_check
       CHECK (payment_expectation IN ('direct_to_helper','restaurant_credit','platform_checkout_pending','paid_off_platform'));
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_prevent_overlap') THEN
+    CREATE TRIGGER trigger_prevent_overlap
+      BEFORE INSERT OR UPDATE ON appointments
+      FOR EACH ROW
+      EXECUTE FUNCTION check_appointment_overlap();
   END IF;
 
   -- business_services has legacy schema drift in older environments. Some
