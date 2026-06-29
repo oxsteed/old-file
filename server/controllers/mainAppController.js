@@ -1157,7 +1157,7 @@ async function queryActivityBids(userId, limit) {
       eventAt: toIso(row.created_at),
       isUnread: false,
       actionLabel: 'View Bid',
-      actionUrl: `/jobs/${row.job_id || ''}`,
+      actionUrl: `/bids/${row.id}`,
       canMarkRead: false,
       canDelete: false,
     };

@@ -119,6 +119,48 @@ describe('GET /api/bids/me', () => {
   });
 });
 
+// ── GET /api/bids/:id ─────────────────────────────────────────────────────────
+describe('GET /api/bids/:id', () => {
+  test('returns a single bid for the helper who placed it', async () => {
+    mockAuth({
+      rows: [{
+        id: 20,
+        job_id: 10,
+        helper_id: HELPER_ID,
+        client_id: 1,
+        amount: '150',
+        status: 'pending',
+        job_title: 'Fix bathtub',
+        helper_name: 'Bob Fix',
+      }],
+    });
+    const res = await auth(request(buildApp()).get('/api/bids/20'));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      id: 20,
+      job_id: 10,
+      helper_id: HELPER_ID,
+      job_title: 'Fix bathtub',
+    });
+    expect(res.body.client_id).toBeUndefined();
+  });
+
+  test('returns 403 when the user is not a party to the bid', async () => {
+    mockAuth({
+      rows: [{
+        id: 20,
+        job_id: 10,
+        helper_id: 99,
+        client_id: 1,
+        amount: '150',
+        status: 'pending',
+      }],
+    });
+    const res = await auth(request(buildApp()).get('/api/bids/20'));
+    expect(res.status).toBe(403);
+  });
+});
+
 // ── PUT /api/bids/:id ─────────────────────────────────────────────────────────
 describe('PUT /api/bids/:id', () => {
   test('returns 404 when bid not found', async () => {

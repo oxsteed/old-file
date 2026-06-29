@@ -5,7 +5,7 @@ const { generalLimiter } = require('../middleware/rateLimiter');
 const { requireOnboardingStep, requireTier } = require('../middleware/helperOnboardingMiddleware');
 const checkRestrictions = require('../middleware/checkRestrictions');
 const { errorHandler } = require('../middleware/errorHandler');
-const { createBid, getJobBids, getMyBids, updateBid, withdrawBid, getRecentBids } = require('../controllers/bidController');
+const { createBid, getBid, getJobBids, getMyBids, updateBid, withdrawBid, getRecentBids } = require('../controllers/bidController');
 
 // Public route - no auth required (for homepage)
 router.get('/recent', generalLimiter, getRecentBids);
@@ -13,6 +13,7 @@ router.get('/recent', generalLimiter, getRecentBids);
 // Any authenticated user can view bids
 router.get('/me', authenticate, getMyBids);
 router.get('/job/:jobId', authenticate, getJobBids);
+router.get('/:id', authenticate, getBid);
 router.put('/:id', authenticate, updateBid);
 router.post('/:id/withdraw', authenticate, withdrawBid);
 

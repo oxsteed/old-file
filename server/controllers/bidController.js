@@ -4,6 +4,12 @@ const { withTransaction } = require('../utils/transaction');
 const { AppError } = require('../middleware/errorHandler');
 const { sendNotification } = require('../services/notificationService');
 
+function canViewBid(user, bid) {
+  if (!user || !bid) return false;
+  if (['admin', 'super_admin'].includes(user.role)) return true;
+  return String(bid.helper_id) === String(user.id) || String(bid.client_id) === String(user.id);
+}
+
 // Create a bid on a job
 exports.createBid = async (req, res, next) => {
   try {
@@ -97,7 +103,7 @@ exports.createBid = async (req, res, next) => {
             amount: Number(result.amount).toFixed(2),
             job_title: title,
           },
-          action_url: `/jobs/${result.job_id}`,
+          action_url: `/bids/${result.id}`,
         });
       }
     } catch (notifErr) {
@@ -148,6 +154,56 @@ exports.getJobBids = async (req, res, next) => {
       paginationParams
     );
     res.json(result.rows);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Get a single bid with its job/helper context.
+exports.getBid = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT b.id,
+              b.job_id,
+              b.helper_id,
+              b.amount,
+              b.amount_cents,
+              COALESCE(b.currency_code, j.currency_code, 'USD') AS currency_code,
+              b.message,
+              b.status,
+              b.eta_hours,
+              b.created_at,
+              b.updated_at,
+              j.client_id,
+              j.title AS job_title,
+              j.category_name AS job_category,
+              j.status AS job_status,
+              j.location_city,
+              j.location_state,
+              COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), 'Helper') AS helper_name,
+              hp.profile_photo_url AS helper_avatar,
+              hp.avg_rating AS helper_rating
+         FROM bids b
+         JOIN jobs j ON j.id = b.job_id
+         JOIN users u ON u.id = b.helper_id
+         LEFT JOIN helper_profiles hp ON hp.user_id = b.helper_id
+        WHERE b.id = $1
+          AND j.deleted_at IS NULL
+        LIMIT 1`,
+      [req.params.id]
+    );
+
+    const bid = rows[0];
+    if (!bid) {
+      throw new AppError('Bid not found', 404, 'bid_not_found');
+    }
+
+    if (!canViewBid(req.user, bid)) {
+      throw new AppError('Not authorized to view this bid', 403, 'forbidden');
+    }
+
+    delete bid.client_id;
+    res.json(bid);
   } catch (err) {
     next(err);
   }
