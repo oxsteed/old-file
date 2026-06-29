@@ -26,7 +26,7 @@ CREATE INDEX IF NOT EXISTS idx_main_app_payout_requests_user
 CREATE TABLE IF NOT EXISTS main_app_user_vouchers (
   id BIGSERIAL PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  discount_code_id BIGINT REFERENCES discount_codes(id) ON DELETE SET NULL,
+  discount_code_id BIGINT,
   code VARCHAR(50) NOT NULL,
   source VARCHAR(32) NOT NULL DEFAULT 'manual'
     CHECK (source IN ('manual', 'referral', 'admin', 'campaign', 'loyalty')),
@@ -40,6 +40,20 @@ CREATE TABLE IF NOT EXISTS main_app_user_vouchers (
 
 CREATE INDEX IF NOT EXISTS idx_main_app_user_vouchers_user
   ON main_app_user_vouchers(user_id, status, redeemed_at DESC);
+
+DO $$
+BEGIN
+  IF to_regclass('public.discount_codes') IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1
+       FROM pg_constraint
+       WHERE conname = 'main_app_user_vouchers_discount_code_id_fkey'
+     ) THEN
+    ALTER TABLE main_app_user_vouchers
+      ADD CONSTRAINT main_app_user_vouchers_discount_code_id_fkey
+      FOREIGN KEY (discount_code_id) REFERENCES discount_codes(id) ON DELETE SET NULL;
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS main_app_payment_disputes (
   id BIGSERIAL PRIMARY KEY,
