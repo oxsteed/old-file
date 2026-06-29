@@ -23,6 +23,10 @@ const { sendSuccess, sendError } = require('../utils/apiError');
 
 const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
 const APPOINTMENT_STATUSES = ['requested', 'confirmed', 'in_progress', 'completed', 'cancelled', 'rescheduled'];
+const BOOKING_URGENCIES = ['normal', 'soon', 'urgent'];
+const RECURRENCE_RULES = ['one_time', 'weekly', 'biweekly', 'monthly'];
+const COMMUNICATION_CHANNELS = ['in_app', 'phone', 'sms', 'email'];
+const PAYMENT_EXPECTATIONS = ['direct_to_helper', 'restaurant_credit', 'platform_checkout_pending', 'paid_off_platform'];
 const REMINDER_OFFSETS_MINUTES = {
   reminder_24h: -24 * 60,
   reminder_same_day: -6 * 60,
@@ -40,6 +44,41 @@ function clampInt(value, fallback, min, max) {
   const n = parseInt(value, 10);
   if (Number.isNaN(n)) return fallback;
   return Math.max(min, Math.min(max, n));
+}
+
+function nullableTrim(value, max = null) {
+  if (value === undefined || value === null) return null;
+  const text = String(value).trim();
+  if (!text) return null;
+  return max ? text.slice(0, max) : text;
+}
+
+function parseNullableInt(value, field, errors, { min = null, max = null } = {}) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isInteger(n)) {
+    errors[field] = 'Must be an integer';
+    return null;
+  }
+  if (min !== null && n < min) errors[field] = `Must be at least ${min}`;
+  if (max !== null && n > max) errors[field] = `Must be at most ${max}`;
+  return n;
+}
+
+function parseEnum(value, fallback, allowed, field, errors) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const normalized = String(value).trim().toLowerCase();
+  if (!allowed.includes(normalized)) {
+    errors[field] = `Must be one of: ${allowed.join(', ')}`;
+    return fallback;
+  }
+  return normalized;
+}
+
+function parseBool(value) {
+  if (value === true || value === false) return value;
+  if (value === undefined || value === null || value === '') return false;
+  return ['true', '1', 'yes', 'y'].includes(String(value).trim().toLowerCase());
 }
 
 function isUuid(v) {
@@ -70,6 +109,22 @@ exports.createAppointment = async (req, res, next) => {
       location_lng = null,
       estimated_duration_minutes = 60,
       customer_notes = null,
+      service_package_id = null,
+      service_package_name = null,
+      service_category = null,
+      service_price_cents = null,
+      currency_code = 'USD',
+      booking_urgency = 'normal',
+      recurrence_rule = 'one_time',
+      preferred_communication_channel = 'in_app',
+      phone_contact_allowed = false,
+      address_unit = null,
+      access_instructions = null,
+      parking_notes = null,
+      promo_code = null,
+      payment_expectation = 'direct_to_helper',
+      attachment_count = 0,
+      booking_metadata = null,
     } = req.body || {};
 
     const errors = validate(req.body || {}, {
@@ -80,8 +135,43 @@ exports.createAppointment = async (req, res, next) => {
       estimated_duration_minutes: [rules.integer],
       customer_notes:      [rules.maxLen(2000), rules.noScript],
       location_address:    [rules.maxLen(500), rules.noScript],
+      service_package_name:[rules.maxLen(255), rules.noScript],
+      service_category:    [rules.maxLen(100), rules.noScript],
+      address_unit:        [rules.maxLen(120), rules.noScript],
+      access_instructions: [rules.maxLen(2000), rules.noScript],
+      parking_notes:       [rules.maxLen(1000), rules.noScript],
+      promo_code:          [rules.maxLen(80), rules.noScript],
     });
     if (errors) throw new AppError('Validation failed', 400, 'validation_failed', errors);
+
+    const fieldErrors = {};
+    const normalizedServicePackageId = parseNullableInt(
+      service_package_id, 'service_package_id', fieldErrors, { min: 1 }
+    );
+    const normalizedServicePriceCents = parseNullableInt(
+      service_price_cents, 'service_price_cents', fieldErrors, { min: 0 }
+    );
+    const normalizedAttachmentCount = parseNullableInt(
+      attachment_count, 'attachment_count', fieldErrors, { min: 0, max: 50 }
+    ) ?? 0;
+    const normalizedCurrencyCode = String(currency_code || 'USD').trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(normalizedCurrencyCode)) {
+      fieldErrors.currency_code = 'Must be a 3-letter ISO currency code';
+    }
+    const normalizedUrgency = parseEnum(booking_urgency, 'normal', BOOKING_URGENCIES, 'booking_urgency', fieldErrors);
+    const normalizedRecurrence = parseEnum(recurrence_rule, 'one_time', RECURRENCE_RULES, 'recurrence_rule', fieldErrors);
+    const normalizedCommunication = parseEnum(
+      preferred_communication_channel, 'in_app', COMMUNICATION_CHANNELS, 'preferred_communication_channel', fieldErrors
+    );
+    const normalizedPaymentExpectation = parseEnum(
+      payment_expectation, 'direct_to_helper', PAYMENT_EXPECTATIONS, 'payment_expectation', fieldErrors
+    );
+    const normalizedMetadata = (
+      booking_metadata && typeof booking_metadata === 'object' && !Array.isArray(booking_metadata)
+    ) ? booking_metadata : {};
+    if (Object.keys(fieldErrors).length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fieldErrors);
+    }
 
     if (!isUuid(helper_id)) {
       throw new AppError('helper_id must be a valid UUID', 400, 'validation_failed', { helper_id: 'Invalid UUID format' });
@@ -167,12 +257,26 @@ exports.createAppointment = async (req, res, next) => {
             customer_id, helper_id, job_id, service_description,
             scheduled_start_time, scheduled_end_time, estimated_duration_minutes,
             location_address, location_lat, location_lng,
-            customer_notes, status, created_by_user_id
+            customer_notes,
+            service_package_id, service_package_name, service_category,
+            service_price_cents, currency_code, booking_urgency,
+            recurrence_rule, preferred_communication_channel,
+            phone_contact_allowed, address_unit, access_instructions,
+            parking_notes, promo_code, payment_expectation,
+            attachment_count, booking_metadata,
+            status, created_by_user_id
          ) VALUES (
             $1, $2, $3, $4,
             $5, $6, $7,
             $8, $9, $10,
-            $11, 'requested', $1
+            $11,
+            $12, $13, $14,
+            $15, $16, $17,
+            $18, $19,
+            $20, $21, $22,
+            $23, $24, $25,
+            $26, $27::jsonb,
+            'requested', $1
          )
          RETURNING *`,
         [
@@ -180,9 +284,71 @@ exports.createAppointment = async (req, res, next) => {
           start, end, duration,
           location_address, location_lat, location_lng,
           customer_notes,
+          normalizedServicePackageId,
+          nullableTrim(service_package_name, 255),
+          nullableTrim(service_category, 100),
+          normalizedServicePriceCents,
+          normalizedCurrencyCode,
+          normalizedUrgency,
+          normalizedRecurrence,
+          normalizedCommunication,
+          parseBool(phone_contact_allowed),
+          nullableTrim(address_unit, 120),
+          nullableTrim(access_instructions, 2000),
+          nullableTrim(parking_notes, 1000),
+          nullableTrim(promo_code, 80),
+          normalizedPaymentExpectation,
+          normalizedAttachmentCount,
+          JSON.stringify(normalizedMetadata),
         ]
       );
       const appointment = apptInsert.rows[0];
+
+      if (normalizedRecurrence !== 'one_time') {
+        await client.query(
+          `INSERT INTO appointment_recurrence_rules
+             (appointment_id, recurrence_rule, starts_at, next_occurrence_at, metadata)
+           VALUES ($1, $2, $3, $3, $4::jsonb)
+           ON CONFLICT (appointment_id) DO UPDATE
+             SET recurrence_rule = EXCLUDED.recurrence_rule,
+                 starts_at = EXCLUDED.starts_at,
+                 next_occurrence_at = EXCLUDED.next_occurrence_at,
+                 metadata = EXCLUDED.metadata,
+                 updated_at = now()`,
+          [
+            appointment.id,
+            normalizedRecurrence,
+            start,
+            JSON.stringify({ source: 'appointment_create', first_appointment_id: appointment.id }),
+          ]
+        );
+      }
+
+      await client.query(
+        `INSERT INTO appointment_payment_agreements
+           (appointment_id, payer_user_id, payee_user_id, payment_expectation,
+            quoted_amount_cents, currency_code, status, metadata)
+         VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7::jsonb)
+         ON CONFLICT (appointment_id) DO UPDATE
+           SET payment_expectation = EXCLUDED.payment_expectation,
+               quoted_amount_cents = EXCLUDED.quoted_amount_cents,
+               currency_code = EXCLUDED.currency_code,
+               metadata = EXCLUDED.metadata,
+               updated_at = now()`,
+        [
+          appointment.id,
+          customer_id,
+          helper_id,
+          normalizedPaymentExpectation,
+          normalizedServicePriceCents,
+          normalizedCurrencyCode,
+          JSON.stringify({
+            source: 'appointment_create',
+            service_package_id: normalizedServicePackageId,
+            service_package_name: nullableTrim(service_package_name, 255),
+          }),
+        ]
+      );
 
       // In-app notification for the helper (immediate)
       await client.query(
@@ -195,7 +361,13 @@ exports.createAppointment = async (req, res, next) => {
       await client.query(
         `INSERT INTO calendar_audit_log (user_id, appointment_id, action, details)
          VALUES ($1, $2, 'appointment_created', $3::jsonb)`,
-        [customer_id, appointment.id, JSON.stringify({ service: service_description })]
+        [customer_id, appointment.id, JSON.stringify({
+          service: service_description,
+          service_package_id: normalizedServicePackageId,
+          booking_urgency: normalizedUrgency,
+          recurrence_rule: normalizedRecurrence,
+          payment_expectation: normalizedPaymentExpectation,
+        })]
       );
 
       return appointment;

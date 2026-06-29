@@ -3398,3 +3398,139 @@ exports.updateRestaurantLocation = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.createRestaurantCustomerMessage = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) {
+      throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    }
+
+    const subject = normalizeString(req.body.subject, 160);
+    const message = normalizeString(req.body.message || req.body.body, 2500);
+    if (!message) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        message: 'Message is required',
+      });
+    }
+
+    const { rows: [restaurant] } = await pool.query(
+      `SELECT id, business_id, owner_user_id, display_name, status
+         FROM food_restaurants
+        WHERE id = $1
+          AND status IN ('active', 'paused', 'draft')`,
+      [restaurantId]
+    );
+    if (!restaurant) {
+      throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    }
+
+    const { rows: [record] } = await pool.query(
+      `INSERT INTO food_restaurant_customer_messages
+         (restaurant_id, business_id, customer_user_id, subject, message, metadata)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       RETURNING id, restaurant_id, business_id, subject, message, status, created_at`,
+      [
+        restaurant.id,
+        restaurant.business_id,
+        req.user.id,
+        subject || `Question for ${restaurant.display_name}`,
+        message,
+        JSON.stringify({
+          source: 'oxsteed_main_ios',
+          userAgent: req.get('user-agent') || null,
+        }),
+      ]
+    );
+
+    if (restaurant.owner_user_id && restaurant.owner_user_id !== req.user.id) {
+      notificationService.sendNotification({
+        userId: restaurant.owner_user_id,
+        type: 'food_restaurant_message',
+        title: 'New restaurant message',
+        body: `A customer sent a message to ${restaurant.display_name}.`,
+        data: {
+          restaurantId: String(restaurant.id),
+          businessId: String(restaurant.business_id),
+          messageId: String(record.id),
+        },
+        action_url: `/business/${restaurant.business_id}`,
+      }).catch((err) => {
+        logger.warn('restaurant customer message notification failed', {
+          restaurantId: restaurant.id,
+          messageId: record.id,
+          error: err && err.message,
+        });
+      });
+    }
+
+    res.status(201).json({ message: record });
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      return next(new AppError('Restaurant messaging is not available yet', 503, 'restaurant_messaging_unavailable'));
+    }
+    next(err);
+  }
+};
+
+exports.createRestaurantReport = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) {
+      throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    }
+
+    const allowedReasons = new Set([
+      'menu_inaccurate',
+      'wrong_hours_location',
+      'food_safety',
+      'fraud',
+      'inappropriate',
+      'order_issue',
+      'other',
+    ]);
+    const reason = normalizeString(req.body.reason, 40) || 'other';
+    if (!allowedReasons.has(reason)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        reason: 'Invalid report reason',
+      });
+    }
+    const description = normalizeString(req.body.description || req.body.message, 2500);
+
+    const { rows: [restaurant] } = await pool.query(
+      `SELECT id, business_id, display_name, status
+         FROM food_restaurants
+        WHERE id = $1
+          AND status IN ('active', 'paused', 'draft', 'suspended')`,
+      [restaurantId]
+    );
+    if (!restaurant) {
+      throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    }
+
+    const { rows: [record] } = await pool.query(
+      `INSERT INTO food_restaurant_reports
+         (restaurant_id, business_id, reporter_user_id, reason, description, metadata)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       RETURNING id, restaurant_id, business_id, reason, description, status, created_at`,
+      [
+        restaurant.id,
+        restaurant.business_id,
+        req.user.id,
+        reason,
+        description,
+        JSON.stringify({
+          source: 'oxsteed_main_ios',
+          userAgent: req.get('user-agent') || null,
+        }),
+      ]
+    );
+
+    res.status(201).json({ report: record });
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      return next(new AppError('Restaurant reporting is not available yet', 503, 'restaurant_reporting_unavailable'));
+    }
+    next(err);
+  }
+};
