@@ -867,7 +867,7 @@ exports.listMarkets = async (req, res, next) => {
     const { rows } = await pool.query(
       `SELECT NULLIF(trim(fr.address_country), '') AS address_country,
               NULLIF(trim(fr.address_city), '') AS address_city,
-              COALESCE(NULLIF(trim(fr.currency_code), ''), 'USD') AS currency_code,
+              COALESCE(MIN(NULLIF(trim(fr.currency_code), '')), 'USD') AS currency_code,
               COUNT(*)::int AS restaurant_count
          FROM food_restaurants fr
         WHERE fr.status = 'active'

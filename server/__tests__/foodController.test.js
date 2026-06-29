@@ -84,6 +84,7 @@ describe('food controller', () => {
       },
     ]);
     expect(mockQuery.mock.calls[0][0]).toMatch(/GROUP BY fr\.address_country, fr\.address_city/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/MIN\(NULLIF\(trim\(fr\.currency_code\), ''\)\)/);
   });
 
   test('creates a restaurant and backing business in one transaction', async () => {

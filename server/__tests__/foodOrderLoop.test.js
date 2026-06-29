@@ -360,6 +360,7 @@ describe('food order loop E2E (F7)', () => {
     const app = buildApp();
     mockQuery
       .mockResolvedValueOnce(mockRestaurantAccess())
+      .mockResolvedValueOnce({ rows: [{ fulfillment_type: 'pickup' }] })
       .mockResolvedValueOnce({ rows: [orderRow({ status: 'completed' })] });
 
     const res = await request(app)
