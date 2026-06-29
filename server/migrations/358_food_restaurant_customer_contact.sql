@@ -2,6 +2,14 @@
 -- Separates normal customer-to-restaurant messages from trust/support reports
 -- so the mobile app can route Message, Report, and Ask Support differently.
 
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE TABLE IF NOT EXISTS food_restaurant_customer_messages (
   id BIGSERIAL PRIMARY KEY,
   restaurant_id BIGINT NOT NULL REFERENCES food_restaurants(id) ON DELETE CASCADE,

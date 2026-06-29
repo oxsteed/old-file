@@ -5,7 +5,7 @@
 -- do not have to be packed into customer_notes forever.
 
 ALTER TABLE appointments
-  ADD COLUMN IF NOT EXISTS service_package_id INTEGER REFERENCES business_services(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS service_package_id INTEGER,
   ADD COLUMN IF NOT EXISTS service_package_name VARCHAR(255),
   ADD COLUMN IF NOT EXISTS service_category VARCHAR(100),
   ADD COLUMN IF NOT EXISTS service_price_cents INTEGER,
@@ -73,6 +73,37 @@ BEGIN
     ALTER TABLE appointments
       ADD CONSTRAINT appointments_payment_expectation_check
       CHECK (payment_expectation IN ('direct_to_helper','restaurant_credit','platform_checkout_pending','paid_off_platform'));
+  END IF;
+
+  -- business_services has legacy schema drift in older environments. Some
+  -- drafts used UUID ids while the current production contract uses INTEGER
+  -- ids. Add the FK only when the live table type can support it; otherwise
+  -- keep the durable service_package_id value without blocking deploy boot.
+  IF to_regclass('public.business_services') IS NOT NULL
+     AND EXISTS (
+       SELECT 1
+         FROM pg_attribute a
+        WHERE a.attrelid = 'public.business_services'::regclass
+          AND a.attname = 'id'
+          AND a.atttypid = 'integer'::regtype
+     )
+     AND EXISTS (
+       SELECT 1
+         FROM pg_attribute a
+        WHERE a.attrelid = 'public.appointments'::regclass
+          AND a.attname = 'service_package_id'
+          AND a.atttypid = 'integer'::regtype
+     )
+     AND NOT EXISTS (
+       SELECT 1
+         FROM pg_constraint
+        WHERE conname = 'appointments_service_package_id_fkey'
+     ) THEN
+    ALTER TABLE appointments
+      ADD CONSTRAINT appointments_service_package_id_fkey
+      FOREIGN KEY (service_package_id)
+      REFERENCES business_services(id)
+      ON DELETE SET NULL;
   END IF;
 END $$;
 
