@@ -1,6 +1,8 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
+jest.mock('../services/bookingSlotEngine', () => ({ computeSlots: jest.fn() }));
+const slotEngine = require('../services/bookingSlotEngine');
 const ctrl = require('../controllers/mainAppController');
 
 function mockResponse() {
@@ -10,10 +12,37 @@ function mockResponse() {
   return res;
 }
 
-beforeEach(() => resetMocks());
+beforeEach(() => {
+  resetMocks();
+  jest.clearAllMocks();
+});
 
 describe('main app payout guardrails', () => {
-  test('blocks platform-managed payout requests while withdrawals are coming soon', async () => {
+  test('records pending payout requests without claiming payout completion', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          earned_cents: 20000,
+          job_pending_cents: 0,
+          paid_cents: 0,
+          requested_cents: 2500,
+          available_cents: 17500,
+          currency_code: 'USD',
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 101,
+          amount_cents: 12500,
+          currency_code: 'USD',
+          payout_method: 'bank_transfer',
+          status: 'pending',
+          note: null,
+          requested_at: new Date('2026-06-30T12:00:00Z'),
+          processed_at: null,
+          cancelled_at: null,
+        }],
+      });
     const req = {
       user: { id: '00000000-0000-4000-8000-000000000999' },
       body: {
@@ -27,14 +56,98 @@ describe('main app payout guardrails', () => {
 
     await ctrl.requestPayout(req, res, next);
 
-    expect(res.status).toHaveBeenCalledWith(503);
-    expect(res.json).toHaveBeenCalledWith({
-      error: {
-        code: 'payouts_coming_soon',
-        message: expect.stringContaining('Platform-managed withdrawals are coming soon'),
-      },
+    expect(res.status).toHaveBeenCalledWith(202);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      contract: expect.objectContaining({ moneyMoved: false }),
+      request: expect.objectContaining({
+        amountCents: 12500,
+        status: 'pending',
+      }),
+      message: expect.stringContaining('No payout has been completed'),
+    }));
+    expect(mockQuery.mock.calls[1][0]).toMatch(/INSERT INTO main_app_payout_requests/);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test('rejects payout requests above available completed-job balance', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        available_cents: 500,
+        currency_code: 'USD',
+      }],
     });
-    expect(mockQuery).not.toHaveBeenCalled();
+    const req = {
+      user: { id: '00000000-0000-4000-8000-000000000999' },
+      body: { amountCents: 12500, payoutMethod: 'bank_transfer' },
+    };
+    const res = mockResponse();
+    const next = jest.fn();
+
+    await ctrl.requestPayout(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      error: expect.objectContaining({ code: 'insufficient_withdrawable_balance' }),
+    }));
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(next).not.toHaveBeenCalled();
+  });
+});
+
+describe('main app protected payment request records', () => {
+  test('records payment requests without creating charges or settlement', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 501,
+        source_type: 'service_booking',
+        source_id: 'booking-1',
+        payer_id: '00000000-0000-4000-8000-000000000111',
+        payee_id: '00000000-0000-4000-8000-000000000999',
+        business_id: 7,
+        amount_cents: 9900,
+        currency_code: 'USD',
+        status: 'requested',
+        settlement_mode: 'external_pending',
+        external_provider: null,
+        processor_payment_id: null,
+        description: 'Demo-safe service deposit',
+        idempotency_key: 'idem-1',
+        expires_at: null,
+        created_at: new Date('2026-06-30T12:00:00Z'),
+        updated_at: new Date('2026-06-30T12:00:00Z'),
+      }],
+    });
+    const req = {
+      get: jest.fn((name) => (name === 'Idempotency-Key' ? 'idem-1' : undefined)),
+      user: { id: '00000000-0000-4000-8000-000000000999' },
+      body: {
+        sourceType: 'service_booking',
+        sourceId: 'booking-1',
+        payerId: '00000000-0000-4000-8000-000000000111',
+        businessId: 7,
+        amountCents: 9900,
+        description: 'Demo-safe service deposit',
+      },
+    };
+    const res = mockResponse();
+    const next = jest.fn();
+
+    await ctrl.createPaymentRequest(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(202);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      contract: expect.objectContaining({
+        moneyMoved: false,
+        processorPaymentCreated: false,
+      }),
+      paymentRequest: expect.objectContaining({
+        amountCents: 9900,
+        status: 'requested',
+        settlementMode: 'external_pending',
+      }),
+      message: expect.stringContaining('No card charge'),
+    }));
+    expect(mockQuery.mock.calls[0][0]).toMatch(/INSERT INTO main_app_payment_requests/);
     expect(next).not.toHaveBeenCalled();
   });
 });
@@ -63,11 +176,85 @@ describe('main app promo launch scope', () => {
     await ctrl.getPromoWallet(req, res, next);
 
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      compatibility: expect.objectContaining({
+        serviceBookingCheckout: 'coming_soon',
+        jobProtectedPayments: 'coming_soon',
+      }),
       promos: [expect.objectContaining({
         code: 'FOOD10',
         category: 'food',
         applicabilityNote: expect.stringContaining('restaurant-credit food orders'),
+        supportedScopes: ['food.restaurant_credit'],
       })],
+    }));
+    expect(next).not.toHaveBeenCalled();
+  });
+});
+
+describe('main app service fallback-data contracts', () => {
+  test('returns public service packages from backend package table', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 44,
+        business_id: 12,
+        name: 'Spring tune-up',
+        description: 'Seasonal maintenance package',
+        service_id: 8,
+        services: [{ serviceId: '8', quantity: 1 }],
+        total_sessions: 2,
+        price_cents: 14900,
+        original_price_cents: 17900,
+        validity_days: 90,
+        sort_order: 1,
+        is_active: true,
+        created_at: new Date('2026-06-30T12:00:00Z'),
+        updated_at: new Date('2026-06-30T12:00:00Z'),
+      }],
+    });
+    const req = { query: { businessId: '12' } };
+    const res = mockResponse();
+    const next = jest.fn();
+
+    await ctrl.getServicePackages(req, res, next);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      contract: expect.objectContaining({ version: 'main-service-packages-v1' }),
+      packages: [expect.objectContaining({
+        id: '44',
+        businessId: 12,
+        priceCents: 14900,
+      })],
+    }));
+    expect(mockQuery.mock.calls[0][0]).toMatch(/FROM business_service_packages/);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test('returns service availability from slot engine with contract metadata', async () => {
+    slotEngine.computeSlots.mockResolvedValueOnce({
+      from: '2026-07-01T00:00:00.000Z',
+      to: '2026-07-02T00:00:00.000Z',
+      available_slots: [{ start_time: '09:00', end_time: '10:00', price_cents: 5000 }],
+    });
+    const req = {
+      query: {
+        businessId: '12',
+        serviceId: '8',
+        from: '2026-07-01T00:00:00.000Z',
+        to: '2026-07-02T00:00:00.000Z',
+      },
+    };
+    const res = mockResponse();
+    const next = jest.fn();
+
+    await ctrl.getServiceAvailability(req, res, next);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      contract: expect.objectContaining({ version: 'main-service-availability-v1' }),
+      available_slots: [expect.objectContaining({ start_time: '09:00' })],
+    }));
+    expect(slotEngine.computeSlots).toHaveBeenCalledWith(expect.objectContaining({
+      businessId: 12,
+      serviceId: 8,
     }));
     expect(next).not.toHaveBeenCalled();
   });

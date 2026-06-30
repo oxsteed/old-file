@@ -49,7 +49,10 @@ function buildApp() {
 
   app.get('/api/restaurants/:restaurantId/app/bootstrap', appFlow.getBootstrap);
   app.get('/api/restaurants/:restaurantId/manager/dashboard', appFlow.getManagerDashboard);
+  app.get('/api/restaurants/:restaurantId/manager/reports', appFlow.getManagerReports);
   app.patch('/api/restaurants/:restaurantId/publishing', appFlow.updatePublishing);
+  app.get('/api/restaurants/:restaurantId/kitchen/prep-device-config', appFlow.getPrepDeviceConfig);
+  app.patch('/api/restaurants/:restaurantId/kitchen/prep-device-config', appFlow.updatePrepDeviceConfig);
   app.post('/api/restaurants/:restaurantId/devices/pairing-codes', appFlow.createDevicePairingCode);
   app.get('/api/restaurants/:restaurantId/devices/:deviceId/runtime-config', appFlow.getDeviceRuntimeConfig);
   app.post('/api/restaurants/:restaurantId/devices/:deviceId/heartbeat', appFlow.deviceHeartbeat);
@@ -58,13 +61,29 @@ function buildApp() {
   app.get('/api/restaurants/:restaurantId/devices/:deviceId/queue-board', appFlow.getDeviceQueueBoard);
   app.get('/api/restaurants/:restaurantId/devices/:deviceId/config', appFlow.getDeviceConfig);
   app.patch('/api/restaurants/:restaurantId/devices/:deviceId', appFlow.updateDeviceConfig);
+  app.post('/api/restaurants/:restaurantId/pos/sync/ack', appFlow.ackPendingOperations);
+  app.get('/api/restaurants/:restaurantId/pos/sync/status', appFlow.getPosSyncStatus);
+  app.get('/api/restaurants/:restaurantId/pos/orders', appFlow.listPosOrders);
+  app.get('/api/restaurants/:restaurantId/pos/held-tickets', appFlow.listHeldTickets);
   app.post('/api/restaurants/:restaurantId/pos/orders', appFlow.createPosOrder);
+  app.post('/api/restaurants/:restaurantId/pos/orders/create', appFlow.createPosOrder);
+  app.post('/api/restaurants/:restaurantId/pos/tickets', appFlow.createPosOrder);
+  app.post('/api/restaurants/:restaurantId/orders/quote', food.quoteOrder);
+  app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/hold', appFlow.holdPosOrder);
+  app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/reopen', appFlow.reopenPosOrder);
+  app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/void', appFlow.voidPosOrder);
   app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/split', appFlow.splitPosOrder);
   app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/merge', appFlow.mergePosOrders);
   app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/payments', appFlow.recordPosPayment);
+  app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/payment', appFlow.recordPosPayment);
+  app.post('/api/restaurants/:restaurantId/pos/orders/:orderId/refund', appFlow.refundPosOrder);
+  app.post('/api/restaurants/:restaurantId/menu-items/:itemId/availability', appFlow.setMenuItemAvailability);
   app.get('/api/restaurants/:restaurantId/pos/shifts/:shiftId/drawer-events', appFlow.listDrawerEvents);
   app.post('/api/restaurants/:restaurantId/pos/shifts/:shiftId/drawer-events', appFlow.recordDrawerEvent);
   app.get('/api/restaurants/:restaurantId/kitchen/feed', appFlow.getKitchenFeed);
+  app.post('/api/restaurants/:restaurantId/kitchen/feed/ack', appFlow.ackKitchenFeed);
+  app.get('/api/restaurants/:restaurantId/kitchen/audit-events', appFlow.listKitchenAuditEvents);
+  app.post('/api/restaurants/:restaurantId/kitchen/orders/:orderId/ack', appFlow.ackKitchenTicket);
   app.post('/api/restaurants/:restaurantId/kitchen/items/:orderItemId/action', appFlow.performKitchenItemAction);
   app.post('/api/restaurants/:restaurantId/kitchen/stations', appFlow.upsertKitchenStation);
   app.post('/api/restaurants/:restaurantId/kitchen/station-routes', appFlow.routeMenuItemToStation);
@@ -75,7 +94,9 @@ function buildApp() {
   app.post('/api/restaurants/:restaurantId/crew/tasks/:taskId/proofs', appFlow.addCrewTaskProof);
   app.post('/api/restaurants/:restaurantId/crew/tasks/:taskId/comments', appFlow.addCrewTaskComment);
   app.post('/api/restaurants/:restaurantId/runner/tasks/:taskId/location', appFlow.logRunnerLocation);
+  app.post('/api/restaurants/:restaurantId/runner/tasks/:taskId/handoff', appFlow.completeRunnerHandoff);
   app.post('/api/restaurants/:restaurantId/runner/tasks/:taskId/settlements', appFlow.upsertRunnerSettlement);
+  app.get('/api/restaurants/:restaurantId/inventory/hooks/status', appFlow.getInventoryHookStatus);
   app.post('/api/restaurants/:restaurantId/inventory/items/:itemId/adjust', inventory.adjustItem);
   app.get('/api/food/customer/favorite-items', food.listCustomerFavoriteItems);
   app.post('/api/food/customer/favorite-items/:restaurantId/:itemId/toggle', food.toggleCustomerFavoriteItem);
@@ -92,6 +113,10 @@ function buildDeviceApp() {
   app.get('/api/restaurants/:restaurantId/devices/:deviceId/kitchen-feed', appFlow.getKitchenFeed);
   app.post('/api/restaurants/:restaurantId/devices/:deviceId/kitchen-feed/ack', appFlow.ackKitchenFeed);
   app.get('/api/restaurants/:restaurantId/devices/:deviceId/queue-board', appFlow.getDeviceQueueBoard);
+  app.get('/api/restaurants/:restaurantId/display/queue-board', appFlow.getPublicDisplayQueueBoard);
+  app.get('/api/restaurants/:restaurantId/display/devices/:deviceId/stats', appFlow.getDisplayStats);
+  app.patch('/api/restaurants/:restaurantId/display/devices/:deviceId/settings', appFlow.updateDeviceDisplaySettings);
+  app.post('/api/restaurants/:restaurantId/display/devices/:deviceId/report-issue', appFlow.reportDeviceIssue);
   app.use(errorHandler);
   return app;
 }
@@ -206,6 +231,26 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.topItems[0].item_name).toBe('Burger');
   });
 
+  test('returns manager report rollups for dashboards', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ day: '2026-06-30', order_count: 6, sales_cents: 14800 }] })
+      .mockResolvedValueOnce({ rows: [{ status: 'completed', payment_status: 'paid', order_count: 5 }] })
+      .mockResolvedValueOnce({ rows: [{ station_label: 'Grill', item_count: 12, average_prep_seconds: 420 }] })
+      .mockResolvedValueOnce({ rows: [{ status: 'Completed', task_count: 3, handoffs: 3 }] })
+      .mockResolvedValueOnce({ rows: [{ mapped_items: 8, auto_managed_items: 6, blocked_or_low_items: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ pending_operations: 1, applied_operations: 9, failed_operations: 0 }] });
+
+    const res = await request(buildApp())
+      .get(`/api/restaurants/${RESTAURANT_ID}/manager/reports?days=30`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.salesByDay[0].sales_cents).toBe(14800);
+    expect(res.body.kitchenByStation[0].station_label).toBe('Grill');
+    expect(res.body.inventoryHooks.auto_managed_items).toBe(6);
+    expect(res.body.posSync.pending_operations).toBe(1);
+  });
+
   test('updates full manager publishing controls and primary location', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
@@ -263,6 +308,78 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.primaryLocation.name).toBe('Columbus Kitchen');
     expect(mockQuery.mock.calls.some(([sql]) => /operating_hours/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql]) => /restaurant_locations/.test(sql))).toBe(true);
+  });
+
+  test('persists kitchen prep settings and device config patches', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [accessRow({
+          settings: {
+            kitchenPrep: { expoMode: 'balanced' },
+            stationPrepTargets: { Grill: 720 },
+            deviceDefaults: { sound: true },
+          },
+        })],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 901,
+          restaurant_id: RESTAURANT_ID,
+          app_key: 'kitchen',
+          device_name: 'Expo KDS',
+          config: { sound: true },
+          config_version: 2,
+        }],
+      });
+
+    const getRes = await request(buildApp())
+      .get(`/api/restaurants/${RESTAURANT_ID}/kitchen/prep-device-config`);
+
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.prep.stationTargets.Grill).toBe(720);
+    expect(getRes.body.devices[0].deviceName).toBe('Expo KDS');
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: RESTAURANT_ID,
+          prep_time_min: 20,
+          kitchen_display_enabled: true,
+          settings: {
+            kitchenPrep: { expoMode: 'rush' },
+            stationPrepTargets: { Fry: 300 },
+            deviceDefaults: { sound: false },
+          },
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 77 }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 901,
+          restaurant_id: RESTAURANT_ID,
+          app_key: 'kitchen',
+          device_name: 'Expo KDS',
+          location_id: 77,
+          config: { sound: false },
+          config_version: 3,
+        }],
+      });
+
+    const patchRes = await request(buildApp())
+      .patch(`/api/restaurants/${RESTAURANT_ID}/kitchen/prep-device-config`)
+      .send({
+        prepTimeMin: 20,
+        kitchenPrep: { expoMode: 'rush' },
+        stationTargets: { Fry: 300 },
+        deviceDefaults: { sound: false },
+        devices: [{ deviceId: 901, locationId: 77, config: { sound: false } }],
+      });
+
+    expect(patchRes.status).toBe(200);
+    expect(patchRes.body.prep.prepTimeMin).toBe(20);
+    expect(patchRes.body.devices[0].configVersion).toBe(3);
+    expect(mockQuery.mock.calls.some(([sql]) => /settings \\|\\|/.test(sql))).toBe(true);
   });
 
   test('creates display pairing code and remotely updates device config', async () => {
@@ -444,6 +561,78 @@ describe('restaurant app-flow backend', () => {
     expect(ackRes.body.contract.routes.kitchenFeed).toBe('/api/restaurants/3/devices/901/kitchen-feed');
   });
 
+  test('display compatibility routes accept device-token aliases and persist settings', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 801, restaurant_id: RESTAURANT_ID, app_key: 'display', status: 'paired', config: {} }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 801,
+          restaurant_id: RESTAURANT_ID,
+          app_key: 'display',
+          status: 'paired',
+          config_version: 4,
+          config: { displaySettings: { boardTitle: 'Pickup board', showGuestNames: false, pageSize: 10 } },
+        }],
+      });
+
+    const settingsRes = await request(buildDeviceApp())
+      .patch(`/api/restaurants/${RESTAURANT_ID}/display/devices/801/settings`)
+      .set('Authorization', 'Device display-token')
+      .send({ boardTitle: 'Pickup board', showGuestNames: false, pageSize: 10 });
+
+    expect(settingsRes.status).toBe(200);
+    expect(settingsRes.body.settings.boardTitle).toBe('Pickup board');
+    expect(settingsRes.body.contract.routes.compat.settings).toBe('/api/restaurants/3/display/devices/801/settings');
+    expect(mockQuery.mock.calls.some(([sql]) => /displaySettings/.test(sql) && /config_version = config_version \+ 1/.test(sql))).toBe(true);
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 801, restaurant_id: RESTAURANT_ID, app_key: 'display', status: 'paired' }] })
+      .mockResolvedValueOnce({ rows: [{ id: RESTAURANT_ID, display_name: 'Ox Burger Lab', timezone: 'America/New_York' }] })
+      .mockResolvedValueOnce({ rows: [{ active_orders: 4, preparing_orders: 2, ready_orders: 1, completed_orders: 8, kiosk_orders: 3 }] })
+      .mockResolvedValueOnce({ rows: [{ paired_displays: 2, stale_displays: 1, last_display_seen_at: '2026-06-21T15:00:00.000Z' }] });
+
+    const statsRes = await request(buildDeviceApp())
+      .get(`/api/restaurants/${RESTAURANT_ID}/display/devices/801/stats`)
+      .set('X-OxSteed-Device-Token', 'display-token');
+
+    expect(statsRes.status).toBe(200);
+    expect(statsRes.body.stats.activeOrders).toBe(4);
+    expect(statsRes.body.stats.staleDisplays).toBe(1);
+  });
+
+  test('quotes kiosk totals with server tax and direct-payment compatibility', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [accessRow({
+          tax_rate_bps: 725,
+          service_fee_bps: 100,
+          fulfillment_modes: ['pickup', 'dine_in', 'delivery'],
+        })],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: 11, name: 'Classic Burger', price_cents: 1000, currency_code: 'USD', is_available: true }],
+      });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/orders/quote`)
+      .send({
+        orderSource: 'kiosk',
+        fulfillmentType: 'pickup',
+        paymentMode: 'direct_payment',
+        tipCents: 100,
+        items: [{ menuItemId: 11, quantity: 2 }],
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.quote.subtotalCents).toBe(2000);
+    expect(res.body.quote.taxCents).toBe(145);
+    expect(res.body.quote.serviceFeeCents).toBe(20);
+    expect(res.body.quote.totalCents).toBe(2265);
+    expect(res.body.quote.paymentMode).toBe('direct_payment');
+    expect(res.body.supportedPaymentModes).toContain('pay_at_counter');
+    expect(res.body.supportedPaymentModes).toContain('restaurant_credit');
+  });
+
   test('creates POS orders in the same food_orders flow', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
@@ -480,6 +669,69 @@ describe('restaurant app-flow backend', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_order_items/.test(sql))).toBe(true);
   });
 
+  test('creates POS tickets through alias route with modifiers and discount lines', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 55, restaurant_id: RESTAURANT_ID, status: 'open', staff_user_id: USER_ID }] })
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', price_cents: 1000, currency_code: 'USD', is_available: true }] })
+      .mockResolvedValueOnce({ rows: [{ id: 91, name: 'Extra Cheese', price_delta_cents: 200, is_available: true }] })
+      .mockResolvedValueOnce({ rows: [{ next_queue: 14 }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: ORDER_ID,
+          restaurant_id: RESTAURANT_ID,
+          business_id: BUSINESS_ID,
+          queue_number: 14,
+          order_source: 'counter',
+          payment_status: 'unpaid',
+          subtotal_cents: 1200,
+          discount_cents: 120,
+          total_cents: 1080,
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 202 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 302 }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/tickets`)
+      .send({
+        orderSource: 'counter',
+        fulfillmentType: 'pickup',
+        shiftId: 55,
+        items: [{ menuItemId: 11, quantity: 1, modifierIds: [91], stationLabel: 'Grill' }],
+        discountLines: [{ code: 'STAFF10', label: 'Staff 10%', percentBps: 1000 }],
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.order.total_cents).toBe(1080);
+    expect(mockQuery.mock.calls.some(([sql]) => /food_order_item_modifiers/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([, params]) => JSON.stringify(params).includes('posDiscounts'))).toBe(true);
+    expect(mockQuery.mock.calls.some(([, params]) => JSON.stringify(params).includes('Extra Cheese'))).toBe(true);
+  });
+
+  test('lists held tickets through the dedicated POS contract', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: ORDER_ID,
+          queue_number: 9,
+          pos_ticket_state: 'held',
+          payment_status: 'unpaid',
+          items: [],
+        }],
+      });
+
+    const res = await request(buildApp())
+      .get(`/api/restaurants/${RESTAURANT_ID}/pos/held-tickets`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.orders[0].pos_ticket_state).toBe('held');
+    expect(mockQuery.mock.calls[1][1]).toContain('held');
+  });
+
   test('records POS payment and updates food order payment status', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
@@ -497,6 +749,122 @@ describe('restaurant app-flow backend', () => {
     expect(res.status).toBe(201);
     expect(res.body.payment.payment_type).toBe('cash');
     expect(res.body.order.payment_status).toBe('paid');
+  });
+
+  test('records direct-payment alias and manual refund through ledger-backed POS endpoints', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, restaurant_id: RESTAURANT_ID, total_cents: 1200, payment_status: 'unpaid', pos_ticket_state: 'open' }] })
+      .mockResolvedValueOnce({ rows: [{ paid_cents: 0, refunded_cents: 0 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 601, amount_cents: 1200, payment_type: 'external' }] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, total_cents: 1200, payment_status: 'unpaid', pos_ticket_state: 'open' }] })
+      .mockResolvedValueOnce({ rows: [{ paid_cents: 1200, refunded_cents: 0, pending_payments: 0 }] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, payment_status: 'paid', pos_ticket_state: 'closed' }] });
+
+    const paymentRes = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/payment`)
+      .send({ paymentType: 'direct_payment', amountCents: 1200 });
+
+    expect(paymentRes.status).toBe(201);
+    expect(paymentRes.body.payment.payment_type).toBe('external');
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, restaurant_id: RESTAURANT_ID, total_cents: 1200, payment_status: 'paid', pos_ticket_state: 'closed' }] })
+      .mockResolvedValueOnce({ rows: [{ paid_cents: 1200, refunded_cents: 0 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 602, amount_cents: 300, payment_type: 'refund' }] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, total_cents: 1200, payment_status: 'paid', pos_ticket_state: 'closed' }] })
+      .mockResolvedValueOnce({ rows: [{ paid_cents: 1200, refunded_cents: 300, pending_payments: 0 }] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, payment_status: 'unpaid', pos_ticket_state: 'open' }] });
+
+    const refundRes = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/refund`)
+      .send({ amountCents: 300, reason: 'Guest adjustment' });
+
+    expect(refundRes.status).toBe(201);
+    expect(refundRes.body.payment.payment_type).toBe('refund');
+    expect(mockQuery.mock.calls.some(([, params]) => JSON.stringify(params).includes('payment_refunded'))).toBe(true);
+  });
+
+  test('voids unpaid POS tickets through compatibility route', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ net_paid_cents: 0 }] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, pos_ticket_state: 'voided', status: 'cancelled', payment_status: 'unpaid' }] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/void`)
+      .send({ reason: 'Mistaken ticket' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.order.pos_ticket_state).toBe('voided');
+    expect(mockQuery.mock.calls.some(([, params]) => JSON.stringify(params).includes('ticket_voided'))).toBe(true);
+  });
+
+  test('toggles menu availability for sold-out POS flows', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 11, is_available: true }] })
+      .mockResolvedValueOnce({ rows: [{ id: 11, name: 'Classic Burger', is_available: false }] })
+      .mockResolvedValueOnce({ rows: [{ id: 700, menu_item_id: 11, next_available: false }] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/menu-items/11/availability`)
+      .send({ isAvailable: false, reason: 'Sold out' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.item.is_available).toBe(false);
+    expect(res.body.event.next_available).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_menu_items/.test(sql))).toBe(true);
+  });
+
+  test('acknowledges pending local POS operations idempotently', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, client_operation_id: 'local-1', status: 'applied' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 2, client_operation_id: 'local-2', status: 'acked' }] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/sync/ack`)
+      .send({
+        deviceId: 801,
+        operations: [
+          { operationId: 'local-1', type: 'order_create', entityType: 'food_order', entityId: String(ORDER_ID), status: 'applied' },
+          { operationId: 'local-2', type: 'drawer_event', status: 'acked', payload: { amountCents: 500 } },
+        ],
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.count).toBe(2);
+    expect(mockQuery.mock.calls.some(([sql]) => /restaurant_pos_pending_operations/.test(sql))).toBe(true);
+  });
+
+  test('reports POS sync health for device replacement UI', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 801,
+          restaurant_id: RESTAURANT_ID,
+          app_key: 'pos',
+          device_name: 'Front POS',
+          status: 'paired',
+          sync_status: 'healthy',
+          pending_operations: 1,
+          failed_operations: 0,
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ pending_operations: 1, applied_operations: 4, failed_operations: 0 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, client_operation_id: 'local-1', status: 'acked' }] });
+
+    const res = await request(buildApp())
+      .get(`/api/restaurants/${RESTAURANT_ID}/pos/sync/status`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('degraded');
+    expect(res.body.devices[0].deviceName).toBe('Front POS');
+    expect(res.body.operations.pending_operations).toBe(1);
+    expect(res.body.recentOperations[0].client_operation_id).toBe('local-1');
   });
 
   test('records POS drawer events for shift reconciliation', async () => {
@@ -597,6 +965,41 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.cursor).toBe(991);
     expect(res.body.events[0].event_type).toBe('item_ready');
     expect(mockQuery.mock.calls[1][0]).toMatch(/foi.station_label/);
+  });
+
+  test('acknowledges kitchen tickets and records audit history', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow({ prep_time_min: 16 })] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, status: 'received', queue_number: 12 }] })
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, status: 'preparing', queue_number: 12 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 993, event_type: 'ticket_ack', from_status: 'received', to_status: 'preparing' }] });
+
+    const ackRes = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/kitchen/orders/${ORDER_ID}/ack`)
+      .send({ startPreparing: true, stationLabel: 'Expo', prepTimeMin: 16 });
+
+    expect(ackRes.status).toBe(201);
+    expect(ackRes.body.order.status).toBe('preparing');
+    expect(ackRes.body.event.event_type).toBe('ticket_ack');
+    expect(mockQuery.mock.calls.some(([sql]) => /promised_at/.test(sql))).toBe(true);
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 993,
+          event_type: 'ticket_ack',
+          queue_number: 12,
+          actor_first_name: 'Owner',
+        }],
+      });
+
+    const auditRes = await request(buildApp())
+      .get(`/api/restaurants/${RESTAURANT_ID}/kitchen/audit-events?cursor=990`);
+
+    expect(auditRes.status).toBe(200);
+    expect(auditRes.body.cursor).toBe(993);
+    expect(auditRes.body.events[0].event_type).toBe('ticket_ack');
   });
 
   test('performs kitchen item action with delay reason and prep timer metadata', async () => {
@@ -746,6 +1149,37 @@ describe('restaurant app-flow backend', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /restaurant_runner_location_pings/.test(sql))).toBe(true);
   });
 
+  test('records runner customer handoff before settlement', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 901,
+          assigned_to: USER_ID,
+          status: 'En route',
+          restaurant_id: RESTAURANT_ID,
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 901,
+          assigned_to: USER_ID,
+          status: 'Completed',
+          handoff_at: '2026-06-30T16:00:00.000Z',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 1002, task_id: 901, method: 'Signature', note: 'Met customer.' }] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/runner/tasks/901/handoff`)
+      .send({ method: 'Signature', note: 'Met customer.' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.task.status).toBe('Completed');
+    expect(res.body.proof.method).toBe('Signature');
+    expect(mockQuery.mock.calls.some(([sql]) => /handoff_at/.test(sql))).toBe(true);
+  });
+
   test('creates runner settlement for delivery fee and tip reconciliation', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
@@ -760,6 +1194,37 @@ describe('restaurant app-flow backend', () => {
     expect(res.status).toBe(201);
     expect(res.body.settlement.status).toBe('approved');
     expect(res.body.settlement.tip_cents).toBe(200);
+  });
+
+  test('reports inventory hook status for menu availability automation', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({
+        rows: [{
+          mapped_items: 4,
+          auto_managed_items: 3,
+          unavailable_menu_items: 1,
+          blocked_or_low_inventory_items: 1,
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          menu_item_id: 11,
+          menu_item_name: 'Chicken Bowl',
+          inventory_item_name: 'Chicken',
+          quantity: '0',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 700, menu_item_id: 11, next_available: false }] });
+
+    const res = await request(buildApp())
+      .get(`/api/restaurants/${RESTAURANT_ID}/inventory/hooks/status`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('attention_required');
+    expect(res.body.summary.mapped_items).toBe(4);
+    expect(res.body.affectedMenuItems[0].menu_item_name).toBe('Chicken Bowl');
+    expect(res.body.recentEvents[0].next_available).toBe(false);
   });
 
   test('inventory adjustment automatically syncs mapped menu availability', async () => {

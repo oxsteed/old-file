@@ -20,6 +20,7 @@ router.get('/orders/track/:trackingToken', ctrl.getTrackedOrder);
 router.post('/orders/:orderId/review', optionalAuth, ctrl.createOrderReview);
 router.get('/orders/:orderId/checkout/complete', ctrl.completeCheckout);
 router.get('/orders/:orderId/checkout/cancelled', ctrl.cancelCheckout);
+router.post('/restaurants/:restaurantId/orders/quote', optionalAuth, ctrl.quoteOrder);
 
 // Signed-in customer surface.
 router.get('/my/restaurants', authenticate, ctrl.listMyRestaurants);

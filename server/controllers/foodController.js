@@ -1390,6 +1390,214 @@ exports.createMenuItem = async (req, res, next) => {
   }
 };
 
+exports.quoteOrder = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId || req.body.restaurantId || req.body.restaurant_id);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const paymentContract = normalizeFoodPaymentMode(req.body.paymentMode || req.body.payment_mode);
+    const items = Array.isArray(req.body.items) ? req.body.items : [];
+    if (!items.length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { items: 'At least one item is required' });
+    }
+
+    const { rows: restaurants } = await pool.query(
+      `SELECT *
+         FROM food_restaurants
+        WHERE id = $1
+          AND status IN ('active','paused')`,
+      [restaurantId]
+    );
+    const restaurant = restaurants[0];
+    if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+
+    const orderSource = normalizeString(req.body.orderSource || req.body.order_source, 24) || 'kiosk';
+    const fulfillmentType = normalizeString(req.body.fulfillmentType || req.body.fulfillment_type, 24) || 'pickup';
+    if (!VALID_ORDER_SOURCES.has(orderSource)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { orderSource: 'Unsupported order source' });
+    }
+    if (!VALID_FULFILLMENT.has(fulfillmentType)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { fulfillmentType: 'Unsupported fulfillment type' });
+    }
+    const isInStore = IN_STORE_SOURCES.has(orderSource);
+    if (isInStore ? !restaurant.accepts_in_store_orders : !restaurant.accepts_online_orders) {
+      throw new AppError('Restaurant is not accepting orders from this channel', 409, 'restaurant_not_accepting_orders');
+    }
+    const restaurantFulfillmentModes = Array.isArray(restaurant.fulfillment_modes) && restaurant.fulfillment_modes.length
+      ? restaurant.fulfillment_modes
+      : ['pickup'];
+    if (!restaurantFulfillmentModes.includes(fulfillmentType)) {
+      throw new AppError('This fulfillment mode is not available', 409, 'fulfillment_mode_unavailable');
+    }
+    if (paymentContract.canonical === 'restaurant_credit' && fulfillmentType !== 'delivery') {
+      throw new AppError('Restaurant credit is only available for delivery orders', 409, 'wallet_credit_delivery_only');
+    }
+
+    const itemIds = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
+    const { rows: menuRows } = await pool.query(
+      `SELECT id, name, price_cents, currency_code, is_available
+         FROM food_menu_items
+        WHERE restaurant_id = $1 AND id = ANY($2::bigint[])`,
+      [restaurantId, itemIds]
+    );
+    const menuById = new Map(menuRows.map((row) => [Number(row.id), row]));
+    const modifierIds = items
+      .flatMap((item) => (Array.isArray(item.modifierIds || item.modifier_ids) ? (item.modifierIds || item.modifier_ids) : []))
+      .map((id) => parsePositiveInt(id))
+      .filter(Boolean);
+    const { rows: modifierRows } = modifierIds.length
+      ? await pool.query(
+        `SELECT fm.id, fm.name, fm.price_delta_cents, fm.is_available
+           FROM food_modifiers fm
+           JOIN food_modifier_groups mg ON mg.id = fm.modifier_group_id
+          WHERE mg.restaurant_id = $1 AND fm.id = ANY($2::bigint[])`,
+        [restaurantId, modifierIds]
+      )
+      : { rows: [] };
+    const modifierById = new Map(modifierRows.map((row) => [Number(row.id), row]));
+
+    const lineItems = items.map((item, index) => {
+      const menuItemId = parsePositiveInt(item.menuItemId || item.menu_item_id);
+      const menuItem = menuById.get(menuItemId);
+      if (!menuItem || !menuItem.is_available) {
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          [`items.${index}.menuItemId`]: 'Menu item is unavailable',
+        });
+      }
+      const quantity = Math.min(parsePositiveInt(item.quantity, 1), 99);
+      const modifiers = (Array.isArray(item.modifierIds || item.modifier_ids) ? (item.modifierIds || item.modifier_ids) : [])
+        .map((id) => modifierById.get(parsePositiveInt(id)))
+        .filter((modifier) => modifier && modifier.is_available);
+      const modifierTotalCents = modifiers.reduce((sum, modifier) => sum + Number(modifier.price_delta_cents || 0), 0);
+      const unitPriceCents = Number(menuItem.price_cents || 0);
+      const lineTotalCents = (unitPriceCents + modifierTotalCents) * quantity;
+      return {
+        menuItemId,
+        menu_item_id: menuItemId,
+        name: menuItem.name,
+        quantity,
+        unitPriceCents,
+        unit_price_cents: unitPriceCents,
+        modifierTotalCents,
+        modifier_total_cents: modifierTotalCents,
+        lineTotalCents,
+        line_total_cents: lineTotalCents,
+        modifiers: modifiers.map((modifier) => ({
+          id: modifier.id,
+          name: modifier.name,
+          priceDeltaCents: Number(modifier.price_delta_cents || 0),
+          price_delta_cents: Number(modifier.price_delta_cents || 0),
+        })),
+      };
+    });
+
+    const subtotalCents = lineItems.reduce((sum, item) => sum + item.lineTotalCents, 0);
+    const tipCents = parseMoneyCents(req.body.tipCents ?? req.body.tip_cents ?? 0, 'tipCents');
+    let discountCents = parseMoneyCents(req.body.discountCents ?? req.body.discount_cents ?? 0, 'discountCents');
+    const discountCode = normalizeString(req.body.discountCode || req.body.discount_code, 40);
+    let discount = null;
+    if (discountCode) {
+      if (paymentContract.canonical !== 'restaurant_credit') {
+        throw new AppError('Discount codes are currently limited to restaurant-credit food orders', 409, 'discount_requires_wallet_credit');
+      }
+      const promoResult = await resolveFoodPromotionDiscount(pool, restaurantId, discountCode, subtotalCents);
+      discountCents = promoResult.discountCents;
+      discount = promoResult.metadata;
+    }
+    discountCents = Math.min(subtotalCents, discountCents);
+
+    let deliveryAddress = null;
+    let deliveryFeeCents = 0;
+    if (fulfillmentType === 'delivery') {
+      deliveryAddress = normalizeDeliveryAddress(req.body.deliveryAddress || req.body.delivery_address);
+      if (!deliveryAddress) {
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          deliveryAddress: 'Delivery address is required for delivery order quotes',
+        });
+      }
+      if (Number(restaurant.delivery_radius_meters || 0) > 0) {
+        if (![restaurant.latitude, restaurant.longitude, deliveryAddress.lat, deliveryAddress.lng]
+          .every((coordinate) => Number.isFinite(Number(coordinate)))) {
+          throw new AppError('Delivery coordinates are required to verify the delivery area', 400, 'delivery_coordinates_required');
+        }
+        const deliveryDistanceMeters = distanceMeters(
+          Number(restaurant.latitude),
+          Number(restaurant.longitude),
+          Number(deliveryAddress.lat),
+          Number(deliveryAddress.lng)
+        );
+        if (deliveryDistanceMeters > Number(restaurant.delivery_radius_meters)) {
+          throw new AppError('Delivery address is outside this restaurant\'s delivery area', 409, 'outside_delivery_area', {
+            deliveryDistanceMeters: Math.round(deliveryDistanceMeters),
+            deliveryRadiusMeters: Number(restaurant.delivery_radius_meters),
+          });
+        }
+        deliveryAddress.distanceMeters = Math.round(deliveryDistanceMeters);
+      }
+      const settings = restaurant.settings && typeof restaurant.settings === 'object' ? restaurant.settings : {};
+      deliveryFeeCents = parseMoneyCents(settings.deliveryFeeCents ?? settings.delivery_fee_cents ?? 0, 'deliveryFeeCents');
+    }
+
+    const taxableSubtotalCents = Math.max(0, subtotalCents - discountCents);
+    const taxRateBps = Math.max(0, Math.min(10000, Number(restaurant.tax_rate_bps || 0)));
+    const serviceFeeBps = Math.max(0, Math.min(10000, Number(restaurant.service_fee_bps || 0)));
+    const taxCents = Math.round(taxableSubtotalCents * taxRateBps / 10000);
+    const serviceFeeCents = Math.round(taxableSubtotalCents * serviceFeeBps / 10000);
+    const totalCents = Math.max(0, taxableSubtotalCents + taxCents + serviceFeeCents + tipCents + deliveryFeeCents);
+    const legacyPaymentMode = FOOD_PAYMENT_LEGACY_MODE[paymentContract.canonical];
+    const quote = {
+      restaurantId,
+      restaurant_id: restaurantId,
+      currencyCode: normalizeCurrency(restaurant.currency_code),
+      currency_code: normalizeCurrency(restaurant.currency_code),
+      orderSource,
+      order_source: orderSource,
+      fulfillmentType,
+      fulfillment_type: fulfillmentType,
+      paymentMode: legacyPaymentMode,
+      payment_mode: legacyPaymentMode,
+      restaurantPaymentMode: paymentContract.canonical,
+      paymentContract: {
+        mode: paymentContract.canonical,
+        legacyMode: legacyPaymentMode,
+        collection: paymentContract.canonical,
+        supportedModes: ['pay_at_counter', 'pay_at_restaurant', 'restaurant_credit', 'wallet_credit', 'direct_payment'],
+      },
+      lineItems,
+      line_items: lineItems,
+      subtotalCents,
+      subtotal_cents: subtotalCents,
+      discountCents,
+      discount_cents: discountCents,
+      taxableSubtotalCents,
+      taxable_subtotal_cents: taxableSubtotalCents,
+      taxRateBps,
+      tax_rate_bps: taxRateBps,
+      taxCents,
+      tax_cents: taxCents,
+      serviceFeeBps,
+      service_fee_bps: serviceFeeBps,
+      serviceFeeCents,
+      service_fee_cents: serviceFeeCents,
+      deliveryFeeCents,
+      delivery_fee_cents: deliveryFeeCents,
+      tipCents,
+      tip_cents: tipCents,
+      totalCents,
+      total_cents: totalCents,
+      discount,
+      deliveryAddress,
+      delivery_address: deliveryAddress,
+    };
+    res.json({
+      quote,
+      supportedPaymentModes: quote.paymentContract.supportedModes,
+      serverTime: new Date().toISOString(),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.createOrder = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId || req.body.restaurantId || req.body.restaurant_id);

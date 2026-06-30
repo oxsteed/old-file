@@ -12,6 +12,7 @@ const { reconcilePosOrderPayment } = require('../services/restaurantPosPaymentLe
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const { getEffectivePermissions } = require('../services/permissionsService');
+const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 
 const MANAGE_ROLES = new Set(['owner', 'manager']);
 const APP_KEYS = new Set(['manager', 'pos', 'kitchen', 'display', 'inventory', 'crew', 'runner', 'restaurant']);
@@ -45,6 +46,22 @@ const POS_TICKET_STATES = new Set(['open', 'held', 'voided', 'refunded', 'closed
 const POS_PAYMENT_TYPES = new Set(['cash', 'card', 'external', 'gift_card', 'wallet_credit', 'comp', 'refund']);
 const POS_PAYMENT_STATUSES = new Set(['recorded', 'pending', 'captured', 'failed', 'refunded', 'voided']);
 const POS_DRAWER_EVENT_TYPES = new Set(['cash_in', 'cash_out', 'cash_drop', 'no_sale', 'drawer_count', 'payout']);
+const POS_PAYMENT_TYPE_ALIASES = {
+  cash: 'cash',
+  card: 'card',
+  external: 'external',
+  direct: 'external',
+  direct_payment: 'external',
+  off_platform: 'external',
+  pay_at_counter: 'cash',
+  pay_at_restaurant: 'cash',
+  gift_card: 'gift_card',
+  wallet_credit: 'wallet_credit',
+  restaurant_credit: 'wallet_credit',
+  credit: 'wallet_credit',
+  comp: 'comp',
+  refund: 'refund',
+};
 const PRINTER_JOB_TYPES = new Set(['kitchen_ticket', 'receipt', 'expo_label', 'runner_handoff']);
 const PRINTER_JOB_STATUSES = new Set(['queued', 'sent', 'printed', 'failed', 'cancelled']);
 const RUNNER_SETTLEMENT_STATUSES = new Set(['pending', 'approved', 'paid', 'disputed', 'voided']);
@@ -148,6 +165,12 @@ function normalizeRestaurantPaymentMode(value, fallback = 'pay_at_restaurant') {
   };
 }
 
+function normalizePosPaymentType(value, fallback = null) {
+  const raw = normalizeString(value, 40);
+  const canonical = raw ? POS_PAYMENT_TYPE_ALIASES[raw] : fallback;
+  return canonical || null;
+}
+
 function paymentContractMetadata(contract, overrides = {}) {
   return {
     mode: contract.canonical,
@@ -155,6 +178,59 @@ function paymentContractMetadata(contract, overrides = {}) {
     collection: contract.collection,
     ...overrides,
   };
+}
+
+function normalizeDiscountLines(body, subtotalCents) {
+  const lines = Array.isArray(body.discountLines || body.discount_lines || body.discounts)
+    ? (body.discountLines || body.discount_lines || body.discounts)
+    : [];
+  const normalized = [];
+  let total = parseCents(body.discountCents ?? body.discount_cents, 'discountCents');
+  const rootCode = normalizeString(body.discountCode || body.discount_code, 80);
+  const rootLabel = normalizeString(body.discountLabel || body.discount_label, 160);
+  if (total > 0 || rootCode || rootLabel) {
+    normalized.push({
+      code: rootCode,
+      label: rootLabel || rootCode || 'Manual discount',
+      amountCents: total,
+      source: 'order_discount',
+    });
+  }
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = safeJson(lines[index], null);
+    if (!line) continue;
+    const code = normalizeString(line.code || line.discountCode || line.discount_code, 80);
+    const label = normalizeString(line.label || line.name || line.title, 160) || code || 'Discount';
+    const percentBps = line.percentBps ?? line.percent_bps;
+    const percentOff = line.percentOff ?? line.percent_off;
+    let amount = parseCents(line.amountCents ?? line.amount_cents, `discountLines.${index}.amountCents`);
+    if (amount === 0 && percentBps !== undefined && percentBps !== null && percentBps !== '') {
+      const bps = parseOptionalInteger(percentBps, `discountLines.${index}.percentBps`, 0, 10000) || 0;
+      amount = Math.round(subtotalCents * bps / 10000);
+    } else if (amount === 0 && percentOff !== undefined && percentOff !== null && percentOff !== '') {
+      const rate = Number(percentOff);
+      if (!Number.isFinite(rate) || rate < 0 || rate > 1) {
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          [`discountLines.${index}.percentOff`]: 'Must be between 0 and 1',
+        });
+      }
+      amount = Math.round(subtotalCents * rate);
+    }
+    if (amount <= 0) continue;
+    total += amount;
+    normalized.push({
+      code,
+      label,
+      amountCents: amount,
+      source: normalizeString(line.source, 80) || 'pos_discount',
+      appliesTo: normalizeString(line.appliesTo || line.applies_to, 80),
+      metadata: safeJson(line.metadata),
+    });
+  }
+  if (total > subtotalCents) {
+    throw new AppError('Validation failed', 400, 'validation_failed', { discountCents: 'Cannot exceed subtotal' });
+  }
+  return { discountCents: total, discountLines: normalized };
 }
 
 async function insertPosReceiptAudit(client, {
@@ -1062,6 +1138,153 @@ exports.getManagerDashboard = async (req, res, next) => {
   }
 };
 
+exports.getManagerReports = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertManage(restaurant);
+    const days = Math.min(parsePositiveInt(req.query.days, 30), 180);
+    const timezone = normalizeString(restaurant.timezone, 80) || 'UTC';
+    const params = [restaurantId, days, timezone];
+
+    const [
+      { rows: salesByDay },
+      { rows: orderBreakdown },
+      { rows: kitchenByStation },
+      { rows: runnerByStatus },
+      { rows: inventoryHooks },
+      { rows: posSync },
+    ] = await Promise.all([
+      pool.query(
+        `WITH order_financials AS (
+           SELECT fo.*,
+                  CASE
+                    WHEN COALESCE(pos.payment_count, 0) > 0
+                      THEN GREATEST(0, pos.collected_cents - pos.refunded_cents)
+                    WHEN fo.payment_status = 'paid' THEN fo.total_cents
+                    ELSE 0
+                  END::int AS net_collected_cents
+             FROM food_orders fo
+             LEFT JOIN LATERAL (
+               SELECT COUNT(*) FILTER (
+                        WHERE payment_type <> 'refund' AND status IN ('recorded','captured')
+                      )::int AS payment_count,
+                      COALESCE(SUM(amount_cents) FILTER (
+                        WHERE payment_type <> 'refund' AND status IN ('recorded','captured')
+                      ), 0)::int AS collected_cents,
+                      COALESCE(SUM(amount_cents) FILTER (
+                        WHERE payment_type = 'refund' AND status IN ('recorded','captured','refunded')
+                      ), 0)::int AS refunded_cents
+                 FROM restaurant_pos_payments p
+                WHERE p.food_order_id = fo.id
+             ) pos ON TRUE
+            WHERE fo.restaurant_id = $1
+              AND fo.created_at >= (
+                ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
+              )
+         )
+         SELECT (created_at AT TIME ZONE $3)::date AS day,
+                COUNT(*)::int AS order_count,
+                COUNT(*) FILTER (WHERE net_collected_cents > 0)::int AS paid_order_count,
+                COALESCE(SUM(net_collected_cents),0)::int AS sales_cents,
+                COALESCE(SUM(tip_cents) FILTER (WHERE net_collected_cents > 0),0)::int AS tips_cents,
+                COALESCE(AVG(net_collected_cents) FILTER (WHERE net_collected_cents > 0),0)::int AS average_ticket_cents
+           FROM order_financials
+          GROUP BY day
+          ORDER BY day ASC`,
+        params
+      ),
+      pool.query(
+        `SELECT COALESCE(status, 'unknown') AS status,
+                COALESCE(payment_status, 'unknown') AS payment_status,
+                COALESCE(fulfillment_type, 'unknown') AS fulfillment_type,
+                COALESCE(order_source, 'unknown') AS order_source,
+                COUNT(*)::int AS order_count,
+                COALESCE(SUM(total_cents),0)::int AS gross_cents
+           FROM food_orders
+          WHERE restaurant_id = $1
+            AND created_at >= (
+              ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
+            )
+          GROUP BY status, payment_status, fulfillment_type, order_source
+          ORDER BY order_count DESC`,
+        params
+      ),
+      pool.query(
+        `SELECT COALESCE(foi.station_label, 'Unassigned') AS station_label,
+                COUNT(*)::int AS item_count,
+                COUNT(*) FILTER (WHERE foi.kitchen_status = 'queued')::int AS queued_items,
+                COUNT(*) FILTER (WHERE foi.kitchen_status = 'preparing')::int AS preparing_items,
+                COUNT(*) FILTER (WHERE foi.kitchen_status = 'ready')::int AS ready_items,
+                COUNT(*) FILTER (WHERE foi.kitchen_status = 'bumped')::int AS bumped_items,
+                COUNT(*) FILTER (WHERE foi.kitchen_status IN ('delayed','problem'))::int AS exception_items,
+                COALESCE(AVG(EXTRACT(EPOCH FROM (
+                  COALESCE(foi.bumped_at, foi.updated_at, NOW())
+                  - COALESCE(foi.kitchen_started_at, fo.accepted_at, fo.created_at)
+                ))),0)::int AS average_prep_seconds
+           FROM food_order_items foi
+           JOIN food_orders fo ON fo.id = foi.order_id
+          WHERE fo.restaurant_id = $1
+            AND fo.created_at >= (
+              ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
+            )
+          GROUP BY COALESCE(foi.station_label, 'Unassigned')
+          ORDER BY item_count DESC`,
+        params
+      ),
+      pool.query(
+        `SELECT status,
+                COUNT(*)::int AS task_count,
+                COUNT(*) FILTER (WHERE handoff_at IS NOT NULL)::int AS handoffs,
+                COALESCE(AVG(EXTRACT(EPOCH FROM (completed_at - picked_up_at))) FILTER (
+                  WHERE completed_at IS NOT NULL AND picked_up_at IS NOT NULL
+                ),0)::int AS average_delivery_seconds
+           FROM restaurant_runner_tasks
+          WHERE restaurant_id = $1
+            AND created_at >= (
+              ((NOW() AT TIME ZONE $3)::date - ($2::int - 1))::timestamp AT TIME ZONE $3
+            )
+          GROUP BY status
+          ORDER BY task_count DESC`,
+        params
+      ),
+      pool.query(
+        `SELECT COUNT(*)::int AS mapped_items,
+                COUNT(*) FILTER (WHERE m.auto_manage = TRUE)::int AS auto_managed_items,
+                COUNT(*) FILTER (
+                  WHERE i.quantity <= 0 OR (i.reorder_point > 0 AND i.quantity <= i.reorder_point)
+                )::int AS blocked_or_low_items
+           FROM restaurant_inventory_item_mappings m
+           JOIN restaurant_inventory_items i ON i.id = m.inventory_item_id AND i.restaurant_id = m.restaurant_id
+          WHERE m.restaurant_id = $1`,
+        [restaurantId]
+      ),
+      pool.query(
+        `SELECT COUNT(*) FILTER (WHERE status = 'failed')::int AS failed_operations,
+                COUNT(*) FILTER (WHERE status IN ('received','acked'))::int AS pending_operations,
+                COUNT(*) FILTER (WHERE status = 'applied')::int AS applied_operations,
+                MAX(acknowledged_at) AS last_acknowledged_at
+           FROM restaurant_pos_pending_operations
+          WHERE restaurant_id = $1`,
+        [restaurantId]
+      ),
+    ]);
+
+    res.json({
+      range: { days, timezone },
+      salesByDay,
+      orderBreakdown,
+      kitchenByStation,
+      runnerByStatus,
+      inventoryHooks: inventoryHooks[0] || {},
+      posSync: posSync[0] || {},
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.updatePublishing = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -1329,6 +1552,146 @@ exports.getPublishing = async (req, res, next) => {
   }
 };
 
+exports.getPrepDeviceConfig = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertManage(restaurant);
+    const { rows: devices } = await pool.query(
+      `SELECT d.id, d.restaurant_id, d.app_key, d.device_name, d.mode, d.location_id,
+              d.status, d.config, d.last_seen_at, d.last_sync_at, d.sync_status,
+              d.sync_error, d.config_version, d.app_version, d.platform,
+              row_to_json(l.*) AS location
+         FROM restaurant_app_devices d
+         LEFT JOIN restaurant_locations l
+           ON l.id = d.location_id AND l.restaurant_id = d.restaurant_id
+        WHERE d.restaurant_id = $1
+          AND d.app_key IN ('kitchen','display','pos')
+        ORDER BY d.app_key ASC, d.status DESC, d.device_name ASC`,
+      [restaurantId]
+    );
+    const settings = safeJson(restaurant.settings);
+    res.json({
+      prep: {
+        prepTimeMin: restaurant.prep_time_min,
+        kitchenDisplayEnabled: restaurant.kitchen_display_enabled,
+        kitchenPrep: safeJson(settings.kitchenPrep, {}),
+        stationTargets: safeJson(settings.stationPrepTargets, {}),
+        deviceDefaults: safeJson(settings.deviceDefaults, {}),
+      },
+      devices: devices.map(publicDevice),
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updatePrepDeviceConfig = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertManage(restaurant);
+    const prepTimeMin = parseOptionalInteger(req.body.prepTimeMin ?? req.body.prep_time_min, 'prepTimeMin', 1, 240);
+    const kitchenDisplayEnabled = parseOptionalBoolean(
+      req.body.kitchenDisplayEnabled ?? req.body.kitchen_display_enabled,
+      'kitchenDisplayEnabled'
+    );
+    const settingsPatch = {};
+    const kitchenPrep = safeJson(req.body.kitchenPrep ?? req.body.kitchen_prep, null);
+    const stationTargets = safeJson(req.body.stationTargets ?? req.body.station_prep_targets, null);
+    const deviceDefaults = safeJson(req.body.deviceDefaults ?? req.body.device_defaults, null);
+    if (kitchenPrep) settingsPatch.kitchenPrep = kitchenPrep;
+    if (stationTargets) settingsPatch.stationPrepTargets = stationTargets;
+    if (deviceDefaults) settingsPatch.deviceDefaults = deviceDefaults;
+    const devicePatches = Array.isArray(req.body.devices) ? req.body.devices.slice(0, 50) : [];
+
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [updatedRestaurant] } = await client.query(
+        `UPDATE food_restaurants
+            SET prep_time_min = COALESCE($1, prep_time_min),
+                kitchen_display_enabled = COALESCE($2, kitchen_display_enabled),
+                settings = CASE
+                  WHEN $3::jsonb = '{}'::jsonb THEN COALESCE(settings, '{}'::jsonb)
+                  ELSE COALESCE(settings, '{}'::jsonb) || $3::jsonb
+                END,
+                updated_at = NOW()
+          WHERE id = $4
+          RETURNING id, business_id, display_name, prep_time_min, kitchen_display_enabled,
+                    settings, timezone, currency_code`,
+        [prepTimeMin, kitchenDisplayEnabled, JSON.stringify(settingsPatch), restaurantId]
+      );
+      const updatedDevices = [];
+      for (const patch of devicePatches) {
+        const source = safeJson(patch, null);
+        if (!source) continue;
+        const deviceId = parsePositiveInt(source.deviceId || source.device_id || source.id);
+        if (!deviceId) {
+          throw new AppError('Validation failed', 400, 'validation_failed', { deviceId: 'Device id is required' });
+        }
+        const deviceConfig = safeJson(source.config, null);
+        const replaceConfig = asBool(source.replaceConfig ?? source.replace_config, false);
+        const status = normalizeString(source.status, 24);
+        if (status && !DEVICE_STATUSES.has(status)) {
+          throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported device status' });
+        }
+        const locationId = parsePositiveInt(source.locationId || source.location_id);
+        if (locationId) {
+          const { rows: [location] } = await client.query(
+            `SELECT id FROM restaurant_locations WHERE restaurant_id = $1 AND id = $2`,
+            [restaurantId, locationId]
+          );
+          if (!location) throw new AppError('Location not found', 404, 'location_not_found');
+        }
+        const { rows: [device] } = await client.query(
+          `UPDATE restaurant_app_devices
+              SET device_name = COALESCE($1, device_name),
+                  mode = COALESCE($2, mode),
+                  location_id = COALESCE($3, location_id),
+                  status = COALESCE($4, status),
+                  config = CASE
+                    WHEN $5::jsonb IS NULL THEN config
+                    WHEN $6 = TRUE THEN $5::jsonb
+                    ELSE config || $5::jsonb
+                  END,
+                  config_version = config_version + 1,
+                  updated_at = NOW()
+            WHERE restaurant_id = $7
+              AND id = $8
+              AND app_key IN ('kitchen','display','pos')
+            RETURNING *`,
+          [
+            normalizeString(source.deviceName || source.device_name, 160),
+            normalizeString(source.mode, 64),
+            locationId,
+            status,
+            deviceConfig ? JSON.stringify(deviceConfig) : null,
+            replaceConfig,
+            restaurantId,
+            deviceId,
+          ]
+        );
+        if (!device) throw new AppError('Device not found', 404, 'device_not_found');
+        updatedDevices.push(publicDevice(device));
+      }
+      return { restaurant: updatedRestaurant, devices: updatedDevices };
+    }, 'restaurant_prep_device_config_update');
+
+    res.json({
+      prep: {
+        prepTimeMin: result.restaurant.prep_time_min,
+        kitchenDisplayEnabled: result.restaurant.kitchen_display_enabled,
+        kitchenPrep: safeJson(result.restaurant.settings?.kitchenPrep, {}),
+        stationTargets: safeJson(result.restaurant.settings?.stationPrepTargets, {}),
+        deviceDefaults: safeJson(result.restaurant.settings?.deviceDefaults, {}),
+      },
+      devices: result.devices,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 function validateManagedLocation(location) {
   if (location.status && !['active', 'paused', 'closed'].includes(location.status)) {
     throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Must be active, paused, or closed' });
@@ -1590,13 +1953,36 @@ function deviceRouteContract(device, options = {}) {
   if (appKey === 'display') {
     contract.routes.queueBoard = `${base}/devices/${deviceId}/queue-board`;
     contract.routes.publicQueueBoard = `/api/food/restaurants/${restaurantId}/queue-board`;
+    contract.routes.displayQueueBoard = `${base}/display/queue-board`;
+    contract.routes.displayStats = `${base}/devices/${deviceId}/display-stats`;
+    contract.routes.displaySettings = `${base}/devices/${deviceId}/display-settings`;
+    contract.routes.reportDeviceIssue = `${base}/devices/${deviceId}/report-issue`;
+    contract.routes.compat = {
+      runtimeConfig: `${base}/display/devices/${deviceId}/runtime-config`,
+      heartbeat: `${base}/display/devices/${deviceId}/heartbeat`,
+      queueBoard: `${base}/display/devices/${deviceId}/queue-board`,
+      stats: `${base}/display/devices/${deviceId}/stats`,
+      settings: `${base}/display/devices/${deviceId}/settings`,
+      reportIssue: `${base}/display/devices/${deviceId}/report-issue`,
+    };
     contract.polling.queueBoardAfterMs = 2000;
   }
   return contract;
 }
 
 function deviceTokenFromRequest(req) {
-  return normalizeString(req.get('X-Device-Token') || req.body?.deviceToken || req.body?.device_token, 200);
+  const authorization = normalizeString(req.get('Authorization'), 260);
+  const deviceAuthorization = authorization?.match(/^Device\s+(.+)$/i)?.[1];
+  return normalizeString(
+    req.get('X-Device-Token')
+      || req.get('X-OxSteed-Device-Token')
+      || req.get('X-Restaurant-Device-Token')
+      || req.get('Device-Token')
+      || deviceAuthorization
+      || req.body?.deviceToken
+      || req.body?.device_token,
+    200
+  );
 }
 
 async function requireDeviceCredential(req, restaurantId, deviceId) {
@@ -1670,6 +2056,104 @@ async function buildQueueBoardPayload(restaurantId, device = null) {
     readyEntries: readyRows.map(toEntry),
     serverTime: new Date().toISOString(),
     nextPollAfterMs: rows.length ? 2000 : 5000,
+    contract: device ? deviceRouteContract(device, { restaurantId }) : null,
+    device: device ? publicDevice(device) : null,
+  };
+}
+
+function normalizeDisplaySettings(value) {
+  const source = safeJson(value, {});
+  const settings = {
+    boardTitle: normalizeString(source.boardTitle ?? source.board_title, 120),
+    theme: normalizeString(source.theme, 40),
+    accentColor: normalizeString(source.accentColor ?? source.accent_color, 24),
+    language: normalizeString(source.language, 32),
+    showGuestNames: source.showGuestNames ?? source.show_guest_names,
+    showTableLabels: source.showTableLabels ?? source.show_table_labels,
+    readySound: source.readySound ?? source.ready_sound,
+    pageSize: parseOptionalInteger(source.pageSize ?? source.page_size, 'pageSize', 1, 50),
+    rotationSeconds: parseOptionalInteger(source.rotationSeconds ?? source.rotation_seconds, 'rotationSeconds', 5, 300),
+  };
+  return Object.fromEntries(
+    Object.entries(settings).filter(([, setting]) => setting !== null && setting !== undefined)
+  );
+}
+
+function displaySettingsFromDevice(device) {
+  const config = safeJson(device?.config);
+  return {
+    boardTitle: config.displaySettings?.boardTitle || config.display?.boardTitle || 'Now serving',
+    theme: config.displaySettings?.theme || config.display?.theme || 'light',
+    accentColor: config.displaySettings?.accentColor || config.display?.accentColor || null,
+    language: config.displaySettings?.language || config.display?.language || 'en',
+    showGuestNames: config.displaySettings?.showGuestNames ?? config.display?.showGuestNames ?? false,
+    showTableLabels: config.displaySettings?.showTableLabels ?? config.display?.showTableLabels ?? true,
+    readySound: config.displaySettings?.readySound ?? config.display?.readySound ?? true,
+    pageSize: config.displaySettings?.pageSize || config.display?.pageSize || 12,
+    rotationSeconds: config.displaySettings?.rotationSeconds || config.display?.rotationSeconds || 12,
+  };
+}
+
+async function buildDisplayStatsPayload(restaurantId, device = null) {
+  const { rows: [restaurant] } = await pool.query(
+    `SELECT id, display_name, timezone
+       FROM food_restaurants
+      WHERE id = $1 AND status IN ('active','paused')`,
+    [restaurantId]
+  );
+  if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+  const timezone = normalizeString(restaurant.timezone, 80) || 'UTC';
+  const { rows: [orders] } = await pool.query(
+    `SELECT
+        COUNT(*) FILTER (WHERE status IN ('received','accepted','preparing','ready'))::int AS active_orders,
+        COUNT(*) FILTER (WHERE status IN ('received','accepted','preparing'))::int AS preparing_orders,
+        COUNT(*) FILTER (WHERE status = 'ready')::int AS ready_orders,
+        COUNT(*) FILTER (WHERE status = 'completed')::int AS completed_orders,
+        COUNT(*) FILTER (WHERE order_source = 'kiosk')::int AS kiosk_orders
+       FROM food_orders
+      WHERE restaurant_id = $1
+        AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date`,
+    [restaurantId, timezone]
+  );
+  const { rows: [devices] } = await pool.query(
+    `SELECT
+        COUNT(*) FILTER (WHERE app_key = 'display' AND status = 'paired')::int AS paired_displays,
+        COUNT(*) FILTER (
+          WHERE app_key = 'display'
+            AND status = 'paired'
+            AND (last_seen_at IS NULL OR last_seen_at < NOW() - INTERVAL '2 minutes')
+        )::int AS stale_displays,
+        MAX(last_seen_at) FILTER (WHERE app_key = 'display' AND status = 'paired') AS last_display_seen_at
+       FROM restaurant_app_devices
+      WHERE restaurant_id = $1`,
+    [restaurantId]
+  );
+  return {
+    restaurant: {
+      id: restaurant.id,
+      display_name: restaurant.display_name,
+    },
+    stats: {
+      activeOrders: orders?.active_orders || 0,
+      preparingOrders: orders?.preparing_orders || 0,
+      readyOrders: orders?.ready_orders || 0,
+      completedOrders: orders?.completed_orders || 0,
+      kioskOrders: orders?.kiosk_orders || 0,
+      pairedDisplays: devices?.paired_displays || 0,
+      staleDisplays: devices?.stale_displays || 0,
+      lastDisplaySeenAt: devices?.last_display_seen_at || null,
+    },
+    stats_snake: {
+      active_orders: orders?.active_orders || 0,
+      preparing_orders: orders?.preparing_orders || 0,
+      ready_orders: orders?.ready_orders || 0,
+      completed_orders: orders?.completed_orders || 0,
+      kiosk_orders: orders?.kiosk_orders || 0,
+      paired_displays: devices?.paired_displays || 0,
+      stale_displays: devices?.stale_displays || 0,
+      last_display_seen_at: devices?.last_display_seen_at || null,
+    },
+    serverTime: new Date().toISOString(),
     contract: device ? deviceRouteContract(device, { restaurantId }) : null,
     device: device ? publicDevice(device) : null,
   };
@@ -1968,6 +2452,125 @@ exports.getDeviceQueueBoard = async (req, res, next) => {
   }
 };
 
+exports.getPublicDisplayQueueBoard = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const payload = await buildQueueBoardPayload(restaurantId);
+    res.json(payload);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getDisplayStats = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const deviceId = parsePositiveInt(req.params.deviceId);
+    const device = deviceId ? await requireDeviceCredential(req, restaurantId, deviceId) : null;
+    if (device) assertDeviceApp(device, 'display');
+    if (!device) {
+      if (!req.user?.id) throw new AppError('Authentication required', 401, 'authentication_required');
+      await requireRestaurantAccess(req.user.id, restaurantId);
+    }
+    res.json(await buildDisplayStatsPayload(restaurantId, device));
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getDeviceDisplaySettings = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const deviceId = parsePositiveInt(req.params.deviceId);
+    const device = await requireDeviceCredential(req, restaurantId, deviceId);
+    assertDeviceApp(device, 'display');
+    res.json({
+      settings: displaySettingsFromDevice(device),
+      device: publicDevice(device),
+      contract: deviceRouteContract(device, { restaurantId }),
+      serverTime: new Date().toISOString(),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateDeviceDisplaySettings = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const deviceId = parsePositiveInt(req.params.deviceId);
+    const existing = await requireDeviceCredential(req, restaurantId, deviceId);
+    assertDeviceApp(existing, 'display');
+    const settings = normalizeDisplaySettings(req.body.settings || req.body.displaySettings || req.body.display_settings || req.body);
+    const { rows: [device] } = await pool.query(
+      `UPDATE restaurant_app_devices
+          SET config = config || jsonb_build_object('displaySettings', COALESCE(config->'displaySettings', '{}'::jsonb) || $1::jsonb),
+              config_version = config_version + 1,
+              updated_at = NOW()
+        WHERE restaurant_id = $2
+          AND id = $3
+          AND app_key = 'display'
+          AND status = 'paired'
+        RETURNING *`,
+      [JSON.stringify(settings), restaurantId, deviceId]
+    );
+    if (!device) throw new AppError('Device not found', 404, 'device_not_found');
+    res.json({
+      settings: displaySettingsFromDevice(device),
+      device: publicDevice(device),
+      contract: deviceRouteContract(device, { restaurantId }),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.reportDeviceIssue = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const deviceId = parsePositiveInt(req.params.deviceId);
+    const device = await requireDeviceCredential(req, restaurantId, deviceId);
+    const description = normalizeString(req.body.description || req.body.message || req.body.details, 5000);
+    if (!description) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { description: 'Description is required' });
+    }
+    const { rows: [restaurant] } = await pool.query(
+      `SELECT id, display_name, business_id
+         FROM food_restaurants
+        WHERE id = $1`,
+      [restaurantId]
+    );
+    if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const ticket = await withTransaction(pool, async (client) => createLinkedSupportTicket(client, {
+      name: normalizeString(req.body.contactName || req.body.contact_name, 160) || `${restaurant.display_name} device`,
+      email: normalizeString(req.body.contactEmail || req.body.contact_email, 255) || 'support@oxsteed.com',
+      subject: normalizeString(req.body.subject, 240) || `Restaurant device issue: ${restaurant.display_name}`,
+      category: 'technical',
+      priority: normalizeString(req.body.priority, 20) || 'normal',
+      source: 'direct',
+      metadata: {
+        source: 'restaurant_device',
+        restaurantId,
+        businessId: restaurant.business_id,
+        deviceId,
+        appKey: device.app_key,
+        deviceName: device.device_name,
+        mode: device.mode || null,
+        appVersion: req.body.appVersion || req.body.app_version || device.app_version || null,
+        platform: req.body.platform || device.platform || null,
+      },
+      initialMessage: description,
+    }), 'restaurant_device_report_issue');
+    res.status(201).json({
+      ticket,
+      supportTicket: ticket,
+      message: 'Device issue reported.',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 async function requireOpenPosShift(client, restaurantId, shiftId, userId, canManage) {
   if (!shiftId) throw new AppError('An open POS shift is required', 409, 'open_pos_shift_required');
   const { rows: [shift] } = await client.query(
@@ -2159,6 +2762,62 @@ exports.listShifts = async (req, res, next) => {
   }
 };
 
+exports.listPosOrders = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const limit = Math.min(parsePositiveInt(req.query.limit, 50), 100);
+    const ticketState = normalizeString(req.query.ticketState || req.query.ticket_state, 24);
+    const status = normalizeString(req.query.status, 32);
+    const params = [restaurantId, limit];
+    const filters = [
+      'fo.restaurant_id = $1',
+      "fo.order_source IN ('counter','kiosk','tablet')",
+    ];
+    if (ticketState) {
+      if (!POS_TICKET_STATES.has(ticketState)) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { ticketState: 'Unsupported ticket state' });
+      }
+      params.push(ticketState);
+      filters.push(`fo.pos_ticket_state = $${params.length}`);
+    }
+    if (status) {
+      params.push(status);
+      filters.push(`fo.status = $${params.length}`);
+    }
+    const { rows: orders } = await pool.query(
+      `SELECT fo.*,
+              COALESCE(json_agg(json_build_object(
+                'id', foi.id,
+                'menuItemId', foi.menu_item_id,
+                'itemName', foi.item_name,
+                'quantity', foi.quantity,
+                'unitPriceCents', foi.unit_price_cents,
+                'modifierTotalCents', foi.modifier_total_cents,
+                'lineTotalCents', foi.line_total_cents,
+                'kitchenStatus', foi.kitchen_status,
+                'stationLabel', foi.station_label,
+                'specialInstructions', foi.special_instructions
+              ) ORDER BY foi.id) FILTER (WHERE foi.id IS NOT NULL), '[]') AS items
+         FROM food_orders fo
+         LEFT JOIN food_order_items foi ON foi.order_id = fo.id
+        WHERE ${filters.join(' AND ')}
+        GROUP BY fo.id
+        ORDER BY fo.updated_at DESC, fo.created_at DESC
+        LIMIT $2`,
+      params
+    );
+    res.json({ orders });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.listHeldTickets = async (req, res, next) => {
+  req.query.ticketState = 'held';
+  return exports.listPosOrders(req, res, next);
+};
+
 exports.listDrawerEvents = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -2269,6 +2928,23 @@ exports.createPosOrder = async (req, res, next) => {
         [restaurantId, ids]
       );
       const menu = new Map(menuRows.map((row) => [Number(row.id), row]));
+      const modifierIds = items.flatMap((item) => (
+        Array.isArray(item.modifierIds || item.modifier_ids)
+          ? (item.modifierIds || item.modifier_ids)
+          : []
+      ))
+        .map((id) => parsePositiveInt(id))
+        .filter(Boolean);
+      const { rows: modifierRows } = modifierIds.length
+        ? await client.query(
+          `SELECT fm.id, fm.name, fm.price_delta_cents, fm.is_available
+             FROM food_modifiers fm
+             JOIN food_modifier_groups mg ON mg.id = fm.modifier_group_id
+            WHERE mg.restaurant_id = $1 AND fm.id = ANY($2::bigint[])`,
+          [restaurantId, modifierIds]
+        )
+        : { rows: [] };
+      const modifierById = new Map(modifierRows.map((row) => [Number(row.id), row]));
       const normalized = items.map((line, index) => {
         const item = menu.get(parsePositiveInt(line.menuItemId || line.menu_item_id));
         if (!item || item.is_available === false) {
@@ -2282,21 +2958,24 @@ exports.createPosOrder = async (req, res, next) => {
           && !MANAGE_ROLES.has(restaurant.effective_role)) {
           throw new AppError('Only a manager can override menu prices', 403, 'price_override_forbidden');
         }
+        const modifiers = (Array.isArray(line.modifierIds || line.modifier_ids) ? (line.modifierIds || line.modifier_ids) : [])
+          .map((id) => modifierById.get(parsePositiveInt(id)))
+          .filter((modifier) => modifier && modifier.is_available !== false);
+        const modifierTotal = Math.max(0, modifiers.reduce((sum, modifier) => sum + Number(modifier.price_delta_cents || 0), 0));
         return {
           item,
           quantity,
           unitPrice,
-          lineTotal: unitPrice * quantity,
+          modifiers,
+          modifierTotal,
+          lineTotal: (unitPrice + modifierTotal) * quantity,
           stationLabel: normalizeString(line.stationLabel || line.station_label, 80),
           specialInstructions: normalizeString(line.specialInstructions || line.special_instructions, 500),
         };
       });
       const subtotal = normalized.reduce((sum, line) => sum + line.lineTotal, 0);
       const tip = parseCents(req.body.tipCents ?? req.body.tip_cents, 'tipCents');
-      const discount = parseCents(req.body.discountCents ?? req.body.discount_cents, 'discountCents');
-      if (discount > subtotal) {
-        throw new AppError('Validation failed', 400, 'validation_failed', { discountCents: 'Cannot exceed subtotal' });
-      }
+      const { discountCents: discount, discountLines } = normalizeDiscountLines(req.body, subtotal);
       const taxableSubtotal = Math.max(0, subtotal - discount);
       const taxRateBps = Math.max(0, Math.min(10000, Number(lockedRestaurant.tax_rate_bps || 0)));
       const serviceFeeBps = Math.max(0, Math.min(10000, Number(lockedRestaurant.service_fee_bps || 0)));
@@ -2388,6 +3067,7 @@ exports.createPosOrder = async (req, res, next) => {
           source: 'pos_order_create',
           initialPaymentStatus: paymentStatus,
         }),
+        ...(discountLines.length ? { posDiscounts: discountLines } : {}),
         ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),
         pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents, deliveryFeeCents },
       };
@@ -2427,12 +3107,31 @@ exports.createPosOrder = async (req, res, next) => {
         ]
       );
       for (const line of normalized) {
-        await client.query(
+        const { rows: [orderItem] } = await client.query(
           `INSERT INTO food_order_items
              (order_id, menu_item_id, item_name, quantity, unit_price_cents, modifier_total_cents, line_total_cents, special_instructions, station_label)
-           VALUES ($1,$2,$3,$4,$5,0,$6,$7,$8)`,
-          [order.id, line.item.id, line.item.name, line.quantity, line.unitPrice, line.lineTotal, line.specialInstructions, normalizeString(line.stationLabel, 80)]
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+           RETURNING id`,
+          [
+            order.id,
+            line.item.id,
+            line.item.name,
+            line.quantity,
+            line.unitPrice,
+            line.modifierTotal,
+            line.lineTotal,
+            line.specialInstructions,
+            normalizeString(line.stationLabel, 80),
+          ]
         );
+        for (const modifier of line.modifiers) {
+          await client.query(
+            `INSERT INTO food_order_item_modifiers
+               (order_item_id, modifier_id, modifier_name, price_delta_cents)
+             VALUES ($1,$2,$3,$4)`,
+            [orderItem.id, modifier.id, modifier.name, modifier.price_delta_cents]
+          );
+        }
       }
       const printerJobs = await enqueueKitchenPrinterJobs(client, {
         restaurantId,
@@ -2567,6 +3266,27 @@ exports.updatePosTicket = async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+};
+
+exports.holdPosOrder = async (req, res, next) => {
+  req.body.ticketState = 'held';
+  return exports.updatePosTicket(req, res, next);
+};
+
+exports.reopenPosOrder = async (req, res, next) => {
+  req.body.ticketState = 'open';
+  return exports.updatePosTicket(req, res, next);
+};
+
+exports.voidPosOrder = async (req, res, next) => {
+  req.body.ticketState = 'voided';
+  return exports.updatePosTicket(req, res, next);
+};
+
+exports.refundPosOrder = async (req, res, next) => {
+  req.body.paymentType = 'refund';
+  req.body.status = req.body.status || 'captured';
+  return exports.recordPosPayment(req, res, next);
 };
 
 exports.splitPosOrder = async (req, res, next) => {
@@ -2740,7 +3460,10 @@ exports.recordPosPayment = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    const paymentType = normalizeString(req.body.paymentType || req.body.payment_type, 24);
+    const paymentType = normalizePosPaymentType(
+      req.body.paymentType || req.body.payment_type || req.body.paymentMode || req.body.payment_mode,
+      null
+    );
     const status = normalizeString(req.body.status, 24) || 'recorded';
     if (!POS_PAYMENT_TYPES.has(paymentType)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { paymentType: 'Unsupported payment type' });
@@ -3445,6 +4168,89 @@ exports.validateStaffPin = async (req, res, next) => {
   }
 };
 
+exports.ackKitchenTicket = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const orderId = parsePositiveInt(req.params.orderId || req.body.orderId || req.body.order_id);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    if (!orderId) throw new AppError('Validation failed', 400, 'validation_failed', { orderId: 'Order is required' });
+    const requestedStatus = normalizeString(req.body.status || req.body.toStatus || req.body.to_status, 32);
+    const startPreparing = asBool(req.body.startPreparing ?? req.body.start_preparing, false);
+    const nextStatus = requestedStatus || (startPreparing ? 'preparing' : 'accepted');
+    if (!['accepted', 'preparing'].includes(nextStatus)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Kitchen ack status must be accepted or preparing' });
+    }
+    const reason = normalizeString(req.body.reason || req.body.note, 1000);
+    const promisedAt = req.body.promisedAt || req.body.promised_at || null;
+    const prepTimeMin = parseOptionalInteger(
+      req.body.prepTimeMin ?? req.body.prep_time_min,
+      'prepTimeMin',
+      1,
+      240
+    ) || Number(restaurant.prep_time_min || 15);
+
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [existing] } = await client.query(
+        `SELECT *
+           FROM food_orders
+          WHERE id = $1 AND restaurant_id = $2
+          FOR UPDATE`,
+        [orderId, restaurantId]
+      );
+      if (!existing) throw new AppError('Order not found', 404, 'order_not_found');
+      if (['completed', 'cancelled', 'refunded'].includes(existing.status)) {
+        throw new AppError('Kitchen ticket is already terminal', 409, 'kitchen_ticket_terminal');
+      }
+      const { rows: [order] } = await client.query(
+        `UPDATE food_orders
+            SET status = CASE
+                  WHEN status = 'received' THEN $1
+                  WHEN status = 'accepted' AND $1 = 'preparing' THEN 'preparing'
+                  ELSE status
+                END,
+                accepted_at = COALESCE(accepted_at, NOW()),
+                promised_at = COALESCE($2::timestamptz, promised_at, NOW() + ($3::int * INTERVAL '1 minute')),
+                updated_at = NOW()
+          WHERE id = $4 AND restaurant_id = $5
+          RETURNING *`,
+        [nextStatus, promisedAt, prepTimeMin, orderId, restaurantId]
+      );
+      const { rows: [event] } = await client.query(
+        `INSERT INTO restaurant_kitchen_events
+           (restaurant_id, food_order_id, event_type, from_status, to_status,
+            station_label, reason, metadata, created_by)
+         VALUES ($1,$2,'ticket_ack',$3,$4,$5,$6,$7,$8)
+         RETURNING *`,
+        [
+          restaurantId,
+          orderId,
+          existing.status,
+          order.status,
+          normalizeString(req.body.stationLabel || req.body.station_label, 80),
+          reason,
+          JSON.stringify({
+            prepTimeMin,
+            promisedAt: promisedAt || order.promised_at || null,
+            source: 'kitchen_ack',
+            ...safeJson(req.body.metadata),
+          }),
+          req.user.id,
+        ]
+      );
+      return { order, event };
+    }, 'restaurant_kitchen_ticket_ack');
+
+    broadcastRestaurant(restaurant, 'food:kitchen:ticket:ack', {
+      ...result,
+      restaurantId,
+      cursor: Number(result.event.id),
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.recordKitchenEvent = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -3772,6 +4578,60 @@ exports.listKitchenEvents = async (req, res, next) => {
       params
     );
     res.json({ events });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.listKitchenAuditEvents = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const orderId = parsePositiveInt(req.query.orderId || req.query.order_id);
+    const itemId = parsePositiveInt(req.query.orderItemId || req.query.order_item_id || req.query.itemId || req.query.item_id);
+    const sinceEventId = parsePositiveInt(req.query.sinceEventId || req.query.since_event_id || req.query.cursor, 0) || 0;
+    const eventType = normalizeString(req.query.eventType || req.query.event_type, 48);
+    const limit = Math.min(parsePositiveInt(req.query.limit, 100), 250);
+    const params = [restaurantId, sinceEventId];
+    const filters = ['e.restaurant_id = $1', 'e.id > $2'];
+    if (orderId) {
+      params.push(orderId);
+      filters.push(`e.food_order_id = $${params.length}`);
+    }
+    if (itemId) {
+      params.push(itemId);
+      filters.push(`e.food_order_item_id = $${params.length}`);
+    }
+    if (eventType) {
+      params.push(eventType);
+      filters.push(`e.event_type = $${params.length}`);
+    }
+    params.push(limit);
+    const { rows: events } = await pool.query(
+      `SELECT e.*,
+              fo.queue_number,
+              fo.guest_name,
+              foi.item_name,
+              u.first_name AS actor_first_name,
+              u.last_name AS actor_last_name
+         FROM restaurant_kitchen_events e
+         LEFT JOIN food_orders fo
+           ON fo.id = e.food_order_id AND fo.restaurant_id = e.restaurant_id
+         LEFT JOIN food_order_items foi
+           ON foi.id = e.food_order_item_id
+         LEFT JOIN users u ON u.id = e.created_by
+        WHERE ${filters.join(' AND ')}
+        ORDER BY e.id ASC
+        LIMIT $${params.length}`,
+      params
+    );
+    const cursor = events.length ? Number(events[events.length - 1].id) : sinceEventId;
+    res.json({
+      events,
+      cursor,
+      hasMore: events.length === limit,
+      generatedAt: new Date().toISOString(),
+    });
   } catch (err) {
     next(err);
   }
@@ -4825,6 +5685,69 @@ exports.updateRunnerDispatch = async (req, res, next) => {
   }
 };
 
+exports.completeRunnerHandoff = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const taskId = parsePositiveInt(req.params.taskId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const canManage = MANAGE_ROLES.has(restaurant.effective_role);
+    const handoffAt = req.body.handoffAt || req.body.handoff_at || null;
+    const note = normalizeString(req.body.note || req.body.handoffNote || req.body.handoff_note, 1000);
+    const proofMethod = normalizeString(req.body.method || req.body.proofMethod || req.body.proof_method, 40);
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [currentTask] } = await client.query(
+        `SELECT *
+           FROM restaurant_runner_tasks
+          WHERE restaurant_id = $1 AND id = $2
+          FOR UPDATE`,
+        [restaurantId, taskId]
+      );
+      if (!currentTask) throw new AppError('Runner task not found', 404, 'runner_task_not_found');
+      if (!canManage && String(currentTask.assigned_to || '') !== String(req.user.id)) {
+        throw new AppError('This runner task is assigned to another user', 403, 'runner_task_not_assigned');
+      }
+      if (!currentTask.assigned_to) {
+        throw new AppError('Runner handoff requires an assigned runner', 409, 'runner_task_unassigned');
+      }
+      if (['Completed', 'Cancelled'].includes(currentTask.status)) {
+        throw new AppError('Runner task is already terminal', 409, 'runner_task_terminal');
+      }
+      const { rows: [task] } = await client.query(
+        `UPDATE restaurant_runner_tasks
+            SET status = 'Completed',
+                handoff_at = COALESCE($1::timestamptz, handoff_at, NOW()),
+                completed_at = COALESCE(completed_at, COALESCE($1::timestamptz, NOW())),
+                updated_at = NOW()
+          WHERE restaurant_id = $2 AND id = $3
+          RETURNING *`,
+        [handoffAt, restaurantId, taskId]
+      );
+      let proof = null;
+      if (note || proofMethod || req.body.metadata) {
+        const { rows: [createdProof] } = await client.query(
+          `INSERT INTO restaurant_runner_proofs
+             (restaurant_id, task_id, method, note, created_by)
+           VALUES ($1,$2,$3,$4,$5)
+           RETURNING *`,
+          [
+            restaurantId,
+            taskId,
+            proofMethod || 'Customer handoff',
+            note || JSON.stringify(safeJson(req.body.metadata)),
+            req.user.id,
+          ]
+        );
+        proof = createdProof;
+      }
+      return { task, proof };
+    }, 'restaurant_runner_handoff');
+    broadcastRestaurant(restaurant, 'food:runner:handoff', result);
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.listRunnerOffers = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -5127,6 +6050,82 @@ exports.upsertRunnerSettlement = async (req, res, next) => {
   }
 };
 
+exports.getInventoryHookStatus = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertManage(restaurant);
+    const [
+      { rows: [summary] },
+      { rows: affectedMenuItems },
+      { rows: recentEvents },
+    ] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*)::int AS mapped_items,
+                COUNT(*) FILTER (WHERE m.auto_manage = TRUE)::int AS auto_managed_items,
+                COUNT(*) FILTER (WHERE fmi.is_available = FALSE)::int AS unavailable_menu_items,
+                COUNT(*) FILTER (
+                  WHERE i.quantity <= 0 OR (i.reorder_point > 0 AND i.quantity <= i.reorder_point)
+                )::int AS blocked_or_low_inventory_items,
+                MAX(GREATEST(i.updated_at, m.created_at)) AS last_mapping_activity_at
+           FROM restaurant_inventory_item_mappings m
+           JOIN restaurant_inventory_items i
+             ON i.id = m.inventory_item_id AND i.restaurant_id = m.restaurant_id
+           JOIN food_menu_items fmi
+             ON fmi.id = m.menu_item_id AND fmi.restaurant_id = m.restaurant_id
+          WHERE m.restaurant_id = $1`,
+        [restaurantId]
+      ),
+      pool.query(
+        `SELECT fmi.id AS menu_item_id,
+                fmi.name AS menu_item_name,
+                fmi.is_available,
+                i.id AS inventory_item_id,
+                i.name AS inventory_item_name,
+                i.quantity,
+                i.unit,
+                i.reorder_point,
+                i.critical_level,
+                m.auto_manage
+           FROM restaurant_inventory_item_mappings m
+           JOIN restaurant_inventory_items i
+             ON i.id = m.inventory_item_id AND i.restaurant_id = m.restaurant_id
+           JOIN food_menu_items fmi
+             ON fmi.id = m.menu_item_id AND fmi.restaurant_id = m.restaurant_id
+          WHERE m.restaurant_id = $1
+            AND m.auto_manage = TRUE
+            AND (i.quantity <= 0 OR (i.reorder_point > 0 AND i.quantity <= i.reorder_point) OR fmi.is_available = FALSE)
+          ORDER BY i.quantity ASC, fmi.name ASC
+          LIMIT 50`,
+        [restaurantId]
+      ),
+      pool.query(
+        `SELECT *
+           FROM restaurant_inventory_availability_events
+          WHERE restaurant_id = $1
+          ORDER BY created_at DESC
+          LIMIT 50`,
+        [restaurantId]
+      ),
+    ]);
+    res.json({
+      status: Number(summary?.blocked_or_low_inventory_items || 0) > 0 ? 'attention_required' : 'healthy',
+      summary: summary || {
+        mapped_items: 0,
+        auto_managed_items: 0,
+        unavailable_menu_items: 0,
+        blocked_or_low_inventory_items: 0,
+        last_mapping_activity_at: null,
+      },
+      affectedMenuItems,
+      recentEvents,
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.syncMenuAvailability = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -5140,6 +6139,218 @@ exports.syncMenuAvailability = async (req, res, next) => {
       });
     });
     res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.setMenuItemAvailability = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const itemId = parsePositiveInt(req.params.itemId || req.body.itemId || req.body.item_id);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertManage(restaurant);
+    const available = parseOptionalBoolean(
+      req.body.isAvailable ?? req.body.is_available ?? req.body.available,
+      'isAvailable'
+    );
+    if (available === null) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { isAvailable: 'Must be true or false' });
+    }
+    const reason = normalizeString(req.body.reason || req.body.note, 1000);
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [current] } = await client.query(
+        `SELECT id, is_available
+           FROM food_menu_items
+          WHERE id = $1 AND restaurant_id = $2
+          FOR UPDATE`,
+        [itemId, restaurantId]
+      );
+      if (!current) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
+      const { rows: [item] } = await client.query(
+        `UPDATE food_menu_items
+            SET is_available = $1,
+                updated_at = NOW()
+          WHERE id = $2 AND restaurant_id = $3
+          RETURNING *`,
+        [available, itemId, restaurantId]
+      );
+      if (!item) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
+      const { rows: [event] } = await client.query(
+        `INSERT INTO restaurant_inventory_availability_events
+           (restaurant_id, menu_item_id, previous_available, next_available, reason, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6)
+         RETURNING *`,
+        [
+          restaurantId,
+          item.id,
+          current.is_available,
+          available,
+          reason,
+          req.user.id,
+        ]
+      );
+      return { item, event };
+    });
+    broadcastRestaurant(restaurant, 'food:menu:availability', result);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getPosSyncStatus = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertManage(restaurant);
+    const deviceId = parsePositiveInt(req.query.deviceId || req.query.device_id);
+    const params = [restaurantId];
+    let deviceFilter = '';
+    if (deviceId) {
+      params.push(deviceId);
+      deviceFilter = `AND d.id = $${params.length}`;
+    }
+    const [{ rows: devices }, { rows: [operations] }, { rows: recentOperations }] = await Promise.all([
+      pool.query(
+        `SELECT d.id, d.restaurant_id, d.app_key, d.device_name, d.mode, d.location_id,
+                d.status, d.last_seen_at, d.last_sync_at, d.sync_status, d.sync_error,
+                d.config_version, d.app_version, d.platform,
+                COUNT(o.id) FILTER (WHERE o.status IN ('received','acked'))::int AS pending_operations,
+                COUNT(o.id) FILTER (WHERE o.status = 'failed')::int AS failed_operations,
+                MAX(o.acknowledged_at) AS last_operation_ack_at
+           FROM restaurant_app_devices d
+           LEFT JOIN restaurant_pos_pending_operations o
+             ON o.device_id = d.id
+            AND o.restaurant_id = d.restaurant_id
+          WHERE d.restaurant_id = $1
+            AND d.app_key = 'pos'
+            ${deviceFilter}
+          GROUP BY d.id
+          ORDER BY d.status DESC, d.last_seen_at DESC NULLS LAST, d.device_name ASC`,
+        params
+      ),
+      pool.query(
+        `SELECT COUNT(*) FILTER (WHERE status IN ('received','acked'))::int AS pending_operations,
+                COUNT(*) FILTER (WHERE status = 'applied')::int AS applied_operations,
+                COUNT(*) FILTER (WHERE status = 'failed')::int AS failed_operations,
+                MAX(acknowledged_at) AS last_acknowledged_at
+           FROM restaurant_pos_pending_operations
+          WHERE restaurant_id = $1`,
+        [restaurantId]
+      ),
+      pool.query(
+        `SELECT *
+           FROM restaurant_pos_pending_operations
+          WHERE restaurant_id = $1
+          ORDER BY acknowledged_at DESC
+          LIMIT 25`,
+        [restaurantId]
+      ),
+    ]);
+    const hasFailed = Number(operations?.failed_operations || 0) > 0
+      || devices.some((device) => device.sync_status === 'error');
+    const hasDegraded = Number(operations?.pending_operations || 0) > 0
+      || devices.some((device) => device.sync_status === 'degraded'
+        || (device.status === 'paired' && (!device.last_seen_at || new Date(device.last_seen_at).getTime() < Date.now() - 5 * 60 * 1000)));
+    res.json({
+      status: hasFailed ? 'error' : hasDegraded ? 'degraded' : 'healthy',
+      operations: operations || { pending_operations: 0, applied_operations: 0, failed_operations: 0, last_acknowledged_at: null },
+      devices: devices.map(publicDevice),
+      recentOperations,
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.ackPendingOperations = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    await requireRestaurantAccess(req.user.id, restaurantId);
+    const rawOperations = Array.isArray(req.body.operations)
+      ? req.body.operations
+      : Array.isArray(req.body.pendingOperations || req.body.pending_operations)
+        ? (req.body.pendingOperations || req.body.pending_operations)
+        : [];
+    const operationIds = Array.isArray(req.body.operationIds || req.body.operation_ids)
+      ? (req.body.operationIds || req.body.operation_ids)
+      : [];
+    const operations = rawOperations.length
+      ? rawOperations
+      : operationIds.map((operationId) => ({ operationId }));
+    if (!operations.length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { operations: 'At least one operation is required' });
+    }
+    if (operations.length > 100) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { operations: 'At most 100 operations may be acknowledged at once' });
+    }
+    const deviceId = parsePositiveInt(req.body.deviceId || req.body.device_id);
+    const status = normalizeString(req.body.status, 24) || 'acked';
+    if (!['received', 'acked', 'applied', 'failed'].includes(status)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported sync status' });
+    }
+    const acked = await withTransaction(pool, async (client) => {
+      const rows = [];
+      for (const rawOperation of operations) {
+        const operation = safeJson(rawOperation, null);
+        const clientOperationId = normalizeString(
+          operation?.operationId || operation?.operation_id || operation?.id,
+          200
+        );
+        if (!clientOperationId) {
+          throw new AppError('Validation failed', 400, 'validation_failed', { operationId: 'Operation id is required' });
+        }
+        const operationType = normalizeString(operation.type || operation.operationType || operation.operation_type, 80)
+          || 'unknown';
+        const entityType = normalizeString(operation.entityType || operation.entity_type, 80);
+        const entityId = normalizeString(operation.entityId || operation.entity_id, 120);
+        const operationStatus = normalizeString(operation.status, 24) || status;
+        if (!['received', 'acked', 'applied', 'failed'].includes(operationStatus)) {
+          throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported sync status' });
+        }
+        const { rows: [ack] } = await client.query(
+          `INSERT INTO restaurant_pos_pending_operations
+             (restaurant_id, device_id, client_operation_id, operation_type, entity_type,
+              entity_id, status, error_code, error_message, payload, created_by, acknowledged_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,NOW())
+           ON CONFLICT (restaurant_id, client_operation_id)
+           DO UPDATE SET device_id = COALESCE(EXCLUDED.device_id, restaurant_pos_pending_operations.device_id),
+                         operation_type = EXCLUDED.operation_type,
+                         entity_type = COALESCE(EXCLUDED.entity_type, restaurant_pos_pending_operations.entity_type),
+                         entity_id = COALESCE(EXCLUDED.entity_id, restaurant_pos_pending_operations.entity_id),
+                         status = EXCLUDED.status,
+                         error_code = EXCLUDED.error_code,
+                         error_message = EXCLUDED.error_message,
+                         payload = restaurant_pos_pending_operations.payload || EXCLUDED.payload,
+                         acknowledged_at = NOW(),
+                         updated_at = NOW()
+           RETURNING *`,
+          [
+            restaurantId,
+            deviceId,
+            clientOperationId,
+            operationType,
+            entityType,
+            entityId,
+            operationStatus,
+            normalizeString(operation.errorCode || operation.error_code, 80),
+            normalizeString(operation.errorMessage || operation.error_message, 1000),
+            JSON.stringify(safeJson(operation.payload, operation)),
+            req.user.id,
+          ]
+        );
+        rows.push(ack);
+      }
+      return rows;
+    });
+    res.status(200).json({
+      acknowledged: acked,
+      acked,
+      count: acked.length,
+      serverTime: new Date().toISOString(),
+    });
   } catch (err) {
     next(err);
   }

@@ -2,6 +2,8 @@
 
 const pool = require('../db');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
+const slotEngine = require('../services/bookingSlotEngine');
+const mainAppContracts = require('../models/mainAppContractsModel');
 
 function parseLimit(value, fallback = 4, max = 12) {
   const parsed = Number.parseInt(String(value), 10);
@@ -62,6 +64,23 @@ function defaultWalletSummary() {
 
 function normalizeCurrency(value) {
   return String(value || 'USD').toUpperCase();
+}
+
+function parsePositiveCents(value) {
+  const parsed = Number.parseInt(String(value), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parseOptionalInt(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number.parseInt(String(value), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parseDateOrNull(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function centsFromDollars(value) {
@@ -1649,10 +1668,20 @@ exports.getPayoutSummary = async (req, res, next) => {
     const userId = req.user.id;
     const [jobsResult, requestsResult] = await Promise.all([
       pool.query(
-        `SELECT
-            COALESCE(SUM(CASE WHEN payout_status IN ('earned', 'not_ready') THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS available_cents,
+        `WITH request_totals AS (
+           SELECT COALESCE(SUM(amount_cents) FILTER (WHERE status IN ('pending', 'processing')), 0)::bigint AS requested_cents
+             FROM main_app_payout_requests
+            WHERE user_id = $1
+         )
+         SELECT
+            GREATEST(
+              COALESCE(SUM(CASE WHEN payout_status IN ('earned', 'not_ready') THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint
+              - (SELECT requested_cents FROM request_totals),
+              0
+            )::bigint AS available_cents,
             COALESCE(SUM(CASE WHEN payout_status IN ('pending', 'processing') THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS pending_cents,
             COALESCE(SUM(CASE WHEN payout_status = 'paid' THEN COALESCE(helper_payout_cents, final_price_cents, budget_max_cents, budget_min_cents, 0) ELSE 0 END), 0)::bigint AS paid_cents,
+            (SELECT requested_cents FROM request_totals) AS requested_cents,
             COALESCE(MAX(currency_code), 'USD') AS currency_code
            FROM jobs
           WHERE assigned_helper_id = $1
@@ -1660,7 +1689,8 @@ exports.getPayoutSummary = async (req, res, next) => {
         [userId]
       ),
       pool.query(
-        `SELECT id, amount_cents, currency_code, payout_method, status, note, requested_at, processed_at
+        `SELECT id, amount_cents, currency_code, payout_method, status, note,
+                external_payout_id, ledger_entry_id, requested_at, processed_at, cancelled_at
            FROM main_app_payout_requests
           WHERE user_id = $1
           ORDER BY requested_at DESC
@@ -1674,21 +1704,13 @@ exports.getPayoutSummary = async (req, res, next) => {
       contract: { version: 'main-payouts-v1', generatedAt: new Date().toISOString(), dataSource: 'production' },
       summary: {
         availableCents: Number(row.available_cents || 0),
-        pendingCents: Number(row.pending_cents || 0),
+        pendingCents: Number(row.pending_cents || 0) + Number(row.requested_cents || 0),
         paidCents: Number(row.paid_cents || 0),
         currencyCode: normalizeCurrency(row.currency_code),
-        minimumWithdrawalCents: 1000,
+        minimumWithdrawalCents: mainAppContracts.PAYOUT_MINIMUM_CENTS,
+        payoutCompletionRequiresExternalSettlement: true,
       },
-      requests: requestsResult.rows.map((request) => ({
-        id: String(request.id),
-        amountCents: Number(request.amount_cents || 0),
-        currencyCode: normalizeCurrency(request.currency_code),
-        payoutMethod: request.payout_method,
-        status: request.status,
-        note: request.note || null,
-        requestedAt: toIso(request.requested_at),
-        processedAt: toIso(request.processed_at),
-      })),
+      requests: requestsResult.rows.map(mainAppContracts.serializePayoutRequest),
     });
   } catch (err) {
     next(err);
@@ -1697,11 +1719,149 @@ exports.getPayoutSummary = async (req, res, next) => {
 
 exports.requestPayout = async (req, res, next) => {
   try {
-    res.status(503).json({
-      error: {
-        code: 'payouts_coming_soon',
-        message: 'Platform-managed withdrawals are coming soon. Restaurant credit, pay-at-restaurant, and direct user payment arrangements remain available where clearly labeled.',
+    const amountCents = parsePositiveCents(req.body.amountCents ?? req.body.amount_cents);
+    const payoutMethod = String(req.body.payoutMethod || req.body.payout_method || 'bank_transfer');
+    const validMethods = new Set(['bank_transfer', 'instant_debit', 'wallet_credit']);
+    const errors = {};
+
+    if (!amountCents) errors.amountCents = 'Amount must be a positive cent value.';
+    if (amountCents && amountCents < mainAppContracts.PAYOUT_MINIMUM_CENTS) {
+      errors.amountCents = `Minimum withdrawal is ${mainAppContracts.PAYOUT_MINIMUM_CENTS} cents.`;
+    }
+    if (!validMethods.has(payoutMethod)) errors.payoutMethod = 'Unsupported payout method.';
+    if (Object.keys(errors).length) {
+      return res.status(400).json({ error: { code: 'validation_failed', fields: errors } });
+    }
+
+    const balances = await mainAppContracts.getPayoutBalances(req.user.id);
+    const availableCents = Number(balances.available_cents || 0);
+    if (amountCents > availableCents) {
+      return res.status(409).json({
+        error: {
+          code: 'insufficient_withdrawable_balance',
+          message: 'Requested amount exceeds the currently withdrawable completed-job balance.',
+          availableCents,
+        },
+      });
+    }
+
+    const request = await mainAppContracts.createPayoutRequest({
+      userId: req.user.id,
+      amountCents,
+      currencyCode: req.body.currencyCode || req.body.currency_code || balances.currency_code || 'USD',
+      payoutMethod,
+      note: req.body.note,
+      metadata: {
+        requestedBy: 'oxsteed-main',
+        noFundsMoved: true,
       },
+    });
+
+    return res.status(202).json({
+      contract: {
+        version: 'main-payout-request-v1',
+        generatedAt: new Date().toISOString(),
+        moneyMoved: false,
+      },
+      request: mainAppContracts.serializePayoutRequest(request),
+      message: 'Withdrawal request recorded for review. No payout has been completed yet.',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.cancelPayoutRequest = async (req, res, next) => {
+  try {
+    const request = await mainAppContracts.cancelPayoutRequest({
+      userId: req.user.id,
+      requestId: req.params.requestId,
+      reason: req.body.reason || 'Cancelled by user',
+    });
+    if (!request) {
+      return res.status(404).json({
+        error: {
+          code: 'payout_request_not_cancellable',
+          message: 'Payout request was not found or can no longer be cancelled.',
+        },
+      });
+    }
+
+    return res.json({
+      contract: {
+        version: 'main-payout-request-v1',
+        generatedAt: new Date().toISOString(),
+        moneyMoved: false,
+      },
+      request: mainAppContracts.serializePayoutRequest(request),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createPaymentRequest = async (req, res, next) => {
+  try {
+    const amountCents = parsePositiveCents(req.body.amountCents ?? req.body.amount_cents);
+    const sourceType = String(req.body.sourceType || req.body.source_type || 'service_booking');
+    const validSourceTypes = new Set(['job', 'service_booking', 'business_service', 'quote', 'other']);
+    const settlementMode = String(req.body.settlementMode || req.body.settlement_mode || 'external_pending');
+    const validSettlementModes = new Set(['external_pending', 'processor_pending', 'manual_direct']);
+    const errors = {};
+
+    if (!amountCents) errors.amountCents = 'Amount must be a positive cent value.';
+    if (!validSourceTypes.has(sourceType)) errors.sourceType = 'Unsupported payment request source.';
+    if (!validSettlementModes.has(settlementMode)) errors.settlementMode = 'Unsupported settlement mode.';
+    if (Object.keys(errors).length) {
+      return res.status(400).json({ error: { code: 'validation_failed', fields: errors } });
+    }
+
+    const request = await mainAppContracts.createPaymentRequest({
+      requesterId: req.user.id,
+      payerId: req.body.payerId || req.body.payer_id || null,
+      payeeId: req.body.payeeId || req.body.payee_id || req.user.id,
+      businessId: parseOptionalInt(req.body.businessId ?? req.body.business_id),
+      sourceType,
+      sourceId: req.body.sourceId || req.body.source_id || null,
+      amountCents,
+      currencyCode: req.body.currencyCode || req.body.currency_code || 'USD',
+      description: req.body.description || null,
+      settlementMode,
+      externalProvider: req.body.externalProvider || req.body.external_provider || null,
+      idempotencyKey: req.get?.('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key || null,
+      metadata: {
+        requestedBy: 'oxsteed-main',
+        noChargeCreated: true,
+        clientMetadata: req.body.metadata || {},
+      },
+    });
+
+    return res.status(202).json({
+      contract: {
+        version: 'main-payment-request-v1',
+        generatedAt: new Date().toISOString(),
+        moneyMoved: false,
+        processorPaymentCreated: false,
+      },
+      paymentRequest: mainAppContracts.serializePaymentRequest(request),
+      message: 'Payment request recorded. No card charge, transfer, escrow hold, or payout was created.',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.listPaymentRequests = async (req, res, next) => {
+  try {
+    const limit = parseLimit(req.query.limit, 50, 100);
+    const rows = await mainAppContracts.listPaymentRequests(req.user.id, limit);
+    return res.json({
+      contract: {
+        version: 'main-payment-request-v1',
+        generatedAt: new Date().toISOString(),
+        moneyMoved: false,
+      },
+      paymentRequests: rows.map(mainAppContracts.serializePaymentRequest),
     });
   } catch (err) {
     next(err);
@@ -1771,6 +1931,8 @@ function serializePromo(row) {
     expiresAt: toIso(row.expires_at || row.end_date),
     category: row.category || 'food',
     applicabilityNote: 'Eligible restaurant-credit food orders only. Service booking and card checkout promo support is coming soon.',
+    supportedScopes: ['food.restaurant_credit'],
+    unsupportedScopes: ['job.protected_payment', 'service_booking.card_checkout'],
     status: row.voucher_status || row.status || 'active',
     isUsed: ['used', 'revoked'].includes(String(row.voucher_status || '').toLowerCase()),
   };
@@ -1811,7 +1973,19 @@ exports.getPromoWallet = async (req, res, next) => {
       ...available.rows.filter((row) => !walletCodes.has(String(row.code).toUpperCase())).map(serializePromo),
     ];
 
-    res.json({ contract: { version: 'main-promos-v1', generatedAt: new Date().toISOString() }, promos });
+    res.json({
+      contract: {
+        version: 'main-promos-v1',
+        generatedAt: new Date().toISOString(),
+        redemptionRecordsOnly: true,
+      },
+      compatibility: {
+        foodRestaurantCredit: 'supported',
+        serviceBookingCheckout: 'coming_soon',
+        jobProtectedPayments: 'coming_soon',
+      },
+      promos,
+    });
   } catch (err) {
     next(err);
   }
@@ -1877,6 +2051,11 @@ exports.getDisputeRefunds = async (req, res, next) => {
       [req.user.id]
     );
     res.json({
+      contract: {
+        version: 'main-refund-disputes-v1',
+        generatedAt: new Date().toISOString(),
+        refundProcessedByThisEndpoint: false,
+      },
       disputes: rows.map((row) => ({
         id: String(row.id),
         sourceType: row.source_type,
@@ -1917,6 +2096,14 @@ exports.createDisputeRefund = async (req, res, next) => {
     const sourceId = req.body.sourceId || req.body.source_id || null;
     const transactionReference = req.body.transactionReference || req.body.transaction_reference || null;
     const requestedRefundCents = req.body.requestedRefundCents ?? req.body.requested_refund_cents ?? null;
+    if (requestedRefundCents !== null && requestedRefundCents !== undefined && Number(requestedRefundCents) < 0) {
+      return res.status(400).json({
+        error: {
+          code: 'invalid_refund_amount',
+          message: 'Requested refund amount cannot be negative.',
+        },
+      });
+    }
     const currencyCode = normalizeCurrency(req.body.currencyCode || req.body.currency_code);
     const client = await pool.connect();
     try {
@@ -1983,6 +2170,11 @@ exports.createDisputeRefund = async (req, res, next) => {
       );
       await client.query('COMMIT');
       res.status(201).json({
+        contract: {
+          version: 'main-refund-disputes-v1',
+          generatedAt: new Date().toISOString(),
+          refundProcessedByThisEndpoint: false,
+        },
         dispute: rows[0],
         ticket: {
           id: supportTicket.id,
@@ -1996,6 +2188,70 @@ exports.createDisputeRefund = async (req, res, next) => {
     } finally {
       client.release();
     }
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getServicePackages = async (req, res, next) => {
+  try {
+    const businessId = parseOptionalInt(req.query.businessId ?? req.query.business_id);
+    const serviceId = req.query.serviceId || req.query.service_id || null;
+    const limit = parseLimit(req.query.limit, 50, 100);
+    const rows = await mainAppContracts.listPublicServicePackages({ businessId, serviceId, limit });
+    return res.json({
+      contract: {
+        version: 'main-service-packages-v1',
+        generatedAt: new Date().toISOString(),
+        dataSource: 'business_service_packages',
+      },
+      packages: rows.map(mainAppContracts.serializeServicePackage),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getServiceAvailability = async (req, res, next) => {
+  try {
+    const businessId = parseOptionalInt(req.query.businessId ?? req.query.business_id);
+    const serviceId = parseOptionalInt(req.query.serviceId ?? req.query.service_id);
+    if (!businessId || !serviceId) {
+      return res.status(400).json({
+        error: {
+          code: 'missing_service_context',
+          message: 'businessId and serviceId are required.',
+        },
+      });
+    }
+
+    const now = new Date();
+    const defaultTo = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+    const from = parseDateOrNull(req.query.from) || now;
+    const to = parseDateOrNull(req.query.to) || defaultTo;
+    if (to <= from) {
+      return res.status(400).json({ error: { code: 'invalid_range', message: 'to must be after from.' } });
+    }
+
+    const result = await slotEngine.computeSlots({
+      businessId,
+      serviceId,
+      from,
+      to,
+      staffId: req.query.staffId || req.query.staff_id || null,
+    });
+    if (result.error) {
+      return res.status(400).json({ error: { code: 'slot_engine_error', message: result.error } });
+    }
+
+    return res.json({
+      contract: {
+        version: 'main-service-availability-v1',
+        generatedAt: new Date().toISOString(),
+        dataSource: 'business_service_availability + business_appointments',
+      },
+      ...result,
+    });
   } catch (err) {
     next(err);
   }

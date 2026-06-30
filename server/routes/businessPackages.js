@@ -4,6 +4,7 @@ const { requireAuth } = require('../middleware/auth');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const ctrl = require('../controllers/businessPackagesController');
 
+router.get   ('/public/:businessId/packages',                         ctrl.listPublicPackages);
 router.get   ('/:businessId/packages',                                  requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.listPackages);
 router.post  ('/:businessId/packages',                                  requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.createPackage);
 router.put   ('/:businessId/packages/:packageId',                       requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.updatePackage);

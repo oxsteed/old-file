@@ -1,4 +1,27 @@
 const pool = require('../db');
+const {
+  serializeServicePackage,
+  listPublicServicePackages,
+} = require('../models/mainAppContractsModel');
+
+exports.listPublicPackages = async (req, res, next) => {
+  try {
+    const limit = Math.min(Math.max(Number.parseInt(String(req.query.limit || '50'), 10) || 50, 1), 100);
+    const rows = await listPublicServicePackages({
+      businessId: req.params.businessId,
+      serviceId: req.query.service_id || req.query.serviceId || null,
+      limit,
+    });
+    res.json({
+      contract: {
+        version: 'business-service-packages-public-v1',
+        generatedAt: new Date().toISOString(),
+        dataSource: 'business_service_packages',
+      },
+      packages: rows.map(serializeServicePackage),
+    });
+  } catch (err) { next(err); }
+};
 
 exports.listPackages = async (req, res, next) => {
   const { businessId } = req.params;
@@ -98,7 +121,7 @@ exports.redeemSession = async (req, res, next) => {
        SET sessions_remaining = sessions_remaining - 1,
            sessions_used = sessions_used + 1,
            updated_at=NOW(),
-           status = CASE WHEN sessions_remaining - 1 <= 0 THEN 'used_up' ELSE status END
+           status = CASE WHEN sessions_remaining - 1 <= 0 THEN 'exhausted' ELSE status END
        WHERE id=$1 AND business_id=$2 AND sessions_remaining > 0 AND status='active'
        RETURNING *`,
       [clientPackageId, businessId]
