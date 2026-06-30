@@ -61,6 +61,7 @@ function buildMerchantApp(user = { id: OWNER_ID, email: 'owner@example.com' }) {
   });
   app.patch('/api/food/restaurants/:restaurantId/orders/:orderId/status', foodController.updateOrderStatus);
   app.post('/api/food/restaurants/:restaurantId/customer-wallet-loads', walletController.loadCustomerWallet);
+  app.post('/api/food/restaurants/:restaurantId/customer-wallet-load-requests', walletController.loadCustomerWallet);
   app.get('/api/food/restaurants/:restaurantId/customer-wallet-load-requests', walletController.listCustomerWalletLoadRequests);
   app.post('/api/food/restaurants/:restaurantId/customer-wallet-load-requests/:requestId/approve', walletController.approveCustomerWalletLoadRequest);
   app.post('/api/food/restaurants/:restaurantId/customer-wallet-load-requests/:requestId/cancel', walletController.cancelCustomerWalletLoadRequest);
@@ -682,7 +683,7 @@ describe('food wallet security wiring', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_customer_wallet_operator_audit_events/.test(sql))).toBe(true);
   });
 
-  test('large merchant wallet loads require pending approval before ledger posting', async () => {
+  test('large merchant wallet load request alias requires pending approval before ledger posting', async () => {
     mockQuery.mockImplementation(async (sql) => {
       if (/SELECT fr\.id, fr\.business_id, fr\.owner_user_id/.test(sql)) {
         return {
@@ -742,7 +743,7 @@ describe('food wallet security wiring', () => {
     });
 
     const res = await request(buildMerchantApp())
-      .post(`/api/food/restaurants/${RESTAURANT_ID}/customer-wallet-loads`)
+      .post(`/api/food/restaurants/${RESTAURANT_ID}/customer-wallet-load-requests`)
       .send({
         customerId: CUSTOMER_ID,
         amountCents: 75000,

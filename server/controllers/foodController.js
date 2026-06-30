@@ -10,8 +10,15 @@ const logger = require('../utils/logger');
 const notificationService = require('../services/notificationService');
 const smsNotificationService = require('../services/smsNotificationService');
 const emailService = require('../services/emailService');
+const { sanitizeMessage } = require('../utils/messageSanitizer');
+const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
+const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
-const { debitFoodWallet, refundWalletDebitForReference } = require('../services/foodWalletService');
+const { debitFoodWallet, refundWalletDebitForReference, formatLedgerRow } = require('../services/foodWalletService');
+const {
+  recordWalletCreditPaymentForOrder,
+  recordWalletCreditRefundForOrder,
+} = require('../services/restaurantPosPaymentLedgerService');
 const {
   evaluateOperatingHours,
   normalizeBrandAccentHex,
@@ -39,6 +46,20 @@ const PRICE_LEVEL_ALIASES = {
 const IN_STORE_SOURCES = new Set(['kiosk', 'counter', 'tablet']);
 const FOOD_LOYALTY_MIN_REDEEM_POINTS = 100;
 const FOOD_LOYALTY_CENTS_PER_POINT = 1;
+const FOOD_PAYMENT_MODE_ALIASES = {
+  pay_at_counter: 'pay_at_restaurant',
+  pay_at_restaurant: 'pay_at_restaurant',
+  wallet_credit: 'restaurant_credit',
+  restaurant_credit: 'restaurant_credit',
+  direct: 'direct_payment',
+  direct_payment: 'direct_payment',
+  off_platform: 'direct_payment',
+};
+const FOOD_PAYMENT_LEGACY_MODE = {
+  pay_at_restaurant: 'pay_at_counter',
+  restaurant_credit: 'wallet_credit',
+  direct_payment: 'direct_payment',
+};
 // Allowed transitions: target status -> statuses it may come from.
 const ORDER_TRANSITIONS = {
   accepted: ['received'],
@@ -65,10 +86,82 @@ function toTierLabel(value) {
     .join(' ');
 }
 
+function formatPosPayment(row) {
+  if (!row) return null;
+  return {
+    id: String(row.id),
+    restaurantId: String(row.restaurant_id),
+    orderId: String(row.food_order_id),
+    paymentType: row.payment_type,
+    amountCents: Number(row.amount_cents || 0),
+    status: row.status,
+    provider: row.provider || null,
+    reference: row.reference || null,
+    idempotencyKey: row.idempotency_key || null,
+    metadata: row.metadata && typeof row.metadata === 'object' ? row.metadata : {},
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
+  };
+}
+
+function buildWalletPaymentResponse({
+  status,
+  amountCents,
+  currencyCode,
+  walletResult = null,
+  ledgerEntry = null,
+  posPayment = null,
+  replayed = false,
+  refunded = false,
+  reason = null,
+}) {
+  const entry = ledgerEntry || walletResult?.entry || null;
+  const account = walletResult?.account || null;
+  return {
+    mode: 'wallet_credit',
+    status,
+    amountCents: Number(amountCents || entry?.amount_cents || 0),
+    amount: Number(amountCents || entry?.amount_cents || 0) / 100,
+    currencyCode: normalizeCurrency(currencyCode || entry?.currency_code || account?.currency_code),
+    replayed: Boolean(replayed || walletResult?.replayed),
+    refunded: Boolean(refunded),
+    reason,
+    wallet: {
+      accountId: account?.id ? String(account.id) : (entry?.account_id ? String(entry.account_id) : null),
+      balanceAfterCents: entry?.balance_after_cents === undefined || entry?.balance_after_cents === null
+        ? null
+        : Number(entry.balance_after_cents),
+      ledgerEntry: formatLedgerRow(entry),
+    },
+    posPayment: formatPosPayment(posPayment),
+  };
+}
+
 function normalizeString(value, max = 255) {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
   return trimmed ? trimmed.slice(0, max) : null;
+}
+
+function normalizeFoodPaymentMode(value) {
+  const requested = normalizeString(value, 40) || 'pay_at_restaurant';
+  if (requested === 'pay_now') {
+    throw new AppError(
+      'Online card checkout is coming soon. Use restaurant credit delivery or pay at the restaurant.',
+      409,
+      'payment_mode_coming_soon'
+    );
+  }
+  const canonical = FOOD_PAYMENT_MODE_ALIASES[requested];
+  if (!canonical) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      paymentMode: 'Must be restaurant_credit, pay_at_restaurant, or direct_payment',
+    });
+  }
+  return {
+    canonical,
+    legacy: FOOD_PAYMENT_LEGACY_MODE[canonical],
+  };
 }
 
 function normalizeCountry(value) {
@@ -1301,15 +1394,8 @@ exports.createOrder = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId || req.body.restaurantId || req.body.restaurant_id);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
-    const paymentMode = normalizeString(req.body.paymentMode || req.body.payment_mode, 24) || 'pay_at_counter';
-    if (!['pay_at_counter', 'wallet_credit'].includes(paymentMode)) {
-      if (paymentMode === 'pay_now') {
-        throw new AppError('Online card checkout is coming soon. Use restaurant credit delivery or pay at the restaurant.', 409, 'payment_mode_coming_soon');
-      }
-      throw new AppError('Validation failed', 400, 'validation_failed', {
-        paymentMode: 'Must be pay_at_counter or wallet_credit',
-      });
-    }
+    const paymentContract = normalizeFoodPaymentMode(req.body.paymentMode || req.body.payment_mode);
+    const paymentMode = paymentContract.legacy;
 
     const items = Array.isArray(req.body.items) ? req.body.items : [];
     if (items.length === 0) {
@@ -1419,8 +1505,8 @@ exports.createOrder = async (req, res, next) => {
       if (!VALID_FULFILLMENT.has(fulfillmentType)) {
         throw new AppError('Validation failed', 400, 'validation_failed', { fulfillmentType: 'Unsupported fulfillment type' });
       }
-      if (paymentMode === 'wallet_credit' && fulfillmentType !== 'delivery') {
-        throw new AppError('Wallet credit is only available for delivery orders', 409, 'wallet_credit_delivery_only');
+      if (paymentContract.canonical === 'restaurant_credit' && fulfillmentType !== 'delivery') {
+        throw new AppError('Restaurant credit is only available for delivery orders', 409, 'wallet_credit_delivery_only');
       }
       const restaurantFulfillmentModes = Array.isArray(restaurant.fulfillment_modes) && restaurant.fulfillment_modes.length
         ? restaurant.fulfillment_modes
@@ -1542,6 +1628,13 @@ exports.createOrder = async (req, res, next) => {
           ...req.body.metadata,
           trackingToken,
           paymentMode,
+          payment_mode: paymentMode,
+          restaurantPaymentMode: paymentContract.canonical,
+          paymentContract: {
+            mode: paymentContract.canonical,
+            legacyMode: paymentMode,
+            collection: paymentContract.canonical,
+          },
           ...(clientOrderId ? { clientOrderId } : {}),
           ...(discountMetadata ? { posDiscount: discountMetadata, promotion: discountMetadata } : {}),
           ...(loyaltyRedemption ? { loyaltyRedemption } : {}),
@@ -1551,6 +1644,13 @@ exports.createOrder = async (req, res, next) => {
         : {
           trackingToken,
           paymentMode,
+          payment_mode: paymentMode,
+          restaurantPaymentMode: paymentContract.canonical,
+          paymentContract: {
+            mode: paymentContract.canonical,
+            legacyMode: paymentMode,
+            collection: paymentContract.canonical,
+          },
           ...(clientOrderId ? { clientOrderId } : {}),
           ...(discountMetadata ? { posDiscount: discountMetadata, promotion: discountMetadata } : {}),
           ...(loyaltyRedemption ? { loyaltyRedemption } : {}),
@@ -1576,7 +1676,7 @@ exports.createOrder = async (req, res, next) => {
           normalizeString(req.body.guestEmail || req.body.guest_email, 255),
           orderSource,
           fulfillmentType,
-          paymentMode === 'wallet_credit' ? 'paid' : 'unpaid',
+          paymentContract.canonical === 'restaurant_credit' ? 'paid' : 'unpaid',
           subtotal,
           tax,
           serviceFeeCents,
@@ -1623,26 +1723,62 @@ exports.createOrder = async (req, res, next) => {
         }
       }
 
-      if (paymentMode === 'wallet_credit') {
+      let walletPayment = null;
+      if (paymentContract.canonical === 'restaurant_credit') {
         if (!req.user?.id) {
           throw new AppError('Authentication required', 401, 'authentication_required');
         }
-        await debitFoodWallet(client, {
-          restaurantId,
-          customerId: req.user.id,
-          currencyCode: normalizeCurrency(restaurant.currency_code),
-          amountCents: total,
-          description: `Order #${created.id} · Delivery`,
-          referenceType: 'food_order',
-          referenceId: String(created.id),
-          idempotencyKey: `food-order:${created.id}:wallet-credit`,
-          createdByUserId: req.user.id,
-          metadata: {
+        if (total > 0) {
+          const walletResult = await debitFoodWallet(client, {
+            restaurantId,
+            customerId: req.user.id,
+            currencyCode: normalizeCurrency(restaurant.currency_code),
+            amountCents: total,
+            description: `Order #${created.id} · Delivery`,
+            referenceType: 'food_order',
+            referenceId: String(created.id),
+            idempotencyKey: `food-order:${created.id}:wallet-credit`,
+            createdByUserId: req.user.id,
+            correlationId: clientOrderId || `food-order:${created.id}:wallet-credit`,
+            actorType: 'customer',
+            metadata: {
+              orderId: created.id,
+              fulfillmentType,
+              orderSource,
+              clientOrderId: clientOrderId || null,
+            },
+          });
+          const posPaymentResult = await recordWalletCreditPaymentForOrder(client, {
+            restaurantId,
             orderId: created.id,
-            fulfillmentType,
-            orderSource,
-          },
-        });
+            amountCents: total,
+            currencyCode: normalizeCurrency(restaurant.currency_code),
+            walletAccountId: walletResult.account?.id || null,
+            walletLedgerEntryId: walletResult.entry?.id || null,
+            walletBalanceAfterCents: walletResult.entry?.balance_after_cents ?? null,
+            idempotencyKey: `food-order:${created.id}:wallet-credit`,
+            createdByUserId: req.user.id,
+            metadata: {
+              orderSource,
+              fulfillmentType,
+              clientOrderId: clientOrderId || null,
+            },
+          });
+          walletPayment = buildWalletPaymentResponse({
+            status: 'paid',
+            amountCents: total,
+            currencyCode: normalizeCurrency(restaurant.currency_code),
+            walletResult,
+            posPayment: posPaymentResult.payment,
+          });
+        } else {
+          walletPayment = buildWalletPaymentResponse({
+            status: 'paid',
+            amountCents: 0,
+            currencyCode: normalizeCurrency(restaurant.currency_code),
+            reason: 'zero_total_order',
+          });
+        }
       }
 
       const printerJobs = await enqueueKitchenPrinterJobs(client, {
@@ -1689,11 +1825,24 @@ exports.createOrder = async (req, res, next) => {
         replayed: false,
         runnerTask,
         printerJobs,
+        walletPayment,
       };
     }, 'food_create_order');
 
     let order = createdOrder.order;
     let payment = null;
+    const responsePaymentMode = order.metadata && typeof order.metadata === 'object'
+      ? order.metadata.paymentMode || order.metadata.payment_mode || paymentMode
+      : paymentMode;
+    if (responsePaymentMode === 'wallet_credit') {
+      payment = createdOrder.walletPayment || buildWalletPaymentResponse({
+        status: order.payment_status || 'paid',
+        amountCents: order.total_cents,
+        currencyCode: order.currency_code,
+        replayed: Boolean(createdOrder.replayed),
+        reason: createdOrder.replayed ? 'idempotent_order_replay' : null,
+      });
+    }
     if (!createdOrder.replayed && paymentMode === 'pay_now') {
       try {
         const paymentResult = await createFoodCheckoutSession({
@@ -1735,15 +1884,23 @@ exports.listRestaurantOrders = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     await requireRestaurantAccess(req.user.id, restaurantId);
     const status = normalizeString(req.query.status, 24);
+    const source = normalizeString(req.query.source || req.query.orderSource || req.query.order_source, 24);
     const params = [restaurantId];
-    let filter = '';
+    const filters = [];
     if (status && VALID_STATUS.has(status)) {
       params.push(status);
-      filter = `AND fo.status = $${params.length}`;
+      filters.push(`fo.status = $${params.length}`);
     } else if (req.query.active === '1' || req.query.active === 'true') {
       // Kitchen-display polling feed: only today's in-flight orders.
-      filter = `AND fo.status IN ('received','accepted','preparing','ready')
-                AND fo.created_at::date = CURRENT_DATE`;
+      filters.push(`fo.status IN ('received','accepted','preparing','ready')`);
+      filters.push('fo.created_at::date = CURRENT_DATE');
+    }
+    if (source === 'pos' || source === 'in_store') {
+      params.push(Array.from(IN_STORE_SOURCES));
+      filters.push(`fo.order_source = ANY($${params.length}::text[])`);
+    } else if (source && VALID_ORDER_SOURCES.has(source)) {
+      params.push(source);
+      filters.push(`fo.order_source = $${params.length}`);
     }
     const { rows } = await pool.query(
       `SELECT fo.*,
@@ -1756,7 +1913,7 @@ exports.listRestaurantOrders = async (req, res, next) => {
               ) ORDER BY foi.id) FILTER (WHERE foi.id IS NOT NULL), '[]') AS items
          FROM food_orders fo
          LEFT JOIN food_order_items foi ON foi.order_id = fo.id
-        WHERE fo.restaurant_id = $1 ${filter}
+        WHERE fo.restaurant_id = $1${filters.length ? ` AND ${filters.join(' AND ')}` : ''}
         GROUP BY fo.id
         ORDER BY
           CASE fo.status
@@ -1843,6 +2000,7 @@ exports.updateOrderStatus = async (req, res, next) => {
       }
 
       let walletRefund = null;
+      let payment = null;
       const paymentMode = order.metadata && typeof order.metadata === 'object'
         ? order.metadata.paymentMode || order.metadata.payment_mode || null
         : null;
@@ -1863,9 +2021,39 @@ exports.updateOrderStatus = async (req, res, next) => {
           },
         });
         walletRefund = refundResult.refunded ? refundResult.entry : null;
+        let posRefundPayment = null;
+        if (refundResult.refunded && refundResult.entry) {
+          const posRefundResult = await recordWalletCreditRefundForOrder(client, {
+            restaurantId,
+            orderId: order.id,
+            amountCents: Number(refundResult.entry.amount_cents || 0),
+            currencyCode: normalizeCurrency(order.currency_code),
+            walletAccountId: refundResult.account?.id || refundResult.entry.account_id || null,
+            walletRefundLedgerEntryId: refundResult.entry.id,
+            walletOriginalLedgerEntryId: refundResult.entry.metadata?.originalDebitEntryId || null,
+            walletBalanceAfterCents: refundResult.entry.balance_after_cents ?? null,
+            idempotencyKey: `food-order:${order.id}:wallet-credit-refund`,
+            createdByUserId: req.user?.id || null,
+            metadata: {
+              orderStatus: status,
+              refundReason: 'order_status_transition',
+            },
+          });
+          posRefundPayment = posRefundResult.payment;
+        }
+        payment = buildWalletPaymentResponse({
+          status: 'refunded',
+          amountCents: Number((refundResult.entry || walletRefund)?.amount_cents || order.total_cents || 0),
+          currencyCode: normalizeCurrency(order.currency_code),
+          walletResult: refundResult.account ? refundResult : null,
+          ledgerEntry: refundResult.entry || walletRefund,
+          posPayment: posRefundPayment,
+          refunded: Boolean(refundResult.refunded),
+          reason: refundResult.reason || null,
+        });
       }
 
-      return { order, walletRefund };
+      return { order, walletRefund, payment };
     }, 'food_update_order_status');
     const order = transitionResult.order;
 
@@ -1888,7 +2076,12 @@ exports.updateOrderStatus = async (req, res, next) => {
       }, 'food_loyalty_earn');
     }
 
-    res.json({ order, runnerTask, walletRefund: transitionResult.walletRefund || null });
+    res.json({
+      order,
+      runnerTask,
+      walletRefund: transitionResult.walletRefund || null,
+      payment: transitionResult.payment || null,
+    });
   } catch (err) {
     next(err);
   }
@@ -2335,6 +2528,8 @@ exports.getQueueBoard = async (req, res, next) => {
           fulfillmentType: r.fulfillment_type,
           promisedAt: r.promised_at,
         })),
+      serverTime: new Date().toISOString(),
+      nextPollAfterMs: rows.length ? 2000 : 5000,
     });
   } catch (err) {
     next(err);
@@ -3425,25 +3620,151 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
       throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     }
 
-    const { rows: [record] } = await pool.query(
-      `INSERT INTO food_restaurant_customer_messages
-         (restaurant_id, business_id, customer_user_id, subject, message, metadata)
-       VALUES ($1,$2,$3,$4,$5,$6)
-       RETURNING id, restaurant_id, business_id, subject, message, status, created_at`,
-      [
-        restaurant.id,
-        restaurant.business_id,
-        req.user.id,
-        subject || `Question for ${restaurant.display_name}`,
-        message,
-        JSON.stringify({
-          source: 'oxsteed_main_ios',
-          userAgent: req.get('user-agent') || null,
-        }),
-      ]
-    );
+    const cleanSubject = subject || `Question for ${restaurant.display_name}`;
+    const chatContent = sanitizeMessage(
+      cleanSubject ? `${cleanSubject}\n\n${message}` : message
+    ).slice(0, 4000);
+    const customerName = `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'OxSteed customer';
+    const customerEmail = req.user.email || null;
+    const canCreateInboxThread = restaurant.business_id
+      && restaurant.owner_user_id
+      && String(restaurant.owner_user_id) !== String(req.user.id);
+
+    const { record, conversationId, chatMessageId } = await withTransaction(pool, async (client) => {
+      let threadId = null;
+      let messageId = null;
+
+      if (canCreateInboxThread) {
+        const existing = await client.query(
+          `SELECT id
+             FROM conversations
+            WHERE customer_id = $1
+              AND helper_id = $2
+              AND job_id IS NULL
+              AND business_id = $3
+            LIMIT 1`,
+          [req.user.id, restaurant.owner_user_id, restaurant.business_id]
+        );
+
+        if (existing.rows[0]) {
+          threadId = existing.rows[0].id;
+        } else {
+          const insertedConversation = await client.query(
+            `INSERT INTO conversations (customer_id, helper_id, job_id, business_id, last_message_at)
+             VALUES ($1, $2, NULL, $3, NOW())
+             ON CONFLICT DO NOTHING
+             RETURNING id`,
+            [req.user.id, restaurant.owner_user_id, restaurant.business_id]
+          );
+
+          if (insertedConversation.rows[0]) {
+            threadId = insertedConversation.rows[0].id;
+          } else {
+            const concurrent = await client.query(
+              `SELECT id
+                 FROM conversations
+                WHERE customer_id = $1
+                  AND helper_id = $2
+                  AND job_id IS NULL
+                  AND business_id = $3
+                LIMIT 1`,
+              [req.user.id, restaurant.owner_user_id, restaurant.business_id]
+            );
+            threadId = concurrent.rows[0] && concurrent.rows[0].id;
+          }
+        }
+
+        if (!threadId) {
+          throw new AppError('Failed to create restaurant conversation', 500, 'restaurant_conversation_failed');
+        }
+
+        const insertedMessage = await client.query(
+          `INSERT INTO messages (conversation_id, sender_id, content, message_type)
+           VALUES ($1, $2, $3, 'text')
+           RETURNING id, conversation_id, sender_id, content, message_type, is_read, created_at`,
+          [threadId, req.user.id, chatContent]
+        );
+        messageId = insertedMessage.rows[0] && insertedMessage.rows[0].id;
+
+        await client.query(
+          'UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1',
+          [threadId]
+        );
+      }
+
+      const insertedRecord = await client.query(
+        `INSERT INTO food_restaurant_customer_messages
+           (restaurant_id, business_id, customer_user_id, subject, message, metadata, conversation_id, chat_message_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         RETURNING id, restaurant_id, business_id, customer_user_id, subject, message, status,
+                   conversation_id, chat_message_id, created_at`,
+        [
+          restaurant.id,
+          restaurant.business_id,
+          req.user.id,
+          cleanSubject,
+          message,
+          JSON.stringify({
+            source: 'oxsteed_main_ios',
+            userAgent: req.get('user-agent') || null,
+          }),
+          threadId,
+          messageId,
+        ]
+      );
+
+      return {
+        record: insertedRecord.rows[0],
+        conversationId: threadId,
+        chatMessageId: messageId,
+      };
+    }, 'create_restaurant_customer_message');
+
+    if (conversationId && restaurant.business_id) {
+      const businessConversationId = await ensureBusinessConversation({
+        businessId: restaurant.business_id,
+        legacyConversationId: conversationId,
+        customerId: req.user.id,
+        customerName,
+        customerEmail,
+        customerPhone: req.user.phone || null,
+        subject: cleanSubject,
+        createdById: req.user.id,
+      });
+
+      await mirrorMessage({
+        businessConversationId,
+        senderId: req.user.id,
+        senderName: customerName,
+        senderEmail: customerEmail,
+        senderType: 'customer',
+        content: chatContent,
+        messageType: 'text',
+        legacyMessageId: chatMessageId,
+      });
+    }
 
     if (restaurant.owner_user_id && restaurant.owner_user_id !== req.user.id) {
+      if (conversationId && chatMessageId) {
+        socketService.broadcastToConversation(conversationId, 'message:new', {
+          conversationId,
+          message: {
+            id: chatMessageId,
+            conversation_id: conversationId,
+            sender_id: req.user.id,
+            sender_name: customerName,
+            content: chatContent,
+            message_type: 'text',
+            is_read: false,
+            created_at: new Date().toISOString(),
+          },
+        });
+        socketService.broadcastToUser(restaurant.owner_user_id, 'message:new', {
+          conversationId,
+          messageId: chatMessageId,
+        });
+      }
+
       notificationService.sendNotification({
         userId: restaurant.owner_user_id,
         type: 'food_restaurant_message',
@@ -3453,8 +3774,10 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
           restaurantId: String(restaurant.id),
           businessId: String(restaurant.business_id),
           messageId: String(record.id),
+          conversationId: conversationId ? String(conversationId) : null,
+          chatMessageId: chatMessageId ? String(chatMessageId) : null,
         },
-        action_url: `/business/${restaurant.business_id}`,
+        action_url: conversationId ? `/messages/${conversationId}` : `/business/${restaurant.business_id}`,
       }).catch((err) => {
         logger.warn('restaurant customer message notification failed', {
           restaurantId: restaurant.id,
@@ -3464,7 +3787,11 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
       });
     }
 
-    res.status(201).json({ message: record });
+    res.status(201).json({
+      message: record,
+      conversation: conversationId ? { id: conversationId } : null,
+      conversationId,
+    });
   } catch (err) {
     if (isMissingRelationError(err)) {
       return next(new AppError('Restaurant messaging is not available yet', 503, 'restaurant_messaging_unavailable'));
@@ -3508,25 +3835,71 @@ exports.createRestaurantReport = async (req, res, next) => {
       throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     }
 
-    const { rows: [record] } = await pool.query(
-      `INSERT INTO food_restaurant_reports
-         (restaurant_id, business_id, reporter_user_id, reason, description, metadata)
-       VALUES ($1,$2,$3,$4,$5,$6)
-       RETURNING id, restaurant_id, business_id, reason, description, status, created_at`,
-      [
-        restaurant.id,
-        restaurant.business_id,
-        req.user.id,
-        reason,
-        description,
-        JSON.stringify({
-          source: 'oxsteed_main_ios',
-          userAgent: req.get('user-agent') || null,
-        }),
-      ]
+    const { rows: [userProfile] } = await pool.query(
+      'SELECT first_name, last_name, email FROM users WHERE id = $1 LIMIT 1',
+      [req.user.id]
     );
+    const reporterName = `${userProfile?.first_name || req.user.first_name || ''} ${userProfile?.last_name || req.user.last_name || ''}`.trim() || 'OxSteed user';
+    const reporterEmail = userProfile?.email || req.user.email || 'support@oxsteed.com';
+    const reportPriority = ['food_safety', 'fraud', 'inappropriate'].includes(reason) ? 'high' : 'normal';
 
-    res.status(201).json({ report: record });
+    const { record, ticket } = await withTransaction(pool, async (client) => {
+      const supportTicket = await createLinkedSupportTicket(client, {
+        userId: req.user.id,
+        name: reporterName,
+        email: reporterEmail,
+        subject: `Restaurant report: ${restaurant.display_name}`,
+        category: `restaurant_${reason}`,
+        priority: reportPriority,
+        source: 'direct',
+        metadata: {
+          app: 'oxsteed-main-ios',
+          source: 'restaurant_report',
+          restaurantId: String(restaurant.id),
+          businessId: restaurant.business_id ? String(restaurant.business_id) : null,
+          reason,
+        },
+        initialMessage: [
+          `Restaurant: ${restaurant.display_name}`,
+          `Reason: ${reason}`,
+          '',
+          description || 'No additional details provided.',
+        ].join('\n'),
+      });
+
+      const { rows: [report] } = await client.query(
+        `INSERT INTO food_restaurant_reports
+           (restaurant_id, business_id, reporter_user_id, reason, description, metadata, support_ticket_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         RETURNING id, restaurant_id, business_id, reason, description, status, support_ticket_id, created_at`,
+        [
+          restaurant.id,
+          restaurant.business_id,
+          req.user.id,
+          reason,
+          description,
+          JSON.stringify({
+            source: 'oxsteed_main_ios',
+            userAgent: req.get('user-agent') || null,
+            supportTicketId: String(supportTicket.id),
+          }),
+          supportTicket.id,
+        ]
+      );
+
+      return { record: report, ticket: supportTicket };
+    }, 'create_restaurant_report_with_support_ticket');
+
+    res.status(201).json({
+      report: record,
+      ticket: ticket ? {
+        id: String(ticket.id),
+        ticketNumber: Number(ticket.ticket_number),
+        status: ticket.status,
+        priority: ticket.priority,
+        createdAt: ticket.created_at,
+      } : null,
+    });
   } catch (err) {
     if (isMissingRelationError(err)) {
       return next(new AppError('Restaurant reporting is not available yet', 503, 'restaurant_reporting_unavailable'));

@@ -51,6 +51,11 @@ function buildApp() {
   app.get('/api/restaurants/:restaurantId/manager/dashboard', appFlow.getManagerDashboard);
   app.patch('/api/restaurants/:restaurantId/publishing', appFlow.updatePublishing);
   app.post('/api/restaurants/:restaurantId/devices/pairing-codes', appFlow.createDevicePairingCode);
+  app.get('/api/restaurants/:restaurantId/devices/:deviceId/runtime-config', appFlow.getDeviceRuntimeConfig);
+  app.post('/api/restaurants/:restaurantId/devices/:deviceId/heartbeat', appFlow.deviceHeartbeat);
+  app.get('/api/restaurants/:restaurantId/devices/:deviceId/kitchen-feed', appFlow.getKitchenFeed);
+  app.post('/api/restaurants/:restaurantId/devices/:deviceId/kitchen-feed/ack', appFlow.ackKitchenFeed);
+  app.get('/api/restaurants/:restaurantId/devices/:deviceId/queue-board', appFlow.getDeviceQueueBoard);
   app.get('/api/restaurants/:restaurantId/devices/:deviceId/config', appFlow.getDeviceConfig);
   app.patch('/api/restaurants/:restaurantId/devices/:deviceId', appFlow.updateDeviceConfig);
   app.post('/api/restaurants/:restaurantId/pos/orders', appFlow.createPosOrder);
@@ -74,6 +79,19 @@ function buildApp() {
   app.post('/api/restaurants/:restaurantId/inventory/items/:itemId/adjust', inventory.adjustItem);
   app.get('/api/food/customer/favorite-items', food.listCustomerFavoriteItems);
   app.post('/api/food/customer/favorite-items/:restaurantId/:itemId/toggle', food.toggleCustomerFavoriteItem);
+  app.use(errorHandler);
+  return app;
+}
+
+function buildDeviceApp() {
+  const app = express();
+  app.use(express.json());
+  app.post('/api/restaurants/:restaurantId/devices/pair', appFlow.pairDevice);
+  app.get('/api/restaurants/:restaurantId/devices/:deviceId/runtime-config', appFlow.getDeviceRuntimeConfig);
+  app.post('/api/restaurants/:restaurantId/devices/:deviceId/heartbeat', appFlow.deviceHeartbeat);
+  app.get('/api/restaurants/:restaurantId/devices/:deviceId/kitchen-feed', appFlow.getKitchenFeed);
+  app.post('/api/restaurants/:restaurantId/devices/:deviceId/kitchen-feed/ack', appFlow.ackKitchenFeed);
+  app.get('/api/restaurants/:restaurantId/devices/:deviceId/queue-board', appFlow.getDeviceQueueBoard);
   app.use(errorHandler);
   return app;
 }
@@ -320,6 +338,110 @@ describe('restaurant app-flow backend', () => {
 
     expect(configRes.status).toBe(200);
     expect(configRes.body.device.location.id).toBe(77);
+    expect(configRes.body.contract.routes.runtimeConfig).toBe('/api/restaurants/3/devices/801/runtime-config');
+    expect(configRes.body.contract.routes.queueBoard).toBe('/api/restaurants/3/devices/801/queue-board');
+  });
+
+  test('paired display devices poll heartbeat and queue-board without staff auth', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 801, restaurant_id: RESTAURANT_ID, app_key: 'display', status: 'paired' }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 801,
+          restaurant_id: RESTAURANT_ID,
+          app_key: 'display',
+          device_name: 'Lobby board',
+          location_id: 77,
+          status: 'paired',
+          config_version: 3,
+        }],
+      });
+
+    const heartbeatRes = await request(buildDeviceApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/devices/801/heartbeat`)
+      .set('X-Device-Token', 'display-token')
+      .send({ configVersion: 2, telemetry: { battery: 'ac' } });
+
+    expect(heartbeatRes.status).toBe(200);
+    expect(heartbeatRes.body.configChanged).toBe(true);
+    expect(heartbeatRes.body.contract.routes.queueBoard).toBe('/api/restaurants/3/devices/801/queue-board');
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 801, restaurant_id: RESTAURANT_ID, app_key: 'display', status: 'paired' }] })
+      .mockResolvedValueOnce({ rows: [{ id: RESTAURANT_ID, display_name: 'Ox Burger Lab', logo_url: null, timezone: 'America/New_York' }] })
+      .mockResolvedValueOnce({
+        rows: [
+          { queue_number: 12, status: 'preparing', table_label: 'A1', fulfillment_type: 'dine_in' },
+          { queue_number: 13, status: 'ready', table_label: null, fulfillment_type: 'pickup' },
+        ],
+      });
+
+    const boardRes = await request(buildDeviceApp())
+      .get(`/api/restaurants/${RESTAURANT_ID}/devices/801/queue-board`)
+      .set('X-Device-Token', 'display-token');
+
+    expect(boardRes.status).toBe(200);
+    expect(boardRes.body.preparing).toEqual([12]);
+    expect(boardRes.body.ready).toEqual([13]);
+    expect(boardRes.body.readyEntries[0].guestLabel).toBe('Pickup');
+    expect(boardRes.body.contract.routes.publicQueueBoard).toBe('/api/food/restaurants/3/queue-board');
+  });
+
+  test('paired kitchen devices poll and ack feed without staff auth', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 901, restaurant_id: RESTAURANT_ID, app_key: 'kitchen', status: 'paired' }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 901,
+          restaurant_id: RESTAURANT_ID,
+          app_key: 'kitchen',
+          device_name: 'Expo KDS',
+          location_id: 77,
+          status: 'paired',
+          last_kitchen_event_id: 990,
+          config_version: 1,
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: ORDER_ID,
+          queue_number: 12,
+          status: 'preparing',
+          items: [{ id: 201, itemName: 'Burger', kitchenStatus: 'queued' }],
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 991, event_type: 'item_ready' }] });
+
+    const feedRes = await request(buildDeviceApp())
+      .get(`/api/restaurants/${RESTAURANT_ID}/devices/901/kitchen-feed`)
+      .set('X-Device-Token', 'kitchen-token');
+
+    expect(feedRes.status).toBe(200);
+    expect(feedRes.body.cursor).toBe(991);
+    expect(feedRes.body.contract.routes.kitchenFeedAck).toBe('/api/restaurants/3/devices/901/kitchen-feed/ack');
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 901, restaurant_id: RESTAURANT_ID, app_key: 'kitchen', status: 'paired' }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 901,
+          restaurant_id: RESTAURANT_ID,
+          app_key: 'kitchen',
+          device_name: 'Expo KDS',
+          status: 'paired',
+          last_kitchen_event_id: 991,
+          sync_status: 'healthy',
+        }],
+      });
+
+    const ackRes = await request(buildDeviceApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/devices/901/kitchen-feed/ack`)
+      .set('X-Device-Token', 'kitchen-token')
+      .send({ cursor: 991 });
+
+    expect(ackRes.status).toBe(200);
+    expect(ackRes.body.lastKitchenEventId).toBe(991);
+    expect(ackRes.body.contract.routes.kitchenFeed).toBe('/api/restaurants/3/devices/901/kitchen-feed');
   });
 
   test('creates POS orders in the same food_orders flow', async () => {

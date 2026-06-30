@@ -1087,6 +1087,188 @@ exports.guestProfileChatSession = async (req, res, next) => {
 };
 
 /**
+ * POST /api/chat/sessions/guest/claim
+ * Authenticated users can claim guest inquiries that were originally sent
+ * with the same email address. This keeps guest outreach from becoming a
+ * dead-end once the visitor creates an OxSteed account.
+ */
+exports.claimGuestProfileChatSessions = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const userEmail = String(req.user.email || '').trim().toLowerCase();
+    if (!userEmail) {
+      throw new AppError('Your account needs an email before guest inquiries can be claimed.', 400, 'missing_email');
+    }
+
+    const { rows: userRows } = await pool.query(
+      `SELECT first_name, last_name, email FROM users WHERE id = $1`,
+      [userId]
+    );
+    const user = userRows[0] || {};
+    const userName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'OxSteed user';
+
+    const claimed = await withTransaction(pool, async (client) => {
+      const { rows: sessions } = await client.query(
+        `SELECT id, helper_id, business_id, guest_name, guest_email, message, created_at
+           FROM guest_profile_chat_inbound
+          WHERE LOWER(guest_email) = $1
+            AND claimed_user_id IS NULL
+          ORDER BY created_at ASC
+          LIMIT 25
+          FOR UPDATE SKIP LOCKED`,
+        [userEmail]
+      );
+
+      const results = [];
+      for (const session of sessions) {
+        if (String(session.helper_id) === String(userId)) {
+          await client.query(
+            `UPDATE guest_profile_chat_inbound
+                SET claimed_user_id = $1,
+                    guest_id = COALESCE(guest_id, $1),
+                    claimed_at = NOW()
+              WHERE id = $2`,
+            [userId, session.id]
+          );
+          results.push({
+            inquiryId: session.id,
+            conversationId: null,
+            skipped: true,
+            reason: 'self_conversation',
+          });
+          continue;
+        }
+
+        const { rows: existingConversations } = await client.query(
+          `SELECT id
+             FROM conversations
+            WHERE customer_id = $1
+              AND helper_id = $2
+              AND job_id IS NULL
+              AND (
+                (business_id = $3)
+                OR (business_id IS NULL AND $3 IS NULL)
+              )
+            ORDER BY last_message_at DESC NULLS LAST, created_at DESC
+            LIMIT 1`,
+          [userId, session.helper_id, session.business_id || null]
+        );
+
+        let conversationId = existingConversations[0]?.id;
+        if (!conversationId) {
+          const { rows: insertedConversations } = await client.query(
+            `INSERT INTO conversations (customer_id, helper_id, job_id, business_id, last_message_at)
+             VALUES ($1, $2, NULL, $3, NOW())
+             RETURNING id`,
+            [userId, session.helper_id, session.business_id || null]
+          );
+          conversationId = insertedConversations[0].id;
+        }
+
+        const { rows: guestMessages } = await client.query(
+          `SELECT sender_type, sender_name, message, created_at
+             FROM guest_profile_chat_messages
+            WHERE session_id = $1
+            ORDER BY created_at ASC`,
+          [session.id]
+        );
+
+        const messagesToClaim = guestMessages.length
+          ? guestMessages.filter((msg) => msg.sender_type === 'guest' || msg.sender_type === 'helper')
+          : [{
+              sender_type: 'guest',
+              sender_name: session.guest_name,
+              message: session.message,
+              created_at: session.created_at,
+            }];
+
+        let lastMessageId = null;
+        for (const msg of messagesToClaim) {
+          const senderId = msg.sender_type === 'helper' ? session.helper_id : userId;
+          const prefix = msg.sender_type === 'guest'
+            ? `Guest inquiry from ${session.guest_name || userName}:`
+            : `Helper reply from guest inquiry:`;
+          const content = `${prefix}\n${String(msg.message || '').trim()}`.slice(0, 10000);
+          if (!content.trim()) continue;
+          const { rows: insertedMessages } = await client.query(
+            `INSERT INTO messages (conversation_id, sender_id, content, message_type)
+             VALUES ($1, $2, $3, 'text')
+             RETURNING id`,
+            [conversationId, senderId, content]
+          );
+          lastMessageId = insertedMessages[0]?.id || lastMessageId;
+        }
+
+        await client.query(
+          `UPDATE conversations
+              SET last_message_at = NOW(), updated_at = NOW()
+            WHERE id = $1`,
+          [conversationId]
+        );
+
+        await client.query(
+          `UPDATE guest_profile_chat_inbound
+              SET claimed_user_id = $1,
+                  guest_id = COALESCE(guest_id, $1),
+                  claimed_conversation_id = $2,
+                  claimed_at = NOW()
+            WHERE id = $3`,
+          [userId, conversationId, session.id]
+        );
+
+        results.push({
+          inquiryId: session.id,
+          conversationId,
+          lastMessageId,
+          businessId: session.business_id || null,
+          helperId: session.helper_id,
+        });
+      }
+
+      return results;
+    }, 'claim_guest_profile_chat_sessions');
+
+    for (const item of claimed) {
+      if (!item.conversationId) continue;
+      socketService.broadcastToUser(String(userId), 'conversation:claimed', item);
+      socketService.broadcastToUser(String(item.helperId), 'conversation:claimed', item);
+
+      if (item.businessId) {
+        const businessConversationId = await ensureBusinessConversation({
+          businessId: item.businessId,
+          legacyConversationId: item.conversationId,
+          customerId: userId,
+          customerName: userName,
+          customerEmail: userEmail,
+          subject: 'Claimed guest inquiry',
+          createdById: userId,
+        });
+        if (businessConversationId) {
+          await mirrorMessage({
+            businessConversationId,
+            senderId: userId,
+            senderName: userName,
+            senderEmail: userEmail,
+            senderType: 'customer',
+            content: 'This guest inquiry is now linked to a signed-in OxSteed account.',
+            messageType: 'system',
+          });
+        }
+      }
+    }
+
+    res.json({
+      ok: true,
+      count: claimed.filter((item) => item.conversationId).length,
+      skipped: claimed.filter((item) => item.skipped).length,
+      claimed,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * POST /api/chat/transcribe
  * Transcribe audio using OpenRouter when Web Speech API confidence is low.
  * Requires authentication.

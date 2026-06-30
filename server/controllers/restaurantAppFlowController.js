@@ -42,13 +42,28 @@ const CREW_TRANSITIONS = {
   cancelled: new Set(['not_started']),
 };
 const POS_TICKET_STATES = new Set(['open', 'held', 'voided', 'refunded', 'closed']);
-const POS_PAYMENT_TYPES = new Set(['cash', 'card', 'external', 'gift_card', 'comp', 'refund']);
+const POS_PAYMENT_TYPES = new Set(['cash', 'card', 'external', 'gift_card', 'wallet_credit', 'comp', 'refund']);
 const POS_PAYMENT_STATUSES = new Set(['recorded', 'pending', 'captured', 'failed', 'refunded', 'voided']);
 const POS_DRAWER_EVENT_TYPES = new Set(['cash_in', 'cash_out', 'cash_drop', 'no_sale', 'drawer_count', 'payout']);
 const PRINTER_JOB_TYPES = new Set(['kitchen_ticket', 'receipt', 'expo_label', 'runner_handoff']);
 const PRINTER_JOB_STATUSES = new Set(['queued', 'sent', 'printed', 'failed', 'cancelled']);
 const RUNNER_SETTLEMENT_STATUSES = new Set(['pending', 'approved', 'paid', 'disputed', 'voided']);
 const CREW_PROOF_TYPES = new Set(['photo', 'document', 'signature', 'note', 'other']);
+const PAYMENT_MODE_ALIASES = {
+  pay_at_counter: 'pay_at_restaurant',
+  pay_at_restaurant: 'pay_at_restaurant',
+  pay_at_restaurant_counter: 'pay_at_restaurant',
+  wallet_credit: 'restaurant_credit',
+  restaurant_credit: 'restaurant_credit',
+  direct: 'direct_payment',
+  direct_payment: 'direct_payment',
+  off_platform: 'direct_payment',
+};
+const LEGACY_PAYMENT_MODE = {
+  pay_at_restaurant: 'pay_at_counter',
+  restaurant_credit: 'wallet_credit',
+  direct_payment: 'direct_payment',
+};
 const ROLE_PERMISSIONS = {
   owner: ['*'],
   manager: [
@@ -107,6 +122,76 @@ function asBool(value, fallback = false) {
 
 function safeJson(value, fallback = {}) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : fallback;
+}
+
+function normalizeRestaurantPaymentMode(value, fallback = 'pay_at_restaurant') {
+  const raw = normalizeString(value, 40);
+  if (raw && !PAYMENT_MODE_ALIASES[raw]) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      paymentMode: 'Must be restaurant_credit, pay_at_restaurant, or direct_payment',
+    });
+  }
+  const canonical = raw ? PAYMENT_MODE_ALIASES[raw] : fallback;
+  if (!PAYMENT_MODE_ALIASES[canonical]) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      paymentMode: 'Must be restaurant_credit, pay_at_restaurant, or direct_payment',
+    });
+  }
+  return {
+    canonical,
+    legacy: LEGACY_PAYMENT_MODE[canonical] || canonical,
+    collection: canonical === 'restaurant_credit'
+      ? 'restaurant_credit'
+      : canonical === 'direct_payment'
+        ? 'direct_payment'
+        : 'pay_at_restaurant',
+  };
+}
+
+function paymentContractMetadata(contract, overrides = {}) {
+  return {
+    mode: contract.canonical,
+    legacyMode: contract.legacy,
+    collection: contract.collection,
+    ...overrides,
+  };
+}
+
+async function insertPosReceiptAudit(client, {
+  restaurantId,
+  order,
+  eventType,
+  channel = 'Payment update',
+  createdBy,
+  reason = null,
+  metadata = {},
+  idempotencyKey = null,
+}) {
+  const { rows: [event] } = await client.query(
+    `INSERT INTO restaurant_pos_receipt_events
+       (restaurant_id, food_order_id, queue_number, guest_name, total_cents,
+        payment_status, channel, event_type, reason, metadata, idempotency_key, created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12)
+     ON CONFLICT (restaurant_id, idempotency_key)
+       WHERE idempotency_key IS NOT NULL
+     DO NOTHING
+     RETURNING *`,
+    [
+      restaurantId,
+      order.id,
+      order.queue_number,
+      order.guest_name,
+      order.total_cents,
+      order.payment_status,
+      channel,
+      eventType,
+      reason,
+      JSON.stringify(safeJson(metadata)),
+      idempotencyKey,
+      createdBy,
+    ]
+  );
+  return event || null;
 }
 
 function normalizeBusinessSnapshot(row, fallbackId = null) {
@@ -1445,7 +1530,69 @@ function createPairingCode() {
 function publicDevice(device) {
   if (!device) return device;
   const { device_token_hash: _tokenHash, pairing_code: _pairingCode, ...safe } = device;
-  return safe;
+  return {
+    ...safe,
+    deviceId: safe.id,
+    restaurantId: safe.restaurant_id,
+    appKey: safe.app_key,
+    deviceName: safe.device_name,
+    locationId: safe.location_id,
+    lastSeenAt: safe.last_seen_at,
+    lastKitchenEventId: safe.last_kitchen_event_id,
+    lastSyncAt: safe.last_sync_at,
+    syncStatus: safe.sync_status,
+    syncError: safe.sync_error,
+    configVersion: safe.config_version,
+    pairingCodeExpiresAt: safe.pairing_code_expires_at,
+    pairedAt: safe.paired_at,
+    appVersion: safe.app_version,
+  };
+}
+
+function deviceRouteContract(device, options = {}) {
+  if (!device) return null;
+  const restaurantId = Number(device.restaurant_id || device.restaurant?.id || options.restaurantId);
+  const deviceId = Number(device.id);
+  const appKey = device.app_key;
+  const base = `/api/restaurants/${restaurantId}`;
+  const contract = {
+    version: 1,
+    workspace: {
+      type: 'restaurant',
+      restaurantId,
+      locationId: device.location_id || null,
+      appKey,
+    },
+    device: {
+      id: deviceId,
+      appKey,
+      status: device.status,
+      configVersion: Number(device.config_version || 1),
+    },
+    auth: {
+      header: 'X-Device-Token',
+      tokenType: 'paired_device_token',
+    },
+    routes: {
+      heartbeat: `${base}/devices/${deviceId}/heartbeat`,
+      runtimeConfig: `${base}/devices/${deviceId}/runtime-config`,
+    },
+    polling: {
+      heartbeatAfterMs: 30000,
+      configPollAfterMs: 300000,
+    },
+  };
+  if (appKey === 'kitchen') {
+    contract.routes.kitchenFeed = `${base}/devices/${deviceId}/kitchen-feed`;
+    contract.routes.kitchenFeedAck = `${base}/devices/${deviceId}/kitchen-feed/ack`;
+    contract.polling.kitchenFeedAfterMs = 2000;
+  }
+  if (appKey === 'display') {
+    contract.routes.queueBoard = `${base}/devices/${deviceId}/queue-board`;
+    contract.routes.publicQueueBoard = `/api/food/restaurants/${restaurantId}/queue-board`;
+    contract.polling.queueBoardAfterMs = 2000;
+  }
+  return contract;
 }
 
 function deviceTokenFromRequest(req) {
@@ -1467,6 +1614,65 @@ async function requireDeviceCredential(req, restaurantId, deviceId) {
   );
   if (!device) throw new AppError('Device credential is invalid', 401, 'invalid_device_credential');
   return device;
+}
+
+function assertDeviceApp(device, appKey) {
+  if (!device || device.app_key !== appKey) {
+    throw new AppError(`${appKey} device credential is required`, 403, `${appKey}_device_required`);
+  }
+}
+
+function queueGuestLabel(row) {
+  if (row.table_label) return row.table_label;
+  if (row.fulfillment_type === 'dine_in') return 'Dine-in';
+  if (row.fulfillment_type === 'delivery') return 'Delivery';
+  return 'Pickup';
+}
+
+async function buildQueueBoardPayload(restaurantId, device = null) {
+  const { rows: restaurants } = await pool.query(
+    `SELECT id, display_name, logo_url, timezone, kitchen_display_enabled
+       FROM food_restaurants
+      WHERE id = $1 AND status IN ('active','paused')`,
+    [restaurantId]
+  );
+  const restaurant = restaurants[0];
+  if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+  const timezone = normalizeString(restaurant.timezone, 80) || 'UTC';
+  const { rows } = await pool.query(
+    `SELECT queue_number, status, table_label, fulfillment_type, promised_at, updated_at
+       FROM food_orders
+      WHERE restaurant_id = $1
+        AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date
+        AND status IN ('received','accepted','preparing','ready')
+      ORDER BY queue_number ASC`,
+    [restaurantId, timezone]
+  );
+  const preparingRows = rows.filter((row) => row.status !== 'ready');
+  const readyRows = rows.filter((row) => row.status === 'ready');
+  const toEntry = (row) => ({
+    queueNumber: row.queue_number,
+    queue_number: row.queue_number,
+    status: row.status,
+    guestLabel: queueGuestLabel(row),
+    fulfillmentType: row.fulfillment_type,
+    fulfillment_type: row.fulfillment_type,
+    promisedAt: row.promised_at,
+    promised_at: row.promised_at,
+    updatedAt: row.updated_at,
+    updated_at: row.updated_at,
+  });
+  return {
+    restaurant,
+    preparing: preparingRows.map((row) => row.queue_number),
+    ready: readyRows.map((row) => row.queue_number),
+    preparingEntries: preparingRows.map(toEntry),
+    readyEntries: readyRows.map(toEntry),
+    serverTime: new Date().toISOString(),
+    nextPollAfterMs: rows.length ? 2000 : 5000,
+    contract: device ? deviceRouteContract(device, { restaurantId }) : null,
+    device: device ? publicDevice(device) : null,
+  };
 }
 
 exports.createDevicePairingCode = async (req, res, next) => {
@@ -1504,8 +1710,11 @@ exports.createDevicePairingCode = async (req, res, next) => {
     );
     res.status(201).json({
       device: publicDevice(device),
+      contract: deviceRouteContract(device, { restaurantId }),
       pairingCode: code,
+      pairing_code: code,
       pairingCodeExpiresAt: device.pairing_code_expires_at,
+      pairing_code_expires_at: device.pairing_code_expires_at,
     });
   } catch (err) {
     next(err);
@@ -1544,7 +1753,12 @@ exports.pairDevice = async (req, res, next) => {
       ]
     );
     if (!device) throw new AppError('Pairing code not found', 404, 'pairing_code_not_found');
-    res.json({ device: publicDevice(device), deviceToken });
+    res.json({
+      device: publicDevice(device),
+      contract: deviceRouteContract(device, { restaurantId }),
+      deviceToken,
+      device_token: deviceToken,
+    });
   } catch (err) {
     next(err);
   }
@@ -1605,7 +1819,10 @@ exports.deviceHeartbeat = async (req, res, next) => {
     if (!device) throw new AppError('Device credential is missing or invalid', 401, 'invalid_device_credential');
     res.json({
       device: publicDevice(device),
+      contract: deviceRouteContract(device, { restaurantId }),
       configChanged: Number(device.config_version || 1) > clientConfigVersion,
+      config_changed: Number(device.config_version || 1) > clientConfigVersion,
+      nextHeartbeatAfterMs: 30000,
       serverTime: new Date().toISOString(),
     });
   } catch (err) {
@@ -1641,7 +1858,11 @@ exports.getDeviceRuntimeConfig = async (req, res, next) => {
       [restaurantId, deviceId]
     );
     if (!device) throw new AppError('Device not found', 404, 'device_not_found');
-    res.json({ device: publicDevice(device), serverTime: new Date().toISOString() });
+    res.json({
+      device: publicDevice(device),
+      contract: deviceRouteContract(device, { restaurantId }),
+      serverTime: new Date().toISOString(),
+    });
   } catch (err) {
     next(err);
   }
@@ -1694,7 +1915,7 @@ exports.updateDeviceConfig = async (req, res, next) => {
       ]
     );
     if (!device) throw new AppError('Device not found', 404, 'device_not_found');
-    res.json({ device: publicDevice(device) });
+    res.json({ device: publicDevice(device), contract: deviceRouteContract(device, { restaurantId }) });
   } catch (err) {
     next(err);
   }
@@ -1728,7 +1949,20 @@ exports.getDeviceConfig = async (req, res, next) => {
       [restaurantId, deviceId]
     );
     if (!device) throw new AppError('Device not found', 404, 'device_not_found');
-    res.json({ device: publicDevice(device) });
+    res.json({ device: publicDevice(device), contract: deviceRouteContract(device, { restaurantId }) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getDeviceQueueBoard = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const deviceId = parsePositiveInt(req.params.deviceId);
+    const device = await requireDeviceCredential(req, restaurantId, deviceId);
+    assertDeviceApp(device, 'display');
+    const payload = await buildQueueBoardPayload(restaurantId, device);
+    res.json(payload);
   } catch (err) {
     next(err);
   }
@@ -1792,26 +2026,81 @@ exports.closeShift = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     const shiftId = parsePositiveInt(req.params.shiftId);
-    const { rows: [shift] } = await pool.query(
-      `UPDATE restaurant_pos_shifts
-          SET status = 'closed',
-              closing_cash_cents = $1,
-              closed_at = NOW(),
-              metadata = metadata || $2::jsonb
-        WHERE id = $3 AND restaurant_id = $4 AND status = 'open'
-          AND (staff_user_id = $5 OR $6 = TRUE)
-        RETURNING *`,
-      [
-        parseCents(req.body.closingCashCents ?? req.body.closing_cash_cents, 'closingCashCents'),
-        JSON.stringify(safeJson(req.body.metadata)),
-        shiftId,
-        restaurantId,
-        req.user.id,
-        MANAGE_ROLES.has(restaurant.effective_role),
-      ]
-    );
-    if (!shift) throw new AppError('Open shift not found', 404, 'shift_not_found');
-    res.json({ shift });
+    const closingCashCents = parseCents(req.body.closingCashCents ?? req.body.closing_cash_cents, 'closingCashCents');
+    const result = await withTransaction(pool, async (client) => {
+      const { rows: [currentShift] } = await client.query(
+        `SELECT * FROM restaurant_pos_shifts
+          WHERE id = $1 AND restaurant_id = $2 AND status = 'open'
+            AND (staff_user_id = $3 OR $4 = TRUE)
+          FOR UPDATE`,
+        [shiftId, restaurantId, req.user.id, MANAGE_ROLES.has(restaurant.effective_role)]
+      );
+      if (!currentShift) throw new AppError('Open shift not found', 404, 'shift_not_found');
+
+      const { rows: [summary] } = await client.query(
+        `SELECT COALESCE(SUM(p.amount_cents) FILTER (
+                        WHERE p.payment_type = 'cash' AND p.status IN ('recorded','captured')
+                      ), 0)::int AS cash_payments_cents,
+                COALESCE(SUM(p.amount_cents) FILTER (
+                        WHERE p.payment_type <> 'refund' AND p.status IN ('recorded','captured')
+                      ), 0)::int AS settled_payments_cents,
+                COALESCE(SUM(p.amount_cents) FILTER (
+                        WHERE p.payment_type = 'refund' AND p.status IN ('recorded','captured','refunded')
+                      ), 0)::int AS refunds_cents,
+                COUNT(*) FILTER (WHERE p.status = 'pending')::int AS pending_payments,
+                COUNT(DISTINCT p.food_order_id) FILTER (
+                  WHERE p.payment_type <> 'refund' AND p.status IN ('recorded','captured')
+                )::int AS paid_order_count,
+                COALESCE((
+                  SELECT SUM(de.amount_cents)
+                    FROM restaurant_pos_drawer_events de
+                   WHERE de.shift_id = $1
+                     AND de.event_type = 'cash_in'
+                ), 0)::int AS drawer_cash_in_cents,
+                COALESCE((
+                  SELECT SUM(de.amount_cents)
+                    FROM restaurant_pos_drawer_events de
+                   WHERE de.shift_id = $1
+                     AND de.event_type IN ('cash_out','cash_drop','payout')
+                ), 0)::int AS drawer_cash_out_cents
+           FROM restaurant_pos_payments p
+          WHERE p.shift_id = $1`,
+        [shiftId]
+      );
+      if (Number(summary.pending_payments || 0) > 0) {
+        throw new AppError('Resolve pending POS payments before closing this shift', 409, 'shift_has_pending_payments', {
+          pendingPayments: Number(summary.pending_payments),
+        });
+      }
+
+      const expectedCashCents = Number(currentShift.opening_cash_cents || 0)
+        + Number(summary.cash_payments_cents || 0)
+        + Number(summary.drawer_cash_in_cents || 0)
+        - Number(summary.drawer_cash_out_cents || 0);
+      const cashOverShortCents = closingCashCents - expectedCashCents;
+      const closeSummary = {
+        ...safeJson(req.body.metadata),
+        expectedCashCents,
+        closingCashCents,
+        cashOverShortCents,
+        settledPaymentsCents: Number(summary.settled_payments_cents || 0),
+        refundsCents: Number(summary.refunds_cents || 0),
+        paidOrderCount: Number(summary.paid_order_count || 0),
+        closedBy: req.user.id,
+      };
+      const { rows: [shift] } = await client.query(
+        `UPDATE restaurant_pos_shifts
+            SET status = 'closed',
+                closing_cash_cents = $1,
+                closed_at = NOW(),
+                metadata = metadata || $2::jsonb
+          WHERE id = $3 AND restaurant_id = $4
+          RETURNING *`,
+        [closingCashCents, JSON.stringify(closeSummary), shiftId, restaurantId]
+      );
+      return { shift, summary: closeSummary };
+    });
+    res.json(result);
   } catch (err) {
     next(err);
   }
@@ -1952,6 +2241,10 @@ exports.createPosOrder = async (req, res, next) => {
     if (source !== 'kiosk' && !shiftId) {
       throw new AppError('Counter and tablet orders require an open POS shift', 409, 'open_pos_shift_required');
     }
+    const paymentContract = normalizeRestaurantPaymentMode(
+      req.body.paymentMode || req.body.payment_mode,
+      'pay_at_restaurant'
+    );
 
     const result = await withTransaction(pool, async (client) => {
       if (shiftId) {
@@ -2088,6 +2381,13 @@ exports.createPosOrder = async (req, res, next) => {
         pos: true,
         shiftId,
         clientOrderId: normalizeString(req.body.clientOrderId || req.body.client_order_id, 120),
+        paymentMode: paymentContract.legacy,
+        payment_mode: paymentContract.legacy,
+        restaurantPaymentMode: paymentContract.canonical,
+        paymentContract: paymentContractMetadata(paymentContract, {
+          source: 'pos_order_create',
+          initialPaymentStatus: paymentStatus,
+        }),
         ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),
         pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents, deliveryFeeCents },
       };
@@ -2141,12 +2441,22 @@ exports.createPosOrder = async (req, res, next) => {
       });
       const runnerTask = await createPosDeliveryRunnerTask(client, order, deliveryAddress, req.user.id);
       if (shiftId) {
-        await client.query(
-          `INSERT INTO restaurant_pos_receipt_events
-             (restaurant_id, food_order_id, queue_number, guest_name, total_cents, payment_status, channel, created_by)
-           VALUES ($1,$2,$3,$4,$5,$6,'Counter',$7)`,
-          [restaurantId, order.id, order.queue_number, order.guest_name, order.total_cents, order.payment_status, req.user.id]
-        );
+        await insertPosReceiptAudit(client, {
+          restaurantId,
+          order,
+          eventType: 'order_created',
+          channel: 'Counter',
+          createdBy: req.user.id,
+          metadata: {
+            shiftId,
+            orderSource: source,
+            fulfillmentType: fulfillment,
+            paymentContract: paymentContractMetadata(paymentContract),
+          },
+          idempotencyKey: normalizeString(req.body.clientOrderId || req.body.client_order_id, 120)
+            ? `pos-order-created:${restaurantId}:${normalizeString(req.body.clientOrderId || req.body.client_order_id, 120)}`
+            : null,
+        });
       }
       return { order, printerJobs, runnerTask };
     });
@@ -2232,6 +2542,26 @@ exports.updatePosTicket = async (req, res, next) => {
       ]
     );
     if (!order) throw new AppError('Ticket transition is no longer allowed', 409, 'illegal_ticket_transition');
+    await insertPosReceiptAudit(pool, {
+      restaurantId,
+      order,
+      eventType: ticketState === 'voided'
+        ? 'ticket_voided'
+        : ticketState === 'held'
+          ? 'ticket_held'
+          : 'ticket_reopened',
+      channel: 'Payment update',
+      createdBy: req.user.id,
+      reason: normalizeString(req.body.reason || req.body.holdReason || req.body.hold_reason, 1000),
+      metadata: {
+        ticketState,
+        previousAllowedStates: allowedCurrentStates,
+      },
+      idempotencyKey: normalizeString(
+        req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
+        200
+      ),
+    });
     broadcastRestaurant(restaurant, 'food:pos:ticket:updated', { order });
     res.json({ order });
   } catch (err) {
@@ -2434,12 +2764,44 @@ exports.recordPosPayment = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', { amountCents: 'Must be greater than zero' });
     }
     const shiftId = parsePositiveInt(req.body.shiftId || req.body.shift_id);
+    const idempotencyKey = normalizeString(
+      req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
+      200
+    );
+    const paymentContract = normalizeRestaurantPaymentMode(
+      req.body.paymentMode || req.body.payment_mode,
+      paymentType === 'external'
+        ? 'direct_payment'
+        : paymentType === 'wallet_credit'
+          ? 'restaurant_credit'
+          : 'pay_at_restaurant'
+    );
     const result = await withTransaction(pool, async (client) => {
       const { rows: [order] } = await client.query(
         `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
         [orderId, restaurantId]
       );
       if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+      if (idempotencyKey) {
+        const { rows: [existing] } = await client.query(
+          `SELECT * FROM restaurant_pos_payments
+            WHERE restaurant_id = $1 AND idempotency_key = $2`,
+          [restaurantId, idempotencyKey]
+        );
+        if (existing) {
+          if (Number(existing.food_order_id) !== orderId
+            || existing.payment_type !== paymentType
+            || Number(existing.amount_cents) !== amountCents) {
+            throw new AppError(
+              'Idempotency-Key was already used for a different payment request',
+              409,
+              'idempotency_key_conflict'
+            );
+          }
+          const reconciliation = await reconcilePosOrderPayment(client, orderId);
+          return { payment: existing, ...reconciliation, replayed: true };
+        }
+      }
       if (['voided', 'refunded'].includes(order.pos_ticket_state) || order.status === 'cancelled') {
         throw new AppError('This ticket cannot accept payments', 409, 'ticket_not_payable');
       }
@@ -2471,8 +2833,9 @@ exports.recordPosPayment = async (req, res, next) => {
       }
       const { rows: [payment] } = await client.query(
         `INSERT INTO restaurant_pos_payments
-           (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status, reference, note, metadata, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+           (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
+            reference, note, metadata, idempotency_key, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
          RETURNING *`,
         [
           restaurantId,
@@ -2483,15 +2846,38 @@ exports.recordPosPayment = async (req, res, next) => {
           status,
           normalizeString(req.body.reference, 160),
           normalizeString(req.body.note, 1000),
-          safeJson(req.body.metadata),
+          {
+            ...safeJson(req.body.metadata),
+            paymentContract: paymentContractMetadata(paymentContract, { source: 'manual_pos_payment' }),
+          },
+          idempotencyKey,
           req.user.id,
         ]
       );
       const reconciliation = await reconcilePosOrderPayment(client, orderId);
+      if (reconciliation?.order) {
+        await insertPosReceiptAudit(client, {
+          restaurantId,
+          order: reconciliation.order,
+          eventType: paymentType === 'refund' ? 'payment_refunded' : 'payment_recorded',
+          channel: 'Payment update',
+          createdBy: req.user.id,
+          reason: normalizeString(req.body.reason || req.body.note, 1000),
+          metadata: {
+            paymentId: payment.id,
+            paymentType,
+            amountCents,
+            status,
+            shiftId,
+            paymentContract: paymentContractMetadata(paymentContract),
+          },
+          idempotencyKey: idempotencyKey ? `receipt:${restaurantId}:${idempotencyKey}` : null,
+        });
+      }
       return { payment, ...reconciliation };
     });
     broadcastRestaurant(restaurant, 'food:pos:payment:recorded', result);
-    res.status(201).json(result);
+    res.status(result.replayed ? 200 : 201).json(result);
   } catch (err) {
     next(err);
   }
@@ -2534,6 +2920,10 @@ exports.createPosCardIntent = async (req, res, next) => {
       throw new AppError('Idempotency-Key is required', 400, 'idempotency_key_required');
     }
     const shiftId = parsePositiveInt(req.body.shiftId || req.body.shift_id);
+    const paymentContract = normalizeRestaurantPaymentMode(
+      req.body.paymentMode || req.body.payment_mode,
+      'pay_at_restaurant'
+    );
     reservedPayment = await withTransaction(pool, async (client) => {
       const { rows: [order] } = await client.query(
         `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
@@ -2588,7 +2978,10 @@ exports.createPosCardIntent = async (req, res, next) => {
           shiftId,
           amountCents,
           idempotencyKey,
-          safeJson(req.body.metadata),
+          {
+            ...safeJson(req.body.metadata),
+            paymentContract: paymentContractMetadata(paymentContract, { source: 'pos_card_intent' }),
+          },
           req.user.id,
         ]
       );
@@ -2607,6 +3000,7 @@ exports.createPosCardIntent = async (req, res, next) => {
         restaurant_id: String(restaurantId),
         business_id: String(restaurant.business_id),
         pos_payment_id: String(reservedPayment.payment.id),
+        payment_mode: paymentContract.canonical,
       },
     });
     const { rows: [payment] } = await pool.query(
@@ -2667,6 +3061,23 @@ exports.capturePosCardPayment = async (req, res, next) => {
         [typeof intent.latest_charge === 'string' ? intent.latest_charge : null, JSON.stringify({ stripeStatus: intent.status }), payment.id, restaurantId]
       );
       const reconciliation = await reconcilePosOrderPayment(client, payment.food_order_id);
+      if (reconciliation?.order) {
+        await insertPosReceiptAudit(client, {
+          restaurantId,
+          order: reconciliation.order,
+          eventType: 'payment_recorded',
+          channel: 'Payment update',
+          createdBy: req.user.id,
+          metadata: {
+            paymentId: capturedPayment.id,
+            paymentType: capturedPayment.payment_type,
+            amountCents: capturedPayment.amount_cents,
+            provider: capturedPayment.provider,
+            providerPaymentIntentId: capturedPayment.provider_payment_intent_id,
+          },
+          idempotencyKey: `receipt:pos-capture:${restaurantId}:${payment.id}`,
+        });
+      }
       return { payment: capturedPayment, ...reconciliation };
     });
     broadcastRestaurant(restaurant, 'food:pos:card:captured', result);
@@ -2798,6 +3209,24 @@ exports.refundPosCardPayment = async (req, res, next) => {
         );
       }
       const reconciliation = await reconcilePosOrderPayment(client, reservation.original.food_order_id);
+      if (reconciliation?.order) {
+        await insertPosReceiptAudit(client, {
+          restaurantId,
+          order: reconciliation.order,
+          eventType: 'payment_refunded',
+          channel: 'Payment update',
+          createdBy: req.user.id,
+          reason: normalizeString(req.body.reason || req.body.note, 1000),
+          metadata: {
+            paymentId: refundPayment.id,
+            originalPaymentId: reservation.original.id,
+            amountCents,
+            providerRefundId: refund.id,
+            refundStatus,
+          },
+          idempotencyKey: `receipt:pos-refund:${restaurantId}:${idempotencyKey}`,
+        });
+      }
       return { payment: refundPayment, ...reconciliation };
     });
     broadcastRestaurant(restaurant, 'food:pos:card:refunded', result);
@@ -2878,13 +3307,31 @@ exports.reprintReceipt = async (req, res, next) => {
         [restaurantId, orderId]
       ),
     ]);
-    const { rows: [receiptEvent] } = await pool.query(
-      `INSERT INTO restaurant_pos_receipt_events
-         (restaurant_id, food_order_id, queue_number, guest_name, total_cents, payment_status, channel, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,'Printed',$7)
-       RETURNING *`,
-      [restaurantId, order.id, order.queue_number, order.guest_name, order.total_cents, order.payment_status, req.user.id]
+    const receiptIdempotencyKey = normalizeString(
+      req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
+      200
     );
+    let receiptEvent = await insertPosReceiptAudit(pool, {
+      restaurantId,
+      order,
+      eventType: 'receipt_reprinted',
+      channel: 'Printed',
+      createdBy: req.user.id,
+      reason: normalizeString(req.body.reason || req.body.note, 1000),
+      metadata: {
+        paymentCount: payments.length,
+        itemCount: items.length,
+      },
+      idempotencyKey: receiptIdempotencyKey,
+    });
+    if (!receiptEvent && receiptIdempotencyKey) {
+      const { rows: [existingEvent] } = await pool.query(
+        `SELECT * FROM restaurant_pos_receipt_events
+          WHERE restaurant_id = $1 AND idempotency_key = $2`,
+        [restaurantId, receiptIdempotencyKey]
+      );
+      receiptEvent = existingEvent;
+    }
     const modifiersByItem = new Map();
     for (const modifier of modifiers) {
       const key = String(modifier.order_item_id);
@@ -3062,16 +3509,23 @@ exports.recordKitchenEvent = async (req, res, next) => {
 exports.getKitchenFeed = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
     const station = normalizeString(req.query.station, 80);
-    const deviceId = parsePositiveInt(req.query.deviceId || req.query.device_id);
+    const deviceId = parsePositiveInt(req.params.deviceId || req.query.deviceId || req.query.device_id);
     const requestedCursor = req.query.sinceEventId ?? req.query.since_event_id ?? req.query.cursor;
     let sinceEventId = parsePositiveInt(requestedCursor, 0) || 0;
     let device = null;
+    if (req.user?.id) {
+      await requireRestaurantAccess(req.user.id, restaurantId);
+    } else if (!deviceId) {
+      throw new AppError('Device credential is required', 401, 'device_credential_required');
+    }
     if (deviceId) {
-      await requireDeviceCredential(req, restaurantId, deviceId);
+      const credentialDevice = await requireDeviceCredential(req, restaurantId, deviceId);
+      assertDeviceApp(credentialDevice, 'kitchen');
       const { rows: [pairedDevice] } = await pool.query(
-        `SELECT id, device_name, mode, config, last_kitchen_event_id, last_sync_at, sync_status
+        `SELECT id, restaurant_id, app_key, device_name, mode, location_id, status, config,
+                last_kitchen_event_id, last_sync_at, sync_status, sync_error, config_version,
+                app_version, platform, last_seen_at, paired_at
            FROM restaurant_app_devices
           WHERE id = $1 AND restaurant_id = $2 AND app_key = 'kitchen' AND status = 'paired'`,
         [deviceId, restaurantId]
@@ -3142,7 +3596,8 @@ exports.getKitchenFeed = async (req, res, next) => {
       events,
       cursor,
       hasMore: events.length === 100,
-      device,
+      device: publicDevice(device),
+      contract: device ? deviceRouteContract(device, { restaurantId }) : null,
       serverTime: new Date().toISOString(),
       nextPollAfterMs: events.length ? 250 : 2000,
     });
@@ -3156,8 +3611,13 @@ exports.ackKitchenFeed = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const deviceId = parsePositiveInt(req.params.deviceId || req.body.deviceId || req.body.device_id);
     const cursor = parsePositiveInt(req.body.cursor || req.body.lastKitchenEventId || req.body.last_kitchen_event_id, 0) || 0;
-    await requireRestaurantAccess(req.user.id, restaurantId);
-    await requireDeviceCredential(req, restaurantId, deviceId);
+    if (req.user?.id) {
+      await requireRestaurantAccess(req.user.id, restaurantId);
+    } else if (!deviceId) {
+      throw new AppError('Device credential is required', 401, 'device_credential_required');
+    }
+    const credentialDevice = await requireDeviceCredential(req, restaurantId, deviceId);
+    assertDeviceApp(credentialDevice, 'kitchen');
     const { rows: [device] } = await pool.query(
       `UPDATE restaurant_app_devices d
           SET last_kitchen_event_id = GREATEST(
@@ -3179,7 +3639,13 @@ exports.ackKitchenFeed = async (req, res, next) => {
       [cursor, restaurantId, deviceId]
     );
     if (!device) throw new AppError('Kitchen device not found', 404, 'kitchen_device_not_found');
-    res.json({ device, cursor: Number(device.last_kitchen_event_id) });
+    res.json({
+      device: publicDevice(device),
+      contract: deviceRouteContract(device, { restaurantId }),
+      cursor: Number(device.last_kitchen_event_id),
+      lastKitchenEventId: Number(device.last_kitchen_event_id),
+      last_kitchen_event_id: Number(device.last_kitchen_event_id),
+    });
   } catch (err) {
     next(err);
   }

@@ -55,6 +55,7 @@ router.delete('/restaurants/:restaurantId/menu-items/:itemId', authenticate, ctr
 router.post('/restaurants/:restaurantId/menu-items/:itemId/modifier-groups', authenticate, ctrl.createModifierGroup);
 router.delete('/restaurants/:restaurantId/modifier-groups/:groupId', authenticate, ctrl.deleteModifierGroup);
 router.post('/restaurants/:restaurantId/customer-wallet-loads', authenticate, walletCtrl.loadCustomerWallet);
+router.post('/restaurants/:restaurantId/customer-wallet-load-requests', authenticate, walletCtrl.loadCustomerWallet);
 router.get('/restaurants/:restaurantId/customer-wallet-load-requests', authenticate, walletCtrl.listCustomerWalletLoadRequests);
 router.post('/restaurants/:restaurantId/customer-wallet-load-requests/:requestId/approve', authenticate, walletCtrl.approveCustomerWalletLoadRequest);
 router.post('/restaurants/:restaurantId/customer-wallet-load-requests/:requestId/cancel', authenticate, walletCtrl.cancelCustomerWalletLoadRequest);

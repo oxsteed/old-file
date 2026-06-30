@@ -1,6 +1,7 @@
 'use strict';
 
 const pool = require('../db');
+const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 
 function parseLimit(value, fallback = 4, max = 12) {
   const parsed = Number.parseInt(String(value), 10);
@@ -283,6 +284,89 @@ function tintForActivityType(type) {
     case 'booking':
     default: return 'success';
   }
+}
+
+async function queryActivitySupportCases(userId, limit) {
+  const { rows } = await pool.query(
+    `SELECT t.id,
+            t.ticket_number,
+            t.subject,
+            t.category,
+            t.priority,
+            t.status,
+            t.created_at,
+            t.updated_at,
+            (SELECT COUNT(*)
+               FROM support_messages sm
+              WHERE sm.ticket_id = t.id
+                AND sm.is_internal = FALSE) AS message_count
+       FROM support_tickets t
+      WHERE t.user_id = $1
+      ORDER BY COALESCE(t.updated_at, t.created_at) DESC
+      LIMIT $2`,
+    [userId, limit]
+  );
+
+  return rows.map((row) => ({
+    id: `support-case-${row.id}`,
+    source: 'support_case',
+    sourceId: String(row.id),
+    type: 'support_case',
+    title: `Support case #${row.ticket_number || row.id}`,
+    subtitle: row.subject || 'Support request',
+    detail: `${row.status || 'open'} • ${row.category || 'general'} • ${Number(row.message_count || 0)} messages`,
+    icon: row.priority === 'high' || row.priority === 'urgent' ? 'exclamationmark.shield.fill' : 'lifepreserver.fill',
+    tintKey: row.priority === 'high' || row.priority === 'urgent' ? 'primary' : 'secondary',
+    eventAt: toIso(row.updated_at || row.created_at),
+    isUnread: row.status === 'waiting_user',
+    actionLabel: 'View Case',
+    actionUrl: `/support/my-tickets/${row.id}`,
+    canMarkRead: false,
+    canDelete: false,
+  }));
+}
+
+async function queryActivityRestaurantSupportCases(userId, limit) {
+  const { rows } = await pool.query(
+    `SELECT rsc.id,
+            rsc.public_case_number,
+            rsc.issue_type,
+            rsc.status,
+            rsc.priority,
+            rsc.title,
+            rsc.updated_at,
+            rsc.created_at,
+            fr.display_name AS restaurant_name,
+            (SELECT COUNT(*)
+               FROM restaurant_support_case_messages rsm
+              WHERE rsm.case_id = rsc.id
+                AND rsm.internal_note = FALSE) AS message_count
+       FROM restaurant_support_cases rsc
+       JOIN food_restaurants fr ON fr.id = rsc.restaurant_id
+      WHERE rsc.customer_user_id = $1
+        AND rsc.archived_at IS NULL
+      ORDER BY COALESCE(rsc.updated_at, rsc.created_at) DESC
+      LIMIT $2`,
+    [userId, limit]
+  );
+
+  return rows.map((row) => ({
+    id: `restaurant-support-case-${row.id}`,
+    source: 'restaurant_support_case',
+    sourceId: String(row.id),
+    type: 'support_case',
+    title: `Restaurant case ${row.public_case_number || `#${row.id}`}`,
+    subtitle: row.restaurant_name || row.title || 'Restaurant support',
+    detail: `${row.status || 'open'} • ${String(row.issue_type || 'other').replace(/_/g, ' ')} • ${Number(row.message_count || 0)} messages`,
+    icon: row.priority === 'high' || row.priority === 'urgent' ? 'exclamationmark.bubble.fill' : 'lifepreserver.fill',
+    tintKey: row.priority === 'high' || row.priority === 'urgent' ? 'primary' : 'secondary',
+    eventAt: toIso(row.updated_at || row.created_at),
+    isUnread: ['awaiting_customer', 'resolution_offered'].includes(row.status),
+    actionLabel: 'View Case',
+    actionUrl: `/restaurants/support/cases/${row.id}`,
+    canMarkRead: false,
+    canDelete: false,
+  }));
 }
 
 async function loadHomeSection(key, fallback, loader) {
@@ -1298,15 +1382,17 @@ exports.getActivityFeed = async (req, res, next) => {
     const sourceLimit = Math.min(50, Math.max(limit, 20));
     const userId = req.user.id;
 
-    const [notifications, bids, foodOrders, bookings, messages] = await Promise.all([
+    const [notifications, bids, foodOrders, bookings, messages, supportCases, restaurantSupportCases] = await Promise.all([
       loadActivitySource('notifications', () => queryActivityNotifications(userId, sourceLimit)),
       loadActivitySource('bids', () => queryActivityBids(userId, sourceLimit)),
       loadActivitySource('foodOrders', () => queryActivityFoodOrders(userId, sourceLimit)),
       loadActivitySource('bookings', () => queryActivityBookings(userId, sourceLimit)),
       loadActivitySource('messages', () => queryActivityMessages(userId, sourceLimit)),
+      loadActivitySource('supportCases', () => queryActivitySupportCases(userId, sourceLimit)),
+      loadActivitySource('restaurantSupportCases', () => queryActivityRestaurantSupportCases(userId, sourceLimit)),
     ]);
 
-    const sources = [notifications, bids, foodOrders, bookings, messages];
+    const sources = [notifications, bids, foodOrders, bookings, messages, supportCases, restaurantSupportCases];
     const events = sources
       .flatMap((source) => source.data)
       .sort((a, b) => new Date(b.eventAt || 0) - new Date(a.eventAt || 0))
@@ -1778,11 +1864,15 @@ exports.redeemPromoCode = async (req, res, next) => {
 exports.getDisputeRefunds = async (req, res, next) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, source_type, source_id, transaction_reference, reason, details, refund_method,
-              requested_refund_cents, currency_code, status, opened_at, resolved_at
-         FROM main_app_payment_disputes
-        WHERE user_id = $1
-        ORDER BY opened_at DESC
+      `SELECT d.id, d.source_type, d.source_id, d.transaction_reference, d.reason, d.details, d.refund_method,
+              d.requested_refund_cents, d.currency_code, d.status, d.support_ticket_uuid,
+              d.opened_at, d.resolved_at,
+              t.ticket_number AS support_ticket_number,
+              t.status AS support_ticket_status
+         FROM main_app_payment_disputes d
+         LEFT JOIN support_tickets t ON t.id = d.support_ticket_uuid
+        WHERE d.user_id = $1
+        ORDER BY d.opened_at DESC
         LIMIT 100`,
       [req.user.id]
     );
@@ -1798,6 +1888,13 @@ exports.getDisputeRefunds = async (req, res, next) => {
         requestedRefundCents: row.requested_refund_cents === null ? null : Number(row.requested_refund_cents),
         currencyCode: normalizeCurrency(row.currency_code),
         status: row.status,
+        supportTicketId: row.support_ticket_uuid ? String(row.support_ticket_uuid) : null,
+        supportTicket: row.support_ticket_uuid ? {
+          id: String(row.support_ticket_uuid),
+          ticketNumber: row.support_ticket_number === null ? null : Number(row.support_ticket_number),
+          status: row.support_ticket_status || null,
+          actionUrl: `/support/my-tickets/${row.support_ticket_uuid}`,
+        } : null,
         openedAt: toIso(row.opened_at),
         resolvedAt: toIso(row.resolved_at),
       })),
@@ -1816,27 +1913,89 @@ exports.createDisputeRefund = async (req, res, next) => {
     }
     const sourceType = String(req.body.sourceType || req.body.source_type || 'other');
     const validSourceTypes = new Set(['job', 'food_order', 'service_booking', 'wallet', 'payment', 'other']);
-    const { rows } = await pool.query(
-      `INSERT INTO main_app_payment_disputes
-        (user_id, source_type, source_id, transaction_reference, reason, details, refund_method,
-         requested_refund_cents, currency_code, metadata)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       RETURNING id, source_type, source_id, transaction_reference, reason, details, refund_method,
-                 requested_refund_cents, currency_code, status, opened_at, resolved_at`,
-      [
-        req.user.id,
-        validSourceTypes.has(sourceType) ? sourceType : 'other',
-        req.body.sourceId || req.body.source_id || null,
-        req.body.transactionReference || req.body.transaction_reference || null,
-        reason,
-        details,
-        req.body.refundMethod || req.body.refund_method || 'original',
-        req.body.requestedRefundCents ?? req.body.requested_refund_cents ?? null,
-        normalizeCurrency(req.body.currencyCode || req.body.currency_code),
-        JSON.stringify({ client: 'oxsteed-main-ios' }),
-      ]
-    );
-    res.status(201).json({ dispute: rows[0] });
+    const normalizedSourceType = validSourceTypes.has(sourceType) ? sourceType : 'other';
+    const sourceId = req.body.sourceId || req.body.source_id || null;
+    const transactionReference = req.body.transactionReference || req.body.transaction_reference || null;
+    const requestedRefundCents = req.body.requestedRefundCents ?? req.body.requested_refund_cents ?? null;
+    const currencyCode = normalizeCurrency(req.body.currencyCode || req.body.currency_code);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows: userRows } = await client.query(
+        `SELECT first_name, last_name, email FROM users WHERE id = $1`,
+        [req.user.id]
+      );
+      const user = userRows[0] || {};
+      const userName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'OxSteed user';
+      const supportTicket = await createLinkedSupportTicket(client, {
+        userId: req.user.id,
+        name: userName,
+        email: user.email || req.user.email || 'support@oxsteed.com',
+        subject: `Refund request: ${normalizedSourceType}`,
+        category: 'refund_dispute',
+        priority: 'normal',
+        source: 'direct',
+        metadata: {
+          source: 'main_app_payment_dispute',
+          sourceType: normalizedSourceType,
+          sourceId,
+          transactionReference,
+          refundMethod: req.body.refundMethod || req.body.refund_method || 'original',
+          requestedRefundCents,
+          currencyCode,
+          app: 'oxsteed-main',
+        },
+        initialMessage: [
+          `A refund/dispute request was opened from OxSteed Main.`,
+          `Source: ${normalizedSourceType}`,
+          sourceId ? `Source ID: ${sourceId}` : null,
+          transactionReference ? `Transaction reference: ${transactionReference}` : null,
+          `Reason: ${reason}`,
+          '',
+          details,
+        ].filter(Boolean).join('\n'),
+      });
+
+      const { rows } = await client.query(
+        `INSERT INTO main_app_payment_disputes
+          (user_id, source_type, source_id, transaction_reference, reason, details, refund_method,
+           requested_refund_cents, currency_code, support_ticket_uuid, metadata)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         RETURNING id, source_type, source_id, transaction_reference, reason, details, refund_method,
+                   requested_refund_cents, currency_code, status, support_ticket_uuid, opened_at, resolved_at`,
+        [
+          req.user.id,
+          normalizedSourceType,
+          sourceId,
+          transactionReference,
+          reason,
+          details,
+          req.body.refundMethod || req.body.refund_method || 'original',
+          requestedRefundCents,
+          currencyCode,
+          supportTicket.id,
+          JSON.stringify({
+            client: 'oxsteed-main-ios',
+            supportTicketId: supportTicket.id,
+            supportTicketNumber: supportTicket.ticket_number,
+          }),
+        ]
+      );
+      await client.query('COMMIT');
+      res.status(201).json({
+        dispute: rows[0],
+        ticket: {
+          id: supportTicket.id,
+          ticketNumber: supportTicket.ticket_number,
+          status: supportTicket.status,
+        },
+      });
+    } catch (innerErr) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw innerErr;
+    } finally {
+      client.release();
+    }
   } catch (err) {
     next(err);
   }

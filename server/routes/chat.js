@@ -1,5 +1,13 @@
 const router = require('express').Router();
-const { chatMessage, profileChatMessage, guestProfileChatSession, financialAdvisor, transcribeAudio, getProfileContext } = require('../controllers/chatController');
+const {
+  chatMessage,
+  profileChatMessage,
+  guestProfileChatSession,
+  claimGuestProfileChatSessions,
+  financialAdvisor,
+  transcribeAudio,
+  getProfileContext,
+} = require('../controllers/chatController');
 const { chatLimiter, profileChatLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -44,6 +52,9 @@ router.post('/profile-message', chatLimiter, profileChatLimiter, optionalAuth, p
 
 // POST /api/chat/sessions/guest - public guest inquiry (helper must allow guest contact)
 router.post('/sessions/guest', profileChatLimiter, guestProfileChatSession);
+
+// POST /api/chat/sessions/guest/claim - attach matching guest inquiries after signup/login
+router.post('/sessions/guest/claim', chatLimiter, authenticate, claimGuestProfileChatSessions);
 
 // GET /api/chat/profile-context/:type/:id — owner-only transparency (helper UUID or business id)
 router.get('/profile-context/:type/:id', chatLimiter, authenticate, getProfileContext);

@@ -19,7 +19,9 @@ function buildApp() {
   app.get('/api/food/markets', ctrl.listMarkets);
   app.post('/api/food/restaurants', ctrl.createRestaurant);
   app.post('/api/food/restaurants/:restaurantId/orders', ctrl.createOrder);
+  app.get('/api/food/restaurants/:restaurantId/orders', ctrl.listRestaurantOrders);
   app.patch('/api/food/restaurants/:restaurantId/orders/:orderId/status', ctrl.updateOrderStatus);
+  app.patch('/api/food/restaurants/:restaurantId/orders/:orderId/payment', ctrl.updateOrderPayment);
   app.use(errorHandler);
   return app;
 }
@@ -240,6 +242,39 @@ describe('food controller', () => {
     expect(mockQuery.mock.calls[0][0]).toMatch(/JOIN businesses b ON b.id = fr.business_id/);
     expect(mockQuery.mock.calls[1][0]).toMatch(/WHERE id = \$2 AND restaurant_id = \$3/);
     expect(res.body.order.status).toBe('ready');
+  });
+
+  test('filters restaurant orders to POS sources for compatibility clients', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: 3, business_id: 42, owner_user_id: '00000000-0000-4000-8000-000000000123', effective_role: 'owner' }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .get('/api/food/restaurants/3/orders?source=pos');
+
+    expect(res.status).toBe(200);
+    expect(res.body.orders).toEqual([]);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/fo\.order_source = ANY\(\$2::text\[\]\)/);
+    expect(mockQuery.mock.calls[1][1][1]).toEqual(expect.arrayContaining(['counter', 'kiosk', 'tablet']));
+  });
+
+  test('keeps legacy payment patch route ledger-backed instead of mutating status directly', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: 3, business_id: 42, owner_user_id: '00000000-0000-4000-8000-000000000123', effective_role: 'owner' }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 100 }] });
+
+    const res = await request(buildApp())
+      .patch('/api/food/restaurants/3/orders/100/payment')
+      .send({ paymentStatus: 'paid' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('payment_transaction_required');
+    expect(res.body.fields.createPaymentPath).toBe('/api/restaurants/3/pos/orders/100/payments');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(false);
   });
 
   test('creates a review for a completed customer order', async () => {

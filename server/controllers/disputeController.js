@@ -3,6 +3,7 @@ const { sendNotification }  = require('../services/notificationService');
 const logger                = require('../utils/logger');
 const { withTransaction }   = require('../utils/transaction');
 const { AppError }          = require('../middleware/errorHandler');
+const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 
 const DISPUTE_STATUSES = Object.freeze({
   OPEN: 'open',
@@ -47,7 +48,10 @@ exports.openDispute = async (req, res, next) => {
 
     // Verify the requesting user is a party to this job
     const { rows: jobRows } = await db.query(
-      `SELECT id FROM jobs WHERE id = $1 AND (client_id = $2 OR assigned_helper_id = $2)`,
+      `SELECT id, title, status, client_id, assigned_helper_id
+         FROM jobs
+        WHERE id = $1
+          AND (client_id = $2 OR assigned_helper_id = $2)`,
       [jobId, userId]
     );
 
@@ -57,12 +61,13 @@ exports.openDispute = async (req, res, next) => {
 
     // Get user name (outside transaction for single query)
     const { rows: userRows } = await db.query(
-      'SELECT first_name, last_name FROM users WHERE id = $1',
+      'SELECT first_name, last_name, email FROM users WHERE id = $1',
       [userId]
     );
     const userName = userRows.length
       ? `${userRows[0].first_name} ${userRows[0].last_name}`
       : 'Unknown';
+    const userEmail = userRows[0]?.email || req.user.email || 'support@oxsteed.com';
 
     // Determine role from user record
     const openedByRole = req.user.role === 'helper' ? 'helper' : 'customer';
@@ -71,7 +76,7 @@ exports.openDispute = async (req, res, next) => {
     const dispute = await withTransaction(db, async (client) => {
       // Lock the job row to prevent concurrent disputes
       const { rows: jobLockRows } = await client.query(
-        'SELECT id FROM jobs WHERE id = $1 FOR UPDATE',
+        'SELECT id, title, status, client_id, assigned_helper_id FROM jobs WHERE id = $1 FOR UPDATE',
         [jobId]
       );
 
@@ -106,6 +111,43 @@ exports.openDispute = async (req, res, next) => {
       }
 
       const dispute = disputeRows[0];
+
+      const highPriorityReasons = new Set([
+        DISPUTE_REASONS.PROPERTY_DAMAGE,
+        DISPUTE_REASONS.SAFETY_CONCERN,
+        DISPUTE_REASONS.FRAUD,
+      ]);
+      const supportTicket = await createLinkedSupportTicket(client, {
+        userId,
+        name: userName,
+        email: userEmail,
+        subject: `Job dispute: ${jobLockRows[0].title || jobId}`,
+        category: 'job_dispute',
+        priority: highPriorityReasons.has(reason) ? 'high' : 'normal',
+        source: 'direct',
+        metadata: {
+          source: 'job_dispute',
+          disputeId: dispute.id,
+          jobId,
+          jobTitle: jobLockRows[0].title || null,
+          reason,
+          openedByRole,
+          app: 'oxsteed-main',
+        },
+        initialMessage: [
+          `A dispute was opened for job "${jobLockRows[0].title || jobId}".`,
+          `Reason: ${reason}`,
+          '',
+          description.trim(),
+        ].join('\n'),
+      });
+
+      await client.query(
+        `UPDATE disputes SET support_ticket_id = $1 WHERE id = $2`,
+        [supportTicket.id, dispute.id]
+      );
+      dispute.support_ticket_id = supportTicket.id;
+      dispute.support_ticket_number = supportTicket.ticket_number;
 
       // HOLD ESCROW FUNDS if job has pending escrow payment (atomic within transaction)
       const { rows: paymentRows } = await client.query(`
@@ -153,7 +195,7 @@ exports.openDispute = async (req, res, next) => {
             type: 'dispute_opened',
             title: 'New Dispute Opened',
             message: `${userName} opened a dispute for job ${jobId}. Reason: ${reason}`,
-            metadata: { disputeId: dispute.id, jobId }
+            metadata: { disputeId: dispute.id, jobId, supportTicketId: dispute.support_ticket_id }
           })
         )
       );
@@ -164,6 +206,13 @@ exports.openDispute = async (req, res, next) => {
 
     res.status(201).json({
       dispute,
+      ticket: dispute.support_ticket_id
+        ? {
+            id: dispute.support_ticket_id,
+            ticketNumber: dispute.support_ticket_number,
+            status: 'open',
+          }
+        : null,
       message: 'Dispute opened successfully.'
     });
   } catch (err) {

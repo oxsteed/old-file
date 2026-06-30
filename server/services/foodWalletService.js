@@ -94,6 +94,7 @@ function toWalletAmount(amountCents) {
 }
 
 function formatLedgerRow(row) {
+  if (!row) return null;
   return {
     id: String(row.id),
     entryType: row.entry_type,
@@ -115,6 +116,53 @@ function formatLedgerRow(row) {
     previousEntryHash: row.previous_entry_hash || null,
     metadata: row.metadata && typeof row.metadata === 'object' ? row.metadata : {},
   };
+}
+
+function assertLedgerReplayMatches(existingEntry, {
+  entryType,
+  amountCents,
+  currencyCode,
+  referenceType,
+  referenceId,
+}) {
+  const mismatches = {};
+  if (existingEntry.entry_type !== entryType) {
+    mismatches.entryType = {
+      existing: existingEntry.entry_type,
+      requested: entryType,
+    };
+  }
+  if (Number(existingEntry.amount_cents || 0) !== Number(amountCents || 0)) {
+    mismatches.amountCents = {
+      existing: Number(existingEntry.amount_cents || 0),
+      requested: Number(amountCents || 0),
+    };
+  }
+  if (normalizeCurrency(existingEntry.currency_code) !== normalizeCurrency(currencyCode)) {
+    mismatches.currencyCode = {
+      existing: normalizeCurrency(existingEntry.currency_code),
+      requested: normalizeCurrency(currencyCode),
+    };
+  }
+  if ((existingEntry.reference_type || null) !== (referenceType || null)) {
+    mismatches.referenceType = {
+      existing: existingEntry.reference_type || null,
+      requested: referenceType || null,
+    };
+  }
+  if ((existingEntry.reference_id || null) !== (referenceId || null)) {
+    mismatches.referenceId = {
+      existing: existingEntry.reference_id || null,
+      requested: referenceId || null,
+    };
+  }
+
+  if (Object.keys(mismatches).length) {
+    throw new AppError('Wallet ledger idempotency conflict', 409, 'wallet_ledger_idempotency_conflict', {
+      ledgerEntryId: String(existingEntry.id),
+      mismatches,
+    });
+  }
 }
 
 function formatWallet(accountRow, transactionRows = []) {
@@ -260,6 +308,13 @@ async function applyWalletLedgerEntry(client, {
   });
 
   if (existingEntry) {
+    assertLedgerReplayMatches(existingEntry, {
+      entryType,
+      amountCents: normalizedAmount,
+      currencyCode: normalizedCurrency,
+      referenceType: normalizeString(referenceType, 60),
+      referenceId: normalizeString(referenceId, 120),
+    });
     return {
       account,
       entry: existingEntry,

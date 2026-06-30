@@ -16,6 +16,16 @@ function normalizeString(value, max = 255) {
 }
 
 const RECEIPT_CHANNELS = new Set(['Counter', 'Payment update', 'Printed', 'SMS', 'Email']);
+const RECEIPT_EVENT_TYPES = new Set([
+  'receipt',
+  'order_created',
+  'payment_recorded',
+  'payment_refunded',
+  'ticket_voided',
+  'ticket_held',
+  'ticket_reopened',
+  'receipt_reprinted',
+]);
 
 const DEFAULT_POS_DISCOUNTS = [
   { code: 'WELCOME10', title: 'Welcome 10%', percentOff: 0.10 },
@@ -92,6 +102,11 @@ exports.createReceiptEvent = async (req, res, next) => {
     const paymentStatus = normalizeString(req.body.paymentStatus || req.body.payment_status, 32);
     const channel = normalizeString(req.body.channel, 32);
     const guestName = normalizeString(req.body.guestName || req.body.guest_name, 140);
+    const eventType = normalizeString(req.body.eventType || req.body.event_type, 64) || 'receipt';
+    const idempotencyKey = normalizeString(
+      req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
+      200
+    );
 
     if (!orderId) throw new AppError('Validation failed', 400, 'validation_failed', { orderId: 'Order is required' });
     if (!queueNumber) throw new AppError('Validation failed', 400, 'validation_failed', { queueNumber: 'Queue number is required' });
@@ -101,6 +116,9 @@ exports.createReceiptEvent = async (req, res, next) => {
     if (!paymentStatus) throw new AppError('Validation failed', 400, 'validation_failed', { paymentStatus: 'Payment status is required' });
     if (!channel || !RECEIPT_CHANNELS.has(channel)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { channel: 'Unsupported receipt channel' });
+    }
+    if (!RECEIPT_EVENT_TYPES.has(eventType)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { eventType: 'Unsupported receipt event type' });
     }
 
     const { rows: [order] } = await pool.query(
@@ -114,13 +132,32 @@ exports.createReceiptEvent = async (req, res, next) => {
 
     const { rows: [receiptEvent] } = await pool.query(
       `INSERT INTO restaurant_pos_receipt_events
-         (restaurant_id, food_order_id, queue_number, guest_name, total_cents, payment_status, channel, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         (restaurant_id, food_order_id, queue_number, guest_name, total_cents,
+          payment_status, channel, event_type, reason, metadata, idempotency_key, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12)
+       ON CONFLICT (restaurant_id, idempotency_key)
+         WHERE idempotency_key IS NOT NULL
+       DO UPDATE SET idempotency_key = EXCLUDED.idempotency_key
        RETURNING *`,
-      [restaurantId, orderId, queueNumber, guestName, totalCents, paymentStatus, channel, req.user.id]
+      [
+        restaurantId,
+        orderId,
+        queueNumber,
+        guestName,
+        totalCents,
+        paymentStatus,
+        channel,
+        eventType,
+        normalizeString(req.body.reason || req.body.note, 1000),
+        JSON.stringify(req.body.metadata && typeof req.body.metadata === 'object' && !Array.isArray(req.body.metadata)
+          ? req.body.metadata
+          : {}),
+        idempotencyKey,
+        req.user.id,
+      ]
     );
 
-    res.status(201).json({ receiptEvent });
+    res.status(idempotencyKey ? 200 : 201).json({ receiptEvent });
   } catch (err) {
     next(err);
   }

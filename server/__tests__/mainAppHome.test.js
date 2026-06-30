@@ -402,6 +402,33 @@ describe('main app activity feed contract', () => {
           job_title: 'Assemble IKEA wardrobe',
           sender_name: 'Diego Ramos',
         }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: '00000000-0000-4000-8000-000000001001',
+          ticket_number: 1001,
+          subject: 'Refund request',
+          category: 'refund_dispute',
+          priority: 'normal',
+          status: 'open',
+          created_at: '2026-06-28T13:05:00.000Z',
+          updated_at: '2026-06-28T13:05:00.000Z',
+          message_count: 1,
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 9001,
+          public_case_number: 'RS-TEST-1',
+          issue_type: 'missing_item',
+          status: 'awaiting_customer',
+          priority: 'high',
+          title: 'missing item',
+          restaurant_name: 'Bon Pate',
+          created_at: '2026-06-28T13:04:00.000Z',
+          updated_at: '2026-06-28T13:04:00.000Z',
+          message_count: 2,
+        }],
       });
 
     const res = await request(buildApp(user)).get('/api/main-app/activity');
@@ -415,6 +442,8 @@ describe('main app activity feed contract', () => {
         expect.objectContaining({ key: 'foodOrders', status: 'ok', count: 1 }),
         expect.objectContaining({ key: 'bookings', status: 'ok', count: 1 }),
         expect.objectContaining({ key: 'messages', status: 'ok', count: 1 }),
+        expect.objectContaining({ key: 'supportCases', status: 'ok', count: 1 }),
+        expect.objectContaining({ key: 'restaurantSupportCases', status: 'ok', count: 1 }),
       ])
     );
     expect(res.body.events.map((event) => event.source)).toEqual([
@@ -423,6 +452,8 @@ describe('main app activity feed contract', () => {
       'food_order',
       'booking',
       'message',
+      'support_case',
+      'restaurant_support_case',
     ]);
     expect(res.body.events[0]).toEqual(expect.objectContaining({
       id: 'notification-7',
@@ -431,7 +462,7 @@ describe('main app activity feed contract', () => {
       canMarkRead: true,
       canDelete: true,
     }));
-    expect(res.body.unreadCount).toBe(2);
+    expect(res.body.unreadCount).toBe(3);
   });
 
   test('degrades one activity source without losing the rest of the feed', async () => {
@@ -452,7 +483,9 @@ describe('main app activity feed contract', () => {
           job_title: 'Conversation',
           sender_name: 'Diego Ramos',
         }],
-      });
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
 
     const res = await request(buildApp(user)).get('/api/main-app/activity');
 

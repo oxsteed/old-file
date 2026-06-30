@@ -1,5 +1,11 @@
 'use strict';
 
+function normalizeString(value, max = 255) {
+  if (value === undefined || value === null) return null;
+  const trimmed = String(value).trim();
+  return trimmed ? trimmed.slice(0, max) : null;
+}
+
 async function reconcilePosOrderPayment(client, orderId) {
   const { rows: [order] } = await client.query(
     `SELECT * FROM food_orders WHERE id = $1 FOR UPDATE`,
@@ -38,12 +44,140 @@ async function reconcilePosOrderPayment(client, orderId) {
               ELSE pos_ticket_state
             END,
             refunded_at = CASE WHEN $1 = 'refunded' THEN COALESCE(refunded_at, NOW()) ELSE refunded_at END,
+            metadata = metadata || jsonb_build_object(
+              'posPaymentSummary',
+              jsonb_build_object(
+                'paidCents', $3::int,
+                'refundedCents', $4::int,
+                'netPaidCents', $5::int,
+                'pendingPayments', $6::int,
+                'paymentStatus', $1,
+                'updatedAt', NOW()
+              )
+            ),
             updated_at = NOW()
       WHERE id = $2
       RETURNING *`,
-    [nextPaymentStatus, orderId]
+    [
+      nextPaymentStatus,
+      orderId,
+      paidCents,
+      refundedCents,
+      netPaidCents,
+      Number(totals.pending_payments || 0),
+    ]
   );
   return { order: updatedOrder, totals: { ...totals, net_paid_cents: netPaidCents } };
+}
+
+async function recordWalletCreditPaymentForOrder(client, {
+  restaurantId,
+  orderId,
+  amountCents,
+  currencyCode = 'USD',
+  walletAccountId = null,
+  walletLedgerEntryId = null,
+  walletBalanceAfterCents = null,
+  idempotencyKey,
+  createdByUserId = null,
+  metadata = {},
+}) {
+  const normalizedAmount = Math.round(Number(amountCents || 0));
+  if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+    return { payment: null, order: null, totals: null, skipped: true };
+  }
+  const normalizedIdempotencyKey = normalizeString(idempotencyKey, 200)
+    || `wallet-credit:${restaurantId}:${orderId}`;
+  const { rows: [payment] } = await client.query(
+    `INSERT INTO restaurant_pos_payments
+       (restaurant_id, food_order_id, payment_type, amount_cents, status,
+        provider, idempotency_key, reference, note, metadata, created_by)
+     VALUES ($1,$2,'wallet_credit',$3,'captured','food_wallet',$4,$5,$6,$7::jsonb,$8)
+     ON CONFLICT (restaurant_id, idempotency_key) WHERE idempotency_key IS NOT NULL
+     DO UPDATE SET
+       metadata = restaurant_pos_payments.metadata || EXCLUDED.metadata,
+       updated_at = NOW()
+     RETURNING *`,
+    [
+      restaurantId,
+      orderId,
+      normalizedAmount,
+      normalizedIdempotencyKey,
+      walletLedgerEntryId ? `wallet-ledger:${walletLedgerEntryId}` : `food-order:${orderId}`,
+      'Paid with restaurant credit',
+      JSON.stringify({
+        source: 'food_wallet',
+        currencyCode,
+        walletAccountId: walletAccountId ? String(walletAccountId) : null,
+        walletLedgerEntryId: walletLedgerEntryId ? String(walletLedgerEntryId) : null,
+        walletBalanceAfterCents: walletBalanceAfterCents === null || walletBalanceAfterCents === undefined
+          ? null
+          : Number(walletBalanceAfterCents),
+        ...metadata,
+      }),
+      createdByUserId,
+    ]
+  );
+  const reconciliation = await reconcilePosOrderPayment(client, orderId);
+  return { payment: payment || null, ...reconciliation, skipped: false };
+}
+
+async function recordWalletCreditRefundForOrder(client, {
+  restaurantId,
+  orderId,
+  amountCents,
+  currencyCode = 'USD',
+  walletAccountId = null,
+  walletRefundLedgerEntryId = null,
+  walletOriginalLedgerEntryId = null,
+  walletBalanceAfterCents = null,
+  idempotencyKey,
+  createdByUserId = null,
+  metadata = {},
+}) {
+  const normalizedAmount = Math.round(Number(amountCents || 0));
+  if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+    return { payment: null, order: null, totals: null, skipped: true };
+  }
+  const normalizedIdempotencyKey = normalizeString(idempotencyKey, 200)
+    || `wallet-credit-refund:${restaurantId}:${orderId}`;
+  const { rows: [payment] } = await client.query(
+    `INSERT INTO restaurant_pos_payments
+       (restaurant_id, food_order_id, payment_type, amount_cents, status,
+        provider, idempotency_key, reference, note, metadata, created_by)
+     VALUES ($1,$2,'refund',$3,'refunded','food_wallet',$4,$5,$6,$7::jsonb,$8)
+     ON CONFLICT (restaurant_id, idempotency_key) WHERE idempotency_key IS NOT NULL
+     DO UPDATE SET
+       metadata = restaurant_pos_payments.metadata || EXCLUDED.metadata,
+       status = CASE
+         WHEN restaurant_pos_payments.status IN ('recorded','captured','refunded') THEN restaurant_pos_payments.status
+         ELSE EXCLUDED.status
+       END,
+       updated_at = NOW()
+     RETURNING *`,
+    [
+      restaurantId,
+      orderId,
+      normalizedAmount,
+      normalizedIdempotencyKey,
+      walletRefundLedgerEntryId ? `wallet-refund-ledger:${walletRefundLedgerEntryId}` : `food-order-refund:${orderId}`,
+      'Refunded to restaurant credit',
+      JSON.stringify({
+        source: 'food_wallet',
+        currencyCode,
+        walletAccountId: walletAccountId ? String(walletAccountId) : null,
+        walletRefundLedgerEntryId: walletRefundLedgerEntryId ? String(walletRefundLedgerEntryId) : null,
+        walletOriginalLedgerEntryId: walletOriginalLedgerEntryId ? String(walletOriginalLedgerEntryId) : null,
+        walletBalanceAfterCents: walletBalanceAfterCents === null || walletBalanceAfterCents === undefined
+          ? null
+          : Number(walletBalanceAfterCents),
+        ...metadata,
+      }),
+      createdByUserId,
+    ]
+  );
+  const reconciliation = await reconcilePosOrderPayment(client, orderId);
+  return { payment: payment || null, ...reconciliation, skipped: false };
 }
 
 async function applyStripePaymentIntent(client, intent) {
@@ -175,6 +309,8 @@ async function applyStripeChargeRefund(client, charge) {
 
 module.exports = {
   reconcilePosOrderPayment,
+  recordWalletCreditPaymentForOrder,
+  recordWalletCreditRefundForOrder,
   applyStripePaymentIntent,
   applyStripeRefund,
   applyStripeChargeRefund,

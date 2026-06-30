@@ -25,6 +25,9 @@ const validateFileUpload = require('../middleware/validateFileUpload');
 router.post('/:restaurantId/devices/pair', appFlow.pairDevice);
 router.get('/:restaurantId/devices/:deviceId/runtime-config', appFlow.getDeviceRuntimeConfig);
 router.post('/:restaurantId/devices/:deviceId/heartbeat', appFlow.deviceHeartbeat);
+router.get('/:restaurantId/devices/:deviceId/kitchen-feed', appFlow.getKitchenFeed);
+router.post('/:restaurantId/devices/:deviceId/kitchen-feed/ack', appFlow.ackKitchenFeed);
+router.get('/:restaurantId/devices/:deviceId/queue-board', appFlow.getDeviceQueueBoard);
 
 // All routes require a signed-in user; the controller verifies the user belongs
 // to the restaurant (and that nested rows belong to it) on every call.

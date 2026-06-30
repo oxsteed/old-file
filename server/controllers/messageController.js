@@ -174,6 +174,7 @@ const getConversations = async (req, res) => {
       `SELECT c.id, c.job_id, c.customer_id, c.helper_id, c.business_id, c.status,
               c.archived_at, c.last_message_at, c.created_at, c.updated_at,
               CASE
+                WHEN c.customer_id = $1 AND NULLIF(cb.business_name, '') IS NOT NULL THEN cb.business_name
                 WHEN c.customer_id = $1 THEN h.first_name || ' ' || h.last_name
                 WHEN c.helper_id   = $1 THEN cu.first_name || ' ' || cu.last_name
                 ELSE cu.first_name || ' ' || cu.last_name
@@ -368,6 +369,7 @@ const getConversationMeta = async (req, res) => {
       `SELECT
          c.id, c.job_id, c.customer_id, c.helper_id, c.business_id, c.status,
          CASE
+           WHEN c.customer_id = $2 AND NULLIF(cb.business_name, '') IS NOT NULL THEN cb.business_name
            WHEN c.customer_id = $2 THEN h.first_name || ' ' || h.last_name
            WHEN c.helper_id   = $2 THEN cu.first_name || ' ' || cu.last_name
            ELSE cu.first_name || ' ' || cu.last_name
