@@ -52,6 +52,14 @@ function buildOrderApp() {
   return app;
 }
 
+function buildUnauthenticatedOrderApp() {
+  const app = express();
+  app.use(express.json());
+  app.post('/api/food/restaurants/:restaurantId/orders', foodController.createOrder);
+  app.use(errorHandler);
+  return app;
+}
+
 function buildMerchantApp(user = { id: OWNER_ID, email: 'owner@example.com' }) {
   const app = express();
   app.use(express.json());
@@ -197,6 +205,67 @@ describe('food wallet security wiring', () => {
     expect(res.status).toBe(201);
     expect(res.body.order.payment_status).toBe('paid');
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_customer_wallet_ledger/.test(sql))).toBe(true);
+  });
+
+  test('kiosk wallet-credit pickup order is created as requires_payment without debiting wallet', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (/FROM food_restaurants WHERE id = \$1 AND status = 'active' FOR UPDATE/.test(sql)) {
+        return { rows: [restaurantRow()] };
+      }
+      if (/FROM food_menu_items/.test(sql)) {
+        return {
+          rows: [{
+            id: MENU_ITEM_ID,
+            name: 'Classic Burger',
+            price_cents: 899,
+            currency_code: 'USD',
+            is_available: true,
+          }],
+        };
+      }
+      if (/SELECT COALESCE\(MAX\(queue_number\), 0\) \+ 1 AS next_queue/.test(sql)) {
+        return { rows: [{ next_queue: 4 }] };
+      }
+      if (/INSERT INTO food_orders/.test(sql)) {
+        return {
+          rows: [{
+            id: 201,
+            restaurant_id: RESTAURANT_ID,
+            business_id: BUSINESS_ID,
+            customer_id: null,
+            order_source: 'kiosk',
+            fulfillment_type: 'pickup',
+            payment_status: 'requires_payment',
+            queue_number: 4,
+            status: 'received',
+            subtotal_cents: 899,
+            total_cents: 899,
+            currency_code: 'USD',
+            metadata: { paymentMode: 'wallet_credit' },
+          }],
+        };
+      }
+      if (/INSERT INTO food_order_items/.test(sql)) {
+        return { rows: [{ id: 902 }] };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    const res = await request(buildUnauthenticatedOrderApp())
+      .post(`/api/food/restaurants/${RESTAURANT_ID}/orders`)
+      .send({
+        orderSource: 'kiosk',
+        fulfillmentType: 'pickup',
+        paymentMode: 'wallet_credit',
+        items: [{ menuItemId: MENU_ITEM_ID, quantity: 1 }],
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.order.payment_status).toBe('requires_payment');
+    expect(res.body.payment.status).toBe('requires_payment');
+    expect(res.body.payment.reason).toBe('awaiting_pos_qr_redemption');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_customer_wallet_ledger/.test(sql))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO restaurant_pos_payments/.test(sql))).toBe(false);
   });
 
   test('wallet-funded delivery is rejected when the wallet is suspended', async () => {

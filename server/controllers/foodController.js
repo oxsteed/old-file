@@ -1428,10 +1428,6 @@ exports.quoteOrder = async (req, res, next) => {
     if (!restaurantFulfillmentModes.includes(fulfillmentType)) {
       throw new AppError('This fulfillment mode is not available', 409, 'fulfillment_mode_unavailable');
     }
-    if (paymentContract.canonical === 'restaurant_credit' && fulfillmentType !== 'delivery') {
-      throw new AppError('Restaurant credit is only available for delivery orders', 409, 'wallet_credit_delivery_only');
-    }
-
     const itemIds = items.map((item) => parsePositiveInt(item.menuItemId || item.menu_item_id)).filter(Boolean);
     const { rows: menuRows } = await pool.query(
       `SELECT id, name, price_cents, currency_code, is_available
@@ -1713,9 +1709,6 @@ exports.createOrder = async (req, res, next) => {
       if (!VALID_FULFILLMENT.has(fulfillmentType)) {
         throw new AppError('Validation failed', 400, 'validation_failed', { fulfillmentType: 'Unsupported fulfillment type' });
       }
-      if (paymentContract.canonical === 'restaurant_credit' && fulfillmentType !== 'delivery') {
-        throw new AppError('Restaurant credit is only available for delivery orders', 409, 'wallet_credit_delivery_only');
-      }
       const restaurantFulfillmentModes = Array.isArray(restaurant.fulfillment_modes) && restaurant.fulfillment_modes.length
         ? restaurant.fulfillment_modes
         : ['pickup'];
@@ -1811,6 +1804,10 @@ exports.createOrder = async (req, res, next) => {
       const tax = Math.round(taxableSubtotal * taxRateBps / 10000);
       const serviceFeeCents = Math.round(taxableSubtotal * serviceFeeBps / 10000);
       const total = Math.max(0, taxableSubtotal + tax + serviceFeeCents + tip + deliveryFeeCents);
+      const shouldDebitWalletImmediately = paymentContract.canonical === 'restaurant_credit' && Boolean(req.user?.id);
+      const initialPaymentStatus = paymentContract.canonical === 'restaurant_credit'
+        ? (shouldDebitWalletImmediately ? 'paid' : 'requires_payment')
+        : 'unpaid';
 
       const { rows: queueRows } = await client.query(
         `SELECT COALESCE(MAX(queue_number), 0) + 1 AS next_queue
@@ -1884,7 +1881,7 @@ exports.createOrder = async (req, res, next) => {
           normalizeString(req.body.guestEmail || req.body.guest_email, 255),
           orderSource,
           fulfillmentType,
-          paymentContract.canonical === 'restaurant_credit' ? 'paid' : 'unpaid',
+          initialPaymentStatus,
           subtotal,
           tax,
           serviceFeeCents,
@@ -1933,16 +1930,20 @@ exports.createOrder = async (req, res, next) => {
 
       let walletPayment = null;
       if (paymentContract.canonical === 'restaurant_credit') {
-        if (!req.user?.id) {
-          throw new AppError('Authentication required', 401, 'authentication_required');
-        }
-        if (total > 0) {
+        if (!shouldDebitWalletImmediately) {
+          walletPayment = buildWalletPaymentResponse({
+            status: 'requires_payment',
+            amountCents: total,
+            currencyCode: normalizeCurrency(restaurant.currency_code),
+            reason: 'awaiting_pos_qr_redemption',
+          });
+        } else if (total > 0) {
           const walletResult = await debitFoodWallet(client, {
             restaurantId,
             customerId: req.user.id,
             currencyCode: normalizeCurrency(restaurant.currency_code),
             amountCents: total,
-            description: `Order #${created.id} · Delivery`,
+            description: `Order #${created.id} · ${fulfillmentType}`,
             referenceType: 'food_order',
             referenceId: String(created.id),
             idempotencyKey: `food-order:${created.id}:wallet-credit`,

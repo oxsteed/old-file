@@ -36,11 +36,42 @@ Each restaurant-credit production release should verify:
 - `xcodebuild` Debug simulator build for OxSteed
 - `xcodebuild` Debug simulator build for OxSteed Kitchen
 - `xcodebuild` Debug simulator build for OxSteed Display
+- `xcodebuild` Debug simulator build for OxSteed after wiring reconciliation v2 into the Business Dashboard
+- `xcodebuild` Debug simulator build for OxSteed POS after replacing the Pay tab placeholder with the real payment terminal
+- `node -c controllers/foodController.js`
+- `npm test -- --runInBand __tests__/foodWallet.test.js` after adding the kiosk pending restaurant-credit regression test
+- `xcodebuild` Debug simulator build for OxSteed Display after enabling kiosk restaurant-credit checkout
+- `xcodebuild` Debug simulator build for OxSteed Kitchen after preserving `requires_payment` as a distinct kitchen payment state
+
+## App-Side Owner Visibility Added
+
+- OxSteed now decodes the reconciliation v2 backend contract in the main food API models.
+- The Business Dashboard wallet reconciliation card now surfaces POS restaurant-credit totals, refund totals, net settled credit, QR redemptions, pending/failed POS payment counts, stale QR sessions, unbalanced currencies, per-currency debit/refund variances, and receipt audit summaries.
+- The UI remains backward-compatible with older reconciliation responses while production deploys roll forward.
+
+## POS Payment Surface Added
+
+- OxSteed POS no longer shows a prototype-only Pay tab. The Pay tab now opens the same backend-backed payment terminal used from active tickets.
+- The payment terminal supports restaurant-credit QR redemption, restaurant-credit wallet lookup, pay-at-restaurant state recording, direct payment reference capture, discounts, voiding, and backend order/payment sync through the existing POS API contract.
+- The modal ticket checkout path still keeps its Back behavior, while the tab-mounted terminal stays in place after successful payment and clears tender inputs for the next transaction.
+
+## Display Kiosk Restaurant-Credit Flow Added
+
+- OxSteed Display now offers Restaurant Credit for dine-in and takeout kiosk checkout instead of limiting it to delivery-only language.
+- Unauthenticated kiosk restaurant-credit orders are created as `requires_payment` without debiting a wallet immediately, which lets a guest create an order at the kiosk and settle with their OxSteed Pay QR at POS before pickup or handoff.
+- Signed-in mobile restaurant-credit orders still support immediate wallet debit and paid order creation.
+- POS remains the secure restaurant-credit settlement point for shared devices: QR session validation, currency checks, idempotency, POS payment records, and reconciliation stay centralized in the backend.
+
+## Kitchen Payment-State Safety Added
+
+- OxSteed Kitchen now decodes `requires_payment` as a distinct operational payment state instead of collapsing it into generic `Unpaid`.
+- Ticket cards and ticket details show a visible payment warning for orders that still need POS QR settlement or payment confirmation.
+- This protects the international kiosk/POS flow by helping kitchen and expo staff avoid releasing food before the restaurant-credit payment is settled.
 
 ## Remaining Before Calling It Fully Production Ready
 
-- Add or confirm app-side screens for reconciliation review, failed QR session handling, refund history, and receipt/audit visibility for restaurant owners.
-- Run end-to-end device/simulator QA with a seeded non-USD restaurant credit wallet, QR payment, kitchen/display order update, partial refund, full refund, and reconciliation review.
+- Add or confirm app-side screens for failed QR session remediation, detailed refund history, and deeper receipt/audit drill-down for restaurant owners.
+- Run end-to-end device/simulator QA with a seeded non-USD restaurant credit wallet, QR payment, kiosk pending order, POS redemption, kitchen/display order update, partial refund, full refund, and reconciliation review.
 - Confirm production migrations are applied in order, especially wallet QR sessions, receipt audit contract, wallet-credit POS payment type, and any newer payment ledger migrations.
 - Confirm exported App Store builds for POS, Kitchen, Display, and OxSteed are built from the same backend contract versions verified here.
 - Add operational monitoring for stale active QR sessions, unbalanced reconciliation rows, failed POS payments, and wallet integrity locks.
