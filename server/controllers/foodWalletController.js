@@ -78,6 +78,25 @@ function signedLedgerAmount(entryType, amountCents) {
   return entryType === 'debit' ? -Math.abs(amount) : Math.abs(amount);
 }
 
+function hashPaymentSessionToken(token) {
+  return crypto.createHash('sha256').update(String(token || ''), 'utf8').digest('hex');
+}
+
+function createPaymentSessionToken() {
+  return crypto.randomBytes(32).toString('base64url');
+}
+
+function paymentSessionPayload(token) {
+  return `oxsteed://restaurant-credit/pay?token=${encodeURIComponent(token)}`;
+}
+
+function parseOptionalMoneyCents(body) {
+  if (!body || (body.amountCents === undefined && body.amount_cents === undefined && body.amount === undefined)) {
+    return null;
+  }
+  return parsePositiveMoneyCents(body);
+}
+
 function buildStatementId({ restaurantId, customerId, from, to, generatedAt }) {
   return crypto
     .createHash('sha256')
@@ -392,6 +411,120 @@ exports.getCustomerWallet = async (req, res, next) => {
       includeInactive: true,
     });
     res.json({ wallet: wallets[0] || null });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createCustomerWalletPaymentSession = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) {
+      throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    }
+    const wallets = await loadWalletAccountsForUser(req.user.id, {
+      restaurantId,
+      transactionLimit: 0,
+      includeInactive: true,
+    });
+    const wallet = wallets[0];
+    if (!wallet) {
+      throw new AppError('Restaurant credit wallet not found', 404, 'wallet_not_found');
+    }
+    if (wallet.status !== 'active') {
+      throw new AppError('Restaurant credit wallet is not active', 409, 'wallet_inactive', { status: wallet.status });
+    }
+
+    const amountCents = parseOptionalMoneyCents(req.body);
+    if (amountCents && amountCents > Number(wallet.balanceCents || 0)) {
+      throw new AppError('Insufficient restaurant wallet balance', 409, 'wallet_insufficient_funds', {
+        balanceCents: String(wallet.balanceCents || 0),
+        requestedCents: String(amountCents),
+      });
+    }
+    const requestedTtl = Number.parseInt(String(req.body?.ttlSeconds || req.body?.ttl_seconds || 180), 10);
+    const ttlSeconds = Math.min(Math.max(Number.isFinite(requestedTtl) ? requestedTtl : 180, 30), 600);
+    const foodOrderId = parsePositiveInt(req.body?.orderId || req.body?.order_id);
+    const token = createPaymentSessionToken();
+    const tokenHash = hashPaymentSessionToken(token);
+    const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+    const walletAccountId = wallet.accountId || wallet.id || null;
+
+    const { rows: [session] } = await pool.query(
+      `INSERT INTO food_wallet_payment_sessions
+         (token_hash, restaurant_id, customer_id, wallet_account_id, food_order_id,
+          amount_cents, currency_code, expires_at, metadata)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)
+       RETURNING id, restaurant_id, customer_id, wallet_account_id, food_order_id,
+                 amount_cents, currency_code, status, expires_at, created_at`,
+      [
+        tokenHash,
+        restaurantId,
+        req.user.id,
+        walletAccountId,
+        foodOrderId,
+        amountCents,
+        normalizeCurrency(wallet.currencyCode),
+        expiresAt,
+        JSON.stringify({
+          source: 'customer_wallet_qr',
+          app: req.body?.app || 'oxsteed',
+          requestedAmountCents: amountCents,
+        }),
+      ]
+    );
+
+    res.status(201).json({
+      session: {
+        id: session.id,
+        restaurantId: String(session.restaurant_id),
+        customerId: session.customer_id,
+        walletAccountId: session.wallet_account_id ? String(session.wallet_account_id) : null,
+        orderId: session.food_order_id ? String(session.food_order_id) : null,
+        amountCents: session.amount_cents === null ? null : Number(session.amount_cents),
+        currencyCode: session.currency_code,
+        status: session.status,
+        expiresAt: session.expires_at,
+        createdAt: session.created_at,
+      },
+      token,
+      qrPayload: paymentSessionPayload(token),
+      wallet,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.cancelCustomerWalletPaymentSession = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const sessionId = normalizeString(req.params.sessionId, 80);
+    if (!restaurantId || !sessionId) {
+      throw new AppError('Payment session not found', 404, 'payment_session_not_found');
+    }
+    const { rows: [session] } = await pool.query(
+      `UPDATE food_wallet_payment_sessions
+          SET status = CASE WHEN status = 'active' THEN 'cancelled' ELSE status END,
+              updated_at = NOW()
+        WHERE id = $1
+          AND restaurant_id = $2
+          AND customer_id = $3
+        RETURNING id, restaurant_id, customer_id, status, expires_at`,
+      [sessionId, restaurantId, req.user.id]
+    );
+    if (!session) {
+      throw new AppError('Payment session not found', 404, 'payment_session_not_found');
+    }
+    res.json({
+      session: {
+        id: session.id,
+        restaurantId: String(session.restaurant_id),
+        customerId: session.customer_id,
+        status: session.status,
+        expiresAt: session.expires_at,
+      },
+    });
   } catch (err) {
     next(err);
   }

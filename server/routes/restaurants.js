@@ -178,6 +178,7 @@ router.post('/:restaurantId/pos/sync/ack', appFlow.ackPendingOperations);
 router.post('/:restaurantId/pos/pending-operations/ack', appFlow.ackPendingOperations);
 router.get('/:restaurantId/pos/sync/status', appFlow.getPosSyncStatus);
 router.get('/:restaurantId/pos/sync/health', appFlow.getPosSyncStatus);
+router.get('/:restaurantId/pos/customer-wallet', appFlow.lookupPosCustomerWallet);
 router.get('/:restaurantId/pos/orders', appFlow.listPosOrders);
 router.post('/:restaurantId/pos/orders', appFlow.createPosOrder);
 router.post('/:restaurantId/pos/orders/create', appFlow.createPosOrder);

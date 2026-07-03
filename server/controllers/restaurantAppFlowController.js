@@ -8,7 +8,11 @@ const { withTransaction } = require('../utils/transaction');
 const socketService = require('../services/socketService');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
 const posTerminal = require('../services/restaurantPosTerminalService');
-const { reconcilePosOrderPayment } = require('../services/restaurantPosPaymentLedgerService');
+const {
+  reconcilePosOrderPayment,
+  recordWalletCreditPaymentForOrder,
+} = require('../services/restaurantPosPaymentLedgerService');
+const { debitFoodWallet } = require('../services/foodWalletService');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const { getEffectivePermissions } = require('../services/permissionsService');
@@ -292,6 +296,198 @@ function normalizeCountry(value) {
 function normalizeCurrency(value) {
   const raw = normalizeString(value, 3);
   return raw ? raw.toUpperCase() : null;
+}
+
+function normalizePhoneLookup(value) {
+  const raw = normalizeString(value, 80);
+  if (!raw) return null;
+  const normalized = raw.replace(/[^\d+]/g, '');
+  return normalized || null;
+}
+
+function hashPaymentSessionToken(token) {
+  return crypto.createHash('sha256').update(String(token || ''), 'utf8').digest('hex');
+}
+
+function extractPaymentSessionToken(value) {
+  const raw = normalizeString(value, 1000);
+  if (!raw) return null;
+  if (!raw.includes('token=') && !raw.includes('://')) return raw;
+  try {
+    const parsed = new URL(raw);
+    const token = normalizeString(parsed.searchParams.get('token'), 500);
+    if (token) return token;
+  } catch (_) {
+    // Some scanners return a partial URI/query. Fall through and parse manually.
+  }
+  const query = raw.includes('?') ? raw.slice(raw.indexOf('?') + 1) : raw;
+  try {
+    const params = new URLSearchParams(query);
+    return normalizeString(params.get('token'), 500);
+  } catch (_) {
+    return null;
+  }
+}
+
+function looksLikeUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+}
+
+function formatPosCustomerWallet(row) {
+  if (!row) return null;
+  const firstName = normalizeString(row.first_name, 120);
+  const lastName = normalizeString(row.last_name, 120);
+  const displayName = [firstName, lastName].filter(Boolean).join(' ').trim()
+    || normalizeString(row.email, 160)
+    || 'OxSteed customer';
+  return {
+    customer: {
+      id: row.id,
+      firstName,
+      lastName,
+      displayName,
+      email: normalizeString(row.email, 160),
+      phone: normalizeString(row.phone_number || row.phone, 80),
+    },
+    wallet: row.wallet_account_id ? {
+      accountId: String(row.wallet_account_id),
+      restaurantId: String(row.wallet_restaurant_id),
+      customerId: row.id,
+      currencyCode: normalizeCurrency(row.wallet_currency_code) || 'USD',
+      balanceCents: Number(row.wallet_balance_cents || 0),
+      status: row.wallet_status || 'active',
+      updatedAt: row.wallet_updated_at || null,
+      ledgerVersion: Number(row.wallet_ledger_version || 0),
+    } : null,
+  };
+}
+
+async function findPosWalletCustomer(client, {
+  restaurantId,
+  customerId,
+  customerEmail,
+  customerPhone,
+  query,
+}) {
+  const normalizedId = normalizeString(customerId, 80);
+  const normalizedEmail = normalizeString(customerEmail, 160)?.toLowerCase()
+    || (String(query || '').includes('@') ? normalizeString(query, 160)?.toLowerCase() : null);
+  const normalizedPhone = normalizePhoneLookup(customerPhone)
+    || (!String(query || '').includes('@') ? normalizePhoneLookup(query) : null);
+
+  if (!normalizedId && !normalizedEmail && !normalizedPhone) {
+    throw new AppError('Customer email, phone, or id is required', 400, 'customer_lookup_required');
+  }
+
+  const where = [];
+  const params = [restaurantId];
+  if (normalizedId) {
+    if (!looksLikeUuid(normalizedId)) {
+      throw new AppError('Invalid customer id', 400, 'invalid_customer_id');
+    }
+    params.push(normalizedId);
+    where.push(`u.id = $${params.length}`);
+  }
+  if (normalizedEmail) {
+    params.push(normalizedEmail);
+    where.push(`LOWER(u.email) = $${params.length}`);
+  }
+  if (normalizedPhone) {
+    params.push(normalizedPhone);
+    where.push(`regexp_replace(COALESCE(u.phone_number, u.phone, ''), '[^0-9+]', '', 'g') = $${params.length}`);
+  }
+
+  const { rows } = await client.query(
+    `SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.phone_number,
+            a.id AS wallet_account_id,
+            a.restaurant_id AS wallet_restaurant_id,
+            a.currency_code AS wallet_currency_code,
+            a.balance_cents AS wallet_balance_cents,
+            a.status AS wallet_status,
+            a.updated_at AS wallet_updated_at,
+            a.ledger_version AS wallet_ledger_version
+       FROM users u
+       LEFT JOIN food_customer_wallet_accounts a
+         ON a.customer_id = u.id
+        AND a.restaurant_id = $1
+      WHERE (${where.join(' OR ')})
+      ORDER BY CASE WHEN a.id IS NULL THEN 1 ELSE 0 END, u.created_at DESC
+      LIMIT 2`,
+    params
+  );
+
+  if (!rows[0]) {
+    throw new AppError('Customer not found', 404, 'customer_not_found');
+  }
+  if (rows.length > 1 && !normalizedId && !normalizedEmail) {
+    throw new AppError('Multiple customers match that phone number. Use email instead.', 409, 'customer_lookup_ambiguous');
+  }
+  return rows[0];
+}
+
+async function findPosWalletPaymentSession(client, {
+  restaurantId,
+  token,
+  orderId,
+  amountCents,
+}) {
+  const normalizedToken = normalizeString(token, 500);
+  if (!normalizedToken) {
+    throw new AppError('Restaurant credit QR token is required', 400, 'payment_session_token_required');
+  }
+  const { rows } = await client.query(
+    `SELECT s.id AS payment_session_id,
+            s.food_order_id AS payment_session_food_order_id,
+            s.amount_cents AS payment_session_amount_cents,
+            s.currency_code AS payment_session_currency_code,
+            s.status AS payment_session_status,
+            s.expires_at AS payment_session_expires_at,
+            u.id, u.first_name, u.last_name, u.email, u.phone, u.phone_number,
+            a.id AS wallet_account_id,
+            a.restaurant_id AS wallet_restaurant_id,
+            a.currency_code AS wallet_currency_code,
+            a.balance_cents AS wallet_balance_cents,
+            a.status AS wallet_status,
+            a.updated_at AS wallet_updated_at,
+            a.ledger_version AS wallet_ledger_version
+       FROM food_wallet_payment_sessions s
+       JOIN users u ON u.id = s.customer_id
+       LEFT JOIN food_customer_wallet_accounts a
+         ON a.id = s.wallet_account_id
+        AND a.customer_id = s.customer_id
+        AND a.restaurant_id = s.restaurant_id
+      WHERE s.token_hash = $1
+        AND s.restaurant_id = $2
+      FOR UPDATE OF s, a`,
+    [hashPaymentSessionToken(normalizedToken), restaurantId]
+  );
+  const row = rows[0];
+  if (!row) {
+    throw new AppError('Restaurant credit QR code was not found', 404, 'payment_session_not_found');
+  }
+  if (row.payment_session_status !== 'active') {
+    throw new AppError('Restaurant credit QR code is no longer active', 409, 'payment_session_not_active', {
+      status: row.payment_session_status,
+    });
+  }
+  if (new Date(row.payment_session_expires_at).getTime() <= Date.now()) {
+    await client.query(
+      `UPDATE food_wallet_payment_sessions
+          SET status = 'expired', updated_at = NOW()
+        WHERE id = $1 AND status = 'active'`,
+      [row.payment_session_id]
+    );
+    throw new AppError('Restaurant credit QR code has expired', 409, 'payment_session_expired');
+  }
+  if (row.payment_session_food_order_id && Number(row.payment_session_food_order_id) !== Number(orderId)) {
+    throw new AppError('Restaurant credit QR code belongs to a different order', 409, 'payment_session_order_mismatch');
+  }
+  if (row.payment_session_amount_cents !== null && Number(amountCents || 0) > Number(row.payment_session_amount_cents)) {
+    throw new AppError('Payment exceeds the QR-authorized amount', 409, 'payment_session_amount_exceeded', {
+      authorizedCents: Number(row.payment_session_amount_cents),
+    });
+  }
+  return row;
 }
 
 function parseFiniteNumber(value, field) {
@@ -3455,6 +3651,33 @@ exports.mergePosOrders = async (req, res, next) => {
   }
 };
 
+exports.lookupPosCustomerWallet = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const result = await withTransaction(pool, async (client) => {
+      const row = await findPosWalletCustomer(client, {
+        restaurantId,
+        customerId: req.query.customerId || req.query.customer_id,
+        customerEmail: req.query.email || req.query.customerEmail || req.query.customer_email,
+        customerPhone: req.query.phone || req.query.customerPhone || req.query.customer_phone,
+        query: req.query.q || req.query.query || req.query.lookup,
+      });
+      return formatPosCustomerWallet(row);
+    });
+    res.json({
+      ...result,
+      paymentContract: paymentContractMetadata('restaurant_credit', {
+        source: 'pos_customer_wallet_lookup',
+        restaurantId,
+        restaurantName: restaurant.display_name,
+      }),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.recordPosPayment = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
@@ -3554,6 +3777,158 @@ exports.recordPosPayment = async (req, res, next) => {
           { availableCents }
         );
       }
+
+      if (paymentType === 'wallet_credit') {
+        const paymentSessionToken = extractPaymentSessionToken(
+          req.body.qrPaymentToken
+            || req.body.qr_payment_token
+            || req.body.paymentSessionToken
+            || req.body.payment_session_token
+            || req.body.walletQrPayload
+            || req.body.wallet_qr_payload
+        );
+        const customerRow = paymentSessionToken
+          ? await findPosWalletPaymentSession(client, {
+            restaurantId,
+            token: paymentSessionToken,
+            orderId,
+            amountCents,
+          })
+          : await findPosWalletCustomer(client, {
+            restaurantId,
+            customerId: req.body.customerId || req.body.customer_id,
+            customerEmail: req.body.customerEmail || req.body.customer_email,
+            customerPhone: req.body.customerPhone || req.body.customer_phone,
+            query: req.body.customerLookup || req.body.customer_lookup,
+          });
+        const paymentSessionId = customerRow.payment_session_id || null;
+        const customerWallet = formatPosCustomerWallet(customerRow);
+        if (!customerWallet.wallet) {
+          throw new AppError('This customer does not have restaurant credit at this restaurant', 409, 'wallet_not_found');
+        }
+        if (customerWallet.wallet.status !== 'active') {
+          throw new AppError('Customer restaurant credit is not active', 409, 'wallet_inactive', {
+            status: customerWallet.wallet.status,
+          });
+        }
+
+        const currencyCode = normalizeCurrency(order.currency_code || restaurant.currency_code) || 'USD';
+        const walletLedger = await debitFoodWallet(client, {
+          restaurantId,
+          customerId: customerWallet.customer.id,
+          currencyCode,
+          amountCents,
+          description: `POS payment for ${restaurant.display_name || 'restaurant'} order ${order.queue_number || order.id}`,
+          referenceType: 'food_order',
+          referenceId: String(orderId),
+          idempotencyKey: idempotencyKey ? `wallet:${idempotencyKey}` : `pos-wallet:${restaurantId}:${orderId}:${amountCents}`,
+          createdByUserId: req.user.id,
+          correlationId: idempotencyKey || `pos-payment:${restaurantId}:${orderId}`,
+          actorType: 'restaurant_pos',
+          metadata: {
+            ...safeJson(req.body.metadata),
+            source: 'pos_restaurant_credit',
+            paymentSessionId,
+            orderId: String(orderId),
+            shiftId,
+            customerEmail: customerWallet.customer.email,
+            paymentContract: paymentContractMetadata(paymentContract, { source: 'pos_restaurant_credit' }),
+          },
+        });
+
+        const walletPayment = await recordWalletCreditPaymentForOrder(client, {
+          restaurantId,
+          orderId,
+          amountCents,
+          currencyCode,
+          walletAccountId: walletLedger.account?.id,
+          walletLedgerEntryId: walletLedger.entry?.id,
+          walletBalanceAfterCents: walletLedger.entry?.balance_after_cents,
+          idempotencyKey,
+          shiftId,
+          createdByUserId: req.user.id,
+          metadata: {
+            source: 'pos_restaurant_credit',
+            paymentSessionId,
+            shiftId,
+            customerId: customerWallet.customer.id,
+            customerEmail: customerWallet.customer.email,
+            walletLedgerReplayed: walletLedger.replayed === true,
+            paymentContract: paymentContractMetadata(paymentContract),
+          },
+        });
+
+        if (paymentSessionId) {
+          await client.query(
+            `UPDATE food_wallet_payment_sessions
+                SET status = 'redeemed',
+                    redeemed_at = NOW(),
+                    redeemed_by_user_id = $2,
+                    redeemed_pos_order_id = $3,
+                    metadata = COALESCE(metadata, '{}'::jsonb)
+                      || jsonb_build_object(
+                           'posPaymentId', $4::text,
+                           'walletLedgerEntryId', $5::text,
+                           'redeemedAmountCents', $6::int,
+                           'shiftId', $7::int
+                         ),
+                    updated_at = NOW()
+              WHERE id = $1
+                AND status = 'active'`,
+            [
+              paymentSessionId,
+              req.user.id,
+              orderId,
+              walletPayment.payment?.id ? String(walletPayment.payment.id) : null,
+              walletLedger.entry?.id ? String(walletLedger.entry.id) : null,
+              amountCents,
+              shiftId || null,
+            ]
+          );
+        }
+
+        if (walletPayment?.order) {
+          await insertPosReceiptAudit(client, {
+            restaurantId,
+            order: walletPayment.order,
+            eventType: 'payment_recorded',
+            channel: 'Restaurant credit',
+            createdBy: req.user.id,
+            reason: normalizeString(req.body.reason || req.body.note, 1000) || 'Paid with restaurant credit',
+            metadata: {
+              paymentId: walletPayment.payment?.id,
+              paymentType,
+              amountCents,
+              status: 'captured',
+              shiftId,
+              paymentSessionId,
+              customerId: customerWallet.customer.id,
+              walletLedgerEntryId: walletLedger.entry?.id ? String(walletLedger.entry.id) : null,
+              walletBalanceAfterCents: walletLedger.entry?.balance_after_cents === undefined
+                ? null
+                : Number(walletLedger.entry.balance_after_cents),
+              paymentContract: paymentContractMetadata(paymentContract),
+            },
+            idempotencyKey: idempotencyKey ? `receipt:${restaurantId}:${idempotencyKey}` : null,
+          });
+        }
+
+        return {
+          ...walletPayment,
+          wallet: {
+            accountId: walletLedger.account?.id ? String(walletLedger.account.id) : customerWallet.wallet.accountId,
+            ledgerEntryId: walletLedger.entry?.id ? String(walletLedger.entry.id) : null,
+            balanceAfterCents: walletLedger.entry?.balance_after_cents === undefined
+              ? null
+              : Number(walletLedger.entry.balance_after_cents),
+            currencyCode,
+            paymentSessionId,
+            replayed: walletLedger.replayed === true,
+          },
+          customer: customerWallet.customer,
+        };
+      }
+
       const { rows: [payment] } = await client.query(
         `INSERT INTO restaurant_pos_payments
            (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,

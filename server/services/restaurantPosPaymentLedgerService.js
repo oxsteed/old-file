@@ -33,7 +33,9 @@ async function reconcilePosOrderPayment(client, orderId) {
       ? 'paid'
       : Number(totals.pending_payments || 0) > 0
         ? 'requires_payment'
-        : 'unpaid';
+        : netPaidCents > 0
+          ? 'requires_payment'
+          : 'unpaid';
   const { rows: [updatedOrder] } = await client.query(
     `UPDATE food_orders
         SET payment_status = $1,
@@ -79,6 +81,7 @@ async function recordWalletCreditPaymentForOrder(client, {
   walletLedgerEntryId = null,
   walletBalanceAfterCents = null,
   idempotencyKey,
+  shiftId = null,
   createdByUserId = null,
   metadata = {},
 }) {
@@ -90,9 +93,9 @@ async function recordWalletCreditPaymentForOrder(client, {
     || `wallet-credit:${restaurantId}:${orderId}`;
   const { rows: [payment] } = await client.query(
     `INSERT INTO restaurant_pos_payments
-       (restaurant_id, food_order_id, payment_type, amount_cents, status,
+       (restaurant_id, food_order_id, shift_id, payment_type, amount_cents, status,
         provider, idempotency_key, reference, note, metadata, created_by)
-     VALUES ($1,$2,'wallet_credit',$3,'captured','food_wallet',$4,$5,$6,$7::jsonb,$8)
+     VALUES ($1,$2,$3,'wallet_credit',$4,'captured','food_wallet',$5,$6,$7,$8::jsonb,$9)
      ON CONFLICT (restaurant_id, idempotency_key) WHERE idempotency_key IS NOT NULL
      DO UPDATE SET
        metadata = restaurant_pos_payments.metadata || EXCLUDED.metadata,
@@ -101,6 +104,7 @@ async function recordWalletCreditPaymentForOrder(client, {
     [
       restaurantId,
       orderId,
+      shiftId,
       normalizedAmount,
       normalizedIdempotencyKey,
       walletLedgerEntryId ? `wallet-ledger:${walletLedgerEntryId}` : `food-order:${orderId}`,

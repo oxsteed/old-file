@@ -31,6 +31,8 @@ router.patch('/customer/profile', authenticate, ctrl.updateCustomerProfile);
 router.get('/customer/wallets', authenticate, walletCtrl.listCustomerWallets);
 router.get('/customer/wallets/:restaurantId', authenticate, walletCtrl.getCustomerWallet);
 router.get('/customer/wallets/:restaurantId/integrity', authenticate, walletCtrl.verifyMyWalletIntegrity);
+router.post('/customer/wallets/:restaurantId/payment-sessions', authenticate, walletCtrl.createCustomerWalletPaymentSession);
+router.post('/customer/wallets/:restaurantId/payment-sessions/:sessionId/cancel', authenticate, walletCtrl.cancelCustomerWalletPaymentSession);
 router.post('/customer/favorites/:restaurantId/toggle', authenticate, ctrl.toggleCustomerFavoriteRestaurant);
 router.get('/customer/favorite-items', authenticate, ctrl.listCustomerFavoriteItems);
 router.put('/customer/favorite-items/sync', authenticate, ctrl.syncCustomerFavoriteItems);
