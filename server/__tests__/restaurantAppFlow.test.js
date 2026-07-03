@@ -772,6 +772,7 @@ describe('restaurant app-flow backend', () => {
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, restaurant_id: RESTAURANT_ID, total_cents: 1200, payment_status: 'paid', pos_ticket_state: 'closed' }] })
       .mockResolvedValueOnce({ rows: [{ paid_cents: 1200, refunded_cents: 0 }] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 602, amount_cents: 300, payment_type: 'refund' }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, total_cents: 1200, payment_status: 'paid', pos_ticket_state: 'closed' }] })
       .mockResolvedValueOnce({ rows: [{ paid_cents: 1200, refunded_cents: 300, pending_payments: 0 }] })

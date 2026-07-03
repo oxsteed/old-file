@@ -11,8 +11,12 @@ const posTerminal = require('../services/restaurantPosTerminalService');
 const {
   reconcilePosOrderPayment,
   recordWalletCreditPaymentForOrder,
+  recordWalletCreditRefundForOrder,
 } = require('../services/restaurantPosPaymentLedgerService');
-const { debitFoodWallet } = require('../services/foodWalletService');
+const {
+  debitFoodWallet,
+  refundFoodWallet,
+} = require('../services/foodWalletService');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const { getEffectivePermissions } = require('../services/permissionsService');
@@ -430,6 +434,7 @@ async function findPosWalletPaymentSession(client, {
   token,
   orderId,
   amountCents,
+  currencyCode,
 }) {
   const normalizedToken = normalizeString(token, 500);
   if (!normalizedToken) {
@@ -487,7 +492,208 @@ async function findPosWalletPaymentSession(client, {
       authorizedCents: Number(row.payment_session_amount_cents),
     });
   }
+  const normalizedCurrency = normalizeCurrency(currencyCode);
+  if (normalizedCurrency && normalizeCurrency(row.payment_session_currency_code) !== normalizedCurrency) {
+    throw new AppError('Restaurant credit QR currency does not match this ticket', 409, 'payment_session_currency_mismatch', {
+      expectedCurrencyCode: normalizedCurrency,
+      qrCurrencyCode: normalizeCurrency(row.payment_session_currency_code),
+    });
+  }
+  if (normalizedCurrency && normalizeCurrency(row.wallet_currency_code) !== normalizedCurrency) {
+    throw new AppError('Customer wallet currency does not match this ticket', 409, 'wallet_currency_mismatch', {
+      expectedCurrencyCode: normalizedCurrency,
+      walletCurrencyCode: normalizeCurrency(row.wallet_currency_code),
+    });
+  }
   return row;
+}
+
+async function refundPosWalletCreditPayment(client, {
+  restaurant,
+  restaurantId,
+  order,
+  orderId,
+  amountCents,
+  currencyCode,
+  idempotencyKey,
+  shiftId,
+  createdByUserId,
+  reason,
+  paymentContract,
+  requestMetadata = {},
+}) {
+  const { rows: walletPayments } = await client.query(
+    `SELECT p.*,
+            (p.amount_cents - COALESCE(p.refunded_amount_cents, 0))::int AS refundable_cents,
+            p.metadata->>'customerId' AS wallet_customer_id,
+            p.metadata->>'customerEmail' AS wallet_customer_email,
+            p.metadata->>'walletAccountId' AS wallet_account_id,
+            p.metadata->>'walletLedgerEntryId' AS wallet_ledger_entry_id,
+            p.metadata->>'paymentSessionId' AS payment_session_id
+       FROM restaurant_pos_payments p
+      WHERE p.restaurant_id = $1
+        AND p.food_order_id = $2
+        AND p.payment_type = 'wallet_credit'
+        AND p.provider = 'food_wallet'
+        AND p.status IN ('recorded','captured')
+        AND (p.amount_cents - COALESCE(p.refunded_amount_cents, 0)) > 0
+      ORDER BY p.created_at ASC, p.id ASC
+      FOR UPDATE`,
+    [restaurantId, orderId]
+  );
+
+  const walletRefundableCents = walletPayments.reduce(
+    (sum, payment) => sum + Number(payment.refundable_cents || 0),
+    0
+  );
+  if (walletRefundableCents <= 0) return null;
+  if (amountCents > walletRefundableCents) {
+    throw new AppError(
+      'Refund includes more than the restaurant-credit paid balance',
+      409,
+      'wallet_refund_exceeds_wallet_payment',
+      { walletRefundableCents }
+    );
+  }
+
+  let remainingCents = amountCents;
+  const refundPayments = [];
+  const walletRefunds = [];
+  const baseIdempotencyKey = normalizeString(idempotencyKey, 160)
+    || `pos-wallet-refund:${restaurantId}:${orderId}:${crypto.randomUUID()}`;
+
+  for (const original of walletPayments) {
+    if (remainingCents <= 0) break;
+    const portionCents = Math.min(remainingCents, Number(original.refundable_cents || 0));
+    if (portionCents <= 0) continue;
+    const customerId = normalizeString(original.wallet_customer_id, 80);
+    if (!customerId) {
+      throw new AppError(
+        'Original restaurant-credit payment is missing wallet customer metadata',
+        409,
+        'wallet_payment_metadata_missing'
+      );
+    }
+
+    const walletRefund = await refundFoodWallet(client, {
+      restaurantId,
+      customerId,
+      currencyCode,
+      amountCents: portionCents,
+      description: `POS refund for ${restaurant.display_name || 'restaurant'} order ${order.queue_number || order.id}`,
+      referenceType: 'food_order_refund',
+      referenceId: `${orderId}:${baseIdempotencyKey}:${original.id}`,
+      idempotencyKey: `wallet:${baseIdempotencyKey}:${original.id}`,
+      createdByUserId,
+      correlationId: baseIdempotencyKey,
+      actorType: 'restaurant_pos',
+      metadata: {
+        ...safeJson(requestMetadata),
+        source: 'pos_restaurant_credit_refund',
+        originalPosPaymentId: String(original.id),
+        originalWalletLedgerEntryId: normalizeString(original.wallet_ledger_entry_id, 120),
+        originalPaymentSessionId: normalizeString(original.payment_session_id, 120),
+        orderId: String(orderId),
+        shiftId,
+        reason: normalizeString(reason, 1000),
+        paymentContract: paymentContractMetadata(paymentContract, { source: 'pos_restaurant_credit_refund' }),
+      },
+    });
+
+    const walletRefundPayment = await recordWalletCreditRefundForOrder(client, {
+      restaurantId,
+      orderId,
+      amountCents: portionCents,
+      currencyCode,
+      walletAccountId: walletRefund.account?.id || normalizeString(original.wallet_account_id, 120),
+      walletRefundLedgerEntryId: walletRefund.entry?.id,
+      walletOriginalLedgerEntryId: normalizeString(original.wallet_ledger_entry_id, 120),
+      walletBalanceAfterCents: walletRefund.entry?.balance_after_cents,
+      idempotencyKey: `${baseIdempotencyKey}:${original.id}`,
+      createdByUserId,
+      metadata: {
+        source: 'pos_restaurant_credit_refund',
+        originalPaymentId: String(original.id),
+        originalWalletLedgerEntryId: normalizeString(original.wallet_ledger_entry_id, 120),
+        originalPaymentSessionId: normalizeString(original.payment_session_id, 120),
+        shiftId,
+        reason: normalizeString(reason, 1000),
+        paymentContract: paymentContractMetadata(paymentContract),
+      },
+    });
+
+    await client.query(
+      `UPDATE restaurant_pos_payments
+          SET refunded_amount_cents = LEAST(amount_cents, COALESCE(refunded_amount_cents, 0) + $1),
+              metadata = COALESCE(metadata, '{}'::jsonb)
+                || jsonb_build_object(
+                     'lastWalletRefundLedgerEntryId', $2::text,
+                     'lastWalletRefundPaymentId', $3::text,
+                     'lastWalletRefundedAt', NOW()
+                   ),
+              updated_at = NOW()
+        WHERE id = $4`,
+      [
+        portionCents,
+        walletRefund.entry?.id ? String(walletRefund.entry.id) : null,
+        walletRefundPayment.payment?.id ? String(walletRefundPayment.payment.id) : null,
+        original.id,
+      ]
+    );
+
+    refundPayments.push(walletRefundPayment.payment);
+    walletRefunds.push({
+      accountId: walletRefund.account?.id ? String(walletRefund.account.id) : normalizeString(original.wallet_account_id, 120),
+      ledgerEntryId: walletRefund.entry?.id ? String(walletRefund.entry.id) : null,
+      originalPaymentId: String(original.id),
+      amountCents: portionCents,
+      balanceAfterCents: walletRefund.entry?.balance_after_cents === undefined
+        ? null
+        : Number(walletRefund.entry.balance_after_cents),
+      replayed: walletRefund.replayed === true,
+    });
+
+    remainingCents -= portionCents;
+  }
+
+  if (remainingCents > 0) {
+    throw new AppError('Restaurant-credit refund could not be fully allocated', 409, 'wallet_refund_allocation_failed', {
+      remainingCents,
+    });
+  }
+
+  const reconciliation = await reconcilePosOrderPayment(client, orderId);
+  if (reconciliation?.order) {
+    await insertPosReceiptAudit(client, {
+      restaurantId,
+      order: reconciliation.order,
+      eventType: 'payment_refunded',
+      channel: 'Restaurant credit',
+      createdBy: createdByUserId,
+      reason: normalizeString(reason, 1000) || 'Refunded to restaurant credit',
+      metadata: {
+        paymentType: 'wallet_credit',
+        refundType: 'restaurant_credit',
+        amountCents,
+        shiftId,
+        walletRefunds,
+        refundPaymentIds: refundPayments.filter(Boolean).map((payment) => String(payment.id)),
+        paymentContract: paymentContractMetadata(paymentContract),
+      },
+      idempotencyKey: idempotencyKey ? `receipt:${restaurantId}:wallet-refund:${idempotencyKey}` : null,
+    });
+  }
+
+  return {
+    payment: refundPayments[0] || null,
+    payments: refundPayments.filter(Boolean),
+    ...reconciliation,
+    walletRefund: {
+      amountCents,
+      currencyCode,
+      refunds: walletRefunds,
+    },
+  };
 }
 
 function parseFiniteNumber(value, field) {
@@ -3728,6 +3934,39 @@ exports.recordPosPayment = async (req, res, next) => {
         [orderId, restaurantId]
       );
       if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+      if (paymentType === 'refund' && idempotencyKey) {
+        const { rows: replayedRefunds } = await client.query(
+          `SELECT *
+             FROM restaurant_pos_payments
+            WHERE restaurant_id = $1
+              AND food_order_id = $2
+              AND payment_type = 'refund'
+              AND (idempotency_key = $3 OR idempotency_key LIKE ($3 || ':%'))
+            ORDER BY created_at ASC, id ASC`,
+          [restaurantId, orderId, idempotencyKey]
+        );
+        if (replayedRefunds.length) {
+          const replayedAmountCents = replayedRefunds.reduce(
+            (sum, payment) => sum + Number(payment.amount_cents || 0),
+            0
+          );
+          if (replayedAmountCents !== amountCents) {
+            throw new AppError(
+              'Idempotency-Key was already used for a different refund request',
+              409,
+              'idempotency_key_conflict',
+              { existingAmountCents: replayedAmountCents, requestedAmountCents: amountCents }
+            );
+          }
+          const reconciliation = await reconcilePosOrderPayment(client, orderId);
+          return {
+            payment: replayedRefunds[0],
+            payments: replayedRefunds,
+            ...reconciliation,
+            replayed: true,
+          };
+        }
+      }
       if (idempotencyKey) {
         const { rows: [existing] } = await client.query(
           `SELECT * FROM restaurant_pos_payments
@@ -3778,6 +4017,26 @@ exports.recordPosPayment = async (req, res, next) => {
         );
       }
 
+      const currencyCode = normalizeCurrency(order.currency_code || restaurant.currency_code) || 'USD';
+
+      if (paymentType === 'refund') {
+        const walletRefund = await refundPosWalletCreditPayment(client, {
+          restaurant,
+          restaurantId,
+          order,
+          orderId,
+          amountCents,
+          currencyCode,
+          idempotencyKey,
+          shiftId,
+          createdByUserId: req.user.id,
+          reason: req.body.reason || req.body.note,
+          paymentContract,
+          requestMetadata: req.body.metadata,
+        });
+        if (walletRefund) return walletRefund;
+      }
+
       if (paymentType === 'wallet_credit') {
         const paymentSessionToken = extractPaymentSessionToken(
           req.body.qrPaymentToken
@@ -3793,6 +4052,7 @@ exports.recordPosPayment = async (req, res, next) => {
             token: paymentSessionToken,
             orderId,
             amountCents,
+            currencyCode,
           })
           : await findPosWalletCustomer(client, {
             restaurantId,
@@ -3812,7 +4072,6 @@ exports.recordPosPayment = async (req, res, next) => {
           });
         }
 
-        const currencyCode = normalizeCurrency(order.currency_code || restaurant.currency_code) || 'USD';
         const walletLedger = await debitFoodWallet(client, {
           restaurantId,
           customerId: customerWallet.customer.id,

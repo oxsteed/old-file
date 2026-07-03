@@ -450,29 +450,49 @@ exports.createCustomerWalletPaymentSession = async (req, res, next) => {
     const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
     const walletAccountId = wallet.accountId || wallet.id || null;
 
-    const { rows: [session] } = await pool.query(
-      `INSERT INTO food_wallet_payment_sessions
-         (token_hash, restaurant_id, customer_id, wallet_account_id, food_order_id,
-          amount_cents, currency_code, expires_at, metadata)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)
-       RETURNING id, restaurant_id, customer_id, wallet_account_id, food_order_id,
-                 amount_cents, currency_code, status, expires_at, created_at`,
-      [
-        tokenHash,
-        restaurantId,
-        req.user.id,
-        walletAccountId,
-        foodOrderId,
-        amountCents,
-        normalizeCurrency(wallet.currencyCode),
-        expiresAt,
-        JSON.stringify({
-          source: 'customer_wallet_qr',
-          app: req.body?.app || 'oxsteed',
-          requestedAmountCents: amountCents,
-        }),
-      ]
-    );
+    const { rows: [session] } = await withTransaction(pool, async (client) => {
+      await client.query(
+        `UPDATE food_wallet_payment_sessions
+            SET status = CASE
+                  WHEN expires_at <= NOW() THEN 'expired'
+                  ELSE 'cancelled'
+                END,
+                metadata = COALESCE(metadata, '{}'::jsonb)
+                  || jsonb_build_object(
+                       'replacedByNewSession', true,
+                       'replacedAt', NOW()
+                     ),
+                updated_at = NOW()
+          WHERE restaurant_id = $1
+            AND customer_id = $2
+            AND status = 'active'`,
+        [restaurantId, req.user.id]
+      );
+
+      return client.query(
+        `INSERT INTO food_wallet_payment_sessions
+           (token_hash, restaurant_id, customer_id, wallet_account_id, food_order_id,
+            amount_cents, currency_code, expires_at, metadata)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)
+         RETURNING id, restaurant_id, customer_id, wallet_account_id, food_order_id,
+                   amount_cents, currency_code, status, expires_at, created_at`,
+        [
+          tokenHash,
+          restaurantId,
+          req.user.id,
+          walletAccountId,
+          foodOrderId,
+          amountCents,
+          normalizeCurrency(wallet.currencyCode),
+          expiresAt,
+          JSON.stringify({
+            source: 'customer_wallet_qr',
+            app: req.body?.app || 'oxsteed',
+            requestedAmountCents: amountCents,
+          }),
+        ]
+      );
+    });
 
     res.status(201).json({
       session: {
@@ -1067,7 +1087,7 @@ exports.getCustomerWalletReconciliation = async (req, res, next) => {
       });
     }
 
-    const [accountSummary, ledgerSummary, auditEvents] = await Promise.all([
+    const [accountSummary, ledgerSummary, auditEvents, posSummary, qrSessionSummary, receiptSummary] = await Promise.all([
       pool.query(
         `SELECT currency_code,
                 COUNT(*)::int AS total_accounts,
@@ -1115,6 +1135,69 @@ exports.getCustomerWalletReconciliation = async (req, res, next) => {
           LIMIT 25`,
         [restaurantId, from.toISOString(), to.toISOString()]
       ),
+      pool.query(
+        `SELECT COALESCE(o.currency_code, fr.currency_code, p.metadata->>'currencyCode', 'USD') AS currency_code,
+                COUNT(*)::int AS payment_count,
+                COUNT(*) FILTER (WHERE p.payment_type = 'wallet_credit')::int AS wallet_credit_payment_count,
+                COUNT(*) FILTER (WHERE p.payment_type = 'refund' AND p.provider = 'food_wallet')::int AS wallet_refund_count,
+                COALESCE(SUM(p.amount_cents) FILTER (
+                  WHERE p.payment_type = 'wallet_credit'
+                    AND p.status IN ('recorded','captured')
+                ), 0)::bigint AS wallet_credit_paid_cents,
+                COALESCE(SUM(p.amount_cents) FILTER (
+                  WHERE p.payment_type = 'refund'
+                    AND p.provider = 'food_wallet'
+                    AND p.status IN ('recorded','captured','refunded')
+                ), 0)::bigint AS wallet_credit_refunded_cents,
+                COUNT(DISTINCT NULLIF(p.metadata->>'paymentSessionId', ''))::int AS qr_session_redemptions,
+                COUNT(*) FILTER (WHERE p.status = 'pending')::int AS pending_count,
+                COUNT(*) FILTER (WHERE p.status = 'failed')::int AS failed_count,
+                MIN(p.created_at) AS first_payment_at,
+                MAX(p.created_at) AS last_payment_at
+           FROM restaurant_pos_payments p
+           JOIN food_orders o ON o.id = p.food_order_id
+           LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+          WHERE p.restaurant_id = $1
+            AND p.created_at >= $2
+            AND p.created_at <= $3
+            AND (p.payment_type = 'wallet_credit' OR (p.payment_type = 'refund' AND p.provider = 'food_wallet'))
+          GROUP BY COALESCE(o.currency_code, fr.currency_code, p.metadata->>'currencyCode', 'USD')
+          ORDER BY currency_code`,
+        [restaurantId, from.toISOString(), to.toISOString()]
+      ),
+      pool.query(
+        `SELECT currency_code,
+                status,
+                COUNT(*)::int AS session_count,
+                COUNT(*) FILTER (WHERE expires_at < NOW() AND status = 'active')::int AS stale_active_count,
+                COALESCE(SUM(amount_cents), 0)::bigint AS amount_cents,
+                MIN(created_at) AS first_created_at,
+                MAX(created_at) AS last_created_at
+           FROM food_wallet_payment_sessions
+          WHERE restaurant_id = $1
+            AND created_at >= $2
+            AND created_at <= $3
+          GROUP BY currency_code, status
+          ORDER BY currency_code, status`,
+        [restaurantId, from.toISOString(), to.toISOString()]
+      ),
+      pool.query(
+        `SELECT COALESCE(o.currency_code, fr.currency_code, 'USD') AS currency_code,
+                e.event_type,
+                e.payment_status,
+                COUNT(*)::int AS event_count,
+                COALESCE(SUM(e.total_cents), 0)::bigint AS total_cents,
+                MAX(e.created_at) AS last_event_at
+           FROM restaurant_pos_receipt_events e
+           LEFT JOIN food_orders o ON o.id = e.food_order_id
+           LEFT JOIN food_restaurants fr ON fr.id = e.restaurant_id
+          WHERE e.restaurant_id = $1
+            AND e.created_at >= $2
+            AND e.created_at <= $3
+          GROUP BY COALESCE(o.currency_code, fr.currency_code, 'USD'), e.event_type, e.payment_status
+          ORDER BY currency_code, e.event_type, e.payment_status`,
+        [restaurantId, from.toISOString(), to.toISOString()]
+      ),
     ]);
 
     const balances = accountSummary.rows.map((row) => ({
@@ -1132,6 +1215,41 @@ exports.getCustomerWalletReconciliation = async (req, res, next) => {
       entryType: row.entry_type,
       count: Number(row.entry_count || 0),
       amountCents: Number(row.amount_cents || 0),
+    }));
+    const posPayments = posSummary.rows.map((row) => {
+      const paidCents = Number(row.wallet_credit_paid_cents || 0);
+      const refundedCents = Number(row.wallet_credit_refunded_cents || 0);
+      return {
+        currencyCode: row.currency_code || restaurant.currency_code || 'USD',
+        paymentCount: Number(row.payment_count || 0),
+        walletCreditPaymentCount: Number(row.wallet_credit_payment_count || 0),
+        walletRefundCount: Number(row.wallet_refund_count || 0),
+        walletCreditPaidCents: paidCents,
+        walletCreditRefundedCents: refundedCents,
+        netWalletCreditSettledCents: paidCents - refundedCents,
+        qrSessionRedemptions: Number(row.qr_session_redemptions || 0),
+        pendingCount: Number(row.pending_count || 0),
+        failedCount: Number(row.failed_count || 0),
+        firstPaymentAt: row.first_payment_at || null,
+        lastPaymentAt: row.last_payment_at || null,
+      };
+    });
+    const qrSessions = qrSessionSummary.rows.map((row) => ({
+      currencyCode: row.currency_code || restaurant.currency_code || 'USD',
+      status: row.status,
+      count: Number(row.session_count || 0),
+      staleActiveCount: Number(row.stale_active_count || 0),
+      amountCents: Number(row.amount_cents || 0),
+      firstCreatedAt: row.first_created_at || null,
+      lastCreatedAt: row.last_created_at || null,
+    }));
+    const receiptEvents = receiptSummary.rows.map((row) => ({
+      currencyCode: row.currency_code || restaurant.currency_code || 'USD',
+      eventType: row.event_type,
+      paymentStatus: row.payment_status,
+      count: Number(row.event_count || 0),
+      totalCents: Number(row.total_cents || 0),
+      lastEventAt: row.last_event_at || null,
     }));
     const recentAuditEvents = auditEvents.rows.map((row) => ({
       id: String(row.id),
@@ -1157,6 +1275,47 @@ exports.getCustomerWalletReconciliation = async (req, res, next) => {
       suspendedAccounts: 0,
       closedAccounts: 0,
     });
+    const movementByCurrency = new Map();
+    movements.forEach((row) => {
+      const currency = row.currencyCode || restaurant.currency_code || 'USD';
+      const current = movementByCurrency.get(currency) || { debitCents: 0, refundCents: 0, creditCents: 0, adjustmentCents: 0 };
+      if (row.entryType === 'debit') current.debitCents += row.amountCents;
+      if (row.entryType === 'refund') current.refundCents += row.amountCents;
+      if (row.entryType === 'credit') current.creditCents += row.amountCents;
+      if (row.entryType === 'adjustment') current.adjustmentCents += row.amountCents;
+      movementByCurrency.set(currency, current);
+    });
+    const posByCurrency = new Map(posPayments.map((row) => [row.currencyCode, row]));
+    const currencyCodes = Array.from(new Set([
+      ...movementByCurrency.keys(),
+      ...posByCurrency.keys(),
+      ...balances.map((row) => row.currencyCode),
+    ])).sort();
+    const variances = currencyCodes.map((currencyCode) => {
+      const wallet = movementByCurrency.get(currencyCode) || { debitCents: 0, refundCents: 0, creditCents: 0, adjustmentCents: 0 };
+      const pos = posByCurrency.get(currencyCode) || {
+        walletCreditPaidCents: 0,
+        walletCreditRefundedCents: 0,
+        pendingCount: 0,
+        failedCount: 0,
+      };
+      const debitVarianceCents = wallet.debitCents - Number(pos.walletCreditPaidCents || 0);
+      const refundVarianceCents = wallet.refundCents - Number(pos.walletCreditRefundedCents || 0);
+      return {
+        currencyCode,
+        walletDebitCents: wallet.debitCents,
+        posWalletCreditPaidCents: Number(pos.walletCreditPaidCents || 0),
+        walletRefundCents: wallet.refundCents,
+        posWalletCreditRefundedCents: Number(pos.walletCreditRefundedCents || 0),
+        debitVarianceCents,
+        refundVarianceCents,
+        pendingPosPaymentCount: Number(pos.pendingCount || 0),
+        failedPosPaymentCount: Number(pos.failedCount || 0),
+        balanced: debitVarianceCents === 0 && refundVarianceCents === 0,
+      };
+    });
+    const staleActiveQrSessions = qrSessions.reduce((sum, row) => sum + row.staleActiveCount, 0);
+    const unbalancedCurrencies = variances.filter((row) => !row.balanced);
 
     res.json({
       restaurant: {
@@ -1176,8 +1335,26 @@ exports.getCustomerWalletReconciliation = async (req, res, next) => {
       ledger: {
         movements,
       },
+      pos: {
+        walletCreditPayments: posPayments,
+        receiptEvents,
+      },
+      qrPaymentSessions: {
+        statuses: qrSessions,
+        staleActiveCount: staleActiveQrSessions,
+      },
+      reconciliation: {
+        version: 'restaurant-credit-reconciliation-v2',
+        generatedAt: new Date().toISOString(),
+        variances,
+        balanced: unbalancedCurrencies.length === 0,
+        unbalancedCurrencies: unbalancedCurrencies.map((row) => row.currencyCode),
+      },
       auditEvents: recentAuditEvents,
       requiresAttention: totals.suspendedAccounts > 0
+        || staleActiveQrSessions > 0
+        || unbalancedCurrencies.length > 0
+        || posPayments.some((row) => row.pendingCount > 0 || row.failedCount > 0)
         || recentAuditEvents.some((event) => event.actionType === 'wallet_integrity_failed_lock'),
     });
   } catch (err) {
