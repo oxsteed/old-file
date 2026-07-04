@@ -42,6 +42,12 @@ function cleanIntlOptions(options) {
   );
 }
 
+function toSafeFractionDigits(value, fallback) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, Math.trunc(parsed));
+}
+
 /**
  * Best-effort detection of the visitor's locale (e.g. 'en-US', 'fr-FR').
  * Prefers the language selected inside OxSteed so formatting follows the UI.
@@ -89,20 +95,30 @@ export function formatMoney(value, opts = {}) {
     || (country ? getDefaultCurrency(country) : null)
     || DEFAULT_CURRENCY;
 
+  // Intl.NumberFormat throws if minimumFractionDigits > maximumFractionDigits.
+  // Keep the formatter resilient even when callers only override one side.
+  const requestedMinimumFractionDigits = toSafeFractionDigits(minimumFractionDigits, 2);
+  const requestedMaximumFractionDigits = toSafeFractionDigits(
+    maximumFractionDigits,
+    requestedMinimumFractionDigits,
+  );
+  const safeMinimumFractionDigits = Math.min(requestedMinimumFractionDigits, requestedMaximumFractionDigits);
+  const safeMaximumFractionDigits = Math.max(safeMinimumFractionDigits, requestedMaximumFractionDigits);
+
   try {
     return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: ccy,
-      minimumFractionDigits,
-      maximumFractionDigits,
+      minimumFractionDigits: safeMinimumFractionDigits,
+      maximumFractionDigits: safeMaximumFractionDigits,
     }).format(n);
   } catch (_err) {
     // Some unusual currency codes / locale combos throw - fall back to USD.
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: DEFAULT_CURRENCY,
-      minimumFractionDigits,
-      maximumFractionDigits,
+      minimumFractionDigits: safeMinimumFractionDigits,
+      maximumFractionDigits: safeMaximumFractionDigits,
     }).format(n);
   }
 }
