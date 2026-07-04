@@ -1,7 +1,7 @@
 /* OxSteed Service Worker */
 
 // Bump on every change so old clients fetch the new SW.
-const CACHE_VERSION = 'v2-webpush';
+const CACHE_VERSION = 'v3-webpush';
 const STATIC_CACHE  = `oxsteed-static-${CACHE_VERSION}`;
 const API_CACHE     = `oxsteed-api-${CACHE_VERSION}`;
 
@@ -41,6 +41,7 @@ self.addEventListener('fetch', event => {
   // Never intercept non-GET, chrome-extension, or cross-origin requests
   if (request.method !== 'GET') return;
   if (url.origin !== self.location.origin) return;
+  if (url.pathname === '/sw.js') return;
 
   // API calls: network-first, cache fallback for safe GETs
   if (url.pathname.startsWith('/api/')) {

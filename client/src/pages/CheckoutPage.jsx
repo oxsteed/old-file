@@ -7,7 +7,7 @@ import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
 import OrderErrorBoundary from '../components/OrderErrorBoundary';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
 
 export default function CheckoutPage() {
   return (
