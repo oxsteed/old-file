@@ -42,12 +42,25 @@ Each restaurant-credit production release should verify:
 - `npm test -- --runInBand __tests__/foodWallet.test.js` after adding the kiosk pending restaurant-credit regression test
 - `xcodebuild` Debug simulator build for OxSteed Display after enabling kiosk restaurant-credit checkout
 - `xcodebuild` Debug simulator build for OxSteed Kitchen after preserving `requires_payment` as a distinct kitchen payment state
+- `xcodebuild` Debug simulator build for OxSteed Restaurant after replacing hardcoded USD fallbacks with market-aware currency formatting across checkout, cart, orders, favorites, and restaurant detail
+- `xcodebuild` Debug simulator build for OxSteed Restaurant after extending currency-aware formatting to home reorder cards and discover price tiers
+- `xcodebuild` Debug simulator build for OxSteed Restaurant after wiring restaurant support case history, detail threads, attachments, and reply/reopen/accept-resolution actions into the account support sheet
+- `xcodebuild` Debug simulator build for OxSteed after adding a wallet statement drill-down to the business dashboard
+- `xcodebuild` Debug simulator build for OxSteed Restaurant after adding customer wallet history, wallet integrity checks, and payments/receipts navigation in the account area
+- `xcodebuild` Debug simulator build for OxSteed Restaurant after adding wallet-level payment issue remediation that opens a support case tied to the restaurant wallet
 
 ## App-Side Owner Visibility Added
 
 - OxSteed now decodes the reconciliation v2 backend contract in the main food API models.
 - The Business Dashboard wallet reconciliation card now surfaces POS restaurant-credit totals, refund totals, net settled credit, QR redemptions, pending/failed POS payment counts, stale QR sessions, unbalanced currencies, per-currency debit/refund variances, and receipt audit summaries.
 - The UI remains backward-compatible with older reconciliation responses while production deploys roll forward.
+
+## International Currency Formatting Added
+
+- OxSteed Restaurant now formats money using the active restaurant currency or market currency instead of hardcoded USD strings in checkout, order confirmation, cart, orders, favorites, and restaurant detail views.
+- Home reorder cards and discover cards now follow the same market-aware formatting path so the browsing surface stays consistent with checkout.
+- Quantity summaries, totals, and order confirmation screens now respect the current locale while still falling back safely if a formatter cannot resolve.
+- Restaurant price tier indicators now render using the configured market currency symbol instead of a USD-only placeholder.
 
 ## POS Payment Surface Added
 
@@ -68,9 +81,33 @@ Each restaurant-credit production release should verify:
 - Ticket cards and ticket details show a visible payment warning for orders that still need POS QR settlement or payment confirmation.
 - This protects the international kiosk/POS flow by helping kitchen and expo staff avoid releasing food before the restaurant-credit payment is settled.
 
+## Customer Support History Added
+
+- OxSteed Restaurant now treats support cases as durable customer history items instead of a dead-end submit form.
+- The account support sheet can open a live case detail thread with messages, attachments, and case-history events pulled from the backend.
+- Customers can reply directly into the case thread, reopen resolved/closed cases, and accept an offered resolution so support actions stay visible from the app.
+- This closes the long-term gap where refund/dispute/support activity could feel like it disappeared after submission.
+
+## Merchant Ledger Statement Drill-Down Added
+
+- OxSteed now exposes a backend-backed wallet statement drill-down from the business dashboard so operators can inspect receipt-level movements, balances, and audit details for a restaurant wallet.
+- The statement view defaults to a recent date range and supports customer filtering, making it useful for production support, reconciliation, and receipt review without leaving the app.
+- This closes the long-term visibility gap between the reconciliation summary and the underlying ledger rows.
+
+## Customer Wallet History Added
+
+- OxSteed Restaurant now exposes customer wallet and transaction history from the account area instead of hiding all restaurant-credit movement behind checkout-only flows.
+- The new wallet history view lists restaurant wallet accounts, recent ledger entries, and integrity/audit results so users can review debit, credit, and settlement activity over time.
+- This gives the restaurant-credit system a long-term receipts-and-history surface that aligns with the support case history work instead of leaving payments opaque after purchase.
+
+## Wallet Payment Issue Remediation Added
+
+- The customer wallet detail screen now offers a first-class payment support action for failed QR sessions, missing settlements, or wallet mismatches.
+- That action pre-fills a support case with restaurant-wallet context so the issue remains visible in support history instead of disappearing as an untracked payment failure.
+- The support form routes through the existing restaurant support case backend contract, so no new payment-case API was needed to make the remediation durable.
+
 ## Remaining Before Calling It Fully Production Ready
 
-- Add or confirm app-side screens for failed QR session remediation, detailed refund history, and deeper receipt/audit drill-down for restaurant owners.
 - Run end-to-end device/simulator QA with a seeded non-USD restaurant credit wallet, QR payment, kiosk pending order, POS redemption, kitchen/display order update, partial refund, full refund, and reconciliation review.
 - Confirm production migrations are applied in order, especially wallet QR sessions, receipt audit contract, wallet-credit POS payment type, and any newer payment ledger migrations.
 - Confirm exported App Store builds for POS, Kitchen, Display, and OxSteed are built from the same backend contract versions verified here.
