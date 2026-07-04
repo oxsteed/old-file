@@ -1718,6 +1718,29 @@ exports.createOrder = async (req, res, next) => {
       if (!VALID_ORDER_SOURCES.has(orderSource)) {
         throw new AppError('Validation failed', 400, 'validation_failed', { orderSource: 'Unsupported order source' });
       }
+      const restaurantSettings = restaurant.settings && typeof restaurant.settings === 'object' ? restaurant.settings : {};
+      const requireGuestNameForPickup = normalizeBoolean(
+        restaurantSettings.requireGuestNameForPickup ?? restaurantSettings.require_guest_name_for_pickup,
+        true
+      );
+      const requireContactForUpdates = normalizeBoolean(
+        restaurantSettings.requireContactForUpdates ?? restaurantSettings.require_contact_for_updates,
+        false
+      );
+      const guestPickupOrder = !req.user?.id && fulfillmentType === 'pickup' && !isInStore;
+      const resolvedGuestName = normalizeString(req.body.guestName || req.body.guest_name, 140);
+      const resolvedGuestPhone = normalizeString(req.body.guestPhone || req.body.guest_phone, 40);
+      const resolvedGuestEmail = normalizeString(req.body.guestEmail || req.body.guest_email, 255);
+      if (guestPickupOrder && requireGuestNameForPickup && !resolvedGuestName) {
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          guestName: 'Guest name is required for pickup orders',
+        });
+      }
+      if (!req.user?.id && requireContactForUpdates && !resolvedGuestPhone && !resolvedGuestEmail) {
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          guestContact: 'Provide a phone number or email for order updates',
+        });
+      }
 
       let deliveryAddress = null;
       let deliveryFeeCents = 0;
@@ -1747,9 +1770,8 @@ exports.createOrder = async (req, res, next) => {
           }
           deliveryAddress.distanceMeters = Math.round(deliveryDistanceMeters);
         }
-        const settings = restaurant.settings && typeof restaurant.settings === 'object' ? restaurant.settings : {};
         deliveryFeeCents = parseMoneyCents(
-          settings.deliveryFeeCents ?? settings.delivery_fee_cents ?? 0,
+          restaurantSettings.deliveryFeeCents ?? restaurantSettings.delivery_fee_cents ?? 0,
           'deliveryFeeCents'
         );
       }
@@ -1876,9 +1898,9 @@ exports.createOrder = async (req, res, next) => {
           restaurantId,
           restaurant.business_id,
           req.user?.id || null,
-          normalizeString(req.body.guestName || req.body.guest_name, 140),
-          normalizeString(req.body.guestPhone || req.body.guest_phone, 40),
-          normalizeString(req.body.guestEmail || req.body.guest_email, 255),
+          resolvedGuestName,
+          resolvedGuestPhone,
+          resolvedGuestEmail,
           orderSource,
           fulfillmentType,
           initialPaymentStatus,
@@ -2471,6 +2493,23 @@ const RESTAURANT_PATCH_FIELDS = {
   brandAccentHex: { column: 'brand_accent_hex', value: (v) => normalizeBrandAccentHex(v) },
   operatingHours: { column: 'operating_hours', value: (v) => normalizeHoursInput(v) },
 };
+function normalizeRestaurantCheckoutSettingsPatch(settings = {}) {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return {};
+  const patch = {};
+  if (settings.requireGuestNameForPickup !== undefined || settings.require_guest_name_for_pickup !== undefined) {
+    patch.requireGuestNameForPickup = normalizeBoolean(
+      settings.requireGuestNameForPickup ?? settings.require_guest_name_for_pickup,
+      true
+    );
+  }
+  if (settings.requireContactForUpdates !== undefined || settings.require_contact_for_updates !== undefined) {
+    patch.requireContactForUpdates = normalizeBoolean(
+      settings.requireContactForUpdates ?? settings.require_contact_for_updates,
+      false
+    );
+  }
+  return patch;
+}
 const OWNER_SETTABLE_STATUS = new Set(['draft', 'active', 'paused']);
 
 exports.updateRestaurant = async (req, res, next) => {
@@ -2487,6 +2526,13 @@ exports.updateRestaurant = async (req, res, next) => {
       if (raw === undefined) continue;
       params.push(spec.value(raw));
       sets.push(`${spec.column} = $${params.length}`);
+    }
+    const settingsPatch = normalizeRestaurantCheckoutSettingsPatch(
+      req.body.settings || req.body.restaurantSettings || req.body.restaurant_settings
+    );
+    if (Object.keys(settingsPatch).length > 0) {
+      params.push(JSON.stringify(settingsPatch));
+      sets.push(`settings = COALESCE(settings, '{}'::jsonb) || $${params.length}::jsonb`);
     }
     const status = normalizeString(req.body.status, 24);
     if (status) {

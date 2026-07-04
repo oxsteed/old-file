@@ -482,6 +482,19 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
   const [openTime, setOpenTime] = useState('11:00');
   const [closeTime, setCloseTime] = useState('22:00');
   const [brandHex, setBrandHex] = useState(restaurant.brand_accent_hex || '');
+  const restaurantSettings = restaurant.settings && typeof restaurant.settings === 'object' ? restaurant.settings : {};
+  const [requirePickupGuestName, setRequirePickupGuestName] = useState(
+    restaurantSettings.requireGuestNameForPickup ?? restaurantSettings.require_guest_name_for_pickup ?? true
+  );
+  const [requireContactForUpdates, setRequireContactForUpdates] = useState(
+    restaurantSettings.requireContactForUpdates ?? restaurantSettings.require_contact_for_updates ?? false
+  );
+
+  useEffect(() => {
+    const nextSettings = restaurant.settings && typeof restaurant.settings === 'object' ? restaurant.settings : {};
+    setRequirePickupGuestName(nextSettings.requireGuestNameForPickup ?? nextSettings.require_guest_name_for_pickup ?? true);
+    setRequireContactForUpdates(nextSettings.requireContactForUpdates ?? nextSettings.require_contact_for_updates ?? false);
+  }, [restaurant.id, restaurant.settings]);
 
   const patch = async (payload) => {
     setSaving(true);
@@ -569,6 +582,50 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
         <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => patch({ brandAccentHex: brandHex.trim() || null })}>
           {t('food.common.save')}
         </button>
+      </div>
+
+      <div style={{ marginTop: '1.5rem' }}>
+        <h3>{t('food.merchant.guestCheckoutTitle', 'Guest checkout')}</h3>
+        <p className="fd-card-meta">
+          {t('food.merchant.guestCheckoutHint', 'Choose how much information guests must provide before placing an order.')}
+        </p>
+        <div className="fd-row" style={{ flexWrap: 'wrap', gap: '0.75rem', alignItems: 'stretch' }}>
+          <button
+            type="button"
+            className="fd-btn fd-btn-secondary"
+            disabled={saving}
+            onClick={() => patch({
+              settings: {
+                ...restaurantSettings,
+                requireGuestNameForPickup: !requirePickupGuestName,
+              },
+            })}
+          >
+            {requirePickupGuestName
+              ? t('food.merchant.guestCheckoutPickupNameRequired', 'Pickup name required')
+              : t('food.merchant.guestCheckoutPickupNameOptional', 'Pickup name optional')}
+          </button>
+          <button
+            type="button"
+            className="fd-btn fd-btn-secondary"
+            disabled={saving}
+            onClick={() => patch({
+              settings: {
+                ...restaurantSettings,
+                requireContactForUpdates: !requireContactForUpdates,
+              },
+            })}
+          >
+            {requireContactForUpdates
+              ? t('food.merchant.guestCheckoutContactRequired', 'Status updates contact required')
+              : t('food.merchant.guestCheckoutContactOptional', 'Status updates contact optional')}
+          </button>
+        </div>
+        <p className="fd-card-meta" style={{ marginTop: '0.75rem' }}>
+          {requireContactForUpdates
+            ? t('food.merchant.guestCheckoutContactNoteRequired', 'Guests must provide a phone number or email for order updates.')
+            : t('food.merchant.guestCheckoutContactNoteOptional', 'Phone and email stay optional unless you turn on status updates.')}
+        </p>
       </div>
 
       <LocationsPanel t={t} restaurant={restaurant} onChanged={onSetupChanged} />

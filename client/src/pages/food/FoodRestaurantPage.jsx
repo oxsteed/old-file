@@ -8,7 +8,7 @@
 // coming soon (the backend rejects pay_now with payment_mode_coming_soon).
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
@@ -132,6 +132,7 @@ const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 export default function FoodRestaurantPage() {
   const { restaurantId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
   const { user } = useAuth();
 
@@ -152,13 +153,9 @@ export default function FoodRestaurantPage() {
   // Cart / checkout
   const [cartItems, setCartItems] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
-  const [cartStep, setCartStep] = useState('cart'); // cart | details | payment | confirmed
+  const [cartStep, setCartStep] = useState('cart'); // cart | login | details | payment | confirmed
   const [addressLine1, setAddressLine1] = useState('');
   const [addressLine2, setAddressLine2] = useState('');
-  const [guestName, setGuestName] = useState('');
-  // Optional guest contact — powers the backend "order ready" SMS/email path.
-  const [guestPhone, setGuestPhone] = useState('');
-  const [guestEmail, setGuestEmail] = useState('');
   const [promoCode, setPromoCode] = useState('');
   const [deliverySlot, setDeliverySlot] = useState('asap');
   // Payment mode matches the backend restaurant payment contract:
@@ -274,22 +271,23 @@ export default function FoodRestaurantPage() {
   const hasCart = cartCount > 0;
   const feeCents = (deliveryMode === 'delivery' && hasCart) ? deliveryFeeCents : 0;
   const orderTotalCents = subtotalCents + feeCents;
+  const checkoutRequiresLogin = !user;
+
+  const openLoginGate = () => {
+    navigate('/login', { state: { from: location } });
+  };
 
   // ── Place the real order ────────────────────────────────────────────────
   const submitOrder = async () => {
     if (cartItems.length === 0) return;
+    const fulfillmentType = deliveryMode === 'delivery' ? 'delivery' : 'pickup';
     setPlacing(true);
     try {
-      const fulfillmentType = deliveryMode === 'delivery' ? 'delivery' : 'pickup';
       const payload = {
         orderSource: 'web',
         fulfillmentType,
         // Canonical restaurant payment contract mode (never implies online card).
         paymentMode: paymentMethod === 'restaurant_credit' ? 'restaurant_credit' : 'pay_at_restaurant',
-        guestName: !user ? (guestName.trim() || undefined) : undefined,
-        // Optional contact so the backend can SMS/email when the order is ready.
-        guestPhone: !user ? (guestPhone.trim() || undefined) : undefined,
-        guestEmail: !user ? (guestEmail.trim() || undefined) : undefined,
         // Backend currently limits promo codes to restaurant-credit orders.
         discountCode: paymentMethod === 'restaurant_credit' && promoCode.trim()
           ? promoCode.trim()
@@ -1231,48 +1229,142 @@ export default function FoodRestaurantPage() {
               {cartStep === 'details' && (
                 <>
                   <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 0' }}>
-                    {!isPickup && (
+                    {checkoutRequiresLogin ? (
+                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 16, padding: 20, marginBottom: 20 }}>
+                        <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: accent, marginBottom: 10 }}>
+                          Sign in required
+                        </p>
+                        <h3 style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>
+                          Sign in to continue checkout
+                        </h3>
+                        <p style={{ fontSize: 14, lineHeight: 1.7, color: '#64748b' }}>
+                          Browsing stays open to everyone, but final checkout is tied to an OxSteed account so your order can be tracked, updated, and recovered later.
+                        </p>
+                      </div>
+                    ) : (
                       <>
-                        <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>Street Address</p>
-                        <input value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} placeholder="Street and number…" style={inputStyle} />
-                        <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>Apt / Suite <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>(optional)</span></p>
-                        <input value={addressLine2} onChange={(e) => setAddressLine2(e.target.value)} placeholder="Apt 4B…" style={{ ...inputStyle, marginBottom: 20 }} />
+                        {!isPickup && (
+                          <>
+                            <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>Street Address</p>
+                            <input value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} placeholder="Street and number…" style={inputStyle} />
+                            <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>Apt / Suite <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>(optional)</span></p>
+                            <input value={addressLine2} onChange={(e) => setAddressLine2(e.target.value)} placeholder="Apt 4B…" style={{ ...inputStyle, marginBottom: 20 }} />
+                          </>
+                        )}
+                        <p style={{ ...sectionLabel, color: '#64748b' }}>{isPickup ? 'Pickup Time' : 'Delivery Time'}</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+                          {timeSlots.map((slot) => {
+                            const on = deliverySlot === slot.id;
+                            return (
+                              <button key={slot.id} onClick={() => setDeliverySlot(slot.id)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderRadius: 10, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accentBg : '#fff', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+                                <div>
+                                  <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>{slot.label}</p>
+                                  <p style={{ fontSize: 12, color: '#94a3b8' }}>{slot.sub}</p>
+                                </div>
+                                <Radio on={on} accent={accent} />
+                              </button>
+                            );
+                          })}
+                        </div>
                       </>
                     )}
-                    {!user && (
-                      <>
-                        <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>Your Name <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>(optional)</span></p>
-                        <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="e.g. Marie" maxLength={140} style={{ ...inputStyle, marginBottom: 20 }} />
-                        <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>Phone <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>(optional — we&apos;ll text you when it&apos;s ready)</span></p>
-                        <input type="tel" inputMode="tel" autoComplete="tel" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="+1 555 123 4567" maxLength={40} style={inputStyle} />
-                        <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>Email <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>(optional — order updates by email)</span></p>
-                        <input type="email" inputMode="email" autoComplete="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="you@example.com" maxLength={255} style={{ ...inputStyle, marginBottom: 20 }} />
-                      </>
+                  </div>
+                  <div style={{ padding: '14px 20px 20px', borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
+                    {checkoutRequiresLogin ? (
+                      <button
+                        onClick={() => setCartStep('login')}
+                        style={{
+                          width: '100%',
+                          height: 52,
+                          background: accent,
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 12,
+                          fontSize: 16,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Sign in to Checkout
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setCartStep('payment')}
+                        style={{
+                          width: '100%',
+                          height: 52,
+                          background: accent,
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 12,
+                          fontSize: 16,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Continue to Payment →
+                      </button>
                     )}
-                    <p style={{ ...sectionLabel, color: '#64748b' }}>{isPickup ? 'Pickup Time' : 'Delivery Time'}</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-                      {timeSlots.map((slot) => {
-                        const on = deliverySlot === slot.id;
-                        return (
-                          <button key={slot.id} onClick={() => setDeliverySlot(slot.id)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderRadius: 10, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accentBg : '#fff', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
-                            <div>
-                              <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>{slot.label}</p>
-                              <p style={{ fontSize: 12, color: '#94a3b8' }}>{slot.sub}</p>
-                            </div>
-                            <Radio on={on} accent={accent} />
-                          </button>
-                        );
-                      })}
+                  </div>
+                </>
+              )}
+
+              {/* ③.5 login gate */}
+              {cartStep === 'login' && (
+                <>
+                  <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px 0' }}>
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 16, padding: 20 }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: accent, marginBottom: 10 }}>
+                        Sign in required
+                      </p>
+                      <h3 style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>
+                        Sign in to place this order
+                      </h3>
+                      <p style={{ fontSize: 14, lineHeight: 1.7, color: '#64748b' }}>
+                        You can browse menus without an account, but checkout is tied to an OxSteed login so your order, status updates, and history stay connected to your profile.
+                      </p>
                     </div>
                   </div>
                   <div style={{ padding: '14px 20px 20px', borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
-                    <button onClick={() => setCartStep('payment')} style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>Continue to Payment →</button>
+                    <button
+                      onClick={openLoginGate}
+                      style={{
+                        width: '100%',
+                        height: 52,
+                        background: accent,
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 12,
+                        fontSize: 16,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        marginBottom: 10,
+                      }}
+                    >
+                      Sign in to Continue
+                    </button>
+                    <button
+                      onClick={() => setCartStep('cart')}
+                      style={{
+                        width: '100%',
+                        height: 44,
+                        background: '#f8fafc',
+                        color: '#0f172a',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 12,
+                        fontSize: 14,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Back to Cart
+                    </button>
                   </div>
                 </>
               )}
 
               {/* ④ payment step */}
-              {cartStep === 'payment' && (
+              {cartStep === 'payment' && !checkoutRequiresLogin && (
                 <>
                   <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 0' }}>
                     <p style={{ ...sectionLabel, color: '#64748b' }}>Payment Method</p>
