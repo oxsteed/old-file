@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-06-20 (restaurant issue-resolution backend)
+**Last updated:** 2026-07-04 (restaurant web payment-contract + market alignment)
 
 ## Instructions for Every Session
 
@@ -8,6 +8,21 @@
 2. **After completing meaningful work**, update this file - revise "Current Status", "Remaining Work", update file paths.
 3. **Commit AGENTS.md changes** in the same commit as the work it documents.
 4. **Keep it accurate and terse** - do not pad with summaries of work you didn't personally verify.
+
+---
+
+## Session progress — Restaurant web payment-contract + market alignment (2026-07-04)
+
+- **Web checkout now follows the backend restaurant payment contract:** `client/src/pages/food/FoodRestaurantPage.jsx` sends canonical `paymentMode` (`pay_at_restaurant` default; `restaurant_credit` when the signed-in customer holds an active wallet loaded via new `getMyFoodRestaurantWallet` in `client/src/api/food.js` → `GET /api/food/customer/wallets/:restaurantId`). The old presentational Card/Apple Pay options were replaced: online card is shown disabled as "Coming soon" (matching the backend's `payment_mode_coming_soon` rejection of `pay_now`), and the settlement note reflects the selected mode.
+- **Discovery market data is backend-driven:** `client/src/pages/food/FoodHomePage.jsx` cuisine strip is now built from live `cuisine_tags` in the loaded restaurants (icon lookup via regex rules) instead of a hardcoded 12-category US-style list; the strip hides when the market has <2 cuisines, and the duplicate lower filter-chip block was removed. Hardcoded `Columbus OH` delivery-address placeholder removed from the restaurant checkout.
+- **Restaurant-first naming:** `food.home.title` changed from `OxSteed Food` to `OxSteed Restaurants` in all four locales.
+- **Verified:** `npm --prefix client run build` passes. Headless-Chrome E2E against a stub `/api/food` (Vite dev + puppeteer-core): add item → cart → details → payment shows `Pay on delivery` / `Restaurant credit $50.00 available` / disabled `Pay online by card — Coming soon`; placing with restaurant credit POSTs `paymentMode: "restaurant_credit"` and reaches the confirmation screen. Screenshots in the PR.
+- **Remaining (from the 2026-07-04 improvement list, not done here):** join/create/manage-restaurant ownership flows on web, unified case system (support/disputes/refunds/reports), unified order+activity history, deeper POS/KDS parity (recall, urgency tiers), help-center-as-setup-guide, full i18n/RTL audit of restaurant pages (checkout drawer copy in `FoodRestaurantPage.jsx` is still hardcoded English), wallet-aware promo-code entry at web checkout.
+
+**Follow-up same day (production-readiness pass 2):**
+- **Customer order loop completed on web:** `FoodRestaurantPage.jsx` details step now captures optional guest phone/email (sent as `guestPhone`/`guestEmail` so `notifyFoodOrderReady` can SMS/email guests); payment step shows a promo-code field when `restaurant_credit` is selected (backend limits `discountCode` to wallet orders); the confirmation step shows live order status via `useLiveFoodOrder` + the public `trackingToken`; the token is persisted in `localStorage` (`ox.food.activeOrder.<id>`, 2h TTL) and a dismissible live-status recovery banner reappears on revisit, auto-clearing when the order completes/cancels.
+- **Operational screens hardened:** shared `FoodConnBadge` (LIVE / RECONNECTING…) + `foodTicketUrgency` (10m amber / 20m red tiers, mirrors iOS `FoodUrgency`) + shared `apiErrorMessage` added to `foodShared.jsx`. KDS (`FoodKitchenPage.jsx`) shows per-ticket elapsed-minute timers with urgency borders (ready column exempt) and the connection badge; queue board and merchant Live orders tab also show the badge (merchant orders feed no longer swallows fetch errors silently). Duplicate `apiErrorMessage` copies removed from `FoodMerchantPage`, `FoodLocationsPanel`, `FoodPromotionsPanel`, `FoodMerchantOnboardingWizard`.
+- **Verified:** `npm --prefix client run build` passes. Headless-Chrome E2E (stub `/api/food` + puppeteer-core): guest checkout POSTs `guestPhone`/`guestEmail`; signed-in restaurant-credit checkout POSTs `discountCode: "SUMMER10"`; confirmation shows "Live status: Preparing"; recovery banner "Your order #7 — Preparing" reappears after reload; KDS renders 25m red / 12m amber / 2m plain tiers and the badge flips LIVE → RECONNECTING… → LIVE when the API is killed and restored.
 
 ---
 

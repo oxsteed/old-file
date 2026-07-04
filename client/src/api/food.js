@@ -49,6 +49,11 @@ export const getTrackedFoodOrder = (trackingToken) =>
 export const listMyFoodOrders = () =>
   api.get('/food/my/orders').then((r) => r.data?.orders || []);
 
+// Restaurant credit wallet for the signed-in customer at one restaurant.
+// Returns null when the customer has no wallet with that restaurant.
+export const getMyFoodRestaurantWallet = (restaurantId) =>
+  api.get(`/food/customer/wallets/${restaurantId}`).then((r) => r.data?.wallet || null);
+
 export const getFoodOrder = (orderId) =>
   api.get(`/food/orders/${orderId}`).then((r) => r.data?.order);
 

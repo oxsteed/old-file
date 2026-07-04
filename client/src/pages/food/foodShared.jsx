@@ -44,3 +44,49 @@ export const FOOD_STATUS_KEYS = {
   cancelled: 'food.status.cancelled',
   refunded: 'food.status.refunded',
 };
+
+// Shared API error extractor (was copy-pasted across the food pages).
+export function apiErrorMessage(err, fallback) {
+  const message = err?.response?.data?.error?.message
+    || err?.response?.data?.message
+    || err?.response?.data?.error;
+  return typeof message === 'string' ? message : fallback;
+}
+
+// Connection-state pill for operational screens (KDS, queue board, merchant
+// live orders). Staff should never stare at a silently-stale board.
+export function FoodConnBadge({ ok, okLabel = 'LIVE', badLabel = 'RECONNECTING…' }) {
+  return (
+    <span
+      role="status"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '3px 10px',
+        borderRadius: 9999,
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: '0.06em',
+        background: ok ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+        color: ok ? '#4ade80' : '#f87171',
+        border: `1px solid ${ok ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)'}`,
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{ width: 7, height: 7, borderRadius: '50%', background: ok ? '#22c55e' : '#ef4444' }}
+      />
+      {ok ? okLabel : badLabel}
+    </span>
+  );
+}
+
+// Elapsed-minute urgency tier for kitchen tickets (mirrors the iOS KDS
+// FoodUrgency helper): on-time -> watch (amber) -> late (red).
+export function foodTicketUrgency(createdAt, { warnAfterMin = 10, lateAfterMin = 20 } = {}) {
+  const elapsedMin = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000));
+  if (elapsedMin >= lateAfterMin) return { tier: 'late', elapsedMin, color: '#ef4444' };
+  if (elapsedMin >= warnAfterMin) return { tier: 'watch', elapsedMin, color: '#f59e0b' };
+  return { tier: 'ontime', elapsedMin, color: null };
+}

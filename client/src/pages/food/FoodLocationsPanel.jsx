@@ -2,11 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { createFoodLocation, listFoodLocations } from '../../api/food';
-
-function apiErrorMessage(err, fallback) {
-  const message = err?.response?.data?.error?.message || err?.response?.data?.message;
-  return typeof message === 'string' ? message : fallback;
-}
+import { apiErrorMessage } from './foodShared';
 
 export default function LocationsPanel({ t, restaurant, onChanged }) {
   const [locations, setLocations] = useState([]);
