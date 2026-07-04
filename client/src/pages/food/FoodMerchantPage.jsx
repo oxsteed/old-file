@@ -9,6 +9,7 @@ import {
   listMyFoodRestaurants,
   createFoodRestaurant,
   updateFoodRestaurant,
+  uploadFoodAsset,
   getFoodRestaurant,
   createFoodCategory,
   deleteFoodCategory,
@@ -218,6 +219,35 @@ function OrdersTab({ t, restaurant }) {
       {orders.length === 0 && <div className="fd-empty">{t('food.merchant.noOrders')}</div>}
       {orders.map((order) => (
         <div key={order.id} className={`fd-order-card fd-status-${order.status}`}>
+          {(() => {
+            const externalPayment = order.metadata && typeof order.metadata === 'object'
+              ? order.metadata.externalPayment || order.metadata.external_payment || null
+              : null;
+            const externalPaymentSubmission = externalPayment?.submission || externalPayment?.proof || externalPayment?.paymentProof || null;
+            const externalPaymentReference = externalPaymentSubmission?.reference || externalPayment?.reference || null;
+            const externalPaymentAttachmentUrl = externalPaymentSubmission?.attachmentUrl
+              || externalPaymentSubmission?.url
+              || externalPayment?.attachmentUrl
+              || null;
+            return externalPayment ? (
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', marginBottom: '0.5rem', padding: '0.7rem 0.85rem', borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <div style={{ minWidth: 0 }}>
+                  <strong style={{ display: 'block', fontSize: '0.86rem', color: '#0f172a' }}>
+                    {externalPayment.label || t('food.merchant.externalPaymentTitle', 'External payment')}
+                  </strong>
+                  <span style={{ display: 'block', fontSize: '0.82rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {externalPayment.handle ? `${externalPayment.handle} · ` : ''}
+                    {externalPaymentReference ? `Ref: ${externalPaymentReference}` : 'Proof submitted'}
+                  </span>
+                </div>
+                {externalPaymentAttachmentUrl && (
+                  <a href={externalPaymentAttachmentUrl} target="_blank" rel="noreferrer" className="fd-btn fd-btn-secondary fd-btn-sm" style={{ textDecoration: 'none' }}>
+                    {t('food.common.view', 'View')}
+                  </a>
+                )}
+              </div>
+            ) : null;
+          })()}
           <div className="fd-order-head">
             <strong>#{order.queue_number} · {order.guest_name || t('food.merchant.guest')}</strong>
             <span className="fd-row" style={{ gap: '0.4rem' }}>
@@ -489,12 +519,85 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
   const [requireContactForUpdates, setRequireContactForUpdates] = useState(
     restaurantSettings.requireContactForUpdates ?? restaurantSettings.require_contact_for_updates ?? false
   );
+  const [externalPaymentEnabled, setExternalPaymentEnabled] = useState(
+    restaurantSettings.externalPaymentEnabled ?? restaurantSettings.external_payment_enabled ?? false
+  );
+  const [requireExternalPaymentProof, setRequireExternalPaymentProof] = useState(
+    restaurantSettings.requireExternalPaymentProof ?? restaurantSettings.require_external_payment_proof ?? false
+  );
+  const [externalPaymentLabel, setExternalPaymentLabel] = useState(
+    restaurantSettings.externalPaymentLabel ?? restaurantSettings.external_payment_label ?? 'Cash App / payment app'
+  );
+  const [externalPaymentHandle, setExternalPaymentHandle] = useState(
+    restaurantSettings.externalPaymentHandle ?? restaurantSettings.external_payment_handle ?? ''
+  );
+  const [externalPaymentInstructions, setExternalPaymentInstructions] = useState(
+    restaurantSettings.externalPaymentInstructions ?? restaurantSettings.external_payment_instructions ?? ''
+  );
+  const [externalPaymentReferenceHint, setExternalPaymentReferenceHint] = useState(
+    restaurantSettings.externalPaymentReferenceHint ?? restaurantSettings.external_payment_reference_hint ?? 'Include your order number or name in the payment note.'
+  );
+  const [externalPaymentQrUrl, setExternalPaymentQrUrl] = useState(
+    restaurantSettings.externalPaymentQrUrl ?? restaurantSettings.external_payment_qr_url ?? ''
+  );
+  const [qrUploading, setQrUploading] = useState(false);
 
   useEffect(() => {
     const nextSettings = restaurant.settings && typeof restaurant.settings === 'object' ? restaurant.settings : {};
     setRequirePickupGuestName(nextSettings.requireGuestNameForPickup ?? nextSettings.require_guest_name_for_pickup ?? true);
     setRequireContactForUpdates(nextSettings.requireContactForUpdates ?? nextSettings.require_contact_for_updates ?? false);
+    setExternalPaymentEnabled(nextSettings.externalPaymentEnabled ?? nextSettings.external_payment_enabled ?? false);
+    setRequireExternalPaymentProof(nextSettings.requireExternalPaymentProof ?? nextSettings.require_external_payment_proof ?? false);
+    setExternalPaymentLabel(nextSettings.externalPaymentLabel ?? nextSettings.external_payment_label ?? 'Cash App / payment app');
+    setExternalPaymentHandle(nextSettings.externalPaymentHandle ?? nextSettings.external_payment_handle ?? '');
+    setExternalPaymentInstructions(nextSettings.externalPaymentInstructions ?? nextSettings.external_payment_instructions ?? '');
+    setExternalPaymentReferenceHint(nextSettings.externalPaymentReferenceHint ?? nextSettings.external_payment_reference_hint ?? 'Include your order number or name in the payment note.');
+    setExternalPaymentQrUrl(nextSettings.externalPaymentQrUrl ?? nextSettings.external_payment_qr_url ?? '');
   }, [restaurant.id, restaurant.settings]);
+
+  const savePaymentSettings = async (overrides = {}) => {
+    await patch({
+      settings: {
+        ...restaurantSettings,
+        externalPaymentEnabled,
+        requireExternalPaymentProof,
+        externalPaymentLabel: externalPaymentLabel.trim() || null,
+        externalPaymentHandle: externalPaymentHandle.trim() || null,
+        externalPaymentInstructions: externalPaymentInstructions.trim() || null,
+        externalPaymentReferenceHint: externalPaymentReferenceHint.trim() || null,
+        externalPaymentQrUrl: externalPaymentQrUrl.trim() || null,
+        ...overrides,
+      },
+    });
+  };
+
+  const handleQrUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setQrUploading(true);
+    try {
+      const uploaded = await uploadFoodAsset(file, 'food-external-payment-qr');
+      const nextUrl = uploaded?.url || '';
+      setExternalPaymentQrUrl(nextUrl);
+      await patch({
+        settings: {
+          ...restaurantSettings,
+          externalPaymentEnabled,
+          requireExternalPaymentProof,
+          externalPaymentLabel: externalPaymentLabel.trim() || null,
+          externalPaymentHandle: externalPaymentHandle.trim() || null,
+          externalPaymentInstructions: externalPaymentInstructions.trim() || null,
+          externalPaymentReferenceHint: externalPaymentReferenceHint.trim() || null,
+          externalPaymentQrUrl: nextUrl || null,
+        },
+      });
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('food.merchant.menuError')));
+    } finally {
+      setQrUploading(false);
+      event.target.value = '';
+    }
+  };
 
   const patch = async (payload) => {
     setSaving(true);
@@ -626,6 +729,143 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
             ? t('food.merchant.guestCheckoutContactNoteRequired', 'Guests must provide a phone number or email for order updates.')
             : t('food.merchant.guestCheckoutContactNoteOptional', 'Phone and email stay optional unless you turn on status updates.')}
         </p>
+      </div>
+
+      <div style={{ marginTop: '1.5rem' }}>
+        <h3>{t('food.merchant.externalPaymentTitle', 'External payment instructions')}</h3>
+        <p className="fd-card-meta">
+          {t('food.merchant.externalPaymentHint', 'Let guests pay with Cash App, Venmo, Zelle, or another payment app, then attach proof at checkout.')}
+        </p>
+        <div className="fd-row" style={{ flexWrap: 'wrap', gap: '0.75rem', alignItems: 'stretch', marginBottom: '0.75rem' }}>
+          <button
+            type="button"
+            className="fd-btn fd-btn-secondary"
+            disabled={saving}
+            onClick={() => {
+              setExternalPaymentEnabled((current) => !current);
+              patch({
+                settings: {
+                  ...restaurantSettings,
+                  externalPaymentEnabled: !externalPaymentEnabled,
+                  requireExternalPaymentProof,
+                  externalPaymentLabel: externalPaymentLabel.trim() || null,
+                  externalPaymentHandle: externalPaymentHandle.trim() || null,
+                  externalPaymentInstructions: externalPaymentInstructions.trim() || null,
+                  externalPaymentReferenceHint: externalPaymentReferenceHint.trim() || null,
+                  externalPaymentQrUrl: externalPaymentQrUrl.trim() || null,
+                },
+              });
+            }}
+          >
+            {externalPaymentEnabled
+              ? t('food.merchant.externalPaymentEnabled', 'External payment enabled')
+              : t('food.merchant.externalPaymentDisabled', 'External payment disabled')}
+          </button>
+          <button
+            type="button"
+            className="fd-btn fd-btn-secondary"
+            disabled={saving}
+            onClick={() => {
+              setRequireExternalPaymentProof((current) => !current);
+              patch({
+                settings: {
+                  ...restaurantSettings,
+                  externalPaymentEnabled,
+                  requireExternalPaymentProof: !requireExternalPaymentProof,
+                  externalPaymentLabel: externalPaymentLabel.trim() || null,
+                  externalPaymentHandle: externalPaymentHandle.trim() || null,
+                  externalPaymentInstructions: externalPaymentInstructions.trim() || null,
+                  externalPaymentReferenceHint: externalPaymentReferenceHint.trim() || null,
+                  externalPaymentQrUrl: externalPaymentQrUrl.trim() || null,
+                },
+              });
+            }}
+          >
+            {requireExternalPaymentProof
+              ? t('food.merchant.externalPaymentProofRequired', 'Proof required')
+              : t('food.merchant.externalPaymentProofOptional', 'Proof optional')}
+          </button>
+        </div>
+        <div className="fd-row" style={{ flexWrap: 'wrap' }}>
+          <div className="fd-field" style={{ flex: 1, minWidth: 220 }}>
+            <label htmlFor="fd-ext-label">{t('food.merchant.externalPaymentLabel', 'Payment label')}</label>
+            <input
+              id="fd-ext-label"
+              value={externalPaymentLabel}
+              onChange={(e) => setExternalPaymentLabel(e.target.value)}
+              placeholder="Cash App / payment app"
+              maxLength={120}
+            />
+          </div>
+          <div className="fd-field" style={{ flex: 1, minWidth: 220 }}>
+            <label htmlFor="fd-ext-handle">{t('food.merchant.externalPaymentHandle', 'Handle / account')}</label>
+            <input
+              id="fd-ext-handle"
+              value={externalPaymentHandle}
+              onChange={(e) => setExternalPaymentHandle(e.target.value)}
+              placeholder="$BonPate or @bonpate"
+              maxLength={120}
+            />
+          </div>
+        </div>
+        <div className="fd-row" style={{ flexWrap: 'wrap' }}>
+          <div className="fd-field" style={{ flex: 1, minWidth: 220 }}>
+            <label htmlFor="fd-ext-ref">{t('food.merchant.externalPaymentRef', 'Reference hint')}</label>
+            <input
+              id="fd-ext-ref"
+              value={externalPaymentReferenceHint}
+              onChange={(e) => setExternalPaymentReferenceHint(e.target.value)}
+              placeholder="Include your order number in the payment note"
+              maxLength={255}
+            />
+          </div>
+          <div className="fd-field" style={{ flex: 1, minWidth: 220 }}>
+            <label htmlFor="fd-ext-qr">{t('food.merchant.externalPaymentQr', 'QR code image')}</label>
+            <input
+              id="fd-ext-qr"
+              type="file"
+              accept="image/*"
+              onChange={handleQrUpload}
+              disabled={qrUploading}
+            />
+            <p className="fd-card-meta" style={{ marginTop: 6 }}>
+              {qrUploading ? t('food.common.saving', 'Saving…') : t('food.merchant.externalPaymentQrHint', 'Upload a payment QR image to show customers at checkout.')}
+            </p>
+          </div>
+        </div>
+        <div className="fd-field">
+          <label htmlFor="fd-ext-instructions">{t('food.merchant.externalPaymentInstructions', 'Payment instructions')}</label>
+          <textarea
+            id="fd-ext-instructions"
+            rows={3}
+            value={externalPaymentInstructions}
+            onChange={(e) => setExternalPaymentInstructions(e.target.value)}
+            placeholder="Tell guests how to pay and what to include in the note."
+            maxLength={2000}
+          />
+        </div>
+        {externalPaymentQrUrl && (
+          <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <img
+              src={externalPaymentQrUrl}
+              alt="Restaurant payment QR"
+              style={{ width: 132, height: 132, objectFit: 'cover', borderRadius: 16, border: '1px solid #e2e8f0', background: '#fff' }}
+            />
+            <p className="fd-card-meta" style={{ maxWidth: 380 }}>
+              {t('food.merchant.externalPaymentQrPreview', 'This QR code will show to guests when they choose external payment.')}
+            </p>
+          </div>
+        )}
+        <div className="fd-row" style={{ marginTop: '0.85rem' }}>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm"
+            disabled={saving}
+            onClick={() => savePaymentSettings()}
+          >
+            {saving ? t('food.common.saving') : t('food.common.save')}
+          </button>
+        </div>
       </div>
 
       <LocationsPanel t={t} restaurant={restaurant} onChanged={onSetupChanged} />

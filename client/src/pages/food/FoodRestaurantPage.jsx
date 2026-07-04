@@ -15,6 +15,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   getFoodRestaurant,
   placeFoodOrder,
+  uploadFoodAsset,
   listFoodPromotions,
   listMyFoodOrders,
   getMyFoodRestaurantWallet,
@@ -31,6 +32,7 @@ import '../../styles/FoodRestaurantPage.css';
 // after closing the tab (orders are considered stale after 2 hours).
 const ACTIVE_ORDER_KEY = (restaurantId) => `ox.food.activeOrder.${restaurantId}`;
 const ACTIVE_ORDER_TTL_MS = 2 * 60 * 60 * 1000;
+const DRAFT_ORDER_KEY = (restaurantId) => `ox.food.draft.${restaurantId}`;
 
 function loadActiveOrder(restaurantId) {
   try {
@@ -55,6 +57,31 @@ function saveActiveOrder(restaurantId, entry) {
 
 function clearActiveOrder(restaurantId) {
   try { localStorage.removeItem(ACTIVE_ORDER_KEY(restaurantId)); } catch { /* non-fatal */ }
+}
+
+function loadDraftOrder(restaurantId) {
+  try {
+    const raw = localStorage.getItem(DRAFT_ORDER_KEY(restaurantId));
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (!saved || typeof saved !== 'object') {
+      localStorage.removeItem(DRAFT_ORDER_KEY(restaurantId));
+      return null;
+    }
+    return saved;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraftOrder(restaurantId, entry) {
+  try {
+    localStorage.setItem(DRAFT_ORDER_KEY(restaurantId), JSON.stringify({ ...entry, at: Date.now() }));
+  } catch { /* storage full / private mode — non-fatal */ }
+}
+
+function clearDraftOrder(restaurantId) {
+  try { localStorage.removeItem(DRAFT_ORDER_KEY(restaurantId)); } catch { /* non-fatal */ }
 }
 
 const SERIF = "'Instrument Serif', Georgia, 'Times New Roman', serif";
@@ -161,12 +188,18 @@ export default function FoodRestaurantPage() {
   // Payment mode matches the backend restaurant payment contract:
   // pay_at_restaurant (default) | restaurant_credit (signed-in wallet holders).
   const [paymentMethod, setPaymentMethod] = useState('pay_at_restaurant');
+  const [paymentReference, setPaymentReference] = useState('');
+  const [paymentNote, setPaymentNote] = useState('');
+  const [paymentProof, setPaymentProof] = useState(null);
+  const [proofUploading, setProofUploading] = useState(false);
   const [wallet, setWallet] = useState(null);
   const [placing, setPlacing] = useState(false);
   const [placedOrder, setPlacedOrder] = useState(null);
   const [placedTrackingToken, setPlacedTrackingToken] = useState(null);
   // Recovered order from a previous visit (tracking token in localStorage).
   const [recoveredOrder, setRecoveredOrder] = useState(null);
+  const [draftHydrated, setDraftHydrated] = useState(false);
+  const [draftHasContent, setDraftHasContent] = useState(false);
 
   // Item modal
   const [modalItem, setModalItem] = useState(null);
@@ -216,6 +249,64 @@ export default function FoodRestaurantPage() {
     }
   }, [paymentMethod, wallet]);
 
+  // Restore a checkout draft so the same order reappears after sign-in or page
+  // refresh. The draft is kept separate from the live tracking token.
+  useEffect(() => {
+    if (!restaurantId) return;
+
+    setDraftHydrated(false);
+    setDraftHasContent(false);
+
+    const draft = loadDraftOrder(restaurantId);
+    if (!draft) {
+      setCartItems([]);
+      setCartOpen(false);
+      setCartStep('cart');
+      setAddressLine1('');
+      setAddressLine2('');
+      setPromoCode('');
+      setDeliverySlot('asap');
+      setPaymentMethod('pay_at_restaurant');
+      setPaymentReference('');
+      setPaymentNote('');
+      setPaymentProof(null);
+      setDraftHydrated(true);
+      return;
+    }
+
+    const savedCartItems = Array.isArray(draft.cartItems) ? draft.cartItems : [];
+    const savedStep = draft.cartStep === 'login'
+      ? 'details'
+      : (draft.cartStep === 'confirmed' ? 'cart' : (draft.cartStep || 'cart'));
+    setDraftHasContent(
+      savedCartItems.length > 0
+      || Boolean(draft.cartOpen)
+      || Boolean(draft.addressLine1)
+      || Boolean(draft.addressLine2)
+      || Boolean(draft.promoCode)
+      || Boolean(draft.deliverySlot && draft.deliverySlot !== 'asap')
+      || Boolean(draft.paymentMethod && draft.paymentMethod !== 'pay_at_restaurant')
+      || Boolean(draft.paymentReference)
+      || Boolean(draft.paymentNote)
+      || Boolean(draft.paymentProof)
+    );
+    setCartItems(savedCartItems);
+    setCartOpen(savedCartItems.length > 0 || Boolean(draft.cartOpen));
+    setCartStep(savedCartItems.length > 0 || savedStep !== 'cart' ? savedStep : 'cart');
+    setAddressLine1(String(draft.addressLine1 || ''));
+    setAddressLine2(String(draft.addressLine2 || ''));
+    setPromoCode(String(draft.promoCode || ''));
+    setDeliverySlot(draft.deliverySlot || 'asap');
+    setPaymentMethod(draft.paymentMethod || 'pay_at_restaurant');
+    setPaymentReference(String(draft.paymentReference || ''));
+    setPaymentNote(String(draft.paymentNote || ''));
+    setPaymentProof(draft.paymentProof && typeof draft.paymentProof === 'object' ? draft.paymentProof : null);
+    if (draft.deliveryMode === 'delivery' || draft.deliveryMode === 'pickup') {
+      setDeliveryMode(draft.deliveryMode);
+    }
+    setDraftHydrated(true);
+  }, [restaurantId]);
+
   // Restore a still-active order from a previous visit so guests can find
   // their queue number again after closing the tab.
   useEffect(() => {
@@ -254,14 +345,79 @@ export default function FoodRestaurantPage() {
   useEffect(() => {
     if (!restaurant) return;
     const modes = Array.isArray(restaurant.fulfillment_modes) ? restaurant.fulfillment_modes : [];
-    setDeliveryMode(modes.includes('delivery') ? 'delivery' : 'pickup');
-  }, [restaurant]);
+    setDeliveryMode((current) => {
+      if (current === 'delivery' && !modes.includes('delivery')) return 'pickup';
+      if (draftHasContent) return current;
+      return modes.includes('delivery') ? 'delivery' : 'pickup';
+    });
+  }, [restaurant, draftHasContent]);
+
+  useEffect(() => {
+    if (!restaurantId || !draftHydrated) return;
+    const hasMeaningfulDraft = cartItems.length > 0
+      || cartOpen
+      || ['login', 'details', 'payment'].includes(cartStep)
+      || addressLine1.trim().length > 0
+      || addressLine2.trim().length > 0
+      || promoCode.trim().length > 0
+      || deliverySlot !== 'asap'
+      || paymentMethod !== 'pay_at_restaurant'
+      || paymentReference.trim().length > 0
+      || paymentNote.trim().length > 0
+      || Boolean(paymentProof);
+    if (!hasMeaningfulDraft) {
+      clearDraftOrder(restaurantId);
+      return;
+    }
+    saveDraftOrder(restaurantId, {
+      cartItems,
+      cartOpen,
+      cartStep,
+      addressLine1,
+      addressLine2,
+      promoCode,
+      deliverySlot,
+      paymentMethod,
+      paymentReference,
+      paymentNote,
+      paymentProof,
+      deliveryMode,
+    });
+  }, [
+    restaurantId,
+    draftHydrated,
+    cartItems,
+    cartOpen,
+    cartStep,
+    addressLine1,
+    addressLine2,
+    promoCode,
+    deliverySlot,
+    paymentMethod,
+    paymentReference,
+    paymentNote,
+    paymentProof,
+    deliveryMode,
+  ]);
 
   // ── Cart math ─────────────────────────────────────────────────────────────
   const settings = (restaurant?.settings && typeof restaurant.settings === 'object') ? restaurant.settings : {};
   const supportsDelivery = Array.isArray(restaurant?.fulfillment_modes) && restaurant.fulfillment_modes.includes('delivery');
   const deliveryFeeCents = Number(settings.deliveryFeeCents ?? settings.delivery_fee_cents ?? 0) || 0;
   const minimumOrderCents = Number(settings.minimumOrderCents ?? settings.minimum_order_cents ?? 0) || 0;
+  const externalPaymentEnabled = Boolean(settings.externalPaymentEnabled ?? settings.external_payment_enabled ?? false);
+  const requireExternalPaymentProof = Boolean(settings.requireExternalPaymentProof ?? settings.require_external_payment_proof ?? false);
+  const externalPaymentLabel = String(settings.externalPaymentLabel ?? settings.external_payment_label ?? 'Payment app / QR').trim() || 'Payment app / QR';
+  const externalPaymentHandle = String(settings.externalPaymentHandle ?? settings.external_payment_handle ?? '').trim();
+  const externalPaymentInstructions = String(settings.externalPaymentInstructions ?? settings.external_payment_instructions ?? '').trim();
+  const externalPaymentReferenceHint = String(settings.externalPaymentReferenceHint ?? settings.external_payment_reference_hint ?? 'Include your order number or name in the payment note.').trim();
+  const externalPaymentQrUrl = String(settings.externalPaymentQrUrl ?? settings.external_payment_qr_url ?? '').trim();
+
+  useEffect(() => {
+    if (paymentMethod === 'direct_payment' && !externalPaymentEnabled) {
+      setPaymentMethod('pay_at_restaurant');
+    }
+  }, [paymentMethod, externalPaymentEnabled]);
 
   const subtotalCents = useMemo(
     () => cartItems.reduce((s, i) => s + i.unitCents * i.qty, 0),
@@ -272,24 +428,77 @@ export default function FoodRestaurantPage() {
   const feeCents = (deliveryMode === 'delivery' && hasCart) ? deliveryFeeCents : 0;
   const orderTotalCents = subtotalCents + feeCents;
   const checkoutRequiresLogin = !user;
+  const externalPaymentHasSubmission = Boolean(paymentProof?.url || paymentReference.trim() || paymentNote.trim());
 
   const openLoginGate = () => {
     navigate('/login', { state: { from: location } });
+  };
+
+  const handlePaymentProofUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setProofUploading(true);
+    try {
+      const uploaded = await uploadFoodAsset(file, 'food-payment-proof');
+      setPaymentProof({
+        url: uploaded?.url || '',
+        key: uploaded?.key || '',
+        name: file.name,
+        type: uploaded?.content_type || file.type || '',
+        sizeBytes: uploaded?.size_bytes || file.size || null,
+      });
+      toast.success('Receipt uploaded');
+    } catch (err) {
+      toast.error(err?.response?.data?.error?.message || 'Unable to upload proof of payment.');
+    } finally {
+      setProofUploading(false);
+      event.target.value = '';
+    }
   };
 
   // ── Place the real order ────────────────────────────────────────────────
   const submitOrder = async () => {
     if (cartItems.length === 0) return;
     const fulfillmentType = deliveryMode === 'delivery' ? 'delivery' : 'pickup';
+    const paymentMode = paymentMethod === 'restaurant_credit'
+      ? 'restaurant_credit'
+      : paymentMethod === 'direct_payment'
+        ? 'direct_payment'
+        : 'pay_at_restaurant';
+    const externalPaymentSubmission = paymentMode === 'direct_payment'
+      ? {
+        method: externalPaymentLabel || 'external_payment',
+        label: externalPaymentLabel || 'Payment app / QR',
+        handle: externalPaymentHandle || undefined,
+        instructions: externalPaymentInstructions || undefined,
+        referenceHint: externalPaymentReferenceHint || undefined,
+        reference: paymentReference.trim() || undefined,
+        note: paymentNote.trim() || undefined,
+        proofRequired: requireExternalPaymentProof,
+        proof: paymentProof ? {
+          attachmentUrl: paymentProof.url || undefined,
+          attachmentKey: paymentProof.key || undefined,
+          attachmentName: paymentProof.name || undefined,
+          attachmentType: paymentProof.type || undefined,
+          attachmentSizeBytes: paymentProof.sizeBytes || undefined,
+        } : undefined,
+      }
+      : null;
+    if (paymentMode === 'direct_payment' && requireExternalPaymentProof && !(
+      paymentProof?.url || paymentReference.trim() || paymentNote.trim()
+    )) {
+      toast.error('Please upload proof of payment or add a confirmation number.');
+      return;
+    }
     setPlacing(true);
     try {
       const payload = {
         orderSource: 'web',
         fulfillmentType,
         // Canonical restaurant payment contract mode (never implies online card).
-        paymentMode: paymentMethod === 'restaurant_credit' ? 'restaurant_credit' : 'pay_at_restaurant',
+        paymentMode,
         // Backend currently limits promo codes to restaurant-credit orders.
-        discountCode: paymentMethod === 'restaurant_credit' && promoCode.trim()
+        discountCode: paymentMode === 'restaurant_credit' && promoCode.trim()
           ? promoCode.trim()
           : undefined,
         items: cartItems.map((line) => ({
@@ -298,6 +507,12 @@ export default function FoodRestaurantPage() {
           modifierIds: line.modifierIds,
           specialInstructions: line.notes || undefined,
         })),
+        ...(paymentMode === 'direct_payment' ? {
+          externalPayment: externalPaymentSubmission,
+          metadata: {
+            externalPayment: externalPaymentSubmission,
+          },
+        } : {}),
       };
       if (fulfillmentType === 'delivery') {
         payload.deliveryAddress = {
@@ -318,8 +533,13 @@ export default function FoodRestaurantPage() {
         });
         setRecoveredOrder(null);
       }
+      clearDraftOrder(restaurantId);
+      setDraftHasContent(false);
       setCartStep('confirmed');
       setCartItems([]);
+      setPaymentReference('');
+      setPaymentNote('');
+      setPaymentProof(null);
     } catch (err) {
       const message = err?.response?.data?.error?.message || err?.response?.data?.message;
       toast.error(typeof message === 'string' ? message : 'Unable to place order. Please try again.');
@@ -710,6 +930,14 @@ export default function FoodRestaurantPage() {
         ? `${formatFoodMoney(walletBalanceCents, wallet.currencyCode || currency)} available`
         : `Insufficient balance — ${formatFoodMoney(walletBalanceCents, wallet.currencyCode || currency)} available`,
       disabled: !walletCoversOrder,
+    }] : []),
+    ...(externalPaymentEnabled ? [{
+      id: 'direct_payment',
+      icon: '📲',
+      label: externalPaymentLabel || 'Pay with restaurant payment app',
+      sub: externalPaymentHandle
+        ? `Send to ${externalPaymentHandle}`
+        : 'Use the restaurant’s payment instructions and upload proof',
     }] : []),
     {
       id: 'card_online',
@@ -1220,7 +1448,7 @@ export default function FoodRestaurantPage() {
                   <div style={{ padding: '14px 20px 20px', borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: 6 }}><span>Subtotal</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{formatFoodMoney(subtotalCents, currency)}</span></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: 14 }}><span>{delivFeeLabel}</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{delivFeeStr}</span></div>
-                    <button onClick={() => setCartStep('details')} style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>Checkout · {formatFoodMoney(orderTotalCents, currency)}</button>
+                      <button onClick={() => { setCartOpen(true); setCartStep('details'); }} style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>Checkout · {formatFoodMoney(orderTotalCents, currency)}</button>
                   </div>
                 </>
               )}
@@ -1384,6 +1612,85 @@ export default function FoodRestaurantPage() {
                         );
                       })}
                     </div>
+                    {paymentMethod === 'direct_payment' && (
+                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 16, padding: 16, marginBottom: 20 }}>
+                        <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: accent, marginBottom: 8 }}>
+                          External payment
+                        </p>
+                        <h4 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>
+                          {externalPaymentLabel || 'Payment app / QR'}
+                        </h4>
+                        {externalPaymentHandle && (
+                          <p style={{ fontSize: 14, color: '#475569', marginBottom: 8 }}>
+                            Send payment to <strong style={{ color: '#0f172a' }}>{externalPaymentHandle}</strong>
+                          </p>
+                        )}
+                        {externalPaymentInstructions && (
+                          <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.6, marginBottom: 10 }}>
+                            {externalPaymentInstructions}
+                          </p>
+                        )}
+                        {externalPaymentQrUrl && (
+                          <img
+                            src={externalPaymentQrUrl}
+                            alt="Restaurant payment QR"
+                            style={{ width: 156, height: 156, objectFit: 'cover', borderRadius: 14, border: '1px solid #e2e8f0', background: '#fff', marginBottom: 12 }}
+                          />
+                        )}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+                          <div>
+                            <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 6 }}>Confirmation / reference</p>
+                            <input
+                              value={paymentReference}
+                              onChange={(e) => setPaymentReference(e.target.value)}
+                              placeholder={externalPaymentReferenceHint || 'Include your order number or name'}
+                              maxLength={120}
+                              style={inputStyle}
+                            />
+                          </div>
+                          <div>
+                            <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 6 }}>Receipt / proof of payment</p>
+                            <label style={{ display: 'block', cursor: 'pointer' }}>
+                              <input
+                                type="file"
+                                accept="image/*,application/pdf"
+                                onChange={handlePaymentProofUpload}
+                                disabled={proofUploading}
+                                style={{ display: 'block', width: '100%' }}
+                              />
+                            </label>
+                            <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>
+                              {proofUploading ? 'Uploading proof…' : 'Upload a screenshot, receipt, or PDF if you have one.'}
+                            </p>
+                            {paymentProof?.url && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, padding: '10px 12px', borderRadius: 12, border: '1px solid #e2e8f0', background: '#fff' }}>
+                                <span style={{ fontSize: 18 }}>📎</span>
+                                <div style={{ minWidth: 0 }}>
+                                  <strong style={{ display: 'block', fontSize: 13, color: '#0f172a' }}>{paymentProof.name || 'Proof uploaded'}</strong>
+                                  <a href={paymentProof.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: accent, textDecoration: 'none' }}>Open attachment</a>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 6 }}>Message for the restaurant</p>
+                            <textarea
+                              value={paymentNote}
+                              onChange={(e) => setPaymentNote(e.target.value)}
+                              placeholder="Anything that will help the restaurant match the payment"
+                              maxLength={1000}
+                              rows={3}
+                              style={{ ...inputStyle, minHeight: 90, resize: 'vertical' }}
+                            />
+                          </div>
+                        </div>
+                        {requireExternalPaymentProof && (
+                          <p style={{ fontSize: 12, color: '#b45309', marginTop: 10, lineHeight: 1.5 }}>
+                            Proof is required for this restaurant before the order can be submitted.
+                          </p>
+                        )}
+                      </div>
+                    )}
                     {paymentMethod === 'restaurant_credit' && (
                       <>
                         <p style={{ ...sectionLabel, color: '#64748b' }}>Promo Code <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>(optional)</span></p>
@@ -1405,11 +1712,19 @@ export default function FoodRestaurantPage() {
                     <p style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', marginBottom: 4 }}>
                       {paymentMethod === 'restaurant_credit'
                         ? '💠 Your restaurant credit is charged when the order is placed.'
+                        : paymentMethod === 'direct_payment'
+                          ? '📲 Submit your proof of payment with the order so the restaurant can match it quickly.'
                         : `🏪 Payment is settled with the restaurant ${isPickup ? 'at the counter' : 'on delivery'} when your order is ready. No card is charged online.`}
                     </p>
                   </div>
                   <div style={{ padding: '14px 20px 20px', borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
-                    <button onClick={submitOrder} disabled={placing} style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: placing ? 'wait' : 'pointer', opacity: placing ? 0.7 : 1 }}>{placing ? 'Placing order…' : `Place Order · ${formatFoodMoney(orderTotalCents, currency)}`}</button>
+                    <button
+                      onClick={submitOrder}
+                      disabled={placing || proofUploading || (paymentMethod === 'direct_payment' && requireExternalPaymentProof && !externalPaymentHasSubmission)}
+                      style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: placing || proofUploading ? 'wait' : 'pointer', opacity: placing || proofUploading || (paymentMethod === 'direct_payment' && requireExternalPaymentProof && !externalPaymentHasSubmission) ? 0.7 : 1 }}
+                    >
+                      {placing ? 'Placing order…' : `Place Order · ${formatFoodMoney(orderTotalCents, currency)}`}
+                    </button>
                   </div>
                 </>
               )}
@@ -1444,7 +1759,7 @@ export default function FoodRestaurantPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 10, width: '100%' }}>
                       <Link to={`/restaurants/queue/${restaurant.id}`} style={{ flex: 1, textAlign: 'center', height: 44, lineHeight: '44px', background: '#f1f5f9', color: '#0f172a', borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>Watch Queue</Link>
-                      <button onClick={() => { setCartOpen(false); setCartStep('cart'); setPlacedOrder(null); setPlacedTrackingToken(null); setRecoveredOrder(loadActiveOrder(restaurantId)); }} style={{ flex: 1, height: 44, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Back to Menu</button>
+                      <button onClick={() => { setCartOpen(false); setCartStep('cart'); setPlacedOrder(null); setPlacedTrackingToken(null); setRecoveredOrder(loadActiveOrder(restaurantId)); setPaymentReference(''); setPaymentNote(''); setPaymentProof(null); setPaymentMethod('pay_at_restaurant'); }} style={{ flex: 1, height: 44, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Back to Menu</button>
                     </div>
                   </div>
                 );

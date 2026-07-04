@@ -46,6 +46,18 @@ export default function FoodQueueBoardPage() {
           <FoodConnBadge ok={!error} />
           <span className="fd-kds-meta">{t('food.queue.payHint')}</span>
         </span>
+        {typeof board?.externalPaymentCount === 'number' && board.externalPaymentCount > 0 && (
+          <span
+            className="fd-kds-meta"
+            style={{
+              marginTop: '-0.25rem',
+              color: '#ea580c',
+              fontWeight: 700,
+            }}
+          >
+            {board.externalPaymentCount} external payment order{board.externalPaymentCount === 1 ? '' : 's'} today
+          </span>
+        )}
       </div>
       {error && <p className="fd-kds-meta">{t('food.common.loadError')}</p>}
       <div className="fd-queue-grid">

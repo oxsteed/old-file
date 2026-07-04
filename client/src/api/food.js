@@ -5,6 +5,13 @@
 
 import api from './axios';
 
+export const uploadFoodAsset = (file, purpose = 'food-general') => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('purpose', purpose);
+  return api.post('/upload', formData).then((r) => r.data);
+};
+
 // ── Discovery (public) ───────────────────────────────────────────────────────
 export const listFoodRestaurants = (params = {}) =>
   api.get('/food/restaurants', { params }).then((r) => r.data?.restaurants || []);

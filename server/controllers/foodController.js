@@ -1727,6 +1727,22 @@ exports.createOrder = async (req, res, next) => {
         restaurantSettings.requireContactForUpdates ?? restaurantSettings.require_contact_for_updates,
         false
       );
+      const externalPaymentEnabled = normalizeBoolean(
+        restaurantSettings.externalPaymentEnabled ?? restaurantSettings.external_payment_enabled,
+        false
+      );
+      const requireExternalPaymentProof = normalizeBoolean(
+        restaurantSettings.requireExternalPaymentProof ?? restaurantSettings.require_external_payment_proof,
+        false
+      );
+      const externalPaymentSubmission = normalizeFoodExternalPaymentSubmission(
+        req.body.externalPayment
+          || req.body.external_payment
+          || req.body.paymentProof
+          || req.body.payment_proof
+          || req.body.metadata?.externalPayment
+          || req.body.metadata?.paymentProof
+      );
       const guestPickupOrder = !req.user?.id && fulfillmentType === 'pickup' && !isInStore;
       const resolvedGuestName = normalizeString(req.body.guestName || req.body.guest_name, 140);
       const resolvedGuestPhone = normalizeString(req.body.guestPhone || req.body.guest_phone, 40);
@@ -1739,6 +1755,19 @@ exports.createOrder = async (req, res, next) => {
       if (!req.user?.id && requireContactForUpdates && !resolvedGuestPhone && !resolvedGuestEmail) {
         throw new AppError('Validation failed', 400, 'validation_failed', {
           guestContact: 'Provide a phone number or email for order updates',
+        });
+      }
+      if (
+        paymentContract.canonical === 'direct_payment'
+        && requireExternalPaymentProof
+        && !(
+          externalPaymentSubmission?.attachmentUrl
+          || externalPaymentSubmission?.reference
+          || externalPaymentSubmission?.note
+        )
+      ) {
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          externalPayment: 'Attach proof of payment or include a confirmation number before submitting the order',
         });
       }
 
@@ -1867,6 +1896,33 @@ exports.createOrder = async (req, res, next) => {
           ...(loyaltyRedemption ? { loyaltyRedemption } : {}),
           ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),
           pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents },
+          ...(paymentContract.canonical === 'direct_payment' || externalPaymentSubmission ? {
+            externalPayment: {
+              enabled: externalPaymentEnabled,
+              requiresProof: requireExternalPaymentProof,
+              label: normalizeString(
+                restaurantSettings.externalPaymentLabel ?? restaurantSettings.external_payment_label,
+                120
+              ),
+              handle: normalizeString(
+                restaurantSettings.externalPaymentHandle ?? restaurantSettings.external_payment_handle,
+                120
+              ),
+              instructions: normalizeString(
+                restaurantSettings.externalPaymentInstructions ?? restaurantSettings.external_payment_instructions,
+                2000
+              ),
+              referenceHint: normalizeString(
+                restaurantSettings.externalPaymentReferenceHint ?? restaurantSettings.external_payment_reference_hint,
+                255
+              ),
+              qrUrl: normalizeString(
+                restaurantSettings.externalPaymentQrUrl ?? restaurantSettings.external_payment_qr_url,
+                2000
+              ),
+              submission: externalPaymentSubmission,
+            },
+          } : {}),
         }
         : {
           trackingToken,
@@ -1883,6 +1939,33 @@ exports.createOrder = async (req, res, next) => {
           ...(loyaltyRedemption ? { loyaltyRedemption } : {}),
           ...(deliveryAddress ? { deliveryAddress, deliveryFeeCents } : {}),
           pricing: { taxRateBps, serviceFeeBps, taxCents: tax, serviceFeeCents },
+          ...(paymentContract.canonical === 'direct_payment' || externalPaymentSubmission ? {
+            externalPayment: {
+              enabled: externalPaymentEnabled,
+              requiresProof: requireExternalPaymentProof,
+              label: normalizeString(
+                restaurantSettings.externalPaymentLabel ?? restaurantSettings.external_payment_label,
+                120
+              ),
+              handle: normalizeString(
+                restaurantSettings.externalPaymentHandle ?? restaurantSettings.external_payment_handle,
+                120
+              ),
+              instructions: normalizeString(
+                restaurantSettings.externalPaymentInstructions ?? restaurantSettings.external_payment_instructions,
+                2000
+              ),
+              referenceHint: normalizeString(
+                restaurantSettings.externalPaymentReferenceHint ?? restaurantSettings.external_payment_reference_hint,
+                255
+              ),
+              qrUrl: normalizeString(
+                restaurantSettings.externalPaymentQrUrl ?? restaurantSettings.external_payment_qr_url,
+                2000
+              ),
+              submission: externalPaymentSubmission,
+            },
+          } : {}),
         };
 
       const { rows: [created] } = await client.query(
@@ -2510,6 +2593,145 @@ function normalizeRestaurantCheckoutSettingsPatch(settings = {}) {
   }
   return patch;
 }
+
+function normalizeFoodExternalPaymentSettingsPatch(settings = {}) {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return {};
+  const patch = {};
+  if (settings.externalPaymentEnabled !== undefined || settings.external_payment_enabled !== undefined) {
+    patch.externalPaymentEnabled = normalizeBoolean(
+      settings.externalPaymentEnabled ?? settings.external_payment_enabled,
+      false
+    );
+  }
+  if (settings.requireExternalPaymentProof !== undefined || settings.require_external_payment_proof !== undefined) {
+    patch.requireExternalPaymentProof = normalizeBoolean(
+      settings.requireExternalPaymentProof ?? settings.require_external_payment_proof,
+      false
+    );
+  }
+  if (settings.externalPaymentLabel !== undefined || settings.external_payment_label !== undefined) {
+    patch.externalPaymentLabel = normalizeString(
+      settings.externalPaymentLabel ?? settings.external_payment_label,
+      120
+    );
+  }
+  if (settings.externalPaymentHandle !== undefined || settings.external_payment_handle !== undefined) {
+    patch.externalPaymentHandle = normalizeString(
+      settings.externalPaymentHandle ?? settings.external_payment_handle,
+      120
+    );
+  }
+  if (settings.externalPaymentInstructions !== undefined || settings.external_payment_instructions !== undefined) {
+    patch.externalPaymentInstructions = normalizeString(
+      settings.externalPaymentInstructions ?? settings.external_payment_instructions,
+      2000
+    );
+  }
+  if (settings.externalPaymentReferenceHint !== undefined || settings.external_payment_reference_hint !== undefined) {
+    patch.externalPaymentReferenceHint = normalizeString(
+      settings.externalPaymentReferenceHint ?? settings.external_payment_reference_hint,
+      255
+    );
+  }
+  if (settings.externalPaymentQrUrl !== undefined || settings.external_payment_qr_url !== undefined) {
+    patch.externalPaymentQrUrl = normalizeString(
+      settings.externalPaymentQrUrl ?? settings.external_payment_qr_url,
+      2000
+    );
+  }
+  return patch;
+}
+
+function normalizeFoodExternalPaymentSubmission(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const proofInput = value.proof && typeof value.proof === 'object' && !Array.isArray(value.proof) ? value.proof : {};
+  const attachmentUrl = normalizeString(
+    value.attachmentUrl
+      ?? value.attachment_url
+      ?? value.receiptUrl
+      ?? value.receipt_url
+      ?? proofInput.attachmentUrl
+      ?? proofInput.attachment_url
+      ?? proofInput.url
+      ?? proofInput.receiptUrl
+      ?? proofInput.receipt_url,
+    2000
+  );
+  const attachmentKey = normalizeString(
+    value.attachmentKey
+      ?? value.attachment_key
+      ?? value.receiptKey
+      ?? value.receipt_key
+      ?? proofInput.attachmentKey
+      ?? proofInput.attachment_key
+      ?? proofInput.key
+      ?? proofInput.receiptKey
+      ?? proofInput.receipt_key,
+    512
+  );
+  const attachmentName = normalizeString(
+    value.attachmentName
+      ?? value.attachment_name
+      ?? value.receiptName
+      ?? value.receipt_name
+      ?? proofInput.attachmentName
+      ?? proofInput.attachment_name
+      ?? proofInput.name
+      ?? proofInput.receiptName
+      ?? proofInput.receipt_name,
+    255
+  );
+  const attachmentType = normalizeString(
+    value.attachmentType
+      ?? value.attachment_type
+      ?? value.receiptType
+      ?? value.receipt_type
+      ?? proofInput.attachmentType
+      ?? proofInput.attachment_type
+      ?? proofInput.type
+      ?? proofInput.receiptType
+      ?? proofInput.receipt_type,
+    120
+  );
+  const reference = normalizeString(value.reference ?? value.paymentReference ?? value.payment_reference ?? value.confirmationNumber ?? value.confirmation_number, 120);
+  const note = normalizeString(value.note ?? value.message ?? value.memo, 1000);
+  const handle = normalizeString(value.handle ?? value.paymentHandle ?? value.payment_handle, 120);
+  const label = normalizeString(value.label ?? value.paymentLabel ?? value.payment_label, 120);
+  const qrUrl = normalizeString(value.qrUrl ?? value.qr_url, 2000);
+  const attachmentSizeBytesRaw = value.attachmentSizeBytes
+    ?? value.attachment_size_bytes
+    ?? value.sizeBytes
+    ?? value.size_bytes
+    ?? proofInput.attachmentSizeBytes
+    ?? proofInput.attachment_size_bytes
+    ?? proofInput.sizeBytes
+    ?? proofInput.size_bytes;
+  const attachmentSizeBytes = attachmentSizeBytesRaw === undefined || attachmentSizeBytesRaw === null
+    ? null
+    : Number.isFinite(Number(attachmentSizeBytesRaw))
+      ? Number(attachmentSizeBytesRaw)
+      : null;
+  const proof = {
+    reference,
+    note,
+    handle,
+    label,
+    qrUrl,
+    attachmentUrl,
+    attachmentKey,
+    attachmentName,
+    attachmentType,
+    attachmentSizeBytes,
+  };
+  if (!Object.values(proof).some((entry) => {
+    if (entry === null || entry === undefined) return false;
+    if (typeof entry === 'number') return true;
+    return String(entry).trim() !== '';
+  })) {
+    return null;
+  }
+  return proof;
+}
 const OWNER_SETTABLE_STATUS = new Set(['draft', 'active', 'paused']);
 
 exports.updateRestaurant = async (req, res, next) => {
@@ -2527,9 +2749,11 @@ exports.updateRestaurant = async (req, res, next) => {
       params.push(spec.value(raw));
       sets.push(`${spec.column} = $${params.length}`);
     }
-    const settingsPatch = normalizeRestaurantCheckoutSettingsPatch(
-      req.body.settings || req.body.restaurantSettings || req.body.restaurant_settings
-    );
+    const settingsInput = req.body.settings || req.body.restaurantSettings || req.body.restaurant_settings;
+    const settingsPatch = {
+      ...normalizeRestaurantCheckoutSettingsPatch(settingsInput),
+      ...normalizeFoodExternalPaymentSettingsPatch(settingsInput),
+    };
     if (Object.keys(settingsPatch).length > 0) {
       params.push(JSON.stringify(settingsPatch));
       sets.push(`settings = COALESCE(settings, '{}'::jsonb) || $${params.length}::jsonb`);
@@ -2755,7 +2979,7 @@ exports.getQueueBoard = async (req, res, next) => {
     if (!restaurants[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
 
     const { rows } = await pool.query(
-      `SELECT queue_number, status, guest_name, table_label, fulfillment_type, promised_at
+      `SELECT queue_number, status, guest_name, table_label, fulfillment_type, promised_at, metadata
          FROM food_orders
         WHERE restaurant_id = $1
           AND created_at::date = CURRENT_DATE
@@ -2765,6 +2989,12 @@ exports.getQueueBoard = async (req, res, next) => {
     );
     res.json({
       restaurant: restaurants[0],
+      externalPaymentCount: rows.filter((r) => {
+        const externalPayment = r.metadata && typeof r.metadata === 'object'
+          ? r.metadata.externalPayment || r.metadata.external_payment || null
+          : null;
+        return Boolean(externalPayment);
+      }).length,
       preparing: rows.filter((r) => r.status !== 'ready').map((r) => r.queue_number),
       ready: rows.filter((r) => r.status === 'ready').map((r) => r.queue_number),
       preparingEntries: rows

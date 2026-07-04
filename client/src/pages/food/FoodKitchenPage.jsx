@@ -88,6 +88,15 @@ export default function FoodKitchenPage() {
                 const urgency = order.status === 'ready'
                   ? { tier: 'ontime', elapsedMin: null, color: null }
                   : foodTicketUrgency(order.created_at);
+                const externalPayment = order.metadata && typeof order.metadata === 'object'
+                  ? order.metadata.externalPayment || order.metadata.external_payment || null
+                  : null;
+                const paymentSubmission = externalPayment?.submission || externalPayment?.proof || externalPayment?.paymentProof || null;
+                const paymentReference = paymentSubmission?.reference || externalPayment?.reference || null;
+                const paymentAttachmentUrl = paymentSubmission?.attachmentUrl
+                  || paymentSubmission?.url
+                  || externalPayment?.attachmentUrl
+                  || null;
                 return (
                   <div
                     key={order.id}
@@ -117,6 +126,34 @@ export default function FoodKitchenPage() {
                         </div>
                       ))}
                     </div>
+                    {externalPayment && (
+                      <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 4 }}>
+                          External payment
+                        </div>
+                        <div style={{ fontSize: 13, color: '#0f172a', lineHeight: 1.45 }}>
+                          {externalPayment.label || 'Payment app / QR'}
+                          {externalPayment.handle ? ` · ${externalPayment.handle}` : ''}
+                        </div>
+                        {(paymentReference || externalPayment.note) && (
+                          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                            {paymentReference ? `Ref: ${paymentReference}` : ''}
+                            {paymentReference && externalPayment.note ? ' · ' : ''}
+                            {externalPayment.note || ''}
+                          </div>
+                        )}
+                        {paymentAttachmentUrl && (
+                          <a
+                            href={paymentAttachmentUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ display: 'inline-block', marginTop: 6, fontSize: 12, fontWeight: 700, color: '#0f172a', textDecoration: 'none' }}
+                          >
+                            View receipt
+                          </a>
+                        )}
+                      </div>
+                    )}
                     <div className="fd-kds-meta">
                       {t(`food.fulfillment.${order.fulfillment_type}`)}
                       {order.table_label ? ` · ${order.table_label}` : ''}
