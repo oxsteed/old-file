@@ -20,9 +20,42 @@ import {
   getMyFoodRestaurantWallet,
   formatFoodMoney,
 } from '../../api/food';
+import { useLiveFoodOrder } from './useLiveFoodOrder';
+import { FOOD_STATUS_KEYS } from './foodShared';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import '../../styles/FoodRestaurantPage.css';
+
+// ── Active-order persistence ─────────────────────────────────────────────────
+// Keeps the public tracking token so a guest can recover their order status
+// after closing the tab (orders are considered stale after 2 hours).
+const ACTIVE_ORDER_KEY = (restaurantId) => `ox.food.activeOrder.${restaurantId}`;
+const ACTIVE_ORDER_TTL_MS = 2 * 60 * 60 * 1000;
+
+function loadActiveOrder(restaurantId) {
+  try {
+    const raw = localStorage.getItem(ACTIVE_ORDER_KEY(restaurantId));
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (!saved?.trackingToken || Date.now() - Number(saved.at || 0) > ACTIVE_ORDER_TTL_MS) {
+      localStorage.removeItem(ACTIVE_ORDER_KEY(restaurantId));
+      return null;
+    }
+    return saved;
+  } catch {
+    return null;
+  }
+}
+
+function saveActiveOrder(restaurantId, entry) {
+  try {
+    localStorage.setItem(ACTIVE_ORDER_KEY(restaurantId), JSON.stringify({ ...entry, at: Date.now() }));
+  } catch { /* storage full / private mode — non-fatal */ }
+}
+
+function clearActiveOrder(restaurantId) {
+  try { localStorage.removeItem(ACTIVE_ORDER_KEY(restaurantId)); } catch { /* non-fatal */ }
+}
 
 const SERIF = "'Instrument Serif', Georgia, 'Times New Roman', serif";
 
@@ -123,6 +156,10 @@ export default function FoodRestaurantPage() {
   const [addressLine1, setAddressLine1] = useState('');
   const [addressLine2, setAddressLine2] = useState('');
   const [guestName, setGuestName] = useState('');
+  // Optional guest contact — powers the backend "order ready" SMS/email path.
+  const [guestPhone, setGuestPhone] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [promoCode, setPromoCode] = useState('');
   const [deliverySlot, setDeliverySlot] = useState('asap');
   // Payment mode matches the backend restaurant payment contract:
   // pay_at_restaurant (default) | restaurant_credit (signed-in wallet holders).
@@ -130,6 +167,9 @@ export default function FoodRestaurantPage() {
   const [wallet, setWallet] = useState(null);
   const [placing, setPlacing] = useState(false);
   const [placedOrder, setPlacedOrder] = useState(null);
+  const [placedTrackingToken, setPlacedTrackingToken] = useState(null);
+  // Recovered order from a previous visit (tracking token in localStorage).
+  const [recoveredOrder, setRecoveredOrder] = useState(null);
 
   // Item modal
   const [modalItem, setModalItem] = useState(null);
@@ -179,6 +219,37 @@ export default function FoodRestaurantPage() {
     }
   }, [paymentMethod, wallet]);
 
+  // Restore a still-active order from a previous visit so guests can find
+  // their queue number again after closing the tab.
+  useEffect(() => {
+    setRecoveredOrder(loadActiveOrder(restaurantId));
+  }, [restaurantId]);
+
+  // Live status (socket + poll) for the just-placed order on the confirmation
+  // step, and for the recovered-order banner.
+  const { order: liveOrder } = useLiveFoodOrder({
+    restaurantId,
+    trackingToken: placedTrackingToken,
+    initialOrder: placedOrder,
+    enabled: Boolean(placedTrackingToken),
+  });
+  const { order: recoveredLiveOrder } = useLiveFoodOrder({
+    restaurantId,
+    trackingToken: recoveredOrder?.trackingToken || null,
+    initialOrder: null,
+    enabled: Boolean(recoveredOrder?.trackingToken) && cartStep !== 'confirmed',
+  });
+
+  // Drop the persisted order once it finishes so the banner disappears.
+  useEffect(() => {
+    if (!recoveredOrder) return;
+    const status = recoveredLiveOrder?.status;
+    if (status && ['completed', 'cancelled', 'refunded'].includes(status)) {
+      clearActiveOrder(restaurantId);
+      setRecoveredOrder(null);
+    }
+  }, [recoveredOrder, recoveredLiveOrder?.status, restaurantId]);
+
   const restaurant = data?.restaurant;
   const currency = restaurant?.currency_code || 'USD';
 
@@ -216,6 +287,13 @@ export default function FoodRestaurantPage() {
         // Canonical restaurant payment contract mode (never implies online card).
         paymentMode: paymentMethod === 'restaurant_credit' ? 'restaurant_credit' : 'pay_at_restaurant',
         guestName: !user ? (guestName.trim() || undefined) : undefined,
+        // Optional contact so the backend can SMS/email when the order is ready.
+        guestPhone: !user ? (guestPhone.trim() || undefined) : undefined,
+        guestEmail: !user ? (guestEmail.trim() || undefined) : undefined,
+        // Backend currently limits promo codes to restaurant-credit orders.
+        discountCode: paymentMethod === 'restaurant_credit' && promoCode.trim()
+          ? promoCode.trim()
+          : undefined,
         items: cartItems.map((line) => ({
           menuItemId: line.menuItemId,
           quantity: line.qty,
@@ -232,8 +310,16 @@ export default function FoodRestaurantPage() {
           country: restaurant.address_country || undefined,
         };
       }
-      const { order } = await placeFoodOrder(restaurantId, payload);
+      const { order, trackingToken } = await placeFoodOrder(restaurantId, payload);
       setPlacedOrder(order || {});
+      setPlacedTrackingToken(trackingToken || null);
+      if (trackingToken) {
+        saveActiveOrder(restaurantId, {
+          trackingToken,
+          queueNumber: order?.queue_number ?? null,
+        });
+        setRecoveredOrder(null);
+      }
       setCartStep('confirmed');
       setCartItems([]);
     } catch (err) {
@@ -646,6 +732,32 @@ export default function FoodRestaurantPage() {
       <Navbar />
       <div className="rp-root" style={rootStyle}>
         <div className="rp-page-wrap">
+
+          {/* ── Active order recovery banner ── */}
+          {recoveredOrder && cartStep !== 'confirmed' && (() => {
+            const status = recoveredLiveOrder?.status || 'received';
+            const isReady = status === 'ready';
+            const queueNumber = recoveredLiveOrder?.queue_number ?? recoveredOrder.queueNumber;
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 12, marginBottom: 12, background: isReady ? '#dcfce7' : accentBg, border: `1.5px solid ${isReady ? '#86efac' : accent}` }}>
+                <span style={{ width: 9, height: 9, borderRadius: '50%', background: isReady ? '#16a34a' : accent, flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: isReady ? '#166534' : '#0f172a' }}>
+                  {queueNumber != null ? `Your order #${queueNumber}` : 'Your order'}
+                  {' — '}
+                  {isReady ? 'ready for pickup!' : t(FOOD_STATUS_KEYS[status] || FOOD_STATUS_KEYS.received)}
+                </span>
+                <Link to={`/restaurants/queue/${restaurantId}`} style={{ fontSize: 13, fontWeight: 600, color: isReady ? '#166534' : accent, textDecoration: 'none', whiteSpace: 'nowrap' }}>Watch queue</Link>
+                <button
+                  type="button"
+                  aria-label="Dismiss order status"
+                  onClick={() => { clearActiveOrder(restaurantId); setRecoveredOrder(null); }}
+                  style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'rgba(15,23,42,0.08)', color: '#334155', fontSize: 15, cursor: 'pointer', lineHeight: 1, flexShrink: 0 }}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })()}
 
           {/* ── Cuisine pills row (decorative quick filters) ── */}
           <div className="rp-type-row">
@@ -1131,6 +1243,10 @@ export default function FoodRestaurantPage() {
                       <>
                         <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>Your Name <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>(optional)</span></p>
                         <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="e.g. Marie" maxLength={140} style={{ ...inputStyle, marginBottom: 20 }} />
+                        <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>Phone <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>(optional — we&apos;ll text you when it&apos;s ready)</span></p>
+                        <input type="tel" inputMode="tel" autoComplete="tel" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="+1 555 123 4567" maxLength={40} style={inputStyle} />
+                        <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>Email <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>(optional — order updates by email)</span></p>
+                        <input type="email" inputMode="email" autoComplete="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="you@example.com" maxLength={255} style={{ ...inputStyle, marginBottom: 20 }} />
                       </>
                     )}
                     <p style={{ ...sectionLabel, color: '#64748b' }}>{isPickup ? 'Pickup Time' : 'Delivery Time'}</p>
@@ -1176,6 +1292,18 @@ export default function FoodRestaurantPage() {
                         );
                       })}
                     </div>
+                    {paymentMethod === 'restaurant_credit' && (
+                      <>
+                        <p style={{ ...sectionLabel, color: '#64748b' }}>Promo Code <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>(optional)</span></p>
+                        <input
+                          value={promoCode}
+                          onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                          placeholder="e.g. SUMMER10"
+                          maxLength={40}
+                          style={{ ...inputStyle, marginBottom: 20, textTransform: 'uppercase' }}
+                        />
+                      </>
+                    )}
                     <p style={{ ...sectionLabel, color: '#64748b' }}>Order Summary</p>
                     <div style={{ background: '#f8fafc', borderRadius: 12, padding: '14px 16px', marginBottom: 20, border: '1px solid #f1f5f9' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: 6 }}><span>Subtotal</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{formatFoodMoney(subtotalCents, currency)}</span></div>
@@ -1195,25 +1323,40 @@ export default function FoodRestaurantPage() {
               )}
 
               {/* ⑤ confirmed */}
-              {cartStep === 'confirmed' && (
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
-                  <div style={{ width: 72, height: 72, borderRadius: '50%', background: accentBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, marginBottom: 16, color: accent }}>✓</div>
-                  <h2 style={{ fontFamily: SERIF, fontSize: 26, fontWeight: 400, color: '#0f172a', marginBottom: 8, textAlign: 'center' }}>Order Placed!</h2>
-                  <p style={{ fontSize: 14, color: '#64748b', textAlign: 'center', lineHeight: 1.65, marginBottom: 24 }}>
-                    {placedOrder?.queue_number != null
-                      ? <>Your order number is <strong style={{ color: '#0f172a' }}>#{placedOrder.queue_number}</strong>.<br />We’ll have it ready shortly.</>
-                      : <>Your order is confirmed and being prepared.<br />We’ll notify you when it’s ready.</>}
-                  </p>
-                  <div style={{ background: '#f8fafc', borderRadius: 14, padding: '18px 24px', width: '100%', textAlign: 'center', border: '1px solid #e2e8f0', marginBottom: 16 }}>
-                    <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#94a3b8', marginBottom: 4 }}>Estimated time</p>
-                    <p style={{ fontFamily: SERIF, fontSize: 28, color: '#0f172a' }}>{delivTime}</p>
+              {cartStep === 'confirmed' && (() => {
+                const shownOrder = liveOrder || placedOrder;
+                const shownStatus = shownOrder?.status || 'received';
+                const isReady = shownStatus === 'ready';
+                const statusLabel = t(FOOD_STATUS_KEYS[shownStatus] || FOOD_STATUS_KEYS.received);
+                return (
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
+                    <div style={{ width: 72, height: 72, borderRadius: '50%', background: accentBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, marginBottom: 16, color: accent }}>✓</div>
+                    <h2 style={{ fontFamily: SERIF, fontSize: 26, fontWeight: 400, color: '#0f172a', marginBottom: 8, textAlign: 'center' }}>Order Placed!</h2>
+                    <p style={{ fontSize: 14, color: '#64748b', textAlign: 'center', lineHeight: 1.65, marginBottom: 12 }}>
+                      {shownOrder?.queue_number != null
+                        ? <>Your order number is <strong style={{ color: '#0f172a' }}>#{shownOrder.queue_number}</strong>.<br />We’ll have it ready shortly.</>
+                        : <>Your order is confirmed and being prepared.<br />We’ll notify you when it’s ready.</>}
+                    </p>
+                    {/* Live status (socket + poll via the public tracking token) */}
+                    {placedTrackingToken && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 9999, background: isReady ? '#dcfce7' : '#f1f5f9', border: `1px solid ${isReady ? '#86efac' : '#e2e8f0'}`, marginBottom: 18 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: isReady ? '#16a34a' : accent, flexShrink: 0 }} />
+                        <span style={{ fontSize: 13, fontWeight: 600, color: isReady ? '#166534' : '#334155' }}>
+                          {isReady ? 'Ready for pickup!' : `Live status: ${statusLabel}`}
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ background: '#f8fafc', borderRadius: 14, padding: '18px 24px', width: '100%', textAlign: 'center', border: '1px solid #e2e8f0', marginBottom: 16 }}>
+                      <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#94a3b8', marginBottom: 4 }}>Estimated time</p>
+                      <p style={{ fontFamily: SERIF, fontSize: 28, color: '#0f172a' }}>{delivTime}</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, width: '100%' }}>
+                      <Link to={`/restaurants/queue/${restaurant.id}`} style={{ flex: 1, textAlign: 'center', height: 44, lineHeight: '44px', background: '#f1f5f9', color: '#0f172a', borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>Watch Queue</Link>
+                      <button onClick={() => { setCartOpen(false); setCartStep('cart'); setPlacedOrder(null); setPlacedTrackingToken(null); setRecoveredOrder(loadActiveOrder(restaurantId)); }} style={{ flex: 1, height: 44, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Back to Menu</button>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 10, width: '100%' }}>
-                    <Link to={`/restaurants/queue/${restaurant.id}`} style={{ flex: 1, textAlign: 'center', height: 44, lineHeight: '44px', background: '#f1f5f9', color: '#0f172a', borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>Watch Queue</Link>
-                    <button onClick={() => { setCartOpen(false); setCartStep('cart'); setPlacedOrder(null); }} style={{ flex: 1, height: 44, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Back to Menu</button>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </>
         )}

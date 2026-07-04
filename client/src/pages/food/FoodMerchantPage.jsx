@@ -21,7 +21,7 @@ import {
   updateFoodOrderPayment,
   formatFoodMoney,
 } from '../../api/food';
-import { FoodBrand, FOOD_STATUS_KEYS } from './foodShared';
+import { FoodBrand, FoodConnBadge, FOOD_STATUS_KEYS, apiErrorMessage } from './foodShared';
 import SetupWizard, { defaultWeekdayHours } from './FoodSetupWizard';
 import DeviceSetupChecklist, { isDeviceSetupComplete } from './FoodDeviceSetupChecklist';
 import MerchantOnboardingWizard, { shouldShowMerchantOnboarding } from './FoodMerchantOnboardingWizard';
@@ -37,11 +37,6 @@ const NEXT_STATUS = {
   preparing: 'ready',
   ready: 'completed',
 };
-
-function apiErrorMessage(err, fallback) {
-  const message = err?.response?.data?.error?.message || err?.response?.data?.message;
-  return typeof message === 'string' ? message : fallback;
-}
 
 // ── Onboarding form ──────────────────────────────────────────────────────────
 function CreateRestaurantForm({ t, onCreated }) {
@@ -150,12 +145,16 @@ function CreateRestaurantForm({ t, onCreated }) {
 // ── Live orders tab ──────────────────────────────────────────────────────────
 function OrdersTab({ t, restaurant }) {
   const [orders, setOrders] = useState([]);
+  const [feedError, setFeedError] = useState(false);
   const timerRef = useRef(null);
 
   const load = useCallback(() => {
     listFoodRestaurantOrders(restaurant.id, { active: 1 })
-      .then(setOrders)
-      .catch(() => {});
+      .then((rows) => {
+        setOrders(rows);
+        setFeedError(false);
+      })
+      .catch(() => setFeedError(true));
   }, [restaurant.id]);
 
   useEffect(() => {
@@ -200,7 +199,10 @@ function OrdersTab({ t, restaurant }) {
   return (
     <div className="fd-section">
       <div className="fd-row" style={{ justifyContent: 'space-between', marginBottom: '0.8rem' }}>
-        <h2 style={{ margin: 0 }}>{t('food.merchant.liveOrders')}</h2>
+        <span className="fd-row" style={{ gap: '0.6rem', alignItems: 'center' }}>
+          <h2 style={{ margin: 0 }}>{t('food.merchant.liveOrders')}</h2>
+          <FoodConnBadge ok={!feedError} />
+        </span>
         <div className="fd-row">
           <Link to={`/restaurants/kitchen/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">
             {t('food.merchant.openKitchen')}

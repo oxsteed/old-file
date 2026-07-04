@@ -5,7 +5,7 @@ import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getFoodQueueBoard } from '../../api/food';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
-import { FoodBrand } from './foodShared';
+import { FoodBrand, FoodConnBadge } from './foodShared';
 import '../../styles/FoodPages.css';
 
 const POLL_MS = 5000;
@@ -42,7 +42,10 @@ export default function FoodQueueBoardPage() {
       <div className="fd-screen-header">
         <FoodBrand size={36} />
         <h1 className="fd-screen-title">{board?.restaurant?.display_name || ''}</h1>
-        <span className="fd-kds-meta">{t('food.queue.payHint')}</span>
+        <span className="fd-row" style={{ gap: '0.6rem', alignItems: 'center' }}>
+          <FoodConnBadge ok={!error} />
+          <span className="fd-kds-meta">{t('food.queue.payHint')}</span>
+        </span>
       </div>
       {error && <p className="fd-kds-meta">{t('food.common.loadError')}</p>}
       <div className="fd-queue-grid">

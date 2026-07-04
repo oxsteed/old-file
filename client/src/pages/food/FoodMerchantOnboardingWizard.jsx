@@ -9,6 +9,7 @@ import {
 } from '../../api/food';
 import { defaultWeekdayHours } from './FoodSetupWizard';
 import DeviceSetupChecklist, { isDeviceSetupComplete } from './FoodDeviceSetupChecklist';
+import { apiErrorMessage } from './foodShared';
 
 const STEPS = ['welcome', 'create', 'profile', 'location', 'hours', 'menu', 'publish', 'devices', 'done'];
 
@@ -16,11 +17,6 @@ const SCENE_ICONS = {
   welcome: '✦', create: '◎', profile: '❝', location: '⌖',
   hours: '◷', menu: '◈', publish: '⚡', devices: '▣', done: '✓',
 };
-
-function apiErrorMessage(err, fallback) {
-  const message = err?.response?.data?.error?.message || err?.response?.data?.message || err?.response?.data?.error;
-  return typeof message === 'string' ? message : fallback;
-}
 
 function sceneHeadline(step, t) {
   const map = {

@@ -7,11 +7,7 @@ import {
   listMerchantFoodPromotions,
   updateFoodPromotion,
 } from '../../api/food';
-
-function apiErrorMessage(err, fallback) {
-  const message = err?.response?.data?.error?.message || err?.response?.data?.message;
-  return typeof message === 'string' ? message : fallback;
-}
+import { apiErrorMessage } from './foodShared';
 
 function discountLabel(promo) {
   if (promo.discount_percent != null) return `${promo.discount_percent}% off`;

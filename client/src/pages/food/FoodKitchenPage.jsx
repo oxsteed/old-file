@@ -1,13 +1,16 @@
 // OxSteed Food - kitchen display system (KDS). Fullscreen board meant to be
 // projected or shown on a screen in the kitchen. Polls the active-order feed
 // and lets staff tap a ticket to advance it (new -> preparing -> ready -> done).
+// Production hardening: elapsed-time urgency tiers (amber/red borders + timer)
+// and an explicit LIVE / RECONNECTING connection badge so staff never stare
+// at a silently-stale board.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { listFoodRestaurantOrders, updateFoodOrderStatus } from '../../api/food';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
-import { FoodBrand } from './foodShared';
+import { FoodBrand, FoodConnBadge, foodTicketUrgency } from './foodShared';
 import '../../styles/FoodPages.css';
 
 const POLL_MS = 5000;
@@ -18,7 +21,10 @@ export default function FoodKitchenPage() {
   const { t } = useTranslation();
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState(false);
+  // Re-render every 30s so elapsed-minute badges stay current between polls.
+  const [, setClockTick] = useState(0);
   const timerRef = useRef(null);
+  const clockRef = useRef(null);
 
   const load = useCallback(() => {
     listFoodRestaurantOrders(restaurantId, { active: 1 })
@@ -32,10 +38,12 @@ export default function FoodKitchenPage() {
   useEffect(() => {
     load();
     timerRef.current = setInterval(load, POLL_MS);
+    clockRef.current = setInterval(() => setClockTick((n) => n + 1), 30000);
     // Live updates (instant) layered over the poll (fallback).
     const unsubscribe = subscribeRestaurantDisplay(restaurantId, load);
     return () => {
       clearInterval(timerRef.current);
+      clearInterval(clockRef.current);
       unsubscribe();
     };
   }, [load, restaurantId]);
@@ -62,7 +70,10 @@ export default function FoodKitchenPage() {
       <div className="fd-screen-header">
         <FoodBrand size={34} />
         <h1 className="fd-screen-title">{t('food.kds.title')}</h1>
-        <span className="fd-kds-meta">{t('food.kds.tapHint')}</span>
+        <span className="fd-row" style={{ gap: '0.6rem', alignItems: 'center' }}>
+          <FoodConnBadge ok={!error} />
+          <span className="fd-kds-meta">{t('food.kds.tapHint')}</span>
+        </span>
       </div>
       {error && <p className="fd-kds-meta">{t('food.common.loadError')}</p>}
       <div className="fd-kds-grid">
@@ -71,32 +82,50 @@ export default function FoodKitchenPage() {
           return (
             <div key={column.key} className="fd-kds-col">
               <h2 className="fd-kds-col-title">{column.title} ({list.length})</h2>
-              {list.map((order) => (
-                <div
-                  key={order.id}
-                  className="fd-kds-card"
-                  onClick={() => advance(order)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => e.key === 'Enter' && advance(order)}
-                >
-                  <div className="fd-kds-num">#{order.queue_number}</div>
-                  <div className="fd-kds-items">
-                    {(order.items || []).map((item) => (
-                      <div key={item.id}>
-                        {item.quantity}× {item.itemName}
-                        {item.specialInstructions && <em> - {item.specialInstructions}</em>}
-                      </div>
-                    ))}
+              {list.map((order) => {
+                // Ready tickets are waiting on the guest, not the kitchen —
+                // urgency colouring only applies before the food is up.
+                const urgency = order.status === 'ready'
+                  ? { tier: 'ontime', elapsedMin: null, color: null }
+                  : foodTicketUrgency(order.created_at);
+                return (
+                  <div
+                    key={order.id}
+                    className="fd-kds-card"
+                    onClick={() => advance(order)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && advance(order)}
+                    style={urgency.color ? {
+                      borderLeft: `5px solid ${urgency.color}`,
+                      boxShadow: `inset 0 0 0 1px ${urgency.color}55`,
+                    } : undefined}
+                  >
+                    <div className="fd-kds-num" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span>#{order.queue_number}</span>
+                      {urgency.elapsedMin != null && (
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: urgency.color || '#94a3b8' }}>
+                          {urgency.elapsedMin}m
+                        </span>
+                      )}
+                    </div>
+                    <div className="fd-kds-items">
+                      {(order.items || []).map((item) => (
+                        <div key={item.id}>
+                          {item.quantity}× {item.itemName}
+                          {item.specialInstructions && <em> - {item.specialInstructions}</em>}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="fd-kds-meta">
+                      {t(`food.fulfillment.${order.fulfillment_type}`)}
+                      {order.table_label ? ` · ${order.table_label}` : ''}
+                      {' · '}
+                      {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
                   </div>
-                  <div className="fd-kds-meta">
-                    {t(`food.fulfillment.${order.fulfillment_type}`)}
-                    {order.table_label ? ` · ${order.table_label}` : ''}
-                    {' · '}
-                    {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               {list.length === 0 && <p className="fd-kds-meta">{t('food.kds.emptyColumn')}</p>}
             </div>
           );
