@@ -102,7 +102,7 @@ const jobBudgetLabel = (job) => {
 // ═══════════════════════════════════════════════════════════════════════════
 export default function HelperDashboard() {
   const { t } = useTranslation();
-  const { user, isOnboardingComplete, refreshUser } = useAuth();
+  const { user, initialized, isOnboardingComplete, refreshUser } = useAuth();
   const { subscription, openPortal, createCheckout, refresh: refreshSubscription } = useSubscription();
   const life = useLifeDashboard();
   const navigate = useNavigate();
@@ -903,6 +903,8 @@ export default function HelperDashboard() {
   },[socket]);
 
   useEffect(()=>{
+    if (!initialized || !user) return;
+
     retryLoad();
     if(isOnboardingComplete){
       life.fetchSummary();
@@ -918,7 +920,7 @@ export default function HelperDashboard() {
         api.get('/house/my').then(r=>{ setHomes(r.data||[]); setHomesLoaded(true); }).catch(()=>{});
       }
     }
-  },[isOnboardingComplete]);
+  },[initialized, user, isOnboardingComplete, retryLoad, life]);
 
   // Fetch tab-specific data on tab switch
   useEffect(() => {
