@@ -2,8 +2,10 @@
 // 1:1 port of the design prototype, wired to the live /food API and rendered
 // inside the real site shell (Navbar + Footer). Per-restaurant accent theming,
 // featured grid, item-modifier modal, and a full multi-step cart/checkout
-// drawer (cart → details → payment → confirmed). Payment UI is presentational;
-// the order is placed through the real pay-in-store ordering API.
+// drawer (cart → details → payment → confirmed). Payment follows the backend
+// restaurant contract: pay_at_restaurant by default, restaurant_credit when
+// the signed-in customer holds an active wallet, and online card marked as
+// coming soon (the backend rejects pay_now with payment_mode_coming_soon).
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -15,6 +17,7 @@ import {
   placeFoodOrder,
   listFoodPromotions,
   listMyFoodOrders,
+  getMyFoodRestaurantWallet,
   formatFoodMoney,
 } from '../../api/food';
 import Navbar from '../../components/Navbar';
@@ -121,7 +124,10 @@ export default function FoodRestaurantPage() {
   const [addressLine2, setAddressLine2] = useState('');
   const [guestName, setGuestName] = useState('');
   const [deliverySlot, setDeliverySlot] = useState('asap');
-  const [paymentMethod, setPaymentMethod] = useState('counter');
+  // Payment mode matches the backend restaurant payment contract:
+  // pay_at_restaurant (default) | restaurant_credit (signed-in wallet holders).
+  const [paymentMethod, setPaymentMethod] = useState('pay_at_restaurant');
+  const [wallet, setWallet] = useState(null);
   const [placing, setPlacing] = useState(false);
   const [placedOrder, setPlacedOrder] = useState(null);
 
@@ -155,6 +161,23 @@ export default function FoodRestaurantPage() {
       .then((orders) => setPastOrdersRaw(Array.isArray(orders) ? orders : []))
       .catch(() => setPastOrdersRaw([]));
   }, [user, restaurantId]);
+
+  // Restaurant-credit wallet (signed-in customers only). When present and
+  // active, "Restaurant credit" appears as a real payment option.
+  useEffect(() => {
+    if (!user || !restaurantId) { setWallet(null); return; }
+    getMyFoodRestaurantWallet(restaurantId)
+      .then((w) => setWallet(w && w.status === 'active' ? w : null))
+      .catch(() => setWallet(null));
+  }, [user, restaurantId]);
+
+  // Never leave restaurant_credit selected if the wallet disappears (sign-out,
+  // wallet suspended, or restaurant switch).
+  useEffect(() => {
+    if (paymentMethod === 'restaurant_credit' && !wallet) {
+      setPaymentMethod('pay_at_restaurant');
+    }
+  }, [paymentMethod, wallet]);
 
   const restaurant = data?.restaurant;
   const currency = restaurant?.currency_code || 'USD';
@@ -190,6 +213,8 @@ export default function FoodRestaurantPage() {
       const payload = {
         orderSource: 'web',
         fulfillmentType,
+        // Canonical restaurant payment contract mode (never implies online card).
+        paymentMode: paymentMethod === 'restaurant_credit' ? 'restaurant_credit' : 'pay_at_restaurant',
         guestName: !user ? (guestName.trim() || undefined) : undefined,
         items: cartItems.map((line) => ({
           menuItemId: line.menuItemId,
@@ -581,10 +606,34 @@ export default function FoodRestaurantPage() {
     { id: '+30', label: 'In 30 minutes', sub: 'Scheduled ahead' },
     { id: 'later', label: 'Schedule for later', sub: 'Choose a specific time' },
   ];
+  // Payment options mirror the backend contract (`pay_at_restaurant`,
+  // `restaurant_credit`, `direct_payment`); online card checkout is not live
+  // yet, so it is shown as coming soon rather than as a selectable default.
+  const walletBalanceCents = Number(wallet?.balanceCents || 0);
+  const walletCoversOrder = walletBalanceCents >= orderTotalCents;
   const paymentMethods = [
-    { id: 'counter', icon: '🏪', label: 'Pay in store', sub: 'Card or cash when ready' },
-    { id: 'card', icon: '💳', label: 'Card', sub: 'Added at the counter' },
-    { id: 'apple', icon: '🍎', label: 'Apple Pay', sub: 'Touch ID or Face ID' },
+    {
+      id: 'pay_at_restaurant',
+      icon: '🏪',
+      label: isPickup ? 'Pay at the restaurant' : 'Pay on delivery',
+      sub: 'Card or cash, settled with the restaurant',
+    },
+    ...(wallet ? [{
+      id: 'restaurant_credit',
+      icon: '💠',
+      label: 'Restaurant credit',
+      sub: walletCoversOrder
+        ? `${formatFoodMoney(walletBalanceCents, wallet.currencyCode || currency)} available`
+        : `Insufficient balance — ${formatFoodMoney(walletBalanceCents, wallet.currencyCode || currency)} available`,
+      disabled: !walletCoversOrder,
+    }] : []),
+    {
+      id: 'card_online',
+      icon: '💳',
+      label: 'Pay online by card',
+      sub: 'Coming soon',
+      disabled: true,
+    },
   ];
 
   const detailsTitle = isPickup ? 'Pickup Details' : 'Delivery Details';
@@ -1073,7 +1122,7 @@ export default function FoodRestaurantPage() {
                     {!isPickup && (
                       <>
                         <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>Street Address</p>
-                        <input value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} placeholder="142 High St, Columbus OH 43215…" style={inputStyle} />
+                        <input value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} placeholder="Street and number…" style={inputStyle} />
                         <p style={{ ...sectionLabel, color: '#64748b', marginBottom: 6 }}>Apt / Suite <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>(optional)</span></p>
                         <input value={addressLine2} onChange={(e) => setAddressLine2(e.target.value)} placeholder="Apt 4B…" style={{ ...inputStyle, marginBottom: 20 }} />
                       </>
@@ -1114,8 +1163,9 @@ export default function FoodRestaurantPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
                       {paymentMethods.map((pm) => {
                         const on = paymentMethod === pm.id;
+                        const disabled = Boolean(pm.disabled);
                         return (
-                          <button key={pm.id} onClick={() => setPaymentMethod(pm.id)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 12, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accentBg : '#fff', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+                          <button key={pm.id} disabled={disabled} onClick={() => !disabled && setPaymentMethod(pm.id)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 12, border: `1.5px solid ${on ? accent : '#e2e8f0'}`, background: on ? accentBg : '#fff', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.55 : 1, textAlign: 'left', width: '100%' }}>
                             <span style={{ fontSize: 24, flexShrink: 0 }}>{pm.icon}</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', marginBottom: 2 }}>{pm.label}</p>
@@ -1132,7 +1182,11 @@ export default function FoodRestaurantPage() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748b', marginBottom: 10 }}><span>{delivFeeLabel}</span><span style={{ fontWeight: 600, color: '#0f172a' }}>{delivFeeStr}</span></div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, paddingTop: 10, borderTop: '1px solid #e2e8f0' }}><span style={{ color: '#0f172a' }}>Total</span><span style={{ color: '#0f172a' }}>{formatFoodMoney(orderTotalCents, currency)}</span></div>
                     </div>
-                    <p style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', marginBottom: 4 }}>💳 Payment is collected {isPickup ? 'at the counter' : 'on delivery'} when your order is ready.</p>
+                    <p style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', marginBottom: 4 }}>
+                      {paymentMethod === 'restaurant_credit'
+                        ? '💠 Your restaurant credit is charged when the order is placed.'
+                        : `🏪 Payment is settled with the restaurant ${isPickup ? 'at the counter' : 'on delivery'} when your order is ready. No card is charged online.`}
+                    </p>
                   </div>
                   <div style={{ padding: '14px 20px 20px', borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
                     <button onClick={submitOrder} disabled={placing} style={{ width: '100%', height: 52, background: accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: placing ? 'wait' : 'pointer', opacity: placing ? 0.7 : 1 }}>{placing ? 'Placing order…' : `Place Order · ${formatFoodMoney(orderTotalCents, currency)}`}</button>

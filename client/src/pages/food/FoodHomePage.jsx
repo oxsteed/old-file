@@ -13,21 +13,31 @@ import '../../styles/FoodPages.css';
 const DEFAULT_CENTER = [25.0, -40.0];
 const DEFAULT_ZOOM = 2;
 
-// Static cuisine categories — always shown, even before restaurants load.
-const CUISINE_ICONS = [
-  { key: 'Pizza',       icon: '🍕' },
-  { key: 'Burgers',     icon: '🍔' },
-  { key: 'Asian',       icon: '🍜' },
-  { key: 'Mexican',     icon: '🌮' },
-  { key: 'Sushi',       icon: '🍱' },
-  { key: 'Chicken',     icon: '🍗' },
-  { key: 'Seafood',     icon: '🦞' },
-  { key: 'Vegan',       icon: '🥗' },
-  { key: 'Desserts',    icon: '🍦' },
-  { key: 'Breakfast',   icon: '🥞' },
-  { key: 'Indian',      icon: '🍛' },
-  { key: 'Italian',     icon: '🍝' },
+// Icon lookup for cuisine tags coming from the live restaurant data. The
+// strip is data-driven: only cuisines that actually exist in the current
+// market are rendered, so the page never advertises categories with zero
+// restaurants behind them.
+const CUISINE_ICON_RULES = [
+  [/pizza|italian|pasta/i, '🍕'],
+  [/burger|fast/i, '🍔'],
+  [/asian|noodle|ramen|thai|chinese|vietnamese|pho/i, '🍜'],
+  [/mexican|taco|burrito/i, '🌮'],
+  [/sushi|japanese/i, '🍱'],
+  [/chicken|wings/i, '🍗'],
+  [/seafood|fish|lobster|crab/i, '🦞'],
+  [/vegan|vegetarian|salad|healthy/i, '🥗'],
+  [/dessert|ice cream|sweet|pastry|bakery/i, '🍦'],
+  [/breakfast|brunch|pancake/i, '🥞'],
+  [/indian|curry/i, '🍛'],
+  [/haitian|caribbean|creole|jerk/i, '🍲'],
+  [/coffee|cafe|café|espresso/i, '☕'],
+  [/bbq|grill|smoke/i, '🍖'],
 ];
+
+function iconForCuisine(tag) {
+  const hit = CUISINE_ICON_RULES.find(([re]) => re.test(String(tag || '')));
+  return hit ? hit[1] : '🍽️';
+}
 
 /** Skeleton card — shows while loading. */
 function SkeletonCard() {
@@ -222,9 +232,10 @@ export default function FoodHomePage() {
   const hasNearby = !isSearching && nearbyRestaurants.length > 0;
   const hasData = restaurants.length > 0;
 
-  // Use data-driven cuisine chips if available, else fall back to static icons for filtering UI
-  const showStaticCuisines = !hasData && !isSearching;
-  const filterCuisines = cuisinesFromData.length > 1 ? cuisinesFromData : [];
+  // Cuisine strip is driven by live restaurant data only — no hardcoded
+  // market assumptions. When the current market has no restaurants (or only
+  // one cuisine), the strip is hidden instead of advertising empty categories.
+  const cuisineStrip = cuisinesFromData.map((tag) => ({ key: tag, icon: iconForCuisine(tag) }));
 
   return (
     <PageShell>
@@ -266,23 +277,25 @@ export default function FoodHomePage() {
         </div>
       </div>
 
-      {/* ── Cuisine category strip — always visible ── */}
-      <div className="fd-home-categories">
-        {CUISINE_ICONS.map(({ key, icon }) => {
-          const isActive = activeCuisine === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              className={`fd-home-cat-btn${isActive ? ' fd-home-cat-btn--active' : ''}`}
-              onClick={() => setActiveCuisine(isActive ? null : key)}
-            >
-              <span className="fd-home-cat-icon">{icon}</span>
-              <span className="fd-home-cat-label">{key}</span>
-            </button>
-          );
-        })}
-      </div>
+      {/* ── Cuisine category strip — built from live restaurant data ── */}
+      {cuisineStrip.length > 1 && (
+        <div className="fd-home-categories">
+          {cuisineStrip.map(({ key, icon }) => {
+            const isActive = activeCuisine === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                className={`fd-home-cat-btn${isActive ? ' fd-home-cat-btn--active' : ''}`}
+                onClick={() => setActiveCuisine(isActive ? null : key)}
+              >
+                <span className="fd-home-cat-icon">{icon}</span>
+                <span className="fd-home-cat-label">{key}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── Map toggle ── */}
       <div className="fd-map-toggle-row">
@@ -415,29 +428,6 @@ export default function FoodHomePage() {
                   {nearbyRestaurants.map((r) => <RestaurantCard key={r.id} r={r} t={t} />)}
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Data-driven cuisine filter chips (supplement static row) */}
-          {filterCuisines.length > 1 && (
-            <div className="fd-cuisine-chips" role="group" aria-label={t('food.home.filterByCuisine')}>
-              <button
-                type="button"
-                className={`fd-cuisine-chip${activeCuisine === null ? ' fd-cuisine-chip--active' : ''}`}
-                onClick={() => setActiveCuisine(null)}
-              >
-                {t('food.home.allTitle')}
-              </button>
-              {filterCuisines.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  className={`fd-cuisine-chip${activeCuisine === c ? ' fd-cuisine-chip--active' : ''}`}
-                  onClick={() => setActiveCuisine(activeCuisine === c ? null : c)}
-                >
-                  {c}
-                </button>
-              ))}
             </div>
           )}
 
