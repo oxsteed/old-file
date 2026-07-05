@@ -12,6 +12,10 @@ function isAsyncPaymentCapture() {
   return String(process.env.PAYMENT_CAPTURE_ASYNC || '').toLowerCase() === 'true';
 }
 
+function getAppBaseUrl() {
+  return process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com';
+}
+
 /**
  * Payment Controller - Stripe Connect Direct Charges
  *
@@ -30,8 +34,8 @@ exports.createConnectAccount = async (req, res, next) => {
       if (!existing.rows[0].onboarding_complete) {
         const link = await stripe.accountLinks.create({
           account: existing.rows[0].stripe_account_id,
-          refresh_url: `${process.env.CLIENT_URL}/helper-dashboard?refresh=true`,
-          return_url: `${process.env.CLIENT_URL}/helper-dashboard?onboarding=complete`,
+          refresh_url: `${getAppBaseUrl()}/helper-dashboard?refresh=true`,
+          return_url: `${getAppBaseUrl()}/helper-dashboard?onboarding=complete`,
           type: 'account_onboarding',
         });
         return res.json({ url: link.url, onboarding_url: link.url, account_id: existing.rows[0].stripe_account_id });
@@ -53,8 +57,8 @@ exports.createConnectAccount = async (req, res, next) => {
 
     const link = await stripe.accountLinks.create({
       account: account.id,
-      refresh_url: `${process.env.CLIENT_URL}/helper-dashboard?refresh=true`,
-      return_url: `${process.env.CLIENT_URL}/helper-dashboard?onboarding=complete`,
+      refresh_url: `${getAppBaseUrl()}/helper-dashboard?refresh=true`,
+      return_url: `${getAppBaseUrl()}/helper-dashboard?onboarding=complete`,
       type: 'account_onboarding',
     });
     res.json({ url: link.url, onboarding_url: link.url, account_id: account.id });

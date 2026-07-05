@@ -208,6 +208,37 @@ describe('GET /api/payments/connect/status', () => {
   });
 });
 
+describe('POST /api/payments/connect', () => {
+  test('creates an onboarding link using APP_URL fallback when CLIENT_URL is absent', async () => {
+    const prevAppUrl = process.env.APP_URL;
+    const prevClientUrl = process.env.CLIENT_URL;
+    try {
+      process.env.APP_URL = 'https://oxsteed.com';
+      delete process.env.CLIENT_URL;
+
+      stripe.accounts.create.mockResolvedValueOnce({ id: 'acct_new' });
+      stripe.accountLinks.create.mockResolvedValueOnce({ url: 'https://stripe.test/onboard' });
+
+      mockAuth(
+        { rows: [] }, // existing connect account lookup
+        { rows: [] }, // INSERT connect account
+      );
+
+      const res = await auth(request(buildApp()).post('/api/payments/connect'));
+
+      expect(res.status).toBe(200);
+      expect(res.body.url).toBe('https://stripe.test/onboard');
+      expect(stripe.accountLinks.create).toHaveBeenCalledWith(expect.objectContaining({
+        refresh_url: 'https://oxsteed.com/helper-dashboard?refresh=true',
+        return_url: 'https://oxsteed.com/helper-dashboard?onboarding=complete',
+      }));
+    } finally {
+      process.env.APP_URL = prevAppUrl;
+      process.env.CLIENT_URL = prevClientUrl;
+    }
+  });
+});
+
 describe('GET /api/payments/me role filtering', () => {
   test('uses payee_id when role=payee so earners see payout history', async () => {
     mockAuth(
