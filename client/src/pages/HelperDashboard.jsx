@@ -5,7 +5,6 @@ import PageMeta from '../components/PageMeta';
 import useSubscription from '../hooks/useSubscription';
 import useLifeDashboard from '../hooks/useLifeDashboard';
 import BadgeDisplay from '../components/BadgeDisplay';
-import RecommendationFeed from '../components/RecommendationFeed';
 import api from '../api/axios';
 import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -18,7 +17,6 @@ import HelperAvailabilityEditor from '../components/HelperAvailabilityEditor';
 import { useSocket } from '../hooks/useSocket';
 import { ProgressBar, Card, CardHeader, Btn, Input, Select } from '../components/dashboardUI';
 import ReviewsList from '../components/reviews/ReviewsList';
-import { formatDate, formatMoney } from '../lib/format';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -49,23 +47,6 @@ const IcoCalendar  = (p) => <Ico {...p}><rect x="3" y="4" width="18" height="18"
 const IcoWrench    = (p) => <Ico {...p}><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></Ico>;
 const IcoFileText  = (p) => <Ico {...p}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></Ico>;
 
-const SHOW_LEGACY_HELPER_RECOMMENDATIONS = false;
-const SHOW_LEGACY_HELPER_GROWTH_CENTER = false;
-const SHOW_LEGACY_HELPER_LIFE_TABS = false;
-const SHOW_LEGACY_HELPER_PRODUCTS_TAB = false;
-const FOCUSED_HELPER_DASHBOARD_TABS = new Set([
-  'pulse',
-  'editprofile',
-  'availability',
-  'aiKnowledge',
-  'earnings',
-  'jobs',
-  'skills',
-  'invoices',
-  'bids',
-  'reviews',
-]);
-
 // ── Shared UI ─────────────────────────────────────────────────────────────
 const Tag = ({ text, color = 'orange' }) => {
   const m = { orange:'bg-orange-500/15 text-orange-400', green:'bg-emerald-500/15 text-emerald-400', red:'bg-red-500/15 text-red-400', gray:'bg-gray-700/40 text-gray-400', blue:'bg-blue-500/15 text-blue-400', purple:'bg-purple-500/15 text-purple-400' };
@@ -86,23 +67,11 @@ const Modal = ({open,onClose,title,children})=>{
 // Format a Date as YYYY-MM-DD in local time (avoids UTC-shift from toISOString())
 const localDateStr = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-const monthYearLabel = () => formatDate(new Date(), { month: 'long', year: 'numeric', day: undefined });
-const signedMoney = (value, type) => `${type === 'income' ? '+' : '-'}${formatMoney(Math.abs(Number(value || 0)))}`;
-const jobBudgetLabel = (job) => {
-  const min = Number(job.budget_min);
-  const max = Number(job.budget_max);
-  const hasMin = Number.isFinite(min) && min > 0;
-  const hasMax = Number.isFinite(max) && max > 0;
-  if (hasMin && hasMax) return `${formatMoney(min, { maximumFractionDigits: 0 })}-${formatMoney(max, { maximumFractionDigits: 0 })}`;
-  if (hasMin) return formatMoney(min, { maximumFractionDigits: 0 });
-  if (hasMax) return formatMoney(max, { maximumFractionDigits: 0 });
-  return '';
-};
 
 // ═══════════════════════════════════════════════════════════════════════════
 export default function HelperDashboard() {
   const { t } = useTranslation();
-  const { user, initialized, isOnboardingComplete, refreshUser } = useAuth();
+  const { user, isOnboardingComplete, refreshUser } = useAuth();
   const { subscription, openPortal, createCheckout, refresh: refreshSubscription } = useSubscription();
   const life = useLifeDashboard();
   const navigate = useNavigate();
@@ -116,10 +85,7 @@ export default function HelperDashboard() {
   const [error, setError] = useState(false);
   const [welcomeMsg] = useState(location.state?.message||null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [tab, setTab] = useState(() => {
-    const requestedTab = searchParams.get('tab') || 'pulse';
-    return FOCUSED_HELPER_DASHBOARD_TABS.has(requestedTab) ? requestedTab : 'pulse';
-  });
+  const [tab, setTab] = useState(() => searchParams.get('tab') || 'pulse');
   useEffect(()=>{
     if(searchParams.get('subscribed')==='true'){
       toast.success(t('helperDashboard.proActivated'));
@@ -127,16 +93,10 @@ export default function HelperDashboard() {
       refreshSubscription?.();
       setSearchParams({},{replace:true});
     }
-    if(searchParams.get('onboarding')==='complete'){
-      toast.success('✅ Payment account connected! You can now receive payments for jobs.');
-      refreshUser?.();
-      setSearchParams({},{replace:true});
-    }
   },[]);
 
   useEffect(() => {
-    const requestedTab = searchParams.get('tab') || 'pulse';
-    const urlTab = FOCUSED_HELPER_DASHBOARD_TABS.has(requestedTab) ? requestedTab : 'pulse';
+    const urlTab = searchParams.get('tab') || 'pulse';
     if (urlTab === tab) return;
     const n = new URLSearchParams(searchParams);
     if (tab === 'pulse') n.delete('tab');
@@ -206,7 +166,7 @@ export default function HelperDashboard() {
     } catch (err) { toast.error(err.response?.data?.error || t('helperDashboard.products.saveFailed')); }
   };
   const handleDeleteProduct = async (id) => {
-    if (!confirm(t('helperDashboard.products.removeConfirm'))) return;
+    if (!confirm('Remove this product listing?')) return;
     try {
       await api.delete(`/helper-products/${id}`);
       toast.success(t('helperDashboard.products.removed'));
@@ -322,9 +282,9 @@ export default function HelperDashboard() {
 
   const handleSaveInvoice = async (e) => {
     e.preventDefault();
-    if (!invoiceForm.client_name.trim()) return toast.error(t('helperDashboard.invoices.clientNameRequired'));
-    if (!invoiceForm.client_email.trim()) return toast.error(t('helperDashboard.invoices.clientEmailRequired'));
-    if (invoiceForm.line_items.length === 0) return toast.error(t('helperDashboard.invoices.lineItemRequired'));
+    if (!invoiceForm.client_name.trim()) return toast.error('Client name required');
+    if (!invoiceForm.client_email.trim()) return toast.error('Client email required');
+    if (invoiceForm.line_items.length === 0) return toast.error('Add at least one line item');
 
     const payload = {
       client_email: invoiceForm.client_email,
@@ -474,7 +434,7 @@ export default function HelperDashboard() {
     } catch (err) { toast.error(err.response?.data?.error || t('helperDashboard.skills.saveFailed')); }
   };
   const handleDeleteSkill = async (id) => {
-    if (!confirm(t('helperDashboard.skills.removeConfirm'))) return;
+    if (!confirm('Remove this skill listing?')) return;
     try {
       await api.delete(`/user-skills/${id}`);
       toast.success(t('helperDashboard.skills.removed'));
@@ -581,7 +541,7 @@ export default function HelperDashboard() {
     } catch (err) { toast.error(err.response?.data?.error || t('helperDashboard.tools.saveFailed')); }
   };
   const handleDeleteTool = async (id) => {
-    if (!confirm(t('helperDashboard.tools.removeConfirm'))) return;
+    if (!confirm('Remove this tool listing?')) return;
     try {
       await api.delete(`/tool-rentals/${id}`);
       toast.success(t('helperDashboard.tools.removed'));
@@ -903,8 +863,6 @@ export default function HelperDashboard() {
   },[socket]);
 
   useEffect(()=>{
-    if (!initialized || !user) return;
-
     retryLoad();
     if(isOnboardingComplete){
       life.fetchSummary();
@@ -920,7 +878,7 @@ export default function HelperDashboard() {
         api.get('/house/my').then(r=>{ setHomes(r.data||[]); setHomesLoaded(true); }).catch(()=>{});
       }
     }
-  },[initialized, user, isOnboardingComplete, retryLoad, life]);
+  },[isOnboardingComplete]);
 
   // Fetch tab-specific data on tab switch
   useEffect(() => {
@@ -1148,17 +1106,13 @@ export default function HelperDashboard() {
     { id: 'aiKnowledge',  label: t('helperDashboard.tabs.aiKnowledge') },
     { id: 'earnings',     label: t('helperDashboard.tabs.earnings') },
     { id: 'jobs',         label: t('helperDashboard.tabs.findJobs') },
-    ...(SHOW_LEGACY_HELPER_LIFE_TABS ? [
-      { id: 'money',        label: t('dashboard.tabs.money') },
-      { id: 'home',         label: t('dashboard.tabs.home') },
-      { id: 'goals',        label: t('dashboard.tabs.goals') },
-      { id: 'personalcare', label: t('dashboard.tabs.personalCare') },
-      { id: 'carcare',      label: t('dashboard.tabs.carCare') },
-    ] : []),
+    { id: 'money',        label: t('dashboard.tabs.money') },
+    { id: 'home',         label: t('dashboard.tabs.home') },
+    { id: 'goals',        label: t('dashboard.tabs.goals') },
+    { id: 'personalcare', label: t('dashboard.tabs.personalCare') },
+    { id: 'carcare',      label: t('dashboard.tabs.carCare') },
     { id: 'skills',       label: t('dashboard.tabs.skillsTools') },
-    ...(SHOW_LEGACY_HELPER_PRODUCTS_TAB ? [
-      { id: 'products',     label: t('dashboard.tabs.products') },
-    ] : []),
+    { id: 'products',     label: t('dashboard.tabs.products') },
     { id: 'invoices',     label: t('helperDashboard.tabs.invoices') },
     { id: 'bids',         label: t('helperDashboard.tabs.myBids') },
     { id: 'reviews',      label: t('helperDashboard.tabs.reviews') },
@@ -1193,8 +1147,6 @@ export default function HelperDashboard() {
             <TrialBanner />
           </div>
           <HelperOffersCard />
-
-          {SHOW_LEGACY_HELPER_RECOMMENDATIONS && <RecommendationFeed title="What to do next" />}
 
           {welcomeMsg&&<div className="mb-5 flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-medium"><span>🎉</span><span>{welcomeMsg}</span></div>}
 
@@ -1242,7 +1194,6 @@ export default function HelperDashboard() {
             </Btn>
           </div>
 
-          {SHOW_LEGACY_HELPER_GROWTH_CENTER && (
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-8 bg-orange-500/10 border border-orange-500/25 rounded-2xl p-5">
             <div>
               <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold mb-1">Growth Center</p>
@@ -1255,7 +1206,6 @@ export default function HelperDashboard() {
               Open Growth Center
             </Link>
           </div>
-          )}
 
           {/* Tabs */}
           {tabs.length>1&&(
@@ -1270,27 +1220,6 @@ export default function HelperDashboard() {
               <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 flex items-center gap-2">
                 <span>⚠</span>
                 <span>{t('helperDashboard.someDataFailed')} <button onClick={retryLoad} className="underline hover:text-red-300">{t('common.retry')}</button></span>
-              </div>
-            )}
-
-            {/* Stripe Connect onboarding banner */}
-            {isOnboardingComplete && !user?.stripe_connect_ready && (
-              <div className="mb-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-yellow-400 font-semibold text-sm">💳 Connect your payment account</p>
-                  <p className="text-gray-400 text-xs mt-0.5">You need a Stripe account to receive payments for jobs. It only takes a few minutes.</p>
-                </div>
-                <button
-                  className="shrink-0 px-4 py-2 bg-yellow-500 text-gray-900 font-semibold text-sm rounded-lg hover:bg-yellow-400 transition-colors"
-                  onClick={async () => {
-                    try {
-                      const { data } = await api.post('/payments/connect');
-                      if (data.url) window.location.href = data.url;
-                    } catch (e) { toast.error('Could not start payment setup. Try again.'); }
-                  }}
-                >
-                  Set Up Payments
-                </button>
               </div>
             )}
 
@@ -1356,7 +1285,7 @@ export default function HelperDashboard() {
           {/* Summary stat cards */}
           <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 ${showOnboarding?'opacity-50 pointer-events-none':''}`}>
             <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('helperDashboard.jobsCompleted')}</p><p className="text-2xl font-bold text-orange-400">{user?.completed_jobs||0}</p><p className="text-xs text-gray-500 mt-1">{user?.avg_rating?`${user.avg_rating}★ avg`:t('helperDashboard.noReviewsYet')}</p></Card>
-            <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('dashboard.summary.netThisMonth')}</p><p className={`text-2xl font-bold ${(s?.finances?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>{formatMoney(s?.finances?.net || 0)}</p><p className="text-xs text-gray-500 mt-1">{t('dashboard.money.inOutSummary', { income: formatMoney(s?.finances?.total_income || 0, { maximumFractionDigits: 0 }), expenses: formatMoney(s?.finances?.total_expenses || 0, { maximumFractionDigits: 0 }) })}</p></Card>
+            <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('dashboard.summary.netThisMonth')}</p><p className={`text-2xl font-bold ${(s?.finances?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>${(s?.finances?.net||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</p><p className="text-xs text-gray-500 mt-1">${(s?.finances?.total_income||0).toFixed(0)} in · ${(s?.finances?.total_expenses||0).toFixed(0)} out</p></Card>
             <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('helperDashboard.activeBids')}</p><p className="text-2xl font-bold text-blue-400">{activeBids.length}</p><p className="text-xs text-gray-500 mt-1">{wonBids.length} {t('helperDashboard.accepted')}</p></Card>
             <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('helperDashboard.goalsLabel')}</p><p className="text-2xl font-bold text-purple-400">{s?.goals?.avg_progress||0}%</p><p className="text-xs text-gray-500 mt-1">{s?.goals?.active||0} {t('helperDashboard.inProgress')}</p></Card>
           </div>
@@ -1369,7 +1298,7 @@ export default function HelperDashboard() {
                 {isProActive?(<><p className="text-lg font-bold text-orange-400 mb-1">{t('common.pro')}</p><Tag text={t('helperDashboard.active')} color="green"/><button onClick={openPortal} className="mt-2 text-xs text-gray-400 hover:text-gray-200 transition font-medium block">{t('helperDashboard.manageBilling')} →</button></>)
                 :isTrialActive?(<><p className="text-lg font-bold text-orange-400 mb-1">{t('common.pro')}</p><Tag text={`${t('trial.active', { defaultValue: 'Trial Active' })} · ${trialDaysLeft} ${trialDaysLeft === 1 ? t('trial.dayLeft', { defaultValue: 'day left' }) : t('trial.daysLeft', { defaultValue: 'days left' })}`} color="purple"/><p className="text-xs text-gray-500 my-2">All new accounts start with free Pro access, including verification and background check tools.</p><button onClick={()=>navigate('/upgrade')} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.viewPlans')}</button></>)
                 :selectedProNoPay?(<><p className="text-lg font-bold text-orange-400 mb-1">{t('common.pro')}</p><Tag text={t('helperDashboard.paymentPending')} color="orange"/><p className="text-xs text-gray-500 my-2">{t('helperDashboard.selectedProNoPay')}</p><button onClick={()=>createCheckout('pro')} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.completeUpgrade')}</button></>)
-                :(<><p className="text-lg font-bold text-gray-400 mb-1">{t('helperDashboard.free')}</p><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.upgradeHint')}</p><button onClick={()=>{ try{window.gtag&&window.gtag('event','upgrade_clicked',{from_tier:'free',source:'helper_dashboard'});}catch(_){} navigate('/upgrade');}} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.upgradeToPro')}</button></>)}
+                :(<><p className="text-lg font-bold text-gray-400 mb-1">{t('helperDashboard.free')}</p><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.upgradeHint')}</p><button onClick={()=>navigate('/upgrade')} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.upgradeToPro')}</button></>)}
               </Card>
               <Card>
                 <div className="flex items-center gap-2 mb-3"><IcoShield size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.backgroundCheck')}</span></div>
@@ -1458,11 +1387,11 @@ export default function HelperDashboard() {
         {/* ═══════ EARNINGS ═══════ */}
         {tab==='earnings'&&(<>
           <Card className="mb-6">
-            <CardHeader icon={IcoDollar} title={monthYearLabel()} right={<Btn onClick={()=>setShowExpenseModal(true)}>{t('dashboard.money.logTransaction')}</Btn>}/>
+            <CardHeader icon={IcoDollar} title={`${new Date().toLocaleString('en-US',{month:'long'})} ${new Date().getFullYear()}`} right={<Btn onClick={()=>setShowExpenseModal(true)}>{t('dashboard.money.logTransaction')}</Btn>}/>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.income')}</p><p className="text-xl font-bold text-emerald-400">{formatMoney(life.expenseSummary?.total_income || 0)}</p></div>
-              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.expenses')}</p><p className="text-xl font-bold text-red-400">{formatMoney(life.expenseSummary?.total_expenses || 0)}</p></div>
-              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.net')}</p><p className={`text-xl font-bold ${(life.expenseSummary?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>{formatMoney(life.expenseSummary?.net || 0)}</p></div>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.income')}</p><p className="text-xl font-bold text-emerald-400">${(life.expenseSummary?.total_income||0).toFixed(2)}</p></div>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.expenses')}</p><p className="text-xl font-bold text-red-400">${(life.expenseSummary?.total_expenses||0).toFixed(2)}</p></div>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.net')}</p><p className={`text-xl font-bold ${(life.expenseSummary?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>${(life.expenseSummary?.net||0).toFixed(2)}</p></div>
               <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.savingsRate')}</p>
                 {(life.expenseSummary?.total_income||0) > 0
                   ? <p className={`text-xl font-bold ${((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)>=20?'text-emerald-400':((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)>=0?'text-yellow-400':'text-red-400'}`}>{Math.round((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)}%</p>
@@ -1487,7 +1416,7 @@ export default function HelperDashboard() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`text-sm font-bold ${e.type==='income'?'text-emerald-400':'text-red-400'}`}>{signedMoney(e.amount, e.type)}</span>
+                    <span className={`text-sm font-bold ${e.type==='income'?'text-emerald-400':'text-red-400'}`}>{e.type==='income'?'+':'-'}${parseFloat(e.amount).toFixed(2)}</span>
                     <button onClick={async()=>{await life.deleteExpense(e.id);life.fetchSummary();life.fetchExpenses();toast.success(t('helperDashboard.deleted'));}} className="opacity-0 group-hover:opacity-100 transition"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button>
                   </div>
                 </div>
@@ -1509,34 +1438,21 @@ export default function HelperDashboard() {
             :<div className="space-y-2">{nearbyJobs.map(job=>(
               <Link key={job.id} to={`/jobs/${job.id}`} className="flex items-center justify-between p-5 bg-gray-900/60 border border-gray-700/40 rounded-2xl hover:border-gray-600 transition group">
                 <div className="min-w-0 flex-1 mr-4"><div className="flex items-center gap-2 mb-1"><p className="text-white font-medium group-hover:text-orange-400 transition truncate">{job.title}</p>{job.is_urgent&&<Tag text={t('jobDetail.urgencyASAP')} color="red"/>}</div><p className="text-xs text-gray-500 truncate">{job.category_name||job.category}{job.location_city?` · ${job.location_city}`:''}{job.bid_count>0?` · ${job.bid_count} bids`:''}</p></div>
-                <div className="flex items-center gap-3 flex-shrink-0">{(job.budget_min||job.budget_max)&&<span className="text-base font-bold text-emerald-400">{jobBudgetLabel(job)}</span>}<span className="text-xs bg-orange-500/15 text-orange-400 px-3 py-1.5 rounded-lg font-semibold">{t('helperDashboard.viewJobBtn')}</span></div>
+                <div className="flex items-center gap-3 flex-shrink-0">{(job.budget_min||job.budget_max)&&<span className="text-base font-bold text-emerald-400">${job.budget_min||'?'}–${job.budget_max||'?'}</span>}<span className="text-xs bg-orange-500/15 text-orange-400 px-3 py-1.5 rounded-lg font-semibold">{t('helperDashboard.viewJobBtn')}</span></div>
               </Link>
             ))}</div>}
           </div>
-        )}
-
-        {/* ═══════ AFFILIATE CTA (earnings tab) ═══════ */}
-        {tab==='earnings'&&(
-          <Link to="/affiliate" className="block mb-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 hover:bg-orange-500/15 transition group">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-orange-400 font-semibold text-sm mb-0.5">Affiliate earnings dashboard</p>
-                <p className="text-gray-400 text-xs">Track commissions, conversion funnel, top products, and request payouts</p>
-              </div>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-orange-400 group-hover:translate-x-0.5 transition-transform"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </div>
-          </Link>
         )}
 
         {/* ═══════ MONEY ═══════ */}
         {tab==='money'&&(<>
           {/* Monthly summary */}
           <Card className="mb-6">
-            <CardHeader icon={IcoDollar} title={monthYearLabel()} right={<Btn onClick={()=>setShowExpenseModal(true)}>{t('dashboard.money.logTransaction')}</Btn>}/>
+            <CardHeader icon={IcoDollar} title={`${new Date().toLocaleString('en-US',{month:'long'})} ${new Date().getFullYear()}`} right={<Btn onClick={()=>setShowExpenseModal(true)}>{t('dashboard.money.logTransaction')}</Btn>}/>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.income')}</p><p className="text-xl font-bold text-emerald-400">{formatMoney(life.expenseSummary?.total_income || 0)}</p></div>
-              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.expenses')}</p><p className="text-xl font-bold text-red-400">{formatMoney(life.expenseSummary?.total_expenses || 0)}</p></div>
-              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.net')}</p><p className={`text-xl font-bold ${(life.expenseSummary?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>{formatMoney(life.expenseSummary?.net || 0)}</p></div>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.income')}</p><p className="text-xl font-bold text-emerald-400">${(life.expenseSummary?.total_income||0).toFixed(2)}</p></div>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.expenses')}</p><p className="text-xl font-bold text-red-400">${(life.expenseSummary?.total_expenses||0).toFixed(2)}</p></div>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.net')}</p><p className={`text-xl font-bold ${(life.expenseSummary?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>${(life.expenseSummary?.net||0).toFixed(2)}</p></div>
               <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.savingsRate')}</p>
                 {(life.expenseSummary?.total_income||0)>0
                   ?<p className={`text-xl font-bold ${((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)>=20?'text-emerald-400':((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)>=0?'text-yellow-400':'text-red-400'}`}>{Math.round((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)}%</p>
