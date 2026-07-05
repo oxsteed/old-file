@@ -6,7 +6,9 @@ const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 const {
   getIntegrations,
+  disconnectStripe,
   regenerateApiKey,
+  stripeCallback,
   stripeAuthUrl,
   updateIntegration,
 } = require('../controllers/businessIntegrationsController');
@@ -21,6 +23,8 @@ function buildApp() {
   app.get('/api/businesses/:businessId/integrations', getIntegrations);
   app.post('/api/businesses/:businessId/integrations/api-key/regenerate', regenerateApiKey);
   app.post('/api/businesses/:businessId/integrations/stripe/auth', stripeAuthUrl);
+  app.get('/api/businesses/:businessId/integrations/stripe/callback', stripeCallback);
+  app.post('/api/businesses/:businessId/integrations/stripe/disconnect', disconnectStripe);
   app.patch('/api/businesses/:businessId/integrations/:integrationType', updateIntegration);
   app.use(errorHandler);
   return app;
@@ -53,6 +57,7 @@ describe('business integrations controls', () => {
           },
         ],
       })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ cnt: '2' }] });
 
     const res = await request(buildApp()).get('/api/businesses/12/integrations');
@@ -150,7 +155,78 @@ describe('business integrations controls', () => {
     expect(res.status).toBe(200);
     expect(res.body.auth_url).toContain('https://connect.stripe.com/oauth/authorize');
     expect(res.body.auth_url).toContain('client_id=ca_test_realclient');
+    expect(res.body.auth_url).toContain('state=');
     expect(res.body.auth_url).not.toContain('ca_placeholder');
     expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
+  test('exchanges the Stripe Connect callback code and persists the connected account', async () => {
+    process.env.CLIENT_URL = 'https://app.oxsteed.test';
+    process.env.STRIPE_CLIENT_ID = 'ca_test_realclient';
+    process.env.STRIPE_CLIENT_SECRET = 'sk_test_realclient';
+    process.env.STRIPE_SECRET_KEY = 'sk_test_dummy';
+    const previousFetch = global.fetch;
+
+    try {
+      const statePayload = Buffer.from(JSON.stringify({
+        businessId: '12',
+        ts: Date.now(),
+        nonce: 'nonce-test',
+      })).toString('base64url');
+      const stateSig = require('crypto')
+        .createHmac('sha256', process.env.JWT_SECRET)
+        .update(statePayload)
+        .digest('base64url');
+
+      global.fetch = jest.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            access_token: 'acct_access_token',
+            refresh_token: 'acct_refresh_token',
+            expires_in: 3600,
+            scope: 'read_write',
+            livemode: false,
+            token_type: 'bearer',
+            stripe_user_id: 'acct_123',
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            id: 'acct_123',
+            charges_enabled: true,
+            payouts_enabled: true,
+            details_submitted: true,
+            default_currency: 'usd',
+            country: 'US',
+            requirements: { currently_due: [] },
+          }),
+        });
+
+      mockQuery
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      const res = await request(buildApp())
+        .get(`/api/businesses/12/integrations/stripe/callback?code=oauth_code_123&state=${statePayload}.${stateSig}`);
+
+      expect(res.status).toBe(302);
+      expect(res.headers.location).toContain('/restaurants/merchant?stripe=connected&businessId=12');
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+      expect(mockQuery.mock.calls[1][0]).toMatch(/UPDATE businesses/);
+    } finally {
+      global.fetch = previousFetch;
+    }
+  });
+
+  test('rejects a Stripe Connect callback with invalid state', async () => {
+    process.env.CLIENT_URL = 'https://app.oxsteed.test';
+
+    const res = await request(buildApp())
+      .get('/api/businesses/12/integrations/stripe/callback?code=oauth_code_123&state=bad.state.value');
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toContain('/restaurants/merchant?stripe=error&businessId=12');
   });
 });

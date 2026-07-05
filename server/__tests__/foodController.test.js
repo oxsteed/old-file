@@ -5,6 +5,7 @@ const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
 const ctrl = require('../controllers/foodController');
+const stripe = require('stripe');
 
 jest.mock('../services/socketService', () => ({ broadcastToBusinessInbox: jest.fn() }));
 
@@ -151,7 +152,17 @@ describe('food controller', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_order_items/.test(sql))).toBe(true);
   });
 
-  test('rejects online checkout mode while card checkout is coming soon', async () => {
+  test('rejects online checkout mode until the restaurant connects Stripe', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 3,
+        business_id: 42,
+        accepts_online_orders: true,
+        currency_code: 'USD',
+        prep_time_min: 12,
+      }],
+    });
+
     const res = await request(buildApp())
       .post('/api/food/restaurants/3/orders')
       .send({
@@ -161,9 +172,84 @@ describe('food controller', () => {
       });
 
     expect(res.status).toBe(409);
-    expect(res.body.code).toBe('payment_mode_coming_soon');
-    expect(res.body.error).toMatch(/coming soon/i);
-    expect(mockQuery).not.toHaveBeenCalled();
+    expect(res.body.code).toBe('restaurant_card_payments_unavailable');
+    expect(res.body.error).toMatch(/connected Stripe/i);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/LEFT JOIN businesses b ON b.id = fr.business_id/);
+    expect(mockQuery.mock.calls).toHaveLength(1);
+  });
+
+  test('creates a hosted Stripe checkout session for pay_now orders when the restaurant is connected', async () => {
+    stripe.__mockInstance.checkout.sessions.create.mockResolvedValueOnce({
+      id: 'cs_test_123',
+      url: 'https://checkout.stripe.com/pay/cs_test_123',
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+      payment_intent: 'pi_test_123',
+    });
+
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 3,
+          business_id: 42,
+          accepts_online_orders: true,
+          currency_code: 'USD',
+          prep_time_min: 12,
+          business_stripe_account_id: 'acct_123',
+          business_stripe_charges_enabled: true,
+          business_stripe_payouts_enabled: true,
+          business_stripe_account_status: 'active',
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: '11', name: 'Classic Burger', price_cents: 899, currency_code: 'USD', is_available: true }],
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ next_queue: 5 }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 100,
+          restaurant_id: 3,
+          queue_number: 5,
+          subtotal_cents: 899,
+          total_cents: 899,
+          status: 'received',
+          business_id: 42,
+          currency_code: 'USD',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 200 }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 100,
+          restaurant_id: 3,
+          queue_number: 5,
+          subtotal_cents: 899,
+          total_cents: 899,
+          status: 'received',
+          payment_status: 'requires_payment',
+          business_id: 42,
+          currency_code: 'USD',
+          metadata: { paymentMode: 'pay_now' },
+        }],
+      });
+
+    const res = await request(buildApp())
+      .post('/api/food/restaurants/3/orders')
+      .send({
+        fulfillmentType: 'pickup',
+        paymentMode: 'pay_now',
+        items: [{ menuItemId: 11, quantity: 1 }],
+        returnUrl: 'https://app.oxsteed.test/orders',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.payment.mode).toBe('hosted_checkout');
+    expect(res.body.payment.checkoutUrl).toBe('https://checkout.stripe.com/pay/cs_test_123');
+    expect(res.body.payment.checkoutSessionId).toBe('cs_test_123');
+    expect(stripe.__mockInstance.checkout.sessions.create).toHaveBeenCalledTimes(1);
+    expect(stripe.__mockInstance.checkout.sessions.create.mock.calls[0][0].metadata.connected_account_id).toBe('acct_123');
+    expect(stripe.__mockInstance.checkout.sessions.create.mock.calls[0][1]).toEqual({ stripeAccount: 'acct_123' });
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(true);
   });
 
   test('rejects discount codes on pay-at-counter orders during restaurant-credit launch', async () => {

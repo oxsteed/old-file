@@ -95,6 +95,36 @@ describe('checkout.session.completed', () => {
     const res = await sendEvent(buildApp(), event);
     expect(res.status).toBe(200);
   });
+
+  test('marks a food order paid when Stripe reports a completed checkout session', async () => {
+    const event = {
+      type: 'checkout.session.completed',
+      data: { object: {
+        mode: 'payment',
+        payment_status: 'paid',
+        payment_intent: 'pi_food_123',
+        metadata: { food_order_id: '88' },
+      }},
+    };
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // beginWebhookEvent
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 88,
+          restaurant_id: 3,
+          business_id: 42,
+          queue_number: 9,
+          status: 'received',
+          payment_status: 'requires_payment',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] }); // mark processed
+
+    const res = await sendEvent(buildApp(), event);
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(true);
+  });
 });
 
 // ── customer.subscription.updated ────────────────────────────────────────────
@@ -190,6 +220,65 @@ describe('payment_intent.succeeded', () => {
       expect.arrayContaining(['pi_test'])
     );
   });
+
+  test('marks a food order paid when the Stripe payment intent succeeds', async () => {
+    const event = {
+      type: 'payment_intent.succeeded',
+      data: { object: {
+        id: 'pi_food_999',
+        metadata: { food_order_id: '88' },
+      } },
+    };
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // beginWebhookEvent
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 88,
+          restaurant_id: 3,
+          business_id: 42,
+          queue_number: 9,
+          status: 'received',
+          payment_status: 'requires_payment',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] }); // mark processed
+
+    const res = await sendEvent(buildApp(), event);
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(true);
+  });
+});
+
+describe('payment_intent.payment_failed', () => {
+  test('marks a food order failed when Stripe payment intent fails', async () => {
+    const event = {
+      type: 'payment_intent.payment_failed',
+      data: { object: {
+        id: 'pi_food_999',
+        metadata: { food_order_id: '88' },
+        last_payment_error: { message: 'Card declined' },
+      } },
+    };
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // beginWebhookEvent
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 88,
+          restaurant_id: 3,
+          business_id: 42,
+          queue_number: 9,
+          status: 'received',
+          payment_status: 'requires_payment',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] }); // mark processed
+
+    const res = await sendEvent(buildApp(), event);
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(true);
+  });
 });
 
 // ── payment_intent.payment_failed (Tier 3) ────────────────────────────────────
@@ -213,6 +302,35 @@ describe('payment_intent.payment_failed', () => {
       expect.stringContaining("status = 'failed'"),
       expect.arrayContaining(['pi_test'])
     );
+  });
+});
+
+describe('account.updated', () => {
+  test('syncs connected account readiness back to the business record', async () => {
+    const event = {
+      id: 'evt_acct_123',
+      type: 'account.updated',
+      data: { object: {
+        id: 'acct_123',
+        charges_enabled: true,
+        payouts_enabled: true,
+        details_submitted: true,
+        default_currency: 'usd',
+        country: 'US',
+        requirements: { currently_due: [] },
+      } },
+    };
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] }) // beginWebhookEvent
+      .mockResolvedValueOnce({ rows: [{ id: 42 }] }) // sync business lookup
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE businesses
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE business_integrations
+      .mockResolvedValueOnce({ rows: [] }); // mark processed
+
+    const res = await sendEvent(buildApp(), event);
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE businesses/.test(sql))).toBe(true);
   });
 });
 

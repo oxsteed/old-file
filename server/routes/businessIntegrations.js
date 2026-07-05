@@ -62,6 +62,12 @@ router.post(
   ctrl.stripeAuthUrl
 );
 
+// GET /:businessId/integrations/stripe/callback — Stripe redirect target
+router.get(
+  '/:businessId/integrations/stripe/callback',
+  ctrl.stripeCallback
+);
+
 // POST /:businessId/integrations/stripe/disconnect — owner only
 router.post(
   '/:businessId/integrations/stripe/disconnect',

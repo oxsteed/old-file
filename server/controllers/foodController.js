@@ -51,6 +51,7 @@ const FOOD_PAYMENT_MODE_ALIASES = {
   pay_at_restaurant: 'pay_at_restaurant',
   wallet_credit: 'restaurant_credit',
   restaurant_credit: 'restaurant_credit',
+  pay_now: 'pay_now',
   direct: 'direct_payment',
   direct_payment: 'direct_payment',
   off_platform: 'direct_payment',
@@ -58,6 +59,7 @@ const FOOD_PAYMENT_MODE_ALIASES = {
 const FOOD_PAYMENT_LEGACY_MODE = {
   pay_at_restaurant: 'pay_at_counter',
   restaurant_credit: 'wallet_credit',
+  pay_now: 'pay_now',
   direct_payment: 'direct_payment',
 };
 // Allowed transitions: target status -> statuses it may come from.
@@ -72,6 +74,59 @@ const ORDER_TRANSITIONS = {
 
 function hasRestaurantStripeCheckout() {
   return Boolean(stripe && process.env.STRIPE_SECRET_KEY);
+}
+
+function getRestaurantStripeStatus(restaurant) {
+  const accountId = normalizeString(
+    restaurant?.stripe_account_id
+      || restaurant?.business_stripe_account_id
+      || restaurant?.businessStripeAccountId,
+    255
+  );
+  const chargesEnabled = normalizeBoolean(
+    restaurant?.stripe_charges_enabled
+      ?? restaurant?.business_stripe_charges_enabled
+      ?? restaurant?.businessStripeChargesEnabled,
+    false
+  );
+  const payoutsEnabled = normalizeBoolean(
+    restaurant?.stripe_payouts_enabled
+      ?? restaurant?.business_stripe_payouts_enabled
+      ?? restaurant?.businessStripePayoutsEnabled,
+    false
+  );
+  const accountStatus = normalizeString(
+    restaurant?.stripe_account_status
+      || restaurant?.business_stripe_account_status
+      || restaurant?.businessStripeAccountStatus,
+    40
+  );
+  return {
+    accountId,
+    chargesEnabled,
+    payoutsEnabled,
+    accountStatus,
+    connected: Boolean(accountId),
+    readyForCheckout: Boolean(accountId && chargesEnabled),
+  };
+}
+
+function ensureRestaurantStripeCheckoutReady(restaurant) {
+  const stripeStatus = getRestaurantStripeStatus(restaurant);
+  if (!stripeStatus.readyForCheckout) {
+    throw new AppError(
+      'This restaurant has not connected Stripe yet.',
+      409,
+      'restaurant_card_payments_unavailable',
+      {
+        stripeConnected: stripeStatus.connected,
+        stripeChargesEnabled: stripeStatus.chargesEnabled,
+        stripePayoutsEnabled: stripeStatus.payoutsEnabled,
+        stripeAccountStatus: stripeStatus.accountStatus,
+      }
+    );
+  }
+  return stripeStatus;
 }
 
 function isMissingRelationError(err) {
@@ -145,17 +200,10 @@ function normalizeString(value, max = 255) {
 
 function normalizeFoodPaymentMode(value) {
   const requested = normalizeString(value, 40) || 'pay_at_restaurant';
-  if (requested === 'pay_now') {
-    throw new AppError(
-      'Online card checkout is coming soon. Use restaurant credit delivery or pay at the restaurant.',
-      409,
-      'payment_mode_coming_soon'
-    );
-  }
   const canonical = FOOD_PAYMENT_MODE_ALIASES[requested];
   if (!canonical) {
     throw new AppError('Validation failed', 400, 'validation_failed', {
-      paymentMode: 'Must be restaurant_credit, pay_at_restaurant, or direct_payment',
+      paymentMode: 'Must be pay_now, restaurant_credit, pay_at_restaurant, or direct_payment',
     });
   }
   return {
@@ -659,10 +707,12 @@ async function createFoodCheckoutSession({
   orderItems,
   customerEmail,
   returnUrl,
+  connectedAccountId,
 }) {
   if (!hasRestaurantStripeCheckout()) {
     throw new AppError('Stripe payments are not configured', 503, 'stripe_not_configured');
   }
+  const stripeAccountId = normalizeString(connectedAccountId, 255);
 
   const lineItems = [{
     quantity: 1,
@@ -697,24 +747,36 @@ async function createFoodCheckoutSession({
       restaurant_id: String(order.restaurant_id),
       business_id: String(order.business_id),
       return_url: returnUrl || '',
+      connected_account_id: stripeAccountId || '',
     },
     payment_intent_data: {
       metadata: {
         food_order_id: String(order.id),
         restaurant_id: String(order.restaurant_id),
         business_id: String(order.business_id),
+        connected_account_id: stripeAccountId || '',
       },
     },
-  });
+  }, stripeAccountId ? { stripeAccount: stripeAccountId } : undefined);
 
   const { rows: [updatedOrder] } = await pool.query(
     `UPDATE food_orders
         SET payment_status = 'requires_payment',
             stripe_payment_intent_id = COALESCE($1, stripe_payment_intent_id),
             metadata = jsonb_set(
-              jsonb_set(COALESCE(metadata, '{}'::jsonb), '{checkoutSessionId}', to_jsonb($2::text), true),
-              '{paymentMode}',
-              to_jsonb('pay_now'::text),
+              jsonb_set(
+                jsonb_set(COALESCE(metadata, '{}'::jsonb), '{checkoutSessionId}', to_jsonb($2::text), true),
+                '{paymentMode}',
+                to_jsonb('pay_now'::text),
+                true
+              ),
+              '{stripeCheckout}',
+              to_jsonb(
+                json_build_object(
+                  'connectedAccountId', $4::text,
+                  'sessionId', $2::text
+                )
+              ),
               true
             ),
             updated_at = NOW()
@@ -724,6 +786,7 @@ async function createFoodCheckoutSession({
       typeof session.payment_intent === 'string' ? session.payment_intent : null,
       session.id,
       order.id,
+      stripeAccountId || null,
     ]
   );
 
@@ -1139,7 +1202,14 @@ exports.getRestaurant = async (req, res, next) => {
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
 
     const { rows: restaurants } = await pool.query(
-      `SELECT * FROM food_restaurants WHERE id = $1 AND status IN ('active', 'paused', 'draft')`,
+      `SELECT fr.*,
+              b.stripe_account_id AS business_stripe_account_id,
+              b.stripe_charges_enabled AS business_stripe_charges_enabled,
+              b.stripe_payouts_enabled AS business_stripe_payouts_enabled,
+              b.stripe_account_status AS business_stripe_account_status
+         FROM food_restaurants fr
+         LEFT JOIN businesses b ON b.id = fr.business_id
+        WHERE fr.id = $1 AND fr.status IN ('active', 'paused', 'draft')`,
       [restaurantId]
     );
     const restaurant = restaurants[0];
@@ -1401,14 +1471,33 @@ exports.quoteOrder = async (req, res, next) => {
     }
 
     const { rows: restaurants } = await pool.query(
-      `SELECT *
-         FROM food_restaurants
-        WHERE id = $1
-          AND status IN ('active','paused')`,
+      `SELECT fr.*,
+              b.stripe_account_id AS business_stripe_account_id,
+              b.stripe_charges_enabled AS business_stripe_charges_enabled,
+              b.stripe_payouts_enabled AS business_stripe_payouts_enabled,
+              b.stripe_account_status AS business_stripe_account_status
+         FROM food_restaurants fr
+         LEFT JOIN businesses b ON b.id = fr.business_id
+        WHERE fr.id = $1
+          AND fr.status IN ('active','paused')`,
       [restaurantId]
     );
     const restaurant = restaurants[0];
     if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const stripeStatus = getRestaurantStripeStatus(restaurant);
+    if (paymentContract.canonical === 'pay_now' && !stripeStatus.readyForCheckout) {
+      throw new AppError(
+        'This restaurant has not connected Stripe yet.',
+        409,
+        'restaurant_card_payments_unavailable',
+        {
+          stripeConnected: stripeStatus.connected,
+          stripeChargesEnabled: stripeStatus.chargesEnabled,
+          stripePayoutsEnabled: stripeStatus.payoutsEnabled,
+          stripeAccountStatus: stripeStatus.accountStatus,
+        }
+      );
+    }
 
     const orderSource = normalizeString(req.body.orderSource || req.body.order_source, 24) || 'kiosk';
     const fulfillmentType = normalizeString(req.body.fulfillmentType || req.body.fulfillment_type, 24) || 'pickup';
@@ -1540,6 +1629,9 @@ exports.quoteOrder = async (req, res, next) => {
     const serviceFeeCents = Math.round(taxableSubtotalCents * serviceFeeBps / 10000);
     const totalCents = Math.max(0, taxableSubtotalCents + taxCents + serviceFeeCents + tipCents + deliveryFeeCents);
     const legacyPaymentMode = FOOD_PAYMENT_LEGACY_MODE[paymentContract.canonical];
+    const supportedPaymentModes = ['pay_at_counter', 'pay_at_restaurant', 'restaurant_credit', 'wallet_credit', 'direct_payment'];
+    if (stripeStatus.readyForCheckout) supportedPaymentModes.push('pay_now');
+
     const quote = {
       restaurantId,
       restaurant_id: restaurantId,
@@ -1556,7 +1648,7 @@ exports.quoteOrder = async (req, res, next) => {
         mode: paymentContract.canonical,
         legacyMode: legacyPaymentMode,
         collection: paymentContract.canonical,
-        supportedModes: ['pay_at_counter', 'pay_at_restaurant', 'restaurant_credit', 'wallet_credit', 'direct_payment'],
+        supportedModes: supportedPaymentModes,
       },
       lineItems,
       line_items: lineItems,
@@ -1633,12 +1725,33 @@ exports.createOrder = async (req, res, next) => {
 
       // FOR UPDATE serializes concurrent orders for the same restaurant so the
       // per-day queue number below cannot be duplicated under load.
-      const { rows: restaurants } = await client.query(
-        `SELECT * FROM food_restaurants WHERE id = $1 AND status = 'active' FOR UPDATE`,
+    const { rows: restaurants } = await client.query(
+        `SELECT fr.*,
+                b.stripe_account_id AS business_stripe_account_id,
+                b.stripe_charges_enabled AS business_stripe_charges_enabled,
+                b.stripe_payouts_enabled AS business_stripe_payouts_enabled,
+                b.stripe_account_status AS business_stripe_account_status
+           FROM food_restaurants fr
+           LEFT JOIN businesses b ON b.id = fr.business_id
+          WHERE fr.id = $1 AND fr.status = 'active' FOR UPDATE`,
         [restaurantId]
       );
       const restaurant = restaurants[0];
       if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+      const stripeStatus = getRestaurantStripeStatus(restaurant);
+      if (paymentContract.canonical === 'pay_now' && !stripeStatus.readyForCheckout) {
+        throw new AppError(
+          'This restaurant has not connected Stripe yet.',
+          409,
+          'restaurant_card_payments_unavailable',
+          {
+            stripeConnected: stripeStatus.connected,
+            stripeChargesEnabled: stripeStatus.chargesEnabled,
+            stripePayoutsEnabled: stripeStatus.payoutsEnabled,
+            stripeAccountStatus: stripeStatus.accountStatus,
+          }
+        );
+      }
       const requestedSource = normalizeString(req.body.orderSource || req.body.order_source, 24) || 'mobile';
       const isInStore = IN_STORE_SOURCES.has(requestedSource);
       if (isInStore ? !restaurant.accepts_in_store_orders : !restaurant.accepts_online_orders) {
@@ -1858,7 +1971,7 @@ exports.createOrder = async (req, res, next) => {
       const shouldDebitWalletImmediately = paymentContract.canonical === 'restaurant_credit' && Boolean(req.user?.id);
       const initialPaymentStatus = paymentContract.canonical === 'restaurant_credit'
         ? (shouldDebitWalletImmediately ? 'paid' : 'requires_payment')
-        : 'unpaid';
+        : (paymentContract.canonical === 'pay_now' ? 'requires_payment' : 'unpaid');
 
       const { rows: queueRows } = await client.query(
         `SELECT COALESCE(MAX(queue_number), 0) + 1 AS next_queue
@@ -2164,6 +2277,9 @@ exports.createOrder = async (req, res, next) => {
           orderItems: createdOrder.normalizedItems,
           customerEmail: normalizeString(req.user?.email || req.body.guestEmail || req.body.guest_email, 255),
           returnUrl: safeReturnUrl(req.body.returnUrl || req.body.return_url),
+          connectedAccountId: createdOrder.restaurant?.business_stripe_account_id
+            || createdOrder.restaurant?.stripe_account_id
+            || null,
         });
         order = paymentResult.order;
         payment = paymentResult.payment;
@@ -2444,13 +2560,26 @@ exports.completeCheckout = async (req, res, next) => {
     }
 
     const { rows: orderRows } = await pool.query(
-      `SELECT * FROM food_orders WHERE id = $1`,
+      `SELECT fo.*,
+              b.stripe_account_id AS business_stripe_account_id
+         FROM food_orders fo
+         LEFT JOIN businesses b ON b.id = fo.business_id
+        WHERE fo.id = $1`,
       [orderId]
     );
     const order = orderRows[0];
     if (!order) throw new AppError('Order not found', 404, 'order_not_found');
 
-    const session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ['payment_intent'] });
+    const connectedAccountId = normalizeString(
+      order.business_stripe_account_id
+        || order.metadata?.stripeCheckout?.connectedAccountId
+        || order.metadata?.stripe_checkout?.connectedAccountId,
+      255
+    );
+    const session = await stripe.checkout.sessions.retrieve(
+      sessionId,
+      connectedAccountId ? { expand: ['payment_intent'], stripeAccount: connectedAccountId } : { expand: ['payment_intent'] }
+    );
     const linkedOrderId = session.metadata?.food_order_id || session.client_reference_id;
     if (String(linkedOrderId) !== String(orderId)) {
       throw new AppError('Payment does not belong to this order', 403, 'payment_order_mismatch');
@@ -2524,7 +2653,11 @@ exports.cancelCheckout = async (req, res, next) => {
 exports.listMyRestaurants = async (req, res, next) => {
   try {
     const { rows } = await pool.query(
-      `SELECT fr.*
+      `SELECT fr.*,
+              b.stripe_account_id AS business_stripe_account_id,
+              b.stripe_charges_enabled AS business_stripe_charges_enabled,
+              b.stripe_payouts_enabled AS business_stripe_payouts_enabled,
+              b.stripe_account_status AS business_stripe_account_status
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
         WHERE fr.owner_user_id = $1

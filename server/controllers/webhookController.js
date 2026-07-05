@@ -15,6 +15,108 @@ const {
   applyStripeRefund,
   applyStripeChargeRefund,
 } = require('../services/restaurantPosPaymentLedgerService');
+const socketService = require('../services/socketService');
+
+function extractFoodOrderId(metadata) {
+  const raw = metadata?.food_order_id
+    || metadata?.foodOrderId
+    || metadata?.foodOrderID
+    || metadata?.restaurant_order_id
+    || metadata?.restaurantOrderId;
+  const parsed = Number.parseInt(String(raw || ''), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function emitFoodOrderUpdate(order) {
+  if (!order) return;
+  try {
+    socketService.broadcastToBusinessInbox(order.business_id, 'food:order:updated', { order });
+    socketService.broadcastToRestaurantDisplay(order.restaurant_id, 'food:display:changed', {
+      restaurantId: String(order.restaurant_id),
+      queueNumber: order.queue_number != null ? order.queue_number : null,
+      status: order.status || null,
+    });
+  } catch (err) {
+    logger.warn('emitFoodOrderUpdate failed', { orderId: order.id, error: err.message });
+  }
+}
+
+async function applyFoodOrderPaymentState(client, {
+  orderId,
+  paymentStatus,
+  stripePaymentIntentId = null,
+}) {
+  if (!orderId) return null;
+  const { rows } = await client.query(
+    `UPDATE food_orders
+        SET payment_status = $1,
+            stripe_payment_intent_id = COALESCE($2, stripe_payment_intent_id),
+            updated_at = NOW()
+      WHERE id = $3::bigint
+      RETURNING *`,
+    [paymentStatus, stripePaymentIntentId, orderId]
+  );
+  const order = rows[0] || null;
+  if (order) emitFoodOrderUpdate(order);
+  return order;
+}
+
+async function syncBusinessStripeAccountState(account) {
+  const accountId = account?.id;
+  if (!accountId) return;
+  const accountStatus = account.charges_enabled
+    ? 'active'
+    : (Array.isArray(account.requirements?.currently_due) && account.requirements.currently_due.length
+      ? 'restricted'
+      : 'pending');
+
+  const { rows: businesses } = await db.query(
+    `SELECT id
+       FROM businesses
+      WHERE stripe_account_id = $1
+      UNION
+      SELECT business_id AS id
+        FROM business_integrations
+       WHERE integration_type = 'stripe'
+         AND config_json->>'account_id' = $1::text
+      LIMIT 1`,
+    [accountId]
+  );
+  const businessId = businesses[0]?.id || null;
+  if (!businessId) return;
+
+  await db.query(
+    `UPDATE businesses
+        SET stripe_account_id = COALESCE(stripe_account_id, $1),
+            stripe_charges_enabled = $2,
+            stripe_payouts_enabled = $3,
+            stripe_account_status = $4,
+            updated_at = NOW()
+      WHERE id = $5`,
+    [accountId, !!account.charges_enabled, !!account.payouts_enabled, accountStatus, businessId]
+  );
+
+  await db.query(
+    `UPDATE business_integrations
+        SET is_connected = TRUE,
+            is_enabled = TRUE,
+            config_json = COALESCE(config_json, '{}'::jsonb) || $2::jsonb,
+            updated_at = NOW()
+      WHERE business_id = $3
+        AND integration_type = 'stripe'`,
+    [accountId, JSON.stringify({
+      account_id: accountId,
+      charges_enabled: !!account.charges_enabled,
+      payouts_enabled: !!account.payouts_enabled,
+      details_submitted: !!account.details_submitted,
+      country: account.country || null,
+      default_currency: account.default_currency || null,
+      account_status: accountStatus,
+      requirements: account.requirements || null,
+      last_synced_at: new Date().toISOString(),
+    }), businessId]
+  ).catch(() => {});
+}
 
 async function beginWebhookEvent(provider, event) {
   if (!event?.id) return { shouldProcess: true };
@@ -88,6 +190,24 @@ exports.stripeWebhook = async (req, res, next) => {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
+        const foodOrderId = extractFoodOrderId(session.metadata);
+        if (foodOrderId) {
+          const paymentStatus = session.payment_status === 'paid'
+            ? 'paid'
+            : session.payment_status === 'unpaid'
+              ? 'requires_payment'
+              : 'requires_payment';
+          await withTransaction(db, async (client) => {
+            await applyFoodOrderPaymentState(client, {
+              orderId: foodOrderId,
+              paymentStatus,
+              stripePaymentIntentId: typeof session.payment_intent === 'string'
+                ? session.payment_intent
+                : session.payment_intent?.id || null,
+            });
+          });
+          break;
+        }
         if (session.mode === 'subscription') {
           const subscriptionId = session.subscription;
           const userId = session.metadata.userId;
@@ -326,10 +446,19 @@ exports.stripeWebhook = async (req, res, next) => {
       case 'payment_intent.succeeded': {
         // Capture completed - money is on its way to the helper or order is complete.
         const pi = event.data.object;
+        const foodOrderId = extractFoodOrderId(pi.metadata);
         const jobId = pi.metadata?.job_id;
         const orderId = pi.metadata?.orderId;
 
-        if (jobId) {
+        if (foodOrderId) {
+          await withTransaction(db, async (client) => {
+            await applyFoodOrderPaymentState(client, {
+              orderId: foodOrderId,
+              paymentStatus: 'paid',
+              stripePaymentIntentId: pi.id,
+            });
+          });
+        } else if (jobId) {
           await db.query(
             `UPDATE payments SET status = 'captured', payment_hold_status = 'released',
              captured_at = NOW(), released_at = NOW(), updated_at = NOW()
@@ -374,9 +503,18 @@ exports.stripeWebhook = async (req, res, next) => {
       case 'payment_intent.payment_failed': {
         // Authorization or capture failed.
         const pi = event.data.object;
+        const foodOrderId = extractFoodOrderId(pi.metadata);
         const jobId = pi.metadata?.job_id;
         const failureMsg = pi.last_payment_error?.message || 'Payment failed';
-        if (jobId) {
+        if (foodOrderId) {
+          await withTransaction(db, async (client) => {
+            await applyFoodOrderPaymentState(client, {
+              orderId: foodOrderId,
+              paymentStatus: 'failed',
+              stripePaymentIntentId: pi.id,
+            });
+          });
+        } else if (jobId) {
           await db.query(
             `UPDATE payments SET status = 'failed', payment_hold_status = 'none',
              updated_at = NOW() WHERE stripe_payment_intent_id = $1`,
@@ -405,6 +543,12 @@ exports.stripeWebhook = async (req, res, next) => {
         break;
       }
 
+      case 'account.updated': {
+        const account = event.data.object;
+        await syncBusinessStripeAccountState(account);
+        break;
+      }
+
       case 'payment_intent.canceled': {
         const pi = event.data.object;
         await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
@@ -423,6 +567,7 @@ exports.stripeWebhook = async (req, res, next) => {
         // Refund processed (full or partial).
         const charge = event.data.object;
         const piId = charge.payment_intent;
+        const foodOrderId = extractFoodOrderId(charge.metadata);
         if (piId) {
           await db.query(
             `UPDATE payments SET status = 'refunded', payment_hold_status = 'refunded',
@@ -430,6 +575,15 @@ exports.stripeWebhook = async (req, res, next) => {
             [piId]
           );
           logger.info(`[Stripe] Charge refunded for PaymentIntent ${piId}`);
+        }
+        if (foodOrderId) {
+          await withTransaction(db, async (client) => {
+            await applyFoodOrderPaymentState(client, {
+              orderId: foodOrderId,
+              paymentStatus: 'refunded',
+              stripePaymentIntentId: piId || null,
+            });
+          });
         }
         await withTransaction(db, (client) => applyStripeChargeRefund(client, charge));
         break;

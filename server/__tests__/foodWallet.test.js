@@ -86,7 +86,7 @@ beforeEach(() => resetMocks());
 describe('food wallet security wiring', () => {
   test('createOrder uses wallet credit ledger and marks delivery order paid', async () => {
     mockQuery.mockImplementation(async (sql, params) => {
-      if (/FROM food_restaurants WHERE id = \$1 AND status = 'active' FOR UPDATE/.test(sql)) {
+      if (/FROM food_restaurants fr/.test(sql) && /LEFT JOIN businesses b ON b.id = fr.business_id/.test(sql) && /FOR UPDATE/.test(sql)) {
         return { rows: [restaurantRow()] };
       }
       if (/FROM food_menu_items/.test(sql)) {
@@ -209,7 +209,7 @@ describe('food wallet security wiring', () => {
 
   test('kiosk wallet-credit pickup order is created as requires_payment without debiting wallet', async () => {
     mockQuery.mockImplementation(async (sql) => {
-      if (/FROM food_restaurants WHERE id = \$1 AND status = 'active' FOR UPDATE/.test(sql)) {
+      if (/FROM food_restaurants fr/.test(sql) && /LEFT JOIN businesses b ON b.id = fr.business_id/.test(sql) && /FOR UPDATE/.test(sql)) {
         return { rows: [restaurantRow()] };
       }
       if (/FROM food_menu_items/.test(sql)) {
@@ -270,7 +270,7 @@ describe('food wallet security wiring', () => {
 
   test('wallet-funded delivery is rejected when the wallet is suspended', async () => {
     mockQuery.mockImplementation(async (sql) => {
-      if (/FROM food_restaurants WHERE id = \$1 AND status = 'active' FOR UPDATE/.test(sql)) {
+      if (/FROM food_restaurants fr/.test(sql) && /LEFT JOIN businesses b ON b.id = fr.business_id/.test(sql) && /FOR UPDATE/.test(sql)) {
         return { rows: [restaurantRow()] };
       }
       if (/FROM food_menu_items/.test(sql)) {

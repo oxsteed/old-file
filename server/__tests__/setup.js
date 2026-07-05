@@ -92,6 +92,7 @@ jest.mock('../services/paymentQueue', () => ({ queuePaymentCapture: jest.fn().mo
 jest.mock('stripe', () => {
   const mockInstance = {
     paymentIntents: { create: jest.fn(), capture: jest.fn() },
+    checkout: { sessions: { create: jest.fn(), retrieve: jest.fn() } },
     customers:      { create: jest.fn(), retrieve: jest.fn() },
     prices:         { create: jest.fn() },
     subscriptions:  { retrieve: jest.fn() },

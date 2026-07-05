@@ -4,8 +4,8 @@
 // featured grid, item-modifier modal, and a full multi-step cart/checkout
 // drawer (cart → details → payment → confirmed). Payment follows the backend
 // restaurant contract: pay_at_restaurant by default, restaurant_credit when
-// the signed-in customer holds an active wallet, and online card marked as
-// coming soon (the backend rejects pay_now with payment_mode_coming_soon).
+// the signed-in customer holds an active wallet, and pay_now only when the
+// restaurant has connected Stripe and enabled card checkout.
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -464,6 +464,8 @@ export default function FoodRestaurantPage() {
       ? 'restaurant_credit'
       : paymentMethod === 'direct_payment'
         ? 'direct_payment'
+        : paymentMethod === 'card_online'
+          ? 'pay_now'
         : 'pay_at_restaurant';
     const externalPaymentSubmission = paymentMode === 'direct_payment'
       ? {
@@ -495,7 +497,7 @@ export default function FoodRestaurantPage() {
       const payload = {
         orderSource: 'web',
         fulfillmentType,
-        // Canonical restaurant payment contract mode (never implies online card).
+        // Canonical restaurant payment contract mode (card checkout is pay_now).
         paymentMode,
         // Backend currently limits promo codes to restaurant-credit orders.
         discountCode: paymentMode === 'restaurant_credit' && promoCode.trim()
@@ -523,13 +525,15 @@ export default function FoodRestaurantPage() {
           country: restaurant.address_country || undefined,
         };
       }
-      const { order, trackingToken } = await placeFoodOrder(restaurantId, payload);
+      const { order, trackingToken, payment } = await placeFoodOrder(restaurantId, payload);
       setPlacedOrder(order || {});
       setPlacedTrackingToken(trackingToken || null);
       if (trackingToken) {
         saveActiveOrder(restaurantId, {
           trackingToken,
           queueNumber: order?.queue_number ?? null,
+          paymentMode,
+          checkoutSessionId: payment?.checkoutSessionId || null,
         });
         setRecoveredOrder(null);
       }
@@ -540,6 +544,10 @@ export default function FoodRestaurantPage() {
       setPaymentReference('');
       setPaymentNote('');
       setPaymentProof(null);
+      if (payment?.mode === 'hosted_checkout' && payment?.checkoutUrl) {
+        window.location.assign(payment.checkoutUrl);
+        return;
+      }
     } catch (err) {
       const message = err?.response?.data?.error?.message || err?.response?.data?.message;
       toast.error(typeof message === 'string' ? message : 'Unable to place order. Please try again.');
@@ -911,10 +919,18 @@ export default function FoodRestaurantPage() {
     { id: 'later', label: 'Schedule for later', sub: 'Choose a specific time' },
   ];
   // Payment options mirror the backend contract (`pay_at_restaurant`,
-  // `restaurant_credit`, `direct_payment`); online card checkout is not live
-  // yet, so it is shown as coming soon rather than as a selectable default.
+  // `restaurant_credit`, `direct_payment`); card checkout is only exposed
+  // when the restaurant has connected Stripe and the account is ready.
   const walletBalanceCents = Number(wallet?.balanceCents || 0);
   const walletCoversOrder = walletBalanceCents >= orderTotalCents;
+  const stripeAccountId = restaurant.business_stripe_account_id || restaurant.stripe_account_id || null;
+  const stripeCheckoutAvailable = Boolean(
+    stripeAccountId && (
+      restaurant.business_stripe_charges_enabled
+      ?? restaurant.stripe_charges_enabled
+      ?? restaurant.stripe_ready_for_checkout
+    )
+  );
   const paymentMethods = [
     {
       id: 'pay_at_restaurant',
@@ -939,14 +955,19 @@ export default function FoodRestaurantPage() {
         ? `Send to ${externalPaymentHandle}`
         : 'Use the restaurant’s payment instructions and upload proof',
     }] : []),
-    {
+    ...(stripeCheckoutAvailable ? [{
       id: 'card_online',
       icon: '💳',
       label: 'Pay online by card',
-      sub: 'Coming soon',
-      disabled: true,
-    },
+      sub: 'Secure Stripe checkout',
+    }] : []),
   ];
+
+  useEffect(() => {
+    if (paymentMethod === 'card_online' && !stripeCheckoutAvailable) {
+      setPaymentMethod('pay_at_restaurant');
+    }
+  }, [paymentMethod, stripeCheckoutAvailable]);
 
   const detailsTitle = isPickup ? 'Pickup Details' : 'Delivery Details';
   const delivFeeLabel = isPickup ? 'Pickup' : 'Delivery fee';

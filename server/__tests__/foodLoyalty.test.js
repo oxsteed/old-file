@@ -180,6 +180,7 @@ describe('food loyalty redeem (B4)', () => {
       .post(`/api/food/restaurants/${RESTAURANT_ID}/orders`)
       .send({
         fulfillmentType: 'pickup',
+        guestName: 'Guest Shopper',
         loyaltyPointsToRedeem: 500,
         items: [{ menuItemId: MENU_ITEM_ID, quantity: 1 }],
       });

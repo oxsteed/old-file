@@ -11,6 +11,8 @@ import {
   updateFoodRestaurant,
   uploadFoodAsset,
   getFoodRestaurant,
+  startFoodRestaurantStripeConnect,
+  disconnectFoodRestaurantStripeConnect,
   createFoodCategory,
   deleteFoodCategory,
   createFoodMenuItem,
@@ -541,6 +543,19 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
     restaurantSettings.externalPaymentQrUrl ?? restaurantSettings.external_payment_qr_url ?? ''
   );
   const [qrUploading, setQrUploading] = useState(false);
+  const businessId = restaurant.business_id || restaurant.businessId || null;
+  const stripeAccountId = restaurant.business_stripe_account_id || restaurant.stripe_account_id || null;
+  const stripeChargesEnabled = restaurant.business_stripe_charges_enabled
+    ?? restaurant.stripe_charges_enabled
+    ?? false;
+  const stripePayoutsEnabled = restaurant.business_stripe_payouts_enabled
+    ?? restaurant.stripe_payouts_enabled
+    ?? false;
+  const stripeAccountStatus = restaurant.business_stripe_account_status
+    || restaurant.stripe_account_status
+    || null;
+  const stripeConnected = Boolean(stripeAccountId);
+  const stripeReadyForCheckout = Boolean(stripeAccountId && stripeChargesEnabled);
 
   useEffect(() => {
     const nextSettings = restaurant.settings && typeof restaurant.settings === 'object' ? restaurant.settings : {};
@@ -596,6 +611,39 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
     } finally {
       setQrUploading(false);
       event.target.value = '';
+    }
+  };
+
+  const handleStripeConnect = async () => {
+    if (!businessId) {
+      toast.error(t('food.merchant.stripeMissingBusiness', 'This restaurant is missing a business record.'));
+      return;
+    }
+    try {
+      const { auth_url: authUrl } = await startFoodRestaurantStripeConnect(businessId);
+      if (!authUrl) {
+        throw new Error('Missing Stripe authorization URL');
+      }
+      window.location.href = authUrl;
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('food.merchant.stripeConnectError', 'Could not start Stripe Connect')));
+    }
+  };
+
+  const handleStripeDisconnect = async () => {
+    if (!businessId) {
+      toast.error(t('food.merchant.stripeMissingBusiness', 'This restaurant is missing a business record.'));
+      return;
+    }
+    if (!window.confirm(t('food.merchant.stripeDisconnectConfirm', 'Disconnect Stripe for this restaurant?'))) return;
+    try {
+      await disconnectFoodRestaurantStripeConnect(businessId);
+      onSetupChanged?.();
+      const updated = await getFoodRestaurant(restaurant.id);
+      onUpdated(updated.restaurant || updated);
+      toast.success(t('food.merchant.stripeDisconnected', 'Stripe disconnected'));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('food.merchant.stripeDisconnectError', 'Could not disconnect Stripe')));
     }
   };
 
@@ -865,6 +913,38 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
           >
             {saving ? t('food.common.saving') : t('food.common.save')}
           </button>
+        </div>
+      </div>
+
+      <div style={{ marginTop: '1.5rem' }}>
+        <h3>{t('food.merchant.stripeTitle', 'Stripe Connect')}</h3>
+        <p className="fd-card-meta">
+          {stripeConnected
+            ? t('food.merchant.stripeConnectedHint', 'Customers can pay online by card and funds settle directly to this restaurant.')
+            : t('food.merchant.stripeNotConnectedHint', 'Connect Stripe to enable pay-online-by-card checkout for guests.')}
+        </p>
+        <div className="fd-row" style={{ flexWrap: 'wrap', gap: '0.75rem', alignItems: 'stretch', marginBottom: '0.75rem' }}>
+          <button type="button" className="fd-btn fd-btn-secondary" disabled={saving} onClick={handleStripeConnect}>
+            {stripeConnected
+              ? t('food.merchant.stripeReconnect', 'Reconnect Stripe')
+              : t('food.merchant.stripeConnect', 'Connect Stripe')}
+          </button>
+          <button type="button" className="fd-btn fd-btn-secondary" disabled={saving || !stripeConnected} onClick={handleStripeDisconnect}>
+            {t('food.merchant.stripeDisconnect', 'Disconnect Stripe')}
+          </button>
+        </div>
+        <div className="fd-card" style={{ padding: '0.9rem 1rem', borderRadius: 12, background: '#fff', border: '1px solid #e2e8f0' }}>
+          <div className="fd-row" style={{ justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+            <span><strong>{t('food.merchant.stripeAccount', 'Account')}:</strong> {stripeAccountId || 'Not connected'}</span>
+            <span><strong>{t('food.merchant.stripeStatus', 'Status')}:</strong> {stripeAccountStatus || (stripeConnected ? 'Connected' : 'Disconnected')}</span>
+            <span><strong>{t('food.merchant.stripeChargesEnabled', 'Card checkout')}:</strong> {stripeReadyForCheckout ? 'Ready' : 'Not ready'}</span>
+            <span><strong>{t('food.merchant.stripePayoutsEnabled', 'Payouts')}:</strong> {stripePayoutsEnabled ? 'Enabled' : 'Not enabled'}</span>
+          </div>
+          {!stripeReadyForCheckout && stripeConnected && (
+            <p className="fd-card-meta" style={{ marginTop: '0.65rem' }}>
+              {t('food.merchant.stripeSetupPending', 'Stripe is connected but card checkout is not ready yet. Finish the Stripe onboarding steps to enable online payments.')}
+            </p>
+          )}
         </div>
       </div>
 
