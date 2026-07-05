@@ -10,6 +10,21 @@ let socketInstance = null;
 // connect/disconnect events without each needing its own listener.
 const connListeners = new Set();
 
+const resolveSocketBaseUrl = () => {
+  const apiUrl = import.meta.env.VITE_API_URL?.replace(/\/api\/?$/, '');
+  if (apiUrl) return apiUrl;
+
+  if (typeof window !== 'undefined') {
+    const { hostname, origin } = window.location;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:5000';
+    }
+    return origin;
+  }
+
+  return 'http://localhost:5000';
+};
+
 function notifyListeners(connected) {
   connListeners.forEach(fn => fn(connected));
 }
@@ -64,7 +79,7 @@ export const useSocket = () => {
 
     console.log('[useSocket] Creating new Socket.io connection');
     socketInstance = io(
-      import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000',
+      resolveSocketBaseUrl(),
       {
         auth:                    { token },
         transports:              ['websocket'],

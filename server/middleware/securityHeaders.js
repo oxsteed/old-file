@@ -32,6 +32,8 @@ const securityHeaders = helmet({
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       connectSrc: [
         "'self'",
+        'ws:',
+        'wss:',
         'https://api.stripe.com',
         'https://verify.didit.me',
         'https://api.didit.me',

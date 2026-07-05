@@ -105,8 +105,20 @@ export default function HelperDashboard() {
   const { user, initialized, isOnboardingComplete, refreshUser } = useAuth();
   const { subscription, openPortal, createCheckout, refresh: refreshSubscription } = useSubscription();
   const life = useLifeDashboard();
+  const {
+    fetchSummary,
+    fetchFinancialPulse,
+    fetchCommunity,
+    fetchExpenses,
+    fetchBudgets,
+    fetchGoals,
+    fetchChecklist,
+    fetchSavedHelpers,
+    fetchHomeTasks,
+  } = life;
   const navigate = useNavigate();
   const location = useLocation();
+  const initialDashboardLoadForUserRef = useRef(null);
 
   const [verification, setVerification] = useState({backgroundCheck:null,identity:null});
   const [notifications, setNotifications] = useState([]);
@@ -902,25 +914,29 @@ export default function HelperDashboard() {
     };
   },[socket]);
 
-  useEffect(()=>{
+  useEffect(() => {
     if (!initialized || !user) return;
-
     retryLoad();
-    if(isOnboardingComplete){
-      life.fetchSummary();
-      life.fetchFinancialPulse('1m');
-      life.fetchCommunity();
-      life.fetchExpenses();
-      life.fetchBudgets();
-      life.fetchGoals();
-      life.fetchChecklist();
-      life.fetchSavedHelpers();
-      life.fetchHomeTasks({ completed:'false', section:'home' });
-      if (!homesLoaded) {
-        api.get('/house/my').then(r=>{ setHomes(r.data||[]); setHomesLoaded(true); }).catch(()=>{});
-      }
+  }, [initialized, user, retryLoad]);
+
+  useEffect(() => {
+    if (!initialized || !user || !isOnboardingComplete) return;
+    if (initialDashboardLoadForUserRef.current === user.id) return;
+
+    initialDashboardLoadForUserRef.current = user.id;
+    fetchSummary();
+    fetchFinancialPulse('1m');
+    fetchCommunity();
+    fetchExpenses();
+    fetchBudgets();
+    fetchGoals();
+    fetchChecklist();
+    fetchSavedHelpers();
+    fetchHomeTasks({ completed:'false', section:'home' });
+    if (!homesLoaded) {
+      api.get('/house/my').then(r => { setHomes(r.data || []); setHomesLoaded(true); }).catch(() => {});
     }
-  },[initialized, user, isOnboardingComplete, retryLoad, life]);
+  }, [initialized, user, isOnboardingComplete, fetchSummary, fetchFinancialPulse, fetchCommunity, fetchExpenses, fetchBudgets, fetchGoals, fetchChecklist, fetchSavedHelpers, fetchHomeTasks, homesLoaded]);
 
   // Fetch tab-specific data on tab switch
   useEffect(() => {
