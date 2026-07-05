@@ -572,13 +572,13 @@ app.get('/.well-known/apple-app-site-association', (req, res) => {
   });
 });
 
-app.get('/health', async (req, res) => {
-  try {
-    await pool.query('SELECT 1');
-    res.json({ status: 'ok' });
-  } catch (err) {
-    res.status(503).json({ status: 'degraded' });
-  }
+// Lightweight liveness endpoint for container healthchecks.
+// Keep database-aware readiness checks on /api/health and /api/health/deep.
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    uptimeSeconds: Math.floor(process.uptime()),
+  });
 });
 
 // Pool health metrics endpoint (used by monitoring systems)
