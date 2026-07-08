@@ -16,6 +16,93 @@ function getAppBaseUrl() {
   return process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com';
 }
 
+function resolveAppBaseUrl(req) {
+  const candidates = [
+    req?.headers?.origin,
+    req?.headers?.referer ? (() => {
+      try {
+        return new URL(req.headers.referer).origin;
+      } catch (_) {
+        return null;
+      }
+    })() : null,
+    req?.protocol && req?.get?.('host') ? `${req.protocol}://${req.get('host')}` : null,
+    process.env.APP_URL,
+    process.env.CLIENT_URL,
+    getAppBaseUrl(),
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try {
+      return new URL(candidate).origin;
+    } catch (_) {
+      try {
+        return new URL(`https://${String(candidate).replace(/^\/+/, '')}`).origin;
+      } catch (_) {
+        // keep trying the next candidate
+      }
+    }
+  }
+
+  return 'https://oxsteed.com';
+}
+
+async function refreshConnectAccountStatus(userId, accountRow) {
+  if (!accountRow) return null;
+
+  if (!process.env.STRIPE_SECRET_KEY || !accountRow.stripe_account_id) {
+    return accountRow;
+  }
+
+  try {
+    const account = await stripe.accounts.retrieve(accountRow.stripe_account_id);
+    const chargesEnabled = !!account.charges_enabled;
+    const payoutsEnabled = !!account.payouts_enabled;
+    const onboardingComplete = !!account.details_submitted || chargesEnabled || payoutsEnabled;
+    const accountStatus = chargesEnabled
+      ? 'active'
+      : (Array.isArray(account.requirements?.currently_due) && account.requirements.currently_due.length
+        ? 'restricted'
+        : 'pending');
+
+    if (
+      accountRow.charges_enabled !== chargesEnabled ||
+      accountRow.payouts_enabled !== payoutsEnabled ||
+      accountRow.onboarding_complete !== onboardingComplete
+    ) {
+      await pool.query(
+        `UPDATE connect_accounts
+            SET charges_enabled = $2,
+                payouts_enabled = $3,
+                onboarding_complete = $4,
+                updated_at = NOW()
+          WHERE user_id = $1`,
+        [userId, chargesEnabled, payoutsEnabled, onboardingComplete]
+      );
+    }
+
+    return {
+      ...accountRow,
+      charges_enabled: chargesEnabled,
+      payouts_enabled: payoutsEnabled,
+      onboarding_complete: onboardingComplete,
+      account_status: accountStatus,
+      details_submitted: !!account.details_submitted,
+      requirements: account.requirements || null,
+      country: account.country || accountRow.country || null,
+      default_currency: account.default_currency || accountRow.default_currency || null,
+    };
+  } catch (err) {
+    logger.warn('Failed to refresh Stripe Connect account status', {
+      userId,
+      accountId: accountRow.stripe_account_id,
+      error: err.message,
+    });
+    return accountRow;
+  }
+}
+
 /**
  * Payment Controller - Stripe Connect Direct Charges
  *
@@ -29,18 +116,23 @@ function getAppBaseUrl() {
 // Create Connect account for helper (onboarding)
 exports.createConnectAccount = async (req, res, next) => {
   try {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new AppError('Stripe is not configured on the server.', 503, 'stripe_not_configured');
+    }
+
     const existing = await pool.query('SELECT * FROM connect_accounts WHERE user_id = $1', [req.user.id]);
     if (existing.rows[0]) {
-      if (!existing.rows[0].onboarding_complete) {
+      const freshExisting = await refreshConnectAccountStatus(req.user.id, existing.rows[0]);
+      if (!freshExisting.onboarding_complete) {
         const link = await stripe.accountLinks.create({
-          account: existing.rows[0].stripe_account_id,
-          refresh_url: `${getAppBaseUrl()}/helper-dashboard?refresh=true`,
-          return_url: `${getAppBaseUrl()}/helper-dashboard?onboarding=complete`,
+          account: freshExisting.stripe_account_id,
+          refresh_url: `${resolveAppBaseUrl(req)}/helper-dashboard?refresh=true`,
+          return_url: `${resolveAppBaseUrl(req)}/helper-dashboard?onboarding=complete`,
           type: 'account_onboarding',
         });
-        return res.json({ url: link.url, onboarding_url: link.url, account_id: existing.rows[0].stripe_account_id });
+        return res.json({ url: link.url, onboarding_url: link.url, account_id: freshExisting.stripe_account_id });
       }
-      return res.json({ message: 'Account already set up', account: existing.rows[0] });
+      return res.json({ message: 'Account already set up', account: freshExisting });
     }
 
     const account = await stripe.accounts.create({
@@ -57,8 +149,8 @@ exports.createConnectAccount = async (req, res, next) => {
 
     const link = await stripe.accountLinks.create({
       account: account.id,
-      refresh_url: `${getAppBaseUrl()}/helper-dashboard?refresh=true`,
-      return_url: `${getAppBaseUrl()}/helper-dashboard?onboarding=complete`,
+      refresh_url: `${resolveAppBaseUrl(req)}/helper-dashboard?refresh=true`,
+      return_url: `${resolveAppBaseUrl(req)}/helper-dashboard?onboarding=complete`,
       type: 'account_onboarding',
     });
     res.json({ url: link.url, onboarding_url: link.url, account_id: account.id });
@@ -72,11 +164,17 @@ exports.createConnectAccount = async (req, res, next) => {
 exports.getConnectStatus = async (req, res, next) => {
   try {
     const result = await pool.query(
-      'SELECT stripe_account_id, charges_enabled, payouts_enabled, onboarding_complete FROM connect_accounts WHERE user_id = $1',
+      'SELECT user_id, stripe_account_id, charges_enabled, payouts_enabled, onboarding_complete FROM connect_accounts WHERE user_id = $1',
       [req.user.id]
     );
     if (!result.rows[0]) return res.json({ connected: false });
-    res.json({ connected: true, ...result.rows[0] });
+    const refreshed = await refreshConnectAccountStatus(req.user.id, result.rows[0]);
+    res.json({
+      connected: true,
+      ...refreshed,
+      stripe_connect_ready: !!refreshed.charges_enabled,
+      stripe_connect_onboarded: !!refreshed.onboarding_complete,
+    });
   } catch (err) {
     logger.error('Get connect status error', { userId: req.user?.id, error: err.message });
     next(new AppError('Failed to get account status', 500, 'connect_status_failed'));
@@ -124,7 +222,8 @@ exports.createPaymentIntent = async (req, res, next) => {
     }
 
     const connect = await pool.query('SELECT * FROM connect_accounts WHERE user_id = $1', [job.rows[0].assigned_helper_id]);
-    if (!connect.rows[0] || !connect.rows[0].charges_enabled) {
+    const freshConnect = await refreshConnectAccountStatus(job.rows[0].assigned_helper_id, connect.rows[0] || null);
+    if (!freshConnect || !freshConnect.charges_enabled) {
       throw new AppError('Helper payment account is not ready. Please ask the helper to complete their payment setup.', 400, 'helper_account_not_ready');
     }
 
@@ -206,7 +305,7 @@ exports.createPaymentIntent = async (req, res, next) => {
           platform_fee_cents: fees.platform_fee_cents.toString(),
         },
       },
-      { stripeAccount: connect.rows[0].stripe_account_id }
+      { stripeAccount: freshConnect.stripe_account_id }
     );
 
     const { rows: insertRows } = await pool.query(
@@ -222,7 +321,7 @@ exports.createPaymentIntent = async (req, res, next) => {
         paymentIntent.id,
         job.rows[0].job_value,
         fees.platform_fee_cents / 100,
-        connect.rows[0].stripe_account_id,
+        freshConnect.stripe_account_id,
       ]
     );
 
@@ -258,10 +357,11 @@ exports.requestInstantPayout = async (req, res, next) => {
       [req.user.id]
     );
     const account = accountResult.rows[0];
-    if (!account) {
+    const refreshedAccount = await refreshConnectAccountStatus(req.user.id, account || null);
+    if (!refreshedAccount) {
       throw new AppError('Connect account not found. Complete payout setup first.', 404, 'connect_account_not_found');
     }
-    if (!account.payouts_enabled) {
+    if (!refreshedAccount.payouts_enabled) {
       throw new AppError('Payouts are not enabled yet. Finish Stripe onboarding before requesting instant payout.', 400, 'payouts_not_enabled');
     }
 
@@ -272,7 +372,7 @@ exports.requestInstantPayout = async (req, res, next) => {
       });
     }
 
-    const balance = await stripe.balance.retrieve({ stripeAccount: account.stripe_account_id });
+    const balance = await stripe.balance.retrieve({ stripeAccount: refreshedAccount.stripe_account_id });
     const available = (balance.available || []).find((b) => String(b.currency).toLowerCase() === 'usd');
     const amount = available?.amount || 0;
     if (amount <= 0) {
@@ -284,7 +384,7 @@ exports.requestInstantPayout = async (req, res, next) => {
 
     const payout = await stripe.payouts.create(
       { amount, currency: 'usd', method: 'instant' },
-      { stripeAccount: account.stripe_account_id }
+      { stripeAccount: refreshedAccount.stripe_account_id }
     );
     res.json({
       status: payout.status || 'created',

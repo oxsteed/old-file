@@ -35,6 +35,10 @@ exports.findById = async (id) => {
        hp.stripe_account_id,
        hp.stripe_charges_enabled,
        hp.stripe_payouts_enabled,
+       ca.stripe_account_id AS connect_stripe_account_id,
+       ca.charges_enabled AS connect_charges_enabled,
+       ca.payouts_enabled AS connect_payouts_enabled,
+       ca.onboarding_complete AS connect_onboarding_complete,
        hp.service_city,
        hp.service_state,
        hp.service_radius_miles,
@@ -44,6 +48,7 @@ exports.findById = async (id) => {
        s.current_period_end
      FROM users u
      LEFT JOIN helper_profiles hp ON hp.user_id = u.id
+     LEFT JOIN connect_accounts ca ON ca.user_id = u.id
      LEFT JOIN subscriptions s
        ON s.user_id = u.id AND s.status IN ('active','trialing','past_due')
      LEFT JOIN plans p ON p.id = s.plan_id

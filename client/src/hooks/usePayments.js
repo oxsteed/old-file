@@ -19,7 +19,6 @@ export default function usePayments() {
 
   const createConnectAccount = async () => {
     const { data } = await api.post('/payments/connect');
-    if (data.url) window.location.href = data.url;
     return data;
   };
 

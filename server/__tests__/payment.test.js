@@ -206,6 +206,31 @@ describe('GET /api/payments/connect/status', () => {
     expect(res.body.connected).toBe(true);
     expect(res.body.stripe_account_id).toBe('acct_x');
   });
+
+  test('refreshes connect status from Stripe before responding', async () => {
+    stripe.accounts.retrieve.mockResolvedValueOnce({
+      id: 'acct_x',
+      charges_enabled: true,
+      payouts_enabled: true,
+      details_submitted: true,
+      requirements: { currently_due: [] },
+      country: 'US',
+      default_currency: 'usd',
+    });
+
+    mockAuth(
+      { rows: [{ user_id: 1, stripe_account_id: 'acct_x', charges_enabled: false, payouts_enabled: false, onboarding_complete: false }] },
+      { rows: [] },
+    );
+
+    const res = await auth(request(buildApp()).get('/api/payments/connect/status'));
+
+    expect(res.status).toBe(200);
+    expect(res.body.connected).toBe(true);
+    expect(res.body.charges_enabled).toBe(true);
+    expect(res.body.onboarding_complete).toBe(true);
+    expect(mockQuery.mock.calls[2][0]).toContain('UPDATE connect_accounts');
+  });
 });
 
 describe('POST /api/payments/connect', () => {
@@ -229,8 +254,8 @@ describe('POST /api/payments/connect', () => {
       expect(res.status).toBe(200);
       expect(res.body.url).toBe('https://stripe.test/onboard');
       expect(stripe.accountLinks.create).toHaveBeenCalledWith(expect.objectContaining({
-        refresh_url: 'https://oxsteed.com/helper-dashboard?refresh=true',
-        return_url: 'https://oxsteed.com/helper-dashboard?onboarding=complete',
+        refresh_url: expect.stringMatching(/\/helper-dashboard\?refresh=true$/),
+        return_url: expect.stringMatching(/\/helper-dashboard\?onboarding=complete$/),
       }));
     } finally {
       process.env.APP_URL = prevAppUrl;

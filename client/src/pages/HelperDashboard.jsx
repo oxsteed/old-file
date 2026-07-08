@@ -16,6 +16,7 @@ import EditProfileTab from '../components/EditProfileTab';
 import AIKnowledgeTab from '../components/AIKnowledgeTab';
 import HelperAvailabilityEditor from '../components/HelperAvailabilityEditor';
 import { useSocket } from '../hooks/useSocket';
+import usePayments from '../hooks/usePayments';
 import { ProgressBar, Card, CardHeader, Btn, Input, Select } from '../components/dashboardUI';
 import ReviewsList from '../components/reviews/ReviewsList';
 import { formatDate, formatMoney } from '../lib/format';
@@ -106,6 +107,11 @@ export default function HelperDashboard() {
   const { subscription, openPortal, createCheckout, refresh: refreshSubscription } = useSubscription();
   const life = useLifeDashboard();
   const {
+    connectStatus,
+    fetchConnectStatus,
+    createConnectAccount,
+  } = usePayments();
+  const {
     fetchSummary,
     fetchFinancialPulse,
     fetchCommunity,
@@ -147,6 +153,11 @@ export default function HelperDashboard() {
   },[]);
 
   useEffect(() => {
+    if (!isOnboardingComplete) return;
+    fetchConnectStatus().catch(() => {});
+  }, [fetchConnectStatus, isOnboardingComplete]);
+
+  useEffect(() => {
     const requestedTab = searchParams.get('tab') || 'pulse';
     const urlTab = FOCUSED_HELPER_DASHBOARD_TABS.has(requestedTab) ? requestedTab : 'pulse';
     if (urlTab === tab) return;
@@ -167,6 +178,11 @@ export default function HelperDashboard() {
   const idVerificationStatusLabel = user?.didit_status === 'verified'
     ? 'verified'
     : (verification.identity?.status || 'verified');
+  const stripeConnectReady =
+    user?.stripe_connect_ready !== undefined
+      ? !!user.stripe_connect_ready
+      : (connectStatus?.connected ? !!connectStatus.charges_enabled : undefined);
+  const showStripeConnectBanner = isOnboardingComplete && stripeConnectReady === false;
 
   // ── Products state ────────────────────────────────────────────────────────
   const [myProducts, setMyProducts] = useState([]);
@@ -1290,7 +1306,7 @@ export default function HelperDashboard() {
             )}
 
             {/* Stripe Connect onboarding banner */}
-            {isOnboardingComplete && !user?.stripe_connect_ready && (
+            {showStripeConnectBanner && (
               <div className="mb-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl flex items-center justify-between gap-4">
                 <div>
                   <p className="text-yellow-400 font-semibold text-sm">💳 Connect your payment account</p>
@@ -1300,9 +1316,11 @@ export default function HelperDashboard() {
                   className="shrink-0 px-4 py-2 bg-yellow-500 text-gray-900 font-semibold text-sm rounded-lg hover:bg-yellow-400 transition-colors"
                   onClick={async () => {
                     try {
-                      const { data } = await api.post('/payments/connect');
+                      const data = await createConnectAccount();
                       if (data.url) window.location.href = data.url;
-                    } catch (e) { toast.error('Could not start payment setup. Try again.'); }
+                    } catch (e) {
+                      toast.error(e.response?.data?.error || e.response?.data?.message || 'Could not start payment setup. Try again.');
+                    }
                   }}
                 >
                   Set Up Payments

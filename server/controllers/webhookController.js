@@ -118,6 +118,47 @@ async function syncBusinessStripeAccountState(account) {
   ).catch(() => {});
 }
 
+async function syncConnectAccountState(account) {
+  const accountId = account?.id;
+  if (!accountId) return;
+
+  const accountStatus = account.charges_enabled
+    ? 'active'
+    : (Array.isArray(account.requirements?.currently_due) && account.requirements.currently_due.length
+      ? 'restricted'
+      : 'pending');
+  const onboardingComplete = !!account.details_submitted || !!account.charges_enabled || !!account.payouts_enabled;
+
+  const { rows: connectAccounts } = await db.query(
+    `SELECT user_id
+       FROM connect_accounts
+      WHERE stripe_account_id = $1
+      LIMIT 1`,
+    [accountId]
+  );
+  const userId = connectAccounts[0]?.user_id || null;
+  if (!userId) return;
+
+  await db.query(
+    `UPDATE connect_accounts
+        SET charges_enabled = $2,
+            payouts_enabled = $3,
+            onboarding_complete = $4,
+            updated_at = NOW()
+      WHERE user_id = $5`,
+    [!!account.charges_enabled, !!account.payouts_enabled, onboardingComplete, userId]
+  );
+
+  logger.info('[Stripe] Connect account synced', {
+    userId,
+    accountId,
+    charges_enabled: !!account.charges_enabled,
+    payouts_enabled: !!account.payouts_enabled,
+    onboarding_complete: onboardingComplete,
+    accountStatus,
+  });
+}
+
 async function beginWebhookEvent(provider, event) {
   if (!event?.id) return { shouldProcess: true };
 
@@ -546,6 +587,7 @@ exports.stripeWebhook = async (req, res, next) => {
       case 'account.updated': {
         const account = event.data.object;
         await syncBusinessStripeAccountState(account);
+        await syncConnectAccountState(account);
         break;
       }
 

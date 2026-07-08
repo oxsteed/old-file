@@ -106,10 +106,15 @@ async function authenticate(req, res, next) {
          COALESCE(hp.allow_guest_contact, TRUE) AS allow_guest_contact,
          COALESCE(hp.allow_booking, TRUE) AS allow_booking,
          COALESCE(hp.allow_scheduling, TRUE) AS allow_scheduling,
-         COALESCE(hp.allow_live_chat, TRUE) AS allow_live_chat
+         COALESCE(hp.allow_live_chat, TRUE) AS allow_live_chat,
+         ca.stripe_account_id AS connect_stripe_account_id,
+         ca.charges_enabled AS connect_charges_enabled,
+         ca.payouts_enabled AS connect_payouts_enabled,
+         ca.onboarding_complete AS connect_onboarding_complete
        FROM users u
        LEFT JOIN businesses b ON b.user_id = u.id AND b.is_primary = TRUE
        LEFT JOIN helper_profiles hp ON hp.user_id = u.id
+       LEFT JOIN connect_accounts ca ON ca.user_id = u.id
        WHERE u.id = $1`,
       [decoded.id]
     );
@@ -126,6 +131,11 @@ async function authenticate(req, res, next) {
     user.onboarding_step = computeOnboardingStep(user);
     user.internal_access_route = decoded.internalAccessRoute || null;
     user.internal_access_id = decoded.internalAccessId || null;
+    user.stripe_account_id = user.connect_stripe_account_id || null;
+    user.stripe_charges_enabled = !!user.connect_charges_enabled;
+    user.stripe_payouts_enabled = !!user.connect_payouts_enabled;
+    user.stripe_connect_ready = !!user.connect_charges_enabled;
+    user.stripe_connect_onboarded = !!user.connect_onboarding_complete;
 
     // Identity (Didit): block API access when email is verified but identity gate not met
     const DIDIT_EXEMPT_PATH_PREFIXES = [

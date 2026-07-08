@@ -96,7 +96,7 @@ jest.mock('stripe', () => {
     customers:      { create: jest.fn(), retrieve: jest.fn() },
     prices:         { create: jest.fn() },
     subscriptions:  { retrieve: jest.fn() },
-    accounts:       { create: jest.fn() },
+    accounts:       { create: jest.fn(), retrieve: jest.fn() },
     accountLinks:   { create: jest.fn().mockResolvedValue({ url: 'https://stripe.com/onboard' }) },
     webhooks:       { constructEvent: jest.fn() },
   };

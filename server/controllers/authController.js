@@ -147,6 +147,19 @@ function formatAuthUser(user) {
     allow_booking:         user.allow_booking !== undefined ? !!user.allow_booking : true,
     allow_scheduling:      user.allow_scheduling !== undefined ? !!user.allow_scheduling : true,
     allow_live_chat:       user.allow_live_chat !== undefined ? !!user.allow_live_chat : true,
+    stripe_account_id:     user.stripe_account_id || user.connect_stripe_account_id || null,
+    stripe_charges_enabled: user.stripe_charges_enabled !== undefined
+      ? !!user.stripe_charges_enabled
+      : !!user.connect_charges_enabled,
+    stripe_payouts_enabled: user.stripe_payouts_enabled !== undefined
+      ? !!user.stripe_payouts_enabled
+      : !!user.connect_payouts_enabled,
+    stripe_connect_ready:  user.stripe_connect_ready !== undefined
+      ? !!user.stripe_connect_ready
+      : !!user.connect_charges_enabled,
+    stripe_connect_onboarded: user.stripe_connect_onboarded !== undefined
+      ? !!user.stripe_connect_onboarded
+      : !!user.connect_onboarding_complete,
     default_mode:          user.default_mode || null,
     logistics_role:        user.logistics_role || null,
     internal_access_route: user.internal_access_route || null,
@@ -263,8 +276,14 @@ async function register(req, res, next) {
    preferred_language,
    trial_started_at, trial_ends_at, didit_status, didit_verified_at,
    default_mode,
-   COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required
-   FROM users WHERE id = $1`,
+   COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required,
+   ca.stripe_account_id AS connect_stripe_account_id,
+   ca.charges_enabled AS connect_charges_enabled,
+   ca.payouts_enabled AS connect_payouts_enabled,
+   ca.onboarding_complete AS connect_onboarding_complete
+   FROM users
+   LEFT JOIN connect_accounts ca ON ca.user_id = users.id
+   WHERE users.id = $1`,
   [user.id]
 );
 res.status(201).json({ user: formatAuthUser(fullRows[0]), ...tokens });
@@ -329,8 +348,14 @@ async function login(req, res, next) {
               city, state, zip_code, totp_enabled,
               trial_started_at, trial_ends_at, didit_status, didit_verified_at,
               default_mode,
-              COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required
-       FROM users WHERE email = $1`,
+              COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required,
+              ca.stripe_account_id AS connect_stripe_account_id,
+              ca.charges_enabled AS connect_charges_enabled,
+              ca.payouts_enabled AS connect_payouts_enabled,
+              ca.onboarding_complete AS connect_onboarding_complete
+       FROM users
+       LEFT JOIN connect_accounts ca ON ca.user_id = users.id
+       WHERE users.email = $1`,
       [email.toLowerCase()]
     );
     if (!rows[0]) {
