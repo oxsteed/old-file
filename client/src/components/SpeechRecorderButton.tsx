@@ -129,8 +129,6 @@ export default function SpeechRecorderButton({
           }
           disabled:opacity-50 disabled:cursor-not-allowed
         `}
-        title={isRecording ? 'Stop recording' : 'Start recording'}
-        aria-label={isRecording ? 'Stop recording' : 'Start recording'}
       >
         {isRecording ? (
           <Square className="w-5 h-5" />

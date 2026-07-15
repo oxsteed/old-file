@@ -1,12 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import useJobs from '../hooks/useJobs';
-import usePayments from '../hooks/usePayments';
 import useAuth from '../hooks/useAuth';
-
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import '../styles/JobDetailPage.css';
@@ -23,6 +18,7 @@ import CancellationStats from '../components/CancellationStats';
 import UserReputationCard from '../components/UserReputationCard';
 import ReportModal from '../components/ReportModal';
 import JobMaterialsPanel from '../components/JobMaterialsPanel';
+import DirectPaymentRecordModal from '../components/DirectPaymentRecordModal';
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../utils/analytics';
 import { detectLocale, formatDate, formatMoney } from '../lib/format';
@@ -119,80 +115,6 @@ function daysUntil(dateStr) {
   return Math.max(0, Math.ceil(diff / 86400000));
 }
 
-// ─── Job Payment Modal ────────────────────────────────────────────────────────
-function JobPaymentForm({ clientSecret, stripeAccount, jobTitle, amount, appliedCredit, onSuccess, onCancel }) {
-  const { t } = useTranslation();
-  const stripe = useStripe();
-  const elements = useElements();
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!stripe || !elements) return;
-    setLoading(true);
-    try {
-      const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: { card: elements.getElement(CardElement) },
-      });
-      if (error) {
-        toast.error(error.message || 'Payment failed');
-      } else if (['requires_capture', 'succeeded'].includes(paymentIntent.status)) {
-        toast.success('Payment authorized — funds held in escrow until job is complete.');
-        analytics.paymentAuthorized(null, null);
-        onSuccess();
-      }
-    } catch (err) {
-      toast.error(err.message || 'Payment error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      <div style={{ padding: '0.75rem 1rem', background: 'var(--color-bg)', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
-        <p style={{ margin: 0, fontWeight: 600, color: 'var(--color-text)' }}>{jobTitle}</p>
-        {amount && <p style={{ margin: '0.25rem 0 0', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>{t('jobDetail.jobValue', { amount: formatMoney(amount, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) })}</p>}
-        {appliedCredit > 0 && (
-          <p style={{ margin: '0.25rem 0 0', color: '#34d399', fontSize: '0.875rem', fontWeight: 600 }}>
-            {t('jobDetail.creditApplied', { amount: formatMoney(appliedCredit) })}
-          </p>
-        )}
-        <p style={{ margin: '0.25rem 0 0', color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>
-          🔒 Funds are held in escrow and released to the helper only after you mark the job complete.
-        </p>
-      </div>
-      <div>
-        <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-text)', fontSize: '0.875rem' }}>Card Details</label>
-        <div style={{ padding: '0.875rem', background: 'var(--color-bg)', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
-          <CardElement options={{ style: { base: { fontSize: '16px', color: 'var(--color-text)', '::placeholder': { color: 'var(--color-text-muted)' } }, invalid: { color: '#fa755a' } } }} />
-        </div>
-      </div>
-      <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-        <button type="button" onClick={onCancel} disabled={loading} className="jdp-btn-ghost">Cancel</button>
-        <button type="submit" disabled={loading || !stripe} className="jdp-btn-primary">
-          {loading ? 'Processing…' : '🔒 Authorize Payment'}
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function JobPaymentModal({ isOpen, onClose, onSuccess, clientSecret, stripeAccount, jobTitle, amount, appliedCredit }) {
-  if (!isOpen || !clientSecret) return null;
-  const options = { clientSecret, appearance: { theme: 'night' } };
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }} onClick={onClose}>
-      <div style={{ background: 'var(--color-surface)', borderRadius: '12px', padding: '2rem', maxWidth: '480px', width: '92%', boxShadow: '0 10px 40px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
-        <h2 style={{ margin: '0 0 1.25rem', fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-text)' }}>Pay &amp; Hold in Escrow</h2>
-        <Elements stripe={stripePromise} options={options}>
-          <JobPaymentForm clientSecret={clientSecret} stripeAccount={stripeAccount} jobTitle={jobTitle} amount={amount} appliedCredit={appliedCredit} onSuccess={() => { onSuccess(); onClose(); }} onCancel={onClose} />
-        </Elements>
-      </div>
-    </div>
-  );
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function JobDetailPage() {
   const { t } = useTranslation();
@@ -207,13 +129,11 @@ export default function JobDetailPage() {
   const navigate = useNavigate();
   const { user, canApplyToJobs, needsOnboarding } = useAuth();
   const { fetchJob, job, loading, error, createBid, getJobBids, assignHelper, startJob, completeJob, cancelJob } = useJobs();
-  const { createPaymentIntent } = usePayments();
 
   const [bids, setBids] = useState([]);
   const [bidForm, setBidForm] = useState({ amount: '', message: '', eta_hours: '' });
   const [bidError, setBidError] = useState(null);
   const [bidLoading, setBidLoading] = useState(false);
-  const [creditBalance, setCreditBalance] = useState(null); // referral/promo credit balance
   const [mediaIndex, setMediaIndex] = useState(null); // lightbox index
   const [cancelReason, setCancelReason] = useState('');
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -221,8 +141,7 @@ export default function JobDetailPage() {
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [reviewEligible, setReviewEligible] = useState(false);
-  // Payment modal state
-  const [paymentModal, setPaymentModal] = useState({ open: false, clientSecret: null, stripeAccount: null, appliedCredit: 0 });
+  const [paymentRecordOpen, setPaymentRecordOpen] = useState(false);
   // Bid acceptance scheduling modal
   const [acceptingBid, setAcceptingBid] = useState(null); // bid object being accepted
   const [helperPolicies, setHelperPolicies] = useState(null); // cancellation policies for helper
@@ -252,15 +171,6 @@ export default function JobDetailPage() {
         .catch(() => setReviewEligible(false));
     }
   }, [job?.status, user?.id, id]);
-
-  // Fetch referral credit balance when owner is on the payment step
-  useEffect(() => {
-    if (job?.status === 'accepted' && user?.id === job?.client_id) {
-      api.get('/referrals/balance')
-        .then(r => setCreditBalance(r.data))
-        .catch(() => {});
-    }
-  }, [job?.status, job?.client_id, user?.id]);
 
   async function handleBidSubmit(e) {
     e.preventDefault();
@@ -399,20 +309,6 @@ export default function JobDetailPage() {
       return 'Cannot complete job while a payment dispute is open. Resolve the dispute first.';
     }
     return err.message || err.response?.data?.error || 'Operation failed. Please try again.';
-  }
-
-  async function handlePayment() {
-    const acceptedBid = (Array.isArray(bids) ? bids : []).find(b => b.status === 'accepted');
-    if (!acceptedBid) return toast.error(t('jobDetail.noBidFound'));
-    setActionLoading(true);
-    try {
-      const result = await createPaymentIntent(id);
-      if (result?.client_secret) {
-        analytics.paymentInitiated(id, job?.job_value);
-        setPaymentModal({ open: true, clientSecret: result.client_secret, stripeAccount: result.stripe_account_id, appliedCredit: parseFloat(result.applied_credit_dollars || 0) });
-      }
-    } catch (err) { toast.error(err.response?.data?.error || t('common.failed')); }
-    finally { setActionLoading(false); }
   }
 
   if (loading) return (
@@ -977,13 +873,14 @@ export default function JobDetailPage() {
               )}
               {job.status === 'accepted' && (
                 <>
-                  {creditBalance?.balance_cents > 0 && (
-                    <p style={{ fontSize: '0.8rem', color: '#34d399', marginBottom: '0.5rem', fontWeight: 600 }}>
-                      🎁 ${creditBalance.balance_dollars} credit will be applied automatically
-                    </p>
-                  )}
-                  <button className="jdp-btn-primary" onClick={handlePayment} disabled={actionLoading}>
-                    {actionLoading ? 'Processing…' : '🔒 Pay & Hold in Escrow'}
+                  <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem', lineHeight: 1.5 }}>
+                    Use direct payment for launch. Save the confirmation number, receipt link, or screenshot here so the job has a clear paper trail.
+                  </p>
+                  <button className="jdp-btn-primary" onClick={() => setPaymentRecordOpen(true)} disabled={actionLoading}>
+                    {actionLoading ? 'Processing…' : '🧾 Record Direct Payment'}
+                  </button>
+                  <button className="jdp-btn-ghost" onClick={() => navigate('/messages')} disabled={actionLoading} style={{ marginTop: '0.5rem' }}>
+                    Open Messages
                   </button>
                   <button className="jdp-btn-danger" onClick={() => setShowJobCancellationModal(true)} disabled={actionLoading} style={{ marginTop: '0.5rem' }}>
                     {t('jobDetail.cancelJob') || 'Cancel Job'}
@@ -1115,16 +1012,22 @@ export default function JobDetailPage() {
         />
       )}
 
-      {/* ── Escrow Payment Modal ─────────────────────────────── */}
-      <JobPaymentModal
-        isOpen={paymentModal.open}
-        clientSecret={paymentModal.clientSecret}
-        stripeAccount={paymentModal.stripeAccount}
-        jobTitle={job?.title}
-        amount={job?.job_value}
-        appliedCredit={paymentModal.appliedCredit}
-        onClose={() => setPaymentModal({ open: false, clientSecret: null, stripeAccount: null, appliedCredit: 0 })}
-        onSuccess={() => fetchJob(id)}
+      {/* ── Direct Payment Record Modal ─────────────────────────── */}
+      <DirectPaymentRecordModal
+        isOpen={paymentRecordOpen}
+        title="Record direct payment"
+        subtitle="Capture the payment method, confirmation number, and any proof link so both sides can verify the exchange later."
+        sourceType="job"
+        sourceId={job?.id}
+        sourceLabel={job?.title ? `Job payment · ${job.title}` : 'Job payment'}
+        amountCents={Math.round((acceptedBid?.amount || job?.budget_max || job?.budget_min || 0) * 100)}
+        currencyCode={job?.currency || 'USD'}
+        payerId={job?.client_id}
+        payeeId={job?.assigned_helper_id}
+        onClose={() => setPaymentRecordOpen(false)}
+        onSuccess={() => {
+          fetchJob(id);
+        }}
       />
     </div>
     <Footer />

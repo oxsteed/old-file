@@ -2,17 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import { Settings, Copy, RefreshCw, Link2, Trash2, Plus, Check, X } from 'lucide-react';
+import { Settings, Copy, RefreshCw, Trash2, Plus, Check, X } from 'lucide-react';
 import '../../styles/BusinessIntegrations.css';
 
 const INTEGRATIONS = [
-  {
-    id: 'stripe',
-    name: 'Stripe Connect',
-    description: 'Accept payments and manage payouts',
-    icon: '💳',
-    status_field: 'stripe_connected'
-  },
   {
     id: 'webhooks',
     name: 'Webhooks',
@@ -76,31 +69,6 @@ export function BusinessIntegrations({ businessId }) {
       toast.error(t('businessHub.integrations.toastLoadFail'));
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleStripeConnect = async () => {
-    try {
-      const response = await api.post(
-        `/businesses/${businessId}/integrations/stripe/auth`
-      );
-      window.location.href = response.data.auth_url;
-    } catch (error) {
-      toast.error(t('businessHub.integrations.toastStripeStartFail'));
-    }
-  };
-
-  const handleDisconnectStripe = async () => {
-    if (!window.confirm(t('businessHub.integrations.confirmDisconnectStripe'))) return;
-    
-    try {
-      await api.post(
-        `/businesses/${businessId}/integrations/stripe/disconnect`
-      );
-      toast.success(t('businessHub.integrations.toastStripeDisconnected'));
-      loadIntegrations();
-    } catch (error) {
-      toast.error(t('businessHub.integrations.toastStripeDisconnectFail'));
     }
   };
 
@@ -229,33 +197,6 @@ export function BusinessIntegrations({ businessId }) {
                 </span>
               </div>
               <p className="bi-integration-desc">{t(`businessHub.integrations.cards.${integration.id}.description`, { defaultValue: integration.description })}</p>
-
-              {integration.id === 'stripe' && (
-                <div className="bi-integration-actions">
-                  {isEnabled ? (
-                    <>
-                      <div className="bi-stripe-info">
-                        <p className="bi-connected-as">
-                          <strong>{t('businessHub.integrations.account')}:</strong> {integrations.stripe_account_id}
-                        </p>
-                      </div>
-                      <button
-                        onClick={handleDisconnectStripe}
-                        className="bi-btn-danger"
-                      >
-                        {t('businessHub.integrations.disconnectStripe')}
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={handleStripeConnect}
-                      className="bi-btn-primary"
-                    >
-                      <Link2 size={16} /> {t('businessHub.integrations.connectStripe')}
-                    </button>
-                  )}
-                </div>
-              )}
 
               {integration.id === 'webhooks' && (
                 <div className="bi-integration-actions">

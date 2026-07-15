@@ -13,23 +13,19 @@ export default function BidAcceptanceModal({
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Helper's policies determine available options.
-  // When policies are null (failed to load or helper has no preferences set),
-  // OxSteed platform payment is always the safe default fallback.
+  // Direct payment is the launch-safe default. Stripe-style protected payment
+  // remains a future option, but it is not part of the launch flow.
   const policiesLoaded = helperPolicies != null;
-  const canSelectOxsteed = policiesLoaded ? (helperPolicies?.oxsteed_enabled ?? true) : true;
-  const canSelectCustom  = policiesLoaded ? (helperPolicies?.custom_enabled  ?? false) : false;
+  const canSelectCustom  = policiesLoaded ? (helperPolicies?.custom_enabled ?? true) : true;
 
-  // Default to the only available option if only one is enabled
+  // Default to direct payment if it is available.
   React.useEffect(() => {
     if (!selectedPaymentMethod) {
-      if (canSelectOxsteed && !canSelectCustom) {
-        setSelectedPaymentMethod('oxsteed');
-      } else if (!canSelectOxsteed && canSelectCustom) {
+      if (canSelectCustom) {
         setSelectedPaymentMethod('off_platform');
       }
     }
-  }, [canSelectOxsteed, canSelectCustom, selectedPaymentMethod]);
+  }, [canSelectCustom, selectedPaymentMethod]);
 
   const handleConfirm = () => {
     if (!selectedPaymentMethod) {
@@ -53,70 +49,14 @@ export default function BidAcceptanceModal({
         </p>
 
         <div className="space-y-4 mb-6">
-          {/* OxSteed Payment Method Option */}
-          {canSelectOxsteed && (
-            <div
-              onClick={() => setSelectedPaymentMethod('oxsteed')}
-              className={`border-2 rounded-lg p-4 cursor-pointer transition ${
-                selectedPaymentMethod === 'oxsteed'
-                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                  : 'border-gray-300 dark:border-gray-600 hover:border-orange-300 dark:hover:border-orange-700'
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <input
-                  type="radio"
-                  name="payment-method"
-                  value="oxsteed"
-                  checked={selectedPaymentMethod === 'oxsteed'}
-                  onChange={() => setSelectedPaymentMethod('oxsteed')}
-                  className="mt-1"
-                  aria-label={t('bidAcceptanceModal.oxsteadOption') || 'OxSteed platform payment'}
-                />
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg mb-1">
-                    {t('bidAcceptanceModal.oxsteadPayment') || 'OxSteed Platform Payment'}
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                    {t('bidAcceptanceModal.oxsteadDescription') || 'Pay via OxSteed with built-in cancellation protection'}
-                  </p>
-
-                  {/* Fee Structure Display */}
-                  <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded border border-blue-200 dark:border-blue-700">
-                    <p className="text-sm font-semibold mb-2">
-                      {t('bidAcceptanceModal.cancellationFeeStructure') || 'Cancellation Fee Structure:'}
-                    </p>
-                    <ul className="text-xs space-y-1 text-gray-700 dark:text-gray-300">
-                      <li>
-                        <strong>{t('bidAcceptanceModal.threeDaysPlus') || '3+ days before'}:</strong>{' '}
-                        {t('bidAcceptanceModal.freeNoFee') || 'Free (no cancellation fee)'}
-                      </li>
-                      <li>
-                        <strong>{t('bidAcceptanceModal.twentyFourTo72') || '24h–3 days before'}:</strong>{' '}
-                        {t('bidAcceptanceModal.fiftySomePercent') || '50% of fee cap (max $100)'}
-                      </li>
-                      <li>
-                        <strong>{t('bidAcceptanceModal.lessThan24') || '<24h before'}:</strong>{' '}
-                        {t('bidAcceptanceModal.fullFeeAmount') || '100% of fee cap (max $100)'}
-                      </li>
-                      <li className="text-xs text-green-600 dark:text-green-400 mt-2">
-                        ✓ {t('bidAcceptanceModal.youAndHelperProtected') || 'You and the helper are both protected'}
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Custom Off-Platform Payment Method Option */}
           {canSelectCustom && (
             <div
               onClick={() => setSelectedPaymentMethod('off_platform')}
               className={`border-2 rounded-lg p-4 cursor-pointer transition ${
                 selectedPaymentMethod === 'off_platform'
-                  ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                  : 'border-gray-300 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-700'
+                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                  : 'border-gray-300 dark:border-gray-600 hover:border-orange-300 dark:hover:border-orange-700'
               }`}
             >
               <div className="flex items-start gap-3">
@@ -131,14 +71,14 @@ export default function BidAcceptanceModal({
                 />
                 <div className="flex-1">
                   <h3 className="font-semibold text-lg mb-1">
-                    {t('bidAcceptanceModal.customPayment') || 'Custom Off-Platform Payment'}
+                    {t('bidAcceptanceModal.customPayment') || 'Direct Customer-Helper Payment'}
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                    {t('bidAcceptanceModal.customDescription') || 'Negotiate directly with the helper (payment outside OxSteed)'}
+                    {t('bidAcceptanceModal.customDescription') || 'Pay outside OxSteed and keep the record in the app.'}
                   </p>
 
                   {/* Custom Terms Display */}
-                  <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded border border-purple-200 dark:border-purple-700">
+                  <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded border border-orange-200 dark:border-orange-700">
                     <p className="text-sm font-semibold mb-2">
                       {t('bidAcceptanceModal.customTerms') || 'Helper\'s Terms:'}
                     </p>
@@ -164,7 +104,7 @@ export default function BidAcceptanceModal({
                     </div>
 
                     <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2 font-semibold">
-                      ⚠ {t('bidAcceptanceModal.customPaymentWarning') || 'Payment and disputes are handled directly with the helper'}
+                      ⚠ {t('bidAcceptanceModal.customPaymentWarning') || 'Use chat/activity to share proof or confirmation after payment.'}
                     </p>
                   </div>
                 </div>
@@ -173,7 +113,7 @@ export default function BidAcceptanceModal({
           )}
 
           {/* No Valid Options */}
-          {!canSelectOxsteed && !canSelectCustom && (
+          {!canSelectCustom && (
             <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded border border-red-200 dark:border-red-700">
               <p className="text-sm text-red-800 dark:text-red-200">
                 {t('bidAcceptanceModal.noPaymentMethods') || 'This helper has not configured any payment methods. Please contact support.'}

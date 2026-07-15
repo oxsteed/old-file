@@ -18,7 +18,7 @@ export default function CountrySelect({
   onChange,
   id,
   className = '',
-  placeholder,
+  placeholder = null,
   includeBlank = true,
   disabled = false,
   required = false,

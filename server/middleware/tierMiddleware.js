@@ -22,10 +22,11 @@ function requireTier2Helper(req, res, next) {
 /**
  * Require that a helper is eligible for Tier 3 (OxSteed Protection) jobs.
  * Checks: onboarding complete, ID verified, background check passed,
- * AND Stripe Express onboarding complete with charges enabled.
+ * and any payment-readiness checks required by the current launch flow.
  *
- * Per design: to accept a Tier 3 job, helpers must complete Stripe Express
- * onboarding from within OxSteed so they can receive direct charges.
+ * Note: Stripe-era account state may still exist in the database for future
+ * infrastructure, but the launch-facing experience should not direct users
+ * to a Stripe onboarding UI.
  */
 async function requireTier3EligibleHelper(req, res, next) {
   if (!req.user) {
@@ -48,7 +49,7 @@ async function requireTier3EligibleHelper(req, res, next) {
     });
   }
 
-  // Check Stripe Express onboarding is complete and charges are enabled
+  // Keep the database check generic so launch copy does not depend on Stripe UI.
   try {
     const connectResult = await pool.query(
       'SELECT stripe_account_id, onboarding_complete, charges_enabled FROM connect_accounts WHERE user_id = $1',
@@ -57,12 +58,12 @@ async function requireTier3EligibleHelper(req, res, next) {
     if (!connectResult.rows[0] || !connectResult.rows[0].onboarding_complete || !connectResult.rows[0].charges_enabled) {
       return res.status(403).json({
         success: false,
-        code: 'TIER3_STRIPE_NOT_READY',
-        message: 'Complete Stripe payment setup to accept OxSteed Protection jobs. Go to your dashboard to set up payments.'
+        code: 'TIER3_PAYMENT_NOT_READY',
+        message: 'This helper is not ready for protected payment capture yet. Use the direct payment and proof flow instead.'
       });
     }
   } catch (err) {
-    logger.error('Tier 3 Stripe check failed', { userId: req.user?.id, error: err.message });
+    logger.error('Tier 3 payment-readiness check failed', { userId: req.user?.id, error: err.message });
     return res.status(500).json({ success: false, message: 'Failed to verify payment account status' });
   }
 

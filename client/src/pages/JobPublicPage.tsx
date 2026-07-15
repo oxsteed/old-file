@@ -123,9 +123,9 @@ export default function JobPublicPage() {
   const handleBid = () => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      navigate(`/auth/login?redirect=/jobs/${jobId}`);
+      navigate('/login', { state: { from: { pathname: `/jobs/${jobId}` } } });
     } else {
-      navigate(`/bids/new?jobId=${jobId}`);
+      navigate(`/jobs/${jobId}`);
     }
   };
 

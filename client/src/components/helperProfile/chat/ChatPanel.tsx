@@ -165,6 +165,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingText,      setEditingText]      = useState('');
   const [searchOpen,       setSearchOpen]       = useState(false);
+  const guestClaimKeyRef = useRef<string | null>(null);
 
   // ── Live status polling ───────────────────────────────────────────────────
   useEffect(() => {
@@ -259,6 +260,47 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       }
     }
   }, [isGuest, guestStorageKey, guestTokenKey]);
+
+  useEffect(() => {
+    if (!isGuest || session.destination !== 'helper') return;
+    if (!user?.email || !guestContactSaved) return;
+
+    const guestEmailNormalized = guestEmail.trim().toLowerCase();
+    const userEmailNormalized = String(user.email || '').trim().toLowerCase();
+    if (!guestEmailNormalized || guestEmailNormalized !== userEmailNormalized) return;
+
+    const claimKey = `${helperId}:${businessId ?? 'personal'}:${guestEmailNormalized}`;
+    if (guestClaimKeyRef.current === claimKey) return;
+
+    let cancelled = false;
+    guestClaimKeyRef.current = claimKey;
+
+    (async () => {
+      try {
+        const { data } = await api.post('/chat/sessions/guest/claim');
+        if (cancelled) return;
+
+        const claimedConversation = Array.isArray(data?.claimed)
+          ? data.claimed.find((item: any) => item?.conversationId)
+          : null;
+        if (claimedConversation?.conversationId) {
+          setConversationId(String(claimedConversation.conversationId));
+        }
+
+        if (Number(data?.count || 0) > 0) {
+          toast.success(t('messages.guestClaimedToast', { defaultValue: 'Your guest inquiry is now in your inbox.' }));
+        }
+      } catch {
+        if (!cancelled) {
+          guestClaimKeyRef.current = null;
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isGuest, session.destination, user?.email, guestContactSaved, guestEmail, helperId, businessId, t]);
 
   // Reset pagination when conversation changes
   useEffect(() => {

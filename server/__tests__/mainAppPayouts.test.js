@@ -150,6 +150,156 @@ describe('main app protected payment request records', () => {
     expect(mockQuery.mock.calls[0][0]).toMatch(/INSERT INTO main_app_payment_requests/);
     expect(next).not.toHaveBeenCalled();
   });
+
+  test('rejects fabricated payment records between unrelated users', async () => {
+    const req = {
+      get: jest.fn(),
+      user: { id: '00000000-0000-4000-8000-000000000999' },
+      body: {
+        sourceType: 'job',
+        sourceId: 'job-1',
+        payerId: '00000000-0000-4000-8000-000000000111',
+        payeeId: '00000000-0000-4000-8000-000000000222',
+        amountCents: 2500,
+        settlementMode: 'manual_direct',
+      },
+    };
+    const res = mockResponse();
+    const next = jest.fn();
+
+    await ctrl.createPaymentRequest(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      error: expect.objectContaining({
+        code: 'validation_failed',
+        fields: expect.objectContaining({ participants: expect.any(String) }),
+      }),
+    }));
+    expect(mockQuery).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test('confirms a payment receipt for the recipient in-app', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 501,
+        source_type: 'service_booking',
+        source_id: 'booking-1',
+        payer_id: '00000000-0000-4000-8000-000000000111',
+        payee_id: '00000000-0000-4000-8000-000000000999',
+        business_id: 7,
+        amount_cents: 9900,
+        currency_code: 'USD',
+        status: 'confirmed',
+        settlement_mode: 'manual_direct',
+        external_provider: 'cash_app',
+        processor_payment_id: null,
+        description: 'Demo-safe service deposit',
+        idempotency_key: 'idem-1',
+        expires_at: null,
+        metadata: {
+          proofLink: 'https://example.com/proof.png',
+          proofAttachment: {
+            url: 'https://example.com/proof.png',
+            key: 'user-uploads/receipt.png',
+            name: 'receipt.png',
+            type: 'image/png',
+            sizeBytes: 12345,
+          },
+          confirmationCode: 'ABC123',
+          confirmationNote: 'Received at the front desk',
+          confirmedAt: '2026-06-30T12:00:00.000Z',
+          confirmedByUserId: '00000000-0000-4000-8000-000000000999',
+        },
+        created_at: new Date('2026-06-30T12:00:00Z'),
+        updated_at: new Date('2026-06-30T12:00:00Z'),
+      }],
+    });
+    const req = {
+      params: { requestId: '501' },
+      user: { id: '00000000-0000-4000-8000-000000000999' },
+      body: {
+        confirmationCode: 'ABC123',
+        proofLink: 'https://example.com/proof.png',
+        note: 'Received at the front desk',
+      },
+    };
+    const res = mockResponse();
+    const next = jest.fn();
+
+    await ctrl.confirmPaymentRequest(req, res, next);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      contract: expect.objectContaining({
+        moneyMoved: false,
+        processorPaymentCreated: false,
+        receiptConfirmed: true,
+      }),
+      paymentRequest: expect.objectContaining({
+        status: 'confirmed',
+        confirmationCode: 'ABC123',
+        proofLink: 'https://example.com/proof.png',
+        proofAttachment: expect.objectContaining({
+          url: 'https://example.com/proof.png',
+          name: 'receipt.png',
+          type: 'image/png',
+        }),
+        confirmationNote: 'Received at the front desk',
+      }),
+      message: expect.stringContaining('confirmed in the app'),
+    }));
+    expect(mockQuery.mock.calls[0][0]).toMatch(/UPDATE main_app_payment_requests/);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test('lets the payer submit proof without confirming their own payment', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 501,
+        source_type: 'service_booking',
+        source_id: 'booking-1',
+        payer_id: '00000000-0000-4000-8000-000000000111',
+        payee_id: '00000000-0000-4000-8000-000000000999',
+        business_id: 7,
+        amount_cents: 9900,
+        currency_code: 'USD',
+        status: 'requested',
+        settlement_mode: 'manual_direct',
+        metadata: {
+          proofLink: 'https://example.com/payer-proof.png',
+          proofSubmittedAt: '2026-06-30T12:00:00.000Z',
+          proofSubmittedByUserId: '00000000-0000-4000-8000-000000000111',
+        },
+        created_at: new Date('2026-06-30T12:00:00Z'),
+        updated_at: new Date('2026-06-30T12:00:00Z'),
+      }],
+    });
+    const req = {
+      params: { requestId: '501' },
+      user: { id: '00000000-0000-4000-8000-000000000111' },
+      body: { proofLink: 'https://example.com/payer-proof.png' },
+    };
+    const res = mockResponse();
+    const next = jest.fn();
+
+    await ctrl.submitPaymentProof(req, res, next);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      contract: expect.objectContaining({
+        moneyMoved: false,
+        proofSubmitted: true,
+      }),
+      paymentRequest: expect.objectContaining({
+        status: 'requested',
+        proofLink: 'https://example.com/payer-proof.png',
+        proofSubmittedByUserId: '00000000-0000-4000-8000-000000000111',
+      }),
+    }));
+    expect(mockQuery.mock.calls[0][0]).toMatch(/payer_id = \$2/);
+    expect(mockQuery.mock.calls[0][0]).not.toMatch(/status = 'confirmed'/);
+    expect(next).not.toHaveBeenCalled();
+  });
 });
 
 describe('main app promo launch scope', () => {

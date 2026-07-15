@@ -16,7 +16,8 @@ export default function OrderDetailsPage() {
 
 function OrderDetailsPageContent() {
   const { t } = useTranslation();
-  const { orderId } = useParams();
+  const params = useParams();
+  const orderId = params.orderId || params.id;
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -54,6 +55,24 @@ function OrderDetailsPageContent() {
   };
 
   const canCancel = order && ['pending', 'paid'].includes(order.status);
+
+  const paymentMethodLabel = (() => {
+    const raw = String(order?.payment_method || order?.paymentMode || order?.payment_mode || '').toLowerCase();
+    const labels = {
+      card: 'Card',
+      card_payment: 'Card',
+      bank_transfer: 'Bank transfer',
+      cash: 'Cash',
+      restaurant_credit: 'Restaurant credit',
+      wallet_credit: 'Restaurant credit',
+      direct_payment: 'Direct payment',
+      direct: 'Direct payment',
+      off_platform: 'Direct payment',
+    };
+    if (labels[raw]) return labels[raw];
+    if (order?.transaction) return 'Processor payment';
+    return 'Unrecorded';
+  })();
 
   const statusColor = (status) => {
     const colors = {
@@ -220,24 +239,28 @@ function OrderDetailsPageContent() {
               </div>
 
               {/* Payment Information */}
-              {order.transaction && (
+              {(order.transaction || order.payment_method) && (
                 <div className="bg-white rounded-lg shadow p-6">
                   <h2 className="text-lg font-semibold mb-4">{t('orders.payment')}</h2>
                   <div className="space-y-2 text-sm">
                     <div>
                       <p className="text-gray-600">{t('orders.paymentMethod')}</p>
-                      <p className="font-semibold">{order.payment_method || 'Card'}</p>
+                      <p className="font-semibold">{paymentMethodLabel}</p>
                     </div>
-                    <div>
-                      <p className="text-gray-600">{t('orders.transactionId')}</p>
-                      <p className="font-mono text-xs break-all">
-                        {order.transaction.payment_intent_id}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">{t('orders.status')}</p>
-                      <p className="font-semibold capitalize">{order.transaction.status}</p>
-                    </div>
+                    {order.transaction?.payment_intent_id && (
+                      <div>
+                        <p className="text-gray-600">{t('orders.transactionId')}</p>
+                        <p className="font-mono text-xs break-all">
+                          {order.transaction.payment_intent_id}
+                        </p>
+                      </div>
+                    )}
+                    {order.transaction?.status && (
+                      <div>
+                        <p className="text-gray-600">{t('orders.status')}</p>
+                        <p className="font-semibold capitalize">{order.transaction.status}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

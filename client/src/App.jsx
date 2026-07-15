@@ -27,8 +27,10 @@ import FranchiseApplicantDashboard from './pages/FranchiseApplicantDashboard';
 import FranchiseTerritoryOpsPage from './pages/FranchiseTerritoryOpsPage';
 import SmartDashboard from './pages/SmartDashboard';
 import UpgradePage from './pages/UpgradePage';
+import ActivityPage from './pages/ActivityPage';
 import JobListPage from './pages/JobListPage';
 import JobDetailPage from './pages/JobDetailPage';
+import BidDetailPage from './pages/BidDetailPage';
 import PostJobPage from './pages/PostJobPage';
 import NotFoundPage from './pages/NotFoundPage';
 import TermsPage from './pages/terms';
@@ -134,6 +136,7 @@ import ConsultantAvailabilityPage from './pages/ConsultantAvailabilityPage';
 import ConsultantContractorDashboard from './pages/ConsultantContractorDashboard';
 import InvoicesPage from './pages/InvoicesPage';
 import CalendarPage from './pages/CalendarPage';
+import CalendarAppointmentDetailPage from './pages/CalendarAppointmentDetailPage';
 import AIPreviewPage from './pages/AIPreviewPage';
 import ProductMarketplacePage from './pages/ProductMarketplacePage';
 import ShoppingCartPage from './pages/ShoppingCartPage';
@@ -141,6 +144,8 @@ import SharedCartPage from './pages/SharedCartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import OrderHistoryPage from './pages/OrderHistoryPage';
 import OrderDetailsPage from './pages/OrderDetailsPage';
+import SupportTicketDetailPage from './pages/SupportTicketDetailPage';
+import RestaurantSupportCasePage from './pages/RestaurantSupportCasePage';
 import SupportEscalationPage from './pages/SupportEscalationPage';
 import SupportAgentPortalPage from './pages/SupportAgentPortalPage';
 import StatusPage from './pages/StatusPage';
@@ -245,6 +250,7 @@ export default function App() {
                     <Route path="/about"                   element={<Guarded><AboutPage /></Guarded>} />
                     <Route path="/jobs"                    element={<Guarded><JobListPage /></Guarded>} />
                     <Route path="/jobs/:id"                element={<Guarded><JobDetailPage /></Guarded>} />
+                    <Route path="/bids/:bidId"             element={<Guarded><ProtectedRoute><RouteErrorBoundary><BidDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/jobs/public/:jobId"      element={<JobPublicPage />} />
                     <Route path="/profile/:id"             element={<Guarded><PublicProfile /></Guarded>} />
                     <Route path="/helpers"                 element={<Guarded><HelpersDirectoryPage /></Guarded>} />
@@ -281,11 +287,14 @@ export default function App() {
                     <Route path="/checkout/:cartId"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><CheckoutPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/orders"                  element={<Guarded><ProtectedRoute><OrderHistoryPage /></ProtectedRoute></Guarded>} />
                     <Route path="/orders/:id"             element={<Guarded><ProtectedRoute><RouteErrorBoundary><OrderDetailsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/food/orders/:orderId"   element={<Guarded><ProtectedRoute><RouteErrorBoundary><OrderDetailsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* ── Support & Help ───────────────────────────────────── */}
                     <Route path="/support"                element={<Guarded><SupportEscalationPage /></Guarded>} />
                     <Route path="/support/escalation"     element={<Guarded><SupportEscalationPage /></Guarded>} />
+                    <Route path="/support/my-tickets/:ticketId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><SupportTicketDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/support/agent" element={<Guarded><ProtectedRoute><SupportAgentPortalPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/restaurants/support/cases/:caseId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><RestaurantSupportCasePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* ── Legal / policy pages ─────────────────────────────── */}
                     <Route path="/terms"          element={<Guarded><TermsPage /></Guarded>} />
@@ -312,6 +321,7 @@ export default function App() {
                     <Route path="/investor/dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestorDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/affiliate" element={<Guarded><ProtectedRoute><RouteErrorBoundary><AffiliateDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helper-dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><SmartDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/activity"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><ActivityPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/upgrade"        element={<Guarded><ProtectedRoute><UpgradePage /></ProtectedRoute></Guarded>} />
                     <Route path="/templates"      element={<Guarded><ProtectedRoute><TemplatePicker /></ProtectedRoute></Guarded>} />
                     <Route path="/promote"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><PromotePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
@@ -343,6 +353,8 @@ export default function App() {
                     {/* Messaging: wrapped in RouteErrorBoundary to isolate crashes */}
                     <Route path="/messages"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><MessagesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/messages/:conversationId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConversationPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Back-compat for backend activity URLs that still emit /messages/conversations/:id */}
+                    <Route path="/messages/conversations/:conversationId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConversationPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helper/messages" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperInboxPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helper/messages/guest/:inquiryId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperGuestInquiryPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helper/messages/:conversationId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperConversationPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
@@ -432,6 +444,7 @@ export default function App() {
 
                     {/* Role-aware appointment + availability calendar system */}
                     <Route path="/calendar" element={<Guarded><ProtectedRoute><RouteErrorBoundary><CalendarPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/calendar/appointments/:appointmentId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><CalendarAppointmentDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* Pro feature: QR Code Generator */}
                     <Route path="/qr-generator"  element={<Guarded><ProtectedRoute><RouteErrorBoundary><QRCodeGeneratorPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

@@ -83,13 +83,18 @@ function parseDateOrNull(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function normalizePlainObject(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return value;
+}
+
 function centsFromDollars(value) {
   return Math.round(Number(value || 0) * 100);
 }
 
 function moneyStatus(value) {
   const status = String(value || '').toLowerCase();
-  if (['paid', 'completed', 'released', 'refunded', 'captured'].includes(status)) return 'completed';
+  if (['paid', 'completed', 'released', 'refunded', 'captured', 'confirmed', 'settled'].includes(status)) return 'completed';
   if (['failed', 'cancelled', 'denied'].includes(status)) return 'failed';
   return 'pending';
 }
@@ -1388,7 +1393,7 @@ async function queryActivityMessages(userId, limit) {
       eventAt: toIso(row.created_at),
       isUnread: !sentByCurrentUser && row.is_read !== true,
       actionLabel: sentByCurrentUser ? 'Open Chat' : 'Reply',
-      actionUrl: `/messages/conversations/${row.conversation_id}`,
+      actionUrl: `/messages/${row.conversation_id}`,
       canMarkRead: false,
       canDelete: false,
     };
@@ -1808,18 +1813,36 @@ exports.createPaymentRequest = async (req, res, next) => {
     const settlementMode = String(req.body.settlementMode || req.body.settlement_mode || 'external_pending');
     const validSettlementModes = new Set(['external_pending', 'processor_pending', 'manual_direct']);
     const errors = {};
+    const clientMetadata = normalizePlainObject(req.body.metadata);
+    const directProofAttachment = normalizePlainObject(req.body.proofAttachment || req.body.proof_attachment);
+    const directProofLink = String(
+      req.body.proofLink
+      || req.body.proof_link
+      || directProofAttachment?.url
+      || clientMetadata.proofLink
+      || clientMetadata.proof_link
+      || clientMetadata.proofAttachment?.url
+      || clientMetadata.proof_attachment?.url
+      || ''
+    ).trim();
+    const requesterId = String(req.user.id);
+    const payerId = req.body.payerId || req.body.payer_id || null;
+    const payeeId = req.body.payeeId || req.body.payee_id || req.user.id;
 
     if (!amountCents) errors.amountCents = 'Amount must be a positive cent value.';
     if (!validSourceTypes.has(sourceType)) errors.sourceType = 'Unsupported payment request source.';
     if (!validSettlementModes.has(settlementMode)) errors.settlementMode = 'Unsupported settlement mode.';
+    if (String(payerId || '') !== requesterId && String(payeeId || '') !== requesterId) {
+      errors.participants = 'You must be the payer or recipient on a direct payment record.';
+    }
     if (Object.keys(errors).length) {
       return res.status(400).json({ error: { code: 'validation_failed', fields: errors } });
     }
 
     const request = await mainAppContracts.createPaymentRequest({
       requesterId: req.user.id,
-      payerId: req.body.payerId || req.body.payer_id || null,
-      payeeId: req.body.payeeId || req.body.payee_id || req.user.id,
+      payerId,
+      payeeId,
       businessId: parseOptionalInt(req.body.businessId ?? req.body.business_id),
       sourceType,
       sourceId: req.body.sourceId || req.body.source_id || null,
@@ -1832,7 +1855,10 @@ exports.createPaymentRequest = async (req, res, next) => {
       metadata: {
         requestedBy: 'oxsteed-main',
         noChargeCreated: true,
-        clientMetadata: req.body.metadata || {},
+        ...clientMetadata,
+        ...(Object.keys(directProofAttachment).length ? { proofAttachment: directProofAttachment } : {}),
+        ...(directProofLink ? { proofLink: directProofLink } : {}),
+        clientMetadata,
       },
     });
 
@@ -1845,6 +1871,146 @@ exports.createPaymentRequest = async (req, res, next) => {
       },
       paymentRequest: mainAppContracts.serializePaymentRequest(request),
       message: 'Payment request recorded. No card charge, transfer, escrow hold, or payout was created.',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.confirmPaymentRequest = async (req, res, next) => {
+  try {
+    const requestId = Number.parseInt(String(req.params.requestId), 10);
+    if (!Number.isFinite(requestId) || requestId <= 0) {
+      return res.status(400).json({
+        error: {
+          code: 'validation_failed',
+          fields: { requestId: 'Valid request ID is required.' },
+        },
+      });
+    }
+
+    const clientMetadata = normalizePlainObject(req.body.metadata);
+    const directProofAttachment = normalizePlainObject(req.body.proofAttachment || req.body.proof_attachment || clientMetadata.proofAttachment || clientMetadata.proof_attachment);
+    const confirmationCode = String(req.body.confirmationCode || req.body.confirmation_code || clientMetadata.confirmationCode || clientMetadata.confirmation_code || '').trim();
+    const proofLink = String(
+      req.body.proofLink
+      || req.body.proof_link
+      || clientMetadata.proofLink
+      || clientMetadata.proof_link
+      || directProofAttachment?.url
+      || clientMetadata.proofAttachment?.url
+      || clientMetadata.proof_attachment?.url
+      || ''
+    ).trim();
+    const note = String(req.body.note || clientMetadata.note || clientMetadata.confirmationNote || clientMetadata.confirmation_note || '').trim();
+
+    const request = await mainAppContracts.confirmPaymentRequest({
+      requestId,
+      userId: req.user.id,
+      confirmationCode: confirmationCode || null,
+      proofLink: proofLink || null,
+      proofAttachment: Object.keys(directProofAttachment).length ? directProofAttachment : null,
+      note: note || null,
+    });
+
+    if (!request) {
+      return res.status(404).json({
+        error: {
+          code: 'payment_request_not_confirmable',
+          message: 'Payment request was not found, already confirmed, or you are not the recipient.',
+        },
+      });
+    }
+
+    return res.json({
+      contract: {
+        version: 'main-payment-request-v1',
+        generatedAt: new Date().toISOString(),
+        moneyMoved: false,
+        processorPaymentCreated: false,
+        receiptConfirmed: true,
+      },
+      paymentRequest: mainAppContracts.serializePaymentRequest(request),
+      message: 'Payment receipt confirmed in the app.',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.submitPaymentProof = async (req, res, next) => {
+  try {
+    const requestId = Number.parseInt(String(req.params.requestId), 10);
+    if (!Number.isFinite(requestId) || requestId <= 0) {
+      return res.status(400).json({
+        error: {
+          code: 'validation_failed',
+          fields: { requestId: 'Valid request ID is required.' },
+        },
+      });
+    }
+
+    const clientMetadata = normalizePlainObject(req.body.metadata);
+    const proofAttachment = normalizePlainObject(
+      req.body.proofAttachment
+        || req.body.proof_attachment
+        || clientMetadata.proofAttachment
+        || clientMetadata.proof_attachment
+    );
+    const proofLink = String(
+      req.body.proofLink
+        || req.body.proof_link
+        || clientMetadata.proofLink
+        || clientMetadata.proof_link
+        || proofAttachment?.url
+        || ''
+    ).trim();
+    const confirmationCode = String(
+      req.body.confirmationCode
+        || req.body.confirmation_code
+        || clientMetadata.confirmationCode
+        || clientMetadata.confirmation_code
+        || ''
+    ).trim();
+    const note = String(req.body.note || clientMetadata.note || '').trim();
+
+    if (!proofLink && !confirmationCode && !Object.keys(proofAttachment).length) {
+      return res.status(400).json({
+        error: {
+          code: 'validation_failed',
+          fields: { proof: 'Upload proof or provide a payment confirmation reference.' },
+        },
+      });
+    }
+
+    const request = await mainAppContracts.submitPaymentProof({
+      requestId,
+      userId: req.user.id,
+      proofLink: proofLink || null,
+      proofAttachment: Object.keys(proofAttachment).length ? proofAttachment : null,
+      confirmationCode: confirmationCode || null,
+      note: note || null,
+    });
+
+    if (!request) {
+      return res.status(404).json({
+        error: {
+          code: 'payment_request_not_proof_eligible',
+          message: 'Payment request was not found, is no longer pending, or you are not the payer.',
+        },
+      });
+    }
+
+    return res.json({
+      contract: {
+        version: 'main-payment-request-v1',
+        generatedAt: new Date().toISOString(),
+        moneyMoved: false,
+        processorPaymentCreated: false,
+        proofSubmitted: true,
+      },
+      paymentRequest: mainAppContracts.serializePaymentRequest(request),
+      message: 'Payment proof submitted for recipient review.',
     });
   } catch (err) {
     next(err);

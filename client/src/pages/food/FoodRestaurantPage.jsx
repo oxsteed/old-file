@@ -5,7 +5,8 @@
 // drawer (cart → details → payment → confirmed). Payment follows the backend
 // restaurant contract: pay_at_restaurant by default, restaurant_credit when
 // the signed-in customer holds an active wallet, and pay_now only when the
-// restaurant has connected Stripe and enabled card checkout.
+// restaurant payment flows now launch with restaurant credit, pay-at-restaurant,
+// and direct payment proof capture.
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -464,8 +465,6 @@ export default function FoodRestaurantPage() {
       ? 'restaurant_credit'
       : paymentMethod === 'direct_payment'
         ? 'direct_payment'
-        : paymentMethod === 'card_online'
-          ? 'pay_now'
         : 'pay_at_restaurant';
     const externalPaymentSubmission = paymentMode === 'direct_payment'
       ? {
@@ -918,19 +917,11 @@ export default function FoodRestaurantPage() {
     { id: '+30', label: 'In 30 minutes', sub: 'Scheduled ahead' },
     { id: 'later', label: 'Schedule for later', sub: 'Choose a specific time' },
   ];
-  // Payment options mirror the backend contract (`pay_at_restaurant`,
-  // `restaurant_credit`, `direct_payment`); card checkout is only exposed
-  // when the restaurant has connected Stripe and the account is ready.
+  // Payment options mirror the launch contract (`pay_at_restaurant`,
+  // `restaurant_credit`, `direct_payment`). Card checkout remains dormant
+  // in backend code, but no launch UI depends on Stripe.
   const walletBalanceCents = Number(wallet?.balanceCents || 0);
   const walletCoversOrder = walletBalanceCents >= orderTotalCents;
-  const stripeAccountId = restaurant.business_stripe_account_id || restaurant.stripe_account_id || null;
-  const stripeCheckoutAvailable = Boolean(
-    stripeAccountId && (
-      restaurant.business_stripe_charges_enabled
-      ?? restaurant.stripe_charges_enabled
-      ?? restaurant.stripe_ready_for_checkout
-    )
-  );
   const paymentMethods = [
     {
       id: 'pay_at_restaurant',
@@ -955,19 +946,7 @@ export default function FoodRestaurantPage() {
         ? `Send to ${externalPaymentHandle}`
         : 'Use the restaurant’s payment instructions and upload proof',
     }] : []),
-    ...(stripeCheckoutAvailable ? [{
-      id: 'card_online',
-      icon: '💳',
-      label: 'Pay online by card',
-      sub: 'Secure Stripe checkout',
-    }] : []),
   ];
-
-  useEffect(() => {
-    if (paymentMethod === 'card_online' && !stripeCheckoutAvailable) {
-      setPaymentMethod('pay_at_restaurant');
-    }
-  }, [paymentMethod, stripeCheckoutAvailable]);
 
   const detailsTitle = isPickup ? 'Pickup Details' : 'Delivery Details';
   const delivFeeLabel = isPickup ? 'Pickup' : 'Delivery fee';

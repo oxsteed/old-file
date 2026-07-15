@@ -75,12 +75,6 @@ export const createFoodRestaurant = (payload) =>
 export const updateFoodRestaurant = (restaurantId, payload) =>
   api.patch(`/food/restaurants/${restaurantId}`, payload).then((r) => r.data?.restaurant);
 
-export const startFoodRestaurantStripeConnect = (businessId) =>
-  api.post(`/businesses/${businessId}/integrations/stripe/auth`).then((r) => r.data);
-
-export const disconnectFoodRestaurantStripeConnect = (businessId) =>
-  api.post(`/businesses/${businessId}/integrations/stripe/disconnect`).then((r) => r.data);
-
 export const createFoodCategory = (restaurantId, payload) =>
   api.post(`/food/restaurants/${restaurantId}/categories`, payload).then((r) => r.data?.category);
 

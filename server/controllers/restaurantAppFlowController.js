@@ -2359,6 +2359,7 @@ function deviceRouteContract(device, options = {}) {
     contract.routes.displayStats = `${base}/devices/${deviceId}/display-stats`;
     contract.routes.displaySettings = `${base}/devices/${deviceId}/display-settings`;
     contract.routes.reportDeviceIssue = `${base}/devices/${deviceId}/report-issue`;
+    contract.routes.createOrder = `${base}/devices/${deviceId}/orders`;
     contract.routes.compat = {
       runtimeConfig: `${base}/display/devices/${deviceId}/runtime-config`,
       heartbeat: `${base}/display/devices/${deviceId}/heartbeat`,
@@ -2366,6 +2367,7 @@ function deviceRouteContract(device, options = {}) {
       stats: `${base}/display/devices/${deviceId}/stats`,
       settings: `${base}/display/devices/${deviceId}/settings`,
       reportIssue: `${base}/display/devices/${deviceId}/report-issue`,
+      createOrder: `${base}/display/devices/${deviceId}/orders`,
     };
     contract.polling.queueBoardAfterMs = 2000;
   }
@@ -2403,6 +2405,32 @@ async function requireDeviceCredential(req, restaurantId, deviceId) {
   if (!device) throw new AppError('Device credential is invalid', 401, 'invalid_device_credential');
   return device;
 }
+
+exports.authenticateDisplayDevice = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const deviceId = parsePositiveInt(req.params.deviceId);
+    if (!restaurantId || !deviceId) {
+      throw new AppError('Restaurant and device are required', 400, 'invalid_device_scope');
+    }
+    const device = await requireDeviceCredential(req, restaurantId, deviceId);
+    assertDeviceApp(device, 'display');
+    req.restaurantDevice = device;
+    req.body = {
+      ...(req.body || {}),
+      orderSource: 'kiosk',
+      order_source: 'kiosk',
+      metadata: {
+        ...safeJson(req.body?.metadata, {}),
+        displayDeviceId: Number(device.id),
+        display_device_id: Number(device.id),
+      },
+    };
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
 
 function assertDeviceApp(device, appKey) {
   if (!device || device.app_key !== appKey) {
@@ -4018,6 +4046,39 @@ exports.recordPosPayment = async (req, res, next) => {
       }
 
       const currencyCode = normalizeCurrency(order.currency_code || restaurant.currency_code) || 'USD';
+      const orderMetadata = safeJson(order.metadata);
+      const externalPaymentSubmission = safeJson(
+        orderMetadata.externalPayment || orderMetadata.external_payment,
+        null
+      );
+
+      if (paymentType === 'external') {
+        const proofRequired = externalPaymentSubmission?.proofRequired === true
+          || externalPaymentSubmission?.proof_required === true;
+        const proof = safeJson(externalPaymentSubmission?.proof, null);
+        const hasProof = Boolean(
+          normalizeString(
+            proof?.attachmentUrl
+              || proof?.attachment_url
+              || externalPaymentSubmission?.attachmentUrl
+              || externalPaymentSubmission?.attachment_url,
+            2000
+          )
+          || normalizeString(
+            externalPaymentSubmission?.reference
+              || externalPaymentSubmission?.paymentReference
+              || externalPaymentSubmission?.payment_reference,
+            160
+          )
+        );
+        if (proofRequired && !hasProof) {
+          throw new AppError(
+            'Payment proof or a confirmation reference is required before receipt can be confirmed',
+            409,
+            'direct_payment_proof_required'
+          );
+        }
+      }
 
       if (paymentType === 'refund') {
         const walletRefund = await refundPosWalletCreditPayment(client, {
@@ -4205,6 +4266,14 @@ exports.recordPosPayment = async (req, res, next) => {
           normalizeString(req.body.note, 1000),
           {
             ...safeJson(req.body.metadata),
+            ...(paymentType === 'external' && externalPaymentSubmission ? {
+              externalPayment: {
+                ...externalPaymentSubmission,
+                receiptConfirmed: true,
+                receiptConfirmedAt: new Date().toISOString(),
+                receiptConfirmedByUserId: String(req.user.id),
+              },
+            } : {}),
             paymentContract: paymentContractMetadata(paymentContract, { source: 'manual_pos_payment' }),
           },
           idempotencyKey,

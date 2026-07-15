@@ -73,7 +73,10 @@ const ToolRentalsAnalytics: React.FC = () => {
   if (!data || data.tools.length === 0) {
     return (
       <PageShell>
-        <PageMeta title={t('toolRentals.analytics')} />
+        <PageMeta
+          title={t('toolRentals.analytics')}
+          description="Track tool-rental demand, bookings, completed rentals, and revenue."
+        />
         <div className="analytics-container analytics-page-shell">
           <header className="analytics-hero">
             <div>
@@ -125,7 +128,10 @@ const ToolRentalsAnalytics: React.FC = () => {
   return (
     <PageShell>
       <div className="analytics-container analytics-page-shell">
-        <PageMeta title={t('toolRentals.analytics')} />
+        <PageMeta
+          title={t('toolRentals.analytics')}
+          description="Track tool-rental demand, bookings, completed rentals, and revenue."
+        />
 
         <div className="analytics-header analytics-header-v2">
           <div>

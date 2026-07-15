@@ -455,6 +455,10 @@ describe('main app activity feed contract', () => {
       'support_case',
       'restaurant_support_case',
     ]);
+    expect(res.body.events[4]).toEqual(expect.objectContaining({
+      source: 'message',
+      actionUrl: '/messages/conversation-1',
+    }));
     expect(res.body.events[0]).toEqual(expect.objectContaining({
       id: 'notification-7',
       type: 'order',

@@ -224,7 +224,11 @@ exports.createPaymentIntent = async (req, res, next) => {
     const connect = await pool.query('SELECT * FROM connect_accounts WHERE user_id = $1', [job.rows[0].assigned_helper_id]);
     const freshConnect = await refreshConnectAccountStatus(job.rows[0].assigned_helper_id, connect.rows[0] || null);
     if (!freshConnect || !freshConnect.charges_enabled) {
-      throw new AppError('Helper payment account is not ready. Please ask the helper to complete their payment setup.', 400, 'helper_account_not_ready');
+      throw new AppError(
+        'This helper is not ready for protected payment capture yet. Use the direct payment and proof flow instead.',
+        400,
+        'helper_account_not_ready'
+      );
     }
 
     const rawJobValueCents = Math.round(job.rows[0].job_value * 100);

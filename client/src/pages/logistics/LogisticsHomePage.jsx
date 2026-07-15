@@ -97,7 +97,7 @@ export default function LogisticsHomePage() {
               </Link>
             ) : (
               <>
-                <Link to="/register" className="lx-btn-primary">
+                <Link to="/join" className="lx-btn-primary">
                   {t('logistics.home.getStarted')}
                 </Link>
                 <Link to="/logistics/campaigns" className="lx-btn-ghost">
@@ -173,7 +173,7 @@ export default function LogisticsHomePage() {
             <p className="lxh-cta-body">
               {t('logistics.home.readyToStartBody')}
             </p>
-            <Link to="/register" className="lx-btn-primary">
+            <Link to="/join" className="lx-btn-primary">
               {t('logistics.home.createAccount')}
             </Link>
           </div>

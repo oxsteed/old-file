@@ -43,8 +43,8 @@ export default function CoverImageUpload({
   onUploadSuccess,
   onError,
   embedded = false,
-  uploadCover,
-  deleteCover,
+  uploadCover = null,
+  deleteCover = null,
 }) {
   const { t } = useTranslation();
   const fileInputRef = useRef(null);

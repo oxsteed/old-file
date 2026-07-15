@@ -28,6 +28,13 @@ export interface HelperProfile {
   /** 0–100 */
   responseRate: number;
   badges: Badge[];
+  /** Learning certificates earned from completed OxSteed guides. */
+  skillBadges?: Array<{
+    id: string;
+    label: string;
+    category: string;
+    earnedAt?: string;
+  }>;
   categories: string[];
   /** Service city (public) */
   city?: string;

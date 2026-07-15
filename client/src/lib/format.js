@@ -14,6 +14,7 @@
 import { getDefaultCurrency } from './countries';
 
 const DEFAULT_CURRENCY = 'USD';
+const MAX_FRACTION_DIGITS = 20;
 const LANGUAGE_STORAGE_KEY = 'oxs:language';
 const APP_LANGUAGE_LOCALES = {
   en: 'en-US',
@@ -45,7 +46,7 @@ function cleanIntlOptions(options) {
 function toSafeFractionDigits(value, fallback) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
-  return Math.max(0, Math.trunc(parsed));
+  return Math.min(MAX_FRACTION_DIGITS, Math.max(0, Math.trunc(parsed)));
 }
 
 /**
@@ -154,11 +155,23 @@ export function formatNumber(value, opts = {}) {
   if (value === null || value === undefined || value === '') return fallback;
   const n = typeof value === 'number' ? value : parseFloat(value);
   if (!Number.isFinite(n)) return fallback;
-  return new Intl.NumberFormat(locale, cleanIntlOptions({
-    minimumFractionDigits,
-    maximumFractionDigits,
-    ...numberOptions,
-  })).format(n);
+  const requestedMinimumFractionDigits = toSafeFractionDigits(minimumFractionDigits, 0);
+  const requestedMaximumFractionDigits = toSafeFractionDigits(maximumFractionDigits, requestedMinimumFractionDigits);
+  const safeMinimumFractionDigits = Math.min(requestedMinimumFractionDigits, requestedMaximumFractionDigits);
+  const safeMaximumFractionDigits = Math.max(safeMinimumFractionDigits, requestedMaximumFractionDigits);
+  try {
+    return new Intl.NumberFormat(locale, cleanIntlOptions({
+      minimumFractionDigits: safeMinimumFractionDigits,
+      maximumFractionDigits: safeMaximumFractionDigits,
+      ...numberOptions,
+    })).format(n);
+  } catch (_err) {
+    return new Intl.NumberFormat('en-US', cleanIntlOptions({
+      minimumFractionDigits: safeMinimumFractionDigits,
+      maximumFractionDigits: safeMaximumFractionDigits,
+      ...numberOptions,
+    })).format(n);
+  }
 }
 
 export function formatDate(value, opts = {}) {

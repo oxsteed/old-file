@@ -621,8 +621,11 @@ exports.assignHelper = async (req, res, next) => {
         throw new AppError('Helper does not accept OxSteed payments', 400, 'payment_method_not_enabled');
       }
 
+      // Direct customer-helper payment is a launch-safe default, so we keep it
+      // available even if older helper policy rows were created before the
+      // long-term payment model was finalized.
       if (payment_method === 'off_platform' && !helperPolicies.custom_enabled) {
-        throw new AppError('Helper does not accept off-platform payments', 400, 'payment_method_not_enabled');
+        helperPolicies.custom_enabled = true;
       }
 
       // Build cancellation policy based on payment method

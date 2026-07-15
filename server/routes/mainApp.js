@@ -16,6 +16,8 @@ router.post('/payouts', authenticate, ctrl.requestPayout);
 router.post('/payouts/:requestId/cancel', authenticate, ctrl.cancelPayoutRequest);
 router.get('/payment-requests', authenticate, ctrl.listPaymentRequests);
 router.post('/payment-requests', authenticate, ctrl.createPaymentRequest);
+router.post('/payment-requests/:requestId/proof', authenticate, ctrl.submitPaymentProof);
+router.post('/payment-requests/:requestId/confirm', authenticate, ctrl.confirmPaymentRequest);
 router.get('/referrals', authenticate, ctrl.getReferralDashboard);
 router.get('/promos', authenticate, ctrl.getPromoWallet);
 router.post('/promos/redeem', authenticate, ctrl.redeemPromoCode);

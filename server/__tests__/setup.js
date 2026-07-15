@@ -63,6 +63,17 @@ jest.mock('../services/tokenRevocationService', () => ({
   revokeAllUserTokens: jest.fn().mockResolvedValue(undefined),
 }));
 
+// The production TOTP adapter currently ships an ESM-only transitive module.
+// Unit tests exercise our 2FA contracts, not that dependency's implementation,
+// so keep the CommonJS Jest runtime isolated from the package loader.
+jest.mock('@otplib/v12-adapter', () => ({
+  authenticator: {
+    verify: jest.fn().mockReturnValue(true),
+    generateSecret: jest.fn().mockReturnValue('TESTSECRET'),
+    keyuri: jest.fn().mockReturnValue('otpauth://totp/OxSteed:test@example.com?secret=TESTSECRET'),
+  },
+}));
+
 // Avoid fire-and-forget DB work inside authController.register() from consuming
 // the pg mock call queue unpredictably in tests.
 jest.mock('../controllers/templateController', () => ({

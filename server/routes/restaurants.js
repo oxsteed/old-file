@@ -33,6 +33,7 @@ router.get('/:restaurantId/devices/:deviceId/display-stats', appFlow.getDisplayS
 router.get('/:restaurantId/devices/:deviceId/display-settings', appFlow.getDeviceDisplaySettings);
 router.patch('/:restaurantId/devices/:deviceId/display-settings', appFlow.updateDeviceDisplaySettings);
 router.post('/:restaurantId/devices/:deviceId/report-issue', appFlow.reportDeviceIssue);
+router.post('/:restaurantId/devices/:deviceId/orders', appFlow.authenticateDisplayDevice, food.createOrder);
 router.get('/:restaurantId/display/queue-board', appFlow.getPublicDisplayQueueBoard);
 router.get('/:restaurantId/display/menu', food.getRestaurant);
 router.post('/:restaurantId/display/orders/quote', food.quoteOrder);
@@ -43,6 +44,7 @@ router.get('/:restaurantId/display/devices/:deviceId/stats', appFlow.getDisplayS
 router.get('/:restaurantId/display/devices/:deviceId/settings', appFlow.getDeviceDisplaySettings);
 router.patch('/:restaurantId/display/devices/:deviceId/settings', appFlow.updateDeviceDisplaySettings);
 router.post('/:restaurantId/display/devices/:deviceId/report-issue', appFlow.reportDeviceIssue);
+router.post('/:restaurantId/display/devices/:deviceId/orders', appFlow.authenticateDisplayDevice, food.createOrder);
 router.get('/:restaurantId/menu', food.getRestaurant);
 router.post('/:restaurantId/orders/quote', food.quoteOrder);
 router.post('/:restaurantId/kiosk/orders/quote', food.quoteOrder);

@@ -160,7 +160,7 @@ export default function SettingsPage() {
   const [allowLiveChat, setAllowLiveChat] = useState(true);
   const [privacySaving, setPrivacySaving] = useState(null);
 
-  const { subscription, plans, loading: subLoading, openPortal, cancelSubscription, createCheckout } = useSubscription();
+  const { subscription, loading: subLoading } = useSubscription();
 
   const [businesses, setBusinesses] = useState([]);
   const [bizLoading, setBizLoading] = useState(true);
@@ -503,16 +503,9 @@ export default function SettingsPage() {
               {t('settings.subscription.cancelNotice')}
             </p>
           )}
-          <div className="flex gap-3 flex-wrap">
-            <button onClick={openPortal} className="sp-btn sp-btn-primary">{t('settings.subscription.manageBilling')}</button>
-            {!subscription.cancel_at_period_end && (
-              <button
-                onClick={() => { if (confirm(t('settings.subscription.cancelConfirm'))) cancelSubscription(); }}
-                className="sp-btn sp-btn-danger"
-              >
-                {t('settings.subscription.cancelPlan')}
-              </button>
-            )}
+          <div className="sp-empty mt-3">
+            <p>Billing and plan changes are not launched in-app yet.</p>
+            <p>Use support or the activity/history surfaces if you need assistance with account access.</p>
           </div>
         </div>
       ) : (
@@ -520,12 +513,9 @@ export default function SettingsPage() {
           <p className="text-sm mb-4" style={{ color: 'var(--muted-text,#94a3b8)' }}>
             {t('settings.subscription.freePlanNotice')}
           </p>
-          <div className="flex gap-3 flex-wrap">
-            {plans.filter(p => p.slug !== 'free').map(plan => (
-              <button key={plan.id} onClick={() => createCheckout(plan.slug)} className="sp-btn sp-btn-primary">
-                {t('settings.subscription.upgradeTo', { name: plan.name })} - ${(plan.price / 100).toFixed(2)}/{plan.slug?.includes('yearly') ? t('settings.subscription.year') : t('settings.subscription.mo')}
-              </button>
-            ))}
+          <div className="sp-empty">
+            <p>Plan upgrades are handled outside the launch flow for now.</p>
+            <p>Restaurant credit and direct payment are the launch payment paths.</p>
           </div>
         </div>
       )}

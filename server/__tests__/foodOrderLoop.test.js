@@ -236,6 +236,52 @@ describe('food order loop E2E (F7)', () => {
     expect(emailService.send).not.toHaveBeenCalled();
   });
 
+  test('stores direct-payment proof and receipt confirmation in canonical order metadata', async () => {
+    const app = buildApp();
+    mockKioskCreateOrderQueries();
+
+    const createRes = await request(app)
+      .post(`/api/food/restaurants/${RESTAURANT_ID}/orders`)
+      .send({
+        orderSource: 'counter',
+        fulfillmentType: 'pickup',
+        paymentMode: 'direct_payment',
+        guestName: 'Counter Guest',
+        items: [{ menuItemId: MENU_ITEM_ID, quantity: 1 }],
+        externalPayment: {
+          method: 'cash_app',
+          reference: 'CA-12345',
+          receiptConfirmed: true,
+          proofRequired: true,
+          proof: {
+            attachmentUrl: 'https://oxsteed.com/uploads/payment-proof.png',
+            attachmentKey: 'user-uploads/customer/payment-proof.png',
+            attachmentName: 'payment-proof.png',
+            attachmentType: 'image/png',
+            attachmentSizeBytes: 2048,
+          },
+        },
+      });
+
+    expect(createRes.status).toBe(201);
+    const insertCall = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO food_orders'));
+    expect(insertCall).toBeTruthy();
+    const metadata = insertCall[1][23];
+    expect(metadata.externalPayment.submission).toMatchObject({
+      method: 'cash_app',
+      reference: 'CA-12345',
+      receiptConfirmed: true,
+      proofRequired: true,
+      proof: {
+        attachmentUrl: 'https://oxsteed.com/uploads/payment-proof.png',
+        attachmentKey: 'user-uploads/customer/payment-proof.png',
+        attachmentName: 'payment-proof.png',
+        attachmentType: 'image/png',
+        attachmentSizeBytes: 2048,
+      },
+    });
+  });
+
   test('signed-in customer receives notificationService on ready (not SMS)', async () => {
     const app = buildApp({ id: CUSTOMER_ID, email: 'guest@example.com' });
     mockKioskCreateOrderQueries({

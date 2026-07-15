@@ -194,11 +194,7 @@ describe('POST /api/auth/check-zip', () => {
 
 // ── POST /api/auth/register/start ─────────────────────────────────────────────
 describe('POST /api/auth/register/start', () => {
-  test('does not require postal code for signup or market availability', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ id: 122 }] });
-
+  test('requires postal code when the selected country uses postal codes', async () => {
     const res = await request(buildApp())
       .post('/api/auth/register/start')
       .send({
@@ -215,9 +211,12 @@ describe('POST /api/auth/register/start', () => {
         ageConfirmed: true,
       });
 
-    expect(res.status).toBe(200);
-    const insertArgs = mockQuery.mock.calls[1][1];
-    expect(insertArgs[6]).toBe('');
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual(expect.objectContaining({
+      error: 'validation_failed',
+      fields: expect.objectContaining({ zip: expect.anything() }),
+    }));
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 
   test('normalizes and stores trimmed registration fields', async () => {
@@ -294,14 +293,15 @@ describe('POST /api/auth/register/start', () => {
         addressLine1: '1 Rue Example',
         city: 'Port-au-Prince',
         country: 'HT',
-        state: 'Ouest',
+        state: '',
         zip: '',
         ageConfirmed: true,
       });
 
     expect(res.status).toBe(200);
     const insertArgs = mockQuery.mock.calls[1][1];
-    expect(insertArgs[6]).toBe('');
+    expect(insertArgs[6]).toBeNull();
+    expect(insertArgs[9]).toBeNull();
     expect(insertArgs[10]).toBe('HT');
   });
 
@@ -385,6 +385,21 @@ describe('POST /api/auth/login', () => {
         agreementName: 'Jane Doe',
       });
     expect(res.status).toBe(401);
+  });
+});
+
+// ── POST /api/auth/login/2fa ─────────────────────────────────────────────────
+describe('POST /api/auth/login/2fa', () => {
+  test.each([
+    [{ mfaToken: 'invalid-token', token: '123456', isBackupCode: false }],
+    [{ mfa_token: 'invalid-token', token: '123456', is_backup_code: false }],
+  ])('accepts camelCase and snake_case request field names', async (body) => {
+    const res = await request(buildApp())
+      .post('/api/auth/login/2fa')
+      .send(body);
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toMatch(/invalid or expired MFA token/i);
   });
 });
 

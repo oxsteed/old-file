@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
 import OrderErrorBoundary from '../components/OrderErrorBoundary';
-
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
+import DirectPaymentRecordModal from '../components/DirectPaymentRecordModal';
 
 export default function CheckoutPage() {
   return (
@@ -21,42 +18,39 @@ function CheckoutPageContent() {
   const { t } = useTranslation();
   const { cartId } = useParams();
   const navigate = useNavigate();
-  const [clientSecret, setClientSecret] = useState(null);
-  const [email, setEmail] = useState('');
+  const [orderDetails, setOrderDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [paymentRecordOpen, setPaymentRecordOpen] = useState(false);
+  const [paymentRecorded, setPaymentRecorded] = useState(false);
 
   useEffect(() => {
-    async function initializeCheckout() {
+    async function loadSession() {
       try {
         setLoading(true);
-        // Get checkout session details
         const response = await api.get(`/carts/${cartId}/session`);
-        // Create payment intent
-        const paymentResponse = await api.post(`/carts/${cartId}/payment-intent`, {
-          email,
-          shippingAddress: {}
-        });
-
-        setClientSecret(paymentResponse.data.data.clientSecret);
+        const session = response.data?.data;
+        if (!session || !Array.isArray(session.items)) {
+          throw new Error('Checkout session is missing order details.');
+        }
+        setOrderDetails(session);
       } catch (err) {
-        setError(err.response?.data?.error || 'Failed to initialize checkout');
-        console.error('Checkout error:', err);
+        setError(err.response?.data?.error || err.message || 'Failed to load checkout details');
       } finally {
         setLoading(false);
       }
     }
 
     if (cartId) {
-      initializeCheckout();
+      loadSession();
     }
   }, [cartId]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
           <p>{t('common.loading')}</p>
         </div>
       </div>
@@ -65,13 +59,13 @@ function CheckoutPageContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="max-w-md w-full bg-red-50 border border-red-200 rounded-lg p-6">
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-red-50 border border-red-200 rounded-2xl p-6">
           <h1 className="text-lg font-semibold text-red-900 mb-2">{t('common.error')}</h1>
           <p className="text-red-700 mb-4">{error}</p>
           <button
             onClick={() => navigate(cartId ? `/cart/${cartId}` : '/products')}
-            className="w-full bg-primary text-white py-2 rounded-lg hover:bg-primary-dark"
+            className="w-full bg-primary text-white py-2.5 rounded-xl hover:bg-primary-dark"
           >
             {t('common.backToCart')}
           </button>
@@ -80,155 +74,114 @@ function CheckoutPageContent() {
     );
   }
 
+  const items = orderDetails?.items || [];
+  const subtotalCents = orderDetails?.subtotal || 0;
+  const taxCents = orderDetails?.tax || 0;
+  const totalCents = orderDetails?.total || 0;
+
   return (
     <>
-      <PageMeta title={t('checkout.title')} description={t('checkout.description')} />
+      <PageMeta title={t('checkout.title', { defaultValue: 'Checkout' })} description="Launch-safe checkout summary for restaurant credit and direct payment." />
       <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-2xl mx-auto">
-          <h1 className="text-3xl font-bold mb-8">{t('checkout.title')}</h1>
-
-          {clientSecret && (
-            <Elements stripe={stripePromise} options={{ clientSecret }}>
-              <CheckoutForm
-                cartId={cartId}
-                email={email}
-                setEmail={setEmail}
-                clientSecret={clientSecret}
-                onSuccess={() => navigate(`/orders`)}
-              />
-            </Elements>
-          )}
-        </div>
-      </div>
-    </>
-  );
-}
-
-function CheckoutForm({ cartId, email, setEmail, clientSecret, onSuccess }) {
-  const { t } = useTranslation();
-  const stripe = useStripe();
-  const elements = useElements();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [orderDetails, setOrderDetails] = useState(null);
-
-  useEffect(() => {
-    async function loadOrderDetails() {
-      try {
-        const response = await api.get(`/carts/${cartId}/session`);
-        setOrderDetails(response.data.data);
-      } catch (err) {
-        console.error('Failed to load order details:', err);
-      }
-    }
-    loadOrderDetails();
-  }, [cartId]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!stripe || !elements) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Get the order ID from the payment intent
-      const paymentIntentId = clientSecret.split('_secret_')[0] + '_secret_' + clientSecret.split('_secret_')[1];
-
-      const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
-        elements,
-        clientSecret,
-        confirmParams: {
-          return_url: `${window.location.origin}/checkout/success?cartId=${cartId}`,
-        },
-      });
-
-      if (confirmError) {
-        setError(confirmError.message);
-      } else if (paymentIntent.status === 'succeeded') {
-        onSuccess();
-      }
-    } catch (err) {
-      setError(err.message || 'Payment processing failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold mb-4">{t('checkout.orderSummary')}</h2>
-        {orderDetails && (
-          <div className="space-y-3">
-            {orderDetails.items.map(item => (
-              <div key={item.id} className="flex justify-between">
-                <span>{item.name} × {item.quantity}</span>
-                <span>${(item.totalPrice / 100).toFixed(2)}</span>
+        <div className="max-w-2xl mx-auto space-y-6">
+          <div className="bg-white rounded-2xl shadow p-6 space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold">{t('checkout.title', { defaultValue: 'Checkout' })}</h1>
+                <p className="text-sm text-gray-600 mt-2">
+                  Restaurant credit and direct payment are the launch payment paths. Card checkout is not shown here.
+                </p>
               </div>
-            ))}
-            <div className="border-t pt-3">
-              <div className="flex justify-between font-semibold">
-                <span>{t('checkout.subtotal')}</span>
-                <span>${(orderDetails.subtotal / 100).toFixed(2)}</span>
+              <button
+                onClick={() => navigate(cartId ? `/cart/${cartId}` : '/products')}
+                className="shrink-0 bg-gray-100 text-gray-700 px-4 py-2 rounded-xl hover:bg-gray-200"
+              >
+                {t('common.back', { defaultValue: 'Back' })}
+              </button>
+            </div>
+
+            {paymentRecorded && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-900">
+                Payment proof saved. The record is now available in activity/history.
               </div>
-              <div className="flex justify-between text-gray-600">
-                <span>{t('checkout.tax')}</span>
-                <span>${(orderDetails.tax / 100).toFixed(2)}</span>
+            )}
+          </div>
+
+          <div className="bg-white rounded-2xl shadow p-6 space-y-4">
+            <h2 className="text-lg font-semibold">{t('checkout.orderSummary', { defaultValue: 'Order Summary' })}</h2>
+            {items.length === 0 ? (
+              <p className="text-gray-600">This cart is empty.</p>
+            ) : (
+                <div className="space-y-3">
+                  {items.map(item => (
+                  <div key={item.id} className="flex items-center justify-between gap-4 border-b border-gray-100 pb-3">
+                    <div>
+                      <div className="font-medium text-gray-900">{item.name} × {item.quantity}</div>
+                      {item.notes && <div className="text-sm text-gray-500">{item.notes}</div>}
+                    </div>
+                    <div className="font-semibold text-gray-900">${(item.totalPrice / 100).toFixed(2)}</div>
+                  </div>
+                ))}
+                <div className="pt-3 space-y-2">
+                  <div className="flex justify-between text-gray-600">
+                    <span>{t('checkout.subtotal', { defaultValue: 'Subtotal' })}</span>
+                    <span>${(subtotalCents / 100).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <span>{t('checkout.tax', { defaultValue: 'Tax' })}</span>
+                    <span>${(taxCents / 100).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
+                    <span>{t('checkout.total', { defaultValue: 'Total' })}</span>
+                    <span>${(totalCents / 100).toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t">
-                <span>{t('checkout.total')}</span>
-                <span>${(orderDetails.total / 100).toFixed(2)}</span>
-              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-2xl shadow p-6 space-y-4">
+            <h2 className="text-lg font-semibold">What happens next</h2>
+            <p className="text-gray-600 leading-relaxed">
+              For launch, this page keeps the checkout flow honest: no card payment screen is shown.
+              If payment is handled outside OxSteed, record the proof here so the order can be matched later.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => setPaymentRecordOpen(true)}
+                className="bg-primary text-white px-5 py-3 rounded-xl font-semibold hover:bg-primary-dark"
+              >
+                Record direct payment proof
+              </button>
+              <button
+                onClick={() => navigate(cartId ? `/cart/${cartId}` : '/products')}
+                className="bg-gray-100 text-gray-700 px-5 py-3 rounded-xl font-semibold hover:bg-gray-200"
+              >
+                Return to cart
+              </button>
             </div>
           </div>
-        )}
+        </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6 space-y-6">
-        <div>
-          <label htmlFor="checkout-email" className="block text-sm font-medium text-gray-700 mb-2">
-            {t('checkout.email')}
-          </label>
-          <input
-            id="checkout-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            aria-required="true"
-            aria-label={t('checkout.email')}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-          />
-        </div>
-
-        <div>
-          <fieldset>
-            <legend className="block text-sm font-medium text-gray-700 mb-2">
-              {t('checkout.paymentMethod')}
-            </legend>
-            <PaymentElement
-              options={{
-                layout: 'tabs'
-              }}
-            />
-          </fieldset>
-        </div>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-            {error}
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={!stripe || loading}
-          className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? t('common.processing') : t('checkout.completeOrder')}
-        </button>
-      </div>
-    </form>
+      <DirectPaymentRecordModal
+        isOpen={paymentRecordOpen}
+        title="Record checkout payment"
+        subtitle="Add the payment method, confirmation number, and proof link so the payment can be matched to this checkout later."
+        sourceType="other"
+        sourceId={cartId}
+        sourceLabel={orderDetails?.cartId ? `Cart checkout · ${orderDetails.cartId}` : 'Cart checkout'}
+        amountCents={totalCents}
+        currencyCode="USD"
+        payerId={null}
+        payeeId={null}
+        businessId={null}
+        onClose={() => setPaymentRecordOpen(false)}
+        onSuccess={() => {
+          setPaymentRecordOpen(false);
+          setPaymentRecorded(true);
+        }}
+      />
+    </>
   );
 }

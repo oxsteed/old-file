@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-07-04 (restaurant web payment-contract + market alignment)
+**Last updated:** 2026-07-15 (four-app production-readiness integration)
 
 ## Instructions for Every Session
 
@@ -8,6 +8,18 @@
 2. **After completing meaningful work**, update this file - revise "Current Status", "Remaining Work", update file paths.
 3. **Commit AGENTS.md changes** in the same commit as the work it documents.
 4. **Keep it accurate and terse** - do not pad with summaries of work you didn't personally verify.
+
+---
+
+## Session progress — Four-app production-readiness integration (2026-07-15)
+
+- **Launch payment direction:** OxSteed, POS, Kitchen, and Display use restaurant credit plus direct payment between users. Stripe remains dormant backend infrastructure; current launch UI does not depend on Stripe onboarding or card collection.
+- **Direct-payment evidence:** authenticated uploads now persist payment proof for main-app payment requests and POS/kiosk food orders. Recipients can confirm receipt; Activity/POS history exposes the attachment and confirmation. `foodController` preserves canonical method, proof requirement, receipt confirmation, nested attachment metadata, and backward-compatible flattened fields.
+- **POS authentication and reconciliation:** POS now completes MFA/2FA in-app (including backup codes), uploads proof through `/api/upload`, requires proof plus receipt confirmation for direct payment, restores proof after backend refresh, and formats history with the workspace currency. `/api/auth/login/2fa` accepts canonical camelCase and legacy snake_case request fields.
+- **International readiness:** Kitchen registration applies country-specific region/postal requirements and persists device mode. Website and all four apps declare English, Spanish, French, Haitian Creole, and Arabic; website legacy catalogs have parity at 11,148 keys, and all native `Localizable.strings` catalogs pass syntax/key-parity checks.
+- **Display reliability:** queue refresh is cancelable/non-overlapping, refresh/heartbeat timing and language availability are server-configurable, and queue/kiosk/payment status output uses restaurant currency and localized backend-driven state.
+- **Verified:** OxSteed, POS, Kitchen, and Display Debug simulator builds succeed; `client npm run build:ci` succeeds; focused Jest suites `auth.test.js`, `mainAppHome.test.js`, `mainAppPayouts.test.js`, and `foodOrderLoop.test.js` pass (43 tests); changed backend files pass `node --check`; repository diffs pass `git diff --check`.
+- **Live-test boundary:** real account MFA delivery, APNs delivery, physical-device file picking, restaurant-credit balance movement, proof retrieval permissions, and cross-device order/status propagation still require the planned live environment test. Do not treat compile/test evidence as proof of those external integrations.
 
 ---
 

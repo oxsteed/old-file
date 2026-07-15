@@ -508,7 +508,11 @@ async function login(req, res, next) {
 // Complete login after 2FA verification
 async function loginWith2FA(req, res) {
   try {
-    const { mfaToken, token, isBackupCode } = req.body;
+    // Accept both API naming conventions so native and web clients can share
+    // this endpoint without a silent contract mismatch.
+    const mfaToken = req.body.mfaToken || req.body.mfa_token;
+    const token = req.body.token;
+    const isBackupCode = req.body.isBackupCode ?? req.body.is_backup_code ?? false;
     if (!mfaToken) {
       return res.status(400).json({ error: 'MFA token required' });
     }
@@ -925,6 +929,8 @@ async function startRegistration(req, res) {
     const countryCode = countriesUtil.normalizeCountry(country, 'US');
     const rawState = String(state || '').trim();
     const regionList = countriesUtil.getRegions(countryCode);
+    const regionRequired = countriesUtil.hasRegions(countryCode);
+    const postalRequired = countriesUtil.requiresPostalCode(countryCode);
     const usesRegionCodes = Array.isArray(regionList)
       && regionList.every((region) => /^[A-Z]{2,3}$/.test(String(region)));
     // Code-based region lists (US, CA, AU, IN) normalize to uppercase.
@@ -954,10 +960,12 @@ async function startRegistration(req, res) {
       addressLine1: [rules.required, rules.minLen(1), rules.maxLen(255), rules.noScript],
       city: [rules.required, rules.minLen(1), rules.maxLen(100), rules.noScript],
       country: [rules.required, rules.country],
-      state: [rules.required, rules.maxLen(100), rules.regionFor(countryCode), rules.noScript],
-      // Postal/ZIP is collected when available, but never gates international
-      // signup. Market availability is checked later by product surfaces.
-      zip: [rules.maxLen(20), rules.noScript],
+      state: regionRequired
+        ? [rules.required, rules.maxLen(100), rules.regionFor(countryCode), rules.noScript]
+        : [rules.maxLen(100), rules.regionFor(countryCode), rules.noScript],
+      zip: postalRequired
+        ? [rules.required, rules.maxLen(20), rules.postalFor(countryCode), rules.noScript]
+        : [rules.maxLen(20), rules.postalFor(countryCode), rules.noScript],
     });
     if (errs) return res.status(400).json({ error: 'validation_failed', fields: errs });
 
@@ -986,6 +994,8 @@ async function startRegistration(req, res) {
     if (existing.rows.length > 0) return res.status(409).json({ error: 'Email already registered' });
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const token = crypto.randomBytes(32).toString('hex');
+    const normalizedState = stateTrim || null;
+    const normalizedZip = normalized.zip || null;
     const { rows: insertRows } = await pool.query(
       `INSERT INTO pending_registrations (
          token, email, password_hash, first_name, last_name, phone, zip_code,
@@ -998,8 +1008,8 @@ async function startRegistration(req, res) {
          age_confirmed = $12, role = $13, referral_ref = $14, default_mode = $15, updated_at = NOW()
        RETURNING id`,
       [
-        token, normalized.email, passwordHash, normalized.firstName, normalized.lastName, formattedPhone, normalized.zip,
-        normalized.addressLine1, normalized.city, normalized.state, normalized.country,
+        token, normalized.email, passwordHash, normalized.firstName, normalized.lastName, formattedPhone, normalizedZip,
+        normalized.addressLine1, normalized.city, normalizedState, normalized.country,
         normalized.ageConfirmed, dbRole, normalized.ref, modePref,
       ],
     );

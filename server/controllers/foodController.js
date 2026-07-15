@@ -2778,6 +2778,7 @@ function normalizeFoodExternalPaymentSettingsPatch(settings = {}) {
 function normalizeFoodExternalPaymentSubmission(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const proofInput = value.proof && typeof value.proof === 'object' && !Array.isArray(value.proof) ? value.proof : {};
+  const method = normalizeString(value.method ?? value.paymentMethod ?? value.payment_method, 80);
   const attachmentUrl = normalizeString(
     value.attachmentUrl
       ?? value.attachment_url
@@ -2830,7 +2831,17 @@ function normalizeFoodExternalPaymentSubmission(value) {
   const note = normalizeString(value.note ?? value.message ?? value.memo, 1000);
   const handle = normalizeString(value.handle ?? value.paymentHandle ?? value.payment_handle, 120);
   const label = normalizeString(value.label ?? value.paymentLabel ?? value.payment_label, 120);
+  const instructions = normalizeString(value.instructions ?? value.paymentInstructions ?? value.payment_instructions, 2000);
+  const referenceHint = normalizeString(value.referenceHint ?? value.reference_hint, 255);
   const qrUrl = normalizeString(value.qrUrl ?? value.qr_url, 2000);
+  const proofRequiredRaw = value.proofRequired ?? value.proof_required;
+  const receiptConfirmedRaw = value.receiptConfirmed ?? value.receipt_confirmed;
+  const proofRequired = proofRequiredRaw === undefined || proofRequiredRaw === null
+    ? null
+    : normalizeBoolean(proofRequiredRaw, false);
+  const receiptConfirmed = receiptConfirmedRaw === undefined || receiptConfirmedRaw === null
+    ? null
+    : normalizeBoolean(receiptConfirmedRaw, false);
   const attachmentSizeBytesRaw = value.attachmentSizeBytes
     ?? value.attachment_size_bytes
     ?? value.sizeBytes
@@ -2845,16 +2856,30 @@ function normalizeFoodExternalPaymentSubmission(value) {
       ? Number(attachmentSizeBytesRaw)
       : null;
   const proof = {
+    method,
     reference,
     note,
     handle,
     label,
+    instructions,
+    referenceHint,
+    proofRequired,
+    receiptConfirmed,
     qrUrl,
     attachmentUrl,
     attachmentKey,
     attachmentName,
     attachmentType,
     attachmentSizeBytes,
+    ...(attachmentUrl ? {
+      proof: {
+        attachmentUrl,
+        attachmentKey,
+        attachmentName,
+        attachmentType,
+        attachmentSizeBytes,
+      },
+    } : {}),
   };
   if (!Object.values(proof).some((entry) => {
     if (entry === null || entry === undefined) return false;

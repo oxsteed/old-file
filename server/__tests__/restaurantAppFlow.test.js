@@ -117,6 +117,11 @@ function buildDeviceApp() {
   app.get('/api/restaurants/:restaurantId/display/devices/:deviceId/stats', appFlow.getDisplayStats);
   app.patch('/api/restaurants/:restaurantId/display/devices/:deviceId/settings', appFlow.updateDeviceDisplaySettings);
   app.post('/api/restaurants/:restaurantId/display/devices/:deviceId/report-issue', appFlow.reportDeviceIssue);
+  app.post(
+    '/api/restaurants/:restaurantId/display/devices/:deviceId/orders',
+    appFlow.authenticateDisplayDevice,
+    (req, res) => res.status(200).json({ device: req.restaurantDevice, body: req.body })
+  );
   app.use(errorHandler);
   return app;
 }
@@ -600,6 +605,32 @@ describe('restaurant app-flow backend', () => {
     expect(statsRes.body.stats.staleDisplays).toBe(1);
   });
 
+  test('display order submission requires a paired display credential and stamps the device scope', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 801, restaurant_id: RESTAURANT_ID, app_key: 'display', status: 'paired' }],
+    });
+
+    const accepted = await request(buildDeviceApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/display/devices/801/orders`)
+      .set('X-Device-Token', 'display-token')
+      .send({ orderSource: 'mobile', metadata: { clientOrderId: 'display-order-1' } });
+
+    expect(accepted.status).toBe(200);
+    expect(accepted.body.device.id).toBe(801);
+    expect(accepted.body.body.orderSource).toBe('kiosk');
+    expect(accepted.body.body.metadata).toMatchObject({
+      clientOrderId: 'display-order-1',
+      displayDeviceId: 801,
+    });
+
+    const rejected = await request(buildDeviceApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/display/devices/801/orders`)
+      .send({});
+
+    expect(rejected.status).toBe(401);
+    expect(rejected.body.code || rejected.body.error?.code).toBe('device_credential_required');
+  });
+
   test('quotes kiosk totals with server tax and direct-payment compatibility', async () => {
     mockQuery
       .mockResolvedValueOnce({
@@ -754,7 +785,21 @@ describe('restaurant app-flow backend', () => {
   test('records direct-payment alias and manual refund through ledger-backed POS endpoints', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
-      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, restaurant_id: RESTAURANT_ID, total_cents: 1200, payment_status: 'unpaid', pos_ticket_state: 'open' }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: ORDER_ID,
+          restaurant_id: RESTAURANT_ID,
+          total_cents: 1200,
+          payment_status: 'unpaid',
+          pos_ticket_state: 'open',
+          metadata: {
+            externalPayment: {
+              proofRequired: true,
+              proof: { attachmentUrl: 'https://files.example.test/direct-payment-proof.jpg' },
+            },
+          },
+        }],
+      })
       .mockResolvedValueOnce({ rows: [{ paid_cents: 0, refunded_cents: 0 }] })
       .mockResolvedValueOnce({ rows: [{ id: 601, amount_cents: 1200, payment_type: 'external' }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, total_cents: 1200, payment_status: 'unpaid', pos_ticket_state: 'open' }] })
@@ -767,6 +812,7 @@ describe('restaurant app-flow backend', () => {
 
     expect(paymentRes.status).toBe(201);
     expect(paymentRes.body.payment.payment_type).toBe('external');
+    expect(mockQuery.mock.calls.some(([, params]) => JSON.stringify(params).includes('receiptConfirmedByUserId'))).toBe(true);
 
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
@@ -785,6 +831,30 @@ describe('restaurant app-flow backend', () => {
     expect(refundRes.status).toBe(201);
     expect(refundRes.body.payment.payment_type).toBe('refund');
     expect(mockQuery.mock.calls.some(([, params]) => JSON.stringify(params).includes('payment_refunded'))).toBe(true);
+  });
+
+  test('rejects direct-payment receipt confirmation when required proof is missing', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: ORDER_ID,
+          restaurant_id: RESTAURANT_ID,
+          total_cents: 1200,
+          payment_status: 'unpaid',
+          pos_ticket_state: 'open',
+          metadata: { externalPayment: { proofRequired: true } },
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ paid_cents: 0, refunded_cents: 0 }] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/payment`)
+      .send({ paymentType: 'direct_payment', amountCents: 1200 });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code || res.body.error?.code).toBe('direct_payment_proof_required');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO restaurant_pos_payments/.test(sql))).toBe(false);
   });
 
   test('voids unpaid POS tickets through compatibility route', async () => {

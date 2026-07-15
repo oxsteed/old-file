@@ -62,9 +62,8 @@ export default function UpgradePage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { plans, subscription, loading, error, createCheckout, cancelSubscription, openPortal } = useSubscription();
+  const { subscription, loading, error } = useSubscription();
   const [billing, setBilling] = useState('monthly');
-  const [cancelling, setCancelling] = useState(false);
 
   const isSubscribed = subscription && (subscription.status === 'active' || subscription.status === 'trialing');
   const isHelper = user?.role === 'helper';
@@ -82,21 +81,8 @@ export default function UpgradePage() {
     : t('upgrade.renewalSoon');
   const exampleJobAmount = formatMoney(200);
   const examplePlatformFee = formatMoney(14.2);
-  const exampleStripeFee = formatMoney(6.1);
+  const exampleProcessorFee = formatMoney(6.1);
   const exampleHelperReceives = formatMoney(179.7);
-
-  const handleSubscribe = async (planSlug) => {
-    const slug = billing === 'yearly' ? `${planSlug}-yearly` : planSlug;
-    await createCheckout(slug);
-  };
-
-  const handleCancel = async () => {
-    if (window.confirm(t('upgrade.cancelConfirm'))) {
-      setCancelling(true);
-      await cancelSubscription();
-      setCancelling(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -128,6 +114,9 @@ export default function UpgradePage() {
           <p className="text-gray-400 text-lg max-w-xl mx-auto">
             {isHelper ? t('upgrade.helperSubtitle') : t('upgrade.customerSubtitle')}
           </p>
+          <p className="text-gray-500 text-sm max-w-2xl mx-auto mt-3">
+            Billing actions are informational only during launch. Restaurant credit and direct payment are the active payment paths.
+          </p>
         </div>
 
         {/* ── Error ────────────────────────────────────────────── */}
@@ -152,14 +141,18 @@ export default function UpgradePage() {
                 {t('upgrade.renewsOn', { date: renewalDateText })}
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <button onClick={openPortal}
-                  className="bg-gray-800 hover:bg-gray-700 text-white font-semibold px-6 py-3 rounded-xl transition text-sm">
-                  {t('upgrade.manageBilling')}
-                </button>
-                <button onClick={handleCancel} disabled={cancelling}
-                  className="text-red-400 hover:text-red-300 font-medium text-sm transition">
-                  {cancelling ? t('upgrade.cancelling') : t('upgrade.cancelSubscription')}
-                </button>
+                <Link
+                  to="/settings"
+                  className="bg-gray-800 hover:bg-gray-700 text-white font-semibold px-6 py-3 rounded-xl transition text-sm text-center"
+                >
+                  {t('settings.subscription.manageBilling')}
+                </Link>
+                <Link
+                  to="/activity"
+                  className="text-orange-400 hover:text-orange-300 font-medium text-sm transition text-center"
+                >
+                  View history
+                </Link>
               </div>
             </div>
 
@@ -248,12 +241,9 @@ export default function UpgradePage() {
                 )}
                 {billing === 'monthly' && <div className="mb-5" />}
 
-                <button
-                  onClick={() => handleSubscribe('pro')}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3.5 rounded-xl transition text-sm mb-6"
-                >
-                  {t('upgrade.subscribePro')}
-                </button>
+                <div className="w-full bg-orange-500/10 border border-orange-500/20 text-orange-300 font-semibold py-3.5 rounded-xl text-sm mb-6 text-center">
+                  {t('upgrade.subscribePro')} (coming soon)
+                </div>
 
                 <ul className="space-y-0.5">
                   <Feature text={t('upgrade.proF1')} />
@@ -302,8 +292,10 @@ export default function UpgradePage() {
                       <span className="text-sm font-semibold text-orange-400">-{examplePlatformFee}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-300">{t('upgrade.stripeFee')}</span>
-                      <span className="text-sm font-semibold text-gray-500">-{exampleStripeFee}</span>
+                      <span className="text-sm text-gray-300">
+                        {t('upgrade.legacyProcessorFee', { defaultValue: 'Legacy processor fee (backend only)' })}
+                      </span>
+                      <span className="text-sm font-semibold text-gray-500">-{exampleProcessorFee}</span>
                     </div>
                     <div className="border-t border-gray-700 pt-3 flex justify-between items-center">
                       <span className="text-sm font-bold text-white">{t('upgrade.helperReceives')}</span>
@@ -411,13 +403,12 @@ export default function UpgradePage() {
 
             {/* ── Bottom CTA ──────────────────────────────────────── */}
             <div className="text-center mb-8">
-              <button
-                onClick={() => handleSubscribe('pro')}
-                className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-10 py-4 rounded-xl transition text-base"
-              >
-                {t('upgrade.getProBtnFormatted', { price: displayPriceText, period: displayPeriod })}
-              </button>
-              <p className="text-gray-600 text-xs mt-3">{t('upgrade.noHiddenFees')}</p>
+              <div className="inline-block bg-gray-900/70 border border-gray-700/50 text-gray-300 font-bold px-10 py-4 rounded-xl text-base">
+                {t('upgrade.getProBtnFormatted', { price: displayPriceText, period: displayPeriod })} (coming soon)
+              </div>
+              <p className="text-gray-600 text-xs mt-3">
+                Billing is managed outside the launch flow for now. Contact support if you need help with plan access.
+              </p>
             </div>
           </>
         )}

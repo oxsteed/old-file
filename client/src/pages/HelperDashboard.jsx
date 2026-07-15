@@ -16,10 +16,9 @@ import EditProfileTab from '../components/EditProfileTab';
 import AIKnowledgeTab from '../components/AIKnowledgeTab';
 import HelperAvailabilityEditor from '../components/HelperAvailabilityEditor';
 import { useSocket } from '../hooks/useSocket';
-import usePayments from '../hooks/usePayments';
 import { ProgressBar, Card, CardHeader, Btn, Input, Select } from '../components/dashboardUI';
 import ReviewsList from '../components/reviews/ReviewsList';
-import { formatDate, formatMoney } from '../lib/format';
+import { formatDate, formatMoney, formatNumber } from '../lib/format';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -104,13 +103,8 @@ const jobBudgetLabel = (job) => {
 export default function HelperDashboard() {
   const { t } = useTranslation();
   const { user, initialized, isOnboardingComplete, refreshUser } = useAuth();
-  const { subscription, openPortal, createCheckout, refresh: refreshSubscription } = useSubscription();
+  const { subscription, refresh: refreshSubscription } = useSubscription();
   const life = useLifeDashboard();
-  const {
-    connectStatus,
-    fetchConnectStatus,
-    createConnectAccount,
-  } = usePayments();
   const {
     fetchSummary,
     fetchFinancialPulse,
@@ -146,16 +140,11 @@ export default function HelperDashboard() {
       setSearchParams({},{replace:true});
     }
     if(searchParams.get('onboarding')==='complete'){
-      toast.success('✅ Payment account connected! You can now receive payments for jobs.');
+      toast.success('✅ Payment details saved. You can now record and receive job payments.');
       refreshUser?.();
       setSearchParams({},{replace:true});
     }
   },[]);
-
-  useEffect(() => {
-    if (!isOnboardingComplete) return;
-    fetchConnectStatus().catch(() => {});
-  }, [fetchConnectStatus, isOnboardingComplete]);
 
   useEffect(() => {
     const requestedTab = searchParams.get('tab') || 'pulse';
@@ -178,12 +167,6 @@ export default function HelperDashboard() {
   const idVerificationStatusLabel = user?.didit_status === 'verified'
     ? 'verified'
     : (verification.identity?.status || 'verified');
-  const stripeConnectReady =
-    user?.stripe_connect_ready !== undefined
-      ? !!user.stripe_connect_ready
-      : (connectStatus?.connected ? !!connectStatus.charges_enabled : undefined);
-  const showStripeConnectBanner = isOnboardingComplete && stripeConnectReady === false;
-
   // ── Products state ────────────────────────────────────────────────────────
   const [myProducts, setMyProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
@@ -1305,28 +1288,20 @@ export default function HelperDashboard() {
               </div>
             )}
 
-            {/* Stripe Connect onboarding banner */}
-            {showStripeConnectBanner && (
-              <div className="mb-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-yellow-400 font-semibold text-sm">💳 Connect your payment account</p>
-                  <p className="text-gray-400 text-xs mt-0.5">You need a Stripe account to receive payments for jobs. It only takes a few minutes.</p>
-                </div>
-                <button
-                  className="shrink-0 px-4 py-2 bg-yellow-500 text-gray-900 font-semibold text-sm rounded-lg hover:bg-yellow-400 transition-colors"
-                  onClick={async () => {
-                    try {
-                      const data = await createConnectAccount();
-                      if (data.url) window.location.href = data.url;
-                    } catch (e) {
-                      toast.error(e.response?.data?.error || e.response?.data?.message || 'Could not start payment setup. Try again.');
-                    }
-                  }}
-                >
-                  Set Up Payments
-                </button>
+            <div className="mb-4 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between gap-4">
+              <div>
+                <p className="text-emerald-300 font-semibold text-sm">💸 Restaurant credit and direct payment ready</p>
+                <p className="text-gray-400 text-xs mt-0.5">
+                  Helpers can accept restaurant-credit work and record direct-payment proof in chat or activity history.
+                </p>
               </div>
-            )}
+              <Link
+                to="/activity"
+                className="shrink-0 px-4 py-2 bg-emerald-400 text-gray-950 font-semibold text-sm rounded-lg hover:bg-emerald-300 transition-colors"
+              >
+                View history
+              </Link>
+            </div>
 
           {/* Financial Pulse Score - upgraded to match customer dashboard */}
           {!showOnboarding && fp && (() => {
@@ -1399,11 +1374,56 @@ export default function HelperDashboard() {
             {/* Verification cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
               <Card>
-                <div className="flex items-center gap-2 mb-3"><IcoDollar size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.subscription')}</span></div>
-                {isProActive?(<><p className="text-lg font-bold text-orange-400 mb-1">{t('common.pro')}</p><Tag text={t('helperDashboard.active')} color="green"/><button onClick={openPortal} className="mt-2 text-xs text-gray-400 hover:text-gray-200 transition font-medium block">{t('helperDashboard.manageBilling')} →</button></>)
-                :isTrialActive?(<><p className="text-lg font-bold text-orange-400 mb-1">{t('common.pro')}</p><Tag text={`${t('trial.active', { defaultValue: 'Trial Active' })} · ${trialDaysLeft} ${trialDaysLeft === 1 ? t('trial.dayLeft', { defaultValue: 'day left' }) : t('trial.daysLeft', { defaultValue: 'days left' })}`} color="purple"/><p className="text-xs text-gray-500 my-2">All new accounts start with free Pro access, including verification and background check tools.</p><button onClick={()=>navigate('/upgrade')} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.viewPlans')}</button></>)
-                :selectedProNoPay?(<><p className="text-lg font-bold text-orange-400 mb-1">{t('common.pro')}</p><Tag text={t('helperDashboard.paymentPending')} color="orange"/><p className="text-xs text-gray-500 my-2">{t('helperDashboard.selectedProNoPay')}</p><button onClick={()=>createCheckout('pro')} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.completeUpgrade')}</button></>)
-                :(<><p className="text-lg font-bold text-gray-400 mb-1">{t('helperDashboard.free')}</p><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.upgradeHint')}</p><button onClick={()=>{ try{window.gtag&&window.gtag('event','upgrade_clicked',{from_tier:'free',source:'helper_dashboard'});}catch(_){} navigate('/upgrade');}} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.upgradeToPro')}</button></>)}
+                <div className="flex items-center gap-2 mb-3">
+                  <IcoDollar size={16} cls="text-orange-400" />
+                  <span className="text-sm font-semibold">{t('helperDashboard.subscription')}</span>
+                </div>
+                {isProActive ? (
+                  <>
+                    <p className="text-lg font-bold text-orange-400 mb-1">{t('common.pro')}</p>
+                    <Tag text={t('helperDashboard.active')} color="green" />
+                  </>
+                ) : isTrialActive ? (
+                  <>
+                    <p className="text-lg font-bold text-orange-400 mb-1">{t('common.pro')}</p>
+                    <Tag
+                      text={`${t('trial.active', { defaultValue: 'Trial Active' })} · ${trialDaysLeft} ${trialDaysLeft === 1 ? t('trial.dayLeft', { defaultValue: 'day left' }) : t('trial.daysLeft', { defaultValue: 'days left' })}`}
+                      color="purple"
+                    />
+                    <p className="text-xs text-gray-500 my-2">
+                      All new accounts start with free Pro access, including verification and background check tools.
+                    </p>
+                  </>
+                ) : selectedProNoPay ? (
+                  <>
+                    <p className="text-lg font-bold text-orange-400 mb-1">{t('common.pro')}</p>
+                    <Tag text={t('helperDashboard.paymentPending')} color="orange" />
+                    <p className="text-xs text-gray-500 my-2">
+                      {t('helperDashboard.selectedProNoPay')}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-lg font-bold text-gray-400 mb-1">{t('helperDashboard.free')}</p>
+                    <p className="text-xs text-gray-500">
+                      Your helper status, verification, and settlement records stay visible in the app without requiring a payment-account setup flow.
+                    </p>
+                  </>
+                )}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Link
+                    to="/settings"
+                    className="inline-flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition"
+                  >
+                    {t('nav.settings')}
+                  </Link>
+                  <Link
+                    to="/activity"
+                    className="inline-flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold px-4 py-2 rounded-lg transition"
+                  >
+                    View history
+                  </Link>
+                </div>
               </Card>
               <Card>
                 <div className="flex items-center gap-2 mb-3"><IcoShield size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.backgroundCheck')}</span></div>
@@ -1846,7 +1866,7 @@ export default function HelperDashboard() {
               :(<div className="space-y-4 max-h-96 overflow-y-auto">{(life.goals || []).map(g=>{const pct=g.target_value>0?Math.min((parseFloat(g.current_value)/parseFloat(g.target_value))*100,100):0;return(
                 <div key={g.id} className={`p-4 border rounded-xl ${g.is_completed?'border-emerald-500/30 bg-emerald-500/5 opacity-60':'border-gray-800'}`}>
                   <div className="flex items-center gap-2 mb-2"><span className="text-lg">{g.icon||'🎯'}</span><span className="font-semibold text-sm text-white flex-1">{g.title}</span>{g.is_completed?<Tag text="Done" color="green"/>:<span className="text-sm font-bold text-orange-400">{Math.round(pct)}%</span>}</div>
-                  {g.target_value>0&&!g.is_completed&&(<><ProgressBar pct={pct} color="bg-orange-500"/><div className="flex justify-between items-center mt-2"><span className="text-xs text-gray-500">${parseFloat(g.current_value).toLocaleString()} of ${parseFloat(g.target_value).toLocaleString()}</span>
+                  {g.target_value>0&&!g.is_completed&&(<><ProgressBar pct={pct} color="bg-orange-500"/><div className="flex justify-between items-center mt-2"><span className="text-xs text-gray-500">${formatNumber(parseFloat(g.current_value), { maximumFractionDigits: 0 })} of ${formatNumber(parseFloat(g.target_value), { maximumFractionDigits: 0 })}</span>
                     {/* Uses proper modal instead of window.prompt */}
                     <button onClick={()=>{setUpdatingGoal(g);setGoalUpdateValue(g.current_value||'');setShowGoalUpdateModal(true);}} className="text-[10px] text-orange-400 font-semibold">{t('dashboard.goals.updateProgress')}</button>
                   </div></>)}
@@ -2276,8 +2296,8 @@ export default function HelperDashboard() {
         {updatingGoal&&(
           <form onSubmit={async(e)=>{e.preventDefault();await updateGoalProgress(updatingGoal,goalUpdateValue);setShowGoalUpdateModal(false);setUpdatingGoal(null);}} className="space-y-4">
             <p className="text-sm text-gray-400 bg-gray-800/50 px-3 py-2 rounded-lg">{updatingGoal.icon} {updatingGoal.title}</p>
-            <Input label={t('dashboard.goals.currentAmountLabel')} type="number" step="0.01" min="0" required autoFocus value={goalUpdateValue} onChange={e=>setGoalUpdateValue(e.target.value)} placeholder={`Was: $${parseFloat(updatingGoal.current_value||0).toLocaleString()}`}/>
-            {updatingGoal.target_value&&<p className="text-xs text-gray-500">{t('dashboard.goals.targetProgress',{target:parseFloat(updatingGoal.target_value).toLocaleString(),pct:Math.round(Math.min((parseFloat(goalUpdateValue||0)/parseFloat(updatingGoal.target_value))*100,100))})}</p>}
+            <Input label={t('dashboard.goals.currentAmountLabel')} type="number" step="0.01" min="0" required autoFocus value={goalUpdateValue} onChange={e=>setGoalUpdateValue(e.target.value)} placeholder={`Was: $${formatNumber(parseFloat(updatingGoal.current_value||0), { maximumFractionDigits: 0 })}`}/>
+            {updatingGoal.target_value&&<p className="text-xs text-gray-500">{t('dashboard.goals.targetProgress',{target:formatNumber(parseFloat(updatingGoal.target_value), { maximumFractionDigits: 0 }),pct:Math.round(Math.min((parseFloat(goalUpdateValue||0)/parseFloat(updatingGoal.target_value))*100,100))})}</p>}
             <div className="flex gap-2">
               <Btn className="flex-1 py-3" type="submit">{t('dashboard.goals.saveProgress')}</Btn>
               <Btn variant="secondary" className="py-3" type="button" onClick={async()=>{await life.updateGoal(updatingGoal.id,{is_completed:true});life.fetchSummary();toast.success(t('dashboard.money.goalComplete'));setShowGoalUpdateModal(false);setUpdatingGoal(null);}}>{t('dashboard.goals.markDone')}</Btn>

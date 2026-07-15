@@ -14,6 +14,19 @@ function toIso(value) {
   return Number.isNaN(date.getTime()) ? String(value) : date.toISOString();
 }
 
+function normalizeAttachment(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const url = String(value.url || value.href || '').trim();
+  if (!url) return null;
+  return {
+    url,
+    key: value.key || null,
+    name: value.name || value.filename || null,
+    type: value.type || value.mimeType || null,
+    sizeBytes: Number.isFinite(Number(value.sizeBytes ?? value.size_bytes ?? value.size)) ? Number(value.sizeBytes ?? value.size_bytes ?? value.size) : null,
+  };
+}
+
 function serializePayoutRequest(row) {
   return {
     id: String(row.id),
@@ -31,6 +44,14 @@ function serializePayoutRequest(row) {
 }
 
 function serializePaymentRequest(row) {
+  const metadata = row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
+    ? row.metadata
+    : {};
+  const clientMetadata = metadata.clientMetadata && typeof metadata.clientMetadata === 'object' && !Array.isArray(metadata.clientMetadata)
+    ? metadata.clientMetadata
+    : {};
+  const proofAttachment = normalizeAttachment(metadata.proofAttachment) || normalizeAttachment(clientMetadata.proofAttachment);
+  const proofLink = metadata.proofLink || clientMetadata.proofLink || proofAttachment?.url || null;
   return {
     id: String(row.id),
     sourceType: row.source_type,
@@ -49,6 +70,15 @@ function serializePaymentRequest(row) {
     expiresAt: toIso(row.expires_at),
     createdAt: toIso(row.created_at),
     updatedAt: toIso(row.updated_at),
+    metadata,
+    confirmationCode: metadata.confirmationCode || clientMetadata.confirmationCode || null,
+    proofLink,
+    proofAttachment,
+    proofSubmittedAt: toIso(metadata.proofSubmittedAt),
+    proofSubmittedByUserId: metadata.proofSubmittedByUserId ? String(metadata.proofSubmittedByUserId) : null,
+    confirmationNote: metadata.confirmationNote || metadata.note || clientMetadata.confirmationNote || clientMetadata.note || null,
+    confirmedAt: toIso(metadata.confirmedAt),
+    confirmedByUserId: metadata.confirmedByUserId ? String(metadata.confirmedByUserId) : null,
   };
 }
 
@@ -182,7 +212,7 @@ async function createPaymentRequest({
      DO UPDATE SET updated_at = main_app_payment_requests.updated_at
      RETURNING id, source_type, source_id, payer_id, payee_id, business_id,
                amount_cents, currency_code, status, settlement_mode, external_provider,
-               processor_payment_id, description, idempotency_key, expires_at,
+               processor_payment_id, description, idempotency_key, expires_at, metadata,
                created_at, updated_at`,
     [
       requesterId,
@@ -207,7 +237,7 @@ async function listPaymentRequests(userId, limit) {
   const { rows } = await pool.query(
     `SELECT id, source_type, source_id, payer_id, payee_id, business_id,
             amount_cents, currency_code, status, settlement_mode, external_provider,
-            processor_payment_id, description, idempotency_key, expires_at,
+            processor_payment_id, description, idempotency_key, expires_at, metadata,
             created_at, updated_at
        FROM main_app_payment_requests
       WHERE requester_id = $1
@@ -218,6 +248,75 @@ async function listPaymentRequests(userId, limit) {
     [userId, limit]
   );
   return rows;
+}
+
+async function confirmPaymentRequest({
+  requestId,
+  userId,
+  confirmationCode,
+  proofLink,
+  proofAttachment,
+  note,
+}) {
+  const confirmationMetadata = {
+    confirmedAt: new Date().toISOString(),
+    confirmedByUserId: String(userId),
+    ...(confirmationCode ? { confirmationCode } : {}),
+    ...(proofLink ? { proofLink } : {}),
+    ...(proofAttachment ? { proofAttachment } : {}),
+    ...(note ? { confirmationNote: note } : {}),
+  };
+
+  const { rows } = await pool.query(
+    `UPDATE main_app_payment_requests
+        SET status = 'confirmed',
+            metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb,
+            updated_at = NOW()
+      WHERE id = $1
+        AND payee_id = $2
+        AND status IN ('requested', 'viewed')
+      RETURNING id, source_type, source_id, payer_id, payee_id, business_id,
+                amount_cents, currency_code, status, settlement_mode, external_provider,
+                processor_payment_id, description, idempotency_key, expires_at, metadata,
+                created_at, updated_at`,
+    [requestId, userId, JSON.stringify(confirmationMetadata)]
+  );
+
+  return rows[0] || null;
+}
+
+async function submitPaymentProof({
+  requestId,
+  userId,
+  proofLink,
+  proofAttachment,
+  confirmationCode,
+  note,
+}) {
+  const proofMetadata = {
+    proofSubmittedAt: new Date().toISOString(),
+    proofSubmittedByUserId: String(userId),
+    ...(proofLink ? { proofLink } : {}),
+    ...(proofAttachment ? { proofAttachment } : {}),
+    ...(confirmationCode ? { confirmationCode } : {}),
+    ...(note ? { proofNote: note } : {}),
+  };
+
+  const { rows } = await pool.query(
+    `UPDATE main_app_payment_requests
+        SET metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb,
+            updated_at = NOW()
+      WHERE id = $1
+        AND payer_id = $2
+        AND status IN ('requested', 'viewed')
+      RETURNING id, source_type, source_id, payer_id, payee_id, business_id,
+                amount_cents, currency_code, status, settlement_mode, external_provider,
+                processor_payment_id, description, idempotency_key, expires_at, metadata,
+                created_at, updated_at`,
+    [requestId, userId, JSON.stringify(proofMetadata)]
+  );
+
+  return rows[0] || null;
 }
 
 async function listPublicServicePackages({ businessId, serviceId, limit }) {
@@ -255,6 +354,8 @@ module.exports = {
   normalizeCurrency,
   serializePayoutRequest,
   serializePaymentRequest,
+  submitPaymentProof,
+  confirmPaymentRequest,
   serializeServicePackage,
   getPayoutBalances,
   createPayoutRequest,

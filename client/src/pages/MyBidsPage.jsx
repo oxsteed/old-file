@@ -247,9 +247,12 @@ export default function MyBidsPage() {
                       </div>
 
                       {/* Job title */}
-                      <h2 className="text-white font-semibold text-base group-hover:text-orange-400 transition truncate">
+                      <Link
+                        to={`/bids/${bid.id}`}
+                        className="inline-block text-white font-semibold text-base group-hover:text-orange-400 transition truncate"
+                      >
                         {bid.job_title || t('myBids.untitledJob', { defaultValue: 'Untitled Job' })}
-                      </h2>
+                      </Link>
 
                       {/* Job meta */}
                       <p className="text-xs text-gray-500 mt-0.5">
@@ -285,10 +288,10 @@ export default function MyBidsPage() {
                     {/* Actions */}
                     <div className="flex flex-col gap-2 flex-shrink-0">
                       <Link
-                        to={`/jobs/${bid.job_id}`}
+                        to={`/bids/${bid.id}`}
                         className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition text-center"
                       >
-                        {t('common.view', { defaultValue: 'View' })}
+                        {t('myBids.viewBid', { defaultValue: 'View Bid' })}
                       </Link>
                       {isAccepted && (
                         <Link
