@@ -491,7 +491,18 @@
     "showPassword": "إظهار كلمة المرور",
     "hidePassword": "إخفاء كلمة المرور",
     "copyright": "© {{year}} OxSteed LLC. جميع الحقوق محفوظة.",
-    "signatureNameMismatch": "الاسم الذي أدخلته لا يطابق الاسم المسجل بحسابك. استخدم الاسم الدقيق الذي سجلت به."
+    "signatureNameMismatch": "الاسم الذي أدخلته لا يطابق الاسم المسجل بحسابك. استخدم الاسم الدقيق الذي سجلت به.",
+    "rememberMe": "إبقائي مسجّلًا على هذا الجهاز",
+    "twoFactorTitle": "تحقق من هويتك",
+    "twoFactorSubtitle": "أكمل المصادقة الثنائية للمتابعة",
+    "twoFactorHint": "أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة، أو استخدم أحد الرموز الاحتياطية.",
+    "twoFactorCodeLabel": "رمز المصادقة",
+    "twoFactorCodePlaceholder": "رمز من 6 أرقام أو رمز احتياطي",
+    "twoFactorCodeRequired": "أدخل رمز المصادقة",
+    "twoFactorSessionExpired": "انتهت جلسة التحقق. يرجى تسجيل الدخول مرة أخرى.",
+    "twoFactorInvalid": "تعذر التحقق من رمز المصادقة",
+    "twoFactorSubmit": "تحقق وسجّل الدخول",
+    "twoFactorBack": "العودة إلى البريد الإلكتروني وكلمة المرور"
   },
   "forgotPassword": {
     "title": "إعادة تعيين كلمة المرور",

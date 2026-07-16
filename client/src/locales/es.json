@@ -491,7 +491,18 @@
     "showPassword": "Mostrar contraseña",
     "hidePassword": "Ocultar contraseña",
     "copyright": "© {{year}} OxSteed LLC. Todos los derechos reservados.",
-    "signatureNameMismatch": "El nombre que ingresaste no coincide con el nombre de tu cuenta. Por favor usa el nombre exacto con el que te registraste."
+    "signatureNameMismatch": "El nombre que ingresaste no coincide con el nombre de tu cuenta. Por favor usa el nombre exacto con el que te registraste.",
+    "rememberMe": "Mantener mi sesión iniciada en este dispositivo",
+    "twoFactorTitle": "Verifica tu identidad",
+    "twoFactorSubtitle": "Completa la autenticación de dos factores para continuar",
+    "twoFactorHint": "Ingresa el código de 6 dígitos de tu aplicación de autenticación o usa uno de tus códigos de respaldo.",
+    "twoFactorCodeLabel": "Código de autenticación",
+    "twoFactorCodePlaceholder": "Código de 6 dígitos o código de respaldo",
+    "twoFactorCodeRequired": "Ingresa tu código de autenticación",
+    "twoFactorSessionExpired": "Tu sesión de verificación expiró. Inicia sesión nuevamente.",
+    "twoFactorInvalid": "No se pudo verificar el código de autenticación",
+    "twoFactorSubmit": "Verificar e iniciar sesión",
+    "twoFactorBack": "Volver al correo y la contraseña"
   },
   "forgotPassword": {
     "title": "Restablecer tu contraseña",

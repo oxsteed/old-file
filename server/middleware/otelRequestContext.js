@@ -18,7 +18,7 @@ const otelRequestContext = (req, res, next) => {
     return next();
   }
 
-  setSpanAttribute(span, 'oxsteed.request_id', req.id || req.requestId);
+  setSpanAttribute(span, 'oxsteed.request_id', req.correlationId || req.id || req.requestId);
   setSpanAttribute(span, 'http.request.method', req.method);
   setSpanAttribute(span, 'url.path', req.path);
 

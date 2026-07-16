@@ -576,7 +576,18 @@
     "showPassword": "Montre modpas",
     "hidePassword": "Kache modpas",
     "copyright": "© {{year}} OxSteed LLC. Tout dwa rezève.",
-    "signatureNameMismatch": "Non ou antre a pa koresponn ak non ki nan kont ou. Tanpri itilize non egzak ou te itilize lè ou te enskri."
+    "signatureNameMismatch": "Non ou antre a pa koresponn ak non ki nan kont ou. Tanpri itilize non egzak ou te itilize lè ou te enskri.",
+    "rememberMe": "Kenbe mwen konekte sou aparèy sa a",
+    "twoFactorTitle": "Verifye se ou menm",
+    "twoFactorSubtitle": "Konplete verifikasyon an de etap pou kontinye",
+    "twoFactorHint": "Antre kòd 6 chif ki nan aplikasyon otantifikasyon ou oswa itilize youn nan kòd sekou ou yo.",
+    "twoFactorCodeLabel": "Kòd otantifikasyon",
+    "twoFactorCodePlaceholder": "Kòd 6 chif oswa kòd sekou",
+    "twoFactorCodeRequired": "Antre kòd otantifikasyon ou",
+    "twoFactorSessionExpired": "Sesyon verifikasyon ou ekspire. Tanpri konekte ankò.",
+    "twoFactorInvalid": "Nou pa t kapab verifye kòd otantifikasyon an",
+    "twoFactorSubmit": "Verifye epi konekte",
+    "twoFactorBack": "Retounen nan imel ak modpas"
   },
   "forgotPassword": {
     "title": "Reyinisyalize modpas ou",

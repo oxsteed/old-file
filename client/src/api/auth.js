@@ -150,6 +150,12 @@ export const authAPI = {
     return response;
   },
 
+  loginWith2FA: async (payload) => {
+    const response = await api.post('/auth/login/2fa', payload);
+    persistSessionPayload(response.data);
+    return response;
+  },
+
   requestOTP: async (data) => {
     return api.post('/auth/request-otp', data);
   },

@@ -101,6 +101,19 @@ export function AuthProvider({ children }) {
     }
   }, [fetchMe, clearAuthState]);
 
+  const completeTwoFactor = useCallback(async (payload) => {
+    const { data } = await authAPI.loginWith2FA(payload);
+
+    try {
+      const fullUser = await fetchMe();
+      return { ...(data ?? {}), user: fullUser };
+    } catch (err) {
+      clearStoredSession();
+      clearAuthState();
+      throw err;
+    }
+  }, [fetchMe, clearAuthState]);
+
   const register = useCallback(async (userData) => {
     const { data } = await authAPI.register(userData);
 
@@ -224,6 +237,7 @@ export function AuthProvider({ children }) {
     canReceivePayouts,
     canAppearInSearch,
     login,
+    completeTwoFactor,
     register,
     logout,
     requestOTP,
@@ -249,6 +263,7 @@ export function AuthProvider({ children }) {
     canReceivePayouts,
     canAppearInSearch,
     login,
+    completeTwoFactor,
     register,
     logout,
     requestOTP,

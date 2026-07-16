@@ -25,6 +25,7 @@ const { logSecurityEvent, extractRequestDetails } = require('../services/auditLo
 const modeRoleUtil = require('../utils/modeRole');
 const SALT_ROUNDS = 12;
 const TERMS_IP_HASH_MAX_LEN = 45;
+const JWT_SECRET = process.env.JWT_SECRET;
 const SUPPORTED_LANGUAGE_CODES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 
 // Modes a user may self-select when signing up through the unified /join flow.
@@ -315,7 +316,11 @@ async function login(req, res, next) {
       throw new AppError('Validation failed', 400, 'validation_failed', errs);
     }
 
-    const preCheckUser = await pool.query('SELECT role FROM users WHERE email = $1', [email]);       const isAdminUser = preCheckUser.rows.length > 0 && ['admin', 'super_admin'].includes(preCheckUser.rows[0].role);       if (!isAdminUser && !termsAgreed) {
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    const preCheckUser = await pool.query('SELECT role FROM users WHERE email = $1', [normalizedEmail]);
+    const isAdminUser = preCheckUser.rows.length > 0 && ['admin', 'super_admin'].includes(preCheckUser.rows[0].role);
+    if (!isAdminUser && !termsAgreed) {
       throw new AppError(
         'You must agree to the Terms of Service and Privacy Policy to sign in',
         400, 'validation_failed',
@@ -356,7 +361,7 @@ async function login(req, res, next) {
        FROM users u
        LEFT JOIN connect_accounts ca ON ca.user_id = u.id
        WHERE u.email = $1`,
-      [email.toLowerCase()]
+      [normalizedEmail]
     );
     if (!rows[0]) {
       throw new AppError('Invalid email or password', 401, 'auth_failed');
@@ -388,8 +393,8 @@ async function login(req, res, next) {
 
     if (user.totp_enabled) {
       const mfaToken = jwt.sign(
-        { id: user.id, isMfaToken: true },
-        process.env.JWT_SECRET || 'secret',
+        { id: user.id, isMfaToken: true, rememberMe: rememberMe === true },
+        JWT_SECRET,
         { expiresIn: '15m' }
       );
       return res.status(200).json({
@@ -506,7 +511,7 @@ async function login(req, res, next) {
 }
 
 // Complete login after 2FA verification
-async function loginWith2FA(req, res) {
+async function loginWith2FA(req, res, next) {
   try {
     // Accept both API naming conventions so native and web clients can share
     // this endpoint without a silent contract mismatch.
@@ -518,10 +523,12 @@ async function loginWith2FA(req, res) {
     }
 
     let userId;
+    let rememberMe = false;
     try {
-      const decoded = jwt.verify(mfaToken, process.env.JWT_SECRET || 'secret');
+      const decoded = jwt.verify(mfaToken, JWT_SECRET);
       if (!decoded.isMfaToken) throw new Error('Invalid token type');
       userId = decoded.id;
+      rememberMe = decoded.rememberMe === true;
       req.internalAccessId = decoded.internalAccessId || null;
       req.internalAccessRoute = decoded.internalAccessRoute || null;
     } catch (err) {
@@ -611,10 +618,10 @@ async function loginWith2FA(req, res) {
     }
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
-    await pool.query(
-      "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
-      [user.id, hashedRefresh]
-    );
+    const sessionSql = rememberMe
+      ? "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '30 days')"
+      : "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')";
+    await pool.query(sessionSql, [user.id, hashedRefresh]);
 
     // Record last_login_at and login history (non-fatal)
     try {
@@ -633,15 +640,21 @@ async function loginWith2FA(req, res) {
     checkAndAlertNewLogin(user.id, req.ip, req.headers['user-agent']).catch(() => {});
 
     const { rows: fullRows } = await pool.query(
-     `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
-       onboarding_status, onboarding_completed, contact_completed, profile_completed,
-       tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
-       background_check_passed, city, state, zip_code,
-       preferred_language,
-       trial_started_at, trial_ends_at, didit_status, didit_verified_at,
-       COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required,
-       logistics_role
-       FROM users WHERE id = $1`,
+     `SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.role, u.email_verified, u.is_verified,
+       u.onboarding_status, u.onboarding_completed, u.contact_completed, u.profile_completed,
+       u.tier_selected, u.w9_completed, u.terms_accepted, u.membership_tier, u.id_verified,
+       u.background_check_passed, u.city, u.state, u.zip_code,
+       u.preferred_language, u.default_mode,
+       u.trial_started_at, u.trial_ends_at, u.didit_status, u.didit_verified_at,
+       COALESCE(u.didit_enforcement_required, FALSE) AS didit_enforcement_required,
+       u.logistics_role,
+       ca.stripe_account_id AS connect_stripe_account_id,
+       ca.charges_enabled AS connect_charges_enabled,
+       ca.payouts_enabled AS connect_payouts_enabled,
+       ca.onboarding_complete AS connect_onboarding_complete
+       FROM users u
+       LEFT JOIN connect_accounts ca ON ca.user_id = u.id
+       WHERE u.id = $1`,
       [user.id]
     );
     if (fullRows[0] && req.internalAccessRoute) {
@@ -655,8 +668,8 @@ async function loginWith2FA(req, res) {
       refreshToken: tokens.refreshToken
     });
   } catch (err) {
-    logger.error('Login 2FA error', { err });
-    res.status(500).json({ error: 'Login failed' });
+    logger.error('Login 2FA error', { error: err.message, stack: err.stack });
+    next(err);
   }
 }
 
@@ -822,7 +835,7 @@ async function logout(req, res) {
     if (authHeader.startsWith('Bearer ')) {
       const accessToken = authHeader.slice(7);
       try {
-        const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'secret');
+        const decoded = jwt.verify(accessToken, JWT_SECRET);
         if (decoded?.id) {
           userId = decoded.id;
           const { rows: invalidateRows } = await pool.query(

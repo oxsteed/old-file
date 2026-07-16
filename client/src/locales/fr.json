@@ -491,7 +491,18 @@
     "showPassword": "Afficher le mot de passe",
     "hidePassword": "Masquer le mot de passe",
     "copyright": "© {{year}} OxSteed LLC. Tous droits réservés.",
-    "signatureNameMismatch": "Le nom saisi ne correspond pas au nom de votre compte. Veuillez utiliser le nom exact avec lequel vous vous êtes inscrit(e)."
+    "signatureNameMismatch": "Le nom saisi ne correspond pas au nom de votre compte. Veuillez utiliser le nom exact avec lequel vous vous êtes inscrit(e).",
+    "rememberMe": "Rester connecté sur cet appareil",
+    "twoFactorTitle": "Vérifiez votre identité",
+    "twoFactorSubtitle": "Terminez l'authentification à deux facteurs pour continuer",
+    "twoFactorHint": "Saisissez le code à 6 chiffres de votre application d'authentification ou utilisez un code de secours.",
+    "twoFactorCodeLabel": "Code d'authentification",
+    "twoFactorCodePlaceholder": "Code à 6 chiffres ou code de secours",
+    "twoFactorCodeRequired": "Saisissez votre code d'authentification",
+    "twoFactorSessionExpired": "Votre session de vérification a expiré. Veuillez vous reconnecter.",
+    "twoFactorInvalid": "Le code d'authentification n'a pas pu être vérifié",
+    "twoFactorSubmit": "Vérifier et se connecter",
+    "twoFactorBack": "Retour à l'e-mail et au mot de passe"
   },
   "forgotPassword": {
     "title": "Réinitialiser votre mot de passe",

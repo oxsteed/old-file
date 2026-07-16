@@ -14,7 +14,7 @@ const {
 } = require('../utils/internalWorkspaces');
 
 const SALT_ROUNDS = 12;
-const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+const JWT_SECRET = process.env.JWT_SECRET;
 const INTERNAL_ACCESS_USER_ROLES = Object.freeze(['employee', 'admin', 'super_admin']);
 
 function normalizeInternalName(value) {

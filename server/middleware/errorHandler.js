@@ -20,7 +20,7 @@ const IS_DEV = process.env.NODE_ENV === 'development';
  *   }
  */
 const errorHandler = (err, req, res, next) => {
-  const requestId = req.id || 'unknown';
+  const requestId = req.correlationId || req.id || req.requestId || 'unknown';
   const userId = req.user?.id;
 
   // Extract error details

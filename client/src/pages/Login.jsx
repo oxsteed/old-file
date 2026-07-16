@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff, ArrowRight, MapPin, Briefcase, ShieldCheck } from 'lucide-react';
 import Footer from '../components/Footer';
+import { resolveAuthReturnPath } from '../utils/authReturnPath';
 
 function diditGateSatisfied(user) {
   if (!user?.email_verified) return true;
@@ -50,17 +51,33 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [termsAgreed, setTermsAgreed]   = useState(false);
   const [signatureName, setSignatureName] = useState('');
+  const [rememberMe, setRememberMe]       = useState(false);
+  const [mfaToken, setMfaToken]           = useState(null);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
   const [loading, setLoading]           = useState(false);
 
-  const { login } = useAuth();
+  const { login, completeTwoFactor } = useAuth();
   const navigate  = useNavigate();
   const location  = useLocation();
   const { t }     = useTranslation();
 
-  const from = location.state?.from?.pathname || '/dashboard';
+  const from = resolveAuthReturnPath(location.state?.from);
 
   // Button is only enabled when all conditions are met — full name required (≥2 words)
   const canSubmit = email.trim() && password && termsAgreed && isValidFullName(signatureName);
+
+  const finishLogin = (result) => {
+    const loggedInUser = result?.user;
+
+    if (loggedInUser?.email_verified && !diditGateSatisfied(loggedInUser)) {
+      toast.success(t('login.verifyIdentityToast'));
+      navigate('/verify-identity', { replace: true });
+      return;
+    }
+
+    toast.success(t('login.welcomeBackToast'));
+    navigate(from, { replace: true });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -80,17 +97,15 @@ export default function Login() {
         password,
         termsAgreed: true,
         agreementName: signatureName.trim(),
+        rememberMe,
       });
-      const loggedInUser = result?.user;
-
-      if (loggedInUser?.email_verified && !diditGateSatisfied(loggedInUser)) {
-        toast.success(t('login.verifyIdentityToast'));
-        navigate('/verify-identity', { replace: true });
+      if (result?.requiresTwoFactor && result?.mfaToken) {
+        setMfaToken(result.mfaToken);
+        setTwoFactorCode('');
+        setPassword('');
         return;
       }
-
-      toast.success(t('login.welcomeBackToast'));
-      navigate(from, { replace: true });
+      finishLogin(result);
     } catch (err) {
       const code = err.response?.data?.code;
       if (code === 'signature_name_mismatch') {
@@ -101,6 +116,39 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleTwoFactorSubmit = async (e) => {
+    e.preventDefault();
+    const code = twoFactorCode.trim();
+    if (!mfaToken) {
+      toast.error(t('login.twoFactorSessionExpired'));
+      return;
+    }
+    if (!code) {
+      toast.error(t('login.twoFactorCodeRequired'));
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const normalizedCode = code.replace(/[\s-]/g, '');
+      const result = await completeTwoFactor({
+        mfaToken,
+        token: code,
+        isBackupCode: !/^\d{6}$/.test(normalizedCode),
+      });
+      finishLogin(result);
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('login.twoFactorInvalid'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetTwoFactor = () => {
+    setMfaToken(null);
+    setTwoFactorCode('');
   };
 
   return (
@@ -215,11 +263,50 @@ export default function Login() {
             </div>
 
             <div>
-              <h2 className="text-2xl font-bold text-white">{t('login.title')}</h2>
-              <p className="text-gray-400 mt-1">{t('login.subtitle')}</p>
+              <h2 className="text-2xl font-bold text-white">
+                {mfaToken ? t('login.twoFactorTitle') : t('login.title')}
+              </h2>
+              <p className="text-gray-400 mt-1">
+                {mfaToken ? t('login.twoFactorSubtitle') : t('login.subtitle')}
+              </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={mfaToken ? handleTwoFactorSubmit : handleSubmit} className="space-y-5">
+
+              {mfaToken ? (
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-4 flex gap-3">
+                    <ShieldCheck className="mt-0.5 flex-shrink-0 text-orange-400" size={22} />
+                    <p className="text-sm leading-relaxed text-gray-300">
+                      {t('login.twoFactorHint')}
+                    </p>
+                  </div>
+                  <div>
+                    <label htmlFor="two-factor-code" className="block text-sm font-medium text-gray-300 mb-1.5">
+                      {t('login.twoFactorCodeLabel')}
+                    </label>
+                    <input
+                      id="two-factor-code"
+                      type="text"
+                      required
+                      autoFocus
+                      value={twoFactorCode}
+                      onChange={(e) => setTwoFactorCode(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
+                      placeholder={t('login.twoFactorCodePlaceholder')}
+                      autoComplete="one-time-code"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={resetTwoFactor}
+                    className="text-sm font-medium text-orange-400 hover:text-orange-300 transition"
+                  >
+                    {t('login.twoFactorBack')}
+                  </button>
+                </div>
+              ) : (
+                <>
 
               {/* Email */}
               <div>
@@ -338,12 +425,24 @@ export default function Login() {
                 </div>
               </div>
 
+              <label className="flex items-center gap-3 text-sm text-gray-300 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-orange-500 focus:ring-orange-500 focus:ring-offset-gray-950"
+                />
+                {t('login.rememberMe')}
+              </label>
+                </>
+              )}
+
               {/* Submit */}
               <button
                 type="submit"
-                disabled={loading || !canSubmit}
+                disabled={loading || (mfaToken ? !twoFactorCode.trim() : !canSubmit)}
                 className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-950 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
-                aria-disabled={!canSubmit}
+                aria-disabled={mfaToken ? !twoFactorCode.trim() : !canSubmit}
               >
                 {loading ? (
                   <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
@@ -352,7 +451,7 @@ export default function Login() {
                   </svg>
                 ) : (
                   <>
-                    {t('login.signIn')}
+                    {mfaToken ? t('login.twoFactorSubmit') : t('login.signIn')}
                     <ArrowRight size={18} />
                   </>
                 )}

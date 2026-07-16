@@ -491,7 +491,18 @@
     "showPassword": "Show password",
     "hidePassword": "Hide password",
     "copyright": "© {{year}} OxSteed LLC. All rights reserved.",
-    "signatureNameMismatch": "The name you entered doesn't match the name on your account. Please use the exact name you registered with."
+    "signatureNameMismatch": "The name you entered doesn't match the name on your account. Please use the exact name you registered with.",
+    "rememberMe": "Keep me signed in on this device",
+    "twoFactorTitle": "Verify it's you",
+    "twoFactorSubtitle": "Complete two-factor authentication to continue",
+    "twoFactorHint": "Enter the 6-digit code from your authenticator app, or use one of your backup codes.",
+    "twoFactorCodeLabel": "Authentication code",
+    "twoFactorCodePlaceholder": "6-digit code or backup code",
+    "twoFactorCodeRequired": "Enter your authentication code",
+    "twoFactorSessionExpired": "Your verification session expired. Please sign in again.",
+    "twoFactorInvalid": "The authentication code could not be verified",
+    "twoFactorSubmit": "Verify and sign in",
+    "twoFactorBack": "Back to email and password"
   },
   "forgotPassword": {
     "title": "Reset your password",

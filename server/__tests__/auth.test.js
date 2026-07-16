@@ -27,6 +27,8 @@ jest.mock('@otplib/v12-adapter', () => ({
 const express = require('express');
 const request = require('supertest');
 const jwt     = require('jsonwebtoken');
+const bcrypt  = require('bcrypt');
+const { encrypt } = require('../utils/encryption');
 const authRoutes = require('../routes/auth');
 
 function buildApp() {
@@ -390,6 +392,42 @@ describe('POST /api/auth/login', () => {
       });
     expect(res.status).toBe(401);
   });
+
+  test('normalizes email and preserves remember-me in an MFA challenge', async () => {
+    const passwordHash = await bcrypt.hash('SecurePass123!', 4);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ role: 'customer' }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 7,
+        first_name: 'Jane',
+        last_name: 'Doe',
+        email: 'jane@example.com',
+        password_hash: passwordHash,
+        is_active: true,
+        totp_enabled: true,
+        role: 'customer',
+      }] });
+
+    const res = await request(buildApp())
+      .post('/api/auth/login')
+      .send({
+        email: '  Jane@Example.COM ',
+        password: 'SecurePass123!',
+        termsAgreed: true,
+        agreementName: 'Jane Doe',
+        rememberMe: true,
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.requiresTwoFactor).toBe(true);
+    expect(mockQuery.mock.calls[0][1]).toEqual(['jane@example.com']);
+    expect(mockQuery.mock.calls[1][1]).toEqual(['jane@example.com']);
+    expect(jwt.verify(res.body.mfaToken, process.env.JWT_SECRET)).toMatchObject({
+      id: 7,
+      isMfaToken: true,
+      rememberMe: true,
+    });
+  });
 });
 
 // ── POST /api/auth/login/2fa ─────────────────────────────────────────────────
@@ -404,6 +442,55 @@ describe('POST /api/auth/login/2fa', () => {
 
     expect(res.status).toBe(401);
     expect(res.body.error).toMatch(/invalid or expired MFA token/i);
+  });
+
+  test('uses a 30-day session and returns the full user contract after remembered MFA', async () => {
+    const mfaToken = jwt.sign(
+      { id: 8, isMfaToken: true, rememberMe: true },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' },
+    );
+    const fullUser = {
+      id: 8,
+      first_name: 'Maya',
+      last_name: 'Chen',
+      email: 'maya@example.com',
+      role: 'helper',
+      email_verified: true,
+      is_verified: true,
+      default_mode: 'helper',
+      connect_onboarding_complete: false,
+    };
+
+    mockQuery.mockImplementation(async (sql) => {
+      const text = String(sql);
+      if (text.includes('COUNT(*) FROM two_factor_audit_log')) return { rows: [{ count: '0' }] };
+      if (text.includes('SELECT id, email, role, is_active, totp_secret')) {
+        return { rows: [{
+          id: 8,
+          email: 'maya@example.com',
+          role: 'helper',
+          is_active: true,
+          totp_secret: encrypt('TESTSECRET'),
+          totp_enabled: true,
+          backup_codes: [],
+        }] };
+      }
+      if (text.includes('SELECT u.id, u.first_name')) return { rows: [fullUser] };
+      return { rows: [], rowCount: 0 };
+    });
+
+    const res = await request(buildApp())
+      .post('/api/auth/login/2fa')
+      .send({ mfaToken, token: '123456', isBackupCode: false });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user).toMatchObject({ id: 8, email: 'maya@example.com', default_mode: 'helper' });
+    const sessionSql = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO sessions'))?.[0];
+    expect(sessionSql).toMatch(/interval '30 days'/i);
+    const fullUserSql = mockQuery.mock.calls.find(([sql]) => String(sql).includes('SELECT u.id, u.first_name'))?.[0];
+    expect(fullUserSql).toMatch(/u\.default_mode/i);
+    expect(fullUserSql).toMatch(/LEFT JOIN connect_accounts ca/i);
   });
 });
 
