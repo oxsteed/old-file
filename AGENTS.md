@@ -11,6 +11,16 @@
 
 ---
 
+## Session progress — Four-app launch security verification (2026-07-16)
+
+- **Four iOS launch clients:** OxSteed, POS, Kitchen, and Display now compile in optimized Release simulator configurations after their production-contract passes. The clients enforce workspace-scoped auth/pairing, real menu/order/feed synchronization, idempotent offline operations, restaurant-credit/direct-payment evidence state, five-language catalogs, and no launch dependency on Stripe UI. Display removes sample/random data from paired production mode; Kitchen keeps sample tickets inside explicit Training Mode only.
+- **App validation:** bundle IDs remain `com.oxsteed.main`, `com.oxsteed.pos`, `com.oxsteed.kitchen`, and `com.oxsteed.display`; team is `ZBRGSDRRU7`; privacy manifests and app icons validate; localization catalogs have key parity; repository diffs pass whitespace validation. POS advanced to build `2`; the other clients remain build `1` pending App Store Connect confirmation of the next unused build number.
+- **Backend release dependencies:** upgraded `@sentry/node` to `10.66.0`, `multer` to `2.2.0`, `nodemailer` to `9.0.3`, and `socket.io` to `4.8.3`; pinned patched transitive `form-data` `4.0.6` and `ws` `8.21.1`. This removes the high-severity upload, email, WebSocket, and multipart advisories that affected payment-proof, notification, and live-order paths.
+- **Verified:** `npm audit --omit=dev --audit-level=high` reports 0 production vulnerabilities; Sentry initialization and server syntax checks pass; the full server Jest suite passes (70 suites, 438 tests), including auth, food order loop, restaurant-wallet integrity, restaurant app flow, main-app home, and main-app payout coverage.
+- **Live production smoke check:** `https://oxsteed.com/api/health`, `/health`, `/api/health/deep`, `/api/food/markets`, and `/api/country-config` return healthy/current data. Only the US country pack is active; Haiti, Dominican Republic, Rwanda, and Brazil intentionally remain `coming_soon` and must not be presented as live operational markets.
+
+---
+
 ## Session progress — Four-app production-readiness integration (2026-07-15)
 
 - **Launch payment direction:** OxSteed, POS, Kitchen, and Display use restaurant credit plus direct payment between users. Stripe remains dormant backend infrastructure; current launch UI does not depend on Stripe onboarding or card collection.
