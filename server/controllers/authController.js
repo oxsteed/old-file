@@ -269,21 +269,21 @@ async function register(req, res, next) {
       [user.id, hashedRefresh]
     );
    const { rows: fullRows } = await pool.query(
-  `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
-   onboarding_status, onboarding_completed, contact_completed, profile_completed,
-   tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
-   background_check_passed, city, state, zip_code,
-   preferred_language,
-   trial_started_at, trial_ends_at, didit_status, didit_verified_at,
-   default_mode,
-   COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required,
+  `SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.role, u.email_verified, u.is_verified,
+   u.onboarding_status, u.onboarding_completed, u.contact_completed, u.profile_completed,
+   u.tier_selected, u.w9_completed, u.terms_accepted, u.membership_tier, u.id_verified,
+   u.background_check_passed, u.city, u.state, u.zip_code,
+   u.preferred_language,
+   u.trial_started_at, u.trial_ends_at, u.didit_status, u.didit_verified_at,
+   u.default_mode,
+   COALESCE(u.didit_enforcement_required, FALSE) AS didit_enforcement_required,
    ca.stripe_account_id AS connect_stripe_account_id,
    ca.charges_enabled AS connect_charges_enabled,
    ca.payouts_enabled AS connect_payouts_enabled,
    ca.onboarding_complete AS connect_onboarding_complete
-   FROM users
-   LEFT JOIN connect_accounts ca ON ca.user_id = users.id
-   WHERE users.id = $1`,
+   FROM users u
+   LEFT JOIN connect_accounts ca ON ca.user_id = u.id
+   WHERE u.id = $1`,
   [user.id]
 );
 res.status(201).json({ user: formatAuthUser(fullRows[0]), ...tokens });
@@ -339,23 +339,23 @@ async function login(req, res, next) {
     }
 
     const { rows } = await pool.query(
-      `SELECT id, first_name, last_name, email, phone, password_hash, role, is_active,
-              email_verified, is_verified,
-              onboarding_status, onboarding_completed,
-              contact_completed, profile_completed,
-              tier_selected, w9_completed, terms_accepted,
-              membership_tier, id_verified, background_check_passed,
-              city, state, zip_code, totp_enabled,
-              trial_started_at, trial_ends_at, didit_status, didit_verified_at,
-              default_mode,
-              COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required,
+      `SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.password_hash, u.role, u.is_active,
+              u.email_verified, u.is_verified,
+              u.onboarding_status, u.onboarding_completed,
+              u.contact_completed, u.profile_completed,
+              u.tier_selected, u.w9_completed, u.terms_accepted,
+              u.membership_tier, u.id_verified, u.background_check_passed,
+              u.city, u.state, u.zip_code, u.totp_enabled,
+              u.trial_started_at, u.trial_ends_at, u.didit_status, u.didit_verified_at,
+              u.default_mode,
+              COALESCE(u.didit_enforcement_required, FALSE) AS didit_enforcement_required,
               ca.stripe_account_id AS connect_stripe_account_id,
               ca.charges_enabled AS connect_charges_enabled,
               ca.payouts_enabled AS connect_payouts_enabled,
               ca.onboarding_complete AS connect_onboarding_complete
-       FROM users
-       LEFT JOIN connect_accounts ca ON ca.user_id = users.id
-       WHERE users.email = $1`,
+       FROM users u
+       LEFT JOIN connect_accounts ca ON ca.user_id = u.id
+       WHERE u.email = $1`,
       [email.toLowerCase()]
     );
     if (!rows[0]) {

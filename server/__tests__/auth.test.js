@@ -364,6 +364,10 @@ describe('POST /api/auth/login', () => {
         agreementName: 'Jane Doe',
       });
     expect(res.status).toBe(401);
+    const userLookupSql = mockQuery.mock.calls[1][0];
+    expect(userLookupSql).toMatch(/SELECT\s+u\.id/i);
+    expect(userLookupSql).toMatch(/FROM users u/i);
+    expect(userLookupSql).toMatch(/LEFT JOIN connect_accounts ca ON ca\.user_id = u\.id/i);
   });
 
   test('returns 401 when password is wrong', async () => {
