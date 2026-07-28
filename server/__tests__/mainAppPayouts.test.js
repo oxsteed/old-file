@@ -2,6 +2,12 @@
 
 const { mockQuery, resetMocks } = require('./setup');
 jest.mock('../services/bookingSlotEngine', () => ({ computeSlots: jest.fn() }));
+const mockUploadFile = jest.fn();
+const mockGetSignedDownloadUrl = jest.fn();
+jest.mock('../utils/storage', () => ({
+  uploadFile: (...args) => mockUploadFile(...args),
+  getSignedDownloadUrl: (...args) => mockGetSignedDownloadUrl(...args),
+}));
 const slotEngine = require('../services/bookingSlotEngine');
 const ctrl = require('../controllers/mainAppController');
 
@@ -15,6 +21,7 @@ function mockResponse() {
 beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
+  mockGetSignedDownloadUrl.mockResolvedValue('https://signed.example.com/payment-proof');
 });
 
 describe('main app payout guardrails', () => {
@@ -95,6 +102,98 @@ describe('main app payout guardrails', () => {
 });
 
 describe('main app protected payment request records', () => {
+  test('uploads payment proof to participant-scoped private storage', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 501 }] });
+    mockUploadFile.mockResolvedValueOnce(
+      'main-app-payment-proofs/501/00000000-0000-4000-8000-000000000111/private-proof.png'
+    );
+    const req = {
+      params: { requestId: '501' },
+      user: { id: '00000000-0000-4000-8000-000000000111' },
+      file: {
+        buffer: Buffer.from('proof'),
+        originalname: 'receipt.png',
+        mimetype: 'image/png',
+        size: 5,
+      },
+    };
+    const res = mockResponse();
+    const next = jest.fn();
+
+    await ctrl.uploadPaymentProof(req, res, next);
+
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining('payer_id = $2 OR payee_id = $2'),
+      [501, req.user.id]
+    );
+    expect(mockUploadFile).toHaveBeenCalledWith(
+      req.file.buffer,
+      `main-app-payment-proofs/501/${req.user.id}`,
+      'receipt.png',
+      'image/png'
+    );
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      attachment: expect.objectContaining({
+        url: 'https://signed.example.com/payment-proof',
+        key: expect.stringContaining('main-app-payment-proofs/501/'),
+      }),
+      downloadExpiresInSeconds: 900,
+    }));
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test('returns only a short-lived signed link for stored private proof', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 501,
+        source_type: 'job',
+        source_id: 'job-1',
+        payer_id: '00000000-0000-4000-8000-000000000111',
+        payee_id: '00000000-0000-4000-8000-000000000999',
+        amount_cents: 2500,
+        currency_code: 'USD',
+        status: 'requested',
+        settlement_mode: 'manual_direct',
+        metadata: {
+          proofAttachment: {
+            url: 'private://main-app-payment-proofs/501/user/private-proof.png',
+            key: 'main-app-payment-proofs/501/user/private-proof.png',
+            name: 'receipt.png',
+            type: 'image/png',
+          },
+        },
+        created_at: new Date('2026-06-30T12:00:00Z'),
+        updated_at: new Date('2026-06-30T12:00:00Z'),
+      }],
+    });
+    const req = {
+      query: {},
+      user: { id: '00000000-0000-4000-8000-000000000111' },
+    };
+    const res = mockResponse();
+    const next = jest.fn();
+
+    await ctrl.listPaymentRequests(req, res, next);
+
+    expect(mockGetSignedDownloadUrl).toHaveBeenCalledWith(
+      'main-app-payment-proofs/501/user/private-proof.png',
+      900
+    );
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      paymentRequests: [
+        expect.objectContaining({
+          proofLink: 'https://signed.example.com/payment-proof',
+          proofAttachment: expect.objectContaining({
+            url: 'https://signed.example.com/payment-proof',
+            key: 'main-app-payment-proofs/501/user/private-proof.png',
+          }),
+        }),
+      ],
+    }));
+    expect(next).not.toHaveBeenCalled();
+  });
+
   test('records payment requests without creating charges or settlement', async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{
@@ -174,6 +273,35 @@ describe('main app protected payment request records', () => {
       error: expect.objectContaining({
         code: 'validation_failed',
         fields: expect.objectContaining({ participants: expect.any(String) }),
+      }),
+    }));
+    expect(mockQuery).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test('rejects insecure payment proof links when creating a payment request', async () => {
+    const req = {
+      get: jest.fn(),
+      user: { id: '00000000-0000-4000-8000-000000000999' },
+      body: {
+        sourceType: 'job',
+        payerId: '00000000-0000-4000-8000-000000000999',
+        payeeId: '00000000-0000-4000-8000-000000000111',
+        amountCents: 2500,
+        settlementMode: 'manual_direct',
+        proofLink: 'http://example.com/receipt.png',
+      },
+    };
+    const res = mockResponse();
+    const next = jest.fn();
+
+    await ctrl.createPaymentRequest(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      error: expect.objectContaining({
+        code: 'validation_failed',
+        fields: expect.objectContaining({ proofLink: expect.stringContaining('HTTPS') }),
       }),
     }));
     expect(mockQuery).not.toHaveBeenCalled();
@@ -298,6 +426,28 @@ describe('main app protected payment request records', () => {
     }));
     expect(mockQuery.mock.calls[0][0]).toMatch(/payer_id = \$2/);
     expect(mockQuery.mock.calls[0][0]).not.toMatch(/status = 'confirmed'/);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test('rejects insecure proof links before storing payer proof', async () => {
+    const req = {
+      params: { requestId: '501' },
+      user: { id: '00000000-0000-4000-8000-000000000111' },
+      body: { proofLink: 'http://example.com/payer-proof.png' },
+    };
+    const res = mockResponse();
+    const next = jest.fn();
+
+    await ctrl.submitPaymentProof(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      error: expect.objectContaining({
+        code: 'validation_failed',
+        fields: expect.objectContaining({ proofLink: expect.stringContaining('HTTPS') }),
+      }),
+    }));
+    expect(mockQuery).not.toHaveBeenCalled();
     expect(next).not.toHaveBeenCalled();
   });
 });

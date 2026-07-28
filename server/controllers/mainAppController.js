@@ -4,6 +4,7 @@ const pool = require('../db');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const slotEngine = require('../services/bookingSlotEngine');
 const mainAppContracts = require('../models/mainAppContractsModel');
+const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
 
 function parseLimit(value, fallback = 4, max = 12) {
   const parsed = Number.parseInt(String(value), 10);
@@ -86,6 +87,61 @@ function parseDateOrNull(value) {
 function normalizePlainObject(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   return value;
+}
+
+function normalizeHttpsUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    return url.protocol === 'https:' && url.hostname ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function paymentProofFolder(requestId, userId) {
+  return `main-app-payment-proofs/${requestId}/${userId}`;
+}
+
+function normalizePrivatePaymentProofAttachment(value, requestId) {
+  const attachment = normalizePlainObject(value);
+  const key = String(attachment.key || '').trim();
+  if (!key || !key.startsWith(`main-app-payment-proofs/${requestId}/`)) return null;
+  return {
+    key,
+    url: `private://${key}`,
+    name: String(attachment.name || '').trim() || null,
+    type: String(attachment.type || attachment.contentType || '').trim() || null,
+    sizeBytes: Number.isFinite(Number(attachment.sizeBytes)) ? Number(attachment.sizeBytes) : null,
+  };
+}
+
+async function presentPaymentRequest(row) {
+  const paymentRequest = mainAppContracts.serializePaymentRequest(row);
+  const key = String(paymentRequest.proofAttachment?.key || '').trim();
+  if (!key || !key.startsWith(`main-app-payment-proofs/${paymentRequest.id}/`)) {
+    return paymentRequest;
+  }
+  const signedUrl = await getSignedDownloadUrl(key, 900);
+  if (!signedUrl) {
+    return {
+      ...paymentRequest,
+      proofLink: null,
+      proofAttachment: {
+        ...paymentRequest.proofAttachment,
+        url: '',
+      },
+    };
+  }
+  return {
+    ...paymentRequest,
+    proofLink: signedUrl,
+    proofAttachment: {
+      ...paymentRequest.proofAttachment,
+      url: signedUrl,
+    },
+  };
 }
 
 function centsFromDollars(value) {
@@ -1815,7 +1871,7 @@ exports.createPaymentRequest = async (req, res, next) => {
     const errors = {};
     const clientMetadata = normalizePlainObject(req.body.metadata);
     const directProofAttachment = normalizePlainObject(req.body.proofAttachment || req.body.proof_attachment);
-    const directProofLink = String(
+    const directProofLinkValue = String(
       req.body.proofLink
       || req.body.proof_link
       || directProofAttachment?.url
@@ -1825,6 +1881,7 @@ exports.createPaymentRequest = async (req, res, next) => {
       || clientMetadata.proof_attachment?.url
       || ''
     ).trim();
+    const directProofLink = normalizeHttpsUrl(directProofLinkValue);
     const requesterId = String(req.user.id);
     const payerId = req.body.payerId || req.body.payer_id || null;
     const payeeId = req.body.payeeId || req.body.payee_id || req.user.id;
@@ -1832,6 +1889,10 @@ exports.createPaymentRequest = async (req, res, next) => {
     if (!amountCents) errors.amountCents = 'Amount must be a positive cent value.';
     if (!validSourceTypes.has(sourceType)) errors.sourceType = 'Unsupported payment request source.';
     if (!validSettlementModes.has(settlementMode)) errors.settlementMode = 'Unsupported settlement mode.';
+    if (directProofLinkValue && !directProofLink) errors.proofLink = 'Payment proof links must use HTTPS.';
+    if (Object.keys(directProofAttachment).length) {
+      errors.proofAttachment = 'Create the payment request before uploading private proof.';
+    }
     if (String(payerId || '') !== requesterId && String(payeeId || '') !== requesterId) {
       errors.participants = 'You must be the payer or recipient on a direct payment record.';
     }
@@ -1856,7 +1917,6 @@ exports.createPaymentRequest = async (req, res, next) => {
         requestedBy: 'oxsteed-main',
         noChargeCreated: true,
         ...clientMetadata,
-        ...(Object.keys(directProofAttachment).length ? { proofAttachment: directProofAttachment } : {}),
         ...(directProofLink ? { proofLink: directProofLink } : {}),
         clientMetadata,
       },
@@ -1869,8 +1929,75 @@ exports.createPaymentRequest = async (req, res, next) => {
         moneyMoved: false,
         processorPaymentCreated: false,
       },
-      paymentRequest: mainAppContracts.serializePaymentRequest(request),
+      paymentRequest: await presentPaymentRequest(request),
       message: 'Payment request recorded. No card charge, transfer, escrow hold, or payout was created.',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.uploadPaymentProof = async (req, res, next) => {
+  try {
+    const requestId = Number.parseInt(String(req.params.requestId), 10);
+    if (!Number.isFinite(requestId) || requestId <= 0) {
+      return res.status(400).json({
+        error: {
+          code: 'validation_failed',
+          fields: { requestId: 'Valid request ID is required.' },
+        },
+      });
+    }
+    if (!req.file) {
+      return res.status(400).json({
+        error: {
+          code: 'validation_failed',
+          fields: { proof: 'Payment proof image is required.' },
+        },
+      });
+    }
+
+    const { rows: [paymentRequest] } = await pool.query(
+      `SELECT id
+         FROM main_app_payment_requests
+        WHERE id = $1
+          AND (payer_id = $2 OR payee_id = $2)
+          AND status IN ('requested', 'viewed')`,
+      [requestId, req.user.id]
+    );
+    if (!paymentRequest) {
+      return res.status(404).json({
+        error: {
+          code: 'payment_request_not_proof_eligible',
+          message: 'Payment request was not found, is no longer pending, or you are not a participant.',
+        },
+      });
+    }
+
+    const key = await uploadFile(
+      req.file.buffer,
+      paymentProofFolder(requestId, req.user.id),
+      req.file.originalname || `payment-proof-${requestId}.jpg`,
+      req.file.mimetype
+    );
+    if (!key) {
+      return res.status(503).json({
+        error: {
+          code: 'payment_proof_storage_unavailable',
+          message: 'Secure payment proof storage is not configured.',
+        },
+      });
+    }
+    const signedUrl = await getSignedDownloadUrl(key, 900);
+    return res.status(201).json({
+      attachment: {
+        url: signedUrl || '',
+        key,
+        name: req.file.originalname || null,
+        type: req.file.mimetype,
+        sizeBytes: req.file.size,
+      },
+      downloadExpiresInSeconds: signedUrl ? 900 : 0,
     });
   } catch (err) {
     next(err);
@@ -1890,9 +2017,18 @@ exports.confirmPaymentRequest = async (req, res, next) => {
     }
 
     const clientMetadata = normalizePlainObject(req.body.metadata);
-    const directProofAttachment = normalizePlainObject(req.body.proofAttachment || req.body.proof_attachment || clientMetadata.proofAttachment || clientMetadata.proof_attachment);
+    const rawProofAttachment = req.body.proofAttachment || req.body.proof_attachment || clientMetadata.proofAttachment || clientMetadata.proof_attachment;
+    const directProofAttachment = normalizePrivatePaymentProofAttachment(rawProofAttachment, requestId);
+    if (rawProofAttachment && !directProofAttachment) {
+      return res.status(400).json({
+        error: {
+          code: 'validation_failed',
+          fields: { proofAttachment: 'Use the secure payment-proof upload endpoint.' },
+        },
+      });
+    }
     const confirmationCode = String(req.body.confirmationCode || req.body.confirmation_code || clientMetadata.confirmationCode || clientMetadata.confirmation_code || '').trim();
-    const proofLink = String(
+    const proofLinkValue = String(
       req.body.proofLink
       || req.body.proof_link
       || clientMetadata.proofLink
@@ -1902,14 +2038,23 @@ exports.confirmPaymentRequest = async (req, res, next) => {
       || clientMetadata.proof_attachment?.url
       || ''
     ).trim();
+    const proofLink = normalizeHttpsUrl(proofLinkValue);
     const note = String(req.body.note || clientMetadata.note || clientMetadata.confirmationNote || clientMetadata.confirmation_note || '').trim();
+    if (proofLinkValue && !proofLink) {
+      return res.status(400).json({
+        error: {
+          code: 'validation_failed',
+          fields: { proofLink: 'Payment proof links must use HTTPS.' },
+        },
+      });
+    }
 
     const request = await mainAppContracts.confirmPaymentRequest({
       requestId,
       userId: req.user.id,
       confirmationCode: confirmationCode || null,
-      proofLink: proofLink || null,
-      proofAttachment: Object.keys(directProofAttachment).length ? directProofAttachment : null,
+      proofLink: directProofAttachment ? null : (proofLink || null),
+      proofAttachment: directProofAttachment,
       note: note || null,
     });
 
@@ -1930,7 +2075,7 @@ exports.confirmPaymentRequest = async (req, res, next) => {
         processorPaymentCreated: false,
         receiptConfirmed: true,
       },
-      paymentRequest: mainAppContracts.serializePaymentRequest(request),
+      paymentRequest: await presentPaymentRequest(request),
       message: 'Payment receipt confirmed in the app.',
     });
   } catch (err) {
@@ -1951,13 +2096,20 @@ exports.submitPaymentProof = async (req, res, next) => {
     }
 
     const clientMetadata = normalizePlainObject(req.body.metadata);
-    const proofAttachment = normalizePlainObject(
-      req.body.proofAttachment
+    const rawProofAttachment = req.body.proofAttachment
         || req.body.proof_attachment
         || clientMetadata.proofAttachment
-        || clientMetadata.proof_attachment
-    );
-    const proofLink = String(
+        || clientMetadata.proof_attachment;
+    const proofAttachment = normalizePrivatePaymentProofAttachment(rawProofAttachment, requestId);
+    if (rawProofAttachment && !proofAttachment) {
+      return res.status(400).json({
+        error: {
+          code: 'validation_failed',
+          fields: { proofAttachment: 'Use the secure payment-proof upload endpoint.' },
+        },
+      });
+    }
+    const proofLinkValue = String(
       req.body.proofLink
         || req.body.proof_link
         || clientMetadata.proofLink
@@ -1965,6 +2117,7 @@ exports.submitPaymentProof = async (req, res, next) => {
         || proofAttachment?.url
         || ''
     ).trim();
+    const proofLink = normalizeHttpsUrl(proofLinkValue);
     const confirmationCode = String(
       req.body.confirmationCode
         || req.body.confirmation_code
@@ -1974,7 +2127,16 @@ exports.submitPaymentProof = async (req, res, next) => {
     ).trim();
     const note = String(req.body.note || clientMetadata.note || '').trim();
 
-    if (!proofLink && !confirmationCode && !Object.keys(proofAttachment).length) {
+    if (proofLinkValue && !proofLink) {
+      return res.status(400).json({
+        error: {
+          code: 'validation_failed',
+          fields: { proofLink: 'Payment proof links must use HTTPS.' },
+        },
+      });
+    }
+
+    if (!proofLink && !confirmationCode && !proofAttachment) {
       return res.status(400).json({
         error: {
           code: 'validation_failed',
@@ -1986,8 +2148,8 @@ exports.submitPaymentProof = async (req, res, next) => {
     const request = await mainAppContracts.submitPaymentProof({
       requestId,
       userId: req.user.id,
-      proofLink: proofLink || null,
-      proofAttachment: Object.keys(proofAttachment).length ? proofAttachment : null,
+      proofLink: proofAttachment ? null : (proofLink || null),
+      proofAttachment,
       confirmationCode: confirmationCode || null,
       note: note || null,
     });
@@ -2009,7 +2171,7 @@ exports.submitPaymentProof = async (req, res, next) => {
         processorPaymentCreated: false,
         proofSubmitted: true,
       },
-      paymentRequest: mainAppContracts.serializePaymentRequest(request),
+      paymentRequest: await presentPaymentRequest(request),
       message: 'Payment proof submitted for recipient review.',
     });
   } catch (err) {
@@ -2027,7 +2189,7 @@ exports.listPaymentRequests = async (req, res, next) => {
         generatedAt: new Date().toISOString(),
         moneyMoved: false,
       },
-      paymentRequests: rows.map(mainAppContracts.serializePaymentRequest),
+      paymentRequests: await Promise.all(rows.map(presentPaymentRequest)),
     });
   } catch (err) {
     next(err);

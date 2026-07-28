@@ -3,6 +3,8 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, optionalAuth } = require('../middleware/auth');
+const upload = require('../middleware/upload');
+const validateFileUpload = require('../middleware/validateFileUpload');
 const ctrl = require('../controllers/mainAppController');
 
 router.get('/home', optionalAuth, ctrl.getHomeDashboard);
@@ -16,6 +18,13 @@ router.post('/payouts', authenticate, ctrl.requestPayout);
 router.post('/payouts/:requestId/cancel', authenticate, ctrl.cancelPayoutRequest);
 router.get('/payment-requests', authenticate, ctrl.listPaymentRequests);
 router.post('/payment-requests', authenticate, ctrl.createPaymentRequest);
+router.post(
+  '/payment-requests/:requestId/proof-upload',
+  authenticate,
+  upload.single('image'),
+  validateFileUpload,
+  ctrl.uploadPaymentProof
+);
 router.post('/payment-requests/:requestId/proof', authenticate, ctrl.submitPaymentProof);
 router.post('/payment-requests/:requestId/confirm', authenticate, ctrl.confirmPaymentRequest);
 router.get('/referrals', authenticate, ctrl.getReferralDashboard);
