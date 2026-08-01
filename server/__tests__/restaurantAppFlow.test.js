@@ -507,6 +507,11 @@ describe('restaurant app-flow backend', () => {
     expect(boardRes.body.ready).toEqual([13]);
     expect(boardRes.body.readyEntries[0].guestLabel).toBe('Pickup');
     expect(boardRes.body.contract.routes.publicQueueBoard).toBe('/api/food/restaurants/3/queue-board');
+    const queueVisibilityQuery = mockQuery.mock.calls
+      .map(([sql]) => sql)
+      .find((sql) => /SELECT fr\.id, fr\.display_name, fr\.logo_url/.test(sql));
+    expect(queueVisibilityQuery).toMatch(/JOIN businesses b ON b\.id = fr\.business_id/);
+    expect(queueVisibilityQuery).toMatch(/b\.is_active = TRUE/);
   });
 
   test('paired kitchen devices poll and ack feed without staff auth', async () => {

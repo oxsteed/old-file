@@ -547,6 +547,7 @@ async function queryPopularRestaurants(limit) {
             fr.longitude,
             promo.title AS promo_title
        FROM food_restaurants fr
+       JOIN businesses b ON b.id = fr.business_id
        LEFT JOIN LATERAL (
          SELECT p.title
            FROM food_restaurant_promotions p
@@ -558,6 +559,8 @@ async function queryPopularRestaurants(limit) {
           LIMIT 1
        ) promo ON TRUE
       WHERE fr.status = 'active'
+        AND b.is_active = TRUE
+        AND b.deleted_at IS NULL
         AND COALESCE(fr.discovery_status, 'visible') = 'visible'
         AND COALESCE(fr.accepts_online_orders, TRUE) = TRUE
         AND COALESCE(fr.is_accepting_orders_now, TRUE) = TRUE

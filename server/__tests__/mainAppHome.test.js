@@ -110,6 +110,8 @@ describe('main app home dashboard contract', () => {
     expect(Array.isArray(res.body.activity)).toBe(true);
     expect(res.body.featuredHelpers[0].hasLocation).toBe(false);
     expect(res.body.popularRestaurants[0].hasLocation).toBe(true);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/JOIN businesses b ON b\.id = fr\.business_id/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/b\.is_active = TRUE/);
   });
 
   test('returns authenticated summary and activity for signed-in users', async () => {

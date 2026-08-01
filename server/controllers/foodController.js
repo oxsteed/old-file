@@ -1026,7 +1026,10 @@ exports.listMarkets = async (req, res, next) => {
               COALESCE(MIN(NULLIF(trim(fr.currency_code), '')), 'USD') AS currency_code,
               COUNT(*)::int AS restaurant_count
          FROM food_restaurants fr
+         JOIN businesses b ON b.id = fr.business_id
         WHERE fr.status = 'active'
+          AND b.is_active = TRUE
+          AND b.deleted_at IS NULL
           AND NULLIF(trim(fr.address_city), '') IS NOT NULL
           AND NULLIF(trim(fr.address_country), '') IS NOT NULL
         GROUP BY fr.address_country, fr.address_city
@@ -1122,7 +1125,10 @@ exports.listRestaurants = async (req, res, next) => {
               COALESCE(fr.rating_count, 0)::int AS total_reviews,
               ${distanceSelect}
          FROM food_restaurants fr
+         JOIN businesses b ON b.id = fr.business_id
         WHERE ${filters.join(' AND ')}
+          AND b.is_active = TRUE
+          AND b.deleted_at IS NULL
         ORDER BY ${orderBy}
         LIMIT $${params.push(limit)} OFFSET $${params.push(offset)}`,
       params
@@ -1184,7 +1190,10 @@ exports.listRestaurants = async (req, res, next) => {
                 0::int AS total_reviews,
                 ${distanceSelect}
            FROM food_restaurants fr
+           JOIN businesses b ON b.id = fr.business_id
           WHERE ${filters.join(' AND ')}
+            AND b.is_active = TRUE
+            AND b.deleted_at IS NULL
           ORDER BY ${orderBy}
           LIMIT $${params.push(limit)} OFFSET $${params.push(offset)}`,
         params
@@ -1209,7 +1218,10 @@ exports.getRestaurant = async (req, res, next) => {
               b.stripe_account_status AS business_stripe_account_status
          FROM food_restaurants fr
          LEFT JOIN businesses b ON b.id = fr.business_id
-        WHERE fr.id = $1 AND fr.status IN ('active', 'paused', 'draft')`,
+        WHERE fr.id = $1
+          AND fr.status IN ('active', 'paused', 'draft')
+          AND b.is_active = TRUE
+          AND b.deleted_at IS NULL`,
       [restaurantId]
     );
     const restaurant = restaurants[0];
@@ -1479,7 +1491,9 @@ exports.quoteOrder = async (req, res, next) => {
          FROM food_restaurants fr
          LEFT JOIN businesses b ON b.id = fr.business_id
         WHERE fr.id = $1
-          AND fr.status IN ('active','paused')`,
+          AND fr.status IN ('active','paused')
+          AND b.is_active = TRUE
+          AND b.deleted_at IS NULL`,
       [restaurantId]
     );
     const restaurant = restaurants[0];
@@ -1733,7 +1747,11 @@ exports.createOrder = async (req, res, next) => {
                 b.stripe_account_status AS business_stripe_account_status
            FROM food_restaurants fr
            LEFT JOIN businesses b ON b.id = fr.business_id
-          WHERE fr.id = $1 AND fr.status = 'active' FOR UPDATE`,
+          WHERE fr.id = $1
+            AND fr.status = 'active'
+            AND b.is_active = TRUE
+            AND b.deleted_at IS NULL
+          FOR UPDATE`,
         [restaurantId]
       );
       const restaurant = restaurants[0];
@@ -3131,7 +3149,13 @@ exports.getQueueBoard = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const { rows: restaurants } = await pool.query(
-      `SELECT id, display_name, logo_url FROM food_restaurants WHERE id = $1 AND status IN ('active','paused')`,
+      `SELECT fr.id, fr.display_name, fr.logo_url
+         FROM food_restaurants fr
+         JOIN businesses b ON b.id = fr.business_id
+        WHERE fr.id = $1
+          AND fr.status IN ('active','paused')
+          AND b.is_active = TRUE
+          AND b.deleted_at IS NULL`,
       [restaurantId]
     );
     if (!restaurants[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
@@ -3821,14 +3845,19 @@ exports.listRestaurantPromotions = async (req, res, next) => {
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     try {
       const { rows } = await pool.query(
-        `SELECT id, code, title, description, discount_percent, discount_cents,
-                min_subtotal_cents, valid_from, valid_until
-           FROM food_restaurant_promotions
-          WHERE restaurant_id = $1
-            AND is_active = TRUE
-            AND (valid_from IS NULL OR valid_from <= CURRENT_DATE)
-            AND (valid_until IS NULL OR valid_until >= CURRENT_DATE)
-          ORDER BY created_at DESC
+        `SELECT p.id, p.code, p.title, p.description, p.discount_percent, p.discount_cents,
+                p.min_subtotal_cents, p.valid_from, p.valid_until
+           FROM food_restaurant_promotions p
+           JOIN food_restaurants fr ON fr.id = p.restaurant_id
+           JOIN businesses b ON b.id = fr.business_id
+          WHERE p.restaurant_id = $1
+            AND fr.status IN ('active', 'paused')
+            AND b.is_active = TRUE
+            AND b.deleted_at IS NULL
+            AND p.is_active = TRUE
+            AND (p.valid_from IS NULL OR p.valid_from <= CURRENT_DATE)
+            AND (p.valid_until IS NULL OR p.valid_until >= CURRENT_DATE)
+          ORDER BY p.created_at DESC
           LIMIT 20`,
         [restaurantId]
       );
@@ -4100,7 +4129,13 @@ exports.listRestaurantLocations = async (req, res, next) => {
     }
     if (!isMerchant) {
       const { rows: restaurants } = await pool.query(
-        `SELECT id FROM food_restaurants WHERE id = $1 AND status = 'active'`,
+        `SELECT fr.id
+           FROM food_restaurants fr
+           JOIN businesses b ON b.id = fr.business_id
+          WHERE fr.id = $1
+            AND fr.status = 'active'
+            AND b.is_active = TRUE
+            AND b.deleted_at IS NULL`,
         [restaurantId]
       );
       if (!restaurants[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
@@ -4253,10 +4288,13 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
     }
 
     const { rows: [restaurant] } = await pool.query(
-      `SELECT id, business_id, owner_user_id, display_name, status
-         FROM food_restaurants
-        WHERE id = $1
-          AND status IN ('active', 'paused', 'draft')`,
+      `SELECT fr.id, fr.business_id, fr.owner_user_id, fr.display_name, fr.status
+         FROM food_restaurants fr
+         JOIN businesses b ON b.id = fr.business_id
+        WHERE fr.id = $1
+          AND fr.status IN ('active', 'paused', 'draft')
+          AND b.is_active = TRUE
+          AND b.deleted_at IS NULL`,
       [restaurantId]
     );
     if (!restaurant) {

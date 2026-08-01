@@ -41,6 +41,8 @@ describe('food controller', () => {
     expect(res.status).toBe(200);
     expect(res.body.restaurants).toHaveLength(1);
     expect(mockQuery.mock.calls[0][0]).toMatch(/FROM food_restaurants fr/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/JOIN businesses b ON b\.id = fr\.business_id/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/b\.is_active = TRUE/);
     expect(mockQuery.mock.calls[0][0]).toMatch(/address_country/);
     expect(mockQuery.mock.calls[0][1]).toContain('US');
   });
@@ -87,6 +89,8 @@ describe('food controller', () => {
       },
     ]);
     expect(mockQuery.mock.calls[0][0]).toMatch(/GROUP BY fr\.address_country, fr\.address_city/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/JOIN businesses b ON b\.id = fr\.business_id/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/b\.is_active = TRUE/);
     expect(mockQuery.mock.calls[0][0]).toMatch(/MIN\(NULLIF\(trim\(fr\.currency_code\), ''\)\)/);
   });
 
@@ -147,6 +151,7 @@ describe('food controller', () => {
       });
 
     expect(res.status).toBe(201);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/b\.is_active = TRUE/);
     expect(mockQuery.mock.calls.some(([sql]) => /MAX\(queue_number\)/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_orders/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_order_items/.test(sql))).toBe(true);

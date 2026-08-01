@@ -11,6 +11,15 @@
 
 ---
 
+## Session progress — Restaurant deactivation visibility invariant (2026-08-01)
+
+- **Authoritative public visibility:** restaurant markets, discovery lists, main-app home recommendations, direct restaurant/menu access, promotions, public locations, quote/order creation, kiosk configuration, and public/device queue boards now require the linked business to be active and not deleted.
+- **Safe reactivation:** admin deactivation remains a reversible `businesses.is_active` switch; restaurant publishing, menu, kiosk, and discovery settings are preserved rather than overwritten, so reactivation restores only surfaces the restaurant had already published.
+- **Regression coverage:** `server/__tests__/restaurantPublicVisibility.test.js` verifies inactive businesses cannot leak through public discovery or commerce routes. Existing food, main-app home, and restaurant app-flow tests assert the active-business SQL guard.
+- **Verified:** changed controllers pass `node --check`; full server Jest suite passes (71 suites, 451 tests).
+
+---
+
 ## Session progress — Four-app launch security verification (2026-07-16)
 
 - **Four iOS launch clients:** OxSteed, POS, Kitchen, and Display now compile in optimized Release simulator configurations after their production-contract passes. The clients enforce workspace-scoped auth/pairing, real menu/order/feed synchronization, idempotent offline operations, restaurant-credit/direct-payment evidence state, five-language catalogs, and no launch dependency on Stripe UI. Display removes sample/random data from paired production mode; Kitchen keeps sample tickets inside explicit Training Mode only.

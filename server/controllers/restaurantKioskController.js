@@ -80,10 +80,13 @@ exports.getPublicKioskConfig = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const { rows: restaurants } = await pool.query(
-      `SELECT id
-         FROM food_restaurants
-        WHERE id = $1
-          AND status IN ('active', 'paused')`,
+      `SELECT fr.id
+         FROM food_restaurants fr
+         JOIN businesses b ON b.id = fr.business_id
+        WHERE fr.id = $1
+          AND fr.status IN ('active', 'paused')
+          AND b.is_active = TRUE
+          AND b.deleted_at IS NULL`,
       [restaurantId]
     );
     if (!restaurants[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');

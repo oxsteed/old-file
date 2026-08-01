@@ -2447,9 +2447,13 @@ function queueGuestLabel(row) {
 
 async function buildQueueBoardPayload(restaurantId, device = null) {
   const { rows: restaurants } = await pool.query(
-    `SELECT id, display_name, logo_url, timezone, kitchen_display_enabled
-       FROM food_restaurants
-      WHERE id = $1 AND status IN ('active','paused')`,
+    `SELECT fr.id, fr.display_name, fr.logo_url, fr.timezone, fr.kitchen_display_enabled
+       FROM food_restaurants fr
+       JOIN businesses b ON b.id = fr.business_id
+      WHERE fr.id = $1
+        AND fr.status IN ('active','paused')
+        AND b.is_active = TRUE
+        AND b.deleted_at IS NULL`,
     [restaurantId]
   );
   const restaurant = restaurants[0];
