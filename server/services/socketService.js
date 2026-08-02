@@ -7,7 +7,15 @@ const logger = require('../utils/logger');
 
 const onlineMap = new Map();
 
-function init(socketIo) { io = socketIo; }
+function init(socketIo) {
+  if (!socketIo || typeof socketIo.to !== 'function') {
+    throw new TypeError('socketService.init requires a Socket.IO namespace');
+  }
+  if (io === socketIo) return socketIo;
+  if (io) throw new Error('socketService has already been initialized');
+  io = socketIo;
+  return socketIo;
+}
 
 function trackConnect(userId, socketId) {
   const uid = String(userId);
@@ -130,7 +138,21 @@ function broadcastToBusinessInbox(businessId, event, data) {
 // receive PII-free "something changed" pings (queue number + status — data
 // already shown publicly on the wall board). They then refetch over REST.
 let displayNs = null;
-function initRestaurantDisplay(ns) { displayNs = ns; }
+function initRestaurantDisplay(ns) {
+  if (!ns || typeof ns.to !== 'function') {
+    throw new TypeError('initRestaurantDisplay requires a Socket.IO namespace');
+  }
+  if (displayNs === ns) return ns;
+  if (displayNs) throw new Error('restaurant display namespace has already been initialized');
+  displayNs = ns;
+  return ns;
+}
+
+function shutdown() {
+  onlineMap.clear();
+  io = null;
+  displayNs = null;
+}
 
 function broadcastToRestaurantDisplay(restaurantId, event, data) {
   if (!displayNs || !restaurantId) return;
@@ -168,5 +190,5 @@ module.exports = {
   disconnectUserSockets, getSocketCount, validateConversationAccess,
   joinBusinessRooms, listUserBusinessIds,
   broadcastToBusinessInbox, broadcastToBusinessCalendar, validateBusinessRoomAccess,
-  initRestaurantDisplay, broadcastToRestaurantDisplay,
+  initRestaurantDisplay, broadcastToRestaurantDisplay, shutdown,
 };

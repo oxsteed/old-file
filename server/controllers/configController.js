@@ -1,6 +1,7 @@
 const db = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
+const { getPublicCapabilities } = require('../services/featureCapabilities');
 
 async function hasPlatformConfigTable() {
   const { rows } = await db.query(
@@ -62,6 +63,11 @@ exports.getPricing = async (req, res, next) => {
     logger.error('Config pricing error:', { err: err.message });
     res.json(DEFAULT_PRICES);
   }
+};
+
+// GET /api/config/capabilities - public, contains availability only (no secrets)
+exports.getCapabilities = (req, res) => {
+  res.json({ capabilities: getPublicCapabilities() });
 };
 
 // PUT /api/config/pricing - super_admin only

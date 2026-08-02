@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/axios';
 import { useTranslation } from 'react-i18next';
 import SpeechToTextInput from './SpeechToTextInput';
+import { useCapabilities } from '../hooks/useCapabilities';
 
 const STORAGE_KEY = 'oxsteed_chat_history';
 const MAX_HISTORY = 40;
@@ -147,7 +148,7 @@ function exportTranscript(messages) {
 }
 
 // ── Main widget ───────────────────────────────────────────────────────────────
-export default function SupportWidget() {
+function AISupportWidget() {
   const location = useLocation();
   const hideOnHelperProfile = isHelperPublicProfilePath(location.pathname);
   const { t } = useTranslation();
@@ -679,4 +680,26 @@ export default function SupportWidget() {
 
     </>
   );
+}
+
+export default function SupportWidget() {
+  const navigate = useNavigate();
+  const { t } = useTranslation();
+  const { isAvailable, loading } = useCapabilities();
+
+  if (loading) return null;
+  if (!isAvailable('aiSupport')) {
+    return (
+      <button
+        type="button"
+        onClick={() => navigate('/support/escalation')}
+        className="fixed bottom-5 right-5 z-40 rounded-full bg-orange-600 px-4 py-3 text-sm font-semibold text-white shadow-xl transition hover:bg-orange-700"
+        aria-label={t('supportWidget.talkToHuman', { defaultValue: 'Contact support' })}
+      >
+        {t('supportWidget.talkToHuman', { defaultValue: 'Contact support' })}
+      </button>
+    );
+  }
+
+  return <AISupportWidget />;
 }

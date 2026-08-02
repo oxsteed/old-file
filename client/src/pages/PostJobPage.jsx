@@ -10,6 +10,7 @@ import '../styles/PostJobPage.css';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import { useTranslation } from 'react-i18next';
+import { useCapabilities } from '../hooks/useCapabilities';
 
 // ─── Category taxonomy ───────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -751,6 +752,8 @@ function SkillSearch({ onAddSkill }) {
 // ─── Main component ──────────────────────────────────────────────────────────
 export default function PostJobPage() {
   const { t } = useTranslation();
+  const { isAvailable } = useCapabilities();
+  const geocodingAvailable = isAvailable('geocoding');
   const STEP_LABELS = [
     t('postJob.stepJobDetails', 'Job Details'),
     t('postJob.stepRequirements', 'Requirements'),
@@ -947,6 +950,7 @@ export default function PostJobPage() {
   // for city, state, zip, country are always preserved — geocoding only adds
   // the hidden coordinates used for radius search on the /jobs page.
   async function handleLocationBlur() {
+    if (!geocodingAvailable) return;
     const city    = form.locationCity.trim();
     const state   = form.locationState.trim();
     const zip     = form.locationZip.trim();

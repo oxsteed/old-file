@@ -28,9 +28,9 @@ COPY --from=client-build /app/client/dist /app/client/dist
 
 WORKDIR /app/server
 
-# Health check
+# Readiness check: migrations, database, configured Redis, realtime, and workers.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=5 \
-  CMD curl -fsS "http://localhost:${PORT:-5000}/health" || exit 1
+  CMD curl -fsS "http://localhost:${PORT:-5000}/ready" || exit 1
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]

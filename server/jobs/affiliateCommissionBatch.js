@@ -127,9 +127,12 @@ async function processAffiliateCommissionBatch() {
  * Runs daily at 1 AM UTC
  */
 function startAffiliateCommissionBatchJob() {
+  let stopped = false;
+  let dailyTimer = null;
+
   // Run once at startup after a delay
-  setTimeout(async () => {
-    await processAffiliateCommissionBatch();
+  const startupTimer = setTimeout(async () => {
+    if (!stopped) await processAffiliateCommissionBatch();
   }, 60000); // Wait 1 minute
 
   // Schedule daily at 1 AM UTC
@@ -145,13 +148,22 @@ function startAffiliateCommissionBatchJob() {
   logger.info('Affiliate commission batch scheduled', { delayMs: delay, nextRun: target.toISOString() });
 
   const dailySchedule = () => {
+    if (stopped) return;
     processAffiliateCommissionBatch().finally(() => {
       // Schedule next run in 24 hours
-      setTimeout(dailySchedule, 24 * 60 * 60 * 1000);
+      if (!stopped) dailyTimer = setTimeout(dailySchedule, 24 * 60 * 60 * 1000);
     });
   };
 
-  setTimeout(dailySchedule, delay);
+  dailyTimer = setTimeout(dailySchedule, delay);
+
+  return {
+    stop() {
+      stopped = true;
+      clearTimeout(startupTimer);
+      clearTimeout(dailyTimer);
+    },
+  };
 }
 
 module.exports = {

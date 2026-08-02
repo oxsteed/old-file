@@ -21,6 +21,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
+import { realtimeNamespaceUrl } from '../lib/realtime';
 import './SupportEscalationPage.css';
 
 export default function SupportEscalationPage() {
@@ -66,7 +67,7 @@ export default function SupportEscalationPage() {
 
   const initiateLiveChat = useCallback(async () => {
     try {
-      const socket = io(window.location.origin, {
+      const socket = io(realtimeNamespaceUrl('support'), {
         transports: ['websocket', 'polling'],
         reconnection: true,
       });

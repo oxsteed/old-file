@@ -16,6 +16,7 @@ import EditProfileTab from '../components/EditProfileTab';
 import AIKnowledgeTab from '../components/AIKnowledgeTab';
 import HelperAvailabilityEditor from '../components/HelperAvailabilityEditor';
 import { useSocket } from '../hooks/useSocket';
+import { useCapabilities } from '../hooks/useCapabilities';
 import { ProgressBar, Card, CardHeader, Btn, Input, Select } from '../components/dashboardUI';
 import ReviewsList from '../components/reviews/ReviewsList';
 import { formatDate, formatMoney, formatNumber } from '../lib/format';
@@ -103,6 +104,8 @@ const jobBudgetLabel = (job) => {
 export default function HelperDashboard() {
   const { t } = useTranslation();
   const { user, initialized, isOnboardingComplete, refreshUser } = useAuth();
+  const { capabilities } = useCapabilities();
+  const backgroundChecksAvailable = capabilities.backgroundChecks?.available === true;
   const { subscription, refresh: refreshSubscription } = useSubscription();
   const life = useLifeDashboard();
   const {
@@ -1391,7 +1394,7 @@ export default function HelperDashboard() {
                       color="purple"
                     />
                     <p className="text-xs text-gray-500 my-2">
-                      All new accounts start with free Pro access, including verification and background check tools.
+                      All new accounts start with free Pro access, including account verification tools.
                     </p>
                   </>
                 ) : selectedProNoPay ? (
@@ -1425,11 +1428,11 @@ export default function HelperDashboard() {
                   </Link>
                 </div>
               </Card>
-              <Card>
+              {backgroundChecksAvailable && <Card>
                 <div className="flex items-center gap-2 mb-3"><IcoShield size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.backgroundCheck')}</span></div>
                 {verification.backgroundCheck?<Tag text={verification.backgroundCheck.status} color={verification.backgroundCheck.status==='passed'?'green':'orange'}/>
                 :(<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.bgCheckHint')} Available on every account, with or without Pro.</p><button onClick={startBackgroundCheck} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.startCheck')}</button></>)}
-              </Card>
+              </Card>}
                 <Card>
                   <div className="flex items-center gap-2 mb-3"><IcoId size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.idVerification')}</span></div>
                   {isIdVerified

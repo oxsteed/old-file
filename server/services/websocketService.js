@@ -14,22 +14,19 @@ class WebSocketService {
   }
 
   /**
-   * Initialize Socket.io with server
+   * Attach support events to the shared /support namespace.
    */
-  initialize(server) {
-    const socketIo = require('socket.io')(server, {
-      cors: {
-        origin: process.env.CLIENT_URL || 'http://localhost:5173',
-        methods: ['GET', 'POST'],
-        credentials: true,
-      },
-      transports: ['websocket', 'polling'],
-    });
+  initialize(namespace) {
+    if (!namespace || typeof namespace.on !== 'function' || typeof namespace.to !== 'function') {
+      throw new TypeError('WebSocketService.initialize requires a Socket.IO namespace');
+    }
+    if (this.io === namespace) return namespace;
+    if (this.io) throw new Error('WebSocketService has already been initialized');
 
-    this.io = socketIo;
+    this.io = namespace;
 
     // ── Customer connections ──
-    socketIo.on('connection', (socket) => {
+    namespace.on('connection', (socket) => {
       logger.info('Socket connected', { socketId: socket.id });
 
       // Customer joins widget
@@ -52,7 +49,7 @@ class WebSocketService {
         logger.info('Agent joined dashboard', { agentId, socketId: socket.id });
 
         // Notify all admins that agent is online
-        socketIo.to('admins').emit('agent:status-changed', {
+        namespace.to('admins').emit('agent:status-changed', {
           agentId,
           status: 'online',
           timestamp: new Date().toISOString(),
@@ -85,7 +82,7 @@ class WebSocketService {
         const userId = socket.data.userId;
 
         // Broadcast to all in ticket room (customer + agent + admins)
-        socketIo.to(`ticket:${ticketId}`).emit('message:new', {
+        namespace.to(`ticket:${ticketId}`).emit('message:new', {
           ticketId,
           sender: {
             type: 'customer',
@@ -106,7 +103,7 @@ class WebSocketService {
         const agentId = socket.data.agentId;
 
         // Broadcast to all in ticket room
-        socketIo.to(`ticket:${ticketId}`).emit('message:new', {
+        namespace.to(`ticket:${ticketId}`).emit('message:new', {
           ticketId,
           sender: {
             type: 'agent',
@@ -118,7 +115,7 @@ class WebSocketService {
         });
 
         // Mark message as read for customer
-        socketIo.to(`ticket:${ticketId}`).emit('message:agent-typing', {
+        namespace.to(`ticket:${ticketId}`).emit('message:agent-typing', {
           ticketId,
           agentId,
           isTyping: false,
@@ -132,7 +129,7 @@ class WebSocketService {
         const { ticketId, isTyping } = data;
         const agentId = socket.data.agentId;
 
-        socketIo.to(`ticket:${ticketId}`).emit('agent:typing-indicator', {
+        namespace.to(`ticket:${ticketId}`).emit('agent:typing-indicator', {
           ticketId,
           agentId,
           isTyping,
@@ -167,7 +164,7 @@ class WebSocketService {
       socket.on('ticket:close', (data) => {
         const { ticketId } = data;
 
-        socketIo.to(`ticket:${ticketId}`).emit('ticket:closed', {
+        namespace.to(`ticket:${ticketId}`).emit('ticket:closed', {
           ticketId,
           message: 'This ticket has been closed.',
           timestamp: new Date().toISOString(),
@@ -190,7 +187,7 @@ class WebSocketService {
         if (agentId) {
           this.agentConnections.delete(agentId);
           // Notify admins agent is offline
-          socketIo.to('admins').emit('agent:status-changed', {
+          namespace.to('admins').emit('agent:status-changed', {
             agentId,
             status: 'offline',
             timestamp: new Date().toISOString(),
@@ -201,13 +198,21 @@ class WebSocketService {
     });
 
     logger.info('WebSocket service initialized');
-    return socketIo;
+    return namespace;
+  }
+
+  shutdown() {
+    this.customerConnections.clear();
+    this.agentConnections.clear();
+    this.ticketSockets.clear();
+    this.io = null;
   }
 
   /**
    * Send notification to customer
    */
   notifyCustomer(userId, event, data) {
+    if (!this.io) return;
     const socketId = this.customerConnections.get(userId);
     if (socketId) {
       this.io.to(socketId).emit(event, data);
@@ -218,6 +223,7 @@ class WebSocketService {
    * Send notification to agent
    */
   notifyAgent(agentId, event, data) {
+    if (!this.io) return;
     const socketId = this.agentConnections.get(agentId);
     if (socketId) {
       this.io.to(socketId).emit(event, data);
@@ -228,6 +234,7 @@ class WebSocketService {
    * Broadcast to ticket room
    */
   broadcastToTicket(ticketId, event, data) {
+    if (!this.io) return;
     this.io.to(`ticket:${ticketId}`).emit(event, data);
   }
 
@@ -235,6 +242,7 @@ class WebSocketService {
    * Broadcast to all admins
    */
   broadcastToAdmins(event, data) {
+    if (!this.io) return;
     this.io.to('admins').emit(event, data);
   }
 

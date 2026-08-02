@@ -4,9 +4,11 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import PageMeta from '../../components/PageMeta';
 import { useTranslation } from 'react-i18next';
+import { useCapabilities } from '../../hooks/useCapabilities';
 
 export default function SMSPreferences() {
   const { t } = useTranslation();
+  const { isAvailable, loading: capabilitiesLoading } = useCapabilities();
   const [phoneInput, setPhoneInput] = useState('');
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [otpCode, setOtpCode] = useState('');
@@ -125,12 +127,26 @@ export default function SMSPreferences() {
     });
   };
 
-  if (isLoading) {
+  if (isLoading || capabilitiesLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
         <PageMeta title={t('smsPreferences.metaTitle')} description={t('smsPreferences.metaDescription')} />
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAvailable('smsOtp')) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <PageMeta title={t('smsPreferences.metaTitle')} description={t('smsPreferences.metaDescription')} />
+        <div className="mx-auto max-w-3xl px-4 py-12">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t('smsPreferences.title')}</h1>
+          <div className="mt-8 rounded-xl border border-amber-300 bg-amber-50 p-5 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
+            SMS verification and notifications are not available in this environment. Email and in-app notifications remain available.
+          </div>
         </div>
       </div>
     );

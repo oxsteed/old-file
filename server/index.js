@@ -15,14 +15,12 @@ const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
 const http = require('http');
-const { Server } = require('socket.io');
-const jwt = require('jsonwebtoken');
 
 const pool = require('./db');
 const { poolMonitor } = require('./db');
+const redis = require('./utils/redis');
 const { errorHandler } = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
-const socketService = require('./services/socketService');
 const { reloadFeeConfig } = require('./services/feeService');
 
 // ── MIDDLEWARE ────────────────────────────────────────────────
@@ -192,226 +190,16 @@ if (allowedOrigins.length === 0) {
   logger.error('CORS: no allowed origins configured', { rawAllowedOrigins, allowedOrigins });
 }
 
-// ── SOCKET.IO ─────────────────────────────────────────────────
-const io = new Server(httpServer, {
-  cors: {
-    origin: allowedOrigins,
-    credentials: true,
-  },
-  // Keep connections alive and detect dead sockets quickly.
-  // Dead connection = detected in pingInterval + pingTimeout = 35s (was 45s).
-  pingInterval:          20000,  // server pings clients every 20s (default 25s)
-  pingTimeout:           15000,  // disconnect if no pong within 15s (default 20s)
-  // Only allow WebSocket transport - avoids HTTP long-polling overhead and
-  // the extra round-trips polling adds to message latency.
-  transports:            ['websocket'],
-  // Compress frames - reduces bandwidth, especially for large message histories.
-  perMessageDeflate: {
-    threshold: 512,      // only compress payloads > 512 bytes
-  },
+// ── REALTIME BOOTSTRAP ─────────────────────────────────────────
+// One Engine.IO transport owns HTTP upgrades. Feature boundaries are Socket.IO
+// namespaces, never independent Socket.IO servers attached to httpServer.
+const { createRealtimeServer } = require('./bootstrap/realtime');
+const realtime = createRealtimeServer({
+  httpServer,
+  allowedOrigins,
+  pool,
+  jwtSecret: process.env.JWT_SECRET,
 });
-
-// Socket.IO authentication middleware - verify JWT before allowing connection
-io.use((socket, next) => {
-  const token = socket.handshake.auth.token || socket.handshake.query.token;
-  if (!token) {
-    return next(new Error('Authentication required'));
-  }
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    // Check if user is still active before allowing WebSocket
-      pool.query('SELECT is_active, role FROM users WHERE id = $1 AND deleted_at IS NULL', [decoded.id]).then(({ rows }) => {
-        if (!rows[0] || !rows[0].is_active) {
-          return next(new Error('Account suspended'));
-        }
-        socket.userId   = decoded.id;
-        socket.userRole = rows[0].role;
-        next();
-      }).catch(() => next(new Error('Auth check failed')));
-  } catch (err) {
-    return next(new Error('Invalid token'));
-  }
-});
-
-// ── WEBSOCKET SERVICE (Support Routing) ────────────────────────
-const WebSocketService = require('./services/websocketService');
-WebSocketService.initialize(httpServer);
-
-io.on('connection', (socket) => {
-  const userId = socket.userId;
-  socket.join(`user_${userId}`);
-  // Admins join a shared room so support tickets can be broadcast to all staff
-  if (['admin', 'super_admin'].includes(socket.userRole)) {
-    socket.join('admins');
-  }
-
-  // SECURITY (H-28): Explicitly drop 'join' events from clients.
-  // This is a critical security design choice:
-  //
-  // THREAT PREVENTED: A malicious client could try to forge Socket.IO 'join'
-  // events to subscribe to arbitrary rooms (e.g., 'admins', 'conv_12345'),
-  // allowing them to intercept broadcasts intended for other users.
-  //
-  // MITIGATION: Room membership is determined ONLY by server-side logic:
-  // - Authenticated users auto-join 'user_{userId}' room
-  // - Admins auto-join 'admins' room
-  // - Users can join 'conv_{conversationId}' ONLY via verified
-  //   'conversation:join' handler (which checks DB membership)
-  //
-  // NEVER allow arbitrary room names from client. Instead, use:
-  // 1. Automatic admin/user rooms based on authentication
-  // 2. Verified payload handlers that check membership before join
-  // 3. Use socket.to() for server→client broadcasts (sender doesn't need to
-  //    be in room)
-  socket.on('join', () => {});
-
-  // ── CONVERSATION ROOMS ────────────────────────────────────────
-  // Clients join a per-conversation room to receive typing indicators and
-  // real-time message delivery scoped to that thread.
-  //
-  // SECURITY MODEL:
-  // - Clients emit 'conversation:join' with conversationId
-  // - Server verifies user has permission to access the conversation:
-  //   * Is customer or helper in the conversation
-  //   * OR is an active member of the business associated with the conversation
-  // - Only on successful verification does server call socket.join('conv_...')
-  // - Typing indicators can only be sent to verified rooms (checked below)
-  //
-  // This prevents IDOR (Insecure Direct Object Reference) where a client
-  // could spy on conversations they don't own by guessing conversation IDs.
-  socket.on('conversation:join', async (conversationId) => {
-    if (!conversationId) return;
-    try {
-      // ATTACK #7 FIX: Equalize timing to prevent information leakage
-      // Use a constant-time operation to prevent attackers from distinguishing
-      // between "conversation doesn't exist" vs "access denied"
-      const start = Date.now();
-      const MIN_QUERY_TIME = 50; // Minimum query time in ms
-
-      const { rows } = await pool.query(
-        `SELECT id FROM conversations c
-         WHERE c.id = $1 AND (
-           c.customer_id = $2
-           OR c.helper_id = $2
-           OR (c.business_id IS NOT NULL AND EXISTS(
-             SELECT 1 FROM business_members bm
-             WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
-           ))
-         )`,
-        [conversationId, userId]
-      );
-
-      // Pad response time to prevent timing attacks
-      const elapsed = Date.now() - start;
-      if (elapsed < MIN_QUERY_TIME) {
-        await new Promise(resolve => setTimeout(resolve, MIN_QUERY_TIME - elapsed));
-      }
-
-      if (rows.length) {
-        socket.join(`conv_${conversationId}`);
-        logger.debug('Socket joined conversation room', { userId, conversationId });
-      }
-    } catch (err) {
-      logger.error('socket conversation:join error', { message: err.message });
-    }
-  });
-
-  socket.on('conversation:leave', (conversationId) => {
-    if (conversationId) socket.leave(`conv_${conversationId}`);
-  });
-
-  // ── TYPING INDICATORS ─────────────────────────────────────────
-  // SECURITY DESIGN RATIONALE:
-  //
-  // THREAT: A malicious authenticated user could forge typing events to
-  // arbitrary conversations they're not members of (e.g., admin conversations,
-  // private customer conversations they don't own).
-  //
-  // MITIGATION: Gate on room membership check via socket.rooms.has()
-  // - socket.rooms is the ONLY authoritative list of rooms a socket has joined
-  // - socket.to() does NOT enforce membership (it just broadcasts), so we
-  //   must verify socket.rooms before calling it
-  // - If socket hasn't successfully called conversation:join, they won't be
-  //   in conv_* room, and typing events will silently fail (not broadcast)
-  //
-  // This ensures typing indicators leak no information to unauthorized users.
-  socket.on('typing:start', (conversationId) => {
-    if (conversationId && socket.rooms.has(`conv_${conversationId}`)) {
-      socket.to(`conv_${conversationId}`).emit('user:typing', {
-        conversationId,
-        userId,
-      });
-    }
-  });
-
-  socket.on('typing:stop', (conversationId) => {
-    if (conversationId && socket.rooms.has(`conv_${conversationId}`)) {
-      socket.to(`conv_${conversationId}`).emit('user:stopped_typing', {
-        conversationId,
-        userId,
-      });
-    }
-  });
-
-  // ── GUEST CHAT ROOMS ──────────────────────────────────────────
-  // Helpers join 'guest_chat_waiting' room to receive notifications about
-  // new guest sessions. This allows real-time matching of guests to helpers.
-  //
-  // SECURITY: Only helpers (verified via socket.userRole) can join this room.
-  // New guest sessions are broadcast to all connected helpers in this room.
-  if (['helper', 'helper_pro', 'broker'].includes(socket.userRole)) {
-    socket.join('guest_chat_waiting');
-    logger.debug('Helper joined guest chat waiting room', { userId });
-  }
-
-  // Admins join 'guest_chat_admin' room to monitor all active sessions
-  if (['admin', 'super_admin'].includes(socket.userRole)) {
-    socket.join('guest_chat_admin');
-    logger.debug('Admin joined guest chat monitoring room', { userId });
-  }
-
-  socketService.trackConnect(userId, socket.id);
-  logger.debug('Socket connected', { userId, role: socket.userRole, socketId: socket.id });
-
-  // Phase 1b: auto-join the per-business workspace rooms (inbox + calendar)
-  // for every business this user owns or is an active member of.
-  socketService.joinBusinessRooms(socket, userId).then(bids => {
-    if (bids && bids.length) {
-      logger.debug('Socket joined business workspace rooms', {
-        userId, socketId: socket.id, businessIds: bids,
-      });
-    }
-  }).catch(err => {
-    logger.warn('joinBusinessRooms failed', { userId, error: err && err.message });
-  });
-
-  socket.on('disconnect', () => {
-    socketService.trackDisconnect(userId, socket.id);
-    logger.debug('Socket disconnected', { socketId: socket.id });
-  });
-});
-
-// Wire socket service so notificationService can broadcast
-socketService.init(io);
-
-// ── Public restaurant-display namespace ───────────────────
-// Unauthenticated, read-only. In-store TV / kiosk / customer screens connect
-// here (the main namespace requires a JWT) and receive only PII-free order
-// pings, then refetch over REST. A socket can only join a restaurant-display
-// room and do nothing else.
-const restaurantDisplayNs = io.of('/restaurant-display');
-restaurantDisplayNs.on('connection', (socket) => {
-  socket.on('display:join', (restaurantId) => {
-    const id = parseInt(restaurantId, 10);
-    if (Number.isInteger(id) && id > 0) socket.join(`rdisplay_${id}`);
-  });
-  socket.on('display:leave', (restaurantId) => {
-    const id = parseInt(restaurantId, 10);
-    if (Number.isInteger(id) && id > 0) socket.leave(`rdisplay_${id}`);
-  });
-});
-socketService.initRestaurantDisplay(restaurantDisplayNs);
-
 // ── INCIDENT ALERTING ─────────────────────────────────────
 // Enterprise incident detection and alerting
 const incidentAlertService = require('./services/incidentAlertService');
@@ -501,6 +289,13 @@ const { apiVersionMiddleware } = require('./middleware/apiVersioning');
 app.use('/api/', apiVersionMiddleware);
 
 // ── HEALTH CHECK ─────────────────────────────────────────────
+const { checkReadiness } = require('./services/readinessService');
+
+app.get(['/ready', '/api/ready'], async (req, res) => {
+  const result = await checkReadiness({ pool, redis });
+  res.status(result.status === 'ready' ? 200 : 503).json(result);
+});
+
 app.get('/api/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -572,8 +367,8 @@ app.get('/.well-known/apple-app-site-association', (req, res) => {
   });
 });
 
-// Lightweight liveness endpoint for container healthchecks.
-// Keep database-aware readiness checks on /api/health and /api/health/deep.
+// Lightweight liveness endpoint for process monitors. Container traffic gates
+// use /ready so an alive-but-unprepared process never receives requests.
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -813,113 +608,68 @@ Sentry.setupExpressErrorHandler(app);
 // Standardized Error Handler (L-02) to prevent leaking stack traces or internal details.
 app.use(errorHandler);
 
-httpServer.listen(PORT, async () => {
-  logger.info(`OxSteed v2 server running on port ${PORT}`, { env: process.env.NODE_ENV || 'development' });
-  // Load fee config after DB is reachable
-  try { await reloadFeeConfig(); } catch (e) { logger.warn('FeeService initial load failed', { message: e.message }); }
-});
+// ── APPLICATION LIFECYCLE ─────────────────────────────────────
+const { ApplicationRuntime } = require('./bootstrap/applicationRuntime');
+const runtime = new ApplicationRuntime({ httpServer, realtime, pool, redis });
 
-// ── CRON JOBS ────────────────────────────────────────────────
-const { startWeeklySummaryJob }         = require('./jobs/weeklySummary');
-const { startPlannedNeedsScheduler }    = require('./jobs/plannedNeedsScheduler');
-const { startDiscoverDigestJob }        = require('./jobs/discoverDigest');
-const { startConversationRetentionCleanup } = require('./jobs/conversationRetentionCleanup');
-const { startGuestChatSessionTimeoutJob } = require('./jobs/guestChatSessionTimeout');
-const { startConsultingSessionReminders } = require('./jobs/consultingSessionReminders');
-const { startConsultingPostSessionFollowup } = require('./jobs/consultingPostSessionFollowup');
-const { startConsultingNoShowFollowup } = require('./jobs/consultingNoShowFollowup');
-const { startCalendarReminderJob } = require('./jobs/calendarReminders');
-const { startAffiliateCommissionBatchJob } = require('./jobs/affiliateCommissionBatch');
-const cleanupOldMessagesJob = require('./jobs/cleanupOldMessages');
-const { startTemplateExpiryJob } = require('./jobs/templateExpiryJob');
-const { startAcceptedJobExpiryJob } = require('./jobs/acceptedJobExpiryJob');
-const { startScheduledDeletionJob } = require('./jobs/scheduledDeletionJob');
-const { startRecurringJobScheduler }    = require('./jobs/recurringJobScheduler');
-const { startCustomerReengagementJob }  = require('./jobs/customerReengagementJob');
-const bookingController = require('./controllers/bookingController');
-
-startWeeklySummaryJob();
-startPlannedNeedsScheduler();
-startDiscoverDigestJob();
-startConversationRetentionCleanup();
-startGuestChatSessionTimeoutJob();
-startConsultingSessionReminders();
-startConsultingPostSessionFollowup();
-startConsultingNoShowFollowup();
-startCalendarReminderJob();
-startAffiliateCommissionBatchJob();
-startScheduledDeletionJob();
-startTemplateExpiryJob();
-startAcceptedJobExpiryJob();
-startRecurringJobScheduler();
-startCustomerReengagementJob();
-
-// Start message cleanup job (180-day auto-retention for support conversations)
-const cron = require('node-cron');
-
-cron.schedule('*/15 * * * *', async () => {
-  try {
-    await bookingController.expirePendingBookingRequests();
-    await bookingController.releaseStaleAcceptedBookings();
-  } catch (err) {
-    logger.warn('Booking maintenance job failed', { error: err.message });
-  }
-});
-logger.info('Booking maintenance job scheduled', { cronExpression: '*/15 * * * *' });
-
-const cleanupTask = cron.schedule(cleanupOldMessagesJob.cronExpression, async () => {
-  try {
-    const result = await cleanupOldMessagesJob.handler();
-    logger.info('Support message cleanup job completed', result);
-  } catch (err) {
-    logger.error('Support message cleanup job failed', { error: err.message });
-  }
-});
-logger.info('Support message cleanup job scheduled', {
-  description: cleanupOldMessagesJob.description,
-  cronExpression: cleanupOldMessagesJob.cronExpression,
-});
-
-// ── TRANSLATION BATCH JOB WORKER ─────────────────────────────
-// Polls translation_jobs for queued batches. Picks one at a time with
-// SELECT ... FOR UPDATE SKIP LOCKED so multiple instances of this server
-// can coexist without double-processing. Default schedule is every 30
-// seconds; override with TRANSLATION_JOB_POLL_CRON if you need different
-// cadence in a particular environment.
-const { pollTranslationJobs } = require('./modules/jobs/translationJobWorker');
-const translationJobCron = process.env.TRANSLATION_JOB_POLL_CRON || '*/30 * * * * *';
-try {
-  cron.schedule(translationJobCron, async () => {
-    try {
-      await pollTranslationJobs();
-    } catch (err) {
-      logger.warn('Translation job poll failed', { error: err.message });
-    }
-  });
-  logger.info('Translation batch job worker scheduled', { cronExpression: translationJobCron });
-} catch (err) {
-  // node-cron throws on invalid expressions — never block server boot on this.
-  logger.error('Failed to schedule translation batch worker', { error: err.message, cronExpression: translationJobCron });
-}
-
-// ── GRACEFUL SHUTDOWN ────────────────────────────────────────
-function shutdown(signal) {
-  logger.info('Shutdown received', { signal });
-  httpServer.close(() => {
-    logger.info('HTTP server closed');
-    io.close(() => {
-      logger.info('Socket.IO closed');
-      pool.end(() => {
-        logger.info('DB pool drained');
-        process.exit(0);
-      });
+async function listen() {
+  await new Promise((resolve, reject) => {
+    const onError = (err) => reject(err);
+    httpServer.once('error', onError);
+    httpServer.listen(PORT, () => {
+      httpServer.off('error', onError);
+      resolve();
     });
   });
-  // Force exit after 15s if graceful shutdown stalls
-  setTimeout(() => {
-    process.exit(1);
-  }, 15000).unref();
 }
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT',  () => shutdown('SIGINT'));
+async function startServer() {
+  await runtime.prepare();
+  try {
+    await reloadFeeConfig();
+  } catch (err) {
+    logger.warn('FeeService initial load failed; using safe defaults', { message: err.message });
+  }
+  await listen();
+  runtime.markListening();
+  logger.info(`OxSteed v2 server running on port ${PORT}`, {
+    env: process.env.NODE_ENV || 'development',
+    realtimeNamespaces: ['/chat', '/support', '/restaurant-display'],
+  });
+  return httpServer;
+}
+
+let terminating = false;
+async function terminate(signal, exitCode = 0, cause) {
+  if (terminating) return;
+  terminating = true;
+  if (cause) logger.error('Fatal server error', { signal, error: cause.message, stack: cause.stack });
+
+  const forceExit = setTimeout(() => {
+    logger.error('Graceful shutdown timed out', { signal });
+    process.exit(1);
+  }, 15000);
+  forceExit.unref();
+
+  try {
+    await runtime.shutdown(signal);
+    clearTimeout(forceExit);
+    process.exit(exitCode);
+  } catch (err) {
+    logger.error('Graceful shutdown failed', { signal, error: err.message });
+    process.exit(1);
+  }
+}
+
+if (require.main === module) {
+  startServer().catch((err) => terminate('startup_failure', 1, err));
+  process.once('SIGTERM', () => terminate('SIGTERM'));
+  process.once('SIGINT', () => terminate('SIGINT'));
+  process.once('uncaughtException', (err) => terminate('uncaughtException', 1, err));
+  process.once('unhandledRejection', (reason) => {
+    const err = reason instanceof Error ? reason : new Error(String(reason));
+    terminate('unhandledRejection', 1, err);
+  });
+}
+
+module.exports = { app, httpServer, realtime, runtime, startServer };

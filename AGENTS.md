@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-07-15 (four-app production-readiness integration)
+**Last updated:** 2026-08-02 (production runtime consolidation)
 
 ## Instructions for Every Session
 
@@ -8,6 +8,16 @@
 2. **After completing meaningful work**, update this file - revise "Current Status", "Remaining Work", update file paths.
 3. **Commit AGENTS.md changes** in the same commit as the work it documents.
 4. **Keep it accurate and terse** - do not pad with summaries of work you didn't personally verify.
+
+---
+
+## Session progress — Production runtime consolidation (2026-08-02)
+
+- **One realtime transport:** one Socket.IO `Server` now owns HTTP upgrades through `server/bootstrap/realtime.js`; authenticated messaging, support, and public PII-free restaurant display traffic use `/chat`, `/support`, and `/restaurant-display` namespaces.
+- **Fail-fast ownership and lifecycle:** duplicate Socket.IO/service/worker initialization is guarded; centralized application runtime starts workers only after DB/migration/configured-Redis checks and gracefully drains workers, sockets, HTTP, Redis, and PostgreSQL on termination.
+- **Deployment readiness:** `/ready` and `/api/ready` report database, migration, configured Redis, realtime, worker, traffic, and shutdown state. Docker/Coolify health checks now use `/ready`; `/health` remains process liveness only.
+- **Honest optional features:** public `/api/config/capabilities` reports Twilio, Checkr, OpenAI, and Google Maps availability without secrets. Website SMS, background-check, AI support, and geocoding surfaces hide or degrade when unavailable.
+- **Verification:** focused runtime tests pass (4 suites, 8 tests); full backend regression passes (75 suites, 459 tests); website `build:ci` passes across all five locales; production dependency audit reports 0 vulnerabilities. Docker image execution was not rechecked because the local Docker daemon was unavailable.
 
 ---
 

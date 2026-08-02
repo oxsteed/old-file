@@ -3,10 +3,25 @@
 This runbook is intentionally short and action-oriented.
 
 ## API down
-1. Check uptime monitor status for `/health` and `/api/health`.
-2. Check latest deploy and container/process status.
-3. Check DB connectivity (`DATABASE_URL`) and connection saturation.
-4. If needed: scale up, then roll back to the last known good release.
+1. Check process liveness at `/health` and traffic readiness at `/ready`.
+2. Inspect `/ready` JSON for the failing dependency: database, migrations, configured Redis, realtime, workers, traffic, or shutdown.
+3. Keep load balancers and Coolify pointed at `/ready`; `/health` only proves the Node process is alive.
+4. Check latest deploy and container/process status.
+5. Check DB connectivity (`DATABASE_URL`) and connection saturation.
+6. If needed: scale up, then roll back to the last known good release.
+
+## Realtime degraded
+1. Confirm the client connects to the correct namespace: authenticated messaging `/chat`, customer support `/support`, or public PII-free queue updates `/restaurant-display`.
+2. Confirm only one Socket.IO server initialized; duplicate bootstrap now fails fast instead of competing for HTTP upgrades.
+3. Check `/ready` reports `realtime.ok: true` before sending traffic to the instance.
+4. During a rollout, verify SIGTERM logs both `Graceful shutdown started` and `Graceful shutdown complete` before the old container exits.
+
+## Optional integration unavailable
+1. Inspect `GET /api/config/capabilities`; it reports availability without exposing credentials.
+2. SMS requires `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_PHONE_NUMBER`.
+3. Background checks require both `CHECKR_API_KEY` and `CHECKR_WEBHOOK_SECRET`.
+4. AI support and geocoding require `OPENAI_API_KEY` and `GOOGLE_MAPS_API_KEY`, respectively.
+5. Missing optional integrations must hide or degrade their UI; they must not make `/ready` fail.
 
 ## DB migrations failed
 1. Identify the failing migration filename in logs.
@@ -30,4 +45,3 @@ This runbook is intentionally short and action-oriented.
 2. Confirm status is refundable (authorized/captured).
 3. Refund: `POST /api/payments/refund` (admin only).
 4. Document reason and notify user.
-

@@ -9,15 +9,13 @@
 // This is purely an enhancement layered on top of each page's existing
 // polling: if the socket never connects, polling keeps the screen current.
 import { io } from 'socket.io-client';
-
-const BASE =
-  import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+import { realtimeNamespaceUrl } from '../lib/realtime';
 
 let socket = null;
 
 function getDisplaySocket() {
   if (!socket) {
-    socket = io(`${BASE}/restaurant-display`, {
+    socket = io(realtimeNamespaceUrl('restaurant-display'), {
       transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 500,

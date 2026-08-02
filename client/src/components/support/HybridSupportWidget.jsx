@@ -4,6 +4,7 @@ import io from 'socket.io-client';
 import api from '../../api/axios';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import { realtimeNamespaceUrl } from '../../lib/realtime';
 import './HybridSupportWidget.css';
 
 /**
@@ -50,7 +51,7 @@ export default function HybridSupportWidget() {
 
   // Initialize WebSocket
   useEffect(() => {
-    const socket = io(window.location.origin, {
+    const socket = io(realtimeNamespaceUrl('support'), {
       transports: ['websocket', 'polling'],
       reconnection: true,
     });
