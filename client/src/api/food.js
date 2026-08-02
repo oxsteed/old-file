@@ -62,6 +62,36 @@ export const listMyFoodOrders = () =>
 export const getMyFoodRestaurantWallet = (restaurantId) =>
   api.get(`/food/customer/wallets/${restaurantId}`).then((r) => r.data?.wallet || null);
 
+export const listMyFoodRestaurantWallets = () =>
+  api.get('/food/customer/wallets').then((r) => r.data?.wallets || []);
+
+export const createFoodWalletPaymentSession = (restaurantId, payload) =>
+  api.post(`/food/customer/wallets/${restaurantId}/payment-sessions`, payload).then((r) => r.data);
+
+export const cancelFoodWalletPaymentSession = (restaurantId, sessionId) =>
+  api.post(`/food/customer/wallets/${restaurantId}/payment-sessions/${sessionId}/cancel`).then((r) => r.data?.session);
+
+export const listFoodWalletHolds = (restaurantId) =>
+  api.get(`/food/customer/wallets/${restaurantId}/holds`).then((r) => r.data?.holds || []);
+
+export const releaseFoodWalletHold = (restaurantId, holdId) =>
+  api.post(`/food/customer/wallets/${restaurantId}/holds/${holdId}/release`).then((r) => r.data?.hold);
+
+export const listFoodWalletTransfers = (restaurantId) =>
+  api.get(`/food/customer/wallets/${restaurantId}/transfers`).then((r) => r.data?.transfers || []);
+
+export const transferFoodWalletCredit = (restaurantId, payload) =>
+  api.post(`/food/customer/wallets/${restaurantId}/transfers`, payload).then((r) => r.data);
+
+export const listFoodWalletCreditRequests = (restaurantId) =>
+  api.get(`/food/customer/wallets/${restaurantId}/load-requests`).then((r) => r.data?.loadRequests || []);
+
+export const requestFoodWalletCredit = (restaurantId, payload) =>
+  api.post(`/food/customer/wallets/${restaurantId}/load-requests`, payload).then((r) => r.data?.loadRequest);
+
+export const cancelFoodWalletCreditRequest = (restaurantId, requestId) =>
+  api.post(`/food/customer/wallets/${restaurantId}/load-requests/${requestId}/cancel`).then((r) => r.data?.loadRequest);
+
 export const getFoodOrder = (orderId) =>
   api.get(`/food/orders/${orderId}`).then((r) => r.data?.order);
 

@@ -921,7 +921,11 @@ export default function FoodRestaurantPage() {
   // `restaurant_credit`, `direct_payment`). Card checkout remains dormant
   // in backend code, but no launch UI depends on Stripe.
   const walletBalanceCents = Number(wallet?.balanceCents || 0);
-  const walletCoversOrder = walletBalanceCents >= orderTotalCents;
+  const walletReservedCents = Number(wallet?.reservedCents || 0);
+  const walletAvailableCents = Number(
+    wallet?.availableBalanceCents ?? Math.max(0, walletBalanceCents - walletReservedCents)
+  );
+  const walletCoversOrder = walletAvailableCents >= orderTotalCents;
   const paymentMethods = [
     {
       id: 'pay_at_restaurant',
@@ -934,8 +938,8 @@ export default function FoodRestaurantPage() {
       icon: '💠',
       label: 'Restaurant credit',
       sub: walletCoversOrder
-        ? `${formatFoodMoney(walletBalanceCents, wallet.currencyCode || currency)} available`
-        : `Insufficient balance — ${formatFoodMoney(walletBalanceCents, wallet.currencyCode || currency)} available`,
+        ? `${formatFoodMoney(walletAvailableCents, wallet.currencyCode || currency)} available`
+        : `Insufficient balance — ${formatFoodMoney(walletAvailableCents, wallet.currencyCode || currency)} available`,
       disabled: !walletCoversOrder,
     }] : []),
     ...(externalPaymentEnabled ? [{
@@ -1612,6 +1616,24 @@ export default function FoodRestaurantPage() {
                         );
                       })}
                     </div>
+                    {user && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, margin: '-8px 2px 18px', padding: '11px 13px', borderRadius: 12, background: '#fff8ed', border: '1px solid #fed7aa' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <strong style={{ display: 'block', color: '#9a4b0c', fontSize: 12 }}>Restaurant credit</strong>
+                          <span style={{ color: '#9a6a3c', fontSize: 11 }}>
+                            {wallet
+                              ? `${formatFoodMoney(walletAvailableCents, wallet.currencyCode || currency)} available${walletReservedCents > 0 ? ` · ${formatFoodMoney(walletReservedCents, wallet.currencyCode || currency)} reserved` : ''}`
+                              : 'Request credit, upload proof, or view your balance'}
+                          </span>
+                        </div>
+                        <Link
+                          to={`/restaurant-credit?restaurantId=${restaurantId}`}
+                          style={{ flexShrink: 0, color: accent, fontSize: 12, fontWeight: 800, textDecoration: 'none' }}
+                        >
+                          Manage credit →
+                        </Link>
+                      </div>
+                    )}
                     {paymentMethod === 'direct_payment' && (
                       <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 16, padding: 16, marginBottom: 20 }}>
                         <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: accent, marginBottom: 8 }}>

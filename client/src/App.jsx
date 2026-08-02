@@ -81,6 +81,7 @@ import RestaurantPOSPage from './pages/food/RestaurantPOSPage';
 import RestaurantInventoryPage from './pages/food/RestaurantInventoryPage';
 import RestaurantCrewPage from './pages/food/RestaurantCrewPage';
 import RestaurantRunnerPage from './pages/food/RestaurantRunnerPage';
+import RestaurantCreditPage from './pages/food/RestaurantCreditPage';
 // OxSteed Logistics branch
 import LogisticsHomePage    from './pages/logistics/LogisticsHomePage';
 import BuyerDashboardPage   from './pages/logistics/BuyerDashboardPage';
@@ -386,6 +387,7 @@ export default function App() {
                     <Route path="/restaurants/inventory/:restaurantId" element={<ProtectedRoute><RouteErrorBoundary><RestaurantInventoryPage /></RouteErrorBoundary></ProtectedRoute>} />
                     <Route path="/restaurants/crew/:restaurantId"      element={<ProtectedRoute><RouteErrorBoundary><RestaurantCrewPage /></RouteErrorBoundary></ProtectedRoute>} />
                     <Route path="/restaurants/runner/:restaurantId"    element={<ProtectedRoute><RouteErrorBoundary><RestaurantRunnerPage /></RouteErrorBoundary></ProtectedRoute>} />
+                    <Route path="/restaurant-credit" element={<Guarded><ProtectedRoute><RouteErrorBoundary><RestaurantCreditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* OxSteed Logistics branch (migration 247) */}
                     <Route path="/logistics"                  element={<Guarded><RouteErrorBoundary><LogisticsHomePage /></RouteErrorBoundary></Guarded>} />
