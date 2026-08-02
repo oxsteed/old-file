@@ -166,6 +166,8 @@ function assertLedgerReplayMatches(existingEntry, {
 }
 
 function formatWallet(accountRow, transactionRows = []) {
+  const balanceCents = Number(accountRow.balance_cents || 0);
+  const reservedCents = Number(accountRow.reserved_cents || 0);
   return {
     id: String(accountRow.restaurant_id),
     accountId: String(accountRow.id),
@@ -173,8 +175,12 @@ function formatWallet(accountRow, transactionRows = []) {
     restaurantName: accountRow.restaurant_name,
     restaurantLogoUrl: accountRow.restaurant_logo_url || null,
     currencyCode: accountRow.currency_code,
-    balanceCents: Number(accountRow.balance_cents || 0),
-    balance: toWalletAmount(accountRow.balance_cents),
+    balanceCents,
+    balance: toWalletAmount(balanceCents),
+    reservedCents,
+    reserved: toWalletAmount(reservedCents),
+    availableBalanceCents: Math.max(0, balanceCents - reservedCents),
+    availableBalance: toWalletAmount(Math.max(0, balanceCents - reservedCents)),
     status: accountRow.status,
     updatedAt: accountRow.updated_at,
     ledgerVersion: Number(accountRow.ledger_version || 0),
@@ -323,6 +329,21 @@ async function applyWalletLedgerEntry(client, {
   }
 
   const direction = entryType === 'debit' ? -1 : 1;
+  const reservedCents = Number(account.reserved_cents || 0);
+  const availableBalanceCents = Number(account.balance_cents || 0) - reservedCents;
+  if (entryType === 'debit' && reservedCents > 0 && normalizedAmount > availableBalanceCents) {
+    throw new AppError(
+      'Insufficient available restaurant wallet balance',
+      409,
+      'wallet_insufficient_available_funds',
+      {
+        balanceCents: String(account.balance_cents || 0),
+        reservedCents: String(reservedCents),
+        availableBalanceCents: String(Math.max(0, availableBalanceCents)),
+        requestedCents: String(normalizedAmount),
+      }
+    );
+  }
   const nextBalance = Number(account.balance_cents || 0) + direction * normalizedAmount;
   if (nextBalance < 0) {
     throw new AppError(
@@ -706,6 +727,7 @@ module.exports = {
   formatWallet,
   formatLedgerRow,
   loadWalletAccountsForUser,
+  getOrCreateWalletAccount,
   computeWalletEntryHash,
   CURRENT_WALLET_HASH_ALGORITHM,
   LEGACY_WALLET_HASH_ALGORITHM,

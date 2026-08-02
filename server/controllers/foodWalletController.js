@@ -10,6 +10,15 @@ const {
   loadWalletAccountsForUser,
   verifyWalletIntegrityForCustomer,
 } = require('../services/foodWalletService');
+const {
+  createWalletHold,
+  captureWalletHold,
+  releaseWalletHold,
+  transferWalletCredit,
+  formatHold,
+  formatTransfer,
+  formatLedgerRow,
+} = require('../services/foodWalletOperationsService');
 
 const WALLET_LOAD_APPROVAL_THRESHOLD_CENTS = Math.max(
   1,
@@ -445,12 +454,31 @@ exports.createCustomerWalletPaymentSession = async (req, res, next) => {
     const requestedTtl = Number.parseInt(String(req.body?.ttlSeconds || req.body?.ttl_seconds || 180), 10);
     const ttlSeconds = Math.min(Math.max(Number.isFinite(requestedTtl) ? requestedTtl : 180, 30), 600);
     const foodOrderId = parsePositiveInt(req.body?.orderId || req.body?.order_id);
+    const sessionId = crypto.randomUUID();
     const token = createPaymentSessionToken();
     const tokenHash = hashPaymentSessionToken(token);
     const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
     const walletAccountId = wallet.accountId || wallet.id || null;
 
     const { rows: [session] } = await withTransaction(pool, async (client) => {
+      const { rows: replacedSessions } = await client.query(
+        `SELECT id, wallet_hold_id
+           FROM food_wallet_payment_sessions
+          WHERE restaurant_id = $1
+            AND customer_id = $2
+            AND status = 'active'
+          FOR UPDATE`,
+        [restaurantId, req.user.id]
+      );
+      for (const replacedSession of replacedSessions) {
+        if (replacedSession.wallet_hold_id) {
+          await releaseWalletHold(client, {
+            holdId: replacedSession.wallet_hold_id,
+            restaurantId,
+            customerId: req.user.id,
+          });
+        }
+      }
       await client.query(
         `UPDATE food_wallet_payment_sessions
             SET status = CASE
@@ -469,18 +497,40 @@ exports.createCustomerWalletPaymentSession = async (req, res, next) => {
         [restaurantId, req.user.id]
       );
 
+      const holdResult = amountCents
+        ? await createWalletHold(client, {
+            restaurantId,
+            customerId: req.user.id,
+            currencyCode: normalizeCurrency(wallet.currencyCode),
+            amountCents,
+            expiresAt,
+            purpose: 'wallet_payment_session',
+            referenceType: 'wallet_payment_session',
+            referenceId: sessionId,
+            idempotencyKey: `wallet-payment-session:${sessionId}`,
+            correlationId: sessionId,
+            createdByUserId: req.user.id,
+            metadata: {
+              source: 'customer_wallet_qr',
+              foodOrderId: foodOrderId ? String(foodOrderId) : null,
+            },
+          })
+        : null;
+
       return client.query(
         `INSERT INTO food_wallet_payment_sessions
-           (token_hash, restaurant_id, customer_id, wallet_account_id, food_order_id,
-            amount_cents, currency_code, expires_at, metadata)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)
+           (id, token_hash, restaurant_id, customer_id, wallet_account_id, wallet_hold_id,
+            food_order_id, amount_cents, currency_code, expires_at, metadata)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)
          RETURNING id, restaurant_id, customer_id, wallet_account_id, food_order_id,
-                   amount_cents, currency_code, status, expires_at, created_at`,
+                   wallet_hold_id, amount_cents, currency_code, status, expires_at, created_at`,
         [
+          sessionId,
           tokenHash,
           restaurantId,
           req.user.id,
           walletAccountId,
+          holdResult?.hold?.id || null,
           foodOrderId,
           amountCents,
           normalizeCurrency(wallet.currencyCode),
@@ -494,12 +544,18 @@ exports.createCustomerWalletPaymentSession = async (req, res, next) => {
       );
     });
 
+    const refreshedWallets = await loadWalletAccountsForUser(req.user.id, {
+      restaurantId,
+      transactionLimit: 0,
+      includeInactive: true,
+    });
     res.status(201).json({
       session: {
         id: session.id,
         restaurantId: String(session.restaurant_id),
         customerId: session.customer_id,
         walletAccountId: session.wallet_account_id ? String(session.wallet_account_id) : null,
+        walletHoldId: session.wallet_hold_id ? String(session.wallet_hold_id) : null,
         orderId: session.food_order_id ? String(session.food_order_id) : null,
         amountCents: session.amount_cents === null ? null : Number(session.amount_cents),
         currencyCode: session.currency_code,
@@ -509,7 +565,7 @@ exports.createCustomerWalletPaymentSession = async (req, res, next) => {
       },
       token,
       qrPayload: paymentSessionPayload(token),
-      wallet,
+      wallet: refreshedWallets[0] || wallet,
     });
   } catch (err) {
     next(err);
@@ -523,16 +579,34 @@ exports.cancelCustomerWalletPaymentSession = async (req, res, next) => {
     if (!restaurantId || !sessionId) {
       throw new AppError('Payment session not found', 404, 'payment_session_not_found');
     }
-    const { rows: [session] } = await pool.query(
-      `UPDATE food_wallet_payment_sessions
-          SET status = CASE WHEN status = 'active' THEN 'cancelled' ELSE status END,
-              updated_at = NOW()
-        WHERE id = $1
-          AND restaurant_id = $2
-          AND customer_id = $3
-        RETURNING id, restaurant_id, customer_id, status, expires_at`,
-      [sessionId, restaurantId, req.user.id]
-    );
+    const session = await withTransaction(pool, async (client) => {
+      const { rows: [current] } = await client.query(
+        `SELECT *
+           FROM food_wallet_payment_sessions
+          WHERE id = $1
+            AND restaurant_id = $2
+            AND customer_id = $3
+          FOR UPDATE`,
+        [sessionId, restaurantId, req.user.id]
+      );
+      if (!current) return null;
+      if (current.status === 'active' && current.wallet_hold_id) {
+        await releaseWalletHold(client, {
+          holdId: current.wallet_hold_id,
+          restaurantId,
+          customerId: req.user.id,
+        });
+      }
+      const { rows: [updated] } = await client.query(
+        `UPDATE food_wallet_payment_sessions
+            SET status = CASE WHEN status = 'active' THEN 'cancelled' ELSE status END,
+                updated_at = NOW()
+          WHERE id = $1
+          RETURNING id, restaurant_id, customer_id, status, expires_at`,
+        [sessionId]
+      );
+      return updated;
+    }, 'food_wallet_cancel_payment_session');
     if (!session) {
       throw new AppError('Payment session not found', 404, 'payment_session_not_found');
     }
@@ -545,6 +619,302 @@ exports.cancelCustomerWalletPaymentSession = async (req, res, next) => {
         expiresAt: session.expires_at,
       },
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createMyWalletHold = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const wallets = await loadWalletAccountsForUser(req.user.id, {
+      restaurantId,
+      transactionLimit: 0,
+      includeInactive: true,
+    });
+    const wallet = wallets[0];
+    if (!wallet) throw new AppError('Restaurant credit wallet not found', 404, 'wallet_not_found');
+    const amountCents = parsePositiveMoneyCents(req.body);
+    const requestedTtl = Number.parseInt(String(req.body?.ttlSeconds || req.body?.ttl_seconds || 900), 10);
+    const ttlSeconds = Math.min(Math.max(Number.isFinite(requestedTtl) ? requestedTtl : 900, 30), 1800);
+    const idempotencyKey = normalizeString(req.body?.idempotencyKey || req.body?.idempotency_key, 120);
+    if (!idempotencyKey) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        idempotencyKey: 'A client idempotency key is required',
+      });
+    }
+    const result = await withTransaction(pool, (client) => createWalletHold(client, {
+      restaurantId,
+      customerId: req.user.id,
+      currencyCode: wallet.currencyCode,
+      amountCents,
+      expiresAt: new Date(Date.now() + ttlSeconds * 1000),
+      purpose: req.body?.purpose || 'customer_payment',
+      referenceType: req.body?.referenceType || req.body?.reference_type,
+      referenceId: req.body?.referenceId || req.body?.reference_id,
+      idempotencyKey,
+      correlationId: req.body?.correlationId || req.body?.correlation_id || idempotencyKey,
+      createdByUserId: req.user.id,
+      metadata: { source: 'customer_wallet_hold', ...(req.body?.metadata || {}) },
+    }), 'food_wallet_create_customer_hold');
+    res.status(result.replayed ? 200 : 201).json({
+      hold: formatHold(result.hold),
+      replayed: result.replayed,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.listMyWalletHolds = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const { rows } = await pool.query(
+      `SELECT * FROM food_customer_wallet_holds
+        WHERE restaurant_id = $1 AND customer_id = $2
+        ORDER BY created_at DESC LIMIT 100`,
+      [restaurantId, req.user.id]
+    );
+    res.json({ holds: rows.map(formatHold) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.releaseMyWalletHold = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const holdId = normalizeString(req.params.holdId, 80);
+    if (!restaurantId || !holdId) throw new AppError('Wallet hold not found', 404, 'wallet_hold_not_found');
+    const result = await withTransaction(pool, (client) => releaseWalletHold(client, {
+      holdId,
+      restaurantId,
+      customerId: req.user.id,
+    }), 'food_wallet_release_customer_hold');
+    res.json({ hold: formatHold(result.hold), changed: result.changed });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.captureCustomerWalletHold = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const holdId = normalizeString(req.params.holdId, 80);
+    if (!restaurantId || !holdId) throw new AppError('Wallet hold not found', 404, 'wallet_hold_not_found');
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertWalletOperator(restaurant);
+    const result = await withTransaction(pool, (client) => captureWalletHold(client, {
+      holdId,
+      restaurantId,
+      createdByUserId: req.user.id,
+      actorType: 'restaurant_staff',
+      description: normalizeString(req.body?.description, 255),
+      metadata: { source: 'merchant_hold_capture', ...(req.body?.metadata || {}) },
+    }), 'food_wallet_capture_customer_hold');
+    res.json({
+      hold: formatHold(result.hold),
+      ledgerEntry: result.entry ? formatLedgerRow(result.entry) : null,
+      replayed: result.replayed,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.releaseCustomerWalletHold = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const holdId = normalizeString(req.params.holdId, 80);
+    if (!restaurantId || !holdId) throw new AppError('Wallet hold not found', 404, 'wallet_hold_not_found');
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertWalletOperator(restaurant);
+    const result = await withTransaction(pool, (client) => releaseWalletHold(client, {
+      holdId,
+      restaurantId,
+    }), 'food_wallet_release_merchant_hold');
+    res.json({ hold: formatHold(result.hold), changed: result.changed });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createMyWalletTransfer = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const senderWallets = await loadWalletAccountsForUser(req.user.id, {
+      restaurantId,
+      transactionLimit: 0,
+      includeInactive: true,
+    });
+    const senderWallet = senderWallets[0];
+    if (!senderWallet) throw new AppError('Restaurant credit wallet not found', 404, 'wallet_not_found');
+    const recipient = await resolveCustomer({
+      customerId: req.body?.recipientCustomerId || req.body?.recipient_customer_id,
+      customerEmail: req.body?.recipientEmail || req.body?.recipient_email,
+    });
+    const idempotencyKey = normalizeString(req.body?.idempotencyKey || req.body?.idempotency_key, 120);
+    const result = await withTransaction(pool, (client) => transferWalletCredit(client, {
+      restaurantId,
+      senderCustomerId: req.user.id,
+      recipientCustomerId: recipient.id,
+      currencyCode: senderWallet.currencyCode,
+      amountCents: parsePositiveMoneyCents(req.body),
+      memo: req.body?.memo || req.body?.note,
+      idempotencyKey,
+      correlationId: req.body?.correlationId || req.body?.correlation_id || idempotencyKey,
+      metadata: { source: 'customer_wallet_transfer' },
+    }), 'food_wallet_customer_transfer');
+    const wallets = await loadWalletAccountsForUser(req.user.id, {
+      restaurantId,
+      transactionLimit: 25,
+      includeInactive: true,
+    });
+    res.status(result.replayed ? 200 : 201).json({
+      transfer: formatTransfer(result.transfer),
+      recipient: {
+        id: recipient.id,
+        firstName: recipient.first_name,
+        lastName: recipient.last_name,
+        email: recipient.email,
+      },
+      wallet: wallets[0] || null,
+      replayed: result.replayed,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.listMyWalletTransfers = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const { rows } = await pool.query(
+      `SELECT t.*,
+              su.email AS sender_email,
+              ru.email AS recipient_email
+         FROM food_customer_wallet_transfers t
+         LEFT JOIN users su ON su.id = t.sender_customer_id
+         LEFT JOIN users ru ON ru.id = t.recipient_customer_id
+        WHERE t.restaurant_id = $1
+          AND (t.sender_customer_id = $2 OR t.recipient_customer_id = $2)
+        ORDER BY t.created_at DESC LIMIT 100`,
+      [restaurantId, req.user.id]
+    );
+    res.json({
+      transfers: rows.map((row) => ({
+        ...formatTransfer(row),
+        direction: row.sender_customer_id === req.user.id ? 'sent' : 'received',
+        counterpartyEmail: row.sender_customer_id === req.user.id ? row.recipient_email : row.sender_email,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createMyWalletLoadRequest = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const { rows: restaurantRows } = await pool.query(
+      `SELECT id, business_id, display_name, currency_code, status
+         FROM food_restaurants WHERE id = $1 LIMIT 1`,
+      [restaurantId]
+    );
+    const restaurant = restaurantRows[0];
+    if (!restaurant || restaurant.status !== 'active') {
+      throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    }
+    const amountCents = parsePositiveMoneyCents(req.body);
+    const idempotencyKey = normalizeString(req.body?.idempotencyKey || req.body?.idempotency_key, 120);
+    if (!idempotencyKey) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        idempotencyKey: 'A client idempotency key is required',
+      });
+    }
+    const paymentReference = normalizeString(req.body?.paymentReference || req.body?.payment_reference, 160);
+    const proofAttachmentUrl = normalizeString(req.body?.proofAttachmentUrl || req.body?.proof_attachment_url, 2000);
+    const note = normalizeString(req.body?.note, 255);
+    if (!paymentReference && !proofAttachmentUrl && !note) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        paymentProof: 'Add a payment reference, proof attachment, or note for the restaurant',
+      });
+    }
+    const { rows } = await pool.query(
+      `INSERT INTO food_customer_wallet_load_requests
+         (restaurant_id, business_id, customer_id, requested_by_user_id,
+          amount_cents, currency_code, status, note, reference_id, idempotency_key,
+          correlation_id, request_ip, metadata, expires_at)
+       VALUES ($1,$2,$3,$3,$4,$5,'pending',$6,$7,$8,$8,$9,$10::jsonb,NOW() + INTERVAL '7 days')
+       ON CONFLICT (restaurant_id, idempotency_key) WHERE idempotency_key IS NOT NULL
+       DO UPDATE SET idempotency_key = EXCLUDED.idempotency_key
+       RETURNING *`,
+      [
+        restaurantId,
+        restaurant.business_id,
+        req.user.id,
+        amountCents,
+        normalizeCurrency(restaurant.currency_code),
+        note,
+        paymentReference || idempotencyKey,
+        idempotencyKey,
+        req.ip || null,
+        JSON.stringify({
+          source: 'customer_credit_request',
+          restaurantName: restaurant.display_name,
+          paymentReference,
+          proofAttachmentUrl,
+          fundingMethod: normalizeString(req.body?.fundingMethod || req.body?.funding_method, 80),
+        }),
+      ]
+    );
+    res.status(201).json({ loadRequest: formatWalletLoadRequest(rows[0]) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.listMyWalletLoadRequests = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const { rows } = await pool.query(
+      `SELECT r.*, fr.display_name AS restaurant_name
+         FROM food_customer_wallet_load_requests r
+         JOIN food_restaurants fr ON fr.id = r.restaurant_id
+        WHERE r.restaurant_id = $1 AND r.customer_id = $2
+        ORDER BY r.created_at DESC LIMIT 100`,
+      [restaurantId, req.user.id]
+    );
+    res.json({
+      loadRequests: rows.map((row) => ({ ...formatWalletLoadRequest(row), restaurantName: row.restaurant_name })),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.cancelMyWalletLoadRequest = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const requestId = parsePositiveInt(req.params.requestId);
+    if (!restaurantId || !requestId) {
+      throw new AppError('Wallet load request not found', 404, 'wallet_load_request_not_found');
+    }
+    const { rows } = await pool.query(
+      `UPDATE food_customer_wallet_load_requests
+          SET status = 'cancelled', cancelled_by_user_id = $1, cancelled_at = NOW(), updated_at = NOW()
+        WHERE id = $2 AND restaurant_id = $3 AND customer_id = $1 AND status = 'pending'
+        RETURNING *`,
+      [req.user.id, requestId, restaurantId]
+    );
+    if (!rows[0]) throw new AppError('Pending wallet load request not found', 404, 'wallet_load_request_not_found');
+    res.json({ loadRequest: formatWalletLoadRequest(rows[0]) });
   } catch (err) {
     next(err);
   }

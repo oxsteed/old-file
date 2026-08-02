@@ -17,6 +17,10 @@ const {
   debitFoodWallet,
   refundFoodWallet,
 } = require('../services/foodWalletService');
+const {
+  captureWalletHold,
+  releaseWalletHold,
+} = require('../services/foodWalletOperationsService');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const { getEffectivePermissions } = require('../services/permissionsService');
@@ -442,6 +446,7 @@ async function findPosWalletPaymentSession(client, {
   }
   const { rows } = await client.query(
     `SELECT s.id AS payment_session_id,
+            s.wallet_hold_id AS payment_session_wallet_hold_id,
             s.food_order_id AS payment_session_food_order_id,
             s.amount_cents AS payment_session_amount_cents,
             s.currency_code AS payment_session_currency_code,
@@ -476,6 +481,14 @@ async function findPosWalletPaymentSession(client, {
     });
   }
   if (new Date(row.payment_session_expires_at).getTime() <= Date.now()) {
+    if (row.payment_session_wallet_hold_id) {
+      await releaseWalletHold(client, {
+        holdId: row.payment_session_wallet_hold_id,
+        restaurantId,
+        customerId: row.id,
+        nextStatus: 'expired',
+      });
+    }
     await client.query(
       `UPDATE food_wallet_payment_sessions
           SET status = 'expired', updated_at = NOW()
@@ -490,6 +503,13 @@ async function findPosWalletPaymentSession(client, {
   if (row.payment_session_amount_cents !== null && Number(amountCents || 0) > Number(row.payment_session_amount_cents)) {
     throw new AppError('Payment exceeds the QR-authorized amount', 409, 'payment_session_amount_exceeded', {
       authorizedCents: Number(row.payment_session_amount_cents),
+    });
+  }
+  if (row.payment_session_wallet_hold_id
+      && Number(amountCents || 0) !== Number(row.payment_session_amount_cents)) {
+    throw new AppError('Payment must match the QR-authorized amount', 409, 'payment_session_amount_mismatch', {
+      authorizedCents: Number(row.payment_session_amount_cents),
+      requestedCents: Number(amountCents || 0),
     });
   }
   const normalizedCurrency = normalizeCurrency(currencyCode);
@@ -4137,7 +4157,24 @@ exports.recordPosPayment = async (req, res, next) => {
           });
         }
 
-        const walletLedger = await debitFoodWallet(client, {
+        const walletLedger = customerRow.payment_session_wallet_hold_id
+          ? await captureWalletHold(client, {
+              holdId: customerRow.payment_session_wallet_hold_id,
+              restaurantId,
+              customerId: customerWallet.customer.id,
+              createdByUserId: req.user.id,
+              actorType: 'restaurant_pos',
+              description: `POS payment for ${restaurant.display_name || 'restaurant'} order ${order.queue_number || order.id}`,
+              metadata: {
+                ...safeJson(req.body.metadata),
+                source: 'pos_restaurant_credit',
+                paymentSessionId,
+                orderId: String(orderId),
+                shiftId,
+                paymentContract: paymentContractMetadata(paymentContract, { source: 'pos_restaurant_credit' }),
+              },
+            })
+          : await debitFoodWallet(client, {
           restaurantId,
           customerId: customerWallet.customer.id,
           currencyCode,
@@ -4158,7 +4195,7 @@ exports.recordPosPayment = async (req, res, next) => {
             customerEmail: customerWallet.customer.email,
             paymentContract: paymentContractMetadata(paymentContract, { source: 'pos_restaurant_credit' }),
           },
-        });
+          });
 
         const walletPayment = await recordWalletCreditPaymentForOrder(client, {
           restaurantId,

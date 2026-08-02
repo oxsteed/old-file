@@ -33,6 +33,14 @@ router.get('/customer/wallets/:restaurantId', authenticate, walletCtrl.getCustom
 router.get('/customer/wallets/:restaurantId/integrity', authenticate, walletCtrl.verifyMyWalletIntegrity);
 router.post('/customer/wallets/:restaurantId/payment-sessions', authenticate, walletCtrl.createCustomerWalletPaymentSession);
 router.post('/customer/wallets/:restaurantId/payment-sessions/:sessionId/cancel', authenticate, walletCtrl.cancelCustomerWalletPaymentSession);
+router.post('/customer/wallets/:restaurantId/holds', authenticate, walletCtrl.createMyWalletHold);
+router.get('/customer/wallets/:restaurantId/holds', authenticate, walletCtrl.listMyWalletHolds);
+router.post('/customer/wallets/:restaurantId/holds/:holdId/release', authenticate, walletCtrl.releaseMyWalletHold);
+router.post('/customer/wallets/:restaurantId/transfers', authenticate, walletCtrl.createMyWalletTransfer);
+router.get('/customer/wallets/:restaurantId/transfers', authenticate, walletCtrl.listMyWalletTransfers);
+router.post('/customer/wallets/:restaurantId/load-requests', authenticate, walletCtrl.createMyWalletLoadRequest);
+router.get('/customer/wallets/:restaurantId/load-requests', authenticate, walletCtrl.listMyWalletLoadRequests);
+router.post('/customer/wallets/:restaurantId/load-requests/:requestId/cancel', authenticate, walletCtrl.cancelMyWalletLoadRequest);
 router.post('/customer/favorites/:restaurantId/toggle', authenticate, ctrl.toggleCustomerFavoriteRestaurant);
 router.get('/customer/favorite-items', authenticate, ctrl.listCustomerFavoriteItems);
 router.put('/customer/favorite-items/sync', authenticate, ctrl.syncCustomerFavoriteItems);
@@ -66,6 +74,8 @@ router.patch('/restaurants/:restaurantId/customer-wallet-status', authenticate, 
 router.get('/restaurants/:restaurantId/customer-wallet-integrity', authenticate, walletCtrl.verifyCustomerWalletIntegrity);
 router.get('/restaurants/:restaurantId/customer-wallet-reconciliation', authenticate, walletCtrl.getCustomerWalletReconciliation);
 router.get('/restaurants/:restaurantId/customer-wallet-statement', authenticate, walletCtrl.getCustomerWalletStatement);
+router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/capture', authenticate, walletCtrl.captureCustomerWalletHold);
+router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/release', authenticate, walletCtrl.releaseCustomerWalletHold);
 
 // Ordering. Customers can browse as guests, but must sign in before submitting
 // an order so the restaurant has an accountable customer record.
