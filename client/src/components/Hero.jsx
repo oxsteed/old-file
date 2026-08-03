@@ -49,6 +49,13 @@ export default function Hero({ search }) {
             </Link>
           </>
         )}
+        <Link to="/restaurants" className="hp-btn hp-btn-food hp-btn-lg">
+          <span className="hp-btn-food-icon" aria-hidden="true">🍽</span>
+          <span className="hp-btn-food-copy">
+            <strong>{t('hero.orderFood')}</strong>
+            <small>{t('hero.orderFoodHint')}</small>
+          </span>
+        </Link>
       </div>
 
       <div className="hp-hero-trust">

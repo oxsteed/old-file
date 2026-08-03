@@ -92,6 +92,16 @@
 .hp-btn-outline { background: transparent; color: var(--hp-primary); border: 1.5px solid var(--hp-primary); }
 .hp-btn-outline:hover { background: var(--hp-primary-bg); }
 .hp-btn-lg { padding: .875rem 1.75rem; font-size: 1rem; border-radius: var(--hp-radius-lg); min-height: 52px; }
+.hp-btn-food {
+  color: #fff;
+  background: linear-gradient(110deg, #0e7490, #16835f);
+  box-shadow: 0 10px 24px rgba(14, 116, 144, .18);
+}
+.hp-btn-food:hover { box-shadow: 0 14px 30px rgba(14, 116, 144, .28); transform: translateY(-1px); }
+.hp-btn-food-icon { font-size: 1.25rem; line-height: 1; }
+.hp-btn-food-copy { display: grid; gap: .08rem; line-height: 1.1; }
+.hp-btn-food-copy strong { font-size: .95rem; font-weight: 700; }
+.hp-btn-food-copy small { color: rgba(255,255,255,.76); font-size: .68rem; font-weight: 500; }
 
 /* ── Hero ────────────────────────────────────────────────── */
 .hp-hero {
@@ -121,6 +131,9 @@
   line-height: 1.7; max-width: 46ch; margin-bottom: 1.75rem;
 }
 .hp-hero-ctas { display: flex; gap: .875rem; flex-wrap: wrap; margin-bottom: 2rem; margin-top: 1.5rem; }
+@media (max-width: 520px) {
+  .hp-hero-ctas > .hp-btn { justify-content: center; width: 100%; }
+}
 .hp-hero-trust { display: flex; flex-wrap: wrap; gap: .5rem; }
 .hp-trust-pill {
   display: inline-flex; align-items: center; gap: .375rem;
