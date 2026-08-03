@@ -16,7 +16,7 @@
 - **Launch modes:** public signup, Settings, and the navbar mode switcher expose only Customer, Helper, and Restaurant Owner. Restaurant Owner enters the authenticated restaurant merchant workspace; dormant saved modes no longer redirect `/dashboard` into future-product dashboards.
 - **Public surfaces:** future products remain routed and implemented, but navigation/dashboard/search entry points are gated centrally by `client/src/utils/launchScope.js`. Customer restaurant discovery no longer advertises merchant entry; Skills profiles fall back to standard booking instead of specialized intake forms.
 - **Workspace/payment scope:** the Skills business workspace keeps core profile, client, schedule, messaging, invoice, and team tabs while hiding product sales, templates, AI, specialized operations, promotion, and advanced analytics. Restaurant campaigns and advanced operations are hidden; restaurant credit, pay-at-restaurant, direct-payment proof, identity verification, disputes, and history remain visible.
-- **Guardrail:** `client/scripts/verify-launch-scope.mjs` enforces the launch mode, visibility, workspace-tab, and key entry-point invariants and runs in `npm run build:ci`.
+- **Guardrail and verification:** `client/scripts/verify-launch-scope.mjs` enforces the launch mode, visibility, workspace-tab, and key entry-point invariants. `npm run build:ci` passes (five-locale parity, launch policy, TypeScript, and production Vite build); browser QA confirms the public navbar and three-option Join selector.
 
 ---
 
