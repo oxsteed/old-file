@@ -15,11 +15,14 @@ import PaymentMethodSettings from '../components/PaymentMethodSettings';
 import CountrySelect from '../components/CountrySelect';
 import RegionInput from '../components/RegionInput';
 import PostalCodeInput from '../components/PostalCodeInput';
-import { MODE_CATALOG, routeForMode } from '../utils/modeRouter';
+import { MODE_CATALOG } from '../utils/modeRouter';
 import {
   LAUNCH_SELF_SELECTABLE_MODES,
   LAUNCH_SETTINGS_TABS,
   LAUNCH_VISIBILITY,
+  launchModeHintKey,
+  launchModeLabelKey,
+  launchRouteForMode,
 } from '../utils/launchScope';
 import '../styles/SettingsPage.css';
 
@@ -119,7 +122,7 @@ export default function SettingsPage() {
         defaultValue: 'Account type switched.',
       }));
       // Hard reload so every part of the app (nav, sidebars, role gates) re-reads from the fresh user state.
-      navigate(routeForMode(targetMode), { replace: true });
+      navigate(launchRouteForMode(targetMode), { replace: true });
       window.location.reload();
     } catch (err) {
       toast.error(err?.response?.data?.error || t('settings.roleSwitchFailed'));
@@ -803,7 +806,7 @@ export default function SettingsPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold" style={{ color: 'var(--app-text,#f1f5f9)' }}>
-                    {t(meta.labelKey || `modes.${m}.label`, { defaultValue: m })}
+                    {t(launchModeLabelKey(m, meta.labelKey || `modes.${m}.label`), { defaultValue: m })}
                   </span>
                   {isCurrent && (
                     <span
@@ -815,7 +818,7 @@ export default function SettingsPage() {
                   )}
                 </div>
                 <div className="text-xs mt-0.5" style={{ color: 'var(--muted-text,#94a3b8)' }}>
-                  {t(meta.hintKey || `modes.${m}.hint`, { defaultValue: '' })}
+                  {t(launchModeHintKey(m, meta.hintKey || `modes.${m}.hint`), { defaultValue: '' })}
                 </div>
               </div>
               {!isCurrent && (
@@ -834,7 +837,7 @@ export default function SettingsPage() {
         })}
       </ul>
 
-      {grantedModes.length > 0 && (
+      {LAUNCH_VISIBILITY.grantedWorkspaceModes && grantedModes.length > 0 && (
         <div className="mt-5">
           <div className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--muted-text,#94a3b8)' }}>
             {t('settings.account.grantedTitle', { defaultValue: 'Workspaces you belong to' })}

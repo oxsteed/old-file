@@ -51,7 +51,7 @@ import { getPublicBeautyOperations } from '../api/beautyOperations';
 import { getPublicCreativeOperations } from '../api/creativeOperations';
 import { getPublicProfessionalOperations } from '../api/professionalOperations';
 import { getPublicContinuityOperations } from '../api/continuityOperations';
-import { ProfileTemplateRenderer, getTemplateBehavior } from '../components/profileTemplates/index';
+import { ProfileTemplateRenderer, getLaunchTemplateBehavior } from '../components/profileTemplates/index';
 import TemplateBehaviorPanel from '../components/profileTemplates/TemplateBehaviorPanel';
 import '../components/profileTemplates/TemplateBehaviorPanel.css';
 
@@ -805,7 +805,7 @@ export default function BusinessProfilePage() {
 
   const handleTemplatePrimaryAction = useCallback(() => {
     if (!profileData) return;
-    const behavior = getTemplateBehavior(activeTemplate);
+    const behavior = getLaunchTemplateBehavior(activeTemplate);
     if (behavior.primaryIntent === 'maintenance_request') {
       navigate(`/business/${profileData.bizId || id}/maintenance-request`);
       return;
@@ -919,7 +919,7 @@ export default function BusinessProfilePage() {
   } = profileData;
 
   const isGuestVisitor = !user;
-  const templateBehavior = getTemplateBehavior(activeTemplate);
+  const templateBehavior = getLaunchTemplateBehavior(activeTemplate);
 
   // ── Template override: non-default templates replace the page interior ─────
   if (activeTemplate && activeTemplate !== 'default') {

@@ -9154,6 +9154,8 @@
     },
     "business_owner": {
       "label": "Propriétaire d'entreprise",
+      "launchLabel": "Propriétaire de Restaurant",
+      "launchHint": "Créez et gérez votre restaurant, son menu, ses commandes et son crédit restaurant.",
       "hint": "Dirigez une entreprise de services avec clients, factures et équipe."
     },
     "consultant": {

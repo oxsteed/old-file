@@ -60,7 +60,12 @@ import {
   CarDealershipTemplate,
 } from './templates/Batch1Templates.jsx';
 
-export { getTemplateBehavior, getTemplateMode, TEMPLATE_BEHAVIORS } from './templateBehavior.js';
+export {
+  getLaunchTemplateBehavior,
+  getTemplateBehavior,
+  getTemplateMode,
+  TEMPLATE_BEHAVIORS,
+} from './templateBehavior.js';
 import TemplateFeatureStack from './TemplateFeatureStack.jsx';
 import { getTemplateFeaturePack } from './templateFeaturePacks.js';
 

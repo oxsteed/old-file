@@ -12,6 +12,7 @@
 //
 // We never invent new pages here — every entry either references an
 // existing tab key (rendered by BusinessHubPage) or an external route.
+import { LAUNCH_BUSINESS_WORKSPACE_TABS } from './launchScope';
 
 // Mapping tab key -> the permission code that gates it. Owner bypasses.
 export const TAB_PERMISSIONS = {
@@ -171,9 +172,10 @@ export function getMenuForRole(role) {
 
 export function buildVisibleMenu(role, permissionSet) {
   const config = getMenuForRole(role);
-  if (role === 'owner') return config.menu;
   const perms = permissionSet instanceof Set ? permissionSet : new Set(permissionSet || []);
   return config.menu.filter((item) => {
+    if (item.tab && !LAUNCH_BUSINESS_WORKSPACE_TABS.has(item.tab)) return false;
+    if (role === 'owner') return true;
     if (!item.tab) return true;
     const need = TAB_PERMISSIONS[item.tab];
     if (!need) return true;

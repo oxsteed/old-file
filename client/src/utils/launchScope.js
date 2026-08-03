@@ -19,8 +19,6 @@ export const LAUNCH_GRANTED_MODES = Object.freeze([
 
 export const LAUNCH_SWITCHER_MODES = new Set([
   ...LAUNCH_SELF_SELECTABLE_MODES,
-  ...LAUNCH_GRANTED_MODES,
-  'admin',
 ]);
 
 export const LAUNCH_SETTINGS_TABS = new Set([
@@ -33,6 +31,21 @@ export const LAUNCH_SETTINGS_TABS = new Set([
   'danger',
 ]);
 
+export const LAUNCH_BUSINESS_WORKSPACE_TABS = new Set([
+  'overview',
+  'profile',
+  'clients',
+  'services',
+  'gallery',
+  'policies',
+  'faqs',
+  'skills',
+  'messages',
+  'calendar',
+  'invoices',
+  'team',
+]);
+
 export const LAUNCH_VISIBILITY = Object.freeze({
   affiliateRewards: false,
   aiKnowledge: false,
@@ -41,13 +54,19 @@ export const LAUNCH_VISIBILITY = Object.freeze({
   discoverEverything: false,
   footerUtilityPills: false,
   genericQrGenerator: false,
+  grantedWorkspaceModes: false,
   helperEarnings: false,
   helperGrowthCenter: false,
   helperInvoices: false,
   networkBranchSwitcher: false,
   personalLifeDashboard: false,
   productMarketplace: false,
+  restaurantAdvancedOperations: false,
+  restaurantCampaigns: false,
+  restaurantMerchantPublicEntry: false,
   resourcesMenu: false,
+  specializedIntake: false,
+  supportWorkspaceEntry: false,
   subscriptions: false,
   templates: false,
   toolRentals: false,
@@ -56,5 +75,25 @@ export const LAUNCH_VISIBILITY = Object.freeze({
 
 export function isLaunchSelfSelectableMode(mode) {
   return LAUNCH_SELF_SELECTABLE_MODES.includes(mode);
+}
+
+export function launchModeLabelKey(mode, fallbackKey) {
+  return mode === 'business_owner'
+    ? 'modes.business_owner.launchLabel'
+    : fallbackKey;
+}
+
+export function launchModeHintKey(mode, fallbackKey) {
+  return mode === 'business_owner'
+    ? 'modes.business_owner.launchHint'
+    : fallbackKey;
+}
+
+export function launchRouteForMode(mode) {
+  if (mode === 'helper') return '/helper-dashboard';
+  if (mode === 'business_owner') return '/restaurants/merchant';
+  if (mode === 'admin') return '/admin';
+  if (LAUNCH_GRANTED_MODES.includes(mode)) return '/dashboard';
+  return '/dashboard';
 }
 

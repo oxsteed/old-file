@@ -34,7 +34,11 @@ import {
 import {
   SELF_SELECTABLE_MODES, MODE_CATALOG, postSignupRouteForMode,
 } from '../utils/modeRouter';
-import { LAUNCH_SELF_SELECTABLE_MODES } from '../utils/launchScope';
+import {
+  LAUNCH_SELF_SELECTABLE_MODES,
+  launchModeHintKey,
+  launchModeLabelKey,
+} from '../utils/launchScope';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const VISIBLE_SIGNUP_MODES = LAUNCH_SELF_SELECTABLE_MODES;
@@ -231,8 +235,8 @@ export default function JoinPage() {
 
   const modeMeta = MODE_CATALOG[form.defaultMode] || MODE_CATALOG.customer;
   const selectedModeDescription = useMemo(
-    () => t(modeMeta.hintKey, { defaultValue: '' }),
-    [modeMeta, t],
+    () => t(launchModeHintKey(form.defaultMode, modeMeta.hintKey), { defaultValue: '' }),
+    [form.defaultMode, modeMeta, t],
   );
 
   return (
@@ -277,7 +281,7 @@ export default function JoinPage() {
                       const meta = MODE_CATALOG[m];
                       return (
                         <option key={m} value={m}>
-                          {t(meta.labelKey, { defaultValue: m })}
+                          {t(launchModeLabelKey(m, meta.labelKey), { defaultValue: m })}
                         </option>
                       );
                     })}

@@ -17,9 +17,14 @@ import api from '../api/axios';
 import {
   MODE_CATALOG,
   getAvailableModesForUser,
-  routeForMode,
 } from '../utils/modeRouter';
-import { LAUNCH_SWITCHER_MODES } from '../utils/launchScope';
+import {
+  LAUNCH_SWITCHER_MODES,
+  LAUNCH_VISIBILITY,
+  launchModeHintKey,
+  launchModeLabelKey,
+  launchRouteForMode,
+} from '../utils/launchScope';
 
 export default function ModeSwitcher({ compact = false }) {
   const { t } = useTranslation();
@@ -35,7 +40,7 @@ export default function ModeSwitcher({ compact = false }) {
   // modes (manager / employee / support_agent) show up in the list — even
   // though the user has to explicitly opt in (no auto-switching on grant).
   useEffect(() => {
-    if (!user) { setMemberships([]); return; }
+    if (!user || !LAUNCH_VISIBILITY.grantedWorkspaceModes) { setMemberships([]); return; }
     let cancelled = false;
     api.get('/me/businesses')
       .then(res => {
@@ -82,11 +87,11 @@ export default function ModeSwitcher({ compact = false }) {
     try {
       await switchRole(mode);
       toast.success(t('modeSwitcher.switchedTo', {
-        mode: t(MODE_CATALOG[mode]?.labelKey || `modes.${mode}.label`, { defaultValue: mode }),
+        mode: t(launchModeLabelKey(mode, MODE_CATALOG[mode]?.labelKey || `modes.${mode}.label`), { defaultValue: mode }),
       }));
       // Hard reload so navbar / sidebars / role gates everywhere pick up the
       // new user shape. Same pattern as Settings page.
-      navigate(routeForMode(mode), { replace: true });
+      navigate(launchRouteForMode(mode), { replace: true });
       window.location.reload();
     } catch (err) {
       toast.error(err?.response?.data?.error || t('modeSwitcher.switchFailed'));
@@ -100,7 +105,7 @@ export default function ModeSwitcher({ compact = false }) {
   if (visibleModes.length <= 1) return null;
 
   const currentMeta = MODE_CATALOG[current] || MODE_CATALOG.customer;
-  const currentLabel = t(currentMeta.labelKey, { defaultValue: current });
+  const currentLabel = t(launchModeLabelKey(current, currentMeta.labelKey), { defaultValue: current });
 
   return (
     <div ref={menuRef} style={{ position: 'relative', display: 'inline-block' }}>
@@ -199,7 +204,7 @@ export default function ModeSwitcher({ compact = false }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)' }}>
-                      {t(meta.labelKey || `modes.${m}.label`, { defaultValue: m })}
+                      {t(launchModeLabelKey(m, meta.labelKey || `modes.${m}.label`), { defaultValue: m })}
                     </span>
                     {isCurrent && (
                       <span
@@ -224,7 +229,7 @@ export default function ModeSwitcher({ compact = false }) {
                     )}
                   </div>
                   <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: '0.1rem', whiteSpace: 'normal' }}>
-                    {t(meta.hintKey || `modes.${m}.hint`, { defaultValue: '' })}
+                    {t(launchModeHintKey(m, meta.hintKey || `modes.${m}.hint`), { defaultValue: '' })}
                   </div>
                 </div>
               </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 
-export default function useSubscription() {
+export default function useSubscription(enabled = true) {
   const [subscription, setSubscription] = useState(null);
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,9 +62,13 @@ export default function useSubscription() {
   }, []);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
     fetchSubscription();
     fetchPlans();
-  }, [fetchSubscription, fetchPlans]);
+  }, [enabled, fetchSubscription, fetchPlans]);
 
   return {
     subscription,

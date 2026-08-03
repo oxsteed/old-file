@@ -41,6 +41,10 @@ import ProfessionalOperationsTab from '../components/businessHub/ProfessionalOpe
 import ContinuityOperationsTab from '../components/businessHub/ContinuityOperationsTab';
 import TemplateWorkflowSystemTab from '../components/businessHub/TemplateWorkflowSystemTab';
 import {
+  LAUNCH_BUSINESS_WORKSPACE_TABS,
+  LAUNCH_VISIBILITY,
+} from '../utils/launchScope';
+import {
   listBusinesses, createBusiness, updateBusiness, uploadBusinessPhotos,
   getAnalytics,
   listInvoices, createInvoice, updateInvoice, markInvoicePaid, deleteInvoice, sendInvoice,
@@ -1132,6 +1136,7 @@ function BusinessHubInner() {
     'leads',
     'msg-templates',
   ].filter((tb) => {
+    if (!LAUNCH_BUSINESS_WORKSPACE_TABS.has(tb)) return false;
     if (tb === 'workflow' && !canEditBizProfile) return false;
     if (tb === 'profile' && !canEditBizProfile) return false;
     if (tb === 'clients' && !canEditBizProfile) return false;
@@ -1150,6 +1155,10 @@ function BusinessHubInner() {
     const aliasedTab = tabAliases[tab];
     if (aliasedTab && aliasedTab !== tab) {
       setTab(aliasedTab);
+      return;
+    }
+    if (!visibleTabs.includes(tab)) {
+      setTab(visibleTabs[0] || 'profile');
       return;
     }
     if (tab === 'workflow' && !canEditBizProfile) {
@@ -1246,9 +1255,11 @@ function BusinessHubInner() {
             <p>{t('businessHub.headerDesc')}</p>
           </div>
           <div className="bh-header-actions">
-            <Link className="bh-btn" to="/promote">
-              Growth Center
-            </Link>
+            {LAUNCH_VISIBILITY.helperGrowthCenter && (
+              <Link className="bh-btn" to="/promote">
+                Growth Center
+              </Link>
+            )}
             <button className="bh-btn primary" onClick={() => { setForm(DEFAULT_BIZ_FORM); setFormErr(''); setModal('add-biz'); }}>
               + {t('businessHub.addBusiness')}
             </button>
@@ -1295,7 +1306,7 @@ function BusinessHubInner() {
                   {t('businessHub.viewProfile')} ↗
                 </Link>
               )}
-              {bizId && canEditBizProfile && (
+              {LAUNCH_VISIBILITY.templates && bizId && canEditBizProfile && (
                 <Link
                   to={`/templates?type=business&bizId=${encodeURIComponent(bizId)}`}
                   className="bh-view-profile-link"

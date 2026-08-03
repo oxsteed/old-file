@@ -5,8 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { redeemVortexToken } from '../api/businesses';
 import { useCookieConsentContext } from '../context/CookieConsentContext';
 import { useTranslation } from 'react-i18next';
-import { routeForMode } from '../utils/modeRouter';
-import { LAUNCH_VISIBILITY } from '../utils/launchScope';
+import { LAUNCH_VISIBILITY, launchRouteForMode } from '../utils/launchScope';
 
 const SHOW_FOOTER_UTILITY_PILLS = LAUNCH_VISIBILITY.footerUtilityPills;
 
@@ -19,7 +18,7 @@ export default function Footer() {
 
   // After login, reopen Vortex with a token saved before sign-in.
   useEffect(() => {
-    if (!user) return;
+    if (!user || !LAUNCH_VISIBILITY.vortexWorkspaceEntry) return;
     try {
       const pending = sessionStorage.getItem('oxs:vortexToken');
       if (pending && /^[a-f0-9]{64}$/i.test(pending)) {
@@ -172,7 +171,7 @@ export default function Footer() {
                 {t('footer.platform')}
               </span>
               {user ? (
-                <FooterLink to={routeForMode(currentMode)}>{t('nav.dashboard')}</FooterLink>
+                <FooterLink to={launchRouteForMode(currentMode)}>{t('nav.dashboard')}</FooterLink>
               ) : (
                 <FooterLink to="/login">{t('nav.signIn')}</FooterLink>
               )}
@@ -297,7 +296,7 @@ export default function Footer() {
 
     </footer>
     {/* Vortex redeem modal - portalled to body to avoid footer stacking context */}
-    {vortexOpen && createPortal(
+    {LAUNCH_VISIBILITY.vortexWorkspaceEntry && vortexOpen && createPortal(
       <VortexModal
         initialToken={vortexPrefill}
         onClose={() => {

@@ -11,16 +11,11 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import Dashboard from './Dashboard';
-import HelperDashboard from './HelperDashboard';
-import LifeDashboard from './LifeDashboard';
-import ToolOwnerDashboard from './ToolOwnerDashboard';
-import FranchiseApplicantDashboard from './FranchiseApplicantDashboard';
-import BusinessOwnerDashboard from './BusinessOwnerDashboard';
-import ConsultantContractorDashboard from './ConsultantContractorDashboard';
 import BusinessManagerDashboard from './BusinessManagerDashboard';
 import BusinessRepresentativeDashboard from './BusinessRepresentativeDashboard';
 import BusinessEmployeeDashboard from './BusinessEmployeeDashboard';
 import { dashboardKeyForMode } from '../utils/modeAccess';
+import { launchRouteForMode } from '../utils/launchScope';
 
 function Spinner() {
   return (
@@ -36,15 +31,12 @@ export default function SmartDashboard() {
 
   useEffect(() => {
     if (loading || !user) return;
-    const key = dashboardKeyForMode(user.default_mode || user.role);
-    if (key === 'support_agent') {
-      navigate('/support/agent', { replace: true });
-    } else if (key === 'investor') {
-      navigate('/investor/dashboard', { replace: true });
-    } else if (key === 'logistics') {
-      navigate('/logistics', { replace: true });
-    } else if (key === 'admin') {
-      navigate('/admin', { replace: true });
+    const mode = user.default_mode || user.role;
+    const key = dashboardKeyForMode(mode);
+    if (key === 'admin') {
+      navigate(launchRouteForMode('admin'), { replace: true });
+    } else if (mode === 'helper' || mode === 'business_owner') {
+      navigate(launchRouteForMode(mode), { replace: true });
     }
   }, [user, loading, navigate]);
 
@@ -56,18 +48,20 @@ export default function SmartDashboard() {
   const key = dashboardKeyForMode(effectiveMode);
 
   switch (key) {
-    case 'helper':              return <HelperDashboard />;
-    case 'business_owner':      return <BusinessOwnerDashboard />;
-    case 'consultant':          return <ConsultantContractorDashboard />;
-    case 'tool_owner':          return <ToolOwnerDashboard />;
-    case 'franchise_applicant': return <FranchiseApplicantDashboard />;
-    case 'life':                return <LifeDashboard />;
-    case 'business_manager':    return <BusinessManagerDashboard />;
-    case 'business_representative': return <BusinessRepresentativeDashboard />;
-    case 'business_employee':   return <BusinessEmployeeDashboard />;
+    case 'business_owner':
+    case 'helper':
+      return <Spinner />;
+    case 'consultant':
+    case 'tool_owner':
+    case 'franchise_applicant':
+    case 'life':
     case 'investor':
     case 'logistics':
     case 'support_agent':
+      return <Dashboard />;
+    case 'business_manager':    return <BusinessManagerDashboard />;
+    case 'business_representative': return <BusinessRepresentativeDashboard />;
+    case 'business_employee':   return <BusinessEmployeeDashboard />;
     case 'admin':
       // Effect above handles navigation; render spinner while it happens.
       return <Spinner />;

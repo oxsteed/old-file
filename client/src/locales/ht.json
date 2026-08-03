@@ -9154,6 +9154,8 @@
     },
     "business_owner": {
       "label": "Pwopriyetè Biznis",
+      "launchLabel": "Pwopriyetè Restoran",
+      "launchHint": "Kreye epi jere restoran ou, meni, kòmann, ak kredi restoran.",
       "hint": "Jere yon biznis sèvis ak kliyan, fakti, ak yon ekip."
     },
     "consultant": {

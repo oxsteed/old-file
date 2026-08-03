@@ -9154,6 +9154,8 @@
     },
     "business_owner": {
       "label": "Business Owner",
+      "launchLabel": "Restaurant Owner",
+      "launchHint": "Create and manage your restaurant, menu, orders, and restaurant credit.",
       "hint": "Run a service business with clients, invoices, and a team."
     },
     "consultant": {

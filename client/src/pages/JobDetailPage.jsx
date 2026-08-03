@@ -29,7 +29,7 @@ const JOB_TYPE_MAP = {
   recurring:      'Recurring',
   tier1_intro:    'One-Time',
   tier2_standard: 'Standard',
-  tier3_escrow:   'Escrow Protected',
+  tier3_escrow:   'Direct Payment',
 };
 
 // URGENCY_MAP is defined inside the component (see below) because it uses t().

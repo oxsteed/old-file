@@ -11,6 +11,7 @@ import {
   Users,
   Wrench,
 } from 'lucide-react';
+import { LAUNCH_VISIBILITY } from '../../utils/launchScope';
 
 const PROPERTY_MANAGER_BEHAVIOR = {
   mode: 'property_manager',
@@ -295,6 +296,24 @@ const BEHAVIOR_BY_SLUG = {
 
 export function getTemplateBehavior(slug = 'default') {
   return BEHAVIOR_BY_SLUG[slug] || STANDARD_SERVICE_BEHAVIOR;
+}
+
+export function getLaunchTemplateBehavior(slug = 'default') {
+  const behavior = getTemplateBehavior(slug);
+  const futureIntents = new Set([
+    'maintenance_request',
+    'trades_diagnostic',
+    'beauty_intake',
+    'continuity_intake',
+    'creative_intake',
+    'professional_intake',
+    'tool_rental',
+    'consultation',
+  ]);
+  if (!LAUNCH_VISIBILITY.specializedIntake && futureIntents.has(behavior.primaryIntent)) {
+    return STANDARD_SERVICE_BEHAVIOR;
+  }
+  return behavior;
 }
 
 export function getTemplateMode(slug = 'default') {

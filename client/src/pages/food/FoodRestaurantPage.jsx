@@ -931,7 +931,7 @@ export default function FoodRestaurantPage() {
       id: 'pay_at_restaurant',
       icon: '🏪',
       label: isPickup ? 'Pay at the restaurant' : 'Pay on delivery',
-      sub: 'Card or cash, settled with the restaurant',
+      sub: 'Pay the restaurant directly when your order is ready',
     },
     ...(wallet ? [{
       id: 'restaurant_credit',

@@ -58,7 +58,7 @@ import { AvailabilityBlock, PricingBlock, SlotsBlock } from '../components/helpe
 import type { HelperProfileData, LoadingState, Service } from '../types/helperProfile';
 import { fetchHelperProfile } from '../api/helpers';
 // Template system
-import { ProfileTemplateRenderer, getTemplateBehavior } from '../components/profileTemplates/index';
+import { ProfileTemplateRenderer, getLaunchTemplateBehavior } from '../components/profileTemplates/index';
 import TemplateBehaviorPanel from '../components/profileTemplates/TemplateBehaviorPanel';
 import '../components/profileTemplates/TemplateBehaviorPanel.css';
 
@@ -166,7 +166,7 @@ const HelperBusinessProfilePage: React.FC = () => {
   }, [id, data, navigate]);
 
   const handleTemplatePrimaryAction = useCallback(() => {
-    const behavior = getTemplateBehavior(activeTemplate);
+    const behavior = getLaunchTemplateBehavior(activeTemplate);
     if (behavior.primaryIntent === 'maintenance_request') {
       const params = new URLSearchParams({
         helperId: id!,
@@ -296,7 +296,7 @@ const HelperBusinessProfilePage: React.FC = () => {
     data;
 
   const isGuestVisitor = !user;
-  const templateBehavior = getTemplateBehavior(activeTemplate);
+  const templateBehavior = getLaunchTemplateBehavior(activeTemplate);
 
   // ── Template override: non-default templates replace the page interior ─────
   if (activeTemplate && activeTemplate !== 'default') {

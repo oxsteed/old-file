@@ -114,7 +114,7 @@ export default function HelperDashboard() {
   const { user, initialized, isOnboardingComplete, refreshUser } = useAuth();
   const { capabilities } = useCapabilities();
   const backgroundChecksAvailable = SHOW_HELPER_BACKGROUND_CHECKS && capabilities.backgroundChecks?.available === true;
-  const { subscription, refresh: refreshSubscription } = useSubscription();
+  const { subscription, refresh: refreshSubscription } = useSubscription(SHOW_HELPER_SUBSCRIPTIONS);
   const life = useLifeDashboard();
   const {
     fetchSummary,
@@ -144,13 +144,13 @@ export default function HelperDashboard() {
     return FOCUSED_HELPER_DASHBOARD_TABS.has(requestedTab) ? requestedTab : 'pulse';
   });
   useEffect(()=>{
-    if(searchParams.get('subscribed')==='true'){
+    if(SHOW_HELPER_SUBSCRIPTIONS && searchParams.get('subscribed')==='true'){
       toast.success(t('helperDashboard.proActivated'));
       refreshUser?.();
       refreshSubscription?.();
       setSearchParams({},{replace:true});
     }
-    if(searchParams.get('onboarding')==='complete'){
+    if(SHOW_HELPER_SUBSCRIPTIONS && searchParams.get('onboarding')==='complete'){
       toast.success('✅ Payment details saved. You can now record and receive job payments.');
       refreshUser?.();
       setSearchParams({},{replace:true});
@@ -1227,7 +1227,7 @@ export default function HelperDashboard() {
             </div>
             {SHOW_HELPER_SUBSCRIPTIONS && <TrialBanner />}
           </div>
-          <HelperOffersCard />
+          {SHOW_LEGACY_HELPER_LIFE_TABS && <HelperOffersCard />}
 
           {SHOW_LEGACY_HELPER_RECOMMENDATIONS && <RecommendationFeed title="What to do next" />}
 

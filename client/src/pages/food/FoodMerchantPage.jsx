@@ -30,6 +30,7 @@ import LocationsPanel from './FoodLocationsPanel';
 import PromotionsPanel from './FoodPromotionsPanel';
 import { ChecklistsPanel, SopsPanel, InventoryPanel } from './RestaurantOpsPanels';
 import PageShell from '../../components/PageShell';
+import { LAUNCH_VISIBILITY } from '../../utils/launchScope';
 import '../../styles/FoodPages.css';
 
 const NEXT_STATUS = {
@@ -889,7 +890,9 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
 
       <LocationsPanel t={t} restaurant={restaurant} onChanged={onSetupChanged} />
 
-      <PromotionsPanel t={t} restaurant={restaurant} />
+      {LAUNCH_VISIBILITY.restaurantCampaigns && (
+        <PromotionsPanel t={t} restaurant={restaurant} />
+      )}
 
       <h3 style={{ marginTop: '1.5rem' }}>{t('food.merchant.inStoreScreens')}</h3>
       <p className="fd-card-meta">{t('food.merchant.inStoreScreensHint')}</p>
@@ -1229,7 +1232,12 @@ export default function FoodMerchantPage() {
 
             {/* Tab navigation */}
             <div className="fd-tabs fd-merchant-tabs" role="tablist">
-              {['orders', 'menu', 'operations', 'settings'].map((key) => (
+              {[
+                'orders',
+                'menu',
+                ...(LAUNCH_VISIBILITY.restaurantAdvancedOperations ? ['operations'] : []),
+                'settings',
+              ].map((key) => (
                 <button
                   key={key}
                   type="button"
@@ -1247,7 +1255,9 @@ export default function FoodMerchantPage() {
             {/* Tab content */}
             {selected && tab === 'orders' && <OrdersTab t={t} restaurant={selected} />}
             {selected && tab === 'menu' && <MenuTab t={t} restaurant={selected} />}
-            {selected && tab === 'operations' && <OperationsTab t={t} restaurant={selected} />}
+            {LAUNCH_VISIBILITY.restaurantAdvancedOperations && selected && tab === 'operations' && (
+              <OperationsTab t={t} restaurant={selected} />
+            )}
             {selected && tab === 'settings' && (
               <SettingsTab
                 t={t}

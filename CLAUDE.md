@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-06-20
+**Last updated:** 2026-08-03
 
 ## Instructions for Every Session
 
@@ -8,6 +8,15 @@
 2. **After completing meaningful work**, update this file - revise "Current Status", "Remaining Work", update file paths.
 3. **Commit AGENTS.md changes** in the same commit as the work it documents.
 4. **Keep it accurate and terse** - do not pad with summaries of work you didn't personally verify.
+
+---
+
+## Launch-Scope Entry Points
+
+- Public signup, Settings, and mode switching expose only Customer, Helper, and Restaurant Owner; Restaurant Owner enters `/restaurants/merchant`.
+- Future product routes and implementations remain intact, while normal navigation, dashboards, homepage/search cards, and Skills profile CTAs consume `client/src/utils/launchScope.js`.
+- Launch-visible payments are restaurant credit, pay at restaurant, direct-payment proof/confirmation, disputes, and transaction history. Dormant Stripe, escrow, payout, withdrawal, subscription, and upgrade entry points remain hidden.
+- Run `npm --prefix client run verify:launch-scope` with client verification.
 
 ---
 

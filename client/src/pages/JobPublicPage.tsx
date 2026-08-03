@@ -259,7 +259,7 @@ export default function JobPublicPage() {
             {/* Discover link */}
             <div className="text-center">
               <Link
-                to="/discover"
+                to="/jobs"
                 className="text-sm text-orange-400 hover:text-orange-300 transition"
               >
                 {t('jobPublicPage.browseMore', { defaultValue: '← Browse more opportunities' })}

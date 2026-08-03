@@ -8,8 +8,7 @@ import LanguageSelector from './LanguageSelector';
 import BusinessSwitcher from './BusinessSwitcher';
 import ModeSwitcher from './ModeSwitcher';
 import OxSteedNetworkSwitcher from './OxSteedNetworkSwitcher';
-import { routeForMode } from '../utils/modeRouter';
-import { LAUNCH_VISIBILITY } from '../utils/launchScope';
+import { LAUNCH_VISIBILITY, launchRouteForMode } from '../utils/launchScope';
 import '../styles/BusinessSwitcher.css';
 
 const SHOW_LEGACY_NAV_RESOURCES = LAUNCH_VISIBILITY.resourcesMenu;
@@ -50,7 +49,7 @@ export default function Navbar() {
   const joinMenuRef = useRef(null);
   const resourcesMenuRef = useRef(null);
   const currentMode = user?.default_mode || (isHelper ? 'helper' : 'customer');
-  const dashboardPath = routeForMode(currentMode);
+  const dashboardPath = launchRouteForMode(currentMode);
 
   useEffect(() => {
     if (!user) return;
@@ -74,7 +73,7 @@ export default function Navbar() {
   }, [user]);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !LAUNCH_VISIBILITY.supportWorkspaceEntry) {
       setShowSupportWorkspaceNav(false);
       return;
     }

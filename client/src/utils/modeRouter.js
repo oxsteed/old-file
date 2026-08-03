@@ -47,7 +47,7 @@ const ROUTE_BY_MODE = {
   investor:                 '/investor/dashboard',
   helper:                   '/helper-dashboard',
   logistics:                '/logistics/buyer',
-  business_owner:           '/dashboard',
+  business_owner:           '/restaurants/merchant',
   consultant:               '/dashboard',
   tool_owner:               '/dashboard',
   franchise_applicant:      '/dashboard',
@@ -67,7 +67,7 @@ const POST_SIGNUP_ROUTE_BY_MODE = {
   helper:                   '/verify-identity',
   // Business owners need to set up a business — route to their portfolio
   // dashboard where the "Create your first business" CTA is visible.
-  business_owner:           '/dashboard',
+  business_owner:           '/restaurants/merchant',
   consultant:               '/consulting/portal',
   tool_owner:               '/profile/tool-rentals',
   franchise_applicant:      '/franchise/status',

@@ -8,6 +8,7 @@ import { listFoodRestaurants, listMyFoodOrders } from '../../api/food';
 import { useAuth } from '../../context/AuthContext';
 import { FoodBrand } from './foodShared';
 import PageShell from '../../components/PageShell';
+import { LAUNCH_VISIBILITY } from '../../utils/launchScope';
 import '../../styles/FoodPages.css';
 
 const DEFAULT_CENTER = [25.0, -40.0];
@@ -368,9 +369,11 @@ export default function FoodHomePage() {
           <h2 className="fd-home-empty-title">{t('food.home.empty')}</h2>
           <p className="fd-home-empty-sub">{t('food.home.emptySub')}</p>
           <div className="fd-home-empty-actions">
-            <Link to="/restaurants/merchant" className="fd-btn">
-              {t('food.home.addYourRestaurant')}
-            </Link>
+            {LAUNCH_VISIBILITY.restaurantMerchantPublicEntry && (
+              <Link to="/restaurants/merchant" className="fd-btn">
+                {t('food.home.addYourRestaurant')}
+              </Link>
+            )}
             <a
               href="mailto:restaurants@oxsteed.com"
               className="fd-btn fd-btn-secondary"
@@ -454,11 +457,13 @@ export default function FoodHomePage() {
             )}
           </div>
 
-          <div className="fd-home-footer-cta">
-            <Link to="/restaurants/merchant" className="fd-btn fd-btn-secondary">
-              {t('food.home.addYourRestaurant')}
-            </Link>
-          </div>
+          {LAUNCH_VISIBILITY.restaurantMerchantPublicEntry && (
+            <div className="fd-home-footer-cta">
+              <Link to="/restaurants/merchant" className="fd-btn fd-btn-secondary">
+                {t('food.home.addYourRestaurant')}
+              </Link>
+            </div>
+          )}
         </div>
       )}
     </div>

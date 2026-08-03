@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-08-02 (production runtime consolidation)
+**Last updated:** 2026-08-03 (launch-scope entry-point cleanup)
 
 ## Instructions for Every Session
 
@@ -8,6 +8,15 @@
 2. **After completing meaningful work**, update this file - revise "Current Status", "Remaining Work", update file paths.
 3. **Commit AGENTS.md changes** in the same commit as the work it documents.
 4. **Keep it accurate and terse** - do not pad with summaries of work you didn't personally verify.
+
+---
+
+## Session progress — Launch-scope public entry-point cleanup (2026-08-03)
+
+- **Launch modes:** public signup, Settings, and the navbar mode switcher expose only Customer, Helper, and Restaurant Owner. Restaurant Owner enters the authenticated restaurant merchant workspace; dormant saved modes no longer redirect `/dashboard` into future-product dashboards.
+- **Public surfaces:** future products remain routed and implemented, but navigation/dashboard/search entry points are gated centrally by `client/src/utils/launchScope.js`. Customer restaurant discovery no longer advertises merchant entry; Skills profiles fall back to standard booking instead of specialized intake forms.
+- **Workspace/payment scope:** the Skills business workspace keeps core profile, client, schedule, messaging, invoice, and team tabs while hiding product sales, templates, AI, specialized operations, promotion, and advanced analytics. Restaurant campaigns and advanced operations are hidden; restaurant credit, pay-at-restaurant, direct-payment proof, identity verification, disputes, and history remain visible.
+- **Guardrail:** `client/scripts/verify-launch-scope.mjs` enforces the launch mode, visibility, workspace-tab, and key entry-point invariants and runs in `npm run build:ci`.
 
 ---
 
