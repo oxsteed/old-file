@@ -10,9 +10,9 @@ const MAX_HISTORY = 40;
 
 const SUGGESTIONS = [
   'How do I post a job?',
-  'How does escrow payment work?',
+  'How do direct payments work?',
   'How do I become a verified helper?',
-  'What is a Pro subscription?',
+  'How does restaurant credit work?',
   'How do I dispute a payment?',
   'How does bidding work?',
 ];

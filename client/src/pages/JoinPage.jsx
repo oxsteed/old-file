@@ -34,9 +34,10 @@ import {
 import {
   SELF_SELECTABLE_MODES, MODE_CATALOG, postSignupRouteForMode,
 } from '../utils/modeRouter';
+import { LAUNCH_SELF_SELECTABLE_MODES } from '../utils/launchScope';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const VISIBLE_SIGNUP_MODES = ['customer', 'helper', 'business_owner'];
+const VISIBLE_SIGNUP_MODES = LAUNCH_SELF_SELECTABLE_MODES;
 
 export default function JoinPage() {
   const navigate = useNavigate();

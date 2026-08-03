@@ -6,8 +6,9 @@ import { redeemVortexToken } from '../api/businesses';
 import { useCookieConsentContext } from '../context/CookieConsentContext';
 import { useTranslation } from 'react-i18next';
 import { routeForMode } from '../utils/modeRouter';
+import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 
-const SHOW_FOOTER_UTILITY_PILLS = false;
+const SHOW_FOOTER_UTILITY_PILLS = LAUNCH_VISIBILITY.footerUtilityPills;
 
 export default function Footer() {
   const { user } = useAuth();

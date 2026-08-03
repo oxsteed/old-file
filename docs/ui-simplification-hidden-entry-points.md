@@ -123,3 +123,60 @@ No routes or page components were deleted. The items below were only removed fro
 - Hidden the helper Products tab.
   - File: `client/src/pages/HelperDashboard.jsx`
   - Restore by setting `SHOW_LEGACY_HELPER_PRODUCTS_TAB` to `true` and adding `products` back into `FOCUSED_HELPER_DASHBOARD_TABS`.
+
+## Current Launch Policy (Authoritative)
+
+Launch visibility is now centralized in `client/src/utils/launchScope.js`. The historical notes above describe the original local flags; use the centralized policy for future restoration.
+
+- Publicly selectable modes: Customer, Helper, and Business Owner.
+- Granted team roles remain available to users who already have them: Business Manager, Business Representative, Business Employee, and Business Support Agent.
+- Admin remains available to authorized administrators.
+- Future routes and implementations remain in the repository. Only their normal user-facing entry points are hidden.
+
+### Settings Hidden For Later
+
+- Subscription and trial promotion.
+- Tool Rentals settings.
+- Referral Program settings.
+- Visible launch settings remain Profile, Security, Businesses, Notifications, Privacy, Account, and Delete Account.
+- Restore through `LAUNCH_SETTINGS_TABS` and `LAUNCH_VISIBILITY.subscriptions`.
+
+### Customer Dashboard Hidden For Later
+
+- What-to-do-next recommendations and learning prompts.
+- Money, Home, Goals, Personal Care, Car Care, and Skills & Tools legacy tabs.
+- Net This Month, This Week, Goals Progress, Financial Pulse, Planned Needs, Home Maintenance, and Community+ upgrade widgets.
+- Planned Needs and Browse Tools quick actions.
+- Tool-rental and product-marketplace community statistics.
+- Related hidden-feature API requests are skipped so they cannot create launch-time errors or unnecessary traffic.
+- Restore with `LAUNCH_VISIBILITY.personalLifeDashboard`.
+
+### Helper Dashboard Hidden For Later
+
+- What-to-do-next recommendations and Growth Center.
+- AI Knowledge, standalone Earnings, and Invoices tabs.
+- Money, Home, Goals, Personal Care, Car Care, and Products tabs.
+- Subscription/trial, Upgrade, and Pro promotion.
+- Background Check promotion until the workflow is launch-ready.
+- Tool-rental management and Browse Tools entry points.
+- Templates and Community Pulse.
+- Core launch surfaces remain Overview, Edit Profile, Availability, Find Jobs, Skills, My Bids, Reviews, Messages, identity verification, job metrics, and nearby jobs.
+- Restore with the matching `LAUNCH_VISIBILITY` flag in `client/src/utils/launchScope.js`.
+
+### Workspace And Support Entry Points Hidden For Later
+
+- Vortex workspace entry from the business switcher.
+- Network branch switcher and Resources dropdown.
+- Footer utility buttons for Vortex, Support Workspace, and Consulting.
+- Discover Everything and Business Ascension Consulting homepage sections.
+- Default support prompts for escrow and Pro subscriptions; launch prompts explain direct payments and restaurant credit instead.
+
+### Preserved Product Areas Hidden For Later
+
+- Investor and affiliate products.
+- Logistics, procurement, sourcing, warehousing, distribution, and internal operations workspaces.
+- Consulting, tool-owner, franchise, Life, Vortex, and internal department modes.
+- General products marketplace, standalone retail/discover-all, tool rentals, templates, generic QR generator, promotions, and growth tooling.
+- Personal finance, goals, home maintenance, planned needs, personal care, car care, and product/tool marketplace statistics.
+- Dormant Stripe/card onboarding, escrow, withdrawal, payout, and bank-style expansion UI. Restaurant credit and user-to-user direct-payment proof/confirmation remain the launch payment model.
+- Advanced restaurant logistics, campaigns, cross-credit expansion, franchise, and general-navigation promotion for restaurant companion apps.

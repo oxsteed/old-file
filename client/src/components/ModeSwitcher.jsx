@@ -19,17 +19,7 @@ import {
   getAvailableModesForUser,
   routeForMode,
 } from '../utils/modeRouter';
-
-const FOCUSED_MODE_SWITCHER_MODES = new Set([
-  'customer',
-  'helper',
-  'business_owner',
-  'business_manager',
-  'business_representative',
-  'business_employee',
-  'business_support_agent',
-  'admin',
-]);
+import { LAUNCH_SWITCHER_MODES } from '../utils/launchScope';
 
 export default function ModeSwitcher({ compact = false }) {
   const { t } = useTranslation();
@@ -66,7 +56,7 @@ export default function ModeSwitcher({ compact = false }) {
   const current = user?.default_mode ||
     (['helper', 'helper_pro', 'broker'].includes(user?.role) ? 'helper' : 'customer');
   const visibleModes = useMemo(
-    () => availableModes.filter((mode) => FOCUSED_MODE_SWITCHER_MODES.has(mode) || mode === current),
+    () => availableModes.filter((mode) => LAUNCH_SWITCHER_MODES.has(mode)),
     [availableModes, current],
   );
 

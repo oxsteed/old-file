@@ -11,6 +11,7 @@ import TrialBanner from '../components/TrialBanner';
 import PulseScoreSettings from '../components/PulseScoreSettings';
 import RecommendationFeed from '../components/RecommendationFeed';
 import { formatDate, formatMoney } from '../lib/format';
+import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -40,10 +41,12 @@ const IcoHeart     = (p) => <Ico {...p}><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0
 const IcoCar       = (p) => <Ico {...p}><rect x="1" y="11" width="22" height="9" rx="2"/><path d="M3 11l2.5-7h13L21 11"/><circle cx="7" cy="20" r="2"/><circle cx="17" cy="20" r="2"/></Ico>;
 const IcoCalendar  = (p) => <Ico {...p}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Ico>;
 const IcoWrench    = (p) => <Ico {...p}><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></Ico>;
-const DASHBOARD_TABS = new Set(['pulse', 'money', 'home', 'goals', 'personalcare', 'carcare', 'skills']);
-const SHOW_LEGACY_CUSTOMER_RECOMMENDATIONS = false;
-const SHOW_LEGACY_CUSTOMER_DASHBOARD_TABS = false;
-const SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS = false;
+const SHOW_LEGACY_CUSTOMER_RECOMMENDATIONS = LAUNCH_VISIBILITY.personalLifeDashboard;
+const SHOW_LEGACY_CUSTOMER_DASHBOARD_TABS = LAUNCH_VISIBILITY.personalLifeDashboard;
+const SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS = LAUNCH_VISIBILITY.personalLifeDashboard;
+const DASHBOARD_TABS = new Set(SHOW_LEGACY_CUSTOMER_DASHBOARD_TABS
+  ? ['pulse', 'money', 'home', 'goals', 'personalcare', 'carcare', 'skills']
+  : ['pulse']);
 const VISIBLE_CUSTOMER_DASHBOARD_TABS = ['pulse'];
 
 // ── Shared UI ─────────────────────────────────────────────────────────────
@@ -656,18 +659,20 @@ export default function Dashboard() {
 
   useEffect(() => {
     retryLoad();
-    life.fetchSummary();
-    life.fetchFinancialPulse('1m'); // dashboard default: 30-day horizon
-    life.fetchCommunity(undefined, user?.role === 'customer' ? 'customer' : undefined);
-    life.fetchExpenses();
-    life.fetchBudgets();
-    life.fetchGoals();
-    life.fetchHomeTasks({ completed: 'false', section: 'home' });
-    if (!homesLoaded) {
-      api.get('/house/my').then(r => { setHomes(r.data||[]); setHomesLoaded(true); }).catch(()=>{});
+    if (SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS) {
+      life.fetchSummary();
+      life.fetchFinancialPulse('1m');
+      life.fetchCommunity(undefined, user?.role === 'customer' ? 'customer' : undefined);
+      life.fetchExpenses();
+      life.fetchBudgets();
+      life.fetchGoals();
+      life.fetchHomeTasks({ completed: 'false', section: 'home' });
+      if (!homesLoaded) {
+        api.get('/house/my').then(r => { setHomes(r.data||[]); setHomesLoaded(true); }).catch(()=>{});
+      }
+      life.fetchChecklist();
+      life.fetchSavedHelpers();
     }
-    life.fetchChecklist();
-    life.fetchSavedHelpers();
   }, []);
 
   // ── Derived ───────────────────────────────────────────────────────
@@ -798,7 +803,7 @@ export default function Dashboard() {
               {t('dashboard.atAGlance')}
             </p>
           </div>
-          <TrialBanner />
+          {LAUNCH_VISIBILITY.subscriptions && <TrialBanner />}
         </div>
 
         {SHOW_LEGACY_CUSTOMER_RECOMMENDATIONS && <RecommendationFeed title="What to do next" />}
@@ -867,12 +872,12 @@ export default function Dashboard() {
                 <div>
                   <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">{t('messages.title')}</p>
                   <p className="text-2xl font-black text-white tracking-tight">
-                    {life.summary?.unread_messages || 0}
+                    {unreadMsgs}
                   </p>
                 </div>
                 <p className="text-[10px] text-gray-600 font-medium mt-2 group-hover:text-orange-400 transition-colors">
-                  {life.summary?.unread_messages > 0 
-                    ? t('dashboard.summary.unreadMessages', { count: life.summary.unread_messages })
+                  {unreadMsgs > 0
+                    ? t('dashboard.summary.unreadMessages', { count: unreadMsgs })
                     : t('dashboard.summary.allCaughtUp')}
                 </p>
               </Card>
@@ -1082,20 +1087,20 @@ export default function Dashboard() {
               }
               <p className="text-xs text-gray-500 mt-1">{unreadMsgs>0 ? t('dashboard.summary.unreadMessages', { count: unreadMsgs }) : t('dashboard.summary.allCaughtUp')}</p>
             </Card>
-            <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('dashboard.summary.goalsProgress')}</p>
+            {SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS && <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('dashboard.summary.goalsProgress')}</p>
               {loading
                 ? <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mt-1" />
                 : <p className="text-2xl font-bold text-purple-400">{s?.goals?.avg_progress||0}%</p>
               }
               <p className="text-xs text-gray-500 mt-1">{t('dashboard.summary.activeGoals', { count: s?.goals?.active||0 })}</p>
-            </Card>
-            <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('dashboard.home.maintenance')}</p>
+            </Card>}
+            {SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS && <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('dashboard.home.maintenance')}</p>
               {loading
                 ? <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mt-1" />
                 : <p className={`text-2xl font-bold ${(s?.home?.overdue||0)>0?'text-red-400':'text-emerald-400'}`}>{s?.home?.overdue||0}</p>
               }
               <p className="text-xs text-gray-500 mt-1">{(s?.home?.overdue||0)>0 ? t('dashboard.summary.overdueTasks', { count: s?.home?.overdue||0 }) : t('dashboard.summary.allOnTrack')} · {t('dashboard.summary.dueThisWeek', { count: s?.home?.due_this_week||0 })}</p>
-            </Card>
+            </Card>}
           </div>
 
           {/* Quick actions */}
@@ -1185,7 +1190,7 @@ export default function Dashboard() {
           )}
 
           {/* Community Pulse */}
-          {life.community && (
+          {SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS && life.community && (
             <Card className="mb-6">
               {life.community.view === 'customer' ? (
                 <>

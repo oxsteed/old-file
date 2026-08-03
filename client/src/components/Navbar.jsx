@@ -9,10 +9,11 @@ import BusinessSwitcher from './BusinessSwitcher';
 import ModeSwitcher from './ModeSwitcher';
 import OxSteedNetworkSwitcher from './OxSteedNetworkSwitcher';
 import { routeForMode } from '../utils/modeRouter';
+import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import '../styles/BusinessSwitcher.css';
 
-const SHOW_LEGACY_NAV_RESOURCES = false;
-const SHOW_NETWORK_BRANCH_SWITCHER = false;
+const SHOW_LEGACY_NAV_RESOURCES = LAUNCH_VISIBILITY.resourcesMenu;
+const SHOW_NETWORK_BRANCH_SWITCHER = LAUNCH_VISIBILITY.networkBranchSwitcher;
 
 /** The OxSteed brand icon (4-arrow clockwise ring with inner circle) */
 function OxSteedIcon({ size = 24 }) {

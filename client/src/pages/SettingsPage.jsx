@@ -15,7 +15,12 @@ import PaymentMethodSettings from '../components/PaymentMethodSettings';
 import CountrySelect from '../components/CountrySelect';
 import RegionInput from '../components/RegionInput';
 import PostalCodeInput from '../components/PostalCodeInput';
-import { SELF_SELECTABLE_MODES, MODE_CATALOG, routeForMode } from '../utils/modeRouter';
+import { MODE_CATALOG, routeForMode } from '../utils/modeRouter';
+import {
+  LAUNCH_SELF_SELECTABLE_MODES,
+  LAUNCH_SETTINGS_TABS,
+  LAUNCH_VISIBILITY,
+} from '../utils/launchScope';
 import '../styles/SettingsPage.css';
 
 const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
@@ -96,7 +101,7 @@ export default function SettingsPage() {
     { key: 'privacy',       label: t('settings.tabPrivacy'),       icon: <IconDatabase /> },
     { key: 'account',       label: t('settings.tabAccount'),       icon: <IconRefresh /> },
     { key: 'danger',        label: t('settings.tabDanger'),        icon: <IconTrash />, danger: true },
-  ], [t]);
+  ].filter((tab) => LAUNCH_SETTINGS_TABS.has(tab.key)), [t]);
 
   const [activeTab, setActiveTab] = useState('profile');
   const [switchingMode, setSwitchingMode] = useState(null); // mode being switched into, or null
@@ -782,7 +787,7 @@ export default function SettingsPage() {
       </p>
 
       <ul className="flex flex-col gap-2 mb-2">
-        {SELF_SELECTABLE_MODES.map((m) => {
+        {LAUNCH_SELF_SELECTABLE_MODES.map((m) => {
           const meta = MODE_CATALOG[m] || {};
           const isCurrent = m === currentMode;
           const isSwitching = switchingMode === m;
@@ -964,9 +969,11 @@ export default function SettingsPage() {
       <div className="sp-shell">
         <div className="sp-header">
           <h1 className="sp-title">{t('settings.title')}</h1>
-          <div className="mt-3">
-            <TrialBanner />
-          </div>
+          {LAUNCH_VISIBILITY.subscriptions && (
+            <div className="mt-3">
+              <TrialBanner />
+            </div>
+          )}
         </div>
 
         <div className="sp-layout">

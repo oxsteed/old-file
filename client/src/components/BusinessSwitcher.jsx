@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { listBusinesses, listManagedBusinesses } from '../api/businesses';
 import { getMyBusinesses, setWorkspaceContext } from '../api/vortex';
+import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 
 const LS_KEY = 'oxs:bh:lastBusinessId';
 
@@ -189,7 +190,7 @@ export default function BusinessSwitcher({ compact = false }) {
               </button>
             );
           })}
-          <Link
+          {LAUNCH_VISIBILITY.vortexWorkspaceEntry && <Link
             to="/vortex"
             role="menuitem"
             className="ox-biz-switcher__item ox-biz-switcher__item--vortex"
@@ -204,7 +205,7 @@ export default function BusinessSwitcher({ compact = false }) {
                 {t('businessHub.vortexHint', { defaultValue: 'Enter access code' })}
               </span>
             </span>
-          </Link>
+          </Link>}
         </div>
       )}
     </div>

@@ -8,9 +8,10 @@ import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Hero from '../components/Hero';
 import LiveHelpersHeroCard from '../components/LiveHelpersHeroCard';
+import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 
-const SHOW_DISCOVER_SEARCH_TAB = false;
-const SHOW_BUSINESS_ASCENSION_CONSULTING = false;
+const SHOW_DISCOVER_SEARCH_TAB = LAUNCH_VISIBILITY.discoverEverything;
+const SHOW_BUSINESS_ASCENSION_CONSULTING = LAUNCH_VISIBILITY.businessAscension;
 
 const SKILL_SLUGS = [
   { slug: 'electrical',   icon: '⚡' },

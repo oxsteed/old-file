@@ -20,6 +20,7 @@ import { useCapabilities } from '../hooks/useCapabilities';
 import { ProgressBar, Card, CardHeader, Btn, Input, Select } from '../components/dashboardUI';
 import ReviewsList from '../components/reviews/ReviewsList';
 import { formatDate, formatMoney, formatNumber } from '../lib/format';
+import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -50,21 +51,28 @@ const IcoCalendar  = (p) => <Ico {...p}><rect x="3" y="4" width="18" height="18"
 const IcoWrench    = (p) => <Ico {...p}><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></Ico>;
 const IcoFileText  = (p) => <Ico {...p}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></Ico>;
 
-const SHOW_LEGACY_HELPER_RECOMMENDATIONS = false;
-const SHOW_LEGACY_HELPER_GROWTH_CENTER = false;
-const SHOW_LEGACY_HELPER_LIFE_TABS = false;
-const SHOW_LEGACY_HELPER_PRODUCTS_TAB = false;
+const SHOW_LEGACY_HELPER_RECOMMENDATIONS = LAUNCH_VISIBILITY.personalLifeDashboard;
+const SHOW_LEGACY_HELPER_GROWTH_CENTER = LAUNCH_VISIBILITY.helperGrowthCenter;
+const SHOW_LEGACY_HELPER_LIFE_TABS = LAUNCH_VISIBILITY.personalLifeDashboard;
+const SHOW_LEGACY_HELPER_PRODUCTS_TAB = LAUNCH_VISIBILITY.productMarketplace;
+const SHOW_HELPER_AI_KNOWLEDGE = LAUNCH_VISIBILITY.aiKnowledge;
+const SHOW_HELPER_EARNINGS = LAUNCH_VISIBILITY.helperEarnings;
+const SHOW_HELPER_INVOICES = LAUNCH_VISIBILITY.helperInvoices;
+const SHOW_HELPER_SUBSCRIPTIONS = LAUNCH_VISIBILITY.subscriptions;
+const SHOW_HELPER_COMMUNITY_PULSE = LAUNCH_VISIBILITY.personalLifeDashboard;
+const SHOW_HELPER_BACKGROUND_CHECKS = LAUNCH_VISIBILITY.backgroundChecks;
+const SHOW_HELPER_TOOL_RENTALS = LAUNCH_VISIBILITY.toolRentals;
 const FOCUSED_HELPER_DASHBOARD_TABS = new Set([
   'pulse',
   'editprofile',
   'availability',
-  'aiKnowledge',
-  'earnings',
   'jobs',
   'skills',
-  'invoices',
   'bids',
   'reviews',
+  ...(SHOW_HELPER_AI_KNOWLEDGE ? ['aiKnowledge'] : []),
+  ...(SHOW_HELPER_EARNINGS ? ['earnings'] : []),
+  ...(SHOW_HELPER_INVOICES ? ['invoices'] : []),
 ]);
 
 // ── Shared UI ─────────────────────────────────────────────────────────────
@@ -105,7 +113,7 @@ export default function HelperDashboard() {
   const { t } = useTranslation();
   const { user, initialized, isOnboardingComplete, refreshUser } = useAuth();
   const { capabilities } = useCapabilities();
-  const backgroundChecksAvailable = capabilities.backgroundChecks?.available === true;
+  const backgroundChecksAvailable = SHOW_HELPER_BACKGROUND_CHECKS && capabilities.backgroundChecks?.available === true;
   const { subscription, refresh: refreshSubscription } = useSubscription();
   const life = useLifeDashboard();
   const {
@@ -889,7 +897,11 @@ export default function HelperDashboard() {
     setLoading(true);
     setError(false);
     try{
-      const p = [api.get('/verification/background-check/status'),api.get('/verification/identity/status'),api.get('/notifications')];
+      const p = [
+        backgroundChecksAvailable ? api.get('/verification/background-check/status') : Promise.resolve({ data: {} }),
+        api.get('/verification/identity/status'),
+        api.get('/notifications'),
+      ];
       if(isOnboardingComplete){p.push(api.get('/bids/me'));p.push(api.get('/jobs?limit=5'));p.push(api.get('/messages/conversations'));}
       const r = await Promise.allSettled(p);
       const anyFailed = r.some(res=>res.status==='rejected');
@@ -902,7 +914,7 @@ export default function HelperDashboard() {
         if(r[5]?.status==='fulfilled'){const convs=r[5].value.data||[];const total=convs.reduce((s,c)=>s+(parseInt(c.unread_count)||0),0);setUnreadMessages(total);}
       }
     }catch(e){console.error(e);setError(true);}finally{setLoading(false);}
-  },[isOnboardingComplete]);
+  },[isOnboardingComplete, backgroundChecksAvailable]);
 
   // Real-time unread badge
   useEffect(()=>{
@@ -926,23 +938,28 @@ export default function HelperDashboard() {
     if (initialDashboardLoadForUserRef.current === user.id) return;
 
     initialDashboardLoadForUserRef.current = user.id;
-    fetchSummary();
-    fetchFinancialPulse('1m');
-    fetchCommunity();
-    fetchExpenses();
-    fetchBudgets();
-    fetchGoals();
-    fetchChecklist();
-    fetchSavedHelpers();
-    fetchHomeTasks({ completed:'false', section:'home' });
-    if (!homesLoaded) {
-      api.get('/house/my').then(r => { setHomes(r.data || []); setHomesLoaded(true); }).catch(() => {});
+    if (SHOW_LEGACY_HELPER_LIFE_TABS || SHOW_HELPER_EARNINGS) {
+      fetchSummary();
+      fetchFinancialPulse('1m');
+      fetchCommunity();
+      fetchExpenses();
+      fetchBudgets();
+      fetchGoals();
+      fetchChecklist();
+      fetchSavedHelpers();
+      fetchHomeTasks({ completed:'false', section:'home' });
+      if (!homesLoaded) {
+        api.get('/house/my').then(r => { setHomes(r.data || []); setHomesLoaded(true); }).catch(() => {});
+      }
     }
   }, [initialized, user, isOnboardingComplete, fetchSummary, fetchFinancialPulse, fetchCommunity, fetchExpenses, fetchBudgets, fetchGoals, fetchChecklist, fetchSavedHelpers, fetchHomeTasks, homesLoaded]);
 
   // Fetch tab-specific data on tab switch
   useEffect(() => {
-    if (tab === 'skills') { fetchMySkills(); fetchMyTools(); }
+    if (tab === 'skills') {
+      fetchMySkills();
+      if (SHOW_HELPER_TOOL_RENTALS) fetchMyTools();
+    }
     if (tab === 'products') fetchMyProducts();
     if (tab === 'invoices') fetchMyInvoices();
     if (tab === 'personalcare') fetchPersonalCareTasks();
@@ -1163,8 +1180,8 @@ export default function HelperDashboard() {
     { id: 'pulse',        label: t('helperDashboard.tabs.overview', { defaultValue: 'Overview' }) },
     { id: 'editprofile',  label: t('helperDashboard.tabs.editProfile') },
     { id: 'availability', label: t('helperDashboard.tabs.availability', { defaultValue: 'Availability' }) },
-    { id: 'aiKnowledge',  label: t('helperDashboard.tabs.aiKnowledge') },
-    { id: 'earnings',     label: t('helperDashboard.tabs.earnings') },
+    ...(SHOW_HELPER_AI_KNOWLEDGE ? [{ id: 'aiKnowledge', label: t('helperDashboard.tabs.aiKnowledge') }] : []),
+    ...(SHOW_HELPER_EARNINGS ? [{ id: 'earnings', label: t('helperDashboard.tabs.earnings') }] : []),
     { id: 'jobs',         label: t('helperDashboard.tabs.findJobs') },
     ...(SHOW_LEGACY_HELPER_LIFE_TABS ? [
       { id: 'money',        label: t('dashboard.tabs.money') },
@@ -1173,11 +1190,11 @@ export default function HelperDashboard() {
       { id: 'personalcare', label: t('dashboard.tabs.personalCare') },
       { id: 'carcare',      label: t('dashboard.tabs.carCare') },
     ] : []),
-    { id: 'skills',       label: t('dashboard.tabs.skillsTools') },
+    { id: 'skills',       label: SHOW_HELPER_TOOL_RENTALS ? t('dashboard.tabs.skillsTools') : t('helperDashboard.tabs.skills', { defaultValue: 'Skills' }) },
     ...(SHOW_LEGACY_HELPER_PRODUCTS_TAB ? [
       { id: 'products',     label: t('dashboard.tabs.products') },
     ] : []),
-    { id: 'invoices',     label: t('helperDashboard.tabs.invoices') },
+    ...(SHOW_HELPER_INVOICES ? [{ id: 'invoices', label: t('helperDashboard.tabs.invoices') }] : []),
     { id: 'bids',         label: t('helperDashboard.tabs.myBids') },
     { id: 'reviews',      label: t('helperDashboard.tabs.reviews') },
   ];
@@ -1208,7 +1225,7 @@ export default function HelperDashboard() {
                 {t('dashboard.atAGlanceHelper')}
               </p>
             </div>
-            <TrialBanner />
+            {SHOW_HELPER_SUBSCRIPTIONS && <TrialBanner />}
           </div>
           <HelperOffersCard />
 
@@ -1307,7 +1324,7 @@ export default function HelperDashboard() {
             </div>
 
           {/* Financial Pulse Score - upgraded to match customer dashboard */}
-          {!showOnboarding && fp && (() => {
+          {SHOW_LEGACY_HELPER_LIFE_TABS && !showOnboarding && fp && (() => {
             const score = fp.pulse_score;
             const scoreColor = score >= 80 ? '#34d399' : score >= 60 ? '#F97316' : score >= 40 ? '#facc15' : '#f87171';
             const breakdown = fp.score_breakdown || {};
@@ -1368,15 +1385,15 @@ export default function HelperDashboard() {
           {/* Summary stat cards */}
           <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 ${showOnboarding?'opacity-50 pointer-events-none':''}`}>
             <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('helperDashboard.jobsCompleted')}</p><p className="text-2xl font-bold text-orange-400">{user?.completed_jobs||0}</p><p className="text-xs text-gray-500 mt-1">{user?.avg_rating?`${user.avg_rating}★ avg`:t('helperDashboard.noReviewsYet')}</p></Card>
-            <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('dashboard.summary.netThisMonth')}</p><p className={`text-2xl font-bold ${(s?.finances?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>{formatMoney(s?.finances?.net || 0)}</p><p className="text-xs text-gray-500 mt-1">{t('dashboard.money.inOutSummary', { income: formatMoney(s?.finances?.total_income || 0, { maximumFractionDigits: 0 }), expenses: formatMoney(s?.finances?.total_expenses || 0, { maximumFractionDigits: 0 }) })}</p></Card>
+            {SHOW_HELPER_EARNINGS && <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('dashboard.summary.netThisMonth')}</p><p className={`text-2xl font-bold ${(s?.finances?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>{formatMoney(s?.finances?.net || 0)}</p><p className="text-xs text-gray-500 mt-1">{t('dashboard.money.inOutSummary', { income: formatMoney(s?.finances?.total_income || 0, { maximumFractionDigits: 0 }), expenses: formatMoney(s?.finances?.total_expenses || 0, { maximumFractionDigits: 0 }) })}</p></Card>}
             <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('helperDashboard.activeBids')}</p><p className="text-2xl font-bold text-blue-400">{activeBids.length}</p><p className="text-xs text-gray-500 mt-1">{wonBids.length} {t('helperDashboard.accepted')}</p></Card>
-            <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('helperDashboard.goalsLabel')}</p><p className="text-2xl font-bold text-purple-400">{s?.goals?.avg_progress||0}%</p><p className="text-xs text-gray-500 mt-1">{s?.goals?.active||0} {t('helperDashboard.inProgress')}</p></Card>
+            {SHOW_LEGACY_HELPER_LIFE_TABS && <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('helperDashboard.goalsLabel')}</p><p className="text-2xl font-bold text-purple-400">{s?.goals?.avg_progress||0}%</p><p className="text-xs text-gray-500 mt-1">{s?.goals?.active||0} {t('helperDashboard.inProgress')}</p></Card>}
           </div>
 
           {!showOnboarding&&(<>
             {/* Verification cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-              <Card>
+              {SHOW_HELPER_SUBSCRIPTIONS && <Card>
                 <div className="flex items-center gap-2 mb-3">
                   <IcoDollar size={16} cls="text-orange-400" />
                   <span className="text-sm font-semibold">{t('helperDashboard.subscription')}</span>
@@ -1427,7 +1444,7 @@ export default function HelperDashboard() {
                     View history
                   </Link>
                 </div>
-              </Card>
+              </Card>}
               {backgroundChecksAvailable && <Card>
                 <div className="flex items-center gap-2 mb-3"><IcoShield size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.backgroundCheck')}</span></div>
                 {verification.backgroundCheck?<Tag text={verification.backgroundCheck.status} color={verification.backgroundCheck.status==='passed'?'green':'orange'}/>
@@ -1443,7 +1460,7 @@ export default function HelperDashboard() {
 
             {/* Quick actions */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
-              {[{to:'/jobs',Ic:IcoBriefcase,l:t('helperDashboard.findJobs'),c:'text-orange-400'},{to:'/my-bids',Ic:IcoCheck,l:t('helperDashboard.myBids',{defaultValue:'My Bids'}),c:'text-yellow-400',badge:myBids.filter(b=>b.status==='pending').length||0},{to:'/calendar',Ic:IcoCalendar,l:t('nav.calendar'),c:'text-emerald-400'},{to:'/helper/messages',Ic:IcoChat,l:t('nav.messages'),c:'text-blue-400',badge:unreadMessages},{to:'/tool-rentals',Ic:IcoSearch,l:t('toolRentals.browsePage'),c:'text-indigo-400'},{to:'/disputes',Ic:IcoShield,l:t('helperDashboard.disputes'),c:'text-purple-400'},{to:'/settings',Ic:IcoSettings,l:t('nav.settings'),c:'text-gray-400'},{to:'/templates?type=helper',Ic:IcoFileText,l:t('helperDashboard.templates'),c:'text-pink-400'}].map((a,i)=>(
+              {[{to:'/jobs',Ic:IcoBriefcase,l:t('helperDashboard.findJobs'),c:'text-orange-400'},{to:'/my-bids',Ic:IcoCheck,l:t('helperDashboard.myBids',{defaultValue:'My Bids'}),c:'text-yellow-400',badge:myBids.filter(b=>b.status==='pending').length||0},{to:'/calendar',Ic:IcoCalendar,l:t('nav.calendar'),c:'text-emerald-400'},{to:'/helper/messages',Ic:IcoChat,l:t('nav.messages'),c:'text-blue-400',badge:unreadMessages},{to:'/tool-rentals',Ic:IcoSearch,l:t('toolRentals.browsePage'),c:'text-indigo-400',visible:SHOW_HELPER_TOOL_RENTALS},{to:'/disputes',Ic:IcoShield,l:t('helperDashboard.disputes'),c:'text-purple-400'},{to:'/settings',Ic:IcoSettings,l:t('nav.settings'),c:'text-gray-400'},{to:'/templates?type=helper',Ic:IcoFileText,l:t('helperDashboard.templates'),c:'text-pink-400',visible:LAUNCH_VISIBILITY.templates}].filter((a)=>a.visible!==false).map((a,i)=>(
                 <Link key={i} to={a.to} onClick={a.badge?()=>setUnreadMessages(0):undefined} className="bg-gray-900/50 border border-gray-700/40 rounded-2xl p-4 hover:border-gray-600 hover:-translate-y-0.5 transition-all group flex items-center gap-3">
                   <div className="relative flex-shrink-0">
                     <a.Ic size={18} cls={a.c}/>
@@ -1469,7 +1486,7 @@ export default function HelperDashboard() {
             </Card>
 
             {/* Community stats */}
-            {life.community && (
+            {SHOW_HELPER_COMMUNITY_PULSE && life.community && (
               <Card className="mb-6">
                 <CardHeader icon={IcoUsers} title={t('dashboard.community.title')} right={<Link to="/jobs" className="text-xs text-orange-400 font-medium">{t('dashboard.community.browseJobs')}</Link>}/>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -1488,7 +1505,7 @@ export default function HelperDashboard() {
             )}
 
             {/* Pro upgrade CTA */}
-            {!hasProAccess && (
+            {SHOW_HELPER_SUBSCRIPTIONS && !hasProAccess && (
               <div className="bg-gradient-to-r from-orange-500/10 via-orange-600/5 to-transparent border border-orange-500/20 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div><div className="flex items-center gap-2 mb-1"><IcoZap size={18} cls="text-orange-400"/><h3 className="text-lg font-bold text-white">{t('helperDashboard.upgradeToPro')}</h3></div><p className="text-sm text-gray-400">{t('helperDashboard.upgradeProDesc')}</p></div>
                 <button onClick={()=>navigate('/upgrade')} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2.5 rounded-xl transition whitespace-nowrap text-sm">{t('helperDashboard.viewPlans')}</button>
@@ -2078,7 +2095,7 @@ export default function HelperDashboard() {
             </div>
 
             {/* Tools for Rent */}
-            <div>
+            {SHOW_HELPER_TOOL_RENTALS && <div>
               <div className="flex items-center justify-between mb-4">
                 <div><h3 className="font-semibold text-white text-lg">{t('dashboard.skillsTools.toolsForRentTitle')}</h3><p className="text-xs text-gray-500 mt-0.5">{t('dashboard.skillsTools.toolsForRentSub')}</p></div>
                 <Btn onClick={openAddTool}>{t('dashboard.skillsTools.listToolBtn')}</Btn>
@@ -2115,7 +2132,7 @@ export default function HelperDashboard() {
                   </div>
                 </div>
               ))}</div>}
-            </div>
+            </div>}
           </div>
         )}
 
