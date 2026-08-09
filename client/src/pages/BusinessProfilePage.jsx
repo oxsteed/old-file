@@ -54,6 +54,7 @@ import { getPublicContinuityOperations } from '../api/continuityOperations';
 import { ProfileTemplateRenderer, getTemplateBehavior } from '../components/profileTemplates/index';
 import TemplateBehaviorPanel from '../components/profileTemplates/TemplateBehaviorPanel';
 import '../components/profileTemplates/TemplateBehaviorPanel.css';
+import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 
 // ── Data mapping helpers ──────────────────────────────────────────────────────
 
@@ -748,35 +749,27 @@ export default function BusinessProfilePage() {
       const raw = await getBusinessPublicProfile(id);
       setProfileData(mapToHelperProfileData(raw, t));
       setActiveTemplate(raw.business?.active_template || 'default');
-      if ((raw.business?.active_template || 'default') === 'property_manager') {
-        getPublicPropertyOperations(id).then(setPropertyOpsData).catch(() => {});
-      } else {
+      if (!LAUNCH_VISIBILITY.specializedProfileTemplates) {
         setPropertyOpsData(null);
-      }
-      if (['trades_pro', 'electrician', 'auto_mechanic'].includes(raw.business?.active_template || 'default')) {
-        getPublicTradesOperations(id).then(setTradesOpsData).catch(() => {});
-      } else {
         setTradesOpsData(null);
-      }
-      if (['beauty_style', 'barbershop', 'hair_stylist', 'spa_skincare'].includes(raw.business?.active_template || 'default')) {
-        getPublicBeautyOperations(id).then(setBeautyOpsData).catch(() => {});
-      } else {
         setBeautyOpsData(null);
-      }
-      if (['photographer', 'creative_studio', 'graphic_design'].includes(raw.business?.active_template || 'default')) {
-        getPublicCreativeOperations(id).then(setCreativeOpsData).catch(() => {});
-      } else {
         setCreativeOpsData(null);
-      }
-      if (['accountant', 'consulting_coaching', 'legal_admin'].includes(raw.business?.active_template || 'default')) {
-        getPublicProfessionalOperations(id).then(setProfessionalOpsData).catch(() => {});
-      } else {
         setProfessionalOpsData(null);
-      }
-      if (['fitness_pro', 'wellness_therapy', 'nutrition_diet', 'mental_health', 'massage_therapist', 'care_trust', 'pet_services', 'tutoring_education', 'child_development', 'dog_walker', 'math_tutor'].includes(raw.business?.active_template || 'default')) {
-        getPublicContinuityOperations(id).then(setContinuityOpsData).catch(() => {});
-      } else {
         setContinuityOpsData(null);
+      } else {
+        const template = raw.business?.active_template || 'default';
+        if (template === 'property_manager') getPublicPropertyOperations(id).then(setPropertyOpsData).catch(() => {});
+        else setPropertyOpsData(null);
+        if (['trades_pro', 'electrician', 'auto_mechanic'].includes(template)) getPublicTradesOperations(id).then(setTradesOpsData).catch(() => {});
+        else setTradesOpsData(null);
+        if (['beauty_style', 'barbershop', 'hair_stylist', 'spa_skincare'].includes(template)) getPublicBeautyOperations(id).then(setBeautyOpsData).catch(() => {});
+        else setBeautyOpsData(null);
+        if (['photographer', 'creative_studio', 'graphic_design'].includes(template)) getPublicCreativeOperations(id).then(setCreativeOpsData).catch(() => {});
+        else setCreativeOpsData(null);
+        if (['accountant', 'consulting_coaching', 'legal_admin'].includes(template)) getPublicProfessionalOperations(id).then(setProfessionalOpsData).catch(() => {});
+        else setProfessionalOpsData(null);
+        if (['fitness_pro', 'wellness_therapy', 'nutrition_diet', 'mental_health', 'massage_therapist', 'care_trust', 'pet_services', 'tutoring_education', 'child_development', 'dog_walker', 'math_tutor'].includes(template)) getPublicContinuityOperations(id).then(setContinuityOpsData).catch(() => {});
+        else setContinuityOpsData(null);
       }
       setLoadState('success');
     } catch (e) {
@@ -805,6 +798,10 @@ export default function BusinessProfilePage() {
 
   const handleTemplatePrimaryAction = useCallback(() => {
     if (!profileData) return;
+    if (!LAUNCH_VISIBILITY.specializedProfileTemplates) {
+      handleBookNow();
+      return;
+    }
     const behavior = getTemplateBehavior(activeTemplate);
     if (behavior.primaryIntent === 'maintenance_request') {
       navigate(`/business/${profileData.bizId || id}/maintenance-request`);
@@ -919,10 +916,12 @@ export default function BusinessProfilePage() {
   } = profileData;
 
   const isGuestVisitor = !user;
-  const templateBehavior = getTemplateBehavior(activeTemplate);
+  const templateBehavior = getTemplateBehavior(
+    LAUNCH_VISIBILITY.specializedProfileTemplates ? activeTemplate : 'default',
+  );
 
   // ── Template override: non-default templates replace the page interior ─────
-  if (activeTemplate && activeTemplate !== 'default') {
+  if (LAUNCH_VISIBILITY.specializedProfileTemplates && activeTemplate && activeTemplate !== 'default') {
     return (
       <div className="min-h-screen bg-gray-950 text-white">
         <PageMeta
@@ -1063,22 +1062,22 @@ export default function BusinessProfilePage() {
               onSecondaryAction={handleOpenChat}
             />
 
-            {activeTemplate === 'property_manager' ? (
+            {LAUNCH_VISIBILITY.specializedProfileTemplates && activeTemplate === 'property_manager' ? (
               <PropertyOperationsPublicSection data={propertyOpsData} />
             ) : null}
-            {['trades_pro', 'electrician', 'auto_mechanic'].includes(activeTemplate) ? (
+            {LAUNCH_VISIBILITY.specializedProfileTemplates && ['trades_pro', 'electrician', 'auto_mechanic'].includes(activeTemplate) ? (
               <TradesOperationsPublicSection data={tradesOpsData} />
             ) : null}
-            {['beauty_style', 'barbershop', 'hair_stylist', 'spa_skincare'].includes(activeTemplate) ? (
+            {LAUNCH_VISIBILITY.specializedProfileTemplates && ['beauty_style', 'barbershop', 'hair_stylist', 'spa_skincare'].includes(activeTemplate) ? (
               <BeautyOperationsPublicSection data={beautyOpsData} />
             ) : null}
-            {['photographer', 'creative_studio', 'graphic_design'].includes(activeTemplate) ? (
+            {LAUNCH_VISIBILITY.specializedProfileTemplates && ['photographer', 'creative_studio', 'graphic_design'].includes(activeTemplate) ? (
               <CreativeOperationsPublicSection data={creativeOpsData} />
             ) : null}
-            {['accountant', 'consulting_coaching', 'legal_admin'].includes(activeTemplate) ? (
+            {LAUNCH_VISIBILITY.specializedProfileTemplates && ['accountant', 'consulting_coaching', 'legal_admin'].includes(activeTemplate) ? (
               <ProfessionalOperationsPublicSection data={professionalOpsData} />
             ) : null}
-            {['fitness_pro', 'wellness_therapy', 'nutrition_diet', 'mental_health', 'massage_therapist', 'care_trust', 'pet_services', 'tutoring_education', 'child_development', 'dog_walker', 'math_tutor'].includes(activeTemplate) ? (
+            {LAUNCH_VISIBILITY.specializedProfileTemplates && ['fitness_pro', 'wellness_therapy', 'nutrition_diet', 'mental_health', 'massage_therapist', 'care_trust', 'pet_services', 'tutoring_education', 'child_development', 'dog_walker', 'math_tutor'].includes(activeTemplate) ? (
               <ContinuityOperationsPublicSection data={continuityOpsData} />
             ) : null}
 

@@ -166,13 +166,44 @@ Launch visibility is now centralized in `client/src/utils/launchScope.js`. The h
 ### Business Hub Hidden For Later
 
 - Hidden non-launch Business Hub tabs from the main tab rail and role-aware menu.
-- Visible Business Hub tabs remain Overview, Workflow System, Edit Profile, Clients, Services & Booking, Gallery, Policies, FAQs, Skills, Messages, Schedule, Invoices, and Team.
-- Hidden Business Hub tabs include Products, Tax, Goals, Service Pricing, Product Pricing, Analytics, Loyalty, Integrations, Expenses, Quotes, Recurring Billing, Staff Scheduler, Reviews Manager, Marketing, Packages, Health, Leads, Message Templates, AI Knowledge, property/trades/beauty/creative/professional/continuity operations, and maintenance.
+- Visible Business Hub tabs remain Overview, Edit Profile, Clients, Services & Booking, Messages, Schedule, Invoices, and Team.
+- Hidden the secondary role-aware navigation rail because it duplicated the primary Business Hub tab strip. Its component, role configuration, widgets, and permissions remain behind `LAUNCH_VISIBILITY.businessHubRoleMenu` and `LAUNCH_VISIBILITY.businessHubRoleMenuWidgets`.
+- Workflow System, Gallery, Policies, FAQs, and Skills are preserved in code but hidden as standalone tabs for launch. Profile content remains visible on the public business page.
+- Hidden Business Hub tabs also include Products, Tax, Goals, Service Pricing, Product Pricing, Analytics, Loyalty, Integrations, Expenses, Quotes, Recurring Billing, Staff Scheduler, Reviews Manager, Marketing, Packages, Health, Leads, Message Templates, AI Knowledge, property/trades/beauty/creative/professional/continuity operations, and maintenance.
 - Hidden Business Hub header links to Growth Center and Switch Template.
 - Hidden Vortex access-code and legacy token generator sections from the Team tab, while keeping normal team member invites and removals.
 - Hidden Business Owner Dashboard entry points for Consulting, Vortex join codes, growth/franchise prompts, and per-business Analytics links.
 - Add/Create business CTAs now route into `/business-hub`, where the real business creation modal already lives.
 - Restore with `LAUNCH_BUSINESS_HUB_TABS` and the matching `businessHub*` flags in `client/src/utils/launchScope.js`.
+
+### Public Profiles Hidden For Later
+
+- Specialized profile templates, industry-specific intake actions, and template operation panels are hidden for launch.
+- Public helper and business profiles use the standard service profile with Book, Post a Job, Message, Share, and Report actions.
+- Specialty routes remain implemented but redirect back to the relevant public business profile.
+- Restore with `LAUNCH_VISIBILITY.specializedProfileTemplates`.
+
+### Jobs Hidden For Later
+
+- Pro-subscription upgrade messaging and the Pro-tier bid gate were removed from the launch workflow.
+- Helpers still need a verified email, completed onboarding, and an unrestricted account before submitting bids.
+- Escrow-specific labels, background-check requirements, and the logistics materials panel are hidden.
+- Direct payments, payment proof, completion, cancellation, disputes, messages, bids, and reviews remain available.
+- Restore escrow and logistics UI with `LAUNCH_VISIBILITY.jobEscrowLabels` and `LAUNCH_VISIBILITY.jobMaterialsLogistics`.
+
+### Restaurant Order History
+
+- `/orders` now reads the signed-in user's real restaurant orders rather than dormant product-marketplace orders.
+- Browse actions point to Restaurants, order rows open the food-order detail endpoint, and totals respect each order's currency.
+- Product, tool-rental, shared-cart, and invoice prompts are hidden from order history.
+- Legacy `/orders/:id` product-order bookmarks redirect to restaurant order history. Live restaurant order details continue to use `/food/orders/:id`.
+
+### Hidden Direct Routes
+
+- Normal users who open retired launch URLs from bookmarks or old links are redirected to the closest active Skills, Restaurants, Dashboard, Business Hub, Calendar, or Settings surface.
+- Redirected areas include Discover All, Learn, Translator, Products, carts and general checkout, Tool Rentals, Investor, Affiliate, Logistics, Vortex, Network, personal-life tools, subscriptions, templates, promotion tools, Consulting, Franchise, generic QR generation, and specialty business intake routes.
+- The route components remain registered in `client/src/App.jsx`; redirects are controlled centrally by `getLaunchRedirect` in `client/src/utils/launchScope.js`.
+- Legacy saved account modes are normalized to Customer or Helper at dashboard load, while Business Owner, granted team roles, and Admin remain supported.
 
 ### Workspace And Support Entry Points Hidden For Later
 

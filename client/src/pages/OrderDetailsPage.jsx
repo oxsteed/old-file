@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
 import OrderErrorBoundary from '../components/OrderErrorBoundary';
 import { formatCents, formatDateTime } from '../lib/format';
+import { getFoodOrder } from '../api/food';
 
 export default function OrderDetailsPage() {
   return (
@@ -19,6 +20,8 @@ function OrderDetailsPageContent() {
   const params = useParams();
   const orderId = params.orderId || params.id;
   const navigate = useNavigate();
+  const location = useLocation();
+  const isFoodOrder = location.pathname.startsWith('/food/orders/');
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -26,13 +29,17 @@ function OrderDetailsPageContent() {
 
   useEffect(() => {
     loadOrder();
-  }, [orderId]);
+  }, [isFoodOrder, orderId]);
 
   const loadOrder = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/orders/${orderId}`);
-      setOrder(response.data.data);
+      if (isFoodOrder) {
+        setOrder(await getFoodOrder(orderId));
+      } else {
+        const response = await api.get(`/orders/${orderId}`);
+        setOrder(response.data.data);
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load order');
     } finally {
@@ -54,7 +61,8 @@ function OrderDetailsPageContent() {
     }
   };
 
-  const canCancel = order && ['pending', 'paid'].includes(order.status);
+  const canCancel = !isFoodOrder && order && ['pending', 'paid'].includes(order.status);
+  const currencyOptions = { currency: order?.currency_code || order?.currency || 'USD' };
 
   const paymentMethodLabel = (() => {
     const raw = String(order?.payment_method || order?.paymentMode || order?.payment_mode || '').toLowerCase();
@@ -68,6 +76,8 @@ function OrderDetailsPageContent() {
       direct_payment: 'Direct payment',
       direct: 'Direct payment',
       off_platform: 'Direct payment',
+      pay_at_restaurant: 'Pay at restaurant',
+      pay_in_person: 'Pay at restaurant',
     };
     if (labels[raw]) return labels[raw];
     if (order?.transaction) return 'Processor payment';
@@ -79,6 +89,10 @@ function OrderDetailsPageContent() {
       pending: 'bg-yellow-100 text-yellow-800',
       paid: 'bg-green-100 text-green-800',
       processing: 'bg-blue-100 text-blue-800',
+      received: 'bg-yellow-100 text-yellow-800',
+      accepted: 'bg-blue-100 text-blue-800',
+      preparing: 'bg-blue-100 text-blue-800',
+      ready: 'bg-green-100 text-green-800',
       completed: 'bg-green-100 text-green-800',
       cancelled: 'bg-red-100 text-red-800',
       refunded: 'bg-gray-100 text-gray-800'
@@ -137,13 +151,17 @@ function OrderDetailsPageContent() {
         <div className="max-w-4xl mx-auto">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold mb-2">{t('orders.order')} #{order.id}</h1>
+              <h1 className="text-3xl font-bold mb-2">
+                {order.restaurant_name ? `${order.restaurant_name} · ` : ''}{t('orders.order')} #{order.id}
+              </h1>
               <p className="text-gray-600">
                 {t('orders.placedOn')} {formatDateTime(order.created_at, { month: 'long' })}
               </p>
             </div>
             <span className={`px-4 py-2 rounded-full font-semibold ${statusColor(order.status)}`}>
-              {t(`orders.status.${order.status}`)}
+              {t(`orders.statusLabels.${order.status}`, {
+                defaultValue: String(order.status || '').replace(/_/g, ' ').replace(/^\w/, (character) => character.toUpperCase()),
+              })}
             </span>
           </div>
 
@@ -167,11 +185,11 @@ function OrderDetailsPageContent() {
                         {item.image_url && (
                           <img
                             src={item.image_url}
-                            alt={item.name}
+                            alt={item.name || item.itemName}
                             className="w-20 h-20 object-cover rounded mb-3"
                           />
                         )}
-                        <h3 className="font-semibold">{item.name}</h3>
+                        <h3 className="font-semibold">{item.name || item.itemName}</h3>
                         {item.description && (
                           <p className="text-sm text-gray-600">{item.description}</p>
                         )}
@@ -181,10 +199,13 @@ function OrderDetailsPageContent() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-600 mb-1">
-                          {formatCents(item.unit_price_cents)} {t('common.each')}
+                          {formatCents(
+                            item.unit_price_cents ?? (Number(item.lineTotalCents || 0) / Math.max(Number(item.quantity || 1), 1)),
+                            currencyOptions,
+                          )} {t('common.each')}
                         </p>
                         <p className="font-semibold">
-                          {formatCents(item.total_price_cents)}
+                          {formatCents(item.total_price_cents ?? item.lineTotalCents, currencyOptions)}
                         </p>
                       </div>
                     </div>
@@ -211,35 +232,35 @@ function OrderDetailsPageContent() {
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-gray-600">{t('checkout.subtotal')}</span>
-                    <span>{formatCents(order.subtotal_cents)}</span>
+                    <span>{formatCents(order.subtotal_cents, currencyOptions)}</span>
                   </div>
                   {order.tax_cents > 0 && (
                     <div className="flex justify-between">
                       <span className="text-gray-600">{t('checkout.tax')}</span>
-                      <span>{formatCents(order.tax_cents)}</span>
+                      <span>{formatCents(order.tax_cents, currencyOptions)}</span>
                     </div>
                   )}
-                  {order.shipping_cents > 0 && (
+                  {(order.shipping_cents > 0 || order.delivery_fee_cents > 0) && (
                     <div className="flex justify-between">
                       <span className="text-gray-600">{t('orders.shipping')}</span>
-                      <span>{formatCents(order.shipping_cents)}</span>
+                      <span>{formatCents(order.shipping_cents || order.delivery_fee_cents, currencyOptions)}</span>
                     </div>
                   )}
                   {order.discount_cents > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>{t('orders.discount')}</span>
-                      <span>-{formatCents(order.discount_cents)}</span>
+                      <span>-{formatCents(order.discount_cents, currencyOptions)}</span>
                     </div>
                   )}
                   <div className="border-t pt-3 flex justify-between font-bold text-lg">
                     <span>{t('checkout.total')}</span>
-                    <span>{formatCents(order.total_cents)}</span>
+                    <span>{formatCents(order.total_cents, currencyOptions)}</span>
                   </div>
                 </div>
               </div>
 
               {/* Payment Information */}
-              {(order.transaction || order.payment_method) && (
+              {(order.transaction || order.payment_method || order.payment_mode || order.payment_status) && (
                 <div className="bg-white rounded-lg shadow p-6">
                   <h2 className="text-lg font-semibold mb-4">{t('orders.payment')}</h2>
                   <div className="space-y-2 text-sm">
@@ -259,6 +280,12 @@ function OrderDetailsPageContent() {
                       <div>
                         <p className="text-gray-600">{t('orders.status')}</p>
                         <p className="font-semibold capitalize">{order.transaction.status}</p>
+                      </div>
+                    )}
+                    {order.payment_status && (
+                      <div>
+                        <p className="text-gray-600">{t('orders.status')}</p>
+                        <p className="font-semibold capitalize">{String(order.payment_status).replace(/_/g, ' ')}</p>
                       </div>
                     )}
                   </div>

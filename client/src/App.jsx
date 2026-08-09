@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -174,6 +174,7 @@ import TermsGate from './components/TermsGate';
 import { ThemeProvider } from './context/ThemeContext';
 import SupportWidget from './components/SupportWidget';
 import { LanguageProvider } from './context/LanguageContext';
+import { getLaunchRedirect } from './utils/launchScope';
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -192,6 +193,15 @@ const queryClient = new QueryClient({
 // Plain ErrorBoundary is fine here: these are already inside <Router>.
 function Guarded({ children }) {
   return <ErrorBoundary>{children}</ErrorBoundary>;
+}
+
+function LaunchScopeRouteGate({ children }) {
+  const location = useLocation();
+  const redirect = getLaunchRedirect(location.pathname);
+  if (redirect && redirect !== location.pathname) {
+    return <Navigate to={redirect} replace />;
+  }
+  return children;
 }
 
 export default function App() {
@@ -219,6 +229,7 @@ export default function App() {
                 <ImpersonationBanner />
                 <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
                 <TermsGate>
+                  <LaunchScopeRouteGate>
                   <Routes>
                     {/* ── Impersonation landing (super-admin only, new tab) ── */}
                     <Route path="/impersonate"             element={<ImpersonatePage />} />
@@ -459,6 +470,7 @@ export default function App() {
 
                     <Route path="*" element={<NotFoundPage />} />
                   </Routes>
+                  </LaunchScopeRouteGate>
                 </TermsGate>
                 {!isStatusHost && <CookieConsent />}
                 {!isStatusHost && <SupportWidget />}

@@ -21,6 +21,7 @@ import BusinessManagerDashboard from './BusinessManagerDashboard';
 import BusinessRepresentativeDashboard from './BusinessRepresentativeDashboard';
 import BusinessEmployeeDashboard from './BusinessEmployeeDashboard';
 import { dashboardKeyForMode } from '../utils/modeAccess';
+import { normalizeLaunchDashboardMode } from '../utils/launchScope';
 
 function Spinner() {
   return (
@@ -36,7 +37,8 @@ export default function SmartDashboard() {
 
   useEffect(() => {
     if (loading || !user) return;
-    const key = dashboardKeyForMode(user.default_mode || user.role);
+    const launchMode = normalizeLaunchDashboardMode(user.default_mode || user.role, user.role);
+    const key = dashboardKeyForMode(launchMode);
     if (key === 'support_agent') {
       navigate('/support/agent', { replace: true });
     } else if (key === 'investor') {
@@ -51,8 +53,10 @@ export default function SmartDashboard() {
   if (loading || !user) return <Spinner />;
 
   // Effective mode falls back to legacy role for pre-migration-270 users.
-  const effectiveMode = user.default_mode ||
-    (['helper', 'helper_pro', 'broker'].includes(user.role) ? 'helper' : 'customer');
+  const effectiveMode = normalizeLaunchDashboardMode(
+    user.default_mode || user.role,
+    user.role,
+  );
   const key = dashboardKeyForMode(effectiveMode);
 
   switch (key) {

@@ -5,23 +5,23 @@ import {
   ArrowRight,
   CheckCircle2,
   Clock3,
-  Package,
   Receipt,
   RefreshCw,
   ShoppingBag,
-  Store,
-  Truck,
 } from 'lucide-react';
-import api from '../api/axios';
+import { listMyFoodOrders } from '../api/food';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import OrderErrorBoundary from '../components/OrderErrorBoundary';
 import './OrderHistoryPage.css';
 
-function moneyFromCents(cents, language) {
+const COMPLETED_ORDER_STATUSES = new Set(['completed', 'delivered', 'picked_up']);
+const CANCELLED_ORDER_STATUSES = new Set(['cancelled', 'refunded', 'rejected']);
+
+function moneyFromCents(cents, language, currency = 'USD') {
   return new Intl.NumberFormat(language || undefined, {
     style: 'currency',
-    currency: 'USD',
+    currency: currency || 'USD',
   }).format(Number(cents || 0) / 100);
 }
 
@@ -43,6 +43,19 @@ function statusLabel(status, t) {
   });
 }
 
+function matchesOrderFilter(order, filter) {
+  const status = String(order.status || '').toLowerCase();
+  if (filter === 'all') return true;
+  if (filter === 'completed') return COMPLETED_ORDER_STATUSES.has(status);
+  if (filter === 'cancelled') return CANCELLED_ORDER_STATUSES.has(status);
+  if (filter === 'active') return !COMPLETED_ORDER_STATUSES.has(status) && !CANCELLED_ORDER_STATUSES.has(status);
+  return status === filter;
+}
+
+function itemCount(order) {
+  return (order.items || []).reduce((total, item) => total + Number(item.quantity || 0), 0);
+}
+
 export default function OrderHistoryPage() {
   return (
     <OrderErrorBoundary componentNameKey="orderErrorBoundary.componentNames.orderHistory">
@@ -57,21 +70,17 @@ function OrderHistoryPageContent() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [stats, setStats] = useState(null);
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
     loadOrders();
-    loadStats();
-  }, [filter]);
+  }, []);
 
   const loadOrders = async () => {
     try {
       setLoading(true);
       setError(null);
-      const params = filter !== 'all' ? { status: filter } : {};
-      const response = await api.get('/orders', { params });
-      setOrders(response.data.data || []);
+      setOrders(await listMyFoodOrders());
     } catch (err) {
       setError(err.response?.data?.error || t('orders.loadError'));
     } finally {
@@ -79,24 +88,18 @@ function OrderHistoryPageContent() {
     }
   };
 
-  const loadStats = async () => {
-    try {
-      const response = await api.get('/orders/stats');
-      setStats(response.data.data);
-    } catch (err) {
-      console.error('Failed to load stats:', err);
-    }
-  };
-
   const language = i18n.resolvedLanguage || i18n.language;
   const notSetText = t('orders.notSet');
+  const visibleOrders = useMemo(
+    () => orders.filter((order) => matchesOrderFilter(order, filter)),
+    [filter, orders],
+  );
 
   const derivedStats = useMemo(() => ({
-    total_orders: stats?.total_orders ?? orders.length,
-    completed_orders: stats?.completed_orders ?? orders.filter((order) => order.status === 'completed').length,
-    pending_orders: stats?.pending_orders ?? orders.filter((order) => ['pending', 'paid', 'processing'].includes(order.status)).length,
-    total_spent_cents: stats?.total_spent_cents ?? orders.reduce((sum, order) => sum + Number(order.total_cents || 0), 0),
-  }), [orders, stats]);
+    total_orders: orders.length,
+    completed_orders: orders.filter((order) => COMPLETED_ORDER_STATUSES.has(String(order.status || '').toLowerCase())).length,
+    active_orders: orders.filter((order) => matchesOrderFilter(order, 'active')).length,
+  }), [orders]);
 
   return (
     <PageShell>
@@ -104,14 +107,14 @@ function OrderHistoryPageContent() {
       <div className="orders-page">
         <header className="orders-hero">
           <div>
-            <p className="orders-kicker">{t('orders.kicker')}</p>
+            <p className="orders-kicker">{t('orders.foodKicker')}</p>
             <h1>{t('orders.title')}</h1>
-            <p>{t('orders.heroDescription')}</p>
+            <p>{t('orders.foodHeroDescription')}</p>
           </div>
           <div className="orders-hero-actions">
-            <Link to="/products" className="orders-btn orders-btn-primary">
+            <Link to="/restaurants" className="orders-btn orders-btn-primary">
               <ShoppingBag size={16} />
-              {t('orders.browseProducts')}
+              {t('orders.browseRestaurants')}
             </Link>
             <button type="button" className="orders-btn" onClick={loadOrders} disabled={loading}>
               <RefreshCw size={16} />
@@ -123,8 +126,7 @@ function OrderHistoryPageContent() {
         <section className="orders-stats" aria-label={t('orders.summaryAriaLabel')}>
           <SummaryCard label={t('orders.totalOrders')} value={derivedStats.total_orders} icon={Receipt} />
           <SummaryCard label={t('orders.completedOrders')} value={derivedStats.completed_orders} icon={CheckCircle2} tone="success" />
-          <SummaryCard label={t('orders.pendingOrders')} value={derivedStats.pending_orders} icon={Clock3} tone="warn" />
-          <SummaryCard label={t('orders.totalSpent')} value={moneyFromCents(derivedStats.total_spent_cents, language)} icon={ShoppingBag} />
+          <SummaryCard label={t('orders.activeOrders')} value={derivedStats.active_orders} icon={Clock3} tone="warn" />
         </section>
 
         <section className="orders-panel" aria-label={t('orders.yourOrders')}>
@@ -134,7 +136,7 @@ function OrderHistoryPageContent() {
               <p>{t('orders.panelDescription')}</p>
             </div>
             <div className="orders-filters">
-              {['all', 'pending', 'paid', 'completed', 'cancelled'].map(status => (
+              {['all', 'active', 'completed', 'cancelled'].map(status => (
                 <button
                   key={status}
                   type="button"
@@ -157,7 +159,7 @@ function OrderHistoryPageContent() {
               <p>{error}</p>
               <button type="button" className="orders-btn" onClick={loadOrders}>{t('common.tryAgain')}</button>
             </div>
-          ) : orders.length === 0 ? (
+          ) : visibleOrders.length === 0 ? (
             <EmptyOrders filter={filter} t={t} />
           ) : (
             <div className="orders-list">
@@ -169,19 +171,19 @@ function OrderHistoryPageContent() {
                 <span>{t('orders.status')}</span>
                 <span>{t('common.action')}</span>
               </div>
-              {orders.map(order => (
+              {visibleOrders.map(order => (
                 <article key={order.id} className="orders-row">
                   <div>
                     <strong>#{order.id}</strong>
-                    <small>{t('orders.marketplaceOrder')}</small>
+                    <small>{order.restaurant_name || t('orders.restaurantOrder')}</small>
                   </div>
                   <span>{formatDate(order.created_at, language, notSetText)}</span>
-                  <span>{order.item_count || '-'}</span>
-                  <span className="orders-total">{moneyFromCents(order.total_cents, language)}</span>
+                  <span>{itemCount(order) || '-'}</span>
+                  <span className="orders-total">{moneyFromCents(order.total_cents, language, order.currency_code)}</span>
                   <span className={`orders-status orders-status-${order.status}`}>
                     {statusLabel(order.status, t)}
                   </span>
-                  <button type="button" onClick={() => navigate(`/orders/${order.id}`)}>
+                  <button type="button" onClick={() => navigate(`/food/orders/${order.id}`)}>
                     {t('common.view')}
                     <ArrowRight size={15} />
                   </button>
@@ -191,12 +193,6 @@ function OrderHistoryPageContent() {
           )}
         </section>
 
-        <section className="orders-guide" aria-label={t('orders.guide.ariaLabel')}>
-          <GuideItem icon={Store} title={t('orders.guide.products.title')} text={t('orders.guide.products.text')} />
-          <GuideItem icon={Truck} title={t('orders.guide.fulfillment.title')} text={t('orders.guide.fulfillment.text')} />
-          <GuideItem icon={Package} title={t('orders.guide.sharedCarts.title')} text={t('orders.guide.sharedCarts.text')} />
-          <GuideItem icon={Receipt} title={t('orders.guide.records.title')} text={t('orders.guide.records.text')} />
-        </section>
       </div>
     </PageShell>
   );
@@ -227,15 +223,13 @@ function EmptyOrders({ filter, t }) {
         <p>
           {filtered
             ? t('orders.empty.filteredText')
-            : t('orders.empty.text')}
+            : t('orders.empty.foodText')}
         </p>
         <div className="orders-empty-actions">
-          <Link to="/products" className="orders-btn orders-btn-primary">
-            {t('orders.browseProducts')}
+          <Link to="/restaurants" className="orders-btn orders-btn-primary">
+            {t('orders.browseRestaurants')}
             <ArrowRight size={16} />
           </Link>
-          <Link to="/tool-rentals" className="orders-btn">{t('orders.browseToolRentals')}</Link>
-          <Link to="/invoices" className="orders-btn">{t('orders.viewInvoices')}</Link>
         </div>
       </div>
       <div className="orders-empty-side">
@@ -247,16 +241,6 @@ function EmptyOrders({ filter, t }) {
           <li>{t('orders.empty.help4')}</li>
         </ul>
       </div>
-    </div>
-  );
-}
-
-function GuideItem({ icon: Icon, title, text }) {
-  return (
-    <div className="orders-guide-item">
-      <Icon size={18} />
-      <h3>{title}</h3>
-      <p>{text}</p>
     </div>
   );
 }

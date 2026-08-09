@@ -61,6 +61,7 @@ import { fetchHelperProfile } from '../api/helpers';
 import { ProfileTemplateRenderer, getTemplateBehavior } from '../components/profileTemplates/index';
 import TemplateBehaviorPanel from '../components/profileTemplates/TemplateBehaviorPanel';
 import '../components/profileTemplates/TemplateBehaviorPanel.css';
+import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 
 // ── Main page component ───────────────────────────────────────────────────────
 const HelperBusinessProfilePage: React.FC = () => {
@@ -166,6 +167,10 @@ const HelperBusinessProfilePage: React.FC = () => {
   }, [id, data, navigate]);
 
   const handleTemplatePrimaryAction = useCallback(() => {
+    if (!LAUNCH_VISIBILITY.specializedProfileTemplates) {
+      handleBookNow();
+      return;
+    }
     const behavior = getTemplateBehavior(activeTemplate);
     if (behavior.primaryIntent === 'maintenance_request') {
       const params = new URLSearchParams({
@@ -296,10 +301,12 @@ const HelperBusinessProfilePage: React.FC = () => {
     data;
 
   const isGuestVisitor = !user;
-  const templateBehavior = getTemplateBehavior(activeTemplate);
+  const templateBehavior = getTemplateBehavior(
+    LAUNCH_VISIBILITY.specializedProfileTemplates ? activeTemplate : 'default',
+  );
 
   // ── Template override: non-default templates replace the page interior ─────
-  if (activeTemplate && activeTemplate !== 'default') {
+  if (LAUNCH_VISIBILITY.specializedProfileTemplates && activeTemplate && activeTemplate !== 'default') {
     return (
       <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-white">
         <PageMeta

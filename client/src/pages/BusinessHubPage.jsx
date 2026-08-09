@@ -1154,6 +1154,10 @@ function BusinessHubInner() {
       setTab(aliasedTab);
       return;
     }
+    if (!LAUNCH_BUSINESS_HUB_TABS.has(tab)) {
+      setTab(canViewFinanceHub ? 'overview' : 'team');
+      return;
+    }
     if (tab === 'workflow' && !canEditBizProfile) {
       setTab(canViewFinanceHub ? 'overview' : 'team');
       return;
@@ -1313,7 +1317,7 @@ function BusinessHubInner() {
 
             {/* Role-aware top menu (team-role spec section 7) — sits above the
                 legacy tab strip and switches the same `tab` state. */}
-            {bizId ? (
+            {bizId && LAUNCH_VISIBILITY.businessHubRoleMenu ? (
               <RoleMenu
                 businessId={bizId}
                 activeTab={tab}

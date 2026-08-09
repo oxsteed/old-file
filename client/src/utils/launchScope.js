@@ -35,14 +35,9 @@ export const LAUNCH_SETTINGS_TABS = new Set([
 
 export const LAUNCH_BUSINESS_HUB_TABS = new Set([
   'overview',
-  'workflow',
   'profile',
   'clients',
   'services',
-  'gallery',
-  'policies',
-  'faqs',
-  'skills',
   'messages',
   'calendar',
   'invoices',
@@ -58,6 +53,7 @@ export const LAUNCH_VISIBILITY = Object.freeze({
   businessHubFinancialPlanning: false,
   businessHubGrowthTools: false,
   businessHubProductCommerce: false,
+  businessHubRoleMenu: false,
   businessHubRoleMenuWidgets: false,
   businessHubSpecializedTemplates: false,
   businessHubVortexAccess: false,
@@ -67,10 +63,13 @@ export const LAUNCH_VISIBILITY = Object.freeze({
   helperEarnings: false,
   helperGrowthCenter: false,
   helperInvoices: false,
+  jobEscrowLabels: false,
+  jobMaterialsLogistics: false,
   networkBranchSwitcher: false,
   personalLifeDashboard: false,
   productMarketplace: false,
   resourcesMenu: false,
+  specializedProfileTemplates: false,
   subscriptions: false,
   templates: false,
   toolRentals: false,
@@ -79,4 +78,55 @@ export const LAUNCH_VISIBILITY = Object.freeze({
 
 export function isLaunchSelfSelectableMode(mode) {
   return LAUNCH_SELF_SELECTABLE_MODES.includes(mode);
+}
+
+const LAUNCH_ROUTE_REDIRECTS = Object.freeze([
+  { prefix: '/discover', to: '/jobs' },
+  { prefix: '/learn', to: '/jobs' },
+  { prefix: '/translator', to: '/' },
+  { prefix: '/tool-rentals', to: '/jobs' },
+  { prefix: '/products', to: '/restaurants' },
+  { prefix: '/cart', to: '/restaurants' },
+  { prefix: '/shared-cart', to: '/restaurants' },
+  { prefix: '/checkout', to: '/restaurants' },
+  { prefix: '/investor/login', to: '/login' },
+  { prefix: '/investor', to: '/dashboard' },
+  { prefix: '/affiliate', to: '/dashboard' },
+  { prefix: '/logistics', to: '/dashboard' },
+  { prefix: '/vortex', to: '/dashboard' },
+  { prefix: '/network', to: '/dashboard' },
+  { prefix: '/planned-needs', to: '/dashboard' },
+  { prefix: '/car-care', to: '/dashboard' },
+  { prefix: '/upgrade', to: '/dashboard' },
+  { prefix: '/templates', to: '/business-hub' },
+  { prefix: '/promote', to: '/business-hub' },
+  { prefix: '/consultant-availability', to: '/calendar' },
+  { prefix: '/consulting', to: '/business-hub' },
+  { prefix: '/business-launch-status', to: '/business-hub' },
+  { prefix: '/franchise', to: '/business-hub' },
+  { prefix: '/qr-generator', to: '/dashboard' },
+  { prefix: '/settings/payment-policies', to: '/settings' },
+]);
+
+function matchesPathPrefix(pathname, prefix) {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`);
+}
+
+export function getLaunchRedirect(pathname = '/') {
+  const normalizedPath = pathname.startsWith('/') ? pathname : `/${pathname}`;
+  if (/^\/orders\/[^/]+(?:\/|$)/.test(normalizedPath)) return '/orders';
+  const specialtyMatch = normalizedPath.match(
+    /^\/business\/([^/]+)\/(?:maintenance-request|trades-request|beauty-intake|creative-intake|professional-intake|continuity-intake|ai-preview)(?:\/|$)/,
+  );
+  if (specialtyMatch) return `/business/${specialtyMatch[1]}`;
+  if (matchesPathPrefix(normalizedPath, '/dashboard/ai-preview')) return '/dashboard';
+
+  return LAUNCH_ROUTE_REDIRECTS.find(({ prefix }) => matchesPathPrefix(normalizedPath, prefix))?.to || null;
+}
+
+export function normalizeLaunchDashboardMode(mode, role) {
+  if (LAUNCH_SWITCHER_MODES.has(mode)) return mode;
+  if (['admin', 'super_admin'].includes(role)) return 'admin';
+  if (role === 'support_agent') return 'business_support_agent';
+  return ['helper', 'helper_pro', 'broker'].includes(role) ? 'helper' : 'customer';
 }

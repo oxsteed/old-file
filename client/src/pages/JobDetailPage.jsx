@@ -22,6 +22,7 @@ import DirectPaymentRecordModal from '../components/DirectPaymentRecordModal';
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../utils/analytics';
 import { detectLocale, formatDate, formatMoney } from '../lib/format';
+import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const JOB_TYPE_MAP = {
@@ -29,7 +30,7 @@ const JOB_TYPE_MAP = {
   recurring:      'Recurring',
   tier1_intro:    'One-Time',
   tier2_standard: 'Standard',
-  tier3_escrow:   'Escrow Protected',
+  tier3_escrow:   LAUNCH_VISIBILITY.jobEscrowLabels ? 'Escrow Protected' : 'Standard',
 };
 
 // URGENCY_MAP is defined inside the component (see below) because it uses t().
@@ -338,6 +339,9 @@ export default function JobDetailPage() {
   const acceptedBid   = (Array.isArray(bids) ? bids : []).find(b => b.status === 'accepted');
 
   const requirements = parseRequirements(job.requirements);
+  const visibleRequirements = requirements.filter(
+    (requirement) => requirement.type !== 'backgroundCheck' || LAUNCH_VISIBILITY.backgroundChecks,
+  );
   const requiredSkills = (() => {
     try {
       if (Array.isArray(job.required_skills)) return job.required_skills;
@@ -434,7 +438,7 @@ export default function JobDetailPage() {
               <PreferredHelperBanner job={job} />
           
           {/* Requirements */}
-          {requirements.length > 0 && (
+          {visibleRequirements.length > 0 && (
             <div className="jdp-card">
               <h2 className="jdp-section-title">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
@@ -442,7 +446,7 @@ export default function JobDetailPage() {
               </h2>
               <p className="jdp-req-note">The client requires helpers to confirm these qualifications before bidding.</p>
               <div className="jdp-req-grid">
-                {requirements.map((r, i) => {
+                {visibleRequirements.map((r, i) => {
                   const meta = REQ_META[r.type] || { label: r.type, icon: '📌' };
                   return (
                     <div key={i} className="jdp-req-chip">
@@ -539,16 +543,14 @@ export default function JobDetailPage() {
 
           {/* ── Bid Section ──────────────────────────────────────────── */}
 
-          {/* Helper: upgrade prompt */}
-          {isHelper && job.status === 'published' && !hasAlreadyBid && !canApplyToJobs && (
+          {/* Helper onboarding is required before bidding. */}
+          {isHelper && job.status === 'published' && !hasAlreadyBid && needsOnboarding && (
             <div className="jdp-card jdp-upgrade-card">
               <div className="jdp-upgrade-icon">🚀</div>
-              <h3>{needsOnboarding ? 'Complete your profile to bid' : 'Upgrade to bid on jobs'}</h3>
-              <p>{needsOnboarding
-                ? 'Finish setting up your helper profile to start submitting bids.'
-                : 'Upgrade to a Pro membership to unlock bidding and get access to all jobs.'}</p>
+              <h3>Complete your profile to bid</h3>
+              <p>Finish setting up your helper profile to start submitting bids.</p>
               <Link to="/dashboard" className="jdp-btn-primary">
-                {needsOnboarding ? 'Complete Profile' : 'View Plans'}
+                Complete Profile
               </Link>
             </div>
           )}
@@ -858,7 +860,7 @@ export default function JobDetailPage() {
           )}
 
           {/* Helper: source materials via logistics */}
-          {isHelper && job.category_name && (
+          {LAUNCH_VISIBILITY.jobMaterialsLogistics && isHelper && job.category_name && (
             <JobMaterialsPanel category={job.category_name} jobId={id} />
           )}
 
