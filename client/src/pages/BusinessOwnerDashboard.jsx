@@ -20,6 +20,7 @@ import api from '../api/axios';
 import { getMyBusinesses } from '../api/vortex';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import {
   Building2, Plus, DollarSign, Users, Calendar, MessageSquare,
   TrendingUp, ArrowRight, AlertCircle, BarChart3,
@@ -123,12 +124,14 @@ function BusinessCard({ biz, currency, t }) {
         >
           {t('dashboards.businessOwner.open', { defaultValue: 'Open workspace' })} <ArrowRight size={12} />
         </Link>
-        <Link
-          to={`/business/${biz.business_id || biz.id}/workspace/analytics`}
-          className="text-xs text-orange-400 hover:text-orange-300 inline-flex items-center gap-1"
-        >
-          <BarChart3 size={12} /> {t('dashboards.businessOwner.analytics', { defaultValue: 'Analytics' })}
-        </Link>
+        {LAUNCH_VISIBILITY.businessHubGrowthTools && (
+          <Link
+            to={`/business/${biz.business_id || biz.id}/workspace/analytics`}
+            className="text-xs text-orange-400 hover:text-orange-300 inline-flex items-center gap-1"
+          >
+            <BarChart3 size={12} /> {t('dashboards.businessOwner.analytics', { defaultValue: 'Analytics' })}
+          </Link>
+        )}
       </footer>
     </article>
   );
@@ -227,18 +230,20 @@ export default function BusinessOwnerDashboard() {
           </p>
           <div className="flex justify-center gap-3 flex-wrap">
             <Link
-              to="/consulting-intake"
+              to="/business-hub"
               className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition"
             >
               {t('dashboards.businessOwner.createFirst', { defaultValue: 'Create a business' })} <ArrowRight size={16} />
             </Link>
-            <Link
-              to="/vortex"
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-lg border text-sm font-semibold transition hover:bg-orange-500/5"
-              style={{ borderColor: 'var(--color-border)' }}
-            >
-              {t('dashboards.businessOwner.joinExisting', { defaultValue: 'Join with a code' })}
-            </Link>
+            {LAUNCH_VISIBILITY.vortexWorkspaceEntry && (
+              <Link
+                to="/vortex"
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-lg border text-sm font-semibold transition hover:bg-orange-500/5"
+                style={{ borderColor: 'var(--color-border)' }}
+              >
+                {t('dashboards.businessOwner.joinExisting', { defaultValue: 'Join with a code' })}
+              </Link>
+            )}
           </div>
         </main>
         <Footer />
@@ -262,7 +267,7 @@ export default function BusinessOwnerDashboard() {
             </p>
           </div>
           <Link
-            to="/consulting-intake"
+            to="/business-hub"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition"
           >
             <Plus size={16} /> {t('dashboards.businessOwner.addBusiness', { defaultValue: 'Add a business' })}
@@ -315,24 +320,26 @@ export default function BusinessOwnerDashboard() {
           ))}
         </section>
 
-        <section className="rounded-xl border p-5 flex items-center gap-4 flex-wrap" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}>
-          <TrendingUp size={20} className="text-orange-500" />
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold">
-              {t('dashboards.businessOwner.growHero', { defaultValue: 'Looking to grow?' })}
+        {LAUNCH_VISIBILITY.businessHubGrowthTools && (
+          <section className="rounded-xl border p-5 flex items-center gap-4 flex-wrap" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}>
+            <TrendingUp size={20} className="text-orange-500" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold">
+                {t('dashboards.businessOwner.growHero', { defaultValue: 'Looking to grow?' })}
+              </div>
+              <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                {t('dashboards.businessOwner.growSubtitle', { defaultValue: 'Connect with a consultant, open a new market, or apply to franchise OxSteed.' })}
+              </div>
             </div>
-            <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              {t('dashboards.businessOwner.growSubtitle', { defaultValue: 'Connect with a consultant, open a new market, or apply to franchise OxSteed.' })}
-            </div>
-          </div>
-          <Link
-            to="/consulting"
-            className="text-xs font-semibold px-3 py-2 rounded-md border hover:bg-orange-500/5"
-            style={{ borderColor: 'var(--color-border)' }}
-          >
-            {t('dashboards.businessOwner.talkConsultant', { defaultValue: 'Talk to a consultant' })}
-          </Link>
-        </section>
+            <Link
+              to="/consulting"
+              className="text-xs font-semibold px-3 py-2 rounded-md border hover:bg-orange-500/5"
+              style={{ borderColor: 'var(--color-border)' }}
+            >
+              {t('dashboards.businessOwner.talkConsultant', { defaultValue: 'Talk to a consultant' })}
+            </Link>
+          </section>
+        )}
       </main>
       <Footer />
     </div>

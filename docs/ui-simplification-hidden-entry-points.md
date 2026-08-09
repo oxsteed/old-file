@@ -163,6 +163,17 @@ Launch visibility is now centralized in `client/src/utils/launchScope.js`. The h
 - Core launch surfaces remain Overview, Edit Profile, Availability, Find Jobs, Skills, My Bids, Reviews, Messages, identity verification, job metrics, and nearby jobs.
 - Restore with the matching `LAUNCH_VISIBILITY` flag in `client/src/utils/launchScope.js`.
 
+### Business Hub Hidden For Later
+
+- Hidden non-launch Business Hub tabs from the main tab rail and role-aware menu.
+- Visible Business Hub tabs remain Overview, Workflow System, Edit Profile, Clients, Services & Booking, Gallery, Policies, FAQs, Skills, Messages, Schedule, Invoices, and Team.
+- Hidden Business Hub tabs include Products, Tax, Goals, Service Pricing, Product Pricing, Analytics, Loyalty, Integrations, Expenses, Quotes, Recurring Billing, Staff Scheduler, Reviews Manager, Marketing, Packages, Health, Leads, Message Templates, AI Knowledge, property/trades/beauty/creative/professional/continuity operations, and maintenance.
+- Hidden Business Hub header links to Growth Center and Switch Template.
+- Hidden Vortex access-code and legacy token generator sections from the Team tab, while keeping normal team member invites and removals.
+- Hidden Business Owner Dashboard entry points for Consulting, Vortex join codes, growth/franchise prompts, and per-business Analytics links.
+- Add/Create business CTAs now route into `/business-hub`, where the real business creation modal already lives.
+- Restore with `LAUNCH_BUSINESS_HUB_TABS` and the matching `businessHub*` flags in `client/src/utils/launchScope.js`.
+
 ### Workspace And Support Entry Points Hidden For Later
 
 - Vortex workspace entry from the business switcher.

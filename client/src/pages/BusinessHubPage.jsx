@@ -78,6 +78,7 @@ import { getProfessionalOperationsWorkspace } from '../api/professionalOperation
 import { getContinuityOperationsWorkspace } from '../api/continuityOperations';
 import { formatDate, formatMoney } from '../lib/format';
 import { getDefaultCurrency } from '../lib/countries';
+import { LAUNCH_BUSINESS_HUB_TABS, LAUNCH_VISIBILITY } from '../utils/launchScope';
 import '../styles/BusinessHubPage.css';
 
 const LS_KEY = 'oxs:bh:lastBusinessId';
@@ -441,8 +442,8 @@ function BusinessHubInner() {
         listMembers(bizId),
         listMyInvitations(),
         listManagedBusinesses(),
-        listVortexTokens(bizId).catch(() => []),
-        listAccessCodes(bizId).catch(() => []),
+        LAUNCH_VISIBILITY.businessHubVortexAccess ? listVortexTokens(bizId).catch(() => []) : Promise.resolve([]),
+        LAUNCH_VISIBILITY.businessHubVortexAccess ? listAccessCodes(bizId).catch(() => []) : Promise.resolve([]),
       ]);
       setMembers(m);
       setInvitations(inv);
@@ -1098,7 +1099,7 @@ function BusinessHubInner() {
   //   6. Property ops + maintenance (only for property_manager template)
   //   7. Invoices / Tax / Goals
   //   8. Team
-  const visibleTabs = [
+  const candidateTabs = [
     'overview',
     'workflow',
     'profile',
@@ -1131,7 +1132,8 @@ function BusinessHubInner() {
     'health',
     'leads',
     'msg-templates',
-  ].filter((tb) => {
+  ];
+  const visibleTabs = candidateTabs.filter((tb) => LAUNCH_BUSINESS_HUB_TABS.has(tb)).filter((tb) => {
     if (tb === 'workflow' && !canEditBizProfile) return false;
     if (tb === 'profile' && !canEditBizProfile) return false;
     if (tb === 'clients' && !canEditBizProfile) return false;
@@ -1246,9 +1248,11 @@ function BusinessHubInner() {
             <p>{t('businessHub.headerDesc')}</p>
           </div>
           <div className="bh-header-actions">
-            <Link className="bh-btn" to="/promote">
-              Growth Center
-            </Link>
+            {LAUNCH_VISIBILITY.businessHubGrowthTools && (
+              <Link className="bh-btn" to="/promote">
+                Growth Center
+              </Link>
+            )}
             <button className="bh-btn primary" onClick={() => { setForm(DEFAULT_BIZ_FORM); setFormErr(''); setModal('add-biz'); }}>
               + {t('businessHub.addBusiness')}
             </button>
@@ -1295,7 +1299,7 @@ function BusinessHubInner() {
                   {t('businessHub.viewProfile')} ↗
                 </Link>
               )}
-              {bizId && canEditBizProfile && (
+              {bizId && canEditBizProfile && LAUNCH_VISIBILITY.businessHubSpecializedTemplates && (
                 <Link
                   to={`/templates?type=business&bizId=${encodeURIComponent(bizId)}`}
                   className="bh-view-profile-link"
@@ -1719,6 +1723,7 @@ function BusinessHubInner() {
                 generatingAccessCode={generatingAccessCode}
                 onRevokeToken={handleRevokeToken}
                 onRevokeAccessCode={handleRevokeAccessCode}
+                showVortexAccess={LAUNCH_VISIBILITY.businessHubVortexAccess}
                 onInvite={() => { setForm({ invite_email: '', invite_role: 'representative' }); setFormErr(''); setModal('invite-member'); }}
                 onRevoke={handleRevokeMember}
                 onAccept={handleAcceptInvitation}
@@ -2857,21 +2862,25 @@ function OverviewTab({ analytics, currency, bizId, businessName, canManage, setT
           <strong>{t('businessHub.overview.quickActions.sendInvoice.title')}</strong>
           <span>{t('businessHub.overview.quickActions.sendInvoice.description')}</span>
         </button>
-        <button type="button" className="bh-quick-btn" onClick={goTo('goals')}>
-          <span className="bh-quick-emoji" aria-hidden="true">🎯</span>
-          <strong>{t('businessHub.overview.quickActions.setGoal.title')}</strong>
-          <span>{t('businessHub.overview.quickActions.setGoal.description')}</span>
-        </button>
+        {LAUNCH_VISIBILITY.businessHubFinancialPlanning && (
+          <button type="button" className="bh-quick-btn" onClick={goTo('goals')}>
+            <span className="bh-quick-emoji" aria-hidden="true">🎯</span>
+            <strong>{t('businessHub.overview.quickActions.setGoal.title')}</strong>
+            <span>{t('businessHub.overview.quickActions.setGoal.description')}</span>
+          </button>
+        )}
         <button type="button" className="bh-quick-btn" onClick={goTo('team')}>
           <span className="bh-quick-emoji" aria-hidden="true">👥</span>
           <strong>{t('businessHub.overview.quickActions.inviteTeammate.title')}</strong>
           <span>{t('businessHub.overview.quickActions.inviteTeammate.description')}</span>
         </button>
-        <button type="button" className="bh-quick-btn" onClick={goTo('maintenance')}>
-          <span className="bh-quick-emoji" aria-hidden="true">🛠</span>
-          <strong>{t('businessHub.overview.quickActions.openMaintenance.title')}</strong>
-          <span>{t('businessHub.overview.quickActions.openMaintenance.description')}</span>
-        </button>
+        {LAUNCH_VISIBILITY.businessHubAdvancedOps && (
+          <button type="button" className="bh-quick-btn" onClick={goTo('maintenance')}>
+            <span className="bh-quick-emoji" aria-hidden="true">🛠</span>
+            <strong>{t('businessHub.overview.quickActions.openMaintenance.title')}</strong>
+            <span>{t('businessHub.overview.quickActions.openMaintenance.description')}</span>
+          </button>
+        )}
       </div>
 
       {/* ── Financial health: runway + outstanding mix ───────────────────── */}
@@ -3372,6 +3381,7 @@ function TeamTab({
   onTokenFormChange, onAccessCodeFormChange,
   onGenerateToken, generatingToken, onCreateAccessCode, generatingAccessCode,
   onRevokeToken, onRevokeAccessCode,
+  showVortexAccess = false,
   onInvite, onRevoke, onAccept, onDecline,
 }) {
   const { t } = useTranslation();
@@ -3457,8 +3467,10 @@ function TeamTab({
         </div>
       )}
 
-      {/* ── New Vortex access codes for restaurant apps ─────────────────── */}
-      <div className="bh-team-section bh-vortex-method bh-vortex-method-new">
+      {showVortexAccess && (
+        <>
+          {/* ── New Vortex access codes for restaurant apps ─────────────────── */}
+          <div className="bh-team-section bh-vortex-method bh-vortex-method-new">
         <div className="bh-vortex-method-title-row">
           <div>
             <p className="bh-vortex-method-eyebrow">{t('businessHub.vortexNewMethodLabel')}</p>
@@ -3536,10 +3548,10 @@ function TeamTab({
             ))}
           </div>
         )}
-      </div>
+          </div>
 
-      {/* ── Legacy Vortex token generator ───────────────────────────────── */}
-      <div className="bh-team-section">
+          {/* ── Legacy Vortex token generator ───────────────────────────────── */}
+          <div className="bh-team-section">
         <p className="bh-vortex-method-eyebrow">{t('businessHub.vortexLegacyMethodLabel')}</p>
         <h3 className="bh-team-heading">{t('businessHub.vortexSection')}</h3>
         <p className="bh-team-vortex-desc">
@@ -3622,7 +3634,9 @@ function TeamTab({
             })}
           </div>
         )}
-      </div>
+          </div>
+        </>
+      )}
 
       {/* ── Members of the currently selected business ─────────────────── */}
       <div className="bh-team-section">

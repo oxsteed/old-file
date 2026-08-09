@@ -33,11 +33,34 @@ export const LAUNCH_SETTINGS_TABS = new Set([
   'danger',
 ]);
 
+export const LAUNCH_BUSINESS_HUB_TABS = new Set([
+  'overview',
+  'workflow',
+  'profile',
+  'clients',
+  'services',
+  'gallery',
+  'policies',
+  'faqs',
+  'skills',
+  'messages',
+  'calendar',
+  'invoices',
+  'team',
+]);
+
 export const LAUNCH_VISIBILITY = Object.freeze({
   affiliateRewards: false,
   aiKnowledge: false,
   backgroundChecks: false,
   businessAscension: false,
+  businessHubAdvancedOps: false,
+  businessHubFinancialPlanning: false,
+  businessHubGrowthTools: false,
+  businessHubProductCommerce: false,
+  businessHubRoleMenuWidgets: false,
+  businessHubSpecializedTemplates: false,
+  businessHubVortexAccess: false,
   discoverEverything: false,
   footerUtilityPills: false,
   genericQrGenerator: false,
@@ -57,4 +80,3 @@ export const LAUNCH_VISIBILITY = Object.freeze({
 export function isLaunchSelfSelectableMode(mode) {
   return LAUNCH_SELF_SELECTABLE_MODES.includes(mode);
 }
-

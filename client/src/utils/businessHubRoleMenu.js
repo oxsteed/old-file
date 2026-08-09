@@ -13,6 +13,8 @@
 // We never invent new pages here — every entry either references an
 // existing tab key (rendered by BusinessHubPage) or an external route.
 
+import { LAUNCH_BUSINESS_HUB_TABS } from './launchScope';
+
 // Mapping tab key -> the permission code that gates it. Owner bypasses.
 export const TAB_PERMISSIONS = {
   overview:         'business.view',
@@ -57,9 +59,10 @@ export const TAB_PERMISSIONS = {
 
 // Filter a tab list down to ones the active user can see, owners bypass.
 export function filterAllowedTabs(tabKeys, role, permissionSet) {
-  if (role === 'owner') return tabKeys;
+  const launchTabs = tabKeys.filter((tb) => LAUNCH_BUSINESS_HUB_TABS.has(tb));
+  if (role === 'owner') return launchTabs;
   const perms = permissionSet instanceof Set ? permissionSet : new Set(permissionSet || []);
-  return tabKeys.filter((tb) => {
+  return launchTabs.filter((tb) => {
     const need = TAB_PERMISSIONS[tb];
     if (!need) return true; // unmapped tabs default to visible (legacy behavior)
     return perms.has(need);
@@ -171,9 +174,10 @@ export function getMenuForRole(role) {
 
 export function buildVisibleMenu(role, permissionSet) {
   const config = getMenuForRole(role);
-  if (role === 'owner') return config.menu;
+  const launchMenu = config.menu.filter((item) => !item.tab || LAUNCH_BUSINESS_HUB_TABS.has(item.tab));
+  if (role === 'owner') return launchMenu;
   const perms = permissionSet instanceof Set ? permissionSet : new Set(permissionSet || []);
-  return config.menu.filter((item) => {
+  return launchMenu.filter((item) => {
     if (!item.tab) return true;
     const need = TAB_PERMISSIONS[item.tab];
     if (!need) return true;

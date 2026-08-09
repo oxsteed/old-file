@@ -12,6 +12,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getMyMembership } from '../../api/vortex';
 import { buildVisibleMenu, getMenuForRole } from '../../utils/businessHubRoleMenu';
+import { LAUNCH_VISIBILITY } from '../../utils/launchScope';
 
 const ROLE_PILL_STYLES = {
   owner:           { bg: 'rgba(249,115,22,0.12)', color: '#c2410c', border: 'rgba(249,115,22,0.4)' },
@@ -142,7 +143,7 @@ export default function RoleMenu({ businessId, activeTab, onSelectTab }) {
           );
         })}
       </ul>
-      {config.widgets && config.widgets.length > 0 && role !== 'owner' ? (
+      {LAUNCH_VISIBILITY.businessHubRoleMenuWidgets && config.widgets && config.widgets.length > 0 && role !== 'owner' ? (
         <div style={{ fontSize: '0.72rem', color: 'var(--muted-text)' }}>
           {t('businessHub.menu.widgetsHint', {
             defaultValue: 'Home widgets shown on Overview: {{list}}',
