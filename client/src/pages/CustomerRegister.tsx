@@ -36,8 +36,8 @@ export default function CustomerRegister() {
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="text-2xl font-bold text-orange-500">OxSteed</Link>
           <div className="flex items-center gap-4">
-            <Link to="/how-it-works" className="text-sm text-gray-400 hover:text-white transition">{t('nav.howItWorks')}</Link>
-            <Link to="/login" className="text-sm text-gray-400 hover:text-white transition">{t('nav.signIn')}</Link>
+            <Link to="/how-it-works" className="inline-flex min-h-11 items-center text-sm text-gray-400 hover:text-white transition">{t('nav.howItWorks')}</Link>
+            <Link to="/login" className="inline-flex min-h-11 items-center text-sm text-gray-400 hover:text-white transition">{t('nav.signIn')}</Link>
           </div>
         </div>
       </nav>

@@ -79,6 +79,7 @@
 /* ── Buttons ─────────────────────────────────────────────── */
 .hp-btn {
   display: inline-flex; align-items: center; gap: .5rem;
+  min-height: 44px;
   padding: .625rem 1.25rem; border-radius: var(--hp-radius-md);
   font-family: var(--hp-font-body); font-size: .875rem; font-weight: 600;
   cursor: pointer; border: none; text-decoration: none;
@@ -334,6 +335,7 @@
 }
 
 .hp-search-tab {
+  min-height: 44px;
   padding: .3rem .9rem;
   border-radius: var(--hp-radius-full);
   border: 1.5px solid transparent;
@@ -454,6 +456,7 @@
 
   .hp-search-field,
   .hp-search-field--loc {
+    min-height: 48px;
     width: 100%;
     flex: none;
     border-right: none;
@@ -464,6 +467,8 @@
   .hp-avail-toggle { margin: .125rem .5rem; }
 
   .hp-search-btn { width: 100%; justify-content: center; margin: .125rem .25rem .25rem; }
+  .hp-section { padding: 3.25rem 0; }
+  .hp-section-head { margin-bottom: 2rem; }
 }
 
 /* ── Sections ────────────────────────────────────────────── */
@@ -530,7 +535,7 @@
 .hp-cat-name { font-size: .9rem; font-weight: 600; margin-bottom: .25rem; }
 .hp-cat-desc { font-size: .78rem; color: var(--hp-text-muted); line-height: 1.4; }
 .hp-cat-note { text-align: center; margin-top: 2rem; font-size: .875rem; color: var(--hp-text-muted); }
-.hp-text-link { color: var(--hp-primary); text-decoration: underline; }
+.hp-text-link { display: inline-flex; min-height: 40px; align-items: center; color: var(--hp-primary); text-decoration: underline; }
 
 /* ── Skills collapsible overflow ─────────────────────────── */
 .hp-skills-overflow {

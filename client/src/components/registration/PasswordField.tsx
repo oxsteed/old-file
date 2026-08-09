@@ -68,14 +68,14 @@ export default function PasswordField({ value, onChange, error }: Props) {
           required
           aria-invalid={!!error}
           aria-describedby={error ? 'err-password' : undefined}
-          className={`w-full py-3 pl-10 pr-10 bg-gray-800/50 border rounded-lg text-white text-sm placeholder-gray-500 transition-all focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 ${
+          className={`w-full py-3 pl-10 pr-12 bg-gray-800/50 border rounded-lg text-white text-sm placeholder-gray-500 transition-all focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 ${
             error ? 'border-red-500 bg-red-900/20' : 'border-gray-700 hover:border-gray-600'
           }`}
         />
         <button
           type="button"
           onClick={() => setShow(!show)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+          className="absolute right-0 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-700 hover:text-gray-300 transition-colors"
           aria-label={show ? t('register.hidePassword') : t('register.showPassword')}
         >
           {show ? <EyeOff size={16} /> : <Eye size={16} />}

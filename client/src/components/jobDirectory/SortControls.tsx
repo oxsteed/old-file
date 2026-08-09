@@ -21,17 +21,17 @@ const SortControls: React.FC<SortControlsProps> = ({ value, onChange, resultCoun
   );
 
   return (
-    <div className="flex items-center justify-between gap-3">
-      <p className="text-sm text-gray-400 flex-shrink-0">
+    <div className="directory-sort-controls flex min-w-0 items-center justify-between gap-3">
+      <p className="directory-sort-count text-sm text-gray-400 flex-shrink-0">
         <span className="font-semibold text-white">{resultCount}</span>{' '}
         {t('jobsDir.jobCount', { count: resultCount })}
       </p>
-      <div className="relative flex items-center gap-2">
-        <ArrowUpDown className="w-4 h-4 text-gray-500 flex-shrink-0" aria-hidden="true" />
+      <div className="directory-sort-field relative flex min-w-0 items-center gap-2">
+        <ArrowUpDown className="directory-sort-icon w-4 h-4 text-gray-500 flex-shrink-0" aria-hidden="true" />
         <select
           value={value}
           onChange={(e) => onChange(e.target.value as JobSortOption)}
-          className="appearance-none bg-gray-800 border border-gray-700 text-white text-sm rounded-xl pl-3 pr-8 py-2 focus:outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
+          className="directory-sort-select min-w-0 appearance-none bg-gray-800 border border-gray-700 text-white text-sm rounded-xl pl-3 pr-8 py-2 focus:outline-none focus:ring-1 focus:ring-brand-500 cursor-pointer"
           aria-label={t('jobsDir.sortByAria')}
         >
           {visibleOptions.map((opt) => (

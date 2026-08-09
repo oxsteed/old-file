@@ -37,6 +37,7 @@ export default function LanguageSelector() {
         title={current.nativeName || current.name}
         style={{
           display: 'flex', alignItems: 'center', gap: '0.3rem',
+          minHeight: '44px',
           background: 'none',
           border: '1px solid var(--color-border)',
           borderRadius: '6px',
@@ -82,7 +83,7 @@ export default function LanguageSelector() {
               onClick={() => { setLanguage(lang.code); setOpen(false); }}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.6rem',
-                width: '100%', padding: '0.6rem 0.85rem',
+                width: '100%', minHeight: '44px', padding: '0.6rem 0.85rem',
                 background: lang.code === language ? 'rgba(249,115,22,0.12)' : 'transparent',
                 border: 'none', cursor: 'pointer',
                 color: lang.code === language ? 'var(--color-primary)' : 'var(--color-text)',

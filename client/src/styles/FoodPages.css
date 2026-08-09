@@ -50,6 +50,7 @@
 }
 .fd-btn {
   display: inline-flex;
+  min-height: 44px;
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
@@ -72,7 +73,7 @@
 }
 .fd-btn-secondary:hover { background: rgba(249, 115, 22, 0.08); }
 .fd-btn-danger { background: #dc2626; }
-.fd-btn-sm { padding: 0.35rem 0.7rem; font-size: 0.82rem; border-radius: 8px; }
+.fd-btn-sm { min-height: 44px; padding: 0.35rem 0.7rem; font-size: 0.82rem; border-radius: 8px; }
 
 .fd-map-wrap {
   height: 320px;
@@ -826,7 +827,7 @@ html.dark .fd-tag-closed { background: rgba(239,68,68,0.15); color: #f87171; }
 .fd-home-hero {
   position: relative;
   overflow: hidden;
-  margin: 0 -1rem 0;
+  margin: 0;
   padding: 3.5rem 1.5rem 2.5rem;
   background: linear-gradient(
     135deg,
@@ -914,6 +915,7 @@ html:not(.dark) .fd-home-hero-sub { color: #6b7280; }
 }
 .fd-home-searchbar input {
   width: 100%;
+  min-height: 44px;
   padding: 0.75rem 0.9rem 0.75rem 2.4rem;
   border: 1.5px solid rgba(255,255,255,0.18);
   border-radius: 12px;
@@ -975,7 +977,7 @@ html:not(.dark) .fd-home-near-btn:hover {
   gap: 0.6rem;
   overflow-x: auto;
   scrollbar-width: none;
-  padding: 1.25rem 0 0.5rem;
+  padding: 1.25rem max(1rem, env(safe-area-inset-left)) 0.5rem;
   margin-bottom: 0.25rem;
 }
 .fd-home-categories::-webkit-scrollbar { display: none; }
@@ -1159,8 +1161,10 @@ html:not(.dark) .fd-skeleton-label {
   .fd-home-hero-title { font-size: 1.9rem; }
   .fd-home-hero-sub { font-size: 0.92rem; }
   .fd-home-searchbar { flex-direction: column; }
+  .fd-home-search-input-wrap { width: 100%; flex: none; }
   .fd-home-search-btn,
   .fd-home-near-btn { width: 100%; justify-content: center; }
+  .fd-home-categories { scroll-padding-inline: 1rem; }
 }
 
 /* ── Merchant hero ──────────────────────────────────────────────────────────── */

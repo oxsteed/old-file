@@ -218,7 +218,8 @@ export default function Footer() {
               style={{
                 background: 'none',
                 border: 'none',
-                padding: 0,
+                minHeight: '40px',
+                padding: '0.45rem 0',
                 fontSize: '0.78rem',
                 color: 'var(--color-text)',
                 cursor: 'pointer',
@@ -285,7 +286,7 @@ export default function Footer() {
           <p>
             <a
               href="mailto:support@oxsteed.com"
-              style={{ color: 'var(--color-primary)', textDecoration: 'none' }}
+              style={{ display: 'inline-flex', minHeight: '40px', alignItems: 'center', color: 'var(--color-primary)', textDecoration: 'none' }}
               onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
               onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
             >
@@ -316,6 +317,9 @@ function FooterLink({ to, children }) {
     <Link
       to={to}
       style={{
+        display: 'inline-flex',
+        minHeight: '40px',
+        alignItems: 'center',
         fontSize: '0.96rem',
         color: 'var(--color-text)',
         textDecoration: 'none',
@@ -340,6 +344,9 @@ function LegalLink({ to, children }) {
     <Link
       to={to}
       style={{
+        display: 'inline-flex',
+        minHeight: '40px',
+        alignItems: 'center',
         fontSize: '0.78rem',
         color: 'var(--color-text)',
         textDecoration: 'none',

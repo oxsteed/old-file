@@ -110,6 +110,7 @@
 
 /* ── Buttons ─────────────────────────────────────────────── */
 .bh-btn {
+  min-height: 44px;
   padding: 0.55rem 1.1rem;
   border-radius: 8px;
   font-size: 0.88rem;
@@ -133,7 +134,7 @@
   color: #f87171;
 }
 .bh-btn.danger:hover { background: rgba(239,68,68,0.1); }
-.bh-btn.sm { padding: 0.3rem 0.7rem; font-size: 0.78rem; }
+.bh-btn.sm { min-height: 40px; padding: 0.3rem 0.7rem; font-size: 0.78rem; }
 
 /* ── KPI grid ─────────────────────────────────────────────── */
 .bh-kpi-grid {
@@ -259,6 +260,8 @@
 /* ── Table ──────────────────────────────────────────────── */
 .bh-table-wrap {
   overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 .bh-table {
   width: 100%;
@@ -431,6 +434,12 @@
   grid-template-columns: 1fr 1fr;
   gap: 0.85rem;
 }
+.bh-responsive-grid-2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+.bh-responsive-grid-2--compact { gap: 0.5rem; }
 .bh-line-items {
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -497,11 +506,25 @@
 /* ── Mobile ─────────────────────────────────────────────── */
 @media (max-width: 700px) {
   .bh-page { padding: 1.25rem 0.85rem 3rem; }
+  .bh-header-actions,
+  .bh-header-actions .bh-btn { width: 100%; }
+  .bh-switcher { align-items: stretch; }
+  .bh-switcher-label { width: 100%; }
+  .bh-switcher select { width: 100%; min-width: 0; min-height: 44px; }
+  .bh-view-profile-link { display: inline-flex; min-height: 44px; align-items: center; margin-left: 0; }
+  .bh-tabs { margin-inline: -0.85rem; padding-inline: 0.85rem; scroll-padding-inline: 0.85rem; }
+  .bh-tab { min-height: 44px; }
   .bh-field-row { grid-template-columns: 1fr; }
+  .bh-responsive-grid-2 { grid-template-columns: 1fr; }
   .bh-line-item { grid-template-columns: 1fr; }
+  .bh-modal-overlay { padding: 0.75rem; align-items: flex-end; }
+  .bh-modal { max-height: calc(100dvh - 1.5rem); padding: 1.1rem; border-radius: 14px; }
+  .bh-modal-actions { display: grid; grid-template-columns: 1fr; }
+  .bh-modal-actions .bh-btn { width: 100%; }
   .bh-chart { height: 180px; }
   .bh-chart-bars { height: 140px; }
-  .bh-team-table { font-size: 0.82rem; }
+  .bh-team-table { min-width: 620px; font-size: 0.82rem; }
+  .bh-team-section { padding: 1rem; }
   .bh-team-invite-card { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
 }
 

@@ -90,6 +90,7 @@
 }
 
 .calendar-view-toggle button {
+  min-height: 44px;
   padding: 0.7rem 1.05rem;
   border: 1px solid var(--border-color);
   background: rgba(17, 24, 39, 0.7);
@@ -772,6 +773,7 @@
 
   .calendar-view-toggle button,
   .booking-requests-btn {
+    min-height: 44px;
     flex-shrink: 0;
     padding: 0.58rem 0.85rem;
     font-size: 0.85rem;

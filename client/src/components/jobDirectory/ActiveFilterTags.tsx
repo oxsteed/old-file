@@ -18,14 +18,14 @@ interface ActiveFilterTagsProps {
 const Tag: React.FC<{ label: string; onRemove: () => void }> = ({ label, onRemove }) => {
   const { t } = useTranslation();
   return (
-    <span className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 bg-brand-900/40 text-brand-300 border border-brand-800/60 rounded-full text-xs font-medium">
+    <span className="inline-flex min-h-[40px] items-center gap-1.5 pl-3 pr-0.5 py-0.5 bg-brand-900/40 text-brand-300 border border-brand-800/60 rounded-full text-xs font-medium">
       {label}
       <button
         onClick={onRemove}
-        className="w-4 h-4 rounded-full bg-brand-800/60 hover:bg-brand-700 flex items-center justify-center transition-colors flex-shrink-0"
+        className="w-9 h-9 rounded-full bg-brand-800/60 hover:bg-brand-700 flex items-center justify-center transition-colors flex-shrink-0"
         aria-label={t('jobsDir.removeFilter', { label })}
       >
-        <X className="w-2.5 h-2.5" aria-hidden="true" />
+        <X className="w-3.5 h-3.5" aria-hidden="true" />
       </button>
     </span>
   );

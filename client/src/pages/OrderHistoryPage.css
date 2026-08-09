@@ -72,7 +72,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 14px;
   border: 1px solid rgba(148, 163, 184, 0.24);
   border-radius: 7px;
@@ -178,7 +178,7 @@
 }
 
 .orders-filters button {
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 12px;
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 7px;
@@ -299,7 +299,7 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 36px;
+  min-height: 44px;
   border: 1px solid rgba(249, 115, 22, 0.32);
   border-radius: 7px;
   background: transparent;

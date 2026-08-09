@@ -371,7 +371,7 @@ const DirectoryHero: React.FC<{
               key={key}
               type="button"
               onClick={() => onSearch(key)}
-              className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors"
+              className="min-h-[44px] px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors"
             >
               {label}
             </button>
@@ -630,10 +630,10 @@ const HelpersDirectoryPage: React.FC = () => {
       )}
 
       {/* Mobile filter bar */}
-      <div className="lg:hidden sticky top-0 z-20 bg-gray-950/95 backdrop-blur border-b border-gray-800 px-4 py-2.5 flex items-center gap-3">
+      <div className="lg:hidden sticky top-[3.75rem] z-20 min-w-0 bg-gray-950/95 backdrop-blur border-b border-gray-800 px-4 py-2.5 flex items-center gap-3">
         <button
           onClick={() => setDrawerOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-sm text-gray-200 hover:bg-gray-700 transition-colors"
+          className="flex min-h-[44px] shrink-0 items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-sm text-gray-200 hover:bg-gray-700 transition-colors"
           aria-label={
             activeFilterCount > 0
               ? t('helpersDir.openFiltersAria', {
@@ -650,7 +650,7 @@ const HelpersDirectoryPage: React.FC = () => {
             </span>
           )}
         </button>
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <SortControls
             value={sort}
             onChange={setSort}

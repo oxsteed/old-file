@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCookieConsentContext } from '../context/CookieConsentContext';
 import type { CookiePreferences } from '../hooks/useCookieConsent';
+import '../styles/CookieConsent.css';
 
 export default function CookieConsent() {
   const { t } = useTranslation();
@@ -40,55 +41,55 @@ export default function CookieConsent() {
   // ─── Settings Panel ──────────────────────────────────────────────
   if (showSettings) {
     return (
-      <div style={overlay}>
-        <div style={settingsCard}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ color: '#f97316', margin: 0 }}>{t('cookieConsent.title')}</h3>
-            <button onClick={closeSettings} style={closeBtn}>&times;</button>
+      <div className="cookie-consent-overlay" role="presentation">
+        <div className="cookie-consent-settings" role="dialog" aria-modal="true" aria-labelledby="cookie-consent-title">
+          <div className="cookie-consent-settings__header">
+            <h3 id="cookie-consent-title">{t('cookieConsent.title')}</h3>
+            <button className="cookie-consent-close" onClick={closeSettings} aria-label={t('common.close', 'Close')}>&times;</button>
           </div>
-          <p style={desc}>{t('cookieConsent.desc')}</p>
+          <p className="cookie-consent-description">{t('cookieConsent.desc')}</p>
 
-          <div style={categoryBlock}>
-            <div style={catHeader}>
-              <span style={catTitle}>{t('cookieConsent.essential')}</span>
-              <span style={alwaysOn}>{t('cookieConsent.essentialAlwaysOn')}</span>
+          <div className="cookie-consent-category">
+            <div className="cookie-consent-category__header">
+              <span className="cookie-consent-category__title">{t('cookieConsent.essential')}</span>
+              <span className="cookie-consent-always-on">{t('cookieConsent.essentialAlwaysOn')}</span>
             </div>
-            <p style={catDesc}>{t('cookieConsent.essentialDesc')}</p>
+            <p className="cookie-consent-category__description">{t('cookieConsent.essentialDesc')}</p>
           </div>
 
-          <div style={categoryBlock}>
-            <label style={catHeader}>
-              <span style={catTitle}>{t('cookieConsent.analytics')}</span>
+          <div className="cookie-consent-category">
+            <label className="cookie-consent-category__header">
+              <span className="cookie-consent-category__title">{t('cookieConsent.analytics')}</span>
               <input type="checkbox" checked={local.analytics}
                 onChange={(e) => setLocal((p) => ({ ...p, analytics: e.target.checked }))}
-                style={checkbox} />
+                className="cookie-consent-checkbox" />
             </label>
-            <p style={catDesc}>{t('cookieConsent.analyticsDesc')}</p>
+            <p className="cookie-consent-category__description">{t('cookieConsent.analyticsDesc')}</p>
           </div>
 
-          <div style={categoryBlock}>
-            <label style={catHeader}>
-              <span style={catTitle}>{t('cookieConsent.marketing')}</span>
+          <div className="cookie-consent-category">
+            <label className="cookie-consent-category__header">
+              <span className="cookie-consent-category__title">{t('cookieConsent.marketing')}</span>
               <input type="checkbox" checked={local.marketing}
                 onChange={(e) => setLocal((p) => ({ ...p, marketing: e.target.checked }))}
-                style={checkbox} />
+                className="cookie-consent-checkbox" />
             </label>
-            <p style={catDesc}>{t('cookieConsent.marketingDesc')}</p>
+            <p className="cookie-consent-category__description">{t('cookieConsent.marketingDesc')}</p>
           </div>
 
-          <div style={categoryBlock}>
-            <label style={catHeader}>
-              <span style={catTitle}>{t('cookieConsent.functional')}</span>
+          <div className="cookie-consent-category">
+            <label className="cookie-consent-category__header">
+              <span className="cookie-consent-category__title">{t('cookieConsent.functional')}</span>
               <input type="checkbox" checked={local.functional}
                 onChange={(e) => setLocal((p) => ({ ...p, functional: e.target.checked }))}
-                style={checkbox} />
+                className="cookie-consent-checkbox" />
             </label>
-            <p style={catDesc}>{t('cookieConsent.functionalDesc')}</p>
+            <p className="cookie-consent-category__description">{t('cookieConsent.functionalDesc')}</p>
           </div>
 
-          <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-            <button onClick={() => savePreferences(local)} style={primaryBtn}>{t('cookieConsent.savePreferences')}</button>
-            <button onClick={acceptAll} style={secondaryBtn}>{t('cookieConsent.acceptAll')}</button>
+          <div className="cookie-consent-settings__actions">
+            <button onClick={() => savePreferences(local)} className="cookie-consent-button cookie-consent-button--primary">{t('cookieConsent.savePreferences')}</button>
+            <button onClick={acceptAll} className="cookie-consent-button cookie-consent-button--secondary">{t('cookieConsent.acceptAll')}</button>
           </div>
         </div>
       </div>
@@ -97,78 +98,20 @@ export default function CookieConsent() {
 
   // ─── Banner ────────────────────────────────────────────────────
   return (
-    <div style={bannerWrap}>
-      <div style={bannerInner}>
-        <div style={{ flex: 1 }}>
-          <p style={{ margin: 0, fontSize: 14, color: '#ccc' }}>
+    <div className="cookie-consent-banner" role="region" aria-label={t('cookieConsent.title')}>
+      <div className="cookie-consent-banner__inner">
+        <div className="cookie-consent-banner__copy">
+          <p>
             {t('cookieConsent.bannerText')}{' '}
-            <a href="/cookie-policy" style={link}>{t('cookieConsent.cookiePolicy')}</a>
+            <a href="/cookie-policy">{t('cookieConsent.cookiePolicy')}</a>
           </p>
         </div>
-        <div style={btnGroup}>
-          <button onClick={rejectAll} style={rejectBtn}>{t('cookieConsent.rejectAll')}</button>
-          <button onClick={openSettings} style={settingsBtn}>{t('cookieConsent.customize')}</button>
-          <button onClick={acceptAll} style={acceptBtn}>{t('cookieConsent.acceptAll')}</button>
+        <div className="cookie-consent-banner__actions">
+          <button onClick={rejectAll} className="cookie-consent-button cookie-consent-button--secondary">{t('cookieConsent.rejectAll')}</button>
+          <button onClick={openSettings} className="cookie-consent-button cookie-consent-button--outline">{t('cookieConsent.customize')}</button>
+          <button onClick={acceptAll} className="cookie-consent-button cookie-consent-button--primary">{t('cookieConsent.acceptAll')}</button>
         </div>
       </div>
     </div>
   );
 }
-
-// ─── Styles ────────────────────────────────────────────────────
-const overlay: React.CSSProperties = {
-  position: 'fixed', inset: 0, zIndex: 10000,
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  backgroundColor: 'rgba(0,0,0,0.7)',
-};
-const settingsCard: React.CSSProperties = {
-  background: '#1a1a2e', border: '1px solid #333', borderRadius: 12,
-  padding: 28, maxWidth: 540, width: '92%', color: '#fff', maxHeight: '85vh', overflowY: 'auto',
-};
-const closeBtn: React.CSSProperties = {
-  background: 'none', border: 'none', color: '#888', fontSize: 24, cursor: 'pointer',
-};
-const desc: React.CSSProperties = { color: '#999', fontSize: 13, margin: '12px 0 20px' };
-const categoryBlock: React.CSSProperties = {
-  borderTop: '1px solid #2a2a3e', padding: '16px 0',
-};
-const catHeader: React.CSSProperties = {
-  display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer',
-};
-const catTitle: React.CSSProperties = { fontWeight: 600, fontSize: 14 };
-const catDesc: React.CSSProperties = { color: '#888', fontSize: 12, margin: '6px 0 0' };
-const alwaysOn: React.CSSProperties = {
-  fontSize: 11, color: '#22c55e', background: '#14291e', padding: '2px 8px', borderRadius: 4,
-};
-const checkbox: React.CSSProperties = { width: 18, height: 18, accentColor: '#f97316' };
-const primaryBtn: React.CSSProperties = {
-  flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', fontWeight: 600,
-  fontSize: 14, cursor: 'pointer', backgroundColor: '#f97316', color: '#fff',
-};
-const secondaryBtn: React.CSSProperties = {
-  flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid #555',
-  fontWeight: 600, fontSize: 14, cursor: 'pointer', backgroundColor: 'transparent', color: '#ccc',
-};
-
-const bannerWrap: React.CSSProperties = {
-  position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9998,
-  background: '#111827', borderTop: '1px solid #2a2a3e', padding: '16px 0',
-};
-const bannerInner: React.CSSProperties = {
-  maxWidth: 1100, margin: '0 auto', padding: '0 20px',
-  display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap',
-};
-const link: React.CSSProperties = { color: '#f97316', textDecoration: 'underline' };
-const btnGroup: React.CSSProperties = { display: 'flex', gap: 10, flexShrink: 0 };
-const rejectBtn: React.CSSProperties = {
-  padding: '8px 16px', borderRadius: 6, border: '1px solid #555',
-  background: 'transparent', color: '#ccc', fontSize: 13, cursor: 'pointer', fontWeight: 500,
-};
-const settingsBtn: React.CSSProperties = {
-  padding: '8px 16px', borderRadius: 6, border: '1px solid #f97316',
-  background: 'transparent', color: '#f97316', fontSize: 13, cursor: 'pointer', fontWeight: 500,
-};
-const acceptBtn: React.CSSProperties = {
-  padding: '8px 16px', borderRadius: 6, border: 'none',
-  background: '#f97316', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 600,
-};

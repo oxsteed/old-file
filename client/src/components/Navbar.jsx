@@ -170,6 +170,7 @@ export default function Navbar() {
               color: 'var(--color-text)',
               fontWeight: 700,
               fontSize: 'var(--text-xl)',
+              minHeight: '44px',
             }}
           >
             <OxSteedIcon size={28} />
@@ -335,16 +336,14 @@ export default function Navbar() {
             <ThemeToggle />
           </div>
 
-          {/* Mobile: theme toggle + hamburger */}
+          {/* Mobile: keep persistent controls intentionally small. Account and
+              workspace selectors live in the expanded menu below. */}
           <div className="ox-nav-mobile-controls" style={{
             display: 'none',
             alignItems: 'center',
             gap: 'var(--space-2)',
           }}>
-            {user && <ModeSwitcher compact />}
-            {isHelper && <BusinessSwitcher compact />}
             <LanguageSelector />
-            <ThemeToggle />
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? t('nav.closeMenu') : t('nav.openMenu')}
@@ -365,15 +364,12 @@ export default function Navbar() {
 
         {/* Mobile menu */}
         {mobileOpen && (
-          <div style={{
-            paddingBottom: 'var(--space-4)',
-            borderTop: '1px solid var(--color-border)',
-            marginTop: 'var(--space-1)',
-            paddingTop: 'var(--space-3)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--space-1)',
-          }}>
+          <div className="ox-nav-mobile-menu">
+            <div className="ox-nav-mobile-preferences">
+              {user && <ModeSwitcher compact />}
+              {isHelper && <BusinessSwitcher compact />}
+              <ThemeToggle />
+            </div>
             {user ? (
               <>
                 <MobileNavLink to={dashboardPath} onClick={() => setMobileOpen(false)}>{t('nav.dashboard')}</MobileNavLink>
@@ -415,6 +411,7 @@ export default function Navbar() {
                   style={{
                     display: 'block',
                     width: '100%',
+                    minHeight: '44px',
                     textAlign: 'left',
                     padding: '0.5rem 0.75rem',
                     borderRadius: 'var(--radius-md)',
@@ -461,6 +458,29 @@ export default function Navbar() {
         @media (max-width: 768px) {
           .ox-nav-desktop { display: none !important; }
           .ox-nav-mobile-controls { display: flex !important; }
+          .ox-nav-mobile-menu {
+            display: flex;
+            max-height: calc(100dvh - 3.75rem);
+            overflow-y: auto;
+            flex-direction: column;
+            gap: var(--space-1);
+            margin-top: var(--space-1);
+            padding-top: var(--space-3);
+            padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
+            border-top: 1px solid var(--color-border);
+            overscroll-behavior: contain;
+          }
+          .ox-nav-mobile-preferences {
+            display: flex;
+            min-width: 0;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: var(--space-2);
+            padding: 0 var(--space-2) var(--space-3);
+            margin-bottom: var(--space-1);
+            border-bottom: 1px solid var(--color-border);
+          }
+          .ox-nav-mobile-preferences > :first-child { min-width: 0; }
         }
         .ox-nav-join-option {
           display: flex;
@@ -568,7 +588,9 @@ function NavLink({ to, children, active }) {
 
 function MobileNavLink({ to, children, onClick, highlight, primary }) {
   const baseStyle = {
-    display: 'block',
+    display: 'flex',
+    alignItems: 'center',
+    minHeight: '44px',
     padding: '0.5rem 0.75rem',
     borderRadius: 'var(--radius-md)',
     fontSize: 'var(--text-sm)',

@@ -469,6 +469,7 @@
   }
 
   .sp-tab {
+    min-height: 48px;
     flex-direction: column;
     align-items: center;
     gap: 0.3rem;
@@ -497,6 +498,14 @@
   .sp-card {
     padding: 1.25rem;
   }
+}
+
+@media (max-width: 600px) {
+  .sp-shell { padding: 1.5rem 0.75rem 3rem; }
+  .sp-header { margin-bottom: 1.25rem; }
+  .sp-title { font-size: 1.7rem; }
+  .sp-sidebar { margin-inline: -0.25rem; scroll-padding-inline: 0.5rem; }
+  .sp-card { padding: 1rem; }
 }
 
 /* ── Light mode overrides ────────────────────────────────── */

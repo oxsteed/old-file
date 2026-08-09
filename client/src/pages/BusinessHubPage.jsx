@@ -2028,7 +2028,7 @@ function BusinessHubInner() {
                 <label>{t('businessHub.fieldServiceDescription')}</label>
                 <textarea name="description" rows="3" value={form.description || ''} onChange={fc} placeholder={t('businessHub.placeholderServiceDesc')} />
               </div>
-              <div className="bh-field" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="bh-field bh-responsive-grid-2">
                 <div>
                   <label>{t('businessHub.fieldPriceRequired')}</label>
                   <input type="number" name="price" value={form.price || ''} onChange={fc} placeholder={t('businessHub.placeholderPrice')} step="0.01" min="0" />
@@ -2043,7 +2043,7 @@ function BusinessHubInner() {
                   </select>
                 </div>
               </div>
-              <div className="bh-field" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="bh-field bh-responsive-grid-2">
                 <div>
                   <label>{t('businessHub.fieldDuration')}</label>
                   <input type="text" name="duration" value={form.duration || ''} onChange={fc} placeholder={t('businessHub.placeholderDuration')} />
@@ -2165,7 +2165,7 @@ function BusinessHubInner() {
                         </label>
                       </div>
                       {!isClosed && (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                        <div className="bh-responsive-grid-2 bh-responsive-grid-2--compact">
                           <input type="time" value={form[`start_${dayNum}`] || ''} onChange={e => setForm(f => ({ ...f, [`start_${dayNum}`]: e.target.value }))} />
                           <input type="time" value={form[`end_${dayNum}`] || ''} onChange={e => setForm(f => ({ ...f, [`end_${dayNum}`]: e.target.value }))} />
                         </div>
@@ -3654,6 +3654,7 @@ function TeamTab({
             <p>{t('businessHub.noTeamYet')}</p>
           </div>
         ) : (
+          <div className="bh-table-wrap" tabIndex="0" role="region" aria-label={t('businessHub.teamMembersSection')}>
           <table className="bh-team-table">
             <thead>
               <tr>
@@ -3691,6 +3692,7 @@ function TeamTab({
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>
@@ -3718,16 +3720,16 @@ function ServicesTab({ services, businessId, onNew, onEdit, onDelete }) {
     <div className="space-y-4">
       {services.map(svc => (
         <div key={svc.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-          <div className="flex justify-between items-start gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex-1">
               <h4 className="font-semibold text-white">{svc.name}</h4>
               {svc.description && <p className="text-sm text-gray-400 mt-1">{svc.description}</p>}
               <p className="text-sm text-orange-400 mt-2">${svc.price || 0}{svc.price_unit === 'hour' ? '/hr' : ''}</p>
               {!svc.is_active && <span style={{ fontSize: '0.75rem', color: '#f87171', marginLeft: '0.5rem' }}>(Inactive)</span>}
             </div>
-            <div className="flex gap-2">
-              <button className="px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition" onClick={() => onEdit(svc)}>{t('businessHub.btnEdit')}</button>
-              <button className="px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition" onClick={() => onDelete(svc)}>{t('businessHub.btnDelete')}</button>
+            <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+              <button className="min-h-[44px] flex-1 px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition sm:flex-none" onClick={() => onEdit(svc)}>{t('businessHub.btnEdit')}</button>
+              <button className="min-h-[44px] flex-1 px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition sm:flex-none" onClick={() => onDelete(svc)}>{t('businessHub.btnDelete')}</button>
             </div>
           </div>
         </div>
@@ -3793,14 +3795,14 @@ function PoliciesTab({ policies, businessId, onNew, onEdit, onDelete }) {
     <div className="space-y-4">
       {policies.map(policy => (
         <div key={policy.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-          <div className="flex justify-between items-start gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex-1">
               <h4 className="font-semibold text-white">{policy.title}</h4>
               <p className="text-sm text-gray-400 mt-2" style={{ whiteSpace: 'pre-wrap' }}>{policy.content}</p>
             </div>
-            <div className="flex gap-2">
-              <button className="px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition" onClick={() => onEdit(policy)}>{t('businessHub.btnEdit')}</button>
-              <button className="px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition" onClick={() => onDelete(policy)}>{t('businessHub.btnDelete')}</button>
+            <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+              <button className="min-h-[44px] flex-1 px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition sm:flex-none" onClick={() => onEdit(policy)}>{t('businessHub.btnEdit')}</button>
+              <button className="min-h-[44px] flex-1 px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition sm:flex-none" onClick={() => onDelete(policy)}>{t('businessHub.btnDelete')}</button>
             </div>
           </div>
         </div>
