@@ -12,6 +12,7 @@ import PulseScoreSettings from '../components/PulseScoreSettings';
 import RecommendationFeed from '../components/RecommendationFeed';
 import { formatDate, formatMoney } from '../lib/format';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
+import { formatFoodMoney, listMyFoodOrders, listMyFoodRestaurantWallets } from '../api/food';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -41,6 +42,8 @@ const IcoHeart     = (p) => <Ico {...p}><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0
 const IcoCar       = (p) => <Ico {...p}><rect x="1" y="11" width="22" height="9" rx="2"/><path d="M3 11l2.5-7h13L21 11"/><circle cx="7" cy="20" r="2"/><circle cx="17" cy="20" r="2"/></Ico>;
 const IcoCalendar  = (p) => <Ico {...p}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Ico>;
 const IcoWrench    = (p) => <Ico {...p}><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></Ico>;
+const IcoFork      = (p) => <Ico {...p}><path d="M3 2v7a3 3 0 003 3V2M9 2v7a3 3 0 01-3 3v10M15 2v20M15 2c4 2 6 5 6 9h-6"/></Ico>;
+const IcoWallet    = (p) => <Ico {...p}><path d="M20 7V5a2 2 0 00-2-2H5a3 3 0 000 6h15v12H5a3 3 0 01-3-3V6"/><path d="M16 13h4"/></Ico>;
 const SHOW_LEGACY_CUSTOMER_RECOMMENDATIONS = LAUNCH_VISIBILITY.personalLifeDashboard;
 const SHOW_LEGACY_CUSTOMER_DASHBOARD_TABS = LAUNCH_VISIBILITY.personalLifeDashboard;
 const SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS = LAUNCH_VISIBILITY.personalLifeDashboard;
@@ -115,6 +118,192 @@ const Modal = ({ open, onClose, title, children }) => {
   );
 };
 
+const ACTIVE_FOOD_ORDER_STATUSES = new Set([
+  'pending', 'received', 'accepted', 'preparing', 'ready', 'out_for_delivery',
+]);
+const ACTIVE_CUSTOMER_JOB_STATUSES = new Set([
+  'open', 'published', 'negotiating', 'matched', 'accepted', 'in_progress',
+]);
+
+function LaunchCustomerDashboard({
+  t,
+  loading,
+  activeJobs,
+  foodOrders,
+  wallets,
+  unreadMsgs,
+  unreadNotifs,
+  error,
+  onRetry,
+}) {
+  const activeOrders = foodOrders.filter((order) =>
+    ACTIVE_FOOD_ORDER_STATUSES.has(String(order.status || '').toLowerCase()));
+  const recentItems = [
+    ...activeJobs.slice(0, 2).map((job) => ({
+      id: `job-${job.id}`,
+      to: `/jobs/${job.id}`,
+      kind: t('dashboard.customer.jobLabel'),
+      title: job.title,
+      detail: job.category_name || job.category || job.location_city || '',
+      status: job.status,
+      icon: IcoBriefcase,
+      tone: 'text-orange-400',
+    })),
+    ...activeOrders.slice(0, 2).map((order) => ({
+      id: `order-${order.id}`,
+      to: `/food/orders/${order.id}`,
+      kind: t('dashboard.customer.orderLabel'),
+      title: order.restaurant_name || t('dashboard.customer.restaurantOrder'),
+      detail: (order.items || []).slice(0, 2).map((item) => item.itemName).filter(Boolean).join(', '),
+      status: order.status,
+      icon: IcoFork,
+      tone: 'text-emerald-400',
+    })),
+  ].slice(0, 4);
+
+  const summaryCards = [
+    { to: '/my-jobs', label: t('dashboard.customer.activeJobs'), value: activeJobs.length, icon: IcoBriefcase, tone: 'text-orange-400' },
+    { to: '/orders', label: t('dashboard.customer.activeOrders'), value: activeOrders.length, icon: IcoFork, tone: 'text-emerald-400' },
+    { to: '/messages', label: t('dashboard.customer.unreadMessages'), value: unreadMsgs, icon: IcoChat, tone: 'text-sky-400' },
+    { to: '/activity', label: t('dashboard.customer.newUpdates'), value: unreadNotifs, icon: IcoBell, tone: 'text-amber-400' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {error && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          <span>{t('dashboard.pulse.loadError')}</span>
+          <button type="button" onClick={onRetry} className="font-bold text-amber-300 underline underline-offset-4 hover:text-amber-200">{t('dashboard.pulse.retry')}</button>
+        </div>
+      )}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="relative overflow-hidden rounded-3xl border border-orange-400/20 bg-gradient-to-br from-orange-500/20 via-gray-900 to-gray-950 p-6 sm:p-8">
+          <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-orange-400/10 blur-2xl" />
+          <p className="relative text-[11px] font-bold uppercase tracking-[0.22em] text-orange-300">{t('dashboard.customer.skillsEyebrow')}</p>
+          <h2 className="relative mt-3 max-w-md text-2xl sm:text-3xl font-black tracking-tight text-white">{t('dashboard.customer.skillsTitle')}</h2>
+          <p className="relative mt-3 max-w-lg text-sm leading-6 text-gray-400">{t('dashboard.customer.skillsText')}</p>
+          <div className="relative mt-6 flex flex-wrap gap-3">
+            <Link to="/post-job" className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-orange-400">
+              <IcoPlus size={16} cls="text-white" /> {t('dashboard.postJob')}
+            </Link>
+            <Link to="/helpers" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-gray-200 transition hover:bg-white/10">
+              <IcoSearch size={16} cls="text-gray-200" /> {t('dashboard.browseHelpers')}
+            </Link>
+          </div>
+        </div>
+
+        <div className="relative overflow-hidden rounded-3xl border border-emerald-400/20 bg-gradient-to-br from-emerald-500/15 via-gray-900 to-gray-950 p-6 sm:p-8">
+          <div className="absolute -bottom-16 -right-10 h-44 w-44 rounded-full bg-emerald-400/10 blur-2xl" />
+          <p className="relative text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-300">{t('dashboard.customer.foodEyebrow')}</p>
+          <h2 className="relative mt-3 max-w-md text-2xl sm:text-3xl font-black tracking-tight text-white">{t('dashboard.customer.foodTitle')}</h2>
+          <p className="relative mt-3 max-w-lg text-sm leading-6 text-gray-400">{t('dashboard.customer.foodText')}</p>
+          <div className="relative mt-6 flex flex-wrap gap-3">
+            <Link to="/restaurants" className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-gray-950 transition hover:bg-emerald-400">
+              <IcoFork size={16} cls="text-gray-950" /> {t('dashboard.customer.browseRestaurants')}
+            </Link>
+            <Link to="/orders" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-gray-200 transition hover:bg-white/10">
+              <IcoClock size={16} cls="text-gray-200" /> {t('dashboard.customer.viewOrders')}
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3" aria-label={t('dashboard.customer.statusSummary')}>
+        {summaryCards.map(({ to, label, value, icon: Icon, tone }) => (
+          <Link key={to} to={to} className="group rounded-2xl border border-gray-700/40 bg-gray-900/60 p-4 transition hover:-translate-y-0.5 hover:border-gray-600">
+            <div className="flex items-center justify-between gap-3">
+              <Icon size={18} cls={tone} />
+              <IcoArrowR size={14} cls="text-gray-700 transition group-hover:text-gray-400" />
+            </div>
+            {loading ? <div className="mt-4 h-8 w-12 animate-pulse rounded bg-gray-800" /> : <p className="mt-3 text-2xl font-black text-white">{value}</p>}
+            <p className="mt-1 text-xs font-medium text-gray-500">{label}</p>
+          </Link>
+        ))}
+      </section>
+
+      <section className="grid grid-cols-1 lg:grid-cols-[1.25fr_0.75fr] gap-4">
+        <Card className="min-h-[280px]">
+          <CardHeader
+            icon={IcoZap}
+            title={t('dashboard.customer.happeningTitle')}
+            right={<Link to="/activity" className="text-xs font-semibold text-orange-400 hover:text-orange-300">{t('dashboard.customer.viewActivity')}</Link>}
+          />
+          {loading ? (
+            <div className="space-y-3">{[0, 1, 2].map((item) => <div key={item} className="h-16 animate-pulse rounded-xl bg-gray-800/60" />)}</div>
+          ) : recentItems.length ? (
+            <div className="space-y-2">
+              {recentItems.map((item) => (
+                <Link key={item.id} to={item.to} className="group flex items-center gap-3 rounded-xl bg-gray-800/35 p-3 transition hover:bg-gray-800/70">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-950/70"><item.icon size={18} cls={item.tone} /></div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-600">{item.kind}</p>
+                    <p className="truncate text-sm font-semibold text-white group-hover:text-orange-300">{item.title}</p>
+                    {item.detail && <p className="truncate text-xs text-gray-500">{item.detail}</p>}
+                  </div>
+                  <Tag
+                    text={t(`orders.statusLabels.${item.status}`, {
+                      defaultValue: String(item.status || '').replace(/_/g, ' '),
+                    })}
+                    color={item.id.startsWith('order-') ? 'green' : 'orange'}
+                  />
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="flex min-h-[190px] flex-col items-center justify-center text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-800/70"><IcoCheck size={24} cls="text-emerald-400" /></div>
+              <h3 className="mt-4 font-bold text-white">{t('dashboard.customer.noActiveItems')}</h3>
+              <p className="mt-1 max-w-sm text-sm text-gray-500">{t('dashboard.customer.noActiveItemsText')}</p>
+            </div>
+          )}
+        </Card>
+
+        <Card className="min-h-[280px]">
+          <CardHeader
+            icon={IcoWallet}
+            title={t('dashboard.customer.restaurantCreditTitle')}
+            right={<Link to="/restaurant-credit" className="text-xs font-semibold text-emerald-400 hover:text-emerald-300">{t('dashboard.customer.manageCredit')}</Link>}
+          />
+          {loading ? (
+            <div className="space-y-3">{[0, 1].map((item) => <div key={item} className="h-16 animate-pulse rounded-xl bg-gray-800/60" />)}</div>
+          ) : wallets.length ? (
+            <div className="space-y-2">
+              {wallets.slice(0, 3).map((wallet) => (
+                <Link key={wallet.accountId || wallet.restaurantId} to={`/restaurant-credit?restaurantId=${wallet.restaurantId}`} className="flex items-center gap-3 rounded-xl bg-gray-800/35 p-3 transition hover:bg-gray-800/70">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-emerald-500/10">
+                    {wallet.restaurantLogoUrl ? <img src={wallet.restaurantLogoUrl} alt="" className="h-full w-full object-cover" /> : <IcoFork size={18} cls="text-emerald-400" />}
+                  </div>
+                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-white">{wallet.restaurantName}</p><p className="text-xs text-gray-500">{t('dashboard.customer.creditAvailable')}</p></div>
+                  <strong className="text-sm text-emerald-400">{formatFoodMoney(wallet.availableBalanceCents, wallet.currencyCode)}</strong>
+                </Link>
+              ))}
+              <p className="pt-2 text-xs leading-5 text-gray-600">{t('dashboard.customer.creditScope')}</p>
+            </div>
+          ) : (
+            <div className="flex min-h-[190px] flex-col items-center justify-center text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10"><IcoWallet size={24} cls="text-emerald-400" /></div>
+              <h3 className="mt-4 font-bold text-white">{t('dashboard.customer.noCredit')}</h3>
+              <p className="mt-1 max-w-xs text-sm text-gray-500">{t('dashboard.customer.noCreditText')}</p>
+              <Link to="/restaurants" className="mt-4 text-xs font-bold text-emerald-400 hover:text-emerald-300">{t('dashboard.customer.browseRestaurants')} →</Link>
+            </div>
+          )}
+        </Card>
+      </section>
+
+      <nav className="flex flex-wrap items-center gap-2 rounded-2xl border border-gray-800 bg-gray-950/40 p-3" aria-label={t('dashboard.customer.quickLinks')}>
+        <span className="px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-gray-600">{t('dashboard.customer.quickLinks')}</span>
+        {[
+          { to: '/calendar', label: t('dashboard.customer.calendar'), icon: IcoCalendar },
+          { to: '/activity', label: t('dashboard.recentActivity'), icon: IcoBell },
+          { to: '/settings', label: t('dashboard.customer.accountSettings'), icon: IcoSettings },
+        ].map(({ to, label, icon: Icon }) => (
+          <Link key={to} to={to} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-gray-400 transition hover:bg-gray-800 hover:text-white"><Icon size={14} cls="text-gray-500" />{label}</Link>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
 // Format a Date as YYYY-MM-DD in local time (avoids UTC-shift from toISOString())
 const localDateStr = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -131,6 +320,8 @@ export default function Dashboard() {
   const life = useLifeDashboard();
 
   const [myJobs, setMyJobs] = useState([]);
+  const [foodOrders, setFoodOrders] = useState([]);
+  const [restaurantWallets, setRestaurantWallets] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -645,14 +836,20 @@ export default function Dashboard() {
     setLoading(true);
     setError(false);
     try {
-      const [jobsRes, notifRes, msgRes] = await Promise.allSettled([
-        api.get('/jobs/me/list'), api.get('/notifications'), api.get('/messages/conversations'),
+      const [jobsRes, notifRes, msgRes, foodOrdersRes, walletsRes] = await Promise.allSettled([
+        api.get('/jobs/me/list'),
+        api.get('/notifications'),
+        api.get('/messages/conversations'),
+        listMyFoodOrders(),
+        listMyFoodRestaurantWallets(),
       ]);
-      const anyFailed = [jobsRes, notifRes, msgRes].some(r => r.status === 'rejected');
+      const anyFailed = [jobsRes, notifRes, msgRes, foodOrdersRes, walletsRes].some(r => r.status === 'rejected');
       if (anyFailed) setError(true);
       if (jobsRes.status === 'fulfilled') setMyJobs(jobsRes.value.data?.jobs || jobsRes.value.data || []);
       if (notifRes.status === 'fulfilled') setNotifications(notifRes.value.data?.notifications || notifRes.value.data || []);
       if (msgRes.status === 'fulfilled') setConversations(msgRes.value.data?.conversations || msgRes.value.data || []);
+      if (foodOrdersRes.status === 'fulfilled') setFoodOrders(foodOrdersRes.value || []);
+      if (walletsRes.status === 'fulfilled') setRestaurantWallets(walletsRes.value || []);
     } catch (e) { console.error(e); setError(true); }
     finally { setLoading(false); }
   }, []);
@@ -691,7 +888,9 @@ export default function Dashboard() {
         : t('dashboard.greeting', { time: t('dashboard.evening'), name: displayName });
   const unreadNotifs = Array.isArray(notifications) ? notifications.filter(n => !n.read && !n.read_at).length : 0;
   const unreadMsgs = Array.isArray(conversations) ? conversations.filter(c => c.unread_count > 0).length : 0;
-  const activeJobs = Array.isArray(myJobs) ? myJobs.filter(j => ['open','in_progress','published'].includes(j.status)) : [];
+  const activeJobs = Array.isArray(myJobs)
+    ? myJobs.filter((job) => ACTIVE_CUSTOMER_JOB_STATUSES.has(String(job.status || '').toLowerCase()))
+    : [];
   const isFreeTier = !user?.tier || user?.tier === 'free';
   const s = life.summary;
 
@@ -800,7 +999,7 @@ export default function Dashboard() {
               {t('dashboard.welcome', { name: user?.first_name || 'there' })}
             </h1>
             <p className="text-gray-400 font-medium">
-              {t('dashboard.atAGlance')}
+              {SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS ? t('dashboard.atAGlance') : t('dashboard.customer.subtitle')}
             </p>
           </div>
           {LAUNCH_VISIBILITY.subscriptions && <TrialBanner />}
@@ -842,7 +1041,21 @@ export default function Dashboard() {
         )}
 
         {/* ═══════ PULSE ═══════ */}
-        {tab==='pulse' && (<>
+        {tab === 'pulse' && !SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS && (
+          <LaunchCustomerDashboard
+            t={t}
+            loading={loading}
+            activeJobs={activeJobs}
+            foodOrders={foodOrders}
+            wallets={restaurantWallets}
+            unreadMsgs={unreadMsgs}
+            unreadNotifs={unreadNotifs}
+            error={error}
+            onRetry={retryLoad}
+          />
+        )}
+
+        {tab==='pulse' && SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS && (<>
           {error && (
             <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 flex items-center gap-2">
               <span>⚠</span>
