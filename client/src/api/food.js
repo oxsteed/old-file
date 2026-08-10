@@ -105,6 +105,9 @@ export const createFoodRestaurant = (payload) =>
 export const updateFoodRestaurant = (restaurantId, payload) =>
   api.patch(`/food/restaurants/${restaurantId}`, payload).then((r) => r.data?.restaurant);
 
+export const getManagedFoodMenu = (restaurantId) =>
+  api.get(`/food/restaurants/${restaurantId}/menu/manage`).then((r) => r.data);
+
 export const createFoodCategory = (restaurantId, payload) =>
   api.post(`/food/restaurants/${restaurantId}/categories`, payload).then((r) => r.data?.category);
 
@@ -123,9 +126,17 @@ export const updateFoodMenuItem = (restaurantId, itemId, payload) =>
 export const deleteFoodMenuItem = (restaurantId, itemId) =>
   api.delete(`/food/restaurants/${restaurantId}/menu-items/${itemId}`);
 
+export const duplicateFoodMenuItem = (restaurantId, itemId, payload = {}) =>
+  api.post(`/food/restaurants/${restaurantId}/menu-items/${itemId}/duplicate`, payload).then((r) => r.data?.item);
+
 export const createFoodModifierGroup = (restaurantId, itemId, payload) =>
   api
     .post(`/food/restaurants/${restaurantId}/menu-items/${itemId}/modifier-groups`, payload)
+    .then((r) => r.data?.modifierGroup);
+
+export const updateFoodModifierGroup = (restaurantId, groupId, payload) =>
+  api
+    .patch(`/food/restaurants/${restaurantId}/modifier-groups/${groupId}`, payload)
     .then((r) => r.data?.modifierGroup);
 
 export const deleteFoodModifierGroup = (restaurantId, groupId) =>

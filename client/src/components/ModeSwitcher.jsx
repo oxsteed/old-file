@@ -103,7 +103,14 @@ export default function ModeSwitcher({ compact = false }) {
   const currentLabel = t(currentMeta.labelKey, { defaultValue: current });
 
   return (
-    <div ref={menuRef} style={{ position: 'relative', display: 'inline-block' }}>
+    <div
+      ref={menuRef}
+      style={{
+        position: 'relative',
+        display: 'inline-block',
+        maxWidth: compact ? '100%' : undefined,
+      }}
+    >
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
@@ -151,9 +158,12 @@ export default function ModeSwitcher({ compact = false }) {
           role="menu"
           style={{
             position: 'absolute',
-            right: 0,
+            insetInlineStart: compact ? 0 : 'auto',
+            insetInlineEnd: compact ? 'auto' : 0,
             top: 'calc(100% + 0.35rem)',
-            minWidth: 'min(20rem, calc(100vw - 2rem))',
+            width: compact ? 'min(20rem, calc(100vw - 4rem))' : undefined,
+            minWidth: compact ? 0 : 'min(20rem, calc(100vw - 2rem))',
+            maxWidth: 'calc(100vw - 2rem)',
             padding: '0.35rem',
             borderRadius: 'var(--radius-md)',
             border: '1px solid var(--color-border)',

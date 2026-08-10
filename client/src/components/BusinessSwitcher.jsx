@@ -144,7 +144,7 @@ export default function BusinessSwitcher({ compact = false }) {
   }
 
   return (
-    <div className="ox-biz-switcher" ref={menuRef}>
+    <div className={`ox-biz-switcher ${compact ? 'ox-biz-switcher--compact' : ''}`} ref={menuRef}>
       <button
         type="button"
         className="ox-biz-switcher__btn"

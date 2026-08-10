@@ -1205,6 +1205,83 @@ exports.listRestaurants = async (req, res, next) => {
   }
 };
 
+async function loadRestaurantMenu(restaurantId, { managed = false } = {}) {
+  const { rows: categories } = await pool.query(
+    `SELECT id, name, description, sort_order, is_active
+       FROM food_menu_categories
+      WHERE restaurant_id = $1 ${managed ? '' : 'AND is_active = TRUE'}
+      ORDER BY sort_order, name`,
+    [restaurantId]
+  );
+  const { rows: items } = await pool.query(
+    `SELECT id, category_id, name, description, image_url, price_cents,
+            currency_code, is_available, sort_order, tags, allergens,
+            publication_status, archived_at, availability_schedule
+       FROM food_menu_items
+      WHERE restaurant_id = $1
+        ${managed ? '' : "AND publication_status = 'published' AND archived_at IS NULL"}
+      ORDER BY sort_order, name`,
+    [restaurantId]
+  );
+  const { rows: modifiers } = await pool.query(
+    `SELECT mg.id AS group_id, mg.menu_item_id, mg.name AS group_name,
+            mg.min_select, mg.max_select, mg.is_required, mg.sort_order AS group_sort_order,
+            fm.id AS modifier_id, fm.name AS modifier_name, fm.price_delta_cents,
+            fm.is_available, fm.sort_order AS modifier_sort_order
+       FROM food_modifier_groups mg
+       LEFT JOIN food_modifiers fm ON fm.modifier_group_id = mg.id
+      WHERE mg.restaurant_id = $1
+      ORDER BY mg.sort_order, fm.sort_order`,
+    [restaurantId]
+  );
+
+  const visibleItemIds = new Set(items.map((item) => Number(item.id)));
+  const modifierGroupsByItem = new Map();
+  for (const row of modifiers) {
+    if (!visibleItemIds.has(Number(row.menu_item_id))) continue;
+    if (!modifierGroupsByItem.has(row.menu_item_id)) modifierGroupsByItem.set(row.menu_item_id, new Map());
+    const groups = modifierGroupsByItem.get(row.menu_item_id);
+    if (!groups.has(row.group_id)) {
+      groups.set(row.group_id, {
+        id: row.group_id,
+        name: row.group_name,
+        minSelect: row.min_select,
+        maxSelect: row.max_select,
+        isRequired: row.is_required,
+        sortOrder: row.group_sort_order,
+        options: [],
+      });
+    }
+    if (row.modifier_id) {
+      groups.get(row.group_id).options.push({
+        id: row.modifier_id,
+        name: row.modifier_name,
+        priceDeltaCents: row.price_delta_cents,
+        isAvailable: row.is_available,
+        sortOrder: row.modifier_sort_order,
+      });
+    }
+  }
+
+  const itemsByCategory = new Map();
+  for (const item of items) {
+    const key = item.category_id || 0;
+    if (!itemsByCategory.has(key)) itemsByCategory.set(key, []);
+    itemsByCategory.get(key).push({
+      ...item,
+      modifierGroups: Array.from(modifierGroupsByItem.get(item.id)?.values() || []),
+    });
+  }
+
+  return {
+    menu: categories.map((category) => ({
+      ...category,
+      items: itemsByCategory.get(category.id) || [],
+    })),
+    uncategorizedItems: itemsByCategory.get(0) || [],
+  };
+}
+
 exports.getRestaurant = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId || req.params.id);
@@ -1242,75 +1319,24 @@ exports.getRestaurant = async (req, res, next) => {
       restaurant.review_count = 0;
     }
 
-    const { rows: categories } = await pool.query(
-      `SELECT id, name, description, sort_order
-         FROM food_menu_categories
-        WHERE restaurant_id = $1 AND is_active = TRUE
-        ORDER BY sort_order, name`,
-      [restaurantId]
-    );
-    const { rows: items } = await pool.query(
-      `SELECT id, category_id, name, description, image_url, price_cents,
-              currency_code, is_available, sort_order, tags, allergens
-         FROM food_menu_items
-        WHERE restaurant_id = $1
-        ORDER BY sort_order, name`,
-      [restaurantId]
-    );
-    const { rows: modifiers } = await pool.query(
-      `SELECT mg.id AS group_id, mg.menu_item_id, mg.name AS group_name,
-              mg.min_select, mg.max_select, mg.is_required, mg.sort_order AS group_sort_order,
-              fm.id AS modifier_id, fm.name AS modifier_name, fm.price_delta_cents,
-              fm.is_available, fm.sort_order AS modifier_sort_order
-         FROM food_modifier_groups mg
-         LEFT JOIN food_modifiers fm ON fm.modifier_group_id = mg.id
-        WHERE mg.restaurant_id = $1
-        ORDER BY mg.sort_order, fm.sort_order`,
-      [restaurantId]
-    );
-
-    const modifierGroupsByItem = new Map();
-    for (const row of modifiers) {
-      if (!modifierGroupsByItem.has(row.menu_item_id)) modifierGroupsByItem.set(row.menu_item_id, new Map());
-      const groups = modifierGroupsByItem.get(row.menu_item_id);
-      if (!groups.has(row.group_id)) {
-        groups.set(row.group_id, {
-          id: row.group_id,
-          name: row.group_name,
-          minSelect: row.min_select,
-          maxSelect: row.max_select,
-          isRequired: row.is_required,
-          options: [],
-        });
-      }
-      if (row.modifier_id) {
-        groups.get(row.group_id).options.push({
-          id: row.modifier_id,
-          name: row.modifier_name,
-          priceDeltaCents: row.price_delta_cents,
-          isAvailable: row.is_available,
-        });
-      }
-    }
-
-    const itemsByCategory = new Map();
-    for (const item of items) {
-      const key = item.category_id || 0;
-      if (!itemsByCategory.has(key)) itemsByCategory.set(key, []);
-      itemsByCategory.get(key).push({
-        ...item,
-        modifierGroups: Array.from(modifierGroupsByItem.get(item.id)?.values() || []),
-      });
-    }
+    const menuData = await loadRestaurantMenu(restaurantId);
 
     res.json({
       restaurant: attachRestaurantHours(restaurant),
-      menu: categories.map((category) => ({
-        ...category,
-        items: itemsByCategory.get(category.id) || [],
-      })),
-      uncategorizedItems: itemsByCategory.get(0) || [],
+      ...menuData,
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getManagedRestaurantMenu = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertRestaurantManage(restaurant);
+    const menuData = await loadRestaurantMenu(restaurantId, { managed: true });
+    res.json(menuData);
   } catch (err) {
     next(err);
   }
@@ -1360,13 +1386,13 @@ exports.createRestaurant = async (req, res, next) => {
       const { rows: [restaurant] } = await client.query(
         `INSERT INTO food_restaurants
            (business_id, owner_user_id, display_name, cuisine_tags, description, phone, website,
-            address_street, address_city, address_state, address_zip, address_country,
+            logo_url, cover_photo_url, address_street, address_city, address_state, address_zip, address_country,
             latitude, longitude, timezone, currency_code, fulfillment_modes,
             accepts_online_orders, accepts_in_store_orders, kitchen_display_enabled, status, prep_time_min,
             estimated_delivery_minutes, price_level, dietary_tags,
             is_accepting_orders_now, temporarily_closed_until, minimum_order_cents,
             delivery_fee_cents, service_area_radius_meters)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32)
          RETURNING *`,
         [
           businessId,
@@ -1376,6 +1402,8 @@ exports.createRestaurant = async (req, res, next) => {
           normalizeString(req.body.description, 2000),
           normalizeString(req.body.phone, 40),
           normalizeString(req.body.website, 255),
+          normalizeString(req.body.logoUrl || req.body.logo_url, 1000),
+          normalizeString(req.body.coverPhotoUrl || req.body.cover_photo_url, 1000),
           normalizeString(req.body.addressStreet || req.body.address_street, 255),
           normalizeString(req.body.addressCity || req.body.address_city, 120),
           normalizeString(req.body.addressState || req.body.address_state, 120),
@@ -1449,8 +1477,9 @@ exports.createMenuItem = async (req, res, next) => {
       `INSERT INTO food_menu_items
          (restaurant_id, category_id, name, description, image_url, price_cents,
           currency_code, is_available, manual_available, inventory_available,
-          inventory_availability_state, sort_order, tags, allergens)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,TRUE,'available',$9,$10,$11)
+          inventory_availability_state, sort_order, tags, allergens,
+          publication_status, availability_schedule)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,TRUE,'available',$9,$10,$11,$12,$13)
        RETURNING *`,
       [
         restaurantId,
@@ -1464,6 +1493,12 @@ exports.createMenuItem = async (req, res, next) => {
         Number.parseInt(req.body.sortOrder || req.body.sort_order || 0, 10) || 0,
         normalizeTextArray(req.body.tags, 20),
         normalizeTextArray(req.body.allergens, 20),
+        ['draft', 'published'].includes(req.body.publicationStatus || req.body.publication_status)
+          ? (req.body.publicationStatus || req.body.publication_status)
+          : 'published',
+        req.body.availabilitySchedule && typeof req.body.availabilitySchedule === 'object'
+          ? JSON.stringify(req.body.availabilitySchedule)
+          : '{}',
       ]
     );
     res.status(201).json({ item });
@@ -1535,7 +1570,10 @@ exports.quoteOrder = async (req, res, next) => {
     const { rows: menuRows } = await pool.query(
       `SELECT id, name, price_cents, currency_code, is_available
          FROM food_menu_items
-        WHERE restaurant_id = $1 AND id = ANY($2::bigint[])`,
+        WHERE restaurant_id = $1
+          AND id = ANY($2::bigint[])
+          AND publication_status = 'published'
+          AND archived_at IS NULL`,
       [restaurantId, itemIds]
     );
     const menuById = new Map(menuRows.map((row) => [Number(row.id), row]));
@@ -1791,7 +1829,10 @@ exports.createOrder = async (req, res, next) => {
       const { rows: menuRows } = await client.query(
         `SELECT id, name, price_cents, currency_code, is_available
            FROM food_menu_items
-          WHERE restaurant_id = $1 AND id = ANY($2::bigint[])`,
+          WHERE restaurant_id = $1
+            AND id = ANY($2::bigint[])
+            AND publication_status = 'published'
+            AND archived_at IS NULL`,
         [restaurantId, ids]
       );
       const menuById = new Map(menuRows.map((row) => [Number(row.id), row]));
@@ -3015,34 +3056,74 @@ exports.updateMenuItem = async (req, res, next) => {
     const itemId = parsePositiveInt(req.params.itemId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     assertRestaurantManage(restaurant);
-    const priceRaw = req.body.priceCents ?? req.body.price_cents;
+
+    const sets = [];
+    const params = [];
+    const add = (column, value, cast = '') => {
+      params.push(value);
+      sets.push(`${column} = $${params.length}${cast}`);
+    };
+    const has = (...keys) => keys.some((key) => Object.prototype.hasOwnProperty.call(req.body, key));
+
+    if (has('name')) {
+      const name = normalizeString(req.body.name, 160);
+      if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
+      add('name', name);
+    }
+    if (has('description')) add('description', normalizeString(req.body.description, 2000));
+    if (has('imageUrl', 'image_url')) add('image_url', normalizeString(req.body.imageUrl ?? req.body.image_url, 1000));
+    if (has('priceCents', 'price_cents')) {
+      add('price_cents', parseMoneyCents(req.body.priceCents ?? req.body.price_cents, 'priceCents'));
+    }
+    if (has('categoryId', 'category_id')) {
+      add('category_id', parsePositiveInt(req.body.categoryId ?? req.body.category_id));
+    }
+    if (has('isAvailable', 'is_available')) {
+      const available = req.body.isAvailable ?? req.body.is_available;
+      if (typeof available !== 'boolean') {
+        throw new AppError('Validation failed', 400, 'validation_failed', { isAvailable: 'Availability must be true or false' });
+      }
+      params.push(available);
+      sets.push(`manual_available = $${params.length}`);
+      sets.push(`is_available = $${params.length} AND inventory_available`);
+    }
+    if (has('sortOrder', 'sort_order')) {
+      const sortOrder = Number(req.body.sortOrder ?? req.body.sort_order);
+      if (!Number.isFinite(sortOrder)) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { sortOrder: 'Sort order must be a number' });
+      }
+      add('sort_order', Math.round(sortOrder));
+    }
+    if (has('tags')) add('tags', normalizeTextArray(req.body.tags, 20));
+    if (has('allergens')) add('allergens', normalizeTextArray(req.body.allergens, 20));
+    if (has('publicationStatus', 'publication_status')) {
+      const status = req.body.publicationStatus ?? req.body.publication_status;
+      if (!['draft', 'published'].includes(status)) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { publicationStatus: 'Use draft or published' });
+      }
+      add('publication_status', status);
+    }
+    if (has('archived')) {
+      sets.push(req.body.archived ? 'archived_at = NOW()' : 'archived_at = NULL');
+    }
+    if (has('availabilitySchedule', 'availability_schedule')) {
+      const schedule = req.body.availabilitySchedule ?? req.body.availability_schedule;
+      if (!schedule || typeof schedule !== 'object' || Array.isArray(schedule)) {
+        throw new AppError('Validation failed', 400, 'validation_failed', { availabilitySchedule: 'Schedule must be an object' });
+      }
+      add('availability_schedule', JSON.stringify(schedule), '::jsonb');
+    }
+
+    if (!sets.length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { body: 'No updatable fields provided' });
+    }
+    sets.push('updated_at = NOW()');
+    params.push(itemId, restaurantId);
     const { rows: [item] } = await pool.query(
-      `UPDATE food_menu_items
-          SET name = COALESCE($1, name),
-              description = COALESCE($2, description),
-              image_url = COALESCE($3, image_url),
-              price_cents = COALESCE($4, price_cents),
-              category_id = COALESCE($5, category_id),
-              manual_available = COALESCE($6, manual_available),
-              is_available = CASE
-                WHEN $6::boolean IS NULL THEN is_available
-                ELSE $6 AND inventory_available
-              END,
-              sort_order = COALESCE($7, sort_order),
-              updated_at = NOW()
-        WHERE id = $8 AND restaurant_id = $9
+      `UPDATE food_menu_items SET ${sets.join(', ')}
+        WHERE id = $${params.length - 1} AND restaurant_id = $${params.length}
         RETURNING *`,
-      [
-        normalizeString(req.body.name, 160),
-        normalizeString(req.body.description, 2000),
-        normalizeString(req.body.imageUrl || req.body.image_url, 1000),
-        priceRaw !== undefined ? parseMoneyCents(priceRaw, 'priceCents') : null,
-        parsePositiveInt(req.body.categoryId || req.body.category_id),
-        typeof (req.body.isAvailable ?? req.body.is_available) === 'boolean' ? (req.body.isAvailable ?? req.body.is_available) : null,
-        Number.isFinite(Number(req.body.sortOrder ?? req.body.sort_order)) ? Number(req.body.sortOrder ?? req.body.sort_order) : null,
-        itemId,
-        restaurantId,
-      ]
+      params
     );
     if (!item) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
     res.json({ item });
@@ -3120,6 +3201,135 @@ exports.createModifierGroup = async (req, res, next) => {
     }, 'food_create_modifier_group');
 
     res.status(201).json({ modifierGroup: group });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateModifierGroup = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const groupId = parsePositiveInt(req.params.groupId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertRestaurantManage(restaurant);
+    const name = normalizeString(req.body.name, 120);
+    if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
+    const options = Array.isArray(req.body.options) ? req.body.options.slice(0, 30) : [];
+
+    const group = await withTransaction(pool, async (client) => {
+      const minSelect = Math.max(0, parsePositiveInt(req.body.minSelect ?? req.body.min_select, 0) || 0);
+      const maxSelect = Math.max(minSelect, parsePositiveInt(req.body.maxSelect ?? req.body.max_select, 1) || 1);
+      const { rows: [updated] } = await client.query(
+        `UPDATE food_modifier_groups
+            SET name = $1, min_select = $2, max_select = $3,
+                is_required = $4, sort_order = $5
+          WHERE id = $6 AND restaurant_id = $7
+          RETURNING *`,
+        [
+          name,
+          minSelect,
+          maxSelect,
+          req.body.isRequired === true || req.body.is_required === true,
+          Number.parseInt(req.body.sortOrder || req.body.sort_order || 0, 10) || 0,
+          groupId,
+          restaurantId,
+        ]
+      );
+      if (!updated) throw new AppError('Modifier group not found', 404, 'modifier_group_not_found');
+
+      await client.query('DELETE FROM food_modifiers WHERE modifier_group_id = $1', [groupId]);
+      const updatedOptions = [];
+      for (let i = 0; i < options.length; i += 1) {
+        const optionName = normalizeString(options[i]?.name, 120);
+        if (!optionName) continue;
+        const delta = Number(options[i]?.priceDeltaCents ?? options[i]?.price_delta_cents ?? 0);
+        const { rows: [option] } = await client.query(
+          `INSERT INTO food_modifiers
+             (modifier_group_id, name, price_delta_cents, is_available, sort_order)
+           VALUES ($1,$2,$3,$4,$5)
+           RETURNING *`,
+          [
+            groupId,
+            optionName,
+            Number.isFinite(delta) ? Math.round(delta) : 0,
+            options[i]?.isAvailable !== false && options[i]?.is_available !== false,
+            i,
+          ]
+        );
+        updatedOptions.push(option);
+      }
+      return { ...updated, options: updatedOptions };
+    }, 'food_update_modifier_group');
+
+    res.json({ modifierGroup: group });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.duplicateMenuItem = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const itemId = parsePositiveInt(req.params.itemId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertRestaurantManage(restaurant);
+
+    const item = await withTransaction(pool, async (client) => {
+      const { rows: [source] } = await client.query(
+        'SELECT * FROM food_menu_items WHERE id = $1 AND restaurant_id = $2',
+        [itemId, restaurantId]
+      );
+      if (!source) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
+      const { rows: [created] } = await client.query(
+        `INSERT INTO food_menu_items
+           (restaurant_id, category_id, name, description, image_url, price_cents,
+            currency_code, is_available, manual_available, inventory_available,
+            inventory_availability_state, sort_order, tags, allergens, nutrition,
+            publication_status, availability_schedule)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,TRUE,'available',$9,$10,$11,$12,'draft',$13)
+         RETURNING *`,
+        [
+          restaurantId,
+          source.category_id,
+          normalizeString(req.body.name, 160) || `${source.name} copy`,
+          source.description,
+          source.image_url,
+          source.price_cents,
+          source.currency_code,
+          source.manual_available !== false,
+          Number(source.sort_order || 0) + 1,
+          source.tags || [],
+          source.allergens || [],
+          source.nutrition || {},
+          source.availability_schedule || {},
+        ]
+      );
+
+      const { rows: groups } = await client.query(
+        'SELECT * FROM food_modifier_groups WHERE menu_item_id = $1 ORDER BY sort_order, id',
+        [itemId]
+      );
+      for (const sourceGroup of groups) {
+        const { rows: [newGroup] } = await client.query(
+          `INSERT INTO food_modifier_groups
+             (restaurant_id, menu_item_id, name, min_select, max_select, is_required, sort_order)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)
+           RETURNING *`,
+          [restaurantId, created.id, sourceGroup.name, sourceGroup.min_select, sourceGroup.max_select, sourceGroup.is_required, sourceGroup.sort_order]
+        );
+        await client.query(
+          `INSERT INTO food_modifiers
+             (modifier_group_id, name, price_delta_cents, is_available, sort_order)
+           SELECT $1, name, price_delta_cents, is_available, sort_order
+             FROM food_modifiers
+            WHERE modifier_group_id = $2`,
+          [newGroup.id, sourceGroup.id]
+        );
+      }
+      return created;
+    }, 'food_duplicate_menu_item');
+
+    res.status(201).json({ item });
   } catch (err) {
     next(err);
   }
@@ -3598,6 +3808,8 @@ exports.listCustomerFavoriteItems = async (req, res, next) => {
           AND fmi.restaurant_id = cfi.restaurant_id
          JOIN food_restaurants fr ON fr.id = cfi.restaurant_id
         WHERE cfi.customer_id = $1
+          AND fmi.publication_status = 'published'
+          AND fmi.archived_at IS NULL
         ORDER BY cfi.created_at DESC
         LIMIT 500`,
       [req.user.id]
@@ -3631,7 +3843,10 @@ exports.toggleCustomerFavoriteItem = async (req, res, next) => {
     const { rows: items } = await pool.query(
       `SELECT id, restaurant_id
          FROM food_menu_items
-        WHERE id = $1 AND restaurant_id = $2`,
+        WHERE id = $1
+          AND restaurant_id = $2
+          AND publication_status = 'published'
+          AND archived_at IS NULL`,
       [itemId, restaurantId]
     );
     if (!items[0]) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
@@ -3723,7 +3938,9 @@ exports.syncCustomerFavoriteItems = async (req, res, next) => {
              FROM food_menu_items fmi
              JOIN unnest($1::bigint[], $2::bigint[]) requested(restaurant_id, menu_item_id)
                ON requested.restaurant_id = fmi.restaurant_id
-              AND requested.menu_item_id = fmi.id`,
+              AND requested.menu_item_id = fmi.id
+            WHERE fmi.publication_status = 'published'
+              AND fmi.archived_at IS NULL`,
           [restaurantIds, menuItemIds]
         );
         if (validRows.length !== favorites.length) {
@@ -4058,7 +4275,11 @@ async function buildRestaurantSetupProgress(restaurantId, restaurant) {
   let locationCount = 0;
   try {
     const { rows: menuRows } = await pool.query(
-      `SELECT COUNT(*)::int AS count FROM food_menu_items WHERE restaurant_id = $1`,
+      `SELECT COUNT(*)::int AS count
+         FROM food_menu_items
+        WHERE restaurant_id = $1
+          AND publication_status = 'published'
+          AND archived_at IS NULL`,
       [restaurantId]
     );
     menuCount = Number(menuRows[0]?.count || 0);

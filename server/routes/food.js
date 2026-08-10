@@ -57,13 +57,16 @@ router.get('/restaurants/:restaurantId/promotions/manage', authenticate, ctrl.li
 router.patch('/restaurants/:restaurantId/promotions/:promotionId', authenticate, ctrl.updateRestaurantPromotion);
 router.post('/restaurants/:restaurantId/locations', authenticate, ctrl.createRestaurantLocation);
 router.patch('/restaurants/:restaurantId/locations/:locationId', authenticate, ctrl.updateRestaurantLocation);
+router.get('/restaurants/:restaurantId/menu/manage', authenticate, ctrl.getManagedRestaurantMenu);
 router.post('/restaurants/:restaurantId/categories', authenticate, ctrl.createMenuCategory);
 router.patch('/restaurants/:restaurantId/categories/:categoryId', authenticate, ctrl.updateMenuCategory);
 router.delete('/restaurants/:restaurantId/categories/:categoryId', authenticate, ctrl.deleteMenuCategory);
 router.post('/restaurants/:restaurantId/menu-items', authenticate, ctrl.createMenuItem);
+router.post('/restaurants/:restaurantId/menu-items/:itemId/duplicate', authenticate, ctrl.duplicateMenuItem);
 router.patch('/restaurants/:restaurantId/menu-items/:itemId', authenticate, ctrl.updateMenuItem);
 router.delete('/restaurants/:restaurantId/menu-items/:itemId', authenticate, ctrl.deleteMenuItem);
 router.post('/restaurants/:restaurantId/menu-items/:itemId/modifier-groups', authenticate, ctrl.createModifierGroup);
+router.patch('/restaurants/:restaurantId/modifier-groups/:groupId', authenticate, ctrl.updateModifierGroup);
 router.delete('/restaurants/:restaurantId/modifier-groups/:groupId', authenticate, ctrl.deleteModifierGroup);
 router.post('/restaurants/:restaurantId/customer-wallet-loads', authenticate, walletCtrl.loadCustomerWallet);
 router.post('/restaurants/:restaurantId/customer-wallet-load-requests', authenticate, walletCtrl.loadCustomerWallet);

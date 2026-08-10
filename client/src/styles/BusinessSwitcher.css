@@ -67,6 +67,14 @@
   z-index: 60;
 }
 
+.ox-biz-switcher--compact .ox-biz-switcher__menu {
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+  width: min(20rem, calc(100vw - 4rem));
+  min-width: 0;
+  max-width: calc(100vw - 2rem);
+}
+
 .ox-biz-switcher__item {
   display: flex;
   align-items: center;

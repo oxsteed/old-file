@@ -11,6 +11,7 @@ import {
   updateFoodRestaurant,
   uploadFoodAsset,
   getFoodRestaurant,
+  getManagedFoodMenu,
   createFoodCategory,
   deleteFoodCategory,
   createFoodMenuItem,
@@ -23,9 +24,10 @@ import {
   formatFoodMoney,
 } from '../../api/food';
 import { FoodBrand, FoodConnBadge, FOOD_STATUS_KEYS, apiErrorMessage } from './foodShared';
-import SetupWizard, { defaultWeekdayHours } from './FoodSetupWizard';
-import DeviceSetupChecklist, { isDeviceSetupComplete } from './FoodDeviceSetupChecklist';
-import MerchantOnboardingWizard, { shouldShowMerchantOnboarding } from './FoodMerchantOnboardingWizard';
+import { defaultWeekdayHours } from './FoodSetupWizard';
+import DeviceSetupChecklist from './FoodDeviceSetupChecklist';
+import RestaurantSetupGuide, { shouldShowRestaurantSetup } from './RestaurantSetupGuide';
+import RestaurantMenuManager from './RestaurantMenuManager';
 import LocationsPanel from './FoodLocationsPanel';
 import PromotionsPanel from './FoodPromotionsPanel';
 import { ChecklistsPanel, SopsPanel, InventoryPanel } from './RestaurantOpsPanels';
@@ -1037,8 +1039,83 @@ function MerchantLanding({ t, onStart }) {
   );
 }
 
+function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
+  const [summary, setSummary] = useState({ activeOrders: 0, menuItems: 0, drafts: 0, soldOut: 0 });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([
+      getManagedFoodMenu(restaurant.id).catch(() => ({ menu: [], uncategorizedItems: [] })),
+      listFoodRestaurantOrders(restaurant.id, { limit: 100 }).catch(() => []),
+    ]).then(([menuData, orders]) => {
+      if (cancelled) return;
+      const items = [...(menuData.menu || []).flatMap((category) => category.items || []), ...(menuData.uncategorizedItems || [])];
+      setSummary({
+        activeOrders: orders.filter((order) => !['completed', 'cancelled', 'refunded'].includes(order.status)).length,
+        menuItems: items.filter((item) => !item.archived_at).length,
+        drafts: items.filter((item) => !item.archived_at && item.publication_status === 'draft').length,
+        soldOut: items.filter((item) => !item.archived_at && !item.is_available).length,
+      });
+    }).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [restaurant.id]);
+
+  const toggleOrders = async () => {
+    setSaving(true);
+    try {
+      const updated = await updateFoodRestaurant(restaurant.id, {
+        isAcceptingOrdersNow: !(restaurant.is_accepting_orders_now !== false),
+      });
+      onUpdated(updated);
+      toast.success(updated.is_accepting_orders_now
+        ? t('food.ownerHome.ordersOn', 'Restaurant is accepting orders')
+        : t('food.ownerHome.ordersOff', 'Online ordering paused'));
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t('food.common.error', 'Could not update the restaurant')));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const accepting = restaurant.is_accepting_orders_now !== false && restaurant.status === 'active';
+  return (
+    <div className="fd-owner-home">
+      <section className={`fd-owner-open-card${accepting ? ' fd-owner-open-card--live' : ''}`}>
+        <div>
+          <span className="fd-owner-open-dot" aria-hidden />
+          <div>
+            <p>{restaurant.status === 'active' ? t('food.ownerHome.liveKicker', 'Customer ordering') : t('food.ownerHome.draftKicker', 'Restaurant setup')}</p>
+            <h2>{accepting ? t('food.ownerHome.accepting', 'You are accepting orders') : restaurant.status === 'active' ? t('food.ownerHome.paused', 'Ordering is paused') : t('food.ownerHome.notLive', 'Your restaurant is not live yet')}</h2>
+          </div>
+        </div>
+        {restaurant.status === 'active' && <button type="button" className={accepting ? 'fd-btn fd-btn-secondary' : 'fd-btn'} disabled={saving} onClick={toggleOrders}>{accepting ? t('food.ownerHome.pauseOrders', 'Pause orders') : t('food.ownerHome.resumeOrders', 'Resume orders')}</button>}
+      </section>
+
+      <div className="fd-owner-home-stats" aria-busy={loading}>
+        <button type="button" onClick={() => onGoTab('orders')}><strong>{loading ? '—' : summary.activeOrders}</strong><span>{t('food.ownerHome.activeOrders', 'Active orders')}</span></button>
+        <button type="button" onClick={() => onGoTab('menu')}><strong>{loading ? '—' : summary.menuItems}</strong><span>{t('food.ownerHome.menuItems', 'Menu items')}</span></button>
+        <button type="button" onClick={() => onGoTab('menu')}><strong>{loading ? '—' : summary.drafts}</strong><span>{t('food.ownerHome.draftItems', 'Draft items')}</span></button>
+        <button type="button" onClick={() => onGoTab('menu')}><strong>{loading ? '—' : summary.soldOut}</strong><span>{t('food.ownerHome.soldOutItems', 'Sold out')}</span></button>
+      </div>
+
+      <section className="fd-owner-next-actions">
+        <div><p>{t('food.ownerHome.nextKicker', 'Quick actions')}</p><h3>{t('food.ownerHome.nextTitle', 'What do you want to manage?')}</h3></div>
+        <div className="fd-owner-next-grid">
+          <button type="button" onClick={() => onGoTab('orders')}><span aria-hidden>🧾</span><strong>{t('food.ownerHome.manageOrders', 'Manage orders')}</strong><small>{t('food.ownerHome.manageOrdersHint', 'Accept, prepare, and complete live orders.')}</small></button>
+          <button type="button" onClick={() => onGoTab('menu')}><span aria-hidden>🍴</span><strong>{t('food.ownerHome.manageMenu', 'Update menu')}</strong><small>{t('food.ownerHome.manageMenuHint', 'Edit prices, photos, options, and availability.')}</small></button>
+          <button type="button" onClick={() => onGoTab('store')}><span aria-hidden>⚙️</span><strong>{t('food.ownerHome.manageStore', 'Store settings')}</strong><small>{t('food.ownerHome.manageStoreHint', 'Hours, locations, payments, and devices.')}</small></button>
+          <Link to={`/restaurants/r/${restaurant.id}`} target="_blank" rel="noreferrer"><span aria-hidden>↗</span><strong>{t('food.ownerHome.viewStore', 'View customer page')}</strong><small>{t('food.ownerHome.viewStoreHint', 'See exactly what customers see.')}</small></Link>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 // ── Tab icon map ──────────────────────────────────────────────────────────────
-const TAB_ICONS = { orders: '🧾', menu: '🍴', operations: '⚙️', settings: '🔧' };
+const TAB_ICONS = { home: '⌂', orders: '🧾', menu: '🍴', store: '⚙️' };
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function FoodMerchantPage() {
@@ -1046,10 +1123,10 @@ export default function FoodMerchantPage() {
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
-  const [tab, setTab] = useState('orders');
+  const [tab, setTab] = useState('home');
   const [setupKey, setSetupKey] = useState(0);
-  const [showCreate, setShowCreate] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [setupForNew, setSetupForNew] = useState(false);
 
   const load = useCallback(() => {
     listMyFoodRestaurants()
@@ -1067,7 +1144,8 @@ export default function FoodMerchantPage() {
   useEffect(() => {
     if (loading) return;
     if (sessionStorage.getItem('ox.food.onboarding.dismissed') === '1') return;
-    if (shouldShowMerchantOnboarding(restaurants, selected)) {
+    if (shouldShowRestaurantSetup(restaurants, selected)) {
+      setSetupForNew(restaurants.length === 0);
       setShowOnboarding(true);
     }
   }, [loading, restaurants, selected]);
@@ -1097,18 +1175,19 @@ export default function FoodMerchantPage() {
     );
   }
 
-  const hasDashboard = restaurants.length > 0 && !showCreate;
+  const hasDashboard = restaurants.length > 0;
 
   return (
     <PageShell>
       {showOnboarding && (
-        <MerchantOnboardingWizard
+        <RestaurantSetupGuide
           t={t}
           restaurants={restaurants}
-          selected={selected}
+          selected={setupForNew ? null : selected}
           onClose={() => {
             sessionStorage.setItem('ox.food.onboarding.dismissed', '1');
             setShowOnboarding(false);
+            setSetupForNew(false);
           }}
           onRefresh={refreshRestaurant}
           onSelectRestaurant={setSelectedId}
@@ -1141,7 +1220,7 @@ export default function FoodMerchantPage() {
               <button
                 type="button"
                 className="fd-btn fd-btn-secondary fd-btn-sm"
-                onClick={() => setShowOnboarding(true)}
+                onClick={() => { setSetupForNew(false); setShowOnboarding(true); }}
               >
                 {t('food.merchant.openSetupGuide', 'Setup guide')}
               </button>
@@ -1153,31 +1232,7 @@ export default function FoodMerchantPage() {
       {/* ── Page body ── */}
       <div className="fd-merchant-body">
         {!hasDashboard ? (
-          /* ── No-restaurant landing / create form ── */
-          restaurants.length === 0 && !showCreate ? (
-            <MerchantLanding t={t} onStart={() => setShowOnboarding(true)} />
-          ) : (
-            <>
-              {restaurants.length > 0 && (
-                <button
-                  type="button"
-                  className="fd-btn fd-btn-secondary fd-btn-sm"
-                  style={{ marginBottom: '1rem' }}
-                  onClick={() => setShowCreate(false)}
-                >
-                  {t('food.common.back')}
-                </button>
-              )}
-              <CreateRestaurantForm
-                t={t}
-                onCreated={(restaurant) => {
-                  setShowCreate(false);
-                  setSelectedId(restaurant.id);
-                  load();
-                }}
-              />
-            </>
-          )
+          <MerchantLanding t={t} onStart={() => { setSetupForNew(true); setShowOnboarding(true); }} />
         ) : (
           /* ── Dashboard ── */
           <>
@@ -1203,33 +1258,15 @@ export default function FoodMerchantPage() {
               <button
                 type="button"
                 className="fd-btn fd-btn-secondary fd-btn-sm"
-                onClick={() => setShowCreate(true)}
+                onClick={() => { setSetupForNew(true); setShowOnboarding(true); }}
               >
                 + {t('food.merchant.addAnother')}
               </button>
             </div>
 
-            {/* Setup wizard + device checklist */}
-            {selected && (
-              <SetupWizard
-                key={`${selected.id}-${setupKey}`}
-                restaurant={selected}
-                t={t}
-                onGoTab={setTab}
-                onStartGuide={() => setShowOnboarding(true)}
-              />
-            )}
-            {selected && selected.status === 'active' && (
-              <DeviceSetupChecklist
-                restaurant={selected}
-                t={t}
-                onComplete={() => setSetupKey((k) => k + 1)}
-              />
-            )}
-
             {/* Tab navigation */}
             <div className="fd-tabs fd-merchant-tabs" role="tablist">
-              {['orders', 'menu', 'operations', 'settings'].map((key) => (
+              {['home', 'orders', 'menu', 'store'].map((key) => (
                 <button
                   key={key}
                   type="button"
@@ -1239,24 +1276,48 @@ export default function FoodMerchantPage() {
                   onClick={() => setTab(key)}
                 >
                   <span className="fd-tab-icon" aria-hidden="true">{TAB_ICONS[key]}</span>
-                  {t(`food.merchant.tab.${key}`)}
+                  {t(`food.merchant.tab.${key}`, key === 'home' ? 'Home' : key === 'store' ? 'Store' : key)}
                 </button>
               ))}
             </div>
 
             {/* Tab content */}
-            {selected && tab === 'orders' && <OrdersTab t={t} restaurant={selected} />}
-            {selected && tab === 'menu' && <MenuTab t={t} restaurant={selected} />}
-            {selected && tab === 'operations' && <OperationsTab t={t} restaurant={selected} />}
-            {selected && tab === 'settings' && (
-              <SettingsTab
+            {selected && tab === 'home' && (
+              <OwnerHomeTab
                 t={t}
                 restaurant={selected}
-                onUpdated={(updated) =>
-                  setRestaurants((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
-                }
-                onSetupChanged={() => setSetupKey((k) => k + 1)}
+                onGoTab={setTab}
+                onUpdated={(updated) => setRestaurants((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))}
               />
+            )}
+            {selected && tab === 'orders' && <OrdersTab t={t} restaurant={selected} />}
+            {selected && tab === 'menu' && <RestaurantMenuManager t={t} restaurant={selected} />}
+            {selected && tab === 'store' && (
+              <>
+                <SettingsTab
+                  t={t}
+                  restaurant={selected}
+                  onUpdated={(updated) =>
+                    setRestaurants((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
+                  }
+                  onSetupChanged={() => setSetupKey((k) => k + 1)}
+                />
+                {selected.status === 'active' && (
+                  <details className="fd-owner-advanced-section">
+                    <summary>{t('food.ownerHome.deviceSetup', 'Device setup')}</summary>
+                    <DeviceSetupChecklist
+                      key={`${selected.id}-${setupKey}`}
+                      restaurant={selected}
+                      t={t}
+                      onComplete={() => setSetupKey((key) => key + 1)}
+                    />
+                  </details>
+                )}
+                <details className="fd-owner-advanced-section">
+                  <summary>{t('food.ownerHome.advancedOperations', 'Advanced operations')}</summary>
+                  <OperationsTab t={t} restaurant={selected} />
+                </details>
+              </>
             )}
           </>
         )}
