@@ -192,6 +192,7 @@ export default function FoodRestaurantPage() {
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
   const [paymentProof, setPaymentProof] = useState(null);
+  const [proofMethod, setProofMethod] = useState('upload');
   const [proofUploading, setProofUploading] = useState(false);
   const [wallet, setWallet] = useState(null);
   const [placing, setPlacing] = useState(false);
@@ -271,6 +272,7 @@ export default function FoodRestaurantPage() {
       setPaymentReference('');
       setPaymentNote('');
       setPaymentProof(null);
+      setProofMethod('upload');
       setDraftHydrated(true);
       return;
     }
@@ -302,6 +304,7 @@ export default function FoodRestaurantPage() {
     setPaymentReference(String(draft.paymentReference || ''));
     setPaymentNote(String(draft.paymentNote || ''));
     setPaymentProof(draft.paymentProof && typeof draft.paymentProof === 'object' ? draft.paymentProof : null);
+    setProofMethod(draft.proofMethod === 'reference' ? 'reference' : (draft.paymentReference ? 'reference' : 'upload'));
     if (draft.deliveryMode === 'delivery' || draft.deliveryMode === 'pickup') {
       setDeliveryMode(draft.deliveryMode);
     }
@@ -382,6 +385,7 @@ export default function FoodRestaurantPage() {
       paymentReference,
       paymentNote,
       paymentProof,
+      proofMethod,
       deliveryMode,
     });
   }, [
@@ -398,6 +402,7 @@ export default function FoodRestaurantPage() {
     paymentReference,
     paymentNote,
     paymentProof,
+    proofMethod,
     deliveryMode,
   ]);
 
@@ -429,7 +434,7 @@ export default function FoodRestaurantPage() {
   const feeCents = (deliveryMode === 'delivery' && hasCart) ? deliveryFeeCents : 0;
   const orderTotalCents = subtotalCents + feeCents;
   const checkoutRequiresLogin = !user;
-  const externalPaymentHasSubmission = Boolean(paymentProof?.url || paymentReference.trim() || paymentNote.trim());
+  const externalPaymentHasSubmission = Boolean(paymentProof?.url || paymentReference.trim());
 
   const openLoginGate = () => {
     navigate('/login', { state: { from: location } });
@@ -486,7 +491,7 @@ export default function FoodRestaurantPage() {
       }
       : null;
     if (paymentMode === 'direct_payment' && requireExternalPaymentProof && !(
-      paymentProof?.url || paymentReference.trim() || paymentNote.trim()
+      paymentProof?.url || paymentReference.trim()
     )) {
       toast.error('Please upload proof of payment or add a confirmation number.');
       return;
@@ -543,6 +548,7 @@ export default function FoodRestaurantPage() {
       setPaymentReference('');
       setPaymentNote('');
       setPaymentProof(null);
+      setProofMethod('upload');
       if (payment?.mode === 'hosted_checkout' && payment?.checkoutUrl) {
         window.location.assign(payment.checkoutUrl);
         return;
@@ -1623,7 +1629,7 @@ export default function FoodRestaurantPage() {
                           <span style={{ color: '#9a6a3c', fontSize: 11 }}>
                             {wallet
                               ? `${formatFoodMoney(walletAvailableCents, wallet.currencyCode || currency)} available${walletReservedCents > 0 ? ` · ${formatFoodMoney(walletReservedCents, wallet.currencyCode || currency)} reserved` : ''}`
-                              : 'Request credit, upload proof, or view your balance'}
+                              : 'Add credit or view your balance'}
                           </span>
                         </div>
                         <Link
@@ -1637,15 +1643,31 @@ export default function FoodRestaurantPage() {
                     {paymentMethod === 'direct_payment' && (
                       <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 16, padding: 16, marginBottom: 20 }}>
                         <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: accent, marginBottom: 8 }}>
-                          External payment
+                          Pay the restaurant directly
                         </p>
                         <h4 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>
                           {externalPaymentLabel || 'Payment app / QR'}
                         </h4>
                         {externalPaymentHandle && (
-                          <p style={{ fontSize: 14, color: '#475569', marginBottom: 8 }}>
-                            Send payment to <strong style={{ color: '#0f172a' }}>{externalPaymentHandle}</strong>
-                          </p>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', borderRadius: 12, background: '#fff', border: '1px solid #e2e8f0', marginBottom: 10 }}>
+                            <p style={{ fontSize: 14, color: '#475569', margin: 0 }}>
+                              Send payment to <strong style={{ color: '#0f172a' }}>{externalPaymentHandle}</strong>
+                            </p>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(externalPaymentHandle);
+                                  toast.success('Payment account copied');
+                                } catch {
+                                  toast.error('Unable to copy the payment account.');
+                                }
+                              }}
+                              style={{ border: 0, borderRadius: 9, padding: '7px 10px', color: accent, background: accentBg, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}
+                            >
+                              Copy
+                            </button>
+                          </div>
                         )}
                         {externalPaymentInstructions && (
                           <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.6, marginBottom: 10 }}>
@@ -1659,58 +1681,66 @@ export default function FoodRestaurantPage() {
                             style={{ width: 156, height: 156, objectFit: 'cover', borderRadius: 14, border: '1px solid #e2e8f0', background: '#fff', marginBottom: 12 }}
                           />
                         )}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
-                          <div>
-                            <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 6 }}>Confirmation / reference</p>
-                            <input
-                              value={paymentReference}
-                              onChange={(e) => setPaymentReference(e.target.value)}
-                              placeholder={externalPaymentReferenceHint || 'Include your order number or name'}
-                              maxLength={120}
-                              style={inputStyle}
-                            />
-                          </div>
-                          <div>
-                            <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 6 }}>Receipt / proof of payment</p>
-                            <label style={{ display: 'block', cursor: 'pointer' }}>
-                              <input
-                                type="file"
-                                accept="image/*,application/pdf"
-                                onChange={handlePaymentProofUpload}
-                                disabled={proofUploading}
-                                style={{ display: 'block', width: '100%' }}
-                              />
-                            </label>
-                            <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>
-                              {proofUploading ? 'Uploading proof…' : 'Upload a screenshot, receipt, or PDF if you have one.'}
-                            </p>
-                            {paymentProof?.url && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, padding: '10px 12px', borderRadius: 12, border: '1px solid #e2e8f0', background: '#fff' }}>
-                                <span style={{ fontSize: 18 }}>📎</span>
-                                <div style={{ minWidth: 0 }}>
-                                  <strong style={{ display: 'block', fontSize: 13, color: '#0f172a' }}>{paymentProof.name || 'Proof uploaded'}</strong>
-                                  <a href={paymentProof.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: accent, textDecoration: 'none' }}>Open attachment</a>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 6 }}>Message for the restaurant</p>
-                            <textarea
-                              value={paymentNote}
-                              onChange={(e) => setPaymentNote(e.target.value)}
-                              placeholder="Anything that will help the restaurant match the payment"
-                              maxLength={1000}
-                              rows={3}
-                              style={{ ...inputStyle, minHeight: 90, resize: 'vertical' }}
-                            />
-                          </div>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: '4px 0 8px' }}>
+                          How do you want to confirm payment?
+                        </p>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                          <button
+                            type="button"
+                            onClick={() => { setProofMethod('upload'); setPaymentReference(''); }}
+                            style={{ minHeight: 42, border: `1.5px solid ${proofMethod === 'upload' ? accent : '#dbe2e8'}`, borderRadius: 11, color: proofMethod === 'upload' ? accent : '#475569', background: proofMethod === 'upload' ? accentBg : '#fff', fontWeight: 800, cursor: 'pointer' }}
+                          >
+                            Upload receipt
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setProofMethod('reference'); setPaymentProof(null); }}
+                            style={{ minHeight: 42, border: `1.5px solid ${proofMethod === 'reference' ? accent : '#dbe2e8'}`, borderRadius: 11, color: proofMethod === 'reference' ? accent : '#475569', background: proofMethod === 'reference' ? accentBg : '#fff', fontWeight: 800, cursor: 'pointer' }}
+                          >
+                            Enter confirmation
+                          </button>
                         </div>
-                        {requireExternalPaymentProof && (
-                          <p style={{ fontSize: 12, color: '#b45309', marginTop: 10, lineHeight: 1.5 }}>
-                            Proof is required for this restaurant before the order can be submitted.
-                          </p>
+                        {proofMethod === 'upload' ? (
+                          paymentProof?.url ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, border: '1px solid #bbf7d0', background: '#f0fdf4' }}>
+                              <span style={{ fontSize: 18 }}>✓</span>
+                              <div style={{ minWidth: 0, flex: 1 }}>
+                                <strong style={{ display: 'block', fontSize: 13, color: '#166534' }}>{paymentProof.name || 'Receipt attached'}</strong>
+                                <a href={paymentProof.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#15803d', textDecoration: 'none' }}>View receipt</a>
+                              </div>
+                              <button type="button" onClick={() => setPaymentProof(null)} style={{ border: 0, background: 'transparent', color: '#b91c1c', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>Remove</button>
+                            </div>
+                          ) : (
+                            <label style={{ display: 'grid', placeItems: 'center', minHeight: 82, border: '1.5px dashed #cbd5e1', borderRadius: 12, background: '#fff', color: '#475569', fontSize: 13, fontWeight: 800, cursor: proofUploading ? 'wait' : 'pointer' }}>
+                              <input type="file" accept="image/*,application/pdf" onChange={handlePaymentProofUpload} disabled={proofUploading} style={{ display: 'none' }} />
+                              {proofUploading ? 'Uploading receipt…' : 'Choose screenshot, receipt, or PDF'}
+                            </label>
+                          )
+                        ) : (
+                          <input
+                            value={paymentReference}
+                            onChange={(e) => setPaymentReference(e.target.value)}
+                            placeholder={externalPaymentReferenceHint || 'Confirmation number or sender name'}
+                            maxLength={120}
+                            style={inputStyle}
+                          />
                         )}
+                        <details style={{ marginTop: 12 }}>
+                          <summary style={{ color: '#64748b', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>Add a note (optional)</summary>
+                          <textarea
+                            value={paymentNote}
+                            onChange={(e) => setPaymentNote(e.target.value)}
+                            placeholder="Anything that helps the restaurant match the payment"
+                            maxLength={1000}
+                            rows={3}
+                            style={{ ...inputStyle, minHeight: 80, resize: 'vertical', marginTop: 8 }}
+                          />
+                        </details>
+                        <p style={{ fontSize: 12, color: requireExternalPaymentProof ? '#b45309' : '#64748b', marginTop: 10, lineHeight: 1.5 }}>
+                          {requireExternalPaymentProof
+                            ? 'Add a receipt or confirmation number before placing the order.'
+                            : 'Proof is optional. The restaurant will confirm payment before completing the order.'}
+                        </p>
                       </div>
                     )}
                     {paymentMethod === 'restaurant_credit' && (
@@ -1781,7 +1811,7 @@ export default function FoodRestaurantPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 10, width: '100%' }}>
                       <Link to={`/restaurants/queue/${restaurant.id}`} style={{ flex: 1, textAlign: 'center', height: 44, lineHeight: '44px', background: '#f1f5f9', color: '#0f172a', borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>Watch Queue</Link>
-                      <button onClick={() => { setCartOpen(false); setCartStep('cart'); setPlacedOrder(null); setPlacedTrackingToken(null); setRecoveredOrder(loadActiveOrder(restaurantId)); setPaymentReference(''); setPaymentNote(''); setPaymentProof(null); setPaymentMethod('pay_at_restaurant'); }} style={{ flex: 1, height: 44, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Back to Menu</button>
+                      <button onClick={() => { setCartOpen(false); setCartStep('cart'); setPlacedOrder(null); setPlacedTrackingToken(null); setRecoveredOrder(loadActiveOrder(restaurantId)); setPaymentReference(''); setPaymentNote(''); setPaymentProof(null); setProofMethod('upload'); setPaymentMethod('pay_at_restaurant'); }} style={{ flex: 1, height: 44, background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Back to Menu</button>
                     </div>
                   </div>
                 );

@@ -33,9 +33,10 @@
 .credit-balance-grid div { display: grid; gap: 5px; padding: 15px 17px; border: 1px solid rgba(255,255,255,.1); border-radius: 16px; background: rgba(255,255,255,.055); }
 .credit-balance-grid span { color: #a9c0c8; font-size: 12px; }
 .credit-balance-grid strong { font-size: 19px; }
+.credit-balance-reserved { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 8px; margin-top: 22px; padding: 10px 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 13px; color: #d8e7eb; background: rgba(255,255,255,.06); font-size: 12px; }
 .credit-scope-note { position: relative; z-index: 1; display: flex; align-items: center; gap: 7px; margin-top: 18px; color: #bad0d7; font-size: 12px; }
 
-.credit-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; margin: 18px 0 26px; }
+.credit-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 13px; margin: 18px 0 10px; }
 .credit-actions > button { display: flex; align-items: center; gap: 14px; min-height: 88px; padding: 17px; border: 1px solid rgba(16,37,63,.1); border-radius: 20px; color: #10253f; background: rgba(255,255,255,.84); box-shadow: 0 10px 30px rgba(44,47,50,.06); text-align: left; cursor: pointer; transition: transform .18s ease, border-color .18s ease; }
 .credit-actions > button:hover:not(:disabled) { transform: translateY(-2px); border-color: rgba(242,138,27,.55); }
 .credit-actions > button:disabled { opacity: .45; cursor: not-allowed; }
@@ -43,6 +44,11 @@
 .credit-actions span { display: grid; gap: 4px; }
 .credit-actions strong { font-size: 15px; }
 .credit-actions small { color: #72808c; font-size: 12px; }
+.credit-more-actions { margin: 0 0 26px; padding: 0 4px; color: #687783; font-size: 12px; }
+.credit-more-actions summary { width: fit-content; padding: 8px 0; color: #4f606d; font-weight: 800; cursor: pointer; }
+.credit-more-actions button { display: inline-flex; align-items: center; gap: 7px; margin: 6px 10px 4px 0; padding: 9px 12px; border: 1px solid rgba(16,37,63,.12); border-radius: 11px; color: #10253f; background: rgba(255,255,255,.8); font-weight: 800; cursor: pointer; }
+.credit-more-actions button:disabled { opacity: .45; cursor: not-allowed; }
+.credit-more-actions > span { color: #7b8791; }
 
 .credit-history-panel { overflow: hidden; border: 1px solid rgba(16,37,63,.1); border-radius: 24px; background: rgba(255,255,255,.86); box-shadow: 0 16px 50px rgba(44,47,50,.07); }
 .credit-tabs { display: flex; gap: 5px; overflow-x: auto; padding: 8px; border-bottom: 1px solid rgba(16,37,63,.08); }
@@ -61,6 +67,13 @@
 .credit-entry-amount strong { font-size: 14px; }
 .credit-entry-amount span { color: #7b8791; font-size: 11px; text-transform: capitalize; }
 .credit-entry-amount button { border: 0; color: #b44b25; background: transparent; font-size: 11px; font-weight: 800; cursor: pointer; }
+.credit-active-holds { padding: 10px; border-bottom: 1px solid rgba(16,37,63,.07); background: #fff9ef; }
+.credit-active-holds > div { display: flex; align-items: center; gap: 10px; padding: 10px; color: #9a5b11; }
+.credit-active-holds span { display: grid; flex: 1; gap: 2px; }
+.credit-active-holds small { color: #896f50; }
+.credit-active-holds button { border: 0; color: #a8492a; background: transparent; font-size: 12px; font-weight: 800; cursor: pointer; }
+.credit-transfer-history { border-top: 1px solid rgba(16,37,63,.07); }
+.credit-transfer-history > summary { padding: 14px 20px; color: #53616d; font-size: 12px; font-weight: 800; cursor: pointer; }
 .credit-empty, .credit-loading { display: grid; place-items: center; gap: 8px; min-height: 230px; padding: 36px; color: #71808c; text-align: center; }
 .credit-empty svg { color: #ef9b3f; }
 .credit-empty strong { color: #10253f; font-size: 18px; }
@@ -77,6 +90,17 @@
 .credit-form input:focus, .credit-form textarea:focus { border-color: #ed8618; box-shadow: 0 0 0 3px rgba(237,134,24,.12); }
 .credit-form textarea { min-height: 92px; resize: vertical; }
 .credit-form label small { color: #178057; font-size: 11px; }
+.credit-proof-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.credit-proof-choice button { min-height: 43px; border: 1px solid #dbe0e3; border-radius: 12px; color: #53616d; background: #fff; font-size: 13px; font-weight: 800; cursor: pointer; }
+.credit-proof-choice button.active { border-color: #ed8618; color: #b85c0b; background: #fff1df; box-shadow: 0 0 0 2px rgba(237,134,24,.08); }
+.credit-proof-upload { display: grid !important; place-items: center; min-height: 86px; border: 1.5px dashed #c7d0d6; border-radius: 14px; color: #53616d !important; background: #fff; text-align: center; cursor: pointer; }
+.credit-proof-upload input { display: none; }
+.credit-proof-attached { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 14px; border: 1px solid #bce5cd; border-radius: 13px; color: #176b47; background: #effaf4; }
+.credit-proof-attached span { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.credit-proof-attached strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.credit-proof-attached button { border: 0; color: #a8492a; background: transparent; font-size: 12px; font-weight: 800; cursor: pointer; }
+.credit-form-details summary { padding: 2px 0; color: #687783; font-size: 12px; font-weight: 800; cursor: pointer; }
+.credit-form-details label { margin-top: 10px; }
 .credit-money-input { display: grid; grid-template-columns: auto 1fr; align-items: center; overflow: hidden; border: 1px solid #dbe0e3; border-radius: 13px; background: #fff; }
 .credit-money-input > span { padding-left: 14px; color: #70808a; font-size: 12px; font-weight: 800; }
 .credit-money-input input { border: 0; box-shadow: none !important; }

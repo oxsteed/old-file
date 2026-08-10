@@ -37,7 +37,7 @@ import {
 } from '../../api/food';
 import './RestaurantCreditPage.css';
 
-const TABS = ['ledger', 'transfers', 'requests', 'holds'];
+const TABS = ['activity', 'requests'];
 
 function errorMessage(error, fallback) {
   return error?.response?.data?.error?.message
@@ -130,7 +130,7 @@ export default function RestaurantCreditPage() {
   const [transfers, setTransfers] = useState([]);
   const [requests, setRequests] = useState([]);
   const [holds, setHolds] = useState([]);
-  const [activeTab, setActiveTab] = useState('ledger');
+  const [activeTab, setActiveTab] = useState('activity');
   const [modal, setModal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -201,7 +201,6 @@ export default function RestaurantCreditPage() {
 
   const displayName = wallet?.restaurantName || restaurant?.display_name || restaurant?.displayName || 'Restaurant';
   const currency = wallet?.currencyCode || restaurant?.currency_code || restaurant?.currencyCode || 'USD';
-  const postedCents = Number(wallet?.balanceCents || 0);
   const reservedCents = Number(wallet?.reservedCents || 0);
   const availableCents = walletAvailableCents(wallet);
   const transactions = Array.isArray(wallet?.transactions) ? wallet.transactions : [];
@@ -286,74 +285,84 @@ export default function RestaurantCreditPage() {
                 </div>
                 <span className={`credit-status credit-status-${wallet?.status || 'new'}`}>{wallet?.status || 'No wallet yet'}</span>
               </div>
-              <div className="credit-balance-grid">
-                <div><span>Posted balance</span><strong>{formatFoodMoney(postedCents, currency)}</strong></div>
-                <div><span>Reserved</span><strong>{formatFoodMoney(reservedCents, currency)}</strong></div>
-                <div><span>Available</span><strong>{formatFoodMoney(availableCents, currency)}</strong></div>
-              </div>
+              {reservedCents > 0 && (
+                <div className="credit-balance-reserved">
+                  <Clock3 size={16} /> {formatFoodMoney(reservedCents, currency)} is temporarily reserved for an active payment.
+                </div>
+              )}
               <div className="credit-scope-note"><ShieldCheck size={17} /> Credit and transfers remain inside {displayName}.</div>
             </section>
 
             <section className="credit-actions" aria-label="Restaurant credit actions">
               <button type="button" onClick={() => setModal('pay')} disabled={!wallet || availableCents <= 0}>
-                <QrCode size={22} /><span><strong>Pay with QR</strong><small>Reserve credit for 3 minutes</small></span>
-              </button>
-              <button type="button" onClick={() => setModal('transfer')} disabled={!wallet || availableCents <= 0}>
-                <Send size={22} /><span><strong>Send credit</strong><small>Same restaurant only</small></span>
+                <QrCode size={22} /><span><strong>Use credit</strong><small>Create a one-time payment QR</small></span>
               </button>
               <button type="button" onClick={() => setModal('request')}>
-                <Plus size={22} /><span><strong>Request credit</strong><small>Add reference or proof</small></span>
+                <Plus size={22} /><span><strong>Add credit</strong><small>Send payment proof for approval</small></span>
               </button>
             </section>
+
+            <details className="credit-more-actions">
+              <summary>More credit options</summary>
+              <button type="button" onClick={() => setModal('transfer')} disabled={!wallet || availableCents <= 0}>
+                <Send size={18} /> Send credit to another OxSteed user
+              </button>
+              <span>Transfers stay inside {displayName}.</span>
+            </details>
 
             <section className="credit-history-panel">
               <div className="credit-tabs" role="tablist">
                 {TABS.map((tab) => (
                   <button key={tab} type="button" className={activeTab === tab ? 'active' : ''} onClick={() => setActiveTab(tab)}>
-                    {tab === 'ledger' ? 'Transactions' : tab === 'requests' ? 'Credit requests' : tab[0].toUpperCase() + tab.slice(1)}
-                    {tab === 'holds' && activeHolds.length > 0 && <span>{activeHolds.length}</span>}
+                    {tab === 'activity' ? 'Activity' : 'Add credit requests'}
+                    {tab === 'activity' && activeHolds.length > 0 && <span>{activeHolds.length}</span>}
                   </button>
                 ))}
               </div>
 
-              {activeTab === 'ledger' && (
-                transactions.length ? <div className="credit-list">{transactions.map((entry) => (
-                  <article key={entry.id}>
-                    <div className={`credit-entry-icon ${entry.entryType === 'debit' ? 'debit' : 'credit'}`}>{entry.entryType === 'debit' ? '−' : '+'}</div>
-                    <div><strong>{entry.description || (entry.entryType === 'debit' ? 'Restaurant purchase' : 'Restaurant credit')}</strong><span>{formatDate(entry.postedAt || entry.createdAt)}</span></div>
-                    <div className="credit-entry-amount"><strong>{entry.entryType === 'debit' ? '−' : '+'}{formatFoodMoney(entry.amountCents, entry.currencyCode || currency)}</strong><span>Balance {formatFoodMoney(entry.balanceAfterCents, entry.currencyCode || currency)}</span></div>
-                  </article>
-                ))}</div> : <EmptyState title="No transactions yet" detail="Approved credit, purchases, transfers, and refunds will appear here." />
-              )}
-
-              {activeTab === 'transfers' && (
-                transfers.length ? <div className="credit-list">{transfers.map((transfer) => (
-                  <article key={transfer.id}>
-                    <div className="credit-entry-icon transfer"><Send size={16} /></div>
-                    <div><strong>{transfer.direction === 'received' ? 'Credit received' : 'Credit sent'}</strong><span>{transfer.counterpartyEmail || 'OxSteed customer'} · {formatDate(transfer.createdAt)}</span>{transfer.memo && <small>{transfer.memo}</small>}</div>
-                    <div className="credit-entry-amount"><strong>{transfer.direction === 'received' ? '+' : '−'}{formatFoodMoney(transfer.amountCents, transfer.currencyCode || currency)}</strong><span>{transfer.status}</span></div>
-                  </article>
-                ))}</div> : <EmptyState title="No transfers yet" detail="Credit sent or received at this restaurant will appear here." />
+              {activeTab === 'activity' && (
+                <>
+                  {activeHolds.length > 0 && (
+                    <div className="credit-active-holds">
+                      {activeHolds.map((hold) => (
+                        <div key={hold.id}>
+                          <Clock3 size={17} />
+                          <span><strong>{formatFoodMoney(hold.amountCents, hold.currencyCode || currency)} reserved</strong><small>Expires {formatDate(hold.expiresAt)}</small></span>
+                          <button type="button" onClick={() => releaseHold(hold)}>Release</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {transactions.length ? <div className="credit-list">{transactions.map((entry) => (
+                    <article key={entry.id}>
+                      <div className={`credit-entry-icon ${entry.entryType === 'debit' ? 'debit' : 'credit'}`}>{entry.entryType === 'debit' ? '−' : '+'}</div>
+                      <div><strong>{entry.description || (entry.entryType === 'debit' ? 'Restaurant purchase' : 'Restaurant credit')}</strong><span>{formatDate(entry.postedAt || entry.createdAt)}</span></div>
+                      <div className="credit-entry-amount"><strong>{entry.entryType === 'debit' ? '−' : '+'}{formatFoodMoney(entry.amountCents, entry.currencyCode || currency)}</strong><span>Balance {formatFoodMoney(entry.balanceAfterCents, entry.currencyCode || currency)}</span></div>
+                    </article>
+                  ))}</div> : <EmptyState title="No activity yet" detail="Approved credit, purchases, transfers, and refunds will appear here." />}
+                  {transfers.length > 0 && (
+                    <details className="credit-transfer-history">
+                      <summary>Transfer history ({transfers.length})</summary>
+                      <div className="credit-list">{transfers.map((transfer) => (
+                        <article key={transfer.id}>
+                          <div className="credit-entry-icon transfer"><Send size={16} /></div>
+                          <div><strong>{transfer.direction === 'received' ? 'Credit received' : 'Credit sent'}</strong><span>{transfer.counterpartyEmail || 'OxSteed customer'} · {formatDate(transfer.createdAt)}</span>{transfer.memo && <small>{transfer.memo}</small>}</div>
+                          <div className="credit-entry-amount"><strong>{transfer.direction === 'received' ? '+' : '−'}{formatFoodMoney(transfer.amountCents, transfer.currencyCode || currency)}</strong><span>{transfer.status}</span></div>
+                        </article>
+                      ))}</div>
+                    </details>
+                  )}
+                </>
               )}
 
               {activeTab === 'requests' && (
                 requests.length ? <div className="credit-list">{requests.map((request) => (
                   <article key={request.id}>
                     <div className={`credit-entry-icon request-${request.status}`}>{request.status === 'approved' ? <CheckCircle2 size={17} /> : <Clock3 size={17} />}</div>
-                    <div><strong>Credit request · {request.status}</strong><span>{request.referenceId || 'No reference'} · {formatDate(request.createdAt)}</span>{request.note && <small>{request.note}</small>}</div>
+                    <div><strong>Add credit · {request.status}</strong><span>{request.referenceId || 'Receipt attached'} · {formatDate(request.createdAt)}</span>{request.note && <small>{request.note}</small>}</div>
                     <div className="credit-entry-amount"><strong>{formatFoodMoney(request.amountCents, request.currencyCode || currency)}</strong>{request.status === 'pending' && <button type="button" onClick={() => cancelRequest(request)}>Cancel</button>}</div>
                   </article>
-                ))}</div> : <EmptyState title="No credit requests" detail="Submit a reference, proof, or note for restaurant approval." />
-              )}
-
-              {activeTab === 'holds' && (
-                holds.length ? <div className="credit-list">{holds.map((hold) => (
-                  <article key={hold.id}>
-                    <div className={`credit-entry-icon hold-${hold.status}`}><Clock3 size={17} /></div>
-                    <div><strong>{hold.purpose?.replaceAll('_', ' ') || 'Credit reservation'}</strong><span>{hold.status} · Expires {formatDate(hold.expiresAt)}</span></div>
-                    <div className="credit-entry-amount"><strong>{formatFoodMoney(hold.amountCents, hold.currencyCode || currency)}</strong>{hold.status === 'active' && <button type="button" onClick={() => releaseHold(hold)}>Release</button>}</div>
-                  </article>
-                ))}</div> : <EmptyState title="No reservations" detail="Short-lived QR payment reservations will appear here." />
+                ))}</div> : <EmptyState title="No add credit requests" detail="Send a receipt or confirmation number for restaurant approval." />
               )}
             </section>
           </>
@@ -469,6 +478,7 @@ function CreditRequestModal({ restaurantId, restaurantName, currency, onClose, o
   const [reference, setReference] = useState('');
   const [note, setNote] = useState('');
   const [proof, setProof] = useState(null);
+  const [proofMethod, setProofMethod] = useState('upload');
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -491,7 +501,7 @@ function CreditRequestModal({ restaurantId, restaurantName, currency, onClose, o
     event.preventDefault();
     const amountCents = parseAmountCents(amount);
     if (!amountCents) return toast.error('Enter a valid credit amount.');
-    if (!reference.trim() && !note.trim() && !proof?.url) return toast.error('Add a payment reference, proof, or note.');
+    if (!reference.trim() && !proof?.url) return toast.error('Upload a receipt or enter a confirmation number.');
     setSubmitting(true);
     try {
       await requestFoodWalletCredit(restaurantId, {
@@ -513,13 +523,30 @@ function CreditRequestModal({ restaurantId, restaurantName, currency, onClose, o
   };
 
   return (
-    <Modal title="Request restaurant credit" subtitle={`${restaurantName} must verify and approve this request before the balance changes.`} onClose={onClose}>
+    <Modal title="Add restaurant credit" subtitle={`Send proof of your payment. ${restaurantName} will add the credit after verifying it.`} onClose={onClose}>
       <form className="credit-form" onSubmit={submit}>
-        <label><span>Credit amount</span><div className="credit-money-input"><span>{currency}</span><input autoFocus inputMode="decimal" required value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" /></div></label>
-        <label><span>Payment reference (optional)</span><input value={reference} onChange={(event) => setReference(event.target.value)} maxLength={160} placeholder="Confirmation number or sender name" /></label>
-        <label><span>Proof (optional)</span><input type="file" accept="image/*,application/pdf" onChange={uploadProof} disabled={uploading} />{proof?.name && <small>Attached: {proof.name}</small>}</label>
-        <label><span>Note (optional)</span><textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={255} placeholder="Information the restaurant can use to verify the payment" /></label>
-        <button type="submit" className="credit-primary" disabled={submitting || uploading}>{uploading ? 'Uploading proof…' : submitting ? 'Sending request…' : 'Request credit'}</button>
+        <label><span>Amount you paid</span><div className="credit-money-input"><span>{currency}</span><input autoFocus inputMode="decimal" required value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" /></div></label>
+        <div className="credit-proof-choice" role="group" aria-label="Payment proof method">
+          <button type="button" className={proofMethod === 'upload' ? 'active' : ''} onClick={() => { setProofMethod('upload'); setReference(''); }}>Upload receipt</button>
+          <button type="button" className={proofMethod === 'reference' ? 'active' : ''} onClick={() => { setProofMethod('reference'); setProof(null); }}>Enter confirmation</button>
+        </div>
+        {proofMethod === 'upload' ? (
+          proof?.name ? (
+            <div className="credit-proof-attached">
+              <span><CheckCircle2 size={17} /><strong>{proof.name}</strong></span>
+              <button type="button" onClick={() => setProof(null)}>Remove</button>
+            </div>
+          ) : (
+            <label className="credit-proof-upload"><span>{uploading ? 'Uploading receipt…' : 'Choose screenshot, receipt, or PDF'}</span><input type="file" accept="image/*,application/pdf" onChange={uploadProof} disabled={uploading} /></label>
+          )
+        ) : (
+          <label><span>Confirmation number or sender name</span><input value={reference} onChange={(event) => setReference(event.target.value)} maxLength={160} placeholder="Example: ABC123 or Emile J." /></label>
+        )}
+        <details className="credit-form-details">
+          <summary>Add a note (optional)</summary>
+          <label><span>Note for the restaurant</span><textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={255} placeholder="Anything that helps verify the payment" /></label>
+        </details>
+        <button type="submit" className="credit-primary" disabled={submitting || uploading}>{uploading ? 'Uploading receipt…' : submitting ? 'Sending…' : 'Send for approval'}</button>
       </form>
     </Modal>
   );

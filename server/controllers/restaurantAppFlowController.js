@@ -4077,21 +4077,29 @@ exports.recordPosPayment = async (req, res, next) => {
       );
 
       if (paymentType === 'external') {
-        const proofRequired = externalPaymentSubmission?.proofRequired === true
-          || externalPaymentSubmission?.proof_required === true;
-        const proof = safeJson(externalPaymentSubmission?.proof, null);
+        const submittedPayment = safeJson(
+          externalPaymentSubmission?.submission
+            || externalPaymentSubmission?.paymentSubmission
+            || externalPaymentSubmission?.payment_submission,
+          externalPaymentSubmission
+        );
+        const proofRequired = externalPaymentSubmission?.requiresProof === true
+          || externalPaymentSubmission?.requires_proof === true
+          || submittedPayment?.proofRequired === true
+          || submittedPayment?.proof_required === true;
+        const proof = safeJson(submittedPayment?.proof, null);
         const hasProof = Boolean(
           normalizeString(
             proof?.attachmentUrl
               || proof?.attachment_url
-              || externalPaymentSubmission?.attachmentUrl
-              || externalPaymentSubmission?.attachment_url,
+              || submittedPayment?.attachmentUrl
+              || submittedPayment?.attachment_url,
             2000
           )
           || normalizeString(
-            externalPaymentSubmission?.reference
-              || externalPaymentSubmission?.paymentReference
-              || externalPaymentSubmission?.payment_reference,
+            submittedPayment?.reference
+              || submittedPayment?.paymentReference
+              || submittedPayment?.payment_reference,
             160
           )
         );

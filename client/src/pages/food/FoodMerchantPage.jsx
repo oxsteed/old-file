@@ -20,7 +20,7 @@ import {
   createFoodModifierGroup,
   listFoodRestaurantOrders,
   updateFoodOrderStatus,
-  updateFoodOrderPayment,
+  recordFoodOrderManualPayment,
   formatFoodMoney,
 } from '../../api/food';
 import { FoodBrand, FoodConnBadge, FOOD_STATUS_KEYS, apiErrorMessage } from './foodShared';
@@ -28,6 +28,7 @@ import { defaultWeekdayHours } from './FoodSetupWizard';
 import DeviceSetupChecklist from './FoodDeviceSetupChecklist';
 import RestaurantSetupGuide, { shouldShowRestaurantSetup } from './RestaurantSetupGuide';
 import RestaurantMenuManager from './RestaurantMenuManager';
+import RestaurantCreditManager from './RestaurantCreditManager';
 import LocationsPanel from './FoodLocationsPanel';
 import PromotionsPanel from './FoodPromotionsPanel';
 import { ChecklistsPanel, SopsPanel, InventoryPanel } from './RestaurantOpsPanels';
@@ -192,10 +193,31 @@ function OrdersTab({ t, restaurant }) {
 
   const markPaid = async (order) => {
     try {
-      await updateFoodOrderPayment(restaurant.id, order.id, 'paid');
+      const metadata = order.metadata && typeof order.metadata === 'object' ? order.metadata : {};
+      const externalPayment = metadata.externalPayment || metadata.external_payment || null;
+      const submission = externalPayment?.submission || externalPayment?.proof || externalPayment?.paymentProof || {};
+      const reference = submission.reference || externalPayment?.reference || null;
+      const amountCents = Number(order.amount_due_cents ?? order.balance_due_cents ?? order.total_cents ?? 0);
+      const isDirectPayment = Boolean(externalPayment) || order.payment_mode === 'direct_payment';
+      await recordFoodOrderManualPayment(restaurant.id, order.id, {
+        paymentType: isDirectPayment ? 'external' : 'cash',
+        paymentMode: isDirectPayment ? 'direct_payment' : 'pay_at_restaurant',
+        amountCents,
+        status: 'recorded',
+        reference: reference || undefined,
+        note: isDirectPayment
+          ? 'Restaurant confirmed the customer payment submission.'
+          : 'Restaurant confirmed payment received.',
+        metadata: {
+          source: 'restaurant_owner_web_confirmation',
+          receiptConfirmed: true,
+        },
+        idempotencyKey: `restaurant-owner-payment:${restaurant.id}:${order.id}:${amountCents}`,
+      });
+      toast.success(isDirectPayment ? 'Payment confirmed.' : 'Order marked paid.');
       load();
     } catch (err) {
-      toast.error(apiErrorMessage(err, t('food.merchant.statusError')));
+      toast.error(apiErrorMessage(err, 'Unable to confirm this payment.'));
     }
   };
 
@@ -272,7 +294,9 @@ function OrdersTab({ t, restaurant }) {
             <span className="fd-row">
               {order.payment_status !== 'paid' && (
                 <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => markPaid(order)}>
-                  {t('food.merchant.markPaid')}
+                  {(order.payment_mode === 'direct_payment' || order.metadata?.externalPayment || order.metadata?.external_payment)
+                    ? t('food.merchant.confirmPayment', 'Confirm payment')
+                    : t('food.merchant.markPaid')}
                 </button>
               )}
               {NEXT_STATUS[order.status] && (
@@ -735,9 +759,9 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
       </div>
 
       <div style={{ marginTop: '1.5rem' }}>
-        <h3>{t('food.merchant.externalPaymentTitle', 'External payment instructions')}</h3>
+        <h3>{t('food.merchant.externalPaymentTitle', 'Direct payment')}</h3>
         <p className="fd-card-meta">
-          {t('food.merchant.externalPaymentHint', 'Let guests pay with Cash App, Venmo, Zelle, or another payment app, then attach proof at checkout.')}
+          {t('food.merchant.externalPaymentHint', 'Share one payment account or QR. Customers attach a receipt or confirmation number when they order.')}
         </p>
         <div className="fd-row" style={{ flexWrap: 'wrap', gap: '0.75rem', alignItems: 'stretch', marginBottom: '0.75rem' }}>
           <button
@@ -764,31 +788,34 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
               ? t('food.merchant.externalPaymentEnabled', 'External payment enabled')
               : t('food.merchant.externalPaymentDisabled', 'External payment disabled')}
           </button>
-          <button
-            type="button"
-            className="fd-btn fd-btn-secondary"
-            disabled={saving}
-            onClick={() => {
-              setRequireExternalPaymentProof((current) => !current);
-              patch({
-                settings: {
-                  ...restaurantSettings,
-                  externalPaymentEnabled,
-                  requireExternalPaymentProof: !requireExternalPaymentProof,
-                  externalPaymentLabel: externalPaymentLabel.trim() || null,
-                  externalPaymentHandle: externalPaymentHandle.trim() || null,
-                  externalPaymentInstructions: externalPaymentInstructions.trim() || null,
-                  externalPaymentReferenceHint: externalPaymentReferenceHint.trim() || null,
-                  externalPaymentQrUrl: externalPaymentQrUrl.trim() || null,
-                },
-              });
-            }}
-          >
-            {requireExternalPaymentProof
-              ? t('food.merchant.externalPaymentProofRequired', 'Proof required')
-              : t('food.merchant.externalPaymentProofOptional', 'Proof optional')}
-          </button>
+          {externalPaymentEnabled && (
+            <button
+              type="button"
+              className="fd-btn fd-btn-secondary"
+              disabled={saving}
+              onClick={() => {
+                setRequireExternalPaymentProof((current) => !current);
+                patch({
+                  settings: {
+                    ...restaurantSettings,
+                    externalPaymentEnabled,
+                    requireExternalPaymentProof: !requireExternalPaymentProof,
+                    externalPaymentLabel: externalPaymentLabel.trim() || null,
+                    externalPaymentHandle: externalPaymentHandle.trim() || null,
+                    externalPaymentInstructions: externalPaymentInstructions.trim() || null,
+                    externalPaymentReferenceHint: externalPaymentReferenceHint.trim() || null,
+                    externalPaymentQrUrl: externalPaymentQrUrl.trim() || null,
+                  },
+                });
+              }}
+            >
+              {requireExternalPaymentProof
+                ? t('food.merchant.externalPaymentProofRequired', 'Receipt or confirmation required')
+                : t('food.merchant.externalPaymentProofOptional', 'Proof optional')}
+            </button>
+          )}
         </div>
+        {externalPaymentEnabled && <div className="fd-direct-payment-settings">
         <div className="fd-row" style={{ flexWrap: 'wrap' }}>
           <div className="fd-field" style={{ flex: 1, minWidth: 220 }}>
             <label htmlFor="fd-ext-label">{t('food.merchant.externalPaymentLabel', 'Payment label')}</label>
@@ -813,16 +840,6 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
         </div>
         <div className="fd-row" style={{ flexWrap: 'wrap' }}>
           <div className="fd-field" style={{ flex: 1, minWidth: 220 }}>
-            <label htmlFor="fd-ext-ref">{t('food.merchant.externalPaymentRef', 'Reference hint')}</label>
-            <input
-              id="fd-ext-ref"
-              value={externalPaymentReferenceHint}
-              onChange={(e) => setExternalPaymentReferenceHint(e.target.value)}
-              placeholder="Include your order number in the payment note"
-              maxLength={255}
-            />
-          </div>
-          <div className="fd-field" style={{ flex: 1, minWidth: 220 }}>
             <label htmlFor="fd-ext-qr">{t('food.merchant.externalPaymentQr', 'QR code image')}</label>
             <input
               id="fd-ext-qr"
@@ -835,17 +852,6 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
               {qrUploading ? t('food.common.saving', 'Saving…') : t('food.merchant.externalPaymentQrHint', 'Upload a payment QR image to show customers at checkout.')}
             </p>
           </div>
-        </div>
-        <div className="fd-field">
-          <label htmlFor="fd-ext-instructions">{t('food.merchant.externalPaymentInstructions', 'Payment instructions')}</label>
-          <textarea
-            id="fd-ext-instructions"
-            rows={3}
-            value={externalPaymentInstructions}
-            onChange={(e) => setExternalPaymentInstructions(e.target.value)}
-            placeholder="Tell guests how to pay and what to include in the note."
-            maxLength={2000}
-          />
         </div>
         {externalPaymentQrUrl && (
           <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -869,6 +875,34 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
             {saving ? t('food.common.saving') : t('food.common.save')}
           </button>
         </div>
+        <details className="fd-direct-payment-advanced">
+          <summary>{t('food.merchant.externalPaymentAdvanced', 'Advanced instructions')}</summary>
+          <div className="fd-field">
+            <label htmlFor="fd-ext-ref">{t('food.merchant.externalPaymentRef', 'Confirmation number hint')}</label>
+            <input
+              id="fd-ext-ref"
+              value={externalPaymentReferenceHint}
+              onChange={(e) => setExternalPaymentReferenceHint(e.target.value)}
+              placeholder="Confirmation number or sender name"
+              maxLength={255}
+            />
+          </div>
+          <div className="fd-field">
+            <label htmlFor="fd-ext-instructions">{t('food.merchant.externalPaymentInstructions', 'Extra payment instructions')}</label>
+            <textarea
+              id="fd-ext-instructions"
+              rows={3}
+              value={externalPaymentInstructions}
+              onChange={(e) => setExternalPaymentInstructions(e.target.value)}
+              placeholder="Only add details customers need before sending payment."
+              maxLength={2000}
+            />
+          </div>
+          <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => savePaymentSettings()}>
+            {saving ? t('food.common.saving') : t('food.common.save')}
+          </button>
+        </details>
+        </div>}
       </div>
 
       <div style={{ marginTop: '1.5rem' }}>
@@ -1294,6 +1328,7 @@ export default function FoodMerchantPage() {
             {selected && tab === 'menu' && <RestaurantMenuManager t={t} restaurant={selected} />}
             {selected && tab === 'store' && (
               <>
+                <RestaurantCreditManager restaurant={selected} />
                 <SettingsTab
                   t={t}
                   restaurant={selected}

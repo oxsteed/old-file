@@ -2331,3 +2331,39 @@ html.dark .fd-tag-verified { background: rgba(52, 211, 153, 0.15); color: #34d39
 
 /* Star rating button — too light gray on white background in light mode */
 html:not(.dark) .fd-star-btn { color: #9ca3af; }
+
+/* Restaurant credit review stays operational without exposing ledger jargon. */
+.fd-credit-manager { margin-bottom: 1rem; }
+.fd-credit-manager-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.fd-credit-manager-head h2 { margin: 0.2rem 0 0.3rem; }
+.fd-credit-manager-kicker { margin: 0; color: #ea7d10; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.fd-credit-manager-count { flex-shrink: 0; padding: 0.4rem 0.65rem; border-radius: 999px; color: #9a4b0c; background: #fff1df; font-size: 0.75rem; font-weight: 800; }
+.fd-credit-manager-empty { display: grid; gap: 0.25rem; margin-top: 1rem; padding: 1rem; border: 1px dashed var(--border-color, #d8dee5); border-radius: 12px; color: var(--muted-text, #64748b); }
+.fd-credit-manager-empty strong { color: var(--app-text, #0f172a); }
+.fd-credit-request-list { display: grid; gap: 0.75rem; margin-top: 1rem; }
+.fd-credit-request-card { padding: 1rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 14px; background: var(--card-bg, #fff); }
+.fd-credit-request-main { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.fd-credit-request-main > div { display: grid; gap: 0.2rem; }
+.fd-credit-request-main span { color: var(--muted-text, #64748b); font-size: 0.78rem; }
+.fd-credit-request-amount { color: #178057; font-size: 1.05rem; white-space: nowrap; }
+.fd-credit-proof-row { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin-top: 0.75rem; }
+.fd-credit-proof-row > span:not(.fd-card-meta) { display: grid; gap: 0.15rem; padding: 0.55rem 0.7rem; border-radius: 10px; color: var(--app-text, #0f172a); background: var(--soft-bg, #f8fafc); }
+.fd-credit-proof-row small { color: var(--muted-text, #64748b); font-size: 0.68rem; font-weight: 800; text-transform: uppercase; }
+.fd-credit-proof-row a { padding: 0.55rem 0.7rem; border-radius: 10px; color: #a95108; background: #fff1df; font-size: 0.78rem; font-weight: 800; text-decoration: none; }
+.fd-credit-request-note { margin: 0.7rem 0 0; color: var(--muted-text, #64748b); font-size: 0.82rem; }
+.fd-credit-request-actions, .fd-credit-confirm-row, .fd-credit-decline-form { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; margin-top: 0.85rem; }
+.fd-credit-confirm-row > strong { margin-right: auto; font-size: 0.82rem; }
+.fd-credit-decline-form input { flex: 1 1 260px; min-height: 38px; padding: 0 0.7rem; border: 1px solid var(--border-color, #d8dee5); border-radius: 9px; color: var(--app-text, #0f172a); background: var(--card-bg, #fff); }
+.fd-direct-payment-settings { padding: 0.9rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 14px; background: var(--soft-bg, #f8fafc); }
+.fd-direct-payment-advanced { margin-top: 0.8rem; padding-top: 0.7rem; border-top: 1px solid var(--border-color, #e2e8f0); }
+.fd-direct-payment-advanced summary { width: fit-content; color: var(--muted-text, #64748b); font-size: 0.78rem; font-weight: 800; cursor: pointer; }
+.fd-direct-payment-advanced .fd-field:first-of-type { margin-top: 0.8rem; }
+
+html.dark .fd-credit-manager-count,
+html.dark .fd-credit-proof-row a { color: #fdba74; background: #431407; }
+
+@media (max-width: 640px) {
+  .fd-credit-manager-head, .fd-credit-request-main { align-items: stretch; flex-direction: column; }
+  .fd-credit-manager-count { align-self: flex-start; }
+  .fd-credit-request-actions .fd-btn, .fd-credit-confirm-row .fd-btn, .fd-credit-decline-form .fd-btn { flex: 1; }
+}

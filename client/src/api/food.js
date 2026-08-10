@@ -92,6 +92,15 @@ export const requestFoodWalletCredit = (restaurantId, payload) =>
 export const cancelFoodWalletCreditRequest = (restaurantId, requestId) =>
   api.post(`/food/customer/wallets/${restaurantId}/load-requests/${requestId}/cancel`).then((r) => r.data?.loadRequest);
 
+export const listMerchantFoodWalletCreditRequests = (restaurantId, params = {}) =>
+  api.get(`/food/restaurants/${restaurantId}/customer-wallet-load-requests`, { params }).then((r) => r.data?.loadRequests || []);
+
+export const approveMerchantFoodWalletCreditRequest = (restaurantId, requestId, payload = {}) =>
+  api.post(`/food/restaurants/${restaurantId}/customer-wallet-load-requests/${requestId}/approve`, payload).then((r) => r.data);
+
+export const declineMerchantFoodWalletCreditRequest = (restaurantId, requestId, reason) =>
+  api.post(`/food/restaurants/${restaurantId}/customer-wallet-load-requests/${requestId}/cancel`, { reason }).then((r) => r.data?.loadRequest);
+
 export const getFoodOrder = (orderId) =>
   api.get(`/food/orders/${orderId}`).then((r) => r.data?.order);
 
@@ -154,6 +163,15 @@ export const updateFoodOrderPayment = (restaurantId, orderId, paymentStatus) =>
   api
     .patch(`/food/restaurants/${restaurantId}/orders/${orderId}/payment`, { paymentStatus })
     .then((r) => r.data?.order);
+
+export const recordFoodOrderManualPayment = (restaurantId, orderId, payload) => {
+  const idempotencyKey = payload.idempotencyKey || payload.idempotency_key;
+  return api.post(
+    `/restaurants/${restaurantId}/pos/orders/${orderId}/payments`,
+    payload,
+    idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+  ).then((r) => r.data);
+};
 
 export const submitFoodOrderReview = (orderId, { rating, body, trackingToken } = {}) =>
   api
