@@ -5513,7 +5513,7 @@ exports.performKitchenItemAction = async (req, res, next) => {
       }
       const { rows: [item] } = await client.query(
         `UPDATE food_order_items
-            SET kitchen_status = $1,
+            SET kitchen_status = $1::varchar,
                 station_label = COALESCE($2, station_label),
                 kitchen_started_at = CASE
                   WHEN $1 = 'preparing' THEN COALESCE(kitchen_started_at, NOW())
