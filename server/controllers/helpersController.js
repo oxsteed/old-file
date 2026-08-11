@@ -376,6 +376,8 @@ async function listHelpers(req, res, next) {
     if (pageNum === 1) {
       const bizConditions = [
         'b.is_active = TRUE',
+        "COALESCE(b.setup_status, 'active') = 'active'",
+        "COALESCE(b.business_kind, CASE WHEN b.business_mode = 'food' THEN 'restaurant' ELSE 'service' END) = 'service'",
         `(b.business_mode IN ('services_marketplace', 'retail')
           OR (b.business_mode IS NULL AND COALESCE(b.industry_category, 'services') != 'food'))`,
         // Visibility is controlled by the business's own flag - independent of

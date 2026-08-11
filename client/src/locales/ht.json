@@ -1,4 +1,22 @@
 {
+  "businessCreation": {
+    "eyebrow": "Konfigirasyon biznis", "title": "Kreye biznis ou", "progress": "Pwogrè konfigirasyon",
+    "stepOne": "Etap 1 sou 4", "stepTwo": "Etap 2 sou 4", "stepThree": "Etap 3 sou 4", "stepFour": "Etap 4 sou 4",
+    "kindTitle": "Kisa kliyan yo pral fè?", "kindHelp": "Chwazi modèl operasyon an an premye. Apre sa w ap chwazi endistri presi a.",
+    "restaurant": "Restoran", "restaurantHelp": "Kliyan yo gade yon meni epi pase kòmand manje.",
+    "service": "Biznis sèvis", "serviceHelp": "Kliyan yo gade sèvis, mande travay, pran randevou, oswa jwenn boutik ou nan Konpetans.",
+    "categoryTitle": "Chwazi kategori ki pi pre a", "categoryHelp": "Sa ede kliyan jwenn ou. Li pa chanje kiyès ki posede oswa jere biznis la.",
+    "subtype": "Kalite biznis", "selectSubtype": "Chwazi opsyon ki pi pre a",
+    "identityTitle": "Ajoute sa ki esansyèl", "identityHelp": "Se non, peyi, ak vil sèlman ki obligatwa kounye a. Fini pwofil piblik la anvan ou pibliye.",
+    "businessName": "Non biznis", "description": "Deskripsyon kout", "country": "Peyi", "city": "Vil", "region": "Eta / rejyon", "postal": "Kòd postal", "phone": "Telefòn", "website": "Sit entènèt",
+    "reviewTitle": "Revize fondasyon an", "reviewHelp": "Biznis ou kòmanse prive. Kliyan yo p ap wè li jouk konfigirasyon obligatwa a fini.",
+    "operatingModel": "Modèl operasyon", "category": "Kategori", "location": "Kote", "currency": "Lajan",
+    "privateTitle": "Prive jouk ou pibliye", "restaurantNext": "Apre sa, ajoute meni, lè ouvèti, chwa kòmand, ak reglaj kredi restoran.", "serviceNext": "Apre sa, ajoute sèvis, disponiblite, zòn sèvis, ak detay randevou.",
+    "catalogError": "Nou pa t ka chaje kalite biznis yo. Eseye ankò.", "chooseKindError": "Chwazi kijan kliyan yo pral sèvi ak biznis sa a.", "chooseCategoryError": "Chwazi yon kategori biznis.", "chooseSubtypeError": "Chwazi kalite biznis ki pi pre a.", "nameError": "Non biznis la obligatwa.", "countryError": "Peyi a obligatwa.", "cityError": "Vil la obligatwa anvan kliyan yo ka jwenn biznis la.", "createError": "Nou pa t ka kreye biznis la. Eseye ankò.",
+    "create": "Kreye biznis prive", "creating": "Ap kreye...", "setupStatus": "Eta konfigirasyon", "privateDraft": "Bouyon prive", "checking": "Ap verifye...", "publish": "Pibliye biznis", "published": "Biznis la pibliye.", "publishError": "Nou pa t ka pibliye biznis la.", "missingSetup": "Fini eleman obligatwa yo anvan ou pibliye.",
+    "finishRestaurant": "Fini konfigirasyon restoran", "finishRestaurantHelp": "Ajoute yon meni aktif, kote, lè ouvèti, chwa kòmand, ak kredi restoran.", "continueRestaurant": "Kontinye konfigirasyon restoran",
+    "finishService": "Fini konfigirasyon sèvis", "finishServiceHelp": "Fini pwofil piblik la epi ajoute omwen yon sèvis aktif anvan ou pibliye.", "editProfile": "Modifye pwofil", "addServices": "Ajoute sèvis"
+  },
   "nav": {
     "browseJobs": "Chèche Travay",
     "postJob": "Pibliye Travay",

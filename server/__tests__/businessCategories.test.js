@@ -29,7 +29,11 @@ describe('business category long-term wiring', () => {
     const res = await request(buildApp()).get('/api/businesses/categories');
 
     expect(res.status).toBe(200);
-    expect(res.body.contract.version).toBe('business-categories-v1');
+    expect(res.body.contract.version).toBe('business-categories-v2');
+    expect(res.body.operatingModels).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'restaurant', category_ids: ['food'] }),
+      expect.objectContaining({ id: 'service' }),
+    ]));
     expect(res.body.categories).toEqual(expect.arrayContaining([
       expect.objectContaining({
         id: 'food',
@@ -101,6 +105,8 @@ describe('business category long-term wiring', () => {
           business_type: 'Auto Repair',
           industry_category: 'auto',
           business_mode: 'services_marketplace',
+          business_kind: 'service',
+          setup_status: 'in_progress',
           address_city: 'Columbus',
           address_state: 'OH',
           address_country: 'US',
@@ -122,5 +128,84 @@ describe('business category long-term wiring', () => {
 
     expect(res.status).toBe(201);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_restaurants/.test(sql))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO business_service_profiles/.test(sql))).toBe(true);
+  });
+
+  test('rejects a category that conflicts with the chosen operating model', async () => {
+    const res = await request(buildApp())
+      .post('/api/businesses')
+      .send({
+        business_name: 'Wrong Lane',
+        business_kind: 'restaurant',
+        industry_category: 'services',
+        business_type: 'Cleaning',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/not valid for restaurant/i);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('derives the compatibility mode on the server instead of trusting the client', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ count: '0' }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 10,
+          business_name: 'Safe Services',
+          business_type: 'Cleaning',
+          industry_category: 'services',
+          business_mode: 'services_marketplace',
+          business_kind: 'service',
+          address_country: 'US',
+          setup_status: 'in_progress',
+        }],
+      });
+
+    const res = await request(buildApp())
+      .post('/api/businesses')
+      .send({
+        business_name: 'Safe Services',
+        business_kind: 'service',
+        industry_category: 'services',
+        business_type: 'Cleaning',
+        business_mode: 'food',
+      });
+
+    expect(res.status).toBe(201);
+    const insertCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO businesses/.test(sql));
+    expect(insertCall[1][15]).toBe('services_marketplace');
+    expect(insertCall[1][16]).toBe('service');
+    expect(res.body.business.capabilities).toEqual(expect.objectContaining({
+      service: true,
+      foodOrders: false,
+    }));
+  });
+
+  test('returns an existing business when the creation idempotency key is retried', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 11,
+        business_name: 'Retry Safe',
+        business_kind: 'service',
+        business_mode: 'services_marketplace',
+        industry_category: 'services',
+        setup_status: 'in_progress',
+      }],
+    });
+
+    const res = await request(buildApp())
+      .post('/api/businesses')
+      .set('Idempotency-Key', 'stable-key-123')
+      .send({
+        business_name: 'Retry Safe',
+        business_kind: 'service',
+        industry_category: 'services',
+        business_type: 'Cleaning',
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.reused).toBe(true);
+    expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO businesses/.test(sql))).toHaveLength(0);
   });
 });

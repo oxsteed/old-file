@@ -1029,6 +1029,9 @@ exports.listMarkets = async (req, res, next) => {
          JOIN businesses b ON b.id = fr.business_id
         WHERE fr.status = 'active'
           AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.setup_status, 'active') = 'active'
+          AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
           AND b.deleted_at IS NULL
           AND NULLIF(trim(fr.address_city), '') IS NOT NULL
           AND NULLIF(trim(fr.address_country), '') IS NOT NULL
@@ -1128,6 +1131,9 @@ exports.listRestaurants = async (req, res, next) => {
          JOIN businesses b ON b.id = fr.business_id
         WHERE ${filters.join(' AND ')}
           AND b.is_active = TRUE
+          AND b.is_listed = TRUE
+          AND COALESCE(b.setup_status, 'active') = 'active'
+          AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
           AND b.deleted_at IS NULL
         ORDER BY ${orderBy}
         LIMIT $${params.push(limit)} OFFSET $${params.push(offset)}`,
@@ -1193,6 +1199,9 @@ exports.listRestaurants = async (req, res, next) => {
            JOIN businesses b ON b.id = fr.business_id
           WHERE ${filters.join(' AND ')}
             AND b.is_active = TRUE
+            AND b.is_listed = TRUE
+            AND COALESCE(b.setup_status, 'active') = 'active'
+            AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
             AND b.deleted_at IS NULL
           ORDER BY ${orderBy}
           LIMIT $${params.push(limit)} OFFSET $${params.push(offset)}`,
@@ -2990,12 +2999,58 @@ exports.updateRestaurant = async (req, res, next) => {
     }
 
     params.push(restaurantId);
-    const { rows: [restaurant] } = await pool.query(
-      `UPDATE food_restaurants SET ${sets.join(', ')}, updated_at = NOW()
-        WHERE id = $${params.length}
-        RETURNING *`,
-      params
-    );
+    const restaurant = await withTransaction(pool, async (client) => {
+      const { rows: [updated] } = await client.query(
+        `UPDATE food_restaurants SET ${sets.join(', ')}, updated_at = NOW()
+          WHERE id = $${params.length}
+          RETURNING *`,
+        params
+      );
+
+      if (status === 'active') {
+        const { rows: [readiness] } = await client.query(
+          `SELECT COUNT(*)::int AS menu_item_count
+             FROM food_menu_items
+            WHERE restaurant_id = $1 AND is_available = TRUE`,
+          [restaurantId]
+        );
+        const missing = [];
+        if (!updated.display_name?.trim()) missing.push('name');
+        if (!updated.address_city?.trim()) missing.push('location');
+        if (Number(readiness?.menu_item_count || 0) < 1) missing.push('menu');
+        if (missing.length) {
+          throw new AppError('Complete restaurant setup before publishing', 409, 'restaurant_setup_incomplete', { missing });
+        }
+      }
+
+      if (status && updated.business_id) {
+        const active = status === 'active';
+        await client.query(
+          `UPDATE businesses
+              SET business_kind = 'restaurant', business_mode = 'food', industry_category = 'food',
+                  setup_status = $1, is_active = $2, is_listed = $2,
+                  published_at = CASE WHEN $2 THEN COALESCE(published_at, NOW()) ELSE published_at END,
+                  profile_version = profile_version + 1,
+                  updated_at = NOW()
+            WHERE id = $3`,
+          [active ? 'active' : (status === 'paused' ? 'paused' : 'in_progress'), active, updated.business_id]
+        );
+        await client.query(
+          `INSERT INTO business_audit_log
+             (business_id, actor_user_id, actor_role, action, target_type, target_id, after_state)
+           VALUES ($1,$2,$3,$4,'restaurant',$5,$6::jsonb)`,
+          [
+            updated.business_id,
+            req.user.id,
+            restaurantAccess.effective_role,
+            active ? 'business.published' : 'business.restaurant_status_changed',
+            updated.id,
+            JSON.stringify({ status }),
+          ]
+        );
+      }
+      return updated;
+    }, 'restaurant_update');
     res.json({ restaurant });
   } catch (err) {
     next(err);

@@ -1,4 +1,22 @@
 {
+  "businessCreation": {
+    "eyebrow": "Configuration de l’entreprise", "title": "Créer votre entreprise", "progress": "Progression de la configuration",
+    "stepOne": "Étape 1 sur 4", "stepTwo": "Étape 2 sur 4", "stepThree": "Étape 3 sur 4", "stepFour": "Étape 4 sur 4",
+    "kindTitle": "Que feront les clients ?", "kindHelp": "Choisissez d’abord le modèle d’activité. Vous sélectionnerez ensuite le secteur précis.",
+    "restaurant": "Restaurant", "restaurantHelp": "Les clients consultent un menu et passent des commandes.",
+    "service": "Entreprise de services", "serviceHelp": "Les clients explorent les services, demandent un travail, réservent ou découvrent votre commerce dans Compétences.",
+    "categoryTitle": "Choisissez la catégorie la plus proche", "categoryHelp": "Cela améliore la découverte sans changer la propriété ni la gestion de l’entreprise.",
+    "subtype": "Type d’entreprise", "selectSubtype": "Sélectionnez le choix le plus proche",
+    "identityTitle": "Ajoutez l’essentiel", "identityHelp": "Seuls le nom, le pays et la ville sont requis maintenant. Complétez le profil public avant publication.",
+    "businessName": "Nom de l’entreprise", "description": "Courte description", "country": "Pays", "city": "Ville", "region": "État / région", "postal": "Code postal", "phone": "Téléphone", "website": "Site web",
+    "reviewTitle": "Vérifiez les bases", "reviewHelp": "Votre entreprise commence en mode privé. Les clients ne la verront qu’après la configuration requise.",
+    "operatingModel": "Modèle d’activité", "category": "Catégorie", "location": "Emplacement", "currency": "Devise",
+    "privateTitle": "Privé jusqu’à la publication", "restaurantNext": "Ajoutez ensuite le menu, les horaires, les options de commande et les paramètres de crédit du restaurant.", "serviceNext": "Ajoutez ensuite les services, disponibilités, zone de service et détails de réservation.",
+    "catalogError": "Impossible de charger les types d’entreprise. Réessayez.", "chooseKindError": "Choisissez comment les clients utiliseront cette entreprise.", "chooseCategoryError": "Choisissez une catégorie d’entreprise.", "chooseSubtypeError": "Choisissez le type d’entreprise le plus proche.", "nameError": "Le nom de l’entreprise est requis.", "countryError": "Le pays est requis.", "cityError": "La ville est requise avant que les clients puissent découvrir l’entreprise.", "createError": "Impossible de créer l’entreprise. Réessayez.",
+    "create": "Créer l’entreprise privée", "creating": "Création...", "setupStatus": "État de configuration", "privateDraft": "Brouillon privé", "checking": "Vérification...", "publish": "Publier l’entreprise", "published": "Entreprise publiée.", "publishError": "Impossible de publier l’entreprise.", "missingSetup": "Complétez les éléments requis avant de publier.",
+    "finishRestaurant": "Terminer la configuration du restaurant", "finishRestaurantHelp": "Ajoutez un menu actif, l’emplacement, les horaires, les choix de commande et le crédit restaurant.", "continueRestaurant": "Continuer la configuration du restaurant",
+    "finishService": "Terminer la configuration des services", "finishServiceHelp": "Complétez le profil public et ajoutez au moins un service actif avant de publier.", "editProfile": "Modifier le profil", "addServices": "Ajouter des services"
+  },
   "nav": {
     "browseJobs": "Parcourir les offres",
     "postJob": "Publier une offre",

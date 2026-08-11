@@ -80,6 +80,30 @@
 }
 .bh-view-profile-link:hover { text-decoration: underline; }
 
+.bh-setup-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: -0.5rem 0 1.5rem;
+  padding: 20px 22px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 0 0, rgba(245, 158, 11, 0.14), transparent 42%),
+    var(--card-bg);
+}
+.bh-setup-banner h2 { margin: 6px 0; font-size: 1.05rem; }
+.bh-setup-banner p { max-width: 700px; margin: 0; color: var(--muted-text); font-size: 0.86rem; line-height: 1.55; }
+.bh-setup-status { color: #f59e0b; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
+.bh-setup-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+
+@media (max-width: 760px) {
+  .bh-setup-banner { align-items: stretch; flex-direction: column; }
+  .bh-setup-actions { justify-content: stretch; }
+  .bh-setup-actions .bh-btn { flex: 1 1 150px; text-align: center; }
+}
+
 /* ── Tabs ────────────────────────────────────────────────── */
 .bh-tabs {
   display: flex;

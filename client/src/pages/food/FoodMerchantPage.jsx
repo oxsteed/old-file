@@ -1,7 +1,7 @@
 // OxSteed Food - merchant dashboard: onboarding, menu manager, live orders,
 // and links to the in-store screens (kitchen display, queue board, kiosk).
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
@@ -1154,6 +1154,9 @@ const TAB_ICONS = { home: '⌂', orders: '🧾', menu: '🍴', store: '⚙️' }
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function FoodMerchantPage() {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
+  const requestedBusinessId = searchParams.get('business');
+  const requestedSetup = searchParams.get('setup') === '1';
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
@@ -1166,23 +1169,31 @@ export default function FoodMerchantPage() {
     listMyFoodRestaurants()
       .then((rows) => {
         setRestaurants(rows);
-        setSelectedId((prev) => prev || rows[0]?.id || null);
+        const requested = requestedBusinessId
+          ? rows.find((restaurant) => String(restaurant.business_id || restaurant.businessId) === String(requestedBusinessId))
+          : null;
+        setSelectedId((prev) => requested?.id || prev || rows[0]?.id || null);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [requestedBusinessId]);
   useEffect(() => { load(); }, [load]);
 
   const selected = restaurants.find((r) => r.id === selectedId) || null;
 
   useEffect(() => {
     if (loading) return;
-    if (sessionStorage.getItem('ox.food.onboarding.dismissed') === '1') return;
+    if (!requestedSetup && sessionStorage.getItem('ox.food.onboarding.dismissed') === '1') return;
+    if (requestedSetup && selected) {
+      setSetupForNew(false);
+      setShowOnboarding(true);
+      return;
+    }
     if (shouldShowRestaurantSetup(restaurants, selected)) {
       setSetupForNew(restaurants.length === 0);
       setShowOnboarding(true);
     }
-  }, [loading, restaurants, selected]);
+  }, [loading, requestedSetup, restaurants, selected]);
 
   const refreshRestaurant = useCallback((updated) => {
     if (!updated?.id) {

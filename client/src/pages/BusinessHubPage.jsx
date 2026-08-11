@@ -33,6 +33,7 @@ import { ServicePackagesManager } from '../components/businessHub/ServicePackage
 import { HealthAlertsDashboard } from '../components/businessHub/HealthAlertsDashboard';
 import { LeadPipeline } from '../components/businessHub/LeadPipeline';
 import { MessageTemplatesManager } from '../components/businessHub/MessageTemplatesManager';
+import BusinessCreationWizard from '../components/businessHub/BusinessCreationWizard';
 import PropertyOperationsTab from '../components/businessHub/PropertyOperationsTab';
 import TradesOperationsTab from '../components/businessHub/TradesOperationsTab';
 import BeautyOperationsTab from '../components/businessHub/BeautyOperationsTab';
@@ -41,7 +42,8 @@ import ProfessionalOperationsTab from '../components/businessHub/ProfessionalOpe
 import ContinuityOperationsTab from '../components/businessHub/ContinuityOperationsTab';
 import TemplateWorkflowSystemTab from '../components/businessHub/TemplateWorkflowSystemTab';
 import {
-  listBusinesses, createBusiness, updateBusiness, uploadBusinessPhotos,
+  listBusinesses, updateBusiness, uploadBusinessPhotos,
+  completeBusinessOnboarding,
   getAnalytics,
   listInvoices, createInvoice, updateInvoice, markInvoicePaid, deleteInvoice, sendInvoice,
   getTax, refreshTax, markTaxPaid,
@@ -101,7 +103,6 @@ function fmtMonth(m) {
 }
 
 // ── default forms ─────────────────────────────────────────────────────────────
-const DEFAULT_BIZ_FORM   = { business_name: '', description: '', website: '', phone: '', tax_rate: '' };
 const DEFAULT_INV_FORM   = {
   client_name: '', client_email: '', client_company: '',
   due_date: '', invoice_tax_rate: '', notes: '', status: 'draft',
@@ -654,16 +655,19 @@ function BusinessHubInner() {
   }
 
   // ── add business ──────────────────────────────────────────────────────────
-  async function handleAddBiz() {
-    if (!form.business_name?.trim()) { setFormErr(t('businessHub.errBusinessNameRequired')); return; }
-    setSaving(true);
-    try {
-      await createBusiness({ ...form, tax_rate: form.tax_rate ? parseFloat(form.tax_rate) : undefined });
-      toast.success(t('businessHub.toastBizAdded'));
-      closeModal();
-      await loadBusinesses();
-    } catch (e) { setFormErr(e?.response?.data?.error || t('businessHub.toastBizCreateFail')); }
-    finally { setSaving(false); }
+  async function handleBusinessCreated(result) {
+    const business = result?.business;
+    if (!business?.id) return;
+    localStorage.setItem(LS_KEY, String(business.id));
+    setBizId(String(business.id));
+    closeModal();
+    toast.success(t('businessHub.toastBizAdded'));
+    await loadBusinesses();
+    if (business.business_kind === 'restaurant') {
+      navigate(`/food/merchant?business=${encodeURIComponent(business.id)}&setup=1`);
+    } else {
+      navigate(`/business/${business.id}/workspace/profile`);
+    }
   }
 
   // ── invoice CRUD ──────────────────────────────────────────────────────────
@@ -1072,6 +1076,26 @@ function BusinessHubInner() {
   const currentRole = currentBiz?._role || 'owner';
   const canEditBizProfile = currentRole === 'owner' || currentRole === 'manager';
   const canViewFinanceHub = currentRole !== 'representative';
+
+  async function handlePublishCurrentBusiness() {
+    if (!currentBiz?.id) return;
+    setSaving(true);
+    try {
+      await completeBusinessOnboarding(currentBiz.id);
+      toast.success(t('businessCreation.published', 'Your business is now live.'));
+      await loadBusinesses();
+    } catch (error) {
+      const missing = error?.response?.data?.fields?.missing;
+      const message = Array.isArray(missing) && missing.length
+        ? t('businessCreation.missingSetup', 'Complete the missing setup: {{items}}', { items: missing.join(', ') })
+        : error?.response?.data?.error || t('businessCreation.publishError', 'The business is not ready to publish yet.');
+      toast.error(message);
+      setTab(currentBiz.business_kind === 'restaurant' ? 'overview' : (missing?.includes('service') ? 'services' : 'profile'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const financeTabIds = ['overview', 'invoices', 'tax', 'goals'];
   const contentTabIds = ['services', 'gallery', 'policies', 'faqs', 'skills', 'ai'];
   const tabAliases = {
@@ -1257,7 +1281,7 @@ function BusinessHubInner() {
                 Growth Center
               </Link>
             )}
-            <button className="bh-btn primary" onClick={() => { setForm(DEFAULT_BIZ_FORM); setFormErr(''); setModal('add-biz'); }}>
+            <button className="bh-btn primary" onClick={() => { setFormErr(''); setModal('add-biz'); }}>
               + {t('businessHub.addBusiness')}
             </button>
           </div>
@@ -1270,7 +1294,7 @@ function BusinessHubInner() {
           <div className="bh-empty">
             <p style={{ fontWeight: 700 }}>{t('businessHub.noBiz')}</p>
             <p>{t('businessHub.noBizDesc')}</p>
-            <button className="bh-btn primary" onClick={() => { setForm(DEFAULT_BIZ_FORM); setFormErr(''); setModal('add-biz'); }}>
+            <button className="bh-btn primary" onClick={() => { setFormErr(''); setModal('add-biz'); }}>
               {t('businessHub.addABusiness')}
             </button>
           </div>
@@ -1314,6 +1338,35 @@ function BusinessHubInner() {
                 </Link>
               )}
             </div>
+
+            {currentBiz && currentRole === 'owner' && currentBiz.setup_status !== 'active' && (
+              <section className="bh-setup-banner" aria-label={t('businessCreation.setupStatus', 'Business setup status')}>
+                <div>
+                  <span className="bh-setup-status">{t('businessCreation.privateDraft', 'Private setup')}</span>
+                  <h2>{currentBiz.business_kind === 'restaurant'
+                    ? t('businessCreation.finishRestaurant', 'Finish restaurant setup before going live')
+                    : t('businessCreation.finishService', 'Finish the profile and add a service before going live')}</h2>
+                  <p>{currentBiz.business_kind === 'restaurant'
+                    ? t('businessCreation.finishRestaurantHelp', 'Add ordering details, hours, and a menu item. OxSteed publishes the restaurant only after readiness checks pass.')
+                    : t('businessCreation.finishServiceHelp', 'Add a clear profile, location, and active service. OxSteed keeps the business out of Skills until it is ready.')}</p>
+                </div>
+                <div className="bh-setup-actions">
+                  {currentBiz.business_kind === 'restaurant' ? (
+                    <Link className="bh-btn primary" to={`/food/merchant?business=${encodeURIComponent(currentBiz.id)}&setup=1`}>
+                      {t('businessCreation.continueRestaurant', 'Continue restaurant setup')}
+                    </Link>
+                  ) : (
+                    <>
+                      <button className="bh-btn" type="button" onClick={() => setTab('profile')}>{t('businessCreation.editProfile', 'Edit profile')}</button>
+                      <button className="bh-btn" type="button" onClick={() => setTab('services')}>{t('businessCreation.addServices', 'Add services')}</button>
+                      <button className="bh-btn primary" type="button" onClick={handlePublishCurrentBusiness} disabled={saving}>
+                        {saving ? t('businessCreation.checking', 'Checking...') : t('businessCreation.publish', 'Publish business')}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </section>
+            )}
 
             {/* Role-aware top menu (team-role spec section 7) — sits above the
                 legacy tab strip and switches the same `tab` state. */}
@@ -1824,23 +1877,11 @@ function BusinessHubInner() {
 
         {/* ── Modal: Add Business ───────────────────────────────────── */}
         {modal === 'add-biz' && (
-          <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
-            <div className="bh-modal">
-              <h2>{t('businessHub.modalAddBiz')}</h2>
-              <div className="bh-field"><label>{t('businessHub.fieldNameRequired')}</label><input name="business_name" value={form.business_name || ''} onChange={fc} placeholder={t('businessHub.placeholderBizName')} /></div>
-              <div className="bh-field"><label>{t('businessHub.fieldDescription')}</label><textarea name="description" value={form.description || ''} onChange={fc} rows={2} /></div>
-              <div className="bh-field-row">
-                <div className="bh-field"><label>{t('businessHub.fieldPhone')}</label><input name="phone" value={form.phone || ''} onChange={fc} /></div>
-                <div className="bh-field"><label>{t('businessHub.fieldWebsite')}</label><input name="website" value={form.website || ''} onChange={fc} placeholder={t('businessHub.placeholderWebsite')} /></div>
-              </div>
-              <div className="bh-field"><label>{t('businessHub.fieldDefaultTaxRate')}</label><input type="number" name="tax_rate" value={form.tax_rate || ''} onChange={fc} placeholder="0" min="0" max="100" step="0.01" /></div>
-              {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
-              <div className="bh-modal-actions">
-                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
-                <button className="bh-btn primary" onClick={handleAddBiz} disabled={saving}>{saving ? t('businessHub.btnSaving') : t('businessHub.addBusiness')}</button>
-              </div>
-            </div>
-          </div>
+          <BusinessCreationWizard
+            initialCountry={user?.country || 'US'}
+            onCancel={closeModal}
+            onCreated={handleBusinessCreated}
+          />
         )}
 
         {/* ── Modal: Add / Edit Invoice ─────────────────────────────── */}

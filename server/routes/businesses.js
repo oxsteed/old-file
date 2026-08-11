@@ -7,6 +7,7 @@ const validateFileUpload = require('../middleware/validateFileUpload');
 
 const {
   listBusinesses, listBusinessCategories, addBusiness, updateBusiness, setPrimary, deleteBusiness,
+  getBusinessOnboarding, updateBusinessOnboarding, completeBusinessOnboarding,
   uploadBusinessPhotos,
   getBusinessPublicProfile,
   getBusinessProfileForEditor,
@@ -72,6 +73,9 @@ router.get('/:id/profile', getBusinessPublicProfile);
 
 // ── Authenticated profile editor (before generic PUT /:id) ───────────────────
 router.get('/:id/profile-edit', authenticate, getBusinessProfileForEditor);
+router.get('/:id/onboarding', authenticate, getBusinessOnboarding);
+router.put('/:id/onboarding', authenticate, updateBusinessOnboarding);
+router.post('/:id/onboarding/complete', authenticate, completeBusinessOnboarding);
 
 // ── Business CRUD ─────────────────────────────────────────────────────────────
 router.get('/',            authenticate, listBusinesses);

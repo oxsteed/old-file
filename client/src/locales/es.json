@@ -1,4 +1,22 @@
 {
+  "businessCreation": {
+    "eyebrow": "Configuración del negocio", "title": "Crea tu negocio", "progress": "Progreso de configuración",
+    "stepOne": "Paso 1 de 4", "stepTwo": "Paso 2 de 4", "stepThree": "Paso 3 de 4", "stepFour": "Paso 4 de 4",
+    "kindTitle": "¿Qué harán los clientes?", "kindHelp": "Elige primero el modelo operativo. Después seleccionarás el sector específico.",
+    "restaurant": "Restaurante", "restaurantHelp": "Los clientes consultan un menú y hacen pedidos de comida.",
+    "service": "Negocio de servicios", "serviceHelp": "Los clientes exploran servicios, solicitan trabajos, reservan o encuentran tu negocio en Habilidades.",
+    "categoryTitle": "Elige la categoría más cercana", "categoryHelp": "Esto mejora el descubrimiento. No cambia quién posee o administra el negocio.",
+    "subtype": "Tipo de negocio", "selectSubtype": "Selecciona la opción más cercana",
+    "identityTitle": "Añade lo esencial", "identityHelp": "Ahora solo se requieren el nombre, el país y la ciudad. Completa el perfil público antes de publicar.",
+    "businessName": "Nombre del negocio", "description": "Descripción breve", "country": "País", "city": "Ciudad", "region": "Estado / región", "postal": "Código postal", "phone": "Teléfono", "website": "Sitio web",
+    "reviewTitle": "Revisa la base", "reviewHelp": "Tu negocio comienza como privado. Los clientes no lo verán hasta que completes la configuración obligatoria.",
+    "operatingModel": "Modelo operativo", "category": "Categoría", "location": "Ubicación", "currency": "Moneda",
+    "privateTitle": "Privado hasta que lo publiques", "restaurantNext": "Después, añade el menú, horario, opciones de pedido y configuración del crédito del restaurante.", "serviceNext": "Después, añade servicios, disponibilidad, zona de servicio y detalles de reserva.",
+    "catalogError": "No se pudieron cargar los tipos de negocio. Inténtalo de nuevo.", "chooseKindError": "Elige cómo usarán los clientes este negocio.", "chooseCategoryError": "Elige una categoría de negocio.", "chooseSubtypeError": "Elige el tipo de negocio más cercano.", "nameError": "El nombre del negocio es obligatorio.", "countryError": "El país es obligatorio.", "cityError": "La ciudad es obligatoria antes de que los clientes puedan descubrir el negocio.", "createError": "No se pudo crear el negocio. Inténtalo de nuevo.",
+    "create": "Crear negocio privado", "creating": "Creando...", "setupStatus": "Estado de configuración", "privateDraft": "Borrador privado", "checking": "Comprobando...", "publish": "Publicar negocio", "published": "Negocio publicado.", "publishError": "No se pudo publicar el negocio.", "missingSetup": "Completa los elementos obligatorios antes de publicar.",
+    "finishRestaurant": "Terminar configuración del restaurante", "finishRestaurantHelp": "Añade un menú activo, ubicación, horario, opciones de pedido y crédito del restaurante.", "continueRestaurant": "Continuar configuración del restaurante",
+    "finishService": "Terminar configuración del servicio", "finishServiceHelp": "Completa el perfil público y añade al menos un servicio activo antes de publicar.", "editProfile": "Editar perfil", "addServices": "Añadir servicios"
+  },
   "nav": {
     "browseJobs": "Explorar Trabajos",
     "postJob": "Publicar Trabajo",

@@ -5,6 +5,14 @@ import api from './axios';
 // ── Businesses ────────────────────────────────────────────────────────────────
 export const listBusinesses        = ()              => api.get('/businesses').then(r => r.data?.businesses || []);
 export const createBusiness        = (payload)       => api.post('/businesses', payload).then(r => r.data?.business);
+export const createBusinessWithSetup = (payload, idempotencyKey) =>
+  api.post('/businesses', payload, {
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+  }).then(r => r.data);
+export const listBusinessCategories = () => api.get('/businesses/categories').then(r => r.data);
+export const getBusinessOnboarding = (id) => api.get(`/businesses/${id}/onboarding`).then(r => r.data);
+export const saveBusinessOnboarding = (id, payload) => api.put(`/businesses/${id}/onboarding`, payload).then(r => r.data);
+export const completeBusinessOnboarding = (id) => api.post(`/businesses/${id}/onboarding/complete`).then(r => r.data);
 export const updateBusiness        = (id, payload)   => api.put(`/businesses/${id}`, payload).then(r => r.data?.business);
 export const setPrimary            = (id)            => api.put(`/businesses/${id}/primary`).then(r => r.data?.business);
 export const deleteBusiness        = (id)            => api.delete(`/businesses/${id}`).then(r => r.data);

@@ -11,7 +11,9 @@ const { invalidateHelperContext } = require('../services/helperContext');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 const {
   listBusinessCategories: getBusinessCategoryCatalog,
+  listBusinessOperatingModels,
   normalizeBusinessCategory,
+  withBusinessCapabilities,
 } = require('../services/businessCategories');
 
 // ── IRS quarterly tax due dates (fixed schedule) ─────────────────────────────
@@ -79,11 +81,47 @@ async function ensureDraftFoodRestaurantForBusiness(client, business, ownerUserI
   return restaurant;
 }
 
+async function ensureDraftServiceProfileForBusiness(client, business) {
+  if (!business || business.business_kind !== 'service') return null;
+  const { rows: [profile] } = await client.query(
+    `INSERT INTO business_service_profiles (business_id, status)
+     VALUES ($1, 'draft')
+     ON CONFLICT (business_id) DO UPDATE
+       SET updated_at = NOW()
+     RETURNING *`,
+    [business.id]
+  );
+  return profile;
+}
+
+function normalizeTimezone(value) {
+  const timezone = String(value || 'UTC').trim() || 'UTC';
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format();
+  } catch (_) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      timezone: 'Must be a valid IANA timezone',
+    });
+  }
+  return timezone;
+}
+
+function normalizeCurrency(value, country) {
+  const currency = String(value || countriesUtil.getDefaultCurrency(country) || 'USD').trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    throw new AppError('Validation failed', 400, 'validation_failed', {
+      currency_code: 'Must be a three-letter ISO currency code',
+    });
+  }
+  return currency;
+}
+
 // ── List user's businesses ────────────────────────────────────────────────────
 async function listBusinesses(req, res, next) {
   try {
     const { rows } = await pool.query(
       `SELECT id, business_name, business_type, industry_category, business_mode,
+              business_kind, setup_status, timezone, currency_code, published_at, profile_version,
               description, website, phone,
               address_city, address_state, address_country, is_primary, is_active,
               is_listed, tax_rate, logo_url, created_at,
@@ -93,7 +131,7 @@ async function listBusinesses(req, res, next) {
        ORDER BY is_primary DESC, created_at ASC`,
       [req.user.id]
     );
-    return res.json({ businesses: rows });
+    return res.json({ businesses: rows.map(withBusinessCapabilities) });
   } catch (err) {
     next(err);
   }
@@ -102,8 +140,9 @@ async function listBusinesses(req, res, next) {
 async function listBusinessCategories(_req, res) {
   return res.json({
     categories: getBusinessCategoryCatalog(),
+    operatingModels: listBusinessOperatingModels(),
     contract: {
-      version: 'business-categories-v1',
+      version: 'business-categories-v2',
       generatedAt: new Date().toISOString(),
       dataSource: 'backend-catalog',
     },
@@ -117,6 +156,8 @@ async function addBusiness(req, res, next) {
       business_name, business_type, ein, description, website, phone,
       address_street, address_city, address_state, address_zip,
       address_country, tax_rate, industry_category, business_mode,
+      business_kind, timezone, currency_code,
+      creation_idempotency_key,
     } = req.body;
 
     const fields = {};
@@ -132,6 +173,7 @@ async function addBusiness(req, res, next) {
       ? String(address_state).toUpperCase().trim()
       : (address_state || null);
     const category = normalizeBusinessCategory({
+      businessKind: business_kind,
       industryCategory: industry_category,
       businessMode: business_mode,
       businessType: business_type,
@@ -140,7 +182,34 @@ async function addBusiness(req, res, next) {
       throw new AppError(category.error, 400, 'unsupported_business_category');
     }
 
-    const { biz } = await withTransaction(pool, async (client) => {
+    if (!category.businessKind) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        business_kind: 'Choose Restaurant or Service Business',
+      });
+    }
+
+    const normalizedTimezone = normalizeTimezone(timezone);
+    const normalizedCurrency = normalizeCurrency(currency_code, country);
+    const idempotencyKey = String(
+      req.get('Idempotency-Key') || creation_idempotency_key || ''
+    ).trim() || null;
+    if (idempotencyKey && idempotencyKey.length > 100) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        creation_idempotency_key: 'Idempotency key must be 100 characters or less',
+      });
+    }
+
+    const { biz, reused } = await withTransaction(pool, async (client) => {
+      if (idempotencyKey) {
+        const { rows: [existingByKey] } = await client.query(
+          `SELECT * FROM businesses
+            WHERE user_id = $1 AND creation_idempotency_key = $2
+            LIMIT 1`,
+          [req.user.id, idempotencyKey]
+        );
+        if (existingByKey) return { biz: existingByKey, reused: true };
+      }
+
       const { rows: existing } = await client.query(
         'SELECT COUNT(*) as count FROM businesses WHERE user_id = $1',
         [req.user.id]
@@ -151,8 +220,10 @@ async function addBusiness(req, res, next) {
         `INSERT INTO businesses
            (user_id, business_name, business_type, ein, description, website, phone,
             address_street, address_city, address_state, address_zip, address_country,
-            is_primary, tax_rate, industry_category, business_mode)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+            is_primary, tax_rate, industry_category, business_mode,
+            business_kind, setup_status, timezone, currency_code,
+            creation_idempotency_key, is_active, is_listed)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'in_progress',$18,$19,$20,FALSE,FALSE)
          RETURNING *`,
         [
           req.user.id, business_name.trim(), category.businessType, ein || null,
@@ -162,13 +233,57 @@ async function addBusiness(req, res, next) {
           tax_rate != null ? parseFloat(tax_rate) : 25.00,
           category.industryCategory,
           category.businessMode,
+          category.businessKind,
+          normalizedTimezone,
+          normalizedCurrency,
+          idempotencyKey,
         ]
       );
       await ensureDraftFoodRestaurantForBusiness(client, createdBusiness, req.user.id);
-      return { biz: createdBusiness };
+      await ensureDraftServiceProfileForBusiness(client, createdBusiness);
+      await client.query(
+        `INSERT INTO business_setup_progress
+           (business_id, current_step, completed_steps, draft_data)
+         VALUES ($1, 'vertical_setup', ARRAY['kind','category','identity','location']::TEXT[], $2::jsonb)
+         ON CONFLICT (business_id) DO UPDATE
+           SET current_step = EXCLUDED.current_step,
+               completed_steps = EXCLUDED.completed_steps,
+               draft_data = business_setup_progress.draft_data || EXCLUDED.draft_data,
+               version = business_setup_progress.version + 1,
+               updated_at = NOW()`,
+        [
+          createdBusiness.id,
+          JSON.stringify({
+            businessKind: category.businessKind,
+            industryCategory: category.industryCategory,
+            businessType: category.businessType,
+          }),
+        ]
+      );
+      await client.query(
+        `INSERT INTO business_audit_log
+           (business_id, actor_user_id, actor_role, action, target_type, target_id, after_state, metadata)
+         VALUES ($1,$2,'owner','business.created','business',$1,$3::jsonb,$4::jsonb)`,
+        [
+          createdBusiness.id,
+          req.user.id,
+          JSON.stringify(createdBusiness),
+          JSON.stringify({ source: 'business_setup_v2', idempotencyKey }),
+        ]
+      );
+      return { biz: createdBusiness, reused: false };
     }, 'business_create');
 
-    return res.status(201).json({ business: biz });
+    return res.status(reused ? 200 : 201).json({
+      business: withBusinessCapabilities(biz),
+      reused: !!reused,
+      onboarding: {
+        currentStep: biz.business_kind === 'restaurant' ? 'restaurant_setup' : 'service_setup',
+        nextRoute: biz.business_kind === 'restaurant'
+          ? '/food/merchant'
+          : `/business/${biz.id}/workspace/profile`,
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -189,7 +304,8 @@ async function updateBusiness(req, res, next) {
       business_name, business_type, ein, description, website, phone,
       address_street, address_city, address_state, address_zip,
       address_country,
-      industry_category, business_mode,
+      industry_category, business_mode, business_kind,
+      timezone, currency_code,
       is_active, is_listed, tax_rate,
       // Public-profile fields
       logo_url, cover_photo_url,
@@ -201,24 +317,49 @@ async function updateBusiness(req, res, next) {
     // Country normalization. We resolve the effective country first because
     // state casing depends on it. If the request includes a new country use
     // that, otherwise fall back to whatever the row already has.
+    const { rows: [existingBusiness] } = await pool.query(
+      `SELECT address_country, business_kind, industry_category, business_mode,
+              business_type, setup_status, published_at
+         FROM businesses WHERE id = $1`,
+      [id]
+    );
     let effectiveCountry = countriesUtil.normalizeCountry(address_country);
-    if (!effectiveCountry) {
-      const { rows: [existing] } = await pool.query(
-        'SELECT address_country FROM businesses WHERE id = $1',
-        [id]
-      );
-      effectiveCountry = (existing && existing.address_country) || 'US';
-    }
+    if (!effectiveCountry) effectiveCountry = existingBusiness?.address_country || 'US';
     const normalizedState = (address_state && countriesUtil.hasRegions(effectiveCountry))
       ? String(address_state).toUpperCase().trim()
       : (address_state ?? undefined);
     const category = normalizeBusinessCategory({
-      industryCategory: industry_category,
-      businessMode: business_mode,
-      businessType: business_type,
+      businessKind: business_kind || existingBusiness?.business_kind,
+      industryCategory: industry_category || existingBusiness?.industry_category,
+      businessMode: business_mode || existingBusiness?.business_mode,
+      businessType: business_type || existingBusiness?.business_type,
     });
     if (category.error) {
       throw new AppError(category.error, 400, 'unsupported_business_category');
+    }
+
+    if (existingBusiness?.business_kind && category.businessKind !== existingBusiness.business_kind) {
+      if (!['draft', 'in_progress'].includes(existingBusiness.setup_status)) {
+        throw new AppError(
+          'A published business cannot change operating models. Create a separate business instead.',
+          409,
+          'business_kind_locked'
+        );
+      }
+      const { rows: [usage] } = await pool.query(
+        `SELECT
+           (SELECT COUNT(*)::int FROM food_orders WHERE business_id = $1) AS food_orders,
+           (SELECT COUNT(*)::int FROM business_appointments WHERE business_id = $1) AS appointments,
+           (SELECT COUNT(*)::int FROM business_invoices WHERE business_id = $1) AS invoices`,
+        [id]
+      );
+      if (Number(usage?.food_orders || 0) + Number(usage?.appointments || 0) + Number(usage?.invoices || 0) > 0) {
+        throw new AppError(
+          'This business already has operational history and cannot change operating models.',
+          409,
+          'business_kind_locked'
+        );
+      }
     }
 
     const isOwner = req.user.id === ownerId;
@@ -228,7 +369,19 @@ async function updateBusiness(req, res, next) {
     const sensitiveEin = isOwner ? ein : undefined;
     const sensitiveTax = isOwner ? tax_rate : undefined;
     const sensitiveActive = isOwner && is_active != null ? is_active : null;
-    const listingVisibility = typeof is_listed === 'boolean' ? is_listed : null;
+    const listingVisibility = isOwner && typeof is_listed === 'boolean' ? is_listed : null;
+    const requestsPublication = sensitiveActive === true || listingVisibility === true;
+    if (
+      requestsPublication
+      && existingBusiness?.setup_status !== 'active'
+      && !existingBusiness?.published_at
+    ) {
+      throw new AppError(
+        'Complete business setup before publishing this business.',
+        409,
+        'business_setup_incomplete'
+      );
+    }
 
     const { rows: [biz] } = await pool.query(
       `UPDATE businesses
@@ -250,6 +403,20 @@ async function updateBusiness(req, res, next) {
            industry_category = COALESCE($20, industry_category),
            business_mode     = COALESCE($21, business_mode),
            is_listed         = COALESCE($22, is_listed),
+           business_kind     = COALESCE($23, business_kind),
+           timezone          = COALESCE($24, timezone),
+           currency_code     = COALESCE($25, currency_code),
+           setup_status      = CASE
+                                 WHEN $11::boolean = FALSE THEN 'paused'
+                                 WHEN $11::boolean = TRUE AND COALESCE($22, is_listed) = TRUE THEN 'active'
+                                 ELSE setup_status
+                               END,
+           published_at      = CASE
+                                 WHEN $11::boolean = TRUE AND COALESCE($22, is_listed) = TRUE
+                                   THEN COALESCE(published_at, NOW())
+                                 ELSE published_at
+                               END,
+           profile_version   = profile_version + 1,
            updated_at      = NOW()
        WHERE id = $15
        RETURNING *`,
@@ -273,6 +440,9 @@ async function updateBusiness(req, res, next) {
         category.industryCategory,
         category.businessMode,
         listingVisibility,
+        category.businessKind,
+        timezone !== undefined ? normalizeTimezone(timezone) : null,
+        currency_code !== undefined ? normalizeCurrency(currency_code, effectiveCountry) : null,
       ]
     );
 
@@ -280,6 +450,8 @@ async function updateBusiness(req, res, next) {
 
     if (biz.business_mode === 'food') {
       await ensureDraftFoodRestaurantForBusiness(pool, biz, ownerId);
+    } else if (biz.business_kind === 'service') {
+      await ensureDraftServiceProfileForBusiness(pool, biz);
     }
 
     if (req.body.ai_knowledge !== undefined) {
@@ -318,7 +490,197 @@ async function updateBusiness(req, res, next) {
           invalidateHelperContext(ownerId, Number(id)).catch(() => {});
         }
 
-    return res.json({ business: biz });
+    return res.json({ business: withBusinessCapabilities(biz) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function loadBusinessSetupReadiness(db, businessId) {
+  const { rows: [row] } = await db.query(
+    `SELECT b.*,
+            (SELECT COUNT(*)::int
+               FROM business_services bs
+              WHERE bs.business_id = b.id AND bs.is_active = TRUE) AS service_count,
+            (SELECT fr.id
+               FROM food_restaurants fr
+              WHERE fr.business_id = b.id
+              LIMIT 1) AS restaurant_id,
+            (SELECT fr.status
+               FROM food_restaurants fr
+              WHERE fr.business_id = b.id
+              LIMIT 1) AS restaurant_status,
+            (SELECT COUNT(*)::int
+               FROM food_menu_items fmi
+               JOIN food_restaurants fr ON fr.id = fmi.restaurant_id
+              WHERE fr.business_id = b.id AND fmi.is_available = TRUE) AS menu_item_count
+       FROM businesses b
+      WHERE b.id = $1`,
+    [businessId]
+  );
+  if (!row) return null;
+
+  const kind = row.business_kind || (row.business_mode === 'food' ? 'restaurant' : 'service');
+  const checks = [
+    { id: 'name', label: 'Business name', complete: !!row.business_name?.trim() },
+    { id: 'category', label: 'Business category', complete: !!(row.industry_category || row.business_type) },
+    { id: 'location', label: 'City or service location', complete: !!row.address_city?.trim() },
+  ];
+  if (kind === 'restaurant') {
+    checks.push(
+      { id: 'restaurant_profile', label: 'Restaurant profile', complete: !!row.restaurant_id },
+      { id: 'menu', label: 'At least one available menu item', complete: Number(row.menu_item_count || 0) > 0 },
+    );
+  } else {
+    checks.push(
+      { id: 'description', label: 'Customer-facing description', complete: !!row.description?.trim() },
+      { id: 'service', label: 'At least one active service', complete: Number(row.service_count || 0) > 0 },
+    );
+  }
+
+  return {
+    business: withBusinessCapabilities(row),
+    checks,
+    readyToPublish: checks.every((check) => check.complete),
+  };
+}
+
+// GET /api/businesses/:id/onboarding
+async function getBusinessOnboarding(req, res, next) {
+  try {
+    const access = await canEditProfile(req.user.id, req.params.id);
+    if (!access) throw new AppError('Business not found', 404, 'not_found');
+    const readiness = await loadBusinessSetupReadiness(pool, access.id);
+    const { rows: [progress] } = await pool.query(
+      `SELECT current_step, completed_steps, draft_data, version, updated_at
+         FROM business_setup_progress
+        WHERE business_id = $1`,
+      [access.id]
+    );
+    return res.json({
+      ...readiness,
+      progress: progress || {
+        current_step: 'identity',
+        completed_steps: [],
+        draft_data: {},
+        version: 1,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// PUT /api/businesses/:id/onboarding
+async function updateBusinessOnboarding(req, res, next) {
+  try {
+    const access = await canEditProfile(req.user.id, req.params.id);
+    if (!access) throw new AppError('Business not found', 404, 'not_found');
+    const currentStep = String(req.body.currentStep || req.body.current_step || 'identity').trim().slice(0, 60);
+    const completedStepsInput = req.body.completedSteps || req.body.completed_steps || [];
+    const completedSteps = Array.isArray(completedStepsInput)
+      ? [...new Set(completedStepsInput.map((step) => String(step).trim().slice(0, 60)).filter(Boolean))].slice(0, 30)
+      : [];
+    const draftData = req.body.draftData || req.body.draft_data || {};
+    if (!draftData || Array.isArray(draftData) || typeof draftData !== 'object') {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        draft_data: 'Must be an object',
+      });
+    }
+    if (JSON.stringify(draftData).length > 20000) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        draft_data: 'Saved setup data is too large',
+      });
+    }
+
+    const { rows: [progress] } = await pool.query(
+      `INSERT INTO business_setup_progress
+         (business_id, current_step, completed_steps, draft_data)
+       VALUES ($1,$2,$3,$4::jsonb)
+       ON CONFLICT (business_id) DO UPDATE
+         SET current_step = EXCLUDED.current_step,
+             completed_steps = EXCLUDED.completed_steps,
+             draft_data = business_setup_progress.draft_data || EXCLUDED.draft_data,
+             version = business_setup_progress.version + 1,
+             updated_at = NOW()
+       RETURNING current_step, completed_steps, draft_data, version, updated_at`,
+      [access.id, currentStep, completedSteps, JSON.stringify(draftData)]
+    );
+    await pool.query(
+      `UPDATE businesses
+          SET setup_status = CASE WHEN setup_status = 'draft' THEN 'in_progress' ELSE setup_status END,
+              updated_at = NOW()
+        WHERE id = $1`,
+      [access.id]
+    );
+    return res.json({ progress });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/businesses/:id/onboarding/complete
+async function completeBusinessOnboarding(req, res, next) {
+  try {
+    const access = await canEditProfile(req.user.id, req.params.id);
+    if (!access) throw new AppError('Business not found', 404, 'not_found');
+    if (req.user.id !== access.owner_id) {
+      throw new AppError('Only the business owner can publish this business', 403, 'forbidden');
+    }
+    const readiness = await loadBusinessSetupReadiness(pool, access.id);
+    if (!readiness?.readyToPublish) {
+      throw new AppError('Complete the required setup before publishing', 409, 'business_setup_incomplete', {
+        missing: readiness?.checks.filter((check) => !check.complete).map((check) => check.id) || [],
+      });
+    }
+
+    const { business } = await withTransaction(pool, async (client) => {
+      const { rows: [published] } = await client.query(
+        `UPDATE businesses
+            SET setup_status = 'active', is_active = TRUE, is_listed = TRUE,
+                published_at = COALESCE(published_at, NOW()),
+                profile_version = profile_version + 1,
+                updated_at = NOW()
+          WHERE id = $1
+          RETURNING *`,
+        [access.id]
+      );
+      if (published.business_kind === 'restaurant') {
+        await client.query(
+          `UPDATE food_restaurants
+              SET status = 'active', discovery_status = 'visible', updated_at = NOW()
+            WHERE business_id = $1`,
+          [access.id]
+        );
+      } else {
+        await client.query(
+          `UPDATE business_service_profiles
+              SET status = 'active', updated_at = NOW()
+            WHERE business_id = $1`,
+          [access.id]
+        );
+      }
+      await client.query(
+        `INSERT INTO business_setup_progress
+           (business_id, current_step, completed_steps, draft_data)
+         VALUES ($1,'complete',ARRAY['kind','category','identity','location','vertical_setup','publish']::TEXT[],'{}'::jsonb)
+         ON CONFLICT (business_id) DO UPDATE
+           SET current_step = 'complete',
+               completed_steps = ARRAY['kind','category','identity','location','vertical_setup','publish']::TEXT[],
+               version = business_setup_progress.version + 1,
+               updated_at = NOW()`,
+        [access.id]
+      );
+      await client.query(
+        `INSERT INTO business_audit_log
+           (business_id, actor_user_id, actor_role, action, target_type, target_id, after_state)
+         VALUES ($1,$2,'owner','business.published','business',$1,$3::jsonb)`,
+        [access.id, req.user.id, JSON.stringify(published)]
+      );
+      return { business: published };
+    }, 'business_publish');
+
+    return res.json({ business: withBusinessCapabilities(business), readiness });
   } catch (err) {
     next(err);
   }
@@ -795,7 +1157,8 @@ async function getBusinessPublicProfile(req, res) {
     //     allow_guest_contact and active_template fallbacks during the migration window.
     const bizRes = await pool.query(
       `SELECT
-         b.id, b.business_name, b.business_type, b.description,
+         b.id, b.business_name, b.business_type, b.industry_category,
+         b.business_mode, b.business_kind, b.setup_status, b.description,
          b.website, b.phone, b.logo_url, b.cover_photo_url,
          b.address_city, b.address_state, b.address_country,
          b.is_primary, b.is_active, b.is_listed, b.created_at,
@@ -819,6 +1182,8 @@ async function getBusinessPublicProfile(req, res) {
        WHERE b.id        = $1
          AND b.is_active = TRUE
          AND b.is_listed = TRUE
+         AND b.setup_status = 'active'
+         AND b.business_kind = 'service'
          AND u.deleted_at IS NULL
          AND u.is_active = TRUE
          AND u.email_verified = TRUE`,
@@ -884,7 +1249,7 @@ async function getBusinessPublicProfile(req, res) {
     ]);
 
     return res.json({
-      business: {
+      business: withBusinessCapabilities({
         id:             biz.id,
         business_name:  biz.business_name,
         business_type:  biz.business_type,
@@ -926,7 +1291,11 @@ async function getBusinessPublicProfile(req, res) {
         allow_guest_contact: biz.owner_allow_guest_contact !== false,
         /** Active profile template slug */
         active_template: biz.active_template || 'default',
-      },
+        business_kind: biz.business_kind,
+        business_mode: biz.business_mode,
+        industry_category: biz.industry_category,
+        setup_status: biz.setup_status,
+      }),
       services:  svcRes.rows,
       reviews:   reviewRes.rows,
       gallery:   galRes.rows,
@@ -956,6 +1325,12 @@ async function getBusinessProfileForEditor(req, res) {
          b.business_type,
          b.industry_category,
          b.business_mode,
+         b.business_kind,
+         b.setup_status,
+         b.timezone,
+         b.currency_code,
+         b.published_at,
+         b.profile_version,
          b.description,
          b.website,
          b.phone,
@@ -975,7 +1350,7 @@ async function getBusinessProfileForEditor(req, res) {
       [id]
     );
     if (!row) return res.status(404).json({ error: 'Business not found' });
-    return res.json({ business: row });
+    return res.json({ business: withBusinessCapabilities(row) });
   } catch (err) {
     logger.error('getBusinessProfileForEditor error', { err: err.message });
     return res.status(500).json({ error: 'Failed to load business profile' });
@@ -984,6 +1359,7 @@ async function getBusinessProfileForEditor(req, res) {
 
 module.exports = {
   listBusinesses, listBusinessCategories, addBusiness, updateBusiness, setPrimary, deleteBusiness,
+  getBusinessOnboarding, updateBusinessOnboarding, completeBusinessOnboarding,
   uploadBusinessPhotos,
   getBusinessPublicProfile,
   getBusinessProfileForEditor,

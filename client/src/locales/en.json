@@ -1,4 +1,22 @@
 {
+  "businessCreation": {
+    "eyebrow": "Business setup", "title": "Create your business", "progress": "Setup progress",
+    "stepOne": "Step 1 of 4", "stepTwo": "Step 2 of 4", "stepThree": "Step 3 of 4", "stepFour": "Step 4 of 4",
+    "kindTitle": "What will customers do?", "kindHelp": "Choose the operating model first. You will select the specific industry next.",
+    "restaurant": "Restaurant", "restaurantHelp": "Customers browse a menu and place food orders.",
+    "service": "Service Business", "serviceHelp": "Customers browse services, request work, book, or discover your shop in Skills.",
+    "categoryTitle": "Choose the closest category", "categoryHelp": "This improves discovery. It does not change who owns or manages the business.",
+    "subtype": "Business type", "selectSubtype": "Select the closest match",
+    "identityTitle": "Add the essentials", "identityHelp": "Only the name, country, and city are required now. Complete the public profile before publishing.",
+    "businessName": "Business name", "description": "Short description", "country": "Country", "city": "City", "region": "State / region", "postal": "Postal code", "phone": "Phone", "website": "Website",
+    "reviewTitle": "Review the foundation", "reviewHelp": "Your business starts private. Customers will not see it until the required setup is complete.",
+    "operatingModel": "Operating model", "category": "Category", "location": "Location", "currency": "Currency",
+    "privateTitle": "Private until you publish", "restaurantNext": "Next, add your menu, hours, ordering options, and restaurant credit settings.", "serviceNext": "Next, add your services, availability, service area, and booking details.",
+    "catalogError": "Business types could not be loaded. Try again.", "chooseKindError": "Choose how customers will use this business.", "chooseCategoryError": "Choose a business category.", "chooseSubtypeError": "Choose the closest business type.", "nameError": "Business name is required.", "countryError": "Country is required.", "cityError": "City is required before customers can discover the business.", "createError": "The business could not be created. Try again.",
+    "create": "Create private business", "creating": "Creating...", "setupStatus": "Setup status", "privateDraft": "Private draft", "checking": "Checking...", "publish": "Publish business", "published": "Business published.", "publishError": "The business could not be published.", "missingSetup": "Complete the required setup items before publishing.",
+    "finishRestaurant": "Finish restaurant setup", "finishRestaurantHelp": "Add a live menu, location, hours, ordering choices, and restaurant credit settings.", "continueRestaurant": "Continue restaurant setup",
+    "finishService": "Finish service setup", "finishServiceHelp": "Complete your public profile and add at least one active service before publishing.", "editProfile": "Edit profile", "addServices": "Add services"
+  },
   "nav": {
     "browseJobs": "Browse Jobs",
     "postJob": "Post a Job",
