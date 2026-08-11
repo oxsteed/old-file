@@ -6,8 +6,8 @@ import {
   createFoodRestaurant,
   getFoodSetupProgress,
   updateFoodRestaurant,
-  uploadFoodAsset,
 } from '../../api/food';
+import { uploadBusinessPhotos } from '../../api/businesses';
 import { apiErrorMessage } from './foodShared';
 import { defaultWeekdayHours } from './FoodSetupWizard';
 import CountrySelect from '../../components/CountrySelect';
@@ -29,6 +29,7 @@ export default function RestaurantSetupGuide({ t, restaurants, selected, onClose
   const [progress, setProgress] = useState(null);
   const [working, setWorking] = useState(false);
   const [uploading, setUploading] = useState('');
+  const [pendingBrandFiles, setPendingBrandFiles] = useState({ logoUrl: null, coverPhotoUrl: null });
   const [profile, setProfile] = useState({ name: '', description: '', cuisine: '', phone: '', logoUrl: '', coverPhotoUrl: '' });
   const [ordering, setOrdering] = useState({ street: '', city: '', region: '', postal: '', country: 'US', currency: 'USD', open: '11:00', close: '22:00', pickup: true, delivery: false, dineIn: false });
   const [menuItem, setMenuItem] = useState({ name: '', price: '', description: '' });
@@ -72,13 +73,71 @@ export default function RestaurantSetupGuide({ t, restaurants, selected, onClose
 
   useEffect(() => { loadProgress(); }, [loadProgress]);
 
-  const upload = async (event, field, purpose) => {
+  const syncBrandFiles = async (targetRestaurant, logoFile, coverFile) => {
+    const businessId = targetRestaurant?.business_id || targetRestaurant?.businessId;
+    if (!businessId) {
+      throw new Error(t('food.setup.businessLinkMissing', 'The restaurant is not linked to a business yet. Save the restaurant and try again.'));
+    }
+
+    const result = await uploadBusinessPhotos(businessId, logoFile, coverFile);
+    const logoUrl = result?.logo_url || result?.business?.logo_url;
+    const coverPhotoUrl = result?.cover_photo_url || result?.business?.cover_photo_url;
+    const updates = {};
+    if (logoFile && logoUrl) updates.logoUrl = logoUrl;
+    if (coverFile && coverPhotoUrl) updates.coverPhotoUrl = coverPhotoUrl;
+
+    if ((logoFile && !logoUrl) || (coverFile && !coverPhotoUrl)) {
+      throw new Error(t('food.setup.uploadMissingUrl', 'The image was stored, but the server did not return its public URL.'));
+    }
+
+    const updated = Object.keys(updates).length
+      ? await updateFoodRestaurant(targetRestaurant.id, updates)
+      : targetRestaurant;
+
+    setProfile((current) => ({
+      ...current,
+      ...(logoUrl ? { logoUrl } : {}),
+      ...(coverPhotoUrl ? { coverPhotoUrl } : {}),
+    }));
+    setRestaurant(updated);
+    onRefresh(updated);
+    return updated;
+  };
+
+  const upload = async (event, field) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    const supportedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+    if (!supportedTypes.has(String(file.type || '').toLowerCase())) {
+      toast.error(t('food.setup.imageFormatError', 'Choose a JPG, PNG, WebP, or GIF image.'));
+      event.target.value = '';
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error(t('food.setup.imageSizeError', 'Choose an image smaller than 10 MB.'));
+      event.target.value = '';
+      return;
+    }
+
+    const businessId = restaurant?.business_id || restaurant?.businessId;
+    if (!restaurant?.id || !businessId) {
+      const previewUrl = URL.createObjectURL(file);
+      setPendingBrandFiles((current) => {
+        const previous = current[field]?.previewUrl;
+        if (previous) URL.revokeObjectURL(previous);
+        return { ...current, [field]: { file, previewUrl } };
+      });
+      setProfile((current) => ({ ...current, [field]: previewUrl }));
+      return;
+    }
+
     setUploading(field);
     try {
-      const asset = await uploadFoodAsset(file, purpose);
-      setProfile((current) => ({ ...current, [field]: asset?.url || current[field] }));
+      await syncBrandFiles(
+        restaurant,
+        field === 'logoUrl' ? file : null,
+        field === 'coverPhotoUrl' ? file : null
+      );
     } catch (error) {
       toast.error(apiErrorMessage(error, t('food.setup.uploadError', 'Could not upload that image')));
     } finally {
@@ -99,15 +158,31 @@ export default function RestaurantSetupGuide({ t, restaurants, selected, onClose
           description: profile.description.trim() || undefined,
           cuisineTags: profile.cuisine.split(',').map((value) => value.trim()).filter(Boolean),
           phone: profile.phone.trim() || undefined,
-          logoUrl: profile.logoUrl || undefined,
-          coverPhotoUrl: profile.coverPhotoUrl || undefined,
+          logoUrl: profile.logoUrl && !profile.logoUrl.startsWith('blob:') ? profile.logoUrl : undefined,
+          coverPhotoUrl: profile.coverPhotoUrl && !profile.coverPhotoUrl.startsWith('blob:') ? profile.coverPhotoUrl : undefined,
         };
-        const saved = restaurant
+        let saved = restaurant
           ? await updateFoodRestaurant(restaurant.id, payload)
           : await createFoodRestaurant(payload);
         setRestaurant(saved);
         onSelectRestaurant(saved.id);
         onRefresh(saved);
+
+        const pendingLogo = pendingBrandFiles.logoUrl?.file || null;
+        const pendingCover = pendingBrandFiles.coverPhotoUrl?.file || null;
+        if (pendingLogo || pendingCover) {
+          setUploading(pendingLogo && pendingCover ? 'brand' : pendingLogo ? 'logoUrl' : 'coverPhotoUrl');
+          try {
+            saved = await syncBrandFiles(saved, pendingLogo, pendingCover);
+            Object.values(pendingBrandFiles).forEach((entry) => {
+              if (entry?.previewUrl) URL.revokeObjectURL(entry.previewUrl);
+            });
+            setPendingBrandFiles({ logoUrl: null, coverPhotoUrl: null });
+          } finally {
+            setUploading('');
+          }
+        }
+
         await loadProgress(saved.id);
         setStep('ordering');
         return;
@@ -226,7 +301,7 @@ export default function RestaurantSetupGuide({ t, restaurants, selected, onClose
               <div className="fd-field"><label htmlFor="setup-name">{t('food.merchant.name', 'Restaurant name')} *</label><input id="setup-name" value={profile.name} onChange={(event) => setProfile((current) => ({ ...current, name: event.target.value }))} maxLength={160} autoFocus /></div>
               <div className="fd-field"><label htmlFor="setup-description">{t('food.merchant.description', 'Description')}</label><textarea id="setup-description" value={profile.description} onChange={(event) => setProfile((current) => ({ ...current, description: event.target.value }))} rows={3} maxLength={2000} placeholder={t('food.setup.descriptionPlaceholder', 'Tell customers what you serve and what makes your restaurant special.')} /></div>
               <div className="fd-owner-setup-grid"><div className="fd-field"><label htmlFor="setup-cuisine">{t('food.merchant.cuisineTags', 'Cuisine')}</label><input id="setup-cuisine" value={profile.cuisine} onChange={(event) => setProfile((current) => ({ ...current, cuisine: event.target.value }))} placeholder="Caribbean, Creole" /></div><div className="fd-field"><label htmlFor="setup-phone">{t('food.merchant.phone', 'Phone')}</label><input id="setup-phone" type="tel" value={profile.phone} onChange={(event) => setProfile((current) => ({ ...current, phone: event.target.value }))} /></div></div>
-              <div className="fd-owner-brand-upload"><ImageUpload t={t} label={t('food.setup.logo', 'Logo')} value={profile.logoUrl} busy={uploading === 'logoUrl'} onChange={(event) => upload(event, 'logoUrl', 'food-restaurant-logo')} /><ImageUpload t={t} label={t('food.setup.cover', 'Cover photo')} value={profile.coverPhotoUrl} busy={uploading === 'coverPhotoUrl'} wide onChange={(event) => upload(event, 'coverPhotoUrl', 'food-restaurant-cover')} /></div>
+              <div className="fd-owner-brand-upload"><ImageUpload t={t} label={t('food.setup.logo', 'Logo')} value={profile.logoUrl} busy={uploading === 'logoUrl' || uploading === 'brand'} onChange={(event) => upload(event, 'logoUrl')} /><ImageUpload t={t} label={t('food.setup.cover', 'Cover photo')} value={profile.coverPhotoUrl} busy={uploading === 'coverPhotoUrl' || uploading === 'brand'} wide onChange={(event) => upload(event, 'coverPhotoUrl')} /></div>
             </div>
           )}
 
@@ -268,7 +343,7 @@ export default function RestaurantSetupGuide({ t, restaurants, selected, onClose
 }
 
 function ImageUpload({ t, label, value, busy, wide, onChange }) {
-  return <label className={`fd-owner-image-upload${wide ? ' fd-owner-image-upload--wide' : ''}`}><span>{label}</span><div>{value ? <img src={value} alt="" /> : <strong aria-hidden>{wide ? '▧' : '◎'}</strong>}</div><em>{busy ? t('food.common.saving', 'Uploading…') : t('food.setup.chooseImage', 'Choose image')}</em><input type="file" accept="image/*" hidden disabled={busy} onChange={onChange} /></label>;
+  return <label className={`fd-owner-image-upload${wide ? ' fd-owner-image-upload--wide' : ''}`}><span>{label}</span><div>{value ? <img src={value} alt="" /> : <strong aria-hidden>{wide ? '▧' : '◎'}</strong>}</div><em>{busy ? t('food.common.saving', 'Uploading…') : t('food.setup.chooseImage', 'Choose image')}</em><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden disabled={busy} onChange={onChange} /></label>;
 }
 
 function setupTitle(step, t) {

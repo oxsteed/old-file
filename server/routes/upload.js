@@ -5,6 +5,7 @@ const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const logger = require('../utils/logger');
+const AppError = require('../utils/appError');
 
 const router = express.Router();
 
@@ -54,7 +55,11 @@ async function handleUpload(req, res, next, kind) {
     });
   } catch (error) {
     logger.error('upload route failed', { kind, error: error.message });
-    next(error);
+    next(new AppError(
+      'File storage is temporarily unavailable',
+      503,
+      'storage_unavailable'
+    ));
   }
 }
 
