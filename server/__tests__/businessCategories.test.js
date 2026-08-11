@@ -92,6 +92,11 @@ describe('business category long-term wiring', () => {
       business_mode: 'food',
     }));
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_restaurants/.test(sql))).toBe(true);
+    const auditInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO business_audit_log/.test(sql));
+    expect(auditInsert).toBeDefined();
+    expect(auditInsert[1][0]).toBe(8);
+    expect(auditInsert[1][2]).toBe('8');
+    expect(auditInsert[1]).toHaveLength(5);
   });
 
   test('does not create a food restaurant for service marketplace businesses', async () => {

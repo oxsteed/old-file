@@ -263,10 +263,11 @@ async function addBusiness(req, res, next) {
       await client.query(
         `INSERT INTO business_audit_log
            (business_id, actor_user_id, actor_role, action, target_type, target_id, after_state, metadata)
-         VALUES ($1,$2,'owner','business.created','business',$1,$3::jsonb,$4::jsonb)`,
+         VALUES ($1,$2,'owner','business.created','business',$3,$4::jsonb,$5::jsonb)`,
         [
           createdBusiness.id,
           req.user.id,
+          String(createdBusiness.id),
           JSON.stringify(createdBusiness),
           JSON.stringify({ source: 'business_setup_v2', idempotencyKey }),
         ]
@@ -674,8 +675,8 @@ async function completeBusinessOnboarding(req, res, next) {
       await client.query(
         `INSERT INTO business_audit_log
            (business_id, actor_user_id, actor_role, action, target_type, target_id, after_state)
-         VALUES ($1,$2,'owner','business.published','business',$1,$3::jsonb)`,
-        [access.id, req.user.id, JSON.stringify(published)]
+         VALUES ($1,$2,'owner','business.published','business',$3,$4::jsonb)`,
+        [access.id, req.user.id, String(access.id), JSON.stringify(published)]
       );
       return { business: published };
     }, 'business_publish');
