@@ -225,6 +225,7 @@ router.get('/:restaurantId/kitchen/audit-events', appFlow.listKitchenAuditEvents
 router.post('/:restaurantId/kitchen/events', appFlow.recordKitchenEvent);
 router.post('/:restaurantId/kitchen/orders/:orderId/ack', appFlow.ackKitchenTicket);
 router.post('/:restaurantId/kitchen/tickets/:orderId/ack', appFlow.ackKitchenTicket);
+router.post('/:restaurantId/kitchen/orders/:orderId/action', appFlow.performKitchenOrderAction);
 router.post('/:restaurantId/kitchen/items/:orderItemId/action', appFlow.performKitchenItemAction);
 router.get('/:restaurantId/kitchen/printer-jobs', appFlow.listPrinterJobs);
 router.post('/:restaurantId/kitchen/printer-jobs', appFlow.createPrinterJob);

@@ -359,20 +359,54 @@ describe('food controller', () => {
   test('updates order status through restaurant-scoped access', async () => {
     mockQuery
       .mockResolvedValueOnce({
-        rows: [{ id: 3, business_id: 42, owner_user_id: '00000000-0000-4000-8000-000000000123', effective_role: 'owner' }],
+        rows: [{ id: 3, business_id: 42, owner_user_id: '00000000-0000-4000-8000-000000000123', effective_role: 'owner', settings: { kitchenPrep: { requireQualityCheck: true } } }],
       })
       .mockResolvedValueOnce({
-        rows: [{ id: 100, restaurant_id: 3, status: 'ready' }],
-      });
+        rows: [{
+          id: 100,
+          restaurant_id: 3,
+          status: 'ready',
+          kitchen_stage: 'ready',
+          previous_status: 'preparing',
+          previous_kitchen_stage: 'quality_check',
+          fulfillment_type: 'pickup',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
 
     const res = await request(buildApp())
       .patch('/api/food/restaurants/3/orders/100/status')
-      .send({ status: 'ready' });
+      .send({ status: 'ready', action: 'mark_ready' });
 
     expect(res.status).toBe(200);
     expect(mockQuery.mock.calls[0][0]).toMatch(/JOIN businesses b ON b.id = fr.business_id/);
-    expect(mockQuery.mock.calls[1][0]).toMatch(/WHERE id = \$2 AND restaurant_id = \$3/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/FOR UPDATE/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/NOT EXISTS/);
+    expect(mockQuery.mock.calls[2][0]).toMatch(/INSERT INTO restaurant_kitchen_events/);
     expect(res.body.order.status).toBe('ready');
+    expect(res.body.order.previous_status).toBeUndefined();
+  });
+
+  test('does not publish a kitchen order as ready while required items are incomplete', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: 3, business_id: 42, owner_user_id: '00000000-0000-4000-8000-000000000123', effective_role: 'owner', settings: {} }],
+      })
+      .mockResolvedValueOnce({
+        rows: [],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: 100, restaurant_id: 3, status: 'preparing', kitchen_stage: 'quality_check', fulfillment_type: 'pickup' }],
+      })
+      .mockResolvedValueOnce({ rows: [{ total_items: 3, finished_items: 2 }] });
+
+    const res = await request(buildApp())
+      .patch('/api/food/restaurants/3/orders/100/status')
+      .send({ status: 'ready', action: 'mark_ready' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code || res.body.error?.code).toBe('kitchen_items_incomplete');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(true);
   });
 
   test('filters restaurant orders to POS sources for compatibility clients', async () => {

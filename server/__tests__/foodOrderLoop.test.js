@@ -325,6 +325,35 @@ describe('food order loop E2E (F7)', () => {
     expect(smsNotificationService.sendDirectSMS).not.toHaveBeenCalled();
   });
 
+  test('idempotent ready retry does not notify the customer or broadcast twice', async () => {
+    const app = buildApp({ id: CUSTOMER_ID, email: 'guest@example.com' });
+    mockQuery
+      .mockResolvedValueOnce(mockRestaurantAccess())
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ food_order_id: ORDER_ID }] })
+      .mockResolvedValueOnce({
+        rows: [orderRow({
+          status: 'ready',
+          customer_id: CUSTOMER_ID,
+          guest_phone: null,
+          guest_email: null,
+        })],
+      });
+
+    const response = await request(app)
+      .patch(`/api/food/restaurants/${RESTAURANT_ID}/orders/${ORDER_ID}/status`)
+      .set('Idempotency-Key', 'ready-retry-1')
+      .send({ status: 'ready', action: 'mark_ready' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.replayed).toBe(true);
+    expect(response.body.order.status).toBe('ready');
+    expect(sendNotification).not.toHaveBeenCalled();
+    expect(smsNotificationService.sendDirectSMS).not.toHaveBeenCalled();
+    expect(emailService.send).not.toHaveBeenCalled();
+    expect(socketService.broadcastToRestaurantDisplay).not.toHaveBeenCalled();
+  });
+
   test('delivery order status sync marks runner task ready', async () => {
     const app = buildApp();
     mockQuery
@@ -339,6 +368,7 @@ describe('food order loop E2E (F7)', () => {
           },
         })],
       })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 901, status: 'Assigned', food_order_id: ORDER_ID }] })
       .mockResolvedValueOnce({ rows: [{ id: 901, status: 'Ready', food_order_id: ORDER_ID }] });
 
@@ -406,8 +436,8 @@ describe('food order loop E2E (F7)', () => {
     const app = buildApp();
     mockQuery
       .mockResolvedValueOnce(mockRestaurantAccess())
-      .mockResolvedValueOnce({ rows: [{ fulfillment_type: 'pickup' }] })
-      .mockResolvedValueOnce({ rows: [orderRow({ status: 'completed' })] });
+      .mockResolvedValueOnce({ rows: [orderRow({ status: 'completed', fulfillment_type: 'pickup' })] })
+      .mockResolvedValueOnce({ rows: [] });
 
     const res = await request(app)
       .patch(`/api/food/restaurants/${RESTAURANT_ID}/orders/${ORDER_ID}/status`)

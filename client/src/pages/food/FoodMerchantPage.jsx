@@ -539,6 +539,15 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
   const [closeTime, setCloseTime] = useState('22:00');
   const [brandHex, setBrandHex] = useState(restaurant.brand_accent_hex || '');
   const restaurantSettings = restaurant.settings && typeof restaurant.settings === 'object' ? restaurant.settings : {};
+  const kitchenPrepSettings = restaurantSettings.kitchenPrep && typeof restaurantSettings.kitchenPrep === 'object'
+    ? restaurantSettings.kitchenPrep
+    : {};
+  const [requireQualityCheck, setRequireQualityCheck] = useState(
+    kitchenPrepSettings.requireQualityCheck ?? kitchenPrepSettings.require_quality_check ?? true
+  );
+  const [handoffDisplaySeconds, setHandoffDisplaySeconds] = useState(
+    kitchenPrepSettings.handoffDisplaySeconds ?? kitchenPrepSettings.handoff_display_seconds ?? 15
+  );
   const [requirePickupGuestName, setRequirePickupGuestName] = useState(
     restaurantSettings.requireGuestNameForPickup ?? restaurantSettings.require_guest_name_for_pickup ?? true
   );
@@ -580,6 +589,11 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
     setExternalPaymentInstructions(nextSettings.externalPaymentInstructions ?? nextSettings.external_payment_instructions ?? '');
     setExternalPaymentReferenceHint(nextSettings.externalPaymentReferenceHint ?? nextSettings.external_payment_reference_hint ?? 'Include your order number or name in the payment note.');
     setExternalPaymentQrUrl(nextSettings.externalPaymentQrUrl ?? nextSettings.external_payment_qr_url ?? '');
+    const nextKitchenPrep = nextSettings.kitchenPrep && typeof nextSettings.kitchenPrep === 'object'
+      ? nextSettings.kitchenPrep
+      : {};
+    setRequireQualityCheck(nextKitchenPrep.requireQualityCheck ?? nextKitchenPrep.require_quality_check ?? true);
+    setHandoffDisplaySeconds(nextKitchenPrep.handoffDisplaySeconds ?? nextKitchenPrep.handoff_display_seconds ?? 15);
   }, [restaurant.id, restaurant.settings]);
 
   const savePaymentSettings = async (overrides = {}) => {
@@ -682,6 +696,62 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
         <button type="button" className="fd-btn fd-btn-sm" disabled={saving} onClick={() => patch({ prepTimeMin: Number(prep) || 15 })}>
           {t('food.common.save')}
         </button>
+      </div>
+
+      <div style={{ marginTop: '1.5rem' }}>
+        <h3>{t('food.merchant.kitchenWorkflowTitle', 'Kitchen workflow')}</h3>
+        <p className="fd-card-meta">
+          {t('food.merchant.kitchenWorkflowHint', 'Control the quality-check step and how long handed-off orders remain on the guest queue screen.')}
+        </p>
+        <div className="fd-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="fd-btn fd-btn-secondary"
+            disabled={saving}
+            onClick={() => {
+              const next = !requireQualityCheck;
+              setRequireQualityCheck(next);
+              patch({
+                settings: {
+                  ...restaurantSettings,
+                  kitchenPrep: { ...kitchenPrepSettings, requireQualityCheck: next, handoffDisplaySeconds: Number(handoffDisplaySeconds) || 0 },
+                },
+              });
+            }}
+          >
+            {requireQualityCheck
+              ? t('food.merchant.qualityCheckRequired', 'Quality check required')
+              : t('food.merchant.qualityCheckOptional', 'Quality check optional')}
+          </button>
+          <div className="fd-field" style={{ maxWidth: 220 }}>
+            <label htmlFor="fd-handoff-delay">{t('food.merchant.handoffDisplaySeconds', 'Queue removal delay (seconds)')}</label>
+            <input
+              id="fd-handoff-delay"
+              type="number"
+              min={0}
+              max={120}
+              value={handoffDisplaySeconds}
+              onChange={(event) => setHandoffDisplaySeconds(event.target.value)}
+            />
+          </div>
+          <button
+            type="button"
+            className="fd-btn fd-btn-sm"
+            disabled={saving}
+            onClick={() => patch({
+              settings: {
+                ...restaurantSettings,
+                kitchenPrep: {
+                  ...kitchenPrepSettings,
+                  requireQualityCheck,
+                  handoffDisplaySeconds: Math.max(0, Math.min(120, Number(handoffDisplaySeconds) || 0)),
+                },
+              },
+            })}
+          >
+            {t('food.common.save')}
+          </button>
+        </div>
       </div>
 
       <h3 style={{ marginTop: '1.5rem' }}>{t('food.merchant.hoursTitle', 'Operating hours')}</h3>

@@ -154,10 +154,48 @@ export const deleteFoodModifierGroup = (restaurantId, groupId) =>
 export const listFoodRestaurantOrders = (restaurantId, params = {}) =>
   api.get(`/food/restaurants/${restaurantId}/orders`, { params }).then((r) => r.data?.orders || []);
 
-export const updateFoodOrderStatus = (restaurantId, orderId, status) =>
+export const updateFoodOrderStatus = (restaurantId, orderId, status, options = {}) => {
+  const idempotencyKey = options.idempotencyKey || options.idempotency_key;
+  return (
   api
-    .patch(`/food/restaurants/${restaurantId}/orders/${orderId}/status`, { status })
-    .then((r) => r.data?.order);
+    .patch(
+      `/food/restaurants/${restaurantId}/orders/${orderId}/status`,
+      {
+        status,
+        action: options.action,
+        reason: options.reason,
+        stationLabel: options.stationLabel,
+        idempotencyKey,
+      },
+      idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+    )
+    .then((r) => r.data?.order)
+  );
+};
+
+export const getRestaurantKitchenFeed = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/kitchen/feed`, { params }).then((r) => r.data);
+
+export const acknowledgeRestaurantKitchenOrder = (restaurantId, orderId, payload = {}) =>
+  api.post(`/restaurants/${restaurantId}/kitchen/orders/${orderId}/ack`, payload).then((r) => r.data);
+
+export const performRestaurantKitchenOrderAction = (restaurantId, orderId, payload = {}) => {
+  const idempotencyKey = payload.idempotencyKey || payload.idempotency_key;
+  return api.post(
+    `/restaurants/${restaurantId}/kitchen/orders/${orderId}/action`,
+    payload,
+    idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+  ).then((r) => r.data);
+};
+
+export const performRestaurantKitchenItemAction = (restaurantId, orderItemId, payload = {}) => {
+  const idempotencyKey = payload.idempotencyKey || payload.idempotency_key;
+  return api.post(
+    `/restaurants/${restaurantId}/kitchen/items/${orderItemId}/action`,
+    payload,
+    idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+  ).then((r) => r.data);
+};
 
 export const updateFoodOrderPayment = (restaurantId, orderId, paymentStatus) =>
   api

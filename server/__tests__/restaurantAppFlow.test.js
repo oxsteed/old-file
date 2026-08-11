@@ -84,6 +84,7 @@ function buildApp() {
   app.post('/api/restaurants/:restaurantId/kitchen/feed/ack', appFlow.ackKitchenFeed);
   app.get('/api/restaurants/:restaurantId/kitchen/audit-events', appFlow.listKitchenAuditEvents);
   app.post('/api/restaurants/:restaurantId/kitchen/orders/:orderId/ack', appFlow.ackKitchenTicket);
+  app.post('/api/restaurants/:restaurantId/kitchen/orders/:orderId/action', appFlow.performKitchenOrderAction);
   app.post('/api/restaurants/:restaurantId/kitchen/items/:orderItemId/action', appFlow.performKitchenItemAction);
   app.post('/api/restaurants/:restaurantId/kitchen/stations', appFlow.upsertKitchenStation);
   app.post('/api/restaurants/:restaurantId/kitchen/station-routes', appFlow.routeMenuItemToStation);
@@ -1113,6 +1114,51 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.item.kitchen_status).toBe('delayed');
     expect(res.body.event.event_type).toBe('item_delay');
     expect(mockQuery.mock.calls.some(([sql]) => /delay_reason/.test(sql))).toBe(true);
+  });
+
+  test('moves a fully prepared order into an auditable quality-check stage', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({
+        rows: [{ id: ORDER_ID, status: 'preparing', kitchen_stage: 'preparing', queue_number: 12 }],
+      })
+      .mockResolvedValueOnce({ rows: [{ total_items: 2, finished_items: 2 }] })
+      .mockResolvedValueOnce({
+        rows: [{ id: ORDER_ID, status: 'preparing', kitchen_stage: 'quality_check', queue_number: 12 }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: 994, event_type: 'order_ready_for_check', from_status: 'preparing', to_status: 'preparing' }],
+      });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/kitchen/orders/${ORDER_ID}/action`)
+      .send({ action: 'ready_for_check' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.order.status).toBe('preparing');
+    expect(res.body.order.kitchen_stage).toBe('quality_check');
+    expect(res.body.event.event_type).toBe('order_ready_for_check');
+  });
+
+  test('replays an offline kitchen action without creating a duplicate transition', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{ id: 994, food_order_id: ORDER_ID, event_type: 'order_ready_for_check', idempotency_key: 'offline-quality-100' }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: ORDER_ID, status: 'preparing', kitchen_stage: 'quality_check', queue_number: 12 }],
+      });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/kitchen/orders/${ORDER_ID}/action`)
+      .set('Idempotency-Key', 'offline-quality-100')
+      .send({ action: 'ready_for_check', idempotencyKey: 'offline-quality-100' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.replayed).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_orders/.test(sql))).toBe(false);
   });
 
   test('configures kitchen station routing and printer jobs', async () => {

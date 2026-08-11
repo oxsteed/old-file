@@ -12954,6 +12954,11 @@
       "disableInStore": "تعطيل الطلبات داخل المطعم",
       "enableInStore": "تفعيل الطلبات داخل المطعم",
       "prepTimeMin": "وقت التحضير (دقائق)",
+      "kitchenWorkflowTitle": "سير عمل المطبخ",
+      "kitchenWorkflowHint": "تحكم في خطوة فحص الجودة ومدة بقاء الطلبات المسلّمة على شاشة الانتظار.",
+      "qualityCheckRequired": "فحص الجودة مطلوب",
+      "qualityCheckOptional": "فحص الجودة اختياري",
+      "handoffDisplaySeconds": "مهلة الإزالة من الشاشة (ثوانٍ)",
       "inStoreScreens": "شاشات داخل المطعم",
       "inStoreScreensHint": "افتحها على شاشة المطبخ أو جهاز عرض، وتلفاز أمام الزبائن، وجهاز لوحي للطلب الذاتي.",
       "landing": {
@@ -13044,13 +13049,41 @@
       "preparing": "قيد التحضير",
       "ready": "جاهز",
       "tapHint": "اضغط على التذكرة لتقديمها",
-      "emptyColumn": "لا شيء هنا"
+      "emptyColumn": "لا شيء هنا",
+      "qualityCheck": "فحص الجودة",
+      "explicitHint": "حدّث كل طلب باستخدام أزرار الإجراءات",
+      "acknowledge": "تأكيد الاستلام",
+      "startPreparing": "بدء التحضير",
+      "sendToQuality": "جاهز للفحص",
+      "markReady": "تحديد كجاهز",
+      "confirmHandoff": "تأكيد التسليم",
+      "handoffConfirm": "هل تؤكد تسليم هذا الطلب للعميل؟",
+      "waitingForRunner": "بانتظار التسليم للمندوب",
+      "reopen": "إعادة فتح",
+      "reopenReasonPrompt": "لماذا تتم إعادة فتح هذا الطلب؟",
+      "delay": "تأخير",
+      "delayReasonPrompt": "لماذا تأخر هذا الصنف؟",
+      "startItem": "بدء",
+      "finishItem": "تم",
+      "recallItem": "استرجاع",
+      "readyPublished": "تعرض شاشة الانتظار وتتبع العميل الآن أن الطلب جاهز.",
+      "savedOffline": "تم الحفظ على هذا الجهاز وستتم المزامنة عند عودة الاتصال.",
+      "pendingSync": "{{count}} تحديث مطبخ بانتظار المزامنة",
+      "syncNow": "المزامنة الآن",
+      "syncedActions": "تمت مزامنة {{count}} تحديثات للمطبخ",
+      "reconnecting": "جارٍ إعادة الاتصال. تبقى الطلبات ظاهرة وستُحفظ الإجراءات الجديدة بأمان.",
+      "itemStatus": {
+        "queued": "في الانتظار", "preparing": "قيد التحضير", "ready": "جاهز", "held": "معلّق",
+        "bumped": "تمت الإزالة", "delayed": "متأخر", "problem": "مشكلة", "cancelled": "ملغى"
+      }
     },
     "queue": {
       "preparing": "قيد التحضير",
       "ready": "جاهز الآن",
       "none": "لا شيء بعد",
-      "payHint": "ادفع عند المنضدة"
+      "payHint": "ادفع عند المنضدة",
+      "enableSound": "تشغيل صوت الجاهزية",
+      "soundOn": "صوت الجاهزية مفعّل"
     },
     "kiosk": {
       "touchToStart": "المس الشاشة لبدء طلبك",

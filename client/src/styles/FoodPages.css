@@ -301,6 +301,7 @@ html.dark .fd-paid-pill { color: #86efac; }
 }
 .fd-screen-title { font-size: 1.4rem; font-weight: 900; margin: 0; }
 .fd-kds-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.fd-kds-grid-lifecycle { grid-template-columns: repeat(4, minmax(240px, 1fr)); overflow-x: auto; }
 @media (max-width: 900px) { .fd-kds-grid { grid-template-columns: 1fr; } }
 .fd-kds-col {
   background: #1e293b; border-radius: 14px; padding: 0.9rem;
@@ -313,12 +314,44 @@ html.dark .fd-paid-pill { color: #86efac; }
 .fd-kds-card {
   background: #0f172a; border: 1px solid #334155;
   border-radius: 10px; padding: 0.7rem 0.8rem; margin-bottom: 0.6rem;
-  cursor: pointer;
 }
 .fd-kds-card:hover { border-color: #f97316; }
-.fd-kds-num { font-size: 1.6rem; font-weight: 900; color: #f97316; }
+.fd-kds-num { display: flex; justify-content: space-between; align-items: baseline; font-size: 1.6rem; font-weight: 900; color: #f97316; }
+.fd-kds-timer { font-size: 0.85rem; color: #94a3b8; }
 .fd-kds-items { font-size: 0.9rem; margin: 0.3rem 0; }
 .fd-kds-meta { font-size: 0.75rem; color: #94a3b8; }
+.fd-kds-item {
+  display: grid; gap: 0.5rem; padding: 0.65rem 0;
+  border-bottom: 1px solid #253349;
+}
+.fd-kds-item:last-child { border-bottom: 0; }
+.fd-kds-item strong, .fd-kds-item em, .fd-kds-item small { display: block; }
+.fd-kds-item em, .fd-kds-item small { color: #cbd5e1; margin-top: 0.2rem; }
+.fd-kds-item-status {
+  display: inline-flex; margin-left: 0.45rem; padding: 0.12rem 0.4rem;
+  border-radius: 999px; background: #334155; color: #cbd5e1;
+  font-size: 0.67rem; font-weight: 800; text-transform: uppercase;
+}
+.fd-kds-item-ready .fd-kds-item-status,
+.fd-kds-item-bumped .fd-kds-item-status { background: #14532d; color: #bbf7d0; }
+.fd-kds-item-delayed .fd-kds-item-status,
+.fd-kds-item-problem .fd-kds-item-status { background: #7f1d1d; color: #fecaca; }
+.fd-kds-item-actions, .fd-kds-order-actions {
+  display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem;
+}
+.fd-kds-item-actions button, .fd-kds-order-actions button, .fd-kds-sync-warning button {
+  border: 0; border-radius: 8px; padding: 0.45rem 0.65rem;
+  background: #f97316; color: white; font-weight: 800; cursor: pointer;
+}
+.fd-kds-item-actions button:disabled, .fd-kds-order-actions button:disabled { opacity: 0.5; cursor: wait; }
+.fd-kds-secondary-action { background: #334155 !important; }
+.fd-kds-sync-warning {
+  display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0.75rem;
+  border-radius: 10px; background: #7c2d12; color: #ffedd5; font-size: 0.8rem; font-weight: 800;
+}
+@media (max-width: 1300px) and (min-width: 901px) {
+  .fd-kds-grid-lifecycle { grid-template-columns: repeat(2, minmax(280px, 1fr)); }
+}
 
 /* Queue board - the McDonald's style "Preparing / Now Ready" wall display */
 .fd-queue-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; min-height: 75vh; }
@@ -337,6 +370,18 @@ html.dark .fd-paid-pill { color: #86efac; }
   padding: 0.9rem 1.3rem; min-width: 5.5rem;
 }
 .fd-queue-col.fd-ready .fd-queue-number { background: #16a34a; }
+.fd-queue-number-new { animation: fd-ready-arrival 0.8s ease-in-out 3; }
+.fd-queue-sound-toggle {
+  border: 1px solid #475569; border-radius: 999px; padding: 0.5rem 0.8rem;
+  background: #1e293b; color: #f8fafc; font-weight: 800; cursor: pointer;
+}
+@keyframes fd-ready-arrival {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+  50% { transform: scale(1.08); box-shadow: 0 0 0 10px rgba(74, 222, 128, 0.25); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fd-queue-number-new { animation: none; outline: 5px solid #fef08a; }
+}
 
 /* Kiosk */
 .fd-kiosk-start {

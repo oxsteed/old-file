@@ -15,16 +15,57 @@ export default function FoodQueueBoardPage() {
   const { t } = useTranslation();
   const [board, setBoard] = useState(null);
   const [error, setError] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('oxsteed:queue:sound') === '1');
+  const [newlyReady, setNewlyReady] = useState([]);
   const timerRef = useRef(null);
+  const readyRef = useRef([]);
+  const soundRef = useRef(soundEnabled);
+
+  useEffect(() => {
+    soundRef.current = soundEnabled;
+    localStorage.setItem('oxsteed:queue:sound', soundEnabled ? '1' : '0');
+  }, [soundEnabled]);
+
+  const playReadyChime = useCallback(() => {
+    if (!soundRef.current) return;
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      const context = new AudioContext();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(660, context.currentTime);
+      oscillator.frequency.setValueAtTime(880, context.currentTime + 0.14);
+      gain.gain.setValueAtTime(0.0001, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.18, context.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.42);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.45);
+      oscillator.addEventListener('ended', () => context.close());
+    } catch (_) {
+      // Visual ready animation remains available when audio is blocked.
+    }
+  }, []);
 
   const load = useCallback(() => {
     getFoodQueueBoard(restaurantId)
       .then((data) => {
+        const nextReady = data?.ready || [];
+        const previous = new Set(readyRef.current.map(String));
+        const additions = nextReady.filter((number) => !previous.has(String(number)));
+        readyRef.current = nextReady;
+        if (additions.length) {
+          setNewlyReady(additions.map(String));
+          playReadyChime();
+          window.setTimeout(() => setNewlyReady([]), 5000);
+        }
         setBoard(data);
         setError(false);
       })
       .catch(() => setError(true));
-  }, [restaurantId]);
+  }, [playReadyChime, restaurantId]);
 
   useEffect(() => {
     load();
@@ -46,6 +87,13 @@ export default function FoodQueueBoardPage() {
           <FoodConnBadge ok={!error} />
           <span className="fd-kds-meta">{t('food.queue.payHint')}</span>
         </span>
+        <button
+          type="button"
+          className="fd-queue-sound-toggle"
+          onClick={() => setSoundEnabled((value) => !value)}
+        >
+          {soundEnabled ? t('food.queue.soundOn') : t('food.queue.enableSound')}
+        </button>
         {typeof board?.externalPaymentCount === 'number' && board.externalPaymentCount > 0 && (
           <span
             className="fd-kds-meta"
@@ -76,7 +124,10 @@ export default function FoodQueueBoardPage() {
           <h2>{t('food.queue.ready')}</h2>
           <div className="fd-queue-numbers">
             {(board?.ready || []).map((n) => (
-              <span key={n} className="fd-queue-number">{n}</span>
+              <span
+                key={n}
+                className={`fd-queue-number ${newlyReady.includes(String(n)) ? 'fd-queue-number-new' : ''}`}
+              >{n}</span>
             ))}
             {(board?.ready || []).length === 0 && (
               <p className="fd-kds-meta">{t('food.queue.none')}</p>

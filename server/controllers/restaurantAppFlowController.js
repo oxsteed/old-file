@@ -35,12 +35,13 @@ const FULFILLMENT = new Set(['pickup', 'dine_in', 'delivery', 'kiosk']);
 const PAYMENT_STATUS = new Set(['unpaid', 'requires_payment', 'paid', 'failed', 'refunded']);
 const KITCHEN_ITEM_STATUS = new Set(['queued', 'preparing', 'ready', 'held', 'bumped', 'delayed', 'problem', 'cancelled']);
 const KITCHEN_ACTIONS = new Set(['start', 'prepare', 'ready', 'bump', 'recall', 'hold', 'delay', 'problem', 'cancel']);
+const KITCHEN_ORDER_ACTIONS = new Set(['acknowledge', 'start', 'ready_for_check', 'reopen', 'delay']);
 const KITCHEN_ACTION_FROM = {
   start: new Set(['queued', 'held', 'delayed', 'problem']),
   prepare: new Set(['queued', 'held', 'delayed', 'problem']),
   ready: new Set(['preparing', 'delayed', 'problem']),
   bump: new Set(['ready']),
-  recall: new Set(['bumped']),
+  recall: new Set(['ready', 'bumped']),
   hold: new Set(['queued', 'preparing', 'delayed', 'problem']),
   delay: new Set(['queued', 'preparing', 'held']),
   problem: new Set(['queued', 'preparing', 'held']),
@@ -769,6 +770,14 @@ async function requireRestaurantAccess(userId, restaurantId) {
                  LIMIT 1
               )
             END AS effective_role
+            ,(
+              SELECT bm.id
+                FROM business_members bm
+               WHERE bm.business_id = fr.business_id
+                 AND bm.member_id = $2
+                 AND bm.status = 'active'
+               LIMIT 1
+            ) AS effective_membership_id
        FROM food_restaurants fr
        JOIN businesses b ON b.id = fr.business_id
       WHERE fr.id = $1`,
@@ -785,6 +794,19 @@ function assertManage(restaurant) {
   if (!MANAGE_ROLES.has(restaurant.effective_role)) {
     throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
   }
+}
+
+async function assertRestaurantPermission(restaurant, userId, allowedPermissions) {
+  if (restaurant.effective_role === 'owner') return;
+  const permissionResult = await getEffectivePermissions({
+    businessId: restaurant.business_id,
+    userId,
+    role: restaurant.effective_role,
+    membershipId: restaurant.effective_membership_id || null,
+  });
+  const permissions = new Set(permissionResult.permissions || []);
+  if (permissions.has('*') || allowedPermissions.some((permission) => permissions.has(permission))) return;
+  throw new AppError('You do not have permission to update this kitchen', 403, 'forbidden');
 }
 
 function normalizeLocationPatch(value) {
@@ -949,7 +971,10 @@ async function syncKitchenOrderStatus(client, orderId, preferredStatus = null) {
   if (totalItems > 0 && cancelledItems >= totalItems) {
     nextStatus = 'cancelled';
   } else if (totalItems > 0 && readyItems + cancelledItems >= totalItems) {
-    nextStatus = 'ready';
+    // Item completion means the ticket is ready for expo/quality check. The
+    // customer-facing status remains preparing until staff explicitly marks
+    // the complete order ready.
+    nextStatus = 'quality_check';
   } else if (!nextStatus) {
     nextStatus = 'preparing';
   }
@@ -959,10 +984,23 @@ async function syncKitchenOrderStatus(client, orderId, preferredStatus = null) {
               WHEN status IN ('completed','cancelled','refunded') THEN status
               WHEN $2 = 'cancelled' THEN 'cancelled'
               WHEN $2 = 'ready' THEN 'ready'
+              WHEN $2 = 'quality_check' THEN 'preparing'
               WHEN status IN ('received','accepted') THEN $2
               ELSE status
             END,
+            kitchen_stage = CASE
+              WHEN $2 = 'cancelled' THEN 'cancelled'
+              WHEN $2 = 'ready' THEN 'ready'
+              WHEN $2 = 'quality_check' THEN 'quality_check'
+              WHEN $2 = 'preparing' THEN 'preparing'
+              ELSE kitchen_stage
+            END,
             accepted_at = CASE WHEN $2 IN ('preparing','ready') THEN COALESCE(accepted_at, NOW()) ELSE accepted_at END,
+            preparation_started_at = CASE
+              WHEN $2 IN ('preparing','quality_check','ready') THEN COALESCE(preparation_started_at, NOW())
+              ELSE preparation_started_at
+            END,
+            quality_check_at = CASE WHEN $2 = 'quality_check' THEN COALESCE(quality_check_at, NOW()) ELSE quality_check_at END,
             ready_at = CASE WHEN $2 = 'ready' THEN COALESCE(ready_at, NOW()) ELSE ready_at END,
             updated_at = NOW()
       WHERE id = $1
@@ -4925,6 +4963,7 @@ exports.ackKitchenTicket = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId || req.body.orderId || req.body.order_id);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'kitchen.manage', 'orders.manage']);
     if (!orderId) throw new AppError('Validation failed', 400, 'validation_failed', { orderId: 'Order is required' });
     const requestedStatus = normalizeString(req.body.status || req.body.toStatus || req.body.to_status, 32);
     const startPreparing = asBool(req.body.startPreparing ?? req.body.start_preparing, false);
@@ -4960,7 +4999,20 @@ exports.ackKitchenTicket = async (req, res, next) => {
                   WHEN status = 'accepted' AND $1 = 'preparing' THEN 'preparing'
                   ELSE status
                 END,
-                accepted_at = COALESCE(accepted_at, NOW()),
+                accepted_at = CASE
+                  WHEN $2 IN ('acknowledged','preparing','quality_check','ready')
+                    THEN COALESCE(accepted_at, NOW())
+                  ELSE accepted_at
+                END,
+                kitchen_stage = CASE
+                  WHEN $1 = 'preparing' THEN 'preparing'
+                  ELSE 'acknowledged'
+                END,
+                kitchen_acknowledged_at = COALESCE(kitchen_acknowledged_at, NOW()),
+                preparation_started_at = CASE
+                  WHEN $1 = 'preparing' THEN COALESCE(preparation_started_at, NOW())
+                  ELSE preparation_started_at
+                END,
                 promised_at = COALESCE($2::timestamptz, promised_at, NOW() + ($3::int * INTERVAL '1 minute')),
                 updated_at = NOW()
           WHERE id = $4 AND restaurant_id = $5
@@ -4998,6 +5050,165 @@ exports.ackKitchenTicket = async (req, res, next) => {
       cursor: Number(result.event.id),
     });
     res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.performKitchenOrderAction = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const orderId = parsePositiveInt(req.params.orderId || req.body.orderId || req.body.order_id);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    const action = normalizeString(req.body.action, 32);
+    if (!orderId) throw new AppError('Validation failed', 400, 'validation_failed', { orderId: 'Order is required' });
+    if (!KITCHEN_ORDER_ACTIONS.has(action)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { action: 'Unsupported kitchen order action' });
+    }
+    const elevated = action === 'reopen';
+    await assertRestaurantPermission(
+      restaurant,
+      req.user.id,
+      elevated ? ['kitchen.manage', 'orders.manage'] : ['kitchen.update', 'kitchen.manage', 'orders.manage']
+    );
+    const reason = normalizeString(req.body.reason || req.body.note, 1000);
+    if ((action === 'reopen' || action === 'delay') && !reason) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { reason: 'A reason is required' });
+    }
+    const idempotencyKey = normalizeString(
+      req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
+      160
+    );
+
+    const result = await withTransaction(pool, async (client) => {
+      if (idempotencyKey) {
+        await client.query(
+          `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+          [`kitchen-order:${restaurantId}:${idempotencyKey}`]
+        );
+        const { rows: [existingEvent] } = await client.query(
+          `SELECT * FROM restaurant_kitchen_events
+            WHERE restaurant_id = $1 AND idempotency_key = $2`,
+          [restaurantId, idempotencyKey]
+        );
+        if (existingEvent) {
+          const { rows: [replayedOrder] } = await client.query(
+            `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
+            [existingEvent.food_order_id, restaurantId]
+          );
+          return { order: replayedOrder, event: existingEvent, replayed: true };
+        }
+      }
+
+      const { rows: [existing] } = await client.query(
+        `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
+        [orderId, restaurantId]
+      );
+      if (!existing) throw new AppError('Order not found', 404, 'order_not_found');
+      if (['completed', 'cancelled', 'refunded'].includes(existing.status)) {
+        throw new AppError('Kitchen ticket is already terminal', 409, 'kitchen_ticket_terminal');
+      }
+
+      let nextStatus = existing.status;
+      let nextStage = existing.kitchen_stage || (existing.status === 'preparing' ? 'preparing' : 'new');
+      if (action === 'acknowledge') {
+        if (existing.status !== 'received') {
+          throw new AppError('Only new orders can be acknowledged', 409, 'illegal_kitchen_transition');
+        }
+        nextStatus = 'accepted';
+        nextStage = 'acknowledged';
+      } else if (action === 'start') {
+        if (!['received', 'accepted'].includes(existing.status)) {
+          throw new AppError('Only new or acknowledged orders can start preparation', 409, 'illegal_kitchen_transition');
+        }
+        nextStatus = 'preparing';
+        nextStage = 'preparing';
+      } else if (action === 'ready_for_check') {
+        if (!['accepted', 'preparing'].includes(existing.status)) {
+          throw new AppError('Start preparation before quality check', 409, 'illegal_kitchen_transition');
+        }
+        const { rows: [readiness] } = await client.query(
+          `SELECT COUNT(*)::int AS total_items,
+                  COUNT(*) FILTER (WHERE kitchen_status IN ('ready','bumped','cancelled'))::int AS finished_items
+             FROM food_order_items WHERE order_id = $1`,
+          [orderId]
+        );
+        const totalItems = Number(readiness?.total_items || 0);
+        const finishedItems = Number(readiness?.finished_items || 0);
+        if (totalItems > 0 && finishedItems < totalItems) {
+          throw new AppError('Finish every required item before quality check', 409, 'kitchen_items_incomplete', {
+            totalItems,
+            finishedItems,
+          });
+        }
+        nextStatus = 'preparing';
+        nextStage = 'quality_check';
+      } else if (action === 'reopen') {
+        if (!['quality_check', 'ready'].includes(nextStage) && existing.status !== 'ready') {
+          throw new AppError('Only checked or ready orders can be reopened', 409, 'illegal_kitchen_transition');
+        }
+        nextStatus = 'preparing';
+        nextStage = 'preparing';
+      }
+
+      const { rows: [order] } = await client.query(
+        `UPDATE food_orders
+            SET status = $1,
+                kitchen_stage = $2,
+                accepted_at = COALESCE(accepted_at, NOW()),
+                kitchen_acknowledged_at = CASE
+                  WHEN $2 IN ('acknowledged','preparing','quality_check','ready')
+                    THEN COALESCE(kitchen_acknowledged_at, NOW())
+                  ELSE kitchen_acknowledged_at
+                END,
+                preparation_started_at = CASE
+                  WHEN $2 IN ('preparing','quality_check','ready')
+                    THEN COALESCE(preparation_started_at, NOW())
+                  ELSE preparation_started_at
+                END,
+                quality_check_at = CASE
+                  WHEN $2 = 'quality_check' THEN COALESCE(quality_check_at, NOW())
+                  ELSE quality_check_at
+                END,
+                updated_at = NOW()
+          WHERE id = $3 AND restaurant_id = $4
+          RETURNING *`,
+        [nextStatus, nextStage, orderId, restaurantId]
+      );
+      const { rows: [event] } = await client.query(
+        `INSERT INTO restaurant_kitchen_events
+           (restaurant_id, food_order_id, event_type, from_status, to_status,
+            station_label, reason, metadata, idempotency_key, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10)
+         RETURNING *`,
+        [
+          restaurantId,
+          orderId,
+          `order_${action}`,
+          existing.status,
+          order.status,
+          normalizeString(req.body.stationLabel || req.body.station_label, 80),
+          reason,
+          JSON.stringify({
+            action,
+            fromKitchenStage: existing.kitchen_stage || null,
+            toKitchenStage: order.kitchen_stage || null,
+            actorRole: restaurant.effective_role || null,
+            ...safeJson(req.body.metadata),
+          }),
+          idempotencyKey,
+          req.user.id,
+        ]
+      );
+      return { order, event, replayed: false };
+    }, `restaurant_kitchen_order_${action}`);
+
+    broadcastRestaurant(restaurant, 'food:kitchen:order:action', {
+      ...result,
+      restaurantId,
+      cursor: Number(result.event.id),
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
   } catch (err) {
     next(err);
   }
@@ -5072,8 +5283,10 @@ exports.getKitchenFeed = async (req, res, next) => {
     const requestedCursor = req.query.sinceEventId ?? req.query.since_event_id ?? req.query.cursor;
     let sinceEventId = parsePositiveInt(requestedCursor, 0) || 0;
     let device = null;
+    let restaurant = null;
     if (req.user?.id) {
-      await requireRestaurantAccess(req.user.id, restaurantId);
+      restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+      await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.view', 'kitchen.update', 'kitchen.manage', 'orders.manage']);
     } else if (!deviceId) {
       throw new AppError('Device credential is required', 401, 'device_credential_required');
     }
@@ -5083,13 +5296,20 @@ exports.getKitchenFeed = async (req, res, next) => {
       const { rows: [pairedDevice] } = await pool.query(
         `SELECT id, restaurant_id, app_key, device_name, mode, location_id, status, config,
                 last_kitchen_event_id, last_sync_at, sync_status, sync_error, config_version,
-                app_version, platform, last_seen_at, paired_at
+                app_version, platform, last_seen_at, paired_at,
+                (SELECT fr.settings FROM food_restaurants fr WHERE fr.id = restaurant_app_devices.restaurant_id) AS restaurant_settings,
+                (SELECT fr.prep_time_min FROM food_restaurants fr WHERE fr.id = restaurant_app_devices.restaurant_id) AS restaurant_prep_time_min
            FROM restaurant_app_devices
           WHERE id = $1 AND restaurant_id = $2 AND app_key = 'kitchen' AND status = 'paired'`,
         [deviceId, restaurantId]
       );
       if (!pairedDevice) throw new AppError('Kitchen device not found', 404, 'kitchen_device_not_found');
       device = pairedDevice;
+      restaurant = {
+        id: restaurantId,
+        settings: pairedDevice.restaurant_settings || {},
+        prep_time_min: pairedDevice.restaurant_prep_time_min || null,
+      };
       if (requestedCursor === undefined) sinceEventId = Number(device.last_kitchen_event_id || 0);
     }
     const params = [restaurantId];
@@ -5158,6 +5378,15 @@ exports.getKitchenFeed = async (req, res, next) => {
       contract: device ? deviceRouteContract(device, { restaurantId }) : null,
       serverTime: new Date().toISOString(),
       nextPollAfterMs: events.length ? 250 : 2000,
+      workflow: (() => {
+        const kitchenPrep = safeJson(restaurant?.settings?.kitchenPrep || restaurant?.settings?.kitchen_prep, {});
+        return {
+          requireQualityCheck: kitchenPrep.requireQualityCheck !== false && kitchenPrep.require_quality_check !== false,
+          handoffDisplaySeconds: Math.max(0, Math.min(120, Number(
+            kitchenPrep.handoffDisplaySeconds ?? kitchenPrep.handoff_display_seconds ?? 15
+          ) || 0)),
+        };
+      })(),
     });
   } catch (err) {
     next(err);
@@ -5214,6 +5443,7 @@ exports.performKitchenItemAction = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderItemId = parsePositiveInt(req.params.orderItemId || req.body.orderItemId || req.body.order_item_id);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'kitchen.manage', 'orders.manage']);
     const action = normalizeString(req.body.action, 32);
     if (!KITCHEN_ACTIONS.has(action)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { action: 'Unsupported kitchen action' });
@@ -5233,8 +5463,34 @@ exports.performKitchenItemAction = async (req, res, next) => {
     const stationLabel = normalizeString(req.body.stationLabel || req.body.station_label, 80);
     const reason = normalizeString(req.body.reason, 1000);
     const targetPrepSeconds = parsePositiveInt(req.body.targetPrepSeconds || req.body.target_prep_seconds);
+    const idempotencyKey = normalizeString(
+      req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
+      160
+    );
 
     const result = await withTransaction(pool, async (client) => {
+      if (idempotencyKey) {
+        await client.query(
+          `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+          [`kitchen-item:${restaurantId}:${idempotencyKey}`]
+        );
+        const { rows: [existingEvent] } = await client.query(
+          `SELECT * FROM restaurant_kitchen_events
+            WHERE restaurant_id = $1 AND idempotency_key = $2`,
+          [restaurantId, idempotencyKey]
+        );
+        if (existingEvent) {
+          const { rows: [replayedItem] } = await client.query(
+            `SELECT * FROM food_order_items WHERE id = $1`,
+            [existingEvent.food_order_item_id]
+          );
+          const { rows: [replayedOrder] } = await client.query(
+            `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
+            [existingEvent.food_order_id, restaurantId]
+          );
+          return { item: replayedItem, order: replayedOrder, event: existingEvent, replayed: true };
+        }
+      }
       const { rows: [existing] } = await client.query(
         `SELECT foi.*, fo.restaurant_id, fo.business_id, fo.status AS order_status, fo.queue_number
            FROM food_order_items foi
@@ -5277,8 +5533,8 @@ exports.performKitchenItemAction = async (req, res, next) => {
       const { rows: [event] } = await client.query(
         `INSERT INTO restaurant_kitchen_events
            (restaurant_id, food_order_id, food_order_item_id, event_type, from_status, to_status,
-            station_label, reason, metadata, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+            station_label, reason, metadata, idempotency_key, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
          RETURNING *`,
         [
           restaurantId,
@@ -5293,17 +5549,18 @@ exports.performKitchenItemAction = async (req, res, next) => {
             action,
             targetPrepSeconds: targetPrepSeconds || item.target_prep_seconds || null,
           }),
+          idempotencyKey,
           req.user.id,
         ]
       );
-      return { item, order, event };
+      return { item, order, event, replayed: false };
     });
     broadcastRestaurant(restaurant, 'food:kitchen:item:action', {
       ...result,
       restaurantId,
       cursor: Number(result.event.id),
     });
-    res.status(201).json(result);
+    res.status(result.replayed ? 200 : 201).json(result);
   } catch (err) {
     next(err);
   }
@@ -6491,7 +6748,32 @@ exports.completeRunnerHandoff = async (req, res, next) => {
         );
         proof = createdProof;
       }
-      return { task, proof };
+      let order = null;
+      if (task.food_order_id) {
+        const { rows: [completedOrder] } = await client.query(
+          `UPDATE food_orders
+              SET status = 'completed',
+                  kitchen_stage = 'handed_off',
+                  completed_at = COALESCE(completed_at, COALESCE($1::timestamptz, NOW())),
+                  handed_off_at = COALESCE(handed_off_at, COALESCE($1::timestamptz, NOW())),
+                  handed_off_by = COALESCE(handed_off_by, $2),
+                  updated_at = NOW()
+            WHERE id = $3 AND restaurant_id = $4 AND fulfillment_type = 'delivery'
+              AND status IN ('accepted','preparing','ready')
+            RETURNING *`,
+          [handoffAt, req.user.id, task.food_order_id, restaurantId]
+        );
+        order = completedOrder || null;
+        if (order) {
+          await client.query(
+            `INSERT INTO restaurant_kitchen_events
+               (restaurant_id, food_order_id, event_type, from_status, to_status, reason, metadata, created_by)
+             VALUES ($1,$2,'order_delivery_handoff','ready','completed',$3,$4::jsonb,$5)`,
+            [restaurantId, order.id, note, JSON.stringify({ runnerTaskId: task.id, proofId: proof?.id || null }), req.user.id]
+          );
+        }
+      }
+      return { task, proof, order };
     }, 'restaurant_runner_handoff');
     broadcastRestaurant(restaurant, 'food:runner:handoff', result);
     res.status(201).json(result);

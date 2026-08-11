@@ -2455,7 +2455,13 @@ exports.listRestaurantOrders = async (req, res, next) => {
                 'itemName', foi.item_name,
                 'quantity', foi.quantity,
                 'lineTotalCents', foi.line_total_cents,
-                'specialInstructions', foi.special_instructions
+                'specialInstructions', foi.special_instructions,
+                'kitchenStatus', foi.kitchen_status,
+                'stationLabel', foi.station_label,
+                'kitchenStartedAt', foi.kitchen_started_at,
+                'delayedAt', foi.delayed_at,
+                'delayReason', foi.delay_reason,
+                'targetPrepSeconds', foi.target_prep_seconds
               ) ORDER BY foi.id) FILTER (WHERE foi.id IS NOT NULL), '[]') AS items
          FROM food_orders fo
          LEFT JOIN food_order_items foi ON foi.order_id = fo.id
@@ -2490,24 +2496,16 @@ exports.updateOrderStatus = async (req, res, next) => {
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, ['orders.manage', 'kitchen.update']);
     const status = normalizeString(req.body.status, 24);
+    const reason = normalizeString(req.body.reason || req.body.note, 1000);
+    const stationLabel = normalizeString(req.body.stationLabel || req.body.station_label, 80);
+    const action = normalizeString(req.body.action, 48) || `order_${status}`;
+    const idempotencyKey = normalizeString(
+      req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
+      160
+    );
     if (!VALID_STATUS.has(status) || !ORDER_TRANSITIONS[status]) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported order status' });
     }
-    if (status === 'completed') {
-      const { rows: [deliveryOrder] } = await pool.query(
-        `SELECT fulfillment_type FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
-        [orderId, restaurantId]
-      );
-      if (!deliveryOrder) throw new AppError('Order not found', 404, 'order_not_found');
-      if (deliveryOrder.fulfillment_type === 'delivery') {
-        throw new AppError(
-          'Complete delivery orders through Runner handoff or proof submission',
-          409,
-          'runner_handoff_required'
-        );
-      }
-    }
-
     const timestampColumn = {
       accepted: 'accepted_at',
       ready: 'ready_at',
@@ -2517,34 +2515,178 @@ exports.updateOrderStatus = async (req, res, next) => {
     }[status];
 
     const transitionResult = await withTransaction(pool, async (client) => {
+      if (idempotencyKey) {
+        await client.query(
+          `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+          [`food-status:${restaurantId}:${idempotencyKey}`]
+        );
+        const { rows: [replayedEvent] } = await client.query(
+          `SELECT food_order_id
+             FROM restaurant_kitchen_events
+            WHERE restaurant_id = $1 AND idempotency_key = $2`,
+          [restaurantId, idempotencyKey]
+        );
+        if (replayedEvent) {
+          const { rows: [replayedOrder] } = await client.query(
+            `SELECT * FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
+            [replayedEvent.food_order_id, restaurantId]
+          );
+          return { order: replayedOrder, walletRefund: null, payment: null, replayed: true };
+        }
+      }
+
+      const kitchenPrep = restaurant.settings?.kitchenPrep || restaurant.settings?.kitchen_prep || {};
+      const qualityCheckRequired = kitchenPrep.requireQualityCheck !== false
+        && kitchenPrep.require_quality_check !== false;
+      // Older POS/Kitchen clients only send a status. Keep that contract working
+      // while the explicit KDS action opts into the stricter item/QC gate.
+      const enforceKitchenReadiness = status === 'ready'
+        && (action === 'mark_ready' || req.body.enforceKitchenReadiness === true);
       const { rows: [order] } = await client.query(
-        `UPDATE food_orders
+        `WITH current AS (
+           SELECT * FROM food_orders
+            WHERE id = $2 AND restaurant_id = $3
+            FOR UPDATE
+         ), updated AS (
+          UPDATE food_orders fo
             SET status = $1,
-                ${timestampColumn ? `${timestampColumn} = COALESCE(${timestampColumn}, NOW()),` : ''}
+                ${timestampColumn ? `${timestampColumn} = COALESCE(fo.${timestampColumn}, NOW()),` : ''}
+                kitchen_stage = CASE $1
+                  WHEN 'accepted' THEN 'acknowledged'
+                  WHEN 'preparing' THEN 'preparing'
+                  WHEN 'ready' THEN 'ready'
+                  WHEN 'completed' THEN 'handed_off'
+                  WHEN 'cancelled' THEN 'cancelled'
+                  WHEN 'refunded' THEN 'cancelled'
+                  ELSE fo.kitchen_stage
+                END,
+                kitchen_acknowledged_at = CASE
+                  WHEN $1 IN ('accepted','preparing','ready','completed')
+                    THEN COALESCE(fo.kitchen_acknowledged_at, NOW())
+                  ELSE fo.kitchen_acknowledged_at
+                END,
+                preparation_started_at = CASE
+                  WHEN $1 IN ('preparing','ready','completed')
+                    THEN COALESCE(fo.preparation_started_at, NOW())
+                  ELSE fo.preparation_started_at
+                END,
+                quality_check_at = CASE
+                  WHEN $1 IN ('ready','completed')
+                    THEN COALESCE(fo.quality_check_at, NOW())
+                  ELSE fo.quality_check_at
+                END,
+                handed_off_at = CASE WHEN $1 = 'completed' THEN COALESCE(fo.handed_off_at, NOW()) ELSE fo.handed_off_at END,
+                handed_off_by = CASE WHEN $1 = 'completed' THEN COALESCE(fo.handed_off_by, $5) ELSE fo.handed_off_by END,
                 payment_status = CASE
                   WHEN $1 IN ('cancelled', 'refunded')
-                    AND COALESCE(metadata->>'paymentMode', '') = 'wallet_credit'
-                    AND payment_status = 'paid'
+                    AND COALESCE(fo.metadata->>'paymentMode', '') = 'wallet_credit'
+                    AND fo.payment_status = 'paid'
                     THEN 'refunded'
-                  ELSE payment_status
+                  ELSE fo.payment_status
                 END,
                 updated_at = NOW()
-          WHERE id = $2 AND restaurant_id = $3 AND status = ANY($4::text[])
-          RETURNING *`,
-        [status, orderId, restaurantId, ORDER_TRANSITIONS[status]]
+           FROM current
+          WHERE fo.id = current.id
+            AND current.status = ANY($4::text[])
+            AND ($1 <> 'completed' OR current.fulfillment_type <> 'delivery')
+            AND (
+              $1 <> 'ready'
+              OR $7 = FALSE
+              OR (
+                ($6 = FALSE OR current.kitchen_stage = 'quality_check')
+                AND NOT EXISTS (
+                  SELECT 1 FROM food_order_items foi
+                   WHERE foi.order_id = current.id
+                     AND foi.kitchen_status NOT IN ('ready','bumped','cancelled')
+                )
+              )
+            )
+          RETURNING fo.*, current.status AS previous_status,
+                    current.kitchen_stage AS previous_kitchen_stage
+         )
+         SELECT * FROM updated`,
+        [
+          status,
+          orderId,
+          restaurantId,
+          ORDER_TRANSITIONS[status],
+          req.user?.id || null,
+          qualityCheckRequired,
+          enforceKitchenReadiness,
+        ]
       );
       if (!order) {
         const { rows: existing } = await client.query(
-          `SELECT status FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
+          `SELECT status, kitchen_stage, fulfillment_type
+             FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
           [orderId, restaurantId]
         );
         if (!existing[0]) throw new AppError('Order not found', 404, 'order_not_found');
+        if (status === 'completed' && existing[0].fulfillment_type === 'delivery') {
+          throw new AppError(
+            'Complete delivery orders through Runner handoff or proof submission',
+            409,
+            'runner_handoff_required'
+          );
+        }
+        if (enforceKitchenReadiness && ORDER_TRANSITIONS.ready.includes(existing[0].status)) {
+          const { rows: [readiness] } = await client.query(
+            `SELECT COUNT(*)::int AS total_items,
+                    COUNT(*) FILTER (WHERE kitchen_status IN ('ready','bumped','cancelled'))::int AS finished_items
+               FROM food_order_items WHERE order_id = $1`,
+            [orderId]
+          );
+          const totalItems = Number(readiness?.total_items || 0);
+          const finishedItems = Number(readiness?.finished_items || 0);
+          if (totalItems > 0 && finishedItems < totalItems) {
+            throw new AppError(
+              'All required kitchen items must be finished before the order can be marked ready',
+              409,
+              'kitchen_items_incomplete',
+              { totalItems, finishedItems }
+            );
+          }
+          if (qualityCheckRequired && existing[0].kitchen_stage !== 'quality_check') {
+            throw new AppError(
+              'Complete the kitchen quality check before marking this order ready',
+              409,
+              'quality_check_required'
+            );
+          }
+        }
         throw new AppError(
           `Cannot move order from '${existing[0].status}' to '${status}'`,
           409,
           'illegal_state_transition'
         );
       }
+
+      await client.query(
+        `INSERT INTO restaurant_kitchen_events
+           (restaurant_id, food_order_id, event_type, from_status, to_status,
+            station_label, reason, metadata, idempotency_key, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10)`,
+        [
+          restaurantId,
+          orderId,
+          action,
+          order.previous_status,
+          status,
+          stationLabel,
+          reason,
+          JSON.stringify({
+            fromKitchenStage: order.previous_kitchen_stage || null,
+            toKitchenStage: order.kitchen_stage || null,
+            source: 'food_order_status',
+            actorRole: restaurant.effective_role || null,
+          }),
+          idempotencyKey,
+          req.user?.id || null,
+        ]
+      );
+
+      delete order.previous_status;
+      delete order.previous_kitchen_stage;
 
       let walletRefund = null;
       let payment = null;
@@ -2603,24 +2745,29 @@ exports.updateOrderStatus = async (req, res, next) => {
       return { order, walletRefund, payment };
     }, 'food_update_order_status');
     const order = transitionResult.order;
+    let runnerTask = null;
 
-    emitRestaurantOrder(order.business_id, 'food:order:updated', { order });
-    emitRestaurantDisplay(order.restaurant_id, order);
+    // Idempotent retries return the original result without repeating customer
+    // messages, loyalty awards, runner transitions, or realtime side effects.
+    if (!transitionResult.replayed) {
+      emitRestaurantOrder(order.business_id, 'food:order:updated', { order });
+      emitRestaurantDisplay(order.restaurant_id, order);
 
-    const runnerTask = await syncDeliveryRunnerTaskForOrderStatus(pool, {
-      order,
-      createdBy: req.user?.id || null,
-    });
+      runnerTask = await syncDeliveryRunnerTaskForOrderStatus(pool, {
+        order,
+        createdBy: req.user?.id || null,
+      });
 
-    // When the kitchen marks an order ready, tell the customer (best-effort,
-    // fire-and-forget so a slow SMS/email provider never delays this response).
-    if (status === 'ready') {
-      notifyFoodOrderReady(order, restaurant);
-    }
-    if (status === 'completed') {
-      await withTransaction(pool, async (client) => {
-        await earnFoodLoyaltyOnComplete(client, order);
-      }, 'food_loyalty_earn');
+      // When the kitchen marks an order ready, tell the customer (best-effort,
+      // fire-and-forget so a slow SMS/email provider never delays this response).
+      if (status === 'ready') {
+        notifyFoodOrderReady(order, restaurant);
+      }
+      if (status === 'completed') {
+        await withTransaction(pool, async (client) => {
+          await earnFoodLoyaltyOnComplete(client, order);
+        }, 'food_loyalty_earn');
+      }
     }
 
     res.json({
@@ -2628,6 +2775,7 @@ exports.updateOrderStatus = async (req, res, next) => {
       runnerTask,
       walletRefund: transitionResult.walletRefund || null,
       payment: transitionResult.payment || null,
+      replayed: Boolean(transitionResult.replayed),
     });
   } catch (err) {
     next(err);
@@ -3482,7 +3630,7 @@ exports.getQueueBoard = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     const { rows: restaurants } = await pool.query(
-      `SELECT fr.id, fr.display_name, fr.logo_url
+      `SELECT fr.id, fr.display_name, fr.logo_url, fr.settings
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
         WHERE fr.id = $1
@@ -3494,34 +3642,52 @@ exports.getQueueBoard = async (req, res, next) => {
     if (!restaurants[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
 
     const { rows } = await pool.query(
-      `SELECT queue_number, status, guest_name, table_label, fulfillment_type, promised_at, metadata
+      `SELECT queue_number, status, guest_name, table_label, fulfillment_type, promised_at,
+              completed_at, handed_off_at, metadata
          FROM food_orders
         WHERE restaurant_id = $1
           AND created_at::date = CURRENT_DATE
-          AND status IN ('received','accepted','preparing','ready')
+          AND status IN ('received','accepted','preparing','ready','completed')
         ORDER BY queue_number ASC`,
       [restaurantId]
     );
+    const queueSettings = restaurants[0].settings?.queueBoard
+      || restaurants[0].settings?.queue_board
+      || restaurants[0].settings?.kitchenPrep
+      || {};
+    const handoffDisplaySeconds = Math.max(0, Math.min(120, Number(
+      queueSettings.handoffDisplaySeconds ?? queueSettings.handoff_display_seconds ?? 15
+    ) || 0));
+    const nowMs = Date.now();
+    const visibleRows = rows.filter((row) => {
+      if (row.status !== 'completed') return true;
+      const handedOffAt = row.handed_off_at || row.completed_at;
+      return handedOffAt && nowMs - new Date(handedOffAt).getTime() <= handoffDisplaySeconds * 1000;
+    });
     res.json({
-      restaurant: restaurants[0],
-      externalPaymentCount: rows.filter((r) => {
+      restaurant: {
+        id: restaurants[0].id,
+        display_name: restaurants[0].display_name,
+        logo_url: restaurants[0].logo_url,
+      },
+      externalPaymentCount: visibleRows.filter((r) => {
         const externalPayment = r.metadata && typeof r.metadata === 'object'
           ? r.metadata.externalPayment || r.metadata.external_payment || null
           : null;
         return Boolean(externalPayment);
       }).length,
-      preparing: rows.filter((r) => r.status !== 'ready').map((r) => r.queue_number),
-      ready: rows.filter((r) => r.status === 'ready').map((r) => r.queue_number),
-      preparingEntries: rows
-        .filter((r) => r.status !== 'ready')
+      preparing: visibleRows.filter((r) => !['ready', 'completed'].includes(r.status)).map((r) => r.queue_number),
+      ready: visibleRows.filter((r) => ['ready', 'completed'].includes(r.status)).map((r) => r.queue_number),
+      preparingEntries: visibleRows
+        .filter((r) => !['ready', 'completed'].includes(r.status))
         .map((r) => ({
           queueNumber: r.queue_number,
           guestLabel: publicQueueGuestLabel(r),
           fulfillmentType: r.fulfillment_type,
           promisedAt: r.promised_at,
         })),
-      readyEntries: rows
-        .filter((r) => r.status === 'ready')
+      readyEntries: visibleRows
+        .filter((r) => ['ready', 'completed'].includes(r.status))
         .map((r) => ({
           queueNumber: r.queue_number,
           guestLabel: publicQueueGuestLabel(r),
@@ -3529,7 +3695,8 @@ exports.getQueueBoard = async (req, res, next) => {
           promisedAt: r.promised_at,
         })),
       serverTime: new Date().toISOString(),
-      nextPollAfterMs: rows.length ? 2000 : 5000,
+      handoffDisplaySeconds,
+      nextPollAfterMs: visibleRows.length ? 2000 : 5000,
     });
   } catch (err) {
     next(err);

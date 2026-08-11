@@ -3,6 +3,20 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
+const socketService = require('../services/socketService');
+
+function emitDeliveryHandoff(restaurantId, order) {
+  if (!order) return;
+  try {
+    socketService.broadcastToRestaurantDisplay(restaurantId, 'food:display:changed', {
+      restaurantId: String(restaurantId),
+      queueNumber: order.queue_number ?? null,
+      status: order.status,
+    });
+  } catch (_) {
+    // Polling remains the fallback when realtime delivery is unavailable.
+  }
+}
 
 function parsePositiveInt(value) {
   const n = Number.parseInt(value, 10);
@@ -304,13 +318,28 @@ exports.updateTaskStatus = async (req, res, next) => {
       [status, restaurantId, taskId]
     );
     if (status === 'Completed' && task.food_order_id) {
-      await pool.query(
+      const { rows: [completedOrder] } = await pool.query(
         `UPDATE food_orders
-            SET status = 'completed', completed_at = COALESCE(completed_at, NOW()), updated_at = NOW()
+            SET status = 'completed',
+                kitchen_stage = 'handed_off',
+                completed_at = COALESCE(completed_at, NOW()),
+                handed_off_at = COALESCE(handed_off_at, NOW()),
+                handed_off_by = COALESCE(handed_off_by, $3),
+                updated_at = NOW()
           WHERE id = $1 AND restaurant_id = $2 AND fulfillment_type = 'delivery'
-            AND status IN ('accepted','preparing','ready')`,
-        [task.food_order_id, restaurantId]
+            AND status IN ('accepted','preparing','ready')
+          RETURNING *`,
+        [task.food_order_id, restaurantId, req.user.id]
       );
+      if (completedOrder) {
+        await pool.query(
+          `INSERT INTO restaurant_kitchen_events
+             (restaurant_id, food_order_id, event_type, from_status, to_status, reason, metadata, created_by)
+           VALUES ($1,$2,'order_delivery_handoff','ready','completed',$3,$4::jsonb,$5)`,
+          [restaurantId, completedOrder.id, normalizeString(req.body.note, 1000), JSON.stringify({ runnerTaskId: task.id }), req.user.id]
+        );
+        emitDeliveryHandoff(restaurantId, completedOrder);
+      }
     }
     res.json({ task });
   } catch (err) {
@@ -346,16 +375,32 @@ exports.logProof = async (req, res, next) => {
       );
       if (!updatedTask) throw new AppError('Runner task changed before proof was submitted', 409, 'runner_task_conflict');
       if (updatedTask.food_order_id) {
-        await client.query(
+        const { rows: [completedOrder] } = await client.query(
           `UPDATE food_orders
-              SET status = 'completed', completed_at = COALESCE(completed_at, NOW()), updated_at = NOW()
+              SET status = 'completed',
+                  kitchen_stage = 'handed_off',
+                  completed_at = COALESCE(completed_at, NOW()),
+                  handed_off_at = COALESCE(handed_off_at, NOW()),
+                  handed_off_by = COALESCE(handed_off_by, $3),
+                  updated_at = NOW()
             WHERE id = $1 AND restaurant_id = $2 AND fulfillment_type = 'delivery'
-              AND status IN ('accepted','preparing','ready')`,
-          [updatedTask.food_order_id, restaurantId]
+              AND status IN ('accepted','preparing','ready')
+            RETURNING *`,
+          [updatedTask.food_order_id, restaurantId, req.user.id]
         );
+        if (completedOrder) {
+          await client.query(
+            `INSERT INTO restaurant_kitchen_events
+               (restaurant_id, food_order_id, event_type, from_status, to_status, reason, metadata, created_by)
+             VALUES ($1,$2,'order_delivery_handoff','ready','completed',$3,$4::jsonb,$5)`,
+            [restaurantId, completedOrder.id, normalizeString(req.body.note, 1000), JSON.stringify({ runnerTaskId: updatedTask.id, proofId: proof.id }), req.user.id]
+          );
+        }
+        return { proof, task: updatedTask, order: completedOrder || null };
       }
-      return { proof, task: updatedTask };
+      return { proof, task: updatedTask, order: null };
     });
+    emitDeliveryHandoff(restaurantId, result.order);
     res.status(201).json(result);
   } catch (err) {
     next(err);
