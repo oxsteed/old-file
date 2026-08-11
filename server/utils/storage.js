@@ -6,15 +6,23 @@ const path = require('path');
 const crypto = require('crypto');
 
 const BUCKET = process.env.AWS_S3_BUCKET || process.env.S3_BUCKET || 'oxsteed-uploads';
+const REGION = process.env.AWS_REGION || 'us-east-1';
+const ENDPOINT = process.env.AWS_S3_ENDPOINT || process.env.S3_ENDPOINT || undefined;
+const PUBLIC_BASE_URL = String(process.env.S3_PUBLIC_BASE_URL || '').replace(/\/$/, '');
+const FORCE_PATH_STYLE = /^(1|true|yes)$/i.test(String(process.env.S3_FORCE_PATH_STYLE || ''));
+const ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID || process.env.S3_ACCESS_KEY_ID;
+const SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY || process.env.S3_SECRET_ACCESS_KEY;
 
 // Only initialize S3 client if credentials are present
 let s3 = null;
-if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+if (ACCESS_KEY_ID && SECRET_ACCESS_KEY) {
   s3 = new S3Client({
-    region: process.env.AWS_REGION || 'us-east-1',
+    region: REGION,
+    ...(ENDPOINT ? { endpoint: ENDPOINT } : {}),
+    forcePathStyle: FORCE_PATH_STYLE,
     credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      accessKeyId: ACCESS_KEY_ID,
+      secretAccessKey: SECRET_ACCESS_KEY,
     },
   });
 } else {
@@ -63,7 +71,9 @@ async function deleteFile(key) {
 // (e.g. public profile photos). NEVER use for W-9 docs, background checks,
 // or any private user files - use getSignedDownloadUrl() instead.
 function getPublicUrl(key) {
-  return `https://${BUCKET}.s3.amazonaws.com/${key}`;
+  const encodedKey = String(key).split('/').map(encodeURIComponent).join('/');
+  if (PUBLIC_BASE_URL) return `${PUBLIC_BASE_URL}/${encodedKey}`;
+  return `https://${BUCKET}.s3.${REGION}.amazonaws.com/${encodedKey}`;
 }
 
 module.exports = { uploadFile, getSignedDownloadUrl, deleteFile, getPublicUrl };

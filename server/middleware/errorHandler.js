@@ -52,6 +52,12 @@ const errorHandler = (err, req, res, next) => {
         fields[path] = detail.message;
       });
     }
+  } else if (err.name === 'MulterError') {
+    status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+    code = err.code === 'LIMIT_FILE_SIZE' ? 'file_too_large' : 'invalid_upload';
+    message = err.code === 'LIMIT_FILE_SIZE'
+      ? 'File is too large. Upload an image smaller than 10 MB.'
+      : 'The uploaded file could not be accepted.';
   } else if (err.name === 'UnauthorizedError') {
     status = 401;
     code = 'unauthorized';

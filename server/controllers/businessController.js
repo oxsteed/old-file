@@ -2,6 +2,7 @@
 // Business CRUD + analytics, goals, and tax estimates for the Business Hub.
 
 const pool   = require('../db');
+const crypto = require('crypto');
 const logger = require('../utils/logger');
 const { ownedBusiness, canEditProfile, canManageBusinessFinance } = require('../utils/businessOwnership');
 const countriesUtil = require('../utils/countries');
@@ -691,6 +692,55 @@ async function completeBusinessOnboarding(req, res, next) {
 // PUT /api/businesses/:id/photos  multipart/form-data
 // fields: logo (optional), cover (optional)
 // Access: owner OR active manager
+function mediaPublicUrl(req, assetId) {
+  const configuredBase = String(process.env.PUBLIC_APP_URL || process.env.APP_URL || '').replace(/\/$/, '');
+  const requestBase = `${req.protocol}://${req.get('host')}`;
+  const usableConfiguredBase = /^https?:\/\/(?!localhost(?::|\/|$)|127\.0\.0\.1(?::|\/|$))/i.test(configuredBase)
+    ? configuredBase
+    : '';
+  return `${usableConfiguredBase || requestBase}/api/businesses/media/${assetId}`;
+}
+
+async function persistBusinessMediaFallback(req, businessId, kind, file) {
+  const assetId = crypto.randomUUID();
+  const sha256 = crypto.createHash('sha256').update(file.buffer).digest('hex');
+  const { rows: [asset] } = await pool.query(
+    `INSERT INTO business_media_assets
+       (id, business_id, kind, content_type, content, size_bytes, sha256)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)
+     ON CONFLICT (business_id, kind) DO UPDATE
+       SET id = EXCLUDED.id,
+           content_type = EXCLUDED.content_type,
+           content = EXCLUDED.content,
+           size_bytes = EXCLUDED.size_bytes,
+           sha256 = EXCLUDED.sha256,
+           updated_at = NOW()
+     RETURNING id`,
+    [assetId, businessId, kind, file.mimetype, file.buffer, file.size, sha256]
+  );
+  return mediaPublicUrl(req, asset.id);
+}
+
+async function storeBusinessPhoto(req, businessId, kind, file) {
+  const { uploadFile, getPublicUrl } = require('../utils/storage');
+  try {
+    const key = await uploadFile(
+      file.buffer,
+      kind === 'logo' ? 'business-logos' : 'business-covers',
+      file.originalname,
+      file.mimetype
+    );
+    if (key) return getPublicUrl(key);
+  } catch (storageError) {
+    logger.error('Object storage upload failed; using database media fallback', {
+      businessId,
+      kind,
+      error: storageError.message,
+    });
+  }
+  return persistBusinessMediaFallback(req, businessId, kind, file);
+}
+
 async function uploadBusinessPhotos(req, res, next) {
   try {
     const { id } = req.params;
@@ -699,7 +749,6 @@ async function uploadBusinessPhotos(req, res, next) {
     const access = await canEditProfile(req.user.id, id);
     if (!access) throw new AppError('Business not found', 404, 'not_found');
 
-    const { uploadFile, getPublicUrl } = require('../utils/storage');
     const updates = {};
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
@@ -707,20 +756,14 @@ async function uploadBusinessPhotos(req, res, next) {
       const file = req.files.logo[0];
       if (!allowed.includes(file.mimetype))
         throw new AppError('Logo must be a JPG, PNG, WebP, or GIF', 400, 'invalid_format');
-      const key = await uploadFile(file.buffer, 'business-logos', file.originalname, file.mimetype);
-      updates.logo_url = key
-        ? getPublicUrl(key)
-        : `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      updates.logo_url = await storeBusinessPhoto(req, id, 'logo', file);
     }
 
     if (req.files?.cover?.[0]) {
       const file = req.files.cover[0];
       if (!allowed.includes(file.mimetype))
         throw new AppError('Cover photo must be a JPG, PNG, WebP, or GIF', 400, 'invalid_format');
-      const key = await uploadFile(file.buffer, 'business-covers', file.originalname, file.mimetype);
-      updates.cover_photo_url = key
-        ? getPublicUrl(key)
-        : `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      updates.cover_photo_url = await storeBusinessPhoto(req, id, 'cover', file);
     }
 
     if (Object.keys(updates).length === 0)
@@ -730,13 +773,43 @@ async function uploadBusinessPhotos(req, res, next) {
     const setClauses = Object.keys(updates).map((k, i) => `${k} = $${i + 1}`).join(', ');
     const values = [...Object.values(updates), id];
     const { rows: [updated] } = await pool.query(
-      `UPDATE businesses SET ${setClauses}, updated_at = NOW()
+      `UPDATE businesses SET ${setClauses}, profile_version = profile_version + 1, updated_at = NOW()
        WHERE id = $${values.length}
        RETURNING id, logo_url, cover_photo_url`,
       values
     );
 
     return res.json({ business: updated, ...updates });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /api/businesses/media/:assetId - public profile image bytes.
+async function getBusinessMediaAsset(req, res, next) {
+  try {
+    const { assetId } = req.params;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(assetId)) {
+      throw new AppError('Media not found', 404, 'not_found');
+    }
+    const { rows: [asset] } = await pool.query(
+      `SELECT content_type, content, size_bytes, sha256, updated_at
+         FROM business_media_assets
+        WHERE id = $1`,
+      [assetId]
+    );
+    if (!asset) throw new AppError('Media not found', 404, 'not_found');
+
+    const etag = `"${asset.sha256}"`;
+    if (req.get('if-none-match') === etag) return res.status(304).end();
+    res.set({
+      'Content-Type': asset.content_type,
+      'Content-Length': String(asset.size_bytes),
+      'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+      ETag: etag,
+      'X-Content-Type-Options': 'nosniff',
+    });
+    return res.send(asset.content);
   } catch (err) {
     next(err);
   }
@@ -1361,7 +1434,7 @@ async function getBusinessProfileForEditor(req, res) {
 module.exports = {
   listBusinesses, listBusinessCategories, addBusiness, updateBusiness, setPrimary, deleteBusiness,
   getBusinessOnboarding, updateBusinessOnboarding, completeBusinessOnboarding,
-  uploadBusinessPhotos,
+  uploadBusinessPhotos, getBusinessMediaAsset,
   getBusinessPublicProfile,
   getBusinessProfileForEditor,
   getBusinessAnalytics,

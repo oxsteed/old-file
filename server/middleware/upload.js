@@ -25,10 +25,16 @@ const fileFilter = (req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase();
   const allowedMimes = ALLOWED[ext];
   if (!allowedMimes) {
-    return cb(new Error('File type not allowed'), false);
+    const error = new Error('File type not allowed');
+    error.statusCode = 400;
+    error.code = 'invalid_file_type';
+    return cb(error, false);
   }
   if (!allowedMimes.includes(file.mimetype)) {
-    return cb(new Error('File type not allowed'), false);
+    const error = new Error('File type not allowed');
+    error.statusCode = 400;
+    error.code = 'invalid_file_type';
+    return cb(error, false);
   }
   cb(null, true);
 };

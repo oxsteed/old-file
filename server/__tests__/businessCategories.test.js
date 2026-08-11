@@ -4,6 +4,9 @@ const express = require('express');
 const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
+const upload = require('../middleware/upload');
+const validateFileUpload = require('../middleware/validateFileUpload');
+const { fileTypeFromBuffer } = require('file-type');
 const ctrl = require('../controllers/businessController');
 
 function buildApp() {
@@ -17,7 +20,14 @@ function buildApp() {
     next();
   });
   app.get('/api/businesses/categories', ctrl.listBusinessCategories);
+  app.get('/api/businesses/media/:assetId', ctrl.getBusinessMediaAsset);
   app.post('/api/businesses', ctrl.addBusiness);
+  app.put(
+    '/api/businesses/:id/photos',
+    upload.fields([{ name: 'logo', maxCount: 1 }, { name: 'cover', maxCount: 1 }]),
+    validateFileUpload,
+    ctrl.uploadBusinessPhotos
+  );
   app.use(errorHandler);
   return app;
 }
@@ -212,5 +222,50 @@ describe('business category long-term wiring', () => {
     expect(res.status).toBe(200);
     expect(res.body.reused).toBe(true);
     expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO businesses/.test(sql))).toHaveLength(0);
+  });
+
+  test('stores a short durable media URL when object storage is unavailable', async () => {
+    const assetId = 'da527be7-7761-4f3f-8da1-c1d5e2456a52';
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL+AAAAAElFTkSuQmCC',
+      'base64'
+    );
+    fileTypeFromBuffer.mockResolvedValueOnce({ mime: 'image/png', ext: 'png' });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 15, owner_id: '00000000-0000-4000-8000-000000000456' }] })
+      .mockResolvedValueOnce({ rows: [{ id: assetId }] })
+      .mockResolvedValueOnce({ rows: [{ id: 15, logo_url: `http://127.0.0.1/api/businesses/media/${assetId}`, cover_photo_url: null }] });
+
+    const res = await request(buildApp())
+      .put('/api/businesses/15/photos')
+      .attach('logo', png, { filename: 'logo.png', contentType: 'image/png' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.logo_url).toMatch(new RegExp(`/api/businesses/media/${assetId}$`));
+    expect(res.body.logo_url.startsWith('data:')).toBe(false);
+    const mediaInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO business_media_assets/.test(sql));
+    expect(mediaInsert).toBeDefined();
+    expect(mediaInsert[1][1]).toBe('15');
+    expect(Buffer.isBuffer(mediaInsert[1][4])).toBe(true);
+  });
+
+  test('serves persisted business media with immutable content metadata', async () => {
+    const assetId = 'da527be7-7761-4f3f-8da1-c1d5e2456a52';
+    const content = Buffer.from('stored-image');
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        content_type: 'image/webp',
+        content,
+        size_bytes: content.length,
+        sha256: 'abc123',
+      }],
+    });
+
+    const res = await request(buildApp()).get(`/api/businesses/media/${assetId}`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/^image\/webp/);
+    expect(res.headers.etag).toBe('"abc123"');
+    expect(res.body).toEqual(content);
   });
 });

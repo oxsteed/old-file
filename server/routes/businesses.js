@@ -8,7 +8,7 @@ const validateFileUpload = require('../middleware/validateFileUpload');
 const {
   listBusinesses, listBusinessCategories, addBusiness, updateBusiness, setPrimary, deleteBusiness,
   getBusinessOnboarding, updateBusinessOnboarding, completeBusinessOnboarding,
-  uploadBusinessPhotos,
+  uploadBusinessPhotos, getBusinessMediaAsset,
   getBusinessPublicProfile,
   getBusinessProfileForEditor,
   getBusinessAnalytics,
@@ -66,6 +66,7 @@ router.get('/invitations',                   authenticate, listMyInvitations);
 router.post('/invitations/:id/accept',       authenticate, acceptInvitation);
 router.post('/invitations/:id/decline',      authenticate, declineInvitation);
 router.get('/managed',                       authenticate, listManagedBusinesses);
+router.get('/media/:assetId',                getBusinessMediaAsset);
 
 // ── Public profile (no auth) - must be before authenticated /:id routes ───────
 router.get('/:id/public',  getBusinessPublicProfile);
