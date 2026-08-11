@@ -1,7 +1,7 @@
 // OxSteed Food - merchant dashboard: onboarding, menu manager, live orders,
 // and links to the in-store screens (kitchen display, queue board, kiosk).
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { subscribeRestaurantDisplay } from '../../api/restaurantDisplaySocket';
@@ -1151,10 +1151,16 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
 // ── Tab icon map ──────────────────────────────────────────────────────────────
 const TAB_ICONS = { home: '⌂', orders: '🧾', menu: '🍴', store: '⚙️' };
 
+function hasRestaurantPermission(restaurant, requested) {
+  if (restaurant?.effective_role === 'owner' || restaurant?.permissions?.includes('*')) return true;
+  return requested.some((permission) => restaurant?.permissions?.includes(permission));
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function FoodMerchantPage() {
   const { t } = useTranslation();
-  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const requestedBusinessId = searchParams.get('business');
   const requestedSetup = searchParams.get('setup') === '1';
   const requestedTab = searchParams.get('tab');
@@ -1187,6 +1193,33 @@ export default function FoodMerchantPage() {
   useEffect(() => { load(); }, [load]);
 
   const selected = restaurants.find((r) => r.id === selectedId) || null;
+  const canManageRestaurant = hasRestaurantPermission(selected, ['restaurant.manage', 'settings.manage']);
+  const canManageCredit = hasRestaurantPermission(selected, ['credit.manage']);
+  const canViewSettings = hasRestaurantPermission(selected, ['settings.view', 'settings.manage', 'restaurant.manage']);
+  const canManageDisplays = hasRestaurantPermission(selected, ['display.manage', 'restaurant.manage']);
+  const availableTabs = useMemo(() => {
+    if (!selected) return [];
+    const tabs = [];
+    if (canManageRestaurant) tabs.push('home');
+    if (hasRestaurantPermission(selected, ['orders.view', 'orders.manage', 'kitchen.view', 'kitchen.update'])) tabs.push('orders');
+    if (hasRestaurantPermission(selected, ['menu.view', 'menu.manage'])) tabs.push('menu');
+    if (canManageCredit || canViewSettings || canManageDisplays) tabs.push('store');
+    return tabs;
+  }, [canManageCredit, canManageDisplays, canManageRestaurant, canViewSettings, selected]);
+
+  const goToTab = useCallback((nextTab) => {
+    if (!availableTabs.includes(nextTab)) return;
+    setTab(nextTab);
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', nextTab);
+    if (selected?.business_id) next.set('business', String(selected.business_id));
+    setSearchParams(next, { replace: true });
+  }, [availableTabs, searchParams, selected?.business_id, setSearchParams]);
+
+  useEffect(() => {
+    if (!selected || availableTabs.length === 0 || availableTabs.includes(tab)) return;
+    goToTab(availableTabs[0]);
+  }, [availableTabs, goToTab, selected, tab]);
 
   useEffect(() => {
     if (tab !== 'store' || window.location.hash !== '#in-store-screens' || !selected?.id) return undefined;
@@ -1199,16 +1232,16 @@ export default function FoodMerchantPage() {
   useEffect(() => {
     if (loading) return;
     if (!requestedSetup && sessionStorage.getItem('ox.food.onboarding.dismissed') === '1') return;
-    if (requestedSetup && selected) {
+    if (requestedSetup && selected && canManageRestaurant) {
       setSetupForNew(false);
       setShowOnboarding(true);
       return;
     }
-    if (shouldShowRestaurantSetup(restaurants, selected)) {
-      setSetupForNew(restaurants.length === 0);
+    if (selected && canManageRestaurant && shouldShowRestaurantSetup(restaurants, selected)) {
+      setSetupForNew(false);
       setShowOnboarding(true);
     }
-  }, [loading, requestedSetup, restaurants, selected]);
+  }, [canManageRestaurant, loading, requestedSetup, restaurants, selected]);
 
   const refreshRestaurant = useCallback((updated) => {
     if (!updated?.id) {
@@ -1272,7 +1305,7 @@ export default function FoodMerchantPage() {
               </p>
             </div>
           </div>
-          {hasDashboard && selected && (
+          {hasDashboard && selected && canManageRestaurant && (
             <div className="fd-merchant-hero-actions">
               <span className={`fd-merchant-status-badge fd-mstatus-${selected.status}`}>
                 {t(`food.restaurantStatus.${selected.status}`, selected.status)}
@@ -1292,7 +1325,7 @@ export default function FoodMerchantPage() {
       {/* ── Page body ── */}
       <div className="fd-merchant-body">
         {!hasDashboard ? (
-          <MerchantLanding t={t} onStart={() => { setSetupForNew(true); setShowOnboarding(true); }} />
+          <MerchantLanding t={t} onStart={() => navigate('/business-hub?create=restaurant')} />
         ) : (
           /* ── Dashboard ── */
           <>
@@ -1315,25 +1348,27 @@ export default function FoodMerchantPage() {
                   <span className="fd-pay-note fd-merchant-not-live">{t('food.merchant.notLiveHint')}</span>
                 )}
               </div>
-              <button
-                type="button"
-                className="fd-btn fd-btn-secondary fd-btn-sm"
-                onClick={() => { setSetupForNew(true); setShowOnboarding(true); }}
-              >
-                + {t('food.merchant.addAnother')}
-              </button>
+              {canManageRestaurant && (
+                <button
+                  type="button"
+                  className="fd-btn fd-btn-secondary fd-btn-sm"
+                  onClick={() => navigate('/business-hub?create=restaurant')}
+                >
+                  + {t('food.merchant.addAnother')}
+                </button>
+              )}
             </div>
 
             {/* Tab navigation */}
             <div className="fd-tabs fd-merchant-tabs" role="tablist">
-              {['home', 'orders', 'menu', 'store'].map((key) => (
+              {availableTabs.map((key) => (
                 <button
                   key={key}
                   type="button"
                   role="tab"
                   aria-selected={tab === key}
                   className={`fd-tab${tab === key ? ' fd-active' : ''}`}
-                  onClick={() => setTab(key)}
+                  onClick={() => goToTab(key)}
                 >
                   <span className="fd-tab-icon" aria-hidden="true">{TAB_ICONS[key]}</span>
                   {t(`food.merchant.tab.${key}`, key === 'home' ? 'Home' : key === 'store' ? 'Store' : key)}
@@ -1346,24 +1381,26 @@ export default function FoodMerchantPage() {
               <OwnerHomeTab
                 t={t}
                 restaurant={selected}
-                onGoTab={setTab}
-                onUpdated={(updated) => setRestaurants((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))}
+                onGoTab={goToTab}
+                onUpdated={(updated) => setRestaurants((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)))}
               />
             )}
             {selected && tab === 'orders' && <OrdersTab t={t} restaurant={selected} />}
             {selected && tab === 'menu' && <RestaurantMenuManager t={t} restaurant={selected} />}
             {selected && tab === 'store' && (
               <>
-                <RestaurantCreditManager restaurant={selected} />
-                <SettingsTab
-                  t={t}
-                  restaurant={selected}
-                  onUpdated={(updated) =>
-                    setRestaurants((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
-                  }
-                  onSetupChanged={() => setSetupKey((k) => k + 1)}
-                />
-                {selected.status === 'active' && (
+                {canManageCredit && <RestaurantCreditManager restaurant={selected} />}
+                {canViewSettings && (
+                  <SettingsTab
+                    t={t}
+                    restaurant={selected}
+                    onUpdated={(updated) =>
+                      setRestaurants((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)))
+                    }
+                    onSetupChanged={() => setSetupKey((k) => k + 1)}
+                  />
+                )}
+                {canManageDisplays && selected.status === 'active' && (
                   <details className="fd-owner-advanced-section">
                     <summary>{t('food.ownerHome.deviceSetup', 'Device setup')}</summary>
                     <DeviceSetupChecklist
@@ -1374,10 +1411,12 @@ export default function FoodMerchantPage() {
                     />
                   </details>
                 )}
-                <details className="fd-owner-advanced-section">
-                  <summary>{t('food.ownerHome.advancedOperations', 'Advanced operations')}</summary>
-                  <OperationsTab t={t} restaurant={selected} />
-                </details>
+                {canManageRestaurant && (
+                  <details className="fd-owner-advanced-section">
+                    <summary>{t('food.ownerHome.advancedOperations', 'Advanced operations')}</summary>
+                    <OperationsTab t={t} restaurant={selected} />
+                  </details>
+                )}
               </>
             )}
           </>

@@ -14,6 +14,7 @@ const { sanitizeMessage } = require('../utils/messageSanitizer');
 const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
+const permissionsService = require('../services/permissionsService');
 const { debitFoodWallet, refundWalletDebitForReference, formatLedgerRow } = require('../services/foodWalletService');
 const {
   recordWalletCreditPaymentForOrder,
@@ -828,7 +829,13 @@ async function requireRestaurantAccess(userId, restaurantId) {
                    AND bm.status = 'active'
                  LIMIT 1
               )
-            END AS effective_role
+            END AS effective_role,
+            (SELECT bm.id
+               FROM business_members bm
+              WHERE bm.business_id = fr.business_id
+                AND bm.member_id = $2
+                AND bm.status = 'active'
+              LIMIT 1) AS effective_membership_id
        FROM food_restaurants fr
        JOIN businesses b ON b.id = fr.business_id
       WHERE fr.id = $1`,
@@ -838,15 +845,32 @@ async function requireRestaurantAccess(userId, restaurantId) {
   if (!restaurant || !restaurant.effective_role) {
     throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   }
+  restaurant.access_user_id = userId;
   return restaurant;
 }
 
-const RESTAURANT_MANAGE_ROLES = new Set(['owner', 'manager']);
+async function getRestaurantPermissions(restaurant) {
+  if (restaurant.effective_role === 'owner') return new Set(['*']);
+  const { permissions } = await permissionsService.getEffectivePermissions({
+    businessId: restaurant.business_id,
+    userId: restaurant.access_user_id,
+    role: restaurant.effective_role,
+    membershipId: restaurant.effective_membership_id,
+  });
+  return permissions;
+}
 
-function assertRestaurantManage(restaurant) {
-  if (!RESTAURANT_MANAGE_ROLES.has(restaurant.effective_role)) {
-    throw new AppError('You do not have permission to manage this restaurant', 403, 'forbidden');
+async function assertRestaurantPermission(restaurant, requested, message = 'You do not have permission to manage this restaurant') {
+  if (restaurant.effective_role === 'owner') return;
+  const permissions = await getRestaurantPermissions(restaurant);
+  if (!permissionsService.hasAny(permissions, requested)) {
+    throw new AppError(message, 403, 'forbidden', { requiredPermissions: requested });
   }
+}
+
+async function assertRestaurantManage(restaurant) {
+  if (restaurant.effective_role === 'owner') return;
+  await assertRestaurantPermission(restaurant, ['restaurant.manage', 'settings.manage']);
 }
 
 function emitRestaurantOrder(businessId, event, payload) {
@@ -1343,7 +1367,7 @@ exports.getManagedRestaurantMenu = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertRestaurantManage(restaurant);
+    await assertRestaurantPermission(restaurant, ['menu.view', 'menu.manage', 'restaurant.manage']);
     const menuData = await loadRestaurantMenu(restaurantId, { managed: true });
     res.json(menuData);
   } catch (err) {
@@ -1364,17 +1388,38 @@ exports.createRestaurant = async (req, res, next) => {
       let businessId = parsePositiveInt(req.body.businessId || req.body.business_id);
       if (businessId) {
         const { rows } = await client.query(
-          `SELECT id FROM businesses WHERE id = $1 AND user_id = $2`,
+          `SELECT id, business_kind, business_mode
+             FROM businesses
+            WHERE id = $1 AND user_id = $2`,
           [businessId, req.user.id]
         );
         if (!rows[0]) throw new AppError('Business not found', 404, 'business_not_found');
+        if (
+          (rows[0].business_kind && rows[0].business_kind !== 'restaurant')
+          || (rows[0].business_mode && rows[0].business_mode !== 'food')
+        ) {
+          throw new AppError('This business is not a restaurant business', 409, 'business_kind_mismatch');
+        }
+        const { rows: [existingRestaurant] } = await client.query(
+          'SELECT * FROM food_restaurants WHERE business_id = $1 LIMIT 1',
+          [businessId]
+        );
+        if (existingRestaurant) return existingRestaurant;
       } else {
+        const country = normalizeCountry(req.body.addressCountry || req.body.address_country);
+        const timezone = normalizeString(req.body.timezone, 80) || 'UTC';
+        const currencyCode = normalizeCurrency(req.body.currencyCode || req.body.currency_code);
         const { rows } = await client.query(
           `INSERT INTO businesses
              (user_id, business_name, business_type, description, website, phone,
               address_street, address_city, address_state, address_zip, address_country,
-              is_primary, tax_rate)
-           VALUES ($1,$2,'restaurant',$3,$4,$5,$6,$7,$8,$9,$10,FALSE,0)
+              is_primary, tax_rate, industry_category, business_mode, business_kind,
+              setup_status, timezone, currency_code, is_active, is_listed)
+           VALUES (
+             $1,$2,'Restaurant',$3,$4,$5,$6,$7,$8,$9,$10,
+             NOT EXISTS (SELECT 1 FROM businesses owned WHERE owned.user_id = $1),
+             0,'food','food','restaurant','in_progress',$11,$12,TRUE,FALSE
+           )
            RETURNING id`,
           [
             req.user.id,
@@ -1386,7 +1431,9 @@ exports.createRestaurant = async (req, res, next) => {
             normalizeString(req.body.addressCity || req.body.address_city, 120),
             normalizeString(req.body.addressState || req.body.address_state, 120),
             normalizeString(req.body.addressZip || req.body.address_zip, 40),
-            normalizeCountry(req.body.addressCountry || req.body.address_country),
+            country,
+            timezone,
+            currencyCode,
           ]
         );
         businessId = rows[0].id;
@@ -1451,7 +1498,7 @@ exports.createMenuCategory = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertRestaurantManage(restaurant);
+    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
     const name = normalizeString(req.body.name, 120);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
 
@@ -1477,7 +1524,7 @@ exports.createMenuItem = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertRestaurantManage(restaurant);
+    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
     const name = normalizeString(req.body.name, 160);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
 
@@ -2380,7 +2427,8 @@ exports.createOrder = async (req, res, next) => {
 exports.listRestaurantOrders = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, ['orders.view', 'orders.manage', 'kitchen.view', 'kitchen.update']);
     const status = normalizeString(req.query.status, 24);
     const source = normalizeString(req.query.source || req.query.orderSource || req.query.order_source, 24);
     const params = [restaurantId];
@@ -2440,6 +2488,7 @@ exports.updateOrderStatus = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, ['orders.manage', 'kitchen.update']);
     const status = normalizeString(req.body.status, 24);
     if (!VALID_STATUS.has(status) || !ORDER_TRANSITIONS[status]) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Unsupported order status' });
@@ -2589,7 +2638,8 @@ exports.updateOrderPayment = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const orderId = parsePositiveInt(req.params.orderId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, ['orders.manage', 'credit.manage', 'pos.manage']);
     const paymentStatus = normalizeString(req.body.paymentStatus || req.body.payment_status, 24);
     if (!VALID_PAYMENT_STATUS.has(paymentStatus)) {
       throw new AppError('Validation failed', 400, 'validation_failed', {
@@ -2725,21 +2775,37 @@ exports.listMyRestaurants = async (req, res, next) => {
               b.stripe_account_id AS business_stripe_account_id,
               b.stripe_charges_enabled AS business_stripe_charges_enabled,
               b.stripe_payouts_enabled AS business_stripe_payouts_enabled,
-              b.stripe_account_status AS business_stripe_account_status
+              b.stripe_account_status AS business_stripe_account_status,
+              CASE
+                WHEN fr.owner_user_id = $1 OR b.user_id = $1 THEN 'owner'
+                ELSE bm.role
+              END AS effective_role,
+              bm.id AS effective_membership_id
          FROM food_restaurants fr
          JOIN businesses b ON b.id = fr.business_id
+         LEFT JOIN business_members bm
+           ON bm.business_id = fr.business_id
+          AND bm.member_id = $1
+          AND bm.status = 'active'
         WHERE fr.owner_user_id = $1
            OR b.user_id = $1
-           OR EXISTS (
-                SELECT 1 FROM business_members bm
-                 WHERE bm.business_id = fr.business_id
-                   AND bm.member_id = $1
-                   AND bm.status = 'active'
-              )
+           OR bm.id IS NOT NULL
         ORDER BY fr.created_at DESC`,
       [req.user.id]
     );
-    res.json({ restaurants: rows });
+    const restaurants = await Promise.all(rows.map(async (restaurant) => {
+      if (restaurant.effective_role === 'owner') {
+        return { ...restaurant, permissions: ['*'] };
+      }
+      const { permissions } = await permissionsService.getEffectivePermissions({
+        businessId: restaurant.business_id,
+        userId: req.user.id,
+        role: restaurant.effective_role,
+        membershipId: restaurant.effective_membership_id,
+      });
+      return { ...restaurant, permissions: [...permissions].sort() };
+    }));
+    res.json({ restaurants });
   } catch (err) {
     next(err);
   }
@@ -2964,7 +3030,7 @@ exports.updateRestaurant = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurantAccess = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertRestaurantManage(restaurantAccess);
+    await assertRestaurantManage(restaurantAccess);
 
     const sets = [];
     const params = [];
@@ -2993,6 +3059,7 @@ exports.updateRestaurant = async (req, res, next) => {
       }
       params.push(status);
       sets.push(`status = $${params.length}`);
+      sets.push(`discovery_status = ${status === 'active' ? "'visible'" : "'hidden'"}`);
     }
     if (sets.length === 0) {
       throw new AppError('Validation failed', 400, 'validation_failed', { body: 'No updatable fields provided' });
@@ -3025,15 +3092,16 @@ exports.updateRestaurant = async (req, res, next) => {
 
       if (status && updated.business_id) {
         const active = status === 'active';
+        const paused = status === 'paused';
         await client.query(
           `UPDATE businesses
               SET business_kind = 'restaurant', business_mode = 'food', industry_category = 'food',
-                  setup_status = $1, is_active = $2, is_listed = $2,
+                  setup_status = $1, is_active = TRUE, is_listed = $2,
                   published_at = CASE WHEN $2 THEN COALESCE(published_at, NOW()) ELSE published_at END,
                   profile_version = profile_version + 1,
                   updated_at = NOW()
             WHERE id = $3`,
-          [active ? 'active' : (status === 'paused' ? 'paused' : 'in_progress'), active, updated.business_id]
+          [active || paused ? 'active' : 'in_progress', active, updated.business_id]
         );
         await client.query(
           `INSERT INTO business_audit_log
@@ -3062,7 +3130,7 @@ exports.updateMenuCategory = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const categoryId = parsePositiveInt(req.params.categoryId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertRestaurantManage(restaurant);
+    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
     const { rows: [category] } = await pool.query(
       `UPDATE food_menu_categories
           SET name = COALESCE($1, name),
@@ -3093,7 +3161,7 @@ exports.deleteMenuCategory = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const categoryId = parsePositiveInt(req.params.categoryId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertRestaurantManage(restaurant);
+    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
     const { rowCount } = await pool.query(
       `DELETE FROM food_menu_categories WHERE id = $1 AND restaurant_id = $2`,
       [categoryId, restaurantId]
@@ -3110,7 +3178,7 @@ exports.updateMenuItem = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const itemId = parsePositiveInt(req.params.itemId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertRestaurantManage(restaurant);
+    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
 
     const sets = [];
     const params = [];
@@ -3192,7 +3260,7 @@ exports.deleteMenuItem = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const itemId = parsePositiveInt(req.params.itemId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertRestaurantManage(restaurant);
+    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
     const { rowCount } = await pool.query(
       `DELETE FROM food_menu_items WHERE id = $1 AND restaurant_id = $2`,
       [itemId, restaurantId]
@@ -3209,7 +3277,7 @@ exports.createModifierGroup = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const itemId = parsePositiveInt(req.params.itemId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertRestaurantManage(restaurant);
+    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
     const name = normalizeString(req.body.name, 120);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
     const options = Array.isArray(req.body.options) ? req.body.options.slice(0, 30) : [];
@@ -3266,7 +3334,7 @@ exports.updateModifierGroup = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const groupId = parsePositiveInt(req.params.groupId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertRestaurantManage(restaurant);
+    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
     const name = normalizeString(req.body.name, 120);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
     const options = Array.isArray(req.body.options) ? req.body.options.slice(0, 30) : [];
@@ -3327,7 +3395,7 @@ exports.duplicateMenuItem = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const itemId = parsePositiveInt(req.params.itemId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertRestaurantManage(restaurant);
+    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
 
     const item = await withTransaction(pool, async (client) => {
       const { rows: [source] } = await client.query(
@@ -3395,7 +3463,7 @@ exports.deleteModifierGroup = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const groupId = parsePositiveInt(req.params.groupId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertRestaurantManage(restaurant);
+    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
     const { rowCount } = await pool.query(
       `DELETE FROM food_modifier_groups WHERE id = $1 AND restaurant_id = $2`,
       [groupId, restaurantId]
@@ -4147,7 +4215,7 @@ exports.createRestaurantPromotion = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertRestaurantManage(restaurant);
+    await assertRestaurantManage(restaurant);
     const code = normalizeString(req.body.code, 40);
     const title = normalizeString(req.body.title, 120);
     if (!code || !title) {
@@ -4190,7 +4258,8 @@ exports.createRestaurantPromotion = async (req, res, next) => {
 exports.listMerchantRestaurantPromotions = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(restaurant, ['settings.view', 'settings.manage', 'restaurant.manage']);
     try {
       const { rows } = await pool.query(
         `SELECT id, code, title, description, discount_percent, discount_cents,
@@ -4217,7 +4286,7 @@ exports.updateRestaurantPromotion = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const promotionId = parsePositiveInt(req.params.promotionId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertRestaurantManage(restaurant);
+    await assertRestaurantManage(restaurant);
 
     const sets = ['updated_at = NOW()'];
     const params = [];
@@ -4379,7 +4448,8 @@ async function buildRestaurantSetupProgress(restaurantId, restaurant) {
 exports.getRestaurantSetupProgress = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
-    await requireRestaurantAccess(req.user.id, restaurantId);
+    const access = await requireRestaurantAccess(req.user.id, restaurantId);
+    await assertRestaurantPermission(access, ['settings.view', 'settings.manage', 'restaurant.manage']);
     const { rows } = await pool.query(`SELECT * FROM food_restaurants WHERE id = $1`, [restaurantId]);
     const restaurant = rows[0];
     if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
@@ -4397,7 +4467,8 @@ exports.listRestaurantLocations = async (req, res, next) => {
     let isMerchant = false;
     if (req.user?.id) {
       try {
-        await requireRestaurantAccess(req.user.id, restaurantId);
+        const access = await requireRestaurantAccess(req.user.id, restaurantId);
+        await assertRestaurantPermission(access, ['settings.view', 'settings.manage', 'restaurant.manage']);
         isMerchant = true;
       } catch (_) {
         isMerchant = false;
@@ -4440,7 +4511,7 @@ exports.createRestaurantLocation = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertRestaurantManage(restaurant);
+    await assertRestaurantManage(restaurant);
     const name = normalizeString(req.body.name, 160);
     if (!name) {
       throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Location name is required' });
@@ -4489,7 +4560,7 @@ exports.updateRestaurantLocation = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const locationId = parsePositiveInt(req.params.locationId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    assertRestaurantManage(restaurant);
+    await assertRestaurantManage(restaurant);
     const { rows: existing } = await pool.query(
       `SELECT * FROM restaurant_locations WHERE id = $1 AND restaurant_id = $2`,
       [locationId, restaurantId]

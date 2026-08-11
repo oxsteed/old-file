@@ -46,9 +46,18 @@ function readDraft(country) {
   }
 }
 
-export default function BusinessCreationWizard({ initialCountry = 'US', onCancel, onCreated }) {
+export default function BusinessCreationWizard({ initialCountry = 'US', initialKind = '', onCancel, onCreated }) {
   const { t } = useTranslation();
-  const [draft, setDraft] = useState(() => readDraft(initialCountry));
+  const [draft, setDraft] = useState(() => {
+    const saved = readDraft(initialCountry);
+    if (!['restaurant', 'service'].includes(initialKind) || saved.business_kind === initialKind) return saved;
+    return {
+      ...defaultDraft(initialCountry),
+      step: 1,
+      business_kind: initialKind,
+      industry_category: initialKind === 'restaurant' ? 'food' : '',
+    };
+  });
   const [catalog, setCatalog] = useState({ categories: [], operatingModels: [] });
   const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [saving, setSaving] = useState(false);

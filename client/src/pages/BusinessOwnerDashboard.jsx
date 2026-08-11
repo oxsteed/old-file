@@ -49,6 +49,26 @@ function restaurantWorkspacePath(biz, tab = 'home') {
   return `/restaurants/merchant?${params.toString()}`;
 }
 
+function hasPermission(biz, requested) {
+  if (biz.role === 'owner' || biz.permissions?.includes('*')) return true;
+  return requested.some((permission) => biz.permissions?.includes(permission));
+}
+
+function getRestaurantReadiness(biz) {
+  if (biz.setup_status !== 'active' || !biz.restaurant_id || biz.restaurant_status === 'draft') {
+    return { key: 'setupNeeded', color: '#f59e0b' };
+  }
+  if (biz.restaurant_status === 'paused') return { key: 'paused', color: '#f97316' };
+  if (biz.restaurant_status !== 'active') return { key: 'setupNeeded', color: '#f59e0b' };
+  if (!biz.is_listed || biz.restaurant_discovery_status !== 'visible') {
+    return { key: 'hidden', color: '#94a3b8' };
+  }
+  if (biz.restaurant_accepts_online_orders === false || biz.restaurant_is_accepting_orders_now === false) {
+    return { key: 'ordersPaused', color: '#38bdf8' };
+  }
+  return { key: 'live', color: '#34d399' };
+}
+
 function BusinessCard({ biz, currency, t }) {
   const accent = colorFromName(biz.business_name);
   const businessId = getBusinessId(biz);
@@ -57,12 +77,29 @@ function BusinessCard({ biz, currency, t }) {
   const workspaceHref = isRestaurant
     ? restaurantWorkspacePath(biz)
     : `/business/${businessId}/workspace`;
-  const setupReady = biz.setup_status === 'active';
-  const roleLabel = biz.role === 'owner'
-    ? t('dashboards.businessOwner.owner')
-    : biz.role === 'member'
-      ? t('dashboards.businessOwner.member')
-      : biz.role;
+  const readiness = isRestaurant
+    ? getRestaurantReadiness(biz)
+    : { key: biz.setup_status === 'active' ? 'live' : 'setupNeeded', color: biz.setup_status === 'active' ? '#34d399' : '#f59e0b' };
+  const roleKeys = {
+    owner: 'owner',
+    manager: 'roleManager',
+    representative: 'roleRepresentative',
+    employee: 'roleEmployee',
+    support_agent: 'roleSupportAgent',
+    member: 'member',
+  };
+  const roleLabel = t(`dashboards.businessOwner.${roleKeys[biz.role] || 'member'}`);
+  const actionLinks = (isRestaurant ? [
+    [restaurantWorkspacePath(biz, 'orders'), ClipboardList, t('dashboards.businessOwner.orders', { defaultValue: 'Orders' }), ['orders.view', 'orders.manage', 'kitchen.view', 'kitchen.update']],
+    [restaurantWorkspacePath(biz, 'menu'), UtensilsCrossed, t('dashboards.businessOwner.menu', { defaultValue: 'Menu' }), ['menu.view', 'menu.manage']],
+    [restaurantWorkspacePath(biz, 'store'), Settings2, t('dashboards.businessOwner.storeDevices', { defaultValue: 'Store & devices' }), ['settings.view', 'settings.manage', 'credit.manage', 'display.manage']],
+    [biz.restaurant_id ? `/restaurants/queue/${biz.restaurant_id}` : restaurantWorkspacePath(biz, 'store'), Monitor, t('dashboards.businessOwner.queueBoard', { defaultValue: 'Queue board' }), ['display.view', 'display.manage']],
+  ] : [
+    [`/business/${businessId}/workspace/services`, Wrench, t('dashboards.businessOwner.services', { defaultValue: 'Services' }), ['business.view', 'business.edit_profile']],
+    [`/business/${businessId}/workspace/clients`, Users, t('dashboards.businessOwner.clients', { defaultValue: 'Clients' }), ['clients.view', 'clients.manage', 'business.view']],
+    [`/business/${businessId}/workspace/calendar`, Calendar, t('dashboards.businessOwner.schedule', { defaultValue: 'Schedule' }), ['calendar.view_all', 'calendar.view_self', 'calendar.manage_all', 'calendar.manage_self']],
+    [`/business/${businessId}/workspace/messages`, MessageSquare, t('dashboards.businessOwner.messages', { defaultValue: 'Messages' }), ['messages.view_all', 'messages.view_assigned', 'messages.reply']],
+  ]).filter(([, , , permissions]) => hasPermission(biz, permissions));
   const initials = String(biz.business_name || '?')
     .split(/\s+/)
     .map(w => w[0])
@@ -84,12 +121,16 @@ function BusinessCard({ biz, currency, t }) {
           {initials}
         </div>
         <div className="flex-1 min-w-0">
-          <Link
-            to={workspaceHref}
-            className="text-base font-semibold truncate block hover:text-orange-400 transition"
-          >
-            {biz.business_name}
-          </Link>
+          {actionLinks.length > 0 ? (
+            <Link
+              to={workspaceHref}
+              className="text-base font-semibold truncate block hover:text-orange-400 transition"
+            >
+              {biz.business_name}
+            </Link>
+          ) : (
+            <span className="text-base font-semibold truncate block">{biz.business_name}</span>
+          )}
           <div className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
             <span className="inline-flex items-center gap-1 font-semibold" style={{ color: accent }}>
               {isRestaurant ? <UtensilsCrossed size={11} /> : <Wrench size={11} />}
@@ -114,10 +155,8 @@ function BusinessCard({ biz, currency, t }) {
           <div className="text-[10px] uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
             <AlertCircle size={11} /> {t('dashboards.businessOwner.readiness', { defaultValue: 'Readiness' })}
           </div>
-          <div className="text-sm font-semibold mt-1" style={{ color: setupReady ? '#34d399' : '#f59e0b' }}>
-            {setupReady
-              ? t('dashboards.businessOwner.live', { defaultValue: 'Live' })
-              : t('dashboards.businessOwner.setupNeeded', { defaultValue: 'Setup needed' })}
+          <div className="text-sm font-semibold mt-1" style={{ color: readiness.color }}>
+            {t(`dashboards.businessOwner.${readiness.key}`)}
           </div>
         </div>
         <div>
@@ -135,10 +174,8 @@ function BusinessCard({ biz, currency, t }) {
               : t('dashboards.businessOwner.unread', { defaultValue: 'Unread inbox' })}
           </div>
           {isRestaurant ? (
-            <div className="text-sm font-semibold mt-1" style={{ color: biz.restaurant_id ? '#34d399' : '#f59e0b' }}>
-              {biz.restaurant_id
-                ? t('dashboards.businessOwner.connected', { defaultValue: 'Connected' })
-                : t('dashboards.businessOwner.pending', { defaultValue: 'Pending' })}
+            <div className="text-sm font-semibold mt-1" style={{ color: readiness.color }}>
+              {t(`dashboards.businessOwner.${readiness.key}`)}
             </div>
           ) : (
             <div className="text-lg font-semibold mt-0.5">
@@ -156,17 +193,7 @@ function BusinessCard({ biz, currency, t }) {
       </div>
 
       <div className="px-5 py-4 grid grid-cols-2 gap-2 flex-1">
-        {(isRestaurant ? [
-          [restaurantWorkspacePath(biz, 'orders'), ClipboardList, t('dashboards.businessOwner.orders', { defaultValue: 'Orders' })],
-          [restaurantWorkspacePath(biz, 'menu'), UtensilsCrossed, t('dashboards.businessOwner.menu', { defaultValue: 'Menu' })],
-          [restaurantWorkspacePath(biz, 'store'), Settings2, t('dashboards.businessOwner.storeDevices', { defaultValue: 'Store & devices' })],
-          [biz.restaurant_id ? `/restaurants/queue/${biz.restaurant_id}` : restaurantWorkspacePath(biz, 'store'), Monitor, t('dashboards.businessOwner.queueBoard', { defaultValue: 'Queue board' })],
-        ] : [
-          [`/business/${businessId}/workspace/services`, Wrench, t('dashboards.businessOwner.services', { defaultValue: 'Services' })],
-          [`/business/${businessId}/workspace/clients`, Users, t('dashboards.businessOwner.clients', { defaultValue: 'Clients' })],
-          [`/business/${businessId}/workspace/calendar`, Calendar, t('dashboards.businessOwner.schedule', { defaultValue: 'Schedule' })],
-          [`/business/${businessId}/workspace/messages`, MessageSquare, t('dashboards.businessOwner.messages', { defaultValue: 'Messages' })],
-        ]).map(([to, Icon, label]) => (
+        {actionLinks.map(([to, Icon, label]) => (
           <Link
             key={label}
             to={to}
@@ -176,19 +203,26 @@ function BusinessCard({ biz, currency, t }) {
             <Icon size={14} style={{ color: accent }} /> {label}
           </Link>
         ))}
+        {actionLinks.length === 0 && (
+          <p className="col-span-2 text-xs py-3" style={{ color: 'var(--color-text-muted)' }}>
+            {t('dashboards.businessOwner.noAuthorizedActions')}
+          </p>
+        )}
       </div>
 
       <footer className="px-5 py-3 flex items-center justify-between gap-2" style={{ borderTop: '1px solid var(--color-border)', background: 'rgba(148,163,184,0.03)' }}>
-        <Link
-          to={workspaceHref}
-          className="text-xs font-semibold inline-flex items-center gap-1 hover:text-orange-400 transition"
-          style={{ color: accent }}
-        >
-          {isRestaurant
-            ? t('dashboards.businessOwner.manageRestaurant', { defaultValue: 'Manage restaurant' })
-            : t('dashboards.businessOwner.openServiceWorkspace', { defaultValue: 'Open service workspace' })} <ArrowRight size={12} />
-        </Link>
-        {isRestaurant && biz.restaurant_id ? (
+        {actionLinks.length > 0 ? (
+          <Link
+            to={workspaceHref}
+            className="text-xs font-semibold inline-flex items-center gap-1 hover:text-orange-400 transition"
+            style={{ color: accent }}
+          >
+            {isRestaurant
+              ? t('dashboards.businessOwner.manageRestaurant', { defaultValue: 'Manage restaurant' })
+              : t('dashboards.businessOwner.openServiceWorkspace', { defaultValue: 'Open service workspace' })} <ArrowRight size={12} />
+          </Link>
+        ) : <span />}
+        {isRestaurant && biz.restaurant_id && biz.is_listed && biz.restaurant_discovery_status === 'visible' ? (
           <Link
             to={`/restaurants/r/${biz.restaurant_id}`}
             className="text-xs hover:text-orange-300 inline-flex items-center gap-1"
@@ -214,7 +248,6 @@ export default function BusinessOwnerDashboard() {
 
   const [businesses, setBusinesses] = useState([]);
   const [loaded, setLoaded] = useState(false);
-  const [enrichLoading, setEnrichLoading] = useState(false);
 
   // 1. Load the unified business list (cheap — one round-trip).
   useEffect(() => {
@@ -236,20 +269,24 @@ export default function BusinessOwnerDashboard() {
 
   // 2. Lazy-enrich each business with its analytics snapshot. Fail silent
   //    per business so one bad workspace doesn't poison the portfolio view.
+  const serviceBusinessIds = useMemo(
+    () => businesses.filter((b) => getBusinessKind(b) === 'service').map(getBusinessId).join(','),
+    [businesses],
+  );
+
   useEffect(() => {
-    if (!businesses.length || enrichLoading) return;
-    setEnrichLoading(true);
+    if (!serviceBusinessIds) return undefined;
     let cancelled = false;
     Promise.all(
-      businesses.filter(b => getBusinessKind(b) === 'service').map(b =>
-        api.get(`/businesses/${b.business_id || b.id}/analytics`)
-          .then(r => ({ id: b.business_id || b.id, data: r.data }))
-          .catch(() => ({ id: b.business_id || b.id, data: null })),
+      serviceBusinessIds.split(',').map((id) =>
+        api.get(`/businesses/${id}/analytics`)
+          .then(r => ({ id: String(id), data: r.data }))
+          .catch(() => ({ id: String(id), data: null })),
       ),
     ).then((results) => {
       if (cancelled) return;
       setBusinesses(prev => prev.map(b => {
-        const found = results.find(r => r.id === (b.business_id || b.id));
+        const found = results.find(r => r.id === String(getBusinessId(b)));
         if (!found?.data) return b;
         const a = found.data.analytics || found.data;
         return {
@@ -262,13 +299,16 @@ export default function BusinessOwnerDashboard() {
       }));
     });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [businesses.length]);
+  }, [serviceBusinessIds]);
 
   const totals = useMemo(() => {
     const restaurants = businesses.filter((b) => getBusinessKind(b) === 'restaurant').length;
     const services = businesses.filter((b) => getBusinessKind(b) === 'service').length;
-    const attention = businesses.filter((b) => b.setup_status !== 'active').length;
+    const attention = businesses.filter((b) => (
+      getBusinessKind(b) === 'restaurant'
+        ? getRestaurantReadiness(b).key !== 'live'
+        : b.setup_status !== 'active'
+    )).length;
     return { restaurants, services, attention, count: businesses.length };
   }, [businesses]);
 

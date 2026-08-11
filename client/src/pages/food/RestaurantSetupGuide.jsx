@@ -3,7 +3,6 @@ import toast from 'react-hot-toast';
 import {
   createFoodLocation,
   createFoodMenuItem,
-  createFoodRestaurant,
   getFoodSetupProgress,
   updateFoodRestaurant,
 } from '../../api/food';
@@ -161,9 +160,10 @@ export default function RestaurantSetupGuide({ t, restaurants, selected, onClose
           logoUrl: profile.logoUrl && !profile.logoUrl.startsWith('blob:') ? profile.logoUrl : undefined,
           coverPhotoUrl: profile.coverPhotoUrl && !profile.coverPhotoUrl.startsWith('blob:') ? profile.coverPhotoUrl : undefined,
         };
-        let saved = restaurant
-          ? await updateFoodRestaurant(restaurant.id, payload)
-          : await createFoodRestaurant(payload);
+        if (!restaurant?.id) {
+          throw new Error(t('food.setup.businessLinkMissing', 'Create the restaurant business before opening its setup guide.'));
+        }
+        let saved = await updateFoodRestaurant(restaurant.id, payload);
         setRestaurant(saved);
         onSelectRestaurant(saved.id);
         onRefresh(saved);

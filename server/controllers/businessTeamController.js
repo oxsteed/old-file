@@ -236,42 +236,55 @@ exports.getMyBusinesses = async (req, res, next) => {
     }
     const [owned, memberships, contexts] = await Promise.all([
       pool.query(
-        `SELECT b.id, b.business_name, b.is_primary, b.is_active,
+        `SELECT b.id, b.business_name, b.is_primary, b.is_active, b.is_listed,
                 b.business_kind, b.business_mode, b.setup_status,
                 b.currency_code, b.address_country,
-                (SELECT fr.id
-                   FROM food_restaurants fr
-                  WHERE fr.business_id = b.id
-                  ORDER BY fr.id
-                  LIMIT 1) AS restaurant_id,
+                fr.id AS restaurant_id,
+                fr.status AS restaurant_status,
+                fr.discovery_status AS restaurant_discovery_status,
+                fr.accepts_online_orders AS restaurant_accepts_online_orders,
+                fr.is_accepting_orders_now AS restaurant_is_accepting_orders_now,
                 (SELECT COUNT(*)::int
                    FROM business_members count_members
                   WHERE count_members.business_id = b.id
                     AND count_members.status = 'active') AS member_count
            FROM businesses b
-          WHERE b.user_id = $1 AND (b.deleted_at IS NULL) AND b.is_active != FALSE
+           LEFT JOIN LATERAL (
+             SELECT id, status, discovery_status, accepts_online_orders, is_accepting_orders_now
+               FROM food_restaurants
+              WHERE business_id = b.id
+              ORDER BY id
+              LIMIT 1
+           ) fr ON TRUE
+          WHERE b.user_id = $1 AND b.deleted_at IS NULL
           ORDER BY b.is_primary DESC, b.business_name ASC`,
         [req.user.id]
       ),
       pool.query(
         `SELECT bm.id AS membership_id, bm.business_id, bm.role, bm.status,
-                b.business_name, b.is_active, b.business_kind, b.business_mode,
+                b.business_name, b.is_active, b.is_listed, b.business_kind, b.business_mode,
                 b.setup_status, b.currency_code, b.address_country,
-                (SELECT fr.id
-                   FROM food_restaurants fr
-                  WHERE fr.business_id = b.id
-                  ORDER BY fr.id
-                  LIMIT 1) AS restaurant_id,
+                fr.id AS restaurant_id,
+                fr.status AS restaurant_status,
+                fr.discovery_status AS restaurant_discovery_status,
+                fr.accepts_online_orders AS restaurant_accepts_online_orders,
+                fr.is_accepting_orders_now AS restaurant_is_accepting_orders_now,
                 (SELECT COUNT(*)::int
                    FROM business_members count_members
                   WHERE count_members.business_id = b.id
                     AND count_members.status = 'active') AS member_count
            FROM business_members bm
            JOIN businesses b ON b.id = bm.business_id
+           LEFT JOIN LATERAL (
+             SELECT id, status, discovery_status, accepts_online_orders, is_accepting_orders_now
+               FROM food_restaurants
+              WHERE business_id = b.id
+              ORDER BY id
+              LIMIT 1
+           ) fr ON TRUE
           WHERE bm.member_id = $1
             AND bm.status IN ('active','pending')
             AND b.deleted_at IS NULL
-            AND b.is_active != FALSE
           ORDER BY bm.status = 'active' DESC, b.business_name ASC`,
         [req.user.id]
       ),
@@ -299,7 +312,14 @@ exports.getMyBusinesses = async (req, res, next) => {
       setup_status: r.setup_status,
       currency_code: r.currency_code,
       address_country: r.address_country,
+      is_active: r.is_active,
+      is_listed: r.is_listed,
       restaurant_id: r.restaurant_id,
+      restaurant_status: r.restaurant_status,
+      restaurant_discovery_status: r.restaurant_discovery_status,
+      restaurant_accepts_online_orders: r.restaurant_accepts_online_orders,
+      restaurant_is_accepting_orders_now: r.restaurant_is_accepting_orders_now,
+      permissions: ['*'],
       member_count: r.member_count,
       membership_id: null,
       last_selected_at: lastSelectedMap.get(r.id) || null,
@@ -316,10 +336,28 @@ exports.getMyBusinesses = async (req, res, next) => {
       setup_status: r.setup_status,
       currency_code: r.currency_code,
       address_country: r.address_country,
+      is_active: r.is_active,
+      is_listed: r.is_listed,
       restaurant_id: r.restaurant_id,
+      restaurant_status: r.restaurant_status,
+      restaurant_discovery_status: r.restaurant_discovery_status,
+      restaurant_accepts_online_orders: r.restaurant_accepts_online_orders,
+      restaurant_is_accepting_orders_now: r.restaurant_is_accepting_orders_now,
+      permissions: [],
       member_count: r.member_count,
       membership_id: r.membership_id,
       last_selected_at: lastSelectedMap.get(r.business_id) || null,
+    }));
+
+    await Promise.all(memberItems.map(async (item) => {
+      if (item.status !== 'active') return;
+      const { permissions } = await permissionsService.getEffectivePermissions({
+        businessId: item.business_id,
+        userId: req.user.id,
+        role: item.role,
+        membershipId: item.membership_id,
+      });
+      item.permissions = [...permissions].sort();
     }));
 
     const items = [...ownedItems, ...memberItems];
@@ -377,7 +415,7 @@ exports.setWorkspaceContext = async (req, res, next) => {
                 ELSE (SELECT id FROM business_members WHERE business_id = b.id AND member_id = $2 AND status = 'active' LIMIT 1)
               END AS membership_id
          FROM businesses b
-        WHERE b.id = $1 AND b.deleted_at IS NULL AND b.is_active != FALSE`,
+        WHERE b.id = $1 AND b.deleted_at IS NULL`,
       [businessId, req.user.id]
     );
     if (acc.rowCount === 0 || !acc.rows[0].effective_role) {

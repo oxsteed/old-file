@@ -243,14 +243,14 @@ async function listManagedBusinesses(req, res) {
     const { rows } = await pool.query(
       `SELECT
          b.id, b.business_name, b.business_type, b.description,
-         b.website, b.phone, b.logo_url, b.is_active,
+         b.website, b.phone, b.logo_url, b.is_active, b.is_listed,
          b.business_kind, b.business_mode, b.setup_status,
          b.currency_code, b.address_country,
-         (SELECT fr.id
-            FROM food_restaurants fr
-           WHERE fr.business_id = b.id
-           ORDER BY fr.id
-           LIMIT 1) AS restaurant_id,
+         fr.id AS restaurant_id,
+         fr.status AS restaurant_status,
+         fr.discovery_status AS restaurant_discovery_status,
+         fr.accepts_online_orders AS restaurant_accepts_online_orders,
+         fr.is_accepting_orders_now AS restaurant_is_accepting_orders_now,
          bm.role,
          bm.accepted_at,
          u.first_name AS owner_first_name,
@@ -258,8 +258,16 @@ async function listManagedBusinesses(req, res) {
        FROM business_members bm
        JOIN businesses b ON b.id = bm.business_id
        JOIN users u      ON u.id = bm.owner_id
+       LEFT JOIN LATERAL (
+         SELECT id, status, discovery_status, accepts_online_orders, is_accepting_orders_now
+           FROM food_restaurants
+          WHERE business_id = b.id
+          ORDER BY id
+          LIMIT 1
+       ) fr ON TRUE
        WHERE bm.member_id = $1
          AND bm.status    = 'active'
+         AND b.deleted_at IS NULL
        ORDER BY bm.accepted_at DESC`,
       [req.user.id]
     );

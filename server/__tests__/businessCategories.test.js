@@ -101,6 +101,8 @@ describe('business category long-term wiring', () => {
       industry_category: 'food',
       business_mode: 'food',
     }));
+    const businessInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO businesses/.test(sql));
+    expect(businessInsert[0]).toMatch(/TRUE,FALSE/);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_restaurants/.test(sql))).toBe(true);
     const auditInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO business_audit_log/.test(sql));
     expect(auditInsert).toBeDefined();

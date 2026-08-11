@@ -18,6 +18,7 @@ function buildApp() {
   });
   app.get('/api/runner/workspaces', controller.listWorkspaces);
   app.get('/api/runner/inbox', controller.getUnifiedInbox);
+  app.get('/api/me/businesses', teamController.getMyBusinesses);
   app.post('/api/me/workspace-context', express.json(), teamController.setWorkspaceContext);
   app.patch('/api/restaurants/:restaurantId/runner/tasks/:taskId/status', express.json(), restaurantRunner.updateTaskStatus);
   app.use(errorHandler);
@@ -55,6 +56,42 @@ test('persists a physical restaurant only when it belongs to the authorized busi
   expect(res.body.data).toMatchObject({ business_id: 40, restaurant_id: 7 });
   expect(mockQuery.mock.calls[2][0]).toMatch(/restaurant_id = EXCLUDED\.restaurant_id/);
   expect(mockQuery.mock.calls[2][1]).toEqual([USER_ID, 40, 2, 7]);
+});
+
+test('keeps a paused restaurant workspace visible with truthful operating state', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{
+      id: 40,
+      business_name: 'North Kitchen',
+      is_primary: true,
+      is_active: true,
+      is_listed: false,
+      business_kind: 'restaurant',
+      business_mode: 'food',
+      setup_status: 'active',
+      currency_code: 'USD',
+      address_country: 'US',
+      restaurant_id: 7,
+      restaurant_status: 'paused',
+      restaurant_discovery_status: 'hidden',
+      restaurant_accepts_online_orders: true,
+      restaurant_is_accepting_orders_now: false,
+      member_count: 2,
+    }] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const res = await request(buildApp()).get('/api/me/businesses');
+
+  expect(res.status).toBe(200);
+  expect(res.body.data.items[0]).toEqual(expect.objectContaining({
+    business_id: 40,
+    restaurant_id: 7,
+    restaurant_status: 'paused',
+    restaurant_discovery_status: 'hidden',
+    is_listed: false,
+    permissions: ['*'],
+  }));
 });
 
 test('rejects a task update when the task belongs to another runner', async () => {

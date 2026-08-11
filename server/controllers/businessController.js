@@ -127,13 +127,20 @@ async function listBusinesses(req, res, next) {
               address_city, address_state, address_country, is_primary, is_active,
               is_listed, tax_rate, logo_url, created_at,
               COALESCE(active_template, 'default') AS active_template,
-              (SELECT fr.id
-                 FROM food_restaurants fr
-                WHERE fr.business_id = businesses.id
-                ORDER BY fr.id
-                LIMIT 1) AS restaurant_id
+              fr.id AS restaurant_id,
+              fr.status AS restaurant_status,
+              fr.discovery_status AS restaurant_discovery_status,
+              fr.accepts_online_orders AS restaurant_accepts_online_orders,
+              fr.is_accepting_orders_now AS restaurant_is_accepting_orders_now
        FROM businesses
-       WHERE user_id = $1
+       LEFT JOIN LATERAL (
+         SELECT id, status, discovery_status, accepts_online_orders, is_accepting_orders_now
+           FROM food_restaurants
+          WHERE business_id = businesses.id
+          ORDER BY id
+          LIMIT 1
+       ) fr ON TRUE
+       WHERE user_id = $1 AND deleted_at IS NULL
        ORDER BY is_primary DESC, created_at ASC`,
       [req.user.id]
     );
@@ -229,7 +236,7 @@ async function addBusiness(req, res, next) {
             is_primary, tax_rate, industry_category, business_mode,
             business_kind, setup_status, timezone, currency_code,
             creation_idempotency_key, is_active, is_listed)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'in_progress',$18,$19,$20,FALSE,FALSE)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'in_progress',$18,$19,$20,TRUE,FALSE)
          RETURNING *`,
         [
           req.user.id, business_name.trim(), category.businessType, ein || null,
@@ -287,7 +294,7 @@ async function addBusiness(req, res, next) {
       onboarding: {
         currentStep: biz.business_kind === 'restaurant' ? 'restaurant_setup' : 'service_setup',
         nextRoute: biz.business_kind === 'restaurant'
-          ? '/food/merchant'
+          ? '/restaurants/merchant'
           : `/business/${biz.id}/workspace/profile`,
       },
     });
@@ -843,10 +850,13 @@ async function setPrimary(req, res, next) {
 async function deleteBusiness(req, res, next) {
   try {
     const { id } = req.params;
-    // Soft-delete: set is_active = FALSE instead of hard DELETE (preserves audit trail)
+    // Tombstone the workspace so private drafts/paused stores can remain
+    // manageable without being confused with a deleted business.
     const result = await pool.query(
-      `UPDATE businesses SET is_active = FALSE, updated_at = NOW()
-       WHERE id = $1 AND user_id = $2 AND is_active = TRUE RETURNING id`,
+      `UPDATE businesses
+          SET is_active = FALSE, is_listed = FALSE, deleted_at = NOW(), updated_at = NOW()
+        WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+        RETURNING id`,
       [id, req.user.id]
     );
     if (!result.rows.length) {

@@ -19,6 +19,7 @@ function buildApp() {
   app.get('/api/food/restaurants', ctrl.listRestaurants);
   app.get('/api/food/markets', ctrl.listMarkets);
   app.post('/api/food/restaurants', ctrl.createRestaurant);
+  app.patch('/api/food/restaurants/:restaurantId', ctrl.updateRestaurant);
   app.post('/api/food/restaurants/:restaurantId/orders', ctrl.createOrder);
   app.get('/api/food/restaurants/:restaurantId/orders', ctrl.listRestaurantOrders);
   app.patch('/api/food/restaurants/:restaurantId/orders/:orderId/status', ctrl.updateOrderStatus);
@@ -113,6 +114,45 @@ describe('food controller', () => {
     expect(mockQuery.mock.calls[0][0]).toMatch(/INSERT INTO businesses/);
     expect(mockQuery.mock.calls[1][0]).toMatch(/INSERT INTO food_restaurants/);
     expect(res.body.restaurant.display_name).toBe('Island Grill');
+  });
+
+  test('pausing a restaurant keeps its private workspace active while hiding the storefront', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: 9, business_id: 42, effective_role: 'owner' }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: 9, business_id: 42, display_name: 'Island Grill', status: 'paused', discovery_status: 'hidden' }],
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .patch('/api/food/restaurants/9')
+      .send({ status: 'paused' });
+
+    expect(res.status).toBe(200);
+    const businessUpdate = mockQuery.mock.calls.find(([sql]) => /UPDATE businesses/.test(sql));
+    expect(businessUpdate[0]).toMatch(/is_active = TRUE/);
+    expect(businessUpdate[1]).toEqual(['active', false, 42]);
+    expect(res.body.restaurant).toEqual(expect.objectContaining({ status: 'paused', discovery_status: 'hidden' }));
+  });
+
+  test('manager role does not bypass effective restaurant permissions', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: 10, business_id: 43, effective_role: 'manager', effective_membership_id: 91 }],
+      })
+      .mockResolvedValueOnce({ rows: [{ code: 'orders.view', allow: true }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .patch('/api/food/restaurants/10')
+      .send({ status: 'paused' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE food_restaurants/.test(sql))).toBe(false);
   });
 
   test('creates order totals from menu prices and assigns next queue number', async () => {

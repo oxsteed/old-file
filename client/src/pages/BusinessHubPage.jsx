@@ -157,6 +157,13 @@ function BusinessHubInner() {
   const [form, setForm]       = useState({});
   const [saving, setSaving]   = useState(false);
   const [formErr, setFormErr] = useState('');
+  const requestedCreateKind = ['restaurant', 'service'].includes(searchParams.get('create'))
+    ? searchParams.get('create')
+    : '';
+
+  useEffect(() => {
+    if (requestedCreateKind) setModal('add-biz');
+  }, [requestedCreateKind]);
 
   // tab data
   const [analytics, setAnalytics]   = useState(null);
@@ -648,7 +655,16 @@ function BusinessHubInner() {
   }
 
   // ── modal helpers ─────────────────────────────────────────────────────────
-  function closeModal() { setModal(null); setSelected(null); setFormErr(''); }
+  function closeModal() {
+    setModal(null);
+    setSelected(null);
+    setFormErr('');
+    if (searchParams.has('create')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('create');
+      setSearchParams(next, { replace: true });
+    }
+  }
   function fc(e) {
     const { name, value } = e.target;
     setForm(f => ({ ...f, [name]: value }));
@@ -1373,7 +1389,7 @@ function BusinessHubInner() {
                 </div>
                 <div className="bh-setup-actions">
                   {currentBiz.business_kind === 'restaurant' ? (
-                    <Link className="bh-btn primary" to={`/food/merchant?business=${encodeURIComponent(currentBiz.id)}&setup=1`}>
+                    <Link className="bh-btn primary" to={`/restaurants/merchant?business=${encodeURIComponent(currentBiz.id)}&setup=1`}>
                       {t('businessCreation.continueRestaurant', 'Continue restaurant setup')}
                     </Link>
                   ) : (
@@ -1960,6 +1976,7 @@ function BusinessHubInner() {
         {modal === 'add-biz' && (
           <BusinessCreationWizard
             initialCountry={user?.country || 'US'}
+            initialKind={requestedCreateKind}
             onCancel={closeModal}
             onCreated={handleBusinessCreated}
           />
