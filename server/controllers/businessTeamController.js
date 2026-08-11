@@ -236,15 +236,36 @@ exports.getMyBusinesses = async (req, res, next) => {
     }
     const [owned, memberships, contexts] = await Promise.all([
       pool.query(
-        `SELECT id, business_name, is_primary, is_active
-           FROM businesses
-          WHERE user_id = $1 AND (deleted_at IS NULL) AND is_active != FALSE
-          ORDER BY is_primary DESC, business_name ASC`,
+        `SELECT b.id, b.business_name, b.is_primary, b.is_active,
+                b.business_kind, b.business_mode, b.setup_status,
+                b.currency_code, b.address_country,
+                (SELECT fr.id
+                   FROM food_restaurants fr
+                  WHERE fr.business_id = b.id
+                  ORDER BY fr.id
+                  LIMIT 1) AS restaurant_id,
+                (SELECT COUNT(*)::int
+                   FROM business_members count_members
+                  WHERE count_members.business_id = b.id
+                    AND count_members.status = 'active') AS member_count
+           FROM businesses b
+          WHERE b.user_id = $1 AND (b.deleted_at IS NULL) AND b.is_active != FALSE
+          ORDER BY b.is_primary DESC, b.business_name ASC`,
         [req.user.id]
       ),
       pool.query(
         `SELECT bm.id AS membership_id, bm.business_id, bm.role, bm.status,
-                b.business_name, b.is_active
+                b.business_name, b.is_active, b.business_kind, b.business_mode,
+                b.setup_status, b.currency_code, b.address_country,
+                (SELECT fr.id
+                   FROM food_restaurants fr
+                  WHERE fr.business_id = b.id
+                  ORDER BY fr.id
+                  LIMIT 1) AS restaurant_id,
+                (SELECT COUNT(*)::int
+                   FROM business_members count_members
+                  WHERE count_members.business_id = b.id
+                    AND count_members.status = 'active') AS member_count
            FROM business_members bm
            JOIN businesses b ON b.id = bm.business_id
           WHERE bm.member_id = $1
@@ -273,6 +294,13 @@ exports.getMyBusinesses = async (req, res, next) => {
       status: 'active',
       is_primary: r.is_primary,
       is_owner: true,
+      business_kind: r.business_kind || (r.business_mode === 'food' ? 'restaurant' : 'service'),
+      business_mode: r.business_mode,
+      setup_status: r.setup_status,
+      currency_code: r.currency_code,
+      address_country: r.address_country,
+      restaurant_id: r.restaurant_id,
+      member_count: r.member_count,
       membership_id: null,
       last_selected_at: lastSelectedMap.get(r.id) || null,
     }));
@@ -283,6 +311,13 @@ exports.getMyBusinesses = async (req, res, next) => {
       status: r.status,
       is_primary: false,
       is_owner: false,
+      business_kind: r.business_kind || (r.business_mode === 'food' ? 'restaurant' : 'service'),
+      business_mode: r.business_mode,
+      setup_status: r.setup_status,
+      currency_code: r.currency_code,
+      address_country: r.address_country,
+      restaurant_id: r.restaurant_id,
+      member_count: r.member_count,
       membership_id: r.membership_id,
       last_selected_at: lastSelectedMap.get(r.business_id) || null,
     }));

@@ -664,7 +664,7 @@ function BusinessHubInner() {
     toast.success(t('businessHub.toastBizAdded'));
     await loadBusinesses();
     if (business.business_kind === 'restaurant') {
-      navigate(`/food/merchant?business=${encodeURIComponent(business.id)}&setup=1`);
+      navigate(`/restaurants/merchant?business=${encodeURIComponent(business.id)}&setup=1`);
     } else {
       navigate(`/business/${business.id}/workspace/profile`);
     }
@@ -1076,6 +1076,8 @@ function BusinessHubInner() {
   const currentRole = currentBiz?._role || 'owner';
   const canEditBizProfile = currentRole === 'owner' || currentRole === 'manager';
   const canViewFinanceHub = currentRole !== 'representative';
+  const isRestaurantBusiness = currentBiz?.business_kind === 'restaurant'
+    || (!currentBiz?.business_kind && currentBiz?.business_mode === 'food');
 
   async function handlePublishCurrentBusiness() {
     if (!currentBiz?.id) return;
@@ -1123,7 +1125,7 @@ function BusinessHubInner() {
   //   6. Property ops + maintenance (only for property_manager template)
   //   7. Invoices / Tax / Goals
   //   8. Team
-  const candidateTabs = [
+  const serviceBusinessTabs = [
     'overview',
     'workflow',
     'profile',
@@ -1157,6 +1159,13 @@ function BusinessHubInner() {
     'leads',
     'msg-templates',
   ];
+  // Restaurants have a purpose-built operational workspace for orders, menu,
+  // credit, store settings, and displays. Business Hub retains only the shared
+  // business capabilities so restaurant owners do not have to decipher service
+  // concepts such as appointments, service packages, or client invoicing.
+  const candidateTabs = isRestaurantBusiness
+    ? ['messages', 'team']
+    : serviceBusinessTabs;
   const visibleTabs = candidateTabs.filter((tb) => LAUNCH_BUSINESS_HUB_TABS.has(tb)).filter((tb) => {
     if (tb === 'workflow' && !canEditBizProfile) return false;
     if (tb === 'profile' && !canEditBizProfile) return false;
@@ -1180,6 +1189,10 @@ function BusinessHubInner() {
     }
     if (!LAUNCH_BUSINESS_HUB_TABS.has(tab)) {
       setTab(canViewFinanceHub ? 'overview' : 'team');
+      return;
+    }
+    if (currentBiz && !visibleTabs.includes(tab)) {
+      setTab(visibleTabs.includes('overview') ? 'overview' : (visibleTabs[0] || 'team'));
       return;
     }
     if (tab === 'workflow' && !canEditBizProfile) {
@@ -1213,7 +1226,7 @@ function BusinessHubInner() {
     if (financeTabIds.includes(tab) && !canViewFinanceHub) {
       setTab('team');
     }
-  }, [bizId, canEditBizProfile, canViewFinanceHub, tab]);
+  }, [bizId, canEditBizProfile, canViewFinanceHub, isRestaurantBusiness, tab]);
 
   // tab label resolver
   const tabLabel = (tb) => {
@@ -1272,8 +1285,12 @@ function BusinessHubInner() {
         {/* Header */}
         <div className="bh-header">
           <div>
-            <h1>{t('businessHub.header')}</h1>
-            <p>{t('businessHub.headerDesc')}</p>
+            <h1>{isRestaurantBusiness
+              ? t('businessHub.restaurantHeader', { defaultValue: 'Restaurant business hub' })
+              : t('businessHub.serviceHeader', { defaultValue: 'Service business hub' })}</h1>
+            <p>{isRestaurantBusiness
+              ? t('businessHub.restaurantHeaderDesc', { defaultValue: 'Open restaurant operations quickly, then manage shared team and communication settings here.' })
+              : t('businessHub.serviceHeaderDesc', { defaultValue: 'Manage services, clients, scheduling, messages, invoices, and your team in one workspace.' })}</p>
           </div>
           <div className="bh-header-actions">
             {LAUNCH_VISIBILITY.businessHubGrowthTools && (
@@ -1318,7 +1335,11 @@ function BusinessHubInner() {
               )}
               {bizId && (
                 <Link
-                  to={`/business/${bizId}`}
+                  to={isRestaurantBusiness && currentBiz?.restaurant_id
+                    ? `/restaurants/r/${currentBiz.restaurant_id}`
+                    : isRestaurantBusiness
+                      ? `/restaurants/merchant?business=${encodeURIComponent(bizId)}`
+                      : `/business/${bizId}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="bh-view-profile-link"
@@ -1361,6 +1382,66 @@ function BusinessHubInner() {
                       <button className="bh-btn" type="button" onClick={() => setTab('services')}>{t('businessCreation.addServices', 'Add services')}</button>
                       <button className="bh-btn primary" type="button" onClick={handlePublishCurrentBusiness} disabled={saving}>
                         {saving ? t('businessCreation.checking', 'Checking...') : t('businessCreation.publish', 'Publish business')}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {currentBiz && canEditBizProfile && (
+              <section className={`bh-mode-center ${isRestaurantBusiness ? 'restaurant' : 'service'}`}>
+                <div className="bh-mode-center-copy">
+                  <span className="bh-mode-kicker">{isRestaurantBusiness
+                    ? t('businessHub.restaurantMode', { defaultValue: 'Restaurant operations' })
+                    : t('businessHub.serviceMode', { defaultValue: 'Service operations' })}</span>
+                  <h2>{isRestaurantBusiness
+                    ? t('businessHub.restaurantCenterTitle', { defaultValue: 'Run orders, menu, credit, and in-store screens' })
+                    : t('businessHub.serviceCenterTitle', { defaultValue: 'Run bookings, clients, and service delivery' })}</h2>
+                  <p>{isRestaurantBusiness
+                    ? t('businessHub.restaurantCenterHint', { defaultValue: 'Restaurant-specific work stays in one focused dashboard. Team access and shared messages remain available below.' })
+                    : t('businessHub.serviceCenterHint', { defaultValue: 'Your workspace is organized around the customer journey: publish services, manage clients, schedule work, and follow up.' })}</p>
+                </div>
+
+                <div className="bh-mode-actions" aria-label={isRestaurantBusiness ? 'Restaurant shortcuts' : 'Service business shortcuts'}>
+                  {isRestaurantBusiness ? (
+                    <>
+                      <Link className="bh-mode-action primary" to={`/restaurants/merchant?business=${encodeURIComponent(currentBiz.id)}&tab=orders`}>
+                        <strong>{t('businessHub.restaurantOrders', { defaultValue: 'Orders' })}</strong>
+                        <span>{t('businessHub.restaurantOrdersHint', { defaultValue: 'Accept and prepare orders' })}</span>
+                      </Link>
+                      <Link className="bh-mode-action" to={`/restaurants/merchant?business=${encodeURIComponent(currentBiz.id)}&tab=menu`}>
+                        <strong>{t('businessHub.restaurantMenu', { defaultValue: 'Menu' })}</strong>
+                        <span>{t('businessHub.restaurantMenuHint', { defaultValue: 'Items, prices, and availability' })}</span>
+                      </Link>
+                      <Link className="bh-mode-action" to={`/restaurants/merchant?business=${encodeURIComponent(currentBiz.id)}&tab=store`}>
+                        <strong>{t('businessHub.restaurantStore', { defaultValue: 'Store & credit' })}</strong>
+                        <span>{t('businessHub.restaurantStoreHint', { defaultValue: 'Hours, payments, locations, devices' })}</span>
+                      </Link>
+                      {currentBiz.restaurant_id && (
+                        <Link className="bh-mode-action" to={`/restaurants/merchant?business=${encodeURIComponent(currentBiz.id)}&tab=store#in-store-screens`}>
+                          <strong>{t('businessHub.restaurantDisplays', { defaultValue: 'In-store screens' })}</strong>
+                          <span>{t('businessHub.restaurantDisplaysHint', { defaultValue: 'Queue board, kiosk, and kitchen' })}</span>
+                        </Link>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <button className="bh-mode-action primary" type="button" onClick={() => setTab('services')}>
+                        <strong>{t('businessHub.serviceList', { defaultValue: 'Services' })}</strong>
+                        <span>{t('businessHub.serviceListHint', { defaultValue: 'What customers can book' })}</span>
+                      </button>
+                      <button className="bh-mode-action" type="button" onClick={() => setTab('clients')}>
+                        <strong>{t('businessHub.serviceClients', { defaultValue: 'Clients' })}</strong>
+                        <span>{t('businessHub.serviceClientsHint', { defaultValue: 'Relationships and follow-up' })}</span>
+                      </button>
+                      <button className="bh-mode-action" type="button" onClick={() => setTab('calendar')}>
+                        <strong>{t('businessHub.serviceSchedule', { defaultValue: 'Schedule' })}</strong>
+                        <span>{t('businessHub.serviceScheduleHint', { defaultValue: 'Availability and appointments' })}</span>
+                      </button>
+                      <button className="bh-mode-action" type="button" onClick={() => setTab('messages')}>
+                        <strong>{t('businessHub.serviceMessages', { defaultValue: 'Messages' })}</strong>
+                        <span>{t('businessHub.serviceMessagesHint', { defaultValue: 'Customer conversations' })}</span>
                       </button>
                     </>
                   )}

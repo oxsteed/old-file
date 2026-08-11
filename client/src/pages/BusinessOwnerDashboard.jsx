@@ -14,7 +14,7 @@
 // always visible) but it's a single card occupying the full row.
 
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import { getMyBusinesses } from '../api/vortex';
@@ -22,14 +22,10 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import {
-  Building2, Plus, DollarSign, Users, Calendar, MessageSquare,
-  TrendingUp, ArrowRight, AlertCircle, BarChart3,
+  Building2, Plus, Users, Calendar, MessageSquare, UtensilsCrossed,
+  Wrench, ArrowRight, AlertCircle, BarChart3, ClipboardList, Store,
+  Settings2, Monitor,
 } from 'lucide-react';
-
-function fmtCurrency(cents, currency = 'USD') {
-  if (cents == null || isNaN(cents)) return '—';
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 0 }).format(cents / 100);
-}
 
 function colorFromName(name) {
   // Deterministic accent color so each business card has a stable identity.
@@ -39,8 +35,29 @@ function colorFromName(name) {
   return palette[hash % palette.length];
 }
 
+function getBusinessId(biz) {
+  return biz.business_id || biz.id;
+}
+
+function getBusinessKind(biz) {
+  return biz.business_kind || (biz.business_mode === 'food' ? 'restaurant' : 'service');
+}
+
+function restaurantWorkspacePath(biz, tab = 'home') {
+  const params = new URLSearchParams({ business: String(getBusinessId(biz)) });
+  if (tab !== 'home') params.set('tab', tab);
+  return `/restaurants/merchant?${params.toString()}`;
+}
+
 function BusinessCard({ biz, currency, t }) {
   const accent = colorFromName(biz.business_name);
+  const businessId = getBusinessId(biz);
+  const kind = getBusinessKind(biz);
+  const isRestaurant = kind === 'restaurant';
+  const workspaceHref = isRestaurant
+    ? restaurantWorkspacePath(biz)
+    : `/business/${businessId}/workspace`;
+  const setupReady = biz.setup_status === 'active';
   const roleLabel = biz.role === 'owner'
     ? t('dashboards.businessOwner.owner')
     : biz.role === 'member'
@@ -68,12 +85,18 @@ function BusinessCard({ biz, currency, t }) {
         </div>
         <div className="flex-1 min-w-0">
           <Link
-            to={`/business/${biz.business_id || biz.id}/workspace`}
+            to={workspaceHref}
             className="text-base font-semibold truncate block hover:text-orange-400 transition"
           >
             {biz.business_name}
           </Link>
           <div className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+            <span className="inline-flex items-center gap-1 font-semibold" style={{ color: accent }}>
+              {isRestaurant ? <UtensilsCrossed size={11} /> : <Wrench size={11} />}
+              {isRestaurant
+                ? t('dashboards.businessOwner.restaurant', { defaultValue: 'Restaurant' })
+                : t('dashboards.businessOwner.serviceBusiness', { defaultValue: 'Service business' })}
+            </span>
             {biz.role && (
               <span className="px-1.5 py-0.5 rounded-md uppercase tracking-wider" style={{ background: 'rgba(148,163,184,0.1)' }}>
                 {roleLabel}
@@ -86,27 +109,43 @@ function BusinessCard({ biz, currency, t }) {
         </div>
       </header>
 
-      <div className="px-5 py-4 flex-1 grid grid-cols-2 gap-3">
+      <div className="px-5 pt-4 grid grid-cols-2 gap-3">
         <div>
           <div className="text-[10px] uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
-            <DollarSign size={11} /> {t('dashboards.businessOwner.mtdRevenue', { defaultValue: 'MTD revenue' })}
+            <AlertCircle size={11} /> {t('dashboards.businessOwner.readiness', { defaultValue: 'Readiness' })}
           </div>
-          <div className="text-lg font-semibold mt-0.5">{fmtCurrency(biz.mtd_revenue_cents, currency)}</div>
+          <div className="text-sm font-semibold mt-1" style={{ color: setupReady ? '#34d399' : '#f59e0b' }}>
+            {setupReady
+              ? t('dashboards.businessOwner.live', { defaultValue: 'Live' })
+              : t('dashboards.businessOwner.setupNeeded', { defaultValue: 'Setup needed' })}
+          </div>
         </div>
         <div>
           <div className="text-[10px] uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
-            <Calendar size={11} /> {t('dashboards.businessOwner.openJobs', { defaultValue: 'Open jobs' })}
+            <Calendar size={11} /> {isRestaurant
+              ? t('dashboards.businessOwner.currency', { defaultValue: 'Currency' })
+              : t('dashboards.businessOwner.openJobs', { defaultValue: 'Open work' })}
           </div>
-          <div className="text-lg font-semibold mt-0.5">{biz.open_jobs ?? '—'}</div>
+          <div className="text-lg font-semibold mt-0.5">{isRestaurant ? currency : (biz.open_jobs ?? '—')}</div>
         </div>
         <div>
           <div className="text-[10px] uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
-            <MessageSquare size={11} /> {t('dashboards.businessOwner.unread', { defaultValue: 'Unread inbox' })}
+            {isRestaurant ? <Store size={11} /> : <MessageSquare size={11} />} {isRestaurant
+              ? t('dashboards.businessOwner.customerStore', { defaultValue: 'Customer store' })
+              : t('dashboards.businessOwner.unread', { defaultValue: 'Unread inbox' })}
           </div>
-          <div className="text-lg font-semibold mt-0.5">
-            {biz.unread_messages ?? '—'}
-            {biz.unread_messages > 0 && <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full" style={{ background: accent }} />}
-          </div>
+          {isRestaurant ? (
+            <div className="text-sm font-semibold mt-1" style={{ color: biz.restaurant_id ? '#34d399' : '#f59e0b' }}>
+              {biz.restaurant_id
+                ? t('dashboards.businessOwner.connected', { defaultValue: 'Connected' })
+                : t('dashboards.businessOwner.pending', { defaultValue: 'Pending' })}
+            </div>
+          ) : (
+            <div className="text-lg font-semibold mt-0.5">
+              {biz.unread_messages ?? '—'}
+              {biz.unread_messages > 0 && <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full" style={{ background: accent }} />}
+            </div>
+          )}
         </div>
         <div>
           <div className="text-[10px] uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
@@ -116,22 +155,55 @@ function BusinessCard({ biz, currency, t }) {
         </div>
       </div>
 
+      <div className="px-5 py-4 grid grid-cols-2 gap-2 flex-1">
+        {(isRestaurant ? [
+          [restaurantWorkspacePath(biz, 'orders'), ClipboardList, t('dashboards.businessOwner.orders', { defaultValue: 'Orders' })],
+          [restaurantWorkspacePath(biz, 'menu'), UtensilsCrossed, t('dashboards.businessOwner.menu', { defaultValue: 'Menu' })],
+          [restaurantWorkspacePath(biz, 'store'), Settings2, t('dashboards.businessOwner.storeDevices', { defaultValue: 'Store & devices' })],
+          [biz.restaurant_id ? `/restaurants/queue/${biz.restaurant_id}` : restaurantWorkspacePath(biz, 'store'), Monitor, t('dashboards.businessOwner.queueBoard', { defaultValue: 'Queue board' })],
+        ] : [
+          [`/business/${businessId}/workspace/services`, Wrench, t('dashboards.businessOwner.services', { defaultValue: 'Services' })],
+          [`/business/${businessId}/workspace/clients`, Users, t('dashboards.businessOwner.clients', { defaultValue: 'Clients' })],
+          [`/business/${businessId}/workspace/calendar`, Calendar, t('dashboards.businessOwner.schedule', { defaultValue: 'Schedule' })],
+          [`/business/${businessId}/workspace/messages`, MessageSquare, t('dashboards.businessOwner.messages', { defaultValue: 'Messages' })],
+        ]).map(([to, Icon, label]) => (
+          <Link
+            key={label}
+            to={to}
+            className="min-h-11 rounded-lg border px-3 py-2 text-xs font-semibold inline-flex items-center gap-2 transition hover:bg-orange-500/5"
+            style={{ borderColor: 'var(--color-border)' }}
+          >
+            <Icon size={14} style={{ color: accent }} /> {label}
+          </Link>
+        ))}
+      </div>
+
       <footer className="px-5 py-3 flex items-center justify-between gap-2" style={{ borderTop: '1px solid var(--color-border)', background: 'rgba(148,163,184,0.03)' }}>
         <Link
-          to={`/business/${biz.business_id || biz.id}/workspace`}
+          to={workspaceHref}
           className="text-xs font-semibold inline-flex items-center gap-1 hover:text-orange-400 transition"
           style={{ color: accent }}
         >
-          {t('dashboards.businessOwner.open', { defaultValue: 'Open workspace' })} <ArrowRight size={12} />
+          {isRestaurant
+            ? t('dashboards.businessOwner.manageRestaurant', { defaultValue: 'Manage restaurant' })
+            : t('dashboards.businessOwner.openServiceWorkspace', { defaultValue: 'Open service workspace' })} <ArrowRight size={12} />
         </Link>
-        {LAUNCH_VISIBILITY.businessHubGrowthTools && (
+        {isRestaurant && biz.restaurant_id ? (
           <Link
-            to={`/business/${biz.business_id || biz.id}/workspace/analytics`}
+            to={`/restaurants/r/${biz.restaurant_id}`}
+            className="text-xs hover:text-orange-300 inline-flex items-center gap-1"
+            style={{ color: 'var(--color-text-muted)' }}
+          >
+            <Store size={12} /> {t('dashboards.businessOwner.viewStore', { defaultValue: 'View store' })}
+          </Link>
+        ) : LAUNCH_VISIBILITY.businessHubGrowthTools ? (
+          <Link
+            to={`/business/${businessId}/workspace/analytics`}
             className="text-xs text-orange-400 hover:text-orange-300 inline-flex items-center gap-1"
           >
             <BarChart3 size={12} /> {t('dashboards.businessOwner.analytics', { defaultValue: 'Analytics' })}
           </Link>
-        )}
+        ) : null}
       </footer>
     </article>
   );
@@ -139,7 +211,6 @@ function BusinessCard({ biz, currency, t }) {
 
 export default function BusinessOwnerDashboard() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
 
   const [businesses, setBusinesses] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -170,7 +241,7 @@ export default function BusinessOwnerDashboard() {
     setEnrichLoading(true);
     let cancelled = false;
     Promise.all(
-      businesses.map(b =>
+      businesses.filter(b => getBusinessKind(b) === 'service').map(b =>
         api.get(`/businesses/${b.business_id || b.id}/analytics`)
           .then(r => ({ id: b.business_id || b.id, data: r.data }))
           .catch(() => ({ id: b.business_id || b.id, data: null })),
@@ -195,10 +266,10 @@ export default function BusinessOwnerDashboard() {
   }, [businesses.length]);
 
   const totals = useMemo(() => {
-    const mtd = businesses.reduce((s, b) => s + (Number(b.mtd_revenue_cents) || 0), 0);
-    const open = businesses.reduce((s, b) => s + (Number(b.open_jobs) || 0), 0);
-    const unread = businesses.reduce((s, b) => s + (Number(b.unread_messages) || 0), 0);
-    return { mtd, open, unread, count: businesses.length };
+    const restaurants = businesses.filter((b) => getBusinessKind(b) === 'restaurant').length;
+    const services = businesses.filter((b) => getBusinessKind(b) === 'service').length;
+    const attention = businesses.filter((b) => b.setup_status !== 'active').length;
+    return { restaurants, services, attention, count: businesses.length };
   }, [businesses]);
 
   if (!loaded) {
@@ -284,27 +355,27 @@ export default function BusinessOwnerDashboard() {
           </div>
           <div className="rounded-xl border p-4" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}>
             <div className="text-[10px] uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
-              <DollarSign size={11} /> {t('dashboards.businessOwner.totalMtd', { defaultValue: 'Total MTD' })}
+              <UtensilsCrossed size={11} /> {t('dashboards.businessOwner.restaurants', { defaultValue: 'Restaurants' })}
             </div>
-            <div className="text-2xl font-bold mt-1">{fmtCurrency(totals.mtd, 'USD')}</div>
+            <div className="text-2xl font-bold mt-1">{totals.restaurants}</div>
           </div>
           <div className="rounded-xl border p-4" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}>
             <div className="text-[10px] uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
-              <Calendar size={11} /> {t('dashboards.businessOwner.totalOpen', { defaultValue: 'Open jobs' })}
+              <Wrench size={11} /> {t('dashboards.businessOwner.serviceBusinesses', { defaultValue: 'Service businesses' })}
             </div>
-            <div className="text-2xl font-bold mt-1">{totals.open}</div>
+            <div className="text-2xl font-bold mt-1">{totals.services}</div>
           </div>
           <div
             className="rounded-xl border p-4"
             style={{
-              borderColor: totals.unread > 0 ? 'rgba(249,115,22,0.4)' : 'var(--color-border)',
-              background: totals.unread > 0 ? 'rgba(249,115,22,0.08)' : 'var(--color-surface)',
+              borderColor: totals.attention > 0 ? 'rgba(249,115,22,0.4)' : 'var(--color-border)',
+              background: totals.attention > 0 ? 'rgba(249,115,22,0.08)' : 'var(--color-surface)',
             }}
           >
             <div className="text-[10px] uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
-              <AlertCircle size={11} /> {t('dashboards.businessOwner.unreadTotal', { defaultValue: 'Unread inbox' })}
+              <AlertCircle size={11} /> {t('dashboards.businessOwner.needsAttention', { defaultValue: 'Needs setup' })}
             </div>
-            <div className="text-2xl font-bold mt-1">{totals.unread}</div>
+            <div className="text-2xl font-bold mt-1">{totals.attention}</div>
           </div>
         </section>
 
@@ -314,7 +385,7 @@ export default function BusinessOwnerDashboard() {
             <BusinessCard
               key={b.business_id || b.id}
               biz={b}
-              currency={'USD'}
+              currency={b.currency_code || 'USD'}
               t={t}
             />
           ))}

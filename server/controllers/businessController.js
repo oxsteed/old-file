@@ -126,7 +126,12 @@ async function listBusinesses(req, res, next) {
               description, website, phone,
               address_city, address_state, address_country, is_primary, is_active,
               is_listed, tax_rate, logo_url, created_at,
-              COALESCE(active_template, 'default') AS active_template
+              COALESCE(active_template, 'default') AS active_template,
+              (SELECT fr.id
+                 FROM food_restaurants fr
+                WHERE fr.business_id = businesses.id
+                ORDER BY fr.id
+                LIMIT 1) AS restaurant_id
        FROM businesses
        WHERE user_id = $1
        ORDER BY is_primary DESC, created_at ASC`,

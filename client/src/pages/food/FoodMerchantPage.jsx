@@ -927,7 +927,7 @@ function SettingsTab({ t, restaurant, onUpdated, onSetupChanged }) {
 
       <PromotionsPanel t={t} restaurant={restaurant} />
 
-      <h3 style={{ marginTop: '1.5rem' }}>{t('food.merchant.inStoreScreens')}</h3>
+      <h3 id="in-store-screens" style={{ marginTop: '1.5rem', scrollMarginTop: '6rem' }}>{t('food.merchant.inStoreScreens')}</h3>
       <p className="fd-card-meta">{t('food.merchant.inStoreScreensHint')}</p>
       <div className="fd-row">
         <Link to={`/restaurants/kitchen/${restaurant.id}`} className="fd-btn fd-btn-secondary">{t('food.merchant.openKitchen')}</Link>
@@ -1157,6 +1157,7 @@ export default function FoodMerchantPage() {
   const [searchParams] = useSearchParams();
   const requestedBusinessId = searchParams.get('business');
   const requestedSetup = searchParams.get('setup') === '1';
+  const requestedTab = searchParams.get('tab');
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
@@ -1164,6 +1165,12 @@ export default function FoodMerchantPage() {
   const [setupKey, setSetupKey] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [setupForNew, setSetupForNew] = useState(false);
+
+  useEffect(() => {
+    if (['home', 'orders', 'menu', 'store'].includes(requestedTab)) {
+      setTab(requestedTab);
+    }
+  }, [requestedTab]);
 
   const load = useCallback(() => {
     listMyFoodRestaurants()
@@ -1180,6 +1187,14 @@ export default function FoodMerchantPage() {
   useEffect(() => { load(); }, [load]);
 
   const selected = restaurants.find((r) => r.id === selectedId) || null;
+
+  useEffect(() => {
+    if (tab !== 'store' || window.location.hash !== '#in-store-screens' || !selected?.id) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById('in-store-screens')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [tab, selected?.id]);
 
   useEffect(() => {
     if (loading) return;

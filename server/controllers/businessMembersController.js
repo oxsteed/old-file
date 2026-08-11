@@ -244,6 +244,13 @@ async function listManagedBusinesses(req, res) {
       `SELECT
          b.id, b.business_name, b.business_type, b.description,
          b.website, b.phone, b.logo_url, b.is_active,
+         b.business_kind, b.business_mode, b.setup_status,
+         b.currency_code, b.address_country,
+         (SELECT fr.id
+            FROM food_restaurants fr
+           WHERE fr.business_id = b.id
+           ORDER BY fr.id
+           LIMIT 1) AS restaurant_id,
          bm.role,
          bm.accepted_at,
          u.first_name AS owner_first_name,
