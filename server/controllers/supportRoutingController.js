@@ -336,7 +336,23 @@ exports.assignToAgent = async (req, res) => {
 exports.getStatus = async (req, res) => {
   try {
     const status = WebSocketService.getConnectionStatus();
-    res.json(status);
+    // Live agent presence is tracked via the is_available_for_support flag
+    // (agent WebSocket join events are not emitted anywhere, so the raw
+    // socket count is always 0). Query the DB for the real count instead.
+    const availQuery = `
+      SELECT COUNT(*) AS count
+      FROM users
+      WHERE role IN ('admin', 'super_admin')
+        AND is_available_for_support = true
+    `;
+    const { rows } = await pool.query(availQuery);
+    const agentsAvailable = parseInt(rows[0]?.count || 0, 10);
+
+    res.json({
+      ...status,
+      agents: agentsAvailable,
+      socketAgents: status.agents,
+    });
   } catch (err) {
     logger.error('Get status error', { error: err.message });
     sendError(res, 500, 'Failed to fetch status');
