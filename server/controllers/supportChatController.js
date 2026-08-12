@@ -132,7 +132,7 @@ async function handleTicketEscalation(req, res, visitorName, visitorEmail, messa
       [ticket.id, visitorName, message]
     );
 
-    // Send email notification to support team
+// Send email notification to support inbox + every admin/super_admin
     try {
       const emailService = require('../utils/email');
       await emailService.sendEmail({
@@ -140,6 +140,17 @@ async function handleTicketEscalation(req, res, visitorName, visitorEmail, messa
         subject: `New Support Request from ${visitorName}`,
         text: `Name: ${visitorName}\nEmail: ${visitorEmail}\nMessage: ${message}`,
       });
+
+      const { rows: admins } = await pool.query(
+        `SELECT email, first_name FROM users WHERE role IN ('admin', 'super_admin') AND email IS NOT NULL`
+      );
+      await Promise.all(admins.map((admin) =>
+        emailService.sendEmail({
+          to: admin.email,
+          subject: `[Ticket #${ticket.ticket_number}] New support ticket opened`,
+          text: `Hi ${admin.first_name || 'there'},\n\nA new support ticket has been opened via chat escalation.\n\nTicket number: #${ticket.ticket_number}\nVisitor: ${visitorName} (${visitorEmail})\nMessage: ${message}\n\nView in Admin Dashboard: https://app.oxsteed.com/admin/support`,
+        }).catch((err) => { logger.warn('Failed to email admin about new ticket', { message: err.message, admin: admin.email }); })
+      ));
     } catch (emailErr) {
       logger.warn('Failed to send support ticket email notification', { message: emailErr.message });
     }
