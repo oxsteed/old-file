@@ -15,6 +15,10 @@ const paymentsCtrl    = require('../controllers/paymentsAdminController');
 const adminMsgCtrl    = require('../controllers/adminMessageController');
 const logisticsInternalAccessCtrl = require('../controllers/logisticsInternalAccessController');
 
+// —— Admin live-support availability toggle ——
+router.get('/support/availability', requireAdmin, supportCtrl.getMyAvailability);
+router.put('/support/availability', requireAdmin, supportCtrl.setMyAvailability);
+
 // ══════════════════════════════════════════════════════════════
 // REGULAR ADMIN - both admin and super_admin can access
 // ══════════════════════════════════════════════════════════════
