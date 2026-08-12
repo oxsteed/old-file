@@ -5,8 +5,8 @@ const socketService = require('../services/socketService');
 /**
  * Check if any admins are online via Socket.IO
  */
-function getOnlineAdminCount() {
-  const adminSocketCount = socketService.getSocketCount('admins');
+async function getOnlineAdminCount() {
+  const adminSocketCount = await socketService.getSocketCount('admins');
   return adminSocketCount > 0 ? adminSocketCount : 0;
 }
 
@@ -31,8 +31,7 @@ async function initiateSupportChat(req, res) {
     if (!visitorEmail || !visitorEmail.trim()) {
       return res.status(400).json({ error: 'Email is required' });
     }
-
-    const adminCount = getOnlineAdminCount();
+    const adminCount = await getOnlineAdminCount();
     
     if (adminCount > 0) {
       // Route to live admin support
