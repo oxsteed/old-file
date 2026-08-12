@@ -588,10 +588,7 @@ export default function SupportTickets() {
 
   useEffect(() => { loadTickets(); }, [loadTickets]);
 
-  useEffect(() => {
-    if (!socket) return undefined;
-    const events = ['support:new_ticket', 'support:ticket_updated', 'support:ticket_claimed', 'support:user_reply'];
-  const loadAvailability = useCallback(async () => {
+const loadAvailability = useCallback(async () => {
     try {
       const { data } = await adminApi.get('/admin/support/availability');
       setAvailability(data?.is_available_for_support ?? false);
@@ -613,6 +610,9 @@ export default function SupportTickets() {
       setAvailabilityBusy(false);
     }
   };
+  useEffect(() => {
+    if (!socket) return undefined;
+    const events = ['support:new_ticket', 'support:ticket_updated', 'support:ticket_claimed', 'support:user_reply'];
     const handler = () => loadTickets();
     events.forEach((eventName) => socket.on(eventName, handler));
     return () => events.forEach((eventName) => socket.off(eventName, handler));
