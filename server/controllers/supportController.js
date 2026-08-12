@@ -42,6 +42,41 @@ async function fetchTicketRow(ticketId) {
   return rows[0] || null;
 }
 
+  /** Email every admin/super_admin whenever a ticket is opened */
+  async function emailAdminsNewTicket(ticket) {
+    try {
+      const { rows: admins } = await db.query(
+        `SELECT email, first_name FROM users WHERE role IN ('admin', 'super_admin') AND email IS NOT NULL`
+      );
+      await Promise.all(admins.map((admin) =>
+        sendEmail({
+          to: admin.email,
+          subject: `[Ticket #${ticket.ticket_number}] New support ticket opened`,
+          html: `
+            <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;">
+              <h2 style="color:#ea580c;">New Support Ticket</h2>
+              <p>Hi ${admin.first_name || 'there'},</p>
+              <p>A new support ticket has been opened and needs review.</p>
+              <table style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;width:100%;margin:16px 0;">
+                <tr><td style="color:#6b7280;width:140px;">Ticket number</td>
+                    <td style="font-weight:bold;">#${ticket.ticket_number}</td></tr>
+                <tr><td style="color:#6b7280;">Subject</td>
+                    <td>${ticket.subject}</td></tr>
+                <tr><td style="color:#6b7280;">Priority</td>
+                    <td style="text-transform:capitalize;">${ticket.priority}</td></tr>
+                <tr><td style="color:#6b7280;">Requester</td>
+                    <td>${ticket.name} (${ticket.email})</td></tr>
+              </table>
+              <p><a href="https://app.oxsteed.com/admin/support" style="color:#ea580c;">View in Admin Dashboard</a></p>
+            </div>`,
+        }).catch((err) => { logger.error('Failed to email admin about new ticket', { err, admin: admin.email }); })
+      ));
+    } catch (err) {
+      logger.error('Failed to notify admins by email about new ticket', { err });
+    }
+  }
+
+
 function notifyAdmins(event, data) {
   try { socketService.broadcastToAdmins(event, data); } catch { /* socket not ready */ }
 }
@@ -157,6 +192,8 @@ exports.submitSupportRequest = async (req, res, next) => {
       priority:      ticket.priority,
       created_at:    ticket.created_at,
     });
+    // Email every admin/super_admin about the new ticket
+    emailAdminsNewTicket(ticket).catch(() => { /* logged internally */ });
 
     logger.info('Support ticket created', {
       ticketId: ticket.id, ticketNumber: ticket.ticket_number,
