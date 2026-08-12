@@ -557,6 +557,8 @@ export default function SupportTickets() {
   const [status, setStatus] = useState('');
   const [priority, setPriority] = useState('');
   const [assigned, setAssigned] = useState('');
+  const [availability, setAvailability] = useState(null);
+  const [availabilityBusy, setAvailabilityBusy] = useState(false);
 
   const loadTickets = useCallback(async () => {
     setLoading(true);
@@ -589,6 +591,28 @@ export default function SupportTickets() {
   useEffect(() => {
     if (!socket) return undefined;
     const events = ['support:new_ticket', 'support:ticket_updated', 'support:ticket_claimed', 'support:user_reply'];
+  const loadAvailability = useCallback(async () => {
+    try {
+      const { data } = await adminApi.get('/admin/support/availability');
+      setAvailability(data?.is_available_for_support ?? false);
+    } catch {
+      setAvailability(null);
+    }
+  }, []);
+  useEffect(() => { loadAvailability(); }, [loadAvailability]);
+  const toggleAvailability = async () => {
+    setAvailabilityBusy(true);
+    try {
+      const nextValue = !availability;
+      const { data } = await adminApi.put('/admin/support/availability', { is_available_for_support: nextValue });
+      setAvailability(data?.is_available_for_support ?? nextValue);
+      toast.success(nextValue ? 'You are now available for support.' : 'You are now unavailable for support.');
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Failed to update availability.');
+    } finally {
+      setAvailabilityBusy(false);
+    }
+  };
     const handler = () => loadTickets();
     events.forEach((eventName) => socket.on(eventName, handler));
     return () => events.forEach((eventName) => socket.off(eventName, handler));
@@ -630,6 +654,18 @@ export default function SupportTickets() {
                   <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
                   Refresh
                 </button>
+              <button
+                onClick={toggleAvailability}
+                disabled={availabilityBusy || availability === null}
+                className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition disabled:opacity-50 ${
+                  availability
+                    ? 'border-green-600/40 bg-green-500/15 text-green-300 hover:bg-green-500/20'
+                    : 'border-gray-700 bg-gray-900 text-gray-400 hover:border-gray-600 hover:text-white'
+                }`}
+              >
+                <span className={`h-2 w-2 rounded-full ${availability ? 'bg-green-400' : 'bg-gray-600'}`} />
+                {availability ? 'Available for support' : 'Unavailable for support'}
+              </button>
                 {stats?.unassigned > 0 && (
                   <div className="rounded-full bg-orange-500 px-3 py-1 text-xs font-medium text-white">
                     {stats.unassigned} unassigned
