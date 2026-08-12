@@ -769,3 +769,43 @@ exports.getStats = async (req, res) => {
     return res.status(500).json({ error: 'Failed to fetch stats.' });
   }
 };
+
+// —— Admin live-support availability toggle ——
+
+/** GET /api/admin/support/availability */
+exports.getMyAvailability = async (req, res) => {
+  if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
+  try {
+    const { rows } = await db.query(
+      `SELECT is_available_for_support FROM users WHERE id = $1`,
+      [req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+    return res.json({ is_available_for_support: rows[0].is_available_for_support });
+  } catch (err) {
+    logger.error('getMyAvailability error', { err });
+    return res.status(500).json({ error: 'Failed to fetch availability.' });
+  }
+};
+
+/** PUT /api/admin/support/availability */
+exports.setMyAvailability = async (req, res) => {
+  if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
+  try {
+    const { is_available_for_support } = req.body;
+    if (typeof is_available_for_support !== 'boolean') {
+      return res.status(400).json({ error: 'is_available_for_support must be a boolean.' });
+    }
+    const { rows } = await db.query(
+      `UPDATE users SET is_available_for_support = $1 WHERE id = $2 RETURNING is_available_for_support`,
+      [is_available_for_support, req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+    logger.info('Admin support availability updated', { userId: req.user.id, is_available_for_support });
+    return res.json({ is_available_for_support: rows[0].is_available_for_support });
+  } catch (err) {
+    logger.error('setMyAvailability error', { err });
+    return res.status(500).json({ error: 'Failed to update availability.' });
+  }
+};
+
