@@ -65,6 +65,11 @@ describe('live support connection lifecycle', () => {
 
     await supportRoutingController.connectConversation(req, res);
 
+    const resumeSql = mockQuery.mock.calls.find(([sql]) => /FROM support_conversations sc/.test(sql))?.[0];
+    expect(resumeSql).toContain('au.first_name');
+    expect(resumeSql).toContain('au.last_name');
+    expect(resumeSql).not.toMatch(/\bau\.name\b/);
+
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       ticketId: 'ticket-existing',
       routedTo: 'agent',
@@ -73,6 +78,29 @@ describe('live support connection lifecycle', () => {
       messages: expect.arrayContaining([expect.objectContaining({ id: 'message-1' })]),
     }));
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_conversations/.test(sql))).toBe(false);
+  });
+
+  test('lists support conversations using the production user name columns', async () => {
+    jest.spyOn(require('../services/supportEmployerService'), 'userCanManageBusiness')
+      .mockResolvedValue(true);
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    const req = {
+      user: { id: 'admin-1', role: 'admin' },
+      params: { businessId: 'business-1' },
+      query: {},
+    };
+    const res = responseDouble();
+
+    await supportConversationsController.listConversations(req, res);
+
+    const listSql = mockQuery.mock.calls.find(([sql]) => /FROM support_conversations sc/.test(sql))?.[0];
+    expect(listSql).toContain('u.first_name');
+    expect(listSql).toContain('u.last_name');
+    expect(listSql).toContain('au.first_name');
+    expect(listSql).toContain('au.last_name');
+    expect(listSql).not.toMatch(/\b(?:u|au)\.name\b/);
+    expect(res.json).toHaveBeenCalledWith({ success: true, data: [] });
   });
 
   test('creates and immediately routes a new live support conversation', async () => {

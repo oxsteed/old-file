@@ -19,7 +19,11 @@ async function listAgents(req, res) {
     let sql = `
       SELECT
         sa.id, sa.employer_id, sa.business_id, sa.user_id,
-        u.name, u.email, u.avatar_url,
+        COALESCE(
+          NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''),
+          u.email
+        ) AS name,
+        u.email, u.avatar_url,
         sa.hire_date, sa.status, sa.role, sa.department,
         sa.max_concurrent_chats, sa.is_available,
         sa.total_conversations_handled, sa.total_resolved_count,
@@ -60,7 +64,11 @@ async function getAgent(req, res) {
     const result = await query(
       `SELECT
         sa.id, sa.employer_id, sa.business_id, sa.user_id,
-        u.name, u.email, u.avatar_url,
+        COALESCE(
+          NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''),
+          u.email
+        ) AS name,
+        u.email, u.avatar_url,
         sa.hire_date, sa.status, sa.role, sa.department,
         sa.max_concurrent_chats, sa.is_available,
         sa.total_conversations_handled, sa.total_resolved_count,

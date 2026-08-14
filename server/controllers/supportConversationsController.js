@@ -100,10 +100,17 @@ async function listConversations(req, res) {
     let sql = `
       SELECT
         sc.id, sc.business_id, sc.customer_id,
-        u.name as customer_name, u.email as customer_email,
+        COALESCE(
+          NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''),
+          u.email
+        ) as customer_name,
+        u.email as customer_email,
         sc.subject, sc.description, sc.category, sc.priority,
         sc.status, sc.agent_id, sa.user_id as agent_user_id,
-        au.name as agent_name,
+        COALESCE(
+          NULLIF(BTRIM(CONCAT_WS(' ', au.first_name, au.last_name)), ''),
+          au.email
+        ) as agent_name,
         sc.message_count, sc.customer_message_count, sc.agent_message_count,
         sc.created_at, sc.updated_at, sc.resolved_at,
         sc.sla_first_response_breached, sc.sla_resolution_breached
@@ -149,8 +156,16 @@ async function getConversation(req, res) {
     const result = await query(
       `SELECT
         sc.*,
-        u.name as customer_name, u.email as customer_email,
-        sa.id as agent_id, au.name as agent_name
+        COALESCE(
+          NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''),
+          u.email
+        ) as customer_name,
+        u.email as customer_email,
+        sa.id as agent_id,
+        COALESCE(
+          NULLIF(BTRIM(CONCAT_WS(' ', au.first_name, au.last_name)), ''),
+          au.email
+        ) as agent_name
       FROM support_conversations sc
       LEFT JOIN users u ON sc.customer_id = u.id
       LEFT JOIN support_agents sa ON sc.agent_id = sa.id
