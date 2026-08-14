@@ -178,16 +178,20 @@ async function getConversation(req, res) {
 
     const conversation = result.rows[0];
 
-    const canBiz = await supportEmployerService.userCanManageBusiness(
-      conversation.business_id,
-      req.user.id
-    );
+    const isCustomer = req.user.id === conversation.customer_id;
     let isAssignedAgent = false;
-    if (conversation.agent_id) {
+    if (!isCustomer && conversation.agent_id) {
       const ag = await query('SELECT user_id FROM support_agents WHERE id = $1', [conversation.agent_id]);
       isAssignedAgent = ag.rows.length && ag.rows[0].user_id === req.user.id;
     }
-    if (!canBiz && req.user.id !== conversation.customer_id && !isAssignedAgent) {
+    let canBiz = false;
+    if (!isCustomer && !isAssignedAgent) {
+      canBiz = await supportEmployerService.userCanManageBusiness(
+        conversation.business_id,
+        req.user.id
+      );
+    }
+    if (!isCustomer && !canBiz && !isAssignedAgent) {
       return sendError(res, 403, 'Access denied');
     }
 

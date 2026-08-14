@@ -13,21 +13,26 @@ const BUSINESS_ACCESS_SQL = `
   WHERE b.id = $1::integer
     AND (
       b.user_id = $2::uuid
-      OR b.owner_id = $2::uuid
-      OR (b.admin_user_ids IS NOT NULL AND b.admin_user_ids @> $3::jsonb)
+      OR EXISTS (
+        SELECT 1
+        FROM business_members bm
+        WHERE bm.business_id = b.id
+          AND bm.member_id = $2::uuid
+          AND bm.status = 'active'
+          AND bm.role IN ('manager', 'representative', 'support_agent')
+      )
     )
   LIMIT 1
 `;
 
 /**
  * True if user may manage hiring/settings for this business (OxSteed business row).
- * Uses owner_id / admin_user_ids when present (support stack convention), else falls back to user_id.
+ * Owners live in businesses.user_id; delegated access lives in business_members.
  */
 async function userCanManageBusiness(businessId, userId) {
   const { rows } = await query(BUSINESS_ACCESS_SQL, [
     businessId,
     userId,
-    JSON.stringify([userId]),
   ]);
   return rows.length > 0;
 }
@@ -176,10 +181,16 @@ async function listEmployersForUser(userId, userRole) {
      WHERE e.kind = 'business'
        AND (
          b.user_id = $1::uuid
-         OR b.owner_id = $1::uuid
-         OR (b.admin_user_ids IS NOT NULL AND b.admin_user_ids @> $2::jsonb)
+         OR EXISTS (
+           SELECT 1
+           FROM business_members bm
+           WHERE bm.business_id = b.id
+             AND bm.member_id = $1::uuid
+             AND bm.status = 'active'
+             AND bm.role IN ('manager', 'representative', 'support_agent')
+         )
        )`,
-    [userId, JSON.stringify([userId])]
+    [userId]
   );
   out.push(...biz.rows);
 

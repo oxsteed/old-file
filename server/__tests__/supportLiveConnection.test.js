@@ -103,6 +103,45 @@ describe('live support connection lifecycle', () => {
     expect(res.json).toHaveBeenCalledWith({ success: true, data: [] });
   });
 
+  test('lets a customer poll their own conversation without a business-owner lookup', async () => {
+    const manageSpy = jest.spyOn(require('../services/supportEmployerService'), 'userCanManageBusiness');
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-1',
+          business_id: 'business-1',
+          customer_id: 'customer-1',
+          agent_id: 'agent-1',
+          customer_name: 'Customer One',
+          agent_name: 'Ava Agent',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const req = {
+      user: { id: 'customer-1', role: 'customer' },
+      params: { conversationId: 'ticket-1' },
+    };
+    const res = responseDouble();
+
+    await supportConversationsController.getConversation(req, res);
+
+    expect(manageSpy).not.toHaveBeenCalled();
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      data: expect.objectContaining({ id: 'ticket-1', messages: [] }),
+    }));
+  });
+
+  test('uses canonical business ownership and membership columns for support access', () => {
+    const { BUSINESS_ACCESS_SQL } = require('../services/supportEmployerService');
+    expect(BUSINESS_ACCESS_SQL).toContain('b.user_id');
+    expect(BUSINESS_ACCESS_SQL).toContain('business_members');
+    expect(BUSINESS_ACCESS_SQL).not.toContain('b.owner_id');
+    expect(BUSINESS_ACCESS_SQL).not.toContain('b.admin_user_ids');
+  });
+
   test('creates and immediately routes a new live support conversation', async () => {
     jest.spyOn(SupportRoutingService, 'routeTicket').mockResolvedValue({
       routedTo: 'agent',
