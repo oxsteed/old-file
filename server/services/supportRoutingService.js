@@ -47,35 +47,41 @@ class SupportRoutingService {
       const query = `
         SELECT
           a.id,
-          a.first_name,
-          a.last_name,
-          a.email,
-          a.skills,
-          a.is_active,
+          u.first_name,
+          u.last_name,
+          u.email,
+          a.status = 'active' AS is_active,
+          a.is_available,
+          a.max_concurrent_chats,
           (
             SELECT COUNT(*) FROM support_conversations
-            WHERE assigned_agent_id = a.id
+            WHERE agent_id = a.id
             AND status NOT IN ('resolved', 'closed')
-          ) as current_chats,
-          (
-            SELECT max_agents FROM support_shifts
-            WHERE id = a.current_shift_id
-          ) as shift_capacity
+          )::int AS current_chats
         FROM support_agents a
-        WHERE a.business_id = $1
-        AND a.is_active = true
+        JOIN users u ON u.id = a.user_id
+        JOIN support_employers e ON e.id = a.employer_id
+        WHERE (a.business_id = $1 OR e.kind = 'platform')
+        AND a.status = 'active'
+        AND a.is_available = true
+        AND u.is_active = true
         AND (
-          a.skills @> $2::jsonb
-          OR $2::text = '[]'
+          e.kind <> 'platform'
+          OR u.support_available_at > NOW() - INTERVAL '2 minutes'
+        )
+        AND (
+          cardinality($2::text[]) = 0
+          OR EXISTS (
+            SELECT 1
+            FROM agent_skills askill
+            WHERE askill.agent_id = a.id
+              AND askill.skill_name = ANY($2::text[])
+          )
         )
         ORDER BY current_chats ASC, a.created_at ASC
       `;
 
-      const skillsJson = requiredSkills.length > 0
-        ? JSON.stringify(requiredSkills)
-        : '[]';
-
-      const result = await pool.query(query, [businessId, skillsJson]);
+      const result = await pool.query(query, [businessId, requiredSkills]);
       return result.rows;
     } catch (err) {
       logger.error('Skill-based routing failed', { error: err.message });
@@ -87,11 +93,12 @@ class SupportRoutingService {
    * Layer 3: Availability Routing
    * Checks agent online status and capacity
    */
-  static async filterByAvailability(agents) {
+  static filterByAvailability(agents) {
     try {
       return agents.filter(agent => {
-        const isOnline = agent.is_active === true;
-        const hasCapacity = !agent.current_chats || agent.current_chats < 8; // Max 8 chats/agent
+        const isOnline = agent.is_active === true && agent.is_available === true;
+        const maxChats = Number(agent.max_concurrent_chats || 3);
+        const hasCapacity = Number(agent.current_chats || 0) < maxChats;
         return isOnline && hasCapacity;
       });
     } catch (err) {
@@ -205,7 +212,7 @@ class SupportRoutingService {
     try {
       const query = `
         UPDATE support_conversations
-        SET assigned_agent_id = $1, status = 'assigned', updated_at = NOW()
+        SET agent_id = $1, status = 'in_progress', assigned_at = NOW(), updated_at = NOW()
         WHERE id = $2
         RETURNING *
       `;
@@ -227,10 +234,10 @@ class SupportRoutingService {
       const query = `
         SELECT
           COUNT(*) FILTER (WHERE status NOT IN ('resolved', 'closed')) as active_chats,
-          COUNT(*) FILTER (WHERE status = 'waiting_customer') as waiting,
+          COUNT(*) FILTER (WHERE status = 'waiting_for_customer') as waiting,
           COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '1 hour') as past_hour
         FROM support_conversations
-        WHERE assigned_agent_id = $1
+        WHERE agent_id = $1
       `;
 
       const result = await pool.query(query, [agentId]);

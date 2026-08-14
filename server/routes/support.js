@@ -217,6 +217,51 @@ async function supportConversationStats(businessId) {
 router.get('/conversations', async (req, res, next) => {
   try {
     const businessId = await resolveSupportBusinessId(req);
+    const isPlatformAdmin = ['admin', 'super_admin'].includes(req.user.role);
+
+    if (isPlatformAdmin) {
+      const params = [];
+      const where = req.query.business_id || req.query.businessId
+        ? `WHERE sc.business_id = $${params.push(businessId)}`
+        : '';
+      const { rows } = await db.query(
+        `SELECT
+           sc.*,
+           COALESCE(cu.name, TRIM(COALESCE(cu.first_name, '') || ' ' || COALESCE(cu.last_name, '')), cu.email) AS customer_name,
+           cu.email AS customer_email,
+           COALESCE(au.name, TRIM(COALESCE(au.first_name, '') || ' ' || COALESCE(au.last_name, '')), au.email) AS agent_name,
+           COALESCE(
+             jsonb_agg(
+               jsonb_build_object(
+                 'id', scm.id,
+                 'text', scm.content,
+                 'content', scm.content,
+                 'is_agent', scm.is_agent,
+                 'is_from_agent', scm.is_agent,
+                 'created_at', scm.created_at
+               ) ORDER BY scm.created_at ASC
+             ) FILTER (WHERE scm.id IS NOT NULL),
+             '[]'::jsonb
+           ) AS messages,
+           COALESCE(
+             (array_agg(scm.content ORDER BY scm.created_at DESC) FILTER (WHERE scm.id IS NOT NULL))[1],
+             sc.description,
+             ''
+           ) AS last_message
+         FROM support_conversations sc
+         LEFT JOIN users cu ON cu.id = sc.customer_id
+         LEFT JOIN support_agents sa ON sa.id = sc.agent_id
+         LEFT JOIN users au ON au.id = sa.user_id
+         LEFT JOIN support_conversation_messages scm ON scm.conversation_id = sc.id
+         ${where}
+         GROUP BY sc.id, cu.id, au.id
+         ORDER BY sc.updated_at DESC, sc.created_at DESC
+         LIMIT 100`,
+        params
+      );
+      return res.json({ conversations: rows });
+    }
+
     if (businessId && req.query.business_id) {
       req.params.businessId = businessId;
       return supportConversationsController.listConversations(req, res, next);

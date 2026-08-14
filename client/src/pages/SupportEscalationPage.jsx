@@ -42,6 +42,11 @@ export default function SupportEscalationPage() {
 
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const ticketIdRef = useRef(null);
+
+  useEffect(() => {
+    ticketIdRef.current = ticketId;
+  }, [ticketId]);
 
   useEffect(() => {
     const checkAvailability = async () => {
@@ -105,7 +110,7 @@ export default function SupportEscalationPage() {
 
       socket.on('message:new', (data) => {
         const { ticketId: msgTicketId, sender, content, timestamp } = data;
-        if (msgTicketId === ticketId && sender.type === 'agent') {
+        if (msgTicketId === ticketIdRef.current && sender.type === 'agent') {
           setLiveMessages((prev) => [
             ...prev,
             {
@@ -124,33 +129,68 @@ export default function SupportEscalationPage() {
       console.error('Failed to initiate live chat:', err);
       setPhase('ticket');
     }
-  }, [ticketId, t]);
+  }, [t]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [liveMessages]);
 
-  const handleSendLiveMessage = useCallback(() => {
-    if (!liveInput.trim() || !ticketId) return;
+  const handleSendLiveMessage = useCallback(async () => {
+    const content = liveInput.trim();
+    if (!content) return;
 
-    socketRef.current?.emit('message:send', {
-      ticketId,
-      content: liveInput.trim(),
-      timestamp: new Date().toISOString(),
-    });
+    setLiveSending(true);
+    try {
+      let activeTicketId = ticketId;
 
-    setLiveMessages((prev) => [
-      ...prev,
-      {
-        id: `customer-${Date.now()}`,
-        sender: { type: 'customer' },
-        content: liveInput.trim(),
-        timestamp: new Date().toISOString(),
-      },
-    ]);
-    setLiveInput('');
-    setLiveSending(false);
-  }, [liveInput, ticketId]);
+      if (!activeTicketId) {
+        const response = await api.post('/support-routing/conversations', {
+          visitorEmail,
+          visitorName,
+          message: content,
+          category: 'support_request',
+          priority: 'normal',
+        });
+        activeTicketId = response.data.ticketId;
+        ticketIdRef.current = activeTicketId;
+        setTicketId(activeTicketId);
+        socketRef.current?.emit('ticket:join', {
+          ticketId: activeTicketId,
+          userId: localStorage.getItem('userId'),
+        });
+
+        if (response.data.routedTo !== 'agent') {
+          setSuccessTicketId(activeTicketId);
+          setPhase('success');
+          return;
+        }
+        setAssignedAgent(response.data.assignedAgent || null);
+      } else {
+        await api.post(`/support/conversations/${activeTicketId}/message`, { message: content });
+        socketRef.current?.emit('message:send', {
+          ticketId: activeTicketId,
+          content,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      setLiveMessages((prev) => [
+        ...prev,
+        {
+          id: `customer-${Date.now()}`,
+          sender: { type: 'customer' },
+          content,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+      setLiveInput('');
+    } catch (err) {
+      console.error('Live support message failed:', err);
+      toast.error(t('support.escalation.ticketError', { defaultValue: 'Could not send your support message.' }));
+    } finally {
+      setLiveSending(false);
+    }
+  }, [liveInput, ticketId, t, visitorEmail, visitorName]);
 
   const handleSubmitTicket = async (event) => {
     event.preventDefault();
@@ -356,7 +396,6 @@ export default function SupportEscalationPage() {
                 <form
                   onSubmit={(event) => {
                     event.preventDefault();
-                    setLiveSending(true);
                     handleSendLiveMessage();
                   }}
                   className="px-6 py-4 border-t border-slate-700/70 flex gap-3 bg-slate-900/70"

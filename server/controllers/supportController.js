@@ -777,11 +777,29 @@ exports.getMyAvailability = async (req, res) => {
   if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
   try {
     const { rows } = await db.query(
-      `SELECT is_available_for_support FROM users WHERE id = $1`,
+      `SELECT
+         is_available_for_support
+           AND support_available_at > NOW() - INTERVAL '2 minutes' AS is_available_for_support,
+         support_available_at
+       FROM users
+       WHERE id = $1`,
       [req.user.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
-    return res.json({ is_available_for_support: rows[0].is_available_for_support });
+    const { rows: agentRows } = await db.query(
+      `SELECT sa.id
+       FROM support_agents sa
+       JOIN support_employers se ON se.id = sa.employer_id
+       WHERE sa.user_id = $1 AND se.kind = 'platform'
+       LIMIT 1`,
+      [req.user.id]
+    );
+    return res.json({
+      is_available_for_support: rows[0].is_available_for_support,
+      support_available_at: rows[0].support_available_at,
+      agent_id: agentRows[0]?.id || null,
+      expires_in_seconds: 120,
+    });
   } catch (err) {
     logger.error('getMyAvailability error', { err });
     return res.status(500).json({ error: 'Failed to fetch availability.' });
@@ -791,21 +809,66 @@ exports.getMyAvailability = async (req, res) => {
 /** PUT /api/admin/support/availability */
 exports.setMyAvailability = async (req, res) => {
   if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
+  let client;
   try {
     const { is_available_for_support } = req.body;
     if (typeof is_available_for_support !== 'boolean') {
       return res.status(400).json({ error: 'is_available_for_support must be a boolean.' });
     }
-    const { rows } = await db.query(
-      `UPDATE users SET is_available_for_support = $1 WHERE id = $2 RETURNING is_available_for_support`,
+
+    client = await db.connect();
+    await client.query('BEGIN');
+    const { rows: employerRows } = await client.query(
+      `INSERT INTO support_employers (kind, display_name)
+       VALUES ('platform', 'OxSteed Platform')
+       ON CONFLICT (kind) WHERE kind = 'platform'
+       DO UPDATE SET updated_at = NOW()
+       RETURNING id`
+    );
+    const employerId = employerRows[0].id;
+
+    const { rows: agentRows } = await client.query(
+      `INSERT INTO support_agents (
+         employer_id, business_id, user_id, status, role, department,
+         max_concurrent_chats, is_available, updated_at
+       )
+       VALUES ($1, NULL, $2, 'active', 'admin', 'platform', 8, $3, NOW())
+       ON CONFLICT (employer_id, user_id)
+       DO UPDATE SET
+         status = 'active',
+         role = 'admin',
+         department = 'platform',
+         is_available = EXCLUDED.is_available,
+         updated_at = NOW()
+       RETURNING id, is_available`,
+      [employerId, req.user.id, is_available_for_support]
+    );
+
+    const { rows } = await client.query(
+      `UPDATE users
+       SET is_available_for_support = $1,
+           support_available_at = CASE WHEN $1 THEN NOW() ELSE NULL END
+       WHERE id = $2
+       RETURNING is_available_for_support, support_available_at`,
       [is_available_for_support, req.user.id]
     );
-    if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+    if (!rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'User not found.' });
+    }
+    await client.query('COMMIT');
     logger.info('Admin support availability updated', { userId: req.user.id, is_available_for_support });
-    return res.json({ is_available_for_support: rows[0].is_available_for_support });
+    return res.json({
+      is_available_for_support: rows[0].is_available_for_support,
+      support_available_at: rows[0].support_available_at,
+      agent_id: agentRows[0].id,
+      expires_in_seconds: 120,
+    });
   } catch (err) {
+    await client?.query('ROLLBACK').catch(() => {});
     logger.error('setMyAvailability error', { err });
     return res.status(500).json({ error: 'Failed to update availability.' });
+  } finally {
+    client?.release();
   }
 };
-

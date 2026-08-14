@@ -20,11 +20,12 @@ exports.createConversation = async (req, res) => {
       return sendValidationError(res, { message: 'Message and category required' });
     }
 
-    // Create conversation record
+    // Create the durable conversation and first message before routing. Both
+    // customer and admin surfaces read these same tables.
     const conversationQuery = `
       INSERT INTO support_conversations (
-        customer_id, business_id, subject, category, priority, status, created_at
-      ) VALUES ($1, $2, $3, $4, $5, 'open', NOW())
+        customer_id, business_id, subject, description, category, priority, status, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, 'open', NOW())
       RETURNING id, created_at
     `;
 
@@ -32,21 +33,28 @@ exports.createConversation = async (req, res) => {
       customerId,
       businessId,
       `${category.charAt(0).toUpperCase() + category.slice(1)} Support Request`,
+      message.trim(),
       category,
       priority || 'normal',
     ]);
 
     const ticketId = conversationResult.rows[0].id;
 
-    // Add initial message with sender name and 180-day expiry tracking
+    // Persist the opening message in the canonical conversation message table.
     const messageQuery = `
-      INSERT INTO support_messages
-      (ticket_id, sender_type, sender_id, sender_name, content, message_type, created_at, expires_at)
-      VALUES ($1, 'customer', $2, $3, $4, 'text', NOW(), NOW() + INTERVAL '180 days')
+      INSERT INTO support_conversation_messages
+      (conversation_id, sender_id, content, message_type, is_agent, created_at)
+      VALUES ($1, $2, $3, 'text', false, NOW())
       RETURNING id
     `;
 
-    await pool.query(messageQuery, [ticketId, customerId, visitorName, message]);
+    await pool.query(messageQuery, [ticketId, customerId, message.trim()]);
+    await pool.query(
+      `UPDATE support_conversations
+       SET message_count = 1, customer_message_count = 1, updated_at = NOW()
+       WHERE id = $1`,
+      [ticketId]
+    );
 
     // Layer 1-3 Routing
     const routing = await SupportRoutingService.routeTicket({
@@ -70,7 +78,7 @@ exports.createConversation = async (req, res) => {
 
       const assignQuery = `
         UPDATE support_conversations
-        SET assigned_agent_id = $1, status = 'assigned'
+        SET agent_id = $1, status = 'in_progress', assigned_at = NOW(), updated_at = NOW()
         WHERE id = $2
       `;
       await pool.query(assignQuery, [assignedAgentId, ticketId]);
@@ -97,13 +105,18 @@ exports.createConversation = async (req, res) => {
         category,
       });
     } else if (routing.routedTo === 'queue') {
-      // Queue status update
-      const queueQuery = `
-        UPDATE support_conversations
-        SET status = 'waiting_agent', queued_at = NOW()
-        WHERE id = $1
-      `;
-      await pool.query(queueQuery, [ticketId]);
+      await pool.query(
+        `UPDATE support_conversations
+         SET status = 'waiting_for_agent', updated_at = NOW()
+         WHERE id = $1`,
+        [ticketId]
+      );
+      await pool.query(
+        `INSERT INTO support_queue (business_id, conversation_id, priority, status, queued_at)
+         VALUES ($1, $2, $3, 'waiting', NOW())
+         ON CONFLICT DO NOTHING`,
+        [businessId, ticketId, priority || 'normal']
+      );
 
       response.message = 'Your request has been queued. An agent will help you shortly.';
 
@@ -138,10 +151,11 @@ exports.getConversation = async (req, res) => {
     const query = `
       SELECT
         sc.id, sc.customer_id, sc.business_id, sc.subject, sc.category,
-        sc.priority, sc.status, sc.assigned_agent_id, sc.created_at,
-        sa.first_name as agent_first_name, sa.last_name as agent_last_name, sa.email as agent_email
+        sc.priority, sc.status, sc.agent_id, sc.created_at,
+        au.first_name as agent_first_name, au.last_name as agent_last_name, au.email as agent_email
       FROM support_conversations sc
-      LEFT JOIN support_agents sa ON sc.assigned_agent_id = sa.id
+      LEFT JOIN support_agents sa ON sc.agent_id = sa.id
+      LEFT JOIN users au ON au.id = sa.user_id
       WHERE sc.id = $1
     `;
 
@@ -294,8 +308,10 @@ exports.assignToAgent = async (req, res) => {
 
     // Verify agent exists and has capacity
     const agentQuery = `
-      SELECT id, first_name, last_name FROM support_agents
-      WHERE id = $1 AND is_active = true
+      SELECT sa.id, u.first_name, u.last_name
+      FROM support_agents sa
+      JOIN users u ON u.id = sa.user_id
+      WHERE sa.id = $1 AND sa.status = 'active' AND sa.is_available = true
     `;
     const agentResult = await pool.query(agentQuery, [agentId]);
     if (agentResult.rows.length === 0) {
@@ -303,10 +319,10 @@ exports.assignToAgent = async (req, res) => {
     }
 
     // Assign
-    const assignQuery = `
-      UPDATE support_conversations
-      SET assigned_agent_id = $1, status = 'assigned', updated_at = NOW()
-      WHERE id = $2
+      const assignQuery = `
+        UPDATE support_conversations
+        SET agent_id = $1, status = 'in_progress', assigned_at = NOW(), updated_at = NOW()
+        WHERE id = $2
       RETURNING *
     `;
 
@@ -336,14 +352,20 @@ exports.assignToAgent = async (req, res) => {
 exports.getStatus = async (req, res) => {
   try {
     const status = WebSocketService.getConnectionStatus();
-    // Live agent presence is tracked via the is_available_for_support flag
-    // (agent WebSocket join events are not emitted anywhere, so the raw
-    // socket count is always 0). Query the DB for the real count instead.
+    // Count only platform agents who are both opted in and actively heartbeating.
+    // This is the same population used by SupportRoutingService, so the status
+    // shown to customers cannot advertise an unroutable admin session.
     const availQuery = `
       SELECT COUNT(*) AS count
-      FROM users
-      WHERE role IN ('admin', 'super_admin')
-        AND is_available_for_support = true
+      FROM support_agents sa
+      JOIN support_employers se ON se.id = sa.employer_id AND se.kind = 'platform'
+      JOIN users u ON u.id = sa.user_id
+      WHERE sa.status = 'active'
+        AND sa.is_available = true
+        AND u.is_active = true
+        AND u.role IN ('admin', 'super_admin')
+        AND u.is_available_for_support = true
+        AND u.support_available_at > NOW() - INTERVAL '2 minutes'
     `;
     const { rows } = await pool.query(availQuery);
     const agentsAvailable = parseInt(rows[0]?.count || 0, 10);

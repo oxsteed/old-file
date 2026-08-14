@@ -34,7 +34,13 @@ export default function SupportAgentChat() {
       const res = await adminApi.get('/support/conversations', {
         params: { business_id: businessId },
       });
-      setConversations(res.data.conversations || []);
+      const nextConversations = res.data.conversations || [];
+      setConversations(nextConversations);
+      setSelectedConv((current) => (
+        current
+          ? nextConversations.find((conversation) => conversation.id === current.id) || current
+          : null
+      ));
     } catch (err) {
       console.error('Failed to load conversations:', err);
       setConversations([]);
@@ -45,6 +51,12 @@ export default function SupportAgentChat() {
 
   useEffect(() => {
     loadConversations();
+  }, [loadConversations]);
+
+  useEffect(() => {
+    const handleSupportEvent = () => loadConversations();
+    window.addEventListener('oxs:admin-support-ticket', handleSupportEvent);
+    return () => window.removeEventListener('oxs:admin-support-ticket', handleSupportEvent);
   }, [loadConversations]);
 
   useEffect(() => {
@@ -183,15 +195,15 @@ export default function SupportAgentChat() {
             <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(249,115,22,0.05),transparent_30%)] px-6 py-5">
               <div className="space-y-4">
                 {messages.map((msg, idx) => (
-                  <div key={idx} className={`flex ${msg.is_from_agent ? 'justify-end' : 'justify-start'}`}>
+                  <div key={msg.id || idx} className={`flex ${(msg.is_from_agent ?? msg.is_agent) ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[75%] rounded-3xl px-4 py-3 text-sm leading-7 ${
-                      msg.is_from_agent
+                      (msg.is_from_agent ?? msg.is_agent)
                         ? 'rounded-tr-md bg-orange-600 text-white'
                         : 'rounded-tl-md border border-gray-800 bg-gray-900 text-gray-200'
                     }`}
                     >
-                      <div>{msg.text}</div>
-                      <div className={`mt-2 text-xs ${msg.is_from_agent ? 'text-orange-100' : 'text-gray-500'}`}>
+                      <div>{msg.text || msg.content}</div>
+                      <div className={`mt-2 text-xs ${(msg.is_from_agent ?? msg.is_agent) ? 'text-orange-100' : 'text-gray-500'}`}>
                         {msg.created_at}
                       </div>
                     </div>

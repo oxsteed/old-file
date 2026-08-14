@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useSocket } from '../../hooks/useSocket';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import useAdminSupportAvailability from '../hooks/useAdminSupportAvailability';
 import {
   Inbox,
   MessageSquare,
@@ -557,8 +558,11 @@ export default function SupportTickets() {
   const [status, setStatus] = useState('');
   const [priority, setPriority] = useState('');
   const [assigned, setAssigned] = useState('');
-  const [availability, setAvailability] = useState(null);
-  const [availabilityBusy, setAvailabilityBusy] = useState(false);
+  const {
+    availability,
+    busy: availabilityBusy,
+    toggleAvailability: updateAvailability,
+  } = useAdminSupportAvailability();
 
   const loadTickets = useCallback(async () => {
     setLoading(true);
@@ -588,26 +592,13 @@ export default function SupportTickets() {
 
   useEffect(() => { loadTickets(); }, [loadTickets]);
 
-const loadAvailability = useCallback(async () => {
-    try {
-      const { data } = await adminApi.get('/admin/support/availability');
-      setAvailability(data?.is_available_for_support ?? false);
-    } catch {
-      setAvailability(null);
-    }
-  }, []);
-  useEffect(() => { loadAvailability(); }, [loadAvailability]);
   const toggleAvailability = async () => {
-    setAvailabilityBusy(true);
     try {
       const nextValue = !availability;
-      const { data } = await adminApi.put('/admin/support/availability', { is_available_for_support: nextValue });
-      setAvailability(data?.is_available_for_support ?? nextValue);
+      await updateAvailability();
       toast.success(nextValue ? 'You are now available for support.' : 'You are now unavailable for support.');
     } catch (err) {
       toast.error(err?.response?.data?.error || 'Failed to update availability.');
-    } finally {
-      setAvailabilityBusy(false);
     }
   };
   useEffect(() => {

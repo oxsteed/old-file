@@ -2,6 +2,7 @@ import { useState, useRef }  from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth }   from '../../hooks/useAuth';
 import { useTheme }  from '../../context/ThemeContext';
+import useAdminSupportAvailability from '../hooks/useAdminSupportAvailability';
 import {
   LayoutDashboard, Users, Briefcase,
   Flag, Shield, DollarSign, Settings,
@@ -92,8 +93,14 @@ export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const searchRef = useRef(null);
+  const {
+    availability: supportAvailable,
+    busy: supportAvailabilityBusy,
+    setAvailability: setSupportAvailability,
+  } = useAdminSupportAvailability({ autoOnline: true });
 
   const handleLogout = async () => {
+    await setSupportAvailability(false, { silent: true }).catch(() => {});
     await logout();
     navigate('/admin/login');
   };
@@ -168,6 +175,25 @@ export default function AdminLayout() {
 
       {/* Bottom */}
       <div className="px-3 py-4 border-t border-gray-800">
+        <button
+          type="button"
+          onClick={() => setSupportAvailability(!supportAvailable)}
+          disabled={supportAvailabilityBusy || supportAvailable === null}
+          title="Controls whether customers can start a live support conversation with this admin session."
+          className={`mb-3 flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm font-medium transition disabled:opacity-50 ${
+            supportAvailable
+              ? 'border-green-700/50 bg-green-500/10 text-green-300 hover:bg-green-500/15'
+              : 'border-gray-700 bg-gray-950/40 text-gray-400 hover:border-gray-600 hover:text-white'
+          }`}
+        >
+          <span className={`h-2.5 w-2.5 rounded-full ${supportAvailable ? 'bg-green-400 shadow-[0_0_10px_rgba(74,222,128,0.6)]' : 'bg-gray-600'}`} />
+          <span className="min-w-0">
+            <span className="block truncate">Live support: {supportAvailable ? 'Online' : 'Offline'}</span>
+            <span className="block truncate text-[10px] font-normal opacity-70">
+              {supportAvailable ? 'Customers can reach you' : 'Customer chats will queue'}
+            </span>
+          </span>
+        </button>
         <div className="px-3 py-2 mb-2 flex items-center justify-between">
           <p className="text-xs text-gray-500 truncate">{user?.email}</p>
           <button
