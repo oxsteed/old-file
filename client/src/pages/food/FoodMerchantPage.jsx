@@ -1,6 +1,6 @@
 // OxSteed Food - merchant dashboard: onboarding, menu manager, live orders,
 // and links to the in-store screens (kitchen display, queue board, kiosk).
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -19,6 +19,7 @@ import {
   deleteFoodMenuItem,
   createFoodModifierGroup,
   listFoodRestaurantOrders,
+  listFoodRestaurantOrdersPage,
   updateFoodOrderStatus,
   recordFoodOrderManualPayment,
   formatFoodMoney,
@@ -146,59 +147,342 @@ function CreateRestaurantForm({ t, onCreated }) {
   );
 }
 
-// ── Live orders tab ──────────────────────────────────────────────────────────
+const ORDER_PAGE_SIZE = 20;
+const ORDER_HISTORY_STATUSES = ['completed', 'cancelled', 'refunded'];
+
+function orderMetadata(order) {
+  return order?.metadata && typeof order.metadata === 'object' ? order.metadata : {};
+}
+
+function orderPaymentMode(order) {
+  const metadata = orderMetadata(order);
+  return order.payment_mode
+    || metadata.paymentMode
+    || metadata.payment_mode
+    || metadata.paymentContract?.mode
+    || metadata.payment_contract?.mode
+    || 'pay_at_restaurant';
+}
+
+function orderExternalPayment(order) {
+  const metadata = orderMetadata(order);
+  return metadata.externalPayment || metadata.external_payment || null;
+}
+
+function orderDeliveryAddress(order) {
+  const metadata = orderMetadata(order);
+  return metadata.deliveryAddress || metadata.delivery_address || null;
+}
+
+function formatAddress(address) {
+  if (!address) return '';
+  if (typeof address === 'string') return address;
+  return [
+    address.line1 || address.line_1 || address.street,
+    address.line2 || address.line_2,
+    address.city,
+    address.state,
+    address.postalCode || address.postal_code || address.zip,
+    address.country,
+  ].filter(Boolean).join(', ');
+}
+
+function formatOrderDateTime(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+function historyStartDate(range) {
+  if (range === 'all') return null;
+  const days = Number(range);
+  if (!Number.isFinite(days)) return null;
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() - Math.max(0, days - 1));
+  return date.toISOString();
+}
+
+function paymentModeLabel(t, order) {
+  const mode = orderPaymentMode(order);
+  const labels = {
+    wallet_credit: t('food.merchant.orderCenter.restaurantCredit', 'Restaurant credit'),
+    restaurant_credit: t('food.merchant.orderCenter.restaurantCredit', 'Restaurant credit'),
+    direct_payment: t('food.merchant.orderCenter.directPayment', 'Direct payment'),
+    pay_now: t('food.merchant.orderCenter.onlinePayment', 'Online payment'),
+    pay_at_counter: t('food.merchant.orderCenter.payAtRestaurant', 'Pay at restaurant'),
+    pay_at_restaurant: t('food.merchant.orderCenter.payAtRestaurant', 'Pay at restaurant'),
+  };
+  return labels[mode] || mode.replaceAll('_', ' ');
+}
+
+function paymentStatusLabel(t, status) {
+  if (status === 'paid') return t('food.payment.paid');
+  if (status === 'refunded') return t('food.merchant.orderCenter.paymentRefunded', 'Payment refunded');
+  if (status === 'failed') return t('food.merchant.orderCenter.paymentFailed', 'Payment failed');
+  if (status === 'requires_payment') return t('food.merchant.orderCenter.paymentPending', 'Payment pending');
+  return t('food.payment.unpaid');
+}
+
+function OrderDetailPanel({ t, order, onAdvance, onCancel, onMarkPaid, onClose, detailRef }) {
+  if (!order) {
+    return (
+      <aside ref={detailRef} className="fd-order-detail fd-order-detail-empty">
+        <span aria-hidden>↖</span>
+        <h3>{t('food.merchant.orderCenter.selectOrder', 'Select an order')}</h3>
+        <p>{t('food.merchant.orderCenter.selectOrderHint', 'Choose an order to see customer, timing, payment, and item details.')}</p>
+      </aside>
+    );
+  }
+
+  const address = orderDeliveryAddress(order);
+  const addressText = formatAddress(address);
+  const externalPayment = orderExternalPayment(order);
+  const submission = externalPayment?.submission || externalPayment?.proof || externalPayment?.paymentProof || null;
+  const attachmentUrl = submission?.attachmentUrl || submission?.url || externalPayment?.attachmentUrl || null;
+  const paymentReference = submission?.reference || externalPayment?.reference || null;
+  const timeline = [
+    ['placed', order.created_at],
+    ['accepted', order.accepted_at || order.kitchen_acknowledged_at],
+    ['preparing', order.preparation_started_at],
+    ['ready', order.ready_at || order.quality_check_at],
+    ['completed', order.completed_at || order.handed_off_at],
+    ['cancelled', order.cancelled_at],
+  ].filter(([, value]) => value);
+
+  return (
+    <aside ref={detailRef} className="fd-order-detail" aria-label={t('food.merchant.orderCenter.orderDetails', 'Order details')}>
+      <div className="fd-order-detail-head">
+        <div>
+          <span>{t('food.merchant.orderCenter.orderNumber', 'Order')} #{order.queue_number || order.id}</span>
+          <h3>{order.customer_name || order.guest_name || t('food.merchant.guest')}</h3>
+          <small>{t('food.merchant.orderCenter.placed', 'Placed')} {formatOrderDateTime(order.created_at)}</small>
+        </div>
+        <div className="fd-order-detail-badges">
+          <span className={`fd-status-pill fd-order-status-${order.status}`}>{t(FOOD_STATUS_KEYS[order.status] || 'food.status.received')}</span>
+          <span className={`fd-status-pill${order.payment_status === 'paid' ? ' fd-paid-pill' : ''}`}>
+            {paymentStatusLabel(t, order.payment_status)}
+          </span>
+        </div>
+        <button type="button" className="fd-order-detail-close" onClick={onClose} aria-label={t('food.common.close', 'Close')}>×</button>
+      </div>
+
+      <section className="fd-order-detail-section">
+        <h4>{t('food.merchant.orderCenter.customer', 'Customer')}</h4>
+        <dl className="fd-order-detail-list">
+          <div><dt>{t('food.merchant.orderCenter.name', 'Name')}</dt><dd>{order.customer_name || order.guest_name || t('food.merchant.guest')}</dd></div>
+          {order.customer_phone && <div><dt>{t('food.merchant.orderCenter.phone', 'Phone')}</dt><dd><a href={`tel:${order.customer_phone}`}>{order.customer_phone}</a></dd></div>}
+          {order.customer_email && <div><dt>{t('food.merchant.orderCenter.email', 'Email')}</dt><dd><a href={`mailto:${order.customer_email}`}>{order.customer_email}</a></dd></div>}
+        </dl>
+      </section>
+
+      <section className="fd-order-detail-section">
+        <h4>{t('food.merchant.orderCenter.fulfillment', 'Fulfillment')}</h4>
+        <dl className="fd-order-detail-list">
+          <div><dt>{t('food.merchant.orderCenter.type', 'Type')}</dt><dd>{t(`food.fulfillment.${order.fulfillment_type}`)}</dd></div>
+          <div><dt>{t('food.merchant.orderCenter.source', 'Source')}</dt><dd>{t(`food.source.${order.order_source}`)}</dd></div>
+          {order.table_label && <div><dt>{t('food.order.tableLabel')}</dt><dd>{order.table_label}</dd></div>}
+          <div>
+            <dt>{t('food.merchant.orderCenter.location', 'Location')}</dt>
+            <dd>{addressText || (order.fulfillment_type === 'delivery'
+              ? t('food.merchant.orderCenter.addressUnavailable', 'Delivery address unavailable')
+              : t('food.merchant.orderCenter.atRestaurant', 'At the restaurant'))}</dd>
+          </div>
+          {address?.instructions && <div><dt>{t('food.merchant.orderCenter.deliveryNotes', 'Delivery notes')}</dt><dd>{address.instructions}</dd></div>}
+          <div><dt>{t('food.merchant.orderCenter.promised', 'Promised')}</dt><dd>{formatOrderDateTime(order.promised_at)}</dd></div>
+        </dl>
+      </section>
+
+      <section className="fd-order-detail-section">
+        <h4>{t('food.merchant.orderCenter.items', 'Items')}</h4>
+        <div className="fd-order-detail-items">
+          {(order.items || []).map((item) => (
+            <div key={item.id || `${item.itemName}-${item.quantity}`}>
+              <span className="fd-order-item-qty">{item.quantity}×</span>
+              <div>
+                <strong>{item.itemName}</strong>
+                {(item.modifiers || []).length > 0 && <small>{item.modifiers.map((modifier) => modifier.name).join(', ')}</small>}
+                {item.specialInstructions && <small className="fd-order-item-note">“{item.specialInstructions}”</small>}
+              </div>
+              <b>{formatFoodMoney(item.lineTotalCents, order.currency_code)}</b>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {(order.notes || externalPayment) && (
+        <section className="fd-order-detail-section">
+          <h4>{t('food.merchant.orderCenter.notesAndPayment', 'Notes & payment')}</h4>
+          {order.notes && <p className="fd-order-notes">{order.notes}</p>}
+          <dl className="fd-order-detail-list">
+            <div><dt>{t('food.merchant.orderCenter.paymentMethod', 'Payment method')}</dt><dd>{paymentModeLabel(t, order)}</dd></div>
+            {externalPayment?.handle && <div><dt>{t('food.merchant.orderCenter.paymentTo', 'Payment sent to')}</dt><dd>{externalPayment.handle}</dd></div>}
+            {paymentReference && <div><dt>{t('food.merchant.orderCenter.reference', 'Reference')}</dt><dd>{paymentReference}</dd></div>}
+          </dl>
+          {attachmentUrl && <a className="fd-btn fd-btn-secondary fd-btn-sm" href={attachmentUrl} target="_blank" rel="noreferrer">{t('food.merchant.orderCenter.viewProof', 'View payment proof')}</a>}
+        </section>
+      )}
+
+      <section className="fd-order-detail-section">
+        <h4>{t('food.merchant.orderCenter.total', 'Total')}</h4>
+        <dl className="fd-order-price-list">
+          <div><dt>{t('food.merchant.orderCenter.subtotal', 'Subtotal')}</dt><dd>{formatFoodMoney(order.subtotal_cents, order.currency_code)}</dd></div>
+          {Number(order.discount_cents) > 0 && <div><dt>{t('food.merchant.orderCenter.discount', 'Discount')}</dt><dd>−{formatFoodMoney(order.discount_cents, order.currency_code)}</dd></div>}
+          {Number(order.tax_cents) > 0 && <div><dt>{t('food.merchant.orderCenter.tax', 'Tax')}</dt><dd>{formatFoodMoney(order.tax_cents, order.currency_code)}</dd></div>}
+          {Number(order.service_fee_cents) > 0 && <div><dt>{t('food.merchant.orderCenter.serviceFee', 'Service fee')}</dt><dd>{formatFoodMoney(order.service_fee_cents, order.currency_code)}</dd></div>}
+          {Number(order.delivery_fee_cents) > 0 && <div><dt>{t('food.merchant.orderCenter.deliveryFee', 'Delivery fee')}</dt><dd>{formatFoodMoney(order.delivery_fee_cents, order.currency_code)}</dd></div>}
+          {Number(order.tip_cents) > 0 && <div><dt>{t('food.merchant.orderCenter.tip', 'Tip')}</dt><dd>{formatFoodMoney(order.tip_cents, order.currency_code)}</dd></div>}
+          <div className="fd-order-price-total"><dt>{t('food.merchant.orderCenter.total', 'Total')}</dt><dd>{formatFoodMoney(order.total_cents, order.currency_code)}</dd></div>
+        </dl>
+      </section>
+
+      {timeline.length > 1 && (
+        <section className="fd-order-detail-section">
+          <h4>{t('food.merchant.orderCenter.timeline', 'Order timeline')}</h4>
+          <ol className="fd-order-timeline">
+            {timeline.map(([key, value]) => <li key={key}><span>{t(`food.merchant.orderCenter.${key}`, key)}</span><time>{formatOrderDateTime(value)}</time></li>)}
+          </ol>
+        </section>
+      )}
+
+      <div className="fd-order-detail-actions">
+        {order.payment_status !== 'paid' && <button type="button" className="fd-btn fd-btn-secondary" onClick={() => onMarkPaid(order)}>{orderExternalPayment(order) ? t('food.merchant.confirmPayment', 'Confirm payment') : t('food.merchant.markPaid')}</button>}
+        {NEXT_STATUS[order.status] && <button type="button" className="fd-btn" onClick={() => onAdvance(order)}>{t(`food.advance.${NEXT_STATUS[order.status]}`)}</button>}
+        {['received', 'accepted', 'preparing'].includes(order.status) && <button type="button" className="fd-btn fd-btn-danger" onClick={() => onCancel(order)}>{t('food.common.cancel')}</button>}
+      </div>
+    </aside>
+  );
+}
+
+// ── Restaurant order center ─────────────────────────────────────────────────
 function OrdersTab({ t, restaurant }) {
   const [orders, setOrders] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [meta, setMeta] = useState({ total: 0, hasMore: false });
   const [feedError, setFeedError] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState('active');
+  const [search, setSearch] = useState('');
+  const deferredSearch = useDeferredValue(search.trim());
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [fulfillmentFilter, setFulfillmentFilter] = useState('all');
+  const [historyRange, setHistoryRange] = useState('30');
+  const [page, setPage] = useState(0);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
   const timerRef = useRef(null);
+  const requestSequenceRef = useRef(0);
+  const detailRef = useRef(null);
 
-  const load = useCallback(() => {
-    listFoodRestaurantOrders(restaurant.id, { active: 1 })
-      .then((rows) => {
-        setOrders(rows);
-        setFeedError(false);
-      })
-      .catch(() => setFeedError(true));
-  }, [restaurant.id]);
+  const load = useCallback(async ({ quiet = false } = {}) => {
+    const requestSequence = ++requestSequenceRef.current;
+    if (!quiet) setLoading(true);
+    try {
+      const result = await listFoodRestaurantOrdersPage(restaurant.id, {
+        scope: view,
+        q: deferredSearch || undefined,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        fulfillment: fulfillmentFilter === 'all' ? undefined : fulfillmentFilter,
+        from: view === 'history' ? historyStartDate(historyRange) || undefined : undefined,
+        limit: ORDER_PAGE_SIZE,
+        offset: page * ORDER_PAGE_SIZE,
+        includeMeta: 1,
+      });
+      if (requestSequence !== requestSequenceRef.current) return;
+      setOrders(result.orders);
+      setMeta(result.meta);
+      if (result.summary) setSummary(result.summary);
+      setSelectedOrderId((current) => {
+        if (current && result.orders.some((order) => String(order.id) === String(current))) return current;
+        return null;
+      });
+      setFeedError(false);
+    } catch {
+      if (requestSequence === requestSequenceRef.current) setFeedError(true);
+    } finally {
+      if (!quiet && requestSequence === requestSequenceRef.current) setLoading(false);
+    }
+  }, [deferredSearch, fulfillmentFilter, historyRange, page, restaurant.id, statusFilter, view]);
 
   useEffect(() => {
     load();
-    timerRef.current = setInterval(load, 7000);
-    const unsubscribe = subscribeRestaurantDisplay(restaurant.id, load);
+  }, [load]);
+
+  useEffect(() => {
+    if (view !== 'active') return undefined;
+    timerRef.current = setInterval(() => {
+      if (document.visibilityState === 'visible') load({ quiet: true });
+    }, 10000);
+    const unsubscribe = subscribeRestaurantDisplay(restaurant.id, () => load({ quiet: true }));
     return () => {
       clearInterval(timerRef.current);
       unsubscribe();
     };
-  }, [load, restaurant.id]);
+  }, [load, restaurant.id, view]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [deferredSearch, fulfillmentFilter, historyRange, statusFilter, view]);
+
+  const selectView = (nextView) => {
+    setView(nextView);
+    setStatusFilter('all');
+    setSelectedOrderId(null);
+    setPage(0);
+  };
+
+  const selectedOrder = orders.find((order) => String(order.id) === String(selectedOrderId)) || null;
+
+  const openOrder = (orderId) => {
+    setSelectedOrderId(orderId);
+    if (window.matchMedia('(max-width: 900px)').matches) {
+      window.requestAnimationFrame(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
+  };
+
+  const reloadAfterAction = useCallback(() => {
+    load({ quiet: true });
+  }, [load]);
+
+  const refreshOrderInView = useCallback((orderId) => {
+    if (String(selectedOrderId) === String(orderId)) setSelectedOrderId(null);
+    reloadAfterAction();
+  }, [reloadAfterAction, selectedOrderId]);
+
+  const updateFailure = (err) => {
+    toast.error(apiErrorMessage(err, t('food.merchant.statusError')));
+  };
 
   const advance = async (order) => {
     const next = NEXT_STATUS[order.status];
     if (!next) return;
     try {
       await updateFoodOrderStatus(restaurant.id, order.id, next);
-      load();
+      refreshOrderInView(order.id);
     } catch (err) {
-      toast.error(apiErrorMessage(err, t('food.merchant.statusError')));
+      updateFailure(err);
     }
   };
 
   const cancel = async (order) => {
     try {
       await updateFoodOrderStatus(restaurant.id, order.id, 'cancelled');
-      load();
+      refreshOrderInView(order.id);
     } catch (err) {
-      toast.error(apiErrorMessage(err, t('food.merchant.statusError')));
+      updateFailure(err);
     }
   };
 
   const markPaid = async (order) => {
     try {
-      const metadata = order.metadata && typeof order.metadata === 'object' ? order.metadata : {};
-      const externalPayment = metadata.externalPayment || metadata.external_payment || null;
+      const externalPayment = orderExternalPayment(order);
       const submission = externalPayment?.submission || externalPayment?.proof || externalPayment?.paymentProof || {};
       const reference = submission.reference || externalPayment?.reference || null;
       const amountCents = Number(order.amount_due_cents ?? order.balance_due_cents ?? order.total_cents ?? 0);
-      const isDirectPayment = Boolean(externalPayment) || order.payment_mode === 'direct_payment';
+      const isDirectPayment = Boolean(externalPayment) || orderPaymentMode(order) === 'direct_payment';
       await recordFoodOrderManualPayment(restaurant.id, order.id, {
         paymentType: isDirectPayment ? 'external' : 'cash',
         paymentMode: isDirectPayment ? 'direct_payment' : 'pay_at_restaurant',
@@ -208,114 +492,145 @@ function OrdersTab({ t, restaurant }) {
         note: isDirectPayment
           ? 'Restaurant confirmed the customer payment submission.'
           : 'Restaurant confirmed payment received.',
-        metadata: {
-          source: 'restaurant_owner_web_confirmation',
-          receiptConfirmed: true,
-        },
+        metadata: { source: 'restaurant_owner_web_confirmation', receiptConfirmed: true },
         idempotencyKey: `restaurant-owner-payment:${restaurant.id}:${order.id}:${amountCents}`,
       });
-      toast.success(isDirectPayment ? 'Payment confirmed.' : 'Order marked paid.');
-      load();
+      toast.success(isDirectPayment ? t('food.merchant.orderCenter.paymentConfirmed', 'Payment confirmed.') : t('food.merchant.orderCenter.orderMarkedPaid', 'Order marked paid.'));
+      reloadAfterAction();
     } catch (err) {
-      toast.error(apiErrorMessage(err, 'Unable to confirm this payment.'));
+      toast.error(apiErrorMessage(err, t('food.merchant.orderCenter.paymentError', 'Unable to confirm this payment.')));
     }
   };
 
+  const statusOptions = view === 'active'
+    ? ['received', 'accepted', 'preparing', 'ready']
+    : ORDER_HISTORY_STATUSES;
+
+  const totalPages = Math.max(1, Math.ceil(Number(meta.total || 0) / ORDER_PAGE_SIZE));
+
   return (
-    <div className="fd-section">
-      <div className="fd-row" style={{ justifyContent: 'space-between', marginBottom: '0.8rem' }}>
-        <span className="fd-row" style={{ gap: '0.6rem', alignItems: 'center' }}>
-          <h2 style={{ margin: 0 }}>{t('food.merchant.liveOrders')}</h2>
-          <FoodConnBadge ok={!feedError} />
-        </span>
-        <div className="fd-row">
-          <Link to={`/restaurants/kitchen/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">
-            {t('food.merchant.openKitchen')}
-          </Link>
-          <Link to={`/restaurants/queue/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">
-            {t('food.merchant.openQueue')}
-          </Link>
-          <Link to={`/restaurants/kiosk/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">
-            {t('food.merchant.openKiosk')}
-          </Link>
+    <div className="fd-section fd-order-center">
+      <header className="fd-order-center-header">
+        <div>
+          <span className="fd-order-center-eyebrow">{t('food.merchant.orderCenter.eyebrow', 'Restaurant operations')}</span>
+          <div className="fd-order-center-title">
+            <h2>{t('food.merchant.orderCenter.title', 'Orders')}</h2>
+            <FoodConnBadge ok={!feedError} />
+          </div>
+          <p>{t('food.merchant.orderCenter.subtitle', 'Manage live service and find every completed, cancelled, or refunded order.')}</p>
         </div>
+        <nav className="fd-order-screen-links" aria-label={t('food.merchant.orderCenter.inStoreScreens', 'In-store screens')}>
+          <Link to={`/restaurants/kitchen/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">{t('food.merchant.openKitchen')}</Link>
+          <Link to={`/restaurants/queue/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">{t('food.merchant.openQueue')}</Link>
+          <Link to={`/restaurants/kiosk/${restaurant.id}`} className="fd-btn fd-btn-secondary fd-btn-sm">{t('food.merchant.openKiosk')}</Link>
+        </nav>
+      </header>
+
+      <div className="fd-order-summary" aria-label={t('food.merchant.orderCenter.todaySummary', "Today's summary")}>
+        <div><span aria-hidden>●</span><strong>{Number(summary?.new_orders || 0)}</strong><small>{t('food.merchant.orderCenter.newOrders', 'New')}</small></div>
+        <div><span aria-hidden>◷</span><strong>{Number(summary?.preparing_orders || 0)}</strong><small>{t('food.merchant.orderCenter.preparing', 'Preparing')}</small></div>
+        <div><span aria-hidden>✓</span><strong>{Number(summary?.ready_orders || 0)}</strong><small>{t('food.merchant.orderCenter.ready', 'Ready')}</small></div>
+        <div><span aria-hidden>▣</span><strong>{Number(summary?.completed_orders || 0)}</strong><small>{t('food.merchant.orderCenter.completedToday', 'Completed today')}</small></div>
+        <div className="fd-order-summary-sales"><span aria-hidden>¤</span><strong>{formatFoodMoney(summary?.paid_sales_cents || 0, restaurant.currency_code)}</strong><small>{t('food.merchant.orderCenter.paidSalesToday', 'Paid sales today')}</small></div>
       </div>
-      {orders.length === 0 && <div className="fd-empty">{t('food.merchant.noOrders')}</div>}
-      {orders.map((order) => (
-        <div key={order.id} className={`fd-order-card fd-status-${order.status}`}>
-          {(() => {
-            const externalPayment = order.metadata && typeof order.metadata === 'object'
-              ? order.metadata.externalPayment || order.metadata.external_payment || null
-              : null;
-            const externalPaymentSubmission = externalPayment?.submission || externalPayment?.proof || externalPayment?.paymentProof || null;
-            const externalPaymentReference = externalPaymentSubmission?.reference || externalPayment?.reference || null;
-            const externalPaymentAttachmentUrl = externalPaymentSubmission?.attachmentUrl
-              || externalPaymentSubmission?.url
-              || externalPayment?.attachmentUrl
-              || null;
-            return externalPayment ? (
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', marginBottom: '0.5rem', padding: '0.7rem 0.85rem', borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                <div style={{ minWidth: 0 }}>
-                  <strong style={{ display: 'block', fontSize: '0.86rem', color: '#0f172a' }}>
-                    {externalPayment.label || t('food.merchant.externalPaymentTitle', 'External payment')}
-                  </strong>
-                  <span style={{ display: 'block', fontSize: '0.82rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {externalPayment.handle ? `${externalPayment.handle} · ` : ''}
-                    {externalPaymentReference ? `Ref: ${externalPaymentReference}` : 'Proof submitted'}
-                  </span>
+
+      <div className="fd-order-view-tabs" role="tablist" aria-label={t('food.merchant.orderCenter.orderViews', 'Order views')}>
+        <button type="button" role="tab" aria-selected={view === 'active'} className={view === 'active' ? 'fd-active' : ''} onClick={() => selectView('active')}>
+          {t('food.merchant.orderCenter.live', 'Live')} <span>{view === 'active' ? meta.total : Number(summary?.new_orders || 0) + Number(summary?.preparing_orders || 0) + Number(summary?.ready_orders || 0)}</span>
+        </button>
+        <button type="button" role="tab" aria-selected={view === 'history'} className={view === 'history' ? 'fd-active' : ''} onClick={() => selectView('history')}>
+          {t('food.merchant.orderCenter.history', 'Order history')}
+        </button>
+      </div>
+
+      <div className="fd-order-filters">
+        <label className="fd-order-search">
+          <span aria-hidden>⌕</span>
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('food.merchant.orderCenter.search', 'Search order, customer, phone, or item…')} />
+        </label>
+        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label={t('food.merchant.orderCenter.filterStatus', 'Filter by status')}>
+          <option value="all">{t('food.merchant.orderCenter.allStatuses', 'All statuses')}</option>
+          {statusOptions.map((status) => <option key={status} value={status}>{t(FOOD_STATUS_KEYS[status] || `food.status.${status}`)}</option>)}
+        </select>
+        <select value={fulfillmentFilter} onChange={(event) => setFulfillmentFilter(event.target.value)} aria-label={t('food.merchant.orderCenter.filterFulfillment', 'Filter by fulfillment')}>
+          <option value="all">{t('food.merchant.orderCenter.allFulfillment', 'All fulfillment')}</option>
+          {['pickup', 'dine_in', 'delivery', 'kiosk'].map((type) => <option key={type} value={type}>{t(`food.fulfillment.${type}`)}</option>)}
+        </select>
+        {view === 'history' && (
+          <select value={historyRange} onChange={(event) => setHistoryRange(event.target.value)} aria-label={t('food.merchant.orderCenter.dateRange', 'Date range')}>
+            <option value="7">{t('food.merchant.orderCenter.last7Days', 'Last 7 days')}</option>
+            <option value="30">{t('food.merchant.orderCenter.last30Days', 'Last 30 days')}</option>
+            <option value="90">{t('food.merchant.orderCenter.last90Days', 'Last 90 days')}</option>
+            <option value="all">{t('food.merchant.orderCenter.allTime', 'All time')}</option>
+          </select>
+        )}
+        <button type="button" className="fd-order-refresh" onClick={() => load()} aria-label={t('food.merchant.orderCenter.refresh', 'Refresh orders')}>↻</button>
+      </div>
+
+      {feedError && <div className="fd-order-feed-error" role="alert">{t('food.merchant.orderCenter.loadError', 'Some order information could not be loaded.')} <button type="button" onClick={() => load()}>{t('food.common.retry', 'Retry')}</button></div>}
+
+      <div className="fd-order-workspace">
+        <div className="fd-order-list" aria-busy={loading}>
+          {loading && orders.length === 0 && <div className="fd-order-loading">{t('food.merchant.orderCenter.loading', 'Loading orders…')}</div>}
+          {!loading && orders.length === 0 && (
+            <div className="fd-order-empty">
+              <span aria-hidden>{view === 'active' ? '✓' : '⌕'}</span>
+              <h3>{view === 'active' ? t('food.merchant.noOrders') : t('food.merchant.orderCenter.noHistory', 'No orders match these filters')}</h3>
+              <p>{view === 'active' ? t('food.merchant.orderCenter.noLiveHint', 'New orders will appear here automatically.') : t('food.merchant.orderCenter.noHistoryHint', 'Try a longer date range or clear a filter.')}</p>
+            </div>
+          )}
+          {orders.map((order) => {
+            const addressText = formatAddress(orderDeliveryAddress(order));
+            const selected = String(order.id) === String(selectedOrderId);
+            return (
+              <article key={order.id} className={`fd-order-list-card fd-status-${order.status}${selected ? ' fd-selected' : ''}`}>
+                <button type="button" className="fd-order-list-select" onClick={() => openOrder(order.id)} aria-label={`${t('food.merchant.orderCenter.viewOrder', 'View order')} #${order.queue_number || order.id}`}>
+                  <div className="fd-order-list-top">
+                    <div><strong>#{order.queue_number || order.id}</strong><span>{order.customer_name || order.guest_name || t('food.merchant.guest')}</span></div>
+                    <time>{formatOrderDateTime(order.created_at)}</time>
+                  </div>
+                  <div className="fd-order-list-pills">
+                    <span className={`fd-status-pill fd-order-status-${order.status}`}>{t(FOOD_STATUS_KEYS[order.status] || 'food.status.received')}</span>
+                    <span>{t(`food.fulfillment.${order.fulfillment_type}`)}</span>
+                    <span>{t(`food.source.${order.order_source}`)}</span>
+                  </div>
+                  <p className="fd-order-list-items">{(order.items || []).map((item) => `${item.quantity}× ${item.itemName}`).join(', ') || t('food.merchant.orderCenter.noItems', 'No item details')}</p>
+                  <div className="fd-order-list-bottom">
+                    <span>{addressText || order.table_label || (order.fulfillment_type === 'delivery' ? t('food.merchant.orderCenter.delivery', 'Delivery') : t('food.merchant.orderCenter.atRestaurant', 'At the restaurant'))}</span>
+                    <strong>{formatFoodMoney(order.total_cents, order.currency_code)}</strong>
+                  </div>
+                </button>
+                <div className="fd-order-list-actions">
+                  <span className={order.payment_status === 'paid' ? 'fd-order-paid' : 'fd-order-unpaid'}>{order.payment_status === 'unpaid' ? paymentModeLabel(t, order) : paymentStatusLabel(t, order.payment_status)}</span>
+                  <button type="button" onClick={() => openOrder(order.id)}>{t('food.merchant.orderCenter.details', 'Details')} →</button>
                 </div>
-                {externalPaymentAttachmentUrl && (
-                  <a href={externalPaymentAttachmentUrl} target="_blank" rel="noreferrer" className="fd-btn fd-btn-secondary fd-btn-sm" style={{ textDecoration: 'none' }}>
-                    {t('food.common.view', 'View')}
-                  </a>
-                )}
-              </div>
-            ) : null;
-          })()}
-          <div className="fd-order-head">
-            <strong>#{order.queue_number} · {order.guest_name || t('food.merchant.guest')}</strong>
-            <span className="fd-row" style={{ gap: '0.4rem' }}>
-              <span className="fd-status-pill">{t(FOOD_STATUS_KEYS[order.status] || 'food.status.received')}</span>
-              <span className={`fd-status-pill${order.payment_status === 'paid' ? ' fd-paid-pill' : ''}`}>
-                {order.payment_status === 'paid' ? t('food.payment.paid') : t('food.payment.unpaid')}
-              </span>
-            </span>
-          </div>
-          <div style={{ fontSize: '0.88rem', margin: '0.35rem 0' }}>
-            {(order.items || []).map((item) => `${item.quantity}× ${item.itemName}`).join(', ')}
-          </div>
-          <div className="fd-row" style={{ justifyContent: 'space-between' }}>
-            <span className="fd-card-meta">
-              {t(`food.source.${order.order_source}`)} · {t(`food.fulfillment.${order.fulfillment_type}`)}
-              {order.table_label ? ` · ${t('food.order.tableLabel')}: ${order.table_label}` : ''}
-              {' · '}
-              <strong>{formatFoodMoney(order.total_cents, order.currency_code)}</strong>
-            </span>
-            <span className="fd-row">
-              {order.payment_status !== 'paid' && (
-                <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => markPaid(order)}>
-                  {(order.payment_mode === 'direct_payment' || order.metadata?.externalPayment || order.metadata?.external_payment)
-                    ? t('food.merchant.confirmPayment', 'Confirm payment')
-                    : t('food.merchant.markPaid')}
-                </button>
-              )}
-              {NEXT_STATUS[order.status] && (
-                <button type="button" className="fd-btn fd-btn-sm" onClick={() => advance(order)}>
-                  {t(`food.advance.${NEXT_STATUS[order.status]}`)}
-                </button>
-              )}
-              {['received', 'accepted', 'preparing'].includes(order.status) && (
-                <button type="button" className="fd-btn fd-btn-danger fd-btn-sm" onClick={() => cancel(order)}>
-                  {t('food.common.cancel')}
-                </button>
-              )}
-            </span>
-          </div>
+              </article>
+            );
+          })}
+
+          {meta.total > ORDER_PAGE_SIZE && (
+            <nav className="fd-order-pagination" aria-label={t('food.merchant.orderCenter.pagination', 'Order history pages')}>
+              <button type="button" disabled={page === 0} onClick={() => setPage((current) => Math.max(0, current - 1))}>{t('food.merchant.orderCenter.previous', 'Previous')}</button>
+              <span>{t('food.merchant.orderCenter.pageOf', 'Page {{page}} of {{pages}}', { page: page + 1, pages: totalPages })}</span>
+              <button type="button" disabled={!meta.hasMore} onClick={() => setPage((current) => current + 1)}>{t('food.merchant.orderCenter.next', 'Next')}</button>
+            </nav>
+          )}
         </div>
-      ))}
+
+        <OrderDetailPanel
+          t={t}
+          order={selectedOrder}
+          onAdvance={advance}
+          onCancel={cancel}
+          onMarkPaid={markPaid}
+          onClose={() => setSelectedOrderId(null)}
+          detailRef={detailRef}
+        />
+      </div>
     </div>
   );
 }
+
 
 // ── Menu manager tab ─────────────────────────────────────────────────────────
 function MenuTab({ t, restaurant }) {

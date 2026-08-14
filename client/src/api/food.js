@@ -154,6 +154,13 @@ export const deleteFoodModifierGroup = (restaurantId, groupId) =>
 export const listFoodRestaurantOrders = (restaurantId, params = {}) =>
   api.get(`/food/restaurants/${restaurantId}/orders`, { params }).then((r) => r.data?.orders || []);
 
+export const listFoodRestaurantOrdersPage = (restaurantId, params = {}) =>
+  api.get(`/food/restaurants/${restaurantId}/orders`, { params }).then((r) => ({
+    orders: r.data?.orders || [],
+    meta: r.data?.meta || { total: 0, limit: Number(params.limit || 50), offset: Number(params.offset || 0), hasMore: false },
+    summary: r.data?.summary || null,
+  }));
+
 export const updateFoodOrderStatus = (restaurantId, orderId, status, options = {}) => {
   const idempotencyKey = options.idempotencyKey || options.idempotency_key;
   return (

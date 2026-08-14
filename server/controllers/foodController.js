@@ -2431,11 +2431,28 @@ exports.listRestaurantOrders = async (req, res, next) => {
     await assertRestaurantPermission(restaurant, ['orders.view', 'orders.manage', 'kitchen.view', 'kitchen.update']);
     const status = normalizeString(req.query.status, 24);
     const source = normalizeString(req.query.source || req.query.orderSource || req.query.order_source, 24);
+    const scope = normalizeString(req.query.scope, 24);
+    const fulfillment = normalizeString(
+      req.query.fulfillment || req.query.fulfillmentType || req.query.fulfillment_type,
+      24
+    );
+    const paymentStatus = normalizeString(req.query.paymentStatus || req.query.payment_status, 24);
+    const search = normalizeString(req.query.q || req.query.search, 120);
+    const from = normalizeString(req.query.from || req.query.dateFrom || req.query.date_from, 40);
+    const to = normalizeString(req.query.to || req.query.dateTo || req.query.date_to, 40);
+    const includeMeta = req.query.includeMeta === '1' || req.query.includeMeta === 'true';
+    const limit = Math.min(parsePositiveInt(req.query.limit, 50), 100);
+    const offset = Math.max(parsePositiveInt(req.query.offset, 0) || 0, 0);
     const params = [restaurantId];
     const filters = [];
     if (status && VALID_STATUS.has(status)) {
       params.push(status);
       filters.push(`fo.status = $${params.length}`);
+    } else if (scope === 'active') {
+      // Merchant operations must not hide an unfinished order after midnight.
+      filters.push(`fo.status IN ('received','accepted','preparing','ready')`);
+    } else if (scope === 'history') {
+      filters.push(`fo.status IN ('completed','cancelled','refunded')`);
     } else if (req.query.active === '1' || req.query.active === 'true') {
       // Kitchen-display polling feed: only today's in-flight orders.
       filters.push(`fo.status IN ('received','accepted','preparing','ready')`);
@@ -2448,12 +2465,55 @@ exports.listRestaurantOrders = async (req, res, next) => {
       params.push(source);
       filters.push(`fo.order_source = $${params.length}`);
     }
+    if (fulfillment && VALID_FULFILLMENT.has(fulfillment)) {
+      params.push(fulfillment);
+      filters.push(`fo.fulfillment_type = $${params.length}`);
+    }
+    if (paymentStatus && VALID_PAYMENT_STATUS.has(paymentStatus)) {
+      params.push(paymentStatus);
+      filters.push(`fo.payment_status = $${params.length}`);
+    }
+    if (from && !Number.isNaN(Date.parse(from))) {
+      params.push(new Date(from).toISOString());
+      filters.push(`fo.created_at >= $${params.length}::timestamptz`);
+    }
+    if (to && !Number.isNaN(Date.parse(to))) {
+      params.push(new Date(to).toISOString());
+      filters.push(`fo.created_at < $${params.length}::timestamptz`);
+    }
+    if (search) {
+      params.push(`%${search}%`);
+      const searchParam = `$${params.length}`;
+      filters.push(`(
+        CAST(fo.id AS TEXT) ILIKE ${searchParam}
+        OR CAST(fo.queue_number AS TEXT) ILIKE ${searchParam}
+        OR COALESCE(fo.guest_name, '') ILIKE ${searchParam}
+        OR COALESCE(fo.guest_phone, '') ILIKE ${searchParam}
+        OR COALESCE(fo.guest_email, '') ILIKE ${searchParam}
+        OR COALESCE(u.first_name || ' ' || u.last_name, '') ILIKE ${searchParam}
+        OR COALESCE(u.email, '') ILIKE ${searchParam}
+        OR EXISTS (
+          SELECT 1 FROM food_order_items search_item
+           WHERE search_item.order_id = fo.id AND search_item.item_name ILIKE ${searchParam}
+        )
+      )`);
+    }
+    const whereSql = filters.length ? ` AND ${filters.join(' AND ')}` : '';
+    params.push(limit, offset);
+    const limitParam = `$${params.length - 1}`;
+    const offsetParam = `$${params.length}`;
     const { rows } = await pool.query(
       `SELECT fo.*,
+              COALESCE(NULLIF(fo.guest_name, ''), NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''), 'Guest') AS customer_name,
+              COALESCE(NULLIF(fo.guest_email, ''), u.email) AS customer_email,
+              COALESCE(NULLIF(fo.guest_phone, ''), u.phone) AS customer_phone,
+              COUNT(*) OVER()::int AS total_count,
               COALESCE(json_agg(json_build_object(
                 'id', foi.id,
                 'itemName', foi.item_name,
                 'quantity', foi.quantity,
+                'unitPriceCents', foi.unit_price_cents,
+                'modifierTotalCents', foi.modifier_total_cents,
                 'lineTotalCents', foi.line_total_cents,
                 'specialInstructions', foi.special_instructions,
                 'kitchenStatus', foi.kitchen_status,
@@ -2461,29 +2521,67 @@ exports.listRestaurantOrders = async (req, res, next) => {
                 'kitchenStartedAt', foi.kitchen_started_at,
                 'delayedAt', foi.delayed_at,
                 'delayReason', foi.delay_reason,
-                'targetPrepSeconds', foi.target_prep_seconds
+                'targetPrepSeconds', foi.target_prep_seconds,
+                'modifiers', COALESCE((
+                  SELECT json_agg(json_build_object(
+                    'id', foim.id,
+                    'name', foim.modifier_name,
+                    'priceDeltaCents', foim.price_delta_cents
+                  ) ORDER BY foim.id)
+                    FROM food_order_item_modifiers foim
+                   WHERE foim.order_item_id = foi.id
+                ), '[]'::json)
               ) ORDER BY foi.id) FILTER (WHERE foi.id IS NOT NULL), '[]') AS items
          FROM food_orders fo
+         LEFT JOIN users u ON u.id = fo.customer_id
          LEFT JOIN food_order_items foi ON foi.order_id = fo.id
-        WHERE fo.restaurant_id = $1${filters.length ? ` AND ${filters.join(' AND ')}` : ''}
-        GROUP BY fo.id
+        WHERE fo.restaurant_id = $1${whereSql}
+        GROUP BY fo.id, u.id
         ORDER BY
-          CASE fo.status
+          ${scope === 'history' ? 'fo.created_at DESC' : `CASE fo.status
             WHEN 'received' THEN 1
             WHEN 'accepted' THEN 2
             WHEN 'preparing' THEN 3
             WHEN 'ready' THEN 4
             ELSE 5
-          END,
-          fo.created_at ASC
-        LIMIT 100`,
+          END, fo.created_at ASC`}
+        LIMIT ${limitParam} OFFSET ${offsetParam}`,
       params
     );
     const orders = [];
     for (const row of rows) {
       orders.push(await syncFoodOrderPaymentStatus(row));
     }
-    res.json({ orders });
+    let summary = null;
+    if (includeMeta) {
+      const { rows: summaryRows } = await pool.query(
+        `SELECT COUNT(*) FILTER (WHERE fo.status IN ('received','accepted'))::int AS new_orders,
+                COUNT(*) FILTER (WHERE fo.status = 'preparing')::int AS preparing_orders,
+                COUNT(*) FILTER (WHERE fo.status = 'ready')::int AS ready_orders,
+                COUNT(*) FILTER (WHERE fo.status = 'completed')::int AS completed_orders,
+                COALESCE(SUM(fo.total_cents) FILTER (
+                  WHERE fo.payment_status = 'paid' AND fo.status NOT IN ('cancelled','refunded')
+                ), 0)::bigint AS paid_sales_cents,
+                COUNT(*)::int AS total_orders
+           FROM food_orders fo
+           JOIN food_restaurants fr ON fr.id = fo.restaurant_id
+          WHERE fo.restaurant_id = $1
+            AND (fo.created_at AT TIME ZONE COALESCE(fr.timezone, 'UTC'))::date =
+                (CURRENT_TIMESTAMP AT TIME ZONE COALESCE(fr.timezone, 'UTC'))::date`,
+        [restaurantId]
+      );
+      summary = summaryRows[0] || null;
+    }
+    res.json({
+      orders,
+      meta: {
+        total: Number(rows[0]?.total_count || 0),
+        limit,
+        offset,
+        hasMore: offset + orders.length < Number(rows[0]?.total_count || 0),
+      },
+      summary,
+    });
   } catch (err) {
     next(err);
   }
