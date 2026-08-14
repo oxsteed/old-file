@@ -22,6 +22,7 @@ const escalationPoliciesController = require('../controllers/escalationPoliciesC
 const supportTeamsController = require('../controllers/supportTeamsController');
 const skillBasedRoutingController = require('../controllers/skillBasedRoutingController');
 const supportAgentPortalController = require('../controllers/supportAgentPortalController');
+const supportEmployerService = require('../services/supportEmployerService');
 const db = require('../db');
 const { randomUUID } = require('crypto');
 
@@ -218,8 +219,11 @@ router.get('/conversations', async (req, res, next) => {
   try {
     const businessId = await resolveSupportBusinessId(req);
     const isPlatformAdmin = ['admin', 'super_admin'].includes(req.user.role);
+    const platformAgent = isPlatformAdmin
+      ? null
+      : await supportEmployerService.findPlatformAgent(req.user.id);
 
-    if (isPlatformAdmin) {
+    if (isPlatformAdmin || platformAgent) {
       const params = [];
       const where = req.query.business_id || req.query.businessId
         ? `WHERE sc.business_id = $${params.push(businessId)}`
@@ -227,9 +231,10 @@ router.get('/conversations', async (req, res, next) => {
       const { rows } = await db.query(
         `SELECT
            sc.*,
-           COALESCE(cu.name, TRIM(COALESCE(cu.first_name, '') || ' ' || COALESCE(cu.last_name, '')), cu.email) AS customer_name,
+           sa.user_id AS agent_user_id,
+           COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', cu.first_name, cu.last_name)), ''), cu.email) AS customer_name,
            cu.email AS customer_email,
-           COALESCE(au.name, TRIM(COALESCE(au.first_name, '') || ' ' || COALESCE(au.last_name, '')), au.email) AS agent_name,
+           COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', au.first_name, au.last_name)), ''), au.email) AS agent_name,
            COALESCE(
              jsonb_agg(
                jsonb_build_object(
@@ -307,29 +312,90 @@ router.post('/conversations/:conversationId/message', (req, res, next) => {
     content: req.body.content || req.body.message,
     attachmentUrl: req.body.attachmentUrl || req.body.attachments?.[0]?.url,
     attachmentName: req.body.attachmentName || req.body.attachments?.[0]?.name,
+    isInternal: Boolean(req.body.isInternal || req.body.is_internal),
   };
   return supportConversationsController.addMessage(req, res, next);
 });
 
+router.put('/conversations/:conversationId/status', supportConversationsController.updateConversationStatus);
+router.post('/conversations/:conversationId/claim', conversationAssignmentController.claimConversation);
+router.post('/conversations/:conversationId/assign', conversationAssignmentController.assignToAgent);
+router.post('/conversations/:conversationId/reassign', (req, res, next) => {
+  req.body = {
+    ...req.body,
+    newAgentId: req.body.newAgentId || req.body.agentId || req.body.agent_id,
+  };
+  return conversationAssignmentController.reassignAgent(req, res, next);
+});
+router.post('/conversations/:conversationId/release', conversationAssignmentController.releaseConversation);
+
 router.get('/agents/dashboard', async (req, res, next) => {
   try {
     const businessId = req.query.business_id || req.query.businessId;
+    if (businessId) {
+      const allowed = await supportEmployerService.userCanAccessBusinessConversations(
+        businessId,
+        req.user.id,
+        req.user.role
+      );
+      if (!allowed) return res.status(403).json({ error: 'Access denied' });
+    } else if (!supportEmployerService.isPlatformAdmin(req.user.role)) {
+      return res.status(400).json({ error: 'business_id is required' });
+    }
     const stats = await supportConversationStats(businessId);
     const { rows: agents } = await db.query(
       `SELECT
          sa.id,
-         COALESCE(u.name, TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), u.email) AS name,
+         COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS name,
          COALESCE(sa.role, 'agent') AS role,
          sa.is_available,
          sa.status,
-         COALESCE(sa.total_conversations_handled, 0) AS total_chats
+         COALESCE(sa.total_conversations_handled, 0) AS total_chats,
+         COUNT(ca.id)::int AS active_chats
        FROM support_agents sa
        JOIN users u ON u.id = sa.user_id
-       WHERE ($1::uuid IS NULL OR sa.business_id = $1::uuid)
+       JOIN support_employers se ON se.id = sa.employer_id
+       LEFT JOIN conversation_assignments ca
+         ON ca.agent_id = sa.id AND ca.status = 'active'
+       WHERE ($1::integer IS NULL OR se.kind = 'platform' OR se.business_id = $1::integer)
+       GROUP BY sa.id, u.id
        ORDER BY sa.is_available DESC, sa.updated_at DESC
        LIMIT 25`,
       [businessId || null]
-    ).catch(() => ({ rows: [] }));
+    );
+    const conversationParams = [businessId || null];
+    const { rows: activeConversations } = await db.query(
+      `SELECT
+         sc.id,
+         sc.business_id,
+         sc.subject,
+         sc.priority,
+         sc.status,
+         sc.created_at,
+         sc.updated_at,
+         COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', cu.first_name, cu.last_name)), ''), cu.email) AS customer_name,
+         COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', au.first_name, au.last_name)), ''), au.email, 'Unassigned') AS agent_name,
+         COALESCE(
+           (SELECT scm.content
+            FROM support_conversation_messages scm
+            WHERE scm.conversation_id = sc.id AND scm.message_type <> 'internal_note'
+            ORDER BY scm.created_at DESC
+            LIMIT 1),
+           sc.description,
+           ''
+         ) AS last_message,
+         GREATEST(0, EXTRACT(EPOCH FROM (NOW() - sc.created_at)))::int AS duration_seconds
+       FROM support_conversations sc
+       LEFT JOIN users cu ON cu.id = sc.customer_id
+       LEFT JOIN support_agents sa ON sa.id = sc.agent_id
+       LEFT JOIN users au ON au.id = sa.user_id
+       WHERE sc.status NOT IN ('resolved', 'closed')
+         AND ($1::integer IS NULL OR sc.business_id = $1::integer)
+       ORDER BY CASE sc.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 ELSE 3 END,
+                sc.updated_at DESC
+       LIMIT 50`,
+      conversationParams
+    );
     res.json({
       stats: {
         agents_online: agents.filter((agent) => agent.is_available).length,
@@ -337,11 +403,8 @@ router.get('/agents/dashboard', async (req, res, next) => {
         avg_response_time_seconds: stats.avg_response_time_seconds || 0,
         resolution_rate: stats.resolution_rate || 0,
       },
-      agents: agents.map((agent) => ({
-        ...agent,
-        active_chats: 0,
-      })),
-      active_conversations: [],
+      agents,
+      active_conversations: activeConversations,
     });
   } catch (err) {
     next(err);
@@ -351,18 +414,28 @@ router.get('/agents/dashboard', async (req, res, next) => {
 router.get('/agents', async (req, res, next) => {
   try {
     const businessId = req.query.business_id || req.query.businessId;
+    if (businessId) {
+      const allowed = await supportEmployerService.userCanAccessBusinessConversations(
+        businessId,
+        req.user.id,
+        req.user.role
+      );
+      if (!allowed) return res.status(403).json({ error: 'Access denied' });
+    } else if (!supportEmployerService.isPlatformAdmin(req.user.role)) {
+      return res.status(400).json({ error: 'business_id is required' });
+    }
     const search = String(req.query.search || '').trim();
     const params = [businessId || null];
     let searchSql = '';
     if (search) {
       params.push(`%${search}%`);
-      searchSql = `AND (u.email ILIKE $2 OR u.name ILIKE $2 OR u.first_name ILIKE $2 OR u.last_name ILIKE $2)`;
+      searchSql = `AND (u.email ILIKE $2 OR u.first_name ILIKE $2 OR u.last_name ILIKE $2)`;
     }
     const { rows } = await db.query(
       `SELECT
          sa.id,
          sa.user_id,
-         COALESCE(u.name, TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), u.email) AS name,
+         COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS name,
          u.email,
          COALESCE(sa.role, 'agent') AS role,
          COALESCE(sa.department, 'general') AS department,
@@ -374,11 +447,12 @@ router.get('/agents', async (req, res, next) => {
          ARRAY[]::text[] AS skills
        FROM support_agents sa
        JOIN users u ON u.id = sa.user_id
-       WHERE ($1::uuid IS NULL OR sa.business_id = $1::uuid) ${searchSql}
+       JOIN support_employers se ON se.id = sa.employer_id
+       WHERE ($1::integer IS NULL OR se.kind = 'platform' OR se.business_id = $1::integer) ${searchSql}
        ORDER BY sa.updated_at DESC, sa.created_at DESC
        LIMIT 100`,
       params
-    ).catch(() => ({ rows: [] }));
+    );
     res.json({ agents: rows });
   } catch (err) {
     next(err);
@@ -451,7 +525,7 @@ router.get('/performance', async (req, res, next) => {
     const { rows } = await db.query(
       `SELECT
          sa.id,
-         COALESCE(u.name, TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), u.email) AS name,
+         COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS name,
          COALESCE(sa.role, 'agent') AS role,
          COALESCE(sa.avg_rating, 0) AS rating,
          COALESCE(sa.total_conversations_handled, 0) AS total_chats,
@@ -475,7 +549,7 @@ router.get('/performance/:agentId', async (req, res, next) => {
     const { rows } = await db.query(
       `SELECT
          sa.id,
-         COALESCE(u.name, TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), u.email) AS name,
+         COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS name,
          u.email,
          COALESCE(sa.role, 'agent') AS role,
          COALESCE(sa.avg_rating, 0) AS rating,

@@ -149,6 +149,7 @@ import SupportTicketDetailPage from './pages/SupportTicketDetailPage';
 import RestaurantSupportCasePage from './pages/RestaurantSupportCasePage';
 import SupportEscalationPage from './pages/SupportEscalationPage';
 import SupportAgentPortalPage from './pages/SupportAgentPortalPage';
+import SupportAgentWorkspacePage from './pages/SupportAgentWorkspacePage';
 import StatusPage from './pages/StatusPage';
 import InventoryHelpCenterPage from './pages/InventoryHelpCenterPage';
 import MyJobsPage from './pages/MyJobsPage';
@@ -306,6 +307,7 @@ export default function App() {
                     <Route path="/support/escalation"     element={<Guarded><SupportEscalationPage /></Guarded>} />
                     <Route path="/support/my-tickets/:ticketId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><SupportTicketDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/support/agent" element={<Guarded><ProtectedRoute><SupportAgentPortalPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/support/agent/workspace" element={<Guarded><ProtectedRoute><RouteErrorBoundary><SupportAgentWorkspacePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/restaurants/support/cases/:caseId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><RestaurantSupportCasePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* ── Legal / policy pages ─────────────────────────────── */}

@@ -1,7 +1,7 @@
 // Support Conversations Controller
 // Manages support tickets: creation, assignment, status updates, resolution
 
-const { query, withTransaction } = require('../db');
+const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
@@ -94,7 +94,11 @@ async function listConversations(req, res) {
     const { businessId } = req.params;
     const { status, priority, agentId, limit = 50, offset = 0 } = req.query;
 
-    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    const can = await supportEmployerService.userCanAccessBusinessConversations(
+      businessId,
+      req.user.id,
+      req.user.role
+    );
     if (!can) return sendError(res, 403, 'Access denied');
 
     let sql = `
@@ -162,6 +166,7 @@ async function getConversation(req, res) {
         ) as customer_name,
         u.email as customer_email,
         sa.id as agent_id,
+        sa.user_id as agent_user_id,
         COALESCE(
           NULLIF(BTRIM(CONCAT_WS(' ', au.first_name, au.last_name)), ''),
           au.email
@@ -179,31 +184,40 @@ async function getConversation(req, res) {
     const conversation = result.rows[0];
 
     const isCustomer = req.user.id === conversation.customer_id;
+    const isPlatformAdmin = supportEmployerService.isPlatformAdmin(req.user.role);
     let isAssignedAgent = false;
     if (!isCustomer && conversation.agent_id) {
       const ag = await query('SELECT user_id FROM support_agents WHERE id = $1', [conversation.agent_id]);
       isAssignedAgent = ag.rows.length && ag.rows[0].user_id === req.user.id;
     }
     let canBiz = false;
-    if (!isCustomer && !isAssignedAgent) {
-      canBiz = await supportEmployerService.userCanManageBusiness(
+    if (!isCustomer && !isAssignedAgent && !isPlatformAdmin) {
+      canBiz = await supportEmployerService.userCanAccessBusinessConversations(
         conversation.business_id,
-        req.user.id
+        req.user.id,
+        req.user.role
       );
     }
-    if (!isCustomer && !canBiz && !isAssignedAgent) {
+    if (!isCustomer && !canBiz && !isAssignedAgent && !isPlatformAdmin) {
       return sendError(res, 403, 'Access denied');
     }
 
     // Get messages
     const messages = await query(
       `SELECT
-        id, conversation_id, sender_id, message_type, content,
-        is_agent, is_ai, status, read_at, created_at
-      FROM support_conversation_messages
-      WHERE conversation_id = $1
-      ORDER BY created_at ASC`,
-      [conversationId]
+        scm.id, scm.conversation_id, scm.sender_id, scm.message_type, scm.content,
+        scm.attachment_url, scm.attachment_name,
+        scm.is_agent, scm.is_ai, scm.status, scm.read_at, scm.created_at,
+        COALESCE(
+          NULLIF(BTRIM(CONCAT_WS(' ', sender.first_name, sender.last_name)), ''),
+          sender.email
+        ) AS sender_name
+      FROM support_conversation_messages scm
+      LEFT JOIN users sender ON sender.id = scm.sender_id
+      WHERE scm.conversation_id = $1
+        AND ($2::boolean = FALSE OR scm.message_type <> 'internal_note')
+      ORDER BY scm.created_at ASC`,
+      [conversationId, isCustomer]
     );
 
     res.json({
@@ -243,10 +257,15 @@ async function updateConversationStatus(req, res) {
 
     const conversation = convResult.rows[0];
 
-    const can = await supportEmployerService.userCanManageBusiness(
-      conversation.business_id,
-      req.user.id
-    );
+    const isPlatformAdmin = supportEmployerService.isPlatformAdmin(req.user.role);
+    let isAssignedAgent = false;
+    if (conversation.agent_id) {
+      const ag = await query('SELECT user_id FROM support_agents WHERE id = $1', [conversation.agent_id]);
+      isAssignedAgent = ag.rows[0]?.user_id === req.user.id;
+    }
+    const can = isPlatformAdmin
+      || isAssignedAgent
+      || await supportEmployerService.userCanAdministrateBusiness(conversation.business_id, req.user.id);
     if (!can) return sendError(res, 403, 'Access denied');
 
     // Update status
@@ -256,9 +275,16 @@ async function updateConversationStatus(req, res) {
     `;
     const params = [status];
 
-    if (status === 'resolved' || status === 'closed') {
-      updateSql += `, resolved_at = CURRENT_TIMESTAMP, resolution_status = $${params.length + 1}`;
+    if (status === 'resolved') {
+      updateSql += `, resolved_at = CURRENT_TIMESTAMP, closed_at = NULL, resolution_status = $${params.length + 1}`;
       params.push(resolutionStatus || 'resolved');
+    } else if (status === 'closed') {
+      updateSql += `, closed_at = CURRENT_TIMESTAMP, resolution_status = $${params.length + 1}`;
+      params.push(resolutionStatus || 'resolved');
+    } else if (status === 'open') {
+      updateSql += `, resolved_at = NULL, closed_at = NULL, agent_id = NULL, assigned_at = NULL`;
+    } else if (status === 'in_progress') {
+      updateSql += `, resolved_at = NULL, closed_at = NULL`;
     }
 
     if (internalNotes) {
@@ -271,7 +297,44 @@ async function updateConversationStatus(req, res) {
 
     const result = await query(updateSql, params);
 
+    if (status === 'resolved' || status === 'closed') {
+      await query(
+        `UPDATE support_queue
+         SET status = 'removed', removed_at = NOW(), reason_removed = $1
+         WHERE conversation_id = $2 AND status <> 'removed'`,
+        [status, conversationId]
+      );
+      await query(
+        `UPDATE conversation_assignments
+         SET status = 'completed', released_at = COALESCE(released_at, NOW()),
+             duration_seconds = COALESCE(
+               duration_seconds,
+               EXTRACT(EPOCH FROM (NOW() - claimed_at))::integer
+             )
+         WHERE conversation_id = $1 AND status = 'active'`,
+        [conversationId]
+      );
+    } else if (status === 'open') {
+      await query(
+        `UPDATE support_queue
+         SET status = 'waiting', removed_at = NULL, reason_removed = NULL,
+             routed_to_agent_id = NULL
+         WHERE conversation_id = $1`,
+        [conversationId]
+      );
+    }
+
     logger.info('Conversation status updated', { conversationId, status });
+
+    const statusPayload = {
+      ticketId: conversationId,
+      conversationId,
+      status,
+      updatedBy: req.user.id,
+      timestamp: new Date().toISOString(),
+    };
+    WebSocketService.broadcastToTicket(conversationId, 'ticket:status-changed', statusPayload);
+    WebSocketService.broadcastToAdmins('support:conversation-updated', statusPayload);
 
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -284,7 +347,13 @@ async function updateConversationStatus(req, res) {
 async function addMessage(req, res) {
   try {
     const { conversationId } = req.params;
-    const { content, messageType = 'text', attachmentUrl, attachmentName } = req.body;
+    const {
+      content,
+      messageType = 'text',
+      attachmentUrl,
+      attachmentName,
+      isInternal = false,
+    } = req.body;
 
     if (!content) {
       return sendValidationError(res, { content: 'Required' });
@@ -299,21 +368,28 @@ async function addMessage(req, res) {
 
     const conversation = convResult.rows[0];
 
+    const isCustomer = req.user.id === conversation.customer_id;
+    const isPlatformAdmin = supportEmployerService.isPlatformAdmin(req.user.role);
     let isAssignedAgent = false;
     if (conversation.agent_id) {
       const ag = await query('SELECT user_id FROM support_agents WHERE id = $1', [conversation.agent_id]);
       isAssignedAgent = ag.rows.length && ag.rows[0].user_id === req.user.id;
     }
     let canManageBusiness = false;
-    if (req.user.id !== conversation.customer_id && !isAssignedAgent) {
-      canManageBusiness = await supportEmployerService.userCanManageBusiness(
+    if (!isCustomer && !isAssignedAgent && !isPlatformAdmin) {
+      canManageBusiness = await supportEmployerService.userCanAdministrateBusiness(
         conversation.business_id,
         req.user.id
       );
       if (!canManageBusiness) return sendError(res, 403, 'Access denied');
     }
 
-    const isAgent = isAssignedAgent || canManageBusiness || ['admin', 'super_admin'].includes(req.user.role);
+    const isAgent = isAssignedAgent || canManageBusiness || isPlatformAdmin;
+    if (isInternal && !isAgent) {
+      return sendError(res, 403, 'Only support staff can add internal notes');
+    }
+
+    const storedMessageType = isInternal ? 'internal_note' : messageType;
 
     // Add message
     const result = await query(
@@ -321,7 +397,7 @@ async function addMessage(req, res) {
        (conversation_id, sender_id, message_type, content, attachment_url, attachment_name, is_agent)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [conversationId, req.user.id, messageType, content, attachmentUrl || null, attachmentName || null, isAgent]
+      [conversationId, req.user.id, storedMessageType, content, attachmentUrl || null, attachmentName || null, isAgent]
     );
 
     // Update conversation message counts
@@ -354,10 +430,11 @@ async function addMessage(req, res) {
     logger.info('Message added to conversation', {
       conversationId,
       isAgent,
-      messageType
+      messageType: storedMessageType,
+      isInternal
     });
 
-    WebSocketService.broadcastToTicket(conversationId, 'message:new', {
+    const eventPayload = {
       messageId: result.rows[0].id,
       ticketId: conversationId,
       sender: {
@@ -370,7 +447,14 @@ async function addMessage(req, res) {
       },
       content,
       timestamp: result.rows[0].created_at,
-    });
+      isInternal,
+    };
+
+    // Private notes must never enter the customer ticket room.
+    if (!isInternal) {
+      WebSocketService.broadcastToTicket(conversationId, 'message:new', eventPayload);
+    }
+    WebSocketService.broadcastToAdmins('support:conversation-updated', eventPayload);
 
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -384,7 +468,11 @@ async function getConversationStats(req, res) {
   try {
     const { businessId } = req.params;
 
-    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    const can = await supportEmployerService.userCanAccessBusinessConversations(
+      businessId,
+      req.user.id,
+      req.user.role
+    );
     if (!can) return sendError(res, 403, 'Access denied');
 
     const result = await query(

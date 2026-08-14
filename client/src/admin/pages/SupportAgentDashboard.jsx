@@ -28,6 +28,14 @@ function formatSeconds(value) {
   return remainder ? `${minutes}m ${remainder}s` : `${minutes}m`;
 }
 
+function formatDuration(value) {
+  const seconds = Number(value || 0);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
 export default function SupportAgentDashboard() {
   const { businessId } = useParams();
   const [data, setData] = useState(null);
@@ -159,7 +167,7 @@ export default function SupportAgentDashboard() {
                       <div className="text-sm font-semibold text-white">{conv.customer_name}</div>
                       <div className="mt-1 text-xs text-gray-500">{conv.agent_name}</div>
                     </div>
-                    <SupportTag tone="blue">{conv.duration}</SupportTag>
+                    <SupportTag tone="blue">{formatDuration(conv.duration_seconds)}</SupportTag>
                   </div>
                   <div className="mt-3 rounded-xl border border-gray-800 bg-gray-950/70 px-3 py-2 text-sm leading-6 text-gray-400">
                     {conv.last_message || 'No recent message preview available.'}

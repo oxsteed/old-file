@@ -25,6 +25,23 @@ const BUSINESS_ACCESS_SQL = `
   LIMIT 1
 `;
 
+const BUSINESS_ADMIN_ACCESS_SQL = `
+  SELECT b.id FROM businesses b
+  WHERE b.id = $1::integer
+    AND (
+      b.user_id = $2::uuid
+      OR EXISTS (
+        SELECT 1
+        FROM business_members bm
+        WHERE bm.business_id = b.id
+          AND bm.member_id = $2::uuid
+          AND bm.status = 'active'
+          AND bm.role IN ('manager', 'representative')
+      )
+    )
+  LIMIT 1
+`;
+
 /**
  * True if user may manage hiring/settings for this business (OxSteed business row).
  * Owners live in businesses.user_id; delegated access lives in business_members.
@@ -35,6 +52,59 @@ async function userCanManageBusiness(businessId, userId) {
     userId,
   ]);
   return rows.length > 0;
+}
+
+async function userCanAdministrateBusiness(businessId, userId) {
+  const { rows } = await query(BUSINESS_ADMIN_ACCESS_SQL, [businessId, userId]);
+  return rows.length > 0;
+}
+
+function isPlatformAdmin(userRole) {
+  return userRole === 'admin' || userRole === 'super_admin';
+}
+
+/**
+ * Return the active support-agent employment that can work a conversation for
+ * this business. Platform agents can serve every business; business agents are
+ * restricted to their own employer.
+ */
+async function findAgentForConversationBusiness(businessId, userId) {
+  const { rows } = await query(
+    `SELECT sa.*
+     FROM support_agents sa
+     JOIN support_employers se ON se.id = sa.employer_id
+     WHERE sa.user_id = $1
+       AND sa.status = 'active'
+       AND (
+         se.kind = 'platform'
+         OR (se.kind = 'business' AND se.business_id = $2)
+       )
+     ORDER BY CASE WHEN se.kind = 'business' THEN 0 ELSE 1 END, sa.created_at ASC
+     LIMIT 1`,
+    [userId, businessId]
+  );
+  return rows[0] || null;
+}
+
+async function findPlatformAgent(userId) {
+  const { rows } = await query(
+    `SELECT sa.*
+     FROM support_agents sa
+     JOIN support_employers se ON se.id = sa.employer_id
+     WHERE sa.user_id = $1
+       AND sa.status = 'active'
+       AND se.kind = 'platform'
+     ORDER BY sa.created_at ASC
+     LIMIT 1`,
+    [userId]
+  );
+  return rows[0] || null;
+}
+
+async function userCanAccessBusinessConversations(businessId, userId, userRole) {
+  if (isPlatformAdmin(userRole)) return true;
+  if (await userCanManageBusiness(businessId, userId)) return true;
+  return Boolean(await findAgentForConversationBusiness(businessId, userId));
 }
 
 async function userCanManageEmployer(employerId, userId, userRole) {
@@ -217,7 +287,12 @@ async function employerIdsForConversationBusiness(businessId) {
 }
 
 module.exports = {
+  isPlatformAdmin,
+  findAgentForConversationBusiness,
+  findPlatformAgent,
+  userCanAccessBusinessConversations,
   userCanManageBusiness,
+  userCanAdministrateBusiness,
   userCanManageEmployer,
   getEmployerById,
   ensureBusinessEmployer,
@@ -227,4 +302,5 @@ module.exports = {
   listEmployersForUser,
   employerIdsForConversationBusiness,
   BUSINESS_ACCESS_SQL,
+  BUSINESS_ADMIN_ACCESS_SQL,
 };

@@ -81,6 +81,7 @@ async function getMyEmployments(req, res) {
       employer_id: row.employer_id,
       employer_kind: row.employer_kind,
       employer_label: employerLabel(row),
+      business_id: row.employer_business_id || row.service_business_id || null,
       service_business_id: row.service_business_id,
       service_business_name: row.service_business_name,
       status: row.status,

@@ -5,6 +5,18 @@ const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
+const WebSocketService = require('../services/websocketService');
+
+function broadcastAssignment(conversationId, event, payload = {}) {
+  const data = {
+    ticketId: conversationId,
+    conversationId,
+    timestamp: new Date().toISOString(),
+    ...payload,
+  };
+  WebSocketService.broadcastToTicket(conversationId, event, data);
+  WebSocketService.broadcastToAdmins('support:conversation-updated', data);
+}
 
 // Agent claims a conversation from queue
 async function claimConversation(req, res) {
@@ -20,19 +32,11 @@ async function claimConversation(req, res) {
 
     const conversation = convResult.rows[0];
 
-    const employerIds = await supportEmployerService.employerIdsForConversationBusiness(
-      conversation.business_id
+    const agent = await supportEmployerService.findAgentForConversationBusiness(
+      conversation.business_id,
+      req.user.id
     );
-    const agentResult = await query(
-      `SELECT sa.* FROM support_agents sa
-       WHERE sa.user_id = $1 AND sa.employer_id = ANY($2::uuid[])
-       ORDER BY sa.created_at ASC
-       LIMIT 1`,
-      [req.user.id, employerIds]
-    );
-    if (!agentResult.rows.length) return sendError(res, 403, 'Not an agent');
-
-    const agent = agentResult.rows[0];
+    if (!agent) return sendError(res, 403, 'Not an agent for this support queue');
 
     // Check if agent is available
     if (!agent.is_available) {
@@ -95,6 +99,11 @@ async function claimConversation(req, res) {
       agentId: agent.id
     });
 
+    broadcastAssignment(conversationId, 'agent:joined', {
+      agentId: agent.id,
+      message: 'A support specialist joined the conversation.',
+    });
+
     res.json({ success: true, data: assignResult.rows[0] });
   } catch (err) {
     logger.error('claimConversation error', { error: err.message });
@@ -121,10 +130,8 @@ async function assignToAgent(req, res) {
 
     const conversation = convResult.rows[0];
 
-    const canManage = await supportEmployerService.userCanManageBusiness(
-      conversation.business_id,
-      req.user.id
-    );
+    const canManage = supportEmployerService.isPlatformAdmin(req.user.role)
+      || await supportEmployerService.userCanAdministrateBusiness(conversation.business_id, req.user.id);
     if (!canManage) return sendError(res, 403, 'Access denied');
 
     const employerIds = await supportEmployerService.employerIdsForConversationBusiness(
@@ -200,6 +207,15 @@ async function assignToAgent(req, res) {
       assignedBy: req.user.id
     });
 
+    WebSocketService.notifyAgent(agentId, 'ticket:new-assignment', {
+      ticketId: conversationId,
+      conversationId,
+    });
+    broadcastAssignment(conversationId, 'agent:joined', {
+      agentId,
+      message: 'A support specialist joined the conversation.',
+    });
+
     res.json({ success: true, data: assignResult.rows[0] });
   } catch (err) {
     logger.error('assignToAgent error', { error: err.message });
@@ -226,10 +242,8 @@ async function reassignAgent(req, res) {
 
     const conversation = convResult.rows[0];
 
-    const canManage = await supportEmployerService.userCanManageBusiness(
-      conversation.business_id,
-      req.user.id
-    );
+    const canManage = supportEmployerService.isPlatformAdmin(req.user.role)
+      || await supportEmployerService.userCanAdministrateBusiness(conversation.business_id, req.user.id);
     if (!canManage) return sendError(res, 403, 'Access denied');
 
     if (!conversation.agent_id) {
@@ -300,6 +314,15 @@ async function reassignAgent(req, res) {
       toAgentId: newAgentId
     });
 
+    WebSocketService.notifyAgent(newAgentId, 'ticket:new-assignment', {
+      ticketId: conversationId,
+      conversationId,
+    });
+    broadcastAssignment(conversationId, 'agent:changed', {
+      previousAgentId: conversation.agent_id,
+      agentId: newAgentId,
+    });
+
     res.json({ success: true, data: assignResult.rows[0] });
   } catch (err) {
     logger.error('reassignAgent error', { error: err.message });
@@ -330,8 +353,11 @@ async function releaseConversation(req, res) {
       );
       allowed = ag.rows.length > 0;
     }
+    if (!allowed && supportEmployerService.isPlatformAdmin(req.user.role)) {
+      allowed = true;
+    }
     if (!allowed) {
-      allowed = await supportEmployerService.userCanManageBusiness(
+      allowed = await supportEmployerService.userCanAdministrateBusiness(
         conversation.business_id,
         req.user.id
       );
@@ -376,6 +402,11 @@ async function releaseConversation(req, res) {
 
     logger.info('Conversation released', { conversationId });
 
+    broadcastAssignment(conversationId, 'agent:left', {
+      previousAgentId: conversation.agent_id,
+      message: 'This conversation returned to the support queue.',
+    });
+
     res.json({ success: true, data: assignment.rows[0] });
   } catch (err) {
     logger.error('releaseConversation error', { error: err.message });
@@ -391,7 +422,11 @@ async function getAgentAssignments(req, res) {
     const result = await query(
       `SELECT
         ca.id, ca.conversation_id, ca.agent_id,
-        sc.subject, sc.customer_id, u.name as customer_name,
+        sc.subject, sc.customer_id,
+        COALESCE(
+          NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''),
+          u.email
+        ) as customer_name,
         sc.status, sc.priority, sc.created_at,
         ca.claimed_at
       FROM conversation_assignments ca

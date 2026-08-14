@@ -229,4 +229,94 @@ describe('live support connection lifecycle', () => {
       })
     );
   });
+
+  test('lets a platform admin leave a private note without broadcasting it to the customer', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-1',
+          business_id: 'business-1',
+          customer_id: 'customer-1',
+          agent_id: null,
+          status: 'in_progress',
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'note-1',
+          content: 'Customer identity verified.',
+          message_type: 'internal_note',
+          created_at: '2026-08-13T00:02:00.000Z',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const req = {
+      user: { id: 'admin-1', first_name: 'Ava', role: 'super_admin' },
+      params: { conversationId: 'ticket-1' },
+      body: { content: 'Customer identity verified.', isInternal: true },
+    };
+    const res = responseDouble();
+
+    await supportConversationsController.addMessage(req, res);
+
+    const insertCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO support_conversation_messages/.test(sql));
+    expect(insertCall[1][2]).toBe('internal_note');
+    expect(WebSocketService.broadcastToTicket).not.toHaveBeenCalled();
+    expect(WebSocketService.broadcastToAdmins).toHaveBeenCalledWith(
+      'support:conversation-updated',
+      expect.objectContaining({ ticketId: 'ticket-1', isInternal: true })
+    );
+  });
+
+  test('requires an unassigned support agent to claim a conversation before replying', async () => {
+    jest.spyOn(require('../services/supportEmployerService'), 'userCanAdministrateBusiness')
+      .mockResolvedValue(false);
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 'ticket-1',
+        business_id: 'business-1',
+        customer_id: 'customer-1',
+        agent_id: null,
+        status: 'waiting_for_agent',
+      }],
+    });
+
+    const req = {
+      user: { id: 'agent-user-1', role: 'helper' },
+      params: { conversationId: 'ticket-1' },
+      body: { content: 'I can help.' },
+    };
+    const res = responseDouble();
+
+    await supportConversationsController.addMessage(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_conversation_messages/.test(sql))).toBe(false);
+  });
+
+  test('keeps internal notes out of the customer conversation query', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'ticket-1',
+          business_id: 'business-1',
+          customer_id: 'customer-1',
+          agent_id: null,
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const req = {
+      user: { id: 'customer-1', role: 'customer' },
+      params: { conversationId: 'ticket-1' },
+    };
+    const res = responseDouble();
+
+    await supportConversationsController.getConversation(req, res);
+
+    const messageCall = mockQuery.mock.calls.find(([sql]) => /FROM support_conversation_messages scm/.test(sql));
+    expect(messageCall[0]).toContain("scm.message_type <> 'internal_note'");
+    expect(messageCall[1]).toEqual(['ticket-1', true]);
+  });
 });

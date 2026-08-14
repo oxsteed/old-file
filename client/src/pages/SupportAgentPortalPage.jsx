@@ -593,6 +593,15 @@ export default function SupportAgentPortalPage() {
                           <span>Hired: {formatDate(row.hire_date) || '-'}</span>
                           <span>Max chats: {row.max_concurrent_chats ?? '-'}</span>
                         </div>
+                        {row.status === 'active' && (
+                          <Link
+                            to={row.business_id ? `/support/agent/workspace?business=${row.business_id}` : '/support/agent/workspace'}
+                            className="mt-4 inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
+                          >
+                            <Headphones size={15} />
+                            Open customer queue
+                          </Link>
+                        )}
                       </div>
                     ))}
                   </div>
