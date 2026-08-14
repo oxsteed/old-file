@@ -8,6 +8,7 @@ const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const SupportRoutingService = require('../services/supportRoutingService');
 const WebSocketService = require('../services/websocketService');
+const { withTransaction } = require('../utils/transaction');
 
 function assignedAgentFromRow(row) {
   if (!row?.agent_id) return null;
@@ -24,6 +25,7 @@ async function loadConversationMessages(ticketId) {
     `SELECT id, sender_id, content, message_type, is_agent, created_at
      FROM support_conversation_messages
      WHERE conversation_id = $1
+       AND message_type <> 'internal_note'
      ORDER BY created_at ASC`,
     [ticketId]
   );
@@ -105,12 +107,24 @@ async function routeConversation({ ticketId, customerId, businessId, category, m
   };
 
   if (routing.routedTo === 'agent' && routing.agentId) {
-    await pool.query(
-      `UPDATE support_conversations
-       SET agent_id = $1, status = 'in_progress', assigned_at = COALESCE(assigned_at, NOW()), updated_at = NOW()
-       WHERE id = $2`,
-      [routing.agentId, ticketId]
-    );
+    await withTransaction(pool, async (client) => {
+      await client.query(
+        `UPDATE support_conversations
+         SET agent_id = $1, status = 'in_progress', assigned_at = COALESCE(assigned_at, NOW()), updated_at = NOW()
+         WHERE id = $2`,
+        [routing.agentId, ticketId]
+      );
+      await client.query(
+        `INSERT INTO conversation_assignments
+         (conversation_id, agent_id, business_id, assignment_type, claimed_at, status)
+         SELECT $1, $2, $3, 'auto', NOW(), 'active'
+         WHERE NOT EXISTS (
+           SELECT 1 FROM conversation_assignments
+           WHERE conversation_id = $1 AND status = 'active'
+         )`,
+        [ticketId, routing.agentId, businessId]
+      );
+    }, 'support_auto_route_assignment');
 
     response.assignedAgent = {
       id: routing.agent.id,

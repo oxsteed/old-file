@@ -267,7 +267,7 @@ router.get('/conversations', async (req, res, next) => {
       return res.json({ conversations: rows });
     }
 
-    if (businessId && req.query.business_id) {
+    if (businessId && (req.query.business_id || req.query.businessId)) {
       req.params.businessId = businessId;
       return supportConversationsController.listConversations(req, res, next);
     }
@@ -461,6 +461,20 @@ router.get('/agents', async (req, res, next) => {
 
 router.patch('/agents/:agentId/toggle-status', async (req, res, next) => {
   try {
+    const { rows: agentRows } = await db.query(
+      `SELECT sa.id, sa.employer_id
+       FROM support_agents sa
+       WHERE sa.id = $1`,
+      [req.params.agentId]
+    );
+    if (!agentRows.length) return res.status(404).json({ error: 'Agent not found' });
+    const canManage = await supportEmployerService.userCanManageEmployer(
+      agentRows[0].employer_id,
+      req.user.id,
+      req.user.role
+    );
+    if (!canManage) return res.status(403).json({ error: 'Access denied' });
+
     const { rows } = await db.query(
       `UPDATE support_agents
        SET status = CASE WHEN status = 'active' THEN 'inactive' ELSE 'active' END,
@@ -468,7 +482,7 @@ router.patch('/agents/:agentId/toggle-status', async (req, res, next) => {
        WHERE id = $1
        RETURNING *`,
       [req.params.agentId]
-    ).catch(() => ({ rows: [] }));
+    );
     if (!rows.length) return res.status(404).json({ error: 'Agent not found' });
     res.json({ agent: rows[0] });
   } catch (err) {
@@ -478,7 +492,19 @@ router.patch('/agents/:agentId/toggle-status', async (req, res, next) => {
 
 router.delete('/agents/:agentId', async (req, res, next) => {
   try {
-    await db.query('DELETE FROM support_agents WHERE id = $1', [req.params.agentId]).catch(() => null);
+    const { rows: agentRows } = await db.query(
+      'SELECT id, employer_id FROM support_agents WHERE id = $1',
+      [req.params.agentId]
+    );
+    if (!agentRows.length) return res.status(404).json({ error: 'Agent not found' });
+    const canManage = await supportEmployerService.userCanManageEmployer(
+      agentRows[0].employer_id,
+      req.user.id,
+      req.user.role
+    );
+    if (!canManage) return res.status(403).json({ error: 'Access denied' });
+
+    await db.query('DELETE FROM support_agents WHERE id = $1', [req.params.agentId]);
     res.json({ success: true });
   } catch (err) {
     next(err);
@@ -522,9 +548,20 @@ router.get('/sla', async (req, res, next) => {
 router.get('/performance', async (req, res, next) => {
   try {
     const businessId = req.query.business_id || req.query.businessId;
+    if (businessId) {
+      const allowed = await supportEmployerService.userCanAccessBusinessConversations(
+        businessId,
+        req.user.id,
+        req.user.role
+      );
+      if (!allowed) return res.status(403).json({ error: 'Access denied' });
+    } else if (!supportEmployerService.isPlatformAdmin(req.user.role)) {
+      return res.status(400).json({ error: 'business_id is required' });
+    }
     const { rows } = await db.query(
       `SELECT
          sa.id,
+         sa.user_id,
          COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS name,
          COALESCE(sa.role, 'agent') AS role,
          COALESCE(sa.avg_rating, 0) AS rating,
@@ -533,11 +570,11 @@ router.get('/performance', async (req, res, next) => {
          COALESCE(sa.total_resolved_count, 0) AS resolved_count
        FROM support_agents sa
        JOIN users u ON u.id = sa.user_id
-       WHERE ($1::uuid IS NULL OR sa.business_id = $1::uuid)
+       WHERE ($1::integer IS NULL OR sa.business_id = $1::integer)
        ORDER BY sa.avg_rating DESC NULLS LAST, sa.updated_at DESC
        LIMIT 100`,
       [businessId || null]
-    ).catch(() => ({ rows: [] }));
+    );
     res.json({ agents: rows });
   } catch (err) {
     next(err);
@@ -549,18 +586,28 @@ router.get('/performance/:agentId', async (req, res, next) => {
     const { rows } = await db.query(
       `SELECT
          sa.id,
+         sa.user_id,
          COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS name,
          u.email,
          COALESCE(sa.role, 'agent') AS role,
          COALESCE(sa.avg_rating, 0) AS rating,
          COALESCE(sa.total_conversations_handled, 0) AS total_chats,
-         COALESCE(sa.total_resolved_count, 0) AS resolved_count
+         COALESCE(sa.total_resolved_count, 0) AS resolved_count,
+         sa.employer_id
        FROM support_agents sa
        JOIN users u ON u.id = sa.user_id
        WHERE sa.id = $1`,
       [req.params.agentId]
-    ).catch(() => ({ rows: [] }));
+    );
     if (!rows.length) return res.status(404).json({ error: 'Agent not found' });
+    const canAccess = await supportEmployerService.userCanManageEmployer(
+      rows[0].employer_id,
+      req.user.id,
+      req.user.role
+    );
+    if (!canAccess && rows[0].user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
     res.json({ agent: rows[0], trend: [], conversations: [] });
   } catch (err) {
     next(err);

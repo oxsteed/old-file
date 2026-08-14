@@ -1,11 +1,13 @@
 // Conversation Assignment Controller
 // Manages ticket assignment: claiming, reassigning, releasing conversations to agents
 
-const { query } = require('../db');
+const pool = require('../db');
+const { query } = pool;
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
 const WebSocketService = require('../services/websocketService');
+const { withTransaction } = require('../utils/transaction');
 
 function broadcastAssignment(conversationId, event, payload = {}) {
   const data = {
@@ -38,61 +40,76 @@ async function claimConversation(req, res) {
     );
     if (!agent) return sendError(res, 403, 'Not an agent for this support queue');
 
-    // Check if agent is available
-    if (!agent.is_available) {
-      return sendError(res, 400, 'Agent is not available');
-    }
+    const assignment = await withTransaction(pool, async (client) => {
+      // Locking both records serializes capacity checks and competing claims.
+      const lockedAgent = await client.query(
+        `SELECT id, is_available, max_concurrent_chats
+         FROM support_agents
+         WHERE id = $1 AND status = 'active'
+         FOR UPDATE`,
+        [agent.id]
+      );
+      if (!lockedAgent.rows.length || !lockedAgent.rows[0].is_available) {
+        const error = new Error('AGENT_UNAVAILABLE');
+        error.code = 'AGENT_UNAVAILABLE';
+        throw error;
+      }
 
-    // Check if agent has capacity
-    const activeChats = await query(
-      `SELECT COUNT(*) as chat_count
-       FROM conversation_assignments
-       WHERE agent_id = $1 AND status = 'active'`,
-      [agent.id]
-    );
+      const activeChats = await client.query(
+        `SELECT COUNT(*)::integer AS chat_count
+         FROM conversation_assignments
+         WHERE agent_id = $1 AND status = 'active'`,
+        [agent.id]
+      );
+      if (activeChats.rows[0].chat_count >= lockedAgent.rows[0].max_concurrent_chats) {
+        const error = new Error('AGENT_CAPACITY');
+        error.code = 'AGENT_CAPACITY';
+        throw error;
+      }
 
-    if (activeChats.rows[0].chat_count >= agent.max_concurrent_chats) {
-      return sendError(res, 400, 'Agent at max capacity');
-    }
+      const claimedConversation = await client.query(
+        `UPDATE support_conversations
+         SET agent_id = $1,
+             status = 'in_progress',
+             assigned_at = CURRENT_TIMESTAMP,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2
+           AND agent_id IS NULL
+           AND status NOT IN ('resolved', 'closed')
+         RETURNING id`,
+        [agent.id, conversationId]
+      );
+      if (!claimedConversation.rows.length) {
+        const error = new Error('CONVERSATION_ALREADY_ASSIGNED');
+        error.code = 'CONVERSATION_ALREADY_ASSIGNED';
+        throw error;
+      }
 
-    // Check if already assigned
-    if (conversation.agent_id) {
-      return sendError(res, 400, 'Conversation already assigned');
-    }
+      const assignResult = await client.query(
+        `INSERT INTO conversation_assignments
+         (conversation_id, agent_id, business_id, assignment_type, claimed_at, status)
+         VALUES ($1, $2, $3, 'auto', CURRENT_TIMESTAMP, 'active')
+         RETURNING *`,
+        [conversationId, agent.id, conversation.business_id]
+      );
 
-    // Assign conversation to agent
-    const assignResult = await query(
-      `INSERT INTO conversation_assignments
-       (conversation_id, agent_id, business_id, assignment_type, claimed_at, status)
-       VALUES ($1, $2, $3, 'auto', CURRENT_TIMESTAMP, 'active')
-       RETURNING *`,
-      [conversationId, agent.id, conversation.business_id]
-    );
+      await client.query(
+        `UPDATE support_queue
+         SET status = 'assigned', routed_to_agent_id = $1, claimed_at = CURRENT_TIMESTAMP
+         WHERE conversation_id = $2`,
+        [agent.id, conversationId]
+      );
 
-    // Update conversation with agent
-    await query(
-      `UPDATE support_conversations
-       SET agent_id = $1, status = 'in_progress', assigned_at = CURRENT_TIMESTAMP
-       WHERE id = $2`,
-      [agent.id, conversationId]
-    );
+      await client.query(
+        `INSERT INTO queue_events
+         (queue_id, business_id, conversation_id, event_type, to_agent_id, event_reason)
+         SELECT id, business_id, $2, 'claimed', $1, 'Agent self-claimed'
+         FROM support_queue WHERE conversation_id = $2`,
+        [agent.id, conversationId]
+      );
 
-    // Remove from queue
-    await query(
-      `UPDATE support_queue
-       SET status = 'assigned', routed_to_agent_id = $1, claimed_at = CURRENT_TIMESTAMP
-       WHERE conversation_id = $2`,
-      [agent.id, conversationId]
-    );
-
-    // Log queue event
-    await query(
-      `INSERT INTO queue_events
-       (queue_id, business_id, conversation_id, event_type, to_agent_id, event_reason)
-       SELECT id, business_id, $2, 'claimed', $1, 'Agent self-claimed'
-       FROM support_queue WHERE conversation_id = $2`,
-      [agent.id, conversationId]
-    );
+      return assignResult.rows[0];
+    }, 'support_conversation_claim');
 
     logger.info('Conversation claimed by agent', {
       conversationId,
@@ -104,8 +121,17 @@ async function claimConversation(req, res) {
       message: 'A support specialist joined the conversation.',
     });
 
-    res.json({ success: true, data: assignResult.rows[0] });
+    res.json({ success: true, data: assignment });
   } catch (err) {
+    if (err.code === 'AGENT_UNAVAILABLE') {
+      return sendError(res, 409, 'Agent is not available');
+    }
+    if (err.code === 'AGENT_CAPACITY') {
+      return sendError(res, 409, 'Agent at max capacity');
+    }
+    if (err.code === 'CONVERSATION_ALREADY_ASSIGNED') {
+      return sendError(res, 409, 'Conversation already assigned');
+    }
     logger.error('claimConversation error', { error: err.message });
     sendError(res, 500, 'Failed to claim conversation');
   }

@@ -13,6 +13,8 @@ import {
   Send,
   Unlock,
   UserRound,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import api from '../../api/axios';
 import { useAuth } from '../../hooks/useAuth';
@@ -69,6 +71,8 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [agentEmployment, setAgentEmployment] = useState(null);
+  const [availabilityBusy, setAvailabilityBusy] = useState(false);
 
   const isPlatformAdmin = ['admin', 'super_admin'].includes(user?.role);
 
@@ -117,10 +121,26 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     }
   }, [businessId, isPlatformAdmin]);
 
+  const loadAgentEmployment = useCallback(async () => {
+    if (isPlatformAdmin) return;
+    try {
+      const { data } = await api.get('/support/agent/me');
+      const rows = Array.isArray(data?.data) ? data.data : [];
+      const activeRows = rows.filter((row) => row.status === 'active');
+      const matching = businessId
+        ? activeRows.find((row) => String(row.business_id) === String(businessId))
+        : activeRows.find((row) => row.employer_kind === 'platform');
+      setAgentEmployment(matching || null);
+    } catch {
+      setAgentEmployment(null);
+    }
+  }, [businessId, isPlatformAdmin]);
+
   useEffect(() => {
     loadConversations();
     loadAgents();
-  }, [loadAgents, loadConversations]);
+    loadAgentEmployment();
+  }, [loadAgentEmployment, loadAgents, loadConversations]);
 
   useEffect(() => {
     loadDetail(selectedId);
@@ -200,6 +220,24 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     'Conversation status updated.'
   );
 
+  const toggleAvailability = async () => {
+    if (!agentEmployment) return;
+    setAvailabilityBusy(true);
+    try {
+      const next = !agentEmployment.is_available;
+      await api.patch('/support/agent/me/availability', {
+        agent_id: agentEmployment.agent_id,
+        is_available: next,
+      });
+      setAgentEmployment((current) => current ? { ...current, is_available: next } : current);
+      toast.success(next ? 'You are online for live support.' : 'You are offline for new conversations.');
+    } catch (error) {
+      toast.error(error?.response?.data?.error || error?.response?.data?.message || 'Could not update availability.');
+    } finally {
+      setAvailabilityBusy(false);
+    }
+  };
+
   const sendMessage = async (event) => {
     event.preventDefault();
     const content = reply.trim();
@@ -240,14 +278,27 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
               Claim customer conversations before replying, keep private team context in internal notes, and use clear statuses so no request disappears between shifts.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => loadConversations()}
-            disabled={loading}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-200 hover:border-orange-500/50 disabled:opacity-50"
-          >
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {!isPlatformAdmin && agentEmployment && (
+              <button
+                type="button"
+                onClick={toggleAvailability}
+                disabled={availabilityBusy}
+                className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold disabled:opacity-50 ${agentEmployment.is_available ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' : 'border-slate-700 bg-slate-900 text-slate-300'}`}
+              >
+                {agentEmployment.is_available ? <Wifi size={15} /> : <WifiOff size={15} />}
+                {agentEmployment.is_available ? 'Online for live support' : 'Go online'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => loadConversations()}
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-200 hover:border-orange-500/50 disabled:opacity-50"
+            >
+              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh
+            </button>
+          </div>
         </div>
         <div className="mt-5 grid grid-cols-3 gap-3">
           {[

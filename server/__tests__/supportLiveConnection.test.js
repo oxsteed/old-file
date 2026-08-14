@@ -12,6 +12,7 @@ const SupportRoutingService = require('../services/supportRoutingService');
 const WebSocketService = require('../services/websocketService');
 const supportRoutingController = require('../controllers/supportRoutingController');
 const supportConversationsController = require('../controllers/supportConversationsController');
+const conversationAssignmentController = require('../controllers/conversationAssignmentController');
 
 function responseDouble() {
   return {
@@ -69,6 +70,8 @@ describe('live support connection lifecycle', () => {
     expect(resumeSql).toContain('au.first_name');
     expect(resumeSql).toContain('au.last_name');
     expect(resumeSql).not.toMatch(/\bau\.name\b/);
+    const resumeMessagesSql = mockQuery.mock.calls.find(([sql]) => /FROM support_conversation_messages/.test(sql))?.[0];
+    expect(resumeMessagesSql).toContain("message_type <> 'internal_note'");
 
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       ticketId: 'ticket-existing',
@@ -184,6 +187,7 @@ describe('live support connection lifecycle', () => {
       'ticket:new-assignment',
       expect.objectContaining({ ticketId: 'ticket-new' })
     );
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO conversation_assignments/.test(sql))).toBe(true);
   });
 
   test('stores and broadcasts an assigned agent reply as an agent message', async () => {
@@ -293,6 +297,67 @@ describe('live support connection lifecycle', () => {
 
     expect(res.status).toHaveBeenCalledWith(403);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_conversation_messages/.test(sql))).toBe(false);
+  });
+
+  test('claims a support conversation with an atomic conditional update', async () => {
+    jest.spyOn(require('../services/supportEmployerService'), 'findAgentForConversationBusiness')
+      .mockResolvedValue({
+        id: 'agent-1',
+        is_available: true,
+        max_concurrent_chats: 3,
+      });
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: 'ticket-1', business_id: 1, agent_id: null, status: 'waiting_for_agent' }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 'agent-1', is_available: true, max_concurrent_chats: 3 }] })
+      .mockResolvedValueOnce({ rows: [{ chat_count: 0 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'ticket-1' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'assignment-1' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const req = {
+      user: { id: 'agent-user-1', role: 'helper' },
+      params: { conversationId: 'ticket-1' },
+    };
+    const res = responseDouble();
+
+    await conversationAssignmentController.claimConversation(req, res);
+
+    const claimUpdate = mockQuery.mock.calls.find(([sql]) => /UPDATE support_conversations/.test(sql));
+    expect(claimUpdate[0]).toContain('agent_id IS NULL');
+    expect(claimUpdate[0]).toContain("status NOT IN ('resolved', 'closed')");
+    expect(res.json).toHaveBeenCalledWith({ success: true, data: { id: 'assignment-1' } });
+    expect(WebSocketService.broadcastToAdmins).toHaveBeenCalled();
+  });
+
+  test('returns a conflict when another operator wins the claim race', async () => {
+    jest.spyOn(require('../services/supportEmployerService'), 'findAgentForConversationBusiness')
+      .mockResolvedValue({
+        id: 'agent-1',
+        is_available: true,
+        max_concurrent_chats: 3,
+      });
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: 'ticket-1', business_id: 1, agent_id: null, status: 'waiting_for_agent' }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 'agent-1', is_available: true, max_concurrent_chats: 3 }] })
+      .mockResolvedValueOnce({ rows: [{ chat_count: 0 }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const req = {
+      user: { id: 'agent-user-1', role: 'helper' },
+      params: { conversationId: 'ticket-1' },
+    };
+    const res = responseDouble();
+
+    await conversationAssignmentController.claimConversation(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO conversation_assignments/.test(sql))).toBe(false);
+    expect(WebSocketService.broadcastToAdmins).not.toHaveBeenCalled();
   });
 
   test('keeps internal notes out of the customer conversation query', async () => {

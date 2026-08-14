@@ -478,8 +478,6 @@ async function listMyHiringProfiles(req, res) {
          AND b.is_active != FALSE
          AND (
            b.user_id = $1::uuid
-           OR b.owner_id = $1::uuid
-           OR (b.admin_user_ids IS NOT NULL AND b.admin_user_ids @> $2::jsonb)
            OR EXISTS (
              SELECT 1
              FROM business_members bm
@@ -490,7 +488,7 @@ async function listMyHiringProfiles(req, res) {
            )
          )
        ORDER BY COALESCE(h.is_accepting_applications, false) DESC, b.business_name ASC`,
-      [req.user.id, JSON.stringify([req.user.id])]
+      [req.user.id]
     );
 
     res.json({ success: true, data: result.rows });
