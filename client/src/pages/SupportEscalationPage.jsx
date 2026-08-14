@@ -24,6 +24,15 @@ import PageMeta from '../components/PageMeta';
 import { realtimeNamespaceUrl } from '../lib/realtime';
 import './SupportEscalationPage.css';
 
+function normalizeSupportMessages(messages = []) {
+  return messages.map((message) => ({
+    id: message.id,
+    sender: { type: message.is_agent ? 'agent' : 'customer' },
+    content: message.content,
+    timestamp: message.created_at,
+  }));
+}
+
 export default function SupportEscalationPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -34,6 +43,7 @@ export default function SupportEscalationPage() {
   const [liveInput, setLiveInput] = useState('');
   const [liveSending, setLiveSending] = useState(false);
   const [assignedAgent, setAssignedAgent] = useState(null);
+  const [connectionState, setConnectionState] = useState('checking');
   const [visitorName, setVisitorName] = useState(localStorage.getItem('oxs:visitorName') || '');
   const [visitorEmail, setVisitorEmail] = useState(localStorage.getItem('oxs:visitorEmail') || '');
   const [ticketMessage, setTicketMessage] = useState('');
@@ -49,87 +59,132 @@ export default function SupportEscalationPage() {
   }, [ticketId]);
 
   useEffect(() => {
-    const checkAvailability = async () => {
-      try {
-        const response = await api.get('/support-routing/status');
-        const onlineCount = response.data.agents || 0;
-        setAgentsOnline(onlineCount);
+    let active = true;
+    const socket = io(realtimeNamespaceUrl('support'), {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+    });
+    socketRef.current = socket;
 
-        if (onlineCount > 0) {
-          setPhase('live-chat');
-          initiateLiveChat();
-        } else {
+    socket.on('connect', () => {
+      socket.emit('customer:join', {
+        userId: localStorage.getItem('userId'),
+        visitorEmail: localStorage.getItem('oxs:visitorEmail'),
+        visitorName: localStorage.getItem('oxs:visitorName'),
+      });
+      if (ticketIdRef.current) {
+        socket.emit('ticket:join', {
+          ticketId: ticketIdRef.current,
+          userId: localStorage.getItem('userId'),
+        });
+      }
+    });
+
+    const handleAssignment = (data) => {
+      if (data.ticketId !== ticketIdRef.current) return;
+      setAssignedAgent({ id: data.agentId, name: data.agentName || 'Support specialist' });
+      setConnectionState('connected');
+    };
+
+    socket.on('ticket:assigned', handleAssignment);
+    socket.on('agent:assigned', handleAssignment);
+    socket.on('agent:joined', handleAssignment);
+    socket.on('message:new', (data) => {
+      const { ticketId: messageTicketId, sender, content, timestamp } = data;
+      if (messageTicketId !== ticketIdRef.current || sender.type !== 'agent') return;
+      setLiveMessages((previous) => {
+        const duplicate = previous.some((message) => (
+          message.sender.type === 'agent'
+          && message.content === content
+          && message.timestamp === timestamp
+        ));
+        if (duplicate) return previous;
+        return [
+          ...previous,
+          {
+            id: data.messageId || `agent-${Date.now()}`,
+            sender,
+            content,
+            timestamp,
+          },
+        ];
+      });
+    });
+
+    const connect = async () => {
+      try {
+        const statusResponse = await api.get('/support-routing/status');
+        if (!active) return;
+        const onlineCount = statusResponse.data.agents || 0;
+        setAgentsOnline(onlineCount);
+        if (onlineCount < 1) {
+          setPhase('ticket');
+          setConnectionState('offline');
+          return;
+        }
+
+        setPhase('live-chat');
+        setConnectionState('connecting');
+        const response = await api.post('/support-routing/connect');
+        if (!active) return;
+
+        const nextTicketId = response.data.ticketId;
+        ticketIdRef.current = nextTicketId;
+        setTicketId(nextTicketId);
+        setAssignedAgent(response.data.assignedAgent || null);
+        setLiveMessages(normalizeSupportMessages(response.data.messages));
+        setConnectionState(response.data.routedTo === 'agent' ? 'connected' : 'queued');
+        socket.emit('ticket:join', {
+          ticketId: nextTicketId,
+          userId: localStorage.getItem('userId'),
+        });
+      } catch (err) {
+        console.error('Failed to establish live support session:', err);
+        if (active) {
+          setConnectionState('failed');
           setPhase('ticket');
         }
-      } catch (err) {
-        console.error('Failed to check agent availability:', err);
-        setPhase('ticket');
       }
     };
 
-    checkAvailability();
+    connect();
+    return () => {
+      active = false;
+      socket.disconnect();
+      if (socketRef.current === socket) socketRef.current = null;
+    };
   }, []);
 
-  const initiateLiveChat = useCallback(async () => {
-    try {
-      const socket = io(realtimeNamespaceUrl('support'), {
-        transports: ['websocket', 'polling'],
-        reconnection: true,
-      });
+  useEffect(() => {
+    if (!ticketId) return undefined;
 
-      socket.on('connect', () => {
-        socket.emit('customer:join', {
-          userId: localStorage.getItem('userId'),
-          visitorEmail: localStorage.getItem('oxs:visitorEmail'),
-        });
-
-        setLiveMessages([
-          {
-            id: `system-connected-${Date.now()}`,
-            sender: { type: 'system' },
-            content: t('support.escalation.connecting', { defaultValue: 'Connecting you to the next available support specialist…' }),
-            timestamp: new Date().toISOString(),
-          },
-        ]);
-      });
-
-      socket.on('ticket:assigned', (data) => {
-        const { ticketId: nextTicketId, agentName } = data;
-        setTicketId(nextTicketId);
-        setAssignedAgent({ name: agentName });
-        setLiveMessages((prev) => [
-          ...prev,
-          {
-            id: `system-assigned-${Date.now()}`,
-            sender: { type: 'system' },
-            content: `Connected with ${agentName}.`,
-            timestamp: new Date().toISOString(),
-          },
-        ]);
-      });
-
-      socket.on('message:new', (data) => {
-        const { ticketId: msgTicketId, sender, content, timestamp } = data;
-        if (msgTicketId === ticketIdRef.current && sender.type === 'agent') {
-          setLiveMessages((prev) => [
-            ...prev,
-            {
-              id: `agent-${Date.now()}`,
-              sender,
-              content,
-              timestamp,
-            },
-          ]);
-          setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    let active = true;
+    const syncConversation = async () => {
+      try {
+        const response = await api.get(`/support/conversations/${ticketId}`);
+        if (!active) return;
+        const conversation = response.data.data;
+        setLiveMessages(normalizeSupportMessages(conversation.messages));
+        if (conversation.agent_id) {
+          setAssignedAgent({
+            id: conversation.agent_id,
+            name: conversation.agent_name || 'Support specialist',
+          });
+          setConnectionState('connected');
+        } else if (conversation.status === 'waiting_for_agent') {
+          setConnectionState('queued');
         }
-      });
+      } catch (err) {
+        console.error('Failed to refresh support conversation:', err);
+      }
+    };
 
-      socketRef.current = socket;
-    } catch (err) {
-      console.error('Failed to initiate live chat:', err);
-      setPhase('ticket');
-    }
-  }, [t]);
+    const intervalId = window.setInterval(syncConversation, 10000);
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [ticketId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -137,50 +192,19 @@ export default function SupportEscalationPage() {
 
   const handleSendLiveMessage = useCallback(async () => {
     const content = liveInput.trim();
-    if (!content) return;
+    if (!content || !ticketId) return;
 
     setLiveSending(true);
     try {
-      let activeTicketId = ticketId;
-
-      if (!activeTicketId) {
-        const response = await api.post('/support-routing/conversations', {
-          visitorEmail,
-          visitorName,
-          message: content,
-          category: 'support_request',
-          priority: 'normal',
-        });
-        activeTicketId = response.data.ticketId;
-        ticketIdRef.current = activeTicketId;
-        setTicketId(activeTicketId);
-        socketRef.current?.emit('ticket:join', {
-          ticketId: activeTicketId,
-          userId: localStorage.getItem('userId'),
-        });
-
-        if (response.data.routedTo !== 'agent') {
-          setSuccessTicketId(activeTicketId);
-          setPhase('success');
-          return;
-        }
-        setAssignedAgent(response.data.assignedAgent || null);
-      } else {
-        await api.post(`/support/conversations/${activeTicketId}/message`, { message: content });
-        socketRef.current?.emit('message:send', {
-          ticketId: activeTicketId,
-          content,
-          timestamp: new Date().toISOString(),
-        });
-      }
+      const response = await api.post(`/support/conversations/${ticketId}/message`, { message: content });
 
       setLiveMessages((prev) => [
         ...prev,
         {
-          id: `customer-${Date.now()}`,
+          id: response.data.data?.id || `customer-${Date.now()}`,
           sender: { type: 'customer' },
           content,
-          timestamp: new Date().toISOString(),
+          timestamp: response.data.data?.created_at || new Date().toISOString(),
         },
       ]);
       setLiveInput('');
@@ -190,7 +214,7 @@ export default function SupportEscalationPage() {
     } finally {
       setLiveSending(false);
     }
-  }, [liveInput, ticketId, t, visitorEmail, visitorName]);
+  }, [liveInput, ticketId, t]);
 
   const handleSubmitTicket = async (event) => {
     event.preventDefault();
@@ -227,6 +251,24 @@ export default function SupportEscalationPage() {
     if (socketRef.current) socketRef.current.disconnect();
     navigate(-1);
   };
+
+  const supportModeLabel = connectionState === 'connected'
+    ? t('support.escalation.connected', { defaultValue: 'Connected' })
+    : connectionState === 'queued'
+      ? t('support.escalation.queued', { defaultValue: 'Queued' })
+      : t('support.escalation.matching', { defaultValue: 'Matching' });
+  const supportPartyName = assignedAgent?.name
+    || (connectionState === 'queued'
+      ? t('support.escalation.queueName', { defaultValue: 'Support queue' })
+      : t('support.escalation.agentWaiting'));
+  const supportConnectionText = connectionState === 'connected'
+    ? t('support.escalation.connectedStatus', { defaultValue: 'Conversation ready' })
+    : connectionState === 'queued'
+      ? t('support.escalation.queuedStatus', { defaultValue: 'Waiting for the next available specialist' })
+      : t('support.escalation.preparingStatus', { defaultValue: 'Preparing your secure conversation' });
+  const emptyConversationText = connectionState === 'queued'
+    ? t('support.escalation.queuedDescription', { defaultValue: 'Send your issue now. It will be waiting for the specialist who accepts your conversation.' })
+    : t('support.escalation.readyDescription', { defaultValue: 'Send the first message so the specialist sees the issue context immediately.' });
 
   const PageFrame = ({ children }) => (
     <div
@@ -329,7 +371,7 @@ export default function SupportEscalationPage() {
                 <div className="grid gap-3">
                   <StatPill icon={Users} label="Agents online" value={agentsOnline} />
                   <StatPill icon={MessageSquare} label="Conversation type" value="Live chat" />
-                  <StatPill icon={ShieldCheck} label="Support mode" value={assignedAgent ? 'Connected' : 'Matching'} />
+                  <StatPill icon={ShieldCheck} label="Support mode" value={supportModeLabel} />
                 </div>
               )}
             />
@@ -338,13 +380,13 @@ export default function SupportEscalationPage() {
               <section className="rounded-[28px] border overflow-hidden shadow-2xl" style={{ borderColor: 'rgba(148,163,184,0.16)', background: 'rgba(15,23,42,0.82)' }}>
                 <div className="px-6 py-4 border-b border-slate-700/70 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse" />
+                    <div className={`w-3 h-3 rounded-full ${connectionState === 'connected' ? 'bg-green-400' : 'bg-orange-400 animate-pulse'}`} />
                     <div>
                       <p className="text-white font-semibold">
-                        {assignedAgent ? assignedAgent.name : t('support.escalation.agentWaiting')}
+                        {supportPartyName}
                       </p>
                       <p className="text-slate-400 text-xs">
-                        {assignedAgent ? t('support.escalation.agentOnline') : t('support.escalation.connecting')}
+                        {supportConnectionText}
                       </p>
                     </div>
                   </div>
@@ -362,7 +404,10 @@ export default function SupportEscalationPage() {
                     <div className="h-full flex items-center justify-center text-center">
                       <div>
                         <p className="text-slate-300 font-medium">{t('support.escalation.noMessages')}</p>
-                        <p className="text-slate-500 text-sm mt-2">Send the first message so the specialist sees the issue context immediately.</p>
+                        <p className="text-slate-500 text-sm mt-2">{emptyConversationText}</p>
+                        {ticketId && (
+                          <p className="text-slate-600 text-xs mt-3">#{ticketId}</p>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -406,11 +451,11 @@ export default function SupportEscalationPage() {
                     onChange={(event) => setLiveInput(event.target.value)}
                     placeholder={t('support.escalation.messagePlaceholder')}
                     className="flex-1 bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 transition"
-                    disabled={liveSending}
+                    disabled={liveSending || !ticketId}
                   />
                   <button
                     type="submit"
-                    disabled={liveSending || !liveInput.trim()}
+                    disabled={liveSending || !ticketId || !liveInput.trim()}
                     className="bg-orange-600 hover:bg-orange-700 text-white p-3 rounded-2xl transition disabled:opacity-50 flex-shrink-0"
                     aria-label="Send"
                   >

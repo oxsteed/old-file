@@ -5,6 +5,7 @@ const { query, withTransaction } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
+const WebSocketService = require('../services/websocketService');
 
 // Create a new support conversation/ticket
 async function createConversation(req, res) {
@@ -284,15 +285,16 @@ async function addMessage(req, res) {
       const ag = await query('SELECT user_id FROM support_agents WHERE id = $1', [conversation.agent_id]);
       isAssignedAgent = ag.rows.length && ag.rows[0].user_id === req.user.id;
     }
+    let canManageBusiness = false;
     if (req.user.id !== conversation.customer_id && !isAssignedAgent) {
-      const can = await supportEmployerService.userCanManageBusiness(
+      canManageBusiness = await supportEmployerService.userCanManageBusiness(
         conversation.business_id,
         req.user.id
       );
-      if (!can) return sendError(res, 403, 'Access denied');
+      if (!canManageBusiness) return sendError(res, 403, 'Access denied');
     }
 
-    const isAgent = isAssignedAgent;
+    const isAgent = isAssignedAgent || canManageBusiness || ['admin', 'super_admin'].includes(req.user.role);
 
     // Add message
     const result = await query(
@@ -307,9 +309,19 @@ async function addMessage(req, res) {
     const countCol = isAgent ? 'agent_message_count' : 'customer_message_count';
     await query(
       `UPDATE support_conversations
-       SET message_count = message_count + 1, ${countCol} = ${countCol} + 1
+       SET message_count = message_count + 1,
+           ${countCol} = ${countCol} + 1,
+           updated_at = NOW(),
+           first_response_at = CASE
+             WHEN $2::boolean AND first_response_at IS NULL THEN NOW()
+             ELSE first_response_at
+           END,
+           status = CASE
+             WHEN $2::boolean AND status IN ('open', 'waiting_for_agent') THEN 'in_progress'
+             ELSE status
+           END
        WHERE id = $1`,
-      [conversationId]
+      [conversationId, isAgent]
     );
 
     // Auto-transition status if customer sends message while waiting_for_customer
@@ -324,6 +336,21 @@ async function addMessage(req, res) {
       conversationId,
       isAgent,
       messageType
+    });
+
+    WebSocketService.broadcastToTicket(conversationId, 'message:new', {
+      messageId: result.rows[0].id,
+      ticketId: conversationId,
+      sender: {
+        type: isAgent ? 'agent' : 'customer',
+        id: req.user.id,
+        name: req.user.name
+          || [req.user.first_name, req.user.last_name].filter(Boolean).join(' ').trim()
+          || req.user.email
+          || (isAgent ? 'Support specialist' : 'Customer'),
+      },
+      content,
+      timestamp: result.rows[0].created_at,
     });
 
     res.json({ success: true, data: result.rows[0] });

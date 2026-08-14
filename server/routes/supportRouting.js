@@ -21,6 +21,17 @@ async function resolveSupportBusinessId(req) {
 
 router.get('/status', requireAuth, supportRoutingController.getStatus);
 
+router.post('/connect', requireAuth, async (req, res, next) => {
+  try {
+    const businessId = await resolveSupportBusinessId(req);
+    if (!businessId) return res.status(400).json({ error: 'No support business is available' });
+    req.params.businessId = businessId;
+    return supportRoutingController.connectConversation(req, res, next);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/conversations', requireAuth, async (req, res, next) => {
   try {
     const businessId = await resolveSupportBusinessId(req);

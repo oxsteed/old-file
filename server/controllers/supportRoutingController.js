@@ -9,10 +9,209 @@ const { sendError, sendValidationError } = require('../utils/apiError');
 const SupportRoutingService = require('../services/supportRoutingService');
 const WebSocketService = require('../services/websocketService');
 
+function assignedAgentFromRow(row) {
+  if (!row?.agent_id) return null;
+  const name = [row.agent_first_name, row.agent_last_name].filter(Boolean).join(' ').trim();
+  return {
+    id: row.agent_id,
+    name: name || row.agent_name || row.agent_email || 'Support specialist',
+    email: row.agent_email || null,
+  };
+}
+
+async function loadConversationMessages(ticketId) {
+  const { rows } = await pool.query(
+    `SELECT id, sender_id, content, message_type, is_agent, created_at
+     FROM support_conversation_messages
+     WHERE conversation_id = $1
+     ORDER BY created_at ASC`,
+    [ticketId]
+  );
+  return rows;
+}
+
+async function findOrCreateActiveConversation({ customerId, businessId, category, priority }) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      'SELECT pg_advisory_xact_lock(hashtext($1::text), hashtext($2::text))',
+      [customerId, businessId]
+    );
+
+    const existingResult = await client.query(
+      `SELECT
+         sc.id, sc.status, sc.agent_id,
+         au.name AS agent_name,
+         au.first_name AS agent_first_name,
+         au.last_name AS agent_last_name,
+         au.email AS agent_email
+       FROM support_conversations sc
+       LEFT JOIN support_agents sa ON sa.id = sc.agent_id
+       LEFT JOIN users au ON au.id = sa.user_id
+       WHERE sc.customer_id = $1
+         AND sc.business_id = $2
+         AND sc.status IN ('open', 'in_progress', 'waiting_for_customer', 'waiting_for_agent')
+       ORDER BY sc.updated_at DESC, sc.created_at DESC
+       LIMIT 1`,
+      [customerId, businessId]
+    );
+
+    let conversation = existingResult.rows[0] || null;
+    if (!conversation) {
+      const { rows } = await client.query(
+        `INSERT INTO support_conversations (
+           customer_id, business_id, subject, description, category, priority, status, created_at, updated_at
+         ) VALUES ($1, $2, $3, $4, $5, $6, 'open', NOW(), NOW())
+         RETURNING id, status, agent_id`,
+        [
+          customerId,
+          businessId,
+          'Live Support Request',
+          'Customer opened live support.',
+          category,
+          priority,
+        ]
+      );
+      conversation = rows[0];
+    }
+
+    await client.query('COMMIT');
+    return { conversation, resumed: existingResult.rows.length > 0 };
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function routeConversation({ ticketId, customerId, businessId, category, message, priority, visitorName, visitorEmail }) {
+  const routing = await SupportRoutingService.routeTicket({
+    customerId,
+    businessId,
+    category,
+    message,
+    priority,
+  });
+
+  const response = {
+    ticketId,
+    routedTo: routing.routedTo,
+    confidence: routing.confidence,
+  };
+
+  if (routing.routedTo === 'agent' && routing.agentId) {
+    await pool.query(
+      `UPDATE support_conversations
+       SET agent_id = $1, status = 'in_progress', assigned_at = COALESCE(assigned_at, NOW()), updated_at = NOW()
+       WHERE id = $2`,
+      [routing.agentId, ticketId]
+    );
+
+    response.assignedAgent = {
+      id: routing.agent.id,
+      name: [routing.agent.first_name, routing.agent.last_name].filter(Boolean).join(' ').trim()
+        || routing.agent.email
+        || 'Support specialist',
+      email: routing.agent.email || null,
+    };
+
+    WebSocketService.notifyAgent(routing.agentId, 'ticket:new-assignment', {
+      ticketId,
+      customerName: visitorName,
+      customerEmail: visitorEmail,
+      category,
+      message,
+      timestamp: new Date().toISOString(),
+    });
+  } else {
+    await pool.query(
+      `UPDATE support_conversations
+       SET status = 'waiting_for_agent', updated_at = NOW()
+       WHERE id = $1`,
+      [ticketId]
+    );
+    await pool.query(
+      `INSERT INTO support_queue (business_id, conversation_id, priority, status, queued_at)
+       VALUES ($1, $2, $3, 'waiting', NOW())
+       ON CONFLICT DO NOTHING`,
+      [businessId, ticketId, priority]
+    );
+    response.routedTo = 'queue';
+    response.message = 'Your request is in the support queue. An agent will help you shortly.';
+  }
+
+  WebSocketService.broadcastToAdmins('ticket:created', {
+    ticketId,
+    customer: { id: customerId, name: visitorName, email: visitorEmail },
+    category,
+    priority,
+    routedTo: response.routedTo,
+    timestamp: new Date().toISOString(),
+  });
+
+  return response;
+}
+
+// Establish or resume the signed-in customer's live support session. This is
+// intentionally idempotent so refreshes and React Strict Mode cannot create
+// duplicate empty tickets.
+exports.connectConversation = async (req, res) => {
+  try {
+    const customerId = req.user.id;
+    const businessId = req.params.businessId;
+    const category = 'support_request';
+    const priority = 'normal';
+    const visitorName = req.user.name
+      || [req.user.first_name, req.user.last_name].filter(Boolean).join(' ').trim()
+      || req.user.email
+      || 'Customer';
+    const visitorEmail = req.user.email || null;
+
+    const { conversation: existing, resumed } = await findOrCreateActiveConversation({
+      customerId,
+      businessId,
+      category,
+      priority,
+    });
+    if (existing?.agent_id) {
+      return res.json({
+        ticketId: existing.id,
+        routedTo: 'agent',
+        resumed,
+        assignedAgent: assignedAgentFromRow(existing),
+        messages: await loadConversationMessages(existing.id),
+      });
+    }
+
+    const ticketId = existing.id;
+
+    const response = await routeConversation({
+      ticketId,
+      customerId,
+      businessId,
+      category,
+      message: 'Customer requested live support.',
+      priority,
+      visitorName,
+      visitorEmail,
+    });
+
+    response.resumed = resumed;
+    response.messages = await loadConversationMessages(ticketId);
+    return res.json(response);
+  } catch (err) {
+    logger.error('Connect support conversation error', { error: err.message, userId: req.user?.id });
+    return sendError(res, 500, 'Failed to connect to support');
+  }
+};
+
 // Create support conversation (customer initiates)
 exports.createConversation = async (req, res) => {
   try {
-    const { customerId, visitorEmail, visitorName, message, category, priority } = req.body;
+    const { visitorEmail, visitorName, message, category, priority } = req.body;
+    const customerId = req.user.id;
     const businessId = req.params.businessId;
 
     // Validate input
