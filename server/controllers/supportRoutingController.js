@@ -42,7 +42,10 @@ async function findOrCreateActiveConversation({ customerId, businessId, category
     const existingResult = await client.query(
       `SELECT
          sc.id, sc.status, sc.agent_id,
-         au.name AS agent_name,
+         COALESCE(
+           NULLIF(BTRIM(CONCAT_WS(' ', au.first_name, au.last_name)), ''),
+           au.email
+         ) AS agent_name,
          au.first_name AS agent_first_name,
          au.last_name AS agent_last_name,
          au.email AS agent_email
