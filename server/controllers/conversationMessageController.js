@@ -29,14 +29,26 @@ async function markAsRead(req, res) {
   try {
     const { messageId } = req.params;
 
+    const existing = await query(
+      'SELECT * FROM support_conversation_messages WHERE id = $1',
+      [messageId]
+    );
+    if (!existing.rows.length) return sendError(res, 404, 'Message not found');
+
+    const message = existing.rows[0];
+
+    // Only the recipient (i.e. not the original sender) may mark a message as read.
+    if (message.sender_id === req.user.id) {
+      return sendError(res, 403, 'Access denied');
+    }
+
     const result = await query(
       `UPDATE support_conversation_messages
        SET read_by_recipient = true, read_at = CURRENT_TIMESTAMP, status = 'read'
-       WHERE id = $1 RETURNING *`,
+       WHERE id = $1
+       RETURNING *`,
       [messageId]
     );
-
-    if (!result.rows.length) return sendError(res, 404, 'Message not found');
 
     const msg = result.rows[0];
     broadcastToConversation(msg.conversation_id, 'message_read', {
@@ -54,13 +66,21 @@ async function markAsRead(req, res) {
 async function deleteMessage(req, res) {
   try {
     const { messageId } = req.params;
-
     const msg = await query(
       'SELECT * FROM support_conversation_messages WHERE id = $1',
       [messageId]
     );
 
     if (!msg.rows.length) return sendError(res, 404, 'Message not found');
+
+    const message = msg.rows[0];
+
+    // Only the original sender (or a platform admin) may delete their own message.
+    const isOwner = message.sender_id === req.user.id;
+    const isPlatformAdmin = ['admin', 'super_admin'].includes(req.user.role);
+    if (!isOwner && !isPlatformAdmin) {
+      return sendError(res, 403, 'Access denied');
+    }
 
     await query(
       'DELETE FROM support_conversation_messages WHERE id = $1',
@@ -69,12 +89,12 @@ async function deleteMessage(req, res) {
 
     await query(
       'UPDATE support_conversations SET message_count = message_count - 1 WHERE id = $1',
-      [msg.rows[0].conversation_id]
+      [message.conversation_id]
     );
 
-    broadcastToConversation(msg.rows[0].conversation_id, 'message_deleted', { messageId });
+    broadcastToConversation(message.conversation_id, 'message_deleted', { messageId });
 
-    res.json({ success: true, data: msg.rows[0] });
+    res.json({ success: true, data: message });
   } catch (err) {
     logger.error('deleteMessage error', { error: err.message });
     sendError(res, 500, 'Failed to delete message');
@@ -90,14 +110,28 @@ async function editMessage(req, res) {
       return sendValidationError(res, { content: 'Required' });
     }
 
+    const existing = await query(
+      'SELECT * FROM support_conversation_messages WHERE id = $1',
+      [messageId]
+    );
+    if (!existing.rows.length) return sendError(res, 404, 'Message not found');
+
+    const message = existing.rows[0];
+
+    // Only the original sender (or a platform admin) may edit their own message.
+    const isOwner = message.sender_id === req.user.id;
+    const isPlatformAdmin = ['admin', 'super_admin'].includes(req.user.role);
+    if (!isOwner && !isPlatformAdmin) {
+      return sendError(res, 403, 'Access denied');
+    }
+
     const result = await query(
       `UPDATE support_conversation_messages
        SET content = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2 RETURNING *`,
+       WHERE id = $2
+       RETURNING *`,
       [content, messageId]
     );
-
-    if (!result.rows.length) return sendError(res, 404, 'Message not found');
 
     broadcastToConversation(result.rows[0].conversation_id, 'message_edited', {
       messageId: result.rows[0].id,
@@ -149,7 +183,6 @@ async function addAttachment(req, res) {
 async function getUnreadCount(req, res) {
   try {
     const { conversationId } = req.params;
-
     const result = await query(
       `SELECT COUNT(*) as unread_count
        FROM support_conversation_messages
@@ -167,7 +200,6 @@ async function getUnreadCount(req, res) {
 async function markAllAsRead(req, res) {
   try {
     const { conversationId } = req.params;
-
     await query(
       `UPDATE support_conversation_messages
        SET read_by_recipient = true, read_at = CURRENT_TIMESTAMP, status = 'read'
@@ -175,9 +207,7 @@ async function markAllAsRead(req, res) {
       [conversationId, req.user.id]
     );
 
-    broadcastToConversation(conversationId, 'all_messages_read', {
-      userId: req.user.id
-    });
+    broadcastToConversation(conversationId, 'all_messages_read', { userId: req.user.id });
 
     res.json({ success: true, data: { status: 'all marked as read' } });
   } catch (err) {
@@ -189,7 +219,6 @@ async function markAllAsRead(req, res) {
 async function sendTypingIndicator(req, res) {
   try {
     const { conversationId } = req.params;
-
     broadcastToConversation(conversationId, 'typing_indicator', {
       userId: req.user.id,
       isTyping: true
@@ -203,6 +232,12 @@ async function sendTypingIndicator(req, res) {
 }
 
 module.exports = {
-  getMessages, markAsRead, deleteMessage, editMessage, addAttachment,
-  getUnreadCount, markAllAsRead, sendTypingIndicator
+  getMessages,
+  markAsRead,
+  deleteMessage,
+  editMessage,
+  addAttachment,
+  getUnreadCount,
+  markAllAsRead,
+  sendTypingIndicator
 };
