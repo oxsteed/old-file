@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS ab_test_assignments (
   converted_at TIMESTAMP WITH TIME ZONE,
 
   -- Revenue tracking
-  order_id UUID REFERENCES marketplace_orders(id),
+  order_id BIGINT REFERENCES marketplace_orders(id),
   revenue_cents BIGINT,
 
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
