@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS knowledge_base_categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   category_name VARCHAR(100) NOT NULL,
   slug VARCHAR(100) NOT NULL,
   description TEXT,
@@ -19,7 +19,7 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_base_categories_business ON knowledge_b
 -- Knowledge base articles
 CREATE TABLE IF NOT EXISTS knowledge_base_articles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   category_id UUID NOT NULL REFERENCES knowledge_base_categories(id) ON DELETE SET NULL,
   title VARCHAR(500) NOT NULL,
   slug VARCHAR(500) NOT NULL,
