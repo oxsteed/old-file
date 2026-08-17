@@ -46,9 +46,10 @@ ALTER TABLE IF EXISTS affiliate_payouts ADD COLUMN IF NOT EXISTS notes TEXT;
 CREATE INDEX IF NOT EXISTS idx_affiliate_payouts_payout_method_id ON affiliate_payouts(payout_method_id);
 
 -- Track payout history and status changes
+-- Note: affiliate_payouts.id is BIGSERIAL (BIGINT), so payout_id here must be BIGINT to match
 CREATE TABLE IF NOT EXISTS payout_transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  payout_id UUID NOT NULL REFERENCES affiliate_payouts(id) ON DELETE CASCADE,
+  payout_id BIGINT NOT NULL REFERENCES affiliate_payouts(id) ON DELETE CASCADE,
   transaction_status VARCHAR(50) NOT NULL, -- 'initiated', 'processing', 'completed', 'failed', 'refunded'
   external_transaction_id VARCHAR(255),
   failure_reason TEXT,
@@ -63,7 +64,7 @@ CREATE INDEX IF NOT EXISTS idx_payout_transactions_status ON payout_transactions
 CREATE TABLE IF NOT EXISTS payout_reconciliation (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   helper_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  payout_id UUID REFERENCES affiliate_payouts(id),
+  payout_id BIGINT REFERENCES affiliate_payouts(id),
   bank_amount_cents BIGINT NOT NULL,
   bank_date DATE NOT NULL,
   bank_reference VARCHAR(255),
