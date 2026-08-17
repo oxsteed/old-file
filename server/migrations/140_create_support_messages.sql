@@ -15,6 +15,12 @@ CREATE TABLE IF NOT EXISTS support_messages (
   deleted_at TIMESTAMP
 );
 
+-- Add missing columns if table already existed with different schema
+ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS message_type VARCHAR(50) DEFAULT 'text';
+ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS metadata JSONB;
+ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP DEFAULT NOW() + INTERVAL '180 days';
+ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+
 -- Indexes for efficient querying
 CREATE INDEX idx_support_messages_ticket_id ON support_messages(ticket_id);
 CREATE INDEX idx_support_messages_expires_at ON support_messages(expires_at);
